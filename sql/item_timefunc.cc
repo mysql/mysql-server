@@ -1797,9 +1797,9 @@ void Item_char_typecast::print(String *str)
   {
     str->append('(');
     char buffer[20];
-    // latin1 is good enough for numbers
-    String st(buffer, sizeof(buffer), &my_charset_latin1);
-    st.set((ulonglong)cast_length, &my_charset_latin1);
+    // my_charset_bin is good enough for numbers
+    String st(buffer, sizeof(buffer), &my_charset_bin);
+    st.set((ulonglong)cast_length, &my_charset_bin);
     str->append(st);
     str->append(')');
   }

@@ -335,6 +335,14 @@ const char *sql_mode_str="OFF";
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+/* classes for comparation parsing/processing */
+Eq_creator eq_creator;
+Ne_creator ne_creator;
+Gt_creator gt_creator;
+Lt_creator lt_creator;
+Ge_creator ge_creator;
+Le_creator le_creator;
+
 
 FILE *bootstrap_file;
 

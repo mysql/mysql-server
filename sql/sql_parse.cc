@@ -4636,39 +4636,39 @@ bool check_simple_select()
 }
 
 
-compare_func_creator comp_eq_creator(bool invert)
+Comp_creator *comp_eq_creator(bool invert)
 {
-  return invert?&Item_bool_func2::ne_creator:&Item_bool_func2::eq_creator;
+  return invert?(Comp_creator *)&ne_creator:(Comp_creator *)&eq_creator;
 }
 
 
-compare_func_creator comp_ge_creator(bool invert)
+Comp_creator *comp_ge_creator(bool invert)
 {
-  return invert?&Item_bool_func2::lt_creator:&Item_bool_func2::ge_creator;
+  return invert?(Comp_creator *)&lt_creator:(Comp_creator *)&ge_creator;
 }
 
 
-compare_func_creator comp_gt_creator(bool invert)
+Comp_creator *comp_gt_creator(bool invert)
 {
-  return invert?&Item_bool_func2::le_creator:&Item_bool_func2::gt_creator;
+  return invert?(Comp_creator *)&le_creator:(Comp_creator *)&gt_creator;
 }
 
 
-compare_func_creator comp_le_creator(bool invert)
+Comp_creator *comp_le_creator(bool invert)
 {
-  return invert?&Item_bool_func2::gt_creator:&Item_bool_func2::le_creator;
+  return invert?(Comp_creator *)&gt_creator:(Comp_creator *)&le_creator;
 }
 
 
-compare_func_creator comp_lt_creator(bool invert)
+Comp_creator *comp_lt_creator(bool invert)
 {
-  return invert?&Item_bool_func2::ge_creator:&Item_bool_func2::lt_creator;
+  return invert?(Comp_creator *)&ge_creator:(Comp_creator *)&lt_creator;
 }
 
 
-compare_func_creator comp_ne_creator(bool invert)
+Comp_creator *comp_ne_creator(bool invert)
 {
-  return invert?&Item_bool_func2::eq_creator:&Item_bool_func2::ne_creator;
+  return invert?(Comp_creator *)&eq_creator:(Comp_creator *)&ne_creator;
 }
 
 

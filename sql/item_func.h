@@ -125,7 +125,7 @@ public:
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   void print(String *str);
   void print_op(String *str);
-  void print_args(String *str);
+  void print_args(String *str, uint from);
   void fix_num_length_and_dec();
   inline bool get_arg0_date(TIME *ltime,bool fuzzy_date)
   {

@@ -27,8 +27,6 @@ class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
 
-typedef Item_bool_func2* (*compare_func_creator)(Item*, Item*);
-
 /* base class for subselects */
 
 class Item_subselect :public Item_result_field
@@ -210,7 +208,7 @@ public:
   }
   trans_res select_transformer(JOIN *join);
   trans_res single_value_transformer(JOIN *join,
-				     compare_func_creator func);
+				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
   longlong val_int();
   double val();
@@ -229,12 +227,12 @@ public:
 class Item_allany_subselect :public Item_in_subselect
 {
 protected:
-  compare_func_creator func;
+  Comp_creator *func;
 
 public:
   bool all;
 
-  Item_allany_subselect(Item * left_expr, compare_func_creator f,
+  Item_allany_subselect(Item * left_expr, Comp_creator *f,
 		     st_select_lex *select_lex, bool all);
 
   // only ALL subquery has upper not

@@ -59,27 +59,38 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
-Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
+
+Item_bool_func2* Eq_creator::create(Item *a, Item *b) const
 {
   return new Item_func_eq(a, b);
 }
-Item_bool_func2* Item_bool_func2::ne_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Ne_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ne(a, b);
 }
-Item_bool_func2* Item_bool_func2::gt_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Gt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_gt(a, b);
 }
-Item_bool_func2* Item_bool_func2::lt_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Lt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_lt(a, b);
 }
-Item_bool_func2* Item_bool_func2::ge_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Ge_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ge(a, b);
 }
-Item_bool_func2* Item_bool_func2::le_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 {
   return new Item_func_le(a, b);
 }
@@ -1549,12 +1560,7 @@ void Item_func_in::print(String *str)
   str->append('(');
   args[0]->print(str);
   str->append(" in (", 5);
-  for (uint i=1 ; i < arg_count ; i++)
-  {
-    if (i > 1)
-      str->append(',');
-    args[i]->print(str);
-  }
+  print_args(str, 1);
   str->append("))", 2);
 }
 

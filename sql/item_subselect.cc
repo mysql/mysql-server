@@ -440,7 +440,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 }
 
 Item_allany_subselect::Item_allany_subselect(Item * left_exp,
-					     compare_func_creator fn,
+					     Comp_creator *fn,
 					     st_select_lex *select_lex,
 					     bool all_arg)
   :Item_in_subselect(), all(all_arg)
@@ -542,7 +542,7 @@ String *Item_in_subselect::val_str(String *str)
 
 Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
-					    compare_func_creator func)
+					    Comp_creator *func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
@@ -558,11 +558,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
 
   if ((abort_on_null || (upper_not && upper_not->top_level())) &&
-      !select_lex->master_unit()->dependent &&
-      (func == &Item_bool_func2::gt_creator ||
-       func == &Item_bool_func2::lt_creator ||
-       func == &Item_bool_func2::ge_creator ||
-       func == &Item_bool_func2::le_creator))
+      !select_lex->master_unit()->dependent && !func->eqne_op())
   {
     if (substitution)
     {
@@ -577,8 +573,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     {
       Item *item;
       subs_type type= substype();
-      if (func == &Item_bool_func2::le_creator ||
-	  func == &Item_bool_func2::lt_creator)
+      if (func->l_op())
       {
 	/*
 	  (ALL && (> || =>)) || (ANY && (< || =<))
@@ -609,9 +604,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       // remove LIMIT placed  by ALL/ANY subquery
       select_lex->master_unit()->global_parameters->select_limit=
 	HA_POS_ERROR;
-      subs= new Item_maxmin_subselect(this, select_lex,
-				      (func == &Item_bool_func2::le_creator ||
-				       func == &Item_bool_func2::lt_creator));
+      subs= new Item_maxmin_subselect(this, select_lex, func->l_op());
     }
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex.current_select, *up;
@@ -622,7 +615,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
-    substitution= (*func)(left_expr, subs);
+    substitution= func->create(left_expr, subs);
     DBUG_RETURN(RES_OK);
   }
 
@@ -662,11 +655,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (join->having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
   {
-    item= (*func)(expr,
-		  new Item_ref_null_helper(this,
-					   select_lex->ref_pointer_array,
-					   (char *)"<ref>",
-					   this->full_name()));
+    item= func->create(expr,
+		       new Item_ref_null_helper(this,
+						select_lex->ref_pointer_array,
+						(char *)"<ref>",
+						this->full_name()));
     join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
     if (join->having->fix_fields(thd, join->tables_list, &join->having))
@@ -685,7 +678,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (select_lex->table_list.elements)
     {
       Item *having= item, *isnull= item;
-      item= (*func)(expr, item);
+      item= func->create(expr, item);
       if (!abort_on_null)
       {
 	having= new Item_is_not_null_test(this, having);
@@ -711,10 +704,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     {
       if (select_lex->master_unit()->first_select()->next_select())
       {
-	join->having= (*func)(expr, 
-			      new Item_null_helper(this, item,
-						   (char *)"<no matter>",
-						   (char *)"<result>"));
+	join->having= func->create(expr, 
+				   new Item_null_helper(this, item,
+							(char *)"<no matter>",
+							(char *)"<result>"));
 	select_lex->having_fix_field= 1;
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
@@ -726,7 +719,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       else
       {
 	// it is single select without tables => possible optimization
-	item= (*func)(left_expr, item);
+	item= func->create(left_expr, item);
 	// fix_field of item will be done in time of substituting 
 	substitution= item;
 	have_to_be_excluded= 1;
@@ -793,11 +786,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 					 (char *) "<no matter>",
 					 (char *) "<list ref>");
     func=
-      Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
-					       addr(i), 
-					       (char *)"<no matter>",
-					       (char *)in_left_expr_name),
-				  func);
+      eq_creator.create(new Item_ref((*optimizer->get_cache())->
+				     addr(i), 
+				     (char *)"<no matter>",
+				     (char *)in_left_expr_name),
+			func);
     item= and_items(item, func);
   }
 
@@ -829,8 +822,7 @@ Item_in_subselect::select_transformer(JOIN *join)
 {
   transformed= 1;
   if (left_expr->cols() == 1)
-    return single_value_transformer(join,
-				    &Item_bool_func2::eq_creator);
+    return single_value_transformer(join, &eq_creator);
   return row_value_transformer(join);
 }
 
@@ -866,46 +858,8 @@ void Item_allany_subselect::print(String *str)
   {
     left_expr->print(str);
     str->append(' ');
-    if (all)
-    {
-      if (func ==  &Item_bool_func2::lt_creator)
-	str->append(">=", 2);
-      else if (func ==  &Item_bool_func2::gt_creator)
-	str->append("<=", 2);
-      else if (func ==  &Item_bool_func2::le_creator)
-	str->append('>');
-      else if (func ==  &Item_bool_func2::ge_creator)
-	str->append('<');
-      else if (func ==  &Item_bool_func2::eq_creator)
-	str->append("<>", 2);
-      else if (func ==  &Item_bool_func2::ne_creator)
-	str->append('=');
-      else
-      {
-	DBUG_ASSERT(0);  // Impossible
-      }
-      str->append(" all ", 5);
-    }
-    else
-    {
-      if (func ==  &Item_bool_func2::lt_creator)
-	str->append('<');
-      else if (func ==  &Item_bool_func2::gt_creator)
-	str->append('>');
-      else if (func ==  &Item_bool_func2::le_creator)
-	str->append("<=", 2);
-      else if (func ==  &Item_bool_func2::ge_creator)
-	str->append(">=", 2);
-      else if (func ==  &Item_bool_func2::eq_creator)
-	str->append('=');
-      else if (func ==  &Item_bool_func2::ne_creator)
-	str->append("<>", 2);
-      else
-      {
-	DBUG_ASSERT(0);  // Impossible
-      }
-      str->append(" any ", 5);
-    }
+    str->append(func->symbol(all));
+    str->append(all ? " all " : " any ", 5);
   }
   Item_subselect::print(str);
 }

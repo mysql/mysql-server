@@ -455,21 +455,21 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 String *Item_int::val_str(String *str)
 {
-  str->set(value, default_charset());
+  str->set(value, &my_charset_bin);
   return str;
 }
 
 void Item_int::print(String *str)
 {
-  // latin1 is good enough for numbers
-  str_value.set(value, &my_charset_latin1);
+  // my_charset_bin is good enough for numbers
+  str_value.set(value, &my_charset_bin);
   str->append(str_value);
 }
 
 
 String *Item_uint::val_str(String *str)
 {
-  str->set((ulonglong) value, default_charset());
+  str->set((ulonglong) value, &my_charset_bin);
   return str;
 }
 
@@ -484,7 +484,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
-  str->set(value,decimals,default_charset());
+  str->set(value,decimals,&my_charset_bin);
   return str;
 }
 
@@ -494,40 +494,7 @@ void Item_string::print(String *str)
   str->append('_');
   str->append(collation.collation->csname);
   str->append('\'');
-  char *st= (char*)str_value.ptr(), *end= st+str_value.length();
-  for(; st < end; st++)
-  {
-    uchar c= *st;
-    switch (c)
-    {
-    case '\\':
-      str->append("\\\\", 2);
-      break;
-    case '\0':
-      str->append("\\0", 2);
-      break;
-    case '\'':
-      str->append("\\'", 2);
-      break;
-    case '\n':
-      str->append("\\n", 2);
-      break;
-    case '\r':
-      str->append("\\r", 2);
-      break;
-    case '\t':
-      str->append("\\t", 2);
-      break;
-    case '\b':
-      str->append("\\b", 2);
-      break;
-    case 26: //Ctrl-Z
-      str->append("\\z", 2);
-      break;
-    default:
-      str->append(c);
-    }
-  }
+  str_value.print(str);
   str->append('\'');
 }
 
