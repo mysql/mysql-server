@@ -7,7 +7,7 @@ Created 5/27/1996 Heikki Tuuri
 *******************************************************/
 
 #include "que0que.h"
-
+ 
 #ifdef UNIV_NONINL
 #include "que0que.ic"
 #endif
