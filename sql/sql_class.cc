@@ -538,7 +538,6 @@ select_export::~select_export()
 int
 select_export::prepare(List<Item> &list)
 {
-  char path[FN_REFLEN];
   uint option=4;
   bool blob_flag=0;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
@@ -739,9 +738,13 @@ err:
 void select_export::send_error(uint errcode,const char *err)
 {
   ::send_error(&thd->net,errcode,err);
-  (void) end_io_cache(&cache);
-  (void) my_close(file,MYF(0));
-  file= -1;
+  if (file > 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    (void) my_delete(path,MYF(0));		// Delete file on error
+    file= -1;
+  }
 }
 
 
@@ -849,10 +852,13 @@ err:
 void select_dump::send_error(uint errcode,const char *err)
 {
   ::send_error(&thd->net,errcode,err);
-  (void) end_io_cache(&cache);
-  (void) my_close(file,MYF(0));
-  (void) my_delete(path,MYF(0));		// Delete file on error
-  file= -1;
+  if (file > 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    (void) my_delete(path,MYF(0));		// Delete file on error
+    file= -1;
+  }
 }
 
 

@@ -665,11 +665,13 @@ class select_export :public select_result {
   File file;
   IO_CACHE cache;
   ha_rows row_count;
+  char path[FN_REFLEN];
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
   bool fixed_row_size;
 public:
-  select_export(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L) {}
+  select_export(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L)
+  { path[0]=0; }
   ~select_export();
   int prepare(List<Item> &list);
   bool send_fields(List<Item> &list,
