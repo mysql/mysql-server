@@ -46913,6 +46913,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
+Fixed some buffer overflow problems when reading startup parameters.
+@item
 Because of problems on shutdown we have now disabled named pipes on
 windows by default.  One can enable this with by starting mysqld with
 @code{--enable-named-pipe}.
