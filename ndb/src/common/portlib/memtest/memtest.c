@@ -17,8 +17,7 @@
 
 
 #include <ndb_global.h>
-#include <sys/time.h>
-#include <sys/mman.h>
+
 long long getMilli();
 long long getMicro();
 void malloctest(int loopcount, int memsize, int touch);
