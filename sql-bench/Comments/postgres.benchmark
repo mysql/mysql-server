@@ -1,5 +1,14 @@
-# This file describes how to run MySQL benchmarks with Postgres
-# 
+# This file describes how to run MySQL benchmarks with PostgreSQL
+#
+# WARNING:
+#
+# Don't run the --fast test on a PostgreSQL 7.1.1 database on
+# which you have any critical data; During one of our test runs
+# PostgreSQL got a corrupted database and all data was destroyed!
+# (When we tried to restart postmaster, It died with a
+# 'no such file or directory' error and never recovered from that!
+#
+# WARNING
 
 # The test was run on a Intel Xeon 2x 550 Mzh machine with 1G memory,
 # 9G hard disk.  The OS is Suse 6.4, with Linux 2.2.14 compiled with SMP
@@ -8,8 +17,6 @@
 # on the same machine. No other cpu intensive process was used during
 # the benchmark.
 
-#
-#
 # First, install postgresql-7.1.1.tar.gz
 
 # Adding the following lines to your ~/.bash_profile or
@@ -27,7 +34,10 @@ MANPATH=$MANPATH:/usr/local/pg/man
 #
 
 /usr/local/pg/lib
-and run ldconfig.
+
+# and run:
+
+ldconfig
 
 # untar the postgres source distribution,  cd to postgresql-*
 # and run the following commands:
