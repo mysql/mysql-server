@@ -162,7 +162,7 @@ in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
-ulint	srv_max_buf_pool_modified_pct	= 100;
+ulint	srv_max_buf_pool_modified_pct	= 90;
 
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
@@ -2361,6 +2361,19 @@ srv_sprintf_innodb_monitor(
 
 		if (buf_end - buf > 6000) {
 			buf+= sprintf(buf, "%.4000s", dict_foreign_err_buf);
+		}
+	}	
+
+	ut_a(buf < buf_end + 1500);
+
+	if (*dict_unique_err_buf != '\0') {
+		buf += sprintf(buf,
+"---------------------------------------------------------------\n"
+"LATEST UNIQUE KEY ERROR (is masked in REPLACE or INSERT IGNORE)\n"
+"---------------------------------------------------------------\n");
+
+		if (buf_end - buf > 6000) {
+			buf+= sprintf(buf, "%.4000s", dict_unique_err_buf);
 		}
 	}	
 

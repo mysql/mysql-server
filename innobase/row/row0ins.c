@@ -1263,6 +1263,48 @@ row_ins_check_foreign_constraints(
 	return(DB_SUCCESS);
 }
 
+/*************************************************************************
+Reports a UNIQUE key error to dict_unique_err_buf so that SHOW INNODB
+STATUS can print it. */
+static
+void
+row_ins_unique_report_err(
+/*======================*/
+	que_thr_t*	thr,	/* in: query thread */
+	rec_t*		rec,	/* in: a record in the index */
+	dtuple_t*	entry,	/* in: index entry to insert in the index */
+	dict_index_t*	index)	/* in: index */
+{
+	char*	buf	= dict_unique_err_buf;
+
+	/* The foreign err mutex protects also dict_unique_err_buf */
+
+	mutex_enter(&dict_foreign_err_mutex);
+
+	ut_sprintf_timestamp(buf);
+	sprintf(buf + strlen(buf), " Transaction:\n");
+	trx_print(buf + strlen(buf), thr_get_trx(thr));			
+
+	sprintf(buf + strlen(buf),
+"Unique key constraint fails for table %.500s.\n", index->table_name);
+	sprintf(buf + strlen(buf),
+"Trying to add in index %.500s (%lu fields unique) tuple:\n", index->name,
+	  				dict_index_get_n_unique(index));
+		
+	dtuple_sprintf(buf + strlen(buf), 1000, entry);
+
+	sprintf(buf + strlen(buf),
+"\nBut there is already a record:\n");
+
+	rec_sprintf(buf + strlen(buf), 1000, rec);
+
+	sprintf(buf + strlen(buf), "\n");
+
+	ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+	mutex_exit(&dict_foreign_err_mutex);
+}
+
 /*******************************************************************
 Checks if a unique key violation to rec would occur at the index entry
 insert. */
@@ -1393,10 +1435,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 		if (cmp == 0) {
 			if (row_ins_dupl_error_with_rec(rec, entry, index)) {
-				/* printf("Duplicate key in index %s\n",
-				     				index->name);
-				dtuple_print(entry); */
-
+				row_ins_unique_report_err(thr, rec, entry,
+								   index);
 				err = DB_DUPLICATE_KEY;
 
 				thr_get_trx(thr)->error_info = index;
@@ -1491,7 +1531,8 @@ row_ins_duplicate_error_in_clust(
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							cursor->index)) {
 				trx->error_info = cursor->index;
-				
+				row_ins_unique_report_err(thr, rec, entry,
+							  cursor->index);
 				return(DB_DUPLICATE_KEY);
 			}
 		}
@@ -1515,6 +1556,8 @@ row_ins_duplicate_error_in_clust(
 							cursor->index)) {
 				trx->error_info = cursor->index;
 
+				row_ins_unique_report_err(thr, rec, entry,
+							  cursor->index);
 				return(DB_DUPLICATE_KEY);
 			}
 		}
