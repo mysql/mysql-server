@@ -115,4 +115,9 @@ optim 15        mc02/a  34 ms   60 ms    72 pct
 
 [ corrected wasted space in index node ]
 
+optim 16        mc02/a  34 ms   53 ms    53 pct
+                mc02/b  42 ms   75 ms    75 pct
+
+[ case a, b: binary search of bounding node when adding entry ]
+
 vim: set et:
