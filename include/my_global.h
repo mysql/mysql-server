@@ -666,6 +666,17 @@ extern double		my_atof(const char*);
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 
+/* Define missing math constants. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_E
+#define M_E 2.7182818284590452354
+#endif
+#ifndef M_LN2
+#define M_LN2 0.69314718055994530942
+#endif
+
 /*
   Max size that must be added to a so that we know Size to make
   adressable obj.

@@ -1233,8 +1233,16 @@ public:
   }
 
   bool get(TABLE *table);
-  static double get_use_cost(MEM_ROOT *alloc, uint nkeys, uint key_size, 
+  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
                              ulong max_in_memory_size);
+  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
+                                            ulong max_in_memory_size)
+  {
+    register ulong max_elems_in_tree= 
+      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+    return sizeof(uint)*(1 + nkeys/max_elems_in_tree);
+  }
+
   friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };

@@ -750,7 +750,7 @@ double Item_func_log2::val()
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
-  return log(value) / log(2.0);
+  return log(value) / M_LN2;
 }
 
 double Item_func_log10::val()
