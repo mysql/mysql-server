@@ -58,7 +58,9 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   pthread_attr_setguardsize(&thread_attr, 2048);
 #endif
 
+#ifdef PTHREAD_CREATE_JOINABLE /* needed on SCO */
   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+#endif
   result = pthread_create(&tmpThread->thread, 
 			  &thread_attr,
   		          p_thread_func,
