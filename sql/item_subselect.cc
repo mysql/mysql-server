@@ -74,6 +74,11 @@ void Item_subselect::init(st_select_lex *select_lex,
     else
       engine= new subselect_single_select_engine(select_lex, result, this);
   }
+  {
+    SELECT_LEX *upper= unit->outer_select();
+    if (upper->parsing_place == SELECT_LEX_NODE::IN_HAVING)
+      upper->subquery_in_having= 1;
+  }
   DBUG_VOID_RETURN;
 }
 
