@@ -233,4 +233,9 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 {
 }
 
+my_bool vio_poll_read(Vio *vio,uint timeout)
+{
+  return 0;
+}
+
 #endif /* HAVE_VIO */

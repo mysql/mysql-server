@@ -59,9 +59,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   VOID(pthread_mutex_lock(&LOCK_open));
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  if(global_read_lock)
+  if (global_read_lock)
   {
-    if(thd->global_read_lock)
+    if (thd->global_read_lock)
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);

@@ -16,10 +16,11 @@ while ($1)
   dec $1;
  }
 
+delete t1.*,t2.* from t1,t2 where t1.id1 = t2.id2 and t1.id1 = 3;
+delete t3 from t3 left join t1 on (id1=id3) where t1.id1 is null;
+delete t2 from t1,t2,t3 where id1=id2 and id2=id3 and id1=2;
 select * from t1;
 select * from t2;
 select * from t3;
-
-delete from t1,t2 where t1.id = t2.id and t1.id = 3;
-select * from t1;
-select * from t2;
+delete t1,t2 from t1,t2 where 1;
+drop table t1,t2,t3;

@@ -1649,97 +1649,98 @@ mysql_execute_command(void)
     if (lex->sql_command == SQLCOM_TRUNCATE && end_active_trans(thd))
       res= -1;
     else
-      res = mysql_delete(thd,tables, select_lex->where, (ORDER*)select_lex->order_list.first,
-                         select_lex->select_limit, lex->lock_option, select_lex->options);
+      res = mysql_delete(thd,tables, select_lex->where,
+			 (ORDER*) select_lex->order_list.first,
+                         select_lex->select_limit, lex->lock_option,
+			 select_lex->options);
     break;
   }
-   case SQLCOM_MULTI_DELETE:
-   {
-     TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex.auxilliary_table_list.first;
-     multi_delete *result;
+  case SQLCOM_MULTI_DELETE:
+  {
+    TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex.auxilliary_table_list.first;
+    TABLE_LIST *auxi;
+    uint table_count=0;
+    multi_delete *result;
  
-     if (!tables || !aux_tables || 
-	 check_table_access(thd,SELECT_ACL, tables) || 
-	 check_table_access(thd,DELETE_ACL,aux_tables))
-     {
-       res=-1;
-       goto error;
-     }
-     if (!tables->db)
-       tables->db=thd->db;
-     if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
-     {		
-       send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
-       res=1; goto error;
-     }
-     uint howmuch=0; TABLE_LIST *walk, *auxi;
-     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next, howmuch++)
-     {
-       if (!auxi->db)
-	 auxi->db=thd->db;
-       if (!auxi->real_name)
-	 auxi->real_name=auxi->name;
-       for (walk=(TABLE_LIST*) tables ; walk ; walk=walk->next)
-       {
-	 if (!walk->db) walk->db=thd->db; 
-	 if (!strcmp(auxi->real_name,walk->real_name) && !strcmp(walk->db,auxi->db))
-	   break;
-       }
-       if (!walk)
-       {
-	 net_printf(&thd->net,ER_NONUNIQ_TABLE,auxi->real_name);
-	 res=-2; goto error;
-       }
-       else
-       {
-	 auxi->lock_type=walk->lock_type=TL_WRITE;
-	 auxi->table= (TABLE *) walk;
-       }
-     }
-     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-     if (add_item_to_list(new Item_null())) goto error;
-     thd->proc_info="init";
-     if (open_and_lock_tables(thd,tables))
-     {
-       res=-1; goto error;
-     }
-     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
-       auxi->table= ((TABLE_LIST*) auxi->table)->table;
-     if ((result=new multi_delete(aux_tables,lex->lock_option,howmuch)))
-     {
-       res=mysql_select(thd,tables,select_lex->item_list,
- 		       select_lex->where,select_lex->ftfunc_list,
- 		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
- 		       (ORDER *)NULL,
- 		       select_lex->options | thd->options,
- 		       result);
-       delete result;
-     }
-     else	
-       res= -1;
-     close_thread_tables(thd);
-     break;
-   }
+    /* sql_yacc guarantees that tables and aux_tables are not zero */
+    if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
+	check_table_access(thd,SELECT_ACL, tables) || 
+	check_table_access(thd,DELETE_ACL, aux_tables))
+      goto error;
+    if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
+    {		
+      send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+      goto error;
+    }
+    for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
+    {
+      table_count++;
+      /* All tables in aux_tables must be found in FROM PART */
+      TABLE_LIST *walk;
+      for (walk=(TABLE_LIST*) tables ; walk ; walk=walk->next)
+      {
+	if (!strcmp(auxi->real_name,walk->real_name) &&
+	    !strcmp(walk->db,auxi->db))
+	  break;
+      }
+      if (!walk)
+      {
+	net_printf(&thd->net,ER_NONUNIQ_TABLE,auxi->real_name);
+	goto error;
+      }
+      auxi->lock_type=walk->lock_type=TL_WRITE;
+      auxi->table= (TABLE *) walk;		// Remember corresponding table
+    }
+    tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
+    if (add_item_to_list(new Item_null()))
+    {
+      res= -1;
+      break;
+    }
+    thd->proc_info="init";
+    if ((res=open_and_lock_tables(thd,tables)))
+      break;
+    /* Fix tables-to-be-deleted-from list to point at opened tables */
+    for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
+      auxi->table= ((TABLE_LIST*) auxi->table)->table;
+    if ((result=new multi_delete(thd,aux_tables,lex->lock_option,
+				 table_count)) && ! thd->fatal_error)
+    {
+      res=mysql_select(thd,tables,select_lex->item_list,
+		       select_lex->where,select_lex->ftfunc_list,
+		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
+		       (ORDER *)NULL,
+		       select_lex->options | thd->options |
+		       SELECT_NO_JOIN_CACHE,
+		       result);
+    }
+    else
+      res= -1;					// Error is not sent
+    delete result;
+    close_thread_tables(thd);
+    break;
+  }
   case SQLCOM_UNION_SELECT:
   {
-    uint total_selects = select_lex->select_number; total_selects++;
     SQL_LIST *total=(SQL_LIST *) thd->calloc(sizeof(SQL_LIST));
     if (select_lex->options & SELECT_DESCRIBE)
       lex->exchange=0;
-    res = link_in_large_list_and_check_acl(thd,lex,total);
-    if (res == -1)
+    if ((res = link_in_large_list_and_check_acl(thd,lex,total)) == -1)
     {
       res=0;
       break;
     }
-    if (res && (res=check_access(thd, lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL, any_db)))
+    if (res &&
+	(res=check_access(thd,
+			  lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL,
+			  any_db)))
     {
       res=0;
       break;
     }
     if (!(res=open_and_lock_tables(thd,(TABLE_LIST *)total->first)))
     {
-      res=mysql_union(thd,lex,total_selects);
+      res=mysql_union(thd,lex, select_lex->select_number+1);
       if (res==-1) res=0;
     }
     break;
@@ -1768,7 +1769,7 @@ mysql_execute_command(void)
     break;
   case SQLCOM_SHOW_DATABASES:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
-    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);   /* purecov: inspected */
     DBUG_VOID_RETURN;
 #else
     if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&

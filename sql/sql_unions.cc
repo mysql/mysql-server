@@ -30,4 +30,5 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
   for (sl=&lex->select_lex;sl;sl=sl->next)
   {
   }
+  return 0;
 }

@@ -724,6 +724,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     {
       error=1; goto err;			/* purecov: inspected */
     }
+    buffpek->key+=sort_length;
+    queue_replaced(&queue);			// Top element has been used
   }
   else
     cmp=0;					// Not unique
