@@ -74,7 +74,7 @@ static HASH udf_hash;
 static rw_lock_t THR_LOCK_udf;
 
 
-static udf_func *add_udf(char *name, Item_result ret, char *dl,
+static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
 			 Item_udftype typ);
 static void del_udf(udf_func *udf);
 static void *find_udf_dl(const char *dl);
@@ -84,8 +84,8 @@ static void init_syms(udf_func *tmp)
 {
   char nm[MAX_FIELD_NAME+16],*end;
 
-  tmp->func = dlsym(tmp->dlhandle, tmp->name);
-  end=strmov(nm,tmp->name);
+  tmp->func = dlsym(tmp->dlhandle, tmp->name.str);
+  end=strmov(nm,tmp->name.str);
   (void) strmov(end,"_init");
   tmp->func_init = dlsym(tmp->dlhandle, nm);
   (void) strmov(end,"_deinit");
@@ -103,8 +103,8 @@ extern "C" byte* get_hash_key(const byte *buff,uint *length,
 			      my_bool not_used __attribute__((unused)))
 {
   udf_func *udf=(udf_func*) buff;
-  *length=(uint) udf->name_length;
-  return (byte*) udf->name;
+  *length=(uint) udf->name.length;
+  return (byte*) udf->name.str;
 }
 
 /*
@@ -161,14 +161,16 @@ void udf_init()
   while (!(error = read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info",("init udf record"));
-    char *name=get_field(&mem, table, 0);
+    LEX_STRING name;
+    name.str=get_field(&mem, table, 0);
+    name.length = strlen(name.str);
     char *dl_name= get_field(&mem, table, 2);
     bool new_dl=0;
     Item_udftype udftype=UDFTYPE_FUNCTION;
     if (table->fields >= 4)			// New func table
       udftype=(Item_udftype) table->field[3]->val_int();
 
-    if (!(tmp = add_udf(name,(Item_result) table->field[1]->val_int(),
+    if (!(tmp = add_udf(&name,(Item_result) table->field[1]->val_int(),
 			dl_name, udftype)))
     {
       sql_print_error("Can't alloc memory for udf function: name");
@@ -250,10 +252,10 @@ static void del_udf(udf_func *udf)
       The functions will be automaticly removed when the least threads
       doesn't use it anymore
     */
-    char *name= udf->name;
-    uint name_length=udf->name_length;
-    udf->name=(char*) "*";
-    udf->name_length=1;
+    char *name= udf->name.str;
+    uint name_length=udf->name.length;
+    udf->name.str=(char*) "*";
+    udf->name.length=1;
     hash_update(&udf_hash,(byte*) udf,(byte*) name,name_length);
   }
   DBUG_VOID_RETURN;
@@ -322,7 +324,7 @@ static void *find_udf_dl(const char *dl)
 
 /* Assume that name && dl is already allocated */
 
-static udf_func *add_udf(char *name, Item_result ret, char *dl,
+static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
 			 Item_udftype type)
 {
   if (!name || !dl || !(uint) type || (uint) type > (uint) UDFTYPE_AGGREGATE)
@@ -331,8 +333,7 @@ static udf_func *add_udf(char *name, Item_result ret, char *dl,
   if (!tmp)
     return 0;
   bzero((char*) tmp,sizeof(*tmp));
-  tmp->name = name;
-  tmp->name_length=(uint) strlen(tmp->name);
+  tmp->name = *name; //dup !!
   tmp->dl = dl;
   tmp->returns = ret;
   tmp->type = type;
@@ -370,14 +371,14 @@ int mysql_create_function(THD *thd,udf_func *udf)
     send_error(thd, ER_UDF_NO_PATHS,ER(ER_UDF_NO_PATHS));
     DBUG_RETURN(1);
   }
-  if (udf->name_length > NAME_LEN)
+  if (udf->name.length > NAME_LEN)
   {
     net_printf(thd, ER_TOO_LONG_IDENT,udf->name);
     DBUG_RETURN(1);
   }
 
   rw_wrlock(&THR_LOCK_udf);
-  if ((hash_search(&udf_hash,(byte*) udf->name, udf->name_length)))
+  if ((hash_search(&udf_hash,(byte*) &udf->name, udf->name.length)))
   {
     net_printf(thd, ER_UDF_EXISTS, udf->name);
     goto err;
@@ -401,9 +402,9 @@ int mysql_create_function(THD *thd,udf_func *udf)
     net_printf(thd, ER_CANT_FIND_DL_ENTRY, udf->name);
     goto err;
   }
-  udf->name=strdup_root(&mem,udf->name);
+  udf->name.str=strdup_root(&mem,udf->name.str);
   udf->dl=strdup_root(&mem,udf->dl);
-  if (!(u_d=add_udf(udf->name,udf->returns,udf->dl,udf->type)))
+  if (!(u_d=add_udf(&udf->name,udf->returns,udf->dl,udf->type)))
   {
     send_error(thd,0);		// End of memory
     goto err;
@@ -425,7 +426,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     goto err;
 
   restore_record(table,2);		// Get default values for fields
-  table->field[0]->store(u_d->name, u_d->name_length, default_charset_info);
+  table->field[0]->store(u_d->name.str, u_d->name.length, default_charset_info);
   table->field[1]->store((longlong) u_d->returns);
   table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), default_charset_info);
   if (table->fields >= 4)			// If not old func format
@@ -450,7 +451,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
 }
 
 
-int mysql_drop_function(THD *thd,const char *udf_name)
+int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
 {
   TABLE *table;
   TABLE_LIST tables;
@@ -462,8 +463,8 @@ int mysql_drop_function(THD *thd,const char *udf_name)
     DBUG_RETURN(1);
   }
   rw_wrlock(&THR_LOCK_udf);  
-  if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name,
-				    (uint) strlen(udf_name))))
+  if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
+				    (uint) udf_name->length)))
   {
     net_printf(thd, ER_FUNCTION_NOT_DEFINED, udf_name);
     goto err;
@@ -481,8 +482,8 @@ int mysql_drop_function(THD *thd,const char *udf_name)
   tables.real_name= tables.alias= (char*) "func";
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
-  if (!table->file->index_read_idx(table->record[0],0,(byte*) udf_name,
-				   (uint) strlen(udf_name),
+  if (!table->file->index_read_idx(table->record[0],0,(byte*) udf_name->str,
+				   (uint) udf_name->length,
 				   HA_READ_KEY_EXACT))
   {
     int error;
