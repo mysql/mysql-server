@@ -1953,6 +1953,30 @@ call bug5307()|
 select @x|
 drop procedure bug5307|
 
+#
+# BUG#5258: Stored procedure modified date is 0000-00-00
+# (This was a design flaw)
+create procedure bug5258()
+begin
+end|
+
+create procedure bug5258_aux()
+begin
+  declare c, m char(19);
+
+  select created,modified into c,m from mysql.proc where name = 'bug5258';
+  if c = m then
+    select 'Ok';
+  else
+    select c, m;
+  end if;
+end|
+
+call bug5258_aux()|
+
+drop procedure bug5258|
+drop procedure bug5258_aux|
+
 
 #
 # Some "real" examples

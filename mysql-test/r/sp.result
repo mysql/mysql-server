@@ -1784,6 +1784,24 @@ select @x|
 @x
 3
 drop procedure bug5307|
+create procedure bug5258()
+begin
+end|
+create procedure bug5258_aux()
+begin
+declare c, m char(19);
+select created,modified into c,m from mysql.proc where name = 'bug5258';
+if c = m then
+select 'Ok';
+else
+select c, m;
+end if;
+end|
+call bug5258_aux()|
+Ok
+Ok
+drop procedure bug5258|
+drop procedure bug5258_aux|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
