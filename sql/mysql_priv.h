@@ -224,6 +224,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 #define RAID_BLOCK_SIZE 1024
 
+#define MY_CHARSET_BIN_MB_MAXLEN 1
+
 #ifdef EXTRA_DEBUG
 /*
   Sync points allow us to force the server to reach a certain line of code
@@ -557,6 +559,7 @@ void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used);
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
 void mysql_stmt_free(THD *thd, char *packet);
+void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 			List<Item> &values, ulong counter);
@@ -851,6 +854,7 @@ longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 			   bool fuzzy_date);
 void localtime_to_TIME(TIME *to, struct tm *from);
+void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
