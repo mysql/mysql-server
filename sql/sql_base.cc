@@ -195,6 +195,7 @@ send_fields(THD *thd,List<Item> &list,uint flag)
   Item *item;
   char buff[80];
   CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+  DBUG_ENTER("send_fields");
 
   String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;
 
@@ -255,11 +256,11 @@ send_fields(THD *thd,List<Item> &list,uint flag)
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net);
-  return 0;
+  send_eof(&thd->net,1);
+  DBUG_RETURN(0);
  err:
   send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
-  return 1;					/* purecov: inspected */
+  DBUG_RETURN(1);				/* purecov: inspected */
 }
 
 
