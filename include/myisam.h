@@ -384,7 +384,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
-my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, my_bool force);
+my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, ulonglong key_map,
+			    my_bool force);
 
 #ifdef	__cplusplus
 }

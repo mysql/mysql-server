@@ -3166,12 +3166,18 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 */
 
 my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, 
+			    ulonglong key_map,
 			    my_bool force)
 {
   MYISAM_SHARE *share=info->s;
-  uint i;
   MI_KEYDEF *key=share->keyinfo;
-  if (!share->state.key_map)
+  uint i;
+
+  /*
+    repair_by_sort only works if we have at least one key. If we don't
+    have any keys, we should use the normal repair.
+  */
+  if (!key_map)
     return FALSE;				/* Can't use sort */
   for (i=0 ; i < share->base.keys ; i++,key++)
   {

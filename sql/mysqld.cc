@@ -324,6 +324,7 @@ HANDLE hEventShutdown;
 static	 NTService  Service;	      // Service object for WinNT
 #endif
 
+static void start_signal_handler(void);
 static void *signal_hand(void *arg);
 static void set_options(void);
 static void get_options(int argc,char **argv);
@@ -1059,6 +1060,10 @@ static void init_signals(void)
   signal(SIGBREAK,SIG_IGN);	//ignore SIGBREAK for NT
 }
 
+static void start_signal_handler(void)
+{
+}
+
 #elif defined(__EMX__)
 static void sig_reload(int signo)
 {
@@ -1087,6 +1092,11 @@ static void init_signals(void)
   signal(SIGBREAK,SIG_IGN);
   signal_thread = pthread_self();
 }
+
+static void start_signal_handler(void)
+{
+}
+
 #else /* if ! __WIN__ && ! __EMX__ */
 
 #ifdef HAVE_LINUXTHREADS
@@ -1226,8 +1236,6 @@ static sig_handler write_core(int sig)
 static void init_signals(void)
 {
   sigset_t set;
-  pthread_attr_t thr_attr;
-  int error;
   DBUG_ENTER("init_signals");
 
   sigset(THR_KILL_SIGNAL,end_thread_signal);
@@ -1269,6 +1277,15 @@ static void init_signals(void)
   sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
   sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
   (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
+  DBUG_VOID_RETURN;
+}
+
+
+static void start_signal_handler(void)
+{
+  int error;
+  pthread_attr_t thr_attr;
+  DBUG_ENTER("start_signal_handler");
 
   (void) pthread_attr_init(&thr_attr);
 #if !defined(HAVE_DEC_3_2_THREADS)
@@ -1337,8 +1354,9 @@ static void *signal_hand(void *arg __attribute__((unused)))
     }
   }
 
+  // signal to start_signal_handler that we are ready
   (void) pthread_mutex_lock(&LOCK_thread_count);
-  (void) pthread_cond_signal(&COND_thread_count); /* continue init_signals */
+  (void) pthread_cond_signal(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
   for (;;)
@@ -1596,6 +1614,7 @@ int main(int argc, char **argv)
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
   (void) pthread_cond_init(&COND_slave_start, NULL);
+  init_signals();
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
     unireg_abort(1);
@@ -1774,7 +1793,7 @@ The server will not act as a slave.");
     sql_print_error("Can't create thread-keys");
     exit(1);
   }
-  init_signals();				// Creates pidfile
+  start_signal_handler();				// Creates pidfile
   if (acl_init(opt_noacl))
   {
     select_thread_in_use=0;
