@@ -1,6 +1,7 @@
 #!/bin/bash
 
 WD=`pwd`
+BD=/my/tmp/BUILD
 TMP_SCRIPT=$WD/Logs/00-temp-for-do-all-build-steps.$$
 
 # We build on work
@@ -12,12 +13,17 @@ EXTRA_CONFIG="--without-perl"
 echo "Building on $to_host"
 
 mkdir -p $WD/Logs
+mkdir -p $BD/Logs
 
 cat > $TMP_SCRIPT <<END
 # Show executed commands
 set -x
 # Move to the right place
 cd "$WD"
+# Create a build directory tree
+bk export -w $BD
+chmod a+x $BD/mit-pthreads/config/configure
+cd "$BD"
 
 CC=$cc CXX=$ccc 
 export CC CXX
@@ -52,7 +58,7 @@ gmake # --jobs=4 does not work.
 time gmake distcheck \
  EXTRA_CONF_ARGS="--with-unix-socket-path=/var/tmp/mysql.sock --with-low-memory $EXTRA_CONFIG"
 
-$WD/Build-tools/Do-rpm
+sh $BD/Build-tools/Do-rpm
 
 rm -f $TMP_SCRIPT
 END
@@ -72,4 +78,4 @@ fi
 # the newly made source distribution
 
 DIST=`ls -t mysql-*.tar.gz | head -1`
-$WD/Build-tools/mysql-copyright --target=. $DIST
+sh $BD/Build-tools/mysql-copyright --target=. $DIST
