@@ -453,9 +453,13 @@ fi
 
 NOINST_LDFLAGS=
 
-
+static_nss=""
 AC_ARG_WITH(other-libc,
- [ --with-other-libc=/path/to/other/libc/dir Link against libc and other standard libraries installed in the specified non-standard location overriding default. Originally added to be able to link against glibc 2.2 without making the user upgrade the standard libc installation ],
+ [  --with-other-libc=DIR   Link against libc and other standard libraries 
+                          installed in the specified non-standard location 
+                          overriding default. Originally added to be able to
+                          link against glibc 2.2 without making the user 
+                          upgrade the standard libc installation.],
  [
    other_libc_include="$withval/include"
    other_libc_lib="$withval/lib"
@@ -469,7 +473,6 @@ AC_ARG_WITH(other-libc,
    # by telling it to be permissive. Note that this option only works with
    # new versions of gcc (2.95.x and above)
    CXXFLAGS="$CXXFLAGS -fpermissive -I$other_libc_include"
-   static_nss=
    if test -f "$other_libc_lib/libnss_files.a"
    then
      # libc has been compiled with --enable-static-nss
@@ -503,6 +506,23 @@ AC_ARG_WITH(other-libc,
  ]
 )
 AC_SUBST(NOINST_LDFLAGS)
+
+#
+# Check if we are using Linux and a glibc compiled with static nss
+# (this is true on the MySQL build machines to avoid NSS problems)
+#
+
+if test "$IS_LINUX" = "true" -a "$static_nss" = ""
+then
+  tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
+  if test -n "$tmp"
+  then
+     STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
+  -Wl,--end-group"
+     static_nss=1
+  fi
+fi
+
 
 AC_ARG_WITH(server-suffix,
     [  --with-server-suffix    Append value to the version string.],
@@ -689,6 +709,9 @@ AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # For crypt() on Linux
 AC_CHECK_LIB(crypt, crypt)
 AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
+
+# For sem_xxx functions on Solaris 2.6
+AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4))
 
 # For compress in zlib
 MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
@@ -880,13 +903,21 @@ case $SYSTEM_TYPE in
       fi
     fi
     ;;
-  *darwin*)
+  *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
       CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
       MAX_C_OPTIMIZE="-O"
       with_named_curses=""
+    fi
+    ;;
+  *darwin6*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      MAX_C_OPTIMIZE="-O"
     fi
     ;;
   *freebsd*)
@@ -953,7 +984,7 @@ then
       AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
       AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
       # RedHat 5.0 does not work with dynamic linking of this. -static also
-      # gives a spped increase in linux so it does not hurt on other systems.
+      # gives a speed increase in linux so it does not hurt on other systems.
       with_named_thread="-lpthread"
     else
       AC_MSG_RESULT("Not found")
@@ -961,9 +992,9 @@ then
       if test "$IS_LINUX" = "true"
       then
 	AC_MSG_ERROR([This is a linux system and Linuxthreads was not
-found. On linux Linuxthreads should be used. So install Linuxthreads
-(or a new glibc) and try again. See the Installation chapter in the
-Reference Manual.])
+found. On linux Linuxthreads should be used.  Please install Linuxthreads
+(or a new glibc) and try again.  See the Installation chapter in the
+Reference Manual for more information.])
       else
 	AC_MSG_CHECKING("DEC threads")
         if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
@@ -1332,7 +1363,7 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
 fi
 
-# Force static compilation to avoid linking probles/get more speed
+# Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
     [MYSQLD_EXTRA_LDFLAGS=$withval],
@@ -1695,7 +1726,7 @@ then
   AC_DEFINE(HAVE_READDIR_R)
 fi
 
-# Check definition av posix sigwait()
+# Check definition of posix sigwait()
 AC_CACHE_CHECK("style of sigwait", mysql_cv_sigwait,
 AC_TRY_LINK(
 [#if !defined(SCO) && !defined(__osf__)
@@ -1718,7 +1749,7 @@ fi
 if test "$mysql_cv_sigwait" != "POSIX"
 then
 unset mysql_cv_sigwait
-# Check definition av posix sigwait()
+# Check definition of posix sigwait()
 AC_CACHE_CHECK("style of sigwait", mysql_cv_sigwait,
 AC_TRY_LINK(
 [#if !defined(SCO) && !defined(__osf__)
@@ -2284,8 +2315,9 @@ echo "latest release, upcoming features, and other information to make your"
 echo "work or play with MySQL more productive. There you can also find"
 echo "information about mailing lists for MySQL discussion."
 echo
-echo "Remember to check the platform specific part in the reference manual for"
-echo "hints about installing on your platfrom. See the Docs directory."
+echo "Remember to check the platform specific part of the reference manual for"
+echo "hints about installing MySQL on your platform. Also have a look at the"
+echo "files in the Docs directory."
 echo
 # The following text is checked in ./Do-compile to se that the configure ends.
 echo "Thank you for choosing MySQL!"
