@@ -601,10 +601,10 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   mysql_log.write(thd,COM_PREPARE,"%s",packet);       
   mysql_init_query(thd);   
   thd->prepare_command=true; 
-  thd->safe_to_cache_query= 0;
   thd->lex.param_count=0;
 
   LEX *lex=lex_start(thd, (uchar*) packet, length);
+  lex->safe_to_cache_query= 0;
   if (!yyparse() && !thd->fatal_error) 
     error= send_prepare_results(stmt);
   lex_end(lex);

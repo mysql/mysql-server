@@ -441,6 +441,7 @@ typedef struct st_lex
   bool drop_primary, drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter;
   bool derived_tables, describe, olap;
+  bool safe_to_cache_query;
   uint slave_thd_opt;
   CHARSET_INFO *charset;
   char *help_arg;

@@ -1676,7 +1676,7 @@ select_option:
 	      YYABORT;
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
-	| SQL_NO_CACHE_SYM { current_thd->safe_to_cache_query=0; }
+	| SQL_NO_CACHE_SYM { Lex->safe_to_cache_query=0; }
 	| SQL_CACHE_SYM    { Select->options|= OPTION_TO_QUERY_CACHE; }
 	| ALL		{}
 	;
@@ -1689,7 +1689,7 @@ select_lock_type:
 	    if (check_simple_select())
 	      YYABORT;	
 	    lex->lock_option= TL_WRITE;
-	    lex->thd->safe_to_cache_query=0;
+	    lex->safe_to_cache_query=0;
 	  }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  {
@@ -1697,7 +1697,7 @@ select_lock_type:
 	    if (check_simple_select())
 	      YYABORT;	
 	    lex->lock_option= TL_READ_WITH_SHARED_LOCKS;
-	    lex->thd->safe_to_cache_query=0;
+	    lex->safe_to_cache_query=0;
 	  }
 	;
 
@@ -1885,12 +1885,12 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	| '@' ident_or_text	 
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text
 	  {
@@ -1944,13 +1944,13 @@ simple_expr:
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
 	| CURDATE optional_braces
-	  { $$= new Item_func_curdate(); current_thd->safe_to_cache_query=0; }
+	  { $$= new Item_func_curdate(); Lex->safe_to_cache_query=0; }
 	| CURTIME optional_braces
-	  { $$= new Item_func_curtime(); current_thd->safe_to_cache_query=0; }
+	  { $$= new Item_func_curtime(); Lex->safe_to_cache_query=0; }
 	| CURTIME '(' expr ')'
 	  { 
 	    $$= new Item_func_curtime($3); 
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	| DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
 	  { $$= new Item_date_add_interval($3,$6,$7,0); }
@@ -1959,7 +1959,7 @@ simple_expr:
 	| DATABASE '(' ')'
 	  { 
 	    $$= new Item_func_database();
-            current_thd->safe_to_cache_query=0; 
+            Lex->safe_to_cache_query=0; 
 	  }
 	| ELT_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_elt($3, *$5); }
@@ -1968,7 +1968,7 @@ simple_expr:
 	| ENCRYPT '(' expr ')'
 	  {
 	    $$= new Item_func_encrypt($3);
-	    current_thd->safe_to_cache_query=0; 
+	    Lex->safe_to_cache_query=0; 
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING ')'
@@ -2028,7 +2028,7 @@ simple_expr:
 	| LAST_INSERT_ID '(' expr ')'
 	  {
 	    $$= new Item_func_set_last_insert_id($3);
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	| LEFT '(' expr ',' expr ')'
 	  { $$= new Item_func_left($3,$5); }
@@ -2083,9 +2083,9 @@ simple_expr:
  	  { $$= new Item_func_spatial_collection(* $3, 
                        Geometry::wkbMultiPolygon, Geometry::wkbPolygon ); }
 	| NOW_SYM optional_braces
-	  { $$= new Item_func_now(); current_thd->safe_to_cache_query=0;}
+	  { $$= new Item_func_now(); Lex->safe_to_cache_query=0;}
 	| NOW_SYM '(' expr ')'
-	  { $$= new Item_func_now($3); current_thd->safe_to_cache_query=0;}
+	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
 	  {
 	    $$= new Item_func_password($3);
@@ -2104,9 +2104,9 @@ simple_expr:
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
 	| RAND '(' expr ')'
-	  { $$= new Item_func_rand($3); current_thd->safe_to_cache_query=0;}
+	  { $$= new Item_func_rand($3); Lex->safe_to_cache_query=0;}
 	| RAND '(' ')'
-	  { $$= new Item_func_rand(); current_thd->safe_to_cache_query=0;}
+	  { $$= new Item_func_rand(); Lex->safe_to_cache_query=0;}
 	| REPLACE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_replace($3,$5,$7); }
 	| RIGHT '(' expr ',' expr ')'
@@ -2189,12 +2189,12 @@ simple_expr:
 	| UNIX_TIMESTAMP '(' ')'
 	  {
 	    $$= new Item_func_unix_timestamp();
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(); current_thd->safe_to_cache_query=0; }
+	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
 	| WEEK_SYM '(' expr ')'
 	  { $$= new Item_func_week($3,new Item_int((char*) "0",0,1)); }
 	| WEEK_SYM '(' expr ',' expr ')'
@@ -2208,7 +2208,7 @@ simple_expr:
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
 	  { 
 	    $$=new Item_func_benchmark($3,$5);
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
@@ -2667,7 +2667,7 @@ procedure_clause:
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
 	    if (add_proc_to_list(new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
-	    current_thd->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query=0;
 	  }
 	  '(' procedure_list ')';
 
@@ -2739,7 +2739,7 @@ opt_into:
 	}
         | INTO select_var_list_init
 	{
-	  current_thd->safe_to_cache_query=0;
+	  Lex->safe_to_cache_query=0;
 	}
         ;
 
