@@ -3521,7 +3521,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   enum_parsing_place place= NO_MATTER;
   SELECT_LEX *current_sel= thd->lex->current_select;
 
-  if (!ref)
+  if (!ref || ref == not_found_item)
   {
     SELECT_LEX_UNIT *prev_unit= current_sel->master_unit();
     SELECT_LEX *outer_sel= prev_unit->outer_select();
