@@ -185,7 +185,7 @@ in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
-ulint	srv_max_buf_pool_modified_pct	= 90;
+ulong	srv_max_buf_pool_modified_pct	= 90;
 
 /* variable counts amount of data read in total (in bytes) */
 ulint srv_data_read = 0;
@@ -260,7 +260,7 @@ semaphore contention and convoy problems can occur withput this restriction.
 Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. */
 
-ulint	srv_thread_concurrency	= 8;
+ulong	srv_thread_concurrency	= 8;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
@@ -324,9 +324,9 @@ ibool	srv_use_awe			= FALSE;
 ibool	srv_use_adaptive_hash_indexes 	= TRUE;
 
 /*-------------------------------------------*/
-ulint	srv_n_spin_wait_rounds	= 20;
-ulint srv_n_free_tickets_to_enter = 500;
-ulint srv_thread_sleep_delay = 10000;
+ulong	srv_n_spin_wait_rounds	= 20;
+ulong	srv_n_free_tickets_to_enter = 500;
+ulong	srv_thread_sleep_delay = 10000;
 ulint	srv_spin_wait_delay	= 5;
 ibool	srv_priority_boost	= TRUE;
 
