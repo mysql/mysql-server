@@ -23,3 +23,6 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/Index $(DESTDIR)$(pkgdatadir)/charsets/Index
 	$(INSTALL_DATA) $(srcdir)/charsets/*.conf $(DESTDIR)$(pkgdatadir)/charsets
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

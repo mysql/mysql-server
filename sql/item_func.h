@@ -520,11 +520,17 @@ public:
   void update_used_tables()
   {
     item->update_used_tables() ; Item_func::update_used_tables();
-    used_tables_cache|=item->used_tables();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
   }
   const char *func_name() const { return "field"; }
   void fix_length_and_dec()
-  { maybe_null=0; max_length=2; used_tables_cache|=item->used_tables();}
+  {
+    maybe_null=0; max_length=3;
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
+    with_sum_func= with_sum_func || item->with_sum_func;
+  }
 };
 
 
