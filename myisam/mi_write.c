@@ -842,8 +842,9 @@ int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size)
     {
       params->info=info;
       params->keynr=i;
+      /* Only allocate a 16'th of the buffer at a time */
       init_tree(&info->bulk_insert[i],
-                cache_size / num_keys / 4 + 10,
+                cache_size / num_keys / 16 + 10,
 		cache_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,
 		(tree_element_free) keys_free, (void *)params++);

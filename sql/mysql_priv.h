@@ -83,6 +83,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 */
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
+#define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
 /*
   The following is used to decide if MySQL should use table scanning
@@ -707,7 +708,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 /* old unireg functions */
 
 void unireg_init(ulong options);
-void unireg_end(int signal);
+void unireg_end(void);
 int rea_create_table(my_string file_name,HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info);

@@ -58,6 +58,7 @@ struct st_table {
   uint reclength;			/* Recordlength */
   uint rec_buff_length;
   uint keys,key_parts,primary_key,max_key_length,max_unique_length;
+  uint total_key_length;
   uint uniques;
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */

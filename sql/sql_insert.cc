@@ -194,15 +194,19 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   thd->proc_info="update";
   if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if ((bulk_insert= (values_list.elements > 1 &&
+  if ((bulk_insert= (values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT &&
 		     lock_type != TL_WRITE_DELAYED &&
 		     !(specialflag & SPECIAL_SAFE_MODE))))
   {
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
-			   thd->variables.read_buff_size);
+			   min(thd->variables.read_buff_size,
+			       table->avg_row_length*values_list.elements));
     if (thd->variables.bulk_insert_buff_size)
       table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			     thd->variables.bulk_insert_buff_size);
+			     min(thd->variables.bulk_insert_buff_size,
+				 (table->total_key_length +
+				  table->keys * TREE_ELEMENT_EXTRA_SIZE)*
+				 values_list.elements));
     table->bulk_insert= 1;
   }
 
