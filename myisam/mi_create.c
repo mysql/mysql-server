@@ -43,7 +43,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
        base_pos,varchar_count,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,offset;
   ulong reclength, real_reclength,min_pack_length;
-  char buff[max(FN_REFLEN,2048)];
+  char buff[FN_REFLEN];
   ulong pack_reclength;
   ulonglong tot_length,max_rows;
   enum en_fieldtype type;
@@ -52,7 +52,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   MI_UNIQUEDEF *uniquedef;
   MI_KEYSEG *keyseg,tmp_keyseg;
   MI_COLUMNDEF *rec;
-  ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
+  ulong *rec_per_key_part;
   my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
   DBUG_ENTER("mi_create");
@@ -87,7 +87,12 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
 
   if (ci->reloc_rows > ci->max_rows)
-    ci->reloc_rows=ci->max_rows;			/* Check if wrong parameter */
+    ci->reloc_rows=ci->max_rows;		/* Check if wrong parameter */
+
+  if (!(rec_per_key_part=
+	(ulong*) my_malloc((keys + uniques)*MI_MAX_KEY_SEG*sizeof(long),
+			   MYF(MY_WME | MY_ZEROFILL))))
+    DBUG_RETURN(my_errno);
 
 	/* Start by checking fields and field-types used */
 
@@ -214,7 +219,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   max_key_length=0; tot_length=0 ; key_segs=0;
   max_key_block_length=0;
   share.state.rec_per_key_part=rec_per_key_part;
-  bzero((char*) rec_per_key_part,sizeof(rec_per_key_part));
   share.state.key_root=key_root;
   share.state.key_del=key_del;
   if (uniques)
@@ -581,6 +585,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   pthread_mutex_unlock(&THR_LOCK_myisam);
   if (my_close(file,MYF(0)))
     goto err;
+  my_free((char*) rec_per_key_part,MYF(0));
   DBUG_RETURN(0);
 
 err:
@@ -606,6 +611,7 @@ err:
       my_delete(buff,MYF(0));
     }
   }
+  my_free((char*) rec_per_key_part, MYF(0));
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */
 }
 

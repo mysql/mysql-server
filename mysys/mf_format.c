@@ -117,7 +117,7 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
     if (flag & 32 || (!lstat(to,&stat_buff) && S_ISLNK(stat_buff.st_mode)))
     {
       if (realpath(to,buff))
-	strmov(to,buff);
+	strnmov(to,buff,FN_REFLEN-1);
     }
   }
 #endif

@@ -39,6 +39,8 @@
 #include "my_readline.h"
 #include <signal.h>
 
+const char *VER="11.8";
+
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -108,8 +110,6 @@ static HashTable ht;
 
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
-
-const char *VER="11.7";
 
 static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
@@ -2156,10 +2156,7 @@ com_status(String *buffer __attribute__((unused)),
   }
 #ifndef __WIN__
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
-  if (opt_outfile)
-    tee_fprintf(stdout, "Using outfile:\t\tYes: '%s'\n", outfile);
-  else
-    printf("Using outfile:\t\tNo\n");
+  tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
   tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
@@ -2169,6 +2166,9 @@ com_status(String *buffer __attribute__((unused)),
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
+  if (mysql.net.compress)
+    tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
+
   if ((status=mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
     char *pos,buff[40];

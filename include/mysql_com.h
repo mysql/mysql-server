@@ -30,11 +30,6 @@
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."
 
-#if defined(__EMX__) || defined(__OS2__)
-#undef MYSQL_UNIX_ADDR
-#define MYSQL_OS2_ADDR "\\socket\\MySQL"
-#define MYSQL_UNIX_ADDR MYSQL_OS2_ADDR
-#endif
 #if defined(__WIN__) && !defined( _CUSTOMCONFIG_)
 #define MYSQL_NAMEDPIPE "MySQL"
 #define MYSQL_SERVICENAME "MySql"
