@@ -1533,12 +1533,8 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
-    This lock will be freed before return!
-
-    The reason for the above is that for enter_cond() / exit_cond() to
-    work the mutex must be got before enter_cond() but releases before
-    exit_cond().
-    If you don't do it this way, you will get a deadlock in THD::awake()
+    This lock will be freed before return! That's required by
+    THD::enter_cond() (see NOTES in sql_class.h).
 */
 
 
@@ -1551,7 +1547,6 @@ the I/O slave thread to update it" :
                                         "Has sent all binlog to slave; \
 waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
-  pthread_mutex_unlock(&LOCK_log);		// See NOTES
   thd->exit_cond(old_msg);
 }
 
