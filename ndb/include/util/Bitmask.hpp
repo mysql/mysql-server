@@ -331,11 +331,12 @@ public:
    */
   struct Data {
     Uint32 data[size];
-
+#if 0
     Data & operator=(const Bitmask<size> & src) {
       src.assign(size, data);
       return *this;
     }
+#endif
   };
 private:
   
@@ -348,12 +349,13 @@ public:
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
-  void assign(const Bitmask<size>::Data & src);
+  void assign(const typename Bitmask<size>::Data & src);
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
+  static void assign(Uint32 dst[], const Bitmask<size> & src);
   void assign(const Bitmask<size> & src);
 
   /**
@@ -480,7 +482,14 @@ Bitmask<size>::assign(Uint32 dst[], const Uint32 src[])
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(const Bitmask<size>::Data & src)
+Bitmask<size>::assign(Uint32 dst[], const Bitmask<size> & src)
+{
+  BitmaskImpl::assign(size, dst, src.rep.data);
+}
+
+template <unsigned size>
+inline void
+Bitmask<size>::assign(const typename Bitmask<size>::Data & src)
 {
   assign(rep.data, src.data);
 }

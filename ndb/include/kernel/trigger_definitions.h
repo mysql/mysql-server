@@ -17,6 +17,7 @@
 #ifndef NDB_TRIGGER_DEFINITIONS_H
 #define NDB_TRIGGER_DEFINITIONS_H
 
+#include <ndb_global.h>
 #include "ndb_limits.h"
 
 #ifndef MIN
