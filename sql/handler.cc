@@ -137,7 +137,11 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   /* Use this as default */
+#if 0
   return((enum db_type) current_thd->variables.table_type);
+#else
+  return(DB_TYPE_MYISAM);
+#endif
 } /* ha_checktype */
 
 
