@@ -589,7 +589,24 @@ typedef struct st_mysql_stmt
   my_bool        bind_result_done;     /* output buffers were supplied */
   /* mysql_stmt_close() had to cancel this result */
   my_bool       unbuffered_fetch_cancelled;  
+  /*
+    Is set to true if we need to calculate field->max_length for 
+    metadata fields when doing mysql_stmt_store_result.
+  */
+  my_bool       update_max_length;     
 } MYSQL_STMT;
+
+enum enum_stmt_attr_type
+{
+  /*
+    When doing mysql_stmt_store_result calculate max_length attribute
+    of statement metadata. This is to be consistent with the old API, 
+    where this was done automatically.
+    In the new API we do that only by request because it slows down
+    mysql_stmt_store_result sufficiently.
+  */
+  STMT_ATTR_UPDATE_MAX_LENGTH
+};
 
 
 typedef struct st_mysql_methods
@@ -648,6 +665,12 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
                                     unsigned long offset);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
 unsigned long STDCALL mysql_stmt_param_count(MYSQL_STMT * stmt);
+my_bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
+                                    enum enum_stmt_attr_type attr_type,
+                                    const void *attr);
+my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
+                                    enum enum_stmt_attr_type attr_type,
+                                    void *attr);
 my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);

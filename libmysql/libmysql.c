@@ -2514,6 +2514,56 @@ stmt_read_row_no_data(MYSQL_STMT *stmt  __attribute__((unused)),
   return MYSQL_NO_DATA;
 }
 
+
+/*
+  Get/set statement attributes
+
+  SYNOPSIS
+    mysql_stmt_attr_get()
+    mysql_stmt_attr_set()
+
+    attr_type  statemenet attribute
+    value      casted to const void * pointer to value.
+
+  RETURN VALUE
+    0 success
+   !0 wrong attribute type
+*/
+        
+my_bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
+                                    enum enum_stmt_attr_type attr_type,
+                                    const void *value)
+{
+  switch (attr_type) {
+  case STMT_ATTR_UPDATE_MAX_LENGTH:
+    /*
+      Do we need a flags variable for all attributes or a bool for each
+      attribute?
+    */
+    stmt->update_max_length= value ? *(const my_bool*) value : 0;
+    break;
+  default: 
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt, 
+                                    enum enum_stmt_attr_type attr_type,
+                                    void *value)
+{
+  switch (attr_type) {
+  case STMT_ATTR_UPDATE_MAX_LENGTH:
+    *(unsigned long *) value= stmt->update_max_length;
+      break;
+  default: 
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 /*
   Execute the prepared query
 */
