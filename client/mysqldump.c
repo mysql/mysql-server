@@ -1706,7 +1706,7 @@ static void dumpTable(uint numFields, char *table)
 	      else if (opt_hex_blob && is_blob)
               {
                 /* sakaik got the idea to to provide blob's in hex notation. */
-                unsigned char *ptr= row[i], *end= ptr+ lengths[i];
+                char *ptr= row[i], *end= ptr+ lengths[i];
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)
                   fprintf(md_result_file, "%02X", *ptr);
@@ -2448,7 +2448,7 @@ int main(int argc, char **argv)
   }
   if (opt_master_data && do_show_master_status(sock))
     goto err;
-  if (opt_single_transaction && do_unlock_tables(sock)) // unlock but no commit!
+  if (opt_single_transaction && do_unlock_tables(sock)) /* unlock but no commit! */
     goto err;
 
   if (opt_alldbs)
