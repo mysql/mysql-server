@@ -2293,6 +2293,8 @@ int main(int argc, char **argv)
   if (!opt_noacl)
     udf_init();
 #endif
+  if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
+    opt_skip_slave_start= 1;
   /* init_slave() must be called after the thread keys are created */
   init_slave();
 
