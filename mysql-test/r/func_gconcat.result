@@ -177,3 +177,12 @@ ERROR HY000: Invalid use of group function
 select grp,group_concat(c order by 2) from t1 group by grp;
 ERROR 42S22: Unknown column '2' in 'group statement'
 drop table t1;
+create table t1 (id int, name varchar(16));
+insert into t1 values (1,'longername'),(1,'evenlongername');
+select ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'without distinct: how it should be' from t1;
+without distinct: how it should be
+1:longername,1:evenlongername
+select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
+with distinct: cutoff at length of shortname
+1:longername,1:evenlongername
+drop table t1;
