@@ -1,0 +1,9 @@
+#
+# Test timestamp
+#
+
+CREATE TABLE t1 ( t timestamp);
+SET TIMESTAMP=1234;
+insert into t1 values(NULL);
+select * from t1;
+drop table t1;

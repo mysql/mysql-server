@@ -1,0 +1,33 @@
+name
+å
+ä
+ö
+concat("*",name,"*")
+*å*
+*ä*
+*ö*
+min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
+å	*å*	ö	*ö*
+name
+ä
+å
+ö
+concat("*",name,"*")
+*ä*
+*å*
+*ö*
+min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
+ä	*ä*	ö	*ö*
+name
+ä
+ö
+name
+ä
+å
+ö
+name
+a	b
+hello	hello
+a	b
+a	b
+hello	hello

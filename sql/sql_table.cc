@@ -1426,7 +1426,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       char path[FN_REFLEN];
       (void) sprintf(path,"%s/%s/%s",mysql_data_home,new_db,tmp_name);
-      fn_format(path,path,"","",4+16+32);
+      fn_format(path,path,"","",4);
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
     }
     if (!new_table)
@@ -1658,7 +1658,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   };
 
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
-  if (handle_duplicates == DUP_IGNORE)
+  if (handle_duplicates == DUP_IGNORE ||
+      handle_duplicates == DUP_REPLACE)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   next_field=to->next_number_field;
   while (!(error=info.read_record(&info)))
@@ -1675,7 +1676,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     if ((error=to->file->write_row((byte*) to->record[0])))
     {
-      if (handle_duplicates != DUP_IGNORE ||
+      if ((handle_duplicates != DUP_IGNORE &&
+	   handle_duplicates != DUP_REPLACE) ||
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
       {

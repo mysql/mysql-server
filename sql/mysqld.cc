@@ -146,6 +146,38 @@ static uint handler_count;
 static bool opt_console=0;
 #endif
 
+#ifdef HAVE_BERKELEY_DB
+SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_GEMINI_DB
+SHOW_COMP_OPTION have_gemini=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_gemini=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_INNOBASE_DB
+SHOW_COMP_OPTION have_innobase=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_innobase=SHOW_OPTION_NO;
+#endif
+#ifndef NO_ISAM
+SHOW_COMP_OPTION have_isam=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_isam=SHOW_OPTION_NO;
+#endif
+#ifdef USE_RAID
+SHOW_COMP_OPTION have_raid=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_raid=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_OPENSSL
+SHOW_COMP_OPTION have_ssl=SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_ssl=SHOW_OPTION_NO;
+#endif
+
+
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
@@ -155,9 +187,10 @@ static my_string opt_logname=0,opt_update_logname=0,
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
-            opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
-bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
+	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
+            opt_ansi_mode=0,opt_myisam_log=0,
+            opt_large_files=sizeof(my_off_t) > 4;
+bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -1049,26 +1082,27 @@ inline static __volatile__ void  trace_stack()
   uchar **stack_bottom;
   uchar** ebp;
   LINT_INIT(ebp);
-  fprintf(stderr, "Attemping backtrace, please send the info below to\
- bugs@lists.mysql.com. If you see no messages after this, something  \
- went terribly wrong - report this anyway\n");
+  fprintf(stderr,
+"Attemping backtrace. You can use the following information to find out\n\
+where mysqld died.  If you see no messages after this, something went\n\
+terribly wrong\n");
   THD* thd = current_thd;
   uint frame_count = 0;
   __asm __volatile__ ("movl %%ebp,%0"
 		      :"=r"(ebp)
 		      :"r"(ebp));
-  if(!ebp)
-    {
-      fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with \
- -fomit-frame-pointer? Aborting backtrace\n");
-      return;
-    }
-  if(!thd)
-    {
-      fprintf(stderr, "Cannot determine thread, ebp=%p, aborting backtrace\n",
-	      ebp);
-      return;
-    }
+  if (!ebp)
+  {
+    fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with\n\
+-fomit-frame-pointer? Aborting backtrace\n");
+    return;
+  }
+  if (!thd)
+  {
+    fprintf(stderr, "Cannot determine thread, ebp=%p, aborting backtrace\n",
+	    ebp);
+    return;
+  }
   stack_bottom = (uchar**)thd->thread_stack;
   if(ebp > stack_bottom || ebp < stack_bottom - thread_stack)
   {
@@ -1079,20 +1113,20 @@ inline static __volatile__ void  trace_stack()
 
   fprintf(stderr, "stack range sanity check, ok, backtrace follows\n");
   
-  while(ebp < stack_bottom)
+  while (ebp < stack_bottom)
+  {
+    uchar** new_ebp = (uchar**)*ebp;
+    fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
+	    *(ebp+17) : *(ebp+1));
+    if (new_ebp <= ebp )
     {
-      uchar** new_ebp = (uchar**)*ebp;
-      fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
-	      *(ebp+17) : *(ebp+1));
-      if(new_ebp <= ebp )
-	{
-	  fprintf(stderr, "New value of ebp failed sanity check\
+      fprintf(stderr, "New value of ebp failed sanity check\
 terminating backtrace\n");
-	  return;
-	}
-      ebp = new_ebp;
-      ++frame_count;
+      return;
     }
+    ebp = new_ebp;
+    ++frame_count;
+  }
 
   fprintf(stderr, "stack trace successful\n"); 
 }
@@ -1105,31 +1139,27 @@ static sig_handler handle_segfault(int sig)
   // but since we have got SIGSEGV already, things are a mess
   // so not having the mutex is not as bad as possibly using a buggy
   // mutex - so we keep things simple
-  if(segfaulted)
+  if (segfaulted)
     return;
   segfaulted = 1;
   fprintf(stderr,"\
-mysqld got signal %s in thread %d;  \n\
-The manual section 'Debugging a MySQL server' tells you how to use a \n\
-debugger on the core file to produce a backtrace that may help you find out\n\
-why mysqld died\n",sys_siglist[sig],getpid());
-#if defined(HAVE_LINUXTHREADS) && defined(__i386__)
+mysqld got signal %d;\n\
+The manual section 'Debugging a MySQL server' tells you how to use a\n\
+stack trace and/or the core file to produce a readable backtrace that may\n\
+help in finding out why mysqld died\n",sig);
+#if defined(HAVE_LINUXTHREADS)
+#ifdef __i386__
   trace_stack();
-#endif
-#ifdef HAVE_LINUXTHREADS
+#endif /* __i386__ */
  if (test_flags & TEST_CORE_ON_SIGNAL)
    write_core(sig);
- else
-   exit(1);
-#else  
-  exit(1); /* abort everything */
-#endif
+#endif /* HAVE_LINUXTHREADS */
+ exit(1);
 }
-
-#ifdef HAVE_LINUXTHREADS
 
 /* Produce a core for the thread */
 
+#ifdef HAVE_LINUXTHREADS
 static sig_handler write_core(int sig)
 {
   signal(sig, SIG_DFL);
@@ -1593,12 +1623,14 @@ int main(int argc, char **argv)
   {
     server_id= !master_host ? 1 : 2;
     switch (server_id) {
+#ifdef EXTRA_DEBUG
     case 1:
       sql_print_error("\
 Warning: one should set server_id to a non-0 value if log-bin is enabled.\n\
 Will log updates to binary log, but will not accept connections from slaves");
       break;
-    default:
+#endif
+    case 2:
       sql_print_error("\
 Warning: one should set server_id to a non-0 value if master_host is set.\n\
 The server will not act as a slave");
@@ -1728,7 +1760,7 @@ The server will not act as a slave");
   if (master_host)
   {
     pthread_t hThread;
-    if(!opt_skip_slave_start &&
+    if (!opt_skip_slave_start &&
        pthread_create(&hThread, &connection_attrib, handle_slave, 0))
       sql_print_error("Warning: Can't create thread to handle slave");
     else if(opt_skip_slave_start)
@@ -2322,7 +2354,8 @@ enum options {
 	       OPT_INNOBASE_DATA_HOME_DIR,OPT_INNOBASE_DATA_FILE_PATH,
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
-	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT
+	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
+	       OPT_GEMINI_SKIP,
 };
 
 static struct option long_options[] = {
@@ -2424,6 +2457,7 @@ static struct option long_options[] = {
   {"replicate-rewrite-db",   required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
+  {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
@@ -2432,6 +2466,9 @@ static struct option long_options[] = {
 #endif
 #ifdef HAVE_INNOBASE_DB
   {"skip-innobase",         no_argument,       0, (int) OPT_INNOBASE_SKIP},
+#endif
+#ifdef HAVE_GEMINI_DB
+  {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
 #endif
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
@@ -2514,7 +2551,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "lower_case_table_names",  (long*) &lower_case_table_names,
       IF_WIN(1,0), 0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
-      1024*1024L, 80, 17*1024*1024L, MALLOC_OVERHEAD, 1024 },
+      1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
       ~0L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "max_connections",         (long*) &max_connections,
@@ -2593,6 +2630,12 @@ struct show_var_st init_vars[]= {
   {"delayed_queue_size",      (char*) &delayed_queue_size,          SHOW_LONG},
   {"flush",                   (char*) &myisam_flush,                SHOW_MY_BOOL},
   {"flush_time",              (char*) &flush_time,                  SHOW_LONG},
+  {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
+  {"have_gemini",	      (char*) &have_gemini,		    SHOW_HAVE},
+  {"have_innobase",	      (char*) &have_innobase,		    SHOW_HAVE},
+  {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
+  {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
+  {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -2631,6 +2674,7 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
+  {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
@@ -3066,7 +3110,7 @@ static void get_options(int argc,char **argv)
       {
 	char* key = optarg,*p, *val;
 	p = strstr(optarg, "->");
-	if(!p)
+	if (!p)
 	  {
 	    fprintf(stderr,
 		    "bad syntax in replicate-rewrite-db - missing ->\n");
@@ -3083,7 +3127,7 @@ static void get_options(int argc,char **argv)
 	*val = 0;
 	val += 2;
 	while(*val && isspace(*val)) *val++;
-	if(!*val)
+	if (!*val)
 	  {
 	    fprintf(stderr,
 		    "bad syntax in replicate-rewrite-db - empty TO db\n");
@@ -3109,7 +3153,7 @@ static void get_options(int argc,char **argv)
       }
     case (int)OPT_REPLICATE_DO_TABLE:
       {
-	if(!do_table_inited)
+	if (!do_table_inited)
 	  init_table_rule_hash(&replicate_do_table, &do_table_inited);
 	if(add_table_rule(&replicate_do_table, optarg))
 	  {
@@ -3121,7 +3165,7 @@ static void get_options(int argc,char **argv)
       }
     case (int)OPT_REPLICATE_WILD_DO_TABLE:
       {
-	if(!wild_do_table_inited)
+	if (!wild_do_table_inited)
 	  init_table_rule_array(&replicate_wild_do_table,
 				&wild_do_table_inited);
 	if(add_wild_table_rule(&replicate_wild_do_table, optarg))
@@ -3134,7 +3178,7 @@ static void get_options(int argc,char **argv)
       }
     case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
       {
-	if(!wild_ignore_table_inited)
+	if (!wild_ignore_table_inited)
 	  init_table_rule_array(&replicate_wild_ignore_table,
 				&wild_ignore_table_inited);
 	if(add_wild_table_rule(&replicate_wild_ignore_table, optarg))
@@ -3147,7 +3191,7 @@ static void get_options(int argc,char **argv)
       }
     case (int)OPT_REPLICATE_IGNORE_TABLE:
       {
-	if(!ignore_table_inited)
+	if (!ignore_table_inited)
 	  init_table_rule_hash(&replicate_ignore_table, &ignore_table_inited);
 	if(add_table_rule(&replicate_ignore_table, optarg))
 	  {
@@ -3347,11 +3391,19 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_BDB_SKIP:
       berkeley_skip=1;
+      have_berkeley_db=SHOW_OPTION_DISABLED;
+      break;
+#endif
+#ifdef HAVE_GEMINI_DB
+    case OPT_GEMINI_SKIP:
+      gemini_skip=1;
+      have_gemini_db=SHOW_OPTION_DISABLED;  
       break;
 #endif
 #ifdef HAVE_INNOBASE_DB
     case OPT_INNOBASE_SKIP:
       innobase_skip=1;
+      have_innobase_db=SHOW_HAVE_DISABLED;
       break;
     case OPT_INNOBASE_DATA_HOME_DIR:
       innobase_data_home_dir=optarg;
@@ -3409,6 +3461,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
+      break;
+    case (int) OPT_SAFE_SHOW_DB:
+      opt_safe_show_db=1;
       break;
 
     default:

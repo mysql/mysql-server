@@ -1,0 +1,10 @@
+#
+# Test year
+#
+
+create table t1 (y year,y2 year(2));
+insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
+select * from t1;
+select * from t1 order by y;
+select * from t1 order by y2;
+drop table t1;

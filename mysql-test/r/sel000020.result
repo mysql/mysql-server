@@ -1,2 +1,0 @@
-0=0	1>0	1>=1	1<0	1<=0	1!=0	STRCMP("abc","abcd")	STRCMP("b","a")	STRCMP("a","a")	
-1	1	1	0	0	1	-1	1	0	

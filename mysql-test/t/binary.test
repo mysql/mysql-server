@@ -1,0 +1,33 @@
+#
+# test sort,min and max on binary fields
+#
+
+create table t1 (name char(20) not null, primary key (name));
+create table t2 (name char(20) binary not null, primary key (name));
+insert into t1 values ("å");
+insert into t1 values ("ä");
+insert into t1 values ("ö");
+insert into t2 select * from t1;
+
+select * from t1 order by name;
+select concat("*",name,"*") from t1 order by 1;
+select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t1;
+select * from t2 order by name;
+select concat("*",name,"*") from t2 order by 1;
+select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t2;
+select name from t1 where name between 'Ä' and 'Ö';
+select name from t2 where name between 'ä' and 'ö';
+select name from t2 where name between 'Ä' and 'Ö';
+
+drop table t1,t2;
+
+#
+# Test of binary and normal strings
+#
+
+create table t1 (a char(10) not null, b char(10) binary not null,index (a));
+insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
+select * from t1 where a="hello ";
+select * from t1 where b="hello ";
+select * from t1 where b="hello";
+drop table t1;

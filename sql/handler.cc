@@ -191,16 +191,13 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
 #ifdef USING_TRANSACTIONS
-  if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
+  if (!error)
   {
-    if (!error)
-    {
-      if (ha_commit_stmt(thd))
-	error=1;
-    }
-    else
-      (void) ha_rollback_stmt(thd);
+    if (ha_commit_stmt(thd))
+      error=1;
   }
+  else
+    (void) ha_rollback_stmt(thd);
 #endif
   DBUG_RETURN(error);
 }
@@ -232,6 +229,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
+  if (trans->innobase_tid)
   {
     if ((error=innobase_commit(thd,trans->innobase_tid)))
     {

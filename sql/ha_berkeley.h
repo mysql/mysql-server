@@ -31,7 +31,8 @@ typedef struct st_berkeley_share {
   THR_LOCK lock;
   pthread_mutex_t mutex;
   char *table_name;
-  DB *status_block;
+  DB *status_block, *file, **key_file;
+  u_int32_t *key_type;
   uint table_name_length,use_count;
   uint status,version;
 } BDB_SHARE;
@@ -69,11 +70,16 @@ class ha_berkeley: public handler
   int remove_key(DB_TXN *trans, uint keynr, const byte *record,
 		 DBT *packed_record, DBT *prim_key);
   int remove_keys(DB_TXN *trans,const byte *record, DBT *new_record,
-		  DBT *prim_key, key_map keys, int result);
+		  DBT *prim_key, key_map keys);
+  int restore_keys(DB_TXN *trans, key_map changed_keys, uint primary_key,
+		   const byte *old_row, DBT *old_key,
+		   const byte *new_row, DBT *new_key,
+		   ulong thd_options);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   int update_primary_key(DB_TXN *trans, bool primary_key_changed,
-			 const byte * old_row, const byte * new_row,
-			 DBT *prim_key);
+			 const byte * old_row, DBT *old_key,
+			 const byte * new_row, DBT *prim_key,
+			 ulong thd_options, bool local_using_ignore);
   int read_row(int error, char *buf, uint keynr, DBT *row, DBT *key, bool);
   DBT *get_pos(DBT *to, byte *pos);
 
@@ -86,7 +92,7 @@ class ha_berkeley: public handler
 		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
 		    HA_AUTO_PART_KEY),
-    last_dup_key((uint) -1),version(0)
+    last_dup_key((uint) -1),version(0),using_ignore(0)
   {
   }
   ~ha_berkeley() {}
