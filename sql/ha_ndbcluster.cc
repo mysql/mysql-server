@@ -469,6 +469,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:         
   case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_NEWDECIMAL:
     return TRUE;
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
@@ -1778,96 +1779,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   if (execute_no_commit(this,trans) != 0)
     DBUG_RETURN(ndb_err(trans));
   
-  DBUG_RETURN(next_result(buf));
-}
-
-/*
-  Start a filtered scan in NDB.
-
-  NOTE
-  This function is here as an example of how to start a
-  filtered scan. It should be possible to replace full_table_scan 
-  with this function and make a best effort attempt 
-  at filtering out the irrelevant data by converting the "items" 
-  into interpreted instructions.
-  This would speed up table scans where there is a limiting WHERE clause
-  that doesn't match any index in the table.
-
- */
-
-int ha_ndbcluster::filtered_scan(const byte *key, uint key_len, 
-				 byte *buf,
-				 enum ha_rkey_function find_flag)
-{  
-  int res;
-  NdbTransaction *trans= m_active_trans;
-  NdbScanOperation *op;
-
-  DBUG_ENTER("filtered_scan");
-  DBUG_PRINT("enter", ("key_len: %u, index: %u", 
-                       key_len, active_index));
-  DBUG_DUMP("key", (char*)key, key_len);  
-  DBUG_PRINT("info", ("Starting a new filtered scan on %s",
-		      m_tabname));
-
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
-  if (!(op= trans->getNdbScanOperation((const NDBTAB *) m_table)) ||
-      op->readTuples(lm, 0, parallelism))
-    ERR_RETURN(trans->getNdbError());
-  m_active_cursor= op;
-  
-  {
-    // Start scan filter
-    NdbScanFilter sf(op);
-    sf.begin();
-      
-    // Set filter using the supplied key data
-    byte *key_ptr= (byte *) key;    
-    uint tot_len= 0;
-    KEY* key_info= table->key_info + active_index;
-    for (uint k= 0; k < key_info->key_parts; k++) 
-    {
-      KEY_PART_INFO* key_part= key_info->key_part+k;
-      Field* field= key_part->field;
-      uint ndb_fieldnr= key_part->fieldnr-1;
-      DBUG_PRINT("key_part", ("fieldnr: %d", ndb_fieldnr));
-      //const NDBCOL *col= ((const NDBTAB *) m_table)->getColumn(ndb_fieldnr);
-      uint32 field_len=  field->pack_length();
-      DBUG_DUMP("key", (char*)key, field_len);
-	
-      DBUG_PRINT("info", ("Column %s, type: %d, len: %d", 
-			  field->field_name, field->real_type(), field_len));
-	
-      // Define scan filter
-      if (field->real_type() == MYSQL_TYPE_STRING)
-	sf.cmp(NdbScanFilter::COND_EQ, ndb_fieldnr, key_ptr, field_len);
-      else 
-      {
-	if (field_len == 8)
-	  sf.eq(ndb_fieldnr, (Uint64)*key_ptr);
-	else if (field_len <= 4)
-	  sf.eq(ndb_fieldnr, (Uint32)*key_ptr);
-	else 
-	  DBUG_RETURN(1);
-      }
-	
-      key_ptr += field_len;
-      tot_len += field_len;
-	
-      if (tot_len >= key_len)
-	break;
-    }
-    // End scan filter
-    sf.end();
-  }
-
-  if((res= define_read_attrs(buf, op)))
-    DBUG_RETURN(res);
-
-  if (execute_no_commit(this,trans) != 0)
-    DBUG_RETURN(ndb_err(trans));
-  DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(next_result(buf));
 }
 
@@ -5834,6 +5745,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
     case(Item::REAL_ITEM):
     case(Item::STRING_ITEM):
     case(Item::VARBIN_ITEM):
+    case(Item::DECIMAL_ITEM):
       break;
     default:
       *context->supported_ptr= FALSE;
@@ -5916,10 +5828,15 @@ void ndb_serialize_cond(const Item *item, void *arg)
 		  break;
 		case(REAL_RESULT):
 		  context->expect_only(Item::REAL_ITEM);
+		  context->expect(Item::DECIMAL_ITEM);
 		  break;
 		case(INT_RESULT):
 		  context->expect_only(Item::INT_ITEM);
 		  context->expect(Item::VARBIN_ITEM);
+		  break;
+		case(DECIMAL_RESULT):
+		  context->expect_only(Item::DECIMAL_ITEM);
+		  context->expect(Item::REAL_ITEM);
 		  break;
 		default:
 		  break;
@@ -5936,6 +5853,130 @@ void ndb_serialize_cond(const Item *item, void *arg)
 
 	context->expect_nothing();
 	switch(func_item->functype()) {
+	case(Item_func::EQ_FUNC): {
+	  DBUG_PRINT("info", ("EQ_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  context->expect(Item::INT_ITEM);
+	  context->expect(Item::REAL_ITEM);
+	  context->expect(Item::DECIMAL_ITEM);
+	  context->expect(Item::VARBIN_ITEM);
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::NE_FUNC): {
+	  DBUG_PRINT("info", ("NE_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  context->expect(Item::INT_ITEM);
+	  context->expect(Item::REAL_ITEM);
+	  context->expect(Item::DECIMAL_ITEM);
+	  context->expect(Item::VARBIN_ITEM);
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::LT_FUNC): {
+	  DBUG_PRINT("info", ("LT_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  context->expect(Item::INT_ITEM);
+	  context->expect(Item::REAL_ITEM);
+	  context->expect(Item::DECIMAL_ITEM);
+	  context->expect(Item::VARBIN_ITEM);
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::LE_FUNC): {
+	  DBUG_PRINT("info", ("LE_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  context->expect(Item::INT_ITEM);
+	  context->expect(Item::REAL_ITEM);
+	  context->expect(Item::DECIMAL_ITEM);
+	  context->expect(Item::VARBIN_ITEM);
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::GE_FUNC): {
+	  DBUG_PRINT("info", ("GE_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  context->expect(Item::INT_ITEM);
+	  context->expect(Item::REAL_ITEM);
+	  context->expect(Item::DECIMAL_ITEM);
+	  context->expect(Item::VARBIN_ITEM);
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::GT_FUNC): {
+	  DBUG_PRINT("info", ("GT_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  context->expect(Item::REAL_ITEM);
+	  context->expect(Item::DECIMAL_ITEM);
+	  context->expect(Item::INT_ITEM);
+	  context->expect(Item::VARBIN_ITEM);
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::LIKE_FUNC): {
+	  DBUG_PRINT("info", ("LIKE_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  *context->supported_ptr= FALSE; // Currently not supported
+	  break;
+	}
+	case(Item_func::NOTLIKE_FUNC): {
+	  DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::STRING_ITEM);
+	  *context->supported_ptr= FALSE; // Currently not supported
+	  break;
+	}
+	case(Item_func::ISNULL_FUNC): {
+	  DBUG_PRINT("info", ("ISNULL_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
+	case(Item_func::ISNOTNULL_FUNC): {
+	  DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
+	  curr_cond->ndb_item= new Ndb_item(func_item->functype());     
+	  context->expect(Item::FIELD_ITEM);
+	  context->expect_field_result(STRING_RESULT);
+	  context->expect_field_result(REAL_RESULT);
+	  context->expect_field_result(INT_RESULT);
+	  context->expect_field_result(DECIMAL_RESULT);
+	  break;
+	}
 	case(Item_func::UNKNOWN_FUNC): {
 	  DBUG_PRINT("info", ("UNKNOWN_FUNC %s", 
 			      func_item->const_item()?"const":""));  
@@ -5996,122 +6037,30 @@ void ndb_serialize_cond(const Item *item, void *arg)
 	      context->skip= func_item->argument_count();
 	      break;
 	    }
+	    case(DECIMAL_RESULT): {
+	      NDB_ITEM_QUALIFICATION q;
+	      q.value_type= Item::DECIMAL_ITEM;
+	      curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+	      if (context->expect_field_result_mask) 
+	      {
+		// We have not seen the field argument yet
+		context->expect_only(Item::FIELD_ITEM);
+		context->expect_only_field_result(DECIMAL_RESULT);
+	      }
+	      else
+		context->expect_nothing();
+
+	      // Skip any arguments since we will evaluate function instead
+	      DBUG_PRINT("info", ("Skip until end of arguments marker"));
+	      context->skip= func_item->argument_count();
+	      break;
+	    }
 	    default:
 	      break;
 	    }
 	  else
 	    // Function does not return constant expression
 	    *context->supported_ptr= FALSE;
-	  break;
-	}
-	case(Item_func::EQ_FUNC): {
-	  DBUG_PRINT("info", ("EQ_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::NE_FUNC): {
-	  DBUG_PRINT("info", ("NE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::LT_FUNC): {
-	  DBUG_PRINT("info", ("LT_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::LE_FUNC): {
-	  DBUG_PRINT("info", ("LE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::GE_FUNC): {
-	  DBUG_PRINT("info", ("GE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::GT_FUNC): {
-	  DBUG_PRINT("info", ("GT_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::LIKE_FUNC): {
-	  DBUG_PRINT("info", ("LIKE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  *context->supported_ptr= FALSE; // Currently not supported
-	  break;
-	}
-	case(Item_func::NOTLIKE_FUNC): {
-	  DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  *context->supported_ptr= FALSE; // Currently not supported
-	  break;
-	}
-	case(Item_func::ISNULL_FUNC): {
-	  DBUG_PRINT("info", ("ISNULL_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  break;
-	}
-	case(Item_func::ISNOTNULL_FUNC): {
-	  DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());     
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
 	  break;
 	}
 	default: {
@@ -6172,8 +6121,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
 	DBUG_PRINT("info", ("REAL_ITEM %s"));
 	if (context->expecting(Item::REAL_ITEM)) 
 	{
-	  Item_real *real_item= (Item_real *) item;      
-	  DBUG_PRINT("info", ("value %f", real_item->value));
+	  Item_float *float_item= (Item_float *) item;      
+	  DBUG_PRINT("info", ("value %f", float_item->value));
 	  NDB_ITEM_QUALIFICATION q;
 	  q.value_type= Item::REAL_ITEM;
 	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -6207,6 +6156,28 @@ void ndb_serialize_cond(const Item *item, void *arg)
 	    // We have not seen the field argument yet
 	    context->expect_only(Item::FIELD_ITEM);
 	    context->expect_only_field_result(STRING_RESULT);
+	  }
+	  else
+	    context->expect_nothing();
+	}
+	else
+	  *context->supported_ptr= FALSE;
+	break;
+      case(Item::DECIMAL_ITEM):
+	DBUG_PRINT("info", ("DECIMAL_ITEM %s"));
+	if (context->expecting(Item::DECIMAL_ITEM)) 
+	{
+	  Item_decimal *decimal_item= (Item_decimal *) item;      
+	  DBUG_PRINT("info", ("value %f", decimal_item->val_real()));
+	  NDB_ITEM_QUALIFICATION q;
+	  q.value_type= Item::DECIMAL_ITEM;
+	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+	  if (context->expect_field_result_mask) 
+	  {
+	    // We have not seen the field argument yet
+	    context->expect_only(Item::FIELD_ITEM);
+	    context->expect_only_field_result(REAL_RESULT);
+	    context->expect_field_result(DECIMAL_RESULT);
 	  }
 	  else
 	    context->expect_nothing();
@@ -6657,45 +6628,6 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   }
 
   DBUG_RETURN(0);
-}
-
-char*
-ha_ndbcluster::update_table_comment(
-			        /* out: table comment + additional */
-        const char*	comment)/* in:  table comment defined by user */
-{
-  uint length= strlen(comment);
-  if(length > 64000 - 3) 
-  {
-    return((char*)comment); /* string too long */
-  }
-
-  Ndb* ndb;
-  if (!(ndb= get_ndb()))
-  {
-    return((char*)comment);
-  }
-
-  ndb->setDatabaseName(m_dbname);
-  NDBDICT* dict= ndb->getDictionary();
-  const NDBTAB* tab;
-  if (!(tab= dict->getTable(m_tabname)))
-  {
-    return((char*)comment);
-  }
-
-  char *str;
-  const char *fmt="%s%snumber_of_replicas: %d";
-  const unsigned fmt_len_plus_extra= length + strlen(fmt);
-  if ((str= my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
-  {
-    return (char*)comment;
-  }
-
-  snprintf(str,fmt_len_plus_extra,fmt,comment,
-	   length > 0 ? " ":"",
-	   tab->getReplicaCount());
-  return str;
 }
 
 #endif /* HAVE_NDBCLUSTER_DB */
