@@ -600,7 +600,6 @@ public:
 #else
    Unique  **tempfiles;
 #endif
-   byte * dup_checking;
    THD *thd;
    ha_rows deleted;
    uint num_of_tables;
@@ -608,12 +607,8 @@ public:
    thr_lock_type lock_option;
    bool do_delete;
  public:
-   multi_delete(TABLE_LIST *dt, thr_lock_type lock_option_arg, uint n)
-     : delete_tables (dt), deleted(0), num_of_tables(n), error(0),
-       lock_option(lock_option_arg)
-   {
-     thd = current_thd; do_delete = false;
-   }
+   multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
+		uint num_of_tables);
    ~multi_delete();
    int prepare(List<Item> &list);
    bool send_fields(List<Item> &list,

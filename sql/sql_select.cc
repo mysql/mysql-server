@@ -484,8 +484,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	      (group && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT)));
 
-  make_join_readinfo(&join, (select_options & SELECT_DESCRIBE) | 
-           (ftfuncs.elements ? 0 : SELECT_USE_CACHE)); // No cache for MATCH
+  // No cache for MATCH
+  make_join_readinfo(&join,
+		     (select_options & (SELECT_DESCRIBE |
+					SELECT_NO_JOIN_CACHE)) | 
+		     (ftfuncs.elements ? SELECT_NO_JOIN_CACHE : 0));
 
   /* Need to tell Innobase that to play it safe, it should fetch all
      columns of the tables: this is because MySQL
@@ -2465,7 +2468,7 @@ make_join_readinfo(JOIN *join,uint options)
       ** if previous table use cache
       */
       table->status=STATUS_NO_RECORD;
-      if (i != join->const_tables && (options & SELECT_USE_CACHE) &&
+      if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
 	  tab->use_quick != 2 && !tab->on_expr)
       {
 	if ((options & SELECT_DESCRIBE) ||

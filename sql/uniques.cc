@@ -44,7 +44,8 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
   /* If the following fail's the next add will also fail */
   init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
   max_elements= max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+size);
-  open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE, MYF(MY_WME));
+  open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
+		   MYF(MY_WME));
 }
 
 
@@ -95,7 +96,7 @@ bool Unique::get(TABLE *table)
   SORTPARAM sort_param;
   table->found_records=elements+tree.elements_in_tree;
 
-  if (!my_b_inited(&file))
+  if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
     if ((record_pointers=table->record_pointers= (byte*)
@@ -110,17 +111,16 @@ bool Unique::get(TABLE *table)
   if (flush())
     return 1;
 
-  IO_CACHE *outfile=table->io_cache, tempfile;
+  IO_CACHE *outfile=table->io_cache;
   BUFFPEK *file_ptr= (BUFFPEK*) file_ptrs.buffer;
   uint maxbuffer= file_ptrs.elements - 1;
   uchar *sort_buffer;
   my_off_t save_pos;
   bool error=1;
 
-  my_b_clear(&tempfile);
-
       /* Open cached file if it isn't open */
-  outfile=table->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),MYF(MY_ZEROFILL));
+  outfile=table->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+						MYF(MY_ZEROFILL));
 
   if (!outfile || ! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
@@ -134,25 +134,24 @@ bool Unique::get(TABLE *table)
   sort_param.keys= max_in_memory_size / sort_param.sort_length;
   
   if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) * 
-				      sort_param.sort_length,
-				      MYF(0))))
+				       sort_param.sort_length,
+				       MYF(0))))
     return 1;
   sort_param.unique_buff= sort_buffer+(sort_param.keys*
 				       sort_param.sort_length);
 
   /* Merge the buffers to one file, removing duplicates */
-  if (merge_many_buff(&sort_param,sort_buffer,file_ptr,&maxbuffer,&tempfile))
+  if (merge_many_buff(&sort_param,sort_buffer,file_ptr,&maxbuffer,&file))
     goto err;
-  if (flush_io_cache(&tempfile) ||
-      reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
+  if (flush_io_cache(&file) ||
+      reinit_io_cache(&file,READ_CACHE,0L,0,0))
     goto err;
-  if (merge_buffers(&sort_param, &tempfile, outfile, sort_buffer, file_ptr,
+  if (merge_buffers(&sort_param, &file, outfile, sort_buffer, file_ptr,
 		    file_ptr, file_ptr+maxbuffer,0))
     goto err;                                                                 
   error=0;
 err:
   x_free((gptr) sort_buffer);
-  close_cached_file(&tempfile);
   if (flush_io_cache(outfile))
     error=1;
 
