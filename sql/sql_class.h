@@ -1034,8 +1034,13 @@ class user_var_entry
   char *value;
   ulong length, update_query_id, used_query_id;
   Item_result type;
+
+  double val(my_bool *null_value);
+  longlong val_int(my_bool *null_value);
+  String *val_str(my_bool *null_value, String *str, uint decimals);
   DTCollation collation;
 };
+
 
 /* Class for unique (removing of duplicates) */
 

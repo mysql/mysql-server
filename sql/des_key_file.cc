@@ -79,16 +79,16 @@ load_des_key_file(const char *file_name)
 
       if (start != end)
       {
-	des_cblock ivec;
+	DES_cblock ivec;
 	bzero((char*) &ivec,sizeof(ivec));
 	// We make good 24-byte (168 bit) key from given plaintext key with MD5
 	EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		       (uchar *) start, (int) (end-start),1,
 		       (uchar *) &keyblock,
 		       ivec);
-	des_set_key_unchecked(&keyblock.key1,des_keyschedule[(int)offset].ks1);
-	des_set_key_unchecked(&keyblock.key2,des_keyschedule[(int)offset].ks2);
-	des_set_key_unchecked(&keyblock.key3,des_keyschedule[(int)offset].ks3);
+	DES_set_key_unchecked(&keyblock.key1,&(des_keyschedule[(int)offset].ks1));
+	DES_set_key_unchecked(&keyblock.key2,&(des_keyschedule[(int)offset].ks2));
+	DES_set_key_unchecked(&keyblock.key3,&(des_keyschedule[(int)offset].ks3));
 	if (des_default_key == 15)
 	  des_default_key= (uint) offset;		// use first as def.
       }

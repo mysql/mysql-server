@@ -2862,7 +2862,6 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 0;
   $limits{'working_all_fields'} = 1;
-  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }

@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -70,9 +70,19 @@ id
 0
 2
 drop table t1;
-drop database if exists test_$1;
-create database test_$1;
-use test_$1;
+create table t1 (email varchar(50));
+insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
+create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
+insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
+select * from t2;
+id	t2
+1	mysql.com
+2	hotmail.com
+3	aol.com
+drop table t1,t2;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
 create table t1 (c int);
-insert into test_$1.t1 set test_$1.t1.c = '1';
-drop database test_$1;
+insert into mysqltest.t1 set mysqltest.t1.c = '1';
+drop database mysqltest;

@@ -121,14 +121,10 @@ static inline char* slave_load_file_stem(char*buf, uint file_id,
 
 
 /*
-  cleanup_load_tmpdir()
-
   Delete all temporary files used for SQL_LOAD.
 
-  TODO
-  - When we get a 'server start' event, we should only remove
-    the files associated with the server id that just started.
-    Easily fixable by adding server_id as a prefix to the log files.
+  SYNOPSIS
+    cleanup_load_tmpdir()
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
@@ -137,15 +133,28 @@ static void cleanup_load_tmpdir()
   MY_DIR *dirp;
   FILEINFO *file;
   uint i;
-  char fname[FN_REFLEN];
+  char fname[FN_REFLEN], prefbuf[31], *p;
 
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
     return;
 
+  /* 
+     When we are deleting temporary files, we should only remove
+     the files associated with the server id of our server.
+     We don't use event_server_id here because since we've disabled
+     direct binlogging of Create_file/Append_file/Exec_load events
+     we cannot meet Start_log event in the middle of events from one 
+     LOAD DATA.
+  */
+  p= strmake(prefbuf,"SQL_LOAD-",9);
+  p= int10_to_str(::server_id, p, 10);
+  *(p++)= '-';
+  *p= 0;
+
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
     file=dirp->dir_entry+i;
-    if (is_prefix(file->name,"SQL_LOAD-"))
+    if (is_prefix(file->name, prefbuf))
     {
       fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
       my_delete(fname, MYF(0));
@@ -1096,11 +1105,10 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
     */
     if (thd->options & OPTION_BEGIN)
     {
-      slave_print_error(rli, 0,
-                        "there is an unfinished transaction in the relay log \
-(could find neither COMMIT nor ROLLBACK in the relay log); it could be that \
-the master died while writing the transaction to its binary log. Now the slave \
-is rolling back the transaction.");
+      slave_print_error(rli, 0, "\
+Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
+Probably cause is that the master died while writing the transaction to it's \
+binary log.");
       return(1);
     }
     break;
@@ -1882,8 +1890,8 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     ROTATE (a fake one)
     ...
     COMMIT or ROLLBACK
-    In that case, we don't want to touch the coordinates which correspond to the
-    beginning of the transaction.
+    In that case, we don't want to touch the coordinates which correspond to
+    the beginning of the transaction.
   */
   if (!(thd->options & OPTION_BEGIN))
   {
@@ -3064,6 +3072,16 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
       my_free(tmp,MYF(0));
     }
     goto err;
+  }
+  /*
+    We have an open file descriptor to the .info file; we need to close it
+    or Windows will refuse to delete the file in my_delete().
+  */
+  if (fd >= 0)
+  {
+    my_close(fd, MYF(0));
+    end_io_cache(&file);
+    fd= -1;
   }
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
