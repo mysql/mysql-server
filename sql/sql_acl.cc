@@ -829,8 +829,8 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
-
-        set_user_salt(acl_user, password, password_len);
+	if (password)
+	  set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1456,6 +1456,11 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
       table->field[2]->store(password, password_len, &my_charset_latin1);
+    else if (!rights && !revoke_grant && thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
+	     !thd->lex->mqh.bits)
+    {
+      DBUG_RETURN(0);
+    }
   }
 
   /* Update table columns with new privileges */
