@@ -49,6 +49,11 @@ static my_string opt_mysql_unix_port=0;
 static my_string opt_ignore_lines=0;
 #include <sslopt-vars.h>
 
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=0;
+#endif
+static uint opt_protocol=0;
+
 static struct my_option my_long_options[] =
 {
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -112,8 +117,15 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
+  {"protocol", OPT_MYSQL_PROTOCOL,"The protocol of connection (tcp,socket,pipe,memory)",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replace", 'r', "If duplicate unique key was found, replace old row.",
    (gptr*) &replace, (gptr*) &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"silent", 's', "Be more silent.", (gptr*) &silent, (gptr*) &silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
@@ -181,10 +193,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #ifdef __WIN__
   case 'W':
-    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+    opt_protocol = MYSQL_PROTOCOL_PIPE;
     opt_local_file=1;
     break;
 #endif
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+    break;
+  }
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
     break;
@@ -352,6 +373,12 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd)
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
+  if (opt_protocol)
+    mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
 				 database,opt_mysql_port,opt_mysql_unix_port,
 				 0)))
@@ -486,6 +513,9 @@ int main(int argc, char **argv)
 	exitcode = error;
   db_disconnect(current_host, sock);
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+#endif
   free_defaults(argv_to_free);
   my_end(0);
   return(exitcode);

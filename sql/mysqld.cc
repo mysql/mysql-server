@@ -179,10 +179,13 @@ static char szPipeName [ 257 ];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-static pthread_cond_t COND_handler_count;
 static uint handler_count;
+static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
+static bool opt_console=0,start_mode=0;
+static pthread_cond_t COND_handler_count;
+static uint handler_count;
 static bool opt_console=0, start_mode=0, use_opt_args;
 static int opt_argc;
 static char **opt_argv;
@@ -335,6 +338,11 @@ ulong query_cache_limit=0;
 Query_cache query_cache;
 #endif
 
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name=default_shared_memory_base_name;
+static bool opt_enable_shared_memory = 0;
+#endif
+
 volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
@@ -458,6 +466,9 @@ static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
 static pthread_handler_decl(handle_connections_namedpipes,arg);
+#endif
+#ifdef HAVE_SMEM
+static pthread_handler_decl(handle_connections_shared_memory,arg);
 #endif
 extern pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
@@ -2123,21 +2134,24 @@ The server will not act as a slave.");
 
   printf(ER(ER_READY),my_progname,server_version,"");
   fflush(stdout);
-
+#if defined(__NT__) || defined(HAVE_SMEM)
 #ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE &&
-      (!have_tcpip || opt_disable_networking))
+     (!have_tcpip || opt_disable_networking) &&
+      !opt_enable_shared_memory)
   {
-    sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
+    sql_print_error("TCP/IP,--shared-memory or --named-pipe should be configured on NT OS");
 	unireg_abort(1);
   }
   else
+#endif
   {
     pthread_mutex_lock(&LOCK_thread_count);
     (void) pthread_cond_init(&COND_handler_count,NULL);
     {
       pthread_t hThread;
       handler_count=0;
+#ifdef __NT__
       if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
       {
 	handler_count++;
@@ -2148,18 +2162,33 @@ The server will not act as a slave.");
 	  handler_count--;
 	}
       }
+#endif
+#ifdef HAVE_SMEM
+      if (opt_enable_shared_memory)
+      {
+        handler_count++;
+        if (pthread_create(&hThread,&connection_attrib,
+                            handle_connections_shared_memory, 0))
+        {
+          sql_print_error("Warning: Can't create thread to handle shared memory");
+          handler_count--;
+        }
+      }
+#endif
       if (have_tcpip && !opt_disable_networking)
       {
 	handler_count++;
 	if (pthread_create(&hThread,&connection_attrib,
 			   handle_connections_sockets, 0))
 	{
-	  sql_print_error("Warning: Can't create thread to handle named pipes");
+	  sql_print_error("Warning: Can't create thread to handle tcp/ip");
 	  handler_count--;
 	}
       }
       while (handler_count > 0)
+      {
 	pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
+      }
     }
     pthread_mutex_unlock(&LOCK_thread_count);
   }
@@ -2777,6 +2806,219 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 }
 #endif /* __NT__ */
 
+/* 
+  Thread of shared memory's service
+
+  SYNOPSIS
+    pthread_handler_decl()
+    handle_connections_shared_memory Thread handle
+    arg                              Arguments of thread
+*/
+#ifdef HAVE_SMEM
+pthread_handler_decl(handle_connections_shared_memory,arg)
+{
+/*  
+  event_connect_request is event object for start connection actions 
+  event_connect_answer is event object for confirm, that server put data
+  handle_connect_file_map is file-mapping object, use for create shared memory  
+  handle_connect_map is pointer on shared memory
+  handle_map is pointer on shared memory for client
+  event_server_wrote,
+  event_server_read,
+  event_client_wrote,
+  event_client_read are events for transfer data between server and client
+  handle_file_map is file-mapping object, use for create shared memory
+*/
+  HANDLE handle_connect_file_map = NULL;
+  char  *handle_connect_map = NULL;
+  HANDLE event_connect_request = NULL;
+  HANDLE event_connect_answer = NULL;
+  ulong smem_buffer_length = shared_memory_buffer_length + 4;
+  ulong connect_number = 1;
+  my_bool error_allow;
+  THD *thd;
+  char tmp[63];
+  char *suffix_pos;
+  char connect_number_char[22], *p;
+  
+  my_thread_init();
+  DBUG_ENTER("handle_connections_shared_memorys");
+  DBUG_PRINT("general",("Waiting for allocated shared memory."));
+
+
+/*
+  The name of event and file-mapping events create agree next rule:
+            shared_memory_base_name+unique_part
+  Where:
+    shared_memory_base_name is unique value for each server
+    unique_part is unique value for each object (events and file-mapping)
+*/
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  strmov(suffix_pos, "CONNECT_REQUEST");  
+  if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! The request event don't create.");
+    goto error;
+  }
+  strmov(suffix_pos, "CONNECT_ANSWER");  
+  if ((event_connect_answer = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! The answer event don't create.");
+    goto error;
+  }
+  strmov(suffix_pos, "CONNECT_DATA");  
+  if ((handle_connect_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,PAGE_READWRITE,
+                                 0,sizeof(connect_number),tmp)) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! File mapping don't create.");
+    goto error;
+  }
+  if ((handle_connect_map = (char *)MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,
+                            sizeof(DWORD))) == 0) 
+  {
+    sql_perror("Can't create shared memory service ! Map of memory don't create.");
+    goto error;
+  }
+
+
+  while (!abort_loop)
+  {
+/*
+ Wait a request from client
+*/
+    WaitForSingleObject(event_connect_request,INFINITE);  
+    error_allow = FALSE;
+
+    HANDLE handle_client_file_map = NULL;
+    char  *handle_client_map = NULL;
+    HANDLE event_client_wrote = NULL;
+    HANDLE event_client_read = NULL;
+    HANDLE event_server_wrote = NULL;
+    HANDLE event_server_read = NULL;
+
+    p = int2str(connect_number, connect_number_char, 10);
+/*
+  The name of event and file-mapping events create agree next rule:
+    shared_memory_base_name+unique_part+number_of_connection
+  Where:
+    shared_memory_base_name is uniquel value for each server
+    unique_part is unique value for each object (events and file-mapping)
+    number_of_connection is number of connection between server and client
+*/
+    suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
+    strmov(suffix_pos, "DATA");
+    if ((handle_client_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,
+                                  PAGE_READWRITE,0,smem_buffer_length,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! File mapping don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+    if ((handle_client_map = (char*)MapViewOfFile(handle_client_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! Map of memory don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "CLIENT_WROTE");
+    if ((event_client_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! CW event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "CLIENT_READ");
+    if ((event_client_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! CR event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "SERVER_READ");
+    if ((event_server_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! SR event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    strmov(suffix_pos, "SERVER_WROTE");
+    if ((event_server_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! SW event don't create.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+    if (abort_loop) break;
+    if ( !(thd = new THD))
+    {
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+/*
+Send number of connection to client
+*/
+    int4store(handle_connect_map, connect_number);
+      
+/*
+  Send number of connection to client
+*/
+    if (!SetEvent(event_connect_answer)) 
+    {
+      sql_perror("Can't create connection with client in shared memory service ! Can't send answer event.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+
+/*
+  Set event that client should receive data
+*/
+    if (!SetEvent(event_client_read))
+    {
+      sql_perror("Can't create connection with client in shared memory service ! Can't set client to read's mode.");
+      error_allow = TRUE;
+      goto errorconn;
+    }
+    if (!(thd->net.vio = vio_new_win32shared_memory(&thd->net,handle_client_file_map,handle_client_map,event_client_wrote,
+                         event_client_read,event_server_wrote,event_server_read)) ||
+                          my_net_init(&thd->net, thd->net.vio))
+    {
+      close_connection(&thd->net,ER_OUT_OF_RESOURCES);
+      delete thd;
+      error_allow = TRUE;
+    }
+    /* host name is unknown */
+errorconn:
+    if (error_allow)
+    {
+      if (!handle_client_map) UnmapViewOfFile(handle_client_map);
+      if (!handle_client_file_map) CloseHandle(handle_client_file_map);
+      if (!event_server_wrote) CloseHandle(event_server_wrote);
+      if (!event_server_read) CloseHandle(event_server_read);
+      if (!event_client_wrote) CloseHandle(event_client_wrote);
+      if (!event_client_read) CloseHandle(event_client_read);
+      continue;
+    }
+    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
+    create_new_thread(thd);
+    uint4korr(connect_number++);
+  }
+error:
+  if (!handle_connect_map) UnmapViewOfFile(handle_connect_map);
+  if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
+  if (!event_connect_answer) CloseHandle(event_connect_answer);
+  if (!event_connect_request) CloseHandle(event_connect_request);
+  pthread_mutex_lock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_thread_count);
+  DBUG_RETURN(0);
+}
+#endif /* HAVE_SMEM */
+
 
 /******************************************************************************
 ** handle start options
@@ -2886,7 +3128,9 @@ enum options {
   OPT_INNODB_FORCE_RECOVERY,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
-  OPT_BDB_MAX_LOCK
+  OPT_BDB_MAX_LOCK,
+  OPT_ENABLE_SHARED_MEMORY,
+  OPT_SHARED_MEMORY_BASE_NAME
 };
 
 
@@ -2993,6 +3237,11 @@ struct my_option my_long_options[] =
   {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure",
    (gptr*) &opt_do_pstack, (gptr*) &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory", OPT_ENABLE_SHARED_MEMORY,
+   "Enable the shared memory.",(gptr*) &opt_enable_shared_memory, (gptr*) &opt_enable_shared_memory,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif   
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands", 0, 0, 0,
@@ -3234,6 +3483,11 @@ struct my_option my_long_options[] =
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated;you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared_memory_base_name",OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
    "Show user and password in SHOW SLAVE STATUS",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
