@@ -508,7 +508,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   List_iterator_fast<Item> it(*list);
   Item *item;
   char buff[80];
-  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_simple prot(thd);
   String *packet= prot.storage_packet();
   DBUG_ENTER("send_fields");
@@ -655,7 +655,7 @@ bool Protocol::store(const char *from)
 bool Protocol::store(I_List<i_string>* str_list)
 {
   char buf[256];
-  String tmp(buf, sizeof(buf), default_charset_info);
+  String tmp(buf, sizeof(buf), &my_charset_bin);
   uint32 len;
   I_List_iterator<i_string> it(*str_list);
   i_string* s;
@@ -794,7 +794,7 @@ bool Protocol_simple::store(Field *field)
   field_pos++;
 #endif
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),default_charset_info);
+  String tmp(buff,sizeof(buff), &my_charset_bin);
   field->val_str(&tmp,&tmp);
   if (convert)
     return convert_str(tmp.ptr(), tmp.length());
