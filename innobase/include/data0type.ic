@@ -33,6 +33,19 @@ dtype_get_charset_coll(
 }
 
 /*************************************************************************
+Gets the MySQL type code from a dtype. */
+UNIV_INLINE
+ulint
+dtype_get_mysql_type(
+/*=================*/
+				/* out: MySQL type code; this is NOT an InnoDB
+				type code! */
+	dtype_t*	type)	/* in: type struct */
+{
+	return(type->prtype & 0xFFUL);
+}
+
+/*************************************************************************
 Sets the mbminlen and mbmaxlen members of a data type structure. */
 UNIV_INLINE
 void
