@@ -27048,7 +27048,7 @@ column.  You cannot index the entire column.
 In MySQL Version 3.23.23 or later, you can also create special
 @code{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be
-created only from @code{VARCHAR} and @code{TEXT} columns.
+created only from @code{CHAR}, @code{VARCHAR}, and @code{TEXT} columns.
 Indexing always happens over the entire column and partial indexing is not
 supported. See @ref{Fulltext Search} for details.
 
