@@ -34,7 +34,7 @@ static const char *grant_names[]={
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
-                               grant_names};
+                               grant_names, NULL};
 #endif
 
 static int

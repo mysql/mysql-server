@@ -5514,7 +5514,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Remove end space */
   while (length > 0 && my_isspace(system_charset_info,from[length-1]))
     length--;
-  uint tmp=find_type(typelib, from, length, 0);
+  uint tmp=find_type2(typelib, from, length, field_charset);
   if (!tmp)
   {
     if (length < 6) // Can't be more than 99999 enums

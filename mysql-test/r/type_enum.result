@@ -1677,3 +1677,21 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		1	
 b	enum('value','öäü_value','ÊÃÕ')			value	
 drop table t1;
+CREATE TABLE t1 (c enum('a', 'A') BINARY);
+Warnings:
+Note	1291	Column 'c' has duplicated value 'a' in ENUM
+INSERT INTO t1 VALUES ('a'),('A');
+SELECT * FROM t1;
+c
+a
+A
+DROP TABLE t1;
+CREATE TABLE t1 (c enum('ae','oe','ue','ss') collate latin1_german2_ci);
+INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
+SELECT * FROM t1;
+c
+ae
+oe
+ue
+ss
+DROP TABLE t1;
