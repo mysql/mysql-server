@@ -135,6 +135,8 @@ SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 SET NAMES latin1 COLLATE latin1_bin;
 SHOW VARIABLES LIKE 'client_collation';
+SET NAMES LATIN1 COLLATE Latin1_Bin;
+SHOW VARIABLES LIKE 'client_collation';
 SET NAMES 'latin1' COLLATE 'latin1_bin';
 SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';

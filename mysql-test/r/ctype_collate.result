@@ -528,6 +528,10 @@ SET NAMES latin1 COLLATE latin1_bin;
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
 client_collation	latin1_bin
+SET NAMES LATIN1 COLLATE Latin1_Bin;
+SHOW VARIABLES LIKE 'client_collation';
+Variable_name	Value
+client_collation	latin1_bin
 SET NAMES 'latin1' COLLATE 'latin1_bin';
 SHOW VARIABLES LIKE 'client_collation';
 Variable_name	Value
