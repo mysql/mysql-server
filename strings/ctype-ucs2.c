@@ -1044,14 +1044,13 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
       if (scan <= 0)
         return 1;
-      wildstr+= scan;
       
       if (w_wc ==  (my_wc_t)escape)
       {
+        wildstr+= scan;
         scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
         if (scan <= 0)
           return 1;
-        wildstr+= scan;
       }
       
       if (w_wc == (my_wc_t)w_many)
@@ -1060,6 +1059,7 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
         break;
       }
       
+      wildstr+= scan;
       scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
       if (scan <=0)
         return 1;
@@ -1095,13 +1095,16 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
         scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
         if (scan <= 0)
           return 1;
-        wildstr+= scan;
         
 	if (w_wc == (my_wc_t)w_many)
+	{
+	  wildstr+= scan;
 	  continue;
+	} 
 	
 	if (w_wc == (my_wc_t)w_one)
 	{
+	  wildstr+= scan;
 	  scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
           if (scan <=0)
             return 1;
@@ -1120,17 +1123,16 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
       if (scan <= 0)
         return 1;
-      wildstr+= scan;
       
       if (w_wc ==  (my_wc_t)escape)
       {
+        wildstr+= scan;
         scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
         if (scan <= 0)
           return 1;
-        wildstr+= scan;
       }
       
-      do
+      while (1)
       {
         /* Skip until the first character from wildstr is found */
         while (str != str_end)
@@ -1138,8 +1140,6 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
           scan= my_ucs2_uni(cs,&s_wc, (const uchar*)str, (const uchar*)str_end);
           if (scan <= 0)
             return 1;
-          str+= scan;
-          
           if (weights)
           {
             plane=(s_wc>>8) & 0xFF;
@@ -1150,17 +1150,19 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
           
           if (s_wc == w_wc)
             break;
+          str+= scan;
         }
         if (str == str_end)
           return -1;
         
         result= my_wildcmp_ucs2(cs,str,str_end,wildstr,wildend,escape,
                                 w_one,w_many,weights);
+        
         if (result <= 0)
           return result;
         
-      } while (str != str_end && w_wc != (my_wc_t)w_many);
-      return -1;
+        str+= scan;
+      } 
     }
   }
   return (str != str_end ? 1 : 0);
