@@ -1,4 +1,3 @@
-#!@PERL@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -1720,32 +1719,22 @@ if ($limits{'foreign_key'} eq 'yes')
   }
 }
 
-report("Column constraints","constraint_check",
-       "create table crash_q (a int check (a>0))",
-       "drop table crash_q $drop_attr");
+check_constraint("Column constraints","constraint_check",
+           "create table crash_q (a int check (a>0))",
+           "insert into crash_q values(0)",
+           "drop table crash_q $drop_attr");
 
-report("Ignoring column constraints","ignoring_constraint_check",
-       "create table crash_q (a int check (a>0))",
-       "insert into crash_q values(0)",
-       "drop table crash_q $drop_attr") if ($limits{'constraint_check'} eq 'yes');
 
-report("Table constraints","constraint_check_table",
-       "create table crash_q (a int ,b int, check (a>b))",
-       "drop table crash_q $drop_attr");
-
-report("Ignoring table constraints","ignoring_constraint_check_table",
+check_constraint("Table constraints","constraint_check_table",
        "create table crash_q (a int ,b int, check (a>b))",
        "insert into crash_q values(0,0)",
-       "drop table crash_q $drop_attr") if ($limits{'constraint_check_table'} eq 'yes');
-
-report("Named constraints","constraint_check_named",
-       "create table crash_q (a int ,b int, constraint abc check (a>b))",
        "drop table crash_q $drop_attr");
 
-report("Ignoring named constraints","ignoring_constraint_check_named",
+check_constraint("Named constraints","constraint_check_named",
        "create table crash_q (a int ,b int, constraint abc check (a>b))",
        "insert into crash_q values(0,0)",
-       "drop table crash_q $drop_attr") if ($limits{'constraint_check_named'} eq 'yes');
+       "drop table crash_q $drop_attr");
+
 
 report("NULL constraint (SyBase style)","constraint_null",
        "create table crash_q (a int null)",
@@ -2234,6 +2223,29 @@ sub check_parenthesis {
     $resultat="with_parenthesis";
   }
   save_config_data($param_name,$resultat,$fn);
+}
+
+sub check_constraint {
+ my $prompt = shift;
+ my $key = shift;
+ my $create = shift;
+ my $check = shift;
+ my $drop = shift;
+ save_incomplete($key,$prompt);
+ print "$prompt=";
+ my $res = 'no';
+
+ if ( ($t=safe_query($create)) == 1)
+ {
+   $res='yes';
+   if (safe_query($check) == 1)
+   {
+     $res='syntax only';
+   }
+ }        
+ safe_query($drop);
+ save_config_data($key,$res,$prompt);
+ print "$res\n";
 }
 
 sub usage
