@@ -672,3 +672,5 @@ NdbRestarter::getConfig(){
   m_config = ndb_mgm_get_configuration(handle, 0);
   return m_config;
 }
+
+template class Vector<ndb_mgm_node_state>;

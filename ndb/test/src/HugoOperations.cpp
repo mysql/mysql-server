@@ -791,3 +791,5 @@ HugoOperations::indexUpdateRecord(Ndb*,
   }
   return NDBT_OK;
 }
+
+template class Vector<HugoOperations::ScanTmp>;
