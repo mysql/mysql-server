@@ -3088,6 +3088,7 @@ rec_loop:
 
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			ut_print_timestamp(stderr);
+			buf_page_print(buf_frame_align(rec));
 			fprintf(stderr,
 "  InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
 "InnoDB: ",

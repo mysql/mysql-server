@@ -2736,6 +2736,9 @@ consecutive_loop:
 				    	ut_print_timestamp(stderr);
 				    	fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n");
+				    	fprintf(stderr,
+"InnoDB: Writing a block of %lu bytes, currently writing at offset %lu\n",
+					(ulong)total_len, (ulong)len2);
 					buf_page_print(combined_buf + len2);
 				    	fprintf(stderr,
 "InnoDB: ERROR: The page to be written seems corrupt!\n");
