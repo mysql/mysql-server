@@ -46586,13 +46586,12 @@ variables.
 @cindex OLEDB
 @item OLEDB
 @itemize @bullet
-@item MyOLEDB 2.5: @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe}
-OLEDB handler for MySQL. By SWsoft.
-@item MyOLEDB 3.0: @uref{http://old.sw.com.sg/products/myoledb/form/}
+@item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB3.exe}
+MyOLEDB 3.0 installation package from SWSoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/mysql-oledb-3.0.0.zip}
+Source for MyOLEDB 3.0.
 @item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip}
-Examples and documentation for MyOLEDB. By SWsoft.
-@item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip}
-Source for MyOLEDB. By SWsoft.
+Examples and documentation for MyOLEDB.
 @item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.chm}
 Help files for MyOLEDB.
 @item @uref{http://www.mysql.com/Downloads/Win32/libmyodbc.zip}
