@@ -407,7 +407,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 				    !thd->cuted_fields))
   {
     thd->row_count_func= info.copied+info.deleted+info.updated;
-    send_ok(thd, thd->row_count_func, id);
+    send_ok(thd, (ulong) (ulong) thd->row_count_func, id);
   }
   else
   {
@@ -420,7 +420,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
     thd->row_count_func= info.copied+info.deleted+info.updated;
-    ::send_ok(thd, thd->row_count_func, (ulonglong)id,buff);
+    ::send_ok(thd, (ulong) thd->row_count_func, (ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
@@ -453,6 +453,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 {
   DBUG_ENTER("check_key_in_view");
 
+  uint i;
   TABLE *table= view->table;
   Item **trans= view->field_translation;
   Field **field_ptr= table->field;
@@ -462,7 +463,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 
   view->contain_auto_increment= 0;
   /* check simplicity and prepare unique test of view */
-  for (uint i= 0; i < num; i++)
+  for (i= 0; i < num; i++)
   {
     /* simple SELECT list entry (field without expression) */
     if (trans[i]->type() != Item::FIELD_ITEM)
@@ -473,7 +474,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
     ((Item_field *)trans[i])->field->query_id= other_query_id;
   }
   /* unique test */
-  for (uint i= 0; i < num; i++)
+  for (i= 0; i < num; i++)
   {
     Item_field *field= (Item_field *)trans[i];
     if (field->field->query_id == query_id)
@@ -1728,7 +1729,7 @@ bool select_insert::send_eof()
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
   thd->row_count_func= info.copied+info.deleted+info.updated;
-  ::send_ok(thd, thd->row_count_func, last_insert_id, buff);
+  ::send_ok(thd, (ulong) thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);
 }
 

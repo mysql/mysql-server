@@ -3672,7 +3672,7 @@ purposes internal to the MySQL server", MYF(0));
 	}
 
 	if (res == 0)
-	  send_ok(thd, (thd->row_count_func < 0 ? 0 : thd->row_count_func));
+	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 : thd->row_count_func));
 	else
 	  goto error;		// Substatement should already have sent error
       }
