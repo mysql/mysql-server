@@ -36,6 +36,11 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* __WIN__ */
 
+/*
+  You should add new commands to the end of this list, otherwise old
+  servers won't be able to handle them as 'unsupported'.
+*/
+
 enum enum_server_command
 {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
