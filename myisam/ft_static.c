@@ -67,6 +67,7 @@ FT_INFO *ft_init_search(uint mode, void *info, uint keynr,
           query, query_len, presort);
 }
 
+const char *ft_stopword_file = 0;
 const char *ft_precompiled_stopwords[] = {
 
 #ifdef COMPILE_STOPWORDS_IN
