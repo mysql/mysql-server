@@ -281,7 +281,7 @@ drop view vo;
 select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables 
 where table_schema='information_schema' limit 2;
-show tables from information_schema like "t%";
+show tables from information_schema like "T%";
 
 --error 1007
 create database information_schema;
