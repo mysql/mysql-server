@@ -50,7 +50,8 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
-  "SSL connection error"
+  "SSL connection error",
+  "Malformed packet"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -63,7 +64,7 @@ const char *client_errors[]=
   "Não pode se conectar ao servidor MySQL local através do 'socket' '%-.64s' (%d)", 
   "Não pode se conectar ao servidor MySQL em '%-.64s' (%d)",
   "Não pode criar 'socket TCP/IP' (%d)",
-  "'Host' servidor MySQL '%-.64s' (%d) desconhecido", 
+  "'Host' servidor MySQL '%-.64s' (%d) desconhecido",
   "Servidor MySQL desapareceu",
   "Incompatibilidade de protocolos. Versão do Servidor: %d - Versão do Cliente: %d",
   "Cliente do MySQL com falta de memória",
@@ -84,7 +85,8 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
-  "SSL connection error"
+  "SSL connection error",
+  "Malformed packet"
 };
 
 #else /* ENGLISH */
@@ -116,7 +118,8 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
-  "SSL connection error"
+  "SSL connection error",
+  "Malformed packet"
 };
 #endif
 

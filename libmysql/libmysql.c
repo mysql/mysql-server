@@ -985,7 +985,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
         if (to+len > end_to)
         {
           free_rows(result);
-          net->last_errno=CR_UNKNOWN_ERROR;
+          net->last_errno=CR_MALFORMED_PACKET;
           strmov(net->last_error,ER(net->last_errno));
           DBUG_RETURN(0);
         }
