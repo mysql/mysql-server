@@ -21,7 +21,6 @@
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
-#include <assert.h>
 
 #define files_charset_info system_charset_info
 

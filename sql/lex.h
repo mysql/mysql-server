@@ -136,7 +136,7 @@ static SYMBOL symbols[] = {
   { "DROP",		SYM(DROP),0,0},
   { "DUMPFILE",		SYM(DUMPFILE),0,0},
   { "DYNAMIC",		SYM(DYNAMIC_SYM),0,0},
-  { "DUPLICATE",	SYM(DUPLICATE),0,0},
+  { "DUPLICATE",	SYM(DUPLICATE_SYM),0,0},
   { "ERRORS",		SYM(ERRORS),0,0},
   { "END",		SYM(END),0,0},
   { "ELSE",             SYM(ELSE),0,0},

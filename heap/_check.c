@@ -20,6 +20,8 @@
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			 ulong blength, my_bool print_status);
+static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
+			    my_bool print_status);
 
 
 /*

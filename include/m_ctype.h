@@ -26,7 +26,6 @@
 extern "C" {
 #endif
 
-
 #define MY_CS_NAME_SIZE			32
 #define MY_CS_CTYPE_TABLE_SIZE		257
 #define MY_CS_TO_LOWER_TABLE_SIZE	256
@@ -38,7 +37,8 @@ extern "C" {
 
 #define my_wc_t ulong
 
-typedef struct unicase_info_st {
+typedef struct unicase_info_st
+{
   uint16 toupper;
   uint16 tolower;
   uint16 sort;
@@ -66,7 +66,8 @@ typedef struct unicase_info_st {
 #define MY_CHARSET_CURRENT (default_charset_info->number)
 
 
-typedef struct my_uni_idx_st {
+typedef struct my_uni_idx_st
+{
   uint16 from;
   uint16 to;
   uchar  *tab;
@@ -136,18 +137,27 @@ typedef struct charset_info_st
   char    max_sort_char; /* For LIKE optimization */
   
   /* Charset dependant snprintf() */
-  int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
-  int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix, long int val);
-  int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
+  int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt,
+		   ...);
+  int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix,
+			long int val);
+  int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n,
+			   int radix, longlong val);
   
   /* String-to-number convertion routines */
-  long        (*strntol)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
-  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
-  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
-  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
-  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e, int *err);
+  long        (*strntol)(struct charset_info_st *, const char *s, uint l,
+			 int base, char **e, int *err);
+  ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l,
+			 int base, char **e, int *err);
+  longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l,
+			 int base, char **e, int *err);
+  ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l,
+			 int base, char **e, int *err);
+  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e,
+			 int *err);
   
-  ulong        (*scan)(struct charset_info_st *, const char *b, const char *e, int sq);
+  ulong        (*scan)(struct charset_info_st *, const char *b, const char *e,
+		       int sq);
   
 } CHARSET_INFO;
 
@@ -162,8 +172,10 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));
 
 /* declarations for simple charsets */
-extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *, uint); 
-extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
+extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,
+			       uint); 
+extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
+				const uchar *, uint);
 
 extern uint my_hash_caseup_simple(CHARSET_INFO *cs,
 				  const byte *key, uint len);
@@ -181,36 +193,45 @@ extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
 extern void my_tosort_8bit(CHARSET_INFO *, char *, uint);
 
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
-extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, uint);
+extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *,
+			       uint);
 
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
 ulong my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
 
-int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
+int my_snprintf_8bit(struct charset_info_st *, char *to, uint n,
+		     const char *fmt, ...);
 
-long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
-ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
-longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
-ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l, int base, char **e, int *err);
-double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e, int *err);
+long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l, int base,
+			    char **e, int *err);
+ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l, int base,
+			    char **e, int *err);
+longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l, int base,
+			    char **e, int *err);
+ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l, int base,
+			    char **e, int *err);
+double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e,
+			    int *err);
 
-int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
-int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
+int  my_long10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix,
+			   long int val);
+int my_longlong10_to_str_8bit(CHARSET_INFO *, char *to, uint l, int radix,
+			      longlong val);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
-			const char *ptr, uint ptr_length,
-			int escape, int w_one, int w_many,
-			uint res_length,
-			char *min_str, char *max_str,
-			uint *min_length, uint *max_length);
+			      const char *ptr, uint ptr_length,
+			      int escape, int w_one, int w_many,
+			      uint res_length,
+			      char *min_str, char *max_str,
+			      uint *min_length, uint *max_length);
 
 
 int my_wildcmp_8bit(CHARSET_INFO *,
-  		     const char *str,const char *str_end,
-                     const char *wildstr,const char *wildend,
-                     int escape, int w_one, int w_many);
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many);
 
 
 #ifdef USE_MB
@@ -220,14 +241,13 @@ extern void my_casedn_str_mb(CHARSET_INFO *, char *);
 extern void my_caseup_mb(CHARSET_INFO *, char *, uint);
 extern void my_casedn_mb(CHARSET_INFO *, char *, uint);
 extern int my_strcasecmp_mb(CHARSET_INFO * cs,const char *, const char *);
-extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t, uint);
+extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t,
+			     uint);
 int my_wildcmp_mb(CHARSET_INFO *,
-  		     const char *str,const char *str_end,
-                     const char *wildstr,const char *wildend,
-                     int escape, int w_one, int w_many);
+		  const char *str,const char *str_end,
+		  const char *wildstr,const char *wildend,
+		  int escape, int w_one, int w_many);
 #endif
-
-
 
 #define	_U	01	/* Upper case */
 #define	_L	02	/* Lower case */

@@ -25,7 +25,7 @@ CFG=mysqlclient - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysqlclient - Win32 Release"
@@ -48,7 +48,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\mysqlclient.lib"
 
@@ -72,7 +72,7 @@ LIB32=link.exe -lib
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\mysqlclient.lib"
 
@@ -382,7 +382,7 @@ SOURCE=..\mysys\my_thr_init.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\my_vsnprintf.c
+SOURCE=..\strings\my_vsnprintf.c
 # End Source File
 # Begin Source File
 
@@ -490,6 +490,10 @@ SOURCE=..\strings\strxmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\strxnmov.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\thr_mutex.c
 # End Source File
 # Begin Source File
@@ -511,6 +515,10 @@ SOURCE=..\vio\viossl.c
 # Begin Source File
 
 SOURCE=..\vio\viosslfactories.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\xml.c
 # End Source File
 # End Target
 # End Project

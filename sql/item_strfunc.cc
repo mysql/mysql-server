@@ -1321,12 +1321,14 @@ String *Item_func_password::val_str(String *str)
     char* seed_ptr=key->c_ptr();
     while (*seed_ptr)
     {
-      seed=seed*211+*seed_ptr; /* Use simple hashing */
+      seed=(seed*211+*seed_ptr) & 0xffffffffL; /* Use simple hashing */
       seed_ptr++;
     }
     
     /* Use constants which allow nice random values even with small seed */
-    randominit(&rand_st,seed*111111+33333333L,seed*1111+55555555L);
+    randominit(&rand_st,
+	       (ulong) ((ulonglong) seed*111111+33333333L) & (ulong) 0xffffffff,
+	       (ulong) ((ulonglong) seed*1111+55555555L) & (ulong) 0xffffffff);
     
     make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
                             &rand_st);

@@ -100,7 +100,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) cs->longlong10_to_str(cs,Ptr,l,-10,num);
+  str_length=(uint32) (cs->longlong10_to_str)(cs,Ptr,l,-10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -111,7 +111,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) cs->longlong10_to_str(cs,Ptr,l,10,num);
+  str_length=(uint32) (cs->longlong10_to_str)(cs,Ptr,l,10,num);
   str_charset=cs;
   return FALSE;
 }
