@@ -40,7 +40,7 @@ start slave;
 # Usually it stops when the SQL thread is around the 15th relay log.
 # We cannot use MASTER_POS_WAIT() as master's position
 # increases only when the slave executes the COMMIT.
-system sleep 1;
+sleep 1;
 stop slave;
 # We suppose the SQL thread stopped before COMMIT.
 # If so the transaction was rolled back
