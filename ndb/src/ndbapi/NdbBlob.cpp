@@ -97,6 +97,14 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.setName(btname);
   bt.setLogging(t->getLogging());
   bt.setFragmentType(t->getFragmentType());
+  { NdbDictionary::Column bc("PK");
+    bc.setType(NdbDictionary::Column::Unsigned);
+    assert(t->m_sizeOfKeysInWords != 0);
+    bc.setLength(t->m_sizeOfKeysInWords);
+    bc.setPrimaryKey(true);
+    bc.setDistributionKey(true);
+    bt.addColumn(bc);
+  }
   { NdbDictionary::Column bc("DIST");
     bc.setType(NdbDictionary::Column::Unsigned);
     bc.setPrimaryKey(true);
@@ -106,13 +114,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   { NdbDictionary::Column bc("PART");
     bc.setType(NdbDictionary::Column::Unsigned);
     bc.setPrimaryKey(true);
-    bt.addColumn(bc);
-  }
-  { NdbDictionary::Column bc("PK");
-    bc.setType(NdbDictionary::Column::Unsigned);
-    assert(t->m_sizeOfKeysInWords != 0);
-    bc.setLength(t->m_sizeOfKeysInWords);
-    bc.setPrimaryKey(true);
+    bc.setDistributionKey(false);
     bt.addColumn(bc);
   }
   { NdbDictionary::Column bc("DATA");
@@ -392,9 +394,10 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
   Uint32* data = (Uint32*)theKeyBuf.data;
   unsigned size = theTable->m_sizeOfKeysInWords;
   DBG("setPartKeyValue dist=" << getDistKey(part) << " part=" << part << " key=" << ndb_blob_debug(data, size));
-  if (anOp->equal((Uint32)0, getDistKey(part)) == -1 ||
-      anOp->equal((Uint32)1, part) == -1 ||
-      anOp->equal((Uint32)2, theKeyBuf.data) == -1) {
+  // TODO use attr ids after compatibility with 4.1.7 not needed
+  if (anOp->equal("PK", theKeyBuf.data) == -1 ||
+      anOp->equal("DIST", getDistKey(part)) == -1 ||
+      anOp->equal("PART", part) == -1) {
     setErrorCode(anOp);
     return -1;
   }

@@ -21,6 +21,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "dict0boot.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 
 /************************************************************************
 Finds the first table name in the given database. */
@@ -124,6 +125,13 @@ dict_print(void)
 	ulint		len;
 	mtr_t		mtr;
 	
+	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
+	monitor printout */
+
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
+
 	mutex_enter(&(dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -145,6 +153,12 @@ loop:
 		mtr_commit(&mtr);
 		
 		mutex_exit(&(dict_sys->mutex));
+
+		/* Restore the fatal semaphore wait timeout */
+
+		mutex_enter(&kernel_mutex);
+		srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+		mutex_exit(&kernel_mutex);
 
 		return;
 	}	
