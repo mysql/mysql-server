@@ -4353,10 +4353,10 @@ purge_option:
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
 	  /*
-	    it is OK olny emulate fix_fieds, because we need only
+	    it is OK only emulate fix_fieds, because we need only
             value of constant
 	  */
-	  tmp->Item::fix_fields(0,0,0);
+	  tmp->quick_fix_field();
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
 	  Lex->purge_time= (ulong) tmp->val_int();
 	}
@@ -4492,11 +4492,11 @@ text_string:
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
 	    /*
-	      it is OK olny emulate fix_fieds, because we need only
+	      it is OK only emulate fix_fieds, because we need only
               value of constant
 	    */
 	    $$= tmp ?
-	      tmp->Item::fix_fields(0,0,0), tmp->val_str((String*) 0) :
+	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
 	      (String*) 0;
 	  }
 	;
@@ -4529,9 +4529,8 @@ signed_literal:
 	| '+' NUM_literal { $$ = $2; }
 	| '-' NUM_literal
 	  {
-	    $2->neg();
 	    $2->max_length++;
-	    $$= $2;
+	    $$= $2->neg();
 	  }
 	;
 
@@ -4546,11 +4545,11 @@ literal:
 	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    /*
-	      it is OK olny emulate fix_fieds, because we need only
+	      it is OK only emulate fix_fieds, because we need only
               value of constant
 	    */
 	    String *str= tmp ?
-	      tmp->Item::fix_fields(0,0,0), tmp->val_str((String*) 0) :
+	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
 	      (String*) 0;
 	    $$= new Item_string(str ? str->ptr() : "",
 				str ? str->length() : 0,

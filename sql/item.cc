@@ -301,15 +301,12 @@ bool DTCollation::aggregate(DTCollation &dt)
   return 0;
 }
 
-Item_field::Item_field(Field *f, bool already_fixed)
+Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name)
-#ifndef DBUG_OFF
-  ,double_fix(0)
-#endif
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
-  fixed= already_fixed;
+  fixed= 1;
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -317,9 +314,6 @@ Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
    field(item->field),
    result_field(item->result_field)
-#ifndef DBUG_OFF
-  ,double_fix(0)
-#endif
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -487,6 +481,7 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 String *Item_int::val_str(String *str)
 {
+  // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
   str->set(value, &my_charset_bin);
   return str;
@@ -502,6 +497,7 @@ void Item_int::print(String *str)
 
 String *Item_uint::val_str(String *str)
 {
+  // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
   str->set((ulonglong) value, &my_charset_bin);
   return str;
@@ -518,6 +514,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
+  // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
   str->set(value,decimals,&my_charset_bin);
   return str;
@@ -537,20 +534,23 @@ bool Item_null::eq(const Item *item, bool binary_cmp) const
 { return item->type() == type(); }
 double Item_null::val()
 {
-  // NULL can be used without fix_fields
+  // following assert is redundant, because fixed=1 assigned in constructor
+  DBUG_ASSERT(fixed == 1);
   null_value=1;
   return 0.0;
 }
 longlong Item_null::val_int()
 {
-  // NULL can be used without fix_fields
+  // following assert is redundant, because fixed=1 assigned in constructor
+  DBUG_ASSERT(fixed == 1);
   null_value=1;
   return 0;
 }
 /* ARGSUSED */
 String *Item_null::val_str(String *str)
 {
-  // NULL can be used without fix_fields
+  // following assert is redundant, because fixed=1 assigned in constructor
+  DBUG_ASSERT(fixed == 1);
   null_value=1;
   return 0;
 }
@@ -832,8 +832,7 @@ bool Item::fix_fields(THD *thd,
 {
 
   // We do not check fields which are fixed during construction
-  DBUG_ASSERT(fixed == 0 || type() == INT_ITEM || type() == CACHE_ITEM ||
-	      type() == STRING_ITEM || type() == MYSQL_TYPE_DATETIME);
+  DBUG_ASSERT(fixed == 0 || basic_const_item());
   fixed= 1;
   return 0;
 }
@@ -904,7 +903,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  DBUG_ASSERT(fixed == 0 || double_fix == 0);
+  DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
     TABLE_LIST *where= 0;
@@ -1341,6 +1340,10 @@ int Item_int::save_in_field(Field *field, bool no_conversions)
   return field->store(nr);
 }
 
+Item_num *Item_uint::neg()
+{
+  return new Item_real(name, - ((double) value), 0, max_length);
+}
 
 int Item_real::save_in_field(Field *field, bool no_conversions)
 {
@@ -1383,10 +1386,12 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
   }
   *ptr=0;					// Keep purify happy
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
+  fixed= 1;
 }
 
 longlong Item_varbinary::val_int()
 {
+  // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
   char *end=(char*) str_value.ptr()+str_value.length(),
        *ptr=end-min(str_value.length(),sizeof(longlong));
@@ -1648,7 +1653,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
 	Item_field* fld;
-	if (!((*reference)= fld= new Item_field(tmp, 1)))
+	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
 	register_item_tree_changing(reference);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);

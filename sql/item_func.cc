@@ -428,7 +428,7 @@ void Item_func::fix_num_length_and_dec()
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
-    return new Item_field(result_field, 1);
+    return new Item_field(result_field);
   return copy_or_same(thd);
 }
 
@@ -2780,7 +2780,13 @@ void Item_func_match::init_search(bool no_order)
       fields.push_back(args[i]);
     concat=new Item_func_concat_ws(new Item_string(" ",1,
                                    cmp_collation.collation), fields);
-    concat->fix_fields(current_thd, 0, &concat);
+    /*
+      Above function used only to get value and do not need fix_fields for it:
+      Item_string - basic constant
+      fields - fix_fieds already was called for this arguments
+      Item_func_concat_ws - do not need fix_fields to produce value
+    */
+    concat->quick_fix_field();
   }
 
   if (master)

@@ -624,7 +624,7 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
 				    TABLE_LIST *tables, TABLE *table,
 				    Field *pfname, int *error)
 {
-  Item *cond= new Item_func_like(new Item_field(pfname, 1),
+  Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),
 				 (char*) "\\");
   if (thd->is_fatal_error)
@@ -744,10 +744,10 @@ int mysqld_help(THD *thd, const char *mask)
     {
       Field *topic_cat_id= used_fields[help_topic_help_category_id].field;
       Item *cond_topic_by_cat=
-	new Item_func_equal(new Item_field(topic_cat_id, 1),
+	new Item_func_equal(new Item_field(topic_cat_id),
 			    new Item_int((int32)category_id));
       Item *cond_cat_by_cat=
-	new Item_func_equal(new Item_field(cat_cat_id, 1),
+	new Item_func_equal(new Item_field(cat_cat_id),
 			    new Item_int((int32)category_id));
       if (!(select_topics_by_cat= prepare_simple_select(thd,cond_topic_by_cat,
 							tables,tables[0].table,

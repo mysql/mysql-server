@@ -116,6 +116,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
   {
     if (substitution)
     {
+      int ret= 0;
+
       // did we changed top item of WHERE condition
       if (unit->outer_select()->where == (*ref))
 	unit->outer_select()->where= substitution; // correct WHERE for PS
@@ -127,7 +129,6 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       substitution= 0;
       fixed= 1;
       thd->where= "checking transformed subquery";      
-      int ret= 0;
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, tables, ref);
       // We can't substitute aggregate functions (like (SELECT (max(i)))
@@ -204,7 +205,7 @@ bool Item_subselect::const_item() const
 Item *Item_subselect::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
-    return new Item_field(result_field, 1);
+    return new Item_field(result_field);
   return copy_or_same(thd);
 }
 

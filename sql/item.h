@@ -137,6 +137,11 @@ public:
   }
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
+  /*
+    should be used in case where we are shure that we do not need
+    complete fix_fields() procedure.
+  */
+  inline void quick_fix_field() { fixed= 1; }
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
@@ -245,7 +250,7 @@ public:
 class Item_num: public Item
 {
 public:
-  virtual void neg()= 0;
+  virtual Item_num* neg()= 0;
 };
 
 
@@ -288,7 +293,7 @@ public:
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
-  Item_field(Field *field, bool already_fixed);
+  Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   double val();
@@ -321,13 +326,19 @@ public:
   void cleanup();
   friend class Item_default_value;
   friend class Item_insert_value;
+  friend class st_select_lex_unit;
 };
 
 class Item_null :public Item
 {
 public:
   Item_null(char *name_par=0)
-    { maybe_null=null_value=TRUE; name= name_par ? name_par : (char*) "NULL";}
+  {
+    maybe_null= null_value= TRUE;
+    max_length= 0;
+    name= name_par ? name_par : (char*) "NULL";
+    fixed= 1;
+  }
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   double val();
@@ -338,13 +349,8 @@ public:
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
-  {
-    DBUG_ASSERT(fixed == 0);
-    bool res= Item::fix_fields(thd, list, item);
-    max_length=0;
-    return res;
-  }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -431,9 +437,9 @@ public:
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
   // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() { fixed= 1; }
+  void cleanup() {}
   void print(String *str);
-  void neg() { value= -value; }
+  Item_num *neg() { value= -value; return this; }
 };
 
 
@@ -451,6 +457,7 @@ public:
   Item *new_item() { return new Item_uint(name,max_length); }
   int save_in_field(Field *field, bool no_conversions);
   void print(String *str);
+  Item_num *neg ();
 };
 
 
@@ -459,11 +466,12 @@ class Item_real :public Item_num
 public:
   double value;
   // Item_real() :value(0) {}
-  Item_real(const char *str_arg,uint length) :value(my_atof(str_arg))
+  Item_real(const char *str_arg, uint length) :value(my_atof(str_arg))
   {
     name=(char*) str_arg;
     decimals=(uint8) nr_of_decimals(str_arg);
     max_length=length;
+    fixed= 1;
   }
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
@@ -471,8 +479,9 @@ public:
     name=(char*) str;
     decimals=(uint8) decimal_par;
     max_length=length;
+    fixed= 1;
   }
-  Item_real(double value_par) :value(value_par) {}
+  Item_real(double value_par) :value(value_par) { fixed= 1; }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -484,8 +493,10 @@ public:
   }
   String *val_str(String*);
   bool basic_const_item() const { return 1; }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
-  void neg() { value= -value; }
+  Item_num *neg() { value= -value; return this; }
 };
 
 
@@ -564,11 +575,8 @@ public:
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
-  void cleanup()
-  {
-    // it is constant => can be used without fix_fields (and frequently used)
-    fixed= 1;
-  }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
 };
 
 /* for show tables */
@@ -613,10 +621,13 @@ public:
   double val()
     { DBUG_ASSERT(fixed == 1); return (double) Item_varbinary::val_int(); }
   longlong val_int();
+  bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
 };
 
 
@@ -874,7 +885,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
-  virtual bool basic_const_item() const { return true; }
   int save_in_field(Field *field_arg, bool no_conversions)
   {
     if (!arg)
@@ -902,7 +912,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
-  virtual bool basic_const_item() const { return true; }
   int save_in_field(Field *field_arg, bool no_conversions)
   {
     return Item_field::save_in_field(field_arg, no_conversions);
@@ -926,7 +935,7 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
-  virtual bool allocate(uint i) { return 0; };
+  virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)
   {
     example= item;
@@ -941,7 +950,7 @@ public:
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() { fixed= 1; }
+  void cleanup() {}
   void print(String *str);
 };
 
