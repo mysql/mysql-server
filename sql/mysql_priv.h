@@ -14,6 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  Mostly this file is used in the server. But a little part of it is used in
+  mysqlbinlog too (definition of SELECT_DISTINCT and others).
+  The consequence is that 90% of the file is wrapped in #ifndef MYSQL_CLIENT,
+  except the part which must be in the server and in the client.
+*/
+
+#ifndef MYSQL_CLIENT
+
 #include <my_global.h>
 #include <assert.h>
 #include <mysql_version.h>
@@ -196,7 +205,15 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_NO_STACKTRACE	512
 #define TEST_SIGINT		1024	/* Allow sigint on threads */
 
-/* options for select set by the yacc parser (stored in lex->options) */
+#endif
+
+/* 
+   This is included in the server and in the client.
+   Options for select set by the yacc parser (stored in lex->options).
+   None of the 32 defines below should have its value changed, or this will
+   break replication.
+*/
+
 #define SELECT_DISTINCT		(1L << 0)
 #define SELECT_STRAIGHT_JOIN	(1L << 1)
 #define SELECT_DESCRIBE		(1L << 2)
@@ -233,6 +250,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
    key checks in some cases */
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
+
+/* The rest of the file is included in the server only */
+#ifndef MYSQL_CLIENT
 
 /* options for UNION set by the yacc parser (stored in unit->union_option) */
 #define UNION_ALL               1
@@ -1121,3 +1141,5 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
 }
+
+#endif /* MYSQL_CLIENT */

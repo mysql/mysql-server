@@ -26,6 +26,7 @@
 class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
+class Format_description_log_event;
 class sp_rcontext;
 class sp_cache;
 
@@ -99,7 +100,14 @@ class MYSQL_LOG
   enum cache_type io_cache_type;
   bool write_error, inited;
   bool need_start_event;
-  bool no_auto_events;				// For relay binlog
+  /*
+    no_auto_events means we don't want any of these automatic events :
+    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't want
+    a Rotate_log event to be written to the relay log. When we start a relay log
+    etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
+    In 5.0 it's 0 for relay logs too!
+  */
+  bool no_auto_events;			     
   /* 
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
@@ -116,6 +124,18 @@ class MYSQL_LOG
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
+
+  /* 
+     These describe the log's format. This is used only for relay logs.
+     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
+     necessary to have 2 distinct objects, because the I/O thread may be reading
+     events in a different format from what the SQL thread is reading (consider
+     the case of a master which has been upgraded from 5.0 to 5.1 without doing
+     RESET MASTER, or from 4.x to 5.0).
+  */
+  Format_description_log_event *description_event_for_exec,
+    *description_event_for_queue;
+
   void reset_bytes_written()
   {
     bytes_written = 0;
@@ -144,7 +164,8 @@ public:
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
 	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size);
+	    bool no_auto_events_arg, ulong max_size,
+            bool null_created);
   void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
@@ -590,9 +611,17 @@ public:
      the connection
     priv_user - The user privilege we are using. May be '' for anonymous user.
     db - currently selected database
+    catalog - currently selected catalog
     ip - client IP
+    WARNING: some members of THD (currently 'db', 'catalog' and 'query')  are
+    set and alloced by the slave SQL thread (for the THD of that thread); that
+    thread is (and must remain, for now) the only responsible for freeing these
+    3 members. If you add members here, and you add code to set them in
+    replication, don't forget to free_them_and_set_them_to_0 in replication
+    properly. For details see the 'err:' label of the pthread_handler_decl of
+    the slave SQL thread, in sql/slave.cc.
    */
-  char	  *host,*user,*priv_user,*db,*ip;
+  char	  *host,*user,*priv_user,*db,*catalog,*ip;
   char	  priv_host[MAX_HOSTNAME];
   /* remote (peer) port */
   uint16 peer_port;

@@ -56,7 +56,9 @@ start slave;
 # reading, MASTER_POS_WAIT() will do it for sure
 # (the only statement with position>=3000 is COMMIT).
 select master_pos_wait('master-bin.001',3000)>=0;
-select * from t1 where a=8000;
+select max(a) from t1;
+--replace_column 1 # 8 # 9 # 23 # 33 #
+show slave status;
 
 # The following DROP is a very important cleaning task:
 # imagine the next test is run with --skip-innodb: it will do
