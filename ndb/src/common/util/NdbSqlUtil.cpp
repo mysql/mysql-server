@@ -76,117 +76,121 @@ NdbSqlUtil::char_like(const char* s1, unsigned n1,
 
 const NdbSqlUtil::Type
 NdbSqlUtil::m_typeList[] = {
-  {
+  { // 0
     Type::Undefined,
     NULL
   },
-  {
+  { // 1
     Type::Tinyint,
     cmpTinyint
   },
-  {
+  { // 2
     Type::Tinyunsigned,
     cmpTinyunsigned
   },
-  {
+  { // 3
     Type::Smallint,
     cmpSmallint
   },
-  {
+  { // 4
     Type::Smallunsigned,
     cmpSmallunsigned
   },
-  {
+  { // 5
     Type::Mediumint,
     cmpMediumint
   },
-  {
+  { // 6
     Type::Mediumunsigned,
     cmpMediumunsigned
   },
-  {
+  { // 7
     Type::Int,
     cmpInt
   },
-  {
+  { // 8
     Type::Unsigned,
     cmpUnsigned
   },
-  {
+  { // 9
     Type::Bigint,
     cmpBigint
   },
-  {
+  { // 10
     Type::Bigunsigned,
     cmpBigunsigned
   },
-  {
+  { // 11
     Type::Float,
     cmpFloat
   },
-  {
+  { // 12
     Type::Double,
     cmpDouble
   },
-  {
-    Type::Decimal,
-    NULL  // cmpDecimal
+  { // 13
+    Type::Olddecimal,
+    cmpOlddecimal
   },
-  {
+  { // 14
     Type::Char,
     cmpChar
   },
-  {
+  { // 15
     Type::Varchar,
     cmpVarchar
   },
-  {
+  { // 16
     Type::Binary,
     cmpBinary
   },
-  {
+  { // 17
     Type::Varbinary,
     cmpVarbinary
   },
-  {
+  { // 18
     Type::Datetime,
     cmpDatetime
   },
-  {
+  { // 19
     Type::Date,
     cmpDate
   },
-  {
+  { // 20
     Type::Blob,
     cmpBlob
   },
-  {
+  { // 21
     Type::Text,
     cmpText
   },
-  {
+  { // 22
     Type::Undefined,    // 5.0 Bit
     NULL
   },
-  {
+  { // 23
     Type::Undefined,    // 5.0 Longvarchar
     NULL
   },
-  {
+  { // 24
     Type::Undefined,    // 5.0 Longvarbinary
     NULL
   },
-  {
+  { // 25
     Type::Time,
     cmpTime
   },
-  {
+  { // 26
     Type::Year,
     cmpYear
   },
-  {
+  { // 27
     Type::Timestamp,
     cmpTimestamp
+  },
+  { // 28
+    Type::Olddecimalunsigned,
+    cmpOlddecimalunsigned
   }
 };
 
@@ -411,12 +415,54 @@ NdbSqlUtil::cmpDouble(const void* info, const Uint32* p1, const Uint32* p2, Uint
 }
 
 int
-NdbSqlUtil::cmpDecimal(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
+{
+  int sgn = +1;
+  unsigned i = 0;
+  while (i < n) {
+    int c1 = s1[i];
+    int c2 = s2[i];
+    if (c1 == c2) {
+      if (c1 == '-')
+        sgn = -1;
+    } else if (c1 == '-') {
+      return -1;
+    } else if (c2 == '-') {
+      return +1;
+    } else if (c1 < c2) {
+      return -1 * sgn;
+    } else {
+      return +1 * sgn;
+    }
+    i++;
+  }
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpOlddecimal(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
   assert(full >= size && size > 0);
-  // not used by MySQL or NDB
-  assert(false);
-  return 0;
+  if (full == size) {
+    union { const Uint32* p; const uchar* v; } u1, u2;
+    u1.p = p1;
+    u2.p = p2;
+    return cmp_olddecimal(u1.v, u2.v, full << 2);
+  }
+  return CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  if (full == size) {
+    union { const Uint32* p; const uchar* v; } u1, u2;
+    u1.p = p1;
+    u2.p = p2;
+    return cmp_olddecimal(u1.v, u2.v, full << 2);
+  }
+  return CmpUnknown;
 }
 
 int
