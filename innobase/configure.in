@@ -110,6 +110,9 @@ esac
 case "$target" in
        i[[4567]]86-*-*)
 	 CFLAGS="$CFLAGS -DUNIV_INTEL_X86";;
+	 # The compiler on Linux/S390 does not seem to have inlining
+       s390-*-*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile dnl
