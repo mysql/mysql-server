@@ -142,13 +142,17 @@ int mysql_update(THD *thd,
   if (open_tables(thd, table_list, &table_count))
     DBUG_RETURN(1);
 
-  if (table_list->table == 0)
+  if (table_list->ancestor && table_list->ancestor->next_local)
   {
-    DBUG_ASSERT(table_list->view &&
-		table_list->ancestor && table_list->ancestor->next_local);
+    DBUG_ASSERT(table_list->view);
     DBUG_PRINT("info", ("Switch to multi-update"));
     /* pass counter value */
     thd->lex->table_count= table_count;
+    /*
+      give correct value to multi_lock_option, because it will be used
+      in multiupdate
+    */
+    thd->lex->multi_lock_option= table_list->lock_type;
     /* convert to multiupdate */
     return 2;
   }
@@ -559,7 +563,8 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, 0) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables,
+                   FALSE, FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -630,6 +635,8 @@ bool mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables != 0;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
+  /* following need for prepared statements, to run next time multi-update */
+  thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* open tables and create derived ones, but do not lock and fill them */
@@ -643,7 +650,7 @@ bool mysql_multi_update_prepare(THD *thd)
   */
 
   if (setup_tables(thd, table_list, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, 0))
+                   &lex->select_lex.leaf_tables, FALSE, FALSE))
     DBUG_RETURN(TRUE);
   /*
     Ensure that we have update privilege for all tables and columns in the
@@ -782,7 +789,7 @@ bool mysql_multi_update_prepare(THD *thd)
     table_list->setup_is_done= 0;
 
     if (setup_tables(thd, table_list, &lex->select_lex.where,
-                     &lex->select_lex.leaf_tables, 0) ||
+                     &lex->select_lex.leaf_tables, FALSE, FALSE) ||
         (lex->select_lex.no_wrap_view_item= 1,
          res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
          lex->select_lex.no_wrap_view_item= 0,

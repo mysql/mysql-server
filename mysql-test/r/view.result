@@ -1661,6 +1661,7 @@ check table v1;
 Table	Op	Msg_type	Msg_text
 test.v1	check	error	View 'test.v1' references invalid table(s) or column(s)
 drop view v1;
+create table t1 (a int);
 create table t2 (a int);
 create table t3 (a int);
 insert into t1 values (1), (2), (3);
@@ -1723,8 +1724,10 @@ a
 1
 3
 create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
-update v2 set a= 10 where a=200;
-ERROR HY000: The target table v2 of the UPDATE is not updatable
+set updatable_views_with_limit=NO;
+update v2 set a= 10 where a=200 limit 1;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+set updatable_views_with_limit=DEFAULT;
 select * from v3;
 a	b
 2	1
@@ -1789,37 +1792,6 @@ a	b
 10	NULL
 2000	NULL
 0	NULL
-create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
-insert into v2(a) values (10);
-ERROR HY000: The target table v2 of the INSERT is not updatable
-select * from v3;
-a	b
-10	1000
-1000	1000
-10002	1000
-10	10
-1000	10
-10002	10
-10	2000
-1000	2000
-10002	2000
-10	0
-1000	0
-10002	0
-select * from v2;
-a	b
-NULL	1000
-NULL	1000
-NULL	1000
-NULL	10
-NULL	10
-NULL	10
-NULL	2000
-NULL	2000
-NULL	2000
-NULL	0
-NULL	0
-NULL	0
 delete from v3;
 ERROR HY000: Can not delete from join view 'test.v3'
 delete v3,t1 from v3,t1;
@@ -1855,5 +1827,5 @@ a	b
 101	0
 300	0
 301	0
-drop view v3,v2;
+drop view v3;
 drop tables t1,t2;

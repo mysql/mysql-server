@@ -25,7 +25,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
 bool check_key_in_view(THD *thd, TABLE_LIST * view);
 
-int insert_view_fields(List<Item> *list, TABLE_LIST *view);
+bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
 frm_type_enum mysql_frm_type(char *path);
 

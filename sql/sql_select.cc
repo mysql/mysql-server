@@ -310,7 +310,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables, 0) ||
+  if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
+                   FALSE, FALSE) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -1081,7 +1082,8 @@ JOIN::reinit()
   if (tables_list)
   {
     tables_list->setup_is_done= 0;
-    if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables, 1))
+    if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
+                     TRUE, FALSE))
       DBUG_RETURN(1);
   }
 
