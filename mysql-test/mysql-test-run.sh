@@ -622,7 +622,7 @@ stop_slave ()
 {
   if [ x$SLAVE_RUNNING = x1 ]
   then
-    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O shutdown_timeout=10 shutdown
+    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O shutdown_timeout=20 shutdown
     if [ $? != 0 ] && [ -f $SLAVE_MYPID ]
     then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
@@ -644,7 +644,7 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O shutdown_timeout=10 shutdown
+    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O shutdown_timeout=20 shutdown
     if [ $? != 0 ] && [ -f $MASTER_MYPID ]
     then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
