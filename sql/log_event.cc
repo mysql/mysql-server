@@ -26,20 +26,6 @@
 
 #include <assert.h>
 
-inline int my_b_safe_write(IO_CACHE* file, const byte *buf,
-			   int len)
-{
-  /*
-    Sasha: We are not writing this with the ? operator to avoid hitting
-    a possible compiler bug. At least gcc 2.95 cannot deal with 
-    several layers of ternary operators that evaluated comma(,) operator
-    expressions inside - I do have a test case if somebody wants it
-  */
-  if (file->type == SEQ_READ_APPEND)
-    return my_b_append(file, buf,len);
-  return my_b_write(file, buf,len);
-}
-
 #ifdef MYSQL_CLIENT
 static void pretty_print_str(FILE* file, char* str, int len)
 {
@@ -133,12 +119,11 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :temp_buf(0), exec_time(0), cached_event_len(0), flags(flags_arg), 
-   thd(thd_arg)
+  :log_pos(0), temp_buf(0), exec_time(0), cached_event_len(0), 
+   flags(flags_arg), thd(thd_arg)
 {
   server_id = thd->server_id;
   when = thd->start_time;
-  log_pos = thd->log_pos;
   cache_stmt= (using_trans &&
 	       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 }
@@ -329,8 +314,14 @@ void Load_log_event::pack_info(String* packet)
     pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
   }
      
-  if ((int)skip_lines > 0)
-    tmp.append( " IGNORE %ld LINES ", (long) skip_lines);
+  if ((long) skip_lines > 0)
+  {
+    char nr_buff[32], *end;
+    tmp.append( " IGNORE ");
+    end= longlong10_to_str((longlong) skip_lines, nr_buff, 10);
+    tmp.append(nr_buff, (uint) (end-nr_buff));
+    tmp.append( " LINES");
+  }
 
   if (num_fields)
   {
@@ -593,8 +584,9 @@ err:
   UNLOCK_MUTEX;
   if (error)
   {
-    sql_print_error("Error in Log_event::read_log_event(): '%s', \
-data_len=%d,event_type=%d",error,data_len,head[EVENT_TYPE_OFFSET]);
+    sql_print_error("\
+Error in Log_event::read_log_event(): '%s', data_len: %d, event_type: %d",
+		    error,data_len,head[EVENT_TYPE_OFFSET]);
     my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
     /*
       The SQL slave thread will check if file->error<0 to know
@@ -1273,6 +1265,11 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 
 void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 {
+  print(file, short_form, last_db, 0);
+}
+
+void Load_log_event::print(FILE* file, bool short_form, char* last_db, bool commented)
+{
   if (!short_form)
   {
     print_header(file);
@@ -1288,9 +1285,12 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   }
   
   if (db && db[0] && !same_db)
-    fprintf(file, "use %s;\n", db);
+    fprintf(file, "%suse %s;\n", 
+            commented ? "# " : "",
+            db);
 
-  fprintf(file, "LOAD DATA ");
+  fprintf(file, "%sLOAD DATA ",
+          commented ? "# " : "");
   if (check_fname_outside_temp_buf())
     fprintf(file, "LOCAL ");
   fprintf(file, "INFILE '%-*s' ", fname_len, fname);
@@ -1337,8 +1337,8 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
      
-  if ((int)skip_lines > 0)
-    fprintf(file, " IGNORE %ld LINES ", (long) skip_lines);
+  if ((long) skip_lines > 0)
+    fprintf(file, " IGNORE %ld LINES", (long) skip_lines);
 
   if (num_fields)
   {
@@ -1433,8 +1433,8 @@ void Slave_log_event::print(FILE* file, bool short_form, char* last_db)
     return;
   print_header(file);
   fputc('\n', file);
-  fprintf(file, "Slave: master_host: '%s'  master_port: %d  \
-master_log: '%s'  master_pos: %s\n",
+  fprintf(file, "\
+Slave: master_host: '%s'  master_port: %d  master_log: '%s'  master_pos: %s\n",
 	  master_host, master_port, master_log, llstr(master_pos, llbuff));
 }
 
@@ -1566,10 +1566,12 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
   if (enable_local)
   {
-    if (!check_fname_outside_temp_buf())
-      fprintf(file, "#");
-    Load_log_event::print(file, 1, last_db);
-    fprintf(file, "#");
+    Load_log_event::print(file, 1, last_db, !check_fname_outside_temp_buf());
+    /* 
+       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
+       SHOW BINLOG EVENTS we don't.
+    */
+    fprintf(file, "#"); 
   }
 
   fprintf(file, " file_id: %d  block_len: %d\n", file_id, block_len);
@@ -1603,11 +1605,12 @@ void Create_file_log_event::pack_info(String* packet)
 #endif  
 
 #ifndef MYSQL_CLIENT  
-Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
+Append_block_log_event::Append_block_log_event(THD* thd_arg, const char* db_arg,
+                                               char* block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
   :Log_event(thd_arg,0, using_trans), block(block_arg),
-   block_len(block_len_arg), file_id(thd_arg->file_id)
+   block_len(block_len_arg), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif  
@@ -1651,8 +1654,9 @@ void Append_block_log_event::pack_info(String* packet)
   net_store_data(packet, buf1);
 }
 
-Delete_file_log_event::Delete_file_log_event(THD* thd_arg, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
+Delete_file_log_event::Delete_file_log_event(THD* thd_arg, const char* db_arg,
+                                             bool using_trans) 
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif  
@@ -1697,8 +1701,9 @@ void Delete_file_log_event::pack_info(String* packet)
 
 
 #ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD* thd_arg, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
+Execute_load_log_event::Execute_load_log_event(THD* thd_arg, const char* db_arg,
+                                               bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif  
@@ -1753,9 +1758,9 @@ void Unknown_log_event::print(FILE* file, bool short_form, char* last_db)
 #ifndef MYSQL_CLIENT
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  int expected_error,actual_error = 0;
+  int expected_error, actual_error= 0;
   init_sql_alloc(&thd->mem_root, 8192,0);
-  thd->db = rewrite_db((char*)db);
+  thd->db= (char*) rewrite_db(db);
 
   /*
     InnoDB internally stores the master log position it has processed so far;
@@ -1798,22 +1803,34 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       */
       if (!strcmp(thd->query,"BEGIN"))
 	rli->inside_transaction= opt_using_transactions;
-      else if (!strcmp(thd->query,"COMMIT"))
+      else if (!(strcmp(thd->query,"COMMIT") && strcmp(thd->query,"ROLLBACK")))
 	rli->inside_transaction=0;
 
+      /*
+        If we expected a non-zero error code, and we don't get the same error
+        code, and none of them should be ignored.
+      */
       if ((expected_error != (actual_error = thd->net.last_errno)) &&
 	  expected_error &&
 	  !ignored_error_code(actual_error) &&
 	  !ignored_error_code(expected_error))
       {
-	const char* errmsg = "Slave: did not get the expected error\
- running query from master - expected: '%s' (%d), got '%s' (%d)"; 
-	sql_print_error(errmsg, ER_SAFE(expected_error),
-			expected_error,
-			actual_error ? thd->net.last_error: "no error",
-			actual_error);
-	thd->query_error = 1;
+	slave_print_error(rli, 0,
+                          "\
+Query '%s' caused different errors on master and slave. \
+Error on master: '%s' (%d), Error on slave: '%s' (%d). \
+Default database: '%s'",
+                          query,
+                          ER_SAFE(expected_error),
+                          expected_error,
+                          actual_error ? thd->net.last_error: "no error",
+                          actual_error,
+                          print_slave_db_safe(db));
+	thd->query_error= 1;
       }
+      /*
+        If we get the same error code as expected, or they should be ignored. 
+      */
       else if (expected_error == actual_error ||
 	       ignored_error_code(actual_error))
       {
@@ -1821,37 +1838,39 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;
       }
-    }
-    else
-    {
-      // master could be inconsistent, abort and tell DBA to check/fix it
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
-      thd->db = thd->query = 0;
-      VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      thd->variables.convert_set = 0;
-      close_thread_tables(thd);
-      free_root(&thd->mem_root,0);
-      return 1;
-    }
-  }
-  thd->db= 0;				// prevent db from being freed
+      /*
+        Other cases: mostly we expected no error and get one.
+      */
+      else if (thd->query_error || thd->fatal_error)
+      {
+        slave_print_error(rli,actual_error,
+			  "Error '%s' on query '%s'. Default database: '%s'",
+                          (actual_error ? thd->net.last_error :
+			   "unexpected success or fatal error"),
+			  query,
+                          print_slave_db_safe(db));
+        thd->query_error= 1;
+      }
+    } 
+    /* 
+       End of sanity check. If the test was wrong, the query got a really bad
+       error on the master, which could be inconsistent, abort and tell DBA to
+       check/fix it. check_expected_error() already printed the message to
+       stderr and rli, and set thd->query_error to 1.
+    */
+  } /* End of if (db_ok(... */
+
+end:
+
   VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
   thd->variables.convert_set = 0;
-  close_thread_tables(thd);
-      
-  if (thd->query_error || thd->fatal_error)
-  {
-    slave_print_error(rli,actual_error, "error '%s' on query '%s'",
-		      actual_error ? thd->net.last_error :
-		      "unexpected success or fatal error", query);
-    free_root(&thd->mem_root,0);
-    return 1;
-  }
+  close_thread_tables(thd);      
   free_root(&thd->mem_root,0);
-  return Log_event::exec_event(rli); 
+  return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
 }
 
 /*
@@ -1884,11 +1903,23 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
-  thd->db = rewrite_db((char*)db);
+  thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
-	    
+
+  /*
+    We test replicate_*_db rules. Note that we have already prepared the file to
+    load, even if we are going to ignore and delete it now. So it is possible
+    that we did a lot of disk writes for nothing. In other words, a big LOAD
+    DATA INFILE on the master will still consume a lot of space on the slave
+    (space in the relay log + space of temp files: twice the space of the file
+    to load...) even if it will finally be ignored.
+    TODO: fix this; this can be done by testing rules in
+    Create_file_log_event::exec_event() and then discarding Append_block and
+    al. Another way is do the filtering in the I/O thread (more efficient: no
+    disk writes at all).
+  */
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
@@ -1919,20 +1950,22 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       else if (sql_ex.opt_flags & IGNORE_FLAG)
         handle_dup= DUP_IGNORE;
       else
+      {
         /*
-          Note that when replication is running fine, if it was DUP_ERROR on the 
+          When replication is running fine, if it was DUP_ERROR on the 
           master then we could choose DUP_IGNORE here, because if DUP_ERROR
           suceeded on master, and data is identical on the master and slave,
           then there should be no uniqueness errors on slave, so DUP_IGNORE is
           the same as DUP_ERROR. But in the unlikely case of uniqueness errors
-          (because the data on the master and slave happen to be different (user
-          error or bug), we want LOAD DATA to print an error message on the
-          slave to discover the problem.
+          (because the data on the master and slave happen to be different
+	  (user error or bug), we want LOAD DATA to print an error message on
+	  the slave to discover the problem.
 
           If reading from net (a 3.23 master), mysql_load() will change this
           to DUP_IGNORE.
         */
         handle_dup= DUP_ERROR;
+      }
 
       sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len);
@@ -1966,14 +1999,15 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
 		     TL_WRITE))
 	thd->query_error = 1;
+      /* log_pos is the position of the LOAD event in the master log */
       if (thd->cuted_fields)
-	/* 
-	   log_pos is the position of the LOAD
-	   event in the master log
-	*/
-	sql_print_error("Slave: load data infile at position %s in log \
-'%s' produced %d warning(s)", llstr(log_pos,llbuff), RPL_LOG_NAME, 
-			thd->cuted_fields );
+	sql_print_error("\
+Slave: load data infile on table '%s' at log position %s in log \
+'%s' produced %ld warning(s). Default database: '%s'",
+                        (char*) table_name,
+                        llstr(log_pos,llbuff), RPL_LOG_NAME, 
+			(ulong) thd->cuted_fields,
+                        print_slave_db_safe(db));
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
     }
@@ -2004,9 +2038,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       sql_errno=ER_UNKNOWN_ERROR;
       err=ER(sql_errno);       
     }
-    slave_print_error(rli,sql_errno,
-		      "Error '%s' running load data infile",
-		      err);
+    slave_print_error(rli,sql_errno,"\
+Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
+		      err, (char*)table_name, print_slave_db_safe(db));
     free_root(&thd->mem_root,0);
     return 1;
   }
@@ -2014,7 +2048,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	    
   if (thd->fatal_error)
   {
-    sql_print_error("Fatal error running LOAD DATA INFILE ");
+    slave_print_error(rli,ER_UNKNOWN_ERROR, "\
+Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
+		      (char*)table_name, print_slave_db_safe(db));
     return 1;
   }
 
@@ -2188,7 +2224,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
   }
   
@@ -2199,7 +2235,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   if (write_base(&file))
   {
     strmov(p, ".info"); // to have it right in the error message
-    slave_print_error(rli,my_errno, "Could not write to file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not write to file '%s'", fname_buf);
     goto err;
   }
   end_io_cache(&file);
@@ -2209,16 +2245,14 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Write to '%s' failed", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: write to '%s' failed", fname_buf);
     goto err;
   }
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error=0;					// Everything is ok
 
 err:
@@ -2237,8 +2271,6 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".info", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   return Log_event::exec_event(rli);
 }
 
@@ -2252,16 +2284,14 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname);
+    slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Write to '%s' failed", fname);
+    slave_print_error(rli,my_errno, "Error in Append_block event: write to '%s' failed", fname);
     goto err;
   }
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error=0;
 
 err:
@@ -2276,7 +2306,6 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
-  ulong save_options;
   IO_CACHE file;
   Load_log_event* lev = 0;
 
@@ -2285,7 +2314,7 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname);
+    slave_print_error(rli,my_errno, "Error in Exec_load event: could not open file '%s'", fname);
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
@@ -2293,34 +2322,41 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 							 (bool)0)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
-    slave_print_error(rli,0, "File '%s' appears corrupted", fname);
+    slave_print_error(rli,0, "Error in Exec_load event: file '%s' appears corrupted", fname);
     goto err;
   }
-  /*
-    We want to disable binary logging in slave thread because we need the file
-    events to appear in the same order as they do on the master relative to
-    other events, so that we can preserve ascending order of log sequence
-    numbers - needed to handle failover .
-  */
-  save_options = thd->options;
-  thd->options &= ~ (ulong) (OPTION_BIN_LOG);
+
   lev->thd = thd;
   /*
     lev->exec_event should use rli only for errors
-    i.e. should not advance rli's position
+    i.e. should not advance rli's position.
+    lev->exec_event is the place where the table is loaded (it calls
+    mysql_load()).
   */
   if (lev->exec_event(0,rli,1)) 
   {
-    slave_print_error(rli,my_errno, "Failed executing load from '%s'", fname);
-    thd->options = save_options;
+    /*
+      We want to indicate the name of the file that could not be loaded
+      (SQL_LOADxxx).
+      But as we are here we are sure the error is in rli->last_slave_error and
+      rli->last_slave_errno (example of error: duplicate entry for key), so we
+      don't want to overwrite it with the filename.
+      What we want instead is add the filename to the current error message.
+    */
+    char *tmp= my_strdup(rli->last_slave_error,MYF(MY_WME));
+    if (tmp)
+    {
+      slave_print_error(rli,
+			rli->last_slave_errno, /* ok to re-use error code */
+			"%s. Failed executing load from '%s'", 
+			tmp, fname);
+      my_free(tmp,MYF(0));
+    }
     goto err;
   }
-  thd->options = save_options;
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error = 0;
 
 err:

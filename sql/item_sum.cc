@@ -300,15 +300,15 @@ void Item_sum_std::reset_field()
   }
 }
 
-void Item_sum_std::update_field(int offset)
+void Item_sum_std::update_field()
 {
   double nr,old_nr,old_sqr;
   longlong field_count;
   char *res=result_field->ptr;
 
-  float8get(old_nr,res+offset);
-  float8get(old_sqr,res+offset+sizeof(double));
-  field_count=sint8korr(res+offset+sizeof(double)*2);
+  float8get(old_nr, res);
+  float8get(old_sqr, res+sizeof(double));
+  field_count=sint8korr(res+sizeof(double)*2);
 
   nr=args[0]->val();
   if (!args[0]->null_value)
@@ -619,12 +619,12 @@ void Item_sum_bit::reset_field()
 ** calc next value and merge it with field_value
 */
 
-void Item_sum_sum::update_field(int offset)
+void Item_sum_sum::update_field()
 {
   double old_nr,nr;
   char *res=result_field->ptr;
 
-  float8get(old_nr,res+offset);
+  float8get(old_nr,res);
   nr=args[0]->val();
   if (!args[0]->null_value)
   {
@@ -635,12 +635,12 @@ void Item_sum_sum::update_field(int offset)
 }
 
 
-void Item_sum_count::update_field(int offset)
+void Item_sum_count::update_field()
 {
   longlong nr;
   char *res=result_field->ptr;
 
-  nr=sint8korr(res+offset);
+  nr=sint8korr(res);
   if (!args[0]->maybe_null)
     nr++;
   else
@@ -653,14 +653,14 @@ void Item_sum_count::update_field(int offset)
 }
 
 
-void Item_sum_avg::update_field(int offset)
+void Item_sum_avg::update_field()
 {
   double nr,old_nr;
   longlong field_count;
   char *res=result_field->ptr;
 
-  float8get(old_nr,res+offset);
-  field_count=sint8korr(res+offset+sizeof(double));
+  float8get(old_nr,res);
+  field_count=sint8korr(res+sizeof(double));
 
   nr=args[0]->val();
   if (!args[0]->null_value)
@@ -673,78 +673,66 @@ void Item_sum_avg::update_field(int offset)
   int8store(res,field_count);
 }
 
-void Item_sum_hybrid::update_field(int offset)
+void Item_sum_hybrid::update_field()
 {
   if (hybrid_type == STRING_RESULT)
-    min_max_update_str_field(offset);
+    min_max_update_str_field();
   else if (hybrid_type == INT_RESULT)
-    min_max_update_int_field(offset);
+    min_max_update_int_field();
   else
-    min_max_update_real_field(offset);
+    min_max_update_real_field();
 }
 
 
 void
-Item_sum_hybrid::min_max_update_str_field(int offset)
+Item_sum_hybrid::min_max_update_str_field()
 {
   String *res_str=args[0]->val_str(&value);
 
-  if (args[0]->null_value)
-    result_field->copy_from_tmp(offset);	// Use old value
-  else
+  if (!args[0]->null_value)
   {
     res_str->strip_sp();
-    result_field->ptr+=offset;			// Get old max/min
     result_field->val_str(&tmp_value,&tmp_value);
-    result_field->ptr-=offset;
 
     if (result_field->is_null() ||
 	(cmp_sign * (binary ? stringcmp(res_str,&tmp_value) :
 		 sortcmp(res_str,&tmp_value)) < 0))
       result_field->store(res_str->ptr(),res_str->length());
-    else
-    {						// Use old value
-      char *res=result_field->ptr;
-      memcpy(res,res+offset,result_field->pack_length());
-    }
     result_field->set_notnull();
   }
 }
 
 
 void
-Item_sum_hybrid::min_max_update_real_field(int offset)
+Item_sum_hybrid::min_max_update_real_field()
 {
   double nr,old_nr;
 
-  result_field->ptr+=offset;
   old_nr=result_field->val_real();
   nr=args[0]->val();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(offset) ||
+    if (result_field->is_null(0) ||
 	(cmp_sign > 0 ? old_nr > nr : old_nr < nr))
       old_nr=nr;
     result_field->set_notnull();
   }
-  else if (result_field->is_null(offset))
+  else if (result_field->is_null(0))
     result_field->set_null();
-  result_field->ptr-=offset;
   result_field->store(old_nr);
 }
 
 
 void
-Item_sum_hybrid::min_max_update_int_field(int offset)
+Item_sum_hybrid::min_max_update_int_field()
 {
   longlong nr,old_nr;
 
-  result_field->ptr+=offset;
   old_nr=result_field->val_int();
   nr=args[0]->val_int();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(offset))
+    if (result_field->is_null(0))
       old_nr=nr;
     else
     {
@@ -757,30 +745,29 @@ Item_sum_hybrid::min_max_update_int_field(int offset)
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(offset))
+  else if (result_field->is_null(0))
     result_field->set_null();
-  result_field->ptr-=offset;
   result_field->store(old_nr);
 }
 
 
-void Item_sum_or::update_field(int offset)
+void Item_sum_or::update_field()
 {
   ulonglong nr;
   char *res=result_field->ptr;
 
-  nr=uint8korr(res+offset);
+  nr=uint8korr(res);
   nr|= (ulonglong) args[0]->val_int();
   int8store(res,nr);
 }
 
 
-void Item_sum_and::update_field(int offset)
+void Item_sum_and::update_field()
 {
   ulonglong nr;
   char *res=result_field->ptr;
 
-  nr=uint8korr(res+offset);
+  nr=uint8korr(res);
   nr&= (ulonglong) args[0]->val_int();
   int8store(res,nr);
 }

@@ -1218,9 +1218,10 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
                              register uchar **page_pos, register uchar *key)
 {
   reg1 MI_KEYSEG *keyseg;
-  uchar *start_key,*page=*page_pos,*page_end,*from,*from_end;
+  uchar *start_key,*page,*page_end,*from,*from_end;
   uint length,tmp;
 
+  page= *page_pos;
   page_end=page+MI_MAX_KEY_BUFF+1;
   start_key=key;
 
@@ -1276,7 +1277,9 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       length-=tmp;
       from=page; from_end=page_end;
     }
-    memcpy((byte*) key,(byte*) from,(size_t) length);
+    DBUG_PRINT("info",("key: %lx  from: %lx  length: %u",
+		       key, from, length));
+    memcpy_overlap((byte*) key, (byte*) from, (size_t) length);
     key+=length;
     from+=length;
   }
@@ -1998,6 +2001,9 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   uint length,key_length,ref_length;
 
   s_temp->totlength=key_length=_mi_keylength(keyinfo,key)+nod_flag;
+#ifdef HAVE_purify
+  s_temp->n_length= s_temp->n_ref_length=0;	/* For valgrind */
+#endif
   s_temp->key=key;
   s_temp->prev_key=org_key;
   if (prev_key)                                 /* If not first key in block */

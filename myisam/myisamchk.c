@@ -357,11 +357,15 @@ static void usage(void)
   -e, --extend-check  Check the table VERY throughly.  Only use this in\n\
                       extreme cases as myisamchk should normally be able to\n\
                       find out if the table is ok even without this switch\n\
-  -F, --fast	      Check only tables that haven't been closed properly\n\
-  -C, --check-only-changed\n\
-		      Check only tables that have changed since last check\n\
+  -F, --fast          Check only tables that haven't been closed properly.\n\
+                      It also applies to other requested actions (e.g. --analyze\n\
+                      will be ignored if the table is already analyzed).\n\
   -f, --force         Restart with '-r' if there are any errors in the table.\n\
 		      States will be updated as with '--update-state'\n\
+  -C, --check-only-changed\n\
+                      Check only tables that have changed since last check.\n\
+                      It also applies to other requested actions (e.g. --analyze\n\
+                      will be ignored if the table is already analyzed).\n\
   -i, --information   Print statistics information about table that is checked\n\
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases\n\
@@ -1396,23 +1400,24 @@ static int mi_sort_records(MI_CHECK *param,
 
   if (!(((ulonglong) 1 << sort_key) & share->state.key_map))
   {
-    mi_check_print_error(param,"Can't sort table '%s' on key %d;  No such key",
+    mi_check_print_warning(param,
+			   "Can't sort table '%s' on key %d;  No such key",
 		name,sort_key+1);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (keyinfo->flag & HA_FULLTEXT)
   {
-    mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
-		name,sort_key+1);
+    mi_check_print_warning(param,"Can't sort table '%s' on FULLTEXT key %d",
+			   name,sort_key+1);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (share->data_file_type == COMPRESSED_RECORD)
   {
-    mi_check_print_error(param,"Can't sort read-only table '%s'", name);
+    mi_check_print_warning(param,"Can't sort read-only table '%s'", name);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (!(param->testflag & T_SILENT))
   {

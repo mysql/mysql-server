@@ -1,0 +1,22 @@
+slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_PORT	1	master-bin.001	79	slave-relay-bin.002	120	master-bin.001	Yes	Yes			0		0	79	120
+stop slave;
+change master to master_user='test';
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	test	MASTER_PORT	1	master-bin.001	79	slave-relay-bin.001	4	master-bin.001	No	No			0		0	79	4
+reset slave;
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_PORT	1		4	slave-relay-bin.001	4		No	No			0		0	0	4
+start slave;
+show slave status;
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
+127.0.0.1	root	MASTER_PORT	1	master-bin.001	79	slave-relay-bin.002	120	master-bin.001	Yes	Yes			0		0	79	120

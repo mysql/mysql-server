@@ -233,10 +233,10 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
-    else if (length % 8)		// This holds true for passwords
+    else if (length % 8 || length > 16)
     {
       sql_print_error(
-		      "Found invalid password for user: '%s@%s'; Ignoring user",
+		      "Found invalid password for user: '%s'@'%s'; Ignoring user",
 		      user.user ? user.user : "",
 		      user.host.hostname ? user.host.hostname : ""); /* purecov: tested */
       continue;					/* purecov: tested */
@@ -530,7 +530,6 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	     !check_scramble(password,message,acl_user->salt,
 			     (my_bool) old_ver)))
 	{
-#ifdef HAVE_OPENSSL
 	  Vio *vio=thd->net.vio;
 	  /*
 	    In this point we know that user is allowed to connect
@@ -543,6 +542,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	  case SSL_TYPE_NONE: /* SSL is not required to connect */
 	    user_access=acl_user->access;
 	    break;
+#ifdef HAVE_OPENSSL
 	  case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
 	    if (vio_type(vio) == VIO_TYPE_SSL)
 	      user_access=acl_user->access;
@@ -625,10 +625,16 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      }
 	      break;
 	    }
-	  }
 #else  /* HAVE_OPENSSL */
-	  user_access=acl_user->access;
+          default:
+            /*
+                If we don't have SSL but SSL is required for this user the 
+                authentication should fail.
+            */
+            break;
 #endif /* HAVE_OPENSSL */
+	  }
+          
 	  *mqh=acl_user->user_resource;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
@@ -1227,6 +1233,24 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   bzero((char*) &tables,sizeof(tables));
   tables.alias=tables.real_name=(char*) "user";
   tables.db=(char*) "mysql";
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.  It's ok to leave 'updating' set after tables_ok.
+    */
+    tables.updating= 1;
+    /* Thanks to bzero, tables.next==0 */
+    if (!tables_ok(0, &tables))
+      DBUG_RETURN(0);
+  }
+#endif
+
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
   table->field[0]->store(host,(uint) strlen(host));
@@ -2107,8 +2131,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(0);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.
+    */
+    tables[0].updating= tables[1].updating= tables[2].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(0);
+  }
 #endif
 
   if (open_and_lock_tables(thd,tables))
@@ -2279,8 +2311,16 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(0);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.
+    */
+    tables[0].updating= tables[1].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(0);
+  }
 #endif
 
   if (open_and_lock_tables(thd,tables))
@@ -2330,7 +2370,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
       else
       {
 	net_printf(&thd->net,ER_WRONG_USAGE,"DB GRANT","GLOBAL PRIVILEGES");
-	result= -1;
+	result= 1;
       }
     }
   }

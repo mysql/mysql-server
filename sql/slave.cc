@@ -74,7 +74,6 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
 static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
-char* rewrite_db(char* db);
 
 
 /*
@@ -290,8 +289,6 @@ err:
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
 
-  /* Isn't this strange: if !need_data_lock, we broadcast with no lock ?? */
-
   pthread_mutex_unlock(log_lock);
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
@@ -362,7 +359,10 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
   rli->pending= 0;
 
   if (!rli->inited)
+  {
+    DBUG_PRINT("info", ("rli->inited == 0"));
     DBUG_RETURN(0);
+  }
 
   DBUG_ASSERT(rli->slave_running == 0);
   DBUG_ASSERT(rli->mi->slave_running == 0);
@@ -829,15 +829,38 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
 }
 
 
+/*
+  Writes an error message to rli->last_slave_error and rli->last_slave_errno
+  (which will be displayed by SHOW SLAVE STATUS), and prints it to stderr.
+
+  SYNOPSIS
+    slave_print_error()
+    rli		
+    err_code    The error code
+    msg         The error message (usually related to the error code, but can
+                contain more information).
+    ...         (this is printf-like format, with % symbols in msg)
+
+  RETURN VALUES
+    void
+*/
+
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
 {
   va_list args;
   va_start(args,msg);
   my_vsnprintf(rli->last_slave_error,
 	       sizeof(rli->last_slave_error), msg, args);
-  sql_print_error("Slave: %s, error_code=%d", rli->last_slave_error,
-		  err_code);
   rli->last_slave_errno = err_code;
+  /* If the error string ends with '.', do not add a ',' it would be ugly */
+  if (rli->last_slave_error[0] && 
+      (*(strend(rli->last_slave_error)-1) == '.'))
+    sql_print_error("Slave: %s Error_code: %d", rli->last_slave_error,
+                    err_code);
+  else
+    sql_print_error("Slave: %s, Error_code: %d", rli->last_slave_error,
+                    err_code);
+
 }
 
 
@@ -850,7 +873,7 @@ void skip_load_data_infile(NET* net)
 }
 
 
-char* rewrite_db(char* db)
+const char *rewrite_db(const char* db)
 {
   if (replicate_rewrite_db.is_empty() || !db)
     return db;
@@ -865,6 +888,17 @@ char* rewrite_db(char* db)
   return db;
 }
 
+/*
+  From other comments and tests in code, it looks like
+  sometimes Query_log_event and Load_log_event can have db == 0
+  (see rewrite_db() above for example)
+  (cases where this happens are unclear; it may be when the master is 3.23).
+*/
+
+const char *print_slave_db_safe(const char* db)
+{
+  return (db ? rewrite_db(db) : "");
+}
 
 /*
   Checks whether a db matches some do_db and ignore_db rules
@@ -1271,8 +1305,8 @@ file '%s', errno %d)", fname, my_errno);
     if (init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
 		      MYF(MY_WME))) 
     {
-      sql_print_error("Failed to create a cache on relay log info file (\
-file '%s')", fname);
+      sql_print_error("Failed to create a cache on relay log info file '%s'",
+		      fname);
       msg= current_thd->net.last_error;
       goto err;
     }
@@ -1281,8 +1315,7 @@ file '%s')", fname);
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
     {
-      sql_print_error("Failed to open the relay log (relay_log_name='FIRST', \
-relay_log_pos=4");
+      sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4");
       goto err;
     }
     rli->master_log_name[0]= 0;
@@ -1298,15 +1331,16 @@ relay_log_pos=4");
       int error=0;
       if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
       {
-        sql_print_error("Failed to open the existing relay log info file (\
-file '%s', errno %d)", fname, my_errno);
+        sql_print_error("\
+Failed to open the existing relay log info file '%s' (errno %d)",
+			fname, my_errno);
         error= 1;
       }
       else if (init_io_cache(&rli->info_file, info_fd,
                              IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
       {
-        sql_print_error("Failed to create a cache on relay log info file (\
-file '%s')", fname);
+        sql_print_error("Failed to create a cache on relay log info file '%s'",
+			fname);
         error= 1;
       }
       if (error)
@@ -1345,8 +1379,8 @@ file '%s')", fname);
 			   &msg))
     {
       char llbuf[22];
-      sql_print_error("Failed to open the relay log (relay_log_name='%s', \
-relay_log_pos=%s", rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
+      sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
+		      rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
       goto err;
     }
   }
@@ -1444,6 +1478,27 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_RETURN(0);
 }
 
+void init_master_info_with_options(MASTER_INFO* mi)
+{
+  mi->master_log_name[0] = 0;
+  mi->master_log_pos = BIN_LOG_HEADER_SIZE;		// skip magic number
+  
+  if (master_host)
+    strmake(mi->host, master_host, sizeof(mi->host) - 1);
+  if (master_user)
+    strmake(mi->user, master_user, sizeof(mi->user) - 1);
+  if (master_password)
+    strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
+  mi->port = master_port;
+  mi->connect_retry = master_connect_retry;
+}
+
+void clear_last_slave_error(RELAY_LOG_INFO* rli)
+{
+  //Clear the errors displayed by SHOW SLAVE STATUS
+  rli->last_slave_error[0]=0;
+  rli->last_slave_errno=0;
+}
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
@@ -1497,18 +1552,9 @@ file '%s')", fname);
       goto err;
     }
 
-    mi->master_log_name[0] = 0;
-    mi->master_log_pos = BIN_LOG_HEADER_SIZE;		// skip magic number
     mi->fd = fd;
-      
-    if (master_host)
-      strmake(mi->host, master_host, sizeof(mi->host) - 1);
-    if (master_user)
-      strmake(mi->user, master_user, sizeof(mi->user) - 1);
-    if (master_password)
-      strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
-    mi->port = master_port;
-    mi->connect_retry = master_connect_retry;
+    init_master_info_with_options(mi);
+
   }
   else // file exists
   {
@@ -2142,14 +2188,13 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
   case ER_NET_ERROR_ON_WRITE:  
   case ER_SERVER_SHUTDOWN:  
   case ER_NEW_ABORTING_CONNECTION:
-    my_snprintf(rli->last_slave_error, sizeof(rli->last_slave_error), 
-		"Slave: query '%s' partially completed on the master \
+    slave_print_error(rli,expected_error, 
+                      "query '%s' partially completed on the master \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the\
  slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
- SLAVE START;", thd->query);
-    rli->last_slave_errno = expected_error;
-    sql_print_error("%s",rli->last_slave_error);
+ SLAVE START; .", thd->query);
+    thd->query_error= 1;
     return 1;
   default:
     return 0;
@@ -2208,7 +2253,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd;
-    thd->log_pos = ev->log_pos;
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
     delete ev;
@@ -2580,6 +2624,12 @@ slave_begin:
   pthread_cond_broadcast(&rli->start_cond);
   // This should always be set to 0 when the slave thread is started
   rli->pending = 0;
+  /*
+    Reset errors for a clean start (otherwise, if the master is idle, the SQL
+    thread may execute no Query_log_event, so the error will remain even
+    though there's no problem anymore).
+  */
+  clear_last_slave_error(rli);
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   pthread_mutex_lock(&rli->log_space_lock);
@@ -2707,7 +2757,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
   if (unlikely(net_request_file(net,cev->fname)))
   {
     sql_print_error("Slave I/O: failed requesting download of '%s'",
-		    cev->fname);
+                   cev->fname);
     goto err;
   }
 
@@ -2717,56 +2767,56 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     in the loop
   */
   {
-    Append_block_log_event aev(thd,0,0,0);
+    Append_block_log_event aev(thd,0,0,0,0);
   
     for (;;)
     {
       if (unlikely((num_bytes=my_net_read(net)) == packet_error))
       {
-	sql_print_error("Network read error downloading '%s' from master",
-			cev->fname);
-	goto err;
+       sql_print_error("Network read error downloading '%s' from master",
+                       cev->fname);
+       goto err;
       }
       if (unlikely(!num_bytes)) /* eof */
       {
-	send_ok(net); /* 3.23 master wants it */
-	Execute_load_log_event xev(thd,0);
-	xev.log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(&xev)))
-	{
-	  sql_print_error("Slave I/O: error writing Exec_load event to \
+       send_ok(net); /* 3.23 master wants it */
+       Execute_load_log_event xev(thd,0,0);
+       xev.log_pos = mi->master_log_pos;
+       if (unlikely(mi->rli.relay_log.append(&xev)))
+       {
+         sql_print_error("Slave I/O: error writing Exec_load event to \
 relay log");
-	  goto err;
-	}
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
-	break;
+         goto err;
+       }
+       mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
+       break;
       }
       if (unlikely(cev_not_written))
       {
-	cev->block = (char*)net->read_pos;
-	cev->block_len = num_bytes;
-	cev->log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(cev)))
-	{
-	  sql_print_error("Slave I/O: error writing Create_file event to \
+       cev->block = (char*)net->read_pos;
+       cev->block_len = num_bytes;
+       cev->log_pos = mi->master_log_pos;
+       if (unlikely(mi->rli.relay_log.append(cev)))
+       {
+         sql_print_error("Slave I/O: error writing Create_file event to \
 relay log");
-	  goto err;
-	}
-	cev_not_written=0;
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
+         goto err;
+       }
+       cev_not_written=0;
+       mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
       }
       else
       {
-	aev.block = (char*)net->read_pos;
-	aev.block_len = num_bytes;
-	aev.log_pos = mi->master_log_pos;
-	if (unlikely(mi->rli.relay_log.append(&aev)))
-	{
-	  sql_print_error("Slave I/O: error writing Append_block event to \
+       aev.block = (char*)net->read_pos;
+       aev.block_len = num_bytes;
+       aev.log_pos = mi->master_log_pos;
+       if (unlikely(mi->rli.relay_log.append(&aev)))
+       {
+         sql_print_error("Slave I/O: error writing Append_block event to \
 relay log");
-	  goto err;
-	}
-	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total) ;
+         goto err;
+       }
+       mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total) ;
       }
     }
   }
@@ -2850,6 +2900,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     tmp_buf[event_len]=0; // Create_file constructor wants null-term buffer
     buf = (const char*)tmp_buf;
   }
+  /*
+    This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
+    send the loaded file, and write it to the relay log in the form of
+    Append_block/Exec_load (the SQL thread needs the data, as that thread is not
+    connected to the master).
+  */
   Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
 					    1 /*old format*/ );
   if (unlikely(!ev))
@@ -2879,6 +2935,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     inc_pos= 0;
     break;
   case CREATE_FILE_EVENT:
+    /*
+      Yes it's possible to have CREATE_FILE_EVENT here, even if we're in
+      queue_old_event() which is for 3.23 events which don't comprise
+      CREATE_FILE_EVENT. This is because read_log_event() above has just
+      transformed LOAD_EVENT into CREATE_FILE_EVENT.
+    */
   {
     /* We come here when and only when tmp_buf != 0 */
     DBUG_ASSERT(tmp_buf);

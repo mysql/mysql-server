@@ -1030,6 +1030,7 @@ os_file_flush(
 #ifdef HAVE_FDATASYNC
 	ret = fdatasync(file);
 #else
+/*	printf("Flushing to file %lu\n", (ulint)file); */
 	ret = fsync(file);
 #endif
 	os_n_fsyncs++;
