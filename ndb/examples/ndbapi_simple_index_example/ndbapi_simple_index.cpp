@@ -127,7 +127,7 @@ int main()
     myOperation->equal("ATTR1", i+5);
     myOperation->setValue("ATTR2", i+5);
     
-    if (myTransaction->execute( Commit ) == -1)
+    if (myTransaction->execute( NdbTransaction::Commit ) == -1)
       APIERROR(myTransaction->getNdbError());
     
     myNdb->closeTransaction(myTransaction);
@@ -152,7 +152,7 @@ int main()
     NdbRecAttr *myRecAttr= myIndexOperation->getValue("ATTR1", NULL);
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
 
-    if(myTransaction->execute( Commit ) != -1)
+    if(myTransaction->execute( NdbTransaction::Commit ) != -1)
       printf(" %2d    %2d\n", myRecAttr->u_32_value(), i);
 
     myNdb->closeTransaction(myTransaction);
@@ -173,7 +173,7 @@ int main()
     myIndexOperation->equal( "ATTR2", i );
     myIndexOperation->setValue( "ATTR2", i+10);
     
-    if( myTransaction->execute( Commit ) == -1 ) 
+    if( myTransaction->execute( NdbTransaction::Commit ) == -1 ) 
       APIERROR(myTransaction->getNdbError());
     
     myNdb->closeTransaction(myTransaction);
@@ -193,7 +193,7 @@ int main()
     myIndexOperation->deleteTuple();
     myIndexOperation->equal( "ATTR2", 3 );
   
-    if (myTransaction->execute(Commit) == -1) 
+    if (myTransaction->execute(NdbTransaction::Commit) == -1) 
       APIERROR(myTransaction->getNdbError());
   
     myNdb->closeTransaction(myTransaction);
@@ -218,7 +218,7 @@ int main()
       NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);
       if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
-      if(myTransaction->execute( Commit ) == -1)
+      if(myTransaction->execute( NdbTransaction::Commit ) == -1)
 	if (i == 3) {
 	  std::cout << "Detected that deleted tuple doesn't exist!\n";
 	} else {

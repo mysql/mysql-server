@@ -170,7 +170,7 @@ static void do_insert(Ndb &myNdb)
     myOperation->equal("ATTR1", i+5);
     myOperation->setValue("ATTR2", i+5);
     
-    if (myTransaction->execute( Commit ) == -1)
+    if (myTransaction->execute( NdbTransaction::Commit ) == -1)
       APIERROR(myTransaction->getNdbError());
     
     myNdb.closeTransaction(myTransaction);
@@ -193,7 +193,7 @@ static void do_update(Ndb &myNdb)
     myOperation->equal( "ATTR1", i );
     myOperation->setValue( "ATTR2", i+10);
     
-    if( myTransaction->execute( Commit ) == -1 ) 
+    if( myTransaction->execute( NdbTransaction::Commit ) == -1 ) 
       APIERROR(myTransaction->getNdbError());
     
     myNdb.closeTransaction(myTransaction);
@@ -214,7 +214,7 @@ static void do_delete(Ndb &myNdb)
   myOperation->deleteTuple();
   myOperation->equal( "ATTR1", 3 );
   
-  if (myTransaction->execute(Commit) == -1) 
+  if (myTransaction->execute(NdbTransaction::Commit) == -1) 
     APIERROR(myTransaction->getNdbError());
   
   myNdb.closeTransaction(myTransaction);
@@ -240,7 +240,7 @@ static void do_read(Ndb &myNdb)
     NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
-    if(myTransaction->execute( Commit ) == -1)
+    if(myTransaction->execute( NdbTransaction::Commit ) == -1)
       if (i == 3) {
 	std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       } else {

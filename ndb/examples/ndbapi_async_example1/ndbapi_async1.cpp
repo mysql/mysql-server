@@ -99,7 +99,8 @@ int main()
     myNdbOperation->setValue("ATTR2", 20 + i);
     
     // Prepare transaction (the transaction is NOT yet sent to NDB)
-    myNdbTransaction[i]->executeAsynchPrepare(Commit, &callback, NULL);
+    myNdbTransaction[i]->executeAsynchPrepare(NdbTransaction::Commit,
+					      &callback, NULL);
   }
 
   // Send all transactions to NDB 
