@@ -88,23 +88,10 @@ int rtree_delete_key(MI_INFO *info, uchar *page_buf, uchar *key,
 int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
 		      uint key_length, my_off_t child_page)
 {
-  uchar *k;
-  uchar *last;
-  uint nod_flag;
-
   if (!_mi_fetch_keypage(info, keyinfo, child_page, info->buff, 0))
-    goto err1;
-  nod_flag = mi_test_if_nod(info->buff);
+    return -1;
 
-  k = rt_PAGE_FIRST_KEY(info->buff, nod_flag);
-  last = rt_PAGE_END(info->buff);
-
-  rtree_page_mbr(info, keyinfo->seg, info->buff, key, key_length);
-
-  return 0;
-
-err1:
-  return -1;
+  return rtree_page_mbr(info, keyinfo->seg, info->buff, key, key_length);
 }
 
 
