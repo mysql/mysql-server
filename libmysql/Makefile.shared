@@ -39,7 +39,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo \
 			ctype.lo ctype-simple.lo ctype-mb.lo \
-			ctype-big5.lo ctype-czech.lo ctype-euc_kr.lo \
+			ctype-big5.lo ctype-czech.lo ctype-euc_kr.lo ctype-win1250ch.lo\
 			ctype-gb2312.lo ctype-gbk.lo ctype-latin1_de.lo \
 			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo ctype-utf8.lo
 

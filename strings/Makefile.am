@@ -22,26 +22,26 @@ pkglib_LIBRARIES =	libmystrings.a
 # Exact one of ASSEMBLER_X
 if ASSEMBLER_x86
 ASRCS		= strings-x86.s longlong2str-x86.s
-CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c
+CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c
 else
 if ASSEMBLER_sparc
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
 ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strinstr-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s strxmov-sparc.s
-CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.cctype-utf8.c
+CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c
 else
 #no assembler
 ASRCS		=
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
-CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c
+CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c
 endif
 endif
 
 libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
 noinst_PROGRAMS = conf_to_src
 # Default charset definitions
-EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
+EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-win1250ch.c \
                         ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-utf8.c \
                         ctype-tis620.c ctype-ujis.c ctype-latin1_de.c \
                         strto.c strings-x86.s longlong2str-x86.s \

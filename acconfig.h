@@ -98,6 +98,7 @@
 #undef HAVE_CHARSET_usa7
 #undef HAVE_CHARSET_utf8
 #undef HAVE_CHARSET_win1250
+#undef HAVE_CHARSET_win1250ch
 #undef HAVE_CHARSET_win1251ukr
 #undef HAVE_CHARSET_win1251
 
