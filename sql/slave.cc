@@ -2739,7 +2739,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
-    thd->lex.current_select= 0;
+    thd->lex->current_select= 0;
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd;

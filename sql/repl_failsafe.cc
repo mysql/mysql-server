@@ -441,7 +441,7 @@ int show_new_master(THD* thd)
   DBUG_ENTER("show_new_master");
   List<Item> field_list;
   char errmsg[SLAVE_ERRMSG_SIZE];
-  LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
   errmsg[0]=0;					// Safety
   if (translate_master(thd, lex_mi, errmsg))

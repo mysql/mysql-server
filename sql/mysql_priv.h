@@ -1036,22 +1036,22 @@ SQL_CRYPT *get_crypt_for_frm(void);
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex.current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
 {
-  return thd->lex.value_list.push_back(value);
+  return thd->lex->value_list.push_back(value);
 }
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex.current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select->add_order_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex.current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
 
 inline void mark_as_null_row(TABLE *table)

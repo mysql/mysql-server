@@ -1246,7 +1246,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    char* backup_dir = thd->lex.backup_dir;
+    char* backup_dir= thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
     char* table_name = table->real_name;
     char* db = thd->db ? thd->db : table->db;
@@ -2696,8 +2696,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     tables.db	 = from->table_cache_key;
     error=1;
 
-    if (thd->lex.select_lex.setup_ref_array(thd, order_num) ||
-	setup_order(thd, thd->lex.select_lex.ref_pointer_array,
+    if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		    &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (from->sort.found_records = filesort(thd, from, sortorder, length, 

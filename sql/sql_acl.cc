@@ -1476,7 +1476,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
     /* We write down SSL related ACL stuff */
-    switch (thd->lex.ssl_type) {
+    switch (thd->lex->ssl_type) {
     case SSL_TYPE_ANY:
       table->field[24]->store("ANY",3, &my_charset_latin1);
       table->field[25]->store("", 0, &my_charset_latin1);
@@ -1494,15 +1494,15 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[25]->store("", 0, &my_charset_latin1);
       table->field[26]->store("", 0, &my_charset_latin1);
       table->field[27]->store("", 0, &my_charset_latin1);
-      if (thd->lex.ssl_cipher)
-	table->field[25]->store(thd->lex.ssl_cipher,
-				strlen(thd->lex.ssl_cipher), &my_charset_latin1);
-      if (thd->lex.x509_issuer)
-	table->field[26]->store(thd->lex.x509_issuer,
-				strlen(thd->lex.x509_issuer), &my_charset_latin1);
-      if (thd->lex.x509_subject)
-	table->field[27]->store(thd->lex.x509_subject,
-				strlen(thd->lex.x509_subject), &my_charset_latin1);
+      if (thd->lex->ssl_cipher)
+	table->field[25]->store(thd->lex->ssl_cipher,
+				strlen(thd->lex->ssl_cipher), &my_charset_latin1);
+      if (thd->lex->x509_issuer)
+	table->field[26]->store(thd->lex->x509_issuer,
+				strlen(thd->lex->x509_issuer), &my_charset_latin1);
+      if (thd->lex->x509_subject)
+	table->field[27]->store(thd->lex->x509_subject,
+				strlen(thd->lex->x509_subject), &my_charset_latin1);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
@@ -1514,7 +1514,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       break;
     }
 
-    USER_RESOURCES mqh = thd->lex.mqh;
+    USER_RESOURCES mqh= thd->lex->mqh;
     if (mqh.bits & 1)
       table->field[28]->store((longlong) mqh.questions);
     if (mqh.bits & 2)
@@ -1555,19 +1555,19 @@ end:
     acl_cache->clear(1);			// Clear privilege cache
     if (old_row_exists)
       acl_update_user(combo.user.str, combo.host.str, password, password_len,
-		      thd->lex.ssl_type,
-		      thd->lex.ssl_cipher,
-		      thd->lex.x509_issuer,
-		      thd->lex.x509_subject,
-		      &thd->lex.mqh,
+		      thd->lex->ssl_type,
+		      thd->lex->ssl_cipher,
+		      thd->lex->x509_issuer,
+		      thd->lex->x509_subject,
+		      &thd->lex->mqh,
 		      rights);
     else
       acl_insert_user(combo.user.str, combo.host.str, password, password_len,
-		      thd->lex.ssl_type,
-		      thd->lex.ssl_cipher,
-		      thd->lex.x509_issuer,
-		      thd->lex.x509_subject,
-		      &thd->lex.mqh,
+		      thd->lex->ssl_type,
+		      thd->lex->ssl_cipher,
+		      thd->lex->x509_issuer,
+		      thd->lex->x509_subject,
+		      &thd->lex->mqh,
 		      rights);
   }
   table->file->index_end();

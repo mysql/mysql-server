@@ -501,8 +501,8 @@ JOIN::optimize()
   optimized= 1;
 
   // Ignore errors of execution if option IGNORE present
-  if (thd->lex.duplicates == DUP_IGNORE)
-    thd->lex.current_select->no_error= 1;
+  if (thd->lex->duplicates == DUP_IGNORE)
+    thd->lex->current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
@@ -1602,7 +1602,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     goto err;					// 1
   }
 
-  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     join->conds_history= join->conds;
     join->having_history= (join->having?join->having:join->tmp_having);
@@ -1613,7 +1613,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 
   join->exec();
 
-  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     select_lex->where= join->conds_history;
     select_lex->having= join->having_history;
@@ -2459,7 +2459,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
   if (!(key_fields=(KEY_FIELD*)
 	thd->alloc(sizeof(key_fields[0])*
-		   (thd->lex.current_select->cond_count+1)*2)))
+		   (thd->lex->current_select->cond_count+1)*2)))
     return TRUE; /* purecov: inspected */
   and_level= 0;
   field= end= key_fields;
@@ -3549,7 +3549,7 @@ static void
 make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
-  SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
+  SELECT_LEX *select_lex= &join->thd->lex->select_lex;
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -5461,7 +5461,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   thd->proc_info="converting HEAP to MyISAM";
 
   if (create_myisam_tmp_table(&new_table,param,
-			      thd->lex.select_lex.options | thd->options))
+			      thd->lex->select_lex.options | thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
@@ -8942,7 +8942,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   List<Item> field_list;
   List<Item> item_list;
   THD *thd=join->thd;
-  SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
+  SELECT_LEX *select_lex= &join->thd->lex->select_lex;
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= &my_charset_latin1;
@@ -9129,8 +9129,8 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
        sl= sl->next_select())
   {
     res= mysql_explain_select(thd, sl,
-			      (((&thd->lex.select_lex)==sl)?
-			       ((thd->lex.all_selects_list != sl)?"PRIMARY":
+			      (((&thd->lex->select_lex)==sl)?
+			       ((thd->lex->all_selects_list != sl)?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
@@ -9160,7 +9160,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
   DBUG_ENTER("mysql_explain_select");
   DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
   select_lex->type= type;
-  thd->lex.current_select= select_lex;
+  thd->lex->current_select= select_lex;
   SELECT_LEX_UNIT *unit=  select_lex->master_unit();
   int res= mysql_select(thd, &select_lex->ref_pointer_array,
 			(TABLE_LIST*) select_lex->table_list.first,
@@ -9171,7 +9171,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			(ORDER*) select_lex->order_list.first,
 			(ORDER*) select_lex->group_list.first,
 			select_lex->having,
-			(ORDER*) thd->lex.proc_list.first,
+			(ORDER*) thd->lex->proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex);
   DBUG_RETURN(res);
@@ -9188,8 +9188,8 @@ void st_select_lex::print(THD *thd, String *str)
   //options
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
-  if ((thd->lex.lock_option & TL_READ_HIGH_PRIORITY) &&
-      (this == &thd->lex.select_lex))
+  if ((thd->lex->lock_option & TL_READ_HIGH_PRIORITY) &&
+      (this == &thd->lex->select_lex))
     str->append("high_priority ", 14);
   if (options & SELECT_DISTINCT)
     str->append("distinct ", 9);
@@ -9201,7 +9201,7 @@ void st_select_lex::print(THD *thd, String *str)
     str->append("buffer_result ", 14);
   if (options & OPTION_FOUND_ROWS)
     str->append("calc_found_rows ", 16);
-  if (!thd->lex.safe_to_cache_query)
+  if (!thd->lex->safe_to_cache_query)
     str->append("no_cache ", 9);
   if (options & OPTION_TO_QUERY_CACHE)
     str->append("cache ", 6);
