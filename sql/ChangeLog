@@ -1,3 +1,7 @@
+2000-11-11  Jeremy Cole  <jeremy@mysql.com>
+
+* Added ALTER TABLE ... ORDER BY ...
+
 2000-09-17  Michael Widenius  <monty@mysql.com>
 
 * Added option QUICK to DELETE to tell MySQL not to balance the

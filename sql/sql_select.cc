@@ -112,15 +112,12 @@ static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
 static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 				      uint field_count, Field **first_field,
 				      ulong key_length);
-static SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
 static int join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count);
 static ulong used_blob_length(CACHE_FIELD **ptr);
 static bool store_record_in_cache(JOIN_CACHE *cache);
 static void reset_cache(JOIN_CACHE *cache);
 static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
-static int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
-		       List <Item> &all_fields, ORDER *order);
 static int setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		       List<Item> &all_fields, ORDER *order, bool *hidden);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
@@ -5409,8 +5406,7 @@ err:
 }
 
 
-static SORT_FIELD *
-make_unireg_sortorder(ORDER *order, uint *length)
+SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
 {
   uint count;
   SORT_FIELD *sort,*pos;
@@ -5752,8 +5748,7 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
 ** and doesn't exits in the select list, add it the the field list.
 */
 
-static int
-setup_order(THD *thd,TABLE_LIST *tables,List<Item> &fields,
+int setup_order(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 	     List<Item> &all_fields, ORDER *order)
 {
   thd->where="order clause";

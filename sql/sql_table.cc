@@ -32,6 +32,7 @@ static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    List<create_field> &create,
 				    enum enum_duplicates handle_duplicates,
+                                    ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 
 /*****************************************************************************
@@ -1049,6 +1050,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      List<create_field> &fields,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
+                      ORDER *order,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates)
 {
@@ -1416,7 +1418,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for loggin
   error=copy_data_between_tables(table,new_table,create_list,handle_duplicates,
-				 &copied,&deleted);
+				 order, &copied,&deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
   new_table->time_stamp=save_time_stamp;
@@ -1569,14 +1571,24 @@ end_temporary:
 
 
 static int
-copy_data_between_tables(TABLE *from,TABLE *to,List<create_field> &create,
+copy_data_between_tables(TABLE *from,TABLE *to,
+                         List<create_field> &create,
 			 enum enum_duplicates handle_duplicates,
-			 ha_rows *copied,ha_rows *deleted)
+                         ORDER *order,
+			 ha_rows *copied,
+                         ha_rows *deleted)
 {
   int error;
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
+  uint length;
+  SORT_FIELD *sortorder;
+  READ_RECORD info;
+  Field *next_field;
+  TABLE_LIST   tables;
+  List<Item>   fields;
+  List<Item>   all_fields;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -1597,11 +1609,25 @@ copy_data_between_tables(TABLE *from,TABLE *to,List<create_field> &create,
       (copy_end++)->set(*ptr,def->field,0);
   }
 
-  READ_RECORD info;
+  if(order) {
+    from->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
+                                         MYF(MY_FAE | MY_ZEROFILL));
+    bzero((char*) &tables,sizeof(tables));
+    tables.table = from;
+    error=1;
+
+    if (setup_order(thd, &tables, fields, all_fields, order) ||
+        !(sortorder=make_unireg_sortorder(order, &length)) ||
+        (from->found_records = filesort(&from, sortorder, length, 
+                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR))
+        == HA_POS_ERROR)
+      goto err;
+  };
+
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
 
   found_count=delete_count=0;
-  Field *next_field=to->next_number_field;
+  next_field=to->next_number_field;
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -1640,6 +1666,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,List<create_field> &create,
     error=1;
   if (ha_commit(thd) || to->file->external_lock(thd,F_UNLCK))
     error=1;
+ err:
+  free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
   DBUG_RETURN(error > 0 ? -1 : 0);
