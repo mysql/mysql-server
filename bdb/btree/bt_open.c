@@ -489,7 +489,7 @@ __bam_new_file(dbp, txn, fhp, name)
 			goto err;
 	} else {
 #ifdef DIAGNOSTIC
-		memset(buf, dbp->pgsize, 0);
+		memset(buf, 0, dbp->pgsize);
 #endif
 		root = (PAGE *)buf;
 	}
