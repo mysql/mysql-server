@@ -557,7 +557,7 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
 
   List_iterator<String> it(*names);
   String *cur_name;
-  while (*pos++= it++);
+  while ((*pos++= it++));
 
   qsort(pointers,names->elements,sizeof(String*),string_ptr_cmp);
 
@@ -689,7 +689,7 @@ int mysqld_help(THD *thd, const char *mask)
     goto end;
   }
   
-  for (int i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
+  for (size_t i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
   
   if (!(select_topics_by_name= 

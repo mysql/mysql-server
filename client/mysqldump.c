@@ -77,7 +77,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		lock_tables=1,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
+	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_names=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 	        opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0;
@@ -85,7 +85,7 @@ static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
-             *where=0, *default_charset= (char *)MYSQL_DEFAULT_CHARSET_NAME, 
+             *where=0, *default_charset= (char *) "binary",
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
 static ulong opt_compatible_mode= 0;
@@ -212,6 +212,10 @@ static struct my_option my_long_options[] =
    (gptr*) &tFlag, (gptr*) &tFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-set-names", 'N',
+   "'SET NAMES charset_name' will not be put in the output.",
+   (gptr*) &opt_set_names, (gptr*) &opt_set_names, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -345,6 +349,8 @@ static void write_header(FILE *sql_file, char *db_name)
 	  sql_file);
     fprintf(sql_file, "-- Server version\t%s\n",
 	    mysql_get_server_info(&mysql_connection));
+    if (!opt_set_names)
+      fprintf(sql_file,"\n/*!40101 SET NAMES %s*/;\n",default_charset);
   }
   return;
 } /* write_header */
@@ -557,6 +563,7 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+  mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
