@@ -1231,6 +1231,40 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (thd)
     {
+#if MYSQL_VERSION_ID < 50000
+      /*
+        To make replication of charsets working in 4.1 we are writing values
+        of charset related variables before every statement in the binlog,
+        if values of those variables differ from global server-wide defaults.
+        We are using SET ONE_SHOT command so that the charset vars get reset
+        to default after the first non-SET statement.
+        In the next 5.0 this won't be needed as we will use the new binlog
+        format to store charset info.
+      */
+      if ((thd->variables.character_set_client->number !=
+           global_system_variables.collation_server->number) ||
+          (thd->variables.character_set_client->number !=
+           thd->variables.collation_connection->number) ||
+          (thd->variables.collation_server->number !=
+           thd->variables.collation_connection->number))
+      {
+	char buf[200];
+        int written= my_snprintf(buf, sizeof(buf)-1,
+                    "SET ONE_SHOT CHARACTER_SET_CLIENT=%lu,\
+COLLATION_CONNECTION=%lu,COLLATION_DATABASE=%lu,COLLATION_SERVER=%lu",
+                             thd->variables.character_set_client->number,
+                             thd->variables.collation_connection->number,
+                             thd->variables.collation_database->number,
+                             thd->variables.collation_server->number);
+	Query_log_event e(thd, buf, written, 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
+#endif
+
+      /* Add logging of timezones here */
+
       if (thd->last_insert_id_used)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
