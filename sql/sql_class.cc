@@ -881,8 +881,8 @@ bool select_singleval_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_singleval_subselect::send_data");
   Item_singleval_subselect *it= (Item_singleval_subselect *)item;
-  if (it->assigned()){
-    if (!current_thd->lex.describe)
+  if (it->assigned())
+  {
       my_message(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
