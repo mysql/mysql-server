@@ -1,6 +1,6 @@
 
-ndbtools_PROGRAMS = ndb_mgm
 noinst_LTLIBRARIES = libndbmgmclient.la
+ndbtools_PROGRAMS = ndb_mgm
 
 libndbmgmclient_la_SOURCES = CommandInterpreter.cpp
 
