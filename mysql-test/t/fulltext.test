@@ -92,3 +92,22 @@ select * from t2 where MATCH ticket AGAINST ('foobar');
 select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
 
 drop table t1,t2,t3;
+
+#
+# two more bugtests
+#
+
+CREATE TABLE t1 (
+  id int(11)  auto_increment,
+  title varchar(100)  default '',
+  PRIMARY KEY  (id),
+  KEY ind5 (title),
+  FULLTEXT KEY FT1 (title)
+) TYPE=MyISAM;
+
+insert into t1 (title) values ('this is a test');
+update t1 set title='this is A test' where id=1;
+check table t1;
+update t1 set title='this test once revealed a bug' where id=1;
+select * from t1;
+
