@@ -1,3 +1,5 @@
+drop table if exists t1,t2,v1,v2,v3;
+drop view if exists t1,t2,v1,v2,v3;
 set GLOBAL query_cache_size=1355776;
 flush status;
 create table t1 (a int, b int);
@@ -98,4 +100,27 @@ Qcache_hits	1
 drop view v1;
 set query_cache_type=default;
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+create view v1 as select a from t1 where a > 1;
+select * from v1;
+a
+2
+3
+alter view v1 as select a from t1 where a > 2;
+select * from v1;
+a
+3
+drop view v1;
+select * from v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+drop table t1;
+create table t1 (a int, primary key (a), b int);
+create table t2 (a int, primary key (a), b int);
+insert into t2 values (1000, 2000);
+create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
+select * from v3;
+a	b
+drop view v3;
+drop table t1, t2;
 set GLOBAL query_cache_size=default;
