@@ -1161,3 +1161,10 @@ show table status;
 show table status;
 drop view v1;
 drop table t1;
+
+#
+# VIEW with floating point (long bumber) as column
+#
+create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
+show create view v1;
+drop view v1;
