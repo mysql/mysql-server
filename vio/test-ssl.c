@@ -115,7 +115,7 @@ main(int argc, char**	argv)
   {
     /* child, therefore, client */
     char	xbuf[100];
-    int	r = client_vio->read(client_vio,xbuf, sizeof(xbuf));
+    int	r = vio_read(client_vio,xbuf, sizeof(xbuf));
     if (r<=0) {
       my_free((gptr)ssl_acceptor,MYF(0));
       my_free((gptr)ssl_connector,MYF(0));
@@ -130,7 +130,7 @@ main(int argc, char**	argv)
   else
   {
     const char*	s = "Huhuhuh";
-    int		r = server_vio->write(server_vio,(gptr)s, strlen(s));
+    int		r = vio_write(server_vio,(gptr)s, strlen(s));
     if (r<=0) {
       my_free((gptr)ssl_acceptor,MYF(0));
       my_free((gptr)ssl_connector,MYF(0));
