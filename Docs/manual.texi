@@ -3734,6 +3734,9 @@ SELECT a.col1, b.col2
 This could be done by automatically creating temporary tables for the
 derived tables for the duration of the query.
 @item
+@code{ROLLUP} and @code{CUBE} OLAP (Online Analytical Processing) grouping
+options for data warehousing applications.
+@item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @file{.MYD} file.
