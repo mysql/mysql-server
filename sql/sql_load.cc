@@ -182,13 +182,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (!dirname_length(ex->file_name))
     {
       strxnmov(name, FN_REFLEN, mysql_real_data_home, tdb, NullS);
-      (void) fn_format(name, ex->file_name, name, "", MY_RELATIVE_PATH);
-      unpack_filename(name,name);
+      (void) fn_format(name, ex->file_name, name, "",
+		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
     }
     else
     {
-      (void) fn_format(name, ex->file_name, mysql_real_data_home, "", MY_RELATIVE_PATH);
-      unpack_filename(name,name);
+      (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
+		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 #if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
