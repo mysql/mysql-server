@@ -2738,7 +2738,7 @@ server.");
                  (TC_LOG *)&tc_log_mmap   :
                  (TC_LOG *)&tc_log_dummy;
 
-  if (tc_log->open(opt_tc_log_file))
+  if (tc_log->open(opt_bin_logname))
   {
     sql_print_error("Can't init tc log");
     unireg_abort(1);
