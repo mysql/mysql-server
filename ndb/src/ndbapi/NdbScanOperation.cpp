@@ -664,8 +664,6 @@ NdbScanOperation::doSend(int ProcessorId)
 
 void NdbScanOperation::closeScan()
 {
-  int self = pthread_self() ;
-
   if(m_transConnection) do {
     if(DEBUG_NEXT_RESULT)
       ndbout_c("closeScan() theError.code = %d "
