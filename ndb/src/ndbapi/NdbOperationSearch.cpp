@@ -543,7 +543,8 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
   assert(m_accessTable->m_sizeOfKeysInWords == size);
   unsigned pos = 0;
   while (pos < 8 && pos < size) {
-    data[pos++] = theKEYINFOptr[pos];
+    data[pos] = theKEYINFOptr[pos];
+    pos++;
   }
   NdbApiSignal* tSignal = theFirstKEYINFO;
   unsigned n = 0;
