@@ -74,12 +74,6 @@ if (@config_env > 0)
 	$opt_config_env= join(" ", @config_env);
 }
 
-if (@config_env > 0)
-{
-	chomp(@config_env);
-	$opt_config_env= join(" ", @config_env);
-}
-
 chomp($host=`hostname`);
 $full_host_name=$host;
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
