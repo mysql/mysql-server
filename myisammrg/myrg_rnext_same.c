@@ -16,25 +16,36 @@
 
 #include "myrg_def.h"
 
+
 int myrg_rnext_same(MYRG_INFO *info, byte *buf)
 {
-  uint err;
+  int err;
   MI_INFO *mi;
 
   if (!info->current_table)
     return (HA_ERR_KEY_NOT_FOUND);
 
-  err=mi_rnext_same(info->current_table->table,buf);
-  if (err == HA_ERR_END_OF_FILE)
+  /* at first, do rnext for the table found before */
+  if ((err=mi_rnext_same(info->current_table->table,NULL)))
   {
-    queue_remove(&(info->by_key),0);
-    if (!info->by_key.elements)
-      return HA_ERR_END_OF_FILE;
-
-    mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
-    mi->once_flags|= RRND_PRESERVE_LASTINX;
-    return mi_rrnd(mi,buf,mi->lastpos);
+    if (err == HA_ERR_END_OF_FILE)
+    {
+      queue_remove(&(info->by_key),0);
+      if (!info->by_key.elements)
+        return HA_ERR_END_OF_FILE;
+    }
+    else
+      return err;
   }
-  return err;
+  else
+  {
+    /* Found here, adding to queue */
+    queue_top(&(info->by_key))=(byte *)(info->current_table);
+    queue_replaced(&(info->by_key));
+  }
+
+  /* now, mymerge's read_next is as simple as one queue_top */
+  mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
+  return _myrg_mi_read_record(mi,buf);
 }
 
