@@ -84,7 +84,7 @@
 "%s: Forcing close of thread %ld  user: '%-.32s'\n",
 "Can't create IP socket",
 "Table '%-.64s' has no index like the one used in CREATE INDEX. Recreate the table",
-"Field separator argument is not what is expected. Check the manual","
+"Field separator argument is not what is expected. Check the manual",
 "You can't use fixed rowlength with BLOBs. Please use 'fields terminated by'.",
 "The file '%-.64s' must be in the database directory or be readable by all",
 "File '%-.80s' already exists",

@@ -9,6 +9,7 @@ system=@SYSTEM_TYPE@
 version=@VERSION@
 export machine system version
 SOURCE=`pwd` 
+CP="cp -p"
 
 # Debug option must come first
 DEBUG=0
@@ -57,7 +58,7 @@ chmod o-rwx $BASE/data $BASE/data/*
 for i in sql/ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
          Docs/manual.html Docs/manual.txt Docs/manual_toc.html
 do
-  cp -p $i $BASE
+  $CP $i $BASE
 done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
@@ -70,7 +71,7 @@ for i in extra/comp_err extra/replace extra/perror extra/resolveip \
 do
   if [ -f $i ]
   then
-    cp -p $i $BASE/bin
+    $CP $i $BASE/bin
   fi
 done
 strip $BASE/bin/*
@@ -79,7 +80,7 @@ for i in sql/mysqld.sym.gz
 do
   if [ -f $i ]
   then
-    cp -p $i $BASE/bin
+    $CP $i $BASE/bin
   fi
 done
 
@@ -87,27 +88,27 @@ for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmy
 do
   if [ -f $i ]
   then
-    cp -p $i $BASE/lib
+    $CP $i $BASE/lib
    fi
 done
 
-cp -p config.h include/* $BASE/include
+$CP config.h include/* $BASE/include
 rm $BASE/include/Makefile*; rm $BASE/include/*.in
 
-cp -p tests/*.res tests/*.tst tests/*.pl $BASE/tests
-cp -p support-files/* $BASE/support-files
+$CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
+$CP support-files/* $BASE/support-files
 
-cp -r -p sql/share/* $BASE/share/mysql
+$CP -r sql/share/* $BASE/share/mysql
 rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
 
-cp -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
-cp -p mysql-test/README $BASE/mysql-test/README
-cp -p mysql-test/include/*.inc $BASE/mysql-test/include
-cp -p mysql-test/std_data/*.dat $BASE/mysql-test/std_data
-cp -p mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
-cp -p mysql-test/r/*.result mysql-test/r/*.require $BASE/mysql-test/r
+$CP mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
+$CP mysql-test/README $BASE/mysql-test/README
+$CP mysql-test/include/*.inc $BASE/mysql-test/include
+$CP mysql-test/std_data/*.dat $BASE/mysql-test/std_data
+$CP mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
+$CP mysql-test/r/*.result mysql-test/r/*.require $BASE/mysql-test/r
 
-cp -p scripts/* $BASE/bin
+$CP scripts/* $BASE/bin
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh
 
 $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
@@ -116,7 +117,7 @@ $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/safe_mysqld
 
 mv $BASE/support-files/binary-configure $BASE/configure
 chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/configure
-cp -r -p sql-bench/* $BASE/sql-bench
+$CP -r sql-bench/* $BASE/sql-bench
 rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
 
 # Clean up if we did this from a bk tree
@@ -143,7 +144,7 @@ then
   then
     print "Warning: Couldn't find libgcc.a!"
   else
-    cp -p $gcclib libmygcc.a
+    $CP $gcclib libmygcc.a
   fi
   cd $SOURCE
 fi
