@@ -881,8 +881,6 @@ srv_general_init(void)
 
 /*======================= InnoDB Server FIFO queue =======================*/
 
-/* Maximum allowable purge history length.  <=0 means 'infinite'. */
-ulint	srv_max_purge_lag		= 0;
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads

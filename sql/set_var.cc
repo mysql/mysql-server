@@ -358,8 +358,6 @@ sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
                                                &SV::innodb_table_locks);
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
-sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
-							&srv_max_purge_lag);
 #endif
 
 /* Time/date/datetime formats */
