@@ -432,9 +432,9 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     }
     else
       full_text_keys++;
-    /* Check that auto_increment key is bigger than max key value */
     if ((uint) share->base.auto_key -1 == key)
     {
+      /* Check that auto_increment key is bigger than max key value */
       ulonglong save_auto_value=info->s->state.auto_increment;
       info->s->state.auto_increment=0;
       info->lastinx=key;
@@ -454,6 +454,20 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       }
       else
 	info->s->state.auto_increment=save_auto_value;
+
+      /* Check that there isn't a row with auto_increment = 0 in the table */
+      mi_extra(info,HA_EXTRA_KEYREAD);
+      bzero(info->lastkey,keyinfo->seg->length);
+      if (!mi_rkey(info, info->rec_buff, key, info->lastkey,
+		   keyinfo->seg->length, HA_READ_KEY_EXACT))
+      {
+	/* Don't count this as a real warning, as myisamchk can't correct it */
+	uint save=param->warning_printed;
+	mi_check_print_warning(param,
+			       "Found row where the auto_increment column has the value 0");
+	param->warning_printed=save;
+      }
+      mi_extra(info,HA_EXTRA_NO_KEYREAD);
     }
 
     length=(my_off_t) isam_key_length(info,keyinfo)*keys + param->key_blocks*2;

@@ -17,3 +17,14 @@ select * from t1;
 delete from t1 limit 1;
 select * from t1;
 drop table t1;
+
+create table t1 (i int);
+insert into t1 (i) values(1);
+insert into t1 (i) values(1);
+insert into t1 (i) values(1);
+delete from t1 limit 1;
+update t1 set i=2 limit 1;
+delete from t1 limit 0;
+update t1 set i=3 limit 0;
+select * from t1;
+drop table t1;

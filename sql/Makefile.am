@@ -85,7 +85,7 @@ gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
 			mini_client_errors.c violite.c password.c
-mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) $(mysqld_LDADD)
+mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) # $(mysqld_LDADD)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
