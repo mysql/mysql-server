@@ -44,8 +44,6 @@ install-data-local:
 	cp -p $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
 	cp -p $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
 	cp -p $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
-	cp -p $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
-	cp -p $(srcdir)/std_data/*.MRG $(DESTDIR)$(testdir)/std_data
 
 SUFFIXES = .sh
 
