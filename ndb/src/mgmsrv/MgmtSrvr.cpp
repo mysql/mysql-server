@@ -2777,3 +2777,104 @@ MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
   m_mgmsrv.m_reserved_nodes.set(id);
 }
 
+int
+MgmtSrvr::setDbParameter(int node, int param, const char * value,
+			 BaseString& msg){
+  /**
+   * Check parameter
+   */
+  ndb_mgm_configuration_iterator iter(* _config->m_configValues, 
+				      CFG_SECTION_NODE);
+  if(iter.first() != 0){
+    msg.assign("Unable to find node section (iter.first())");
+    return -1;
+  }
+  
+  Uint32 type = NODE_TYPE_DB + 1;
+  if(node != 0){
+    if(iter.find(CFG_NODE_ID, node) != 0){
+      msg.assign("Unable to find node (iter.find())");
+      return -1;
+    }
+    if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
+      msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
+      return -1;
+    }
+  } else {
+    do {
+      if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
+	msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
+	return -1;
+      }
+      if(type == NODE_TYPE_DB)
+	break;
+    } while(iter.next() == 0);
+  }
+  
+  if(type != NODE_TYPE_DB){
+    msg.assfmt("Invalid node type or no such node (%d %d)", 
+	       type, NODE_TYPE_DB);
+    return -1;
+  }
+
+  int p_type;
+  unsigned val_32;
+  unsigned long long val_64;
+  const char * val_char;
+  do {
+    p_type = 0;
+    if(iter.get(param, &val_32) == 0){
+      val_32 = atoi(value);
+      break;
+    }
+    
+    p_type++;
+    if(iter.get(param, &val_64) == 0){
+      val_64 = atoll(value);
+      break;
+    }
+    p_type++;
+    if(iter.get(param, &val_char) == 0){
+      val_char = value;
+      break;
+    }
+    msg.assign("Could not get parameter");
+    return -1;
+  } while(0);
+  
+  bool res = false;
+  do {
+    int ret = iter.get(CFG_TYPE_OF_SECTION, &type);
+    assert(ret == 0);
+    
+    if(type != NODE_TYPE_DB)
+      continue;
+    
+    Uint32 node;
+    ret = iter.get(CFG_NODE_ID, &node);
+    assert(ret == 0);
+    
+    ConfigValues::Iterator i2(_config->m_configValues->m_config, 
+			      iter.m_config);
+    switch(p_type){
+    case 0:
+      res = i2.set(param, val_32);
+      ndbout_c("Updateing node %d param: %d to %d",  node, param, val_32);
+      break;
+    case 1:
+      res = i2.set(param, val_64);
+      ndbout_c("Updateing node %d param: %d to %Ld",  node, param, val_32);
+      break;
+    case 2:
+      res = i2.set(param, val_char);
+      ndbout_c("Updateing node %d param: %d to %s",  node, param, val_char);
+      break;
+    default:
+      abort();
+    }
+    assert(res);
+  } while(node == 0 && iter.next() == 0);
+
+  msg.assign("Success");
+  return 0;
+}
