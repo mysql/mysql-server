@@ -295,7 +295,7 @@ execute stmt4;
 prepare stmt4 from ' show full processlist ';
 execute stmt4;
 Id	User	Host	db	Command	Time	State	Info
-number	root	localhost	test	Query	seconds	NULL	show full processlist
+number	root	localhost	test	Query	time	NULL	show full processlist
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet

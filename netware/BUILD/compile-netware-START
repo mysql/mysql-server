@@ -22,5 +22,7 @@ base_configs=" \
 	--enable-local-infile \
 	--with-extra-charsets=all \
 	--prefix=N:/mysql \
+	--without-mysqlmanager \
+	--without-man \
 	"
 
