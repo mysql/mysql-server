@@ -4794,6 +4794,7 @@ int ha_ndbcluster::write_ndb_file()
   DBUG_RETURN(error);
 }
 
+#ifdef key_multi_range
 int
 ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 				      key_multi_range *ranges, 
@@ -5135,5 +5136,6 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   
   DBUG_RETURN(0);
 }
+#endif
 
 #endif /* HAVE_NDBCLUSTER_DB */
