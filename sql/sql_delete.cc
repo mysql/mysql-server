@@ -374,7 +374,7 @@ bool mysql_multi_delete_prepare(THD *thd)
       Check are deleted table used somewhere inside subqueries.
 
       Multi-delete can't be constructed over-union => we always have
-      single SELECT on top and have to check underlaying SELECTs of it
+      single SELECT on top and have to check underlying SELECTs of it
     */
     for (SELECT_LEX_UNIT *un= lex->select_lex.first_inner_unit();
          un;

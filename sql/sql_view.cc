@@ -1046,7 +1046,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       if (i == elements_in_view)                // If field didn't exists
       {
         /*
-          Keys or all fields of underlaying tables are not foud => we have
+          Keys or all fields of underlying tables are not foud => we have
           to check variable updatable_views_with_limit to decide should we
           issue an error or just a warning
         */

@@ -1309,6 +1309,7 @@ static bool mysql_test_multiupdate(Prepared_statement *stmt,
 				  TABLE_LIST *tables,
                                   bool converted)
 {
+  /* if we switched from normal update, rights are checked */
   if (!converted && multi_update_precheck(stmt->thd, tables))
     return TRUE;
   /*
@@ -1457,6 +1458,7 @@ static int check_prepared_statement(Prepared_statement *stmt,
 
   case SQLCOM_UPDATE:
     res= mysql_test_update(stmt, tables);
+    /* mysql_test_update return 2 if we need to switch to multi-update */
     if (res != 2)
       break;
 
