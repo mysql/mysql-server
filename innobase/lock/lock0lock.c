@@ -773,19 +773,22 @@ lock_rec_has_to_wait(
 		/* We have somewhat complex rules when gap type record locks
 		cause waits */
 
-		if (( lock_is_on_supremum || (type_mode & LOCK_GAP))
+		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))
 			&& !(type_mode & LOCK_INSERT_INTENTION)) {
+
 			/* Gap type locks without LOCK_INSERT_INTENTION flag
-			do not need to wait for anything. This is because different 
-			users can have conflicting lock types on gaps. */
+			do not need to wait for anything. This is because 
+			different users can have conflicting lock types 
+			on gaps. */
 						  
 			return(FALSE);
 		}
 		
-		if ((type_mode & LOCK_REC_NOT_GAP)
+		if (!(type_mode & LOCK_INSERT_INTENTION)
 						&& lock_rec_get_gap(lock2)) {
-			/* Lock on just the record does not need to wait for
-			a gap type lock */
+
+			/* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
+			does not need to wait for a gap type lock */
 
 			return(FALSE);
 		}
@@ -846,8 +849,8 @@ lock_has_to_wait(
 			then the second bit on the lock bitmap is set */
 			
 			return(lock_rec_has_to_wait(lock1->trx,
-						lock1->type_mode, lock2,
-						lock_rec_get_nth_bit(lock1,1)));
+					lock1->type_mode, lock2,
+					lock_rec_get_nth_bit(lock1,1)));
 		}
 
 		return(TRUE);
