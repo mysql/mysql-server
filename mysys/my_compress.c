@@ -15,7 +15,7 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-/* Written by Sinisa Milivojevic <sinisa@coresinc.com> */
+/* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
 #include <global.h>
 #ifdef HAVE_COMPRESS

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB & Sinisa
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "ha_innobase.h"
+#include "sql_select.h"
 
 /*
   Optimize delete of all rows by doing a full generate of the table
@@ -319,12 +320,14 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 #endif
 
   (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
+  (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
   /* Don't use key read with MULTI-TABLE-DELETE */
   dt->table->used_keys=0;
   for (dt=dt->next ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=dt->table;
-    (void) table->file->extra(HA_EXTRA_NO_READCHECK);
+  (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
+  (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
 #ifdef SINISAS_STRIP
     tempfiles[counter]=(IO_CACHE *) sql_alloc(sizeof(IO_CACHE));
     if (open_cached_file(tempfiles[counter], mysql_tmpdir,TEMP_PREFIX,
@@ -367,6 +370,39 @@ multi_delete::prepare(List<Item> &values)
   DBUG_RETURN(0);
 }
 
+inline static void
+link_in_list(SQL_LIST *list,byte *element,byte **next)
+{
+  list->elements++;
+  (*list->next)=element;
+  list->next=next;
+  *next=0;
+}
+
+void
+multi_delete::initialize_tables(JOIN *join)
+{
+  SQL_LIST *new_list=(SQL_LIST *) sql_alloc(sizeof(SQL_LIST));
+  new_list->elements=0;  new_list->first=0;
+  new_list->next= (byte**) &(new_list->first);
+  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
+       tab < end;
+       tab++)
+  {
+    TABLE_LIST *walk;
+    for (walk=(TABLE_LIST*) delete_tables ; walk ; walk=walk->next)
+      if (!strcmp(tab->table->path,walk->table->path))
+	break;
+    if (walk) // Table need not be the one to be deleted
+    {
+      register TABLE_LIST *ptr = (TABLE_LIST *) sql_alloc(sizeof(TABLE_LIST));
+      memcpy(ptr,walk,sizeof(TABLE_LIST)); ptr->next=0;
+      link_in_list(new_list,(byte*) ptr,(byte**) &ptr->next);
+    }
+  }
+  delete_tables=(TABLE_LIST *)new_list->first;
+  return;
+}
 
 multi_delete::~multi_delete()
 {
