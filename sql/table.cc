@@ -1583,7 +1583,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   if (where)
   {
     Item_arena *arena= thd->current_arena, backup;
-    if (!arena->is_stmt_prepare())
+    if (arena->is_conventional())
       arena= 0;                                   // For easier test
 
     if (!where->fixed && where->fix_fields(thd, ancestor, &where))

@@ -6156,16 +6156,21 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Item_arena *arena=thd->current_arena, backup;
-    select->first_cond_optimization= 0;
+    Item_arena *arena= thd->current_arena, backup;
+    if (arena->is_conventional())
+      arena= 0;                                   // For easier test
+    else
+      thd->set_n_backup_item_arena(arena, &backup);
 
-    thd->set_n_backup_item_arena(arena, &backup);
+    select->first_cond_optimization= 0;
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(join, join->join_list, conds, TRUE);
 
     select->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
-    thd->restore_backup_item_arena(arena, &backup);
+
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
   }
 
   if (!conds)
