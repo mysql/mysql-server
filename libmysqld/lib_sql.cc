@@ -419,7 +419,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   if (
 #ifdef HAVE_BERKELEY_DB
-      !berkeley_skip ||
+      (have_berkeley_db == SHOW_OPTION_YES) ||
 #endif
       (flush_time && flush_time != ~(ulong) 0L))
   {

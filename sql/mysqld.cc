@@ -2362,7 +2362,7 @@ static void create_maintenance_thread()
 {
   if (
 #ifdef HAVE_BERKELEY_DB
-      !berkeley_skip ||
+      (have_berkeley_db == SHOW_OPTION_YES) ||
 #endif
       (flush_time && flush_time != ~(ulong) 0L))
   {
@@ -5532,43 +5532,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BDB:
 #ifdef HAVE_BERKELEY_DB
     if (opt_bdb)
-    {
-      berkeley_skip=0;
       have_berkeley_db=SHOW_OPTION_YES;
-    }
     else
-    {
-      berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
-    }
 #endif
     break;
   case OPT_ISAM:
 #ifdef HAVE_ISAM
     if (opt_isam)
-    {
-      isam_skip=0;
       have_isam= SHOW_OPTION_YES;
-    }
     else
-    {
-      isam_skip=1;
       have_isam= SHOW_OPTION_DISABLED;
-    }
 #endif
     break;
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
-    {
-      innodb_skip=0;
       have_innodb=SHOW_OPTION_YES;
-    }
     else
-    {
-      innodb_skip=1;
       have_innodb=SHOW_OPTION_DISABLED;
-    }
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
