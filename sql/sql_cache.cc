@@ -1087,7 +1087,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
       if (engine_data != table->engine_data())
       {
         DBUG_PRINT("qcache",
@@ -1096,6 +1095,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
                               engine_data, table->engine_data()));
         invalidate_table(table->db(), table->key_length());
       }
+      else
+        thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
       goto err_unlock;				// Parse query
     }
     else
