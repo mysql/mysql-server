@@ -84,7 +84,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
 			mini_client.cc mini_client_errors.c \
 			stacktrace.c repl_failsafe.h repl_failsafe.cc sql_olap.cc\
-			gstream.cc spatial.cc
+			gstream.cc spatial.cc sql_help.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 

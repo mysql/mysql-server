@@ -199,8 +199,12 @@ int st_select_lex_unit::exec()
 {
   DBUG_ENTER("st_select_lex_unit::exec");
   SELECT_LEX *lex_select_save= thd->lex.select;
-
-  if(depended || !item || !item->assigned())
+  
+  if (executed && !depended)
+    DBUG_RETURN(0);
+  executed= 1;
+  
+  if (depended || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
       item->assigned(0); // We will reinit & rexecute unit
