@@ -68,6 +68,11 @@ msg ("Adding closing / to XREF and COLSPEC tags...");
 $data =~ s{<(xref|colspec) (.+?)>}
           {<$1 $2 />}gs;
 
+# arjen 2002-04-26
+msg ("Removing separate target titles from LINKs and make them XREFs...");
+$data =~ s{<link (linkend=.+?)>.+?</link>}
+          {<xref $1 />}gs;
+
 # Probably need to strip these
 msg ('Adding "See " to XREFs that used to be @xref...');
 $data =~ s{([.'!)])\s*<xref }
@@ -76,11 +81,6 @@ $data =~ s{([.'!)])\s*<xref }
 msg ('Adding "see " to (XREFs) that used to be (@pxref)...');
 $data =~ s{([([,;])(\s*)<xref }
           {$1$2see <xref }gs;
-
-# arjen 2002-04-26
-msg ("Removing separate target titles from LINKs and make them XREFs...");
-$data =~ s{<link (linkend=.+?)>.+?</link>}
-          {<xref $1 />}gs;
 
 msg ("Making first row in table THEAD...");
 $data =~ s{( *)<tbody>(\s*<row>.+?</row>)}
