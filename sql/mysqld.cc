@@ -543,7 +543,7 @@ static void close_connections(void)
     struct timespec abstime;
     int error;
     LINT_INIT(error);
-    DBUG_PRINT("info",("Waiting for select_thread"));
+    DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
     if (pthread_kill(select_thread,THR_CLIENT_ALARM))

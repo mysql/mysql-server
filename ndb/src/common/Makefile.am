@@ -1,4 +1,4 @@
-SUBDIRS =	portlib debugger util logger transporter mgmcommon editline
+SUBDIRS =	portlib debugger util logger transporter mgmcommon
 
 noinst_LTLIBRARIES = libcommon.la
 

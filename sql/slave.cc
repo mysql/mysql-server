@@ -1150,7 +1150,7 @@ bool net_request_file(NET* net, const char* fname)
 }
 
 
-const char *rewrite_db(const char* db)
+const char *rewrite_db(const char* db, uint *new_len)
 {
   if (replicate_rewrite_db.is_empty() || !db)
     return db;
@@ -1160,7 +1160,10 @@ const char *rewrite_db(const char* db)
   while ((tmp=it++))
   {
     if (!strcmp(tmp->key, db))
+    {
+      *new_len= strlen(tmp->val);
       return tmp->val;
+    }
   }
   return db;
 }
@@ -1174,7 +1177,7 @@ const char *rewrite_db(const char* db)
 
 const char *print_slave_db_safe(const char* db)
 {
-  return (db ? rewrite_db(db) : "");
+  return (db ? db : "");
 }
 
 /*
@@ -2829,7 +2832,7 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
   DBUG_ENTER("request_dump");
 
   // TODO if big log files: Change next to int8store()
-  int4store(buf, (longlong) mi->master_log_pos);
+  int4store(buf, (ulong) mi->master_log_pos);
   int2store(buf + 4, binlog_flags);
   int4store(buf + 6, server_id);
   len = (uint) strlen(logname);

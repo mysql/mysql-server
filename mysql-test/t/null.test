@@ -122,3 +122,70 @@ explain select * from t1 where i=2 or i is null;
 select count(*) from t1 where i=2 or i is null;
 drop table t1;
 
+#
+# NULL has its own type BINARY(0) by default.
+# But NULL should be weaker than a constant
+# when mixing charsets/collations
+#
+set names latin2;
+# Check that result type is taken from a non-null string
+create table t1 select
+  null as c00,
+  if(1, null, 'string') as c01,
+  if(0, null, 'string') as c02,
+  ifnull(null, 'string') as c03,
+  ifnull('string', null) as c04,
+  case when 0 then null else 'string' end as c05,
+  case when 1 then null else 'string' end as c06,
+  coalesce(null, 'string') as c07,
+  coalesce('string', null) as c08,
+  least('string',null) as c09,
+  least(null, 'string') as c10,
+  greatest('string',null) as c11,
+  greatest(null, 'string') as c12,
+  nullif('string', null) as c13,
+  nullif(null, 'string') as c14,
+  trim('string' from null) as c15,
+  trim(null from 'string') as c16,
+  substring_index('string', null, 1) as c17,
+  substring_index(null, 'string', 1) as c18,
+  elt(1, null, 'string') as c19,
+  elt(1, 'string', null) as c20,
+  concat('string', null) as c21,
+  concat(null, 'string') as c22,
+  concat_ws('sep', 'string', null) as c23,
+  concat_ws('sep', null, 'string') as c24,
+  concat_ws(null, 'string', 'string') as c25,
+  make_set(3, 'string', null) as c26,
+  make_set(3, null, 'string') as c27,
+  export_set(3, null, 'off', 'sep') as c29,
+  export_set(3, 'on', null, 'sep') as c30,
+  export_set(3, 'on', 'off', null) as c31,
+  replace(null, 'from', 'to') as c32,
+  replace('str', null, 'to') as c33,
+  replace('str', 'from', null) as c34,
+  insert('str', 1, 2, null) as c35,
+  insert(null, 1, 2, 'str') as c36,
+  lpad('str', 10, null) as c37,
+  rpad(null, 10, 'str') as c38;
+  
+show create table t1;
+drop table t1;
+
+#
+# Check that comparison is done according to
+# non-null string collation, i.e. case insensitively,
+# rather than according to NULL's collation, i.e. case sensitively
+#
+-- in field
+select 
+  case 'str' when 'STR' then 'str' when null then 'null' end as c01,
+  case 'str' when null then 'null' when 'STR' then 'str' end as c02,
+  field(null, 'str1', 'str2') as c03,
+  field('str1','STR1', null) as c04,
+  field('str1', null, 'STR1') as c05,
+  'string' in ('STRING', null) as c08,
+  'string' in (null, 'STRING') as c09;
+
+# Restore charset to the default value.
+set names latin1;

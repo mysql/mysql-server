@@ -140,6 +140,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	CLIENT_SYM
 %token	COMMENT_SYM
 %token	COMMIT_SYM
+%token  CONSISTENT_SYM
 %token	COUNT_SYM
 %token	CREATE
 %token	CROSS
@@ -176,6 +177,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	SELECT_SYM
 %token	SHOW
 %token	SLAVE
+%token  SNAPSHOT_SYM
 %token  SQL_SYM
 %token	SQL_THREAD
 %token	START_SYM
@@ -676,6 +678,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
+        start_transaction_opts
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -3473,9 +3476,20 @@ slave:
 
 
 start:
-	START_SYM TRANSACTION_SYM { Lex->sql_command = SQLCOM_BEGIN;}
-	{}
+	START_SYM TRANSACTION_SYM start_transaction_opts
+        {
+           Lex->sql_command = SQLCOM_BEGIN;
+           Lex->start_transaction_opt= $3;
+        }
 	;
+
+start_transaction_opts:
+        /*empty*/ { $$ = 0; }
+        | WITH CONSISTENT_SYM SNAPSHOT_SYM
+        {
+           $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+        }
+        ;
 
 slave_thread_opts:
 	{ Lex->slave_thd_opt= 0; }
@@ -6846,6 +6860,7 @@ keyword:
 	| COMMIT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CONSISTENT_SYM	{}
 	| CONTAINS_SYM          {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
@@ -6998,6 +7013,7 @@ keyword:
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
 	| SLAVE			{}
+	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
@@ -7489,7 +7505,7 @@ revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
 	|
-	ALL PRIVILEGES ',' GRANT OPTION FROM user_list
+	ALL opt_privileges ',' GRANT OPTION FROM user_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
@@ -7515,9 +7531,13 @@ grant:
 
 grant_privileges:
 	grant_privilege_list {}
-	| ALL PRIVILEGES	{ Lex->grant = GLOBAL_ACLS;}
-	| ALL			{ Lex->grant = GLOBAL_ACLS;}
+	| ALL opt_privileges	{ Lex->grant = GLOBAL_ACLS;}
         ;
+
+opt_privileges:
+	/* empty */
+	| PRIVILEGES
+	;
 
 grant_privilege_list:
 	grant_privilege
@@ -7767,7 +7787,7 @@ grant_option:
         ;
 
 begin:
-	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work {}
+	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN; Lex->start_transaction_opt= 0;} opt_work {}
 	;
 
 opt_work:
