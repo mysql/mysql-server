@@ -137,6 +137,7 @@ class ha_innobase: public handler
 			   enum ha_rkey_function start_search_flag,
 			   const byte *end_key,uint end_key_len,
 			   enum ha_rkey_function end_search_flag);
+	ha_rows estimate_number_of_rows();
 
   	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
