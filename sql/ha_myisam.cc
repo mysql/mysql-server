@@ -998,31 +998,13 @@ int ha_myisam::delete_table(const char *name)
   return mi_delete_table(name);
 }
 
+
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
-  int rc;
-
-  while ((! (rc= mi_lock_database(file, !table->tmp_table ?
-                                  lock_type : ((lock_type == F_UNLCK) ?
-                                               F_UNLCK : F_EXTRA_LCK)))) &&
-         mi_is_crashed(file) && (myisam_recover_options != HA_RECOVER_NONE))
-  {
-    /*
-      check_and_repair() implicitly write locks the table, unless a
-      LOCK TABLES is in effect. It should be safer to always write lock here.
-      The implicit lock by check_and_repair() will then be a no-op.
-      check_and_repair() does not restore the original lock, but unlocks the
-      table. So we have to get the requested lock type again. And then to 
-      check, if the table has been crashed again meanwhile by another server.
-      If anything fails, we break.
-    */
-    if (((lock_type != F_WRLCK) && (rc= mi_lock_database(file, F_WRLCK))) ||
-        (rc= check_and_repair(thd)))
-      break;
-  }
-  return rc;
+  return mi_lock_database(file, !table->tmp_table ?
+			  lock_type : ((lock_type == F_UNLCK) ?
+				       F_UNLCK : F_EXTRA_LCK));
 }
-
 
 THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
 				      THR_LOCK_DATA **to,
