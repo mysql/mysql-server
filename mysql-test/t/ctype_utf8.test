@@ -34,6 +34,23 @@ select 'A' like 'a' collate utf8_bin;
 select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 
 #
+# Check the following:
+# "a"  == "a "
+# "a\0" < "a"
+# "a\0" < "a "
+
+SELECT 'a' = 'a ';
+SELECT 'a\0' < 'a';
+SELECT 'a\0' < 'a ';
+SELECT 'a\t' < 'a';
+SELECT 'a\t' < 'a ';
+
+CREATE TABLE t1 (a char(10) character set utf8 not null);
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+DROP TABLE t1;
+
+#
 # Fix this, it should return 1:
 #
 #select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD091,_utf8 '%');
