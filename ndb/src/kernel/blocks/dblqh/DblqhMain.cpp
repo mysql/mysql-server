@@ -8110,7 +8110,10 @@ void Dblqh::nextScanConfScanLab(Signal* signal)
 
     if (scanptr.p->m_curr_batch_size_rows > 0) {
       jam();
-      scanptr.p->scanCompletedStatus = ZTRUE;
+
+      if((tcConnectptr.p->primKeyLen - 4) == 0)
+	scanptr.p->scanCompletedStatus = ZTRUE;
+      
       scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
       sendScanFragConf(signal, ZFALSE);
       return;
