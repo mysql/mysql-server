@@ -307,8 +307,6 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 	goto done;
       if (sp)
       {
-	if (oldlex != newlex)
-	  sp->restore_lex(thd);
 	delete sp;
 	newlex->sphead= NULL;
       }
