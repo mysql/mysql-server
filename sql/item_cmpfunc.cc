@@ -90,7 +90,7 @@ static bool convert_constant_item(Field *field, Item **item)
 
 void Item_bool_func2::fix_length_and_dec()
 {
-  max_length=1;					// Function returns 0 or 1
+  max_length= 1;				     // Function returns 0 or 1
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -144,7 +144,14 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     }
     if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
       for (uint i=0; i < n; i++)
+      {
+	if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
+	{
+	  my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
+	  return 1;
+	}
 	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
+      }
     else
     {
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -263,6 +270,61 @@ int Arg_comparator::compare_e_row()
   return 1;
 }
 
+longlong Item_in_optimizer::val_int()
+{
+  int_cache_ok= 1;
+  flt_cache_ok= 0;
+  str_cache_ok= 0;
+  int_cache= args[0]->val_int_result();
+  if (args[0]->null_value)
+  {
+    null_value= 1;
+    return 0;
+  }
+  longlong tmp= args[1]->val_int_result();
+  null_value= args[1]->null_value;
+  return tmp;
+}
+
+longlong Item_in_optimizer::get_cache_int()
+{
+  if (!int_cache_ok)
+  {
+    int_cache_ok= 1;
+    flt_cache_ok= 0;
+    str_cache_ok= 0;
+    int_cache= args[0]->val_int_result();
+    null_value= args[0]->null_value;
+  }
+  return int_cache;
+}
+
+double Item_in_optimizer::get_cache()
+{
+  if (!flt_cache_ok)
+  {
+    flt_cache_ok= 1;
+    int_cache_ok= 0;
+    str_cache_ok= 0;
+    flt_cache= args[0]->val_result();
+    null_value= args[0]->null_value;
+  }
+  return flt_cache;
+}
+
+String *Item_in_optimizer::get_cache_str(String *s)
+{
+  if (!str_cache_ok)
+  {
+    str_cache_ok= 1;
+    int_cache_ok= 0;
+    flt_cache_ok= 0;
+    str_value.set(buffer, sizeof(buffer), s->charset());
+    str_cache= args[0]->str_result(&str_value);
+    null_value= args[0]->null_value;
+  }
+  return str_cache;
+}
 
 longlong Item_func_eq::val_int()
 {
@@ -356,7 +418,8 @@ void Item_func_interval::fix_length_and_dec()
 	intervals[i]=args[i]->val();
     }
   }
-  maybe_null=0; max_length=2;
+  maybe_null= 0;
+  max_length= 2;
   used_tables_cache|=item->used_tables();
 }
 
@@ -415,7 +478,7 @@ bool Item_func_interval::check_loop(uint id)
 
 void Item_func_between::fix_length_and_dec()
 {
-   max_length=1;
+   max_length= 1;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -968,8 +1031,8 @@ double Item_func_coalesce::val()
 
 void Item_func_coalesce::fix_length_and_dec()
 {
-  max_length=0;
-  decimals=0;
+  max_length= 0;
+  decimals= 0;
   cached_result_type = args[0]->result_type();
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -990,6 +1053,11 @@ static int cmp_longlong(longlong *a,longlong *b)
 static int cmp_double(double *a,double *b)
 {
   return *a < *b ? -1 : *a == *b ? 0 : 1;
+}
+
+static int cmp_row(cmp_item_row* a, cmp_item_row* b)
+{
+  return a->compare(b);
 }
 
 int in_vector::find(Item *item)
@@ -1013,7 +1081,6 @@ int in_vector::find(Item *item)
   }
   return (int) ((*compare)(base+start*size,result) == 0);
 }
-
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
   :in_vector(elements,sizeof(String),cmp_func),tmp(buff,sizeof(buff),default_charset_info)
@@ -1041,6 +1108,29 @@ byte *in_string::get_value(Item *item)
   return (byte*) item->val_str(&tmp);
 }
 
+in_row::in_row(uint elements, Item * item)
+{
+  DBUG_ENTER("in_row::in_row");
+  base= (char*) new cmp_item_row[elements];
+  size= sizeof(cmp_item_row);
+  compare= (qsort_cmp) cmp_row;
+  tmp.store_value(item);
+  DBUG_VOID_RETURN;
+}
+
+byte *in_row::get_value(Item *item)
+{
+  tmp.store_value(item);
+  return (byte *)&tmp;
+}
+
+void in_row::set(uint pos, Item *item)
+{
+  DBUG_ENTER("in_row::set");
+  DBUG_PRINT("enter", ("pos %u item 0x%lx", pos, (ulong) item));
+  ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
+  DBUG_VOID_RETURN;
+}
 
 in_longlong::in_longlong(uint elements)
   :in_vector(elements,sizeof(longlong),(qsort_cmp) cmp_longlong)
@@ -1053,12 +1143,11 @@ void in_longlong::set(uint pos,Item *item)
 
 byte *in_longlong::get_value(Item *item)
 {
-  tmp=item->val_int();
+  tmp= item->val_int();
   if (item->null_value)
-    return 0;					/* purecov: inspected */
+    return 0;
   return (byte*) &tmp;
 }
-
 
 in_double::in_double(uint elements)
   :in_vector(elements,sizeof(double),(qsort_cmp) cmp_double)
@@ -1071,21 +1160,173 @@ void in_double::set(uint pos,Item *item)
 
 byte *in_double::get_value(Item *item)
 {
-  tmp=item->val();
+  tmp= item->val();
   if (item->null_value)
     return 0;					/* purecov: inspected */
   return (byte*) &tmp;
 }
 
+cmp_item* cmp_item::get_comparator (Item *item)
+{
+  switch (item->result_type()) {
+  case STRING_RESULT:
+    if (item->binary())
+      return new cmp_item_binary_string;
+    else
+      return new cmp_item_sort_string;
+    break;
+  case INT_RESULT:
+    return new cmp_item_int;
+    break;
+  case REAL_RESULT:
+    return new cmp_item_real;
+    break;
+  case ROW_RESULT:
+    return new cmp_item_row;
+    break;
+  }
+  return 0; // to satisfy compiler :)
+}
+
+cmp_item* cmp_item_sort_string::make_same()
+{
+  return new cmp_item_sort_string_in_static();
+}
+
+cmp_item* cmp_item_binary_string::make_same()
+{
+  return new cmp_item_binary_string_in_static();
+}
+
+cmp_item* cmp_item_int::make_same()
+{
+  return new cmp_item_int();
+}
+
+cmp_item* cmp_item_real::make_same()
+{
+  return new cmp_item_real();
+}
+
+cmp_item* cmp_item_row::make_same()
+{
+  return new cmp_item_row();
+}
+
+void cmp_item_row::store_value(Item *item)
+{
+  THD *thd= current_thd;
+  n= item->cols();
+  if ((comparators= (cmp_item **) thd->alloc(sizeof(cmp_item *)*n)))
+  {
+    item->null_value= 0;
+    for (uint i=0; i < n; i++)
+      if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
+      {
+	comparators[i]->store_value(item->el(i));
+	item->null_value|= item->el(i)->null_value;
+      }
+      else
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	thd->fatal_error= 1;
+	return;
+      }	  
+  }
+  else
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    thd->fatal_error= 1;
+    return;
+  }
+}
+
+void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
+{
+  cmp_item_row *tmpl= (cmp_item_row*) t;
+  if (tmpl->n != item->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), tmpl->n);
+    return;
+  }
+  n= tmpl->n;
+  if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
+  {
+    item->null_value= 0;
+    for (uint i=0; i < n; i++)
+      if ((comparators[i]= tmpl->comparators[i]->make_same()))
+      {
+	comparators[i]->store_value_by_template(tmpl->comparators[i],
+						item->el(i));
+	item->null_value|= item->el(i)->null_value;
+      }
+      else
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	current_thd->fatal_error= 1;
+	return;
+      }	  
+  }
+  else
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    current_thd->fatal_error= 1;
+    return;
+  }	  
+}
+
+int cmp_item_row::cmp(Item *arg)
+{
+  arg->null_value= 0;
+  if (arg->cols() != n)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), n);
+    return 1;
+  }
+  bool was_null= 0;
+  for (uint i=0; i < n; i++)
+    if (comparators[i]->cmp(arg->el(i)))
+    {
+      if (!arg->el(i)->null_value)
+	return 1;
+      was_null= 1;
+    }
+  return (arg->null_value= was_null);
+}
+
+int cmp_item_row::compare(cmp_item *c)
+{
+  int res;
+  cmp_item_row *cmp= (cmp_item_row *) c;
+  for (uint i=0; i < n; i++)
+    if ((res= comparators[i]->compare(cmp->comparators[i])))
+      return res;
+  return 0;
+}
+
+bool Item_func_in::nulls_in_row()
+{
+  Item **arg,**arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
+  {
+    if ((*arg)->null_inside())
+      return 1;
+  }
+  return 0;
+}
 
 void Item_func_in::fix_length_and_dec()
 {
-  if (const_item())
+  /*
+    Row item with NULLs inside can return NULL or FALSE => 
+    they can't be processed as static
+  */
+  if (const_item() && !nulls_in_row())
   {
     switch (item->result_type()) {
     case STRING_RESULT:
       if (item->binary())
-	array=new in_string(arg_count,(qsort_cmp) stringcmp); /* purecov: inspected */
+	array=new in_string(arg_count,(qsort_cmp) stringcmp);
       else
 	array=new in_string(arg_count,(qsort_cmp) sortcmp);
       break;
@@ -1096,8 +1337,7 @@ void Item_func_in::fix_length_and_dec()
       array= new in_double(arg_count);
       break;
     case ROW_RESULT:
-      // This case should never be choosen
-      DBUG_ASSERT(0);
+      array= new in_row(arg_count, item);
       break;
     }
     uint j=0;
@@ -1106,33 +1346,18 @@ void Item_func_in::fix_length_and_dec()
       array->set(j,args[i]);
       if (!args[i]->null_value)			// Skip NULL values
 	j++;
+      else
+	have_null= 1;
     }
     if ((array->used_count=j))
       array->sort();
   }
   else
   {
-    switch (item->result_type()) {
-    case STRING_RESULT:
-      if (item->binary())
-	in_item= new cmp_item_binary_string;
-      else
-	in_item= new cmp_item_sort_string;
-      break;
-    case INT_RESULT:
-      in_item=	  new cmp_item_int;
-      break;
-    case REAL_RESULT:
-      in_item=	  new cmp_item_real;
-      break;
-    case ROW_RESULT:
-      // This case should never be choosen
-      DBUG_ASSERT(0);
-      break;
-    }
+    in_item= cmp_item:: get_comparator(item);
   }
   maybe_null= item->maybe_null;
-  max_length=2;
+  max_length= 1;
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
 }
@@ -1152,17 +1377,20 @@ longlong Item_func_in::val_int()
   if (array)
   {
     int tmp=array->find(item);
-    null_value=item->null_value;
+    null_value=item->null_value || (!tmp && have_null);
     return tmp;
   }
   in_item->store_value(item);
   if ((null_value=item->null_value))
     return 0;
+  have_null= 0;
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return 1;					// Would maybe be nice with i ?
+    have_null|= args[i]->null_value;
   }
+  null_value= have_null;
   return 0;
 }
 
@@ -1452,7 +1680,8 @@ longlong Item_func_isnotnull::val_int()
 
 void Item_func_like::fix_length_and_dec()
 {
-  decimals=0; max_length=1;
+  decimals= 0;
+  max_length= 1;
   //  cmp_type=STRING_RESULT;			// For quick select
 }
 
@@ -1559,7 +1788,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       args[1]->fix_fields(thd,tables, args + 1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
-  max_length=1; decimals=0;
+  max_length= 1;
+  decimals= 0;
   if (args[0]->binary() || args[1]->binary())
     set_charset(my_charset_bin);
 

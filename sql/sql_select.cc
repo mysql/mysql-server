@@ -793,6 +793,16 @@ JOIN::exec()
 			   HA_POS_ERROR)))
       DBUG_VOID_RETURN;
 
+    /*
+      We don't have to store rows in temp table that doesn't match HAVING if:
+      - we are sorting the table and writing complete group rows to the
+        temp table.
+      - We are using DISTINCT without resolving the distinct as a GROUP BY
+        on all columns.
+      
+      If having is not handled here, it will be checked before the row
+      is sent to the client.
+    */
     if (having_list && 
 	(sort_and_group || (exec_tmp_table->distinct && !group_list)))
       having=having_list;
@@ -3775,13 +3785,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
-    case Item_sum::STD_FUNC:			/* Place for sum & count */
+    case Item_sum::VARIANCE_FUNC:			/* Place for sum & count */
+    case Item_sum::STD_FUNC:	
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
 				 maybe_null, item->name,table,my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
-				item->name,table,item_sum->decimals);
+				item->name,table,item_sum->decimals);				
     case Item_sum::UNIQUE_USERS_FUNC:
       return new Field_long(9,maybe_null,item->name,table,1);
     default:

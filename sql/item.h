@@ -33,7 +33,8 @@ public:
   enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
 	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
-	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM,
+	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, 
+	     FIELD_VARIANCE_ITEM,CONST_ITEM,
              SUBSELECT_ITEM, ROW_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -72,7 +73,6 @@ public:
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
-  virtual bool is_null_result() { return is_null(); }
   virtual table_map used_tables() const { return (table_map) 0L; }
   virtual bool basic_const_item() const { return 0; }
   virtual Item *new_item() { return 0; }	/* Only for const items */
@@ -100,6 +100,8 @@ public:
   virtual Item* el(uint i) { return this; }
   virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
+  // It is not row => null inside is impossible
+  virtual bool null_inside() { return 0; };
 };
 
 
@@ -122,6 +124,25 @@ public:
   String* val_str(String* s)     { return item->val_str(s); }
   void make_field(Send_field* f) { item->make_field(f); }
   bool check_cols(uint col)      { return item->check_cols(col); }
+  bool eq(const Item *item, bool binary_cmp) const
+  { return item->eq(item, binary_cmp); }
+  bool is_null() 
+  {
+    item->val_int();
+    return item->null_value;
+  }
+  bool get_date(TIME *ltime, bool fuzzydate)
+  {  
+    return (null_value=item->get_date(ltime, fuzzydate));
+  }
+  bool send(THD *thd, String *tmp)	{ return item->send(thd, tmp); }
+  int  save_in_field(Field *field, bool no_conversions)
+  {
+    return item->save_in_field(field, no_conversions);
+  }
+  void save_org_in_field(Field *field)	{ item->save_org_in_field(field); }
+  enum Item_result result_type () const { return item->result_type(); }
+  table_map used_tables() const		{ return item->used_tables(); }  
 };
 
 
@@ -132,19 +153,6 @@ class Item_outer_select_context_saver :public Item_wrapper
 {
 public:
   Item_outer_select_context_saver(Item *it)
-  {
-    item= it;
-  }
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-/*
-  To resolve '*' field moved to condition
-*/
-class Item_asterisk_remover :public Item_wrapper
-{
-public:
-  Item_asterisk_remover(Item *it)
   {
     item= it;
   }
@@ -188,7 +196,6 @@ public:
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
-  bool is_null_result() { return result_field->is_null(); }
   bool send(THD *thd, String *str_arg)
   {
     return result_field->send(thd,str_arg);
@@ -384,9 +391,13 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
-  Item *new_item() { return new Item_string(name,str_value.ptr(),max_length,default_charset_info); }
+  Item *new_item() 
+  {
+    return new Item_string(name, str_value.ptr(), max_length,
+			   default_charset_info);
+  }
   String *const_string() { return &str_value; }
-  inline void append(char *str,uint length) { str_value.append(str,length); }
+  inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
 };
 
@@ -470,25 +481,25 @@ public:
   double val()
   {
     double tmp=(*ref)->val_result();
-    null_value=(*ref)->is_null_result();
+    null_value=(*ref)->null_value;
     return tmp;
   }
   longlong val_int()
   {
     longlong tmp=(*ref)->val_int_result();
-    null_value=(*ref)->is_null_result();
+    null_value=(*ref)->null_value;
     return tmp;
   }
   String *val_str(String* tmp)
   {
     tmp=(*ref)->str_result(tmp);
-    null_value=(*ref)->is_null_result();
+    null_value=(*ref)->null_value;
     return tmp;
   }
   bool is_null()
   {
     (void) (*ref)->val_int_result();
-    return (*ref)->is_null_result();
+    return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,bool fuzzydate)
   {  
@@ -505,6 +516,54 @@ public:
   bool check_loop(uint id);
 };
 
+class Item_in_subselect;
+class Item_ref_null_helper: public Item_ref
+{
+protected:
+  Item_in_subselect* owner;
+public:
+  Item_ref_null_helper(Item_in_subselect* master, Item **item,
+		       char *table_name_par,char *field_name_par):
+    Item_ref(item, table_name_par, field_name_par), owner(master) {}
+  double val();
+  longlong val_int();
+  String* val_str(String* s);
+  bool get_date(TIME *ltime, bool fuzzydate);
+};
+
+/*
+  To resolve '*' field moved to condition
+  and register NULL values
+*/
+class Item_asterisk_remover :public Item_ref_null_helper
+{
+  Item *item;
+public:
+  Item_asterisk_remover(Item_in_subselect *master, Item *it,
+			char *table, char *field):
+    Item_ref_null_helper(master, &item, table, field),
+    item(it) 
+  {}
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+};
+
+class Item_in_optimizer;
+class Item_ref_in_optimizer: public Item_ref
+{
+protected:
+  Item_in_optimizer* owner;
+public:
+  Item_ref_in_optimizer(Item_in_optimizer* master,
+			char *table_name_par,char *field_name_par);
+  double val();
+  longlong val_int();
+  String* val_str(String* s);
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref)
+  {
+    fixed= 1;
+    return 0;
+  }
+};
 
 /*
   The following class is used to optimize comparing of date columns

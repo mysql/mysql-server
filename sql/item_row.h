@@ -17,13 +17,17 @@
 class Item_row: public Item
 {
   bool array_holder;
-  table_map tables;
+  table_map used_tables_cache;
+  bool const_item_cache;
   uint arg_count;
   Item **items;
 public:
   Item_row(List<Item> &);
   Item_row(Item_row *item):
-    Item(), array_holder(0), tables(item->tables), arg_count(item->arg_count),
+    Item(), array_holder(0), 
+    used_tables_cache(item->used_tables_cache),
+    const_item_cache(item->const_item_cache),
+    arg_count(item->arg_count),
     items(item->items)
   {}
 
@@ -56,11 +60,14 @@ public:
     return 0;
   };
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
-  table_map used_tables() const { return tables; };
+  table_map used_tables() const { return used_tables_cache; };
+  bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
+  void update_used_tables();
 
-  virtual uint cols() { return arg_count; }
-  virtual Item* el(uint i) { return items[i]; }
-  virtual Item** addr(uint i) { return items + i; }
-  virtual bool check_cols(uint c);
+  uint cols() { return arg_count; }
+  Item* el(uint i) { return items[i]; }
+  Item** addr(uint i) { return items + i; }
+  bool check_cols(uint c);
+  bool null_inside();
 };
