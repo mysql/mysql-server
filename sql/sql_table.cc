@@ -1731,12 +1731,15 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               int (*prepare_func)(THD *, TABLE_LIST *,
                                                   HA_CHECK_OPT *),
                               int (handler::*operator_func)
-                              (THD *, HA_CHECK_OPT *))
+                              (THD *, HA_CHECK_OPT *),
+                              int (view_operator_func)
+                              (THD *, TABLE_LIST*))
 {
-  TABLE_LIST *table;
+  TABLE_LIST *table, *next_global_table;
   List<Item> field_list;
   Item *item;
   Protocol *protocol= thd->protocol;
+  int result_code;
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
@@ -1760,7 +1763,18 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     strxmov(table_name,db ? db : "",".",table->real_name,NullS);
 
     thd->open_options|= extra_open_options;
-    table->table = open_ltable(thd, table, lock_type);
+    table->lock_type= lock_type;
+    /* open only one table from local list of command */
+    next_global_table= table->next_global;
+    table->next_global= 0;
+    open_and_lock_tables(thd, table);
+    table->next_global= next_global_table;
+    /* if view are unsupported */
+    if (table->view && !view_operator_func)
+    {
+      result_code= HA_ADMIN_NOT_IMPLEMENTED;
+      goto send_result;
+    }
     thd->open_options&= ~extra_open_options;
 
     if (prepare_func)
@@ -1772,8 +1786,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       }
     }
 
+    /*
+      for this command used only temporary table method (without
+      filling tables), so if opening succeed, table will be opened
+    */
     if (!table->table)
     {
+      char buf[ERRMSGSIZE+25];
       const char *err_msg;
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -1781,12 +1800,26 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store("error",5, system_charset_info);
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
+      /* if it was a view will check md5 sum */
+      if (table->view &&
+          view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
+      {
+        strxmov(buf, "View checksum failed and ", err_msg, NullS);
+        err_msg= (const char *)buf;
+      }
       protocol->store(err_msg, system_charset_info);
       thd->clear_error();
       if (protocol->write())
 	goto err;
       continue;
     }
+
+    if (table->view)
+    {
+      result_code= (*view_operator_func)(thd, table);
+      goto send_result;
+    }
+
     table->table->pos_in_table_list= table;
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
@@ -1825,7 +1858,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       open_for_modify=0;
     }
 
-    int result_code = (table->table->file->*operator_func)(thd, check_opt);
+    result_code = (table->table->file->*operator_func)(thd, check_opt);
+
+send_result:
+
     thd->clear_error();  // these errors shouldn't get client
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -1901,6 +1937,12 @@ send_result_message:
       table->next_global= save_next_global;
       goto send_result_message;
     }
+    case HA_ADMIN_WRONG_CHECKSUM:
+    {
+      protocol->store("note", 4, system_charset_info);
+      protocol->store("Checksum error", 14, system_charset_info);
+      break;
+    }
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       protocol->store("error", 5, system_charset_info);
@@ -1941,7 +1983,7 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
   DBUG_ENTER("mysql_backup_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0,
-				&handler::backup));
+				&handler::backup, 0));
 }
 
 
@@ -1951,7 +1993,7 @@ bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 0,
 				&prepare_for_restore,
-				&handler::restore));
+				&handler::restore, 0));
 }
 
 
@@ -1961,7 +2003,7 @@ bool mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR,
 				&prepare_for_repair,
-				&handler::repair));
+				&handler::repair, 0));
 }
 
 
@@ -1970,7 +2012,7 @@ bool mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_optimize_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"optimize", TL_WRITE, 1,0,0,
-				&handler::optimize));
+				&handler::optimize, 0));
 }
 
 
@@ -2006,7 +2048,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0,
-				0, 0, &handler::assign_to_keycache));
+				0, 0, &handler::assign_to_keycache, 0));
 }
 
 
@@ -2067,7 +2109,7 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
   DBUG_ENTER("mysql_preload_keys");
   DBUG_RETURN(mysql_admin_table(thd, tables, 0,
 				"preload_keys", TL_READ, 0, 0, 0,
-				&handler::preload_keys));
+				&handler::preload_keys, 0));
 }
 
 
@@ -2232,7 +2274,7 @@ bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"analyze", lock_type, 1,0,0,
-				&handler::analyze));
+				&handler::analyze, 0));
 }
 
 
@@ -2248,7 +2290,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
 				0, HA_OPEN_FOR_REPAIR, 0,
-				&handler::check));
+				&handler::check, &view_checksum));
 }
 
 /* table_list should contain just one table */
