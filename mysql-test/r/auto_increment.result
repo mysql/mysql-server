@@ -119,7 +119,7 @@ a
 1
 2
 drop table t1;
-create table t1 (a int not null auto_increment primary key) /*!40102 type=heap */;
+create table t1 (a int not null auto_increment primary key) /*!40102 engine=heap */;
 insert into t1 values (NULL);
 insert into t1 values (-1);
 select last_insert_id();
@@ -128,8 +128,8 @@ last_insert_id()
 insert into t1 values (NULL);
 select * from t1;
 a
--1
 1
+-1
 2
 drop table t1;
 create table t1 (i tinyint unsigned not null auto_increment primary key);
