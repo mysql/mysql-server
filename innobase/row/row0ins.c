@@ -1022,6 +1022,33 @@ row_ins_set_shared_rec_lock(
 
 	return(err);
 }
+
+/*************************************************************************
+Sets a exclusive lock on a record. Used in locking possible duplicate key
+records */
+static
+ulint
+row_ins_set_exclusive_rec_lock(
+/*========================*/
+				/* out: DB_SUCCESS or error code */
+	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP type lock */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,	/* in: index */
+	que_thr_t*	thr)	/* in: query thread */	
+{
+	ulint	err;
+
+	if (index->type & DICT_CLUSTERED) {
+		err = lock_clust_rec_read_check_and_lock(0, rec, index, LOCK_X,
+								type, thr);
+	} else {
+		err = lock_sec_rec_read_check_and_lock(0, rec, index, LOCK_X,
+								type, thr);
+	}
+
+	return(err);
+}
 	
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
@@ -1451,6 +1478,8 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
 	mtr_t		mtr;
+        trx_t           *trx;
+        ibool           success;
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1488,8 +1517,29 @@ row_ins_scan_sec_index_for_duplicate(
 				
 		/* Try to place a lock on the index record */
 
-		err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, rec, index,
-									thr);
+                /* The manual defines the REPLACE semantics that it 
+                   is either an INSERT or DELETE(s) for duplicate key
+                   + INSERT. Therefore, we should take X-lock for
+                   duplicates.
+		*/
+
+		trx = thr_get_trx(thr);*/* Get Transaction */
+
+                /* Is the first word in MySQL query REPLACE ? */
+
+		ut_ad(trx)
+		dict_accept(*trx->mysql_query_str, "REPLACE", &success);
+
+                if (success) {
+
+		    err = row_ins_set_exclusive_rec_lock(
+			LOCK_ORDINARY,rec,index,thr);
+		} else {
+
+		      err = row_ins_set_shared_rec_lock(
+                         LOCK_ORDINARY, rec, index,thr);
+		}
+
 
 		if (err != DB_SUCCESS) {
 
@@ -1556,6 +1606,7 @@ row_ins_duplicate_error_in_clust(
 	page_t*	page;
 	ulint	n_unique;
 	trx_t*	trx	= thr_get_trx(thr);
+        ibool   success;
 
 	UT_NOT_USED(mtr);
 	
@@ -1588,9 +1639,28 @@ row_ins_duplicate_error_in_clust(
 			is needed in logical logging of MySQL to make
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
-		
-			err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
-						rec, cursor->index, thr);
+
+                        /* The manual defines the REPLACE semantics that it 
+                           is either an INSERT or DELETE(s) for duplicate key
+                           + INSERT. Therefore, we should take X-lock for
+                           duplicates.
+		        */
+
+                        
+                        /* Is the first word in MySQL query REPLACE ? */
+
+		         dict_accept(*trx->mysql_query_str, "REPLACE", &success);
+
+                        if (success) {
+
+		            err = row_ins_set_exclusive_rec_lock(
+			       LOCK_REC_NOT_GAP,rec,cursor->index,thr);
+		        } else {
+		  
+			    err = row_ins_set_shared_rec_lock(
+                               LOCK_REC_NOT_GAP,rec, cursor->index, thr);
+			} 
+
 			if (err != DB_SUCCESS) {
 					
 				return(err);
@@ -1611,8 +1681,28 @@ row_ins_duplicate_error_in_clust(
 
 		if (rec != page_get_supremum_rec(page)) {
 
-			err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
-						rec, cursor->index, thr);
+
+                        /* The manual defines the REPLACE semantics that it 
+                           is either an INSERT or DELETE(s) for duplicate key
+                           + INSERT. Therefore, we should take X-lock for
+                           duplicates.
+		        */
+
+                        
+                        /* Is the first word in MySQL query REPLACE ? */
+
+                        dict_accept(*trx->mysql_query_str, "REPLACE", &success);
+
+                        if (success) {
+
+		            err = row_ins_set_exclusive_rec_lock(
+			       LOCK_REC_NOT_GAP,rec,cursor->index,thr);
+		        } else {
+
+			    err = row_ins_set_shared_rec_lock(
+                               LOCK_REC_NOT_GAP,rec, cursor->index, thr);
+                        }
+
 			if (err != DB_SUCCESS) {
 					
 				return(err);
