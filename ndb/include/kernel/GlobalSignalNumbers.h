@@ -897,12 +897,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_CONF              678
 #define GSN_TUX_MAINT_REF               679
 
-/*
- * TUP access
- */
-#define GSN_TUP_READ_ATTRS              680
-#define GSN_TUP_QUERY_TH                712
-#define GSN_TUP_STORE_TH                681
+// not used                             680
+// not used                             712
+// not used                             681
 
 /**
  * from mgmtsrvr to  NDBCNTR
