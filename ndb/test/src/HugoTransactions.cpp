@@ -775,7 +775,9 @@ HugoTransactions::createEvent(Ndb* pNdb){
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
   if (!myDict) {
-    printf("Event Creation failedDictionary not found");
+    g_err << "Dictionary not found " 
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
     return NDBT_FAILED;
   }
 
@@ -796,20 +798,32 @@ HugoTransactions::createEvent(Ndb* pNdb){
 
   if (res == 0)
     myEvent.print();
-  else {
-    g_info << "Event creation failed\n";
-    g_info << "trying drop Event, maybe event exists\n";
+  else if (myDict->getNdbError().classification ==
+	   NdbError::SchemaObjectExists) 
+  {
+    g_info << "Event creation failed event exists\n";
     res = myDict->dropEvent(eventName);
     if (res) {
-      g_err << "failed to drop event\n";
+      g_err << "Failed to drop event: " 
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
       return NDBT_FAILED;
     }
     // try again
     res = myDict->createEvent(myEvent); // Add event to database
     if (res) {
-      g_err << "failed to create event\n";
+      g_err << "Failed to create event (1): " 
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
       return NDBT_FAILED;
     }
+  }
+  else 
+  {
+    g_err << "Failed to create event (2): " 
+	  << myDict->getNdbError().code << " : "
+	  << myDict->getNdbError().message << endl;
+    return NDBT_FAILED;
   }
 
   return NDBT_OK;
