@@ -1,5 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
-@c Copyright 1997, 1998, 1999, 2000 TcX AB, Detron HB and MySQL Finland AB
+@c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
 @c *********************************************************
 @c Note that @node names are used on our Website.
@@ -69,7 +69,7 @@ END-INFO-DIR-ENTRY
 @sp 10
 @center @titlefont{@strong{MySQL} Reference Manual}
 @sp 10
-@center Copyright @copyright{} 1997-2000 TcX AB, Detron HB and MySQL Finland AB
+@center Copyright @copyright{} 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c blank page after title page makes page 1 be a page front.
 @c also makes the back of the title page blank.
 @page
@@ -104,8 +104,9 @@ END-INFO-DIR-ENTRY
 
 @ifinfo
 This is a manual for @strong{MySQL}. This version is about the
-@value{mysql_version} version of @strong{MySQL}. For a @strong{3.20}
-version see the relevant distribution.
+@value{mysql_version} version of @strong{MySQL}.  You can find a manual
+about any older version of @strong{MySQL} in the binary or source
+distribution for that version.
 @end ifinfo
 
 @menu
@@ -1211,7 +1212,7 @@ owns the copyright to the @strong{MySQL} server source code and the
 @strong{MySQL} trademark.  A significant amount of revenues from our
 services goes to developing @strong{MySQL}. @xref{What-is}.
 
-@strong{MySQL AB} has been profitable providing @strong{MySQL AB} from the start.
+@strong{MySQL AB} has been profitable providing @strong{MySQL} from the start.
 We don't get any outside funding, but have earned all our money ourselves.
 
 We are searching after partners that would like to support our
@@ -1219,10 +1220,10 @@ development of @strong{MySQL} so that we could accelerate the
 development pace.  If you are interested in doing this, you can email
 @email{partner@@mysql.com} about this!
 
-@strong{MYSQL AB} has currently 20+ people on it's payroll and is
+@strong{MySQL AB} has currently 20+ people on its payroll and is
 growing rapidly.  @uref{http://www.mysql.com/development/team.html}.
 
-Our main streams of income are
+Our main sources of income are:
 
 @itemize @bullet
 @item
@@ -1230,6 +1231,7 @@ Commercial high quality support for @strong{MySQL} provided by
 @strong{MySQL} developers.  If you are interested in getting support,
 please visit @uref{https://order.mysql.com/} to view our support options
 or to order support.
+
 @item
 Consulting services.  We have developers/consults in 12 countries and
 partners in many other countries that can help you with almost any
@@ -1237,71 +1239,76 @@ partners in many other countries that can help you with almost any
 email a good description of your needs to @email{info@@mysql.com}!  If we
 can't handle this ourselves we can usually find a partner or a developer
 that can help you with your problems.
+
 @item
 We sell licenses for using @strong{MySQL} as an embedded
 database. @xref{Cost}.  If you have a commercial product for which you
-need a fast high quality database but you can't afford to make your
+need a fast, high quality database, but you can't afford to make your
 product Open Source, you can buy the right to use the @strong{MySQL} server
 under a normal commercial copyright.  If you are interested in this you can
 buy @strong{MySQL} licenses at @uref{https://order.mysql.com/} or contact
 us at @email{licensing@@mysql.com}.
+
 @item
 Advertising; @uref{http://www.mysql.com/} is a very popular web site with
 more than 10,000,000 page views per months (January 2001).  By putting a
 banner on this you are guaranteed to reach a lot of potential customers
 in the Open source, Linux and database community. If you are interested
 in this email @email{advertising@@mysql.com}.
+
 @item
 We are building a partner program to be able to provide @strong{MySQL}
 services in every country.  If you are interested in becomming a partner
 of @strong{MySQL AB} please visit
 @uref{http://www.mysql.com/information/partners.html} or email
 @email{partner@@mysql.com}.
+
 @item
 We provide @strong{MySQL} training through our partner programs. For more
 information, please email @email{info@@mysql.com}.
+
 @item
-The @strong{MySQL} brand has since 1995 been associated with speed,
-reliability and is known to be something you can depend upon. If you are
+The @strong{MySQL} brand has, since 1995, been associated with speed and
+reliability, and is known to be something you can depend upon. If you are
 interested in using the @strong{MySQL} trademark in your marketing, you
 can email @email{info@@mysql.com} about this.
 @end itemize
 
-The @strong{MySQL} core values shows our dedication to @strong{MySQL} and
-Open Source:
+The @strong{MySQL} core values show our dedication to @strong{MySQL} and
+Open Source.
 
 We want @strong{MySQL} to be:
 
 @itemize @bullet
 @item
-The best and the most used database in the world
+The best and the most used database in the world.
 @item
-Available and affordable for all
+Available and affordable for all.
 @item
-Easy to use
+Easy to use.
 @item
-Continuously improving while remaining fast and safe
+Continuously improving while remaining fast and safe.
 @item
-Fun to use and improve
+Fun to use and improve.
 @item
-Free from bugs
+Free from bugs.
 @end itemize
 
 @strong{MySQL AB} and the people of @strong{MySQL AB}:
 
 @itemize @bullet
 @item
-Promote Open Source Philosophy and support the Open Source Community
+Promote Open Source Philosophy and support the Open Source Community.
 @item
-Aim to be good citizens
+Aim to be good citizens.
 @item
-Prefer partners that share our values and mind-set
+Prefer partners that share our values and mind-set.
 @item
-Answer mail and give support
+Answer mail and give support.
 @item
-Are a virtual company, networking with others
+Are a virtual company, networking with others.
 @item
-Work against software patents
+Work against software patents.
 @end itemize
 
 @node Manual-info, History, What is MySQL AB, Introduction
@@ -1314,9 +1321,9 @@ Work against software patents
 This manual is currently available in Texinfo, plain text, Info, HTML,
 PostScript, and PDF versions.  The primary document is the Texinfo file.
 The HTML version is produced automatically using a modified version of
-@code{texi2html}. The plain text and Info versions are produced with
-@code{makeinfo}. The Postscript version is produced using @code{texi2dvi}
-and @code{dvips}. The PDF version is produced with @code{pdftex}.
+@code{texi2html}.  The plain text and Info versions are produced with
+@code{makeinfo}.  The Postscript version is produced using @code{texi2dvi}
+and @code{dvips}.  The PDF version is produced with @code{pdftex}.
 
 @cindex manual, available formats
 @cindex Texinfo
@@ -1332,6 +1339,7 @@ This manual uses certain typographical conventions:
 
 @cindex manual, typographical conventions
 @cindex typographical conventions
+@cindex conventions, typographical
 
 @table @asis
 @item @code{constant}
@@ -1464,7 +1472,7 @@ chosen to ease porting of third-party code.
 The derivation of the name @strong{MySQL} is not perfectly clear.  Our base
 directory and a large number of our libraries and tools have had the prefix
 ``my'' for well over 10 years. However, Monty's daughter (some years younger)
-is also named My. So which of the two gave its name to @strong{MySQL} is
+is also named My.  Which of the two gave its name to @strong{MySQL} is
 still a mystery, even for us.
 
 @node MySQL-Books, Features, History, Introduction
@@ -1473,10 +1481,10 @@ still a mystery, even for us.
 @cindex books, about MySQL
 @cindex manuals, about MySQL
 
-While this manual is still the right place for up to date techical
+While this manual is still the right place for up to date technical
 information, its primary goal is to contain everything there is to know
-about @strong{MySQL}. It is sometimes nice to have a bound book to read
-in bed or while you travel. Here is a list of books about @strong{MySQL} and
+about @strong{MySQL}.  It is sometimes nice to have a bound book to read
+in bed or while you travel.  Here is a list of books about @strong{MySQL} and
 related subjects (in English).
 
 By purchasing a book through these hyperlinks provided herein, you are
@@ -2750,7 +2758,7 @@ World Records - A search engine for information about music that uses
 A Contact Database using @strong{MySQL} and PHP.
 
 @item @uref{http://modems.rosenet.net/mysql/}@*
-Web based interface and Community Calender with PHP.
+Web based interface and Community Calendar with PHP.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}@*
 Perl package to generate html from a SQL table structure and for generating
@@ -3270,8 +3278,8 @@ where the patch won't work, it may be useless.
 
 @item
 Guesses about what the bug is, why it occurs, or what it depends on,
-are usually wrong. Even the MySQL team can't guess such things without
-first using a debugger to determine the real cause of a bug.
+are usually wrong. Even the @strong{MySQL} team can't guess such things
+without first using a debugger to determine the real cause of a bug.
 
 @item
 Indicate in your mail message that you have checked the reference manual
@@ -3395,7 +3403,7 @@ arrangements:
 @section MySQL Licensing Policy
 
 The formal terms of the GPL license can be found at @ref{GPL license}.
-Basically, our licensing policy and intepretation of the GPL is as follows:
+Basically, our licensing policy and interpretation of the GPL is as follows:
 
 Note that older versions of @strong{MySQL} are still using a more
 @uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}. See the documentation for that version for more information.
@@ -4030,24 +4038,23 @@ phone back within 48 hours to discuss @code{MySQL} related issues.
 
 @cindex support, BDB Tables
 @cindex support, INNOBASE Tables
-@cindex support, GEMENI Tables
+@cindex support, GEMINI Tables
 @node Table handler support,  , Telephone support, Support
 @subsection Support for other table handlers
 
 To get support for @code{BDB} tables, @code{INNOBASE} tables or
-@code{GEMINI} tales you has to pay and additional 30 % on the basic
-support price for each of the table handlers you want to get support on.
-This extra cost is cover the back support cost for the other table
-handlers.
+@code{GEMINI} tables you have to pay an additional 30% on the standard
+support price for each of the table handlers you would like to have
+support for.
 
 We at @code{MySQL AB} will help you create a proper bug report for the
-table handler and submit it to the developers for to specific table
+table handler and submit it to the developers for the specific table
 handler. We will also do our best to ensure that you will get a timely
-answer/solution from the developers of the table handler.
+answer or solution from the developers of the table handler.
 
 Even if we are quite confident that we can solve most problems within a
 timely manner, we can't guarantee a quick solution for any problems you
-can get with the different table handlers. We will however do our best
+can get with the different table handlers.  We will however do our best
 to help you get the problem solved.
 
 
@@ -6083,7 +6090,7 @@ following for all recent gcc versions:
 CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
 @end example
 
-The binaries we provide at on the MySQL home site
+The binaries we provide at on the @strong{MySQL} home site
 @uref{http://www.mysql.com}, are all compiled with full optimization and
 should be ok for most users.  @xref{MySQL binaries}. There is some
 things one can tweak to make an even faster binary, but this is only for
@@ -7127,7 +7134,7 @@ do @code{INSERT DELAYED}. If you are using @code{INSERT DELAYED}, you
 workaround for this bug.
 
 If you plan to have 1000+ concurrent connections, you will need to make
-some changes to LinuxThreads, recompile it, and relink MySQL against
+some changes to LinuxThreads, recompile it, and relink @strong{MySQL} against
 the new @file{libpthread.a}. Increase @code{PTHREAD_THREADS_MAX} in
 @file{sysdeps/unix/sysv/linux/bits/local_lim.h} to 4096 and decrease
 @code{STACK_SIZE} in @file{linuxthreads/internals.h} to 256 KB. The paths are
@@ -7141,7 +7148,7 @@ stacks in the address space. It needs to be large enough so that there will
 be plenty of room for the stack of each individual thread, but small enough
 to keep the stack of some thread from running into the global @code{mysqld}
 data. Unfortunately, Linux implementation of @code{mmap()}, as we have
-experimentaly discovered, will successfully unmap an already mapped region
+experimentally discovered, will successfully unmap an already mapped region
 if you ask it to map out an address already in use, zeroing out the data
 on the entire page, instead of returning an error. So the safety of
 @code{mysqld} or any other threaded
@@ -7166,22 +7173,22 @@ between 128K and 256 K.
 If you use a lot of concurrent connections, you may suffer from a  2.2
 kernel "feature" in 2.2 kernel that penalizes a process for
 forking or cloning a child
-in an attempt to prevent a fork bomb attack. This will cause MySQL not
-to scale well as you increase the number of concurrent clients. On
+in an attempt to prevent a fork bomb attack. This will cause @strong{MySQL}
+not to scale well as you increase the number of concurrent clients. On
 single CPU systems, we have seen this manifested in a very slow thread
-creation - which means it may take a long time to connect to MySQL (as
-long as 1 minute), and it may take just as long to shut it down. On
+creation - which means it may take a long time to connect to @strong{MySQL}
+(as long as 1 minute), and it may take just as long to shut it down. On
 multiple CPU systems, we have observed a gradual drop in query speed as
 the number of clients increases. In the process of trying to find a
 solution, we have received a kernel patch from one of our users, who
 claimed it made a lot of difference for his site. We have done some
-limited testing in which the patch greatly improved the scalabitility of
-MySQL. The patch is available here
+limited testing in which the patch greatly improved the scalability of
+@strong{MySQL}. The patch is available here
 (@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch}). We have
 done a rather extensive testing of this patch - Sasha Pachev has bravely put
 it on his development machine, and it now has run without problems for a year.
 Eventually, we have felt sufficiently confident about it that we installed it
-on several systems of one of our biggest customers. The patch has signficantly
+on several systems of one of our biggest customers. The patch has significantly
 improved @code{MySQL} performance without causing any problems. So it should
 be pretty safe. This issue has been fixed in the 2.4 kernel.
 
@@ -7216,7 +7223,7 @@ know that the patch is safe for @code{MySQL} and significantly improves its
 performance, but we cannot say anything about other applications. If you
 link other applications against the patched version of the library, or
 build a patched shared version and install it on your system, you are doing
-it at your own risk with regard to other applicatioins that depend on
+it at your own risk with regard to other applications that depend on
 @code{LinuxThreads}.
 
 @c Monty, is the stuff below any longer relevant? I know it needs to be
@@ -7245,7 +7252,7 @@ to handle alarms and signals.
 
 Note that the linux kernel and the linuxthread library can by default
 only have 1024 threads.  This means that you can only have up to 1021
-connections to MySQL on a unpatched system.  The page
+connections to @strong{MySQL} on an unpatched system.  The page
 @uref{http://www.volano.com/linuxnotes.html} contains information how to
 go around this limit.
 
@@ -7498,7 +7505,7 @@ instead of gcc, we get about 9-14 % better performance with @strong{MySQL}.
 
 Note that the configure line optimized the binary for the current CPU; This
 means you can only use our binary if you have an Alpha EV6 processor.
-We also compile staticly to avoid library problems.
+We also compile statically to avoid library problems.
 
 @example
 CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client --with-mysqld-ldflags=-non_shared --with-client-ldflags=-non_shared
@@ -7517,7 +7524,7 @@ Some known problems when running @strong{MySQL} on Linux-Alpha:
 Debugging threaded applications like @strong{MySQL} will not work with
 @code{gdb 4.18}.  You should download and use gdb 5.0 instead!
 @item
-If you try linking mysqld staticly when using gcc, the resulting image
+If you try linking mysqld statically when using gcc, the resulting image
 will core dump at start.  In other words, @strong{DON'T} use
 @code{--with-mysqld-ldflags=-all-static} with gcc
 @end itemize
@@ -7763,7 +7770,7 @@ http://support.sgi.com/surfzone/patches/patchset/6.2_indigo.rps.html
 At the very minimum, you should install the latest kernel rollup, the
 latest @code{rld} rollup, and the latest @code{libc} rollup.
 
-You definately need all the POSIX patches on this page, for pthreads support:
+You definitely need all the POSIX patches on this page, for pthreads support:
 
 http://support.sgi.com/surfzone/patches/patchset/6.2_posix.rps.html
 
@@ -7821,7 +7828,7 @@ remove them all with pkg_delete if you no longer want @strong{MySQL} on that
 machine.
 @end itemize
 
-It is recomended you use MIT-pthreads on FreeBSD 2.x and native threads on
+It is reccomended you use MIT-pthreads on FreeBSD 2.x and native threads on
 Versions 3 and up. It is possible to run with  native threads on some late
 2.2.x versions but you may encounter problems shutting down mysqld.
 
@@ -8255,7 +8262,7 @@ the DCE libraries while you compile @code{gcc} 2.95!
 For HPUX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
 
 Because of some critical bugs in the standard HPUX libraries, one should
-install the following patches before trying to run MySQL on HPUX 11.0:
+install the following patches before trying to run @strong{MySQL} on HPUX 11.0:
 
 @example
 PHKL_22840 Streams cumulative
@@ -8265,7 +8272,7 @@ PHNE_22397 ARPA cumulative
 This will solve a problem that one gets @code{EWOULDBLOCK} from @code{recv()} 
 and @code{EBADF} from @code{accept()} in threaded applications.
 
-If you are using @code{gcc} 2.95.1 on a unpatched HPUX 11.x system,
+If you are using @code{gcc} 2.95.1 on an unpatched HPUX 11.x system,
 you will get the error:
 
 @example
@@ -8363,15 +8370,15 @@ by HP's compilers. I did not change the flags.
 @node Mac OS X Public Data, Mac OS X Server, Mac OS X, Mac OS X
 @subsubsection Mac OS X Public beta
 
-@strong{MySQL} should work without any probelms on Mac OS X public beta.
+@strong{MySQL} should work without any problems on Mac OS X public beta.
 (Darwin); You don't need the pthread patches for this os!
 
 @node Mac OS X Server,  , Mac OS X Public Data, Mac OS X
 @subsubsection Mac OS X Server
 
 Before trying to configure @strong{MySQL} on Mac OS X server you must
-first first install the pthread package from
-@uref{http://www.prnet.de/RegEx/mysql.html}.  Note that this is not neeaded
+first install the pthread package from
+@uref{http://www.prnet.de/RegEx/mysql.html}.  Note that this is not needed
 
 Our binary for Mac OS X is compiled on Rhapsody 5.5 with the following
 configure line:
@@ -8396,7 +8403,7 @@ unfortunately we don't have any person who knows BeOS or has
 time to do a port.
 
 We are interested in finding someone to do a port, and we will help them
-with any techincal questions they may have while doing the port.
+with any technical questions they may have while doing the port.
 
 We have previously talked with some BeOS developers that have said that
 @strong{MySQL} is 80% ported to BeOS, but we haven't heard from these
@@ -8424,8 +8431,8 @@ is also described in the @file{README} file that comes with the
 @node Windows installation, Win95 start, Windows, Windows
 @subsection Installing MySQL on Windows
 
-If you don't have a copy of the MySQL distribution, you should first download
-one from @uref{http://www.mysql.com/}.
+If you don't have a copy of the @strong{MySQL} distribution, you should 
+first download one from @uref{http://www.mysql.com/}.
 
 If you plan to connect to @strong{MySQL} from some other program, you will
 probably also need the @strong{MyODBC} driver. You can find this at the
@@ -8677,8 +8684,8 @@ and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @node Windows and SSH, Windows symbolic links, Windows running, Windows
 @subsection Connecting to a Remote MySQL from Windows with SSH
 
-Here is a note about how to connect to get a secure connection to remote MySQL
-server with SSH (by David Carlson @email{dcarlson@@mplcomm.com}):
+Here is a note about how to connect to get a secure connection to remote 
+@strong{MySQL} server with SSH (by David Carlson @email{dcarlson@@mplcomm.com}):
 
 @itemize @bullet
 @item
@@ -8844,8 +8851,8 @@ SELECT * INTO OUTFILE 'C:/tmp/skr.txt' FROM skr;
 @end example
 
 @item @code{Can't open named pipe} error
-If you use a MySQL 3.22 version on NT with the newest mysql-clients you
-will get the following error:
+If you use a @strong{MySQL} 3.22 version on NT with the newest mysql-clients
+you will get the following error:
 
 @example
 error 2017: can't open named pipe to host: . pipe...
@@ -9020,8 +9027,8 @@ CREATE FUNCTION metaphon RETURNS STRING SONAME "example";
 @node MySQL binaries, Post-installation, OS/2, Installing
 @section MySQL Binaries
 
-As a service, we at MySQL AB provides a set of binary distributions of
-@strong{MySQL} that are compiled at our site or at sites where customers
+As a service, we at @strong{MySQL AB} provide a set of binary distributions
+of @strong{MySQL} that are compiled at our site or at sites where customers
 kindly have given us access to their machines.
 
 These distributions are generated with
@@ -9071,7 +9078,8 @@ above can always mail them to the developer's mailing list at
 @email{internals@@lists.mysql.com}.
 
 RPM distributions prior to @strong{MySQL} Version 3.22 are user-contributed.
-Beginning with Version 3.22, some RPMs are generated by us at MySQL AB.
+Beginning with Version 3.22, some RPMs are generated by us at 
+@strong{MySQL AB}.
 
 If you want to compile a debug version of @strong{MySQL}, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
@@ -9351,14 +9359,14 @@ The expected results are shown in the @file{./tests/auto_increment.res} file.
 @end enumerate
 
 @node mysql_install_db, Starting server, Post-installation, Post-installation
-@subsection Problems Running mysql_install_db
+@subsection Problems Running @code{mysql_install_db}
 @cindex @code{mysql_install_db} script
 @cindex scripts, @code{mysql_install_db}
 
 
 The purpose of the @code{mysql_install_db} script is to generate new
 @strong{MySQL} privilege tables.  It will not affect any other data!
-It will also not do anything if you already have MySQL privilege
+It will also not do anything if you already have @strong{MySQL} privilege
 tables installed!
 
 If you want to re-create your privilege tables, you should take down
@@ -9549,7 +9557,7 @@ If you find something like the following in the log file:
 @end example
 
 this means that you didn't started mysqld with @code{--bdb-no-recover}
-and Berkeley DB found something wrong with it's log files when it
+and Berkeley DB found something wrong with its log files when it
 tried to recover your databases.  To be able to continue, you should
 move away the old Berkeley DB log file from the database directory to
 some other place, where you can later examine these.  The log files are
@@ -9715,7 +9723,7 @@ usually resolved relative to this.
 Allow big result sets by saving all temporary sets on file. It solves
 most 'table full' errors, but also slows down the queries where
 in-memory tables would suffice. Since Version 3.23.2, @strong{MySQL} is
-able to solve it automaticaly by using memory for small temporary
+able to solve it automatically by using memory for small temporary
 tables and switching to disk tables where necessary.
 
 @item --bind-address=IP
@@ -9817,7 +9825,7 @@ The following options affects how the repair works.
 @item QUICK @tab Don't check the rows in the table if there isn't any delete blocks.
 @end multitable
 
-Before a table is automaticly repaired, mysqld will add a note about
+Before a table is automatically repaired, mysqld will add a note about
 this in the error log.  If you want to be able to recover from most
 things without user intervention, you should use the options
 @code{BACKUP,FORCE}.  This will force a repair of a table even if some rows
@@ -10012,7 +10020,7 @@ This syntax must be used to set a @code{mysqld} variable.
 The @code{client} group allows you to specify options that apply to all
 @strong{MySQL} clients (not @code{mysqld}). This is the perfect group to use
 to specify the password you use to connect to the server.  (But make
-sure the option file is readable and writable only to yourself.)
+sure the option file is readable and writable only by yourself.)
 
 Note that for options and values, all leading and trailing blanks are
 automatically deleted.  You may use the escape sequences @samp{\b},
@@ -10099,16 +10107,16 @@ shell> my_print_defaults client mysql
 The above output contains all options for the groups 'client' and 'mysql'.
 
 @node Installing many servers, Upgrade, Post-installation, Installing
-@section Installing many servers on the same machine
+@section Installing Many Servers on the Same Machine
 @cindex post-install, many servers
 @cindex Installing many servers
 @cindex Starting many servers
 
-In some cases you may want to have many different @code{mysqld} deamons
+In some cases you may want to have many different @code{mysqld} daemons
 (servers) running on the same machine.  You may for example want to run
 a new version of @strong{MySQL} for testing together with an old version
 that is in production.  Another case is when you want to give different
-users access to different mysqld servers that they manage themself.
+users access to different mysqld servers that they manage themselves.
 
 One way to get a new server running is by starting it with a different
 socket and port as follows:
@@ -10128,9 +10136,9 @@ shell> bin/safe_mysqld &
 The environment variables appendix includes a list of other environment
 variables you can use to affect @code{mysqld}. @xref{Environment variables}.
 
-The above is the quick and dirty way that one commonly use for testing.
+The above is the quick and dirty way that one commonly uses for testing.
 The nice thing with this is that all connections you do in the above shell
-will automaticly be directed to the new running server!
+will automatically be directed to the new running server!
 
 If you need to do this more permanently, you should create an own option
 file for each server. @xref{Option files}.  In your startup script that
@@ -10202,7 +10210,7 @@ start or that you can't connect without a password, check that you don't
 have some old @file{my.cnf} file from your old installation!  You can
 check this with: @code{program-name --print-defaults}.  If this outputs
 anything other than the program name, you have an active @code{my.cnf}
-file that will may affect things!
+file that will affect things!
 
 It is a good idea to rebuild and reinstall the @code{Msql-Mysql-modules}
 distribution whenever you install a new release of @strong{MySQL},
@@ -10757,7 +10765,7 @@ Use of @code{REPLACE} instead of @code{DELETE} + @code{INSERT}.
 The @code{FLUSH flush_option} statement.
 
 @item
-The possiblity to set variables in a statement with @code{:=}:
+The possibility to set variables in a statement with @code{:=}:
 @example
 SELECT @@a:=SUM(total),@@b=COUNT(*),@@a/@@b AS avg FROM test_table;
 SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
@@ -11143,7 +11151,7 @@ important information just because a wrong or misused @code{ON DELETE} rule.
 
 The only nice aspect of @code{FOREIGN KEY} is that it gives ODBC and some
 other client programs the ability to see how a table is connected and to use
-this to show connection diagrams and to help in building applicatons.
+this to show connection diagrams and to help in building applications.
 
 @strong{MySQL} will soon store @code{FOREIGN KEY} definitions so that a
 client can ask for and receive an answer about how the original
@@ -11158,14 +11166,14 @@ constraints for application that can't easily be coded to avoid them.
 @strong{MySQL} doesn't yet support views, but we plan to implement these
 to about 4.1.
 
-Views are mostly useful in letting user access a set of relations as one
-table (in read-only mode).  Many SQL databases doesn't allow one to update
+Views are mostly useful for letting users access a set of relations as one
+table (in read-only mode).  Many SQL databases don't allow one to update
 any rows in a view, but you have to do the updates in the separate tables.
 
 As @strong{MySQL} is mostly used in applications and on web system where
-the application write has full control on the database usage, most of
+the application writer has full control on the database usage, most of
 our users haven't regarded views to be very important. (At least no one
-has been interested enough of this to be prepared to finance the
+has been interested enough in this to be prepared to finance the
 implementation of views).
 
 One doesn't need views in @strong{MySQL} to restrict access to columns
@@ -11251,7 +11259,7 @@ Entry level SQL92. ODBC levels 0-2.
 
 The following mostly applies only for @code{ISAM}, @code{MyISAM}, and
 @code{HEAP} tables. If you only use transaction-safe tables (@code{BDB},
-@code{GEMINI} or @code{INNOBASE} tables) in an a update, you can do
+@code{GEMINI} or @code{INNOBASE} tables) in an an update, you can do
 @code{COMMIT} and @code{ROLLBACK} also with @strong{MySQL}.
 @xref{COMMIT}.
 
@@ -11354,9 +11362,9 @@ and either the SQL function @code{LAST_INSERT_ID()} or the C API function
 @code{mysql_insert_id()}. @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
 
 @cindex rows, locking
-At MySQL AB, we have never had any need for row-level locking because we have
-always been able to code around it. Some cases really need row
-locking, but they are very few. If you want row-level locking, you
+At @strong{MySQL AB}, we have never had any need for row-level locking
+because we have always been able to code around it. Some cases really need
+row locking, but they are very few. If you want row-level locking, you
 can use a flag column in the table and do something like this:
 
 @example
@@ -11461,7 +11469,7 @@ Do not use passwords from dictionaries. There are special programs to
 break them. Even passwords like ``xfish98'' are very bad.  Much better is
 ``duag98'' which contains the same word ``fish'' but typed one key to the
 left on a standard QWERTY keyboard. Another method is to use ``Mhall'' which
-is taken from the first characters of of each word in the sentence ``Mary had
+is taken from the first characters of each word in the sentence ``Mary had
 a little lamb.'' This is easy to remember and type, but hard to guess for
 someone who does not know it.
 @item
@@ -11683,7 +11691,7 @@ can do this by setting the @code{max_user_connections} variable in
 @end itemize
 
 @node Privileges options, What Privileges, Security, Privilege system
-@section Startup options to mysqld which concerns security
+@section Startup Options for @code{mysqld} Concerning Security
 
 The following @code{mysqld} options affect networking security:
 
@@ -11718,7 +11726,7 @@ support Unix sockets.
 @code{SHOW DATABASE} command doesn't return anything.
 
 @item --safe-show-database
-@code{SHOW DATABASE} only returns databases for which the user have
+@code{SHOW DATABASE} only returns databases for which the user has
 some kind of privilege.
 
 @end table
@@ -12335,9 +12343,9 @@ host that can create a connection to your server!}
 
 @cindex netmask notation, in @code{mysql.user} table
 @item
-As of MySQL Version 3.23, for @code{Host} values specified as IP numbers, you
-can specify a netmask indicating how many address bits to use for the
-network number. For example:
+As of @strong{MySQL} Version 3.23, for @code{Host} values specified as 
+IP numbers, you can specify a netmask indicating how many address bits to 
+use for the network number. For example:
 
 @example
 GRANT ALL PRIVILEGES on db.* to david@@'192.58.197.0/255.255.255.0';
@@ -12899,9 +12907,9 @@ tables:
 @example
 shell> mysql --user=root mysql
 mysql> INSERT INTO user VALUES('localhost','monty',PASSWORD('some_pass'),
-                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y')
+                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 mysql> INSERT INTO user VALUES('%','monty',PASSWORD('some_pass'),
-                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y')
+                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 mysql> INSERT INTO user SET Host='localhost',User='admin',
                  Reload_priv='Y', Process_priv='Y';
 mysql> INSERT INTO user (Host,User,Password)
@@ -13368,8 +13376,8 @@ connect to the server with @code{mysql -u user_name db_name} or @code{mysql
 @code{mysql} client, there is a problem with your program and not with the
 access privileges.  (Note that there is no space between @code{-p} and the
 password; you can also use the @code{--password=your_pass} syntax to specify
-the password. If you use the @code{-p} option alone, MySQL will prompt you
-for the password.)
+the password. If you use the @code{-p} option alone, @strong{MySQL} will 
+prompt you for the password.)
 
 @item
 For testing, start the @code{mysqld} daemon with the
@@ -13448,8 +13456,8 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 interface.  This chapter describes the various commands, types, and functions 
 you will need to know in order to use @strong{MySQL} efficiently and 
 effectively.  This chapter also serves as a reference to all functionality
-included in MySQL.  In order to use this chapter effectively, you may
-find it useful to refer to the various indexes.
+included in @strong{MySQL}.  In order to use this chapter effectively, you
+may find it useful to refer to the various indexes.
 
 @cindex strings, defined
 @cindex strings, escaping characters
@@ -13669,7 +13677,7 @@ like an integer (64-bit precision). In string context these act like a binary
 string where each pair of hex digits is converted to a character:
 
 @example
-mysql> SELECT 0xa+0
+mysql> SELECT 0xa+0;
        -> 10
 mysql> select 0x5061756c;
        -> Paul
@@ -15615,7 +15623,7 @@ mysql> select 29 & 15;
 @item <<
 Shifts a longlong (@code{BIGINT}) number to the left:
 @example
-mysql> select 1 << 2
+mysql> select 1 << 2;
         -> 4
 @end example
 
@@ -15623,7 +15631,7 @@ mysql> select 1 << 2
 @item >>
 Shifts a longlong (@code{BIGINT}) number to the right:
 @example
-mysql> select 4 >> 2
+mysql> select 4 >> 2;
         -> 1
 @end example
 
@@ -15631,7 +15639,7 @@ mysql> select 4 >> 2
 @item ~
 Invert all bits:
 @example
-mysql> select 5 & ~1
+mysql> select 5 & ~1;
         -> 4
 @end example
 
@@ -15847,7 +15855,7 @@ mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
 @itemx IS NOT NULL
 Test whether or not a value is or is not @code{NULL}:
 @example
-mysql> select 1 IS NULL, 0 IS NULL, NULL IS NULL:
+mysql> select 1 IS NULL, 0 IS NULL, NULL IS NULL;
         -> 0 0 1
 mysql> select 1 IS NOT NULL, 0 IS NOT NULL, NULL IS NOT NULL;
         -> 1 1 0
@@ -17500,7 +17508,7 @@ mysql> select TO_DAYS('1997-10-07');
 
 @code{TO_DAYS()} is not intended for use with values that precede the advent
 of the Gregorian calendar (1582), because it doesn't take into account the
-days that were lost when the calender was changed.
+days that were lost when the calendar was changed.
 
 @findex FROM_DAYS()
 @item FROM_DAYS(N)
@@ -17513,7 +17521,7 @@ mysql> select FROM_DAYS(729669);
 
 @code{FROM_DAYS()} is not intended for use with values that precede the
 advent of the Gregorian calendar (1582), because it doesn't take into account
-the days that were lost when the calender was changed.
+the days that were lost when the calendar was changed.
 
 @findex DATE_FORMAT()
 @item DATE_FORMAT(date,format)
@@ -17798,7 +17806,7 @@ Calculates a MD5 checksum for the string. Value is returned as a 32 long
 hex number that may, for example, be used as a hash key:
 
 @example
-mysql> select MD5("testing")
+mysql> select MD5("testing");
         -> 'ae2b1fca515949e5d54fb22b8ed95575'
 @end example
 
@@ -18971,7 +18979,7 @@ exist.
 For the moment they don't do anything.
 
 @strong{NOTE}: @code{DROP TABLE} is not transaction safe and will
-automaticly commit any active transactions.
+automatically commit any active transactions.
 
 @cindex tables, defragment
 @cindex tables, fragmentation
@@ -19307,7 +19315,7 @@ The differences are:
 Implemented as a drop and re-create of the table, which makes this
 much faster when deleting many rows.
 @item
-Not transaction-safe; @code{TRUNCATE TABLE} will automaticly end the current
+Not transaction-safe; @code{TRUNCATE TABLE} will automatically end the current
 transaction as if @code{COMMIT} would have been called.
 @item
 Doesn't return the number of deleted rows.
@@ -19873,7 +19881,7 @@ type.  The column is set to the appropriate zero value for the type.
 @end menu
 
 @node INSERT SELECT, INSERT DELAYED, INSERT, INSERT
-@subsection INSERT ... SELECT Syntax
+@subsection @code{INSERT ... SELECT} Syntax
 
 @example
 INSERT [LOW_PRIORITY] [IGNORE] [INTO] tbl_name [(column list)] SELECT ...
@@ -20253,7 +20261,7 @@ fields delimited by commas:
 @example
 mysql> SELECT * INTO OUTFILE 'data.txt'
            FIELDS TERMINATED BY ','
-           FROM ...
+           FROM ...;
 @end example
 
 To read the comma-delimited file back in, the correct statement would be:
@@ -20653,7 +20661,7 @@ The @code{USE} statement is provided for Sybase compatibility.
 @cindex caches, clearing
 @findex FLUSH
 @node FLUSH, KILL, USE, Reference
-@section @code{FLUSH} Syntax (Clearing Caches)
+@section @code{FLUSH} Syntax
 
 @example
 FLUSH flush_option [,flush_option]
@@ -20767,7 +20775,7 @@ write is aborted with an disk full error message.
 @findex SHOW MASTER LOGS
 @findex SHOW SLAVE STATUS
 @node SHOW, EXPLAIN, KILL, Reference
-@section @code{SHOW} Syntax (Get Information About Tables, Columns,...)
+@section @code{SHOW} Syntax
 
 @example
    SHOW DATABASES [LIKE wild]
@@ -20810,7 +20818,7 @@ and @samp{_} wild-card characters.
 
 @cindex displaying, information, @code{SHOW}
 @node SHOW DATABASE INFO, SHOW TABLE STATUS, SHOW, SHOW
-@subsection SHOW Information About Databases, Tables, Columns, and Indexes
+@subsection @code{SHOW} Information About Databases, Tables, Columns, and Indexes
 
 You can use @code{db_name.tbl_name} as an alternative to the @code{tbl_name
 FROM db_name} syntax.  These two statements are equivalent:
@@ -20854,21 +20862,25 @@ resembles the @code{SQLStatistics} call in ODBC. The following columns
 are returned:
 
 @multitable @columnfractions .35 .65
-@item @strong{Column} @tab @strong{Meaning}
-@item @code{Table} @tab Name of the table.
-@item @code{Non_unique} @tab 0 if the index can't contain duplicates.
-@item @code{Key_name} @tab Name of the index.
-@item @code{Seq_in_index} @tab Column sequence number in index, starting with 1.
-@item @code{Column_name} @tab Column name.
-@item @code{Collation} @tab How the column is sorted in the index.  In
-@strong{MySQL}, this can have values @code{A} (Ascending) or @code{NULL}
-(Not sorted).
-@item @code{Cardinality} @tab Number of unique values in the index.
-This is updated by running @code{isamchk -a}.
-@item @code{Sub_part} @tab Number of indexed characters if the column is
-only partly indexed. @code{NULL} if the entire key is indexed.
-@item @code{Comment} @tab Various remarks.
-For now, it tells whether index is FULLTEXT or not.
+@item @strong{Column}            @tab @strong{Meaning}
+@item @code{Table}               @tab Name of the table.
+@item @code{Non_unique}          @tab 0 if the index can't contain duplicates.
+@item @code{Key_name}            @tab Name of the index.
+@item @code{Seq_in_index}        @tab Column sequence number in index, 
+                                      starting with 1.
+@item @code{Column_name}         @tab Column name.
+@item @code{Collation}           @tab How the column is sorted in the index.
+                                      In @strong{MySQL}, this can have values
+                                      @samp{A} (Ascending) or @code{NULL} (Not
+                                      sorted).
+@item @code{Cardinality}         @tab Number of unique values in the index.
+                                      This is updated by running 
+                                      @code{isamchk -a}.
+@item @code{Sub_part}            @tab Number of indexed characters if the 
+                                      column is only partly indexed. 
+                                      @code{NULL} if the entire key is indexed.
+@item @code{Comment}             @tab Various remarks.  For now, it tells 
+                                      whether index is FULLTEXT or not.
 @end multitable
 
 Note that as the @code{Cardinality} is counted based on statistics
@@ -20878,7 +20890,7 @@ stored as integers, it's not necessarily accurate for small tables.
 @cindex tables, displaying status
 @cindex status, tables
 @node SHOW TABLE STATUS, SHOW STATUS, SHOW DATABASE INFO, SHOW
-@subsection SHOW Status Information About Tables
+@subsection @code{SHOW TABLE STATUS}
 
 @example
 SHOW TABLE STATUS [FROM db_name] [LIKE wild]
@@ -20912,7 +20924,7 @@ The following columns are returned:
 in the table comment.
 
 @node SHOW STATUS, SHOW VARIABLES, SHOW TABLE STATUS, SHOW
-@subsection SHOW Status Information
+@subsection @code{SHOW STATUS}
 
 @cindex @code{mysqladmin}
 @code{SHOW STATUS} provides server status information
@@ -21073,7 +21085,7 @@ If @code{Threads_created} is big, you may want to increase the
 @end itemize
 
 @node SHOW VARIABLES, SHOW LOGS, SHOW STATUS, SHOW
-@subsection SHOW VARIABLES
+@subsection @code{SHOW VARIABLES}
 
 @example
 SHOW VARIABLES [LIKE wild]
@@ -21394,15 +21406,15 @@ wrong) packets.  You must increase this value if you are using big
 @code{BLOB} columns. It should be as big as the biggest @code{BLOB} you want
 to use.  The current protocol limits @code{max_allowed_packet} to 16M.
 
-@item @code{max_binlog_cache_size}.  If a multi-statement transaction
-requires more than this amount of memory, one will get the error
-"Multi-statement transaction required more than 'max_binlog_cache_size'
-bytes of storage".
+@item @code{max_binlog_cache_size}
+If a multi-statement transaction requires more than this amount of memory,
+one will get the error "Multi-statement transaction required more than
+'max_binlog_cache_size' bytes of storage".
 
-@item @code{max_binlog_size}. Available after 3.23.33. If a write to the
-binary ( replication) log exceeds the given value, rotate the logs. You
-cannot set it to less than 1024 bytes, or more than 1 GB. Default is
-1 GB.
+@item @code{max_binlog_size}
+Available after 3.23.33. If a write to the binary (replication) log exceeds 
+the given value, rotate the logs. You cannot set it to less than 1024 bytes, 
+or more than 1 GB. Default is 1 GB.
 
 @item @code{max_connections}
 The number of simultaneous clients allowed. Increasing this value increases
@@ -21600,7 +21612,7 @@ The manual section that describes tuning @strong{MySQL} contains some
 information of how to tune the above variables. @xref{Server parameters}.
 
 @node SHOW LOGS, SHOW PROCESSLIST, SHOW VARIABLES, SHOW
-@subsection SHOW Information About Log Files
+@subsection @code{SHOW LOGS}
 @code{SHOW LOGS} shows you status information about existing log
 files.  It currently only displays information about Berkeley DB log
 files.
@@ -21619,7 +21631,7 @@ subsystem)
 @findex threads
 @findex PROCESSLIST
 @node SHOW PROCESSLIST, SHOW GRANTS, SHOW LOGS, SHOW
-@subsection SHOW Information About Connected Threads (Processes)
+@subsection @code{SHOW PROCESSLIST}
 
 @code{SHOW PROCESSLIST} shows you which threads are running.  You can
 also get this information using the @code{mysqladmin processlist}
@@ -21636,7 +21648,7 @@ to ensure that you should always be able to login and check the system
 
 @cindex privileges, display
 @node SHOW GRANTS, SHOW CREATE TABLE, SHOW PROCESSLIST, SHOW
-@subsection SHOW GRANTS (Privileges) for a User
+@subsection @code{SHOW GRANTS}
 
 @code{SHOW GRANTS FOR user} lists the grant commands that must be issued to
 duplicate the grants for a user.
@@ -21651,8 +21663,10 @@ mysql> SHOW GRANTS FOR root@@localhost;
 @end example
 
 @node SHOW CREATE TABLE,  , SHOW GRANTS, SHOW
-@subsection SHOW CREATE TABLE
+@subsection @code{SHOW CREATE TABLE}
+
 Shows a @code{CREATE TABLE} statement that will create the given table:
+
 @example
 mysql> show create table t\G
 *************************** 1. row ***************************
@@ -21757,32 +21771,38 @@ strings that can be found in this column:
 @item Distinct
 @strong{MySQL} will not continue searching for more rows for the current row
 combination after it has found the first matching row.
+
 @item Not exists
 @strong{MySQL} was able to do a @code{LEFT JOIN} optimization on the
 query and will not examine more rows in this table for a row combination
 after it finds one row that matches the @code{LEFT JOIN} criteria.
+
 @item @code{range checked for each record (index map: #)}
 @strong{MySQL} didn't find a real good index to use. It will, instead, for
 each row combination in the preceding tables, do a check on which index to
 use (if any), and use this index to retrieve the rows from the table.  This
 isn't very fast but is faster than having to do a join without
 an index.
+
 @item Using filesort
 @strong{MySQL} will need to do an extra pass to find out how to retrieve
 the rows in sorted order.  The sort is done by going through all rows
 according to the @code{join type} and storing the sort key + pointer to
 the row for all rows that match the @code{WHERE}. Then the keys are
 sorted. Finally the rows are retrieved in sorted order.
+
 @item Using index
 The column information is retrieved from the table using only
 information in the index tree without having to do an additional seek to
 read the actual row.  This can be done when all the used columns for
 the table are part of the same index.
+
 @item Using temporary
 To resolve the query @strong{MySQL} will need to create a
 temporary table to hold the result.  This typically happens if you do an
 @code{ORDER BY} on a different column set than you did a @code{GROUP
 BY} on.
+
 @item Where used
 A @code{WHERE} clause will be used to restrict which rows will be
 matched against the next table or sent to the client.  If you don't have
@@ -22075,7 +22095,7 @@ old update log;  The transaction is stored in the binary log
 in one chunk, during @code{COMMIT}, the to ensure and @code{ROLLBACK}:ed
 transactions are not stored. @xref{Binary log}.
 
-The following commands automaticly ends an transaction (as if you had done
+The following commands automatically ends an transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
 @multitable @columnfractions .33 .33 .33
@@ -22152,10 +22172,10 @@ faster to lock the tables you are going to use.  The downside is, of course,
 that no other thread can update a @code{READ}-locked table and no other
 thread can read a @code{WRITE}-locked table.
 @item
-@strong{MySQL} doesn't support a transaction environment, so you must use
-@code{LOCK TABES} if you want to ensure that no other thread comes between a
-@code{SELECT} and an @code{UPDATE}. The example shown below
-requires @code{LOCK TABLES} in order to execute safely:
+If you are using a table handler in @strong{MySQL} that doesn't support 
+transactions, you must use @code{LOCK TABLES} if you want to ensure that 
+no other thread comes between a @code{SELECT} and an @code{UPDATE}. The 
+example shown below requires @code{LOCK TABLES} in order to execute safely:
 
 @example
 mysql> LOCK TABLES trans READ, customer WRITE;
@@ -22184,11 +22204,11 @@ See @ref{Internal locking}, for more information on locking policy.
 
 You can also lock all tables in all databases with read locks with the
 @code{FLUSH TABLES WITH READ LOCK} command. @xref{FLUSH}. This is very
-convinient way to get backups if you have a file system, like Veritas,
+convenient way to get backups if you have a file system, like Veritas,
 that can take snapshots in time.
 
 @strong{NOTE}: @code{LOCK TABLES} is not transaction safe and will
-automaticly commit any active transactions before attempting to lock the
+automatically commit any active transactions before attempting to lock the
 tables.
 
 @findex SET OPTION
@@ -22345,8 +22365,8 @@ SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
 Sets the transaction isolation level for the global, whole session or
 the next transaction.
 
-The default behaveour is to set the isolation level for the next (not started)
-isolation level.
+The default behavior is to set the isolation level for the next (not started)
+transaction.
 
 If you set the @code{GLOBAL} privilege it will affect all new created threads.
 You will need the @code{PROCESS} privilege to do do this.
@@ -22575,7 +22595,7 @@ doesn't support all privilege types that @strong{MySQL} supports.
 @item
 ANSI SQL privileges are structured in a hierarchal manner. If you remove
 an user, all privileges the user has granted are revoked. In
-@strong{MySQL} the granted privileges are not automaticly revoked, but
+@strong{MySQL} the granted privileges are not automatically revoked, but
 you have to revoke these yourself if needed.
 
 @item
@@ -22957,7 +22977,7 @@ The following is new in @code{MyISAM}:
 @item
 There is a flag in the @code{MyISAM} file that indicates whether or not
 the table was closed correctly.  If @code{mysqld} is started with
-@code{--myisam-recover}, @code{MyISAM} tables will automaticly be
+@code{--myisam-recover}, @code{MyISAM} tables will automatically be
 checked and/or repaired on open if the table wasn't closed properly.
 @item
 You can @code{INSERT} new rows in a table without deleted rows,
@@ -23093,7 +23113,7 @@ Warning: Found 344 of 354 rows when repairing ./test/g00pages
 @end example
 
 Note that if you run automatic recover with the @code{BACKUP} option,
-you should have a cron script that automaticly moves file with names
+you should have a cron script that automatically moves file with names
 like @file{tablename-datetime.BAK} from the database directories to a
 backup media.
 
@@ -23253,7 +23273,7 @@ This is a read-only type that is generated with the optional
 
 @itemize @bullet
 @item
-All MySQL distributions, even those that existed before @strong{MySQL}
+All @strong{MySQL} distributions, even those that existed before @strong{MySQL}
 went GPL, can read tables that were compressed with @code{myisampack}.
 @item
 Compressed tables take very little disk space. This minimizes disk usage, which
@@ -23613,7 +23633,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @cindex tables, @code{BDB}
 @cindex tables, @code{Berkeley DB}
 @node BDB, GEMINI, HEAP, Table types
-@section BDB or Berkeley_db Tables
+@section BDB or Berkeley_DB Tables
 
 @menu
 * BDB overview::                
@@ -23646,7 +23666,7 @@ If you have downloaded a binary version of @strong{MySQL} that includes
 support for Berkeley DB, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
 
-To compile MySQL with Berkeley DB support, download @strong{MySQL}
+To compile @strong{MySQL} with Berkeley DB support, download @strong{MySQL}
 3.23.34 or newer and configure @code{MySQL} with the
 @code{--with-berkeley-db} option. @xref{Installing source}.
 
@@ -23954,7 +23974,7 @@ cd /path/to/source/of/mysql-3.23.34
 ./configure --with-innobase
 @end example
 
-Innobase provides MySQL with a transaction safe table handler with
+Innobase provides @strong{MySQL} with a transaction safe table handler with
 commit, rollback, and crash recovery capabilities.  Innobase does
 locking on row level, and also provides an Oracle-style consistent
 non-locking read in @code{SELECTS}, which increases transaction
@@ -23962,14 +23982,14 @@ concurrency. There is neither need for lock escalation in Innobase,
 because row level locks in Innobase fit in very small space.
 
 Innobase is a table handler that is under the GNU GPL License Version 2
-(of June 1991). In the source distribution of MySQL, Innobase appears as
-a subdirectory.
+(of June 1991). In the source distribution of @strong{MySQL}, Innobase
+appears as a subdirectory.
 
 @node INNOBASE start, Using INNOBASE tables, INNOBASE overview, INNOBASE
 @subsection INNOBASE startup options
 
 To use Innobase tables you must specify configuration parameters
-in the MySQL configuration file in the @code{[mysqld]} section of
+in the @strong{MySQL} configuration file in the @code{[mysqld]} section of
 the configuration file. Below is an example of possible configuration
 parameters in my.cnf for Innobase:
 
@@ -24032,8 +24052,8 @@ log archiving.  The value of this parameter should currently be set the
 same as @code{innobase_log_group_home_dir}.
 @item  @code{innobase_log_archive} @tab
 This value should currently be set to 0.  As recovery from a backup is
-done by MySQL using its own log files, there is currently no need to
-archive Innobase log files.
+done by @strong{MySQL} using its own log files, there is currently no need
+to archive Innobase log files.
 @item @code{innobase_buffer_pool_size} @tab
 The size of the memory buffer Innobase uses to cache data and indexes of
 its tables.  The bigger you set this the less disk i/o is needed to
@@ -24047,7 +24067,7 @@ and other internal data structures. A sensible value for this might be
 2M, but the more tables you have in your application the more you will
 need to allocate here. If Innobase runs out of memory in this pool, it
 will start to allocate memory from the operating system, and write
-warning messages to the MySQL error log.
+warning messages to the @strong{MySQL} error log.
 
 @item @code{innobase_file_io_threads} @tab
 Number of file i/o threads in Innobase. Normally, this should be 4, but
@@ -24065,8 +24085,8 @@ resolve the situation.
 @node Using INNOBASE tables, INNOBASE restrictions, INNOBASE start, INNOBASE
 @subsection Using INNOBASE tables
 
-Technically, Innobase is a database backend placed under MySQL. Innobase
-has its own buffer pool for caching data and indexes in main
+Technically, Innobase is a database backend placed under @strong{MySQL}.
+Innobase has its own buffer pool for caching data and indexes in main
 memory. Innobase stores its tables and indexes in a tablespace, which
 may consist of several files. This is different from, for example,
 @code{MyISAM} tables where each table is stored as a separate file.
@@ -24116,9 +24136,10 @@ snapshot of the database: the reads are also 'consistent' with
 respect to each other. 
 
 Some Innobase errors: If you run out of file space in the tablespace,
-you will get the MySQL 'Table is full' error. If you want to make your
-tablespace bigger, you have to shut down MySQL and add a new datafile
-specification to my.conf, to the innobase_data_file_path parameter.
+you will get the @strong{MySQL} 'Table is full' error. If you want to
+make your tablespace bigger, you have to shut down @strong{MySQL} and 
+add a new datafile specification to @file{my.conf}, to the 
+@code{innobase_data_file_path} parameter.
 
 A transaction deadlock or a timeout in a lock wait will give 'Table handler
 error 1000000'.
@@ -25808,18 +25829,18 @@ mysql> SELECT * FROM pet WHERE name REGEXP "^b";
 +--------+--------+---------+------+------------+------------+
 @end example
 
-Prior to MySQL 3.23.4, @code{REGEXP} is case sensitive, and the previous
-query will return no rows. To match either lowercase or uppercase @samp{b},
-use this query instead:
+Prior to @strong{MySQL} Version 3.23.4, @code{REGEXP} is case sensitive, 
+and the previous query will return no rows. To match either lowercase or 
+uppercase @samp{b}, use this query instead:
 
 @example
 mysql> SELECT * FROM pet WHERE name REGEXP "^[bB]";
 @end example
 
-From MySQL 3.23.4 on, to force a @code{REGEXP} comparison to be case
-sensitive, use the @code{BINARY} keyword to make one of the strings a
-binary string. This query will match only lowercase @samp{b} at the
-beginning of a name:
+From @strong{MySQL} 3.23.4 on, to force a @code{REGEXP} comparison to
+be case sensitive, use the @code{BINARY} keyword to make one of the
+strings a binary string. This query will match only lowercase @samp{b}
+at the beginning of a name:
 
 @example
 mysql> SELECT * FROM pet WHERE name REGEXP BINARY "^b";
@@ -26585,8 +26606,8 @@ option to @code{configure}, and the character set configuration files
 listed in @file{SHAREDIR/charsets/Index}.
 @xref{Quick install}.
 
-If you change the character set when running MySQL (which may also
-change the sort order), you must run myisamchk -r -q on all
+If you change the character set when running @strong{MySQL} (which may
+also change the sort order), you must run myisamchk -r -q on all
 tables. Otherwise your indexes may not be ordered correctly.
 
 When a client connects to a @strong{MySQL} server, the server sends the
@@ -27144,7 +27165,7 @@ recommend that you either upgrade, or execute @code{SET SQL_LOG_BIN=0} on
 your clients before all queries with temp tables.
 @item
 @strong{MySQL} only supports one master and many slaves. We will in 4.x
-add a voting algorithm to automaticly change master if something goes
+add a voting algorithm to automatically change master if something goes
 wrong with the current master. We will also introduce 'agent' processes
 to help doing load balancing by sending select queries to different
 slaves.
@@ -27221,9 +27242,9 @@ to get rid of old logs while the slave is running.
 @node Replication Options, Replication SQL, Replication Features, Replication
 @section Replication Options in my.cnf
 
-If you are using replication, we recommend you to use MySQL Version 3.23.30 or
-later. Older versions work, but they do have some bugs and are missing some
-features.
+If you are using replication, we recommend you to use @strong{MySQL} Version
+3.23.30 or later. Older versions work, but they do have some bugs and are
+missing some features.
 
 On both master and slave you need to use the @code{server-id} option.
 This sets an unique replication id. You should pick a unique value in the
@@ -27680,7 +27701,7 @@ throughput about 5.5 times. However, with only 8 servers, we increased
 it almost 4 times already.
 
 Note that our computations assumed infinite network bandwidth, and
-neglected several other factors that could turn out to be signficant on
+neglected several other factors that could turn out to be significant on
 your system. In many cases, you may not be able to make a computation
 similar to the one above that will accurately predict what will happen
 on your system if you add N replication slaves. However, answering the
@@ -28060,16 +28081,16 @@ Running with @code{--log-bin} makes @strong{[MySQL} 1 % slower.
 
 @item
 Compiling without frame pointers @code{-fomit-frame-pointer} with gcc makes
-MySQL 1 % faster.
+@strong{MySQL} 1% faster.
 @end itemize
 
-The @strong{MySQL}-Linux distribution provided by MySQL AB used to be
-compiled with @code{pgcc}, but we had to go back to regular gcc because
-of a bug in @code{pgcc} that would generate the code that does not run
-on AMD. We will continue using gcc until that bug is resolved.  In the
-meantime, if you have a non-AMD machine, you can get a faster binary by
-compiling with @code{pgcc}.  The standard MySqL Linux binary is linked
-statically to get it faster and more portable.
+The @strong{MySQL}-Linux distribution provided by @strong{MySQL AB} used
+to be compiled with @code{pgcc}, but we had to go back to regular gcc
+because of a bug in @code{pgcc} that would generate the code that does
+not run on AMD. We will continue using gcc until that bug is resolved.
+In the meantime, if you have a non-AMD machine, you can get a faster
+binary by compiling with @code{pgcc}.  The standard @strong{MySQL}
+Linux binary is linked statically to get it faster and more portable.
 
 @cindex disk issues
 @cindex performance, disk issues
@@ -29200,8 +29221,8 @@ The following queries use indexing to retrieve the rows in sorted
 order without a separate sorting pass:
 
 @example
-mysql> SELECT ... FROM tbl_name ORDER BY key_part1,key_part2,...
-mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,...
+mysql> SELECT ... FROM tbl_name ORDER BY key_part1,key_part2,... ;
+mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,... ;
 @end example
 
 @findex DISTINCT
@@ -29404,7 +29425,7 @@ flush-tables}.
 @end enumerate
 
 This procedure will be built into @code{LOAD DATA INFILE} in some future
-version of MySQL.
+version of @strong{MySQL}.
 @item
 You can speed up insertions by locking your tables:
 
@@ -29655,7 +29676,7 @@ from the data, you should not lose anything by using @code{DELAY_KEY_WRITE}.
 @node Benchmarks, Design, Tips, Performance
 @section Using Your Own Benchmarks
 
-You should definately benchmark your application and database to find
+You should definitely benchmark your application and database to find
 out where the bottlenecks are.  By fixing it (or by replacing the
 bottleneck with a 'dummy module') you can then easily identify the next
 bottleneck (and so on).  Even if the overall performance for your
@@ -29929,9 +29950,9 @@ Oracle benchmarks @strong{VERY} biased because the above benchmarks are
 supposed to show what a standard installation can do for a single
 client.
 
-To run the benchmark suite, you have to download a MySQL source distribution
-install the perl DBI driver, the perl DBD driver for the database you want to
-test and then do:
+To run the benchmark suite, you have to download a @strong{MySQL} source
+distribution, install the perl DBI driver, the perl DBD driver for the
+database you want to test and then do:
 
 @example
 cd sql-bench
@@ -29943,7 +29964,7 @@ and supported servers by doing @code{run-all-tests --help}.
 
 @cindex crash-me
 @code{crash-me} tries to determine what features a database supports and
-what it's capabilities and limitations are by actually running
+what its capabilities and limitations are by actually running
 queries. For example, it determines:
 
 @itemize @bullet
@@ -30305,7 +30326,7 @@ data directory, that you have (just change the socket, -S=...)
 @item
 @code{pid-file} is very important, if you are using @code{safe_mysqld}
 to start @code{mysqld} (e.g. --mysqld=safe_mysqld) Every @code{mysqld}
-should have it's own @code{pid-file}. The advantage using
+should have its own @code{pid-file}. The advantage using
 @code{safe_mysqld} instead of @code{mysqld} directly here is, that
 @code{safe_mysqld} 'guards' every @code{mysqld} process and will restart
 it, if a @code{mysqld} process fails due to signal kill -9, or
@@ -30844,7 +30865,7 @@ the @code{mysqld} server has stopped properly.
 
 @cindex @code{mysqldump}
 Utility to dump a database or a collection of database for backup or for
-transferring the data to another SQL server (not necessarily a MySQL
+transferring the data to another SQL server (not necessarily a @strong{MySQL}
 server).  The dump will contain SQL statements to create the table
 and/or populate the table.
 
@@ -31119,9 +31140,9 @@ all be imported into a table named @code{patient}.
 @table @code
 @item -c, --columns=...
 This option takes a comma-separated list of field names as an argument.
-The field list is passed to LOAD DATA INFILE MySQL sql command, which
-mysqlimport calls MySQL to execute. For more information, please see
-@code{LOAD DATA INFILE}. @xref{LOAD DATA, , @code{LOAD DATA}}.
+The field list is used to create a proper @code{LOAD DATA INFILE} command,
+which is then passed to @strong{MySQL}. @xref{LOAD DATA, , @code{LOAD DATA}}.
+
 @item -C, --compress
 Compress all information between the client and the server if both support
 compression.
@@ -32108,8 +32129,9 @@ An even better test would be to check any table whose last-modified time
 is more recent than that of the @file{.pid} file.
 
 You should also check your tables regularly during normal system
-operation.  At MySQL AB, we run a @code{cron} job to check all our important
-tables once a week, using a line like this in a @file{crontab} file:
+operation.  At @strong{MySQL AB}, we run a @code{cron} job to check all
+our important tables once a week, using a line like this in a @file{crontab}
+file:
 
 @example
 35 0 * * 0 /path/to/myisamchk --fast --silent /path/to/datadir/*/*.MYI
@@ -32128,8 +32150,8 @@ night on all tables that have been updated during the last 24 hours,
 until you come to trust @strong{MySQL} as much as we do.
 
 @cindex tables, defragment
-Normally you don't need to maintain MySQL tables that much.  If you are
-changing tables with dynamic size rows (tables with @code{VARCHAR},
+Normally you don't need to maintain @strong{MySQL} tables that much.  If 
+you are changing tables with dynamic size rows (tables with @code{VARCHAR},
 @code{BLOB} or @code{TEXT} columns) or have tables with many deleted rows
 you may want to from time to time (once a month?) defragment/reclaim space
 from the tables.
@@ -32642,7 +32664,7 @@ shell> perror 126 127 132 134 135 136 141 144 145
 145 = Table was marked as crashed and should be repaired
 @end example
 
-Note that error 135, no more room in record file, is not a error that
+Note that error 135, no more room in record file, is not an error that
 can be fixed by a simple repair. In this case you have to do:
 
 @itemize @bullet
@@ -32818,7 +32840,7 @@ the performance of a table:
 @item -a, --analyze
 @end table
 
-For a full description of the option, see @xref{myisamchk syntax}.
+For a full description of the option. @xref{myisamchk syntax}.
 
 @cindex files, log
 @cindex maintaining, log files
@@ -34006,9 +34028,9 @@ send the whole MyODBC or ODBC log file!
 If you are unable to find out what's wrong, the last option is to
 make an archive (tar or zip) that contains a MyODBC trace file, the ODBC
 log file, and a README file that explains the problem.  You can send this
-to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at MySQL AB
-will have access to the files you upload, and we will be very discrete
-with the data!
+to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at 
+@strong{MySQL AB} will have access to the files you upload, and we will
+be very discrete with the data!
 
 If you can create a program that also shows this problem, please
 upload this too!
@@ -34261,7 +34283,7 @@ without locking the table properly.
 @item
 If you are running many @code{mysqld} servers on the same data on a
 system that doesn't support good file system locks (normally handled by
-the @code{lockd} deamon ) or if you are running
+the @code{lockd} daemon ) or if you are running
 multiple servers with @code{--skip-locking}
 @item
 You have a crashed index/data file that contains very wrong data that
@@ -34391,9 +34413,10 @@ TABLE}.  This will force @strong{MySQL} to use fixed-size rows.
 Fixed-size rows take a little extra space, but are much more tolerant to
 corruption!
 
-The current dynamic row code has been in use at MySQL AB for at least 3
-years without any problems, but by nature dynamic-length rows are more
-prone to errors, so it may be a good idea to try the above to see if it helps!
+The current dynamic row code has been in use at @strong{MySQL AB} for at
+least 3 years without any problems, but by nature dynamic-length rows are
+more prone to errors, so it may be a good idea to try the above to see if
+it helps!
 @end itemize
 
 @cindex linking, errors
@@ -34495,7 +34518,7 @@ descriptions of the errors, and how to solve the problem here.
 @node Error Access denied, Gone away, Common errors, Common errors
 @subsection @code{Access denied} Error
 
-@xref{Privileges}, and especially see @xref{Access denied}.
+@xref{Privileges}, and especially. @xref{Access denied}.
 
 @node Gone away, Can not connect to server, Error Access denied, Common errors
 @subsection @code{MySQL server has gone away} Error
@@ -36021,7 +36044,7 @@ also any critical errors found when running.  If @code{mysqld} dies
 unexpectedly and @code{safe_mysqld} needs to restart @code{mysqld},
 @code{safe_mysqld} will write a @code{restarted mysqld} row in this
 file.  This log also holds a warning if @code{mysqld} notices a table
-that needs to be automaticly checked or repaired.
+that needs to be automatically checked or repaired.
 
 On some operating systems, the error log will contain a stack trace
 for where mysqld died. This can be used to find out where mysqld died.
@@ -38961,8 +38984,8 @@ Newer binary distributions should have both a normal and a
 thread-safe client library.
 
 To get a really thread-safe client where you can interrupt the client
-from other threads and set timeouts when talking with the MySQL server,
-you should use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug}
+from other threads and set timeouts when talking with the @strong{MySQL}
+server, you should use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug}
 libraries and the @code{net_serv.o} code that the server uses.
 
 If you don't need interrupts or timeouts, you can just compile a thread
@@ -40451,9 +40474,9 @@ publicly available part of our testing process consisted of the @code{crash-me}
 test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
 miscellaneous tests located in @code{tests} directory. The lack of a 
 standardized publicly available test suite has made it difficult for our users,
-as well developers, to do regression tests on the MySQL code. To address this
-problem, we have created a new test system that is included in the source
-and binary distributions starting in Version 3.23.29.
+as well developers, to do regression tests on the @strong{MySQL} code. To 
+address this problem, we have created a new test system that is included in
+the source and binary distributions starting in Version 3.23.29.
 
 The test system consist of a test language interpreter (@code{mysqltest}),
 a shell script to run all tests(@code{mysql-test-run}), the actual test cases
@@ -41250,7 +41273,7 @@ by Roland Haenel's C++ API and Ed Carp's MyC library.
 
 @item @uref{http://www.mysql.com/download_mysql++.html, mysql++}
 @strong{MySQL} C++ API (More than just a wrapper library.) Originally by
-@email{kevina@@clark.net}. Nowadays maintained by Sinisa at MySQL AB.
+@email{kevina@@clark.net}. Nowadays maintained by Sinisa at @strong{MySQL AB}.
 
 @item @uref{http://nelsonjr.homepage.com/NJrAPI,NJrAPI}
 A C++ database independent library that supports @strong{MySQL}.
@@ -41354,15 +41377,17 @@ and remove the DSN registry file for the MyODBC driver in Coldfusion
 applications.  By Miguel Angel Solórzano.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQL-ADA95_API.zip, MySQL-ADA95_API.zip}
-An ADA95 interface to the MySQL API. By Francois Fabien.
+An ADA95 interface to the @strong{MySQL} API. By Francois Fabien.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MyTool-DLL_for_VB_and_MySQL.zip, MyTool-DLL_for_VB_and_MySQL.zip}
-A DLL with MySQL C API for Visual Basic. By Ken Menzel @email{kenm@@icarz.com}.
+A DLL with @strong{MySQL} C API for Visual Basic. 
+By Ken Menzel @email{kenm@@icarz.com}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MYSQLX.EXE, MYSQL.EXE}
-MySQL ActiveX Object for directly accessing your MySQL servers from IIS/ASP,
-VB, VC++ skipping the slower ODBC methods. Fully updateble, multithreaded with full support
-for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.com/}.
+@strong{MySQL} ActiveX Object for directly accessing your @strong{MySQL}
+servers from IIS/ASP, VB, VC++ skipping the slower ODBC methods. Fully 
+updatable, multithreaded with full support for all @strong{MySQL} fieldtypes 
+(version 2001.1.1). By SciBit @uref{http://www.scibit.com/}.
 
 @item @uref{http://www.fastflow.it/mylua/, MyLUA home page}
 How to use the LUA language to write @strong{MySQL} @code{PROCEDURE} that can
@@ -41372,7 +41397,7 @@ be loaded runtime.
 @item @uref{http://www.mysql.com/Downloads/Contrib/lua-4.0.tar.gz, Lua 4.0}
 LUA 4.0
 @item @uref{http://www.mysql.com/Downloads/Contrib/mylua-3.23.32.1.tar.gz, mylua-3.23.32.1.tar.gz}
-Patch for MySQL 3.23.32 to use LUA 4.0.  By Cristian Giussani.
+Patch for @strong{MySQL} 3.23.32 to use LUA 4.0.  By Cristian Giussani.
 @end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/patched_myodbc.zip, patched_myodbc.zip}
@@ -41391,10 +41416,11 @@ Freeware JDBC client to graphically visualize the data and structure
 of several databases simultaneously. By Innovative-IT Development AB.
 
 @item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
-The @strong{MySQL} GUI client homepage. By Sinisa at MySQL AB.
+The @strong{MySQL} GUI client homepage. By Sinisa at @strong{MySQL AB}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/secman.zip,  MySQL Security GUI}
-A user and security management GUI for MySQL on Windows. By Martin Jeremic.
+A user and security management GUI for @strong{MySQL} on Windows. 
+By Martin Jeremic.
 @uref{http://jsoft.webjump.com/, Home page for MySQL Security GUI}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1.tar.gz, kmysqladmin-0.4.1.tar.gz}.
@@ -41455,7 +41481,7 @@ An X-based front end to the @strong{MySQL} database engine.  It allows reloads,
 status check, process control, myisamchk, grant/revoke privileges,
 creating databases, dropping databases, create, alter, browse, and drop
 tables.  Originally by Gilbert Therrien, @email{gilbert@@ican.net} but
-now in public domain and supported by MySQL AB.
+now in public domain and supported by @strong{MySQL AB}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/xmysql-1.9.tar.gz, xmysql-1.9.tar.gz}.
 @item @uref{http://web.wt.net/~dblhack, xmysql home page}
@@ -41472,7 +41498,7 @@ A query tool for @strong{MySQL} and PostgreSQL.
 A query tool written in Perl. Uses DBI and Tk.
 @item @uref{http://www.mysql.com/Downloads/Win32/Msc201.EXE, Mascon 2.1.15}
 @item @uref{http://www.mysql.com/Downloads/Win32/FrMsc201.EXE, Free Mascon 2.1.14}
-Mascon is a powerful Win32 GUI for the administering MySQL server
+Mascon is a powerful Win32 GUI for the administering @strong{MySQL} server
 databases. Mascon's features include visual table design, connections to
 multiple servers, data and blob editing of tables, security setting, SQL
 colour coding, dump functionality and much more.
@@ -41487,7 +41513,7 @@ databases written with Java 2. JRetriever displays database
 tables/views in a Windows explorer-like front end. Users can retrieve
 data either by clicking on the table folder or by composing their own SQL
 statements with our built-in SQL editor. The tool has been tested with
-Oracle 8 and MySQL as the back-end databases. It requires JDK 1.3 from
+Oracle 8 and @strong{MySQL} as the back-end databases. It requires JDK 1.3 from
 JavaSoft.
 @end itemize
 
@@ -41556,8 +41582,8 @@ and "post-processing" on both fields, records, and operations.
 @itemize @bullet
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mod_mysql_include_1.0.tar.gz, mod_mysql_include_1.0.tar.gz}
-Apache module to include HTML from MySQL queries into your pages, and
-run update queries.  Originally written to implement a simple fast
+Apache module to include HTML from @strong{MySQL} queries into your pages,
+and run update queries.  Originally written to implement a simple fast
 low-overhead banner-rotation system.  By Sasha Pachev.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}
@@ -41753,7 +41779,8 @@ Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_4.zip, MyAccess97 1.4}.
 @item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_4.zip, MyAccess2000 1.4}.
 
-MyAccess is an AddIn for MS Access 97/2000 that allows you to manage MySQL databases from within Access. Main functions are:
+MyAccess is an AddIn for MS Access 97/2000 that allows you to manage 
+@strong{MySQL} databases from within Access. Main functions are:
 @itemize @minus
 @item Create/Modify Tables
 @item Execute Queries against MySQL
@@ -41776,7 +41803,7 @@ Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mytop, mytop}
 @item @uref{http://public.yahoo.com/~jzawodn/mytop/, mytop home page}
-mytop is a Perl program that allows you to monitor MySQL servers by
+mytop is a Perl program that allows you to monitor @strong{MySQL} servers by
 viewing active threads, queries, and overall server performance
 numbers. By Jeremy D. Zawodny.
 
@@ -41898,10 +41925,10 @@ helped to make @strong{MySQL} what it is today.
 @node Developers, Contributors, Credits, Credits
 @appendixsubsec Developers at MySQL AB
 
-These are the developers that are or have been employed by MySQL AB to work
-on MySQL, roughly in the order they started to work with us.  Following each
-developer is a small list of the tasks that the developer is responsible for,
-or the accomplishments they have made.
+These are the developers that are or have been employed by @strong{MySQL AB}
+to work on @strong{MySQL}, roughly in the order they started to work with us.
+Following each developer is a small list of the tasks that the developer is
+responsible for, or the accomplishments they have made.
 
 @table @asis
 @item Michael (Monty) Widenius
@@ -41941,7 +41968,7 @@ including enhancements to @code{texi2html}.
 @item
 Automatic Web site updating from the manual.
 @item
-Inital Autoconf, Automake, and @code{libtool} support.
+Initial Autoconf, Automake, and Libtool support.
 @item
 The licensing stuff.
 @item
@@ -41983,18 +42010,19 @@ The MySQLGUI client.
 Maintainer of mysql++.
 @end itemize
 
-@item Tõnu Samuel
+@item Tonu Samuel
 @itemize @bullet
 @item
 Our security expert.
 @item
-Vio interface (foundation for the the encrypted client/server protocol).
+Vio interface (The foundation for the the encrypted client/server protocol).
 @item
-MySQL Filesystem (Way to use MySQL databases as files and directories).
+@strong{MySQL} Filesystem (A way to use @strong{MySQL} databases as files
+and directories).
 @item
-CASE Expression 
+The CASE Expression.
 @item
-MD5(), COALESCE()  functions.
+The MD5() and COALESCE() functions.
 @item
 @code{RAID} support for @code{MyISAM} tables.
 @end itemize
@@ -42016,14 +42044,15 @@ mysql-bench
 @item Matt Wagner
 @itemize @bullet
 @item
-@strong{MySQL} test suite
+@strong{MySQL} test suite.
 @item
 Our webmaster.
 @end itemize
 
-@item Miguel Solórzano
+@item Miguel Solorzano
 @itemize @bullet
-Winmysqladmin
+@item
+Winmysqladmin.
 @end itemize
 
 @item Timothy Smith
@@ -42037,7 +42066,7 @@ Responsible for @strong{MySQL} configure.
 @item Sergei Golubchik
 @itemize @bullet
 @item
-Full-text search
+Full-text search.
 @item
 Added keys to the @code{MERGE} library.
 @end itemize
@@ -42062,21 +42091,22 @@ The new @strong{MySQL} GUI client.
 
 @item Indrek Siitan
 @itemize @bullet
+@item
 Designer/programmer of our web interface.
 @end itemize
 @end table
 
-The following non-developers are also working in/with MySQL AB:
+The following non-developers are also working in/with @strong{MySQL AB}:
 
 @table @asis
 @item
-Hans Kierkegaard - Responsible for MySQL license handling.
+Hans Kierkegaard - Responsible for @strong{MySQL} license handling.
 @item
 Antti Halonen - Sales manager.
 @item
 Jonas Norrman - Handles licensing questions sent to @email{info@@mysql.com}.
 @item
-Erik Granberg - Handles MySQL partners (and a lot of other stuff).
+Erik Granberg - Handles @strong{MySQL} partners (and a lot of other stuff).
 @item
 Allan Larsson (The BOSS for TCX DataKonsult AB).
 @end table
@@ -42153,8 +42183,8 @@ For the first @strong{MySQL} manual. And a lot of spelling/language
 fixes for the FAQ (that turned into the @strong{MySQL} manual a long
 time ago).
 @item Yan Cailin
-First translator of the MySQL Reference Manual into simplified chinese
-in early 2000 on which the Big5 and HK coded
+First translator of the @strong{MySQL} Reference Manual into simplified
+chinese in early 2000 on which the Big5 and HK coded
 (@uref{http://mysql.hitstar.com, mysql.hitstar.com}) versions were
 based. @uref{http://linuxdb.yeah.net, Personal home page at
 linuxdb.yeah.net}.
@@ -42319,18 +42349,25 @@ ODBC and VisualC++ interface questions.
 
 The following companies has helped us finance development of
 @strong{MySQL} by either paying us for developing a new feature,
-developed a @strong{MySQL} feature themself or by giving us hardware for
+developed a @strong{MySQL} feature themselves or by giving us hardware for
 @strong{MySQL} development.
 
-@multitable @columnfractions .3 .7
-@item Va Linux / Andover.net @tab Replication
-@item NuSphere @tab Editing of the @strong{MySQL} manual.
-@item Stork Design studio @tab The MySQL web site in use between 1998-2000
-@item Intel @tab Contributed to development on Windows and Linux platforms
-@item Compaq @tab Contributed to Development on Linux-alpha
-@item SWSoft @tab Development on the embedded @code{mysqld} version.
-@item FutureQuest @tab @code{--skip-show-variables}
-@end multitable
+@table @asis
+@item VA Linux / Andover.net 
+Funded replication.
+@item NuSphere
+Editing of the @strong{MySQL} manual.
+@item Stork Design studio
+The @strong{MySQL} web site in use between 1998-2000.
+@item Intel
+Contributed to development on Windows and Linux platforms.
+@item Compaq
+Contributed to Development on Linux/Alpha.
+@item SWSoft
+Development on the embedded @code{mysqld} version.
+@item FutureQuest
+@code{--skip-show-variables}
+@end table
 
 @node News, Bugs, Credits, Top
 @appendix MySQL change history
@@ -42356,8 +42393,8 @@ this means that the version has not yet been released!
 @node News-4.0.x, News-3.23.x, News, News
 @appendixsec Changes in release 4.0.x (Development; Alpha)
 
-We have now started to work on MySQL 4.0.  We will update this section
-as we add new features, so that others can follow our development.
+We have now started to work on @strong{MySQL} 4.0.  We will update this
+section as we add new features, so that others can follow our development.
 
 Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
@@ -42374,10 +42411,9 @@ Changed output format of @code{SHOW OPEN TABLES}.
 @item
 Allow @code{SELECT expression LIMIT ...}.
 @item
-Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like SyBase).
+Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like Sybase).
 @item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
-@item
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -42387,20 +42423,20 @@ The 3.23 release has several major features that are not
 present in previous versions.  We have added three new
 table types:
 
-@itemize @bullet
-@item MyISAM
+@table @asis
+@item @strong{MyISAM}
 A new ISAM library which is tuned for SQL and supports large files.
-@item BerkeleyDB or BDB
+@item @strong{BerkeleyDB} or @strong{BDB}
 Uses the Berkeley DB library from Sleepycat Software to implement 
 transaction-safe tables.  
-@item Innobase
+@item @strong{Innobase}
 A transaction-safe table handler that supports row level locking, and many
 Oracle-like features.
 @c change "three" to "four" above when uncommenting this
 @c @item Gemini
 @c A transaction-safe, row-level locking table handler that supports many
 @c features required in a mission-critical environment.
-@end itemize
+@end table
 
 Note that only MyISAM is available in the standard binary distribution.
 
@@ -42472,15 +42508,15 @@ not yet 100% confident in this code.
 Fixed bug in @code{ALTER TABLE} and @code{LOAD DATA INFILE} that disabled
 key-sorting. These command should now be faster in most cases.
 @item
-Initialize signals early to avoid problem with signals in Innobase..
+Initialize signals early to avoid a problem with signals in Innobase.
 @end itemize
 
 @node News-3.23.36, News-3.23.35, News-3.23.37, News-3.23.x
 @appendixsubsec Changes in release 3.23.36
 @itemize @bullet
 @item
-Fixed that one can't use database names with @code{.}.  This fixes a serious
-security issue when @code{mysqld} is run as root.
+Fixed a bug that allowed you to use database names with @code{.}.  This
+fixes a serious security issue when @code{mysqld} is run as root.
 @item
 Fixed bug when thread creation failed (could happen when doing a LOT
 of connections in a short time).
@@ -42488,18 +42524,18 @@ of connections in a short time).
 Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
 with temporary tables.
 @item
-Fixed a problem in Innobase with with other character sets than
-latin1 and another problem when using many columns.
+Fixed a problem in Innobase with other character sets than @code{latin1}
+and another problem when using many columns.
 @item
-Fixed a core-dump bug when using very complex query involving
+Fixed bug that caused a core dump when using a very complex query involving
 @code{DISTINCT} and summary functions.
 @item
 Added @code{SET TRANSACTION ISOLATION LEVEL ...}
 @item
 Added @code{SELECT ... FOR UPDATE}.
 @item
-Fixed bug where affected rows where not returned when @code{MySQL} was compiled
-without transaction support.
+Fixed bug where the number of affected rows was not returned when @code{MySQL}
+was compiled without transaction support.
 @item
 Fixed a bug in @code{UPDATE} where keys weren't always used to find the
 rows to be updated.
@@ -42534,7 +42570,8 @@ Fixed handling of arguments in the benchmark script @file{run-all-tests}.
 @appendixsubsec Changes in release 3.23.34a
 @itemize @bullet
 @item
-Add extra files to distribution to allow Innobase support to be compiled.
+Added extra files to the distribution to allow @code{INNOBASE} support 
+to be compiled.
 @end itemize
 
 @node News-3.23.34, News-3.23.33, News-3.23.34a, News-3.23.x
@@ -42546,10 +42583,11 @@ to the @strong{MySQL} source distribution.
 @item
 Updated the documentation about @code{GEMINI} tables.
 @item
-Fixed thread-hang-bug in @code{INSERT DELAYED} when inserting
-@code{NULL} into an @code{AUTO_INCREMENT} column.
+Fixed a bug in @code{INSERT DELAYED} that caused threads to hang when 
+inserting @code{NULL} into an @code{AUTO_INCREMENT} column.
 @item
-Fixed thread-hang bug in @code{CHECK TABLE} / @code{REPAIR TABLE}.
+Fixed a bug in @code{CHECK TABLE} / @code{REPAIR TABLE} that could cause
+a thread to hang.
 @item
 @code{REPLACE} will not replace a row that conflicts with an
 @code{auto_increment} generated key.
@@ -42581,22 +42619,22 @@ Fixed problem in automatic repair that could leave some threads in state
 @item
 Fixed bug when replicating timestamps.
 @item
-Fixed bug in bi-directional replication.
+Fixed bug in bidirectional replication.
 @item
-Fixed bug in @code{BDB} tables when using index on multi-part key where a
-key part may be @code{NULL}.
+Fixed bug in the @code{BDB} table handler that occurred when using an index
+on multi-part key where a key part may be @code{NULL}.
 @item
 Fixed @code{MAX()} optimization on sub-key for @code{BDB} tables.
 @item
-Fixed problem with 'garbage results' when using @code{BDB} tables and
-@code{BLOB} or @code{TEXT} fields when joining many tables.
+Fixed problem where garbage results were returned when using @code{BDB} 
+tables and @code{BLOB} or @code{TEXT} fields when joining many tables.
 @item
 Fixed a problem with @code{BDB} tables and @code{TEXT} columns.
 @item
 Fixed bug when using a @code{BLOB} key where a const row wasn't found.
 @item
 Fixed that @code{mysqlbinlog} writes the timestamp value for each query.
-This ensures that on gets same values for date functions like @code{NOW()}
+This ensures that one gets same values for date functions like @code{NOW()}
 when using @code{mysqlbinlog} to pipe the queries to another server.
 @item
 Allow one to use @code{--skip-gemini}, @code{--skip-bdb} and
@@ -42621,8 +42659,8 @@ Added @code{--character-sets-dir} to @code{myisampack}.
 @item
 Removed warnings when running @code{REPAIR TABLE ... EXTENDED}.
 @item
-Fixed core-dump bug when using @code{GROUP BY} on an alias, where
-the alias was the same as an existing column name.
+Fixed a bug that caused a core dump when using @code{GROUP BY} on an alias,
+where the alias was the same as an existing column name.
 @item
 Added @code{SEQUENCE()} as an example UDF function.
 @item
@@ -42643,8 +42681,10 @@ Added option @code{--sort-recover} to @code{myisamchk}.
 @code{myisamchk -S} and @code{OPTIMIZE TABLE} now work on Windows.
 @item
 Fixed bug when using @code{DISTINCT} on results from functions that referred
-to a group function, like
-@code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
+to a group function, like:
+@example
+SELECT a, DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a, b;
+@end example
 @item
 Fixed buffer overrun in @code{libmysqlclient} library.
 Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
@@ -42714,7 +42754,7 @@ to the client until a new update was done.
 Don't convert field names when using @code{mysql_list_fields()}.  This is
 to keep this code compatible with @code{SHOW FIELDS}.
 @item
-@code{MERGE} tables didn't work on windows.
+@code{MERGE} tables didn't work on Windows.
 @item
 Fixed problem with @code{SET PASSWORD=...} on Windows.
 @item
@@ -42726,10 +42766,11 @@ Added @code{--with-version-suffix} to @code{configure}.
 @item
 Fixed coredump when client aborted connection without @code{mysql_close()}.
 @item
-Fixed bug in @code{RESTORE TABLE} when trying to restore from a non-existing
+Fixed a bug in @code{RESTORE TABLE} when trying to restore from a non-existant
 directory.
 @item
-Fixed coredump on the slave replicating @code{SET PASSWORD}.
+Fixed a bug which caused a core dump on the slave when replicating 
+@code{SET PASSWORD}.
 @item
 Added @code{MASTER_POS_WAIT()}.
 @end itemize
@@ -42770,9 +42811,11 @@ Added usage of @code{setrlimit()} on Linux to get
 @item
 Added new @code{mysqld} variable: @code{bdb_version}.
 @item
-Fixed bug when using expression of type
-@code{SELECT ... FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=t2.a}. In this
-case the test in the @code{WHERE} clause was wrongly optimized away.
+Fixed bug when using expression of type:
+@example
+SELECT ... FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=t2.a
+@end example
+In this case the test in the @code{WHERE} clause was wrongly optimized away.
 @item
 Fixed bug in @code{MyISAM} when deleting keys with possible @code{NULL}
 values, but the first key-column was not a prefix-compressed text column.
@@ -42790,7 +42833,7 @@ Added @code{Threads_created} status variable to @code{mysqld}.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
-Added SHOW OPEN TABLES.
+Added @code{SHOW OPEN TABLES} command.
 @item
 Fixed that @code{myisamdump} works against old @code{mysqld} servers.
 @item
@@ -42801,8 +42844,8 @@ on 32-bit systems.
 @item
 @code{LOCK TABLES} will now automatically start a new transaction.
 @item
-Changed BDB tables to not use internal subtransactions and reuse open files to
-get more speed.
+Changed @code{BDB} tables to not use internal subtransactions and reuse
+open files to get more speed.
 @item
 Added option @code{--mysqld=#} to @code{safe_mysqld}.
 @item
@@ -43509,7 +43552,7 @@ Fixed bug where all rows matching weren't updated on a @code{MyISAM} table
 when doing update based on key on a table with many keys and some key changed
 values.
 @item
-The Linux @strong{MySQL} RPM's and binaries are now staticly linked with
+The Linux @strong{MySQL} RPM's and binaries are now statically linked with
 a linuxthread version that has faster mutex handling when used with
 @strong{MySQL}.
 @item
@@ -47108,7 +47151,7 @@ To get the old behavior, use @code{-r} (or @code{--raw}).
 Added german error messages (60 of 80 error messages translated).
 @item
 Added new API function @code{mysql_fetch_lengths(MYSQL_RES *)}, which
-returns an array of of column lengths (of type @code{uint}).
+returns an array of column lengths (of type @code{uint}).
 @item
 Fixed bug with @code{IS NULL} in @code{WHERE} clause.
 @item
@@ -47421,10 +47464,10 @@ easily reclaim the space for the old log by deleting the old one and
 executing @code{mysqladmin refresh}.
 @item
 In the @code{UPDATE} statement, columns are updated from left to right.
-If you refer to a updated column, you will get the updated value instead of the
+If you refer to an updated column, you will get the updated value instead of the
 original value. For example:
 @example
-mysql> UPDATE tbl_name SET KEY=KEY+1,KEY=KEY+1
+mysql> UPDATE tbl_name SET KEY=KEY+1,KEY=KEY+1;
 @end example
 will update @code{KEY} with @code{2} instead of with @code{1}.
 @item
@@ -47512,7 +47555,7 @@ tables are of compatible types.
 @item
 @strong{MySQL} can't yet handle @code{NaN}, @code{-Inf} and @code{Inf}
 values in double. Using these will cause problems when trying to export
-and import data. We should as a intermediate solution change @code{NaN} to
+and import data. We should as an intermediate solution change @code{NaN} to
 @code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
 Minimum respective maximum possible @code{double} value.
 @end itemize
@@ -47601,9 +47644,9 @@ The new file format will enable us to add new column types, more options
 for keys and @code{FOREIGN KEY} support.
 @item
 @code{mysqld} as a library.  This will have the same interface as the
-standard MySQL client (with an extra function to just set up startup
-parameters) but will be faster (no TCP/IP or socket overhead), smaller
-and much easier to use for embedded products.
+standard @strong{MySQL} client (with an extra function to just set up
+startup parameters) but will be faster (no TCP/IP or socket overhead),
+smaller and much easier to use for embedded products.
 
 One will be able to define at link time if one wants to use the
 client/server model or a stand-alone application just by defining which
@@ -48299,8 +48342,9 @@ Make a symbol file for the @code{mysqld} server:
 nm -n libexec/mysqld > /tmp/mysqld.sym
 @end example
 
-Note that many MySQL binary distributions comes with the above file,
-named @code{mysqld.sym.gz}.  In this case you must unpack this by doing
+Note that many @strong{MySQL} binary distributions comes with the above
+file, named @code{mysqld.sym.gz}.  In this case you must unpack this by
+doing:
 @example
 gunzip < bin/mysqld.sym.gz > /tmp/mysqld.sym
 @end example
@@ -48356,7 +48400,7 @@ online at the @uref{http://www.mysql.com/documentation/, @strong{MySQL}
 documentation page}.
 
 If you have started @code{mysqld} with @code{--with-myisam-recover},
-@strong{MySQL} will automaticly check and try to repair @code{MyISAM}
+@strong{MySQL} will automatically check and try to repair @code{MyISAM}
 tables if they are marked as 'not closed properly' or 'crashed'.  If
 this happens, @strong{MySQL} will write an entry in the
 @code{hostname.err} file @code{'Warning: Checking table ...'} which is
@@ -48485,7 +48529,7 @@ flag[,modifier,modifier,...,modifier]
 The currently recognized flag characters are:
 
 @multitable @columnfractions .1 .9
-@item d	@tab Enable output from DBUG_<N> macros for for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. A empty list of keywords implies output for all macros.
+@item d	@tab Enable output from DBUG_<N> macros for for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. An empty list of keywords implies output for all macros.
 @item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. That is, @code{-#D,20} is delay two seconds.
 @item f	@tab Limit debugging and/or tracing, and profiling to the list of named functions.  Note that a null list will disable all functions.	The appropriate "d" or "t" flags must still be given, this flag only limits their actions if they are enabled.
 @item F	@tab Identify the source file name for each line of debug or trace output.
@@ -48495,7 +48539,7 @@ The currently recognized flag characters are:
 @item n	@tab Print the current function nesting depth for each line of debug or trace output.
 @item N @tab Number each line of dbug output.
 @item o @tab Redirect the debugger output stream to the specified file.  The default output is stderr.
-@item O @tab As @code{O} but the file is really flushed between each write. When neaded the file is closed and reopened between each write.
+@item O @tab As @code{O} but the file is really flushed between each write. When needed the file is closed and reopened between each write.
 @item p @tab Limit debugger actions to specified processes. A process must be identified with the DBUG_PROCESS macro and match one in the list for debugger actions to occur.
 @item P @tab Print the current process name for each line of debug or trace output.
 @item r @tab When pushing a new state, do not inherit the previous state's function nesting level. Useful when the output is to start at the left margin.
@@ -48523,7 +48567,7 @@ In @strong{MySQL}, common tags to print (with the @code{d} option) are:
 @node Locking methods, RTS-threads, The DBUG package, Porting
 @appendixsec Locking methods
 
-Currently MySQL only supports table locking for
+Currently @strong{MySQL} only supports table locking for
 @code{ISAM}/@code{MyISAM} and @code{HEAP} tables and page level locking
 for @code{BDB} tables. @xref{Internal locking}.  With @code{MyISAM}
 tables one can freely mix @code{INSERT} and @code{SELECT} without locks
@@ -48589,11 +48633,11 @@ Many scans / @code{GROUP BY} on the whole table without any writers.
 
 Other options than row / page level locking:
 
-Versioning (like we use in MySQL for concurrent inserts) where you can
-have one writer at the same time as many readers.  This means that the
-database/table supports different views for the data depending on when
-one started to access it. Other names for this are time travel, copy
-on write or copy on demand.
+Versioning (like we use in @strong{MySQL} for concurrent inserts) where
+you can have one writer at the same time as many readers.  This means
+that the database/table supports different views for the data depending
+on when one started to access it. Other names for this are time travel,
+copy on write or copy on demand.
 
 Copy on demand is in many case much better than page or row level
 locking; The worst case does, however, use much more memory than
@@ -48617,7 +48661,7 @@ The base @strong{MySQL} setup is VERY tuned for this.
 Concurrent users is not a problem if one doesn't mix updates and selects
 that needs to examine many rows in the same table.
 
-If one mix a insert and deletes on the same table then @code{INSERT DELAY}
+If one mixes inserts and deletes on the same table then @code{INSERT DELAYED}
 may be of great help.
 
 One can also use @code{LOCK TABLES} to speed up things (many updates within
