@@ -71,7 +71,7 @@ struct MBR
     }
   }
 
-  void add_xy(double *px, double *py)
+  void add_xy(const char *px, const char *py)
   { /* Not using "else" for proper one point MBR calculation */
     double x, y;
     float8get(x, px);
