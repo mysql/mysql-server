@@ -2838,7 +2838,7 @@ grant_option:
 	| WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
 
 begin:
-	BEGIN_SYM   { Lex->sql_command = SQLCOM_COMMIT;} opt_work
+	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work
 
 opt_work:
 	/* empty */ {}
