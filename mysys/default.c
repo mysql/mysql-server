@@ -119,8 +119,6 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
   int error= 0;
   DBUG_ENTER("search_files");
 
-  args_used= 0;
-
   /* Check if we want to force the use a specific default file */
   forced_default_file= 0;
   if (*argc >= 2)
@@ -128,12 +126,12 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
     if (is_prefix(argv[0][1],"--defaults-file="))
     {
       forced_default_file= strchr(argv[0][1],'=') + 1;
-      *args_used++;
+      (*args_used)++;
     }
     else if (is_prefix(argv[0][1],"--defaults-extra-file="))
     {
       defaults_extra_file= strchr(argv[0][1],'=') + 1;
-      *args_used++;
+      (*args_used)++;
     }
   }
 
