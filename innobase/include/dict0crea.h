@@ -56,14 +56,17 @@ dict_create_index_step(
 /***********************************************************************
 Truncates the index tree associated with a row in SYS_INDEXES table. */
 
-void
+ulint
 dict_truncate_index_tree(
 /*=====================*/
+				/* out: new root page number, or
+				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
 	rec_t*		rec,	/* in: record in the clustered index of
 				SYS_INDEXES table */
 	mtr_t*		mtr);	/* in: mtr having the latch
-				on the record page */
+				on the record page. The mtr may be
+				committed and restarted in this call. */
 /***********************************************************************
 Drops the index tree associated with a row in SYS_INDEXES table. */
 
