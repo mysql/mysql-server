@@ -103,6 +103,7 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos)
   old_link=info->s->state.key_del[keyinfo->block_size];
   info->s->state.key_del[keyinfo->block_size]=pos;
   mi_sizestore(buff,old_link);
+  info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(key_cache_write(info->s->kfile,pos,buff,
 			      sizeof(buff),
 			      (uint) keyinfo->block_length,
@@ -139,6 +140,7 @@ my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo)
     else
       info->s->state.key_del[keyinfo->block_size]=mi_sizekorr(buff);
   }
+  info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_PRINT("exit",("Pos: %d",pos));
   DBUG_RETURN(pos);
 } /* _mi_new */

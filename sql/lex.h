@@ -191,7 +191,6 @@ static SYMBOL symbols[] = {
   { "LONGBLOB",		SYM(LONGBLOB),0,0},
   { "LONGTEXT",		SYM(LONGTEXT),0,0},
   { "LOW_PRIORITY",	SYM(LOW_PRIORITY),0,0},
-  { "MAX",		SYM(MAX_SYM),0,0},
   { "MASTER",           SYM(MASTER_SYM),0,0}, 
   { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM),0,0}, 
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM),0,0}, 
@@ -388,6 +387,7 @@ static SYMBOL sql_functions[] = {
   { "LPAD",		SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_lpad)},
   { "LTRIM",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ltrim)},
   { "MAKE_SET",		SYM(MAKE_SET_SYM),0,0},
+  { "MAX",		SYM(MAX_SYM),0,0},
   { "MD5",              SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_md5)},
   { "MID",		SYM(SUBSTRING),0,0},	/* unireg function */
   { "MIN",		SYM(MIN_SYM),0,0},

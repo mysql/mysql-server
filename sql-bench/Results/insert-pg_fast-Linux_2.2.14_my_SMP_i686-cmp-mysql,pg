@@ -1,0 +1,85 @@
+Testing server 'PostgreSQL version 7.0.2' at 2000-08-17  3:39:16
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 315 wallclock secs (88.93 usr 13.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  6 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time for insert_duplicates (300000): 321 wallclock secs (88.94 usr 13.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  3 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 52 wallclock secs (22.48 usr  0.64 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_key (10:3000000): 103 wallclock secs (22.46 usr  0.65 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by (10:3000000): 103 wallclock secs (22.63 usr  0.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_diff_key (500:1000):  1 wallclock secs ( 0.23 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range_prefix (5010:42084): 30 wallclock secs ( 2.82 usr  0.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (5010:42084): 29 wallclock secs ( 3.04 usr  0.22 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_key_prefix (200000): 188 wallclock secs (65.88 usr  9.55 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_key (200000): 188 wallclock secs (65.70 usr  9.45 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test of compares with simple ranges
+Time for select_range_prefix (20000:43500): 14 wallclock secs ( 3.46 usr  0.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (20000:43500): 13 wallclock secs ( 3.53 usr  0.50 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_group (111): 223 wallclock secs ( 0.04 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1446 queries in 241 loops of 2500 loops took 602 seconds
+Estimated time for min_max_on_key (15000): 6244 wallclock secs ( 4.77 usr  0.83 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max (60): 53 wallclock secs ( 0.02 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_on_key (100): 112 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count (100): 119 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_big (20): 138 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of keys with functions
+Time for update_of_key (500):  97 wallclock secs (14.01 usr  2.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1): 41 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time for update_of_key_big (501): 559 wallclock secs ( 0.21 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1): 115 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update with key
+Time for update_with_key (100000):  449 wallclock secs (91.48 usr 14.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of all rows
+Time for update_big (500):  1832 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing delete
+Time for delete_key (10000): 15 wallclock secs ( 2.84 usr  0.49 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for delete_big (12): 100 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Insert into table with 16 keys and with a primary key with 16 parts
+Time for insert_key (100000): 1367 wallclock secs (32.13 usr  5.30 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  8 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of keys
+Time for update_of_key (256): 1491 wallclock secs ( 0.07 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1): 2489 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Deleting everything from table
+Time for delete_big_many_keys (2):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Estimated total time: 16506 wallclock secs (446.80 usr 59.36 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -17,8 +17,6 @@
 INCLUDES =		-I$(srcdir)/../include -I../include \
 			@OPENSSL_INCLUDES@
 LDADD =			libvio.la
-			
-
 pkglib_LTLIBRARIES =	libvio.la
 noinst_PROGRAMS	=	
 noinst_HEADERS =	
@@ -42,3 +40,6 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			openssl/x509 openssl/ssl.h openssl/err.h \
 			openssl/pem.h openssl/asn1.h
 
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

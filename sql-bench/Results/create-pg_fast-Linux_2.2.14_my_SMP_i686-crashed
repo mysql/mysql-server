@@ -1,0 +1,26 @@
+Testing server 'PostgreSQL version ???' at 2000-08-17  1:22:04
+
+Testing the speed of creating and droping tables
+Testing with 10000 tables and 10000 loop count
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing create of tables
+Time for create_MANY_tables (10000): 453 wallclock secs ( 7.88 usr  1.24 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  RegisterSharedInvalid: SI buffer overflow
+NOTICE:  RegisterSharedInvalid: SI buffer overflow
+NOTICE:  RegisterSharedInvalid: SI buffer overflow
+NOTICE:  RegisterSharedInvalid: SI buffer overflow
+NOTICE:  InvalidateSharedInvalid: cache state reset
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1): 1410 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Accessing tables
+Time to select_group_when_MANY_tables (10000): 181 wallclock secs ( 2.90 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing drop
+NOTICE:  ShmemAlloc: out of memory 
+NOTICE:  LockAcquire: xid table corrupted
+ERROR:  LockRelation: LockAcquire failed

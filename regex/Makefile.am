@@ -40,3 +40,6 @@ test: re tests
 	./re < tests
 	./re -el < tests
 	./re -er < tests
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

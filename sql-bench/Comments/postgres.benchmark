@@ -1,0 +1,75 @@
+# This file describes how to run MySQL benchmarks with Postgres
+# 
+
+# The test was run on a Intel Xeon 2x 550 Mzh machine with 1G memory,
+# 9G hard disk.  The OS is Suse 6.4, with Linux 2.2.14 compiled with SMP
+# support
+# Both the perl client and the database server is run
+# on the same machine. No other cpu intensive process was used during
+# the benchmark.
+
+#
+#
+# First, install postgresql-7.0.2.tar.gz
+#
+
+#
+# Start by adding the following lines to your ~/.bash_profile or
+# corresponding file. If you are using csh, use ´setenv´.
+#
+
+export POSTGRES_INCLUDE=/usr/local/pgsql/include
+export POSTGRES_LIB=/usr/local/pgsql/lib
+
+PATH=$PATH:/usr/local/pgsql/bin
+MANPATH=$MANPATH:/usr/local/pgsql/man
+
+#
+# Add the following line to /etc/ld.so.conf:
+#
+
+/usr/local/pgsql/lib
+and run ldconfig.
+
+#
+# untar the postgres source distribution and cd to src/
+# run the following commands:
+#
+
+./configure
+gmake
+gmake install
+
+mkdir /usr/local/pgsql/data
+chown postgres /usr/local/pgsql/data
+su - postgres
+/usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
+su postgres -c "/usr/local/pgsql/bin/postmaster -o -F -D /usr/local/pgsql/data" &
+su postgres -c "/usr/local/pgsql/bin/createdb test"
+
+#
+# Second, install packages DBD-Pg-0.95.tar.gz and DBI-1.14.tar.gz,
+# available from http://www.perl.com/CPAN/
+#
+
+#
+# Now we run the test that can be found in the sql-bench directory in the
+# MySQL 3.23 source distribution.
+#
+# We did run two tests:
+# The standard test
+
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql
+
+# and a test where we do a vacuum() after each update.
+# (The time for vacuum() is counted in the book-keeping() column)
+
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast
+
+# If you want to store the results in a output/RUN-xxx file, you should
+# repeate the benchmark with the extra option --log --use-old-result
+# This will create a the RUN file based of the previous results
+#
+
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --log --use-old-result
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast --log --use-old-result
