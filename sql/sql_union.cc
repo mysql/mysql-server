@@ -344,7 +344,8 @@ int st_select_lex_unit::exec()
       if (select_limit_cnt == HA_POS_ERROR)
 	thd->options&= ~OPTION_FOUND_ROWS;
       fake_select->ftfunc_list= &empty_list;
-
+      fake_select->table_list.link_in_list((byte *)&result_table_list,
+					   (byte **)&result_table_list.next);
       res= mysql_select(thd, &ref_pointer_array, &result_table_list,
 			0, item_list, NULL,
 			global_parameters->order_list.elements,
