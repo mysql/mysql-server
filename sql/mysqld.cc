@@ -2237,7 +2237,13 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0,0};
+const char *load_default_groups[]= { 
+#ifdef HAVE_NDBCLUSTER_DB
+"mysql_cluster",
+#endif
+"mysqld","server",MYSQL_BASE_VERSION,0,0};
+static const int load_default_groups_sz=
+sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
@@ -2813,6 +2819,7 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+
   DEBUGGER_OFF;
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
@@ -3184,7 +3191,7 @@ int main(int argc, char **argv)
 	  and we are now stuck with it.
 	*/
 	if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
-	  load_default_groups[3]= argv[1];
+	  load_default_groups[load_default_groups_sz-2]= argv[1];
         start_mode= 1;
         Service.Init(argv[1], mysql_service);
         return 0;
@@ -3205,7 +3212,7 @@ int main(int argc, char **argv)
 	opt_argv=argv;
 	start_mode= 1;
 	if (my_strcasecmp(system_charset_info, argv[2],"mysql"))
-	  load_default_groups[3]= argv[2];
+	  load_default_groups[load_default_groups_sz-2]= argv[2];
 	Service.Init(argv[2], mysql_service);
 	return 0;
       }
@@ -6109,6 +6116,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster= SHOW_OPTION_YES;
     else
       have_ndbcluster= SHOW_OPTION_DISABLED;
+#else
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		 0,"this binary does not contain ndbcluster storage engine");
 #endif
     break;
   case OPT_INNODB:
