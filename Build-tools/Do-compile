@@ -68,6 +68,9 @@ if ($opt_stage == 0)
   if (-x "$host/bin/mysqladmin")
   {
     log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
+    log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
+    log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
+    log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
   }
   system("mkdir $host") if (! -d $host);
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
