@@ -158,6 +158,7 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
   ALL_IN_ONE aio;
   FT_DOCLIST *dlist;
   FT_DOC     *dptr;
+  my_off_t saved_lastpos=((MI_INFO *)info)->lastpos;
 
 /* black magic ON */
   if ((int) (keynr = _mi_check_index((MI_INFO *)info,keynr)) < 0)
@@ -204,6 +205,7 @@ err:
   delete_tree(&aio.dtree);
   delete_tree(wtree);
   my_free((char*) wtree,MYF(0));
+  ((MI_INFO *)info)->lastpos=saved_lastpos;
   return dlist;
 }
 

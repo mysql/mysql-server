@@ -73,7 +73,7 @@ public:
   QUICK_SELECT(TABLE *table,uint index_arg,bool no_alloc=0);
   virtual ~QUICK_SELECT();
   void reset(void) { next=0; it.rewind(); }
-  virtual int init() { return 0; }
+  virtual int init();
   virtual int get_next();
   int cmp_next(QUICK_RANGE *range);
   bool unique_key_range();

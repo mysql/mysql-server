@@ -1840,9 +1840,12 @@ err:
 
 double Item_func_match::val()
 {
-  // Don't know how to return an error from val(), so NULL will be returned
-  if ((null_value=(ft_handler==NULL)))
-    return 0.0;
+  /* If called uninitialized we should return neither NULL nor 0 (important
+     for const_tables) so, let's return -1, which is obviously incorrect
+     for normal operation, and could be easily spotted */
+
+  if (ft_handler==NULL)
+    return -1.0;
 
   if (join_key)
   {
