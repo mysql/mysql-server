@@ -88,12 +88,11 @@ char *innobase_unix_file_flush_method;
 my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
         innobase_use_native_aio, innobase_fast_shutdown;
 
-/*
-  Set default InnoDB size to 64M, to let users use InnoDB without having
-  to specify any startup options.
-*/
+/* Set the default InnoDB tablespace size to 16M, and let it be
+auto-extending. Thus users can use InnoDB without having to specify
+any startup options. */
 
-char *innobase_data_file_path= (char*) "ibdata1:64M";
+char *innobase_data_file_path= (char*) "ibdata1:16M:autoextend";
 char *internal_innobase_data_file_path=0;
 
 /* The following counter is used to convey information to InnoDB
