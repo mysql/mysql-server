@@ -508,6 +508,7 @@ mtr_read_dulint(
 	return(mach_read_from_8(ptr));
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************
 Prints info of an mtr handle. */
 
@@ -521,3 +522,4 @@ mtr_print(
 		dyn_array_get_data_size(&(mtr->memo)),
 		dyn_array_get_data_size(&(mtr->log)));
 }
+#endif /* UNIV_DEBUG */

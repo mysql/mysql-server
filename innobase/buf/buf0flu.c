@@ -31,6 +31,7 @@ flushed along with the original page. */
 #define BUF_FLUSH_AREA		ut_min(BUF_READ_AHEAD_AREA,\
 					       buf_pool->curr_size / 16)
 
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Validates the flush list. */
 static
@@ -38,6 +39,7 @@ ibool
 buf_flush_validate_low(void);
 /*========================*/
 		/* out: TRUE if ok */
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Inserts a modified block into the flush list. */
@@ -488,11 +490,13 @@ buf_flush_try_page(
 			rw_lock_s_lock_gen(&(block->lock), BUF_IO_WRITE);
 		}
 
+#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fprintf(stderr,
 				"Flushing page space %lu, page no %lu \n",
 				block->space, block->offset);
 		}
+#endif /* UNIV_DEBUG */
 
 		buf_flush_write_block_low(block);
 		
@@ -548,11 +552,13 @@ buf_flush_try_page(
 
 		rw_lock_s_lock_gen(&(block->lock), BUF_IO_WRITE);
 
+#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fprintf(stderr,
 			"Flushing single page space %lu, page no %lu \n",
 						block->space, block->offset);
 		}
+#endif /* UNIV_DEBUG */
 
 		buf_flush_write_block_low(block);
 		
@@ -779,6 +785,7 @@ buf_flush_batch(
 
 	buf_flush_buffered_writes();
 
+#ifdef UNIV_DEBUG
 	if (buf_debug_prints && page_count > 0) {
 		ut_a(flush_type == BUF_FLUSH_LRU
 			|| flush_type == BUF_FLUSH_LIST);
@@ -787,6 +794,7 @@ buf_flush_batch(
 			: "Flushed %lu pages in flush list flush\n",
 			page_count);
 	}
+#endif /* UNIV_DEBUG */
 	
 	return(page_count);
 }
@@ -878,6 +886,7 @@ buf_flush_free_margin(void)
 	}
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Validates the flush list. */
 static
@@ -927,3 +936,4 @@ buf_flush_validate(void)
 
 	return(ret);
 }
+#endif /* UNIV_DEBUG */

@@ -266,7 +266,9 @@ waiting, in its lock queue. Solution: We can copy the locks as gap type
 locks, so that also the waiting locks are transformed to granted gap type
 locks on the inserted record. */
 
+#ifdef UNIV_DEBUG
 ibool	lock_print_waits	= FALSE;
+#endif /* UNIV_DEBUG */
 
 /* The lock system */
 lock_sys_t*	lock_sys	= NULL;
@@ -1326,7 +1328,8 @@ lock_rec_has_expl(
 
 	return(NULL);
 }
-			
+
+#ifdef UNIV_DEBUG			
 /*************************************************************************
 Checks if some other transaction has a lock request in the queue. */
 static
@@ -1369,6 +1372,7 @@ lock_rec_other_has_expl_req(
 
 	return(NULL);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Checks if some other transaction has a conflicting explicit lock request
@@ -1657,11 +1661,13 @@ lock_rec_enqueue_waiting(
 
 	ut_a(que_thr_stop(thr));
 
+#ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu in index ",
 			ut_dulint_get_low(trx->id));
 		ut_print_name(stderr, index->name);
 	}
+#endif /* UNIV_DEBUG */
 	
 	return(DB_LOCK_WAIT);	
 }
@@ -1997,10 +2003,12 @@ lock_grant(
                 lock->trx->auto_inc_lock = lock;
         }
 
+#ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu ends\n",
 					ut_dulint_get_low(lock->trx->id));
 	}
+#endif /* UNIV_DEBUG */
 
 	/* If we are resolving a deadlock by choosing another transaction
 	as a victim, then our original transaction may not be in the
@@ -3071,9 +3079,11 @@ lock_deadlock_recursive(
 					lock_table_print(ef, start->wait_lock);
 				}
 
+#ifdef UNIV_DEBUG
 				if (lock_print_waits) {
 					fputs("Deadlock detected\n", stderr);
 				}
+#endif /* UNIV_DEBUG */
 
 				if (ut_dulint_cmp(wait_lock->trx->undo_no,
 							start->undo_no) >= 0) {
@@ -3920,7 +3930,7 @@ loop:
 	if (trx == NULL) {
 		lock_mutex_exit_kernel();
 
-		/* lock_validate(); */
+		ut_ad(lock_validate());
 
 		return;
 	}
@@ -4022,6 +4032,7 @@ loop:
 	goto loop;
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a table. */
 
@@ -4332,6 +4343,7 @@ lock_validate(void)
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /*============ RECORD LOCK CHECKS FOR ROW OPERATIONS ====================*/
 

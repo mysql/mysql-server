@@ -3819,6 +3819,7 @@ dict_foreign_print_low(
 	fputs(" )\n", stderr);
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Prints a table data. */
 
@@ -3851,6 +3852,7 @@ dict_table_print_by_name(
 	dict_table_print_low(table);
 	mutex_exit(&(dict_sys->mutex));
 }
+#endif /* UNIV_DEBUG */
 
 /**************************************************************************
 Prints a table data. */

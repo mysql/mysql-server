@@ -15,6 +15,7 @@ Created 1/16/1996 Heikki Tuuri
 dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0};
 dtype_t* 	dtype_binary 	= &dtype_binary_val;
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates a data type structure. */
 
@@ -33,6 +34,7 @@ dtype_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Prints a data type structure. */
