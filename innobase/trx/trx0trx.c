@@ -274,6 +274,8 @@ trx_free(
 			(ulong)trx->mysql_n_tables_locked);
 
 		trx_print(stderr, trx);		
+
+		ut_print_buf(stderr, (byte*)trx, sizeof(trx_t));
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);

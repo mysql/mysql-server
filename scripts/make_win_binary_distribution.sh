@@ -110,6 +110,10 @@ print_debug "Copying sql-bench to $DIRNAME/bench"
 mkdir $DIRNAME/bench
 cp -fr sql-bench/* $DIRNAME/bench
 
+print_debug "Copying mysql-test to $DIRNAME/mysql-test"
+mkdir $DIRNAME/mysql-test
+cp -fr mysql-test/* $DIRNAME/mysql-test
+
 print_debug "Copying support-files to $DIRNAME"
 cp support-files/* $DIRNAME
 

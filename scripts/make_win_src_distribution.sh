@@ -255,7 +255,7 @@ make -C $SOURCE/ndb windoze
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase mysql-test ndb
+for i in bdb innobase ndb
 do
   copy_dir_dirs $i
 done
@@ -307,7 +307,7 @@ done
 # Raw dirs from source tree
 #
 
-for i in scripts sql-bench SSL tests
+for i in scripts sql-bench mysql-test SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]

@@ -4368,33 +4368,19 @@ longlong Item_func_row_count::val_int()
 Item_func_sp::Item_func_sp(sp_name *name)
   :Item_func(), m_name(name), m_sp(NULL)
 {
-  char *empty_name= (char *) "";
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  bzero(&dummy_table, sizeof(dummy_table));
-  dummy_table.share.table_cache_key = empty_name;
-  dummy_table.share.table_name = empty_name;
-  dummy_table.table.alias = empty_name;
-  dummy_table.share.table_name = empty_name;
-  dummy_table.table.maybe_null = maybe_null;
-  dummy_table.table.in_use= current_thd;
-  dummy_table.table.s = &dummy_table.share;
+  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
+  bzero(dummy_table, sizeof(TABLE));
 }
 
 Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   :Item_func(list), m_name(name), m_sp(NULL)
 {
-  char *empty_name= (char *) "";
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  bzero(&dummy_table, sizeof(dummy_table));
-  dummy_table.share.table_cache_key = empty_name;
-  dummy_table.share.table_name = empty_name;
-  dummy_table.table.alias = empty_name;
-  dummy_table.share.table_name = empty_name;
-  dummy_table.table.maybe_null = maybe_null;
-  dummy_table.table.in_use= current_thd;
-  dummy_table.table.s = &dummy_table.share;
+  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
+  bzero(dummy_table, sizeof(TABLE));
 }
 
 const char *
@@ -4426,7 +4412,21 @@ Item_func_sp::sp_result_field(void) const
   THD *thd= current_thd;
   DBUG_ENTER("Item_func_sp::sp_result_field");
   if (m_sp)
-    field= m_sp->make_field(max_length, name, &dummy_table.table);
+  {
+    if (dummy_table->s == NULL)
+    {
+      char *empty_name= (char *) "";
+      TABLE_SHARE *share;
+      dummy_table->s= share= &dummy_table->share_not_to_be_used;      
+      dummy_table->alias = empty_name;
+      dummy_table->maybe_null = maybe_null;
+      dummy_table->in_use= current_thd;
+      share->table_cache_key = empty_name;
+      share->table_name = empty_name;
+      share->table_name = empty_name;
+    }
+    field= m_sp->make_field(max_length, name, dummy_table);
+  }
   DBUG_RETURN(field);
 }
 

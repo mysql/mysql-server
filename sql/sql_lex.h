@@ -860,7 +860,7 @@ typedef struct st_lex
 
   inline bool requires_prelocking()
   {
-    return query_tables_own_last;
+    return test(query_tables_own_last);
   }
   inline void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
   {
