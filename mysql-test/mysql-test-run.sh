@@ -670,7 +670,7 @@ report_stats () {
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
-        $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
+        $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
     fi
 
     if test -z "$USE_RUNNING_SERVER"

@@ -46,12 +46,29 @@ static bool make_empty_rec(int file, enum db_type table_type,
 			   List<create_field> &create_fields,
 			   uint reclength,uint null_fields);
 
+/*
+  Create a frm (table definition) file
 
-int mysql_create_frm(THD *thd, my_string file_name,
-		     HA_CREATE_INFO *create_info,
-		     List<create_field> &create_fields,
-		     uint keys, KEY *key_info,
-		     handler *db_file)
+  SYNOPSIS
+    mysql_create_frm()
+    thd			Thread handler
+    file_name		Name of file (including database and .frm)
+    create_info		create info parameters
+    create_fields	Fields to create
+    keys		number of keys to create
+    key_info		Keys to create
+    db_file		Handler to use. May be zero, in which case we use
+    			create_info->db_type
+  RETURN
+    0  ok
+    1  error
+*/
+
+bool mysql_create_frm(THD *thd, my_string file_name,
+		      HA_CREATE_INFO *create_info,
+		      List<create_field> &create_fields,
+		      uint keys, KEY *key_info,
+		      handler *db_file)
 {
   uint reclength,info_length,screens,key_info_length,maxlength,null_fields;
   File file;
@@ -166,8 +183,28 @@ err:
 err2:
   VOID(my_close(file,MYF(MY_WME)));
 err3:
+  my_delete(file_name,MYF(0));
   DBUG_RETURN(1);
 } /* mysql_create_frm */
+
+
+/*
+  Create a frm (table definition) file and the tables
+
+  SYNOPSIS
+    mysql_create_frm()
+    thd			Thread handler
+    file_name		Name of file (including database and .frm)
+    create_info		create info parameters
+    create_fields	Fields to create
+    keys		number of keys to create
+    key_info		Keys to create
+    db_file		Handler to use. May be zero, in which case we use
+    			create_info->db_type
+  RETURN
+    0  ok
+    1  error
+*/
 
 int rea_create_table(THD *thd, my_string file_name,
 		     HA_CREATE_INFO *create_info,
@@ -179,12 +216,8 @@ int rea_create_table(THD *thd, my_string file_name,
   if (mysql_create_frm(thd, file_name, create_info,
   		       create_fields, keys, key_info, NULL) ||
       ha_create_table(file_name,create_info,0))
-    goto err;
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
-
-err:
-  my_delete(file_name,MYF(0));
-  DBUG_RETURN(1);
 } /* rea_create_table */
 
 
