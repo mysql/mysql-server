@@ -85,7 +85,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
 char *innobase_data_home_dir, *innobase_data_file_path;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 char *innobase_unix_file_flush_method;
-bool innobase_flush_log_at_trx_commit, innobase_log_archive,
+my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
   innobase_use_native_aio, innobase_fast_shutdown;
 
 /* innobase_data_file_path=ibdata:15,idata2:1,... */
