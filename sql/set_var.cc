@@ -583,7 +583,7 @@ struct show_var_st init_vars[]= {
   {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
-  {"character-sets-dir",      mysql_charsets_dir,                   SHOW_CHAR},
+  {"character_sets_dir",      mysql_charsets_dir,                   SHOW_CHAR},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_collation_database.name,(char*) &sys_collation_database,     SHOW_SYS},
