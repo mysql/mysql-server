@@ -925,7 +925,7 @@ case $SYSTEM_TYPE in
     ;;
   *freebsd*)
     echo "Adding fix for interrupted reads"
-    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
+    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
     ;;
   *netbsd*)
     echo "Adding flag -Dunix"
