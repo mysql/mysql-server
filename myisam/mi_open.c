@@ -506,20 +506,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
   /* Allocate buffer for one record */
 
-  extra=0;
-  if (share->options & HA_OPTION_PACK_RECORD)
-    extra=ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
-      MI_DYN_DELETE_BLOCK_HEADER;
-
-  tmp_length=max(share->base.pack_reclength,share->base.max_key_length);
-  info.alloced_rec_buff_length=tmp_length;
-  if (!(info.rec_alloc=(byte*) my_malloc(tmp_length+extra+8,
-					 MYF(MY_WME | MY_ZEROFILL))))
+  /* prerequisites: bzero(info) && info->s=share; are met. */
+  if (!mi_fix_rec_buff_for_blob(&info, 0))
     goto err;
-  if (extra)
-    info.rec_buff=info.rec_alloc+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER);
-  else
-    info.rec_buff=info.rec_alloc;
+  bzero(info.rec_alloc, info.alloced_rec_buff_length);
 
   *m_info=info;
 #ifdef THREAD
