@@ -3590,7 +3590,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
 int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
-  uint counter;
+  uint counter, revoked;
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[4];
@@ -3628,10 +3628,9 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       as privileges are removed, removal occurs in a repeated loop
       until no more privileges are revoked.
      */
-    while (1)
+    do
     {
-      int revoke= 0;
-      for (counter= 0 ; counter < acl_dbs.elements ; )
+      for (counter= 0, revoked= 0 ; counter < acl_dbs.elements ; )
       {
 	const char *user,*host;
 	
@@ -3644,25 +3643,25 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
-	    result= -1;
-	  else
+	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
 	  {
-	    revoke= 1;
+	    /*
+	      Don't increment counter as replace_db_table deleted the
+	      current element in acl_dbs.
+	     */
+	    revoked= 1;
 	    continue;
 	  }
+	  result= -1; // Something went wrong
 	}
-	++counter;
+	counter++;
       }
-      if (!revoke)
-	break;
-    }
+    } while (revoked);
 
     /* Remove column access */
-    while (1)
+    do
     {
-      int revoke= 0;
-      for (counter= 0 ; counter < column_priv_hash.records ; )
+      for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
       {
 	const char *user,*host;
 	GRANT_TABLE *grant_table= (GRANT_TABLE*)hash_element(&column_priv_hash,
@@ -3679,36 +3678,32 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				  grant_table->db,
 				  grant_table->tname,
 				  ~0, 0, 1))
+	  {
 	    result= -1;
+	  }
 	  else
 	  {
-	    if (grant_table->cols)
+	    if (!grant_table->cols)
 	    {
-	      List<LEX_COLUMN> columns;
-	      if (replace_column_table(grant_table,tables[3].table, *lex_user,
-				       columns,
-				       grant_table->db,
-				       grant_table->tname,
-				       ~0, 1))
-		result= -1;
-	      else
-	      {
-		revoke= 1;
-		continue;
-	      }
-	    }
-	    else
-	    {
-	      revoke= 1;
+	      revoked= 1;
 	      continue;
 	    }
+	    List<LEX_COLUMN> columns;
+	    if (!replace_column_table(grant_table,tables[3].table, *lex_user,
+				     columns,
+				     grant_table->db,
+				     grant_table->tname,
+				     ~0, 1))
+	    {
+	      revoked= 1;
+	      continue;
+	    }
+	    result= -1;
 	  }
 	}
-	++counter;
+	counter++;
       }
-      if (!revoke)
-	break;
-    }
+    } while (revoked);
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
