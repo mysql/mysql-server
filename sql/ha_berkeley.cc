@@ -796,7 +796,8 @@ int ha_berkeley::write_row(byte * record)
   else
   {
     DB_TXN *sub_trans = transaction;
-    ulong thd_options = table->in_use->options;
+    /* Don't use sub transactions in temporary tables (in_use == 0) */
+    ulong thd_options = table->in_use ? table->in_use->options : 0;
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
       key_map changed_keys = 0;
@@ -1014,7 +1015,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   DBT prim_key, key, old_prim_key;
   int error;
   DB_TXN *sub_trans;
-  ulong thd_options = table->in_use->options;
+  ulong thd_options = table->in_use ? table->in_use->options : 0;
   bool primary_key_changed;
   DBUG_ENTER("update_row");
 
@@ -1112,23 +1113,6 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	  break;
 	}
       }
-#ifdef BROKEN_CODE_HERE
-      int new_error;
-      DBUG_PRINT("error",("Got error %d",error));
-      if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
-      {
-	DBUG_PRINT("trans",("aborting subtransaction"));
-        new_error=txn_abort(sub_trans);
-      }
-      else if (changed_keys)
-	new_error=restore_keys(changed_keys, primary_key,
-			       old_row, old_prim_key, new_row, prim_key);
-      if (new_error)
-      {
-	error=new_error;			// This shouldn't happen
-	break;
-      }
-#endif
     }
     else if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
@@ -1227,7 +1211,7 @@ int ha_berkeley::delete_row(const byte * record)
   int error;
   DBT row, prim_key;
   key_map keys=table->keys_in_use;
-  ulong thd_options = table->in_use->options;
+  ulong thd_options = table->in_use ? table->in_use->options : 0;
   DBUG_ENTER("delete_row");
   statistic_increment(ha_delete_count,&LOCK_status);
 

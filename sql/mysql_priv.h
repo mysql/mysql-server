@@ -164,7 +164,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE OPTION_QUOTE_SHOW_CREATE*2
+#define OPTION_STATUS_NO_TRANS_UPDATE OPTION_INTERNAL_SUBTRANSACTIONS*2
 
 /* The following is set when parsing the query */
 #define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2

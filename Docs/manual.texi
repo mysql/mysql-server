@@ -25511,12 +25511,13 @@ system:
 
 @itemize @bullet
 @item
-Upgrade both slave and master to Version 3.23.15 or higher. We recommend that
-you always use the latest release of Version 3.23 on both the slave and the
-master. While Version 3.23 is in beta, the versions may be not backwards
-compatible. In addition, the newer version will fix some bugs and add
-new features. Please, do not report bugs until you have verified that
-the problem is present in the latest release.
+Upgrade both slave and master to Version 3.23.15 or higher. We recommend
+that you always use the latest release of Version 3.23 on both the slave
+and the master. The binary log format has also changed a couple of times
+during development (before 3.23.29) so you should delete old binary logs
+when upgrading @strong{MySQL}. In addition, the newer version will fix
+some bugs and add new features. Please, do not report bugs until you
+have verified that the problem is present in the latest release.
 @item
 Set up special replication user(s) on the master with the @code{FILE}
 privilege and permission to connect from all the slaves. If the user is
@@ -25524,16 +25525,18 @@ only doing replication, you don't need to grant him other privileges.
 @item
 Take a snapshot of all the tables/databases on the master that could
 possibly be involved in the update queries before taking the next step.
-Starting in Version 3.23.21, there is a command that allows you to
-take a snapshot of a table on the master and copy it to the slave, called
-@code{LOAD TABLE FROM MASTER}. Until Version 3.23.23, though, it has a serious
-bug, and we recommend that you do not use it until you have upgraded.
+Starting in Version 3.23.21, there is a command that allows you to take
+a snapshot of a table on the master and copy it to the slave, called
+@code{LOAD TABLE FROM MASTER}. Until Version 3.23.23, though, it has a
+serious bug, and we recommend that you do not use it until you have
+upgraded.
 
 @item
-In @code{my.cnf} on the master add @code{log-bin} and restart it. Make
-sure there are no important updates to the master between the time you
-have taken the snapshot and the time the master is restarted with
-@code{log-bin} option.
+In @code{my.cnf} on the master add @code{log-bin} and
+@code{server-id=unique number} and restart it. Make sure there are no
+important updates to the master between the time you have taken the
+snapshot and the time the master is restarted with @code{log-bin}
+option.
 @item
 Load the snapshot of the master to all the slaves.
 @item
@@ -25543,16 +25546,10 @@ Add the following to @code{my.cnf} on the slave(s):
 master-host=<hostname of the master>
 master-user=<replication user name>
 master-password=<replication user password>
+server-id=<some unique number between 1 and 2^32-1>
 @end example
 
 replacing the values in <> with what is relevant to your system.
-
-Starting in Version 3.23.26, you must also have on both master and
-slave
-
-@example
-server-id=<some unique number between 1 and 2^32-1>
-@end example
 
 @code{server-id} must be different for each server participating in
 replication.  If you don't specify a server-id, it will be set to
@@ -25564,6 +25561,17 @@ replication.  If you don't specify a server-id, it will be set to
 
 After you have done the above, the master and the slave(s) should be in
 sync.
+
+If you have forgot to set server-id for the slave you will get the following
+error in the error log file:
+
+@example
+Warning: one should set server_id to a non-0 value if master_host is set.
+The server will not act as a slave.
+@end example
+
+If you have forgot to do this for the master, the slaves will not be able to
+connect to the master.
 
 @cindex options, replication
 @cindex @code{my.cnf} file
@@ -33620,7 +33628,7 @@ Drop or rename @code{old_table}.
 
 @cindex replication
 @menu
-* Log Replication::             Database replication with  update log
+* Log Replication::             Database replication with update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Binary log::                  The binary log
@@ -33637,12 +33645,13 @@ Now that master-slave internal replication is available starting in
 Version 3.23.15, this is the recommended way. @xref{Replication}.
 
 However, it is still possible to replicate a database by using the
-update log. @xref{Update log}. This requires one database that acts as a
-master (to which data changes are made) and one or more other databases
-that act as slaves. To update a slave, just run @code{mysql <
-update_log}.  Supply host, user, and password options that are
-appropriate for the slave database, and use the update log from the
-master database as input.
+update log or the binary log. @xref{Update log}. This requires one
+database that acts as a master (to which data changes are made) and one
+or more other databases that act as slaves. To update a slave, just run
+@code{mysql < update_log.*} or @code{mysqlbinlog binary_log.* | mysql}.
+Supply host, user, and password options that are appropriate for the
+slave database, and use the update log from the master database as
+input.
 
 If you never delete anything from a table, you can use a @code{TIMESTAMP}
 column to find out which rows have been inserted or changed in the table
@@ -33735,6 +33744,10 @@ a unique key value.
 @cindex files, update log
 @node Update log, Binary log, Backup, Common problems
 @section The Update Log
+
+@strong{NOTE}: The update log is replaced by the binary
+log. @xref{Binary log}.  With this you can do anything that you can do
+with the update log.
 
 When started with the @code{--log-update[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that update
@@ -40004,6 +40017,9 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+Changed BDB tables to not use internal subtransactions and reuse open files to
+get more speed.
 @item
 Added option @code{--mysqld=#} to @code{safe_mysqld}
 @item

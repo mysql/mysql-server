@@ -57,7 +57,6 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
     x->index_file_length=info->state->key_file_length;
 
     x->keys	 	= share->state.header.keys;
-    x->key_map	 	= share->state.key_map;
     x->check_time	= share->state.check_time;
     x->mean_reclength	= info->state->records ?
       (ulong) (info->state->data_file_length-info->state->empty)/
@@ -87,6 +86,7 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
     x->raid_type= share->base.raid_type;
     x->raid_chunks= share->base.raid_chunks;
     x->raid_chunksize= share->base.raid_chunksize;
+    x->key_map	 	= share->state.key_map;
   }
   if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile,&state,MYF(0)))
     x->update_time=state.st_mtime;
