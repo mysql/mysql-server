@@ -46,7 +46,7 @@ rename table t7 to t9;
 drop table t1;
 Got one of the listed errors
 Warnings:
-Note	1008	Can't drop database 'test_mysqltest'. Database doesn't exist
+Note	1008	Can't drop database 'test_mysqltest'; database doesn't exist
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
