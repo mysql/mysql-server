@@ -705,11 +705,19 @@ int flush_key_blocks(File file, enum flush_type type)
 
 static int flush_all_key_blocks()
 {
-  int error=0;
-  while (_my_blocks_changed > 0)
-    if (flush_key_blocks_int(_my_used_first->file, FLUSH_RELEASE))
-      error=1;
-  return error;
+  SEC_LINK **block, **end;
+  for (block= changed_blocks, end= block+CHANGED_BLOCKS_HASH;
+       block < end;
+       block++
+       )
+  {
+    while (*block)
+    {
+      if (flush_key_blocks_int((*block)->file, FLUSH_RELEASE))
+	return 1;
+    }
+  }
+  return 0;
 }
 
 
