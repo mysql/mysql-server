@@ -251,9 +251,10 @@ id	ggid	email	passwd
 id	ggid	email	passwd
 2	test2		yyy
 id	ggid	email	passwd
-2	test2		yyy
-100	test2		xxx
+1	this will work		
+3	test2		this will work
 id	ggid	email	passwd
+1	this will work		
 id	ggid	email	passwd
 user_name	password	subscribed	user_id	quota	weight	access_date	access_time	approved	dummy_primary_key
 user_0	somepassword	N	0	0	0	2000-09-07	23:06:59	2000-09-07 23:06:59	1

@@ -263,7 +263,7 @@ static void decrease_user_connections(const char *user, const char *host)
 {
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   int temp_len;
-  struct user_conn uucc, *uc;
+  struct user_conn *uc;
   if (!max_user_connections)
     return;
   if (!user)
@@ -285,7 +285,7 @@ static void decrease_user_connections(const char *user, const char *host)
   if (! --uc->connections)
   {
     /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(char *) uc);
+    (void) hash_delete(&hash_user_connections,(byte*) uc);
   }
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);

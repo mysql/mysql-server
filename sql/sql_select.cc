@@ -4451,7 +4451,8 @@ join_init_read_first_with_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",error);
+      sql_print_error("read_first_with_key: Got error %d when reading table",
+		      error);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4499,7 +4500,7 @@ join_init_read_last_with_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",
+      sql_print_error("read_last_with_key: Got error %d when reading table",
 		      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5176,7 +5177,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	  tab->index=nr;
 	  tab->read_first_record=  (flag > 0 ? join_init_read_first_with_key:
 				    join_init_read_last_with_key);
-	  tab->table->file->index_init(tab->index);
+	  table->file->index_init(nr);
 	  tab->type=JT_NEXT;	// Read with index_first(), index_next()
 	  DBUG_RETURN(1);
 	}
