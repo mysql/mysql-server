@@ -250,3 +250,4 @@
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
 "Cyclic reference on subqueries",
+"Reference '%-.64s' not supported (%s)",
