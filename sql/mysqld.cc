@@ -291,8 +291,13 @@ my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
+const char *opt_ndb_connectstring= 0;
+char opt_ndb_constrbuf[1024];
+unsigned opt_ndb_constrbuf_len;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
-ulong opt_ndb_cache_check_time= 0;
+ulong opt_ndb_cache_check_time;
+const char *opt_ndb_mgmd_host;
+ulong opt_ndb_nodeid;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
@@ -4173,6 +4178,7 @@ enum options_mysqld
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
+  OPT_NDB_MGMD_HOST, OPT_NDB_NODEID,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4664,9 +4670,19 @@ Disable with --skip-ndbcluster (will save memory).",
 #ifdef HAVE_NDBCLUSTER_DB
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
-   (gptr*) &opt_ndbcluster_connectstring,
-   (gptr*) &opt_ndbcluster_connectstring,
+   (gptr*) &opt_ndb_connectstring,
+   (gptr*) &opt_ndb_connectstring,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ndb-mgmd-host", OPT_NDB_MGMD_HOST,
+   "Set host and port for ndb_mgmd. Syntax: hostname[:port]",
+   (gptr*) &opt_ndb_mgmd_host,
+   (gptr*) &opt_ndb_mgmd_host,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ndb-nodeid", OPT_NDB_NODEID,
+   "Nodeid for this mysqlserver in the cluster.",
+   (gptr*) &opt_ndb_nodeid,
+   (gptr*) &opt_ndb_nodeid,
+   0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-autoincrement-prefetch-sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
    "Specify number of autoincrement values that are prefetched.",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
@@ -4705,9 +4721,10 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndb_optimized_node_selection,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   { "ndb_cache_check_time", OPT_NDB_CACHE_CHECK_TIME,
-    "A dedicated thread is created to update cached commit count value at the given interval.",
-    (gptr*) &opt_ndb_cache_check_time, (gptr*) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
-    0, 0, LONG_TIMEOUT, 0, 1, 0},
+    "A dedicated thread is created to update cached commit count value"
+    " at the given interval.",
+    (gptr*) &opt_ndb_cache_check_time, (gptr*) &opt_ndb_cache_check_time,
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 1, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
@@ -6504,6 +6521,31 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster= SHOW_OPTION_DISABLED;
 #endif
     break;
+#ifdef HAVE_NDBCLUSTER_DB
+  case OPT_NDB_MGMD_HOST:
+  case OPT_NDB_NODEID:
+  {
+    const char *tmp="";
+    if (optid == OPT_NDB_NODEID)
+      tmp= "nodeid=";
+    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
+			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
+			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
+			 tmp, argument);
+    opt_ndb_constrbuf_len+= len;
+  }
+  /* fall through to add the connectstring to the end
+   * and set opt_ndbcluster_connectstring
+   */
+  case OPT_NDB_CONNECTSTRING:
+    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
+      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
+		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
+		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
+		  opt_ndb_connectstring);
+    opt_ndbcluster_connectstring= opt_ndb_constrbuf;
+    break;
+#endif
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
