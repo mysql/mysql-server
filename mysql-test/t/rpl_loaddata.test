@@ -112,3 +112,18 @@ stop slave;
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
+
+# Finally, see if logging is done ok on master for a failing LOAD DATA INFILE
+
+connection master;
+reset master;
+create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
+unique(day));
+--error 1062;
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
+'\n##\n' starting by '>' ignore 1 lines;
+# To test that there is Create_file & Delete_file, we test if the binlog is as
+# long as expected (can't do SHOW BINLOG EVENTS because of varying file_id).
+show master status;
+drop table t2;
