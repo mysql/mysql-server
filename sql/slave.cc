@@ -699,7 +699,16 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     Note that changing the order of the tables in the list can lead to
     different results. Note also the order of precedence of the do/ignore 
     rules (see code below). For that reason, users should not set conflicting 
-    rules because they may get unpredicted results.
+    rules because they may get unpredicted results (precedence order is
+    explained in the manual).
+    If no table of the list is marked "updating" (so far this can only happen
+    if the statement is a multi-delete (SQLCOM_DELETE_MULTI) and the "tables"
+    is the tables in the FROM): then we always return 0, because there is no
+    reason we play this statement on this slave if it updates nothing. In the
+    case of SQLCOM_DELETE_MULTI, there will be a second call to tables_ok(),
+    with tables having "updating==TRUE" (those after the DELETE), so this
+    second call will make the decision (because
+    all_tables_not_ok() = !tables_ok(1st_list) && !tables_ok(2nd_list)).
 
   RETURN VALUES
     0           should not be logged/replicated
@@ -708,6 +717,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 
 int tables_ok(THD* thd, TABLE_LIST* tables)
 {
+  bool some_tables_updating= 0;
   DBUG_ENTER("tables_ok");
 
   for (; tables; tables = tables->next)
@@ -718,6 +728,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
 
     if (!tables->updating) 
       continue;
+    some_tables_updating= 1;
     end= strmov(hash_key, tables->db ? tables->db : thd->db);
     *end++= '.';
     len= (uint) (strmov(end, tables->real_name) - hash_key);
@@ -740,10 +751,13 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
   }
 
   /*
+    If no table was to be updated, ignore statement (no reason we play it on
+    slave, slave is supposed to replicate _changes_ only).
     If no explicit rule found and there was a do list, do not replicate.
     If there was no do list, go ahead
   */
-  DBUG_RETURN(!do_table_inited && !wild_do_table_inited);
+  DBUG_RETURN(some_tables_updating &&
+              !do_table_inited && !wild_do_table_inited);
 }
 
 
