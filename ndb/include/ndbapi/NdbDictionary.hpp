@@ -387,6 +387,7 @@ public:
     static const Column * FRAGMENT;
     static const Column * ROW_COUNT;
     static const Column * COMMIT_COUNT;
+    static const Column * RANGE_NO;
 #endif
     
   private:

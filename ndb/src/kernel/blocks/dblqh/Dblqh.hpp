@@ -2008,8 +2008,10 @@ public:
     BlockReference tcTuxBlockref;
     BlockReference tcTupBlockref;
     Uint32 commitAckMarker;
-    UintR noFiredTriggers;
-
+    union {
+      Uint32 m_scan_curr_range_no;
+      UintR noFiredTriggers;
+    };
     Uint16 errorCode;
     Uint16 logStartPageIndex;
     Uint16 logStartPageNo;

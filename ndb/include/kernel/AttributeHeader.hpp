@@ -34,9 +34,10 @@ public:
    * Psuedo columns
    */
   STATIC_CONST( PSUEDO       = 0x8000 );
-  STATIC_CONST( FRAGMENT     = 0xFFFE );
-  STATIC_CONST( ROW_COUNT    = 0xFFFD );
-  STATIC_CONST( COMMIT_COUNT = 0xFFFC );
+  STATIC_CONST( FRAGMENT     = 0xFFFE ); // Read fragment no
+  STATIC_CONST( ROW_COUNT    = 0xFFFD ); // Read row count (committed)
+  STATIC_CONST( COMMIT_COUNT = 0xFFFC ); // Read commit count
+  STATIC_CONST( RANGE_NO     = 0xFFFB ); // Read range no (when batched ranges)
   
   /** Initialize AttributeHeader at location aHeaderPtr */
   static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 

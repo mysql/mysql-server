@@ -2619,12 +2619,20 @@ Dblqh::execREAD_PSUEDO_REQ(Signal* signal){
   regTcPtr.i = signal->theData[0];
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
   
-  FragrecordPtr regFragptr;
-  regFragptr.i = regTcPtr.p->fragmentptr;
-  ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
-
-  signal->theData[0] = regFragptr.p->accFragptr[regTcPtr.p->localFragptr];
-  EXECUTE_DIRECT(DBACC, GSN_READ_PSUEDO_REQ, signal, 2);
+  if(signal->theData[1] != AttributeHeader::RANGE_NO)
+  {
+    jam();
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr.p->fragmentptr;
+    ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
+    
+    signal->theData[0] = regFragptr.p->accFragptr[regTcPtr.p->localFragptr];
+    EXECUTE_DIRECT(DBACC, GSN_READ_PSUEDO_REQ, signal, 2);
+  }
+  else
+  {
+    signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
+  }
 }
 
 /* ************>> */
@@ -7860,11 +7868,12 @@ Dblqh::copy_bounds(Uint32 * dst, TcConnectionrec* tcPtrP)
     }
     
     Uint32 first = (* (dst - left)); // First word in range
-    (* (dst - left)) = (first & 0xFFFF); // Remove length (16 upper bits)
     
     // Length of this range
     Uint8 offset;
     const Uint32 len = (first >> 16) ? (first >> 16) : totalLen;
+    tcPtrP->m_scan_curr_range_no = (first & 0xFFF0) >> 4;
+    (* (dst - left)) = (first & 0xF); // Remove length & range no 
     
     if(len < left)
     {
@@ -8740,6 +8749,7 @@ void Dblqh::initScanTc(Signal* signal,
   tcConnectptr.p->listState = TcConnectionrec::NOT_IN_LIST;
   tcConnectptr.p->commitAckMarker = RNIL;
   tcConnectptr.p->m_offset_current_keybuf = 0;
+  tcConnectptr.p->m_scan_curr_range_no = 0;
 
   tabptr.p->usageCount++;
 }//Dblqh::initScanTc()
