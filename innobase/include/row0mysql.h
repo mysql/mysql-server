@@ -291,6 +291,16 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL. */
+
+ibool
+row_is_mysql_tmp_table_name(
+/*========================*/
+				/* out: TRUE if temporary table */
+	const char*	name);	/* in: table name in the form
+				'database/tablename' */
+/*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
 printing of monitor output by the master thread. */
