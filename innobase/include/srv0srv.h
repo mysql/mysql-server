@@ -168,6 +168,7 @@ what these mean */
 #define SRV_UNIX_O_DSYNC     2
 #define SRV_UNIX_LITTLESYNC  3
 #define SRV_UNIX_NOSYNC      4
+#define SRV_UNIX_O_DIRECT    5
 
 /* Alternatives for file i/o in Windows */
 #define SRV_WIN_IO_NORMAL		1

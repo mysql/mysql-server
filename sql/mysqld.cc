@@ -1966,12 +1966,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
   if (type == LOG_BIN)
   {
     char *p = fn_ext(opt_name);
-    if (p)
-    {
-      uint length=(uint) (p-opt_name);
-      strmake(tmp,opt_name,min(length,FN_REFLEN));
-      opt_name=tmp;
-    }
+    uint length=(uint) (p-opt_name);
+    strmake(tmp,opt_name,min(length,FN_REFLEN));
+    opt_name=tmp;
   }
   return log->open(opt_name, type, 0, index_file_name,
 		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
@@ -2019,6 +2016,17 @@ int main(int argc, char **argv)
   }
 #endif
 
+  /*
+    Init mutexes for the global MYSQL_LOG objects.
+    As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
+    global MYSQL_LOGs in their constructors, because then they would be inited
+    before MY_INIT(). So we do it here.
+  */
+  mysql_log.init_pthread_objects();
+  mysql_update_log.init_pthread_objects();
+  mysql_slow_log.init_pthread_objects();
+  mysql_bin_log.init_pthread_objects();
+  
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
