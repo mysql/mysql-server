@@ -29,14 +29,13 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   // check for empty tree
   if (treePos.m_loc == NullTupLoc) {
     jam();
-    insertNode(signal, node, AccPref);
+    insertNode(signal, node);
     nodePushUp(signal, node, 0, ent);
     node.setSide(2);
     tree.m_root = node.m_loc;
     return;
   }
-  // access full node
-  selectNode(signal, node, treePos.m_loc, AccFull);
+  selectNode(signal, node, treePos.m_loc);
   // check if it is bounding node
   if (pos != 0 && pos != node.getOccup()) {
     jam();
@@ -59,11 +58,9 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
       // find glb node
       while (childLoc != NullTupLoc) {
         jam();
-        selectNode(signal, node, childLoc, AccHead);
+        selectNode(signal, node, childLoc);
         childLoc = node.getLink(1);
       }
-      // access full node again
-      accessNode(signal, node, AccFull);
       pos = node.getOccup();
     }
     // fall thru to next case
@@ -79,7 +76,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
   }
   // add a new node
   NodeHandle childNode(frag);
-  insertNode(signal, childNode, AccPref);
+  insertNode(signal, childNode);
   nodePushUp(signal, childNode, 0, ent);
   // connect parent and child
   node.setLink(i, childNode.m_loc);
@@ -105,7 +102,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
       // height of longer subtree increased
       jam();
       NodeHandle childNode(frag);
-      selectNode(signal, childNode, node.getLink(i), AccHead);
+      selectNode(signal, childNode, node.getLink(i));
       int b2 = childNode.getBalance();
       if (b2 == b) {
         jam();
@@ -129,7 +126,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
       break;
     }
     i = node.getSide();
-    selectNode(signal, node, parentLoc, AccHead);
+    selectNode(signal, node, parentLoc);
   }
 }
 
@@ -142,8 +139,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   TreeHead& tree = frag.m_tree;
   unsigned pos = treePos.m_pos;
   NodeHandle node(frag);
-  // access full node
-  selectNode(signal, node, treePos.m_loc, AccFull);
+  selectNode(signal, node, treePos.m_loc);
   TreeEnt ent;
   // check interior node first
   if (node.getChilds() == 2) {
@@ -161,11 +157,9 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     TupLoc childLoc = node.getLink(0);
     while (childLoc != NullTupLoc) {
       jam();
-      selectNode(signal, node, childLoc, AccHead);
+      selectNode(signal, node, childLoc);
       childLoc = node.getLink(1);
     }
-    // access full node again
-    accessNode(signal, node, AccFull);
     // use glb max as new parent min
     ent = node.getEnt(node.getOccup() - 1);
     nodePopUp(signal, parentNode, pos, ent);
@@ -183,7 +177,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     TupLoc childLoc = node.getLink(i);
     if (childLoc != NullTupLoc) {
       // move to child
-      selectNode(signal, node, childLoc, AccFull);
+      selectNode(signal, node, childLoc);
       // balance of half-leaf parent requires child to be leaf
       break;
     }
@@ -196,7 +190,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   // move all that fits into parent
   if (parentLoc != NullTupLoc) {
     jam();
-    selectNode(signal, parentNode, node.getLink(2), AccFull);
+    selectNode(signal, parentNode, node.getLink(2));
     nodeSlide(signal, parentNode, node, i);
     // fall thru to next case
   }
@@ -222,7 +216,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
     // move entries from the other child
     TupLoc childLoc = node.getLink(1 - i);
     NodeHandle childNode(frag);
-    selectNode(signal, childNode, childLoc, AccFull);
+    selectNode(signal, childNode, childLoc);
     nodeSlide(signal, node, childNode, 1 - i);
     if (childNode.getOccup() == 0) {
       jam();
@@ -236,7 +230,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
       }
       // fix side and become parent
       i = node.getSide();
-      selectNode(signal, node, parentLoc, AccHead);
+      selectNode(signal, node, parentLoc);
     }
   }
 #endif
@@ -261,7 +255,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
       jam();
       // child on the other side
       NodeHandle childNode(frag);
-      selectNode(signal, childNode, node.getLink(1 - i), AccHead);
+      selectNode(signal, childNode, node.getLink(1 - i));
       int b2 = childNode.getBalance();
       if (b2 == b) {
         jam();
@@ -287,7 +281,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
       return;
     }
     i = node.getSide();
-    selectNode(signal, node, parentLoc, AccHead);
+    selectNode(signal, node, parentLoc);
   }
 }
 
@@ -331,7 +325,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   */
   TupLoc loc3 = node5.getLink(i);
   NodeHandle node3(frag);
-  selectNode(signal, node3, loc3, AccHead);
+  selectNode(signal, node3, loc3);
   const int bal3 = node3.getBalance();
   /*
   2 must always be there but is not changed. Thus we mereley check that it
@@ -348,7 +342,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   NodeHandle node4(frag);
   if (loc4 != NullTupLoc) {
     jam();
-    selectNode(signal, node4, loc4, AccHead);
+    selectNode(signal, node4, loc4);
     ndbrequire(node4.getSide() == (1 - i) &&
                node4.getLink(2) == loc3);
     node4.setSide(i);
@@ -383,7 +377,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   if (loc0 != NullTupLoc) {
     jam();
     NodeHandle node0(frag);
-    selectNode(signal, node0, loc0, AccHead);
+    selectNode(signal, node0, loc0);
     node0.setLink(side5, loc3);
   } else {
     jam();
@@ -532,13 +526,13 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
   // level 1
   TupLoc loc2 = node6.getLink(i);
   NodeHandle node2(frag);
-  selectNode(signal, node2, loc2, AccHead);
+  selectNode(signal, node2, loc2);
   const int bal2 = node2.getBalance();
 
   // level 2
   TupLoc loc4 = node2.getLink(1 - i);
   NodeHandle node4(frag);
-  selectNode(signal, node4, loc4, AccHead);
+  selectNode(signal, node4, loc4);
   const int bal4 = node4.getBalance();
 
   ndbrequire(i <= 1);
@@ -556,8 +550,6 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
   if (loc3 == NullTupLoc && loc5 == NullTupLoc) {
     jam();
     TreeHead& tree = frag.m_tree;
-    accessNode(signal, node2, AccFull);
-    accessNode(signal, node4, AccFull);
     nodeSlide(signal, node4, node2, i);
     // implied by rule of merging half-leaves with leaves
     ndbrequire(node4.getOccup() >= tree.m_minOccup);
@@ -566,14 +558,14 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
     if (loc3 != NullTupLoc) {
       jam();
       NodeHandle node3(frag);
-      selectNode(signal, node3, loc3, AccHead);
+      selectNode(signal, node3, loc3);
       node3.setLink(2, loc2);
       node3.setSide(1 - i);
     }
     if (loc5 != NullTupLoc) {
       jam();
       NodeHandle node5(frag);
-      selectNode(signal, node5, loc5, AccHead);
+      selectNode(signal, node5, loc5);
       node5.setLink(2, node6.m_loc);
       node5.setSide(i);
     }
@@ -596,7 +588,7 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
 
   if (loc0 != NullTupLoc) {
     jam();
-    selectNode(signal, node0, loc0, AccHead);
+    selectNode(signal, node0, loc0);
     node0.setLink(side6, loc4);
   } else {
     jam();

@@ -250,8 +250,8 @@ private:
   static const unsigned NodeHeadSize = sizeof(TreeNode) >> 2;
 
   /*
-   * Tree nodes are not always accessed fully, for cache reasons.  There
-   * are 3 access sizes.
+   * Tree node "access size" was for an early version with signal
+   * interface to TUP.  It is now used only to compute sizes.
    */
   enum AccSize {
     AccNone = 0,
@@ -284,7 +284,7 @@ private:
    * m_occup), and whether the position is at an existing entry or
    * before one (if any).  Position m_occup points past the node and is
    * also represented by position 0 of next node.  Includes direction
-   * and copy of entry used by scan.
+   * used by scan.
    */
   struct TreePos;
   friend struct TreePos;
@@ -292,8 +292,7 @@ private:
     TupLoc m_loc;               // physical node address
     Uint16 m_pos;               // position 0 to m_occup
     Uint8 m_match;              // at an existing entry
-    Uint8 m_dir;                // from link (0-2) or within node (3)
-    TreeEnt m_ent;              // copy of current entry
+    Uint8 m_dir;                // see scanNext()
     TreePos();
   };
 
@@ -374,6 +373,10 @@ private:
    * a separate lock wait flag.  It may be for current entry or it may
    * be for an entry we were moved away from.  In any case nothing
    * happens with current entry before lock wait flag is cleared.
+   *
+   * An unfinished scan is always linked to some tree node, and has
+   * current position and direction (see comments at scanNext).  There
+   * is also a copy of latest entry found.
    */
   struct ScanOp;
   friend struct ScanOp;
@@ -412,7 +415,7 @@ private:
     ScanBound* m_bound[2];      // pointers to above 2
     Uint16 m_boundCnt[2];       // number of bounds in each
     TreePos m_scanPos;          // position
-    TreeEnt m_lastEnt;          // last entry returned
+    TreeEnt m_scanEnt;          // latest entry found
     Uint32 m_nodeScan;          // next scan at node (single-linked)
     union {
     Uint32 nextPool;
@@ -519,7 +522,6 @@ private:
     Frag& m_frag;               // fragment using the node
     TupLoc m_loc;               // physical node address
     TreeNode* m_node;           // pointer to node storage
-    AccSize m_acc;              // accessed size
     NodeHandle(Frag& frag);
     NodeHandle(const NodeHandle& node);
     NodeHandle& operator=(const NodeHandle& node);
@@ -580,9 +582,8 @@ private:
    * DbtuxNode.cpp
    */
   int allocNode(Signal* signal, NodeHandle& node);
-  void accessNode(Signal* signal, NodeHandle& node, AccSize acc);
-  void selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc);
-  void insertNode(Signal* signal, NodeHandle& node, AccSize acc);
+  void selectNode(Signal* signal, NodeHandle& node, TupLoc loc);
+  void insertNode(Signal* signal, NodeHandle& node);
   void deleteNode(Signal* signal, NodeHandle& node);
   void setNodePref(Signal* signal, NodeHandle& node);
   // node operations
@@ -968,8 +969,7 @@ Dbtux::TreePos::TreePos() :
   m_loc(),
   m_pos(ZNIL),
   m_match(false),
-  m_dir(255),
-  m_ent()
+  m_dir(255)
 {
 }
 
@@ -1010,7 +1010,7 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_boundMin(scanBoundPool),
   m_boundMax(scanBoundPool),
   m_scanPos(),
-  m_lastEnt(),
+  m_scanEnt(),
   m_nodeScan(RNIL)
 {
   m_bound[0] = &m_boundMin;
@@ -1084,8 +1084,7 @@ inline
 Dbtux::NodeHandle::NodeHandle(Frag& frag) :
   m_frag(frag),
   m_loc(),
-  m_node(0),
-  m_acc(AccNone)
+  m_node(0)
 {
 }
 
@@ -1093,8 +1092,7 @@ inline
 Dbtux::NodeHandle::NodeHandle(const NodeHandle& node) :
   m_frag(node.m_frag),
   m_loc(node.m_loc),
-  m_node(node.m_node),
-  m_acc(node.m_acc)
+  m_node(node.m_node)
 {
 }
 
@@ -1104,7 +1102,6 @@ Dbtux::NodeHandle::operator=(const NodeHandle& node)
   ndbassert(&m_frag == &node.m_frag);
   m_loc = node.m_loc;
   m_node = node.m_node;
-  m_acc = node.m_acc;
   return *this;
 }
 
@@ -1190,7 +1187,6 @@ inline Dbtux::Data
 Dbtux::NodeHandle::getPref()
 {
   TreeHead& tree = m_frag.m_tree;
-  ndbrequire(m_acc >= AccPref);
   return tree.getPref(m_node);
 }
 
@@ -1201,11 +1197,6 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   TreeEnt* entList = tree.getEntList(m_node);
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
-  if (pos == 0 || pos == occup - 1) {
-    ndbrequire(m_acc >= AccPref)
-  } else {
-    ndbrequire(m_acc == AccFull)
-  }
   return entList[(1 + pos) % occup];
 }
 
