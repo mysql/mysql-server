@@ -420,7 +420,7 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
 			      struct timespec *abstime)
 {
   int error=pthread_cond_timedwait(cond,mutex,abstime);
-  return error == EAGAIN ? ETIMEDOUT : error;
+  return (error == EAGAIN || error == -1) ? ETIMEDOUT : error;
 }
 #endif /* HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT */
 
