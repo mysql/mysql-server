@@ -14137,9 +14137,9 @@ IP address to bind to.
 Directory where character sets are.  @xref{Character sets}.
 
 @item --chroot=path
-Chroot @code{mysqld} daemon during startup.  Recommended security measure. It will
-somewhat limit @code{LOAD DATA INFILE} and @code{SELECT ... INTO OUTFILE}
-though.
+Put @code{mysqld} daemon in chroot environment at startup. Recommended
+security measure. It somewhat limits @code{LOAD DATA INFILE} and
+@code{SELECT ... INTO OUTFILE} though.
 
 @item --core-file
 Write a core file if @code{mysqld} dies.  For some systems you must also
@@ -30738,7 +30738,7 @@ mysql> SELECT 1 && NULL;
         -> NULL
 @end example
 
-@findex XOR logical
+@findex XOR, logical
 @item XOR
 Logical XOR. For non-@code{NULL} operands, evaluates to @code{1} if only one
 of the operators is non-zero.
@@ -32824,7 +32824,7 @@ The result is an unsigned 64-bit integer.
 @findex & (bitwise AND)
 @findex AND, bitwise
 @item &
-Bitwise AND:
+Bitwise AND
 @example
 mysql> SELECT 29 & 15;
         -> 13
@@ -32839,10 +32839,8 @@ Bitwise XOR
 @example
 mysql> SELECT 1 ^ 1;
         -> 0
-
 mysql> SELECT 1 ^ 0;
         -> 1
-
 mysql> SELECT 11 ^ 3;
         -> 8
 @end example
@@ -33267,9 +33265,10 @@ The @code{DO} statement is convinient to use with @code{RELEASE_LOCK()}.
 
 @findex IS_FREE_LOCK()
 @item IS_FREE_LOCK(str)
-Checks if the the lock named @code{str} is free (not locked) to use.
-Returns @code{1} no one is using the lock, @code{0} if the lock is in use and
-@code{NULL} on errors (like wrong arguments).
+Checks if the the lock named @code{str} is free to use (i.e., not locked).
+Returns @code{1} if the lock is free (no one is using the lock),
+@code{0} if the lock is in use, and
+@code{NULL} on errors (like incorrect arguments).
 
 @findex BENCHMARK()
 @item BENCHMARK(count,expr)
@@ -49610,18 +49609,19 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Execute @code{chroot()}, if requested, directly after options has ben
-parsed.
+Changed @code{--chroot=path} option to execute @code{chroot()} immediately
+after all options have been parsed.
 @item
-Don't allow database names that contains @code{\}.
+Don't allow database names that contains @samp{\}.
 @item
 @code{lower_case_table_names} now also affects created and dropped databases.
 @item
-Added operators @code{XOR} and @code{^} (bitwise @code{XOR}).
+Added @code{XOR} operator (logical and bitwise @code{XOR}) with @code{^}
+as a synonym.
 Added function @code{IS_FREE_LOCK("lock_name")}.
 Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
-Removed @code{mysql_ssl_clear()}, as this was not needed.
+Removed @code{mysql_ssl_clear()}, as it was not needed.
 @item
 @code{DECIMAL} and @code{NUMERIC} types can now read exponential numbers.
 @item
