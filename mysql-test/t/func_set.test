@@ -18,6 +18,8 @@ select export_set(9,"Y","N","-",5),export_set(9,"Y","N"),export_set(9,"Y","N",""
 # Wrong usage of functions
 #
 select elt(2,1),field(NULL,"a","b","c");
+select field("b","a",NULL),field(1,0,NULL)+0,field(1.0,0.0,NULL)+0.0,field(1.0e1,0.0e1,NULL)+0.0e1;
+select field(NULL,"a",NULL),field(NULL,0,NULL)+0,field(NULL,0.0,NULL)+0.0,field(NULL,0.0e1,NULL)+0.0e1;
 select find_in_set("","a,b,c"),find_in_set("","a,b,c,"),find_in_set("",",a,b,c");
 select find_in_set("abc","abc"),find_in_set("ab","abc"),find_in_set("abcd","abc");
 select interval(null, 1, 10, 100);

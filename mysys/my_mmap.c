@@ -16,7 +16,7 @@
 
 #include "mysys_priv.h"
 
-#ifdef HAVE_MMAP
+#ifdef HAVE_SYS_MMAN_H
 
 /*
   system msync() only syncs mmap'ed area to fs cache.
@@ -84,6 +84,6 @@ int my_msync(int fd, void *addr, size_t len, int flags)
 }
 
 #endif
-#error "no mmap!"
+#warning "no mmap!"
 #endif
 

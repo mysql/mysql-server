@@ -1503,7 +1503,7 @@ int ha_federated::rnd_next(byte *buf)
 /*
   'position()' is called after each call to rnd_next() if the data needs to be
   ordered. You can do something like the following to store the position:
-  ha_store_ptr(ref, ref_length, current_position);
+  my_store_ptr(ref, ref_length, current_position);
 
   The server uses ref to store data. ref_length in the above case is the size
   needed to store current_position. ref is just a byte array that the server
@@ -1516,7 +1516,7 @@ int ha_federated::rnd_next(byte *buf)
 void ha_federated::position(const byte *record)
 {
   DBUG_ENTER("ha_federated::position");
-  //ha_store_ptr Add seek storage
+  //my_store_ptr Add seek storage
   *(MYSQL_ROW_OFFSET *)ref=current_position; // ref is always aligned
   DBUG_VOID_RETURN;
 }

@@ -17,7 +17,9 @@
 #ifndef _decimal_h
 #define _decimal_h
 
-typedef enum {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR} decimal_round_mode;
+typedef enum
+{TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
+  decimal_round_mode;
 typedef int32 decimal_digit;
 
 typedef struct st_decimal {
@@ -26,11 +28,10 @@ typedef struct st_decimal {
   decimal_digit *buf;
 } decimal;
 
+int internal_str2dec(const char *from, decimal *to, char **end, my_bool fixed);
 int decimal2string(decimal *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler);
-int string2decimal(char *from, decimal *to, char **end);
-int string2decimal_fixed(char *from, decimal *to, char **end);
 int decimal2ulonglong(decimal *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal *to);
 int decimal2longlong(decimal *from, longlong *to);
@@ -51,9 +52,13 @@ int decimal_cmp(decimal *from1, decimal *from2);
 int decimal_mul(decimal *from1, decimal *from2, decimal *to);
 int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
-int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode mode);
+int decimal_round(decimal *from, decimal *to, int new_scale,
+                  decimal_round_mode mode);
 int decimal_is_zero(decimal *from);
 void max_decimal(int precision, int frac, decimal *to);
+
+#define string2decimal(A,B,C) internal_str2dec((A), (B), (C), 0)
+#define string2decimal_fixed(A,B,C) internal_str2dec((A), (B), (C), 1)
 
 /* set a decimal to zero */
 

@@ -25,7 +25,7 @@ DEFS= -DMYSQL_INSTANCE_MANAGER -DMYSQL_SERVER
 
 noinst_LIBRARIES= liboptions.a libnet.a
 
-liboptions_a_CPPFLAGS= $(CPPFLAGS) \
+liboptions_a_CXXFLAGS= $(CXXFLAGS) \
 	-DDEFAULT_PID_FILE_NAME="$(localstatedir)/mysqlmanager.pid" \
 	-DDEFAULT_LOG_FILE_NAME="$(localstatedir)/mysqlmanager.log" \
 	-DDEFAULT_SOCKET_FILE_NAME="$(localstatedir)/mysqlmanager.sock" \
