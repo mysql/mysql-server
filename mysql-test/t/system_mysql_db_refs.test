@@ -34,13 +34,13 @@ insert into test_columns_priv (Host,Db,User,Table_name,Column_name) values (@nam
 
 # 'Host' field must be the same for all the tables:
 
-select 
+select
  if(isnull(test_db.Host),'WRONG!!!','ok') as test_db_Host,
  if(isnull(test_host.Host),'WRONG!!!','ok') as test_host_Host,
  if(isnull(test_user.Host),'WRONG!!!','ok') as test_user_Host,
  if(isnull(test_tables_priv.Host),'WRONG!!!','ok') as test_tables_priv_Host,
  if(isnull(test_columns_priv.Host),'WRONG!!!','ok') as test_columns_priv_Host
- 
+
 from      test_db
 left join test_host         on test_db.Host=test_host.Host
 left join test_user         on test_db.Host=test_user.Host
@@ -49,12 +49,12 @@ left join test_columns_priv on test_db.Host=test_columns_priv.Host;
 
 # 'Db' field must be the same for all the tables:
 
-select 
+select
  if(isnull(test_db.Db),'WRONG!!!','ok') as test_db_Db,
  if(isnull(test_host.Db),'WRONG!!!','ok') as test_host_Db,
  if(isnull(test_tables_priv.Db),'WRONG!!!','ok') as test_tables_priv_Db,
  if(isnull(test_columns_priv.Db),'WRONG!!!','ok') as est_columns_priv_Db
- 
+
 from      test_db
 left join test_host         on test_db.Db=test_host.Db
 left join test_tables_priv  on test_db.Db=test_tables_priv.Db
@@ -67,7 +67,7 @@ select
  if(isnull(test_user.User),'WRONG!!!','ok') as test_user_User,
  if(isnull(test_tables_priv.User),'WRONG!!!','ok') as test_tables_priv_User,
  if(isnull(test_columns_priv.User),'WRONG!!!','ok') as test_columns_priv_User
- 
+
 from      test_db
 left join test_user         on test_db.User=test_user.User
 left join test_tables_priv  on test_db.User=test_tables_priv.User
@@ -87,4 +87,3 @@ drop table test_func;
 drop table test_host;
 drop table test_user;
 drop table test_db;
-

@@ -32,13 +32,23 @@
 #   --password=<password>
 #   --database=<database>
 
-root_password="$1"
+root_password=""
 host="localhost"
 user="root"
 port=""
 socket=""
 comment=""
 database="mysql"
+bindir="@bindir@"
+
+# Old format where there is only one argument and it's the password
+if test "$#" == 1
+then
+  case "$1" in
+  --*) ;;
+  *) root_password="$1" ; shift ;;
+  esac
+fi
 
 # read all the options
 parse_arguments() 
@@ -52,6 +62,7 @@ parse_arguments()
       --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
       --password=*) root_password=`echo "$arg" | sed -e "s;--password=;;"` ;;
       --database=*) database=`echo "$arg" | sed -e "s;--database=;;"` ;;
+      --bindir=*) bindir=`echo "$arg" | sed -e "s;--bindir=;;"` ;;
       *)
         echo "Unknown argument '$arg'"
         exit 1
@@ -63,7 +74,7 @@ parse_arguments()
 parse_arguments "$@"
 
 if test -z "$cmd"; then
-  cmd="@bindir@/mysql -f --user=$user --host=$host"
+  cmd="$bindir/mysql -f --user=$user --host=$host"
   if test ! -z "$root_password"; then
     cmd="$cmd --password=$root_password"
   fi
