@@ -936,7 +936,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex->master_unit()->uncacheable)
+    if (select_lex->uncacheable)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -3833,7 +3833,8 @@ JOIN::join_free(bool full)
   JOIN_TAB *tab,*end;
   DBUG_ENTER("JOIN::join_free");
 
-  full= full || !select_lex->uncacheable;
+  full= full || (!select_lex->uncacheable &&
+                 !thd->lex->describe);
 
   if (table)
   {
@@ -3862,6 +3863,7 @@ JOIN::join_free(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
       table= 0;
+      tables= 0;
     }
     else
     {
