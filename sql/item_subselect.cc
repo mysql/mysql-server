@@ -300,15 +300,22 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 
     Item *expr= new Item_outer_select_context_saver(left_expr);
 
-    if (sl->having || sl->with_sum_func || sl->group_list.first)
+    if (sl->having || sl->with_sum_func || sl->group_list.first ||
+	sl->order_list.first)
     {
       sl->item_list.push_back(item);
       item= (*func)(expr, new Item_ref(sl->item_list.head_ref(),
 					    0, (char*)"<result>"));
-      if (sl->having)
-	sl->having= new Item_cond_and(sl->having, item);
+      if (sl->having || sl->with_sum_func || sl->group_list.first)
+	if (sl->having)
+	  sl->having= new Item_cond_and(sl->having, item);
+	else
+	  sl->having= item;
       else
-	sl->having= item;
+	if (sl->where)
+	  sl->where= new Item_cond_and(sl->having, item);
+	else
+	  sl->where= item;
     }
     else
     {
