@@ -2786,6 +2786,42 @@ MgmtSrvr::setConnectionDbParameter(int node1,
 }
 
 
+int
+MgmtSrvr::getConnectionDbParameter(int node1, 
+				   int node2,
+				   int param,
+				   unsigned *value,
+				   BaseString& msg){
+  DBUG_ENTER("MgmtSrvr::getConnectionDbParameter");
+
+  ndb_mgm_configuration_iterator iter(* _config->m_configValues,
+				      CFG_SECTION_CONNECTION);
+
+  if(iter.first() != 0){
+    msg.assign("Unable to find connection section (iter.first())");
+    return -1;
+  }
+
+  for(;iter.valid();iter.next()) {
+    Uint32 n1,n2;
+    iter.get(CFG_CONNECTION_NODE_1, &n1);
+    iter.get(CFG_CONNECTION_NODE_2, &n2);
+    if(n1 == (unsigned)node1 && n2 == (unsigned)node2)
+      break;
+  }
+  if(!iter.valid()) {
+    msg.assign("Unable to find connection between nodes");
+    return -1;
+  }
+  
+  if(iter.get(param, value) < 0) {
+    msg.assign("Unable to get current value of parameter");
+    return -1;
+  }
+
+  msg.assfmt("%u",*value);
+  return 1;
+}
 
 template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560
