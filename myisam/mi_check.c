@@ -2109,7 +2109,7 @@ err:
   Threaded repair of table using sorting
 
   SYNOPSIS
-    mi_repair_by_sort_r()
+    mi_repair_parallel()
     param		Repair parameters
     info		MyISAM handler to repair
     name		Name of table (for warnings)
@@ -2128,6 +2128,9 @@ err:
 int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
+#ifndef THREAD
+  return mi_repair_by_sort(param, info, name, rep_quick);
+#else
   int got_error;
   uint i,key, total_key_length, istep;
   ulong rec_length;
@@ -2489,6 +2492,7 @@ err:
     share->pack.header_length=0;
   }
   DBUG_RETURN(got_error);
+#endif /* THREAD */
 }
 
 	/* Read next record and return next key */

@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.19";
+const char *VER= "12.20";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -919,6 +919,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
   uchar inchar;
   char buff[80],*pos,*out;
   COMMANDS *com;
+  my_bool in_comment= 0;
 
   if (!line[0] && buffer.is_empty())
     return 0;
@@ -978,7 +979,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
       }
     }
-    else if (inchar == ';' && !*in_string)
+    else if (inchar == ';' && !*in_string && !in_comment)
     {						// ';' is end of command
       if (out != line)
 	buffer.append(line,(uint) (out-line));	// Add this line
@@ -1009,6 +1010,13 @@ static bool add_line(String &buffer,char *line,char *in_string)
       else if (!*in_string && (inchar == '\'' || inchar == '"'))
 	*in_string=(char) inchar;
       *out++ = (char) inchar;
+      if (inchar == '*' && !*in_string)
+      {
+	if (pos != line && pos[-1] == '/')
+	  in_comment= 1;
+	else if (in_comment && pos[1] == '/')
+	  in_comment= 0;
+      }
     }
   }
   if (out != line || !buffer.is_empty())
