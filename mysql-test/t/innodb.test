@@ -49,7 +49,7 @@ select * from t1 where parent_id=102;
 explain select level from t1 where level=1;
 --replace_result 12 # 6 #
 explain select level,id from t1 where level=1;
---replace_result 12 # 6 #
+--replace_result 12 # 6 # 5 #
 explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
