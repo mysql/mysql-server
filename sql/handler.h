@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,8 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || \
+    defined(HAVE_NDBCLUSTER_DB)
 #define USING_TRANSACTIONS
 #endif
 
@@ -80,7 +81,6 @@
 #define HA_FILE_BASED	       (1 << 26)
 
 
-
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_WRONG_ASCII_ORDER	1	/* Can't use sorting through key */
 #define HA_READ_NEXT		2	/* Read next record with same key */
@@ -89,6 +89,13 @@
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_NOT_READ_PREFIX_LAST	32	/* No support for index_read_last() */
 #define HA_KEY_READ_ONLY	64	/* Support HA_EXTRA_KEYREAD */
+
+
+/* operations for disable/enable indexes */
+#define HA_KEY_SWITCH_NONUNIQ      0
+#define HA_KEY_SWITCH_ALL          1
+#define HA_KEY_SWITCH_NONUNIQ_SAVE 2
+#define HA_KEY_SWITCH_ALL_SAVE     3
 
 
 /*
@@ -138,15 +145,23 @@
 
 /* Table caching type */
 #define HA_CACHE_TBL_NONTRANSACT 0
-#define HA_CACHE_TBL_ASKTRANSACT 1
-#define HA_CACHE_TBL_TRANSACT    2
+#define HA_CACHE_TBL_NOCACHE     1
+#define HA_CACHE_TBL_ASKTRANSACT 2
+#define HA_CACHE_TBL_TRANSACT    4
 
-enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
-	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
-	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
-	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
-	       DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_DEFAULT };
+
+enum db_type 
+{ 
+  DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
+  DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
+  DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
+  DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
+  DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, 
+  DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
+  DB_TYPE_EXAMPLE_DB,
+	       
+  DB_TYPE_DEFAULT // Must be last
+};
 
 struct show_table_type_st {
   const char *type;
@@ -176,6 +191,7 @@ typedef struct st_thd_trans {
   void *bdb_tid;
   void *innobase_tid;
   bool innodb_active_trans;
+  void *ndb_tid;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -218,14 +234,6 @@ typedef struct st_ha_check_opt
 } HA_CHECK_OPT;
 
 
-typedef struct st_key_range
-{
-  const byte *key;
-  uint length;
-  enum ha_rkey_function flag;
-} key_range;
-
-
 class handler :public Sql_alloc
 {
  protected:
@@ -252,6 +260,7 @@ public:
   key_range save_end_range, *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
+  bool eq_range;
 
   uint errkey;				/* Last dup key */
   uint sortkey, key_used_on_scan;
@@ -313,14 +322,15 @@ public:
   {
     return (my_errno=HA_ERR_WRONG_COMMAND);
   }
-  virtual int handler::read_range_first(const key_range *start_key,
-					const key_range *end_key,
-					bool sorted);
-  virtual int handler::read_range_next(bool eq_range);
-  int handler::compare_key(key_range *range);
+  virtual int read_range_first(const key_range *start_key,
+                               const key_range *end_key,
+                               bool eq_range, bool sorted);
+  virtual int read_range_next();
+  int compare_key(key_range *range);
   virtual int ft_init()
     { return -1; }
-  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key, uint keylen)
+  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
+                               uint keylen)
     { return NULL; }
   virtual int ft_read(byte *buf) { return -1; }
   virtual int rnd_init(bool scan=1)=0;
@@ -329,11 +339,8 @@ public:
   virtual int rnd_pos(byte * buf, byte *pos)=0;
   virtual int read_first_row(byte *buf, uint primary_key);
   virtual int restart_rnd_next(byte *buf, byte *pos);
-  virtual ha_rows records_in_range(int inx,
-			           const byte *start_key,uint start_key_len,
-			           enum ha_rkey_function start_search_flag,
-			           const byte *end_key,uint end_key_len,
-			           enum ha_rkey_function end_search_flag)
+  virtual ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
   virtual my_off_t row_position() { return HA_OFFSET_ERROR; }
@@ -364,8 +371,9 @@ public:
   */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
-  virtual int disable_indexes(bool all, bool save) { return HA_ERR_WRONG_COMMAND; }
-  virtual int enable_indexes() { return HA_ERR_WRONG_COMMAND; }
+  virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int indexes_are_disabled(void) {return 0;}
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() {return 0; }
   virtual int discard_or_import_tablespace(my_bool discard) {return -1;}
@@ -479,3 +487,5 @@ bool ha_flush_logs(void);
 int ha_recovery_logging(THD *thd, bool on);
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
+int ha_discover(const char* dbname, const char* name,
+		const void** frmblob, uint* frmlen);
