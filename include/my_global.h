@@ -1102,6 +1102,14 @@ do { doubleget_union _tmp; \
 #endif /* sint2korr */
 
 /*
+  Macro for reading 32-bit integer from network byte order (big-endian)
+  from unaligned memory location.
+*/
+#define int4net(A)        (int32) (((uint32) ((uchar) (A)[3]))        |\
+				  (((uint32) ((uchar) (A)[2])) << 8)  |\
+				  (((uint32) ((uchar) (A)[1])) << 16) |\
+				  (((uint32) ((uchar) (A)[0])) << 24))
+/*
   Define-funktions for reading and storing in machine format from/to
   short/long to/from some place in memory V should be a (not
   register) variable, M is a pointer to byte

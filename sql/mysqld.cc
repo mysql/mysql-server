@@ -324,7 +324,8 @@ ulonglong log_10_int[20]=
 
 time_t start_time;
 
-char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
+char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
+char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
@@ -911,6 +912,7 @@ void clean_up(bool print_message)
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
 #endif
+  my_tz_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
@@ -2270,9 +2272,17 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
-    strmov(time_zone,tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
+    strmov(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
   }
 #endif
+  /*
+    We set SYSTEM time zone as reasonable default and 
+    also for failure of my_tz_init() and bootstrap mode.
+    If user explicitly set time zone with --default-time-zone
+    option we will change this value in my_tz_init().
+  */
+  global_system_variables.time_zone= my_tz_SYSTEM;
+  
 
   /*
     Init mutexes for the global MYSQL_LOG objects.
@@ -2810,7 +2820,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   */
   error_handler_hook = my_message_sql;
   start_signal_handler();				// Creates pidfile
-  if (acl_init((THD *)0, opt_noacl))
+  if (acl_init((THD *)0, opt_noacl) || 
+      my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     abort_loop=1;
     select_thread_in_use=0;
@@ -3897,7 +3908,8 @@ enum options_mysqld
   OPT_DATE_FORMAT,
   OPT_TIME_FORMAT,
   OPT_DATETIME_FORMAT,
-  OPT_LOG_QUERIES_NOT_USING_INDEXES
+  OPT_LOG_QUERIES_NOT_USING_INDEXES,
+  OPT_DEFAULT_TIME_ZONE
 };
 
 
@@ -4010,6 +4022,9 @@ Disable with --skip-bdb (will save memory).",
   {"default-table-type", OPT_STORAGE_ENGINE,
    "(deprecated) Use default-storage-engine.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-time-zone", OPT_DEFAULT_TIME_ZONE, "Set the default time zone.",
+   (gptr*) &default_tz_name, (gptr*) &default_tz_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE.",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,

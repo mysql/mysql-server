@@ -39,6 +39,14 @@ extern const key_map key_map_empty;
 extern const key_map key_map_full;
 extern const char *primary_key_name;
 
+/* 
+  Portable time_t replacement. 
+  Should be signed and hold seconds for 1902-2038 range.
+*/
+typedef long my_time_t;
+#define MY_TIME_T_MAX LONG_MAX
+#define MY_TIME_T_MIN LONG_MIN
+
 #include "mysql_com.h"
 #include <violite.h>
 #include "unireg.h"
@@ -349,6 +357,7 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
+#include "tztime.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -378,6 +387,7 @@ struct Query_cache_query_flags
   uint character_set_results_num;
   uint collation_connection_num;
   ha_rows limit;
+  Time_zone *time_zone;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
@@ -822,7 +832,7 @@ extern Le_creator le_creator;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
-extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
+extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
 extern double log_10[32];
 extern ulonglong log_10_int[20];
@@ -878,6 +888,7 @@ extern my_bool opt_enable_named_pipe, opt_sync_frm;
 extern my_bool opt_secure_auth;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
+extern char *default_tz_name;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
@@ -988,12 +999,16 @@ uint calc_days_in_year(uint year);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
-long my_gmt_sec(TIME *, long *current_timezone);
-time_t str_to_timestamp(const char *str,uint length);
-bool str_to_time(const char *str,uint length,TIME *l_time);
-longlong str_to_datetime(const char *str,uint length, uint fuzzy_date);
+my_time_t my_system_gmt_sec(const TIME *, long *current_timezone, bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
+bool str_to_time(const char *str,uint length,TIME *l_time, int *was_cut);
+bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   uint flags);
+			   uint flags, int *was_cut);
+timestamp_type str_to_TIME_with_warn(const char *str, uint length, 
+                                     TIME *l_time, uint flags);
+longlong number_to_TIME(longlong nr, TIME *time_res, bool fuzzy_date,
+                        int *was_cut);
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 

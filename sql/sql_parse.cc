@@ -3489,7 +3489,8 @@ purposes internal to the MySQL server", MYF(0));
         thd->variables.collation_server=
           global_system_variables.collation_server;
         thd->update_charset();
-        /* Add timezone stuff here */
+        thd->variables.time_zone=
+          global_system_variables.time_zone;
         thd->one_shot_set= 0;
       }
     }
@@ -3847,7 +3848,7 @@ mysql_init_query(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
-  thd->is_fatal_error= thd->rand_used= 0;
+  thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
 			  SERVER_QUERY_NO_INDEX_USED |
 			  SERVER_QUERY_NO_GOOD_INDEX_USED);

@@ -23,16 +23,26 @@
 static ulong const days_at_timestart=719528;	/* daynr at 1970.01.01 */
 uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037";
 
-	/* Init some variabels needed when using my_local_time */
-	/* Currently only my_time_zone is inited */
 
+/*
+  Offset of system time zone from UTC in seconds used to speed up 
+  work of my_system_gmt_sec() function.
+*/
 static long my_time_zone=0;
 
+
+/*
+  Prepare offset of system time zone from UTC for my_system_gmt_sec() func.
+
+  SYNOPSIS
+    init_time()
+*/
 void init_time(void)
 {
   time_t seconds;
   struct tm *l_time,tm_tmp;;
   TIME my_time;
+  bool not_used;
 
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
@@ -44,32 +54,39 @@ void init_time(void)
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
   my_time.second=	(uint) l_time->tm_sec;
-  my_gmt_sec(&my_time, &my_time_zone);	/* Init my_time_zone */
+  my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
 }
 
+
 /*
-  Convert current time to sec. since 1970.01.01 
-  This code handles also day light saving time.
-  The idea is to cache the time zone (including daylight saving time)
-  for the next call to make things faster.
+  Convert time in TIME representation in system time zone to its
+  my_time_t form (number of seconds in UTC since begginning of Unix Epoch).
 
+  SYNOPSIS
+    my_system_gmt_sec()
+      t               - time value to be converted
+      my_timezone     - pointer to long where offset of system time zone
+                        from UTC will be stored for caching
+      in_dst_time_gap - set to true if time falls into spring time-gap
+
+  NOTES
+    The idea is to cache the time zone offset from UTC (including daylight 
+    saving time) for the next call to make things faster. But currently we 
+    just calculate this offset during startup (by calling init_time() 
+    function) and use it all the time.
+    Time value provided should be legal time value (e.g. '2003-01-01 25:00:00'
+    is not allowed).
+
+  RETURN VALUE
+    Time in UTC seconds since Unix Epoch representation.
 */
-
-long my_gmt_sec(TIME *t, long *my_timezone)
+my_time_t 
+my_system_gmt_sec(const TIME *t, long *my_timezone, bool *in_dst_time_gap)
 {
   uint loop;
   time_t tmp;
   struct tm *l_time,tm_tmp;
   long diff, current_timezone;
-
-  if (t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR)
-    return 0;
-    
-  if (t->hour >= 24)
-  {					/* Fix for time-loop */
-    t->day+=t->hour/24;
-    t->hour%=24;
-  }
 
   /*
     Calculate the gmt time based on current time and timezone
@@ -125,14 +142,13 @@ long my_gmt_sec(TIME *t, long *my_timezone)
       tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
     else if (diff == -3600)
       tmp-=t->minute*60 + t->second;		// Move to previous hour
+
+    *in_dst_time_gap= 1;
   }
   *my_timezone= current_timezone;
   
-  if (tmp < TIMESTAMP_MIN_VALUE || tmp > TIMESTAMP_MAX_VALUE)
-    tmp= 0;
-  
-  return (long) tmp;
-} /* my_gmt_sec */
+  return (my_time_t) tmp;
+} /* my_system_gmt_sec */
 
 
 	/* Some functions to calculate dates */
@@ -164,6 +180,7 @@ long calc_daynr(uint year,uint month,uint day)
 } /* calc_daynr */
 
 
+#ifndef TESTTIME
 	/* Calc weekday from daynr */
 	/* Returns 0 for monday, 1 for tuesday .... */
 
@@ -346,6 +363,8 @@ static char time_separator=':';
     flags		Bitmap of following items
 			TIME_FUZZY_DATE    Set if we should allow partial dates
 			TIME_DATETIME_ONLY Set if we only allow full datetimes.
+    was_cut             Set to 1 if value was cut during conversion or to 0 
+                        otherwise.
 
   DESCRIPTION
     At least the following formats are recogniced (based on number of digits)
@@ -383,7 +402,8 @@ static char time_separator=':';
 #define MAX_DATE_PARTS 8
 
 timestamp_type
-str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
+str_to_TIME(const char *str, uint length, TIME *l_time, uint flags,
+            int *was_cut)
 {
   uint field_length, year_length, digits, i, number_of_fields;
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
@@ -403,11 +423,16 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
   LINT_INIT(year_length);
   LINT_INIT(last_field_pos);
 
+  *was_cut= 0;
+
   // Skip space at start
   for (; str != end && my_isspace(&my_charset_latin1, *str) ; str++)
     ;
   if (str == end || ! my_isdigit(&my_charset_latin1, *str))
+  {
+    *was_cut= 1;
     DBUG_RETURN(TIMESTAMP_NONE);
+  }
 
   is_internal_format= 0;
   /* This has to be changed if want to activate different timestamp formats */
@@ -449,7 +474,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       if (pos == end)
       {
 	if (flags & TIME_DATETIME_ONLY)
+        {
+          *was_cut= 1;
 	  DBUG_RETURN(TIMESTAMP_NONE);		// Can't be a full datetime
+        }
 	/* Date field.  Set hour, minutes and seconds to 0 */
 	date[0]= date[1]= date[2]= date[3]= date[4]= 0;
 	start_loop= 5;				// Start with first date part
@@ -486,7 +514,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     }
     date_len[i]= (uint) (str - start);
     if (tmp_value > 999999)			// Impossible date part
+    {
+      *was_cut= 1;
       DBUG_RETURN(TIMESTAMP_NONE);
+    }
     date[i]=tmp_value;
     not_zero_date|= tmp_value;
 
@@ -523,7 +554,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       if (my_isspace(&my_charset_latin1,*str))
       {
 	if (!(allow_space & (1 << i)))
+        {
+          *was_cut= 1;
 	  DBUG_RETURN(TIMESTAMP_NONE);
+        }
 	found_space= 1;
       }
       str++;
@@ -551,7 +585,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     last_field_pos= str;
   }
   if (found_delimitier && !found_space && (flags & TIME_DATETIME_ONLY))
+  {
+    *was_cut= 1;
     DBUG_RETURN(TIMESTAMP_NONE);		// Can't be a datetime
+  }
 
   str= last_field_pos;
 
@@ -566,7 +603,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
   {
     year_length= date_len[(uint) format_position[0]];
     if (!year_length)				// Year must be specified
+    {
+      *was_cut= 1;
       DBUG_RETURN(TIMESTAMP_NONE);
+    }
 
     l_time->year=		date[(uint) format_position[0]];
     l_time->month=		date[(uint) format_position[1]];
@@ -584,7 +624,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     if (format_position[7] != (uchar) 255)
     {
       if (l_time->hour > 12)
+      {
+        *was_cut= 1;
 	goto err;
+      }
       l_time->hour= l_time->hour%12 + add_hours;
     }
   }
@@ -624,7 +667,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       }
     }
     if (not_zero_date)
-      current_thd->cuted_fields++;
+      *was_cut= 1;
     goto err;
   }
 
@@ -635,8 +678,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
   {
     if (!my_isspace(&my_charset_latin1,*str))
     {
-      make_truncated_value_warning(current_thd, str_begin, length,
-				   l_time->time_type);
+      *was_cut= 1;
       break;
     }
   }
@@ -650,43 +692,59 @@ err:
 }
 
 
-time_t str_to_timestamp(const char *str,uint length)
-{
-  TIME l_time;
-  long not_used;
-  time_t timestamp= 0;
+/*
+  Convert a timestamp string to a TIME value and produce a warning 
+  if string was truncated during conversion.
 
-  if (str_to_TIME(str,length,&l_time,0) > TIMESTAMP_DATETIME_ERROR &&
-      !(timestamp= my_gmt_sec(&l_time, &not_used)))
-    current_thd->cuted_fields++;
-  return timestamp;
+  NOTE
+    See description of str_to_TIME() for more information.
+*/
+timestamp_type
+str_to_TIME_with_warn(const char *str, uint length, TIME *l_time, uint flags)
+{
+  int was_cut;
+  timestamp_type ts_type= str_to_TIME(str, length, l_time, flags, &was_cut);
+  if (was_cut)
+    make_truncated_value_warning(current_thd, str, length, ts_type);
+  return ts_type;
 }
 
 
 /*
-  Convert a string to datetime.
+  Convert a datetime from broken-down TIME representation to corresponding 
+  TIMESTAMP value.
 
   SYNOPSIS
-    str_to_datetime()
-    str             String to parse (see str_to_TIME() synopsis)
-    length          Length of str
-    fuzzy_date      Flags (see str_to_TIME() synopsis)
-
+    TIME_to_timestamp()
+      thd             - current thread
+      t               - datetime in broken-down representation, 
+      in_dst_time_gap - pointer to bool which is set to true if t represents
+                        value which doesn't exists (falls into the spring 
+                        time-gap) or to false otherwise.
+   
   RETURN
-    -1              if error
-    datetime value  otherwise
+     Number seconds in UTC since start of Unix Epoch corresponding to t.
+     0 - t contains datetime value which is out of TIMESTAMP range.
+     
 */
-
-longlong str_to_datetime(const char *str,uint length, uint fuzzy_date)
+my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *in_dst_time_gap)
 {
-  TIME l_time;
-  if (str_to_TIME(str,length,&l_time,fuzzy_date) <= TIMESTAMP_DATETIME_ERROR)
-    return -1;
-  return (longlong) (l_time.year*LL(10000000000) +
-		     l_time.month*LL(100000000)+
-		     l_time.day*LL(1000000)+
-		     l_time.hour*LL(10000)+
-		     (longlong) (l_time.minute*100+l_time.second));
+  my_time_t timestamp;
+
+  *in_dst_time_gap= 0;
+
+  if (t->year < TIMESTAMP_MAX_YEAR && t->year > TIMESTAMP_MIN_YEAR ||
+      t->year == TIMESTAMP_MAX_YEAR && t->month == 1 && t->day == 1 ||
+      t->year == TIMESTAMP_MIN_YEAR && t->month == 12 && t->day == 31)
+  {
+    thd->time_zone_used= 1;
+    timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
+    if (timestamp >= TIMESTAMP_MIN_VALUE && timestamp <= TIMESTAMP_MAX_VALUE)
+      return timestamp;
+  }
+
+  /* If we are here we have range error. */
+  return(0);
 }
 
 
@@ -701,6 +759,8 @@ longlong str_to_datetime(const char *str,uint length, uint fuzzy_date)
 			There may be an optional [.second_part] after seconds
    length		Length of str
    l_time		Store result here
+   was_cut              Set to 1 if value was cut during conversion or to 0
+                        otherwise.
 
    NOTES
      Because of the extra days argument, this function can only
@@ -711,7 +771,7 @@ longlong str_to_datetime(const char *str,uint length, uint fuzzy_date)
      1  error
 */
 
-bool str_to_time(const char *str,uint length,TIME *l_time)
+bool str_to_time(const char *str, uint length, TIME *l_time, int *was_cut)
 {
   long date[5],value;
   const char *end=str+length, *end_of_days;
@@ -720,6 +780,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   uint state;
 
   l_time->neg=0;
+  *was_cut= 0;
   for (; str != end && my_isspace(&my_charset_latin1,*str) ; str++)
     length--;
   if (str != end && *str == '-')
@@ -736,9 +797,12 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   {						// Probably full timestamp
     enum timestamp_type res= str_to_TIME(str,length,l_time,
 					 (TIME_FUZZY_DATE |
-					  TIME_DATETIME_ONLY));
+					  TIME_DATETIME_ONLY),
+                                         was_cut);
     if ((int) res >= (int) TIMESTAMP_DATETIME_ERROR)
       return res == TIMESTAMP_DATETIME_ERROR;
+    /* We need to restore was_cut flag since str_to_TIME can modify it */
+    *was_cut= 0;
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
@@ -841,7 +905,7 @@ fractional:
   /* Some simple checks */
   if (date[2] >= 60 || date[3] >= 60)
   {
-    current_thd->cuted_fields++;
+    *was_cut= 1;
     return 1;
   }
   l_time->year= 	0;			// For protocol::store_time
@@ -860,13 +924,119 @@ fractional:
     {
       if (!my_isspace(&my_charset_latin1,*str))
       {
-	make_truncated_value_warning(current_thd, str_begin, length,
-				     TIMESTAMP_TIME);
+        *was_cut= 1;
 	break;
       }
     } while (++str != end);
   }
   return 0;
+}
+
+
+/*
+  Convert a time string to a TIME struct and produce a warning
+  if string was cut during conversion.
+
+  NOTE
+    See str_to_time() for more info.
+*/
+bool
+str_to_time_with_warn(const char *str, uint length, TIME *l_time)
+{
+  int was_cut;
+  bool ret_val= str_to_time(str, length, l_time, &was_cut);
+  if (was_cut)
+    make_truncated_value_warning(current_thd, str, length, TIMESTAMP_TIME);
+  return ret_val;
+}
+
+
+/*
+  Convert datetime value specified as number to broken-down TIME 
+  representation and form value of DATETIME type as side-effect.
+
+  SYNOPSIS
+    number_to_TIME()
+      nr         - datetime value as number 
+      time_res   - pointer for structure for broken-down representation
+      fuzzy_date - indicates whenever we allow fuzzy dates
+      was_cut    - set ot 1 if there was some kind of error during 
+                   conversion or to 0 if everything was OK.
+  
+  DESCRIPTION
+    Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS, 
+    YYYYMMDDHHMMSS to broken-down TIME representation. Return value in
+    YYYYMMDDHHMMSS format as side-effect.
+  
+    This function also checks if datetime value fits in DATETIME range.
+
+  RETURN VALUE
+    Datetime value in YYYYMMDDHHMMSS format.
+    If input value is not valid datetime value then 0 is returned. 
+*/
+
+longlong number_to_TIME(longlong nr, TIME *time_res, bool fuzzy_date, 
+                        int *was_cut)
+{
+  long part1,part2;
+
+  *was_cut= 0;
+  
+  if (nr == LL(0) || nr >= LL(10000101000000))
+    goto ok;
+  if (nr < 101)
+    goto err;
+  if (nr <= (YY_PART_YEAR-1)*10000L+1231L)
+  {
+    nr= (nr+20000000L)*1000000L;                 // YYMMDD, year: 2000-2069
+    goto ok;
+  }
+  if (nr < (YY_PART_YEAR)*10000L+101L)
+    goto err;
+  if (nr <= 991231L)
+  {
+    nr= (nr+19000000L)*1000000L;                 // YYMMDD, year: 1970-1999
+    goto ok;
+  }
+  if (nr < 10000101L)
+    goto err;
+  if (nr <= 99991231L)
+  {
+    nr= nr*1000000L;
+    goto ok;
+  }
+  if (nr < 101000000L)
+    goto err;
+  if (nr <= (YY_PART_YEAR-1)*LL(10000000000)+LL(1231235959))
+  {
+    nr= nr+LL(20000000000000);                   // YYMMDDHHMMSS, 2000-2069
+    goto ok;
+  }
+  if (nr <  YY_PART_YEAR*LL(10000000000)+ LL(101000000))
+    goto err;
+  if (nr <= LL(991231235959))
+    nr= nr+LL(19000000000000);		// YYMMDDHHMMSS, 1970-1999
+
+ ok:
+  part1=(long) (nr/LL(1000000));
+  part2=(long) (nr - (longlong) part1*LL(1000000));
+  time_res->year=  (int) (part1/10000L);  part1%=10000L;
+  time_res->month= (int) part1 / 100;
+  time_res->day=   (int) part1 % 100;
+  time_res->hour=  (int) (part2/10000L);  part2%=10000L;
+  time_res->minute=(int) part2 / 100;
+  time_res->second=(int) part2 % 100;
+    
+  if (time_res->year <= 9999 && time_res->month <= 12 && 
+      time_res->day <= 31 && time_res->hour <= 23 && 
+      time_res->minute <= 59 && time_res->second <= 59 &&
+      (fuzzy_date || (time_res->month != 0 && time_res->day != 0) || nr==0))
+    return nr;
+  
+ err:
+  
+  *was_cut= 1;
+  return LL(0);
 }
 
 
@@ -1307,6 +1477,7 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
   str->set_charset(&my_charset_bin);
 }
 
+
 void make_truncated_value_warning(THD *thd, const char *str_val,
 				  uint str_length, timestamp_type time_type)
 {
@@ -1323,19 +1494,17 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
     case TIMESTAMP_DATE: 
       type_str= "date";
       break;
-    case TIMESTAMP_DATETIME:
-      type_str= "datetime";
-      break;
     case TIMESTAMP_TIME:
       type_str= "time";
       break;
+    case TIMESTAMP_DATETIME:  // FALLTHROUGH
     default:
-      type_str= "string";
+      type_str= "datetime";
       break;
   }
   sprintf(warn_buff, ER(ER_TRUNCATED_WRONG_VALUE),
 	  type_str, str.ptr());
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
 
@@ -1446,3 +1615,5 @@ void TIME_to_string(const TIME *time, String *str)
     DBUG_ASSERT(0);
   }
 }
+
+#endif

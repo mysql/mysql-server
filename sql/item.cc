@@ -228,7 +228,7 @@ bool Item::get_date(TIME *ltime,uint fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff), &my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) <= 
+      str_to_TIME_with_warn(res->ptr(),res->length(),ltime,fuzzydate) <= 
       TIMESTAMP_DATETIME_ERROR)
   {
     bzero((char*) ltime,sizeof(*ltime));
@@ -247,7 +247,7 @@ bool Item::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time(res->ptr(),res->length(),ltime))
+      str_to_time_with_warn(res->ptr(), res->length(), ltime))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
