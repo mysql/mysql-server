@@ -1428,8 +1428,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->file->index_init(0);
-  if (table->file->index_read(table->record[0],
+  if (table->file->index_read_idx(table->record[0], 0,
 			      (byte*) table->field[0]->ptr,0,
 			      HA_READ_KEY_EXACT))
   {
@@ -1440,7 +1439,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       else
 	my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
                  thd->user, thd->host_or_ip);
-      error= -1;
       goto end;
     }
     old_row_exists = 0;
@@ -1577,7 +1575,6 @@ end:
 		      &thd->lex->mqh,
 		      rights);
   }
-  table->file->index_end();
   DBUG_RETURN(error);
 }
 
@@ -1613,8 +1610,7 @@ static int replace_db_table(TABLE *table, const char *db,
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->file->index_init(0);
-  if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,0,
+  if (table->file->index_read_idx(table->record[0],0,(byte*) table->field[0]->ptr,0,
 			      HA_READ_KEY_EXACT))
   {
     if (what == 'N')
@@ -1668,13 +1664,11 @@ static int replace_db_table(TABLE *table, const char *db,
     acl_update_db(combo.user.str,combo.host.str,db,rights);
   else
     acl_insert_db(combo.user.str,combo.host.str,db,rights);
-  table->file->index_end();
   DBUG_RETURN(0);
 
   /* This could only happen if the grant tables got corrupted */
 table_error:
   table->file->print_error(error,MYF(0));	/* purecov: deadcode */
-  table->file->index_end();
 
 abort:
   DBUG_RETURN(-1);
@@ -1796,8 +1790,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
              col_privs->field[3]->pack_length());
     key_copy(key,col_privs,0,key_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
-    col_privs->file->index_init(0);
-    if (col_privs->file->index_read(col_privs->record[0],
+    if (col_privs->file->index_read_idx(col_privs->record[0],0,
                                     (byte*) col_privs->field[0]->ptr,
                                     key_len, HA_READ_KEY_EXACT))
     {
@@ -1912,7 +1905,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *xx;
-  table->file->index_init(0);
+  table->file->ha_index_init(0);
   while ((xx=iter++))
   {
     ulong privileges = xx->rights;
@@ -1982,7 +1975,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
       my_hash_insert(&g_t->hash_columns,(byte*) grant_column);
     }
   }
-  table->file->index_end();
 
   /*
     If revoke of privileges on the table level, remove all such privileges
@@ -1991,7 +1983,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   if (revoke_grant)
   {
-    table->file->index_init(0);
     if (table->file->index_read(table->record[0], (byte*) table->field[0]->ptr,
 				key_length, HA_READ_KEY_EXACT))
       goto end;
@@ -2047,7 +2038,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   }
 
 end:
-  table->file->index_end();
+  table->file->ha_index_end();
   DBUG_RETURN(result);
 }
 
@@ -2560,15 +2551,13 @@ my_bool grant_init(THD *org_thd)
     goto end;
 
   t_table = tables[0].table; c_table = tables[1].table;
-  t_table->file->index_init(0);
+  t_table->file->ha_index_init(0);
   if (t_table->file->index_first(t_table->record[0]))
   {
-    t_table->file->index_end();
     return_val= 0;
     goto end_unlock;
   }
   grant_option= TRUE;
-  t_table->file->index_end();
 
   /* Will be restored by org_thd->store_globals() */
   my_pthread_setspecific_ptr(THR_MALLOC,&memex);
@@ -2588,7 +2577,7 @@ my_bool grant_init(THD *org_thd)
       {
 	sql_print_error("Warning: 'tables_priv' entry '%s %s@%s' "
 			"ignored in --skip-name-resolve mode.",
-			mem_check->tname, mem_check->user, 
+			mem_check->tname, mem_check->user,
 			mem_check->host, mem_check->host);
 	continue;
       }
@@ -2605,6 +2594,7 @@ my_bool grant_init(THD *org_thd)
   return_val=0;					// Return ok
 
 end_unlock:
+  t_table->file->ha_index_end();
   mysql_unlock_tables(thd, lock);
   thd->version--;				// Force close to free memory
 
@@ -3548,12 +3538,10 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 						     record[0])))
       {
 	tables[0].table->file->print_error(error, MYF(0));
-	tables[0].table->file->index_end();
 	DBUG_RETURN(-1);
       }
       delete_dynamic_element(&acl_users, acl_userd);
     }
-    tables[0].table->file->index_end();
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));

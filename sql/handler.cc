@@ -40,8 +40,6 @@
 #endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
-#else
-#define innobase_query_caching_of_table_permitted(X,Y,Z) 1
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
@@ -217,6 +215,18 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_MRG_MYISAM:
     return new ha_myisammrg(table);
   }
+}
+
+bool ha_caching_allowed(THD* thd, char* table_key,
+                        uint key_length, uint8 cache_type)
+{
+#ifdef HAVE_INNOBASE_DB
+  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
+    return innobase_query_caching_of_table_permitted(thd, table_key,
+                                                     key_length);
+  else
+#endif
+    return 1;
 }
 
 int ha_init()
@@ -866,46 +876,6 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   DBUG_RETURN(error);
 }
 
-int handler::check(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::backup(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::restore(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::repair(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::optimize(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
@@ -923,32 +893,20 @@ int handler::read_first_row(byte * buf, uint primary_key)
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
   */
-  if (deleted < 10 || primary_key >= MAX_KEY || 
-      !(index_flags(primary_key) & HA_READ_ORDER))
+  if (deleted < 10 || primary_key >= MAX_KEY)
   {
-    (void) rnd_init();
+    (void) ha_rnd_init(1);
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-    (void) rnd_end();
+    (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
-    (void) index_init(primary_key);
+    (void) ha_index_init(primary_key);
     error=index_first(buf);
-    (void) index_end();
+    (void) ha_index_end();
   }
   DBUG_RETURN(error);
-}
-
-
-/*
-  The following function is only needed for tables that may be temporary tables
-  during joins
-*/
-
-int handler::restart_rnd_next(byte *buf, byte *pos)
-{
-  return HA_ERR_WRONG_COMMAND;
 }
 
 
@@ -1166,7 +1124,7 @@ void handler::print_error(int error, myf errflag)
 
 bool handler::get_error_message(int error, String* buf)
 {
-  return false;
+  return FALSE;
 }
 
 
@@ -1235,28 +1193,6 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 }
 
 
-/*
-  This is called to delete all rows in a table
-  If the handler don't support this, then this function will
-  return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-  by one.
-*/
-
-int handler::delete_all_rows()
-{
-  return (my_errno=HA_ERR_WRONG_COMMAND);
-}
-
-bool handler::caching_allowed(THD* thd, char* table_key,
-			      uint key_length, uint8 cache_type)
-{
-  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
-    return innobase_query_caching_of_table_permitted(thd, table_key,
-						     key_length);
-  else
-    return 1;
-}
-
 /****************************************************************************
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
@@ -1279,8 +1215,6 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if (update_create_info)
   {
     update_create_info_from_table(create_info, &table);
-    if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
-      table.file->delete_table(name);
   }
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
@@ -1537,3 +1471,15 @@ int handler::compare_key(key_range *range)
     cmp= key_compare_result_on_equal;
   return cmp;
 }
+
+int handler::index_read_idx(byte * buf, uint index, const byte * key,
+			     uint key_len, enum ha_rkey_function find_flag)
+{
+  int error= ha_index_init(index);
+  if (!error)
+    error= index_read(buf, key, key_len, find_flag);
+  if (!error)
+    error= ha_index_end();
+  return error;
+}
+

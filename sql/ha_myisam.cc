@@ -1063,6 +1063,7 @@ int ha_myisam::delete_row(const byte * buf)
 int ha_myisam::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1080,6 +1081,7 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1088,6 +1090,7 @@ int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 
 int ha_myisam::index_next(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=mi_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1096,6 +1099,7 @@ int ha_myisam::index_next(byte * buf)
 
 int ha_myisam::index_prev(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_prev_count,&LOCK_status);
   int error=mi_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1104,6 +1108,7 @@ int ha_myisam::index_prev(byte * buf)
 
 int ha_myisam::index_first(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_first_count,&LOCK_status);
   int error=mi_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1112,6 +1117,7 @@ int ha_myisam::index_first(byte * buf)
 
 int ha_myisam::index_last(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_last_count,&LOCK_status);
   int error=mi_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1122,6 +1128,7 @@ int ha_myisam::index_next_same(byte * buf,
 			       const byte *key __attribute__((unused)),
 			       uint length __attribute__((unused)))
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=mi_rnext_same(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;

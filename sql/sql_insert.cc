@@ -1115,7 +1115,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
     thd->fatal_error();				// Abort waiting inserts
     goto end;
   }
-  if (di->table->file->has_transactions())
+  if (!(di->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
   {
     thd->fatal_error();
     my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.real_name);
