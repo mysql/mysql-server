@@ -901,14 +901,14 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 		 TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff),current_thd->variables.thd_charset);
+  String s(buff, sizeof(buff),current_thd->charset());
 
   if (info->found)
     info->str->append(',');
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element, info->item->decimals, current_thd->variables.thd_charset);
+  s.set(*element, info->item->decimals, current_thd->charset());
   info->str->append(s);
   info->str->append('\'');
   return 0;
@@ -927,7 +927,7 @@ int collect_longlong(longlong *element,
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element, current_thd->variables.thd_charset);
+  s.set(*element, current_thd->charset());
   info->str->append(s);
   info->str->append('\'');
   return 0;
@@ -946,7 +946,7 @@ int collect_ulonglong(ulonglong *element,
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element, current_thd->variables.thd_charset);
+  s.set(*element, current_thd->charset());
   info->str->append(s);
   info->str->append('\'');
   return 0;
