@@ -4494,12 +4494,11 @@ the SQL statement in case of an error. */
 int
 ha_innobase::external_lock(
 /*=======================*/
-			        /* out: 0 or error code */
+			        /* out: 0 */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-	int 		error = 0;
 	trx_t*		trx;
 
   	DBUG_ENTER("ha_innobase::external_lock");
@@ -4554,11 +4553,21 @@ ha_innobase::external_lock(
 		}
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
+			if (thd->in_lock_tables) {
+				ulint	error;
+				error = row_lock_table_for_mysql(prebuilt);
+
+				if (error != DB_SUCCESS) {
+					error = convert_error_code_to_mysql(
+						error, user_thd);
+					DBUG_RETURN(error);
+				}
+			}
 
 		  	trx->mysql_n_tables_locked++;
 		}
 
-		DBUG_RETURN(error);
+		DBUG_RETURN(0);
 	}
 
 	/* MySQL is releasing a table lock */
@@ -4566,6 +4575,9 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 	auto_inc_counter_for_this_stat = 0;
+	if (trx->n_tables_locked) {
+		row_unlock_table_for_mysql(trx);
+	}
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -4598,7 +4610,7 @@ ha_innobase::external_lock(
 		}
 	}
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(0);
 }
 
 /****************************************************************************
