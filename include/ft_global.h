@@ -47,8 +47,9 @@ void ft_free_stopwords(void);
 
 FT_DOCLIST * ft_init_search(void *, uint, byte *, uint, my_bool);
 int          ft_read_next(FT_DOCLIST *, char *);
-#define      ft_close_search(handler)    my_free(((gptr)(handler)),MYF(0))
-#define      ft_get_relevance(handler)   ((handler)->doc[(handler)->curdoc].weight)
+#define      ft_close_search(handler)   my_free(((gptr)(handler)),MYF(0))
+#define      ft_get_relevance(handler)  ((handler)->doc[(handler)->curdoc].weight)
+#define      ft_reinit_search(handler)  (((FT_DOCLIST *)(handler))->curdoc=-1)
 
 #ifdef  __cplusplus
 }

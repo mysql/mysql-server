@@ -31,16 +31,7 @@ public:
   FT_SELECT(TABLE *table, TABLE_REF *tref) :
       QUICK_SELECT (table,tref->key,1), ref(tref) {}
 
-  int init()
-  {
-#if 0
-    if (cp_buffer_from_ref(ref)) // as ft-key doesn't use store_key's
-      return -1;
-#endif
-    return error=file->ft_init(ref->key,
-                                  ref->key_buff,
-                                  ref->key_length);
-  }
+  int init() { return error=file->ft_init(); }
   int get_next() { return error=file->ft_read(record); }
 };
 
