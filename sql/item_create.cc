@@ -154,7 +154,7 @@ Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
   thd->lex->safe_to_cache_query= 0;
-  return new Item_int(NullS,(longlong) thd->found_rows(),21);
+  return new Item_func_found_rows();
 }
 
 Item *create_func_from_days(Item* a)

@@ -27,6 +27,7 @@ WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
+bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
@@ -92,6 +93,10 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 
+mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql_tztime.cc
+mysql_tzinfo_to_sql_CXXFLAGS =  -DTZINFO2SQL $(AM_CXXFLAGS)
+mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
+
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
@@ -112,6 +117,10 @@ link_sources:
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
+
+mysql_tzinfo_to_sql_tztime.cc:	tztime.cc
+	rm -f $(srcdir)/mysql_tzinfo_to_sql_tztime.cc
+	@LN_CP_F@ $(srcdir)/tztime.cc $(srcdir)/mysql_tzinfo_to_sql_tztime.cc
 
 # Try to get better dependencies for the grammar. Othervise really bad
 # things like different grammars for different pars of MySQL can

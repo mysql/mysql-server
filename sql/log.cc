@@ -1258,12 +1258,12 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	char buf[200];
         int written= my_snprintf(buf, sizeof(buf)-1,
-                    "SET ONE_SHOT CHARACTER_SET_CLIENT=%lu,\
-COLLATION_CONNECTION=%lu,COLLATION_DATABASE=%lu,COLLATION_SERVER=%lu",
-                             thd->variables.character_set_client->number,
-                             thd->variables.collation_connection->number,
-                             thd->variables.collation_database->number,
-                             thd->variables.collation_server->number);
+                    "SET ONE_SHOT CHARACTER_SET_CLIENT=%u,\
+COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
+                             (uint) thd->variables.character_set_client->number,
+                             (uint) thd->variables.collation_connection->number,
+                             (uint) thd->variables.collation_database->number,
+                             (uint) thd->variables.collation_server->number);
 	Query_log_event e(thd, buf, written, 0);
 	e.set_log_pos(this);
 	if (e.write(file))
