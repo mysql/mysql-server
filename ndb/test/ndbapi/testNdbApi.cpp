@@ -119,6 +119,9 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  if (pTab == 0) abort();
+
   while (l < loops && result == NDBT_OK){
     int errors = 0;
     int maxErrors = 5;
@@ -137,7 +140,7 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
 	pCon = pNdb->startTransaction();
 	break;
       case 1:
-	pCon = pNdb->startTransaction(2,
+	pCon = pNdb->startTransaction(pTab,
 				      "DATA",
 				      4);
 	break;
