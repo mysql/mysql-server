@@ -2250,15 +2250,21 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
       if (field->has_charset())
-        table->field[8]->store((longlong) field->field_length/
+        table->field[8]->store((longlong) field->representation_length()/
                                field->charset()->mbmaxlen);
       else
-        table->field[8]->store((longlong) field->field_length);
-      table->field[9]->store((longlong) field->field_length);
+        table->field[8]->store((longlong) field->representation_length());
+      table->field[9]->store((longlong) field->representation_length());
 
       {
         uint dec =field->decimals();
         switch (field->type()) {
+        case FIELD_TYPE_NEWDECIMAL:
+          table->field[10]->store((longlong) field->field_length);
+          table->field[10]->set_notnull();
+          table->field[11]->store((longlong) field->decimals());
+          table->field[11]->set_notnull();
+          break;
         case FIELD_TYPE_DECIMAL:
         {
           uint int_part=field->field_length - (dec  ? dec + 1 : 0);
@@ -2266,8 +2272,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
           table->field[10]->set_notnull();
           table->field[11]->store((longlong) field->decimals());
           table->field[11]->set_notnull();
+          break;
         }
-        break;
         case FIELD_TYPE_TINY:
         case FIELD_TYPE_SHORT:
         case FIELD_TYPE_LONG:
@@ -2283,8 +2289,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
             table->field[11]->store((longlong) dec);
             table->field[11]->set_notnull();
           }
+          break;
         }
-        break;
         default:
           break;
         }

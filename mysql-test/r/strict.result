@@ -531,7 +531,6 @@ Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 Warning	1264	Out of range value adjusted for column 'col1' at row 2
 Warning	1264	Out of range value adjusted for column 'col2' at row 2
-Warning	1264	Out of range value adjusted for column 'col2' at row 2
 UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 col1	col2
@@ -556,6 +555,7 @@ INSERT INTO t1 VALUES(-9223372036854775808,0),(0,0),(9223372036854775807,1844674
 INSERT INTO t1 VALUES('-9223372036854775808','0'),('9223372036854775807','18446744073709551615');
 INSERT INTO t1 VALUES(-9223372036854774000.0,0.0),(9223372036854775700.0,1844674407370954000.0);
 INSERT INTO t1 (col1) VALUES(-9223372036854775809);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(9223372036854775808);
 INSERT INTO t1 (col2) VALUES(-1);
 INSERT INTO t1 (col2) VALUES(18446744073709551616);
@@ -595,6 +595,7 @@ Error	1365	Division by 0
 Error	1365	Division by 0
 INSERT IGNORE INTO t1 VALUES(-9223372036854775809,-1),(9223372036854775808,18446744073709551616);
 Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 2
 INSERT IGNORE INTO t1 VALUES('-9223372036854775809','-1'),('9223372036854775808','18446744073709551616');
 Warnings:
@@ -616,9 +617,8 @@ col1	col2
 9223372036854775807	18446744073709551615
 -9223372036854775808	0
 9223372036854775807	18446744073709551615
--9223372036854773760	0
-9223372036854775807	1844674407370953984
--9223372036854775808	NULL
+-9223372036854774000	0
+9223372036854775700	1844674407370954000
 -9223372036854775808	NULL
 NULL	18446744073709551615
 2	NULL
@@ -632,12 +632,17 @@ NULL	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (col1 NUMERIC(4,2));
 INSERT INTO t1 VALUES (10.55),(10.5555),(0),(-10.55),(-10.5555),(11),(1e+01);
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 2
+Note	1265	Data truncated for column 'col1' at row 5
 INSERT INTO t1 VALUES ('10.55'),('10.5555'),('-10.55'),('-10.5555'),('11'),('1e+01');
 Warnings:
 Note	1265	Data truncated for column 'col1' at row 2
 Note	1265	Data truncated for column 'col1' at row 4
 INSERT INTO t1 VALUES (101.55);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES (101);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES (-101.55);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES (1010.55);
@@ -645,7 +650,9 @@ ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES (1010);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES ('101.55');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES ('101');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES ('-101.55');
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 VALUES ('-1010.55');
@@ -661,14 +668,15 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR 01000: Data truncated for column 'col1' at row 1
+ERROR HY000: Incorrect decimal value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR 01000: Data truncated for column 'col1' at row 1
+ERROR HY000: Incorrect decimal value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
-ERROR 01000: Data truncated for column 'col1' at row 1
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Note	1265	Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 values (1/0);
 Warnings:
 Error	1365	Division by 0
@@ -695,22 +703,19 @@ NULL
 11.00
 10.00
 10.55
-10.55
+10.56
 -10.55
--10.55
+-10.56
 11.00
 10.00
-101.55
-101.00
-101.55
-101.00
+1.00
 2.00
 NULL
-999.99
+99.99
 -99.99
-999.99
+99.99
 -99.99
-999.99
+99.99
 -99.99
 DROP TABLE t1;
 CREATE TABLE t1 (col1 FLOAT, col2 FLOAT UNSIGNED);

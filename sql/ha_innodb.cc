@@ -2159,6 +2159,8 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_MYSQL);
 					}
+                case FIELD_TYPE_NEWDECIMAL:
+                                        return(DATA_BINARY);
 		case FIELD_TYPE_LONG:
 		case FIELD_TYPE_LONGLONG:
 		case FIELD_TYPE_TINY:
