@@ -2,6 +2,8 @@ connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0,mysql-slave.sock);
 connection master;
 reset master;
+grant file on *.* to replicate@localhost identified by
+ 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 connection slave;
 slave start;
 connection master;

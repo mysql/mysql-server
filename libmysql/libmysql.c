@@ -485,7 +485,7 @@ static void free_old_query(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-#ifdef HAVE_GETPWUID
+#if defined(HAVE_GETPWUID) && defined(NO_GETPWUID_DECL)
 struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
@@ -501,14 +501,6 @@ static void read_user_name(char *name)
 #ifdef HAVE_GETPWUID
     struct passwd *skr;
     const char *str;
-/*#ifdef __cplusplus
-    extern "C" struct passwd *getpwuid(uid_t);
-    extern "C" { char* getlogin(void); }
-#else
-    char * getlogin();
-    struct passwd *getpwuid(uid_t);
-#endif
-*/
     if ((str=getlogin()) == NULL)
     {
       if ((skr=getpwuid(geteuid())) != NULL)

@@ -392,6 +392,7 @@ start_slave()
       master_info="--master-user=root \
 	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
+	    --master-password= \
 	    --master-port=$MASTER_MYPORT \
 	    --server-id=2"
    else

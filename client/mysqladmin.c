@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.14"
+#define ADMIN_VERSION "8.15"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -404,7 +404,11 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       sprintf(buff,"create database %.*s",FN_REFLEN,argv[1]);
       if (mysql_query(mysql,buff))
+      {
+	my_printf_error(0,"Create failed; error: '%-.200s'",MYF(ME_BELL),
+			mysql_error(mysql));
 	return 1;
+      }
       else
       {
 	argc--; argv++;
@@ -762,7 +766,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       mysql->reconnect=1;	/* Automatic reconnect is default */
       break;
     default:
-      my_printf_error(0,"Unknown command: '%s'",MYF(ME_BELL),argv[0]);
+      my_printf_error(0,"Unknown command: '%-.60s'",MYF(ME_BELL),argv[0]);
       return 1;
     }
   }
