@@ -412,6 +412,7 @@ static SYMBOL symbols[] = {
   { "WRITE",		SYM(WRITE_SYM),0,0},
   { "WHEN",		SYM(WHEN_SYM),0,0},
   { "WHERE",		SYM(WHERE),0,0},
+  { "NO_WRITE_TO_BINLOG",  SYM(NO_WRITE_TO_BINLOG),0,0},
   { "XOR",		SYM(XOR),0,0},
   { "X509",		SYM(X509_SYM),0,0},
   { "YEAR",		SYM(YEAR_SYM),0,0},
