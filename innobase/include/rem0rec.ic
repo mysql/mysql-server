@@ -29,41 +29,41 @@ significant bytes and bits are written below less significant.
 and the shift needed to obtain each bit-field of the record. */
 
 #define REC_NEXT		2
-#define REC_NEXT_MASK		0xFFFF
+#define REC_NEXT_MASK		0xFFFFUL
 #define REC_NEXT_SHIFT		0
 
 #define REC_SHORT		3	/* This is single byte bit-field */
-#define	REC_SHORT_MASK		0x1
+#define	REC_SHORT_MASK		0x1UL
 #define REC_SHORT_SHIFT		0
 
 #define	REC_N_FIELDS		4
-#define REC_N_FIELDS_MASK	0x7FE
+#define REC_N_FIELDS_MASK	0x7FEUL
 #define	REC_N_FIELDS_SHIFT	1
 
 #define	REC_HEAP_NO		5
-#define REC_HEAP_NO_MASK	0xFFF8
+#define REC_HEAP_NO_MASK	0xFFF8UL
 #define	REC_HEAP_NO_SHIFT	3
 
 #define REC_N_OWNED		6	/* This is single byte bit-field */
-#define	REC_N_OWNED_MASK	0xF
+#define	REC_N_OWNED_MASK	0xFUL
 #define REC_N_OWNED_SHIFT	0
 
-#define	REC_INFO_BITS_MASK	0xF0
+#define	REC_INFO_BITS_MASK	0xF0UL
 #define REC_INFO_BITS_SHIFT	0
 
 /* The deleted flag in info bits */
-#define REC_INFO_DELETED_FLAG 	0x20	/* when bit is set to 1, it means the
+#define REC_INFO_DELETED_FLAG 	0x20UL	/* when bit is set to 1, it means the
 					record has been delete marked */
 /* The following masks are used to filter the SQL null bit from
 one-byte and two-byte offsets */
 
-#define REC_1BYTE_SQL_NULL_MASK	0x80
-#define REC_2BYTE_SQL_NULL_MASK	0x8000
+#define REC_1BYTE_SQL_NULL_MASK	0x80UL
+#define REC_2BYTE_SQL_NULL_MASK	0x8000UL
 
 /* In a 2-byte offset the second most significant bit denotes
 a field stored to another page: */
 
-#define REC_2BYTE_EXTERN_MASK	0x4000
+#define REC_2BYTE_EXTERN_MASK	0x4000UL
 
 /****************************************************************
 Return field length or UNIV_SQL_NULL. */
@@ -133,7 +133,7 @@ rec_set_bit_field_1(
 	ut_ad(rec);
 	ut_ad(offs <= REC_N_EXTRA_BYTES);
 	ut_ad(mask);
-	ut_ad(mask <= 0xFF);
+	ut_ad(mask <= 0xFFUL);
 	ut_ad(((mask >> shift) << shift) == mask);
 	ut_ad(((val << shift) & mask) == (val << shift));
 	
@@ -172,8 +172,8 @@ rec_set_bit_field_2(
 {
 	ut_ad(rec);
 	ut_ad(offs <= REC_N_EXTRA_BYTES);
-	ut_ad(mask > 0xFF);
-	ut_ad(mask <= 0xFFFF);
+	ut_ad(mask > 0xFFUL);
+	ut_ad(mask <= 0xFFFFUL);
 	ut_ad((mask >> shift) & 1);
 	ut_ad(0 == ((mask >> shift) & ((mask >> shift) + 1)));
 	ut_ad(((mask >> shift) << shift) == mask);
@@ -189,7 +189,7 @@ rec_set_bit_field_2(
 			   + (REC_HEAP_NO_MASK << (8 * (REC_HEAP_NO - 4)))
 			   + (REC_N_OWNED_MASK << (8 * (REC_N_OWNED - 3)))
 			   + (REC_INFO_BITS_MASK << (8 * (REC_INFO_BITS - 3))));
-	if (m != ut_dbg_zero + 0xFFFFFFFF) {
+	if (m != ut_dbg_zero + 0xFFFFFFFFUL) {
 		fprintf(stderr, "Sum of masks %lx\n", m);
 		ut_error;
 	}
