@@ -580,12 +580,12 @@ public:
 #include "spatial.h"
 #include "item_sum.h"
 #include "item_func.h"
+#include "item_row.h"
 #include "item_cmpfunc.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"
-#include "item_row.h"
 
 class Item_copy_string :public Item
 {

@@ -267,27 +267,14 @@ public:
 
 class Item_func_interval :public Item_int_func
 {
-  Item *item;
+  Item_row *row;
   double *intervals;
 public:
-  Item_func_interval(Item *a,List<Item> &list)
-    :Item_int_func(list),item(a),intervals(0) {}
+  Item_func_interval(Item_row *a)
+    :Item_int_func(a),row(a),intervals(0) { allowed_arg_cols= a->cols(); }
   longlong val_int();
-  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
-  {
-    return (item->fix_fields(thd, tlist, &item) || item->check_cols(1) ||
-	    Item_func::fix_fields(thd, tlist, ref));
-  }
   void fix_length_and_dec();
-  ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
-  void update_used_tables();
-  bool check_loop(uint id);
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_func::set_outer_resolving();
-  }
 };
 
 
