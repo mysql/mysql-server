@@ -144,6 +144,7 @@ public:
     DBUG_ENTER("Item::cleanup");
     DBUG_PRINT("info", ("Type: %d", (int)type()));
     fixed=0;
+    marker= 0;
     DBUG_VOID_RETURN;
   }
   virtual void make_field(Send_field *field);
