@@ -17,8 +17,6 @@
 #ifndef _decimal_h
 #define _decimal_h
 
-#include <my_global.h>
-
 typedef enum {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR} decimal_round_mode;
 typedef int32 decimal_digit;
 

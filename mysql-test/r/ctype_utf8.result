@@ -285,7 +285,7 @@ create table t2 select ifnull(a,a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ifnull(a,a)` char(5) character set utf8 default NULL
+  `ifnull(a,a)` varchar(5) character set utf8 default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 ifnull(a,a)
@@ -809,8 +809,8 @@ create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` char(5) character set utf8 NOT NULL default '',
-  `b` char(15) character set utf8 NOT NULL default ''
+  `a` varchar(5) character set utf8 NOT NULL default '',
+  `b` varchar(15) character set utf8 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;

@@ -1,0 +1,51 @@
+drop table if exists t1;
+create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
+truncate table vchar;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(30) default NULL,
+  `c` char(3) default NULL,
+  `e` enum('abc','def','ghi') default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table vchar;
+Table	Create Table
+vchar	CREATE TABLE `vchar` (
+  `v` varchar(30) default NULL,
+  `c` char(3) default NULL,
+  `e` enum('abc','def','ghi') default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('abc', 'de', 'ghi', 'jkl');
+insert into t1 values ('abc ', 'de ', 'ghi', 'jkl ');
+insert into t1 values ('abc    ', 'd  ', 'ghi', 'jkl    ');
+insert into vchar values ('abc', 'de', 'ghi', 'jkl');
+insert into vchar values ('abc ', 'de ', 'ghi', 'jkl ');
+insert into vchar values ('abc    ', 'd  ', 'ghi', 'jkl    ');
+select length(v),length(c),length(e),length(t) from t1;
+length(v)	length(c)	length(e)	length(t)
+3	2	3	3
+4	2	3	4
+7	1	3	7
+select length(v),length(c),length(e),length(t) from vchar;
+length(v)	length(c)	length(e)	length(t)
+3	2	3	3
+3	2	3	4
+3	1	3	7
+alter table vchar add i int;
+show create table vchar;
+Table	Create Table
+vchar	CREATE TABLE `vchar` (
+  `v` varchar(30) default NULL,
+  `c` char(3) default NULL,
+  `e` enum('abc','def','ghi') default NULL,
+  `t` text,
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select length(v),length(c),length(e),length(t) from vchar;
+length(v)	length(c)	length(e)	length(t)
+3	2	3	3
+3	2	3	4
+3	1	3	7
+drop table t1, vchar;

@@ -986,7 +986,7 @@ public:
     We must always return variables as strings to guard against selects of type
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
-  enum_field_types field_type() const  { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const  { return MYSQL_TYPE_VARCHAR; }
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const;
   table_map used_tables() const

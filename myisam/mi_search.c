@@ -364,7 +364,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
           if (!(*from++))
             continue;
         }
-        if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART | HA_SPACE_PACK))
+        if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART | HA_SPACE_PACK))
         {
           get_key_length(l,from);
         }
@@ -831,7 +831,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
           continue;
       }
       if (keyseg->flag &
-          (HA_VAR_LENGTH | HA_BLOB_PART | HA_SPACE_PACK))
+          (HA_VAR_LENGTH_PART | HA_BLOB_PART | HA_SPACE_PACK))
       {
         uchar *tmp=page;
         get_key_length(length,tmp);
@@ -896,7 +896,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       if (!(*key++ = *from++))
         continue;                               /* Null part */
     }
-    if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART | HA_SPACE_PACK))
+    if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART | HA_SPACE_PACK))
     {
       /* Get length of dynamic length key part */
       if (from == from_end) { from=page;  from_end=page_end; }
@@ -1071,7 +1071,7 @@ uint _mi_keylength(MI_KEYDEF *keyinfo, register uchar *key)
     if (keyseg->flag & HA_NULL_PART)
       if (!*key++)
         continue;
-    if (keyseg->flag & (HA_SPACE_PACK | HA_BLOB_PART | HA_VAR_LENGTH))
+    if (keyseg->flag & (HA_SPACE_PACK | HA_BLOB_PART | HA_VAR_LENGTH_PART))
     {
       uint length;
       get_key_length(length,key);
@@ -1103,7 +1103,7 @@ uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
     if (keyseg->flag & HA_NULL_PART)
       if (!*key++)
         continue;
-    if (keyseg->flag & (HA_SPACE_PACK | HA_BLOB_PART | HA_VAR_LENGTH))
+    if (keyseg->flag & (HA_SPACE_PACK | HA_BLOB_PART | HA_VAR_LENGTH_PART))
     {
       uint length;
       get_key_length(length,key);

@@ -60,6 +60,9 @@
 
 #define MAX_MBWIDTH		3		/* Max multibyte sequence */
 #define MAX_FIELD_CHARLENGTH	255
+#define MAX_FIELD_VARCHARLENGTH	65535
+#define CONVERT_IF_BIGGER_TO_BLOB 512		/* Used for CREATE ... SELECT */
+
 /* Max column width +1 */
 #define MAX_FIELD_WIDTH		(MAX_FIELD_CHARLENGTH*MAX_MBWIDTH+1)
 
@@ -145,6 +148,7 @@
 #define TE_INFO_LENGTH 3
 #define MTYP_NOEMPTY_BIT 128
 
+#define FRM_VER_TRUE_VARCHAR (FRM_VER+4)
 /*
   Minimum length pattern before Turbo Boyer-Moore is used
   for SELECT "text" LIKE "%pattern%", excluding the two
