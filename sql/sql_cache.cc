@@ -299,11 +299,15 @@ TODO list:
   pthread_mutex_lock(M);}
 #define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
   (ulong)(M))); pthread_mutex_unlock(M);}
-#define SEM_LOCK(M) { int val = 0; sem_getvalue (M, &val); \
-  DBUG_PRINT("lock", ("sem lock 0x%lx (%d)", (ulong)(M), val)); \
-  sem_wait(M); DBUG_PRINT("lock", ("sem lock ok")); }
-#define SEM_UNLOCK(M) {DBUG_PRINT("info", ("sem unlock 0x%lx", (ulong)(M))); \
-  sem_post(M);  DBUG_PRINT("info", ("sem unlock ok")); }
+#define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
+  if (!rw_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")) \
+  else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
+#define RW_RLOCK(M) {DBUG_PRINT("lock", ("rwlock rlock 0x%lx", (ulong)(M))); \
+  if (!rw_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")) \
+  else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
+#define RW_UNLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
+  if (!rw_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")) \
+  else DBUG_PRINT("lock", ("rwlock unlock FAILED %d", errno)); }
 #define STRUCT_LOCK(M) {DBUG_PRINT("lock", ("%d struct lock...",__LINE__)); \
   pthread_mutex_lock(M);DBUG_PRINT("lock", ("struct lock OK"));}
 #define STRUCT_UNLOCK(M) { \
@@ -326,8 +330,9 @@ TODO list:
 #else
 #define MUTEX_LOCK(M) pthread_mutex_lock(M)
 #define MUTEX_UNLOCK(M) pthread_mutex_unlock(M)
-#define SEM_LOCK(M) sem_wait(M)
-#define SEM_UNLOCK(M) sem_post(M)
+#define RW_WLOCK(M) rw_wrlock(M)
+#define RW_RLOCK(M) rw_rdlock(M)
+#define RW_UNLOCK(M) rw_unlock(M)
 #define STRUCT_LOCK(M) pthread_mutex_lock(M)
 #define STRUCT_UNLOCK(M) pthread_mutex_unlock(M)
 #define BLOCK_LOCK_WR(B) B->query()->lock_writing()
@@ -445,9 +450,7 @@ void Query_cache_query::init_n_lock()
 {
   DBUG_ENTER("Query_cache_query::init_n_lock");
   res=0; wri = 0; len = 0;
-  sem_init(&lock, 0, 1);
-  pthread_mutex_init(&clients_guard,MY_MUTEX_INIT_FAST);
-  clients = 0;
+  my_rwlock_init(&lock, NULL);
   lock_writing();
   DBUG_PRINT("qcache", ("inited & locked query for block 0x%lx",
 			((byte*) this)-ALIGN_SIZE(sizeof(Query_cache_block))));
@@ -465,8 +468,7 @@ void Query_cache_query::unlock_n_destroy()
     active semaphore
   */
   this->unlock_writing();
-  sem_destroy(&lock);
-  pthread_mutex_destroy(&clients_guard);
+  rwlock_destroy(&lock);
   DBUG_VOID_RETURN;
 }
 
@@ -479,9 +481,9 @@ void Query_cache_query::unlock_n_destroy()
    Lock for read prevents only locking for write.
 */
 
-void Query_cache_query::lock_writing()
+inline void Query_cache_query::lock_writing()
 {
-  SEM_LOCK(&lock);
+  RW_WLOCK(&lock);
 }
 
 
@@ -495,41 +497,31 @@ void Query_cache_query::lock_writing()
 my_bool Query_cache_query::try_lock_writing()
 {
   DBUG_ENTER("Query_cache_block::try_lock_writing");
-  if (sem_trywait(&lock)!=0 || clients != 0)
+  if (rw_trywrlock(&lock)!=0)
   {
-    DBUG_PRINT("info", ("can't lock semaphore"));
+    DBUG_PRINT("info", ("can't lock rwlock"));
     DBUG_RETURN(0);
   }
-  DBUG_PRINT("info", ("mutex 'lock' 0x%lx locked", (ulong) &lock));
+  DBUG_PRINT("info", ("rwlock 0x%lx locked", (ulong) &lock));
   DBUG_RETURN(1);
 }
 
 
-void Query_cache_query::lock_reading()
+inline void Query_cache_query::lock_reading()
 {
-  MUTEX_LOCK(&clients_guard);
-  if (++clients == 1)
-    SEM_LOCK(&lock);
-  MUTEX_UNLOCK(&clients_guard);
+  RW_RLOCK(&lock);
 }
 
 
-void Query_cache_query::unlock_writing()
+inline void Query_cache_query::unlock_writing()
 {
-  SEM_UNLOCK(&lock);
+  RW_UNLOCK(&lock);
 }
 
 
-void Query_cache_query::unlock_reading()
+inline void Query_cache_query::unlock_reading()
 {
-  /*
-    To avoid unlocking semaphore before unlocking mutex (that may cause
-    destroying locked mutex), we use temporary boolean variable 'unlock'.
-  */
-  MUTEX_LOCK(&clients_guard);
-  bool ulock = ((--clients) == 0);
-  MUTEX_UNLOCK(&clients_guard);
-  if (ulock) SEM_UNLOCK(&lock);
+  RW_UNLOCK(&lock);
 }
 
 extern "C"
@@ -2339,7 +2331,7 @@ Query_cache::double_linked_list_simple_include(Query_cache_block *point,
     *list_pointer=point->next=point->prev=point;
   else
   {
-    // insert to and of list
+    // insert to the end of list
     point->next = (*list_pointer);
     point->prev = (*list_pointer)->prev;
     point->prev->next = point;
@@ -2634,8 +2626,7 @@ my_bool Query_cache::move_by_type(byte **border,
       } while ( result_block != first_result_block );
     }
     Query_cache_query *new_query= ((Query_cache_query *) new_block->data());
-    sem_init(&new_query->lock, 0, 1);
-    pthread_mutex_init(&new_query->clients_guard,MY_MUTEX_INIT_FAST);
+    my_rwlock_init(&new_query->lock, NULL);
 
     /* 
       If someone is writing to this block, inform the writer that the block

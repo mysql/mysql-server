@@ -63,8 +63,6 @@
 
 #define TABLE_COUNTER_TYPE uint8
 
-#include <my_semaphore.h>
-
 struct Query_cache_block;
 struct Query_cache_block_table;
 struct Query_cache_table;
@@ -110,16 +108,13 @@ struct Query_cache_block
   inline Query_cache_block_table *table(TABLE_COUNTER_TYPE n);
 };
 
-
 struct Query_cache_query
 {
   ulonglong limit_found_rows;
+  rw_lock_t lock;
   Query_cache_block *res;
   NET *wri;
   ulong len;
-  sem_t lock;			// R/W lock of block
-  pthread_mutex_t clients_guard;
-  uint clients;
 
   inline void init_n_lock();
   void unlock_n_destroy();
