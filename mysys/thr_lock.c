@@ -449,7 +449,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	check_locks(lock,"read lock with old write lock",0);
 	if (lock->get_status)
 	  (*lock->get_status)(data->status_param);
-	++locks_immediate;
+	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
       if (lock->write.data->type == TL_WRITE_ONLY)
@@ -473,7 +473,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
       if ((int) lock_type == (int) TL_READ_NO_INSERT)
 	lock->read_no_write_count++;
       check_locks(lock,"read lock with no write locks",0);
-      ++locks_immediate;
+      statistic_increment(locks_immediate,&THR_LOCK_lock);
       goto end;
     }
     /* Can't get lock yet;  Wait for it */
@@ -505,7 +505,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	data->cond=get_cond();
 	if (lock->get_status)
 	  (*lock->get_status)(data->status_param);
-	++locks_immediate;
+	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
     }
@@ -540,7 +540,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	check_locks(lock,"second write lock",0);
 	if (data->lock->get_status)
 	  (*data->lock->get_status)(data->status_param);
-	++locks_immediate;
+	statistic_increment(locks_immediate,&THR_LOCK_lock);
 	goto end;
       }
       DBUG_PRINT("lock",("write locked by thread: %ld",
@@ -566,7 +566,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	  if (data->lock->get_status)
 	    (*data->lock->get_status)(data->status_param);
 	  check_locks(lock,"only write lock",0);
-	  ++locks_immediate;
+	  statistic_increment(locks_immediate,&THR_LOCK_lock);
 	  goto end;
 	}
       }

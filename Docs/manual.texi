@@ -10370,7 +10370,7 @@ feature).
 Ignore the @code{delay_key_write} option for all tables.
 @xref{Server parameters}.
 
-@item -Sg, --skip-grant-tables
+@item --skip-grant-tables
 This option causes the server not to use the privilege system at all.  This
 gives everyone @emph{full access} to all databases!  (You can tell a running
 server to start using the grant tables again by executing @code{mysqladmin
@@ -35350,12 +35350,20 @@ To add a new native @strong{MySQL} function, follow these steps:
 Add one line to @file{lex.h} that defines the function name in the
 @code{sql_functions[]} array.
 @item
-Add two lines to @file{sql_yacc.yy}. One indicates the preprocessor
-symbol that @code{yacc} should define (this should be added at the
-beginning of the file). Then define the function parameters and add an
-``item'' with these parameters to the @code{simple_expr} parsing rule.
-For an example, check all occurrences of @code{SOUNDEX} in
-@file{sql_yacc.yy} to see how this is done.
+If the function prototype is simple (just takes zero, one, two or three
+arguments), you should in lex.h specify SYM(FUNC_ARG#) (where # is the
+number of arguments) as the second argument in the
+@code{sql_functions[]} array and add a function that creates a function
+object in @file{item_create.cc}.  Take a look at @code{"ABS"} and
+@code{create_funcs_abs()} for an example of this.
+
+If the function prototype is complicated (for example takes a variable number
+of arguments), you should add two lines to @file{sql_yacc.yy}. One
+indicates the preprocessor symbol that @code{yacc} should define (this
+should be added at the beginning of the file). Then define the function
+parameters and add an ``item'' with these parameters to the
+@code{simple_expr} parsing rule.  For an example, check all occurrences
+of @code{ATAN} in @file{sql_yacc.yy} to see how this is done.
 @item
 In @file{item_func.h}, declare a class inheriting from @code{Item_num_func} or
 @code{Item_str_func}, depending on whether your function returns a number or a
@@ -35368,28 +35376,45 @@ double   Item_func_newname::val()
 longlong Item_func_newname::val_int()
 String  *Item_func_newname::Str(String *str)
 @end example
+
+If you inherit your object from any of the standard items (like
+@code{Item_num_func} you probably only have to define one of the above
+functions and let the parent object take care of the other functions.
+For example, the @code{Item_str_func} class defines a @code{val()} function
+that executes @code{atof()} on the value returned by @code{::str()}.
+
 @item
-You should probably also define the following function:
+You should probably also define the following object function:
 @example
 void Item_func_newname::fix_length_and_dec()
 @end example
 This function should at least calculate @code{max_length} based on the
 given arguments. @code{max_length} is the maximum number of characters
-the function may return.  This function should also set @code{maybe_null = 0}
-if the main function can't return a @code{NULL} value.  The function can check
-if any of the function arguments can return @code{NULL} by checking the
-arguments @code{maybe_null} variable.
+the function may return.  This function should also set @code{maybe_null
+= 0} if the main function can't return a @code{NULL} value.  The
+function can check if any of the function arguments can return
+@code{NULL} by checking the arguments @code{maybe_null} variable. You
+can take a look at @code{Item_func_mod::fix_length_and_dec} for a
+typical example of how to do this.
 @end enumerate
 
-All functions must be thread safe.
+All functions must be thread safe (In other words, don't use any global or
+static variables in the functions without protecting them with mutexes).
 
-For string functions, there are some additional considerations to be aware of:
+If you want to return @code{NULL}, from @code{::val()}, @code{::val_int()}
+or @code{::str()} you should set @code{null_value} to 1 and return 0.
+
+For @code{::str()} object functions, there are some additional
+considerations to be aware of:
+
 @itemize @bullet
 @item
-The @code{String *str} argument provides a string
-buffer that may be used to hold the result.
+The @code{String *str} argument provides a string buffer that may be
+used to hold the result. (For more information about the @code{String} type,
+take a look at the @file{sql_string.h} file.)
 @item
-The function should return the string that holds the result.
+The @code{::str()} function should return the string that holds the result or
+@code{(char*) 0} if the result is @code{NULL}.
 @item
 All current string functions try to avoid allocating any memory unless
 absolutely necessary!

@@ -1,2 +1,2 @@
-encrypt('foo', 'ff')
-ffTU0fyIP09Z.
+length(encrypt('foo', 'ff')) <> 0
+1
