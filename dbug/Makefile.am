@@ -36,10 +36,10 @@ dbug_analyze_SOURCES =  dbug_analyze.c
 all:            user.t user.ps
 
 user.t:         user.r $(NROFF_INC)
-		nroff -mm user.r > $@
+		-nroff -mm user.r > $@
 
 user.ps:	user.r $(NROFF_INC)
-		groff -mm user.r > $@
+		-groff -mm user.r > $@
 
 output1.r:      factorial
 		./factorial 1 2 3 4 5 | cat > $@
