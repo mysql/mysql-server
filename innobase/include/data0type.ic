@@ -15,8 +15,8 @@ NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
 this function, you MUST change also the prototype here! */
 extern
 void
-innobase_get_mb_cset(
-/*=================*/
+innobase_get_cset_width(
+/*====================*/
 	ulint	cset,		/* in: MySQL charset-collation code */
 	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
 	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
@@ -42,7 +42,7 @@ dtype_set_mblen(
 {
 	ut_ad(type);
 	if (dtype_is_string_type(type->mtype)) {
-		innobase_get_mb_cset(dtype_get_charset_coll(type->prtype),
+		innobase_get_cset_width(dtype_get_charset_coll(type->prtype),
 				&type->mbminlen, &type->mbmaxlen);
 		ut_ad(type->mbminlen <= type->mbmaxlen);
 	} else {
@@ -355,9 +355,40 @@ dtype_get_fixed_size(
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_MYSQL:
-			if ((type->prtype & DATA_BINARY_TYPE)
-					|| type->mbminlen == type->mbmaxlen) {
+			if (type->prtype & DATA_BINARY_TYPE) {
 				return(dtype_get_len(type));
+			} else {
+				/* We play it safe here and ask MySQL for
+				mbminlen and mbmaxlen.  Although
+				type->mbminlen and type->mbmaxlen are
+				initialized if and only if type->prtype
+				is (in one of the 3 functions in this file),
+				it could be that none of these functions
+				has been called. */
+
+				ulint	mbminlen, mbmaxlen;
+
+				innobase_get_cset_width(
+					dtype_get_charset_coll(type->prtype),
+					&mbminlen, &mbmaxlen);
+
+				if (type->mbminlen != mbminlen
+					|| type->mbmaxlen != mbmaxlen) {
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr, "  InnoDB: "
+						"mbminlen=%lu, "
+						"mbmaxlen=%lu, "
+						"type->mbminlen=%lu, "
+						"type->mbmaxlen=%lu\n",
+						(ulong) mbminlen,
+						(ulong) mbmaxlen,
+						(ulong) type->mbminlen,
+						(ulong) type->mbmaxlen);
+				}
+				if (mbminlen == mbmaxlen) {
+					return(dtype_get_len(type));
+				}
 			}
 			/* fall through for variable-length charsets */
 	case DATA_VARCHAR:
