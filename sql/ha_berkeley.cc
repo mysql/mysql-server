@@ -720,8 +720,8 @@ void ha_berkeley::unpack_key(char *record, DBT *key, uint index)
       }
       record[key_part->null_offset]&= ~key_part->null_bit;
     }
-    pos= (char*) key_part->field->unpack(record + key_part->field->offset(),
-					 pos);
+    pos= (char*) key_part->field->unpack_key(record + key_part->field->offset(),
+                                             pos, key_part->length);
   }
 }
 

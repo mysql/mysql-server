@@ -189,6 +189,10 @@ public:
   {
     return pack(to,from,max_length);
   }
+  virtual const char *unpack_key(char* to, const char *from, uint max_length)
+  {
+    return unpack(to,from);
+  }
   virtual uint packed_col_length(const char *to, uint length)
   { return length;}
   virtual uint max_packed_col_length(uint max_length)
@@ -890,6 +894,7 @@ public:
   inline uint32 get_length(uint row_offset=0)
   { return get_length(ptr+row_offset); }
   uint32 get_length(const char *ptr);
+  void put_length(char *pos, uint32 length);
   bool binary() const { return binary_flag; }
   inline void get_ptr(char **str)
     {
@@ -923,6 +928,7 @@ public:
   const char *unpack(char *to, const char *from);
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
+  const char *unpack_key(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
   uint packed_col_length(const char *col_ptr, uint length);
