@@ -125,3 +125,7 @@ a	a
 1	NULL
 SELECT * FROM (SELECT 1 UNION SELECT a) b;
 Unknown column 'a' in 'field list'
+SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
+Unknown column 'a' in 'field list'
+SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
+Unknown column 'a' in 'field list'
