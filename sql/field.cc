@@ -149,7 +149,7 @@ bool Field::check_int(const char *str, int length, const char *int_end,
   truncation.
 
   SYNOPSIS
-    Field::check_overflow()
+    Field::warn_if_overflow()
     op_result  decimal library return code (E_DEC_* see include/decimal.h)
 
   RETURN
@@ -157,18 +157,21 @@ bool Field::check_int(const char *str, int length, const char *int_end,
     0  no error or some other errors except overflow
 */
 
-int Field::check_overflow(int op_result)
+int Field::warn_if_overflow(int op_result)
 {
   if (op_result == E_DEC_OVERFLOW)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
-  else if (op_result == E_DEC_TRUNCATED)
+  if (op_result == E_DEC_TRUNCATED)
+  {
     set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
-  /* we return 1 only in case of EFL */
+    /* We return 0 here as this is not a critical issue */
+  }
   return 0;
 }
+
 
 #ifdef NOT_USED
 static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
@@ -507,7 +510,7 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
       i= 0;
       *err= 1;
     }
-    else if (check_overflow(my_decimal2int(E_DEC_ERROR &
+    else if (warn_if_overflow(my_decimal2int(E_DEC_ERROR &
                                            ~E_DEC_OVERFLOW & ~E_DEC_TRUNCATED,
                                            val, TRUE, &i)))
     {
@@ -515,7 +518,7 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
       *err= 1;
     }
   }
-  else if (check_overflow(my_decimal2int(E_DEC_ERROR &
+  else if (warn_if_overflow(my_decimal2int(E_DEC_ERROR &
                                          ~E_DEC_OVERFLOW & ~E_DEC_TRUNCATED,
                                          val, FALSE, &i)))
   {
@@ -616,7 +619,7 @@ int Field_str::store_decimal(const my_decimal *d)
 {
   double val;
   /* TODO: use decimal2string? */
-  int err= check_overflow(my_decimal2double(E_DEC_FATAL_ERROR &
+  int err= warn_if_overflow(my_decimal2double(E_DEC_FATAL_ERROR &
                                             ~E_DEC_OVERFLOW, d, &val));
   return err | store(val);
 }
@@ -1552,12 +1555,17 @@ void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
     checks if decimal_value fits into field size.
     if it does, stores the decimal in the buffer using binary format.
     Otherwise sets maximal number that can be stored in the field.
+
+  RETURN
+   0 ok
+   1 error
 */
 
 bool Field_new_decimal::store_value(const my_decimal *decimal_value)
 {
-  DBUG_ENTER("Field_new_decimal::store_value");
   my_decimal *dec= (my_decimal*)decimal_value;
+  int error= 0;
+  DBUG_ENTER("Field_new_decimal::store_value");
   DBUG_EXECUTE("enter", print_decimal(dec););
 
   /* check that we do not try to write negative value in unsigned field */
@@ -1565,16 +1573,18 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   {
     DBUG_PRINT("info", ("unsigned overflow"));
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    error= 1;
     dec= &decimal_zero;
   }
   DBUG_PRINT("info", ("saving with precision %d, scale: %d",
                       (int)field_length, (int)decimals()));
   DBUG_EXECUTE("info", print_decimal(dec););
 
-  if (check_overflow(my_decimal2binary(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                                       dec, ptr,
-                                       field_length,
-                                       decimals())))
+  if (warn_if_overflow(my_decimal2binary(E_DEC_FATAL_ERROR &
+                                         ~E_DEC_OVERFLOW,
+                                         dec, ptr,
+                                         field_length,
+                                         decimals())))
   {
     my_decimal buff;
     DBUG_PRINT("info", ("overflow"));
@@ -1584,20 +1594,20 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
     DBUG_RETURN(1);
   }
   DBUG_EXECUTE("info", print_decimal_buff(dec, ptr, bin_size););
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
 int Field_new_decimal::store(const char *from, uint length,
                              CHARSET_INFO *charset)
 {
-  DBUG_ENTER("Field_new_decimal::store(char*)");
   int err;
   my_decimal decimal_value;
+  DBUG_ENTER("Field_new_decimal::store(char*)");
+
   switch ((err= str2my_decimal(E_DEC_FATAL_ERROR &
                                ~(E_DEC_OVERFLOW | E_DEC_BAD_NUM),
-                               from, length, charset,  &decimal_value)))
-  {
+                               from, length, charset,  &decimal_value))) {
   case E_DEC_TRUNCATED:
     set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
     break;
@@ -1624,9 +1634,11 @@ int Field_new_decimal::store(const char *from, uint length,
 int Field_new_decimal::store(double nr)
 {
   my_decimal decimal_value;
-  int err= double2my_decimal(E_DEC_FATAL_ERROR &
-                             ~E_DEC_OVERFLOW, nr,
-                             &decimal_value);
+  int err;
+  DBUG_ENTER("Field_new_decimal::store(double)");
+
+  err= double2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, nr,
+                         &decimal_value);
   /*
     TODO: fix following when double2my_decimal when double2decimal
     will return E_DEC_TRUNCATED always correctly
@@ -1638,10 +1650,18 @@ int Field_new_decimal::store(double nr)
     if (nr2 != nr)
       err= E_DEC_TRUNCATED;
   }
-  if (check_overflow(err))
-    set_value_on_overflow(&decimal_value, decimal_value.sign());
-  store_value(&decimal_value);
-  return err;
+  if (err)
+  {
+    if (check_overflow(err))
+      set_value_on_overflow(&decimal_value, decimal_value.sign());
+    /* Only issue a warning if store_value doesn't issue an warning */
+    table->in_use->got_warning= 0;
+  }
+  if (store_value(&decimal_value))
+    err= 1;
+  else if (err && !table->in_use->got_warning)
+    err= warn_if_overflow(err);
+  DBUG_RETURN(err);
 }
 
 
@@ -1649,10 +1669,19 @@ int Field_new_decimal::store(longlong nr)
 {
   my_decimal decimal_value;
   int err;
-  if ((err= check_overflow(int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                                          nr, unsigned_flag, &decimal_value))))
-    set_value_on_overflow(&decimal_value, decimal_value.sign());
-  store_value(&decimal_value);
+
+  if ((err= int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                           nr, unsigned_flag, &decimal_value)))
+  {
+    if (check_overflow(err))
+      set_value_on_overflow(&decimal_value, decimal_value.sign());
+    /* Only issue a warning if store_value doesn't issue an warning */
+    table->in_use->got_warning= 0;
+  }
+  if (store_value(&decimal_value))
+    err= 1;
+  else if (err && !table->in_use->got_warning)
+    err= warn_if_overflow(err);
   return err;
 }
 
@@ -1694,7 +1723,7 @@ my_decimal* Field_new_decimal::val_decimal(my_decimal *decimal_value)
 
 
 String *Field_new_decimal::val_str(String *val_buffer,
-                               String *val_ptr __attribute__((unused)))
+                                   String *val_ptr __attribute__((unused)))
 {
   my_decimal decimal_value;
   int fixed_precision= (zerofill ?
@@ -1727,6 +1756,7 @@ void Field_new_decimal::sql_type(String &str) const
                                 "decimal(%d,%d)", field_length, (int)dec));
   add_zerofill_and_unsigned(str);
 }
+
 
 /****************************************************************************
 ** tiny int
