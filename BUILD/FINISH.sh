@@ -14,8 +14,7 @@ $make -k clean || true
 /bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache
 
 aclocal && autoheader && aclocal && automake && autoconf
-# TODO: remove when DBD will be OK
-#(cd bdb/dist && sh s_all)
+(cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 if [ -d gemini ]
 then

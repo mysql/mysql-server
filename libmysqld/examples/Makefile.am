@@ -11,7 +11,7 @@ DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	@MT_INCLUDES@ -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client $(openssl_includes)
 LIBS =		@LIBS@
-LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @innodb_system_libs@ @LIBDL@ $(CXXLDFLAGS)
+LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @innodb_system_libs@ @bdb_libs_with_path@ @LIBDL@ $(CXXLDFLAGS)
 
 mysqltest_SOURCES =	mysqltest.c
 
