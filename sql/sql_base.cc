@@ -815,7 +815,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   pthread_mutex_lock(&LOCK_open);
   if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
-                        &thd->mem_root) ||
+                        thd->mem_root) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
@@ -1135,7 +1135,7 @@ bool reopen_table(TABLE *table,bool locked)
   safe_mutex_assert_owner(&LOCK_open);
 
   if (open_unireg_entry(table->in_use, &tmp, db, table_name,
-			table->table_name, 0, &table->in_use->mem_root))
+			table->table_name, 0, table->in_use->mem_root))
     goto end;
   free_io_cache(table);
 
@@ -1774,7 +1774,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
-  while (!(table= open_table(thd, table_list, &thd->mem_root, &refresh)) &&
+  while (!(table= open_table(thd, table_list, thd->mem_root, &refresh)) &&
          refresh)
     ;
 
@@ -2999,7 +2999,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             during cleunup() this item will be put in list to replace
             expression from VIEW
           */
-          thd->nocheck_register_item_tree_change(it->ref(), item, &thd->mem_root);
+          thd->nocheck_register_item_tree_change(it->ref(), item,
+                                                 thd->mem_root);
         }
       }
       /* All fields are used */

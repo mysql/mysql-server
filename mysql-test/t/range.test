@@ -432,3 +432,4 @@ explain select * from t1 where a=binary 'aaa';
 explain select * from t1 where a='aaa' collate latin1_bin;
 # this one cannot:
 explain select * from t1 where a='aaa' collate latin1_german1_ci;
+drop table t1;

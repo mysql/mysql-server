@@ -314,6 +314,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
+      Field **field;
       Item_arena *tmp_arena,backup;
       tmp_arena= thd->change_arena_if_needed(&backup);
 

@@ -1848,7 +1848,7 @@ sp_proc_stmt:
 		  i->m_query.length= lex->ptr - sp->m_tmp_query;
 		else
 		  i->m_query.length= lex->tok_end - sp->m_tmp_query;
-		i->m_query.str= strmake_root(&YYTHD->mem_root,
+		i->m_query.str= strmake_root(YYTHD->mem_root,
 					     (char *)sp->m_tmp_query,
 					     i->m_query.length);
 		i->set_lex(lex);

@@ -3514,7 +3514,7 @@ Item_func_sp::func_name() const
              1 +                         // .
              1 +                         // end of string
              ALIGN_SIZE(1));             // to avoid String reallocation
-  String qname((char *)alloc_root(&thd->mem_root, len), len,
+  String qname((char *)alloc_root(thd->mem_root, len), len,
                system_charset_info);
 
   qname.length(0);

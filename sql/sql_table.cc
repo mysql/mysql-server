@@ -1401,7 +1401,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                             create_info, *extra_fields, *keys, 0,
                             select_field_count))
     {
-      if (!(table= open_table(thd, create_table, &thd->mem_root, (bool*) 0)))
+      if (!(table= open_table(thd, create_table, thd->mem_root, (bool*) 0)))
         quick_rm_table(create_info->db_type, create_table->db,
                        table_case_name(create_info, create_table->real_name));
     }
@@ -3077,7 +3077,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.real_name= tbl.alias= tmp_name;
-      new_table= open_table(thd, &tbl, &thd->mem_root, 0);
+      new_table= open_table(thd, &tbl, thd->mem_root, 0);
     }
     else
     {
@@ -3516,6 +3516,8 @@ int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.row_type=ROW_TYPE_DEFAULT;
   create_info.default_table_charset=default_charset_info;
+  /* Force alter table to recreate table */
+  lex->alter_info.flags= ALTER_CHANGE_COLUMN;
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, lex->create_list,
                                 lex->key_list, 0, (ORDER *) 0,

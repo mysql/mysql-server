@@ -608,15 +608,13 @@ parse_quoted_escaped_string(char *ptr, char *end,
 
 my_bool
 File_parser::parse(gptr base, MEM_ROOT *mem_root,
-		  struct File_option *parameters, uint required)
+                   struct File_option *parameters, uint required)
 {
   uint first_param= 0, found= 0;
   register char *ptr= start;
   char *eol;
   LEX_STRING *str;
-  MEM_ROOT *sql_mem;
   List<LEX_STRING> *list;
-  bool change_mem;
   DBUG_ENTER("File_parser::parse");
 
   while (ptr < end && found < required)
@@ -720,18 +718,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	}
 	case FILE_OPTIONS_STRLIST:
 	{
-	  /*
-	    TODO: remove play with mem_root, when List will be able
-	    to store MEM_ROOT* pointer for list elements allocation
-            FIXME: we can't handle empty lists
-	  */
-	  sql_mem= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
-	  list= (List<LEX_STRING>*)(base + parameter->offset);
-	  if ((change_mem= (sql_mem != mem_root)))
-	  {
-	    change_mem= 1;
-	    my_pthread_setspecific_ptr(THR_MALLOC, mem_root);
-	  }
+          list= (List<LEX_STRING>*)(base + parameter->offset);
 	    
 	  list->empty();
 	  // list parsing
@@ -739,7 +726,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	  {
 	    if (!(str= (LEX_STRING*)alloc_root(mem_root,
 					       sizeof(LEX_STRING))) ||
-		list->push_back(str))
+		list->push_back(str, mem_root))
 	      goto list_err;
 	    if(!(ptr= parse_quoted_escaped_string(ptr, end, mem_root, str)))
 	      goto list_err_w_message;
@@ -754,20 +741,15 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	      goto list_err_w_message;
 	    }
 	  }
-	end_of_list:
+      end_of_list:
 	  if (*(ptr++) != '\n')
 	    goto list_err;
-
-	  if (change_mem)
-	    my_pthread_setspecific_ptr(THR_MALLOC, sql_mem);
 	  break;
 
       list_err_w_message:
 	  my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
 		     parameter->name.str, line);
       list_err:
-	  if (change_mem)
-	    my_pthread_setspecific_ptr(THR_MALLOC, sql_mem);
 	  DBUG_RETURN(TRUE);
 	}
 	default:

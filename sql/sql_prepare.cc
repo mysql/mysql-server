@@ -1828,7 +1828,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     {
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
-          !(stmt->cursor= new (&stmt->mem_root) Cursor()))
+          !(stmt->cursor= new (&stmt->main_mem_root) Cursor()))
       {
         send_error(thd, ER_OUT_OF_RESOURCES);
         DBUG_VOID_RETURN;
@@ -2013,7 +2013,12 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
 
 /*
   COM_FETCH handler: fetches requested amount of rows from cursor
+
   SYNOPSIS
+    mysql_stmt_fetch()
+    thd			Thread handler
+    packet		Packet from client (with stmt_id & num_rows)
+    packet_length	Length of packet
 */
 
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
@@ -2023,7 +2028,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   ulong num_rows= uint4korr(packet+=4);
   Statement *stmt;
   int error;
-
   DBUG_ENTER("mysql_stmt_fetch");
 
   if (!(stmt= thd->stmt_map.find(stmt_id)) ||
