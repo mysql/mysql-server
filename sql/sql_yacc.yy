@@ -1760,15 +1760,15 @@ join_table_list:
 	| join_table_list INNER_SYM JOIN_SYM join_table ON expr
 	  { add_join_on($4,$6); $$=$4; }
 	| join_table_list INNER_SYM JOIN_SYM join_table
-	  { Lex->db1=$1->db; Lex->table1=$1->name;
-	    Lex->db2=$4->db; Lex->table2=$4->name; }
+	  { Lex->db1=$1->db; Lex->table1=$1->alias;
+	    Lex->db2=$4->db; Lex->table2=$4->alias; }
 	  USING '(' using_list ')'
 	  { add_join_on($4,$8); $$=$4; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table ON expr
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table
-	  { Lex->db1=$1->db; Lex->table1=$1->name;
-	    Lex->db2=$5->db; Lex->table2=$5->name; }
+	  { Lex->db1=$1->db; Lex->table1=$1->alias;
+	    Lex->db2=$5->db; Lex->table2=$5->alias; }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table
@@ -1776,8 +1776,8 @@ join_table_list:
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table ON expr
 	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table
-	  { Lex->db1=$1->db; Lex->table1=$1->name;
-	    Lex->db2=$5->db; Lex->table2=$5->name; }
+	  { Lex->db1=$1->db; Lex->table1=$1->alias;
+	    Lex->db2=$5->db; Lex->table2=$5->alias; }
 	  USING '(' using_list ')'
 	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table
