@@ -33032,7 +33032,7 @@ Performance handicapping system for yachts. Uses PHP. By
 
 @item @uref{http://www.mysql.com/Contrib/hylalog-1.0.tar.gz, hylalog-1.0.tar.gz}
 Store @code{hylafax} outgoing faxes in a @strong{MySQL} database. By Sinisa
-Milivojevic, @email{sinisa@@coresinc.com}.
+Milivojevic, @email{sinisa@@mysql.com}.
 
 @item @uref{http://www.mysql.com/Contrib/mrtg-mysql-1.0.tar.gz, mrtg-mysql-1.0.tar.gz}
 @strong{MySQL} status plotting with MRTG, by Luuk de Boer, @email{luuk@@wxs.nl}.
@@ -33268,7 +33268,7 @@ The @file{libmysql.dll} library.
 Mysqlmanager, a Win32 GUI tool for administrating @strong{MySQL}.
 @item Curt Sampson @email{cjs@@portal.ca}
 Porting of MIT-pthreads to NetBSD/Alpha and NetBSD 1.3/i386.
-@item Sinisa Milivojevic @email{sinisa@@coresinc.com}
+@item Sinisa Milivojevic @email{sinisa@@mysql.com}
 Compression (with @code{zlib}) to the client/server protocol.
 Perfect hashing for the lexical analyzer phase.
 @item Antony T. Curtis @email{antony.curtis@@olcs.net}
