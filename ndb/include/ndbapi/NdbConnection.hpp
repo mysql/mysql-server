@@ -658,6 +658,8 @@ private:
   Uint32 m_db_nodes[2];
   Uint32 m_failed_db_nodes[2];
   
+  int report_node_failure(Uint32 id);
+
   // Scan operations
   bool m_waitForReply;     
   NdbIndexScanOperation* m_theFirstScanOperation;

@@ -274,3 +274,11 @@ NdbReceiver::execKEYINFO20(Uint32 info, const Uint32* aDataPtr, Uint32 aLength)
   
   return (tmp == m_expected_result_length ? 1 : 0);
 }
+
+void
+NdbReceiver::setErrorCode(int code)
+{
+  theMagicNumber = 0;
+  NdbOperation* op = (NdbOperation*)getOwner();
+  op->setErrorCode(code);
+}

@@ -1537,16 +1537,20 @@ from other transactions.
     const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
-      tOp = theNdb->void2rec(theNdb->int2void(*tPtr));
-      tPtr++;
-      const Uint32 tAttrInfoLen = *tPtr;
-      tPtr++;
+      tOp = theNdb->void2rec(theNdb->int2void(*tPtr++));
+      const Uint32 tAttrInfoLen = *tPtr++;
       if (tOp && tOp->checkMagicNumber()) {
-	tNoComp += tOp->execTCOPCONF(tAttrInfoLen);
+	Uint32 done = tOp->execTCOPCONF(tAttrInfoLen);
 	if(tAttrInfoLen > TcKeyConf::SimpleReadBit){
-	  NdbNodeBitmask::set(m_db_nodes, 
-			      tAttrInfoLen & (~TcKeyConf::SimpleReadBit));
+	  Uint32 node = tAttrInfoLen & (~TcKeyConf::SimpleReadBit);
+	  NdbNodeBitmask::set(m_db_nodes, node);
+	  if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
+	  {
+	    done = 1;
+	    tOp->setErrorCode(4119);
+	  }	    
 	}
+	tNoComp += done;
       } else {
  	return -1;
       }//if
@@ -1960,3 +1964,43 @@ NdbConnection::printState()
 }
 #undef CASE
 #endif
+
+int
+NdbConnection::report_node_failure(Uint32 id){
+  NdbNodeBitmask::set(m_failed_db_nodes, id);
+  if(!NdbNodeBitmask::get(m_db_nodes, id))
+  {
+    return 0;
+  }
+  
+  /**
+   *   Arrived
+   *   TCKEYCONF   TRANSIDAI
+   * 1)   -           -
+   * 2)   -           X
+   * 3)   X           -
+   * 4)   X           X
+   */
+  NdbOperation* tmp = theFirstExecOpInList;
+  const Uint32 len = TcKeyConf::SimpleReadBit | id;
+  Uint32 tNoComp = theNoOfOpCompleted;
+  Uint32 tNoSent = theNoOfOpSent;
+  while(tmp != 0)
+  {
+    if(tmp->theReceiver.m_expected_result_length == len && 
+       tmp->theReceiver.m_received_result_length == 0)
+    {
+      tNoComp++;
+      tmp->theError.code = 4119;
+    }
+    tmp = tmp->next();
+  }
+  theNoOfOpCompleted = tNoComp;
+  if(tNoComp == tNoSent)
+  {
+    theError.code = 4119;
+    theCompletionStatus = NdbConnection::CompletedFailure;    
+    return 1;
+  }
+  return 0;
+}

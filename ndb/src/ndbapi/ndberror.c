@@ -92,9 +92,10 @@ ErrorBundle ErrorCodes[] = {
   { 4031, NR, "Node failure caused abort of transaction" },
   { 4033, NR, "Send to NDB failed" },
   { 4115, NR, 
-   "Transaction was committed but all read information was not "
-   "received due to node crash" },
-
+    "Transaction was committed but all read information was not "
+    "received due to node crash" },
+  { 4119, NR, "Simple/dirty read failed due to node failure" },
+  
   /**
    * Node shutdown
    */
