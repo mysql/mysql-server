@@ -1,4 +1,6 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
+# 2002-02-15 zak@mysql.com
+# Use -w to make perl print useful warnings about the script being run
 
 sub fix_underscore {
   $str = shift;
@@ -13,8 +15,38 @@ sub strip_emph {
   return $str;
 };
 
+print STDERR "\n--Post-processing makeinfo output--\n";
 
+# 2002-02-15 zak@mysql.com
+print STDERR "Discard DTD - ORA can add the appropriate DTD for their flavour of DocBook\n";
+<STDIN>;
+
+print STDERR "Slurp! In comes the rest of the file. :)\n";
 $data = join "", <STDIN>;
+
+# 2002-02-15 zak@mysql.com
+print STDERR "Add an XML processing instruction with the right character encoding\n";
+$data = "<?xml version='1.0' encoding='ISO-8859-1'?>" . $data;
+
+# 2002-02-15 zak@mysql.com
+# Less than optimal - should be fixed in makeinfo
+print STDERR "Put in missing <bookinfo> and <abstract>\n";
+$data =~ s/<book lang="en">/<book lang="en"><bookinfo><abstract>/gs;
+
+# 2002-02-15 zak@mysql.com
+print STDERR "Convert existing ampersands to escape sequences \n";
+$data =~ s/&(?!\w+;)/&amp;/gs;
+
+# 2002-02-15 zak@mysql.com
+# Need to talk to Arjen about what the <n> bits are for
+print STDERR "Rework references of the notation '<n>'\n";
+$data =~ s/<(\d)>/[$1]/gs;
+  
+# 2002-02-15 zak@mysql.com
+# We might need to encode the high-bit characters to ensure proper representation
+# print STDERR "Converting high-bit characters to entities\n";
+# $data =~ s/([\200-\400])/&get_entity($1)>/gs;
+# There is no get_entity function yet - no point writing it til we need it :)
 
 print STDERR "Changing @@ to @...\n";
 $data =~ s/@@/@/gs;
@@ -45,6 +77,11 @@ print STDERR "Fixing spacing problem with titles...\n";
 $data =~ s{</(\w+)>(\w{2,})}
           {</$1> $2}gs;
 
+# 2002-02-15 arjen@mysql.com
+print STDERR "Adding closing / to XREF...\n";
+$data =~ s{<xref (.+?)>}
+          {<xref $1 />}gs;
+
 # 2002-01-30 arjen@mysql.com
 print STDERR "Removing COLSPEC...\n";
 $data =~ s{\n *<colspec colwidth=\"[0-9]+\*\">}
@@ -65,10 +102,10 @@ print STDERR "Removing lf before /PARA in ENTRY...\n";
 $data =~ s{(<entry><para>(.+?))\n(</para></entry>)}
           {$1$3}gs;
 
-# 2002-01-31 arjen@mysql.com
-print STDERR "Removing whitespace before /PARA...\n";
-$data =~ s{[ ]+</para>}
-          {</para>}gs;
+# 2002-01-31 arjen@mysql.com (2002-02-15 added \n stuff)
+print STDERR "Removing whitespace before /PARA if not on separate line...\n";
+$data =~ s{([^\n ])[ ]+</para>}
+          {$1</para>}gs;
 
 # 2002-01-31 arjen@mysql.com
 print STDERR "Removing empty PARA in ENTRY...\n";

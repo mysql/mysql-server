@@ -271,12 +271,17 @@ open_or_create_log_file(
 	} else {
 		*log_file_created = TRUE;
 					
+	    	ut_print_timestamp(stderr);
+
 		fprintf(stderr,
-		"InnoDB: Log file %s did not exist: new to be created\n",
+		"  InnoDB: Log file %s did not exist: new to be created\n",
 									name);
 		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
 			             name, srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
+
+		fprintf(stderr,
+	    "InnoDB: Database physically writes the file full: wait...\n");
 
 		ret = os_file_set_size(name, files[i],
 					srv_calc_low32(srv_log_file_size),
@@ -456,8 +461,9 @@ open_or_create_data_files(
 			one_created = TRUE;
 
 			if (i > 0) {
+	    			ut_print_timestamp(stderr);
 				fprintf(stderr, 
-		"InnoDB: Data file %s did not exist: new to be created\n",
+		"  InnoDB: Data file %s did not exist: new to be created\n",
 									name);
 			} else {
 				fprintf(stderr, 
@@ -466,8 +472,9 @@ open_or_create_data_files(
 				*create_new_db = TRUE;
 			}
 			
+	    		ut_print_timestamp(stderr);
 			fprintf(stderr, 
-				"InnoDB: Setting file %s size to %lu MB\n",
+				"  InnoDB: Setting file %s size to %lu MB\n",
 			       name, (srv_data_file_sizes[i]
 				      >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
@@ -911,6 +918,12 @@ innobase_start_or_create_for_mysql(void)
 		mtr_commit(&mtr);
 	}
 
+	if (recv_needed_recovery) {
+	    	ut_print_timestamp(stderr);
+		fprintf(stderr,
+	        "  InnoDB: Flushing modified pages from the buffer pool...\n");
+	}
+
 	log_make_checkpoint_at(ut_dulint_max, TRUE);
 
 	if (!srv_log_archive_on) {
@@ -991,9 +1004,8 @@ innobase_shutdown_for_mysql(void)
 	    		ut_print_timestamp(stderr);
             		fprintf(stderr, 
 	"  InnoDB: Warning: shutting down a not properly started\n");
-	    		ut_print_timestamp(stderr);
             		fprintf(stderr, 
-	"  InnoDB: or created database!\n");
+	"                 InnoDB: or created database!\n");
 	  	}
 
 	  	return(DB_SUCCESS);

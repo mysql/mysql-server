@@ -518,7 +518,7 @@ AC_ARG_ENABLE(thread-safe-client,
     [ THREAD_SAFE_CLIENT=no ]
     )
 
-# Make thread safe client
+# compile with strings functions in assembler
 AC_ARG_ENABLE(assembler,
     [  --enable-assembler      Use assembler versions of some string 
                           functions if available.],
@@ -583,6 +583,14 @@ AC_ARG_WITH(mysqld-user,
     )
 AC_SUBST(MYSQLD_USER)
 
+# compile with strings functions in assembler
+AC_ARG_ENABLE(local-infile,
+    [  --enable-local-infile
+                          If LOAD DATA LOCAL INFILE is enabled by default.],
+    [ ENABLED_LOCAL_INFILE=$enablewal ],
+    [ ENABLED_LOCAL_INFILE=no ]
+    )
+
 # Use Paul Eggerts macros from GNU tar to check for large file support.
 MYSQL_SYS_LARGEFILE
 
@@ -610,9 +618,11 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
 #--------------------------------------------------------------------
 
 AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
-AC_CHECK_FUNC(gethostbyname_r, [], [
-  AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
-    AC_CHECK_LIB(nsl, gethostbyname_r))])
+
+AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
+  AC_CHECK_LIB(nsl, gethostbyname_r))
+AC_CHECK_FUNC(gethostbyname_r)
+
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
   AC_CHECK_LIB(nsl, yp_get_default_domain))
@@ -921,7 +931,7 @@ then
       AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
       AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
       # RedHat 5.0 does not work with dynamic linking of this. -static also
-      # gives a spped increase in linux so it does not hurt on other systems.
+      # gives a speed increase in linux so it does not hurt on other systems.
       with_named_thread="-lpthread"
     else
       AC_MSG_RESULT("Not found")

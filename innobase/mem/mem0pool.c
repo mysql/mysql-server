@@ -78,9 +78,9 @@ pool, and after that its locks will grow into the buffer pool. */
 /* The smallest memory area total size */
 #define MEM_AREA_MIN_SIZE	(2 * MEM_AREA_EXTRA_SIZE)
 
+
 /* Data structure for a memory pool. The space is allocated using the buddy
 algorithm, where free list i contains areas of size 2 to power i. */
-
 struct mem_pool_struct{
 	byte*		buf;		/* memory pool */
 	ulint		size;		/* memory common pool size */
@@ -97,6 +97,26 @@ struct mem_pool_struct{
 mem_pool_t*	mem_comm_pool	= NULL;
 
 ulint		mem_out_of_mem_err_msg_count	= 0;
+
+/************************************************************************
+Reserves the mem pool mutex. */
+
+void
+mem_pool_mutex_enter(void)
+/*======================*/
+{
+	mutex_enter(&(mem_comm_pool->mutex));
+}
+
+/************************************************************************
+Releases the mem pool mutex. */
+
+void
+mem_pool_mutex_exit(void)
+/*=====================*/
+{
+	mutex_exit(&(mem_comm_pool->mutex));
+}
 
 /************************************************************************
 Returns memory area size. */
@@ -240,15 +260,15 @@ mem_pool_fill_free_list(
 
 		if (mem_out_of_mem_err_msg_count % 1000000000 == 0) {
 			/* We do not print the message every time: */
+
+	    		ut_print_timestamp(stderr);
 			
 			fprintf(stderr,
-	"Innobase: Warning: out of memory in additional memory pool.\n");
-			fprintf(stderr,
-	"Innobase: Innobase will start allocating memory from the OS.\n");
-			fprintf(stderr,
-	"Innobase: You should restart the database with a bigger value in\n");
-			fprintf(stderr,
-     "Innobase: the MySQL .cnf file for innobase_additional_mem_pool_size.\n");
+	"  InnoDB: Out of memory in additional memory pool.\n"
+	"InnoDB: InnoDB will start allocating memory from the OS.\n"
+	"InnoDB: You may get better performance if you configure a bigger\n"
+        "InnoDB: value in the MySQL my.cnf file for\n"
+	"InnoDB: innodb_additional_mem_pool_size.\n");
      		}
 
 		mem_out_of_mem_err_msg_count++;

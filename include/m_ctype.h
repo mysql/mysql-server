@@ -62,15 +62,32 @@ extern const char *compiled_charset_name(uint charset_number);
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
 
-#ifdef __WIN__
-#include <ctype.h>
-#endif
 /* Don't include std ctype.h when this is included */
 #define _CTYPE_H
 #define _CTYPE_H_
 #define _CTYPE_INCLUDED
 #define __CTYPE_INCLUDED
 #define _CTYPE_USING   /* Don't put names in global namespace. */
+
+/* Fix things, if ctype.h would have been included before */
+#undef toupper
+#undef _toupper
+#undef _tolower
+#undef toupper
+#undef tolower
+#undef isalpha
+#undef isupper
+#undef islower
+#undef isdigit
+#undef isxdigit
+#undef isalnum
+#undef isspace
+#undef ispunct
+#undef isprint
+#undef isgraph
+#undef iscntrl
+#undef isascii
+#undef toascii
 
 #define	_U	01	/* Upper case */
 #define	_L	02	/* Lower case */
@@ -86,7 +103,6 @@ extern const char *compiled_charset_name(uint charset_number);
 #define my_to_lower	(default_charset_info->to_lower)
 #define my_sort_order	(default_charset_info->sort_order)
 
-#ifndef __WIN__
 #define	_toupper(c)	(char) my_to_upper[(uchar) (c)]
 #define	_tolower(c)	(char) my_to_lower[(uchar) (c)]
 #define toupper(c)	(char) my_to_upper[(uchar) (c)]
@@ -109,8 +125,6 @@ extern const char *compiled_charset_name(uint charset_number);
 #ifdef ctype
 #undef ctype
 #endif /* ctype */
-
-#endif	/* __WIN__ */
 
 #define	my_isalpha(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_U | _L))
 #define	my_isupper(s, c)  (((s)->ctype+1)[(uchar) (c)] & _U)

@@ -145,7 +145,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (read_file_from_client && handle_duplicates == DUP_ERROR)
     handle_duplicates=DUP_IGNORE;
 
-  if (read_file_from_client && (thd->client_capabilities & CLIENT_LOCAL_FILES))
+  if (read_file_from_client)
   {
     (void)net_request_file(&thd->net,ex->file_name);
     file = -1;
