@@ -3015,6 +3015,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
+
+  if (!lex_user->host.str)
+  {
+    lex_user->host.str= (char*) "%";
+    lex_user->host.length=1;
+  }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
   {
@@ -3215,7 +3221,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   /* Add table & column access */
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
-    const char *user,*host;
+    const char *user;
     GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							  index);
 
@@ -3223,7 +3229,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       user= "";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
+	!my_strcasecmp(&my_charset_latin1, lex_user->host.str,
+                       grant_table->orig_host))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)

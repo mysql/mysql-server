@@ -2,7 +2,10 @@
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
+
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 #
 # Testing of explicit table locks

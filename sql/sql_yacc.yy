@@ -603,7 +603,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape opt_constraint
+	opt_escape opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -1229,7 +1229,12 @@ check_constraint:
 
 opt_constraint:
 	/* empty */		{ $$=(char*) 0; }
-	| CONSTRAINT opt_ident	{ $$=$2; };
+	| constraint		{ $$= $1; }
+	;
+
+constraint:
+	CONSTRAINT opt_ident	{ $$=$2; }
+	;
 
 field_spec:
 	field_ident

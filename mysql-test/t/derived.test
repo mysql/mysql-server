@@ -146,7 +146,7 @@ drop table t1;
 #
 CREATE TABLE `t1` (
   `N` int(11) unsigned NOT NULL default '0',
-  `M` tinyint(1) default '0',
+  `M` tinyint(1) default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;

@@ -2328,6 +2328,7 @@ Warning: you need to use --log-bin to make --log-slave-updates work. \
 Now disabling --log-slave-updates.");
   }
 
+#ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
   {
     sql_print_error("\
@@ -2336,6 +2337,7 @@ Error: using --replicate-same-server-id in conjunction with \
 server.");
     unireg_abort(1);
   }
+#endif
 
   if (opt_error_log)
   {
@@ -4099,6 +4101,7 @@ master-ssl",
   {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
    "Updates to a database with a different name than the original. Example: replicate-rewrite-db=master_db_name->slave_db_name.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_REPLICATION
   {"replicate-same-server-id", OPT_REPLICATE_SAME_SERVER_ID,
    "In replication, if set to 1, do not skip events having our server id. \
 Default value is 0 (to break infinite loops in circular replication). \
@@ -4106,6 +4109,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    (gptr*) &replicate_same_server_id,
    (gptr*) &replicate_same_server_id,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   // In replication, we may need to tell the other servers how to connect
   {"report-host", OPT_REPORT_HOST,
    "Hostname or IP of the slave to be reported to to the master during slave registration. Will appear in the output of SHOW SLAVE HOSTS. Leave unset if you do not want the slave to register itself with the master. Note that it is not sufficient for the master to simply read the IP of the slave off the socket once the slave connects. Due to NAT and other routing issues, that IP may not be valid for connecting to the slave from the master or other hosts.",
