@@ -9579,6 +9579,7 @@ uses:
 
 @findex command-line options
 @cindex options, command-line
+@cindex mysqld options
 @node Command-line options, Option files, Automatic start, Post-installation
 @subsection Command-line Options
 
@@ -11522,6 +11523,11 @@ in the grant tables.  In principle, the @code{--secure} option to
 @code{mysqld} should make hostnames safe.  In any case, you should be very
 careful about creating grant table entries using hostname values that
 contain wild cards!
+
+@item
+If you want to restrict the number of connections for a single user, you
+can do this by setting the @code{max_user_connections} variable in
+@code{mysqld}.
 @end itemize
 
 @node Privileges options, What Privileges, Security, Privilege system
@@ -21047,6 +21053,9 @@ millions of rows.
 The number of bytes to use when sorting @code{BLOB} or @code{TEXT}
 values (only the first @code{max_sort_length} bytes of each value
 are used; the rest are ignored).
+
+@item @code{max_user_connections}
+The maximum number of active connections for a single user (0 = no limit).
 
 @item @code{max_tmp_tables}
 (This option doesn't yet do anything.)
@@ -41584,6 +41593,8 @@ not yet 100 % confident in this code.
 @node News-3.23.34, News-3.23.33, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
+@item
+Added option @code{max_user_connections} to @code{mysqld}.
 @item
 Limit query length for replication by max_allowed_packet, not the arbitrary
 limit of 4 MB

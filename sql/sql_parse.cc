@@ -22,6 +22,7 @@
 #include <thr_alarm.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include <assert.h>
 
 #define SCRAMBLE_LENGTH 8
 
@@ -32,6 +33,9 @@ extern "C" pthread_mutex_t THR_LOCK_keycache;
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+static int check_for_max_user_connections(const char *user, int u_length,
+					  const char *host);
+static void decrease_user_connections(const char *user, const char *host);
 static bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
@@ -145,11 +149,132 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		  thd->host ? thd->host : thd->ip ? thd->ip : "unknown ip",
 		  db ? db : (char*) "");
   thd->db_access=0;
+  if (max_user_connections &&
+      check_for_max_user_connections(user, strlen(user), thd->host))
+    return -1;
   if (db && db[0])
-    return test(mysql_change_db(thd,db));
+  {
+    bool error=test(mysql_change_db(thd,db));
+    if (error)
+      decrease_user_connections(user,thd->host);
+    return error;
+  }
   else
     send_ok(net);				// Ready to handle questions
   return 0;					// ok
+}
+
+/*
+** check for maximum allowable user connections
+** if mysql server is started with corresponding
+** variable that is greater then 0
+*/
+
+static HASH hash_user_connections;
+static DYNAMIC_ARRAY  user_conn_array;
+extern  pthread_mutex_t LOCK_user_conn;
+
+struct  user_conn {
+  char user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+  int connections, len;
+};
+
+static byte* get_key_conn(user_conn *buff, uint *length,
+			  my_bool not_used __attribute__((unused)))
+{
+  *length=buff->len;
+  return (byte*) buff->user;
+}
+
+#define DEF_USER_COUNT 50
+
+void init_max_user_conn(void) 
+{
+  (void) hash_init(&hash_user_connections,DEF_USER_COUNT,0,0,
+		   (hash_get_key) get_key_conn,0, 0);
+  (void) init_dynamic_array(&user_conn_array,sizeof(user_conn),
+			    DEF_USER_COUNT, DEF_USER_COUNT);
+}
+
+
+static int check_for_max_user_connections(const char *user, int u_length,
+					  const char *host) 
+{
+  uint temp_len;
+  char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+  struct  user_conn *uc;
+  if (!user)
+    user="";
+  if (!host)
+    host="";
+  temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user), user, "@", host,
+			     NullS) - temp_user);
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+  uc = (struct  user_conn *) hash_search(&hash_user_connections,
+					 (byte*) temp_user, temp_len);
+  if (uc) /* user found ; check for no. of connections */
+  {
+    if (max_user_connections ==  uc->connections) 
+    {
+      net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, temp_user);
+      pthread_mutex_unlock(&LOCK_user_conn);
+      return 1;
+    }
+    uc->connections++; 
+  }
+  else
+  {
+    /* the user is not found in the cache; Insert it */
+    struct user_conn uc;
+    memcpy(uc.user,temp_user,temp_len+1);
+    uc.len = temp_len;
+    uc.connections = 1;
+    if (!insert_dynamic(&user_conn_array, (char *) &uc))
+    {
+      hash_insert(&hash_user_connections,
+		  (byte *) dynamic_array_ptr(&user_conn_array,
+					     user_conn_array.elements - 1));
+    }
+  }
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  return 0;
+}
+
+
+static void decrease_user_connections(const char *user, const char *host)
+{
+  char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+  int temp_len;
+  struct user_conn uucc, *uc;
+  if (!user)
+    user="";
+  if (!host)
+    host="";
+  temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user), user, "@", host,
+			     NullS) - temp_user);
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
+  uc = (struct  user_conn *) hash_search(&hash_user_connections,
+					 (byte*) temp_user, temp_len);
+  dbug_assert(uc != 0);			// We should always find the user
+  if (!uc)
+    goto end;				// Safety; Something went wrong
+  if (! --uc->connections)
+  {
+    /* Last connection for user; Delete it */
+    (void) hash_delete(&hash_user_connections,(char *) uc);
+    uint element= ((uint) ((byte*) uc - (byte*) user_conn_array.buffer) /
+		   user_conn_array.size_of_element);
+    delete_dynamic_element(&user_conn_array,element);
+  }
+end:
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+}
+
+void free_max_user_conn(void)
+{
+  delete_dynamic(&user_conn_array);
+  hash_free(&hash_user_connections);
 }
 
 
@@ -417,6 +542,8 @@ pthread_handler_decl(handle_one_connection,arg)
       thread_safe_increment(aborted_threads,&LOCK_thread_count);
     }
 
+    if (max_user_connections)
+      decrease_user_connections(thd->user,thd->host);
 end_thread:
     close_connection(net);
     end_thread(thd,1);
@@ -512,7 +639,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   DBUG_ENTER("mysql_table_dump");
   db = (db && db[0]) ? db : thd->db;
   if (!(table_list = (TABLE_LIST*) sql_calloc(sizeof(TABLE_LIST))))
-     DBUG_RETURN(1); // out of memory
+    DBUG_RETURN(1); // out of memory
   table_list->db = db;
   table_list->real_name = table_list->name = tbl_name;
   table_list->lock_type = TL_READ_NO_INSERT;
@@ -641,7 +768,7 @@ bool do_command(THD *thd)
       send_error(net, ER_UNKNOWN_COM_ERROR);
       break;
     }
-    if (check_user(thd, COM_CHANGE_USER, user, passwd, db,0))
+    if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0))
     {						// Restore old user
       x_free(thd->user);
       x_free(thd->db);
@@ -652,6 +779,7 @@ bool do_command(THD *thd)
       thd->priv_user=save_priv_user;
       break;
     }
+    decrease_user_connections (save_user, thd->host);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
     thd->password=test(passwd[0]);
