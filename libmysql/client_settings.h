@@ -57,3 +57,4 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 int STDCALL cli_stmt_execute(MYSQL_STMT *stmt);
 MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt);
 int STDCALL cli_unbuffered_fetch(MYSQL *mysql, char **row);
+const char * STDCALL cli_read_statistic(MYSQL *mysql);
