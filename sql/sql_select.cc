@@ -4995,7 +4995,8 @@ join_read_key(JOIN_TAB *tab)
 				  tab->ref.key_length,HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_key: Got error %d when reading table '%s'",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+        sql_print_error("read_key: Got error %d when reading table '%s'",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
