@@ -58,6 +58,7 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static void log_slow_query(THD *thd);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1491,6 +1492,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
       ulong length= (ulong)(packet_end-packet);
 
+      log_slow_query(thd);
+
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
       {
@@ -1501,6 +1504,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->query_length= length;
       thd->query= packet;
       thd->query_id= query_id++;
+      thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
@@ -1797,6 +1801,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->is_fatal_error)
     send_error(thd,0);				// End of memory ?
 
+  log_slow_query(thd);
+
+  thd->proc_info="cleaning up";
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
+  thd->proc_info=0;
+  thd->command=COM_SLEEP;
+  thd->query=0;
+  thd->query_length=0;
+  thread_running--;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  DBUG_RETURN(error);
+}
+
+
+static void log_slow_query(THD *thd)
+{
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
 
@@ -1815,17 +1837,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
-  thd->proc_info="cleaning up";
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd->proc_info=0;
-  thd->command=COM_SLEEP;
-  thd->query=0;
-  thd->query_length=0;
-  thread_running--;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
-  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  DBUG_RETURN(error);
 }
 
 
