@@ -681,7 +681,6 @@ class Item_func_group_concat : public Item_sum
   MYSQL_ERROR *warning;
   bool warning_available;
   uint key_length;
-  int rec_offset;
   bool tree_mode;
   bool distinct;
   bool warning_for_row;
@@ -704,7 +703,6 @@ class Item_func_group_concat : public Item_sum
   TREE *tree;
   TABLE *table;
   ORDER **order;
-  uint  *field_offsets;
   TABLE_LIST *tables_list;
   ulong group_concat_max_len;
   uint show_elements;

@@ -2527,6 +2527,8 @@ int main(int argc, char **argv)
     }
   }
 #endif
+  thread_stack_min=thread_stack - STACK_MIN_SIZE;
+
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   /*

@@ -1521,21 +1521,26 @@ String *Item_sum_udf_str::val_str(String *str)
 int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 				       byte* key2)
 {
-  Item_func_group_concat* item= (Item_func_group_concat*)arg;
-  uint *offset= item->field_offsets+ item->field_list_offset;
+  Item_func_group_concat* grp_item= (Item_func_group_concat*)arg;
   Item **field_item, **end;
+  char *record= (char*) grp_item->table->record[0];
 
-  for (field_item= item->args, end= field_item+item->arg_count_field;
+  for (field_item= grp_item->args, end= field_item + grp_item->arg_count_field;
        field_item < end;
        field_item++)
   {
-    Field *field= (*field_item)->real_item()->get_tmp_table_field();
+    /*
+      We have to use get_tmp_table_field() instead of
+      real_item()->get_tmp_table_field() because we want the field in
+      the temporary table, not the original field
+    */
+    Field *field= (*field_item)->get_tmp_table_field();
     if (field)
     {
       int res;
-      if ((res= field->key_cmp(key1 + *offset, key2 + *offset)))
+      uint offset= (uint) (field->ptr - record);
+      if ((res= field->key_cmp(key1 + offset, key2 + offset)))
 	return res;
-      offset++;
     }
   }
   return 0;
@@ -1549,27 +1554,34 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 
 int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
 {
-  Item_func_group_concat* item= (Item_func_group_concat*)arg;
-  uint *offset= item->field_offsets;
+  Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
   ORDER **order_item, **end;
+  char *record= (char*) grp_item->table->record[0];
 
-  for (order_item= item->order, end=order_item+ item->arg_count_order;
+  for (order_item= grp_item->order, end=order_item+ grp_item->arg_count_order;
        order_item < end;
        order_item++)
   {
     Item *item= *(*order_item)->item;
-    Field *field= item->real_item()->get_tmp_table_field();
+    /*
+      We have to use get_tmp_table_field() instead of
+      real_item()->get_tmp_table_field() because we want the field in
+      the temporary table, not the original field
+    */
+    Field *field= item->get_tmp_table_field();
     if (field)
     {
-      int res= field->key_cmp(key1 + *offset, key2 + *offset);
-      if (res)
+      int res;
+      uint offset= (uint) (field->ptr - record);
+      if ((res= field->key_cmp(key1 + offset, key2 + offset)))
         return (*order_item)->asc ? res : -res;
-      offset++;
     }
   }
   /*
-    We can't return 0 because tree class remove this item as double value. 
-  */   
+    We can't return 0 because in that case the tree class would remove this
+    item as double value. This would cause problems for case-changes and
+    if the the returned values are not the same we do the sort on.
+  */
   return 1;
 }
 
@@ -1601,10 +1613,10 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp((char *)&buff,sizeof(buff),default_charset_info);
-  String tmp2((char *)&buff,sizeof(buff),default_charset_info);
-  uint *field_offsets= (item->field_offsets +
-			item->field_list_offset);
+  String tmp((char*)   &buff, sizeof(buff), default_charset_info);
+  String tmp2((char *) &buff, sizeof(buff), default_charset_info);
+  char *record= (char*) item->table->record[0];
+
   tmp.length(0);
   
   for (uint i= 0; i < item->arg_count_field; i++)
@@ -1612,12 +1624,20 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
     Item *show_item= item->args[i];
     if (!show_item->const_item())
     {
-      Field *f= show_item->real_item()->get_tmp_table_field();
-      char *sv= f->ptr;
-      f->ptr= (char *) key + *(field_offsets++);
-      String *res= f->val_str(&tmp,&tmp2);
+      /*
+	We have to use get_tmp_table_field() instead of
+	real_item()->get_tmp_table_field() because we want the field in
+	the temporary table, not the original field
+      */
+      Field *field= show_item->get_tmp_table_field();
+      String *res;
+      char *save_ptr= field->ptr;
+      uint offset= (uint) (save_ptr - record);
+      DBUG_ASSERT(offset < item->table->reclength);
+      field->ptr= (char *) key + offset;
+      res= field->val_str(&tmp,&tmp2);
       item->result.append(*res);
-      f->ptr= sv;
+      field->ptr= save_ptr;
     }
     else 
     {
@@ -1660,7 +1680,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 					       SQL_LIST *is_order,
 					       String *is_separator)
   :Item_sum(), tmp_table_param(0), max_elements_in_tree(0), warning(0),
-   warning_available(0), key_length(0), rec_offset(0),
+   warning_available(0), key_length(0),
    tree_mode(0), distinct(is_distinct), warning_for_row(0),
    separator(is_separator), tree(&tree_base), table(0),
    order(0), tables_list(0),
@@ -1685,14 +1705,12 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
     args - arg_count_field+arg_count_order
            (for possible order items in temporare tables)
     order - arg_count_order
-    field_offset For offset withing the key
   */
-  if (!(args= (Item**) sql_alloc((sizeof(Item*) + sizeof(uint)) * arg_count +
+  if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count +
 				 sizeof(ORDER*)*arg_count_order)))
     return;
 
   order= (ORDER**)(args + arg_count);
-  field_offsets= (uint*) (order+ arg_count_order);
 
   /* fill args items of show and sort */
   List_iterator_fast<Item> li(*is_select);
@@ -1723,7 +1741,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   warning(item->warning),
   warning_available(item->warning_available),
   key_length(item->key_length), 
-  rec_offset(item->rec_offset), 
   tree_mode(item->tree_mode),
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
@@ -1731,7 +1748,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   table(item->table),
   order(item->order),
-  field_offsets(item->field_offsets),
   tables_list(item->tables_list),
   group_concat_max_len(item->group_concat_max_len),
   show_elements(item->show_elements),
@@ -1817,39 +1833,36 @@ void Item_func_group_concat::clear()
 
 bool Item_func_group_concat::add()
 {
-  bool record_is_null;
-
   if (always_null)
     return 0;
   copy_fields(tmp_table_param);
   copy_funcs(tmp_table_param->items_to_copy);
 
-  record_is_null= TRUE;
   for (uint i= 0; i < arg_count_field; i++)
   {
     Item *show_item= args[i];
     if (!show_item->const_item())
     {
+      /*
+	Here we use real_item as we want the original field data that should
+	be written to table->record[0]
+      */
       Field *f= show_item->real_item()->get_tmp_table_field();
-      if (!f->is_null())
-      {
-        record_is_null= FALSE;      
-	break;
-      }
+      if (f->is_null())
+	return 0;				// Skip row if it contains null
     }
   }
-  if (record_is_null)
-    return 0;
+
   null_value= FALSE;
   if (tree_mode)
   {
-    if (!tree_insert(tree, table->record[0] + rec_offset, 0, tree->custom_arg))
+    if (!tree_insert(tree, table->record[0], 0, tree->custom_arg))
       return 1;
   }
   else
   {
     if (result.length() <= group_concat_max_len && !warning_for_row)
-      dump_leaf_key(table->record[0] + rec_offset, 1, this);
+      dump_leaf_key(table->record[0], 1, this);
   }
   return 0;
 }
@@ -1906,8 +1919,8 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Field **field, **field_end;
-  uint offset, *offsets, const_fields;
+  uint const_fields;
+  byte *record;
   qsort_cmp2 compare_key;
   DBUG_ENTER("Item_func_group_concat::setup");
 
@@ -1967,21 +1980,11 @@ bool Item_func_group_concat::setup(THD *thd)
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
 
-  field_end= (field= table->field) + table->fields;
-  offsets= field_offsets;
-  offset= 0;
-  for (key_length= 0; field < field_end; field++)
-  {
-    uint32 length= (*field)->pack_length();
-    (*offsets++)= offset;
-    offset+= length;
-    key_length += length;
-  }
+  key_length= table->reclength;
+  record= table->record[0];
 
   /* Offset to first result field in table */
   field_list_offset= table->fields - (list.elements - const_fields);
-  /* Offset to first field */
-  rec_offset= (uint) (table->field[0]->ptr - table->record[0]);
 
   if (tree_mode)
     delete_tree(tree);
