@@ -4,6 +4,8 @@ insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,
 create table t2 (payoutID SMALLINT UNSIGNED NOT NULL PRIMARY KEY);
 insert into t2 (payoutID) SELECT DISTINCT payoutID FROM t1;
 insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
+Duplicate entry '16' for key 1
+insert ignore into t2 (payoutID) SELECT payoutID+10 FROM t1;
 select * from t2;
 payoutID
 1

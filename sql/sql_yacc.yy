@@ -2188,7 +2188,13 @@ insert:
 	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option opt_ignore insert2 insert_field_spec
 
 replace:
-	REPLACE { Lex->sql_command = SQLCOM_REPLACE; } replace_lock_option insert2 insert_field_spec
+	REPLACE
+	{
+	  LEX *lex=Lex;	
+	  lex->sql_command = SQLCOM_REPLACE;
+	  lex->duplicates= DUP_REPLACE;
+	}
+	replace_lock_option insert2 insert_field_spec
 
 insert_lock_option:
 	/* empty */	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT; }
