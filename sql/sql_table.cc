@@ -609,7 +609,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       break;
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
-      sql_field->pack_flag|=FIELDFLAG_MAYBE_NULL;
+      sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
+    if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
+      sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;

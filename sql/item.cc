@@ -1862,6 +1862,34 @@ Item_num *Item_uint::neg()
   return new Item_real(name, - ((double) value), 0, max_length);
 }
 
+
+/*
+  This function is only called during parsing. We will signal an error if
+  value is not a true double value (overflow)
+*/
+
+Item_real::Item_real(const char *str_arg, uint length)
+{
+  int error;
+  char *end;
+  value= my_strntod(&my_charset_bin, (char*) str_arg, length, &end, &error);
+  if (error)
+  {
+    /*
+      Note that we depend on that str_arg is null terminated, which is true
+      when we are in the parser
+    */
+    DBUG_ASSERT(str_arg[length] == 0);
+    my_printf_error(ER_ILLEGAL_VALUE_FOR_TYPE, ER(ER_ILLEGAL_VALUE_FOR_TYPE),
+                    MYF(0), "double", (char*) str_arg);
+  }
+  presentation= name=(char*) str_arg;
+  decimals=(uint8) nr_of_decimals(str_arg);
+  max_length=length;
+  fixed= 1;
+}
+
+
 int Item_real::save_in_field(Field *field, bool no_conversions)
 {
   double nr=val();
@@ -2381,7 +2409,10 @@ bool Item_default_value::fix_fields(THD *thd,
 				    struct st_table_list *table_list,
 				    Item **items)
 {
+  Item_field *field_arg;
+  Field *def_field;
   DBUG_ASSERT(fixed == 0);
+
   if (!arg)
   {
     fixed= 1;
@@ -2399,9 +2430,14 @@ bool Item_default_value::fix_fields(THD *thd,
     }
     arg= ref->ref[0];
   }
-  Item_field *field_arg= (Item_field *)arg;
-  Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
-  if (!def_field)
+  field_arg= (Item_field *)arg;
+  if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG)
+  {
+    my_printf_error(ER_NO_DEFAULT_FOR_FIELD, ER(ER_NO_DEFAULT_FOR_FIELD),
+                    MYF(0), field_arg->field->field_name);
+    return 1;
+  }
+  if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     return 1;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
   def_field->move_field(def_field->table->default_values -

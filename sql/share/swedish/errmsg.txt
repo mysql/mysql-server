@@ -383,3 +383,4 @@ character-set=latin1
 "Field '%-.64s' doesn't have a default value",
 "Division by 0",
 "Incorrect %-.32s value: '%-.128s' for column '%.64s' at row %ld",
+"Illegal %s '%-.64s' value found during parsing",

@@ -1460,14 +1460,14 @@ create table t2 (id int(11) not null, constraint t1_id_fk foreign key ( id ) ref
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL default '0',
-  `id2` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1475,7 +1475,7 @@ create index id on t2 (id);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   KEY `id` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1483,7 +1483,7 @@ create index id2 on t2 (id);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   KEY `id` (`id`),
   KEY `id2` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1494,7 +1494,7 @@ Got one of the listed errors
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   KEY `id` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1503,8 +1503,8 @@ create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk 
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
-  `id2` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
   KEY `t1_id_fk` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1512,8 +1512,8 @@ create unique index id on t2 (id,id2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
-  `id2` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1522,8 +1522,8 @@ create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),cons
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
-  `id2` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   KEY `t1_id_fk` (`id2`,`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
@@ -1533,8 +1533,8 @@ create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2), con
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
-  `id2` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1543,8 +1543,8 @@ create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),cons
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
-  `id2` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
+  `id2` int(11) NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   KEY `t1_id_fk` (`id2`,`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
@@ -1555,7 +1555,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) NOT NULL auto_increment,
-  `id2` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL,
   PRIMARY KEY  (`id`),
   KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1566,7 +1566,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) NOT NULL auto_increment,
-  `id2` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1575,7 +1575,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) NOT NULL auto_increment,
-  `id2` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL,
   KEY `id_test` (`id`),
   KEY `id_test2` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)

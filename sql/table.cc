@@ -461,7 +461,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       field_length= (uint) strpos[3];
       recpos=	    uint2korr(strpos+4),
       pack_flag=    uint2korr(strpos+6);
-      pack_flag&=   ~NO_DEFAULT_VALUE_FLAG;     // Safety for old files
+      pack_flag&=   ~FIELDFLAG_NO_DEFAULT;     // Safety for old files
       unireg_type=  (uint) strpos[8];
       interval_nr=  (uint) strpos[10];
 
@@ -498,6 +498,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	null_bit=1;
       }
     }
+    if (f_no_default(pack_flag))
+      reg_field->flags|= NO_DEFAULT_VALUE_FLAG;
     if (reg_field->unireg_check == Field::NEXT_NUMBER)
       outparam->found_next_number_field= reg_field;
     if (outparam->timestamp_field == reg_field)
