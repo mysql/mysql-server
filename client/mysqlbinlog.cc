@@ -43,6 +43,7 @@ static struct option long_options[] =
 #ifndef DBUG_OFF
   {"debug", 	  optional_argument, 	0, '#'},
 #endif
+  {"database",    required_argument,    0, 'd'},
   {"help", 	  no_argument, 		0, '?'},
   {"host", 	  required_argument,	0, 'h'},
   {"offset", 	  required_argument,	0, 'o'},
@@ -59,6 +60,8 @@ static struct option long_options[] =
 
 void sql_print_error(const char *format,...);
 
+static bool one_database = 0;
+static const char* database;
 static bool short_form = 0;
 static ulonglong offset = 0;
 static const char* host = "localhost";
@@ -103,7 +106,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.8 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.9 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -127,6 +130,7 @@ the mysql command line client\n\n");
 -?, --help		Display this help and exit\n\
 -s, --short-form	Just show the queries, no extra info\n\
 -o, --offset=N		Skip the first N entries\n\
+-d, --database=database List entries for just this database (local log only)\n\
 -h, --host=server	Get the binlog from server\n\
 -P, --port=port         Use port to connect to the remote server\n\
 -u, --user=username     Connect to the remote server as username\n\
@@ -173,7 +177,7 @@ static int parse_args(int *argc, char*** argv)
   int c, opt_index = 0;
 
   result_file = stdout;
-  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:r:t:?V", long_options,
+  while((c = getopt_long(*argc, *argv, "so:#::d:h:j:u:p:P:r:t:?V", long_options,
 			 &opt_index)) != EOF)
   {
     switch(c)
@@ -183,6 +187,11 @@ static int parse_args(int *argc, char*** argv)
       DBUG_PUSH(optarg ? optarg : default_dbug_option);
       break;
 #endif
+    case 'd':
+      one_database = 1;
+      database = my_strdup(optarg, MYF(0));
+      break;
+
     case 's':
       short_form = 1;
       break;
@@ -473,6 +482,37 @@ Could not read entry at offset %s : Error in log format or read error",
     }
     if (rec_count >= offset)
     {
+      // see if we should skip this event (only care about queries for now)
+      if (one_database)
+      {
+        if (ev->get_type_code() == QUERY_EVENT)
+        {
+          //const char * log_dbname = ev->get_db();
+          const char * log_dbname = ((Query_log_event*)ev)->db;
+          //printf("entry: %llu, database: %s\n", rec_count, log_dbname);
+
+          if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
+          {
+            //printf("skipping, %s is not %s\n", log_dbname, database);
+            rec_count++;
+            delete ev;
+            continue; // next
+          }
+#ifndef DBUG_OFF
+          else
+          {
+            printf("no skip\n");
+          }
+#endif
+        }
+#ifndef DBUG_OFF
+        else
+        {
+          const char * query_type = ev->get_type_str();
+          printf("not query -- %s\n", query_type);
+        }
+#endif
+      }
       if (!short_form)
         fprintf(result_file, "# at %s\n",llstr(old_off,llbuff));
 
