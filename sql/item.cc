@@ -2797,7 +2797,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item, TABLE *table)
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
   Field *field= get_holder_example_field(thd, item, table);
-  bool item_is_a_field= field;
+  bool item_is_a_field= (field != NULL);
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.
