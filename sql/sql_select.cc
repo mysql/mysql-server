@@ -696,8 +696,18 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
   if (select_options & SELECT_DESCRIBE)
   {
-    if (!order && !no_order)
-      order=group;
+    /*
+      Check if we managed to optimize ORDER BY away and don't use temporary
+      table to resolve ORDER BY: in that case, we only may need to do
+      filesort for GROUP BY.
+    */
+    if (!order && !no_order && (!skip_sort_order || !need_tmp))
+    {
+      /* Reset 'order' to 'group' and reinit variables describing 'order' */
+      order= group;
+      simple_order= simple_group;
+      skip_sort_order= 0;
+    }
     if (order &&
 	(join.const_tables == join.tables ||
 	 ((simple_order || skip_sort_order) &&
