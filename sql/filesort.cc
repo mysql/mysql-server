@@ -739,7 +739,6 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (cmp)					// Remove duplicates
       {
-// Was	if (!cmp(&sort_length, param->unique_buff, (uchar**) buffpek->key))
 	if (!cmp(&sort_length, &(param->unique_buff), (uchar**) &buffpek->key))
 	  goto skip_duplicate;
 	memcpy(param->unique_buff, (uchar*) buffpek->key,sort_length);

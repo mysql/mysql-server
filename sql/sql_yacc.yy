@@ -542,7 +542,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_rkey_mode handler_read_or_scan
-	single_multi table_multi_delete table_sin_wild
+	single_multi table_multi_delete table_sini_wild
 END_OF_INPUT
 
 %type <NONE>
@@ -764,12 +764,12 @@ create_table_option:
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
-	    TABLE_LIST *table_list= (TABLE_LIST*) Select->table_list.first;
-	    lex->create_info.merge_list= Select->table_list;
+	    TABLE_LIST *table_list= (TABLE_LIST*) lex->select->table_list.first;
+	    lex->create_info.merge_list= lex->select->table_list;
 	    lex->create_info.merge_list.elements--;
 	    lex->create_info.merge_list.first= (byte*) (table_list->next);
-	    Select->table_list.elements=1;
-	    Select->table_list.next= (byte**) &(table_list->next);
+	    lex->select->table_list.elements=1;
+	    lex->select->table_list.next= (byte**) &(table_list->next);
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
@@ -1064,10 +1064,10 @@ alter:
 	  lex->col_list.empty();
 	  lex->drop_list.empty();
 	  lex->alter_list.empty();
-          Select->order_list.elements=0;
-          Select->order_list.first=0;
-          Select->order_list.next= (byte**) &Select->order_list.first;
-	  Select->db=lex->name=0;
+          lex->select->order_list.elements=0;
+          lex->select->order_list.first=0;
+          lex->select->order_list.next= (byte**) &lex->select->order_list.first;
+	  lex->select->db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
           lex->alter_keys_onoff=LEAVE_AS_IS;
@@ -1118,7 +1118,10 @@ alter_list_item:
 	| ALTER opt_column field_ident DROP DEFAULT
 	  { Lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0)); Lex->simple_alter=0; }
 	| RENAME opt_to table_alias table_ident
-	  { Select->db=$4->db.str ; Lex->name= $4->table.str; Lex->simple_alter=0; }
+	  { 
+	    LEX *lex=Lex;
+	    lex->select->db=$4->db.str ; lex->name= $4->table.str; lex->simple_alter=0; 
+	  }
         | create_table_options { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; }
 
@@ -2197,9 +2200,9 @@ single_multi:
  | table_multi_delete
      {
        LEX *lex=Lex;
-       Lex->sql_command =  SQLCOM_MULTI_DELETE;
+       lex->sql_command =  SQLCOM_MULTI_DELETE;
        mysql_init_select(lex);
-       Select->select_limit=HA_POS_ERROR;
+       lex->select->select_limit=HA_POS_ERROR;
        lex->auxilliary_table_list.elements=0; 
        lex->auxilliary_table_list.first=0;
        lex->auxilliary_table_list.next= (byte**) &(lex->auxilliary_table_list.first);
@@ -2213,13 +2216,17 @@ single_multi:
      }  join_table_list where_clause
 
 table_multi_delete:
-	table_sin_wild {}
-  | table_multi_delete ',' table_sin_wild {}
+	table_sini_wild {}
+  | table_multi_delete ',' table_sini_wild {}
  
-table_sin_wild:
- 	ident '.' '*' { if (!add_table_to_list(new Table_ident($1),NULL,1,TL_WRITE)) YYABORT; }
+table_sini_wild:
+  ident '.' '*' { if (!add_table_to_list(new Table_ident($1),NULL,1,TL_WRITE)) YYABORT; }
   | ident '.' ident '.' '*'
   { if (!add_table_to_list(new Table_ident($1,$3,0),NULL,1,TL_WRITE))  YYABORT;}
+  | ident  { if (!add_table_to_list(new Table_ident($1),NULL,1,TL_WRITE)) YYABORT; }
+  | ident '.' ident
+  { if (!add_table_to_list(new Table_ident($1,$3,0),NULL,1,TL_WRITE))  YYABORT;}
+
 
 opt_delete_options:
 	/* empty */	    {}
