@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2002 MySQL AB
+# Copyright (C) 2002-2003 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file.
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
@@ -43,6 +43,7 @@ parse_arguments() {
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --verbose) verbose=1 ;;
       *)
         if test -n "$pick_args"
         then
@@ -76,6 +77,8 @@ execdir=
 bindir=
 basedir=
 force=0
+verbose=0
+fill_help_tables=""
 parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
@@ -85,17 +88,37 @@ then
   basedir=@prefix@
   bindir=@bindir@
   execdir=@libexecdir@ 
+  pkgdatadir=@pkgdatadir@
 else
   bindir="$basedir/bin"
-if test -x "$basedir/libexec/mysqld"
-then
-  execdir="$basedir/libexec"
-elif test -x "@libexecdir@/mysqld"
-then
-  execdir="@libexecdir@"
-else
-  execdir="$basedir/bin"
+  if test -x "$basedir/libexec/mysqld"
+  then
+    execdir="$basedir/libexec"
+  elif test -x "@libexecdir@/mysqld"
+  then
+    execdir="@libexecdir@"
+  else
+    execdir="$basedir/bin"
+  fi
+
+  # find fill_help_tables.sh
+  for i in $basedir/support-files $basedir/share $basedir/share/mysql $basedir/scripts @pkgdatadir@
+  do
+    if test -f $i/fill_help_tables.sql
+    then
+      pkgdatadir=$i
+    fi
+  done
 fi
+
+if test -f $pkgdatadir/fill_help_tables.sql
+then
+  fill_help_tables=$pkgdatadir/fill_help_tables.sql
+else
+  if test $verbose -eq 1
+  then
+    echo "Could not find help file 'fill_help_tables.sql'".
+  fi
 fi
 
 mdata=$ldata/mysql
@@ -160,8 +183,9 @@ c_t="" c_c=""
 # Check for old tables
 if test ! -f $mdata/db.frm
 then
-  echo "Preparing db table"
-
+  if test $verbose -eq 1 ; then 
+    echo "Preparing db table"
+  fi
   # mysqld --bootstrap wants one command/line
   c_d="$c_d CREATE TABLE db ("
   c_d="$c_d   Host char(60) binary DEFAULT '' NOT NULL,"
@@ -190,7 +214,9 @@ fi
 
 if test ! -f $mdata/host.frm
 then
-  echo "Preparing host table"
+  if test $verbose -eq 1 ; then
+    echo "Preparing host table"
+  fi
 
   c_h="$c_h CREATE TABLE host ("
   c_h="$c_h  Host char(60) binary DEFAULT '' NOT NULL,"
@@ -214,7 +240,9 @@ fi
 
 if test ! -f $mdata/user.frm
 then
-  echo "Preparing user table"
+  if test $verbose -eq 1 ; then
+    echo "Preparing user table"
+  fi
 
   c_u="$c_u CREATE TABLE user ("
   c_u="$c_u   Host char(60) binary DEFAULT '' NOT NULL,"
@@ -256,7 +284,8 @@ then
   
   REPLACE INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
   
-  INSERT INTO user (host,user) values ('localhost','');"
+  INSERT INTO user (host,user) values ('localhost','');
+"
 
   if test "$windows" -eq 0
   then
@@ -270,7 +299,9 @@ fi
 
 if test ! -f $mdata/func.frm
 then
-  echo "Preparing func table"
+  if test $verbose -eq 1 ; then
+    echo "Preparing func table"
+  fi
 
   c_f="$c_f CREATE TABLE func ("
   c_f="$c_f   name char(64) binary DEFAULT '' NOT NULL,"
@@ -284,7 +315,9 @@ fi
 
 if test ! -f $mdata/tables_priv.frm
 then
-  echo "Preparing tables_priv table"
+  if test $verbose -eq 1 ; then
+   echo "Preparing tables_priv table"
+ fi
 
   c_t="$c_t CREATE TABLE tables_priv ("
   c_t="$c_t   Host char(60) binary DEFAULT '' NOT NULL,"
@@ -303,7 +336,9 @@ fi
 
 if test ! -f $mdata/columns_priv.frm
 then
-  echo "Preparing columns_priv table"
+  if test $verbose -eq 1 ; then
+    echo "Preparing columns_priv table"
+  fi
 
   c_c="$c_c CREATE TABLE columns_priv ("
   c_c="$c_c   Host char(60) binary DEFAULT '' NOT NULL,"
@@ -318,7 +353,7 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
-echo "Installing all prepared tables"
+echo "Installing privilege tables"
 if (
     cat << END_OF_DATA
 use mysql;
@@ -337,7 +372,10 @@ $i_f
 $c_t
 $c_c
 END_OF_DATA
-    cat fill_help_tables.sql
+   if test -n "$fill_help_tables"
+   then
+     cat $fill_help_tables
+   fi
 ) | eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
@@ -377,7 +415,6 @@ then
   echo "The latest information about MySQL is available on the web at"
   echo "http://www.mysql.com"
   echo "Support MySQL by buying support/licenses at https://order.mysql.com"
-  echo 
   exit 0
 else
   echo "Installation of grant tables failed!"

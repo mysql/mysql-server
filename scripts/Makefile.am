@@ -58,10 +58,9 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
-			mysqlbug \
-			fill_help_tables.sql
+			mysqlbug
 
-pkgdata_DATA =		make_binary_distribution
+pkgdata_DATA =		fill_help_tables.sql
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
@@ -81,8 +80,8 @@ CLEANFILES =		@server_scripts@ \
 			mysqlhotcopy \
 			mysqldumpslow \
 			mysqld_multi \
- 			fill_help_tables \
- 			fill_help_tables.sql
+			fill_help_tables \
+			fill_help_tables.sql
 
 SUPERCLEANFILES =	mysqlbug
 
@@ -103,6 +102,7 @@ SUFFIXES = .sh
 	  -e 's!@''libexecdir''@!$(libexecdir)!g' \
 	  -e 's!@''pkglibdir''@!$(pkglibdir)!g' \
 	  -e 's!@''pkgincludedir''@!$(pkgincludedir)!g' \
+	  -e 's!@''pkgdatadir''@!$(pkgdatadir)!g' \
 	  -e 's!@''CC''@!@CC@!'\
 	  -e 's!@''CXX''@!@CXX@!'\
 	  -e 's!@''GXX''@!@GXX@!'\
@@ -137,7 +137,12 @@ SUFFIXES = .sh
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-all: fill_help_tables.sql make_win_src_distribution
+all: fill_help_tables.sql make_win_src_distribution make_binary_distribution
+
+# The following rule is here to ensure that build will continue
+# even if we don't have perl installed.  In this case the help tables
+# will be empty
 
 fill_help_tables.sql: fill_help_tables ../Docs/manual.texi
-	./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
+	-./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
+	echo "" >> fill_help_tables.sql
