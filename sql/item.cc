@@ -471,7 +471,7 @@ bool Item_real::save_in_field(Field *field)
 ** In number context this is a longlong value.
 ****************************************************************************/
 
-static inline uint char_val(char X)
+inline uint char_val(char X)
 {
   return (uint) (X >= '0' && X <= '9' ? X-'0' :
 		 X >= 'A' && X <= 'Z' ? X-'A'+10 :

@@ -100,7 +100,7 @@ static void add_hostname(struct in_addr *in,const char *name)
 }
 
 
-static inline void add_wrong_ip(struct in_addr *in)
+inline void add_wrong_ip(struct in_addr *in)
 {
   add_hostname(in,NullS);
 }

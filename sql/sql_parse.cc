@@ -71,7 +71,7 @@ static void init_signals(void)
 }
 #endif
 
-static inline bool end_active_trans(THD *thd)
+inline bool end_active_trans(THD *thd)
 {
   int error=0;
   if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))
@@ -496,7 +496,7 @@ end:
 }
 
 
-static inline void free_items(THD *thd)
+inline void free_items(THD *thd)
 {
     /* This works because items are allocated with sql_alloc() */
   for (Item *item=thd->free_list ; item ; item=item->next)

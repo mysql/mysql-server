@@ -187,7 +187,8 @@ query_table_status(THD *thd,const char *db,const char *table_name)
 ** Sum fields has table name empty and field_name.
 ** flag is a bit mask with the following functions:
 **   1 send number of rows
-**   2 send default values;  Don't convert field names
+**   2 send default values
+**   4 Don't convert field names
 ******************************************************************************/
 
 bool
@@ -196,7 +197,7 @@ send_fields(THD *thd,List<Item> &list,uint flag)
   List_iterator<Item> it(list);
   Item *item;
   char buff[80];
-  CONVERT *convert= (flag & 2) ? (CONVERT*) 0 : thd->convert_set;
+  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
 
   String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;
 
