@@ -862,3 +862,9 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->null_bytes,255);
 }
+
+inline void table_case_convert(char * name, uint length)
+{
+  if (lower_case_table_names)
+    casedn(name, length);
+}

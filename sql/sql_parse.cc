@@ -3385,8 +3385,10 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   }
     
   ptr->alias= alias_str;
+#ifdef TO_BE_DELETED
   if (lower_case_table_names)
     casedn_str(table->table.str);
+#endif
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
   ptr->lock_type= lock_type;

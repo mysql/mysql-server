@@ -1459,8 +1459,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
+#ifdef TO_BE_DELETED
     if (lower_case_table_names)
       casedn_str(new_name);
+#endif
     if ((lower_case_table_names &&
 	 !my_strcasecmp(new_name_buff,table_name)) ||
 	(!lower_case_table_names &&
