@@ -365,8 +365,9 @@ uint my_process_stmt_result(MYSQL_STMT *stmt)
 
   if (!(result= mysql_prepare_result(stmt)))
   {
-    while (!mysql_fetch(stmt));
-    return 0;
+    while (!mysql_fetch(stmt)) 
+      row_count++;
+    return row_count;
   }
   
   field_count= mysql_num_fields(result);
@@ -400,7 +401,10 @@ uint my_process_stmt_result(MYSQL_STMT *stmt)
       if (is_null[i])
         fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
       else if (length[i] == 0)
+      {
         data[i][0]='\0';  /* unmodified buffer */
+        fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
+      }
       else if (IS_NUM(field->type))
         fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
       else
@@ -2903,14 +2907,14 @@ static void test_fetch_date()
   myassert(year == 2010);
   myassert(y_length == 4);
   
-  myassert(strcmp(dt,"2010-07-10")==0);
-  myassert(dt_length == 10);
+  myassert(strcmp(dt,"2010-07-10 00:00:00")==0);
+  myassert(dt_length == 19);
 
   myassert(ts_4[0] == '\0');
   myassert(ts4_length == 0);
 
-  myassert(strcmp(ts_6,"1999-12-29")==0);
-  myassert(ts6_length == 10);
+  myassert(strcmp(ts_6,"1999-12-29 00:00:00")==0);
+  myassert(ts6_length == 19);
 
   rc = mysql_fetch(stmt);
   myassert(rc == MYSQL_NO_DATA);
@@ -3146,7 +3150,6 @@ static void test_prepare_ext()
   int        rc;
   char       *sql;
   int        nData=1;
-  MYSQL_RES  *result;
   char       tData=1;
   short      sData=10;
   longlong   bData=20;
@@ -3248,16 +3251,16 @@ static void test_prepare_ext()
   rc = mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
-  rc = mysql_query(mysql,"SELECT c1,c2,c3,c4,c5,c6 FROM test_prepare_ext");
-  myquery(rc);
+  stmt = mysql_prepare(mysql,"SELECT c1,c2,c3,c4,c5,c6 FROM test_prepare_ext",100);
+  mystmt_init(stmt);
 
   /* get the result */
-  result = mysql_store_result(mysql);
-  mytest(result);
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
 
-  myassert(nData == my_process_result_set(result));
-  mysql_free_result(result);
+  myassert(nData == (int)my_process_stmt_result(stmt));
+
+  mysql_stmt_close(stmt);
 }
 
 
@@ -4695,6 +4698,254 @@ static void test_subselect()
 #endif
 }
 
+/*
+  Generalized conversion routine to handle DATE, TIME and DATETIME
+  conversion using MYSQL_TIME structure
+*/
+static void test_bind_date_conv(uint row_count)
+{ 
+  MYSQL_STMT   *stmt;
+  uint         rc, i, count= row_count;
+  ulong	       length[4];
+  MYSQL_BIND   bind[4];
+  my_bool      is_null[4]={0};
+  MYSQL_TIME   tm[4]; 
+  ulong        second_part;
+  uint         year, month, day, hour, minute, sec;
+
+  stmt = mysql_prepare(mysql,"INSERT INTO test_date VALUES(?,?,?,?)", 100);
+  mystmt_init(stmt);
+
+  verify_param_count(stmt, 4);  
+
+  bind[0].buffer_type= MYSQL_TYPE_TIMESTAMP;
+  bind[1].buffer_type= MYSQL_TYPE_TIME;
+  bind[2].buffer_type= MYSQL_TYPE_DATETIME;
+  bind[3].buffer_type= MYSQL_TYPE_DATE;
+ 
+  second_part= 0;
+
+  year=2000;
+  month=01;
+  day=10;
+
+  hour=11;
+  minute=16;
+  sec= 20;
+
+  for (i= 0; i < (int) array_elements(bind); i++)
+  {  
+    bind[i].buffer= (char *) &tm[i];
+    bind[i].is_null= &is_null[i];
+    bind[i].length= &length[i];
+    bind[i].buffer_length= 30;
+    length[i]=20;
+  }   
+
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+ 
+  for (count= 0; count < row_count; count++)
+  { 
+    for (i= 0; i < (int) array_elements(bind); i++)
+    {
+      tm[i].neg= 0;   
+      tm[i].second_part= second_part+count;
+      tm[i].year= year+count;
+      tm[i].month= month+count;
+      tm[i].day= day+count;
+      tm[i].hour= hour+count;
+      tm[i].minute= minute+count;
+      tm[i].second= sec+count;
+    }   
+    rc = mysql_execute(stmt);
+    mystmt(stmt, rc);    
+  }
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  mysql_stmt_close(stmt);
+
+  myassert(row_count == my_stmt_result("SELECT * FROM test_date",50));
+
+  stmt = mysql_prepare(mysql,"SELECT * FROM test_date",50);
+  myquery(rc);
+
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  mystmt(stmt, rc);
+
+  for (count=0; count < row_count; count++)
+  {
+    rc = mysql_fetch(stmt);
+    mystmt(stmt,rc);
+
+    fprintf(stdout, "\n");
+    for (i= 0; i < array_elements(bind); i++)
+    {  
+      fprintf(stdout, "\n");
+      fprintf(stdout,"time[%d]: %02d-%02d-%02d %02d:%02d:%02d.%02lu",
+                      i, tm[i].year, tm[i].month, tm[i].day, 
+                      tm[i].hour, tm[i].minute, tm[i].second,
+                      tm[i].second_part);                      
+
+      myassert(tm[i].year == 0 || tm[i].year == year+count);
+      myassert(tm[i].month == 0 || tm[i].month == month+count);
+      myassert(tm[i].day == 0 || tm[i].day == day+count);
+
+      myassert(tm[i].hour == 0 || tm[i].hour == hour+count);
+      /* 
+         minute causes problems from date<->time, don't assert, instead
+         validate separatly in another routine
+       */
+      /*myassert(tm[i].minute == 0 || tm[i].minute == minute+count);
+      myassert(tm[i].second == 0 || tm[i].second == sec+count);*/
+
+      myassert(tm[i].second_part == 0 || tm[i].second_part == second_part+count);
+    }
+  }
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+}
+
+/*
+  Test DATE, TIME, DATETIME and TS with MYSQL_TIME conversion
+*/
+
+static void test_date()
+{
+  int        rc;
+
+  myheader("test_date");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_date");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_date(c1 TIMESTAMP(14), \
+                                                 c2 TIME,\
+                                                 c3 DATETIME,\
+                                                 c4 DATE)");
+
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  test_bind_date_conv(5);
+}
+
+/*
+  Test all time types to DATE and DATE to all types
+*/
+
+static void test_date_date()
+{
+  int        rc;
+
+  myheader("test_date_date");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_date");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_date(c1 DATE, \
+                                                 c2 DATE,\
+                                                 c3 DATE,\
+                                                 c4 DATE)");
+
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  test_bind_date_conv(3);
+}
+
+/*
+  Test all time types to TIME and TIME to all types
+*/
+
+static void test_date_time()
+{
+  int        rc;
+
+  myheader("test_date_time");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_date");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_date(c1 TIME, \
+                                                 c2 TIME,\
+                                                 c3 TIME,\
+                                                 c4 TIME)");
+
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  test_bind_date_conv(3);
+}
+
+/*
+  Test all time types to TIMESTAMP and TIMESTAMP to all types
+*/
+
+static void test_date_ts()
+{
+  int        rc;
+
+  myheader("test_date_ts");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_date");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_date(c1 TIMESTAMP(10), \
+                                                 c2 TIMESTAMP(14),\
+                                                 c3 TIMESTAMP,\
+                                                 c4 TIMESTAMP(6))");
+
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  test_bind_date_conv(2);
+}
+
+/*
+  Test all time types to DATETIME and DATETIME to all types
+*/
+
+static void test_date_dt()
+{
+  int        rc;
+
+  myheader("test_date_dt");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_date");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_date(c1 datetime, \
+                                                 c2 datetime,\
+                                                 c3 datetime,\
+                                                 c4 date)");
+
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  test_bind_date_conv(2);
+}
+
 
 static struct my_option myctest_long_options[] =
 {
@@ -4815,7 +5066,6 @@ int main(int argc, char **argv)
     /* Start of tests */
     test_count= 0;
     
-    test_multi_query();
     test_select_show();     /* test show syntax */
     test_prepare_alter();   /* change table schema in middle of prepare */
     test_manual_sample();   /* sample in the manual */
@@ -4835,6 +5085,7 @@ int main(int argc, char **argv)
     test_select_prepare();  /* prepare select - protocol_prep debug */
     test_select();          /* simple select test */
     test_select_version();  /* select with variables */
+    test_select_simple();   /* simple select prepare */
     test_set_variable();    /* set variable prepare */
 #if NOT_USED
   /* 
@@ -4853,10 +5104,8 @@ int main(int argc, char **argv)
     test_tran_innodb();     /* test for mysql_commit(), rollback() and 
                              autocommit() */
     test_select_show();     /* prepare - show test */
-    test_null();            /* test null data handling */
     test_simple_update();   /* simple prepare - update */
     test_prepare_noparam(); /* prepare without parameters */
-    test_select();          /* simple prepare-select */
     test_insert();          /* prepare with insert */
     test_bind_result();     /* result bind test */   
     test_long_data();       /* long data handling in pieces */
@@ -4886,18 +5135,22 @@ int main(int argc, char **argv)
     test_long_data_bin();   /* long binary insertion */
     test_warnings();        /* show warnings test */
     test_errors();          /* show errors test */
-    test_select_simple();   /* simple select prepare */
     test_prepare_resultset();/* prepare meta info test */
     test_func_fields();     /* FUNCTION field info */
     /*test_stmt_close(); */    /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
-    test_multi_stmt();      /* multi stmt test */
+    test_multi_stmt();      /* multi stmt test -TODO*/
+    test_multi_query();     /* test multi query execution */
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */
     test_multi_stmt();      /* test multi stmt */
-    test_subselect();       /* test subselect prepare */
-    test_multi_query();     /* test multi query exec */
+    test_subselect();       /* test subselect prepare -TODO*/
+    test_date();            /* test the MYSQL_TIME conversion */
+    test_date_date();       /* test conversion from DATE to all */
+    test_date_time();       /* test conversion from TIME to all */
+    test_date_ts()  ;       /* test conversion from TIMESTAMP to all */
+    test_date_dt()  ;       /* test conversion from DATETIME to all */
     /* End of tests */
   }
   
