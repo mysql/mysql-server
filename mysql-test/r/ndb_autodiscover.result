@@ -167,6 +167,8 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0
 drop table t4;
+Warnings:
+Error	1296	Got error 709 'No such table existed' from NDB
 flush status;
 create table t4(
 id int not null primary key,
