@@ -4665,8 +4665,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       berkeley_lock_type=berkeley_lock_types[type-1];
     else
     {
-      if (test_if_int(argument,(uint) strlen(argument), my_charset_latin1))
-	berkeley_lock_scan_time=atoi(argument);
+      char *end;
+      uint length= strlen(argument);
+      long value= my_strntol(my_charset_latin1, argument, length, &end, 10);
+      if (test_if_int(argument,(uint) length, end, my_charset_latin1))
+	berkeley_lock_scan_time= value;
       else
       {
 	fprintf(stderr,"Unknown lock type: %s\n",argument);

@@ -14,12 +14,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysys_priv.h"
-#include "mysys_err.h"
+#include <my_global.h>
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
 #include <assert.h>
+
+/*
+  Limited snprintf() implementations
+
+  IMPLEMENTION:
+    Supports following formats:
+    %#d
+    %#u
+    %#.#s	Note #.# is skiped
+
+  RETURN
+    length of result string
+*/
 
 int my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
@@ -31,9 +43,12 @@ int my_snprintf(char* to, size_t n, const char* fmt, ...)
   return result;
 }
 
+
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
+  uint length, num_state, pre_zero;
+
   for (; *fmt ; fmt++)
   {
     if (fmt[0] != '%')
@@ -43,10 +58,27 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       *to++= *fmt;			/* Copy ordinary char */
       continue;
     }
-    /* Skip if max size is used (to be compatible with printf) */
-    fmt++;
-    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
+    fmt++;					/* skip '%' */
+    /* Read max fill size (only used with %d and %u) */
+    if (*fmt == '-')
       fmt++;
+    length= num_state= pre_zero= 0;
+    for (;; fmt++)
+    {
+      if (my_isdigit(system_charset_info,*fmt))
+      {
+	if (!num_state)
+	{
+	  length=length*10+ (uint) (*fmt-'0');
+	  if (!length)
+	    pre_zero= 1;			/* first digit was 0 */
+	}
+	continue;
+      }
+      if (*fmt != '.' || num_state)
+	break;
+      num_state= 1;
+    }
     if (*fmt == 'l')
       fmt++;
     if (*fmt == 's')				/* String parameter */
@@ -63,13 +95,26 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {
       register int iarg;
-      if ((uint) (end-to) < 16)
+      char *to_start= to;
+      if ((uint) (end-to) < max(16,length))
 	break;
       iarg = va_arg(ap, int);
       if (*fmt == 'd')
 	to=int10_to_str((long) iarg,to, -10);
       else
 	to=int10_to_str((long) (uint) iarg,to,10);
+      /* If %#d syntax was used, we have to pre-zero/pre-space the string */
+      if (length)
+      {
+	uint res_length= (uint) (to - to_start);
+	if (res_length < length)
+	{
+	  uint diff= (length- res_length);
+	  bmove_upp(to+diff, to, res_length);
+	  bfill(to-res_length, diff, pre_zero ? '0' : ' ');
+	  to+= diff;
+	}
+      }
       continue;
     }
     /* We come here on '%%', unknown code or too long parameter */
