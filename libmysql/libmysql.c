@@ -2112,8 +2112,8 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   {
    /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
-    mysql->net.last_errno=CR_SERVER_GONE_ERROR;
-    strmov(mysql->net.last_error,ER(mysql->net.last_errno));
+    mysql->net.last_errno= CR_SERVER_GONE_ERROR;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);
