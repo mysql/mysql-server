@@ -115,6 +115,7 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
+static unsigned int get_binary_length(uint type);
 
 static my_bool org_my_init_done=0;
 
@@ -3839,7 +3840,7 @@ static my_bool read_prepare_result(MYSQL_STMT *stmt)
   if ((length= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
 
-  pos=(uchar*) mysql->net.read_pos;
+  pos= (uchar*) mysql->net.read_pos;
   stmt->stmt_id= uint4korr(pos); pos+=4;
   field_count=   uint2korr(pos); pos+=2;
   param_count=   uint2korr(pos); pos+=2;
@@ -3865,10 +3866,10 @@ static my_bool read_prepare_result(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_OUT_OF_MEMORY);
     DBUG_RETURN(0);
   }
-  stmt->bind=		       (stmt->params + stmt->param_count);
-  stmt->field_count=	 (uint) field_count;
-  stmt->param_count=   (ulong) param_count;
-  stmt->mysql->status= MYSQL_STATUS_READY;
+  stmt->bind=	      (stmt->params + param_count);
+  stmt->field_count=  (uint) field_count;
+  stmt->param_count=  (ulong) param_count;
+  mysql->status=      MYSQL_STATUS_READY;
   DBUG_RETURN(0);
 }
 
@@ -4102,8 +4103,18 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
     store_param_null(net, param);
   else
   {
-    /* Allocate for worst case (long string) */  
-    if ((my_realloc_str(net, 9 + *param->length)))
+    unsigned int length;
+    
+    /* 
+       Allocate for worst case (long string), ignore the length 
+       buffer for numeric/double types by assigning the default 
+       length using get_binary_length
+     */      
+    
+    if (!(length= get_binary_length(param->buffer_type)))
+      length= *param->length;
+    
+    if ((my_realloc_str(net, 9 + length)))
       DBUG_RETURN(1);
     (*param->store_param_func)(net, param);
   }
@@ -4133,6 +4144,8 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
   }
   stmt->state= MY_ST_EXECUTE;
   mysql_free_result(stmt->result);
+  stmt->result= (MYSQL_RES *)0;
+  stmt->result_buffered= 0;
   DBUG_RETURN(0);
 }
 
@@ -4860,12 +4873,14 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   Fetch row data to bind buffers
 */
 
-static void
-stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
+static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 {
   MYSQL_BIND  *bind, *end;
   MYSQL_FIELD *field, *field_end;
   uchar *null_ptr, bit;
+
+  if (!row || !stmt->res_buffers)
+    return 0;
   
   null_ptr= row; 
   row+= (stmt->field_count+9)/8; /* skip null bits */
@@ -4885,7 +4900,7 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else if (fetch_results(stmt, bind, field->type, &row))
-        break;
+        return 1;
     }
     if (! (bit<<=1) & 255)
     {
@@ -4893,22 +4908,8 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       null_ptr++;
     }
   }
-}
-
-static int read_binary_data(MYSQL *mysql)
-{  
-  /* TODO : Changes needed based on logic of use_result/store_result 
-            Currently by default it is use_result. In case of 
-            store_result, the data packet must point to already 
-            read data.
-   */
-  if (packet_error == net_safe_read(mysql))
-    return -1;
-  if (mysql->net.read_pos[0] == 254)
-    return 1;				/* End of data */
   return 0;
 }
-
 
 /*
   Fetch and return row data to bound buffers, if any
@@ -4917,24 +4918,153 @@ static int read_binary_data(MYSQL *mysql)
 int STDCALL mysql_fetch(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
-  int   res;
+  uchar *row;
   DBUG_ENTER("mysql_fetch");
 
-  if (!(res= read_binary_data(mysql)))
+  row= (uchar *)0;
+  if (stmt->result_buffered) /* buffered */
   {
-    if (stmt->res_buffers)
-      stmt_fetch_row(stmt, mysql->net.read_pos+1);
-    DBUG_RETURN(0);
+    MYSQL_RES *res;
+    
+    if (!(res= stmt->result) || !res->data_cursor) 
+      goto no_data;
+    
+    row= (uchar *)res->data_cursor->data;
+    res->data_cursor= res->data_cursor->next;
+    res->current_row= (MYSQL_ROW)row;    
   }
-  mysql->status= MYSQL_STATUS_READY;
-  if (res < 0)				/* Network error */
+  else /* un-buffered */
+  {
+    if (packet_error == net_safe_read(mysql))
+    {
+      set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
+                      mysql->net.last_errno);
+      DBUG_RETURN(1);
+    }
+    if (mysql->net.read_pos[0] == 254)
+    {
+      mysql->status= MYSQL_STATUS_READY;
+      goto no_data;
+    }
+    row= mysql->net.read_pos+1;
+  }
+  DBUG_RETURN(stmt_fetch_row(stmt, row));
+
+no_data:
+  DBUG_PRINT("info", ("end of data"));    
+  DBUG_RETURN(MYSQL_NO_DATA); /* no more data */
+}
+
+/* 
+  Read all rows of data from server  (binary format)
+*/
+
+static MYSQL_DATA *read_binary_rows(MYSQL_STMT *stmt)
+{
+  ulong      pkt_len;
+  uchar      *cp;
+  MYSQL      *mysql= stmt->mysql;
+  MYSQL_DATA *result;
+  MYSQL_ROWS *cur, **prev_ptr;
+  NET        *net = &mysql->net;
+  DBUG_ENTER("read_binary_rows");
+ 
+  mysql= mysql->last_used_con;
+  if ((pkt_len= net_safe_read(mysql)) == packet_error)
   {
     set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
                     mysql->net.last_errno);
+    DBUG_RETURN(0);
+  }
+  if (mysql->net.read_pos[0] == 254) /* end of data */
+    return 0;				
+
+  if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+				       MYF(MY_WME | MY_ZEROFILL))))
+  {
+    net->last_errno=CR_OUT_OF_MEMORY;
+    strmov(net->last_error,ER(net->last_errno));
+    DBUG_RETURN(0);
+  }
+  init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
+  result->alloc.min_malloc= sizeof(MYSQL_ROWS);
+  prev_ptr= &result->data;
+  result->rows= 0;
+
+  while (*(cp=net->read_pos) != 254 || pkt_len >= 8)
+  {
+    result->rows++;
+
+    if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,sizeof(MYSQL_ROWS))) ||
+	      !(cur->data= ((MYSQL_ROW) alloc_root(&result->alloc, pkt_len))))
+    {
+      free_rows(result);
+      net->last_errno=CR_OUT_OF_MEMORY;
+      strmov(net->last_error,ER(net->last_errno));
+      DBUG_RETURN(0);
+    }
+    *prev_ptr= cur;
+    prev_ptr= &cur->next;
+    memcpy(cur->data, (char*)cp+1, pkt_len-1); 
+	  
+    if ((pkt_len=net_safe_read(mysql)) == packet_error)
+    {
+      free_rows(result);
+      DBUG_RETURN(0);
+    }
+  }
+  *prev_ptr= 0;
+  if (pkt_len > 1)
+  {
+    mysql->warning_count= uint2korr(cp+1);
+    DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
+  }
+  DBUG_PRINT("exit",("Got %d rows",result->rows));
+  DBUG_RETURN(result);
+}
+
+/*
+  Store or buffer the binary results to stmt
+*/
+
+int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
+{
+  MYSQL *mysql= stmt->mysql;
+  MYSQL_RES *result;
+  DBUG_ENTER("mysql_stmt_tore_result");
+
+  mysql= mysql->last_used_con;
+
+  if (!stmt->field_count)
+    DBUG_RETURN(0);
+  if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  {
+    strmov(mysql->net.last_error,
+	   ER(mysql->net.last_errno= CR_COMMANDS_OUT_OF_SYNC));
+    DBUG_RETURN(0);
+  }
+  mysql->status= MYSQL_STATUS_READY;		/* server is ready */
+  if (!(result= (MYSQL_RES*) my_malloc((uint) (sizeof(MYSQL_RES)+
+					      sizeof(ulong) *
+					      stmt->field_count),
+				      MYF(MY_WME | MY_ZEROFILL))))
+  {
+    mysql->net.last_errno= CR_OUT_OF_MEMORY;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info", ("end of data"));    
-  DBUG_RETURN(MYSQL_NO_DATA); /* no more data */
+  stmt->result_buffered= 1;
+  if (!(result->data= read_binary_rows(stmt)))
+  {
+    my_free((gptr) result,MYF(0));
+    DBUG_RETURN(0);
+  }
+  mysql->affected_rows= result->row_count= result->data->rows;
+  result->data_cursor=	result->data->data;
+  result->fields=	stmt->fields;
+  result->field_count=	stmt->field_count;
+  stmt->result= result;
+  DBUG_RETURN(0); /* Data buffered, must be fetched with mysql_fetch() */
 }
 
 
