@@ -79,7 +79,7 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 strtoull.o:		@CHARSET_OBJS@
 
 clean-local:
-	rm -f ctype_extra_sources.c ctype_autoconf.c
+	rm -f ctype_extra_sources.c
 
 if ASSEMBLER
 # On Linux gcc can compile the assembly files
