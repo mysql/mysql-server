@@ -2006,7 +2006,7 @@ The server will not act as a slave.");
   {
     if(start_mode)
     {
-      if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+      if (WaitForSingleObject(hEventShutdown,1000)==WAIT_TIMEOUT)
         Service.Stop();
     }
     else
