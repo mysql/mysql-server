@@ -3,6 +3,8 @@ source include/master-slave.inc;
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
+let $VERSION=`select version()`;
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -38,6 +40,7 @@ drop temporary table t3;
 
 select * from t2;
 
+--replace_result $VERSION VERSION
 show binlog events;
 
 drop table t1, t2;
