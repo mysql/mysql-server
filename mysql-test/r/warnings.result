@@ -92,6 +92,8 @@ Warning	1264	Data truncated for column 'b' at row 3
 Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 4
 Warning	1264	Data truncated for column 'b' at row 4
 insert into t2(b) values('mysqlab');
+Warnings:
+Warning	1264	Data truncated for column 'b' at row 1
 set sql_warnings=1;
 insert into t2(b) values('mysqlab');
 Warnings:

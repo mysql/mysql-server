@@ -2305,7 +2305,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (use_timestamp)
     new_table->time_stamp=0;
   new_table->next_number_field=new_table->found_next_number_field;
-  thd->count_cuted_fields=1;			// calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for loggin
@@ -2315,7 +2315,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   handle_duplicates,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
-  thd->count_cuted_fields=0;			// Don`t calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)
@@ -2724,9 +2724,9 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
           while (!t->file->rnd_next(t->record[0]))
           {
             ha_checksum row_crc= 0;
-            if (t->record[0] != t->field[0]->ptr)
+            if (t->record[0] != (byte*) t->field[0]->ptr)
               row_crc= my_checksum(row_crc, t->record[0],
-				   t->field[0]->ptr - t->record[0]);
+				   ((byte*) t->field[0]->ptr) - t->record[0]);
 
             for (uint i= 0; i < t->fields; i++ )
             {
@@ -2735,10 +2735,11 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
               {
                 String tmp;
                 f->val_str(&tmp,&tmp);
-                row_crc= my_checksum(row_crc, tmp.ptr(), tmp.length());
+                row_crc= my_checksum(row_crc, (byte*) tmp.ptr(), tmp.length());
               }
               else
-                row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                row_crc= my_checksum(row_crc, (byte*) f->ptr,
+				     f->pack_length());
             }
 
             crc+= row_crc;

@@ -75,6 +75,8 @@ NULL	this is null
 drop table t1;
 CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
+Warnings:
+Warning	1264	Data truncated for column 'd' at row 1
 UPDATE t1 SET d=1/NULL;
 Warnings:
 Warning	1264	Data truncated for column 'd' at row 1

@@ -90,8 +90,9 @@ THD::THD():user_time(0), is_fatal_error(0),
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
-  locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
+  locked=killed=some_tables_deleted=no_errors=password=
     query_start_used=prepare_command=0;
+  count_cuted_fields= CHECK_FIELD_IGNORE;
   db_length=query_length=col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
@@ -147,7 +148,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
   bzero((char*) &con_root,sizeof(con_root));
   bzero((char*) &warn_root,sizeof(warn_root));
-  init_alloc_root(&warn_root, 1024, 0);
+  init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -230,9 +231,11 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
-  init_sql_alloc(&mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&mem_root, variables.query_alloc_block_size,
+		 variables.query_prealloc_size);
   init_sql_alloc(&transaction.mem_root,
-		 TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
+		 variables.trans_alloc_block_size,
+		 variables.trans_prealloc_size);
 }
 
 
