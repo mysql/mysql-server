@@ -27,8 +27,6 @@
 #define MAX_SLAVE_ERRMSG   1024
 #define MAX_SLAVE_ERROR    2000
 
-extern Rpl_filter *rpl_filter;
-
 /*****************************************************************************
 
   MySQL Replication
