@@ -291,15 +291,9 @@ trim(trailing 'foo' from 'foo')
 select trim(leading 'foo' from 'foo');
 trim(leading 'foo' from 'foo')
 
-create table t1 (a varchar(80), b varchar(80));
-insert into t1 values(NULL,"12345");
-insert into t1 values(NULL,"chm");
-select quote(ltrim(concat('  ',t1.b))) from t1;
-quote(ltrim(concat('  ',t1.b)))
-'12345'
-'chm'
-select quote(trim(concat('  ',t1.b))) from t1;
-quote(trim(concat('  ',t1.b)))
-'12345'
-'chm'
-drop table t1;
+select quote(ltrim(concat('    ', 'a')));
+quote(ltrim(concat('    ', 'a')))
+'a'
+select quote(trim(concat('    ', 'a')));
+quote(trim(concat('    ', 'a')))
+'a'
