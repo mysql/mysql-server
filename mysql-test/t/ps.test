@@ -194,3 +194,15 @@ execute stmt1 using @id1, @id2;
 select name from t1 where id=1 or id=6;
 deallocate prepare stmt1;
 drop table t1;
+
+#
+# SHOW TABLE STATUS test
+#
+create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
+prepare stmt1 from ' show table status from test like ''t1%'' ';
+--replace_column 12 # 13 # 14 #
+execute stmt1;
+--replace_column 12 # 13 # 14 #
+show table status from test like 't1%' ;
+deallocate prepare stmt1 ;
+drop table t1;
