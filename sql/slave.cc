@@ -2470,6 +2470,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       sql_print_error("Slave SQL thread: I/O error reading \
 event(errno=%d,cur_log->error=%d)",
 		      my_errno,cur_log->error);
+      // set read position to the beginning of the event
+      my_b_seek(cur_log,rli->relay_log_pos+rli->pending);
       // no need to hog the mutex while we sleep
       pthread_mutex_unlock(&rli->data_lock);
       safe_sleep(rli->sql_thd,1,(CHECK_KILLED_FUNC)sql_slave_killed,
