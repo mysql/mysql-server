@@ -1652,9 +1652,13 @@ Cursor::init_from_thd(THD *thd)
   /*
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
+
+    We can't just change the thd->mem_root here as we want to keep the things
+    that is already allocated in thd->mem_root for Cursor::fetch()
   */
-  mem_root=       thd->mem_root;
-  init_sql_alloc(&thd->mem_root,
+  main_mem_root=  *thd->mem_root;
+  /* Allocate new memory root for thd */
+  init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 
@@ -1668,7 +1672,7 @@ Cursor::init_from_thd(THD *thd)
   open_tables=    thd->open_tables;
   lock=           thd->lock;
   query_id=       thd->query_id;
-  free_list= thd->free_list;
+  free_list=	  thd->free_list;
   reset_thd(thd);
   /*
     XXX: thd->locked_tables is not changed.
@@ -1769,15 +1773,15 @@ int
 Cursor::fetch(ulong num_rows)
 {
   THD *thd= join->thd;
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;;
+  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   COND *on_expr= *join_tab->on_expr_ref;
   COND *select_cond= join_tab->select_cond;
   READ_RECORD *info= &join_tab->read_record;
-
   int error= 0;
 
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
+
   join->fetch_limit+= num_rows;
 
   /*
@@ -1841,6 +1845,7 @@ Cursor::fetch(ulong num_rows)
 
   if (thd->net.report_error)
     error= -1;
+
   if (error == -3)                              /* LIMIT clause worked */
     error= 0;
 
@@ -1871,7 +1876,7 @@ Cursor::fetch(ulong num_rows)
     /* free cursor memory */
     free_items(free_list);
     free_list= 0;
-    free_root(&mem_root, MYF(0));
+    free_root(&main_mem_root, MYF(0));
   }
   return error;
 }
@@ -1923,7 +1928,7 @@ Cursor::~Cursor()
     Must be last, as some memory might be allocated for free purposes,
     like in free_tmp_table() (TODO: fix this issue)
   */
-  free_root(&mem_root, MYF(0));
+  free_root(&main_mem_root, MYF(0));
 }
 
 /*********************************************************************/
@@ -5002,7 +5007,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   {
     tmp= new Item_func_trig_cond(tmp, &tab->found);
   }
-  if (!tmp)
+  if (tmp)
     tmp->quick_fix_field();
   return tmp;
 }
@@ -5276,8 +5281,17 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
 	    sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
+
+	    /*
+              We can't call sel->cond->fix_fields,
+              as it will break tab->on_expr if it's AND condition
+              (fix_fields currently removes extra AND/OR levels).
+              Yet attributes of the just built condition are not needed.
+              Thus we call sel->cond->quick_fix_field for safety.
+	    */
 	    if (sel->cond && !sel->cond->fixed)
-	      sel->cond->fix_fields(join->thd, 0, &sel->cond);
+	      sel->cond->quick_fix_field();
+
 	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
@@ -7474,7 +7488,7 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    org_field->field_name, table,
                                    org_field->charset());
   else
-    new_field= org_field->new_field(&thd->mem_root, table);
+    new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
     if (modify_item)
@@ -8077,7 +8091,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(&thd->mem_root,table)))
+	if (!(group->field=field->new_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -11675,7 +11689,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   saved value
 	*/
 	Field *field= item->field;
-	item->result_field=field->new_field(&thd->mem_root,field->table);
+	item->result_field=field->new_field(thd->mem_root,field->table);
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
@@ -12122,7 +12136,7 @@ bool JOIN::rollup_init()
     return 1;
   rollup.ref_pointer_arrays= (Item***) (rollup.fields + send_group_parts);
   ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
-  rollup.item_null= new (&thd->mem_root) Item_null();
+  rollup.item_null= new (thd->mem_root) Item_null();
 
   /*
     Prepare space for field list for the different levels

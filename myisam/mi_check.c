@@ -2037,7 +2037,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param.keyinfo->seg->charset->mbmaxlen;
       sort_info.max_records=
-        (ha_rows) (sort_info.filelength/ft_max_word_len_for_sort+1);
+        (ha_rows) (sort_info.filelength/ft_min_word_len+1);
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;

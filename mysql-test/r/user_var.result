@@ -201,3 +201,7 @@ SET @`v`:=_ucs2 0x006100620063 COLLATE ucs2_general_ci;
 SET TIMESTAMP=10000;
 insert into t2 values (@v);
 drop table t1, t2;
+set @var= NULL ;
+select FIELD( @var,'1it','Hit') as my_column;
+my_column
+0

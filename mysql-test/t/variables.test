@@ -20,6 +20,7 @@ select @test, @`test`, @TEST, @`TEST`, @"teSt";
 set @select=2,@t5=1.23456;
 select @`select`,@not_used;
 set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
+--replace_result e-0 e- e+0 e+
 select @test_int,@test_double,@test_string,@test_string2,@select;
 set @test_int="hello",@test_double="hello",@test_string="hello",@test_string2="hello";
 select @test_int,@test_double,@test_string,@test_string2;

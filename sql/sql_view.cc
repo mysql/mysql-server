@@ -435,7 +435,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 	DBUG_RETURN(-1);
       }
 
-      if (!(parser= sql_parse_prepare(&path, &thd->mem_root, 0)))
+      if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
 	DBUG_RETURN(1);
 
       if (!parser->ok() ||
@@ -452,7 +452,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
-      if (parser->parse((gptr)view, &thd->mem_root,
+      if (parser->parse((gptr)view, thd->mem_root,
                         view_parameters + revision_number_position, 1))
       {
         DBUG_RETURN(thd->net.report_error? -1 : 0);
@@ -586,7 +586,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((gptr)table, &thd->mem_root, view_parameters,
+  if (parser->parse((gptr)table, thd->mem_root, view_parameters,
                     required_view_parameters))
     goto err;
 
@@ -607,7 +607,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
     now Lex placed in statement memory
   */
-  table->view= lex= thd->lex= (LEX*) new(&thd->mem_root) st_lex_local;
+  table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
   lex_start(thd, (uchar*)table->query.str, table->query.length);
   lex->select_lex.select_number= ++thd->select_number;
   old_lex->derived_tables|= DERIVED_VIEW;

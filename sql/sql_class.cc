@@ -316,7 +316,7 @@ void THD::init_for_queries()
 {
   ha_enable_transaction(this,TRUE);
 
-  reset_root_defaults(&mem_root, variables.query_alloc_block_size,
+  reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
   reset_root_defaults(&transaction.mem_root,
                       variables.trans_alloc_block_size,
@@ -431,7 +431,7 @@ THD::~THD()
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
   /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
-  clear_alloc_root(&stmt_backup.mem_root);
+  clear_alloc_root(&stmt_backup.main_mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -567,13 +567,14 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 {
   DBUG_ENTER("convert_string");
   size_s new_length= to_cs->mbmaxlen * from_length;
+  uint dummy_errors;
   if (!(to->str= alloc(new_length+1)))
   {
     to->length= 0;				// Safety fix
     DBUG_RETURN(1);				// EOM
   }
   to->length= copy_and_convert((char*) to->str, new_length, to_cs,
-			       from, from_length, from_cs);
+			       from, from_length, from_cs, &dummy_errors);
   to->str[to->length]=0;			// Safety
   DBUG_RETURN(0);
 }
@@ -596,7 +597,8 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 
 bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
-  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs))
+  uint dummy_errors;
+  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs, &dummy_errors))
     return TRUE;
   /* If convert_buffer >> s copying is more efficient long term */
   if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
@@ -1463,10 +1465,10 @@ void select_dumpvar::cleanup()
     for memory root initialization.
 */
 Item_arena::Item_arena(THD* thd)
-  :free_list(0),
-  state(INITIALIZED)
+  :free_list(0), mem_root(&main_mem_root),
+   state(INITIALIZED)
 {
-  init_sql_alloc(&mem_root,
+  init_sql_alloc(&main_mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 }
@@ -1489,11 +1491,11 @@ Item_arena::Item_arena(THD* thd)
     statements.
 */
 Item_arena::Item_arena(bool init_mem_root)
-  :free_list(0),
+  :free_list(0), mem_root(&main_mem_root),
   state(CONVENTIONAL_EXECUTION)
 {
   if (init_mem_root)
-    init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+    init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 
 
@@ -1624,14 +1626,14 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 
 void Item_arena::set_item_arena(Item_arena *set)
 {
-  mem_root= set->mem_root;
+  mem_root=  set->mem_root;
   free_list= set->free_list;
   state= set->state;
 }
 
 Statement::~Statement()
 {
-  free_root(&mem_root, MYF(0));
+  free_root(&main_mem_root, MYF(0));
 }
 
 C_MODE_START

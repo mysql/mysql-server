@@ -25,7 +25,7 @@
  */
 struct SectionSegment {
 
-  STATIC_CONST( DataLength = 60 );
+  STATIC_CONST( DataLength = NDB_SECTION_SEGMENT_SZ );
   
   Uint32 m_ownerRef;
   Uint32 m_sz;

@@ -253,8 +253,15 @@ select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('
 # bug with many short (< ft_min_word_len) words in boolean search
 #
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
-
 drop table t1,t2;
+
+#
+# bug with repair-by-sort and incorrect records estimation
+#
+
+create table t1 (a text, fulltext key (a));
+insert into t1 select "xxxx yyyy zzzz";
+drop table t1;
 
 #
 # UTF8
@@ -272,7 +279,7 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SET NAMES latin1;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
-SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
 #alter table t1 modify t text character set latin1 collate latin1_german2_ci not null;
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
