@@ -20,7 +20,7 @@ INCLUDES =			-I$(srcdir)/../include \
 				-I../include -I$(srcdir)/.. -I$(top_srcdir) \
 				-I..
 LIBS =				@CLIENT_LIBS@
-LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
+LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la ../vio/libvio.a 
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow mysqldump mysqlimport mysqltest
 noinst_PROGRAMS =		insert_test select_test thread_test
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h

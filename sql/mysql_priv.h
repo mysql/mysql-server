@@ -26,7 +26,6 @@
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
 #include <my_bitmap.h>
-#include <violite.h>
 
 #undef write  // remove pthread.h macro definition for EMX
 
@@ -35,6 +34,7 @@ typedef ulong key_map;			/* Used for finding keys */
 typedef ulong key_part_map;		/* Used for finding key parts */
 
 #include "mysql_com.h"
+#include <violite.h>
 #include "unireg.h"
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
