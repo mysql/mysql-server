@@ -260,8 +260,9 @@ show status like "Qcache_queries_in_cache";
 #
 # Charset convertion (cp1251_koi8 always present)
 #
-create table t1 (a char(1) not null);
-insert into t1 values("á");
+create table t1 (a char(1) not null collate koi8r_general_ci);
+insert into t1 values(_koi8r"á");
+set CHARACTER SET koi8r;
 select * from t1;
 set CHARACTER SET cp1251_koi8;
 select * from t1;
@@ -367,6 +368,15 @@ show status like "Qcache_queries_in_cache";
 drop table t2;
 set GLOBAL query_cache_min_res_unit=default;
 show global variables like "query_cache_min_res_unit";
+
+#
+# Case sensitive test
+#
+create table t1 (a int not null);
+insert into t1 values (1);
+select "aaa" from t1;
+select "AAA" from t1;
+drop table t1;
 
 #
 # Test of query cache resizing
