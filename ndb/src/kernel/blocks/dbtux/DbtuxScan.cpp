@@ -73,7 +73,6 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     scanPtr.p->m_savePointId = req->savePointId;
     scanPtr.p->m_readCommitted = AccScanReq::getReadCommittedFlag(req->requestInfo);
     scanPtr.p->m_lockMode = AccScanReq::getLockMode(req->requestInfo);
-    scanPtr.p->m_keyInfo = AccScanReq::getKeyinfoFlag(req->requestInfo);
 #ifdef VM_TRACE
     if (debugFlags & DebugScan) {
       debugOut << "Seize scan " << scanPtr.i << " " << *scanPtr.p << endl;
@@ -473,13 +472,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     jam();
     // read keys if not already done (uses signal)
     const TreeEnt ent = scan.m_scanEnt;
-    if (scan.m_keyInfo) {
-      jam();
-      if (pkSize == 0) {
-        jam();
-        readTablePk(frag, ent, pkData, pkSize);
-      }
-    }
     // conf signal
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
@@ -501,39 +493,12 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->localKeyLength = 1;
     unsigned signalLength = 6;
     // add key info
-    if (scan.m_keyInfo) {
-      jam();
-      conf->keyLength = pkSize;
-      // piggy-back first 4 words of key data
-      for (unsigned i = 0; i < 4; i++) {
-        conf->key[i] = i < pkSize ? pkData[i] : 0;
-      }
-      signalLength = 11;
-    }
     if (! scan.m_readCommitted) {
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
     } else {
       Uint32 blockNo = refToBlock(scan.m_userRef);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
-    }
-    // send rest of key data
-    if (scan.m_keyInfo && pkSize > 4) {
-      unsigned total = 4;
-      while (total < pkSize) {
-        jam();
-        unsigned length = pkSize - total;
-        if (length > 20)
-          length = 20;
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = 0;
-        signal->theData[2] = 0;
-        signal->theData[3] = length;
-        memcpy(&signal->theData[4], &pkData[total], length << 2);
-        sendSignal(scan.m_userRef, GSN_ACC_SCAN_INFO24,
-            signal, 4 + length, JBB);
-        total += length;
-      }
     }
     // next time look for next entry
     scan.m_state = ScanOp::Next;
