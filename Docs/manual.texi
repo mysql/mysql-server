@@ -50364,6 +50364,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug that caused @code{REPAIR TABLE} to fail on tables
+with duplicates in a unique key.
+@item
 Fixed a bug that @code{OPTIMIZE} of locked and modified table,
 reported table corruption.
 @item
