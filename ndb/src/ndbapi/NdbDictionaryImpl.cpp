@@ -79,6 +79,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_attrSize = col.m_attrSize; 
   m_arraySize = col.m_arraySize;
   m_keyInfoPos = col.m_keyInfoPos;
+  m_blobTable = col.m_blobTable;
   // Do not copy m_facade !!
 
   return *this;
@@ -104,6 +105,7 @@ NdbColumnImpl::init()
   m_arraySize = 1,
   m_autoIncrement = false;
   m_autoIncrementInitialValue = 1;
+  m_blobTable = NULL;
 }
 
 NdbColumnImpl::~NdbColumnImpl()
@@ -1211,7 +1213,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     }
     if (col->getBlobType())
       blobCount++;
-    
     NdbColumnImpl * null = 0;
     impl->m_columns.fill(attrDesc.AttributeId, null);
     if(impl->m_columns[attrDesc.AttributeId] != 0){
@@ -1266,7 +1267,28 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
     NdbBlob::getBlobTable(bt, &t, &c);
     if (createTable(bt) != 0)
       return -1;
+    // Save BLOB table handle
+    NdbTableImpl * cachedBlobTable = getTable(bt.m_externalName.c_str());
+    c.m_blobTable = cachedBlobTable;
   }
+  
+  return 0;
+}
+
+int
+NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
+{
+  for (unsigned i = 0; i < t.m_columns.size(); i++) {
+    NdbColumnImpl & c = *t.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    char btname[NdbBlob::BlobTableNameSize];
+    NdbBlob::getBlobTableName(btname, &t, &c);
+    // Save BLOB table handle
+    NdbTableImpl * cachedBlobTable = getTable(btname);;
+    c.m_blobTable = cachedBlobTable;
+  }
+  
   return 0;
 }
 
