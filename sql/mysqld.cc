@@ -2614,6 +2614,9 @@ server.");
   printf(ER(ER_READY),my_progname,server_version,
 	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysql_unix_port),
 	 mysql_port);
+  if (MYSQL_COMPILATION_COMMENT[0] != '\0')
+    fputs("  " MYSQL_COMPILATION_COMMENT, stdout);
+  putchar('\n');
   fflush(stdout);
 
 #ifdef __NT__
