@@ -70,6 +70,7 @@
 #define HA_NO_WRITE_DELAYED	(HA_NOT_EXACT_COUNT*2)
 #define HA_PRIMARY_KEY_IN_READ_INDEX (HA_NO_WRITE_DELAYED*2)
 #define HA_DROP_BEFORE_CREATE	(HA_PRIMARY_KEY_IN_READ_INDEX*2)
+#define HA_NOT_READ_AFTER_KEY	(HA_DROP_BEFORE_CREATE*2)
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */

@@ -5679,7 +5679,7 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 
 
 @cindex installing, source distribution
-@cindex source distribtuion, installing
+@cindex source distribution, installing
 @cindex installation overview
 @node Installing source, Installing source tree, Installing binary, Installing
 @section Installing a MySQL Source Distribution
@@ -40246,6 +40246,12 @@ If a test fails totally, you should check the logs file in the
 @item
 If you have compiled @strong{MySQL} with debugging you can try to debug this
 with the @code{--gdb} and @code{--debug} options to @code{mysql-test-run}.
+@xref{Making trace files}.
+
+If you have not compiled @strong{MySQL} for debugging you should probably
+do that.  Just specify the @code{--with-debug} options to @code{configure}!
+@xref{Installing source}.
+
 @end itemize
 
 @page
@@ -42124,6 +42130,8 @@ Fixed bug in bi-directonal replication.
 @item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
+@item
+Fixed @code{MAX()} optimization on sub-key for @code{BDB} tables.
 @item
 Fixed problem with 'garbage results' when using @code{BDB} tables and
 @code{BLOB} or @code{TEXT} fields when joining many tables.
@@ -47038,6 +47046,12 @@ in some cases the @code{PROCEDURE} will not transform the columns.
 @item
 Creation of a table of type @code{MERGE} doesn't check if the underlying
 tables are of compatible types.
+@item
+@strong{MySQL} can't yet handle @code{NaN}, @code{-Inf} and @code{Inf}
+values in double. Using these will cause problems when trying to export
+and import data. We should as a intermediate solution change @code{NaN} to
+@code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
+Minimum respective maximum possible @code{double} value.
 @end itemize
 
 The following are known bugs in earlier versions of @strong{MySQL}:
@@ -47669,7 +47683,7 @@ send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
 If you can cause the @code{mysqld} server to crash quickly, you can try to
 create a trace file of this:
 
-Start the @code{mysqld} server with a trace log in @file{/tmp/mysql.trace}.
+Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}.
 The log file will get very @emph{BIG}.
 
 @code{mysqld --debug --log}
