@@ -1899,38 +1899,6 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
   return;
 }
 
-double Item_func_set_user_var::native_val()
-{
-  double value=args[0]->val();
-  update_hash((void*) &value,sizeof(value), REAL_RESULT);
-  return value;
-}
-
-longlong Item_func_set_user_var::native_val_int()
-{
-  longlong value=args[0]->val_int();
-  update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-  return value;
-}
-
-String *Item_func_set_user_var::native_val_str(String *str)
-{
-  char buffer[MAX_FIELD_WIDTH];
-  String *res=args[0]->val_str(str);
-  if (!res)					// Null value
-    update_hash((void*) 0,0,STRING_RESULT);
-  else
-    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-  return res;
-}
-
-String *Item_func_set_user_var::native_val_str()
-{
-  char buffer[MAX_FIELD_WIDTH];
-  String tmp(buffer,sizeof(buffer));
-  return native_val_str(&tmp);
-}
-
 bool
 Item_func_set_user_var::update()
 {
