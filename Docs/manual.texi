@@ -27871,7 +27871,7 @@ inode and by this will avoid some disk seeks.
 
 @item
 On Linux, you can get much more performance (up to 100% under load is
-not uncommon) by using hdpram to configure your disk's interface!  The
+not uncommon) by using hdparm to configure your disk's interface!  The
 following should be quite good hdparm options for MySQL (and
 probably many other applications):
 
