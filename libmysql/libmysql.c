@@ -3729,28 +3729,6 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
 
   mysql= mysql->last_used_con;
 
-  if (stmt->update_max_length && !stmt->bind_result_done)
-  {
-    /*
-      We must initalize the bind structure to be able to calculate
-      max_length
-    */
-    MYSQL_BIND  *bind, *end;
-    MYSQL_FIELD *field;
-    bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
-
-    for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields;
-	 bind < end ;
-	 bind++, field++)
-    {
-      bind->buffer_type= field->type;
-      bind->buffer_length=1;
-    }
-
-    mysql_stmt_bind_result(stmt, stmt->bind);
-    stmt->bind_result_done= 0;			/* No normal bind done */
-  }
-
   while ((pkt_len= net_safe_read(mysql)) != packet_error)
   {
     cp= net->read_pos;
@@ -3768,8 +3746,6 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
       memcpy((char *) cur->data, (char *) cp+1, pkt_len-1);
       cur->length= pkt_len;		/* To allow us to do sanity checks */
       result->rows++;
-      if (stmt->update_max_length)
-	stmt_update_metadata(stmt, cur);
     }
     else
     {
@@ -3814,12 +3790,42 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     result->rows= 0;
     stmt->data_cursor= NULL;
   }
+
+  if (stmt->update_max_length && !stmt->bind_result_done)
+  {
+    /*
+      We must initalize the bind structure to be able to calculate
+      max_length
+    */
+    MYSQL_BIND  *bind, *end;
+    MYSQL_FIELD *field;
+    bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
+
+    for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields;
+	 bind < end ;
+	 bind++, field++)
+    {
+      bind->buffer_type= field->type;
+      bind->buffer_length=1;
+    }
+
+    mysql_stmt_bind_result(stmt, stmt->bind);
+    stmt->bind_result_done= 0;			/* No normal bind done */
+  }
+
   if ((*mysql->methods->read_binary_rows)(stmt))
   {
     free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
     result->data= NULL;
     result->rows= 0;
     DBUG_RETURN(1);
+  }
+
+  if (stmt->update_max_length)
+  {
+    MYSQL_ROWS *cur= result->data;
+    for(; cur; cur=cur->next)
+      stmt_update_metadata(stmt, cur);
   }
 
   stmt->data_cursor= result->data;

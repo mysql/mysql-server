@@ -197,6 +197,8 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
+  stmt->affected_rows= stmt->mysql->affected_rows;
+  stmt->insert_id= stmt->mysql->insert_id;
   DBUG_RETURN(0);
 }
 
@@ -605,13 +607,14 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 
       if (!(res=item->val_str(&tmp)))
       {
-	client_field->def= strdup_root(field_alloc, "");
 	client_field->def_length= 0;
+	client_field->def= strmake_root(field_alloc, "",0);
       }
       else
       {
-	client_field->def= strdup_root(field_alloc, res->ptr());
 	client_field->def_length= res->length();
+	client_field->def= strmake_root(field_alloc, res->ptr(),
+					client_field->def_length);
       }
     }
     else
