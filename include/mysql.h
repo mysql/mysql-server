@@ -426,7 +426,7 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 int simple_command(MYSQL *mysql,enum enum_server_command command,
 		   const char *arg, unsigned long length, my_bool skipp_check);
 unsigned long net_safe_read(MYSQL* mysql);
-void mysql_once_init(void);
+int mysql_once_init(void);
 
 extern my_bool server_inited;
 

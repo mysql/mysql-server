@@ -44,12 +44,23 @@ pthread_mutexattr_t my_fast_mutexattr;
 pthread_mutexattr_t my_errchk_mutexattr;
 #endif
 
+/*
+  initialize thread environment
+
+  SYNOPSIS
+    my_thread_global_init()
+
+  RETURN
+    0  ok
+    1  error (Couldn't create THR_KEY_mysys)
+*/
+
 my_bool my_thread_global_init(void)
 {
-  if (pthread_key_create(&THR_KEY_mysys,free))
+  if (pthread_key_create(&THR_KEY_mysys,0))
   {
     fprintf(stderr,"Can't initialize threads: error %d\n",errno);
-    exit(1);
+    return 1;
   }
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_init(&my_fast_mutexattr);
@@ -79,15 +90,18 @@ my_bool my_thread_global_init(void)
 #ifndef HAVE_GETHOSTBYNAME_R
   pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
 #endif
-  return my_thread_init();
+  if (my_thread_init())
+  {
+    my_thread_global_end();			/* Clean up */
+    return 1;
+  }
+  return 0;
 }
 
 
 void my_thread_global_end(void)
 {
-#if defined(USE_TLS)
-  (void) TlsFree(THR_KEY_mysys);
-#endif
+  pthread_key_delete(THR_KEY_mysys);
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
 #endif

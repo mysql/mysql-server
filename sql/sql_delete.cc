@@ -78,7 +78,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     DBUG_RETURN(-1);
   if ((select && select->check_quick(thd,
 				     test(thd->options & OPTION_SAFE_UPDATES),
-				     limit)) || 
+				     limit)) ||
       !limit)
   {
     delete select;
@@ -117,13 +117,19 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     if (setup_order(thd, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (table->found_records = filesort(table, sortorder, length,
-                                        (SQL_SELECT *) 0, 0L, HA_POS_ERROR,
+					 select, 0L, HA_POS_ERROR,
 					 &examined_rows))
         == HA_POS_ERROR)
     {
       delete select;
-      DBUG_RETURN(-1);		// This will force out message
+      DBUG_RETURN(-1);			// This will force out message
     }
+    /*
+      Filesort has already found and selected the rows we want to delete,
+      so we don't need the where clause
+    */
+    delete select;
+    select= 0;
   }
 
   init_read_record(&info,thd,table,select,1,1);
