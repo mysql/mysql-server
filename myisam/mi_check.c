@@ -507,6 +507,36 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   DBUG_RETURN(result);
 } /* chk_key */
 
+static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
+                     my_off_t page, uchar *buff, ha_rows *keys,
+                     ha_checksum *key_checksum, uint level)
+{
+  char llbuff[22],llbuff2[22];
+  if (page > info->state->key_file_length || (page & (info->s->blocksize -1)))
+  {
+    my_off_t max_length=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
+    mi_check_print_error(param,"Wrong pagepointer: %s at page: %s",
+                llstr(page,llbuff),llstr(page,llbuff2));
+
+    if (page+info->s->blocksize > max_length)
+      goto err;
+    info->state->key_file_length=(max_length &
+                                  ~ (my_off_t) (info->s->blocksize-1));
+  }
+  if (!_mi_fetch_keypage(info,keyinfo,page, DFLT_INIT_HITS,buff,0))
+  {
+    mi_check_print_error(param,"Can't read key from filepos: %s",
+        llstr(page,llbuff));
+    goto err;
+  }
+  param->key_file_blocks+=keyinfo->block_length;
+  if (chk_index(param,info,keyinfo,page,buff,keys,key_checksum,level))
+    goto err;
+
+  return 0;
+err:
+  return 1;
+}
 
 	/* Check if index is ok */
 
@@ -553,27 +583,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     if (nod_flag)
     {
       next_page=_mi_kpos(nod_flag,keypos);
-      if (next_page > info->state->key_file_length ||
-	  (nod_flag && (next_page & (info->s->blocksize -1))))
-      {
-	my_off_t max_length=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
-	mi_check_print_error(param,"Wrong pagepointer: %s at page: %s",
-		    llstr(next_page,llbuff),llstr(page,llbuff2));
-
-	if (next_page+info->s->blocksize > max_length)
-	  goto err;
-	info->state->key_file_length=(max_length &
-				      ~ (my_off_t) (info->s->blocksize-1));
-      }
-      if (!_mi_fetch_keypage(info,keyinfo,next_page,
-                             DFLT_INIT_HITS,temp_buff,0))
-      {
-	mi_check_print_error(param,"Can't read key from filepos: %s",llstr(next_page,llbuff));
-	goto err;
-      }
-      param->key_file_blocks+=keyinfo->block_length;
-      if (chk_index(param,info,keyinfo,next_page,temp_buff,keys,key_checksum,
-		    level+1))
+      if (chk_index_down(param,info,keyinfo,next_page,
+                         temp_buff,keys,key_checksum,level+1))
 	goto err;
     }
     old_keypos=keypos;
@@ -615,6 +626,23 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     memcpy((char*) info->lastkey,(char*) key,key_length);
     info->lastkey_length=key_length;
     record= _mi_dpos(info,0,key+key_length);
+    if (keyinfo->flag & HA_FULLTEXT) /* special handling for ft2 */
+    {
+      uint off;
+      int  subkeys;
+      get_key_full_length_rdonly(off, key);
+      subkeys=ft_sintXkorr(key+off);
+      if (subkeys < 0)
+      {
+        ha_rows tmp_keys=0;
+        if (chk_index_down(param,info,&info->s->ft2_keyinfo,record,
+                           temp_buff,&tmp_keys,key_checksum,1))
+          goto err;
+        (*keys)+=tmp_keys-1;
+        continue;
+      }
+      /* fall through */
+    }
     if (record >= info->state->data_file_length)
     {
 #ifndef DBUG_OFF
