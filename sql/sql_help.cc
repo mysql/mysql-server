@@ -127,7 +127,7 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
 			    String *name, String *description, String *example)
 {
   DBUG_ENTER("memorize_variant_topic");
-  MEM_ROOT *mem_root= &thd->mem_root;
+  MEM_ROOT *mem_root= thd->mem_root;
   if (count==0)
   {
     get_field(mem_root,find_fields[help_topic_name].field,        name);
@@ -138,7 +138,7 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
   {
     if (count == 1)
       names->push_back(name);
-    String *new_name= new (&thd->mem_root) String;
+    String *new_name= new (thd->mem_root) String;
     get_field(mem_root,find_fields[help_topic_name].field,new_name);
     names->push_back(new_name);
   }
@@ -351,8 +351,8 @@ int search_categories(THD *thd, TABLE *categories,
   {
     if (select && !select->cond->val_int())
       continue;
-    String *lname= new (&thd->mem_root) String;
-    get_field(&thd->mem_root,pfname,lname);
+    String *lname= new (thd->mem_root) String;
+    get_field(thd->mem_root,pfname,lname);
     if (++count == 1 && res_id)
       *res_id= (int16) pcat_id->val_int();
     names->push_back(lname);
@@ -385,8 +385,8 @@ void get_all_items_for_category(THD *thd, TABLE *items, Field *pfname,
   {
     if (!select->cond->val_int())
       continue;
-    String *name= new (&thd->mem_root) String();
-    get_field(&thd->mem_root,pfname,name);
+    String *name= new (thd->mem_root) String();
+    get_field(thd->mem_root,pfname,name);
     res->push_back(name);
   }
   end_read_record(&read_record_info);
@@ -638,7 +638,7 @@ int mysqld_help(THD *thd, const char *mask)
   String name, description, example;
   int res, count_topics, count_categories, error;
   uint mlen= strlen(mask);
-  MEM_ROOT *mem_root= &thd->mem_root;
+  MEM_ROOT *mem_root= thd->mem_root;
 
   if (open_and_lock_tables(thd, tables))
   {

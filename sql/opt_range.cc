@@ -400,7 +400,7 @@ QUICK_SELECT::QUICK_SELECT(THD *thd, TABLE *table, uint key_nr, bool no_alloc)
   {
     // Allocates everything through the internal memroot
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-    my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
+    thd->mem_root= &alloc;
   }
   else
     bzero((char*) &alloc,sizeof(alloc));
@@ -668,8 +668,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       DBUG_RETURN(0);				// Can't use range
     }
     key_parts= param.key_parts;
-    old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
-    my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
+    old_root= thd->mem_root;
+    thd->mem_root= &alloc;
 
     key_info= head->key_info;
     for (idx=0 ; idx < head->keys ; idx++, key_info++)
@@ -769,7 +769,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
     }
     free_root(&alloc,MYF(0));			// Return memory & allocator
-    my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+    thd->mem_root= old_root;
     thd->no_errors=0;
   }
   DBUG_EXECUTE("info",print_quick(quick,&needed_reg););
@@ -2563,7 +2563,8 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 
 QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 {
-  MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
+  MEM_ROOT *old_root= thd->mem_root;
+  /* The following call may change thd->mem_root */
   QUICK_SELECT *quick= new QUICK_SELECT(thd, table, ref->key);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
@@ -2624,11 +2625,11 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   }
 
 ok:
-  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+  thd->mem_root= old_root;
   return quick;
 
 err:
-  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+  thd->mem_root= old_root;
   delete quick;
   return 0;
 }
