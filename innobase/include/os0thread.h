@@ -25,33 +25,37 @@ can wait inside InnoDB */
 
 #ifdef __WIN__
 typedef void*			os_thread_t;
+typedef ulint			os_thread_id_t;	/* In Windows the thread id
+						is an unsigned long int */
 #else
 typedef pthread_t               os_thread_t;
+typedef os_thread_t          	os_thread_id_t;	/* In Unix we use the thread
+						handle itself as the id of
+						the thread */
 #endif
 
-#define os_thread_id_t          os_thread_t
 
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
 
 /*******************************************************************
-Compares two threads or thread ids for equality */
+Compares two thread ids for equality. */
 
 ibool
 os_thread_eq(
 /*=========*/
 				/* out: TRUE if equal */
-	os_thread_t	a,	/* in: OS thread or thread id */
-	os_thread_t	b);	/* in: OS thread or thread id */
+	os_thread_id_t	a,	/* in: OS thread or thread id */
+	os_thread_id_t	b);	/* in: OS thread or thread id */
 /********************************************************************
-Converts an OS thread or thread id to a ulint. It is NOT guaranteed that
-the ulint is unique for the thread though! */
+Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
+unique for the thread though! */
 
 ulint
 os_thread_pf(
 /*=========*/
 				/* out: unsigned long int */
-	os_thread_t	a);	/* in: thread or thread id */
+	os_thread_id_t	a);	/* in: thread or thread id */
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
@@ -69,10 +73,8 @@ os_thread_create(
 #endif
 	void*			arg,		/* in: argument to start
 						function */
-	os_thread_id_t*		thread_id);	/* out: id of created
-						thread; currently this is
-						identical to the handle to
-						the thread */
+	os_thread_id_t*		thread_id);	/* out: id of the created
+						thread */
 /*********************************************************************
 A thread calling this function ends its execution. */
 
