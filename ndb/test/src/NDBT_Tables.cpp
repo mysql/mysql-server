@@ -820,21 +820,25 @@ NDBT_Tables::createAllTables(Ndb* pNdb){
 
 int
 NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp, 
-			 bool existsOk){
+			 bool existsOk, NDBT_CreateTableHook f){
   
   const NdbDictionary::Table* tab = NDBT_Tables::getTable(_name);
   if (tab == NULL){
     ndbout << "Could not create table " << _name 
 	   << ", it doesn't exist in list of tables "\
-              "that NDBT_Tables can create!" << endl;
+      "that NDBT_Tables can create!" << endl;
     return NDBT_WRONGARGS;
   }
-
+  
   int r = 0;
   do {
     NdbDictionary::Table tmpTab(* tab);
     tmpTab.setStoredTable(_temp ? 0 : 1);
-  
+    if(f != 0 && f(pNdb, tmpTab, 0))
+    {
+      ndbout << "Failed to create table" << endl;
+      return NDBT_FAILED;
+    }      
     r = pNdb->getDictionary()->createTable(tmpTab);
     if(r == -1){
       if(!existsOk){
@@ -883,6 +887,11 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
 	}
       }
     }
+    if(f != 0 && f(pNdb, tmpTab, 1))
+    {
+      ndbout << "Failed to create table" << endl;
+      return NDBT_FAILED;
+    }      
   } while(false);
   
   return r;
