@@ -33,15 +33,6 @@ int calc_weekday(long daynr,bool sunday_first_day_of_week)
   DBUG_RETURN ((int) ((daynr + 5L + (sunday_first_day_of_week ? 1L : 0L)) % 7));
 }
 
-	/* Calc days in one year. works with 0 <= year <= 99 */
-
-uint calc_days_in_year(uint year)
-{
-  return (year & 3) == 0 && (year%100 || (year%400 == 0 && year)) ?
-    366 : 365;
-}
-
-
 /*
   The bits in week_format has the following meaning:
    WEEK_MONDAY_FIRST (0)  If not set	Sunday is first day of week
@@ -200,9 +191,16 @@ str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
                           uint flags)
 {
   int was_cut;
-  timestamp_type ts_type= str_to_datetime(str, length, l_time, flags, &was_cut);
+  THD *thd= current_thd;
+  timestamp_type ts_type;
+  
+  ts_type= str_to_datetime(str, length, l_time,
+                           (flags | (thd->variables.sql_mode &
+                                     (MODE_INVALID_DATES |
+                                      MODE_NO_ZERO_DATE))),
+                           &was_cut);
   if (was_cut)
-    make_truncated_value_warning(current_thd, str, length, ts_type);
+    make_truncated_value_warning(current_thd, str, length, ts_type,  NullS);
   return ts_type;
 }
 
@@ -258,7 +256,8 @@ str_to_time_with_warn(const char *str, uint length, TIME *l_time)
   int was_cut;
   bool ret_val= str_to_time(str, length, l_time, &was_cut);
   if (was_cut)
-    make_truncated_value_warning(current_thd, str, length, MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, str, length,
+                                 MYSQL_TIMESTAMP_TIME, NullS);
   return ret_val;
 }
 
@@ -791,16 +790,15 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 
 void make_truncated_value_warning(THD *thd, const char *str_val,
-				  uint str_length, timestamp_type time_type)
+				  uint str_length, timestamp_type time_type,
+                                  const char *field_name)
 {
   char warn_buff[MYSQL_ERRMSG_SIZE];
   const char *type_str;
-
+  CHARSET_INFO *cs= &my_charset_latin1;
   char buff[128];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
-  str.length(0);
-  str.append(str_val, str_length);
-  str.append('\0');
+  str.copy(str_val, str_length, system_charset_info);
 
   switch (time_type) {
     case MYSQL_TIMESTAMP_DATE: 
@@ -814,8 +812,15 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
       type_str= "datetime";
       break;
   }
-  sprintf(warn_buff, ER(ER_TRUNCATED_WRONG_VALUE),
-	  type_str, str.ptr());
+  if (field_name)
+    cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
+                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                       type_str, str.c_ptr(), field_name,
+                       (ulong) thd->row_count);
+  else
+    cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
+                       ER(ER_TRUNCATED_WRONG_VALUE),
+                       type_str, str.ptr());
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }

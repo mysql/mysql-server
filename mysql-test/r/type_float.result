@@ -15,8 +15,8 @@ f1	float	NULL	YES		NULL		select,insert,update,references
 f2	double	NULL	YES		NULL		select,insert,update,references	
 insert into t1 values(10,10),(1e+5,1e+5),(1234567890,1234567890),(1e+10,1e+10),(1e+15,1e+15),(1e+20,1e+20),(1e+50,1e+50),(1e+150,1e+150);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'f1' at row 7
-Warning	1264	Data truncated; out of range for column 'f1' at row 8
+Warning	1264	Out of range value adjusted for column 'f1' at row 7
+Warning	1264	Out of range value adjusted for column 'f1' at row 8
 insert into t1 values(-10,-10),(1e-5,1e-5),(1e-10,1e-10),(1e-15,1e-15),(1e-20,1e-20),(1e-50,1e-50),(1e-150,1e-150);
 select * from t1;
 f1	f2

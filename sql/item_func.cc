@@ -432,6 +432,16 @@ void Item_func::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
+void Item_func::signal_divide_by_null()
+{
+  THD *thd= current_thd;
+  if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DIVISION_BY_ZERO,
+                 ER(ER_DIVISION_BY_ZERO));
+  null_value= 1;
+}
+
+
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
@@ -597,10 +607,16 @@ double Item_func_div::val()
   DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   double val2=args[1]->val();
-  if ((null_value= val2 == 0.0 || args[0]->null_value || args[1]->null_value))
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0;
+  if (val2 == 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return value/val2;
 }
+
 
 longlong Item_func_div::val_int()
 {
@@ -609,12 +625,18 @@ longlong Item_func_div::val_int()
   {
     longlong value=args[0]->val_int();
     longlong val2=args[1]->val_int();
-    if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+    if ((null_value= args[0]->null_value || args[1]->null_value))
       return 0;
+    if (val2 == 0)
+    {
+      signal_divide_by_null();
+      return 0;
+    }
     return value/val2;
   }
   return (longlong) Item_func_div::val();
 }
+
 
 void Item_func_div::fix_length_and_dec()
 {
@@ -633,8 +655,13 @@ longlong Item_func_int_div::val_int()
   DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   longlong val2=args[1]->val_int();
-  if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+  if (args[0]->null_value || args[1]->null_value)
     return 0;
+  if (val2 == 0)
+  {
+    signal_divide_by_null();
+    return 0;
+  }
   return (unsigned_flag ?
 	  (ulonglong) value / (ulonglong) val2 :
 	  value / val2);
@@ -654,8 +681,13 @@ double Item_func_mod::val()
   DBUG_ASSERT(fixed == 1);
   double value= floor(args[0]->val()+0.5);
   double val2=floor(args[1]->val()+0.5);
-  if ((null_value=val2 == 0.0 || args[0]->null_value || args[1]->null_value))
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
+  if (val2 == 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return fmod(value,val2);
 }
 
@@ -664,8 +696,13 @@ longlong Item_func_mod::val_int()
   DBUG_ASSERT(fixed == 1);
   longlong value=  args[0]->val_int();
   longlong val2= args[1]->val_int();
-  if ((null_value=val2 == 0 || args[0]->null_value || args[1]->null_value))
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (val2 == 0)
+  {
+    signal_divide_by_null();
+    return 0;
+  }
   return value % val2;
 }
 

@@ -146,6 +146,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dupp_field->field_name);
       DBUG_RETURN(-1);
     }
+    if (check_that_all_fields_are_given_values(thd, table))
+      DBUG_RETURN(1);
   }
 
   uint tot_length=0;
@@ -284,6 +286,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
+
+    thd->no_trans_update= 0;
+    thd->abort_on_warning= (handle_duplicates != DUP_IGNORE &&
+                            (thd->variables.sql_mode &
+                             (MODE_STRICT_TRANS_TABLES |
+                              MODE_STRICT_ALL_TABLES)));
+
     if (!field_term->length() && !enclosed->length())
       error=read_fixed_length(thd,info,table,fields,read_info,
 			      skip_lines);
@@ -376,12 +385,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
+
 err:
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  thd->abort_on_warning= 0;  
   DBUG_RETURN(error);
 }
 
@@ -396,6 +407,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
   ulonglong id;
+  bool no_trans_update;
   DBUG_ENTER("read_fixed_length");
 
   id= 0;
@@ -427,6 +439,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 #ifdef HAVE_purify
     read_info.row_end[0]=0;
 #endif
+    no_trans_update= !table->file->has_transactions();
     while ((sql_field= (Item_field*) it++))
     {
       Field *field= sql_field->field;                  
@@ -446,7 +459,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 	    field->field_length)
 	  length=field->field_length;
 	save_chr=pos[length]; pos[length]='\0'; // Safeguard aganst malloc
-  field->store((char*) pos,length,read_info.read_charset);
+        field->store((char*) pos,length,read_info.read_charset);
 	pos[length]=save_chr;
 	if ((pos+=length) > read_info.row_end)
 	  pos= read_info.row_end;	/* Fills rest with space */
@@ -459,8 +472,10 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
                           ER_WARN_TOO_MANY_RECORDS, 
                           ER(ER_WARN_TOO_MANY_RECORDS), thd->row_count); 
     }
-    if (write_record(table,&info))
+    if (thd->killed || write_record(thd,table,&info))
       DBUG_RETURN(1);
+    thd->no_trans_update= no_trans_update;
+   
     /*
       If auto_increment values are used, save the first one
        for LAST_INSERT_ID() and for the binary/update log.
@@ -498,10 +513,12 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
   Item_field *sql_field;
   uint enclosed_length;
   ulonglong id;
+  bool no_trans_update;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
   id= 0;
+  no_trans_update= !table->file->has_transactions();
 
   for (;;it.rewind())
   {
@@ -563,7 +580,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
                 	    ER(ER_WARN_TOO_FEW_RECORDS), thd->row_count);
       }
     }
-    if (write_record(table,&info))
+    if (thd->killed || write_record(thd, table, &info))
       DBUG_RETURN(1);
     /*
       If auto_increment values are used, save the first one
@@ -575,6 +592,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       id= thd->last_insert_id;
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
+    thd->no_trans_update= no_trans_update;
     if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
@@ -583,6 +601,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                           ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS), 
                           thd->row_count);   
+      if (thd->killed)
+        DBUG_RETURN(1);
     }
     thd->row_count++;
   }

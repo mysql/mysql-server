@@ -274,6 +274,8 @@ public:
   virtual void set_charset(CHARSET_INFO *charset) { }
   bool set_warning(const unsigned int level, const unsigned int code, 
                    int cuted_increment);
+  bool check_int(const char *str, int length, const char *int_end,
+                 CHARSET_INFO *cs);
   void set_datetime_warning(const uint level, const uint code, 
                             const char *str, uint str_len,
                             timestamp_type ts_type, int cuted_increment);
@@ -1252,8 +1254,6 @@ uint pack_length_to_packflag(uint type);
 uint32 calc_pack_length(enum_field_types type,uint32 length);
 int set_field_to_null(Field *field);
 int set_field_to_null_with_conversions(Field *field, bool no_conversions);
-bool test_if_int(const char *str, int length, const char *int_end,
-		 CHARSET_INFO *cs);
 
 /*
   The following are for the interface with the .frm file

@@ -41,8 +41,13 @@ typedef long my_time_t;
 #define YY_PART_YEAR	   70
 
 /* Flags to str_to_datetime */
-#define TIME_FUZZY_DATE    1
-#define TIME_DATETIME_ONLY 2
+#define TIME_FUZZY_DATE		1
+#define TIME_DATETIME_ONLY	2
+/* Must be same as MODE_NO_ZERO_IN_DATE */
+#define TIME_NO_ZERO_IN_DATE    (65536L*2*2*2*2*2*2*2)
+/* Must be same as MODE_NO_ZERO_DATE */
+#define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
+#define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
 
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
@@ -52,6 +57,7 @@ bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
                  int *was_cut);
 
 long calc_daynr(uint year,uint month,uint day);
+uint calc_days_in_year(uint year);
 
 void init_time(void);
 

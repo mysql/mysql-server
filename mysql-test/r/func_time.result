@@ -591,7 +591,7 @@ select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
 NULL
 Warnings:
-Warning	1264	Data truncated; out of range for column 'time' at row 1
+Warning	1264	Out of range value adjusted for column 'time' at row 1
 drop table t1;
 select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
 last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
