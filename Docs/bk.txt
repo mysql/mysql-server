@@ -51,7 +51,7 @@ to do with each conflict.
 To learn more about bk, use bk helptool - I will be doing this a lot in the next
 couple of days :-) If you find bugs or have questions/feature
 suggestions/comments for developers, feel free to e-mail dev@bitmover.com .
-Their developers, and especially the president of the company Larry McCoy really
+Their developers, and especially the president of the company Larry McVoy really
 like MySQL and are very anxious to help us. Make sure it is obvious that you
 work for MySQL, of course. And, of course, do not bug them with little things
 that you can figure out on your own or with my help - they were nice to offer us
