@@ -35,7 +35,7 @@ inline Item * and_items(Item* cond, Item *item)
 }
 
 Item_subselect::Item_subselect():
-  Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
+  Item_result_field(), value_assigned(0), substitution(0),
   engine(0), used_tables_cache(0), have_to_be_excluded(0),
   const_item_cache(1), engine_changed(0)
 {
@@ -66,8 +66,7 @@ void Item_subselect::init(st_select_lex *select_lex,
 
 Item_subselect::~Item_subselect()
 {
-  if (engine_owner)
-    delete engine;
+  delete engine;
 }
 
 Item_subselect::trans_res
@@ -183,7 +182,8 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   DBUG_VOID_RETURN;
 }
 
-Item_maxmin_subselect::Item_maxmin_subselect(st_select_lex *select_lex,
+Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
+					     st_select_lex *select_lex,
 					     bool max)
   :Item_singlerow_subselect()
 {
@@ -192,6 +192,14 @@ Item_maxmin_subselect::Item_maxmin_subselect(st_select_lex *select_lex,
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
+
+  /*
+    Following information was collected during performing fix_fields()
+    of Items belonged to subquery, which will be not repeated
+  */
+  used_tables_cache= parent->get_used_tables_cache();
+  const_item_cache= parent->get_const_item_cache();
+  
   DBUG_VOID_RETURN;
 }
 
@@ -527,9 +535,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
        func == &Item_bool_func2::ge_creator ||
        func == &Item_bool_func2::le_creator))
   {
+    if (substitution)
+    {
+      // It is second (third, ...) SELECT of UNION => All is done
+      DBUG_RETURN(RES_OK);
+    }
+
     Item *subs;
     if (!select_lex->group_list.elements &&
-	!select_lex->with_sum_func)
+	!select_lex->with_sum_func &&
+	!(select_lex->next_select()))
     {
       Item *item;
       subs_type type= substype();
@@ -565,7 +580,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       // remove LIMIT placed  by ALL/ANY subquery
       select_lex->master_unit()->global_parameters->select_limit=
 	HA_POS_ERROR;
-      subs= new Item_maxmin_subselect(select_lex,
+      subs= new Item_maxmin_subselect(this, select_lex,
 				      (func == &Item_bool_func2::le_creator ||
 				       func == &Item_bool_func2::lt_creator));
     }
