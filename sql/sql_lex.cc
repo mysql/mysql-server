@@ -163,7 +163,8 @@ void lex_start(THD *thd, uchar *buf,uint length)
 
 void lex_end(LEX *lex)
 {
-  lex->select_lex.expr_list.delete_elements();	// If error when parsing sql-varargs
+  for(SELECT_LEX *sl= lex->all_selects_list; sl; sl= sl->next_select_in_list())
+    sl->expr_list.delete_elements();	// If error when parsing sql-varargs
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
 }
