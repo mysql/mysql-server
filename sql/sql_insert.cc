@@ -331,14 +331,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
-    if ((res= table_list->view_check_option(thd, ignore_err)) ==
-        VIEW_CHECK_SKIP)
-      continue;
-    else if (res == VIEW_CHECK_ERROR)
-    {
-      error= 1;
-      break;
-    }
 
     /*
       FIXME: Actually we should do this before
@@ -348,6 +340,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
                                         TRG_ACTION_BEFORE);
 
+    if ((res= table_list->view_check_option(thd,
+					    (values_list.elements == 1 ?
+					     0 :
+					     ignore_err))) ==
+        VIEW_CHECK_SKIP)
+      continue;
+    else if (res == VIEW_CHECK_ERROR)
+    {
+      error= 1;
+      break;
+    }
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {

@@ -218,7 +218,7 @@ public:
   Item_func_substr_index(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   String *val_str(String *);
   void fix_length_and_dec();
-  const char *func_name() const { return "substr_index"; }
+  const char *func_name() const { return "substring_index"; }
 };
 
 

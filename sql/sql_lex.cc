@@ -1616,6 +1616,7 @@ bool st_lex::can_use_merged()
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
+  case SQLCOM_LOAD:
     return TRUE;
   default:
     return FALSE;

@@ -442,9 +442,7 @@ db_drop_routine(THD *thd, int type, sp_name *name)
 
 
 static int
-db_update_routine(THD *thd, int type, sp_name *name,
-		  char *newname, uint newnamelen,
-		  st_sp_chistics *chistics)
+db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
@@ -462,10 +460,6 @@ db_update_routine(THD *thd, int type, sp_name *name,
     if (chistics->suid != SP_IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
 	store((longlong)chistics->suid);
-    if (newname)
-      table->field[MYSQL_PROC_FIELD_NAME]->store(newname,
-						 newnamelen,
-						 system_charset_info);
     if (chistics->daccess != SP_DEFAULT_ACCESS)
       table->field[MYSQL_PROC_FIELD_ACCESS]->
 	store((longlong)chistics->daccess);
@@ -772,9 +766,7 @@ sp_drop_procedure(THD *thd, sp_name *name)
 
 
 int
-sp_update_procedure(THD *thd, sp_name *name,
-		    char *newname, uint newnamelen,
-		    st_sp_chistics *chistics)
+sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
   bool found;
@@ -782,8 +774,7 @@ sp_update_procedure(THD *thd, sp_name *name,
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
   found= sp_cache_remove(&thd->sp_proc_cache, name);
-  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name,
-			 newname, newnamelen, chistics);
+  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, chistics);
   if (!found && !ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
@@ -870,9 +861,7 @@ sp_drop_function(THD *thd, sp_name *name)
 
 
 int
-sp_update_function(THD *thd, sp_name *name,
-		    char *newname, uint newnamelen,
-		    st_sp_chistics *chistics)
+sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
   bool found;
@@ -880,8 +869,7 @@ sp_update_function(THD *thd, sp_name *name,
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
   found= sp_cache_remove(&thd->sp_func_cache, name);
-  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name,
-			 newname, newnamelen, chistics);
+  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, chistics);
   if (!found && !ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
@@ -1002,12 +990,12 @@ sp_cache_functions(THD *thd, LEX *lex)
       if (db_find_routine(thd, TYPE_ENUM_FUNCTION, &name, &sp)
 	  == SP_OK)
       {
+	sp_cache_insert(&thd->sp_func_cache, sp);
 	ret= sp_cache_functions(thd, newlex);
 	delete newlex;
 	thd->lex= oldlex;
 	if (ret)
 	  break;
-	sp_cache_insert(&thd->sp_func_cache, sp);
       }
       else
       {

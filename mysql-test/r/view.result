@@ -991,8 +991,6 @@ drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
 create procedure p1 () begin declare v int; create view v1 as select v; end;//
-Warnings:
-Warning	1311	Referring to uninitialized variable v
 call p1();
 ERROR HY000: View's SELECT contains a variable or parameter
 drop procedure p1;
@@ -1467,7 +1465,7 @@ v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` 
 alter algorithm=undefined view v1 as select * from t1 with check option;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH LOCAL CHECK OPTION
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH CASCADED CHECK OPTION
 alter algorithm=merge view v1 as select * from t1 with cascaded check option;
 show create view v1;
 View	Create View
@@ -1517,3 +1515,114 @@ s1
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;
+create table t1 (t time);
+create view v1 as select substring_index(t,':',2) as t from t1;
+insert into t1 (t) values ('12:24:10');
+select substring_index(t,':',2) from t1;
+substring_index(t,':',2)
+12:24
+select substring_index(t,':',2) from v1;
+substring_index(t,':',2)
+12:24
+drop view v1;
+drop table t1;
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0 with local check option;
+create view v2 as select * from v1 with cascaded check option;
+insert into v2 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+drop view v2, v1;
+drop table t1;
+create table t1 (s1 int);
+create view v1 as select * from t1 where s1 < 5 with check option;
+insert ignore into v1 values (6);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+insert ignore into v1 values (6),(3);
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+s1
+3
+drop view v1;
+drop table t1;
+create table t1 (s1 tinyint);
+create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
+create view v1 as select * from t1 where s1 <> 127 with check option;
+insert into v1 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from v1;
+s1
+select * from t1;
+s1
+drop trigger t1.t1_bi;
+drop view v1;
+drop table t1;
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0;
+create view v2 as select * from v1 where s1 <> 1 with cascaded check option;
+insert into v2 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+select * from v2;
+s1
+select * from t1;
+s1
+drop view v2, v1;
+drop table t1;
+create table t1 (a int, b char(10));
+create view v1 as select * from t1 where a != 0 with check option;
+load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b
+1	row 1
+2	row 2
+select * from v1;
+a	b
+1	row 1
+2	row 2
+delete from t1;
+load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 3
+Error	1369	CHECK OPTION failed 'test.v1'
+Warning	1264	Out of range value adjusted for column 'a' at row 4
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+select * from v1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+drop view v1;
+drop table t1;
+create table t1 (a text, b text);
+create view v1 as select * from t1 where a <> 'Field A' with check option;
+load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+concat('|',a,'|')	concat('|',b,'|')
+delete from t1;
+load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+Warning	1261	Row 2 doesn't contain data for all columns
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+drop view v1;
+drop table t1;

@@ -1081,7 +1081,7 @@ public:
   { return fields.head()->collation.collation; }
 }; 
 
-class COND_EQUAL
+class COND_EQUAL: public Sql_alloc
 {
 public:
   uint max_members;               /* max number of members the current level
