@@ -308,6 +308,11 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     thd->row_count++;
   }
+
+  /*
+    Now all rows are inserted.  Time to update logs and sends response to
+    user
+  */
   if (lock_type == TL_WRITE_DELAYED)
   {
     if (!error)
@@ -341,7 +346,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log
-    else if (table->next_number_field)
+    else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
     /*
@@ -383,9 +388,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->next_insert_id=0;			// Reset this if wrongly used
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
+  /* Reset value of LAST_INSERT_ID if no rows where inserted */
+  if (!info.copied && thd->insert_id_used)
+  {
+    thd->insert_id(0);
+    id=0;
+  }
   if (error)
     goto abort;
-
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
     send_ok(thd,info.copied+info.deleted,id);

@@ -42,9 +42,5 @@ my_bool mysql_reconnect(MYSQL *mysql);
 }
 #endif
 
-#ifdef MYSQL_SERVER
-#define protocol_41(A) FALSE
-#else
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
-#endif
 

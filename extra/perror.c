@@ -30,14 +30,14 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"info", 'I', "Synonym for --help",  0, 0, 0, GET_NO_ARG,
+  {"info", 'I', "Synonym for --help.",  0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SYS_ERRLIST
   {"all", 'a', "Print all the error messages and the number.",
    (gptr*) &print_all_codes, (gptr*) &print_all_codes, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
-  {"silent", 's', "Only print the error message", 0, 0, 0, GET_NO_ARG, NO_ARG,
+  {"silent", 's', "Only print the error message.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Print error code and message (default).", (gptr*) &verbose,
    (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},

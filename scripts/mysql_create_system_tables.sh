@@ -1,6 +1,5 @@
 #!/bin/sh
-
-# Copyright (C) 1997-2002 MySQL AB
+# Copyright (C) 1997-2003 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file
 
 # This script writes on stdout SQL commands to generate all not
@@ -12,7 +11,7 @@
 # $3 - hostname  
 # $4 - windows option
 
-if test x$1 = x"" ;
+if test "$1" = ""
 then
   echo "
 This script writes on stdout SQL commands to generate all not
@@ -20,9 +19,9 @@ existing MySQL system tables. It also replaces the help tables with
 new context from the manual (from fill_help_tables.sql).
 
 Usage:
-  mysql_create_system_tables {help|real|verbose} <path to mysql-database directory> <hostname> <windows option>
-";
-  exit;
+  mysql_create_system_tables [test|verbose|real] <path to mysql-database directory> <hostname> <windows option>
+"
+  exit
 fi
 
 mdata=$2
@@ -44,7 +43,7 @@ i_ht=""
 # Check for old tables
 if test ! -f $mdata/db.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing db table" 1>&2; 
   fi
 
@@ -76,7 +75,7 @@ fi
 
 if test ! -f $mdata/host.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing host table" 1>&2;
   fi
 
@@ -102,7 +101,7 @@ fi
 
 if test ! -f $mdata/user.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing user table" 1>&2;
   fi
 
@@ -142,7 +141,7 @@ then
   c_u="$c_u )"
   c_u="$c_u comment='Users and global privileges';"
 
-  if test x$1 = x"test" 
+  if test "$1" = "test" 
   then
     i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
     INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
@@ -165,7 +164,7 @@ fi
 
 if test ! -f $mdata/func.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing func table" 1>&2;
   fi
 
@@ -181,7 +180,7 @@ fi
 
 if test ! -f $mdata/tables_priv.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing tables_priv table" 1>&2;
   fi
 
@@ -202,7 +201,7 @@ fi
 
 if test ! -f $mdata/columns_priv.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing columns_priv table" 1>&2;
   fi
 
@@ -221,7 +220,7 @@ fi
 
 if test ! -f $mdata/help_topic.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing help_topic table" 1>&2;
   fi
 
@@ -242,7 +241,7 @@ old_categories="yes"
 		    
 if test ! -f $mdata/help_category.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing help_category table" 1>&2;
   fi
   
@@ -259,7 +258,7 @@ fi
 
 if test ! -f $mdata/help_keyword.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
     echo "Preparing help_keyword table" 1>&2;
   fi
 
@@ -274,7 +273,7 @@ fi
 				    
 if test ! -f $mdata/help_relation.frm
 then
-  if test x$1 = x"verbose" ; then
+  if test "$1" = "verbose" ; then
    echo "Preparing help_relation table" 1>&2;
   fi
 

@@ -163,7 +163,7 @@ static struct my_option my_long_options[] =
    "No help available.",
    0, 0, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"backup", 'B',
-   "Make a backup of the .MYD file as 'filename-time.BAK'",
+   "Make a backup of the .MYD file as 'filename-time.BAK'.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
@@ -209,7 +209,7 @@ static struct my_option my_long_options[] =
    "Print statistics information about table that is checked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
-   "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
+   "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
    (gptr*) &check_param.keys_in_use,
    (gptr*) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
@@ -225,7 +225,7 @@ static struct my_option my_long_options[] =
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"parallel-recover", 'p',
-   "Same as '-r' but creates all the keys in parallel",
+   "Same as '-r' but creates all the keys in parallel.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-recover", 'o',
    "Uses old recovery method; Slower than '-r' but can handle a couple of cases where '-r' reports that it can't fix the data file.",
@@ -337,9 +337,9 @@ static void usage(void)
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
   puts("\nGlobal options:\n\
-  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'\n\
+  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n\
   -?, --help          Display this help and exit.\n\
-  -O, --set-variable var=option\n\
+  -O, --set-variable var=option.\n\
                       Change the value of a variable. Please note that\n\
                       this option is deprecated; you can set variables\n\
                       directly with '--variable-name=value'.\n\
@@ -353,9 +353,9 @@ static void usage(void)
                       ", they will be used\n\
                       in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
-		      myisamchk very silent\n\
+		      myisamchk very silent.\n\
   -v, --verbose       Print more information. This can be used with\n\
-                      --description and --check. Use many -v for more verbosity!\n\
+                      --description and --check. Use many -v for more verbosity.\n\
   -V, --version       Print version and exit.\n\
   -w, --wait          Wait if table is locked.\n");
 #ifdef DEBUG
@@ -363,33 +363,33 @@ static void usage(void)
 #endif
 
   puts("Check options (check is the default action for myisamchk):\n\
-  -c, --check	      Check table for errors\n\
+  -c, --check	      Check table for errors.\n\
   -e, --extend-check  Check the table VERY throughly.  Only use this in\n\
                       extreme cases as myisamchk should normally be able to\n\
-                      find out if the table is ok even without this switch\n\
-  -F, --fast	      Check only tables that haven't been closed properly\n\
+                      find out if the table is ok even without this switch.\n\
+  -F, --fast	      Check only tables that haven't been closed properly.\n\
   -C, --check-only-changed\n\
-		      Check only tables that have changed since last check\n\
+		      Check only tables that have changed since last check.\n\
   -f, --force         Restart with '-r' if there are any errors in the table.\n\
-		      States will be updated as with '--update-state'\n\
-  -i, --information   Print statistics information about table that is checked\n\
+		      States will be updated as with '--update-state'.\n\
+  -i, --information   Print statistics information about table that is checked.\n\
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
-		      all errors.  Should be good enough for most cases\n\
-  -U  --update-state  Mark tables as crashed if you find any errors\n\
-  -T, --read-only     Don't mark table as checked\n");
+		      all errors.  Should be good enough for most cases.\n\
+  -U  --update-state  Mark tables as crashed if you find any errors.\n\
+  -T, --read-only     Don't mark table as checked.\n");
 
-  puts("Repair options (When using '-r' or '-o') \n\
-  -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'\n\
+  puts("Repair options (When using '-r' or '-o'):\n\
+  -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'.\n\
   --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
-                      file when it's full)\n\
+                      file when it's full).\n\
   -e, --extend-check  Try to recover every possible row from the data file\n\
 		      Normally this will also find a lot of garbage rows;\n\
 		      Don't use this option if you are not totally desperate.\n\
   -f, --force         Overwrite old temporary files.\n\
   -k, --keys-used=#   Tell MyISAM to update only some specific keys. # is a\n\
 	              bit mask of which keys to use. This can be used to\n\
-		      get faster inserts!\n\
+		      get faster inserts.\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
   -n, --sort-recover  Forces recovering with sorting even if the temporary\n\
@@ -397,17 +397,16 @@ static void usage(void)
   -p, --parallel-recover\n\
                       Uses the same technique as '-r' and '-n', but creates\n\
                       all the keys in parallel, in different threads.\n\
-                      THIS IS ALPHA CODE. USE AT YOUR OWN RISK!\n\
   -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
 		      handle a couple of cases where '-r' reports that it\n\
 		      can't fix the data file.\n\
   --character-sets-dir=...\n\
-                      Directory where character sets are\n\
+                      Directory where character sets are.\n\
   --set-character-set=name\n\
- 		      Change the character set used by the index\n\
+ 		      Change the character set used by the index.\n\
   -q, --quick         Faster repair by not modifying the data file.\n\
                       One can give a second '-q' to force myisamchk to\n\
-		      modify the original datafile in case of duplicate keys\n\
+		      modify the original datafile in case of duplicate keys.\n\
   -u, --unpack        Unpack file packed with myisampack.\n\
 ");
 
@@ -421,11 +420,11 @@ static void usage(void)
 		      If no value is given, then sets the next auto_increment\n\
 		      value to the highest used value for the auto key + 1.\n\
   -S, --sort-index    Sort index blocks.  This speeds up 'read-next' in\n\
-		      applications\n\
+		      applications.\n\
   -R, --sort-records=#\n\
 		      Sort records according to an index.  This makes your\n\
 		      data much more localized and may speed up things\n\
-		      (It may be VERY slow to do a sort the first time!)\n\
+		      (It may be VERY slow to do a sort the first time!).\n\
   -b,  --block-search=#\n\
                        Find a record, a block at given offset belongs to.");
 
