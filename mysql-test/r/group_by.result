@@ -696,7 +696,7 @@ from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
 delete from t2  where a = 2 and b = 'val-2' limit 30;
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	PRIMARY,a	PRIMARY	400	const,const	6	Using where
+1	SIMPLE	t2	ref	PRIMARY,a	PRIMARY	402	const,const	6	Using where
 select c from t2 where a = 2 and b = 'val-2' group by c;
 c
 val-74

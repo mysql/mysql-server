@@ -4690,6 +4690,9 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   maybe_null= item->maybe_null;
   collation.set(item->collation);
   get_full_info(item);
+  /* fix variable decimals which always is NOT_FIXED_DEC */
+  if (Field::result_merge_type(fld_type) == INT_RESULT)
+    decimals= 0;
 }
 
 
@@ -4748,7 +4751,7 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
     break;
   }
   case FUNC_ITEM:
-    if (((Item_func *) item)->functype() == Item_func::VAR_VALUE_FUNC)
+    if (((Item_func *) item)->functype() == Item_func::GUSERVAR_FUNC)
     {
       /*
         There are work around of problem with changing variable type on the
@@ -4764,6 +4767,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
         return MYSQL_TYPE_LONGLONG;
       case REAL_RESULT:
         return MYSQL_TYPE_DOUBLE;
+      case DECIMAL_RESULT:
+        return MYSQL_TYPE_NEWDECIMAL;
       case ROW_RESULT:
       default:
         DBUG_ASSERT(0);
@@ -4793,8 +4798,38 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
-  max_length= max(max_length, display_length(item));
+  DBUG_ENTER("Item_type_holder::join_types");
+  DBUG_PRINT("info:", ("was type %d len %d, dec %d name %s",
+                       fld_type, max_length, decimals,
+                       (name ? name : "<NULL>")));
+  DBUG_PRINT("info:", ("in type %d len %d, dec %d",
+                       get_real_type(item),
+                       item->max_length, item->decimals));
   fld_type= Field::field_type_merge(fld_type, get_real_type(item));
+  {
+    int item_decimals= item->decimals;
+    /* fix variable decimals which always is NOT_FIXED_DEC */
+    if (Field::result_merge_type(fld_type) == INT_RESULT)
+      item_decimals= 0;
+    decimals= max(decimals, item_decimals);
+  }
+  if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
+  {
+    int item_length= display_length(item);
+    int intp1= item_length - min(item->decimals, NOT_FIXED_DEC - 1);
+    int intp2= max_length - min(decimals, NOT_FIXED_DEC - 1);
+    /* can't be overflow because it work only for decimals (no strings) */
+    int dec_length= max(intp1, intp2) + decimals;
+    max_length= max(max_length, max(item_length, dec_length));
+    /*
+      we can't allow decimals to be NOT_FIXED_DEC, to prevent creation
+      decimal with max precision (see Field_new_decimal constcuctor)
+    */
+    if (decimals >= NOT_FIXED_DEC)
+      decimals= NOT_FIXED_DEC - 1;
+  }
+  else
+    max_length= max(max_length, display_length(item));
   if (Field::result_merge_type(fld_type) == STRING_RESULT)
   {
     const char *old_cs, *old_derivation;
@@ -4807,13 +4842,14 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       item->collation.collation->name,
 	       item->collation.derivation_name(),
 	       "UNION");
-      return TRUE;
+      DBUG_RETURN(TRUE);
     }
   }
-  decimals= max(decimals, item->decimals);
   maybe_null|= item->maybe_null;
   get_full_info(item);
-  return FALSE;
+  DBUG_PRINT("info:", ("become type %d len %d, dec %d",
+                       fld_type, max_length, decimals));
+  DBUG_RETURN(FALSE);
 }
 
 /*
@@ -4841,6 +4877,9 @@ uint32 Item_type_holder::display_length(Item *item)
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_YEAR:
   case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_TINY_BLOB:
@@ -4906,10 +4945,6 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                          Field::NONE, name,
                          table, get_set_pack_length(enum_set_typelib->count),
                          enum_set_typelib, collation.collation);
-  case MYSQL_TYPE_VAR_STRING:
-    table->db_create_options|= HA_OPTION_PACK_RECORD;
-    return new Field_string(max_length, maybe_null, name, table,
-                            collation.collation);
   default:
     break;
   }

@@ -565,7 +565,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` decimal(20,1) NOT NULL default '0.0'
+  `a` decimal(19,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -1226,7 +1226,7 @@ drop table t2;
 create table t2 select a from t1 union select a from t1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-a	char(1)				
+a	varchar(1)	NO			
 drop table t2;
 create table t2 select a from t1 union select c from t1;
 ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation 'UNION'

@@ -179,7 +179,7 @@ public:
 class Item_exists_subselect :public Item_subselect
 {
 protected:
-  longlong value; /* value of this item (boolean: exists/not-exists) */
+  bool value; /* value of this item (boolean: exists/not-exists) */
 
 public:
   Item_exists_subselect(st_select_lex *select_lex);
@@ -243,6 +243,8 @@ public:
   longlong val_int();
   double val_real();
   String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
   void print(String *str);
