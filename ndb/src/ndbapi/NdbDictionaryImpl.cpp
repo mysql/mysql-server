@@ -1949,9 +1949,12 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   NdbDictionary::Index::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
   // skip last attribute (NDB$PK or NDB$TNODE)
-  
-  Uint32 distKeys = 0;
-  for(unsigned i = 0; i+1<tab->m_columns.size(); i++){
+
+  const Uint32 distKeys = prim->m_noOfDistributionKeys;
+  Uint32 keyCount = (distKeys ? distKeys : prim->m_noOfKeys);
+
+  unsigned i;
+  for(i = 0; i+1<tab->m_columns.size(); i++){
     NdbColumnImpl* org = tab->m_columns[i];
 
     NdbColumnImpl* col = new NdbColumnImpl;
@@ -1969,20 +1972,24 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     idx->m_key_ids[key_id] = i;
     col->m_keyInfoPos = key_id;
 
-    /**
-     * Fix distribution key stuff for ordered indexes
-     */
-    if(type == NdbDictionary::Index::OrderedIndex)
+    if(type == NdbDictionary::Index::OrderedIndex && 
+       (primCol->m_distributionKey ||
+	(distKeys == 0 && primCol->getPrimaryKey())))
     {
-      if(primCol->m_distributionKey ||
-	 (prim->m_noOfDistributionKeys == 0 && primCol->getPrimaryKey()))
-      {
-	distKeys++;
-	org->m_distributionKey = 1;
-      }
+      keyCount--;
+      org->m_distributionKey = 1;
     }
   }
-  tab->m_noOfDistributionKeys = distKeys;
+
+  if(keyCount == 0)
+  {
+    tab->m_noOfDistributionKeys = (distKeys ? distKeys : prim->m_noOfKeys);
+  }
+  else 
+  {
+    for(i = 0; i+1<tab->m_columns.size(); i++)
+      tab->m_columns[i]->m_distributionKey = 0;
+  }
 
   * dst = idx;
   return 0;
