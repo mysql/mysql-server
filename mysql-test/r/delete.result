@@ -120,3 +120,13 @@ a	b
 0	10
 1	11
 drop table t11, t12, t2;
+create table t1 (a int, b int, unique key (a), key (b));
+insert into t1 values (3, 3), (7, 7);
+delete t1 from t1 where a = 3;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+a	b
+7	7
+drop table t1;
