@@ -253,9 +253,17 @@ row_undo(
 		}
 	}
 
-	/* Prevent DROP TABLE etc. while we are rolling back this row */
+	/* Prevent DROP TABLE etc. while we are rolling back this row.
+        If we are doing a TABLE CREATE or some other dictionary operation,
+        then we already have dict_operation_lock locked in x-mode. Do not
+        try to lock again in s-mode, because that would cause a hang.
+	   
+	TODO: keep track when trx exactly has the latch locked!!!
+	TODO: trx->dict_operation tells it only in some cases!!! */
 	
-	rw_lock_s_lock(&dict_operation_lock);		
+	if (!trx->dict_operation) {
+	        rw_lock_s_lock(&dict_operation_lock);		
+	}
 
 	if (node->state == UNDO_NODE_INSERT) {
 
@@ -267,7 +275,10 @@ row_undo(
 		err = row_undo_mod(node, thr);
 	}
 
-	rw_lock_s_unlock(&dict_operation_lock);		
+	if (!trx->dict_operation) {
+
+	        rw_lock_s_unlock(&dict_operation_lock);
+	}
 
 	/* Do some cleanup */
 	btr_pcur_close(&(node->pcur));
