@@ -23421,7 +23421,7 @@ Below is an explanation of what is supported and what is not:
 @itemize @bullet
 @item
 Replication will be done correctly with @code{AUTO_INCREMENT},
-@code{LAST_INSERT_ID}, and @code{TIMESTAMP} values.
+@code{LAST_INSERT_ID()}, and @code{TIMESTAMP} values.
 @item
 @code{RAND()} in updates does not replicate properly. Use
 @code{RAND(some_non_rand_expr)} if you are replicating updates with
@@ -26725,7 +26725,7 @@ When the cache is full and a thread tries to open a table that is not in
 the cache.
 @item
 When the cache contains more than @code{table_cache} entires and
-a thread is not anymore using a table.
+a thread is no longer using a table.
 @item
 When someone executes @code{mysqladmin refresh} or
 @code{mysqladmin flush-tables}.
@@ -51041,7 +51041,7 @@ character sets (you can choose which when starting @code{mysqld}).
 @item
 Added command @code{REPAIR TABLE}.
 @item
-Added C API function @code{mysql_thread_safe()}.
+Added @code{mysql_thread_safe()} function to the MySQL C API.
 @item
 Added the @code{UMASK_DIR} environment variable.
 @item
@@ -51211,7 +51211,7 @@ Fixed problem when only changing a 0 to @code{NULL} in a table with
 Fixed bug in range optimiser when using many key parts and or on the middle
 key parts:  @code{WHERE K1=1 and K3=2 and (K2=2 and K4=4 or K2=3 and K4=5)}
 @item
-Added command @code{source} to @code{mysql} to allow reading of batch files
+Added @code{source} command to @code{mysql} to allow reading of batch files
 inside the @code{mysql} client.  Original patch by Matthew Vanecek.
 @item
 Fixed critical problem with the @code{WITH GRANT OPTION} option.
@@ -51237,18 +51237,18 @@ didn't change row type from dynamic to fixed.
 Disabled floating-point exceptions for FreeBSD to fix core dump when
 doing @code{SELECT floor(pow(2,63))}.
 @item
-Changed @code{mysqld} startup option @code{--delay-key-write} to
-@code{--delay-key-write-for-all-tables}
+Renamed @code{mysqld} startup option from @code{--delay-key-write} to
+@code{--delay-key-write-for-all-tables}.
 @item
 Added @code{read-next-on-key} to @code{HEAP} tables.  This should fix all
-problems with @code{HEAP} tables when using not @code{UNIQUE} keys.
+problems with @code{HEAP} tables when using non-@code{UNIQUE} keys.
 @item
-Added print of default arguments options to all clients.
+Added option to print default arguments to all clients.
 @item
 Added @code{--log-slow-queries} to @code{mysqld} to log all queries that take a
-long time to a separate log file with a time of how long the query took.
+long time to a separate log file with a time indicating how long the query took.
 @item
-Fixed core dump when doing @code{WHERE key_column=RAND(...)}
+Fixed core dump when doing @code{WHERE key_column=RAND(...)}.
 @item
 Fixed optimisation bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
 when @code{key_column} could contain @code{NULL} values.
@@ -51266,7 +51266,7 @@ Fixed problem when handling indexfiles larger than 8G.
 @item
 Added latest patches to mit-pthreads for NetBSD.
 @item
-Fixed problem with timezones that are < GMT -11.
+Fixed problem with timezones that are < GMT - 11.
 @item
 Fixed a bug when deleting packed keys in @code{NISAM}.
 @item
@@ -51285,7 +51285,7 @@ Added function @code{YEARWEEK()} and options @code{x}, @code{X}, @code{v} and
 @item
 Fixed problem with @code{MAX(indexed_column)} and HEAP tables.
 @item
-Fixed problem with @code{BLOB NULL} keys and @code{LIKE} "prefix%".
+Fixed problem with @code{BLOB NULL} keys and @code{LIKE "prefix%"}.
 @item
 Fixed problem with @code{MyISAM} and fixed-length rows < 5 bytes.
 @item
@@ -51313,12 +51313,12 @@ Fixed a bug in @code{MyISAM} with keys > 250 characters.
 In @code{MyISAM} one can now do an @code{INSERT} at the same time as other
 threads are reading from the table.
 @item
-Added variable @code{max_write_lock_count} to @code{mysqld} to force a
+Added @code{max_write_lock_count} variable to @code{mysqld} to force a
 @code{READ} lock after a certain number of @code{WRITE} locks.
 @item
 Inverted flag @code{delayed_key_write} on @code{show variables}.
 @item
-Renamed variable @code{concurrency} to @code{thread_concurrency}.
+Renamed @code{concurrency} variable to @code{thread_concurrency}.
 @item
 The following functions are now multi-byte-safe:
 @code{LOCATE(substr,str)}, @code{POSITION(substr IN str)},
@@ -51340,14 +51340,14 @@ Added option @code{FULL} to @code{SHOW PROCESSLIST}.
 @item
 Added option @code{--verbose} to @code{mysqladmin}.
 @item
-Fixed problem when automatically converting HEAP to MyISAM.
+Fixed problem when automatically converting @code{HEAP} to @code{MyISAM}.
 @item
-Fixed bug in HEAP tables when doing insert + delete + insert + scan the
+Fixed bug in @code{HEAP} tables when doing insert + delete + insert + scan the
 table.
 @item
 Fixed bugs on Alpha with @code{REPLACE()} and @code{LOAD DATA INFILE}.
 @item
-Added @code{mysqld} variable @code{interactive_timeout}.
+Added @code{interactive_timeout} variable to @code{mysqld}.
 @item
 Changed the argument to @code{mysql_data_seek()} from @code{ulong} to
 @code{ulonglong}.
@@ -51359,24 +51359,24 @@ Changed the argument to @code{mysql_data_seek()} from @code{ulong} to
 
 @itemize @bullet
 @item
-Added @code{mysqld} option @code{-O lower_case_table_names=@{0|1@}} to allow
+Added @code{-O lower_case_table_names=@{0|1@}} option to @code{mysqld} to allow
 users to force table names to lowercase.
 @item
 Added @code{SELECT ... INTO DUMPFILE}.
 @item
-Added @code{mysqld} option @code{--ansi} to make some functions @code{ANSI SQL}
-compatible.
+Added @code{--ansi} option to @code{mysqld} to make some functions
+@code{ANSI SQL} compatible.
 @item
-Temporary tables now starts with @code{#sql}.
+Temporary table names now start with @code{#sql}.
 @item
 Added quoting of identifiers with @code{`} (@code{"} in @code{--ansi} mode).
 @item
-Changed to use snprintf() when printing floats to avoid some buffer
+Changed to use @code{snprintf()} when printing floats to avoid some buffer
 overflows on FreeBSD.
 @item
-Made @code{[floor()} overflow safe on FreeBSD.
+Made @code{floor()} overflow safe on FreeBSD.
 @item
-Added option @code{--quote-names} to @code{mysqldump}
+Added @code{--quote-names} option to @code{mysqldump}.
 @item
 Fixed bug that one could make a part of a @code{PRIMARY KEY NOT NULL}.
 @item
@@ -51390,11 +51390,11 @@ but will make table handling faster and better.
 @item
 Added patch by Sasha for user-defined variables.
 @item
-Changed that @code{FLOAT} and @code{DOUBLE} (without any length modifiers) are
-not anymore fixed decimal point numbers.
+Changed that @code{FLOAT} and @code{DOUBLE} (without any length modifiers)
+no longer are fixed decimal point numbers.
 @item
 Changed the meaning of @code{FLOAT(X)}: Now this is the same as @code{FLOAT} if
-X <= 24 and a @code{DOUBLE} if 24 < X <= 53.
+@code{X} <= 24 and a @code{DOUBLE} if 24 < @code{X} <= 53.
 @item
 @code{DECIMAL(X)} is now an alias for @code{DECIMAL(X,0)} and @code{DECIMAL}
 is now an alias for @code{DECIMAL(10,0)}.  The same goes for @code{NUMERIC}.
@@ -51419,7 +51419,8 @@ Fixed some Y2K problems in the new date handling in 3.23.
 @item
 Fixed problem with @code{SELECT DISTINCT ... ORDER BY RAND()}.
 @item
-Added patches by Sergei A. Golubchik for text searching on the MyISAM level.
+Added patches by Sergei A. Golubchik for text searching on the @code{MyISAM}
+level.
 @item
 Fixed cache overflow problem when using full joins without keys.
 @item
@@ -51427,16 +51428,17 @@ Fixed some configure issues.
 @item
 Some small changes to make parsing faster.
 @item
-@code{ALTER TABLE} + adding a column after the last field didn't work.
+Adding a column after the last field with @code{ALTER TABLE} didn't work.
 @item
-Fixed problem when using an auto_increment column in two keys
+Fixed problem when using an @code{AUTO_INCREMENT} column in two keys
 @item
-One can now with MyISAM have the auto_increment part as a sub part:
+With @code{MyISAM}, you now can have an @code{AUTO_INCREMENT} column as a key
+sub part:
 @code{CREATE TABLE foo (a int not null auto_increment, b char(5), primary key (b,a))}
 @item
-Fixed bug in MyISAM with packed char keys that could be @code{NULL}.
+Fixed bug in @code{MyISAM} with packed char keys that could be @code{NULL}.
 @item
-@code{AS} on fieldname with @code{CREATE TABLE table_name SELECT ...} didn't
+@code{AS} on field name with @code{CREATE TABLE table_name SELECT ...} didn't
 work.
 @item
 Allow use of @code{NATIONAL} and @code{NCHAR} when defining character columns.
@@ -51445,7 +51447,7 @@ This is the same as not using @code{BINARY}.
 Don't allow @code{NULL} columns in a @code{PRIMARY KEY} (only in @code{UNIQUE}
 keys).
 @item
-Clear @code{LAST_INSERT_ID} if one uses this in ODBC:
+Clear @code{LAST_INSERT_ID()} if one uses this in ODBC:
 @code{WHERE auto_increment_column IS NULL}.  This seems to fix some problems
 with Access.
 @item
@@ -51453,9 +51455,9 @@ with Access.
 searching after the last inserted row with @code{WHERE
 auto_increment_column IS NULL}.
 @item
-Added new @code{mysqld} variable @code{concurrency} for Solaris.
+Added new variable @code{concurrency} to @code{mysqld} for Solaris.
 @item
-Added option @code{--relative} to @code{mysqladmin} to make
+Added @code{--relative} option to @code{mysqladmin} to make
 @code{extended-status} more useful to monitor changes.
 @item
 Fixed bug when using @code{COUNT(DISTINCT ...)} on an empty table.
@@ -51475,7 +51477,7 @@ Fixed problem with @code{UDF} functions.
 
 @itemize @bullet
 @item
-Inserting a @code{DATETIME} into a @code{TIME} column will not anymore
+Inserting a @code{DATETIME} into a @code{TIME} column no longer will
 try to store 'days' in it.
 @item
 Fixed problem with storage of float/double on little endian machines.
@@ -51483,13 +51485,13 @@ Fixed problem with storage of float/double on little endian machines.
 @item
 Added connect timeout on TCP/IP connections.
 @item
-Fixed problem with @code{LIKE} "%" on an index that may have @code{NULL} values.
+Fixed problem with @code{LIKE "%"} on an index that may have @code{NULL} values.
 @item
 @code{REVOKE ALL PRIVILEGES} didn't revoke all privileges.
 @item
 Allow creation of temporary tables with same name as the original table.
 @item
-When granting a user a grant option for a database, he couldn't grant
+When granting a user a @strong{grant} option for a database, he couldn't grant
 privileges to other users.
 @item
 New command: @code{SHOW GRANTS FOR user} (by Sinisa).
@@ -51514,13 +51516,13 @@ Some configure issues to fix problems with big file system detection.
 @item
 Added patches for MIT-pthreads on NetBSD.
 @item
-Fixed range bug in MyISAM.
+Fixed range bug in @code{MyISAM}.
 @item
 @code{ASC} is now the default again for @code{ORDER BY}.
 @item
 Added @code{LIMIT} to @code{UPDATE}.
 @item
-New client function: @code{mysql_change_user()}.
+Added @code{mysql_change_user()} function to the MySQL C API.
 @item
 Added character set to @code{SHOW VARIABLES}.
 @item
@@ -51531,7 +51533,7 @@ an empty value list to insert a row in which each column is set to its
 default value.
 @item
 Changed @code{SUBSTRING(text FROM pos)} to conform to ANSI SQL. (Before this
-construct returned the rightmost 'pos' characters.)
+construct returned the rightmost @code{pos} characters.)
 @item
 @code{SUM()} with @code{GROUP BY} returned 0 on some systems.
 @item
@@ -51559,27 +51561,27 @@ key_part1 >= const AND (key_part2 = const OR key_part2 = const)}.  The
 bug was that some rows could be duplicated in the result.
 @item
 Running @code{myisamchk} without @code{-a} updated the index
-distribution wrong.
+distribution incorrectly.
 @item
-@code{SET SQL_LOW_PRIORITY_UPDATES=1} gave parse error before.
+@code{SET SQL_LOW_PRIORITY_UPDATES=1} was causing a parse error.
 @item
-You can now update indexes columns that are used in the @code{WHERE} clause.
+You can now update index columns that are used in the @code{WHERE} clause.
 @code{UPDATE tbl_name SET KEY=KEY+1 WHERE KEY > 100}
 @item
 Date handling should now be a bit faster.
 @item
-Added handling of fuzzy dates (dates where day or month is 0):
-(Like: 1999-01-00)
+Added handling of fuzzy dates (dates where day or month is 0), such as
+1999-01-00.
 @item
 Fixed optimisation of @code{SELECT ... WHERE key_part1=const1 AND
-key_part_2=const2 AND key_part1=const4 AND key_part2=const4} ; Indextype
+key_part_2=const2 AND key_part1=const4 AND key_part2=const4}; Indextype
 should be @code{range} instead of @code{ref}.
 @item
 Fixed @code{egcs} 1.1.2 optimiser bug (when using @code{BLOB}s) on Linux Alpha.
 @item
 Fixed problem with @code{LOCK TABLES} combined with @code{DELETE FROM table}.
 @item
-MyISAM tables now allow keys on @code{NULL} and @code{BLOB/TEXT} columns.
+@code{MyISAM} tables now allow keys on @code{NULL} and @code{BLOB/TEXT} columns.
 @item
 The following join is now much faster:
 @code{SELECT ... FROM t1 LEFT JOIN t2 ON ... WHERE t2.not_null_column IS NULL}.
@@ -51596,14 +51598,14 @@ the columns are not identically packed.
 Indexes are now used for @code{WHERE column_name IS NULL}.
 @item
 Changed heap tables to be stored in low_byte_first order (to make it easy
-to convert to MyISAM tables)
+to convert to @code{MyISAM} tables)
 @item
-Automatic change of HEAP temporary tables to MyISAM tables in case of
-'table is full' errors.
+Automatic change of @code{HEAP} temporary tables to @code{MyISAM} tables
+in case of 'table is full' errors.
 @item
-Added option @code{--init-file=file_name} to @code{mysqld}.
+Added @code{--init-file=file_name} option to @code{mysqld}.
 @item
-@code{COUNT(DISTINCT value, [value, ...])}
+Added @code{COUNT(DISTINCT value, [value, ...])}.
 @item
 @code{CREATE TEMPORARY TABLE} now creates a temporary table, in its own
 namespace, that is automatically deleted if connection is dropped.
@@ -51636,7 +51638,7 @@ A new table handler library (@code{MyISAM}) with a lot of new features.
 You can create in-memory @code{HEAP} tables which are extremely fast for
 lookups.
 @item
-Support for big files (63 bit) on OSes that support big files.
+Support for big files (63-bit) on OSes that support big files.
 @item
 New function @code{LOAD_FILE(filename)} to get the contents of a file as a
 string value.
@@ -51647,22 +51649,22 @@ between tables.
 @item
 Added the ODBC 3.0 @code{EXTRACT(interval FROM datetime)} function.
 @item
-Columns defined as @code{FLOAT(X)} is not rounded on storage and may be
+Columns defined as @code{FLOAT(X)} are not rounded on storage and may be
 in scientific notation (1.0 E+10) when retrieved.
 @item
 @code{REPLACE} is now faster than before.
 @item
 Changed @code{LIKE} character comparison to behave as @code{=};
-This means that @code{'e' LIKE '@'e'} (if the line doesn't display
-correctly, the latter 'e' means a French 'e' with a dot above) is now true.
+This means that @code{'e' LIKE '@'e'} is now true.  (If the line doesn't
+display correctly, the latter 'e' is a French 'e' with a dot above.)
 @item
 @code{SHOW TABLE STATUS} returns a lot of information about the tables.
 @item
 Added @code{LIKE} to the @code{SHOW STATUS} command.
 @item
-Added privilege column to @code{SHOW COLUMNS}.
+Added @code{Privileges} column to @code{SHOW COLUMNS}.
 @item
-Added columns @code{packed} and @code{comment} to @code{SHOW INDEX}.
+Added @code{Packed} and @code{Comment} columns to @code{SHOW INDEX}.
 @item
 Added comments to tables (with @code{CREATE TABLE ... COMMENT "xxx"}).
 @item
@@ -51688,17 +51690,17 @@ SELECT ... FROM ... WHERE ... PROCEDURE ANALYSE([max elements,[max memory]])
 This procedure is extremely useful when you want to check the data in your
 table!
 @item
-@code{BINARY} cast to force a string to be compared case sensitively.
+@code{BINARY} cast to force a string to be compared in case sensitive fashion.
 @item
-Added option @code{--skip-show-database} to @code{mysqld}.
+Added @code{--skip-show-database} option to @code{mysqld}.
 @item
-Check if a row has changed in an @code{UPDATE} now also works with
-@code{BLOB}/@code{TEXT} columns.
+Check whether or not a row has changed in an @code{UPDATE} now also works
+with @code{BLOB}/@code{TEXT} columns.
 @item
 Added the @code{INNER} join syntax.  @strong{NOTE}:  This made @code{INNER}
 a reserved word!
 @item
-Added support for netmasks to the hostname in the MySQL tables.
+Added support for netmasks to the hostname in the MySQL grant tables.
 You can specify a netmask using the @code{IP/NETMASK} syntax.
 @item
 If you compare a @code{NOT NULL DATE/DATETIME} column with @code{IS
@@ -51719,11 +51721,12 @@ following formats are supported:
 @item [[[[[H]H]H]H]MM]SS[.fraction]
 @end itemize
 @item
-Detect (and ignore) second fraction part from @code{DATETIME}.
+Detect (and ignore) fractional second part from @code{DATETIME}.
 @item
 Added the @code{LOW_PRIORITY} attribute to @code{LOAD DATA INFILE}.
 @item
-The default index name now uses the same case as the used column name.
+The default index name now uses the same case as the column name on which the
+index name is based.
 @item
 Changed default number of connections to 100.
 @item
@@ -51732,7 +51735,7 @@ Use bigger buffers when using @code{LOAD DATA INFILE}.
 @code{DECIMAL(x,y)} now works according to ANSI SQL.
 @item
 Added aggregate UDF functions. Thanks to Andreas F. Bobak
-@email{bobak@@relog.ch} for this!
+(@email{bobak@@relog.ch}) for this!
 @item
 @code{LAST_INSERT_ID()} is now updated for @code{INSERT INTO ... SELECT}.
 @item
@@ -51753,22 +51756,22 @@ Don't allow @code{AUTO_INCREMENT} for other than numerical columns.
 Using @code{AUTO_INCREMENT} will now automatically make the column
 @code{NOT NULL}.
 @item
-Show @code{NULL} as the default value for AUTO_INCREMENT columns.
+Show @code{NULL} as the default value for @code{AUTO_INCREMENT} columns.
 @item
 Added @code{SQL_BIG_RESULT};  @code{SQL_SMALL_RESULT} is now default.
 @item
 Added a shared library RPM. This enhancement was contributed by David
-Fox (dsfox@@cogsci.ucsd.edu).
+Fox (@email{dsfox@@cogsci.ucsd.edu}).
 @item
-Added a @code{--enable-large-files/--disable-large-files} switch to
-@code{configure}. See @file{configure.in} for some systems where this is
+Added  @code{--enable-large-files} and @code{--disable-large-files} switches
+to @code{configure}. See @file{configure.in} for some systems where this is
 automatically turned off because of broken implementations.
 @item
 Upgraded @code{readline} to 4.0.
 @item
 New @code{CREATE TABLE} options: @code{PACK_KEYS} and @code{CHECKSUM}.
 @item
-Added @code{mysqld} option @code{--default-table-type}.
+Added @code{--default-table-type} option to @code{mysqld}.
 @end itemize
 
 
@@ -51856,7 +51859,7 @@ compile all relevant files for 3.22.33 :(
 
 @itemize @bullet
 @item
-Fixed problems in Windows when locking tables with @code{LOCK TABLE}
+Fixed problems in Windows when locking tables with @code{LOCK TABLE}.
 @item
 Quicker kill of @code{SELECT DISTINCT} queries.
 @end itemize
