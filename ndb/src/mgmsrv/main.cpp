@@ -62,16 +62,12 @@ struct MgmGlobals {
   int non_interactive;
   int interactive;
   const char * config_filename;
-  const char * local_config_filename;
   
   /** Stuff found in environment or in local config  */
   NodeId localNodeId;
   bool use_specific_ip;
   char * interface_name;
   int port;
-  
-  /** The configuration of the cluster */
-  Config * cluster_config;
   
   /** The Mgmt Server */
   MgmtSrvr * mgmObject;
@@ -86,9 +82,6 @@ static MgmGlobals glob;
 /******************************************************************************
  * Function prototypes
  ******************************************************************************/
-static bool readLocalConfig();
-static bool readGlobalConfig();
-
 /**
  * Global variables
  */
@@ -122,9 +115,6 @@ static struct my_option my_long_options[] =
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
     (gptr*) &glob.daemon, (gptr*) &glob.daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "l", 'l', "Specify configuration file connect string (default Ndb.cfg if available)",
-    (gptr*) &glob.local_config_filename, (gptr*) &glob.local_config_filename, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "interactive", 256, "Run interactive. Not supported but provided for testing purposes",
     (gptr*) &glob.interactive, (gptr*) &glob.interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -212,29 +202,16 @@ int main(int argc, char** argv)
 
   MgmApiService * mapi = new MgmApiService();
 
-  /****************************
-   * Read configuration files *
-   ****************************/
-  LocalConfig local_config;
-  if(!local_config.init(opt_connect_str,glob.local_config_filename)){
-    local_config.printError();
-    goto error_end;
-  }
-  glob.localNodeId = local_config._ownNodeId;
+  glob.mgmObject = new MgmtSrvr(glob.socketServer,
+				glob.config_filename,
+				opt_connect_str);
 
-  if (!readGlobalConfig())
+  if (glob.mgmObject->init())
     goto error_end;
-
-  glob.mgmObject = new MgmtSrvr(glob.localNodeId, glob.socketServer,
-				BaseString(glob.config_filename),
-				local_config,
-				glob.cluster_config);
 
   chdir(NdbConfig_get_path(0));
 
-  glob.cluster_config = 0;
   glob.localNodeId= glob.mgmObject->getOwnNodeId();
-
   if (glob.localNodeId == 0) {
     goto error_end;
   }
@@ -345,9 +322,7 @@ MgmGlobals::MgmGlobals(){
   // Default values
   port = 0;
   config_filename = NULL;
-  local_config_filename = NULL;
   interface_name = 0;
-  cluster_config = 0;
   daemon = 1;
   non_interactive = 0;
   interactive = 0;
@@ -360,27 +335,6 @@ MgmGlobals::~MgmGlobals(){
     delete socketServer;
   if (mgmObject)
     delete mgmObject;
-  if (cluster_config) 
-    delete cluster_config;
   if (interface_name)
     free(interface_name);
-}
-
-/**
- * @fn      readGlobalConfig
- * @param   glob : Global variables
- * @return  true if success, false otherwise.
- */
-static bool
-readGlobalConfig() {
-  if(glob.config_filename == NULL)
-    return false;
-
-  /* Use config file */
-  InitConfigFileParser parser;
-  glob.cluster_config = parser.parseConfig(glob.config_filename);
-  if(glob.cluster_config == 0){
-    return false;
-  }
-  return true;
 }
