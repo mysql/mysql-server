@@ -31,17 +31,29 @@ struct utimbuf {
 #endif
 
 
-	/*
-	  Ordinary ownership and accesstimes are copied from 'from-file'
-	  if MyFlags & MY_HOLD_ORIGINAL_MODES is set and to-file exists then
-	  the modes of to-file isn't changed
-	  Dont set MY_FNABP or MY_NABP bits on when calling this function !
-	  */
+/*
+  int my_copy(const char *from, const char *to, myf MyFlags)
+
+  NOTES
+    Ordinary ownership and accesstimes are copied from 'from-file'
+    If MyFlags & MY_HOLD_ORIGINAL_MODES is set and to-file exists then
+    the modes of to-file isn't changed
+    If MyFlags & MY_DONT_OVERWRITE_FILE is set, we will give an error
+    if the file existed.
+
+  WARNING
+    Don't set MY_FNABP or MY_NABP bits on when calling this function !
+
+  RETURN
+    0	ok
+    #	Error
+
+*/
 
 int my_copy(const char *from, const char *to, myf MyFlags)
 {
   uint Count;
-  int new_file_stat;
+  int new_file_stat, create_flag;
   File from_file,to_file;
   char buff[IO_SIZE];
   struct stat stat_buff,new_stat_buff;
@@ -62,8 +74,10 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     }
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
       stat_buff=new_stat_buff;
+    create_flag= (MyFlags & MY_DONT_OVERWRITE_FILE) ? O_EXCL : O_TRUNC;
+
     if ((to_file=  my_create(to,(int) stat_buff.st_mode,
-			     O_WRONLY | O_TRUNC | O_BINARY | O_SHARE,
+			     O_WRONLY | create_flag | O_BINARY | O_SHARE,
 			     MyFlags)) < 0)
       goto err;
 

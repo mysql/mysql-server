@@ -251,3 +251,26 @@ t1_id	t2_id	type	cost_unit	min_value	max_value	t3_id	item_id	id	name
 22	1	Percent	Cost	100	-1	6	291	1	s1
 23	1	Percent	Cost	100	-1	21	291	1	s1
 drop table t1,t2;
+CREATE TABLE t1 (
+siteid varchar(25) NOT NULL default '',
+emp_id varchar(30) NOT NULL default '',
+rate_code varchar(10) default NULL,
+UNIQUE KEY site_emp (siteid,emp_id),
+KEY siteid (siteid)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('rivercats','psmith','cust'), ('rivercats','KWalker','cust');
+CREATE TABLE t2 (
+siteid varchar(25) NOT NULL default '',
+rate_code varchar(10) NOT NULL default '',
+base_rate float NOT NULL default '0',
+PRIMARY KEY  (siteid,rate_code),
+FULLTEXT KEY rate_code (rate_code)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES ('rivercats','cust',20);
+SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE emp.emp_id = 'psmith' AND lr.siteid = 'rivercats';
+rate_code	base_rate
+cust	20
+SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE lr.siteid = 'rivercats' AND emp.emp_id = 'psmith';
+rate_code	base_rate
+cust	20
+drop table t1,t2;

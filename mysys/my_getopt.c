@@ -431,8 +431,8 @@ int handle_options(int *argc, char ***argv,
   Will set the option value to given value
 */
 
-static int setval (const struct my_option *opts, char *argument,
-		   my_bool set_maximum_value)
+static int setval(const struct my_option *opts, char *argument,
+		  my_bool set_maximum_value)
 {
   int err= 0;
 

@@ -65,7 +65,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 {
-  int error;
+  int error= 0;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -80,6 +80,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
+      error= 1;
       goto err;
     }
     while (global_read_lock && ! thd->killed)
@@ -173,7 +174,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   for (table=tables ; table ; table=table->next)
   {
-    char *db=table->db ? table->db : thd->db;
+    char *db=table->db;
     mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {

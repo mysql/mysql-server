@@ -1815,7 +1815,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 
   if (init_thr_lock() || thd->store_globals())
   {
-    end_thread(thd,0);
+    thd->cleanup();
+    delete thd;
     DBUG_RETURN(-1);
   }
 
@@ -2096,6 +2097,7 @@ extern "C" pthread_handler_decl(handle_slave_io,arg)
   
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
+  DBUG_ENTER("handle_slave_io");
 
 #ifndef DBUG_OFF
 slave_begin:  
@@ -2113,7 +2115,6 @@ slave_begin:
 #endif  
   
   thd= new THD; // note that contructor of THD uses DBUG_ !
-  DBUG_ENTER("handle_slave_io");
   THD_CHECK_SENTRY(thd);
 
   pthread_detach_this_thread();
@@ -2370,6 +2371,7 @@ extern "C" pthread_handler_decl(handle_slave_sql,arg)
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
+  DBUG_ENTER("handle_slave_sql");
 
 #ifndef DBUG_OFF
 slave_begin:  
@@ -2382,7 +2384,6 @@ slave_begin:
 #ifndef DBUG_OFF  
   rli->events_till_abort = abort_slave_event_count;
 #endif  
-  DBUG_ENTER("handle_slave_sql");
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
