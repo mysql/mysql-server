@@ -3614,7 +3614,7 @@ best_extension_by_limited_search(JOIN      *join,
         {
           memcpy((gptr) join->best_positions, (gptr) join->positions,
                  sizeof(POSITION) * (idx + 1));
-          join->best_read= current_read_time;
+          join->best_read= current_read_time - 0.001;
         }
         DBUG_EXECUTE("opt",
                      print_plan(join, current_read_time, current_record_count, idx, "full_plan"););
