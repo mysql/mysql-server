@@ -310,7 +310,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DUMPFILE
 %token	PACK_KEYS_SYM
 %token	PARTIAL
-%token	PRELOAD
 %token	PRIMARY_SYM
 %token	PRIVILEGES
 %token	PROCESS
@@ -581,7 +580,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type opt_var_ident_type
-	delete_option opt_temporary all_or_any opt_distinct opt_ignore_leafs
+	delete_option opt_temporary all_or_any opt_distinct opt_ignore_leaves
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -1838,7 +1837,7 @@ table_to_table:
 	};
 
 preload:
-	PRELOAD
+	LOAD INDEX INTO CACHE_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command=SQLCOM_PRELOAD_KEYS;
@@ -1852,7 +1851,7 @@ preload_list:
 	| preload_list ',' preload_keys;
 
 preload_keys:
-	table_ident preload_keys_spec opt_ignore_leafs
+	table_ident preload_keys_spec opt_ignore_leaves
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX *sel= &lex->select_lex;
@@ -1880,7 +1879,7 @@ preload_key_list_or_empty:
 	| '(' key_usage_list2 ')' {}
 	;
 
-opt_ignore_leafs:
+opt_ignore_leaves:
 	/* empty */
 	{ $$= 0; }
 	| IGNORE_SYM LEAVES { $$= TL_OPTION_IGNORE_LEAVES; }
@@ -4374,7 +4373,6 @@ keyword:
 	| PASSWORD		{}
 	| POINT_SYM		{}
 	| POLYGON		{}
-	| PRELOAD               {}
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
