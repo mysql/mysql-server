@@ -287,3 +287,5 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+myisam/test1.MYD
+myisam/test1.MYI
