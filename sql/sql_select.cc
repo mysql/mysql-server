@@ -1846,8 +1846,7 @@ Cursor::fetch(ulong num_rows)
   switch (error) {
     /* Fetch limit worked, possibly more rows are there */
   case -4:
-    if (thd->transaction.all.innobase_tid)
-      ha_release_temporary_latches(thd);
+    ha_release_temporary_latches(thd);
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     ::send_eof(thd);
     thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
@@ -1860,8 +1859,7 @@ Cursor::fetch(ulong num_rows)
     error= 0;
     /* fallthrough */
   case 0:                                       /* No more rows */
-    if (thd->transaction.all.innobase_tid)
-      ha_release_temporary_latches(thd);
+    ha_release_temporary_latches(thd);
     close();
     thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
     ::send_eof(thd);
