@@ -26,4 +26,4 @@ libmgmsrvcommon.dsp: Makefile \
 	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/ndb/config/win-sources $@ $(libmgmsrvcommon_la_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ $(LDADD)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LIB $(LDADD)

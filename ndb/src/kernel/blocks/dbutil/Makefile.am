@@ -8,9 +8,9 @@ include $(top_srcdir)/ndb/config/type_kernel.mk.am
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-windoze-dsp: libutil.dsp
+windoze-dsp: libdbutil.dsp
 
-libutil.dsp: Makefile \
+libdbutil.dsp: Makefile \
                $(top_srcdir)/ndb/config/win-lib.am \
                $(top_srcdir)/ndb/config/win-name \
                $(top_srcdir)/ndb/config/win-includes \
@@ -19,5 +19,5 @@ libutil.dsp: Makefile \
 	cat $(top_srcdir)/ndb/config/win-lib.am > $@
 	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LIBRARIES)
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/ndb/config/win-sources $@ $(libutil_a_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ $(LDADD)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(libdbutil_a_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LIB $(LDADD)

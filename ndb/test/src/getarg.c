@@ -293,7 +293,7 @@ arg_printusage (struct getargs *args,
 	    col += fprintf(stderr, " %s", buf);
 	}
 	if (args[i].short_name) {
-	    snprintf(buf, sizeof(buf), "[-%c", args[i].short_name);
+	    BaseString::snprintf(buf, sizeof(buf), "[-%c", args[i].short_name);
 	    len += 2;
 	    len += print_arg(buf + strlen(buf), sizeof(buf) - strlen(buf), 
 			     0, 0, &args[i]);
