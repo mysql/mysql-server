@@ -331,6 +331,9 @@ convert_error_code_to_mysql(
   	} else if (error == (int) DB_NO_SAVEPOINT) {
 
     		return(HA_ERR_NO_SAVEPOINT);
+  	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+
+    		return(HA_ERR_LOCK_TABLE_FULL);
     	} else {
     		return(-1);			// Unknown error
     	}
