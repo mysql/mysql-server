@@ -892,6 +892,8 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
   cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_SCANS_PER_FRAG;
 
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
+  
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
   
@@ -15088,6 +15090,11 @@ void Dblqh::openSrFourthPhaseLab(Signal* signal)
 
 void Dblqh::readSrFourthPhaseLab(Signal* signal) 
 {
+  if(c_diskless){
+    jam();
+    logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 1;
+  }
+
   /* ------------------------------------------------------------------------
    *  INITIALISE ALL LOG PART INFO AND LOG FILE INFO THAT IS NEEDED TO 
    *  START UP THE SYSTEM.
@@ -15116,6 +15123,7 @@ void Dblqh::readSrFourthPhaseLab(Signal* signal)
   logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
   logFilePtr.p->currentFilepage = logPartPtr.p->headPageNo;
   logFilePtr.p->currentLogpage = logPagePtr.i;
+
   initLogpage(signal);
   logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = logPartPtr.p->headPageIndex;
   logFilePtr.p->remainingWordsInMbyte = 

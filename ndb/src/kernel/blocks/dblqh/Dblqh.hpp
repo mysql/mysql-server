@@ -2863,8 +2863,9 @@ private:
 /* ------------------------------------------------------------------------- */
   UintR preComputedRequestInfoMask;
   UintR ctransidHash[1024];
-
-
+  
+  Uint32 c_diskless;
+  
 public:
   /**
    *
