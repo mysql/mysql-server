@@ -1914,7 +1914,7 @@ static int init_dumping(char *database)
         sprintf(qbuf,"SHOW CREATE DATABASE IF NOT EXISTS %s",
 		qdatabase);
 
-        if (mysql_query_with_error_report(sock, &dbinfo, qbuf))
+        if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
 	  fprintf(md_result_file,

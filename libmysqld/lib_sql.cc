@@ -710,6 +710,7 @@ bool Protocol_prep::write()
   }
   cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
   memcpy(cur->data, packet->ptr()+1, packet->length()-1);
+  cur->length= packet->length();       /* To allow us to do sanity checks */
 
   *data->prev_ptr= cur;
   data->prev_ptr= &cur->next;
