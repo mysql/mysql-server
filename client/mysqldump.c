@@ -368,7 +368,7 @@ static void write_footer(FILE *sql_file)
     fprintf(sql_file,"</mysqldump>");
   else
   {
-    fprintf(md_result_file,"\n
+    fprintf(md_result_file,"\n\
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n\
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n\
