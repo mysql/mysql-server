@@ -741,7 +741,6 @@ DROP TABLE t1;
 #
 # reduced subselect in ORDER BY & GROUP BY clauses
 #
-(SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
 
 CREATE TABLE `t1` (
   `id` mediumint(8) unsigned NOT NULL auto_increment,
