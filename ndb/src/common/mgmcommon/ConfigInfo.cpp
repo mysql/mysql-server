@@ -24,7 +24,8 @@
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
 
-#define STR_VALUE(x) #x
+#define _STR_VALUE(x) #x
+#define STR_VALUE(x) _STR_VALUE(x)
 
 /****************************************************************************
  * Section names
@@ -426,7 +427,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "128",
     "0",
-    MAX_INT_RNIL_STRING },
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_NO_UNIQUE_HASH_INDEXES,
@@ -438,7 +439,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "64",
     "0",
-    MAX_INT_RNIL_STRING },
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_NO_INDEXES,
@@ -570,7 +571,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "32k",
     "32",
-    MAX_INT_RNIL_STRING },
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_NO_LOCAL_OPS,
@@ -582,7 +583,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     UNDEFINED,
     "32",
-    MAX_INT_RNIL_STRING },
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_NO_LOCAL_SCANS,
@@ -594,7 +595,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     UNDEFINED,
     "32",
-    MAX_INT_RNIL_STRING },
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_BATCH_SIZE,
@@ -678,7 +679,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "2M",
     "1M",
-    MAX_INT_RNIL_STRING},
+    STR_VALUE(MAX_INT_RNIL)},
 
   {
     CFG_DB_UNDO_DATA_BUFFER,
@@ -690,7 +691,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "16M",
     "1M",
-    MAX_INT_RNIL_STRING},
+    STR_VALUE(MAX_INT_RNIL)},
 
   {
     CFG_DB_REDO_BUFFER,
@@ -702,7 +703,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "8M",
     "1M",
-    MAX_INT_RNIL_STRING},
+    STR_VALUE(MAX_INT_RNIL)},
 
   {
     CFG_DB_LONG_SIGNAL_BUFFER,
@@ -714,7 +715,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     "1M",
     "512k",
-    MAX_INT_RNIL_STRING},
+    STR_VALUE(MAX_INT_RNIL)},
 
   {
     CFG_DB_START_PARTIAL_TIMEOUT,
