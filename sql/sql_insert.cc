@@ -310,6 +310,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
+        if (error <= 0)
+          thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      log_delayed);
 	if (mysql_bin_log.write(&qinfo) && transactional_table)
@@ -1196,7 +1198,7 @@ bool delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
       using_ignore=1;
     }
-    thd.net.last_errno = 0; // reset error for binlog
+    thd.clear_error(); // reset error for binlog
     if (write_record(table,&info))
     {
       info.error_count++;				// Ignore errors
@@ -1391,6 +1393,8 @@ bool select_insert::send_eof()
   mysql_update_log.write(thd,thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
+    if (!error)
+      thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
 			  table->file->has_transactions());
     mysql_bin_log.write(&qinfo);

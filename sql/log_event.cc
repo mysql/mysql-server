@@ -1922,7 +1922,7 @@ Default database: '%s'",
   // assume no convert for next query unless set explictly
   thd->variables.convert_set = 0;
   close_thread_tables(thd);      
-  free_root(&thd->mem_root,0);
+  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
 }
 
@@ -2094,10 +2094,10 @@ Slave: load data infile on table '%s' at log position %s in log \
     slave_print_error(rli,sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 		      err, (char*)table_name, print_slave_db_safe(db));
-    free_root(&thd->mem_root,0);
+    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
-  free_root(&thd->mem_root,0);
+  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
 	    
   if (thd->fatal_error)
   {

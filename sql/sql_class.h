@@ -590,6 +590,15 @@ public:
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
+#ifndef EMBEDDED_LIBRARY
+  inline void clear_error()
+  {
+    net.last_error[0]= 0;
+    net.last_errno= 0;
+  }
+#else
+  void clear_error();
+#endif
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
