@@ -50,3 +50,9 @@ id	elt(two.val,'one','two')
 2	one
 4	two
 drop table t1,t2;
+SELECT INTERVAL(13, 7, 14, 21, 28, 35, 42, 49, 56);
+INTERVAL(13, 7, 14, 21, 28, 35, 42, 49, 56)
+1
+SELECT INTERVAL(13, 7, 14, 21, 28, 35, 42, 49, 56, 77);
+INTERVAL(13, 7, 14, 21, 28, 35, 42, 49, 56, 77)
+1

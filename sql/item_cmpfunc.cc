@@ -603,7 +603,7 @@ longlong Item_func_interval::val_int()
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
-    start= 1;
+    start= 0;
     end=   row->cols()-2;
     while (start != end)
     {
