@@ -284,7 +284,7 @@ Q_EXIT,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
-Q_COMMENT_WITH_COMMAND,
+Q_COMMENT_WITH_COMMAND
 };
 
 /* this should really be called command */
