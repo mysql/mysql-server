@@ -38935,6 +38935,11 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Fixed a bug with @code{HEAP} type tables; the variable
+@code{max_heap_table_size} wasn't used. Now either @code{MAX_ROWS} or
+@code[max_heap_table_size} can be used to limit the size of a @code{HEAP}
+type table.
+@item
 Applied patches for OS2 by @code{Yuri Dario}.
 @item
 @code{FLUSH TABLES table_name} didn't always flush table properly to
