@@ -48416,14 +48416,15 @@ record format.
 Win32 port with Borland compiler.  @code{mysqlshutdown.exe} and
 @code{mysqlwatch.exe}
 @item David J. Hughes
-For the effort to make a shareware SQL database. We at TcX started with
-@code{mSQL}, but found that it couldn't satisfy our purposes so instead we
-wrote a SQL interface to our application builder Unireg.  @code{mysqladmin}
-and @code{mysql} are programs that were largely influenced by their
-@code{mSQL} counterparts. We have put a lot of effort into making the
-MySQL syntax a superset of @code{mSQL}. Many of the API's ideas are
-borrowed from @code{mSQL} to make it easy to port free @code{mSQL} programs
-to MySQL. MySQL doesn't contain any code from @code{mSQL}.
+For the effort to make a shareware SQL database. At TcX, the predecessor
+of MySQL AB, we started with @code{mSQL}, but found that it couldn't
+satisfy our purposes so instead we wrote a SQL interface to our
+application builder Unireg.  @code{mysqladmin} and @code{mysql} ar
+ programs that were largely influenced by their @code{mSQL} counterparts.
+We have put a lot of effort into making the MySQL syntax a superset of
+@code{mSQL}. Many of the API's ideas are borrowed from @code{mSQL} to
+make it easy to port free @code{mSQL} programs to MySQL.
+MySQL doesn't contain any code from @code{mSQL}.
 Two files in the distribution (@file{client/insert_test.c} and
 @file{client/select_test.c}) are based on the corresponding (non-copyrighted)
 files in the @code{mSQL} distribution, but are modified as examples showing
@@ -48442,7 +48443,7 @@ From whom we got an excellent compiler (@code{gcc}), the @code{libc} library
 and the @code{readline} library (for the @code{mysql} client).
 @item Free Software Foundation & The XEmacs development team
 For a really great editor/environment used by almost everybody at
-TcX/MySQL AB/detron.
+MySQL AB/TcX/detron.
 @item Patrick Lynch
 For helping us acquire @uref{http://www.mysql.com/}.
 @item Fred Lindberg
