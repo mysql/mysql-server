@@ -526,6 +526,7 @@ NdbSqlUtil::cmpDate(const void* info, const Uint32* p1, const Uint32* p2, Uint32
   union { const Uint32* p; const unsigned char* v; } u1, u2;
   u1.p = p1;
   u2.p = p2;
+#ifdef ndb_date_sol9x86_cc_xO3_madness
   // from Field_newdate::val_int
   Uint64 j1 = uint3korr(u1.v);
   Uint64 j2 = uint3korr(u2.v);
@@ -536,6 +537,33 @@ NdbSqlUtil::cmpDate(const void* info, const Uint32* p1, const Uint32* p2, Uint32
   if (j1 > j2)
     return +1;
   return 0;
+#else
+  uint j1 = uint3korr(u1.v);
+  uint j2 = uint3korr(u2.v);
+  uint d1 = (j1 & 31);
+  uint d2 = (j2 & 31);
+  j1 = (j1 >> 5);
+  j2 = (j2 >> 5);
+  uint m1 = (j1 & 15);
+  uint m2 = (j2 & 15);
+  j1 = (j1 >> 4);
+  j2 = (j2 >> 4);
+  uint y1 = j1;
+  uint y2 = j2;
+  if (y1 < y2)
+    return -1;
+  if (y1 > y2)
+    return +1;
+  if (m1 < m2)
+    return -1;
+  if (m1 > m2)
+    return +1;
+  if (d1 < d2)
+    return -1;
+  if (d1 > d2)
+    return +1;
+  return 0;
+#endif
 #endif
 }
 

@@ -2298,14 +2298,10 @@ longlong Item_func_last_insert_id::val_int()
     longlong value=args[0]->val_int();
     current_thd->insert_id(value);
     null_value=args[0]->null_value;
-    return value;
   }
   else
-  {
-    Item *it= get_system_var(current_thd, OPT_SESSION, "last_insert_id", 14,
-			     "last_insert_id()");
-    return it->val_int();
-  }
+    current_thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return current_thd->insert_id();
 }
 
 /* This function is just used to test speed of different functions */

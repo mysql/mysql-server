@@ -17,7 +17,7 @@
 
 #include <ndb_global.h>
 #include <NdbThread.h>
-#include <pthread.h>
+#include <my_pthread.h>
 #include <NdbMem.h>
 
 #define MAX_THREAD_NAME 16
@@ -39,21 +39,28 @@ struct NdbThread
 static
 void*
 ndb_thread_wrapper(void* _ss){
-  void * ret;
-  struct NdbThread * ss = (struct NdbThread *)_ss;
-  DBUG_ENTER("ndb_thread_wrapper");
-#ifdef NDB_SHM_TRANSPORTER
-  if (g_ndb_shm_signum)
+  my_thread_init();
   {
-    sigset_t mask;
-    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
-    sigemptyset(&mask);
-    sigaddset(&mask, g_ndb_shm_signum);
-    pthread_sigmask(SIG_BLOCK, &mask, 0);
-  }
+    DBUG_ENTER("ndb_thread_wrapper");
+#ifdef NDB_SHM_TRANSPORTER
+    if (g_ndb_shm_signum)
+    {
+      sigset_t mask;
+      DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
+      sigemptyset(&mask);
+      sigaddset(&mask, g_ndb_shm_signum);
+      pthread_sigmask(SIG_BLOCK, &mask, 0);
+    }
 #endif
-  ret= (* ss->func)(ss->object);
-  DBUG_RETURN(ret);
+    {
+      void *ret;
+      struct NdbThread * ss = (struct NdbThread *)_ss;
+      ret= (* ss->func)(ss->object);
+      NdbThread_Exit(ret);
+    }
+  /* will never be reached */
+    DBUG_RETURN(0);
+  }
 }
 
 
@@ -130,9 +137,10 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
 }
 
 
-void NdbThread_Exit(int status)
+void NdbThread_Exit(void *status)
 {
-  pthread_exit(&status);
+  my_thread_end();
+  pthread_exit(status);
 }
 
 
