@@ -3689,6 +3689,29 @@ dict_tree_find_index_for_tuple(
 	return(index);
 }
 
+/***********************************************************************
+Checks if a table which is a mixed cluster member owns a record. */
+
+ibool
+dict_is_mixed_table_rec(
+/*====================*/
+				/* out: TRUE if the record belongs to this
+				table */
+	dict_table_t*	table,	/* in: table in a mixed cluster */
+	rec_t*		rec)	/* in: user record in the clustered index */
+{
+	byte*	mix_id_field;
+	ulint	len;
+
+	ut_ad(!table->comp);
+
+	mix_id_field = rec_get_nth_field_old(rec,
+					table->mix_len, &len);
+
+	return(len == table->mix_id_len
+		&& !ut_memcmp(table->mix_id_buf, mix_id_field, len));
+}
+
 /**************************************************************************
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */

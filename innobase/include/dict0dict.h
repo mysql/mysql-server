@@ -657,19 +657,6 @@ dict_index_copy_types(
 	dtuple_t*	tuple,		/* in: data tuple */
 	dict_index_t*	index,		/* in: index */
 	ulint		n_fields);	/* in: number of field types to copy */
-/************************************************************************
-Gets the value of a system column in a clustered index record. The clustered
-index must contain the system column: if the index is unique, row id is
-not contained there! */
-UNIV_INLINE
-dulint
-dict_index_rec_get_sys_col(
-/*=======================*/
-				/* out: system column value */
-	dict_index_t*	index,	/* in: clustered index describing the record */
-	const ulint*	offsets,/* in: offsets returned by rec_get_offsets() */
-	ulint		type,	/* in: column type: DATA_ROLL_PTR, ... */
-	rec_t*		rec);	/* in: record */
 /*************************************************************************
 Gets the index tree where the index is stored. */
 UNIV_INLINE
@@ -731,7 +718,7 @@ dict_tree_find_index_for_tuple(
 	dtuple_t*	tuple);	/* in: tuple for which to find index */
 /***********************************************************************
 Checks if a table which is a mixed cluster member owns a record. */
-UNIV_INLINE
+
 ibool
 dict_is_mixed_table_rec(
 /*====================*/

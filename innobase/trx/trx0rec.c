@@ -485,10 +485,15 @@ trx_undo_page_report_modify(
 	ptr += 1;
 
 	/* Store the values of the system columns */
-	trx_id = dict_index_rec_get_sys_col(index, offsets,
-				DATA_TRX_ID, rec);
-	roll_ptr = dict_index_rec_get_sys_col(index, offsets,
-				DATA_ROLL_PTR, rec);
+	field = rec_get_nth_field(rec, offsets,
+		dict_index_get_sys_col_pos(index, DATA_TRX_ID), &len);
+	ut_ad(len == DATA_TRX_ID_LEN);
+	trx_id = trx_read_trx_id(field);
+	field = rec_get_nth_field(rec, offsets,
+		dict_index_get_sys_col_pos(index, DATA_ROLL_PTR), &len);
+	ut_ad(len == DATA_ROLL_PTR_LEN);
+	roll_ptr = trx_read_roll_ptr(field);
+
 	len = mach_dulint_write_compressed(ptr, trx_id);
 	ptr += len;
 
