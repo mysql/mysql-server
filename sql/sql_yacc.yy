@@ -45,7 +45,7 @@ int yylex(void *yylval, void *yythd);
 
 inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 {
-  return (thd->sql_mode & MODE_PIPES_AS_CONCAT ?
+  return (thd->variables.sql_mode & MODE_PIPES_AS_CONCAT ?
           (Item*) new Item_func_concat(A,B) : (Item*) new Item_cond_or(A,B));
 }
 
@@ -1112,6 +1112,8 @@ type:
 					  $$=FIELD_TYPE_TINY; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_TINY; }
+	| BOOLEAN_SYM			{ Lex->length=(char*) "1";
+					  $$=FIELD_TYPE_TINY; }
 	| char '(' NUM ')' opt_binary	{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
@@ -1129,7 +1131,7 @@ type:
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP
 	  {
-	    if (YYTHD->sql_mode & MODE_SAPDB)
+	    if (YYTHD->variables.sql_mode & MODE_SAPDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
 	      $$=FIELD_TYPE_TIMESTAMP;
@@ -1200,7 +1202,7 @@ int_type:
 	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; };
 
 real_type:
-	REAL		{ $$= YYTHD->sql_mode & MODE_REAL_AS_FLOAT ?
+	REAL		{ $$= YYTHD->variables.sql_mode & MODE_REAL_AS_FLOAT ?
 			      FIELD_TYPE_FLOAT : FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM	{ $$=FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; };
@@ -4106,7 +4108,8 @@ text_or_password:
 	    else
 	    {
 	      char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	      make_scrambled_password(buff,$3.str,opt_old_passwords,&current_thd->rand);
+	      make_scrambled_password(buff,$3.str,use_old_passwords,
+				      &YYTHD->rand);
 	      $$=buff;
 	    }
 	  }
@@ -4408,7 +4411,8 @@ grant_user:
 	     char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
 	     if (buff)
 	     {
-	       make_scrambled_password(buff,$4.str,opt_old_passwords,&current_thd->rand);
+	       make_scrambled_password(buff,$4.str,use_old_passwords,
+				       &YYTHD->rand);
 	       $1->password.str=buff;
 	       $1->password.length=HASH_PASSWORD_LENGTH;
 	     }

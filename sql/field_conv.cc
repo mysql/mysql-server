@@ -118,6 +118,15 @@ set_field_to_null(Field *field)
     field->reset();
     return 0;
   }
+  field->reset();
+  if (current_thd->count_cuted_fields)
+  {
+    current_thd->cuted_fields++;		// Increment error counter
+    return 0;
+  }
+  if (!current_thd->no_errors)
+    my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
+		    field->field_name);
   return 1;
 }
 

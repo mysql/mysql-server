@@ -276,7 +276,6 @@ static void display_table_locks (void)
     VOID(pthread_mutex_unlock(&lock->mutex));
   }
   VOID(pthread_mutex_unlock(&THR_LOCK_lock));
-  uint i;
   if (!saved_table_locks.elements) goto end;
   
   qsort((gptr) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
@@ -284,6 +283,7 @@ static void display_table_locks (void)
 
   puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");
   
+  unsigned int i;
   for (i=0 ; i < saved_table_locks.elements ; i++)
   {
     TABLE_LOCK_INFO *dl_ptr=dynamic_element(&saved_table_locks,i,TABLE_LOCK_INFO*);

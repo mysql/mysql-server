@@ -4460,7 +4460,7 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 CHARSET_INFO my_charset_sjis =
 {
     13,			/* number */
-    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "sjis",		/* cs name    */
     "sjis",		/* name */
     "",			/* comment    */
@@ -4492,13 +4492,14 @@ CHARSET_INFO my_charset_sjis =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
 };
 
 #endif

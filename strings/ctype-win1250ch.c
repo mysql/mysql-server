@@ -1,23 +1,33 @@
+/* Copyright (C) 2003 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 /*
-	File strings/ctype-win1250ch.c for MySQL.
+   Shared, independent copyright: (C) 2001 Jan Pazdziora.
 
-	Copyright: (C) 2001 Jan Pazdziora.
+   Development of this software was supported by Neocortex, s.r.o.
+   MySQL AB expresses its gratitude to Jan for for giving us this software.
 
-	This software is released under the terms of GNU General
-        Public License.
+   Bug reports and suggestions are always welcome.
 
-        Development of this software was supported by Neocortex, s.r.o.
-
-        Bug reports and suggestions are always welcome.
-
-	This file implements the collating sequence for Windows-1250
-	character set. It merely extends the binary sorting of US-ASCII
-	by adding characters with diacritical marks into proper places.
-	In addition, it sorts 'ch' between 'h' and 'i', and the sorting
-	is case sensitive, with uppercase being sorted first, in the
-	second pass.
-
-	Bug reports and suggestions are always welcome.
+   This file implements the collating sequence for Windows-1250
+   character set. It merely extends the binary sorting of US-ASCII
+   by adding characters with diacritical marks into proper places.
+   In addition, it sorts 'ch' between 'h' and 'i', and the sorting
+   is case sensitive, with uppercase being sorted first, in the
+   second pass.
 */
 
 /*
@@ -388,16 +398,16 @@ static uchar NEAR _sort_order_win1250ch2[] = {
 };
 
 struct wordvalue {
-	const char * word;
+	const uchar * word;
 	uchar pass1;
 	uchar pass2;
 };
 static struct wordvalue doubles[] = {
-	{ "ch", 0xad, 0x03 },
-	{ "c",  0xa6, 0x02 },
-	{ "Ch", 0xad, 0x02 },
-	{ "CH", 0xad, 0x01 },
-	{ "C",  0xa6, 0x01 },
+	{ (uchar*) "ch", 0xad, 0x03 },
+	{ (uchar*) "c",  0xa6, 0x02 },
+	{ (uchar*) "Ch", 0xad, 0x02 },
+	{ (uchar*) "CH", 0xad, 0x01 },
+	{ (uchar*) "C",  0xa6, 0x01 },
 };
 
 #define NEXT_CMP_VALUE(src, p, pass, value, len)			\
@@ -412,7 +422,7 @@ static struct wordvalue doubles[] = {
 			int i;						\
 			for (i = 0; i < (int) sizeof(doubles); i++) {	\
 				const uchar * patt = doubles[i].word;	\
-				const uchar * q = (const char *) p;	\
+				const uchar * q = (const uchar *) p;	\
 				while (*patt				\
 					&& !(IS_END(q, src, len))	\
 					&& (*patt == *q)) {		\
@@ -622,7 +632,7 @@ static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_win1250ch =
 {
     34,				/* number    */
-    MY_CS_COMPILED,		/* state     */
+    MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
     "cp1250",			/* cs name    */
     "cp1250_czech",		/* name      */
     "",				/* comment   */
@@ -654,13 +664,14 @@ CHARSET_INFO my_charset_win1250ch =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
 };
 
 

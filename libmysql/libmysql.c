@@ -115,6 +115,7 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
+static unsigned int get_binary_length(uint type);
 
 static my_bool org_my_init_done=0;
 
@@ -1002,6 +1003,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
 	case 3:				/* compress */
 	  options->compress=1;
+	  options->client_flag|= CLIENT_COMPRESS;
 	  break;
 	case 4:				/* password */
 	  if (opt_arg)
@@ -1827,7 +1829,7 @@ mysql_connect(MYSQL *mysql,const char *host,
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,uint client_flag)
+		   uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
@@ -1898,7 +1900,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       (!host || !strcmp(host,LOCAL_HOST)))
   {
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
-          INVALID_HANDLE_VALUE)
+	INVALID_HANDLE_VALUE)
     {
       DBUG_PRINT("error",
         ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
@@ -2177,32 +2179,28 @@ Try also with PIPE or TCP/IP
 #endif /* HAVE_OPENSSL */
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
-#ifdef HAVE_COMPRESS
-  if ((mysql->server_capabilities & CLIENT_COMPRESS) &&
-      (mysql->options.compress || (client_flag & CLIENT_COMPRESS)))
-    client_flag|=CLIENT_COMPRESS;		/* We will use compression */
-  else
+  /* Remove options that server doesn't support */
+  client_flag= ((client_flag &
+		~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41)) |
+		(client_flag & mysql->server_capabilities));
+
+#ifndef HAVE_COMPRESS
+  client_flag&= ~CLIENT_COMPRESS;
 #endif
-    client_flag&= ~CLIENT_COMPRESS;
 
-#ifdef HAVE_OPENSSL
-  if ((mysql->server_capabilities & CLIENT_SSL) &&
-      (mysql->options.use_ssl || (client_flag & CLIENT_SSL)))
+  if (client_flag & CLIENT_PROTOCOL_41)
   {
-    DBUG_PRINT("info", ("Changing IO layer to SSL"));
-    client_flag |= CLIENT_SSL;
+    /* 4.1 server and 4.1 client has a 4 byte option flag */
+    int4store(buff,client_flag);
+    int4store(buff+4,max_allowed_packet);
+    end= buff+8;
   }
   else
   {
-    if (client_flag & CLIENT_SSL)
-    {
-      DBUG_PRINT("info", ("Leaving IO layer intact because server doesn't support SSL"));
-    }
-    client_flag &= ~CLIENT_SSL;
+    int2store(buff,client_flag);
+    int3store(buff+2,max_allowed_packet);
+    end= buff+5;
   }
-#endif /* HAVE_OPENSSL */
-
-  int2store(buff,client_flag);
   mysql->client_flag=client_flag;
 
 #ifdef HAVE_OPENSSL
@@ -2213,7 +2211,7 @@ Try also with PIPE or TCP/IP
   if (client_flag & CLIENT_SSL)
   {
     struct st_mysql_options *options= &mysql->options;
-    if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
+    if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
       strmov(net->last_error,ER(net->last_errno));
@@ -2232,8 +2230,8 @@ Try also with PIPE or TCP/IP
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if(sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
-	        mysql->net.vio, (long) (mysql->options.connect_timeout)))
+    if (sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
+		   mysql->net.vio, (long) (mysql->options.connect_timeout)))
     {
       net->last_errno= CR_SSL_CONNECTION_ERROR;
       strmov(net->last_error,ER(net->last_errno));
@@ -2243,20 +2241,19 @@ Try also with PIPE or TCP/IP
   }
 #endif /* HAVE_OPENSSL */
 
-  DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld  status: %d  client_flag: %d",
+  DBUG_PRINT("info",("Server version = '%s'  capabilites: %lu  status: %u  client_flag: %lu",
 		     mysql->server_version,mysql->server_capabilities,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
-  int3store(buff+2,max_allowed_packet);
   if (user && user[0])
-    strmake(buff+5,user,32);			/* Max user name */
+    strmake(end,user,32);			/* Max user name */
   else
-    read_user_name((char*) buff+5);
+    read_user_name((char*) end);
   /* We have to handle different version of handshake here */
 #ifdef _CUSTOMCONFIG_
 #include "_cust_libmysql.h";
 #endif
-  DBUG_PRINT("info",("user: %s",buff+5));
+  DBUG_PRINT("info",("user: %s",end));
   /*
     We always start with old type handshake the only difference is message sent
     If server handles secure connection type we'll not send the real scramble
@@ -2266,25 +2263,26 @@ Try also with PIPE or TCP/IP
     if (passwd[0])
     {
       /* Prepare false scramble  */
-      end=strend(buff+5)+1;
+      end=strend(end)+1;
       bfill(end, SCRAMBLE_LENGTH, 'x');
       end+=SCRAMBLE_LENGTH;
       *end=0;
     }
     else  /* For empty password*/
     {
-      end=strend(buff+5)+1;
+      end=strend(end)+1;
       *end=0; /* Store zero length scramble */
     }
   }
   else
+  {
     /*
      Real scramble is only sent to old servers. This can be blocked 
      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
     */
-    end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
+    end=scramble(strend(end)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
-
+  }
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
@@ -2319,10 +2317,10 @@ Try also with PIPE or TCP/IP
         /* Store copy as we'll need it later */
         memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,net->read_pos);
+        password_hash_stage2(password_hash,(const char*) net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                       SCRAMBLE41_LENGTH);
+        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
         mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
         password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
@@ -2536,10 +2534,10 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
         /* Store copy as we'll need it later */
         memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,net->read_pos);
+        password_hash_stage2(password_hash, (const char*) net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                       SCRAMBLE41_LENGTH);
+        password_crypt((const char*) net->read_pos+4, mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
         mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
         password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
@@ -2549,8 +2547,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
         /* Create password to decode scramble */
         create_key_from_old_password(passwd,password_hash);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                       SCRAMBLE41_LENGTH);
+        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
         mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Finally scramble decoded scramble with password */
         scramble(buff, mysql->scramble_buff, passwd,
@@ -3379,6 +3377,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_OPT_COMPRESS:
     mysql->options.compress= 1;			/* Remember for connect */
+    mysql->options.client_flag|= CLIENT_COMPRESS;
     break;
   case MYSQL_OPT_NAMED_PIPE:
     mysql->options.protocol=MYSQL_PROTOCOL_PIPE; /* Force named pipe */
@@ -3839,7 +3838,7 @@ static my_bool read_prepare_result(MYSQL_STMT *stmt)
   if ((length= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
 
-  pos=(uchar*) mysql->net.read_pos;
+  pos= (uchar*) mysql->net.read_pos;
   stmt->stmt_id= uint4korr(pos); pos+=4;
   field_count=   uint2korr(pos); pos+=2;
   param_count=   uint2korr(pos); pos+=2;
@@ -3859,16 +3858,16 @@ static my_bool read_prepare_result(MYSQL_STMT *stmt)
   }
   if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
 						sizeof(MYSQL_BIND)*
-						(stmt->param_count +
-						 field_count))))
+                                                (param_count + 
+                                                 field_count))))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY);
     DBUG_RETURN(0);
   }
-  stmt->bind=		       (stmt->params + stmt->param_count);
-  stmt->field_count=	 (uint) field_count;
-  stmt->param_count=   (ulong) param_count;
-  stmt->mysql->status= MYSQL_STATUS_READY;
+  stmt->bind=	      (stmt->params + param_count);
+  stmt->field_count=  (uint) field_count;
+  stmt->param_count=  (ulong) param_count;
+  mysql->status=      MYSQL_STATUS_READY;
   DBUG_RETURN(0);
 }
 
@@ -4060,7 +4059,7 @@ static void store_param_str(NET *net, MYSQL_BIND *param)
   ulong length= *param->length;
   char *to= (char *) net_store_length((char *) net->write_pos, length);
   memcpy(to, param->buffer, length);
-  net->write_pos= to+length;
+  net->write_pos= (uchar*) to+length;
 }
 
 
@@ -4102,8 +4101,18 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
     store_param_null(net, param);
   else
   {
-    /* Allocate for worst case (long string) */  
-    if ((my_realloc_str(net, 9 + *param->length)))
+    unsigned int length;
+    
+    /* 
+       Allocate for worst case (long string), ignore the length 
+       buffer for numeric/double types by assigning the default 
+       length using get_binary_length
+     */      
+    
+    if (!(length= get_binary_length(param->buffer_type)))
+      length= *param->length;
+    
+    if ((my_realloc_str(net, 9 + length)))
       DBUG_RETURN(1);
     (*param->store_param_func)(net, param);
   }
@@ -4133,6 +4142,8 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
   }
   stmt->state= MY_ST_EXECUTE;
   mysql_free_result(stmt->result);
+  stmt->result= (MYSQL_RES *)0;
+  stmt->result_buffered= 0;
   DBUG_RETURN(0);
 }
 
@@ -4200,7 +4211,7 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     }
     length= (ulong) (net->write_pos - net->buff);
     /* TODO: Look into avoding the following memdup */
-    if (!(param_data= my_memdup( net->buff, length, MYF(0))))
+    if (!(param_data= my_memdup((const char*) net->buff, length, MYF(0))))
     {
       set_stmt_error(stmt, CR_OUT_OF_MEMORY);
       DBUG_RETURN(1);
@@ -4522,41 +4533,45 @@ static void send_data_double(MYSQL_BIND *param, double value)
 static void send_data_str(MYSQL_BIND *param, char *value, uint length)
 {  
   char *buffer= param->buffer;
+  int err=0;
 
   switch(param->buffer_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar data= (uchar)my_strntol(system_charset_info,value,length,NULL,10);
+    uchar data= (uchar)my_strntol(system_charset_info,value,length,10,NULL,
+				  &err);
     *buffer= data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short)my_strntol(system_charset_info,value,length,NULL,10);
+    short data= (short)my_strntol(system_charset_info,value,length,10,NULL,
+				  &err);
     int2store(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)my_strntol(system_charset_info,value,length,NULL,10);
+    int32 data= (int32)my_strntol(system_charset_info,value,length,10,NULL,
+				  &err);
     int4store(buffer, data);    
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong data= my_strntoll(system_charset_info,value,length,NULL,10);
+    longlong data= my_strntoll(system_charset_info,value,length,10,NULL,&err);
     int8store(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
-    float data = (float)my_strntod(system_charset_info,value,length,NULL);
+    float data = (float)my_strntod(system_charset_info,value,length,NULL,&err);
     float4store(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(system_charset_info,value,length,NULL);
+    double data= my_strntod(system_charset_info,value,length,NULL,&err);
     float8store(buffer, data);
     break;
   }
@@ -4726,7 +4741,7 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
   }
   default:      
     length= net_field_length(row); 
-    send_data_str(param,*row,length);
+    send_data_str(param,(char*) *row,length);
     break;
   }
   *row+= length;
@@ -4859,12 +4874,14 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   Fetch row data to bind buffers
 */
 
-static void
-stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
+static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 {
   MYSQL_BIND  *bind, *end;
   MYSQL_FIELD *field, *field_end;
   uchar *null_ptr, bit;
+
+  if (!row || !stmt->res_buffers)
+    return 0;
   
   null_ptr= row; 
   row+= (stmt->field_count+9)/8; /* skip null bits */
@@ -4884,7 +4901,7 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else if (fetch_results(stmt, bind, field->type, &row))
-        break;
+        return 1;
     }
     if (! (bit<<=1) & 255)
     {
@@ -4892,22 +4909,8 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       null_ptr++;
     }
   }
-}
-
-static int read_binary_data(MYSQL *mysql)
-{  
-  /* TODO : Changes needed based on logic of use_result/store_result 
-            Currently by default it is use_result. In case of 
-            store_result, the data packet must point to already 
-            read data.
-   */
-  if (packet_error == net_safe_read(mysql))
-    return -1;
-  if (mysql->net.read_pos[0] == 254)
-    return 1;				/* End of data */
   return 0;
 }
-
 
 /*
   Fetch and return row data to bound buffers, if any
@@ -4916,24 +4919,153 @@ static int read_binary_data(MYSQL *mysql)
 int STDCALL mysql_fetch(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
-  int   res;
+  uchar *row;
   DBUG_ENTER("mysql_fetch");
 
-  if (!(res= read_binary_data(mysql)))
+  row= (uchar *)0;
+  if (stmt->result_buffered) /* buffered */
   {
-    if (stmt->res_buffers)
-      stmt_fetch_row(stmt, mysql->net.read_pos+1);
-    DBUG_RETURN(0);
+    MYSQL_RES *res;
+    
+    if (!(res= stmt->result) || !res->data_cursor) 
+      goto no_data;
+    
+    row= (uchar *)res->data_cursor->data;
+    res->data_cursor= res->data_cursor->next;
+    res->current_row= (MYSQL_ROW)row;    
   }
-  mysql->status= MYSQL_STATUS_READY;
-  if (res < 0)				/* Network error */
+  else /* un-buffered */
+  {
+    if (packet_error == net_safe_read(mysql))
+    {
+      set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
+                      mysql->net.last_errno);
+      DBUG_RETURN(1);
+    }
+    if (mysql->net.read_pos[0] == 254)
+    {
+      mysql->status= MYSQL_STATUS_READY;
+      goto no_data;
+    }
+    row= mysql->net.read_pos+1;
+  }
+  DBUG_RETURN(stmt_fetch_row(stmt, row));
+
+no_data:
+  DBUG_PRINT("info", ("end of data"));    
+  DBUG_RETURN(MYSQL_NO_DATA); /* no more data */
+}
+
+/* 
+  Read all rows of data from server  (binary format)
+*/
+
+static MYSQL_DATA *read_binary_rows(MYSQL_STMT *stmt)
+{
+  ulong      pkt_len;
+  uchar      *cp;
+  MYSQL      *mysql= stmt->mysql;
+  MYSQL_DATA *result;
+  MYSQL_ROWS *cur, **prev_ptr;
+  NET        *net = &mysql->net;
+  DBUG_ENTER("read_binary_rows");
+ 
+  mysql= mysql->last_used_con;
+  if ((pkt_len= net_safe_read(mysql)) == packet_error)
   {
     set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
                     mysql->net.last_errno);
+    DBUG_RETURN(0);
+  }
+  if (mysql->net.read_pos[0] == 254) /* end of data */
+    return 0;				
+
+  if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+				       MYF(MY_WME | MY_ZEROFILL))))
+  {
+    net->last_errno=CR_OUT_OF_MEMORY;
+    strmov(net->last_error,ER(net->last_errno));
+    DBUG_RETURN(0);
+  }
+  init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
+  result->alloc.min_malloc= sizeof(MYSQL_ROWS);
+  prev_ptr= &result->data;
+  result->rows= 0;
+
+  while (*(cp=net->read_pos) != 254 || pkt_len >= 8)
+  {
+    result->rows++;
+
+    if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,sizeof(MYSQL_ROWS))) ||
+	      !(cur->data= ((MYSQL_ROW) alloc_root(&result->alloc, pkt_len))))
+    {
+      free_rows(result);
+      net->last_errno=CR_OUT_OF_MEMORY;
+      strmov(net->last_error,ER(net->last_errno));
+      DBUG_RETURN(0);
+    }
+    *prev_ptr= cur;
+    prev_ptr= &cur->next;
+    memcpy(cur->data, (char*)cp+1, pkt_len-1); 
+	  
+    if ((pkt_len=net_safe_read(mysql)) == packet_error)
+    {
+      free_rows(result);
+      DBUG_RETURN(0);
+    }
+  }
+  *prev_ptr= 0;
+  if (pkt_len > 1)
+  {
+    mysql->warning_count= uint2korr(cp+1);
+    DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
+  }
+  DBUG_PRINT("exit",("Got %d rows",result->rows));
+  DBUG_RETURN(result);
+}
+
+/*
+  Store or buffer the binary results to stmt
+*/
+
+int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
+{
+  MYSQL *mysql= stmt->mysql;
+  MYSQL_RES *result;
+  DBUG_ENTER("mysql_stmt_tore_result");
+
+  mysql= mysql->last_used_con;
+
+  if (!stmt->field_count)
+    DBUG_RETURN(0);
+  if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  {
+    strmov(mysql->net.last_error,
+	   ER(mysql->net.last_errno= CR_COMMANDS_OUT_OF_SYNC));
+    DBUG_RETURN(0);
+  }
+  mysql->status= MYSQL_STATUS_READY;		/* server is ready */
+  if (!(result= (MYSQL_RES*) my_malloc((uint) (sizeof(MYSQL_RES)+
+					      sizeof(ulong) *
+					      stmt->field_count),
+				      MYF(MY_WME | MY_ZEROFILL))))
+  {
+    mysql->net.last_errno= CR_OUT_OF_MEMORY;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info", ("end of data"));    
-  DBUG_RETURN(MYSQL_NO_DATA); /* no more data */
+  stmt->result_buffered= 1;
+  if (!(result->data= read_binary_rows(stmt)))
+  {
+    my_free((gptr) result,MYF(0));
+    DBUG_RETURN(0);
+  }
+  mysql->affected_rows= result->row_count= result->data->rows;
+  result->data_cursor=	result->data->data;
+  result->fields=	stmt->fields;
+  result->field_count=	stmt->field_count;
+  stmt->result= result;
+  DBUG_RETURN(0); /* Data buffered, must be fetched with mysql_fetch() */
 }
 
 
@@ -5031,4 +5163,37 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
   if (auto_mode) /* set to true */
     DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=1", 16));
   DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=0", 16));
+}
+
+
+/********************************************************************
+ Multi query execution related implementations
+*********************************************************************/
+
+/*
+  Returns if there are any more query results exists to be read using 
+  mysql_next_result()
+*/
+
+my_bool STDCALL mysql_more_results(MYSQL *mysql)
+{
+  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
+    return 1;
+  return 0;
+}
+
+/*
+  Reads and returns the next query results
+*/
+
+my_bool STDCALL mysql_next_result(MYSQL *mysql)
+{
+  
+  mysql->net.last_error[0]=0;
+  mysql->net.last_errno=0;
+  mysql->affected_rows= ~(my_ulonglong) 0;
+
+  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
+    return mysql_read_query_result(mysql);
+  return 0;
 }

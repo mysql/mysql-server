@@ -86,7 +86,8 @@ enum lex_states
   STATE_REAL_OR_POINT, STATE_BOOL, STATE_EOL, STATE_ESCAPE, STATE_LONG_COMMENT,
   STATE_END_LONG_COMMENT, STATE_COLON, STATE_SET_VAR, STATE_USER_END,
   STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER, STATE_SYSTEM_VAR,
-  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN
+  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN,
+  STAT_STRING_OR_DELIMITER
 };
 
 
@@ -413,6 +414,7 @@ typedef struct st_lex
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
+  char* found_colon;                            /* For multi queries - next query */
   enum SSL_type ssl_type;			/* defined in violite.h */
   String *wild;
   sql_exchange *exchange;

@@ -1014,6 +1014,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name)
 {
   ulong packet_len = my_net_read(net); // read create table statement
+  char *query;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
@@ -1033,15 +1034,23 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
     return 1;
   }
   thd->command = COM_TABLE_DUMP;
-  thd->query = sql_alloc(packet_len + 1);
-  if (!thd->query)
+  /* Note that we should not set thd->query until the area is initalized */
+  if (!(query = sql_alloc(packet_len + 1)))
   {
     sql_print_error("create_table_from_dump: out of memory");
     net_printf(thd, ER_GET_ERRNO, "Out of memory");
     return 1;
   }
-  memcpy(thd->query, net->read_pos, packet_len);
-  thd->query[packet_len] = 0;
+  memcpy(query, net->read_pos, packet_len);
+  query[packet_len]= 0;
+  thd->query_length= packet_len;
+  /*
+    We make the following lock in an attempt to ensure that the compiler will
+    not rearrange the code so that thd->query is set too soon
+  */
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->query= query;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
@@ -2275,7 +2284,9 @@ err:
   // print the current replication position
   sql_print_error("Slave I/O thread exiting, read up to log '%s', position %s",
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
     mc_mysql_close(mysql);
@@ -2410,7 +2421,9 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 		  RPL_LOG_NAME, llstr(rli->master_log_pos,llbuff));
 
  err:
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun

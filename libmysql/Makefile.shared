@@ -84,6 +84,8 @@ clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
+	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
+	       $(CHARSET_SRCS) $(CHARSET_OBJS) \
 	       $(mystringsextra) $(mysysheaders) \
 	       ../linked_client_sources net.c
 

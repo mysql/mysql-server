@@ -62,22 +62,6 @@ static SORT_KEY_BLOCKS	*alloc_key_blocks(MI_CHECK *param, uint blocks,
 static ha_checksum mi_byte_checksum(const byte *buf, uint length);
 static void set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share);
 
-#ifdef __WIN__
-static double ulonglong2double(ulonglong value)
-{
-  longlong nr=(longlong) value;
-  if (nr >= 0)
-    return (double) nr;
-  return (18446744073709551616.0 + (double) nr);
-}
-
-#if SIZEOF_OFF_T > 4
-#define my_off_t2double(A) ulonglong2double(A)
-#else
-#define my_off_t2double(A) ((double) (A))
-#endif /* SIZEOF_OFF_T > 4 */
-#endif /* __WIN__ */
-
 void myisamchk_init(MI_CHECK *param)
 {
   bzero((gptr) param,sizeof(*param));

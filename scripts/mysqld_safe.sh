@@ -12,6 +12,8 @@
 
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
+umask 007
+
 defaults=
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)

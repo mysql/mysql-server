@@ -80,6 +80,8 @@ extern "C" {
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #else
+// readline 4.2 has own __P
+#undef __P
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
@@ -273,9 +275,9 @@ static const char *server_default_groups[]=
 { "server", "embedded", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
-extern "C" void add_history(char *command); /* From readline directory */
-extern "C" int read_history(char *command);
-extern "C" int write_history(char *command);
+extern "C" int add_history(const char *command); /* From readline directory */
+extern "C" int read_history(const char *command);
+extern "C" int write_history(const char *command);
 static void initialize_readline (char *name);
 #endif
 
@@ -1081,8 +1083,11 @@ static char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-char *no_completion (const char *text __attribute__ ((unused)),
-		      int )
+#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+char *no_completion(const char*,int)
+#else
+int no_completion()
+#endif
 {
   return 0;					/* No filename completion */
 }
@@ -1093,12 +1098,15 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-#if RL_READLINE_VERSION > 0x0400
-  rl_attempted_completion_function = &new_mysql_completion;
-  rl_completion_entry_function= &no_completion;
+#if defined(USE_NEW_READLINE_INTERFACE)
+  rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
+  rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
+#elif defined(USE_LIBEDIT_INTERFACE)
+  rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
+  rl_completion_entry_function= (CPFunction*)&no_completion;
 #else
-  rl_attempted_completion_function =(CPPFunction *)new_mysql_completion;
-  rl_completion_entry_function= (Function *)no_completion;
+  rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
+  rl_completion_entry_function= (Function*)&no_completion;
 #endif
 }
 
@@ -1114,7 +1122,7 @@ static char **new_mysql_completion (const char *text,
 				    int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
-#if RL_READLINE_VERSION > 0x0400
+#if defined(USE_NEW_READLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
     return completion_matches((char *)text, (CPFunction *)new_command_generator);
@@ -2387,14 +2395,12 @@ com_use(String *buffer __attribute__((unused)), char *line)
   items in the array to zero first.
 */
 
-enum quote_type { NO_QUOTE, SQUOTE, DQUOTE, BTICK };
-
 char *get_arg(char *line, my_bool get_next_arg)
 {
   char *ptr;
   my_bool quoted= 0, valid_arg= 0;
   uint count= 0;
-  enum quote_type qtype= NO_QUOTE;
+  char qtype= 0;
 
   ptr= line;
   if (get_next_arg)
@@ -2415,10 +2421,9 @@ char *get_arg(char *line, my_bool get_next_arg)
   }
   while (my_isspace(system_charset_info, *ptr))
     ptr++;
-  if ((*ptr == '\'' && (qtype= SQUOTE)) ||
-      (*ptr == '\"' && (qtype= DQUOTE)) ||
-      (*ptr == '`' && (qtype= BTICK)))
+  if (*ptr == '\'' || *ptr == '\"' || *ptr == '`')
   {
+    qtype= *ptr;
     quoted= 1;
     ptr++;
   }
@@ -2435,10 +2440,7 @@ char *get_arg(char *line, my_bool get_next_arg)
       ptr= line;
       ptr+= count;
     }
-    else if ((!quoted && *ptr == ' ') ||
-	     (*ptr == '\'' && qtype == SQUOTE) ||
-	     (*ptr == '\"' && qtype == DQUOTE) ||
-	     (*ptr == '`' && qtype == BTICK))
+    else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
       *ptr= 0;
       break;

@@ -318,6 +318,22 @@
 /* READLINE: */
 #undef VOID_SIGHANDLER
 
+/* used libedit interface (can we dereference result of rl_completion_entry_function?) */
+#undef USE_LIBEDIT_INTERFACE
+
+/* used new readline interface (does rl_completion_func_t and rl_compentry_func_t defined?) */
+#undef USE_NEW_READLINE_INTERFACE
+
+/* macro for libedit */
+#undef HAVE_VIS_H
+#undef HAVE_FGETLN
+#undef HAVE_ISSETUGID
+#undef HAVE_STRLCPY
+#undef HAVE_GETLINE
+#undef HAVE_FLOCKFILE
+#undef HAVE_SYS_TYPES_H
+#undef HAVE_SYS_CDEFS_H
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:

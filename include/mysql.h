@@ -120,7 +120,8 @@ typedef struct st_mysql_data {
 } MYSQL_DATA;
 
 struct st_mysql_options {
-  unsigned int connect_timeout,client_flag;
+  unsigned int connect_timeout;
+  unsigned long client_flag;
   unsigned int port;
   char *host,*user,*password,*unix_socket,*db;
   struct st_dynamic_array *init_commands;
@@ -202,7 +203,8 @@ typedef struct st_mysql
   my_ulonglong extra_info;		/* Used by mysqlshow */
   unsigned long thread_id;		/* Id for connection in server */
   unsigned long packet_length;
-  unsigned int	port,client_flag,server_capabilities;
+  unsigned int	port;
+  unsigned long client_flag,server_capabilities;
   unsigned int	protocol_version;
   unsigned int	field_count;
   unsigned int 	server_status;
@@ -348,7 +350,7 @@ MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 					   const char *db,
 					   unsigned int port,
 					   const char *unix_socket,
-					   unsigned int clientflag);
+					   unsigned long clientflag);
 void		STDCALL mysql_close(MYSQL *sock);
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
@@ -510,6 +512,7 @@ typedef struct st_mysql_stmt
   my_bool	send_types_to_server;	/* to indicate types supply to server */
   my_bool       param_buffers;          /* to indicate the param bound buffers */
   my_bool       res_buffers;            /* to indicate the output bound buffers */
+  my_bool       result_buffered;        /* to indicate the results buffered */
 } MYSQL_STMT;
 
 
@@ -533,9 +536,12 @@ my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt,
 				     my_bool last_data);
 int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
 			      unsigned long len);
-MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
+int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
+my_bool STDCALL mysql_more_results(MYSQL *mysql);
+my_bool STDCALL mysql_next_result(MYSQL *mysql);
+
 
 
 /* new status messages */

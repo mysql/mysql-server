@@ -73,3 +73,39 @@ b	ifnull(t2.b,"this is null")
 NULL	this is null
 NULL	this is null
 drop table t1;
+CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
+INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
+UPDATE t1 SET d=1/NULL;
+UPDATE t1 SET d=NULL;
+INSERT INTO t1 (a) values (null);
+Column 'a' cannot be null
+INSERT INTO t1 (a) values (1/null);
+Column 'a' cannot be null
+INSERT INTO t1 (a) values (null),(null);
+INSERT INTO t1 (b) values (null);
+Column 'b' cannot be null
+INSERT INTO t1 (b) values (1/null);
+Column 'b' cannot be null
+INSERT INTO t1 (b) values (null),(null);
+INSERT INTO t1 (c) values (null);
+Column 'c' cannot be null
+INSERT INTO t1 (c) values (1/null);
+Column 'c' cannot be null
+INSERT INTO t1 (c) values (null),(null);
+INSERT INTO t1 (d) values (null);
+Column 'd' cannot be null
+INSERT INTO t1 (d) values (1/null);
+Column 'd' cannot be null
+INSERT INTO t1 (d) values (null),(null);
+select * from t1;
+a	b	c	d
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+drop table t1;

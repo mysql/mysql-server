@@ -209,6 +209,11 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_MSSQL			512
 #define MODE_DB2			1024
 #define MODE_SAPDB			2048
+#define MODE_NO_KEY_OPTIONS             4096
+#define MODE_NO_TABLE_OPTIONS           8192
+#define MODE_NO_FIELD_OPTIONS          16384
+#define MODE_MYSQL323                  32768
+#define MODE_MYSQL40                   65536
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -713,6 +718,7 @@ extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_enable_named_pipe;
+extern my_bool opt_old_passwords, use_old_passwords;
 extern char *shared_memory_base_name;
 extern bool opt_enable_shared_memory;
 extern char f_fyllchar;

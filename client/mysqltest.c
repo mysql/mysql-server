@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.26"
+#define MTEST_VERSION "1.27"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -684,7 +684,7 @@ int open_file(const char* name)
 
   if (*cur_file && cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
+  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
     die(NullS);
   cur_file++;
   *++lineno=1;
@@ -1925,7 +1925,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	argument= buff;
       }
       fn_format(buff, argument, "", "", 4);
-      if (!(*++cur_file = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
+      if (!(*++cur_file = my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
 	die("Could not open %s: errno = %d", argument, errno);
       break;
     }

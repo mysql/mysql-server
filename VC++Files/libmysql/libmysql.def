@@ -59,7 +59,6 @@ EXPORTS
 	list_add
 	list_delete
 	max_allowed_packet
-	my_casecmp
 	my_init
 	my_end
 	my_strdup

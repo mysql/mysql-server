@@ -241,7 +241,7 @@ void ha_myisammrg::info(uint flag)
 #endif
   if (flag & HA_STATUS_CONST)
   {
-    if (table->key_parts)
+    if (table->key_parts && info.rec_per_key)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
 	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
