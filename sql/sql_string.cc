@@ -467,9 +467,9 @@ int sortcmp(const String *x,const String *y)
   if (use_strcoll(default_charset_info))
   {
 #ifndef CMP_ENDSPACE
-    while (x_len && isspace(s[x_len-1]))
+    while (x_len && s[x_len-1] == ' ')
       x_len--;
-    while (y_len && isspace(t[y_len-1]))
+    while (y_len && t[y_len-1] == ' ')
       y_len--;
 #endif
     return my_strnncoll(default_charset_info,
@@ -493,14 +493,14 @@ int sortcmp(const String *x,const String *y)
       {
         const char *end=t+y_len;
         for (; t != end ; t++)
-          if (!isspace(*t))
+          if (*t != ' ')
             return -1;
       }
       else
       {
         const char *end=s+x_len;
         for (; s != end ; s++)
-          if (!isspace(*s))
+          if (*s != ' ')
             return 1;
       }
       return 0;
