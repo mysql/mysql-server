@@ -452,7 +452,7 @@ btr_search_info_update_slow(
 Checks if a guessed position for a tree cursor is right. Note that if
 mode is PAGE_CUR_LE, which is used in inserts, and the function returns
 TRUE, then cursor->up_match and cursor->low_match both have sensible values. */
-UNIV_INLINE
+static
 ibool
 btr_search_check_guess(
 /*===================*/
