@@ -124,7 +124,7 @@ set big_tables="OFFF";
 set unknown_variable=1;
 --error 1232
 set max_join_size="hello";
---error 1284
+--error 1285
 set table_type=UNKNOWN_TABLE_TYPE;
 --error 1231
 set table_type=INNODB, big_tables=2;
