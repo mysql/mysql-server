@@ -5941,8 +5941,14 @@ Field *make_field(char *ptr, uint32 field_length,
   if (f_is_alpha(pack_flag))
   {
     if (!f_is_packed(pack_flag))
-      return new Field_string(ptr,field_length,null_pos,null_bit,
-			      unireg_check, field_name, table, field_charset);
+    {
+      if (field_type == FIELD_TYPE_STRING ||
+          field_type == FIELD_TYPE_VAR_STRING)
+        return new Field_string(ptr,field_length,null_pos,null_bit,
+                                unireg_check, field_name, table,
+                                field_charset);
+      return 0;                                 // Error
+    }
 
     uint pack_length=calc_pack_length((enum_field_types)
 				      f_packtype(pack_flag),
