@@ -192,3 +192,7 @@ Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@tcx.se)
 
 00.03.30 by Monty (monty@mysql.com)
 - Added chroot() and gethostname().
+
+00.10.18 by Monty (monty@mysql.com)
+- Added patch by Dave Huang <khym@bga.com> to fix problem with date/time
+  on NETBSD/Alpha.

@@ -9408,7 +9408,8 @@ the sort order!
 @item The default return type of @code{IF} will now depend on both arguments
 and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
-@item @code{INNER} and @code{DELAYED} are now reserved words.
+@item @code{INNER}, @code{DELAYED}, @code{RIGHT} and @code{WHEN}
+are now reserved words.
 @item @code{FLOAT(X)} is now a true floating point type and not a value with
 a fixed number of decimals.
 @item When declaring @code{DECIMAL(length,dec)} the length argument no
@@ -18050,7 +18051,7 @@ the table will not be analyzed again.
 @section @code{REPAIR TABLE} syntax
 
 @example
-REPAIR TABLE tbl_name[,tbl_name...] [QUICK]
+REPAIR TABLE tbl_name[,tbl_name...] [QUICK] [EXTENDED]
 @end example
 
 @code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same things
@@ -18076,6 +18077,11 @@ future, we will make it more flexible.
 
 If @code{QUICK} is given then @strong{MySQL} will try to do a
 @code{REPAIR} of only the index tree.
+
+If you use @code{EXTENDED} then @strong{MySQL} will create the index row
+by row instead of creating one index at a time with sorting;  This may be
+better than sorting on fixed length keys if you have long @code{char()}
+keys that compress very good.
 
 @findex DELETE
 @node DELETE, SELECT, REPAIR TABLE, Reference
@@ -19923,8 +19929,9 @@ Maximum number of temporary tables a client can keep open at the same time.
 After this many write locks, allow some read locks to run in between.
 
 @item @code{myisam_sort_buffer_size}
-The buffer that is allocated when sorting the index when doing a @code{REPAIR}
-table.
+The buffer that is allocated when sorting the index when doing a
+@code{REPAIR} or when creating indexes with @code{CREATE INDEX} or
+@code{ALTER TABLE}.
 
 @item @code{net_buffer_length}
 The communication buffer is reset to this size between queries. This
@@ -30912,8 +30919,9 @@ in these cases, and can provide useful information about the current number
 of connections and their status.
 
 @item
-Run the command @code{mysqladmin -i 5 status}
-in a separate window to produce statistics while you run your other queries.
+Run the command @code{mysqladmin -i 5 status} or @code{mysqladmin -i 5
+-r status} or in a separate window to produce statistics while you run
+your other queries.
 
 @item
 Try the following:
@@ -33513,7 +33521,9 @@ For the connection specified by @code{mysql}, @code{mysql_errno()} returns
 the error code for the most recently invoked API function that can succeed
 or fail.  A return value of zero means that no error occurred. Client error
 message numbers are listed in the @strong{MySQL} @file{errmsg.h} header file.
-Server error message numbers are listed in @file{mysqld_error.h}
+Server error message numbers are listed in @file{mysqld_error.h}. In the
+@strong{MySQL} source distribution you can find a complete list of
+error messages and error numbers in the file @file{Docs/mysqld_error.txt}.
 
 @subsubheading Return values:
 
@@ -38101,7 +38111,8 @@ was part of the key that was used to find rows.
 @item
 Fixed bug in @code{FULLTEXT} index when inserting a @code{NULL} column.
 @item
-Changed to use @code{mkstemp()} instead of @code{tempnam()}.
+Changed to use @code{mkstemp()} instead of @code{tempnam()}. Based
+on a patch from John Jones.
 @end itemize
 
 @node News-3.23.25, News-3.23.24, News-3.23.26, News-3.23.x
@@ -42412,7 +42423,7 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 @item
 Fail safe replication.
 @item
-Optimize, test and document transactions safe tables
+Optimize, test and document transactions safe tables (BDB tables)
 @item
 Allow users to change startup options.
 @item
@@ -42445,9 +42456,8 @@ Check if locked threads take any CPU.
 Fix configure so that one can compile all libraries (like @code{MyISAM})
 without threads.
 @item
-Change to use mkstemp() instead of tempnam() for system that supports the call.
-We need to add a my_mkstemp() function in mysys and also change the cache
-code to not create the filename until we do the actual open.
+Add an option to periodically flush key pages for tables with delayed keys
+if they haven't been used in a while.
 @item
 Allow join on key parts (optimization issue).
 @item
