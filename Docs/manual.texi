@@ -36592,6 +36592,16 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
+Added @code{BACKUP TABLE/RESTORE TABLE}
+@item
+Fixed coredump on @code{CHANGE MASTER TO} when the slave did not have
+the master to start with
+@item
+Fixed incorrect @code{Time} in the processlist for @code{Connect} of
+the slave thread
+@item
+The slave now logs when it connects to the master
+@item
 Fixed a core dump bug when doing @code{FLUSH MASTER} when one didn't give
 a filename argument to @code{--log-bin}
 @item
