@@ -1,0 +1,12 @@
+drop table if exists t1;
+create table t1(n int not null, key(n));
+let $1=10000;
+while ($1)
+{
+ eval insert into t1 values($1);
+ eval insert into t1 values($1);
+ dec $1;
+}
+
+select count(distinct n) from t1;
+drop table t1;
