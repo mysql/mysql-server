@@ -79,7 +79,7 @@ select name from mysql.proc;
 select type from mysql.proc;
 end;
 call foo();
-ERROR 04000: SELECT in a stored procedure must have INTO
+ERROR 0A000: SELECT in a stored procedure must have INTO
 drop procedure foo;
 create procedure foo()
 return 42;
@@ -90,7 +90,7 @@ declare x int;
 select max(c) into x from test.t;
 return x;
 end;
-ERROR 04000: Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION
+ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
 create procedure p(x int)
 insert into test.t1 values (x);
 create function f(x int) returns int
