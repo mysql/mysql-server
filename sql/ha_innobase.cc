@@ -72,7 +72,7 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-bool 	innobase_skip 		= 0;
+bool 	innodb_skip 		= 0;
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 
@@ -450,7 +450,7 @@ innobase_init(void)
 	{
 	  fprintf(stderr,
        "Can't initialize Innobase as 'innobase_data_file_path' is not set\n");
-	  innobase_skip=1;
+	  innodb_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
 

@@ -93,6 +93,7 @@ test_update() if (($pid=fork()) == 0); $work{$pid}="update";
 test_flush() if (($pid=fork()) == 0); $work{$pid}= "flush";
 test_check() if (($pid=fork()) == 0); $work{$pid}="check";
 test_repair() if (($pid=fork()) == 0); $work{$pid}="repair";
+#test_database("test2") if (($pid=fork()) == 0); $work{$pid}="check_database";
 
 print "Started " . ($opt_threads*2+4) . " threads\n";
 
@@ -331,7 +332,6 @@ sub test_check
   exit(0);
 }
 
-
 #
 # Do a repair on the first table once in a while
 #
@@ -392,6 +392,42 @@ sub test_flush
   exit(0);
 }
 
+
+#
+# Test all tables in a database
+#
+
+sub test_database
+{
+  my ($database) = @_;
+  my ($dbh, $row, $i, $type, $table, $tables);
+  $dbh = DBI->connect("DBI:mysql:$database:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  $tables= join(',',$dbh->func('_ListTables'));
+  $type= "check";
+  for ($i=0 ; !test_if_abort($dbh) ; $i++)
+  {
+    sleep(10);
+    $sth=$dbh->prepare("$type table $tables") || die "Got error on prepare: $DBI::errstr\n";
+    $sth->execute || die $DBI::errstr;
+
+    while (($row=$sth->fetchrow_arrayref))
+    {
+      if ($row->[3] ne "OK")
+      {
+	print "Got error " . $row->[2] . " " . $row->[3] . " when doing $type on " . $row->[0] . "\n";
+	exit(1);
+      }
+    }
+  }
+  $dbh->disconnect; $dbh=0;
+  print "test_check: Executed $i checks\n";
+  exit(0);
+}
+
+
 #
 # Help functions
 #
@@ -412,7 +448,7 @@ sub signal_abort
 sub test_if_abort()
 {
   my ($dbh)=@_;
-  $row=simple_query($dbh,"select * from $abort_table");
+  $row=simple_query($dbh,"select * from $opt_db.$abort_table");
   return (defined($row) && defined($row->[0]) != 0) ? 1 : 0;
 }
 
