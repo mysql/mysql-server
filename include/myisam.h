@@ -342,6 +342,12 @@ typedef struct st_mi_check_param
   char *op_name;
 } MI_CHECK;
 
+typedef struct st_sort_ft_buf
+{
+  uchar *buf, *end;
+  int   count;
+  uchar lastkey[MI_MAX_KEY_BUFF];
+} SORT_FT_BUF;
 
 typedef struct st_sort_info
 {
@@ -354,7 +360,8 @@ typedef struct st_sort_info
   MI_CHECK *param;
   char *buff;
   SORT_KEY_BLOCKS *key_block,*key_block_end;
-  /* sync things*/
+  SORT_FT_BUF *ft_buf;
+  /* sync things */
   uint got_error, threads_running;
   pthread_mutex_t mutex;
   pthread_cond_t  cond;

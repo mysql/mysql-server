@@ -18,21 +18,10 @@
 
 #include "ftdefs.h"
 
-#ifdef EVAL_RUN
-#ifdef PIVOT_STAT
-ulong collstat=0;
-#endif
-#endif /* EVAL_RUN */
-
 typedef struct st_ft_docstat {
   FT_WORD *list;
   uint uniq;
   double sum;
-#ifdef EVAL_RUN
-  uint words, totlen;
-  double max, nsum, nsum2;
-#endif /* EVAL_RUN */
-
 } FT_DOCSTAT;
 
 static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
@@ -44,15 +33,7 @@ static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 {
     word->weight=LWS_IN_USE;
-
-#ifdef EVAL_RUN
-    word->cnt= (uchar) count;
-    if(docstat->max < word->weight) docstat->max=word->weight;
-    docstat->words+=count;
-    docstat->totlen+=word->len;
-#endif /* EVAL_RUN */
     docstat->sum+=word->weight;
-
     memcpy_fixed((docstat->list)++,word,sizeof(FT_WORD));
     return 0;
 }
@@ -70,9 +51,6 @@ FT_WORD * ft_linearize(TREE *wtree)
   {
     docstat.list=wlist;
     docstat.uniq=wtree->elements_in_tree;
-#ifdef EVAL_RUN
-    docstat.nsum=docstat.nsum2=docstat.max=docstat.words=docstat.totlen=
-#endif /* EVAL_RUN */
     docstat.sum=0;
     tree_walk(wtree,(tree_walk_action)&walk_and_copy,&docstat,left_root_right);
   }
@@ -85,17 +63,7 @@ FT_WORD * ft_linearize(TREE *wtree)
   for (p=wlist;p->pos;p++)
   {
     p->weight=PRENORM_IN_USE;
-#ifdef EVAL_RUN
-    docstat.nsum+=p->weight;
-    docstat.nsum2+=p->weight*p->weight;
-#endif /* EVAL_RUN */
   }
-
-#ifdef EVAL_RUN
-#ifdef PIVOT_STAT
-  collstat+=PIVOT_STAT;
-#endif
-#endif /* EVAL_RUN */
 
   for (p=wlist;p->pos;p++)
   {

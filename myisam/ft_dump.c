@@ -56,7 +56,7 @@ static struct my_option my_long_options[] =
 
 int main(int argc,char *argv[])
 {
-  int error=0;
+  int error=0, subkeys;
   uint keylen, keylen2=0, inx, doc_cnt=0;
   float weight;
   double gws, min_gws=0, avg_gws=0;
@@ -125,7 +125,9 @@ int main(int argc,char *argv[])
       keylen=*(info->lastkey);
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-      mi_float4get(weight,info->lastkey+keylen+1);
+      subkeys=mi_sint4korr(info->lastkey+keylen+1);
+      if (subkeys >= 0)
+        weight=*(float*)&subkeys;
 #else
 #error
 #endif
@@ -164,7 +166,10 @@ int main(int argc,char *argv[])
         }
       }
       if (dump)
-        printf("%9qx %20.7f %s\n",info->lastpos,weight,buf);
+        if (subkeys>=0)
+          printf("%9qx %20.7f %s\n",info->lastpos,weight,buf);
+        else
+          printf("%9qx => %17d %s\n",info->lastpos,-subkeys,buf);
 
       if(verbose && (total%HOW_OFTEN_TO_WRITE)==0)
         printf("%10ld\r",total);
@@ -216,18 +221,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   switch(optid) {
   case 'd':
-    dump=1; 
+    dump=1;
     complain(count || query);
     break;
-  case 's': 
-    stats=1; 
+  case 's':
+    stats=1;
     complain(query!=0);
     break;
-  case 'c': 
+  case 'c':
     count= 1;
     complain(dump || query);
     break;
-  case 'l': 
+  case 'l':
     lstats=1;
     complain(query!=0);
     break;
