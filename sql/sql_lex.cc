@@ -1795,7 +1795,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (thd->current_arena->is_stmt_prepare() && first_execution)
+  if (!thd->current_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
     prep_where= where;

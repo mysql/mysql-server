@@ -284,4 +284,6 @@ insert into t2 values (1);
 create table t3 engine=merge union=(t1, t2) select * from t1;
 --error 1093
 create table t3 engine=merge union=(t1, t2) select * from t2;
+--error 1093
+create table t3 engine=merge union=(t1, t2) select (select max(a) from t2);
 drop table t1, t2;

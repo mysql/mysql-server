@@ -2404,20 +2404,6 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
-      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
-      {
-        TABLE_LIST *tab;
-        for (tab= select_tables; tab; tab= tab->next_local)
-        {
-          if (find_table_in_local_list((TABLE_LIST*) lex->create_info.
-                                       merge_list.first,
-                                       select_tables->db, tab->real_name))
-          {
-            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
-            goto create_error;
-          }
-        }  
-      }    
 
       if (select_tables &&
 	  check_table_access(thd, SELECT_ACL, select_tables, 0))
@@ -2436,6 +2422,21 @@ mysql_execute_command(THD *thd)
         {
           net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
           goto create_error;
+        }
+        /* If we create merge table, we have to test tables in merge, too */
+        if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+        {
+          TABLE_LIST *tab;
+          for (tab= (TABLE_LIST*) lex->create_info.merge_list.first;
+               tab;
+               tab= tab->next_local)
+          {
+            if (unique_table(tab, select_tables))
+            {
+              net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
+              goto create_error;
+            }
+          }
         }
 
         if ((result= new select_create(create_table,

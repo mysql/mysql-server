@@ -476,6 +476,8 @@ public:
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline bool is_conventional() const
+  { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
