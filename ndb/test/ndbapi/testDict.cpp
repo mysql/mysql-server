@@ -1509,8 +1509,8 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   (void)pDic->dropTable(tab.getName());
 
   for (int l = 0; l < loops; l++) {
-    for (unsigned i = 0; i < tupcnt; i++) {
-      unsigned j = (l == 0 ? i : myRandom48(tupcnt));
+    for (unsigned i1 = 0; i1 < tupcnt; i1++) {
+      unsigned j = (l == 0 ? i1 : myRandom48(tupcnt));
       int errval = tuplst[j];
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
@@ -1522,8 +1522,8 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       CHECK2(pDic->dropTable(tab.getName()) == 0,
              pDic->getNdbError());
     }
-    for (unsigned i = 0; i < tuxcnt; i++) {
-      unsigned j = (l == 0 ? i : myRandom48(tuxcnt));
+    for (unsigned i2 = 0; i2 < tuxcnt; i2++) {
+      unsigned j = (l == 0 ? i2 : myRandom48(tuxcnt));
       int errval = tuxlst[j];
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
