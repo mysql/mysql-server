@@ -45672,7 +45672,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.41::                
+* News-3.23.41::                Changes in release 3.23.41
 * News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
@@ -45723,6 +45723,9 @@ not yet 100% confident in this code.
 @item
 Fixed optimizing bug in @code{ORDER BY} where some @code{ORDER BY} parts
 where wrongly removed.
+@item
+Fixed bug in @code{SELECT DISTINCT ... HAVING} that casued error message
+@code{Can't find record in '#...}
 @end itemize
 
 @node News-3.23.40, News-3.23.39, News-3.23.41, News-3.23.x
