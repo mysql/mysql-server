@@ -190,7 +190,7 @@ void
 sp_name::init_qname(THD *thd)
 {
   m_qname.length= m_db.length+m_name.length+1;
-  m_qname.str= alloc_root(&thd->mem_root, m_qname.length+1);
+  m_qname.str= thd->alloc(m_qname.length+1);
   sprintf(m_qname.str, "%*s.%*s",
 	  m_db.length, (m_db.length ? m_db.str : ""),
 	  m_name.length, m_name.str);
@@ -232,10 +232,9 @@ sp_head::operator new(size_t size)
   MEM_ROOT own_root;
   sp_head *sp;
 
-  bzero((char *)&own_root, sizeof(own_root));
   init_alloc_root(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-  sp= (sp_head *)alloc_root(&own_root, size);
-  sp->mem_root= own_root;
+  sp= (sp_head *) alloc_root(&own_root, size);
+  sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
 }
@@ -245,9 +244,10 @@ sp_head::operator delete(void *ptr, size_t size)
 {
   DBUG_ENTER("sp_head::operator delete");
   MEM_ROOT own_root;
-  sp_head *sp= (sp_head *)ptr;
+  sp_head *sp= (sp_head *) ptr;
 
-  memcpy(&own_root, (const void *)&sp->mem_root, sizeof(MEM_ROOT));
+  /* Make a copy of main_mem_root as free_root will free the sp */
+  own_root= sp->main_mem_root;
   DBUG_PRINT("info", ("mem_root 0x%lx moved to 0x%lx",
                       (ulong) &sp->mem_root, (ulong) &own_root));
   free_root(&own_root, MYF(0));
@@ -291,7 +291,7 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   DBUG_ENTER("sp_head::init_strings");
   uint n;			/* Counter for nul trimming */ 
   /* During parsing, we must use thd->mem_root */
-  MEM_ROOT *root= &thd->mem_root;
+  MEM_ROOT *root= thd->mem_root;
 
   /* We have to copy strings to get them into the right memroot */
   if (name)
@@ -916,19 +916,19 @@ sp_head::set_info(char *definer, uint definerlen,
   if (! p)
     p= definer;		// Weird...
   len= p-definer;
-  m_definer_user.str= strmake_root(&mem_root, definer, len);
+  m_definer_user.str= strmake_root(mem_root, definer, len);
   m_definer_user.length= len;
   len= definerlen-len-1;
-  m_definer_host.str= strmake_root(&mem_root, p+1, len);
+  m_definer_host.str= strmake_root(mem_root, p+1, len);
   m_definer_host.length= len;
   m_created= created;
   m_modified= modified;
-  m_chistics= (st_sp_chistics *)alloc_root(&mem_root, sizeof(st_sp_chistics));
-  memcpy(m_chistics, chistics, sizeof(st_sp_chistics));
+  m_chistics= (st_sp_chistics *) memdup_root(mem_root, (char*) chistics,
+                                             sizeof(*chistics));
   if (m_chistics->comment.length == 0)
     m_chistics->comment.str= 0;
   else
-    m_chistics->comment.str= strmake_root(&mem_root,
+    m_chistics->comment.str= strmake_root(mem_root,
 					  m_chistics->comment.str,
 					  m_chistics->comment.length);
   m_sql_mode= sql_mode;
@@ -939,14 +939,14 @@ sp_head::reset_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::reset_thd_mem_root");
   m_thd_root= thd->mem_root;
-  thd->mem_root= mem_root;
+  thd->mem_root= &main_mem_root;
   DBUG_PRINT("info", ("mem_root 0x%lx moved to thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
   free_list= thd->free_list; // Keep the old list
   thd->free_list= NULL;	// Start a new one
   /* Copy the db, since substatements will point to it */
   m_thd_db= thd->db;
-  thd->db= strmake_root(&thd->mem_root, thd->db, thd->db_length);
+  thd->db= thd->strmake(thd->db, thd->db_length);
   m_thd= thd;
   DBUG_VOID_RETURN;
 }

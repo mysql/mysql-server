@@ -166,7 +166,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
 
   bzero((char *)&chistics, sizeof(chistics));
-  if ((ptr= get_field(&thd->mem_root,
+  if ((ptr= get_field(thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_ACCESS])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -189,7 +189,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     chistics.daccess= SP_CONTAINS_SQL;
   }
 
-  if ((ptr= get_field(&thd->mem_root,
+  if ((ptr= get_field(thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_DETERMINISTIC])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -197,7 +197,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
   chistics.detistic= (ptr[0] == 'N' ? FALSE : TRUE);    
 
-  if ((ptr= get_field(&thd->mem_root,
+  if ((ptr= get_field(thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -205,7 +205,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
   chistics.suid= (ptr[0] == 'I' ? SP_IS_NOT_SUID : SP_IS_SUID);
 
-  if ((params= get_field(&thd->mem_root,
+  if ((params= get_field(thd->mem_root,
 			 table->field[MYSQL_PROC_FIELD_PARAM_LIST])) == NULL)
   {
     params= "";
@@ -213,14 +213,14 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 
   if (type == TYPE_ENUM_PROCEDURE)
     returns= "";
-  else if ((returns= get_field(&thd->mem_root,
+  else if ((returns= get_field(thd->mem_root,
 			       table->field[MYSQL_PROC_FIELD_RETURNS])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
 
-  if ((body= get_field(&thd->mem_root,
+  if ((body= get_field(thd->mem_root,
 		       table->field[MYSQL_PROC_FIELD_BODY])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -228,7 +228,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
 
   // Get additional information
-  if ((definer= get_field(&thd->mem_root,
+  if ((definer= get_field(thd->mem_root,
 			  table->field[MYSQL_PROC_FIELD_DEFINER])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -511,10 +511,10 @@ print_field_values(THD *thd, TABLE *table,
     String name_string;
     struct st_used_field *used_field= used_fields;
 
-    if (get_field(&thd->mem_root, used_field->field, &db_string))
+    if (get_field(thd->mem_root, used_field->field, &db_string))
       db_string.set_ascii("", 0);
     used_field+= 1;
-    get_field(&thd->mem_root, used_field->field, &name_string);
+    get_field(thd->mem_root, used_field->field, &name_string);
 
     if (!wild || !wild[0] || !wild_compare(name_string.ptr(), wild, 0))
     {
@@ -539,7 +539,7 @@ print_field_values(THD *thd, TABLE *table,
 	  {
 	    String tmp_string;
 
-	    get_field(&thd->mem_root, used_field->field, &tmp_string);
+	    get_field(thd->mem_root, used_field->field, &tmp_string);
 	    protocol->store(&tmp_string);
 	  }
 	  break;
@@ -982,7 +982,7 @@ sp_cache_functions(THD *thd, LEX *lex)
       newlex->proc_table= oldlex->proc_table; // hint if mysql.oper is opened
       name.m_name.str= strchr(name.m_qname.str, '.');
       name.m_db.length= name.m_name.str - name.m_qname.str;
-      name.m_db.str= strmake_root(&thd->mem_root,
+      name.m_db.str= strmake_root(thd->mem_root,
 				  name.m_qname.str, name.m_db.length);
       name.m_name.str+= 1;
       name.m_name.length= name.m_qname.length - name.m_db.length - 1;

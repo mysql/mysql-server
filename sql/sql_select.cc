@@ -1497,7 +1497,6 @@ JOIN::exec()
 	    are fixed or do not need fix_fields, too
 	  */
 	  curr_table->select->cond->quick_fix_field();
-          cur_tabl
 	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
@@ -1653,9 +1652,13 @@ Cursor::init_from_thd(THD *thd)
   /*
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
+
+    We can't just change the thd->mem_root here as we want to keep the things
+    that is already allocated in thd->mem_root for Cursor::fetch()
   */
-  mem_root=       thd->mem_root;
-  init_sql_alloc(&thd->mem_root,
+  main_mem_root=  *thd->mem_root;
+  /* Allocate new memory root for thd */
+  init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 
@@ -1669,7 +1672,7 @@ Cursor::init_from_thd(THD *thd)
   open_tables=    thd->open_tables;
   lock=           thd->lock;
   query_id=       thd->query_id;
-  free_list= thd->free_list;
+  free_list=	  thd->free_list;
   reset_thd(thd);
   /*
     XXX: thd->locked_tables is not changed.
@@ -1684,8 +1687,11 @@ Cursor::init_from_thd(THD *thd)
 void
 Cursor::init_thd(THD *thd)
 {
-  thd->mem_root= mem_root;
-
+  /*
+    Use the original mem_root, in which we store all memory allocated
+    during the lifetime of the cursor.
+  */
+  thd->mem_root= &main_mem_root;
   DBUG_ASSERT(thd->derived_tables == 0);
   thd->derived_tables= derived_tables;
 
@@ -1773,11 +1779,10 @@ int
 Cursor::fetch(ulong num_rows)
 {
   THD *thd= join->thd;
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;;
+  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   COND *on_expr= *join_tab->on_expr_ref;
   COND *select_cond= join_tab->select_cond;
   READ_RECORD *info= &join_tab->read_record;
-
   int error= 0;
 
   join->fetch_limit+= num_rows;
@@ -1853,7 +1858,6 @@ Cursor::fetch(ulong num_rows)
     ::send_eof(thd);
     thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
     /* save references to memory, allocated during fetch */
-    mem_root= thd->mem_root;
     free_list= thd->free_list;
     break;
     /* Limit clause worked: this is the same as 'no more rows' */
@@ -1875,8 +1879,7 @@ Cursor::fetch(ulong num_rows)
       Must be last, as some memory might be allocated for free purposes,
       like in free_tmp_table() (TODO: fix this issue)
     */
-    mem_root= thd->mem_root;
-    free_root(&mem_root, MYF(0));
+    free_root(&main_mem_root, MYF(0));
     break;
   default:
     close();
@@ -1888,8 +1891,7 @@ Cursor::fetch(ulong num_rows)
       Must be last, as some memory might be allocated for free purposes,
       like in free_tmp_table() (TODO: fix this issue)
     */
-    mem_root= thd->mem_root;
-    free_root(&mem_root, MYF(0));
+    free_root(&main_mem_root, MYF(0));
     break;
   }
   return error;
@@ -1940,7 +1942,7 @@ Cursor::~Cursor()
     Must be last, as some memory might be allocated for free purposes,
     like in free_tmp_table() (TODO: fix this issue)
   */
-  free_root(&mem_root, MYF(0));
+  free_root(&main_mem_root, MYF(0));
 }
 
 /*********************************************************************/

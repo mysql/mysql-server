@@ -113,6 +113,16 @@ public:
     }
     return 1;
   }
+  inline bool push_back(void *info, MEM_ROOT *mem_root)
+  {
+    if (((*last)=new (mem_root) list_node(info, &end_of_list)))
+    {
+      last= &(*last)->next;
+      elements++;
+      return 0;
+    }
+    return 1;
+  }
   inline bool push_front(void *info)
   {
     list_node *node=new list_node(info,first);
@@ -284,6 +294,8 @@ public:
   inline List() :base_list() {}
   inline List(const List<T> &tmp) :base_list(tmp) {}
   inline bool push_back(T *a) { return base_list::push_back(a); }
+  inline bool push_back(T *a, MEM_ROOT *mem_root)
+  { return base_list::push_back(a, mem_root); }
   inline bool push_front(T *a) { return base_list::push_front(a); }
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }

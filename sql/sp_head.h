@@ -231,7 +231,7 @@ public:
 
 private:
 
-  MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
+  MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
   THD *m_thd;			// Set if we have reset mem_root
   char *m_thd_db;		// Original thd->db pointer
 

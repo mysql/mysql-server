@@ -1174,7 +1174,7 @@ public:
       use new arena if we are in a prepared statements and we have not
       already changed to use this arena.
     */
-    if (current_arena->is_stmt_prepare() &&
+    if (!current_arena->is_conventional() &&
         mem_root != &current_arena->main_mem_root)
     {
       set_n_backup_item_arena(current_arena, backup);

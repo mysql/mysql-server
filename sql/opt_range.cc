@@ -1041,7 +1041,7 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
   rowid_length= table->file->ref_length;
   record= head->record[0];
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-  thd_param->malloc= &alloc;
+  thd_param->mem_root= &alloc;
 }
 
 
@@ -7497,7 +7497,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
   if (!parent_alloc)
   {
     init_sql_alloc(&alloc, join->thd->variables.range_alloc_block_size, 0);
-    thd->mem_root= &alloc;
+    join->thd->mem_root= &alloc;
   }
   else
     bzero(&alloc, sizeof(MEM_ROOT));            // ensure that it's not used
