@@ -47,7 +47,7 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 {
   Uint32        tNode;
   Uint32        tAnyAlive = 0;
-  int TretCode;
+  int TretCode= 0;
 
   if (tConNode != 0) {
     TretCode = NDB_connect(tConNode);
@@ -892,7 +892,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
   DBUG_PRINT("enter", ("table=%u value=%llu op=%u", aTableId, opValue, op));
 
   NdbTransaction*     tConnection;
-  NdbOperation*      tOperation;
+  NdbOperation*      tOperation= 0; // Compiler warning if not initialized
   Uint64             tValue;
   NdbRecAttr*        tRecAttrResult;
   int                result;
