@@ -30,6 +30,7 @@ extern my_string master_user, master_password, master_host,
   master_info_file;
 
 extern I_List<i_string> replicate_do_db, replicate_ignore_db;
+extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;
 bool slave_running = 0;
 pthread_t slave_real_id;
@@ -48,6 +49,7 @@ static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
+static inline char* rewrite_db(char* db);
 
 static inline bool slave_killed(THD* thd)
 {
@@ -62,6 +64,20 @@ static inline void skip_load_data_infile(NET* net)
   send_ok(net); // the master expects it
 }
 
+static inline char* rewrite_db(char* db)
+{
+  if(replicate_rewrite_db.is_empty() || !db) return db;
+  I_List_iterator<i_string_pair> it(replicate_rewrite_db);
+  i_string_pair* tmp;
+
+  while((tmp=it++))
+    {
+      if(!strcmp(tmp->key, db))
+	return tmp->val;
+    }
+
+  return db;
+}
 
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list )
@@ -278,11 +294,11 @@ int init_master_info(MASTER_INFO* mi)
   if(!my_stat(fname, &stat_area, MYF(0))) // we do not want any messages
     // if the file does not exist
     {
-      file = my_fopen(fname, O_CREAT|O_RDWR, MYF(MY_WME));
+      file = my_fopen(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME));
       if(!file)
 	return 1;
       mi->log_file_name[0] = 0;
-      mi->pos = 0;
+      mi->pos = 4; // skip magic number
       mi->file = file;
       
       if(master_host)
@@ -299,7 +315,7 @@ int init_master_info(MASTER_INFO* mi)
     }
   else
     {
-      file = my_fopen(fname, O_RDWR, MYF(MY_WME));
+      file = my_fopen(fname, O_RDWR|O_BINARY, MYF(MY_WME));
       if(!file)
 	return 1;
       
@@ -589,7 +605,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       Query_log_event* qev = (Query_log_event*)ev;
       int q_len = qev->q_len;
       init_sql_alloc(&thd->mem_root, 8192,0);
-      thd->db = (char*)qev->db;
+      thd->db = rewrite_db((char*)qev->db);
       if(db_ok(thd->db, replicate_do_db, replicate_ignore_db))
       {
 	thd->query = (char*)qev->query;
@@ -645,7 +661,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     {
       Load_log_event* lev = (Load_log_event*)ev;
       init_sql_alloc(&thd->mem_root, 8192,0);
-      thd->db = (char*)lev->db;
+      thd->db = rewrite_db((char*)lev->db);
       thd->query = 0;
       thd->query_error = 0;
 	    
@@ -766,7 +782,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       int ident_len = rev->ident_len;
       memcpy(mi->log_file_name, rev->new_log_ident,ident_len );
       mi->log_file_name[ident_len] = 0;
-      mi->pos = 0;
+      mi->pos = 4; // skip magic number
+      flush_master_info(mi);
       break;
     }
 

@@ -339,7 +339,6 @@ typedef struct st_mi_check_param
 
 
 typedef struct st_mi_sortinfo {
-  uint key_length;
   ha_rows max_records;
   SORT_INFO *sort_info;
   char *tmpdir;
@@ -347,6 +346,8 @@ typedef struct st_mi_sortinfo {
   int (*key_read)(SORT_INFO *info,void *buff);
   int (*key_write)(SORT_INFO *info, const void *buff);
   void (*lock_in_memory)(MI_CHECK *info);
+  uint key_length;
+  myf myf_rw;
 } MI_SORT_PARAM;
 
 /* functions in mi_check */

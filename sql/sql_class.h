@@ -218,6 +218,17 @@ public:
   i_string(char* s) : ptr(s) {}
 };
 
+//needed for linked list of two strings for replicate-rewrite-db
+class i_string_pair: public ilink
+{
+public:
+  char* key;
+  char* val;
+  i_string_pair():key(0),val(0) { }
+  i_string_pair(char* key, char* val) : key(key),val(val) {}
+};
+
+
 /****************************************************************************
 ** every connection is handle by a thread with a THD
 ****************************************************************************/
@@ -264,6 +275,7 @@ public:
   ulonglong  next_insert_id,last_insert_id,current_insert_id;
   ha_rows select_limit,offset_limit,default_select_limit,cuted_fields,
           max_join_size,sent_row_count;
+  table_map	used_tables;
   ulong query_id,version, inactive_timeout,options,thread_id;
   long  dbug_thread_id;
   pthread_t  real_id;

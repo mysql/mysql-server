@@ -24,12 +24,14 @@
 #include <myisam.h>
 #include <ft_global.h>
 
-enum myisam_recover_types { HA_RECOVER_NONE, HA_RECOVER_DEFAULT,
-			    HA_RECOVER_BACKUP};
+#define HA_RECOVER_NONE		0	// No automatic recover
+#define HA_RECOVER_DEFAULT	1	// Automatic recover active
+#define HA_RECOVER_BACKUP	2	// Make a backupfile on recover
+#define HA_RECOVER_FORCE	4	// Recover even if we loose rows
 
 extern ulong myisam_sort_buffer_size;
 extern TYPELIB myisam_recover_typelib;
-extern myisam_recover_types myisam_recover_type;
+extern ulong myisam_recover_options;
 
 class ha_myisam: public handler
 {
@@ -39,11 +41,12 @@ class ha_myisam: public handler
 
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
-    int_option_flag(HA_READ_NEXT+HA_READ_PREV+HA_READ_RND_SAME+
-		    HA_KEYPOS_TO_RNDPOS+ HA_READ_ORDER+ HA_LASTKEY_ORDER+
-		    HA_HAVE_KEY_READ_ONLY+ HA_READ_NOT_EXACT_KEY+
-		    HA_LONGLONG_KEYS+ HA_NULL_KEY +
-		    HA_DUPP_POS + HA_BLOB_KEY + HA_AUTO_PART_KEY)
+    int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
+		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |  HA_LASTKEY_ORDER |
+		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
+		    HA_LONGLONG_KEYS |  HA_NULL_KEY |
+		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY |
+		    HA_CHECK_AND_REPAIR)
   {}
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
@@ -100,6 +103,7 @@ class ha_myisam: public handler
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  bool check_and_repair(THD *thd, const char *name);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int restore(THD* thd, HA_CHECK_OPT* check_opt);
   int backup(THD* thd, HA_CHECK_OPT* check_opt);

@@ -1543,12 +1543,12 @@ com_edit(String *buffer,char *line __attribute__((unused)))
   put_info("Sorry, you can't send the result to an editor in Win32",
 	   INFO_ERROR);
 #else
-  char	*filename,buff[160];
+  char	filename[FN_REFLEN],buff[160];
   int	fd,tmp;
   const char *editor;
 
-  filename = my_tempnam(NullS,"sql",MYF(MY_WME));
-  if ((fd = my_create(filename,0,O_CREAT | O_WRONLY, MYF(MY_WME))) < 0)
+  if ((fd=create_temp_file(filename,NullS,"sql", O_CREAT | O_WRONLY,
+			   MYF(MY_WME))) < 0)
     goto err;
   if (buffer->is_empty() && !old_buffer.is_empty())
     (void) my_write(fd,(byte*) old_buffer.ptr(),old_buffer.length(),
@@ -1576,7 +1576,6 @@ com_edit(String *buffer,char *line __attribute__((unused)))
   (void) my_close(fd,MYF(0));
   (void) my_delete(filename,MYF(MY_WME));
 err:
-  free(filename);
 #endif
   return 0;
 }

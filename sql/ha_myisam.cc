@@ -31,10 +31,11 @@
 #endif
 
 ulong myisam_sort_buffer_size;
-myisam_recover_types myisam_recover_type= HA_RECOVER_NONE;
+ulong myisam_recover_options= HA_RECOVER_NONE;
 
+/* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
-{ "NO","DEFAULT", "BACKUP"};
+{ "DEFAULT", "BACKUP", "FORCE"};
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names),"",
 				 myisam_recover_names};
 
@@ -152,7 +153,7 @@ int ha_myisam::dump(THD* thd, int fd)
   my_off_t bytes_to_read = share->state.state.data_file_length;
   int data_fd = file->dfile;
   byte * buf = (byte*) my_malloc(blocksize, MYF(MY_WME));
-  if(!buf)
+  if (!buf)
     return ENOMEM;
 
   int error = 0;
@@ -249,10 +250,11 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (!mi_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
-	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR)) &&
+	!(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
+				  STATE_CRASHED_ON_REPAIR)) &&
 	share->state.open_count == 0) ||
-       ((param.testflag & T_FAST) && share->state.open_count == 0)))
+       ((param.testflag & T_FAST) && (share->state.open_count ==
+				      (share->global_changed ? 1 : 0)))))
     return HA_ADMIN_ALREADY_DONE;
 
   error = chk_size(&param, file);
@@ -342,19 +344,19 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   char* backup_dir = thd->lex.backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
-  if(!fn_format(src_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
+  if (!fn_format(src_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
     return HA_ADMIN_INVALID;
 
   int error = 0;
   const char* errmsg = "";
   
-  if(my_copy(src_path, fn_format(dst_path, table->path, "",
-				 MI_NAME_DEXT, 4), MYF(MY_WME)))
-    {
-      error = HA_ADMIN_FAILED;
-      errmsg = "failed in my_copy( Error %d)";
-      goto err;
-    }
+  if (my_copy(src_path, fn_format(dst_path, table->path, "",
+				  MI_NAME_DEXT, 4), MYF(MY_WME)))
+  {
+    error = HA_ADMIN_FAILED;
+    errmsg = "failed in my_copy( Error %d)";
+    goto err;
+  }
   
   tmp_check_opt.init();
   tmp_check_opt.quick = 1;
@@ -373,26 +375,27 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   }
 }
 
+
 int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 {
   char* backup_dir = thd->lex.backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
-  if(!fn_format(dst_path, table_name, backup_dir, reg_ext, 4 + 64))
+  if (!fn_format(dst_path, table_name, backup_dir, reg_ext, 4 + 64))
     return HA_ADMIN_INVALID;
-  if(my_copy(fn_format(src_path, table->path,"", reg_ext, 4),
+  if (my_copy(fn_format(src_path, table->path,"", reg_ext, 4),
 	     dst_path,
 	     MYF(MY_WME | MY_HOLD_ORIGINAL_MODES )))
-    {
-      return HA_ADMIN_FAILED;
-    }
+  {
+    return HA_ADMIN_FAILED;
+  }
 
-  if(!fn_format(dst_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
+  if (!fn_format(dst_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
     return HA_ADMIN_INVALID;
 
-  if(my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT, 4),
-	     dst_path,
-	     MYF(MY_WME | MY_HOLD_ORIGINAL_MODES ))  )
+  if (my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT, 4),
+	      dst_path,
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES ))  )
     return HA_ADMIN_FAILED;
 
   return HA_ADMIN_OK;
@@ -571,6 +574,33 @@ bool ha_myisam::activate_all_index(THD *thd)
   }
   DBUG_RETURN(error);
 }
+
+
+bool ha_myisam::check_and_repair(THD *thd, const char *name)
+{
+  int error=0;
+  HA_CHECK_OPT check_opt;
+  DBUG_ENTER("ha_myisam::auto_check_and_repair");
+
+  if (open(name, O_RDWR, HA_OPEN_WAIT_IF_LOCKED))
+    DBUG_RETURN(1);
+
+  check_opt.init();
+  check_opt.flags=T_MEDIUM;
+  if (mi_is_crashed(file) || check(thd, &check_opt))
+  {
+    check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ? 
+		      T_BACKUP_DATA : 0) |
+		     (!(myisam_recover_options & HA_RECOVER_FORCE) ? 
+		      T_SAFE_REPAIR : 0));
+    if (repair(thd, &check_opt))
+      error=1;
+  }
+  if (close())
+    error=1;
+  DBUG_RETURN(error);
+}
+
 
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {

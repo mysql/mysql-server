@@ -865,7 +865,6 @@ static int merge_index(SORTPARAM *param, uchar **sort_keys,
 		    buffpek+maxbuffer,1))
     DBUG_RETURN(1);				/* purecov: inspected */
   DBUG_RETURN(0);
-  /* Was: DBUG_RETURN(my_b_write(outfile,last_ref,param->ref_length)); */
 } /* merge_index */
 
 

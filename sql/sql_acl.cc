@@ -2004,6 +2004,8 @@ bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
       want_access &= ~table->grant.privilege;
       goto err;					// No grants
     }
+    if (show_table)
+      continue;					// We have some priv on this
 
     table->grant.grant_table=grant_table;	// Remember for column test
     table->grant.version=grant_version;
@@ -2013,8 +2015,6 @@ bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
 
     if (!(~table->grant.privilege & want_access))
       continue;
-    if (show_table && table->grant.privilege)
-      continue;					// Test from show tables
 
     if (want_access & ~(grant_table->cols | table->grant.privilege))
     {
@@ -2457,18 +2457,18 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	!strcmp(lex_user->host.str,host))
     {
       want_access=grant_table->privs;
-      if (want_access) 
+      if ((want_access | grant_table->cols) != 0)
       {
 	String global(buff,sizeof(buff));
 	global.length(0);
 	global.append("GRANT ",6);
 
-	if (test_all_bits(want_access,(TABLE_ACLS & ~GRANT_ACL)))
+	if (test_all_bits(grant_table->privs,(TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
 	else 
 	{
 	  int found=0;
-	  uint j,test_access= want_access & ~GRANT_ACL;
+	  uint j,test_access= (want_access | grant_table->cols) & ~GRANT_ACL;
 
 	  for (counter=0, j = SELECT_ACL;j <= TABLE_ACLS; counter++,j <<= 1)
 	  {

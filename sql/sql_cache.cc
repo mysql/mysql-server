@@ -19,10 +19,10 @@
 #include <my_dir.h>
 #include <hash.h>
 
-#define SQL_CACHE_LENGTH 300
+#define SQL_CACHE_LENGTH 30			// 300 crashes apple gcc.
 
 HASH sql_cache;
-LEX lex_array_static[SQL_CACHE_LENGTH];
+static LEX lex_array_static[SQL_CACHE_LENGTH];
 LEX * lex_array = lex_array_static;
 int last_lex_array_item = SQL_CACHE_LENGTH - 1;
 

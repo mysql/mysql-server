@@ -32,6 +32,8 @@ static struct option long_options[] =
 {
   {"config-file",	required_argument, 0,	'c'},
   {"defaults-file",	required_argument, 0,	'c'},
+  {"defaults-extra-file", required_argument, 0,	'e'},
+  {"extra-file", 	required_argument, 0,	'e'},
   {"no-defaults",	no_argument,	   0,	'd'},
   {"help",		no_argument,	   0,	'?'},
   {"version",		no_argument,	   0,	'V'},
@@ -40,7 +42,7 @@ static struct option long_options[] =
 
 static void usage(my_bool version)
 {
-  printf("%s  Ver 1.1 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.2 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
   if (version)
     return;
@@ -48,8 +50,11 @@ static void usage(my_bool version)
   puts("Prints all arguments that is give to some program using the default files");
   printf("Usage: %s [OPTIONS] groups\n",my_progname);
   printf("\n\
-  -c, --config-file=# --defaults-file=#\n\
+  -c, --config-file=#, --defaults-file=#\n\
 	                The config file to use (default '%s')\n\
+  -e, --extra-file=#, --defaults-extra-file=#\n\
+			Read this file after the global /etc config file and\n\
+			before the config file in the users home directory.\n\
   --no-defaults		Return an empty string (useful for scripts)\n\
   -?, --help		Display this help message and exit.\n\
   -V, --version		Output version information and exit.\n",
@@ -61,12 +66,15 @@ static int get_options(int *argc,char ***argv)
 {
   int c,option_index;
 
-  while ((c=getopt_long(*argc,*argv,"c:V?I",
+  while ((c=getopt_long(*argc,*argv,"c:e:V?I",
 			long_options, &option_index)) != EOF)
   {
     switch (c) {
     case 'c':
       config_file=optarg;
+      break;
+    case 'e':
+      defaults_extra_file=optarg;		/* Used by the load_defaults */
       break;
     case 'n':
       exit(0);
@@ -102,7 +110,7 @@ int main(int argc, char **argv)
   if (get_options(&argc,&argv))
     exit(1);
   if (!(load_default_groups=(char**) my_malloc((argc+2)*sizeof(char*),
-					      MYF(MY_WME))))
+					       MYF(MY_WME))))
     exit(1);
 
   for (count=0; *argv ; argv++,count++)
