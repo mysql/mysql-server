@@ -542,49 +542,6 @@ private:
     void progError(int line, int cause, const char* file);
   };
 
-  // parameters for methods
-  
-  /*
-   * Copy attribute data.
-   */
-  struct CopyPar {
-    unsigned m_items;           // number of attributes
-    bool m_headers;             // copy headers flag (default true)
-    unsigned m_maxwords;        // limit size (default no limit)
-    // output
-    unsigned m_numitems;        // number of attributes fully copied
-    unsigned m_numwords;        // number of words copied
-    CopyPar();
-  };
-
-  /*
-   * Read index key attributes.
-   */
-  struct ReadPar;
-  friend struct ReadPar;
-  struct ReadPar {
-    TreeEnt m_ent;              // tuple to read
-    unsigned m_first;           // first index attribute
-    unsigned m_count;           // number of consecutive index attributes
-    Data m_data;                // set pointer if 0 else copy result to it
-    unsigned m_size;            // number of words (set in read keys only)
-    ReadPar();
-  };
-
-  /*
-   * Scan bound comparison.
-   */
-  struct BoundPar;
-  friend struct BoundPar;
-  struct BoundPar {
-    ConstData m_data1;          // full bound data
-    ConstData m_data2;          // full or prefix data
-    unsigned m_count1;          // number of bounds
-    unsigned m_len2;            // words in data2 buffer
-    unsigned m_dir;             // 0-lower bound 1-upper bound
-    BoundPar();
-  };
-
   // methods
 
   /*
@@ -596,7 +553,7 @@ private:
   // utils
   void setKeyAttrs(const Frag& frag);
   void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData keyData);
-  void copyAttrs(Data dst, ConstData src, CopyPar& copyPar);
+  void readTablePk(const Frag& frag, TreeEnt ent, unsigned& pkSize, Data pkData);
   void copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
 
   /*
@@ -614,8 +571,6 @@ private:
    * DbtuxMaint.cpp
    */
   void execTUX_MAINT_REQ(Signal* signal);
-  void tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar);
-  void tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar);
   
   /*
    * DbtuxNode.cpp
@@ -1224,36 +1179,6 @@ Dbtux::NodeHandle::getMinMax(unsigned i)
 }
 
 // parameters for methods
-
-inline
-Dbtux::CopyPar::CopyPar() :
-  m_items(0),
-  m_headers(true),
-  m_maxwords(~0),       // max unsigned
-  // output
-  m_numitems(0),
-  m_numwords(0)
-{
-}
-
-inline
-Dbtux::ReadPar::ReadPar() :
-  m_first(0),
-  m_count(0),
-  m_data(0),
-  m_size(0)
-{
-}
-
-inline
-Dbtux::BoundPar::BoundPar() :
-  m_data1(0),
-  m_data2(0),
-  m_count1(0),
-  m_len2(0),
-  m_dir(255)
-{
-}
 
 #ifdef VM_TRACE
 inline

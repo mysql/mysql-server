@@ -1014,9 +1014,15 @@ public:
   void tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData);
 
   /*
-   * TUX reads primary key for md5 summing and when returning keyinfo.
+   * TUX reads primary key without headers into an array of words.  Used
+   * for md5 summing and when returning keyinfo.
    */
-  void tuxReadKeys();   // under construction
+  void tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pkSize, Uint32* pkData);
+
+  /*
+   * TUX checks if tuple is visible to scan.
+   */
+  bool tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId);
 
 private:
   BLOCK_DEFINES(Dbtup);
