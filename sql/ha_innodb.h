@@ -84,6 +84,7 @@ class ha_innobase: public handler
 			  HA_CAN_SQL_HANDLER |
 			  HA_NOT_EXACT_COUNT |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
+                          HA_NO_VARCHAR |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0),

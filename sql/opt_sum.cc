@@ -562,8 +562,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       store_val_in_field(part->field, args[between && max_fl ? 2 : 1]);
       if (part->null_bit) 
         *key_ptr++= (byte) test(part->field->is_null());
-      part->field->get_key_image((char*) key_ptr, part->length,
-                                 part->field->charset(), Field::itRAW);
+      part->field->get_key_image((char*) key_ptr, part->length, Field::itRAW);
     }
     if (is_field_part)
     {

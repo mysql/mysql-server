@@ -244,14 +244,21 @@ static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
 
 static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
 			       const uchar *a, uint a_length, 
-			       const uchar *b, uint b_length)
+			       const uchar *b, uint b_length,
+                               my_bool diff_if_only_endspace_difference)
 {
-  const uchar *a_end= a + a_length;
-  const uchar *b_end= b + b_length;
+  const uchar *a_end= a + a_length, *b_end= b + b_length;
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
+
   if (!res && (a != a_end || b != b_end))
   {
     int swap= 0;
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -262,6 +269,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
       a_end= b_end;
       a= b;
       swap= -1;				/* swap sign of result */
+      res= -res;
     }
     for (; a < a_end ; a++)
     {
@@ -347,8 +355,14 @@ static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == w_many)
     {						/* '%' in SQL */
-      *min_length = (uint)(min_str - min_org);
-      *max_length = res_length;
+      /*
+        Calculate length of keys:
+        'a\0\0... is the smallest possible string when we have space expand
+        a\ff\ff... is the biggest possible string
+      */
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+                    res_length);
+      *max_length= res_length;
       do
       {
 	*min_str++= 0;
@@ -358,9 +372,10 @@ static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
     }
     *min_str++ = *max_str++ = *ptr++;
   }
-  *min_length = *max_length = (uint)(min_str - min_org);
-  while (min_str < min_end)
-    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+
+  *min_length= *max_length= (uint) (min_str - min_org);
+  while (min_str != min_end)
+    *min_str++= *max_str++= ' ';              /* Because if key compression */
   return 0;
 }
 
