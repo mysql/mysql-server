@@ -19,7 +19,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <m_ctype.h>
-
+#include <my_getopt.h>
 	/* set all changeable variables */
 
 void set_all_changeable_vars(CHANGEABLE_VAR *vars)
@@ -104,6 +104,81 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
 	num=(longlong) (ulong) found->max_value;
       num=((num- (longlong) found->sub_size) / (ulonglong) found->block_size);
       (*found->varptr)= (long) (num*(ulonglong) found->block_size);
+      DBUG_RETURN(0);
+    }
+  }
+  DBUG_RETURN(1);
+}
+
+my_bool my_set_changeable_var(my_string str, const struct my_option *vars)
+{
+  char endchar;
+  my_string end;
+  DBUG_ENTER("my_set_changeable_var");
+  DBUG_PRINT("enter",("%s",str));
+
+  if (str)
+  {
+    if (!(end=strchr(str,'=')))
+      fprintf(stderr,"Can't find '=' in expression '%s' to option -O\n",str);
+    else
+    {
+      uint length,found_count=0;
+      const struct my_option *var, *found;
+      my_string var_end;
+      const char *name;
+      longlong num;
+
+      /* Skip end space from variable */
+      for (var_end=end ; end > str && isspace(var_end[-1]) ; var_end--) ;
+      length=(uint) (var_end-str);
+      /* Skip start space from argument */
+      for (end++ ; isspace(*end) ; end++) ;
+
+      for (var= vars, found= 0; (name= var->name); var++)
+      {
+	if (var->changeable_var)
+	{
+	  if (!my_casecmp(name, str, length))
+	  {
+	    found= var; found_count++;
+	    if (!name[length])
+	    {
+	      found_count=1;
+	      break;
+	    }
+	  }
+	}
+      }
+      if (found_count == 0)
+      {
+	fprintf(stderr,"No variable match for: -O '%s'\n",str);
+	DBUG_RETURN(1);
+      }
+      if (found_count > 1)
+      {
+	fprintf(stderr,"Variable prefix '%*s' is not unique\n",length,str);
+	DBUG_RETURN(1);
+      }
+
+      num=strtoll(end, (char **)NULL, 10); endchar=strend(end)[-1];
+      if (endchar == 'k' || endchar == 'K')
+	num*=1024;
+      else if (endchar == 'm' || endchar == 'M')
+	num*=1024L*1024L;
+      else if (endchar == 'g' || endchar == 'G')
+	num*=1024L*1024L*1024L;
+      else if (!isdigit(endchar))
+      {
+	fprintf(stderr,"Unknown prefix used for variable value '%s'\n",str);
+	DBUG_RETURN(1);
+      }
+      if (num < (longlong) found->min_value)
+	num=(longlong) found->min_value;
+      else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) found->max_value)
+	num=(longlong) (ulong) found->max_value;
+      num=((num- (longlong) found->sub_size) / (ulonglong) found->block_size);
+      /*      (*found->varptr)= (long) (num*(ulonglong) found->block_size);*/
       DBUG_RETURN(0);
     }
   }
