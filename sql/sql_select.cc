@@ -2131,7 +2131,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields,uint and_level,
+add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 	      Field *field,bool eq_func,Item **value, uint num_values,
 	      table_map usable_tables)
 {
@@ -2198,6 +2198,17 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 	  (*value)->result_type() != STRING_RESULT &&
 	  field->cmp_type() != (*value)->result_type())
 	return;
+      
+      /*
+        We can't use indexes if the effective collation
+        of the operation differ from the field collation.
+      */
+      if (field->result_type() == STRING_RESULT &&
+	  (*value)->result_type() == STRING_RESULT &&
+	  field->cmp_type() == STRING_RESULT &&
+	  ((Field_str*)field)->charset() != cond->compare_collation())
+	return;
+
     }
   }
   DBUG_ASSERT(num_values == 1);
@@ -2261,7 +2272,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     // BETWEEN or IN
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->key_item()->real_item()))->
 		    field, 0,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
@@ -2275,7 +2286,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
 		    ->field,
 		    equal_func,
@@ -2285,7 +2296,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	cond_func->functype() != Item_func::LIKE_FUNC &&
 	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[1])->real_item())
 		    ->field,
 		    equal_func,
@@ -2301,7 +2312,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       Item *tmp=new Item_null;
       if (!tmp)					// Should never be true
 	return;
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
 		    ->field,
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
