@@ -5,3 +5,17 @@ SELECT s, id FROM t1 WHERE s = 'mouse';
 s	id
 mouse	3
 drop table t1;
+CREATE TABLE t1 (
+node int(11) NOT NULL default '0',
+maxchild int(11) NOT NULL default '0',
+PRIMARY KEY  (`node`)
+);
+INSERT INTO t1 (node, maxchild) VALUES (4,4),(5,5),(1,244);
+SELECT * FROM t1 g1, t1 g2 
+WHERE g1.node <= g2.node and g2.node <= g1.maxchild and g2.node = g2.maxchild;
+node	maxchild	node	maxchild
+4	4	4	4
+5	5	5	5
+1	244	4	4
+1	244	5	5
+DROP TABLE t1;
