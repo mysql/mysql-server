@@ -12423,6 +12423,12 @@ mysql> SELECT name, birth FROM pet ORDER BY birth;
 +----------+------------+
 @end example
 
+On character type columns, sorting@-like all other comparison
+operations@-is normally performed in a case-insensitive fashion.
+This means that the order will be undefined for columns that are identical
+except for their case. You can force a case-sensitive sort by using the
+BINARY cast: @code{ORDER BY BINARY(field)}.
+
 To sort in reverse order, add the @code{DESC} (descending) keyword to the
 name of the column you are sorting by:
 
@@ -29338,6 +29344,15 @@ because of the @samp{:} delimiter, but if used in a date context will be
 interpreted as the year @code{'2010-11-12'}.  The value @code{'10:45:15'}
 will be converted to @code{'0000-00-00'} because @code{'45'} is not a legal
 month.
+
+@item
+The MySQL server only performs basic checking on the validity of a date:
+days @code{00-31}, months @code{00-12}, years @code{1000-9999}.
+Any date not within this range will revert to @code{0000-00-00}.
+Please note that this still allows you to store invalid dates such as
+@code{2002-04-31}. It allows web applications to store data from a form
+without further checking. To ensure a date is valid, perform a check in
+your application.
 
 @item
 Year values specified as two digits are ambiguous, because the century is
@@ -49098,7 +49113,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Query cache disabled in @code{mysqldump}.
+Fixed bug in phrase operator @code{"..."} in boolean fulltext search.
+@item
+Fixed bug that caused duplicated rows when using truncation operator
+@code{*} in boolean fulltext search.
+@item
+Fixed bug in boolean fulltext search, that caused a crash when an identical
+@code{MATCH} expression that did not use an index appeared twice.
+@item
+Query cache disabled in mysqldump.
 @item
 Fixed problem on Windows 98 that made sending of results very slow.
 @item
