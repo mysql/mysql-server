@@ -8361,7 +8361,7 @@ and not only the first argument.
 @item
 @code{AUTO_INCREMENT} will not work with negative numbers. The reason
 for this is that negative numbers caused problems when wrapping from -1 to 0.
-@code{AUTO_INCREMENT} for MyISAM tables is no handled at a lower level and
+@code{AUTO_INCREMENT} for MyISAM tables is now handled at a lower level and
 is much faster than before. For MyISAM tables old numbers are also not reused
 anymore, even if you delete some rows from the table.
 
@@ -13404,7 +13404,7 @@ mysql> SELECT * FROM shop;
 * example-Foreign keys::        Using foreign keys
 * Searching on two keys::       Searching on Two Keys
 * Calculating days::            Calculating Visits Per Day
-* example-AUTO_INCREMENT::      Using AUTO_INCREMENT
+* example-AUTO_INCREMENT::      Using @code{AUTO_INCREMENT}
 @end menu
 
 
