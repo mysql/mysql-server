@@ -111,3 +111,34 @@ DateOfAction	TransactionID
 member_id	nickname	voornaam
 1		
 2		
+gid	sid	uid
+104620	5	15
+103867	5	27
+103962	5	27
+104619	5	75
+104505	5	117
+103853	5	250
+gid	sid	uid
+104620	5	15
+103867	5	27
+103962	5	27
+104619	5	75
+104505	5	117
+103853	5	250
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index
+t2	eq_ref	PRIMARY,uid	PRIMARY	4	t1.gid	1	
+t3	eq_ref	PRIMARY	PRIMARY	2	t2.uid	1	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index
+t3	eq_ref	PRIMARY	PRIMARY	2	t1.gid	1	where used
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index; Using temporary; Using filesort
+t2	eq_ref	PRIMARY,uid	PRIMARY	4	t1.gid	1	
+t3	eq_ref	PRIMARY	PRIMARY	2	t2.uid	1	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index; Using temporary; Using filesort
+t3	eq_ref	PRIMARY	PRIMARY	2	t1.gid	1	where used
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+t3	eq_ref	PRIMARY	PRIMARY	2	t1.skr	1	where used
