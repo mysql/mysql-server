@@ -1367,32 +1367,9 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   }
 
   /*
-    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE. It is
-    notable that the last kilobytes of it (8 kB for example) may live in
-    memory, not on disk (depending on what the thread using it does). While
-    this is efficient, it has a side-effect one must know: 
-    The size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
-    few kilobytes less than one would expect by doing SHOW SLAVE STATUS; this
-    happens when only the IO thread is started (not the SQL thread). The
-    "missing" kilobytes are in memory, are preserved during 'STOP SLAVE; START
-    SLAVE IO_THREAD', and are flushed to disk when the slave's mysqld stops. So
-    this does not cause any bug. Example of how disk size grows by leaps:
-
-     Read_Master_Log_Pos: 7811 -rw-rw----    1 guilhem  qq              4 Jun  5 16:19 gbichot2-relay-bin.002
-     ...later...
-     Read_Master_Log_Pos: 9744 -rw-rw----    1 guilhem  qq           8192 Jun  5 16:27 gbichot2-relay-bin.002
-
-    See how 4 is less than 7811 and 8192 is less than 9744.
-
-    WARNING: this is risky because the slave can stay like this for a long
-    time; then if it has a power failure, master.info says the I/O thread has
-    read until 9744 while the relay-log contains only until 8192 (the
-    in-memory part from 8192 to 9744 has been lost), so the SQL slave thread
-    will miss some events, silently breaking replication.
-    Ideally we would like to flush master.info only when we know that the relay
-    log has no in-memory tail.
-    Note that the above problem may arise only when only the IO thread is
-    started, which is unlikely.
+    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
+    Note that the I/O thread flushes it to disk after writing every event, in
+    flush_master_info(mi, 1).
   */
 
   /*
@@ -1578,7 +1555,7 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   save_proc_info= thd->enter_cond(&rli->log_space_cond,
 				  &rli->log_space_lock, 
 				  "\
-Waiting for the SQL slave thread to free enough relay log space");
+Waiting for the slave SQL thread to free enough relay log space");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
@@ -1849,7 +1826,7 @@ file '%s')", fname);
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
-  if ((error=test(flush_master_info(mi))))
+  if ((error=test(flush_master_info(mi, 1))))
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -1964,7 +1941,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 						     sizeof(mi->user)));
   field_list.push_back(new Item_return_int("Master_Port", 7,
 					   MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Connect_retry", 10,
+  field_list.push_back(new Item_return_int("Connect_Retry", 10,
 					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Master_Log_File",
 					     FN_REFLEN));
@@ -1978,24 +1955,24 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 					     FN_REFLEN));
   field_list.push_back(new Item_empty_string("Slave_IO_Running", 3));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running", 3));
-  field_list.push_back(new Item_empty_string("Replicate_do_db", 20));
-  field_list.push_back(new Item_empty_string("Replicate_ignore_db", 20));
-  field_list.push_back(new Item_empty_string("Replicate_do_table", 20));
-  field_list.push_back(new Item_empty_string("Replicate_ignore_table", 23));
-  field_list.push_back(new Item_empty_string("Replicate_wild_do_table", 24));
-  field_list.push_back(new Item_empty_string("Replicate_wild_ignore_table",
+  field_list.push_back(new Item_empty_string("Replicate_Do_DB", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_DB", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Do_Table", 20));
+  field_list.push_back(new Item_empty_string("Replicate_Ignore_Table", 23));
+  field_list.push_back(new Item_empty_string("Replicate_Wild_Do_Table", 24));
+  field_list.push_back(new Item_empty_string("Replicate_Wild_Ignore_Table",
 					     28));
-  field_list.push_back(new Item_return_int("Last_errno", 4, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Last_error", 20));
-  field_list.push_back(new Item_return_int("Skip_counter", 10,
+  field_list.push_back(new Item_return_int("Last_Errno", 4, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Last_Error", 20));
+  field_list.push_back(new Item_return_int("Skip_Counter", 10,
 					   MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Exec_master_log_pos", 10,
+  field_list.push_back(new Item_return_int("Exec_Master_Log_Pos", 10,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_return_int("Relay_log_space", 10,
+  field_list.push_back(new Item_return_int("Relay_Log_Space", 10,
 					   MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Until_condition", 6));
+  field_list.push_back(new Item_empty_string("Until_Condition", 6));
   field_list.push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
-  field_list.push_back(new Item_return_int("Until_Log_pos", 10, 
+  field_list.push_back(new Item_return_int("Until_Log_Pos", 10, 
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
   field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
@@ -2008,7 +1985,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
                                              sizeof(mi->ssl_cipher)));
   field_list.push_back(new Item_empty_string("Master_SSL_Key", 
                                              sizeof(mi->ssl_key)));
-  field_list.push_back(new Item_return_int("Seconds_behind_master", 10,
+  field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   
   if (protocol->send_fields(&field_list, 1))
@@ -2099,12 +2076,36 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 }
 
 
-bool flush_master_info(MASTER_INFO* mi)
+bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
+
+  /*
+    Flush the relay log to disk. If we don't do it, then the relay log while
+    have some part (its last kilobytes) in memory only, so if the slave server
+    dies now, with, say, from master's position 100 to 150 in memory only (not
+    on disk), and with position 150 in master.info, then when the slave
+    restarts, the I/O thread will fetch binlogs from 150, so in the relay log
+    we will have "[0, 100] U [150, infinity[" and nobody will notice it, so the
+    SQL thread will jump from 100 to 150, and replication will silently break.
+
+    When we come to this place in code, relay log may or not be initialized;
+    the caller is responsible for setting 'flush_relay_log_cache' accordingly.
+  */
+  if (flush_relay_log_cache)
+    flush_io_cache(mi->rli.relay_log.get_log_file());
+
+  /*
+    We flushed the relay log BEFORE the master.info file, because if we crash
+    now, we will get a duplicate event in the relay log at restart. If we
+    flushed in the other order, we would get a hole in the relay log.
+    And duplicate is better than hole (with a duplicate, in later versions we
+    can add detection and scrap one event; with a hole there's nothing we can
+    do).
+  */
 
   /*
      In certain cases this code may create master.info files that seems 
@@ -2290,7 +2291,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-                                      "Waiting for the SQL slave thread to \
+                                      "Waiting for the slave SQL thread to \
 advance position");
     /*
       We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
@@ -2361,7 +2362,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
     OPTION_AUTO_IS_NULL;
   /* 
-     It's nonsense to constraint the slave threads with max_join_size; if a
+     It's nonsense to constrain the slave threads with max_join_size; if a
      query succeeded on master, we HAVE to execute it.
   */
   thd->variables.max_join_size= HA_POS_ERROR;    
@@ -2981,7 +2982,7 @@ reconnect done to recover from failed read");
 	sql_print_error("Slave I/O thread could not queue event from master");
 	goto err;
       }
-      flush_master_info(mi);
+      flush_master_info(mi, 1); /* sure that we can flush the relay log */
       /*
         See if the relay logs take too much space.
         We don't lock mi->rli.log_space_lock here; this dirty read saves time
@@ -3121,9 +3122,10 @@ slave_begin:
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
     thread may execute no Query_log_event, so the error will remain even
     though there's no problem anymore). Do not reset the master timestamp
-    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE: as
-    we are not sure that we are going to receive a query, we want to remember
-    the last master timestamp (to say how many seconds behind we are now.
+    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE:
+    as we are not sure that we are going to receive a query, we want to
+    remember the last master timestamp (to say how many seconds behind we are
+    now.
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   clear_slave_error(rli);
@@ -3795,8 +3797,6 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
   if (my_b_write(file, (byte*) buff, (ulong) (pos-buff)+1))
     error=1;
   if (flush_io_cache(file))
-    error=1;
-  if (flush_io_cache(rli->cur_log))		// QQ Why this call ?
     error=1;
   return error;
 }

@@ -472,13 +472,13 @@ static uchar *thai2sortable(const uchar *tstr, uint len, uint *out_length)
   const uchar	*p= tstr;
   uchar		*outBuf;
   uchar		*pRight1, *pRight2, *pRight3;
-  uchar		*pLeft1, *pLeft2, *pLeft3;
+  uchar		*pLeft2, *pLeft3;
   uint		bufSize;
   uint  	RightSize;
 
   bufSize= (uint) (len + 1) * BUFFER_MULTIPLY;
   RightSize= sizeof(uchar) * (len + 1);
-  if (!(outBuf= pLeft1= pRight1= 
+  if (!(outBuf= pRight1= 
        (uchar *)malloc(sizeof(uchar) * bufSize + RightSize*2)))
   {
     /*
@@ -608,8 +608,8 @@ int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
 
 int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 {
-  return my_strnncoll_tis620((CHARSET_INFO *) 0, s1, strlen(s1), s2,
-			     strlen(s1));
+  return my_strnncoll_tis620((CHARSET_INFO *) 0, s1, strlen((char*) s1),
+			     s2, strlen((char*) s1));
 }
 
 

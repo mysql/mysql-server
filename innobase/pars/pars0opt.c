@@ -1235,7 +1235,8 @@ opt_print_query_plan(
 		printf(
 		"Table %s index %s; exact m. %lu, match %lu, end conds %lu\n",
 			plan->table->name, plan->index->name,
-			plan->n_exact_match, n_fields,
-			UT_LIST_GET_LEN(plan->end_conds));
+		        (unsigned long) plan->n_exact_match,
+		        (unsigned long) n_fields,
+			(unsigned long) UT_LIST_GET_LEN(plan->end_conds));
 	}
 }

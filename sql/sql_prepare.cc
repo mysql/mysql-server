@@ -427,8 +427,10 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
   Item_param *param;
   DBUG_ENTER("insert_params_withlog"); 
   
-  String str, *res, *query= new String(stmt->query->alloced_length());  
-  query->copy(*stmt->query);
+  String str, query, *res;
+
+  if (query.copy(*stmt->query))
+    DBUG_RETURN(1);
   
   ulong param_no= 0;  
   uint32 length= 0;
@@ -452,16 +454,14 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
         res= param->query_val_str(&str);
       }
     }
-    if (query->replace(param->pos_in_query+length, 1, *res))
+    if (query.replace(param->pos_in_query+length, 1, *res))
       DBUG_RETURN(1);
     
     length+= res->length()-1;
     param_no++;
   }
-  if (alloc_query(stmt->thd, (char *)query->ptr(), query->length()+1))
+  if (alloc_query(thd, (char *)query.ptr(), query.length()+1))
     DBUG_RETURN(1);
-  
-  query->free();
   DBUG_RETURN(0);
 }
 
@@ -683,7 +683,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 
   if (join->prepare(&select_lex->ref_pointer_array, tables, 
 		    wild_num, conds, og_num, order, group, having, proc, 
-                    select_lex, unit, 0))
+                    select_lex, unit))
     DBUG_RETURN(1);
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0) ||
@@ -786,7 +786,6 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   mysql_init_query(thd);   
   LEX *lex=lex_start(thd, (uchar*) packet, length);
   lex->safe_to_cache_query= 0;
-  thd->prepare_command= TRUE; 
   thd->lex->param_count= 0;
   if (!yyparse((void *)thd) && !thd->is_fatal_error) 
     error= send_prepare_results(stmt);
@@ -1067,10 +1066,9 @@ void mysql_stmt_reset(THD *thd, char *packet)
 void mysql_stmt_free(THD *thd, char *packet)
 {
   ulong stmt_id= uint4korr(packet);
-  PREP_STMT *stmt;
   DBUG_ENTER("mysql_stmt_free");
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
+  if (!find_prepared_statement(thd, stmt_id, "close"))
   {
     send_error(thd); // Not seen by the client
     DBUG_VOID_RETURN;

@@ -619,7 +619,6 @@ public:
     my_error(killed_errno(), MYF(0));
   }
 
-  bool       prepare_command;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
@@ -913,7 +912,12 @@ public:
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
- public:
+private:
+  /* Prevent use of these (not safe because of lists and copy_field) */
+  TMP_TABLE_PARAM(const TMP_TABLE_PARAM &);
+  void operator=(TMP_TABLE_PARAM &);
+
+public:
   List<Item> copy_funcs;
   List<Item> save_copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;
@@ -938,6 +942,7 @@ class TMP_TABLE_PARAM :public Sql_alloc
   {
     cleanup();
   }
+  void init(void);
   inline void cleanup(void)
   {
     if (copy_field)				/* Fix for Intel compiler */
@@ -963,6 +968,7 @@ class select_union :public select_result {
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
+  void set_table(TABLE *tbl) { table= tbl; }
 };
 
 /* Base subselect interface class */

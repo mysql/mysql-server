@@ -292,6 +292,7 @@ character-set=koi8u
 "Кеш запит╕в неспроможен встановити розм╕р %lu, новий розм╕р кеша запит╕в - %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
+"MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

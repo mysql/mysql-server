@@ -33,14 +33,10 @@
     		Used when function is one of:
 		HA_EXTRA_WRITE_CACHE
 		HA_EXTRA_CACHE
-		HA_EXTRA_BULK_INSERT_BEGIN
-		  If extra_arg is 0, then the default cache size is used.
-		HA_EXTRA_BULK_INSERT_FLUSH
-		  extra_arg is a a pointer to which index to flush (uint*)
-    RETURN VALUES
-    0	ok
+  RETURN VALUES
+    0  ok
+    #  error
 */
-
 
 int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 {
@@ -283,7 +279,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
-    if (flush_key_blocks(*share->keycache, share->kfile,
+    if (flush_key_blocks(share->key_cache, share->kfile,
 			 (function == HA_EXTRA_FORCE_REOPEN ?
 			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
     {
@@ -329,7 +325,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(*share->key_cache, share->kfile, FLUSH_KEEP);
+      flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _mi_decrement_open_count(info);
 #endif
