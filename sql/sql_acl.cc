@@ -3770,7 +3770,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   const char *user;
   DBUG_ENTER("handle_grant_table");
 
-  if (! table_no)
+  if (! table_no) // mysql.user table
   {
     /*
       The 'user' table has an unique index on (host, user).
@@ -4119,6 +4119,16 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   DBUG_RETURN(result);
 }
 
+static void append_user(String *str, LEX_USER *user)
+{
+  if (str->length())
+    str->append(',');
+  str->append('\'');
+  str->append(user->user.str);
+  str->append("'@'");
+  str->append(user->host.str);
+  str->append('\'');
+}
 
 /*
   Create a list of users.
@@ -4137,7 +4147,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   int found;
-  uint failures;
+  String wrong_users;
   ulong sql_mode;
   LEX_USER *user_name;
   List_iterator <LEX_USER> user_list(list);
@@ -4151,7 +4161,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  failures= 0;
   while ((user_name= user_list++))
   {
     /*
@@ -4160,20 +4169,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     */
     if ((found= handle_grant_data(tables, 0, user_name, NULL)))
     {
-      if (found > 0)
-        sql_print_error("CREATE USER: Cannot create user: '%s'@'%s': "
-                        "User exists",
-                        user_name->user.str,
-                        user_name->host.str);
-      failures++;
+      append_user(&wrong_users, user_name);
       result= TRUE;
+      continue;
     }
 
     sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~MODE_NO_AUTO_CREATE_USER;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1))
     {
-      failures++;
+      append_user(&wrong_users, user_name);
       result= TRUE;
     }
     thd->variables.sql_mode= sql_mode;
@@ -4183,7 +4188,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
-    my_error(ER_HANDLE_USER, MYF(0), "CREATE USER" , failures );
+    my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr());
   DBUG_RETURN(result);
 }
 
@@ -4205,34 +4210,24 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   int found;
-  uint failures;
+  String wrong_users;
   LEX_USER *user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[4];
   DBUG_ENTER("mysql_drop_user");
 
-  /* CREATE USER may be skipped on replication client. */
+  /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  failures= 0;
   while ((user_name= user_list++))
   {
-    if ((found= handle_grant_data(tables, 1, user_name, NULL)) < 0)
+    if ((found= handle_grant_data(tables, 1, user_name, NULL)) <= 0)
     {
-      failures++;
-      result= TRUE;
-    }
-    else if (! found)
-    {
-      sql_print_error("DROP USER: Cannot drop user '%s'@'%s': "
-                      "No such user",
-                      user_name->user.str,
-                      user_name->host.str);
-      failures++;
+      append_user(&wrong_users, user_name);
       result= TRUE;
     }
   }
@@ -4241,7 +4236,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
-    my_error(ER_HANDLE_USER, MYF(0), "DROP USER" , failures );
+    my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr());
   DBUG_RETURN(result);
 }
 
@@ -4263,55 +4258,34 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 {
   int result= 0;
   int found;
-  uint failures;
+  String wrong_users;
   LEX_USER *user_from;
   LEX_USER *user_to;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[4];
   DBUG_ENTER("mysql_rename_user");
 
-  /* CREATE USER may be skipped on replication client. */
+  /* RENAME USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  failures= 0;
   while ((user_from= user_list++))
   {
     user_to= user_list++;
-    DBUG_ASSERT((user_to)); /* Syntax enforces pairs of users. */
+    DBUG_ASSERT(user_to); /* Syntax enforces pairs of users. */
 
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
-    if ((found= handle_grant_data(tables, 0, user_to, NULL)))
+    if (handle_grant_data(tables, 0, user_to, NULL) ||
+        handle_grant_data(tables, 0, user_from, user_to) <= 0)
     {
-      if (found > 0)
-        sql_print_error("RENAME USER: Cannot rename to: '%s'@'%s': User exists",
-                        user_to->user.str,
-                        user_to->host.str);
-      failures++;
+      append_user(&wrong_users, user_from);
       result= TRUE;
-    }
-    else
-    {
-      if ((found= handle_grant_data(tables, 0, user_from, user_to)) < 0)
-      {
-        failures++;
-        result= TRUE;
-      }
-      else if (! found)
-      {
-        sql_print_error("RENAME USER: Cannot rename user: '%s'@'%s': "
-                        "No such user",
-                        user_from->user.str,
-                        user_from->host.str);
-        failures++;
-        result= TRUE;
-      }
     }
   }
 
@@ -4319,7 +4293,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
-    my_error(ER_HANDLE_USER, MYF(0), "RENAME USER", failures);
+    my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr());
   DBUG_RETURN(result);
 }
 
@@ -4382,13 +4356,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       for (counter= 0, revoked= 0 ; counter < acl_dbs.elements ; )
       {
 	const char *user,*host;
-	
+
 	acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
 	if (!(user=acl_db->user))
 	  user= "";
 	if (!(host=acl_db->host.hostname))
 	  host= "";
-	
+
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
@@ -4419,7 +4393,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  user= "";
 	if (!(host=grant_table->host))
 	  host= "";
-	
+
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
@@ -4454,14 +4428,14 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       }
     } while (revoked);
   }
-  
+
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  
+
   if (result)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
-  
+
   DBUG_RETURN(result);
 }
 

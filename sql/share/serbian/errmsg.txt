@@ -277,7 +277,7 @@ character-set=cp1250
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-"Operation %s failed for %d of the requested users",
+"Cannot drop one or more of the requested users",
 "Can't revoke all privileges, grant for one or more of the requested users",
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
@@ -405,3 +405,4 @@ character-set=cp1250
 "Can not modify more than one base table through a join view '%-.64s.%-.64s'"
 "Can not insert into join view '%-.64s.%-.64s' without fields list"
 "Can not delete from join view '%-.64s.%-.64s'"
+"Operation %s failed for '%.256s'",

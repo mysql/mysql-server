@@ -66,7 +66,7 @@ create table t1(c1 int);
 create table t2(c1 int, c2 int);
 create user 'mysqltest_1';
 create user 'mysqltest_1';
-ERROR HY000: Operation CREATE USER failed for 1 of the requested users
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_1'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
 grant select on *.* to 'mysqltest_2';
@@ -139,7 +139,7 @@ drop user 'mysqltest_1', 'mysqltest_3';
 grant all on test.t1 to 'mysqltest_1';
 ERROR 42000: 'root'@'localhost' is not allowed to create new users
 drop user 'mysqltest_1';
-ERROR HY000: Operation DROP USER failed for 1 of the requested users
+ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%'
 drop table t1, t2;
 insert into mysql.db set user='mysqltest_1', db='%', host='%';
 flush privileges;
@@ -169,16 +169,16 @@ drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
-ERROR HY000: Operation DROP USER failed for 3 of the requested users
+ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%','mysqltest_2'@'%','mysqltest_3'@'%'
 drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
-ERROR HY000: Operation CREATE USER failed for 1 of the requested users
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_2'@'%'
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
-ERROR HY000: Operation RENAME USER failed for 1 of the requested users
+ERROR HY000: Operation RENAME USER failed for 'mysqltest_2a'@'%'
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
-ERROR HY000: Operation DROP USER failed for 1 of the requested users
+ERROR HY000: Operation DROP USER failed for 'mysqltest_2b'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 drop user 'mysqltest_2' identified by 'Mysqltest-2';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
