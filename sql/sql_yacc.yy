@@ -2356,8 +2356,9 @@ use:	USE_SYM ident
 
 load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	{
-	  Lex->sql_command= SQLCOM_LOAD;
-	  Lex->local_file= $4;
+	  LEX *lex= Lex;
+	  lex->sql_command= SQLCOM_LOAD;
+	  lex->local_file= $4;
 	  if (!(Lex->exchange= new sql_exchange($6.str,0)))
 	    YYABORT;
 	  Lex->field_list.empty();
@@ -2643,11 +2644,12 @@ set:
 	SET opt_option
 	{
 	  THD *thd=current_thd;
-	  Lex->sql_command= SQLCOM_SET_OPTION;
-	  Lex->options=thd->options;
-	  Lex->select_limit=thd->default_select_limit;
-	  Lex->gemini_spin_retries=thd->gemini_spin_retries;
-	  Lex->tx_isolation=thd->tx_isolation;
+	  LEX *lex= &thd->lex;
+	  lex->sql_command= SQLCOM_SET_OPTION;
+	  lex->options=thd->options;
+	  lex->select_limit=thd->default_select_limit;
+	  lex->gemini_spin_retries=thd->gemini_spin_retries;
+	  lex->tx_isolation=thd->tx_isolation;
 	}
 	option_value_list
 
