@@ -3389,6 +3389,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	to->file->print_error(error,MYF(0));
 	break;
       }
+      to->file->restore_auto_increment();
       delete_count++;
     }
     else

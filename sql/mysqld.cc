@@ -4068,7 +4068,8 @@ enum options_mysqld
   OPT_DEFAULT_TIME_ZONE,
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
-  OPT_SQL_UPDATABLE_VIEW_KEY
+  OPT_SQL_UPDATABLE_VIEW_KEY,
+  OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET
 };
 
 
@@ -4087,6 +4088,16 @@ struct my_option my_long_options[] =
 #endif /* HAVE_REPLICATION */
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-increment-increment", OPT_AUTO_INCREMENT,
+   "Auto-increment columns are incremented by this",
+   (gptr*) &global_system_variables.auto_increment_increment,
+   (gptr*) &max_system_variables.auto_increment_increment, 0, GET_ULONG,
+   OPT_ARG, 1, 1, 65535, 0, 1, 0 },
+  {"auto-increment-offset", OPT_AUTO_INCREMENT_OFFSET,
+   "Offset added to Auto-increment columns. Used when auto-increment-increment != 1",
+   (gptr*) &global_system_variables.auto_increment_offset,
+   (gptr*) &max_system_variables.auto_increment_offset, 0, GET_ULONG, OPT_ARG,
+   1, 1, 65535, 0, 1, 0 },
   {"basedir", 'b',
    "Path to installation directory. All paths are usually resolved relative to this.",
    (gptr*) &mysql_home_ptr, (gptr*) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,

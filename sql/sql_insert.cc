@@ -311,8 +311,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     else
 #endif
       error=write_record(table,&info);
-    if (error)
-      break;
     /*
       If auto_increment values are used, save the first one
        for LAST_INSERT_ID() and for the update log.
@@ -323,6 +321,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     {						// Get auto increment value
       id= thd->last_insert_id;
     }
+    if (error)
+      break;
     thd->row_count++;
   }
 
@@ -638,9 +638,10 @@ int write_record(TABLE *table,COPY_INFO *info)
   {
     while ((error=table->file->write_row(table->record[0])))
     {
+      uint key_nr;
       if (error != HA_WRITE_SKIP)
 	goto err;
-      uint key_nr;
+      table->file->restore_auto_increment();
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
 	error=HA_WRITE_SKIP;			/* Database can't find key */
@@ -733,6 +734,7 @@ int write_record(TABLE *table,COPY_INFO *info)
     if (info->handle_duplicates != DUP_IGNORE ||
 	(error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE))
       goto err;
+    table->file->restore_auto_increment();
   }
   else
     info->copied++;

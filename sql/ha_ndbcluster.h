@@ -204,7 +204,7 @@ class ha_ndbcluster: public handler
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();
 
-  longlong get_auto_increment();
+  ulonglong get_auto_increment();
   int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
 
