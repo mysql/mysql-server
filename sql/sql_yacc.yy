@@ -1319,7 +1319,7 @@ select:
 	SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command!=SQLCOM_UNION_SELECT)  lex->sql_command= SQLCOM_SELECT;
+	  lex->sql_command= SQLCOM_SELECT;
 	  lex->lock_option=TL_READ;
 	  mysql_init_select(lex);
 	}
@@ -3281,7 +3281,7 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	       net_printf(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	       send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	       YYABORT;
 	    }
 	  }
@@ -3293,7 +3293,7 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      net_printf(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
@@ -3305,7 +3305,7 @@ opt_table:
 	      lex->grant = GLOBAL_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      net_printf(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      send_error(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
@@ -3407,11 +3407,20 @@ union_list:
   UNION_SYM    union_option
   {
     LEX *lex=Lex;
-    if (lex->exchange) YYABORT; /* Only the last SELECT can have  INTO...... */
-    lex->sql_command=SQLCOM_UNION_SELECT;
-    mysql_new_select(lex); lex->select->linkage=UNION_TYPE;
+    if (lex->exchange)
+    {
+       /* Only the last SELECT can have  INTO...... */
+       net_printf(&current_thd->net, ER_WRONG_USAGE,"UNION","INTO");
+       YYABORT;
+    } 
+    mysql_new_select(lex);
+    lex->select->linkage=UNION_TYPE;
   } 
-	select
+  select
+  {
+    Lex->sql_command=SQLCOM_UNION_SELECT;
+  }
+
 
 union_option:
   /* empty */ {}

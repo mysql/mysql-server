@@ -115,7 +115,8 @@ typedef struct st_select_lex {
   List<List_item>     when_list;
   SQL_LIST	      order_list,table_list,group_list;
   List<Item>          item_list;
-  List<String>        interval_list,use_index, *use_index_ptr, ignore_index, *ignore_index_ptr;
+  List<String>        interval_list,use_index, *use_index_ptr,
+		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
   uint in_sum_expr, sort_default;
   bool	create_refs;

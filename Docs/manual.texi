@@ -45712,6 +45712,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Speed up all internal list handling.
+@item
+Added support for @code{UNION}.
+@item
 Allow ANSI SQL syntax @code{X'hexadecimal-number'}
 @item
 Tree-like cache to speed up bulk inserts and

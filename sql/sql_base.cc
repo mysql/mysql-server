@@ -189,7 +189,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 bool
 send_fields(THD *thd,List<Item> &list,uint flag)
 {
-  List_iterator<Item> it(list);
+  List_iterator_fast<Item> it(list);
   Item *item;
   char buff[80];
   CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
@@ -1738,14 +1738,15 @@ find_item_in_list(Item *find,List<Item> &items)
 ****************************************************************************/
 
 int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
-		 bool set_query_id, List<Item> *sum_func_list)
+		 bool set_query_id, List<Item> *sum_func_list,
+		 bool allow_sum_func)
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
-  thd->allow_sum_func= test(sum_func_list);
+  thd->allow_sum_func= allow_sum_func;
   thd->where="field list";
 
   while ((item=it++))
@@ -1761,7 +1762,8 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     {
       if (item->fix_fields(thd,tables))
 	DBUG_RETURN(-1); /* purecov: inspected */
-      if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+      if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
+	  sum_func_list)
 	item->split_sum_func(*sum_func_list);
       thd->used_tables|=item->used_tables();
     }
@@ -1816,7 +1818,7 @@ static key_map get_key_map_from_key_list(TABLE *table,
 					 List<String> *index_list)
 {
   key_map map=0;
-  List_iterator<String> it(*index_list);
+  List_iterator_fast<String> it(*index_list);
   String *name;
   uint pos;
   while ((name=it++))
@@ -1996,7 +1998,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 int
 fill_record(List<Item> &fields,List<Item> &values)
 {
-  List_iterator<Item> f(fields),v(values);
+  List_iterator_fast<Item> f(fields),v(values);
   Item *value;
   Item_field *field;
   DBUG_ENTER("fill_record");
@@ -2014,7 +2016,7 @@ fill_record(List<Item> &fields,List<Item> &values)
 int
 fill_record(Field **ptr,List<Item> &values)
 {
-  List_iterator<Item> v(values);
+  List_iterator_fast<Item> v(values);
   Item *value;
   DBUG_ENTER("fill_record");
 

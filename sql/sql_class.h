@@ -413,6 +413,8 @@ public:
 
 class JOIN;
 
+void send_error(NET *net,uint sql_errno=0, const char *err=0);
+
 class select_result :public Sql_alloc {
 protected:
   THD *thd;
@@ -423,7 +425,10 @@ public:
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual void initialize_tables (JOIN *join=0) {}
-  virtual void send_error(uint errcode,const char *err)=0;
+  virtual void send_error(uint errcode,const char *err)
+  {
+    ::send_error(&thd->net,errcode,err);
+  }
   virtual bool send_eof()=0;
   virtual void abort() {}
 };
@@ -434,7 +439,6 @@ public:
   select_send() {}
   bool send_fields(List<Item> &list,uint flag);
   bool send_data(List<Item> &items);
-  void send_error(uint errcode,const char *err);
   bool send_eof();
 };
 
@@ -458,6 +462,7 @@ public:
   bool send_eof();
 };
 
+
 class select_dump :public select_result {
   sql_exchange *exchange;
   File file;
@@ -475,29 +480,30 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
 };
+
+
 class select_insert :public select_result {
  public:
   TABLE *table;
   List<Item> *fields;
-  uint save_time_stamp;
   ulonglong last_insert_id;
   COPY_INFO info;
-	bool unions;
+  uint save_time_stamp;
 
-  select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic, bool u=false)
-    :table(table_par),fields(fields_par), save_time_stamp(0),last_insert_id(0)
-    {
-      bzero((char*) &info,sizeof(info));
-      info.handle_duplicates=duplic; unions = u;
-    }
+  select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
+    :table(table_par),fields(fields_par), last_insert_id(0), save_time_stamp(0)  {
+    bzero((char*) &info,sizeof(info));
+    info.handle_duplicates=duplic;
+  }
   ~select_insert();
   int prepare(List<Item> &list);
-  bool send_fields(List<Item> &list,
-		   uint flag) { return 0; }
+  bool send_fields(List<Item> &list, uint flag)
+  { return 0; }
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
 };
+
 
 class select_create: public select_insert {
   ORDER *group;
@@ -513,8 +519,8 @@ public:
 		 HA_CREATE_INFO *create_info_par,
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic, bool u=false)
-    :select_insert (NULL, &select_fields, duplic, u), db(db_name),
+		 List<Item> &select_fields,enum_duplicates duplic)
+    :select_insert (NULL, &select_fields, duplic), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
     create_info(create_info_par),
     lock(0)
@@ -523,6 +529,22 @@ public:
   bool send_data(List<Item> &values);
   bool send_eof();
   void abort();
+};
+
+class select_union :public select_result {
+ public:
+  TABLE *table;
+  COPY_INFO info;
+  uint save_time_stamp;
+
+  select_union(TABLE *table_par);
+  ~select_union();
+  int prepare(List<Item> &list);
+  bool send_fields(List<Item> &list, uint flag)
+  { return 0; }
+  bool send_data(List<Item> &items);
+  bool send_eof();
+  bool flush();
 };
 
 /* Structs used when sorting */

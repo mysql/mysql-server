@@ -215,3 +215,5 @@
 "Error de coneccion a master: %-128s",
 "Error executando el query en master: %-128%",
 "Error de %s: %-128%",
+"Wrong usage of %s and %s",
+"The used SELECT statements have a different number of columns",

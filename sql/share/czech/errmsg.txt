@@ -223,3 +223,5 @@
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
 "Error when executing command %s: %-.128s",
+"Wrong usage of %s and %s",
+"The used SELECT statements have a different number of columns",

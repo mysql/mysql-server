@@ -43,7 +43,7 @@ Item_func::Item_func(List<Item> &list)
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
     uint i=0;
-    List_iterator<Item> li(list);
+    List_iterator_fast<Item> li(list);
     Item *item;
 
     while ((item=li++))
@@ -1983,7 +1983,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
 
 bool Item_func_match::fix_index()
 {
-  List_iterator<Item> li(fields);
+  List_iterator_fast<Item> li(fields);
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, key;
 
