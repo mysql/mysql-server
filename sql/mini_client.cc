@@ -40,6 +40,8 @@
 #include "mysqld_error.h"
 #include "errmsg.h"
 
+extern ulong net_read_timeout;
+
 extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/stat.h>
 #include <signal.h>
@@ -63,6 +65,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif
 #if defined(THREAD) && !defined(__WIN__)
 #include <my_pthread.h>				/* because of signal()	*/
+#include <thr_alarm.h>
 #endif
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
@@ -493,18 +496,25 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   struct	sockaddr_in sock_addr;
   uint		pkt_length;
   NET		*net= &mysql->net;
+  thr_alarm_t   alarmed;
+#if !defined(__WIN__)
+  ALARM alarm_buff;
+#endif
+
 #ifdef __WIN__
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
 #endif
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-  DBUG_ENTER("mysql_real_connect");
+  DBUG_ENTER("mc_mysql_connect");
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+  thr_alarm_init(&alarmed);
+  thr_alarm(&alarmed,(uint) net_read_timeout,&alarm_buff);
 
   bzero((char*) &mysql->options,sizeof(mysql->options));
   net->vio = 0;				/* If something goes wrong */
@@ -639,8 +649,12 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       DBUG_PRINT("error",("Got error %d on connect to '%s'",ERRNO,host));
       net->last_errno= CR_CONN_HOST_ERROR;
       sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, ERRNO);
+      if (thr_alarm_in_use(&alarmed))
+	thr_end_alarm(&alarmed);
       goto error;
     }
+    if (thr_alarm_in_use(&alarmed))
+      thr_end_alarm(&alarmed);
   }
 
   if (!net->vio || my_net_init(net, net->vio))
