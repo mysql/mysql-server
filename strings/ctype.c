@@ -3673,7 +3673,7 @@ static CHARSET_INFO compiled_charsets[] = {
     26,			/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1250",		/* cs name    */
-    "win1250",		/* name */
+    "cp1250",		/* name */
     "",			/* comment    */
     ctype_win1250,
     to_lower_win1250,
