@@ -3016,7 +3016,7 @@ slave_begin:
   thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
-    sql_print_error("Slave I/O thread: connected to master '%s@%s:%d',\
+    sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',\
   replication started in log '%s' at position %s", mi->user,
 		    mi->host, mi->port,
 		    IO_RPL_LOG_NAME,
@@ -3351,7 +3351,7 @@ slave_begin:
 			    rli->group_master_log_name,
 			    llstr(rli->group_master_log_pos,llbuff)));
   if (global_system_variables.log_warnings)
-    sql_print_error("Slave SQL thread initialized, starting replication in \
+    sql_print_information("Slave SQL thread initialized, starting replication in \
 log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		    llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
 		    llstr(rli->group_relay_log_pos,llbuff1));
@@ -3372,7 +3372,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd->proc_info = "Reading event from the relay log"; 
+    thd->proc_info = "Reading event from the relay log";
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
@@ -3382,16 +3382,14 @@ Slave SQL thread aborted. Can't execute init_slave query");
         sql_print_error("\
 Error running query, slave SQL thread aborted. Fix the problem, and restart \
 the slave SQL thread with \"SLAVE START\". We stopped at log \
-'%s' position %s",
-		      RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
+'%s' position %s", RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
       goto err;
     }
   }
 
   /* Thread stopped. Print the current replication position to the log */
-  sql_print_error("Slave SQL thread exiting, replication stopped in log \
- '%s' at position %s",
-		  RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
+  sql_print_information("Slave SQL thread exiting, replication stopped in log \
+ '%s' at position %s", RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -3947,7 +3945,7 @@ Error: '%s'  errno: %d  retry-time: %d  retries: %d",
     if (reconnect)
     { 
       if (!suppress_warnings && global_system_variables.log_warnings)
-	sql_print_error("Slave: connected to master '%s@%s:%d',\
+	sql_print_information("Slave: connected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", mi->user,
 			mi->host, mi->port,
 			IO_RPL_LOG_NAME,
