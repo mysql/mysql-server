@@ -124,7 +124,7 @@ enum db_type ha_checktype(enum db_type database_type)
   for (types= sys_table_types; types->type; types++)
   {
     if ((database_type == types->db_type) && 
-	(SHOW_OPTION_YES == *types->value))
+	(*types->value == SHOW_OPTION_YES))
       return database_type;
   }
 
