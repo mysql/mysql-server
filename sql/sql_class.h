@@ -473,7 +473,8 @@ public:
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
-   
+  CHARSET_INFO *db_charset;
+
   THD();
   ~THD();
   void cleanup(void);

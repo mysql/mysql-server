@@ -25,6 +25,8 @@
 #include <direct.h>
 #endif
 
+#define MY_DB_OPT_FILE ".db.opt"
+
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
 				 uint level);
@@ -82,12 +84,12 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info, bool silent
 
   strcat(path,"/");
   unpack_dirname(path,path);
-  strcat(path,"db.opt");
+  strcat(path,MY_DB_OPT_FILE);
   if ((file=my_create(path,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
-    sprintf(path,"CREATE DATABASE %s DEFAULT CHARACTER SET=%s\n",db,
-		  (create_info && create_info->table_charset) 
-		  ? create_info->table_charset->name : "DEFAULT");
+    sprintf(path,"default-character-set=%s\n",
+		 (create_info && create_info->table_charset) ? 
+		 create_info->table_charset->name : "DEFAULT");
     
     if (my_write(file,(byte*) path,strlen(path),MYF(MY_NABP+MY_WME)))
     {
@@ -423,15 +425,44 @@ bool mysql_change_db(THD *thd,const char *name)
 
   strcat(path,"/");
   unpack_dirname(path,path);
-  strcat(path,"db.opt");
+  strcat(path,MY_DB_OPT_FILE);
   if ((file=my_open(path,O_RDWR|O_BINARY,MYF(MY_WME))) >= 0)
   {
     int nbytes=my_read(file,(byte*) path,sizeof(path),MYF(0));
     if ( nbytes >= 0 )
     {
+      char *ln=path;
+      char *pe=path+nbytes;
+
       path[nbytes]='\0';
-      // BAR TODO: parse create options 
-      // and extract database default charset
+      for ( ln=path; ln<pe; )
+      {
+	char *le,*val;
+	for ( le=ln, val=0 ; le<pe ; le++ )
+	{
+	  switch(le[0])
+	  {
+	    case '=':
+	      le[0]='\0';
+	      val=le+1;
+	      le++;
+	      break;
+	    case '\r':
+	    case '\n':
+	      le[0]='\0';
+	      le++;
+	      for( ; (le[0]=='\r' || le[0]=='\n') ; le++);
+	      if (!strcmp(ln,"default-character-set") && val && val[0])
+	      {
+		thd->db_charset=get_charset_by_name(val, MYF(0));
+	      }
+	      goto cnt;
+	      break;
+	  }
+	}
+cnt:
+	ln=le;
+      }
     }
     my_close(file,MYF(0));
   }
