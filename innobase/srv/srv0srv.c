@@ -37,7 +37,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "que0que.h"
 #include "srv0que.h"
 #include "log0recv.h"
-#include "odbc0odbc.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
 #include "lock0lock.h"

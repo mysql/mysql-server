@@ -34,7 +34,6 @@ typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
 MASTER_INFO *active_mi;
-volatile int active_mi_in_use = 0;
 HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
@@ -114,8 +113,12 @@ int init_slave()
 {
   DBUG_ENTER("init_slave");
 
-  /* This is called when mysqld starts */
-
+  /*
+    This is called when mysqld starts. Before client connections are
+    accepted. However bootstrap may conflict with us if it does START SLAVE.
+    So it's safer to take the lock.
+  */
+  pthread_mutex_lock(&LOCK_active_mi);
   /*
     TODO: re-write this to interate through the list of files
     for multi-master
@@ -160,9 +163,11 @@ int init_slave()
       goto err;
     }
   }
+  pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_RETURN(0);
 
 err:
+  pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_RETURN(1);
 }
 
@@ -806,7 +811,14 @@ static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 
 void end_slave()
 {
-  /* This is called when the server terminates, in close_connections(). */
+  /*
+    This is called when the server terminates, in close_connections().
+    It terminates slave threads. However, some CHANGE MASTER etc may still be
+    running presently. If a START SLAVE was in progress, the mutex lock below
+    will make us wait until slave threads have started, and START SLAVE
+    returns, then we terminate them here.
+  */
+  pthread_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     /*
@@ -827,6 +839,7 @@ void end_slave()
     delete active_mi;
     active_mi= 0;
   }
+  pthread_mutex_unlock(&LOCK_active_mi);
 }
 
 
@@ -2237,13 +2250,6 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
   case ER_NET_ERROR_ON_WRITE:  
   case ER_SERVER_SHUTDOWN:  
   case ER_NEW_ABORTING_CONNECTION:
-    slave_print_error(rli,expected_error, 
-                      "query '%s' partially completed on the master \
-and was aborted. There is a chance that your master is inconsistent at this \
-point. If you are sure that your master is ok, run this query manually on the\
- slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
- SLAVE START; .", thd->query);
-    thd->query_error= 1;
     return 1;
   default:
     return 0;
