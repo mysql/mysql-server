@@ -446,7 +446,6 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 	
-	/* Track a memory corruption bug in Windows */
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == PAGE_INFIMUM);
 
 	page_cur_set_before_first(new_page, &cur2);
@@ -456,11 +455,23 @@ page_copy_rec_list_end_no_locks(
 	sup = page_get_supremum_rec(page);
 	
 	while (sup != page_cur_get_rec(&cur1)) {
-		ut_a(
-		page_cur_rec_insert(&cur2, page_cur_get_rec(&cur1), mtr));
+		if (!page_cur_rec_insert(&cur2,
+					page_cur_get_rec(&cur1), mtr)) {
+			/* Track an assertion failure reported on the mailing
+			list on June 18th, 2003 */
 
-		ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10)
-							== PAGE_INFIMUM);
+		        buf_page_print(new_page);
+		        buf_page_print(page);
+			ut_print_timestamp(stderr);
+
+			fprintf(stderr,
+"InnoDB: rec offset %lu, cur1 offset %lu, cur2 offset %lu\n",
+			      (ulint)(rec - page),
+			      (ulint)(page_cur_get_rec(&cur1) - page),
+			      (ulint)(page_cur_get_rec(&cur2) - new_page));
+			ut_a(0);
+		}
+
 		page_cur_move_to_next(&cur1);
 		page_cur_move_to_next(&cur2);
 	}
