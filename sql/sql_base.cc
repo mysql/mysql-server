@@ -2323,8 +2323,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     bool found_table=0;
     for (; tables; tables= tables->next_local)
     {
+      /* TODO; Ensure that db and tables->db always points to something ! */
       if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
-	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
+	  (!db || !db[0] || !tables->db ||  !tables->db[0] ||
+           !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find= find_field_in_table(thd, tables, name, item->name,
@@ -3039,7 +3041,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         iterator= &view_iter;
 	view= 1;
 	alias_used= my_strcasecmp(table_alias_charset,
-				  tables->real_name, tables->alias);
+				  tables->table_name, tables->alias);
       }
       else
       {
