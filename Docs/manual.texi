@@ -49343,6 +49343,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in multi-table @code{DELETE} when optimiser uses only indices
+@item
 Fixed that @code{ALTER TABLE table_name RENAME new_table_name} is as fast
 as @code{RENAME TABLE}.
 @item

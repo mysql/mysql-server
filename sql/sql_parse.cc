@@ -1963,11 +1963,6 @@ mysql_execute_command(void)
       (void)add_item_to_list(new Item_field(auxi->db,auxi->real_name,"*"));
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-    if (add_item_to_list(new Item_null()))
-    {
-      res= -1;
-      break;
-    }
     thd->proc_info="init";
     if ((res=open_and_lock_tables(thd,tables)))
       break;
