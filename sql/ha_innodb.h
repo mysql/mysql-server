@@ -150,7 +150,7 @@ class ha_innobase: public handler
 
   	void position(byte *record);
   	ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-	ha_rows estimate_number_of_rows();
+	ha_rows estimate_rows_upper_bound();
 
   	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
