@@ -706,7 +706,8 @@ NdbDictionary::Dictionary::alterTable(const Table & t){
 }
 
 const NdbDictionary::Table * 
-NdbDictionary::Dictionary::getTable(const char * name, void **data){
+NdbDictionary::Dictionary::getTable(const char * name, void **data) const
+{
   NdbTableImpl * t = m_impl.getTable(name, data);
   if(t)
     return t->m_facade;
@@ -719,7 +720,8 @@ void NdbDictionary::Dictionary::set_local_table_data_size(unsigned sz)
 }
 
 const NdbDictionary::Table * 
-NdbDictionary::Dictionary::getTable(const char * name){
+NdbDictionary::Dictionary::getTable(const char * name) const
+{
   return getTable(name, 0);
 }
 
@@ -752,7 +754,7 @@ NdbDictionary::Dictionary::dropIndex(const char * indexName,
 
 const NdbDictionary::Index * 
 NdbDictionary::Dictionary::getIndex(const char * indexName,
-				    const char * tableName)
+				    const char * tableName) const
 {
   NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
   if(i)
@@ -782,7 +784,7 @@ NdbDictionary::Dictionary::removeCachedIndex(const char * indexName,
 
 const NdbDictionary::Table *
 NdbDictionary::Dictionary::getIndexTable(const char * indexName, 
-					 const char * tableName)
+					 const char * tableName) const
 {
   NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
   NdbTableImpl * t = m_impl.getTable(tableName);
