@@ -580,9 +580,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if (param->testflag & T_STATISTICS)
     {
-      if (*keys == 1L)				/* first_key */
-	param->unique_count[keyinfo->keysegs]++;
-      else
+      if (*keys != 1L)				/* not first_key */
       {
 	uint diff;
 	_mi_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,SEARCH_FIND,
@@ -2520,10 +2518,11 @@ static int sort_key_write(SORT_INFO *sort_info, const void *a)
   {
     cmp=_mi_key_cmp(sort_info->keyseg,sort_info->key_block->lastkey,(uchar*) a,
 		    USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE ,&diff_pos);
+    sort_info->unique[diff_pos-1]++;
   }
   else
   {
-    cmp= -1;  diff_pos=sort_info->keyinfo->keysegs;
+    cmp= -1;
   }
   if ((sort_info->keyinfo->flag & HA_NOSAME) && cmp == 0)
   {
@@ -2544,7 +2543,6 @@ static int sort_key_write(SORT_INFO *sort_info, const void *a)
       _mi_print_key(stdout,sort_info->keyseg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(param));
   }
-  sort_info->unique[diff_pos-1]++;
 #ifndef DBUG_OFF
   if (cmp > 0)
   {
@@ -3099,7 +3097,7 @@ static void update_key_parts(MI_KEYDEF *keyinfo,
     if (count == 0)
       tmp=records;
     else
-      tmp= (records+count/2) / count;
+      tmp= (records + (count+1)/2) / (count+1);
     if (tmp >= (ulonglong) ~(ulong) 0)
       tmp=(ulonglong) ~(ulong) 0;
     *rec_per_key_part=(ulong) tmp;

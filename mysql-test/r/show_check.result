@@ -23,7 +23,7 @@ c	int(11)			0		select,insert,update,references
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	4	NULL	NULL	
 t1	1	b	1	b	A	1	NULL	NULL	
-t1	1	b	2	c	A	2	NULL	NULL	
+t1	1	b	2	c	A	4	NULL	NULL	
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 Table	Op	Msg_type	Msg_text
@@ -39,7 +39,7 @@ test.t1	check	status	OK
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL	
 t1	1	b	1	b	A	1	NULL	NULL	
-t1	1	b	2	c	A	2	NULL	NULL	
+t1	1	b	2	c	A	5	NULL	NULL	
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 Table	Op	Msg_type	Msg_text
@@ -53,3 +53,17 @@ mysql
 test
 Database (test%)
 test
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL	
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL	
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL	
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL	
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL	
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL	
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL	
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL	
