@@ -22,7 +22,7 @@ insert into t2 select NULL,message from t1;
 insert into t1 select NULL,message from t2;
 insert into t2 select NULL,message from t1;
 insert into t1 select NULL,message from t2;
-create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(t1,t2);
+create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,test.t2);
 explain select * from t3 where a < 10;
 explain select * from t3 where a > 10 and a < 20;
 select * from t3 where a = 10;

@@ -2704,7 +2704,7 @@ ha_innobase::records_in_range(
    	DBUG_ENTER("records_in_range");
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "estimating range size";
+		prebuilt->trx->op_info = (char*) "estimating range size";
 	}
    	
 	active_index = keynr;
@@ -2740,7 +2740,7 @@ ha_innobase::records_in_range(
     	my_free((char*) key_val_buff2, MYF(0));
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
+		prebuilt->trx->op_info = (char*) "";
 	}
    	
 	DBUG_RETURN((ha_rows) n_rows);
@@ -2763,7 +2763,7 @@ ha_innobase::estimate_number_of_rows(void)
 	dict_table_t*	ib_table;
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info =
+	  prebuilt->trx->op_info = (char*)
 				"estimating upper bound of table size";
 	}   	
 
@@ -2780,7 +2780,7 @@ ha_innobase::estimate_number_of_rows(void)
 	/* The minimum clustered index record size is 20 bytes */
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
+		prebuilt->trx->op_info = (char*) "";
 	}
    	
 	return((ha_rows) (1000 + data_file_length / 20));
@@ -2822,7 +2822,7 @@ ha_innobase::info(
  	DBUG_ENTER("info");
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "calculating table stats";
+		prebuilt->trx->op_info = (char*) "calculating table stats";
 	}
    	
  	ib_table = prebuilt->table;
@@ -2888,7 +2888,7 @@ ha_innobase::info(
   	}
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
+		prebuilt->trx->op_info = (char*) "";
 	}
    	
   	DBUG_VOID_RETURN;
