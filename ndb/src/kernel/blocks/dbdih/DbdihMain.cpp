@@ -6115,15 +6115,15 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     switch(fragmentType){
     case DictTabInfo::AllNodesSmallTable:
       jam();
-      noOfFragments = cnoOfNodeGroups;
+      noOfFragments = csystemnodes;
       break;
     case DictTabInfo::AllNodesMediumTable:
       jam();
-      noOfFragments = 2 * cnoOfNodeGroups;
+      noOfFragments = csystemnodes;
       break;
     case DictTabInfo::AllNodesLargeTable:
       jam();
-      noOfFragments = 8 * cnoOfNodeGroups;
+      noOfFragments = csystemnodes;
       break;
     case DictTabInfo::SingleFragment:
       jam();
