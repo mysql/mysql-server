@@ -281,6 +281,7 @@ TODO list:
 */
 
 #include "mysql_priv.h"
+#ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -3460,3 +3461,5 @@ err2:
 }
 
 #endif /* DBUG_OFF */
+
+#endif /*HAVE_QUERY_CACHE*/
