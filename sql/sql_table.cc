@@ -1426,7 +1426,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       char path[FN_REFLEN];
       (void) sprintf(path,"%s/%s/%s",mysql_data_home,new_db,tmp_name);
-      fn_format(path,path,"","",4+16+32);
+      fn_format(path,path,"","",4);
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
     }
     if (!new_table)

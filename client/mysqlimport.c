@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.6"
+#define IMPORT_VERSION "2.7"
 
 #include <global.h>
 #include <my_sys.h>

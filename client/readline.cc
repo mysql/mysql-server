@@ -26,7 +26,7 @@ static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);
 static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str);
 static uint fill_buffer(LINE_BUFFER *buffer);
-static char *intern_read_line(LINE_BUFFER *buffer,uint *out_length);
+static char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length);
 
 
 LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
@@ -46,12 +46,13 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 char *batch_readline(LINE_BUFFER *line_buff)
 {
   char *pos;
-  uint out_length;
+  ulong out_length;
 
   if (!(pos=intern_read_line(line_buff,&out_length)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
     out_length--;				/* Remove '\n' */
+  line_buff->read_length=out_length;
   pos[out_length]=0;
   return pos;
 }
@@ -187,7 +188,7 @@ static uint fill_buffer(LINE_BUFFER *buffer)
 
 
 
-char *intern_read_line(LINE_BUFFER *buffer,uint *out_length)
+char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length)
 {
   char *pos;
   uint length;
@@ -210,7 +211,7 @@ char *intern_read_line(LINE_BUFFER *buffer,uint *out_length)
       pos--;					/* break line here */
     }
     buffer->end_of_line=pos+1;
-    *out_length=(uint) (pos + 1 - buffer->eof - buffer->start_of_line);
+    *out_length=(ulong) (pos + 1 - buffer->eof - buffer->start_of_line);
     DBUG_RETURN(buffer->start_of_line);
   }
 }

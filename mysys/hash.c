@@ -108,6 +108,8 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
   return hash_mask((*hash->calc_hashnr)(key,length),buffmax,maxlength);
 }
 
+#ifndef NEW_HASH_FUNCTION
+
 	/* Calc hashvalue for a key */
 
 static uint calc_hashnr(const byte *key,uint length)
@@ -133,6 +135,49 @@ static uint calc_hashnr_caseup(const byte *key,uint length)
   }
   return((uint) nr);
 }
+
+#else
+
+/*
+ * Fowler/Noll/Vo hash
+ *
+ * The basis of the hash algorithm was taken from an idea sent by email to the
+ * IEEE Posix P1003.2 mailing list from Phong Vo (kpv@research.att.com) and
+ * Glenn Fowler (gsf@research.att.com).  Landon Curt Noll (chongo@toad.com)
+ * later improved on their algorithm.
+ *
+ * The magic is in the interesting relationship between the special prime
+ * 16777619 (2^24 + 403) and 2^32 and 2^8.
+ *
+ * This hash produces the fewest collisions of any function that we've seen so
+ * far, and works well on both numbers and strings.
+ */
+
+uint calc_hashnr(const byte *key, uint len)
+{
+  const byte *end=key+len;
+  uint hash;
+  for (hash = 0; key < end; key++)
+  {
+    hash *= 16777619;
+    hash ^= (uint) *(uchar*) key;
+  }
+  return (hash);
+}
+
+uint calc_hashnr_caseup(const byte *key, uint len)
+{
+  const byte *end=key+len;
+  uint hash;
+  for (hash = 0; key < end; key++)
+  {
+    hash *= 16777619;
+    hash ^= (uint) (uchar) toupper(*key);
+  }
+  return (hash);
+}
+
+#endif
 
 
 static inline uint rec_hashnr(HASH *hash,const byte *record)

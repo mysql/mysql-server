@@ -203,7 +203,7 @@ INSERT INTO t7 VALUES (1,0,'High',1);
 INSERT INTO t7 VALUES (2,0,'Medium',2);
 INSERT INTO t7 VALUES (3,0,'Low',3);
 
-select t3._field_140,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), min(t3._field_140), t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
+select t3._field_140,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
 
 drop table t1,t2,t3,t4,t5,t6,t7;
 

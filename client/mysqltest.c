@@ -1098,10 +1098,7 @@ void str_to_file(const char* fname, char* str, int size)
 void reject_dump(const char* record_file, char* buf, int size)
 {
   char reject_file[FN_REFLEN];
-  if (strlen(record_file) >= FN_REFLEN-8)
-    die("too long path name for reject");
-  strmov(strmov(reject_file, record_file),".reject");
-  str_to_file(reject_file, buf, size);
+  str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
 
@@ -1282,9 +1279,6 @@ int main(int argc, char** argv)
 
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
-
-  mysql_options(&cur_con->mysql, MYSQL_READ_DEFAULT_GROUP, "mysql");
-
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");

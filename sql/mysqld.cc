@@ -1082,9 +1082,10 @@ inline static __volatile__ void  trace_stack()
   uchar **stack_bottom;
   uchar** ebp;
   LINT_INIT(ebp);
-  fprintf(stderr, "Attemping backtrace, please send the info below to \
-bugs@lists.mysql.com. If you see no messages after this, something \
-went terribly wrong - report this anyway\n");
+  fprintf(stderr,
+"Attemping backtrace. You can use the following information to find out\n\
+where mysqld died.  If you see no messages after this, something went\n\
+terribly wrong\n");
   THD* thd = current_thd;
   uint frame_count = 0;
   __asm __volatile__ ("movl %%ebp,%0"
@@ -1092,7 +1093,7 @@ went terribly wrong - report this anyway\n");
 		      :"r"(ebp));
   if (!ebp)
   {
-    fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with \
+    fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with\n\
 -fomit-frame-pointer? Aborting backtrace\n");
     return;
   }
@@ -1143,9 +1144,9 @@ static sig_handler handle_segfault(int sig)
   segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %d;\n\
-The manual section 'Debugging a MySQL server' tells you how to use a \n\
-debugger on the core file to produce a backtrace that may help you find out\n\
-why mysqld died\n",sig);
+The manual section 'Debugging a MySQL server' tells you how to use a\n\
+stack trace and/or the core file to produce a readable backtrace that may\n\
+help in finding out why mysqld died\n",sig);
 #if defined(HAVE_LINUXTHREADS)
 #ifdef __i386__
   trace_stack();
@@ -1622,12 +1623,14 @@ int main(int argc, char **argv)
   {
     server_id= !master_host ? 1 : 2;
     switch (server_id) {
+#ifdef EXTRA_DEBUG
     case 1:
       sql_print_error("\
 Warning: one should set server_id to a non-0 value if log-bin is enabled.\n\
 Will log updates to binary log, but will not accept connections from slaves");
       break;
-    default:
+#endif
+    case 2:
       sql_print_error("\
 Warning: one should set server_id to a non-0 value if master_host is set.\n\
 The server will not act as a slave");
@@ -2351,7 +2354,8 @@ enum options {
 	       OPT_INNOBASE_DATA_HOME_DIR,OPT_INNOBASE_DATA_FILE_PATH,
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
-	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB
+	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
+	       OPT_GEMINI_SKIP,
 };
 
 static struct option long_options[] = {
@@ -2463,6 +2467,9 @@ static struct option long_options[] = {
 #ifdef HAVE_INNOBASE_DB
   {"skip-innobase",         no_argument,       0, (int) OPT_INNOBASE_SKIP},
 #endif
+#ifdef HAVE_GEMINI_DB
+  {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
+#endif
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
   {"skip-grant-tables",     no_argument,       0, (int) OPT_SKIP_GRANT},
@@ -2544,7 +2551,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "lower_case_table_names",  (long*) &lower_case_table_names,
       IF_WIN(1,0), 0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
-      1024*1024L, 80, 17*1024*1024L, MALLOC_OVERHEAD, 1024 },
+      1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
       ~0L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "max_connections",         (long*) &max_connections,
@@ -3385,6 +3392,12 @@ static void get_options(int argc,char **argv)
     case OPT_BDB_SKIP:
       berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
+      break;
+#endif
+#ifdef HAVE_GEMINI_DB
+    case OPT_GEMINI_SKIP:
+      gemini_skip=1;
+      have_gemini_db=SHOW_OPTION_DISABLED;  
       break;
 #endif
 #ifdef HAVE_INNOBASE_DB
