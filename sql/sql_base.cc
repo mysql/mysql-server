@@ -384,6 +384,9 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->in_lock_tables=1;
     result=reopen_tables(thd,1,1);
     thd->in_lock_tables=0;
+    /* Set version for table */
+    for (TABLE *table=thd->open_tables; table ; table=table->next)
+      table->version=refresh_version;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (if_wait_for_refresh)

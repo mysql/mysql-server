@@ -8,3 +8,7 @@ b
 1	10000000001
 a$1	$b	c$
 1	2	3
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ref	B	B	21	const	1	where used
+a	B
+3	world

@@ -2207,11 +2207,11 @@ row_sel_get_clust_rec_for_mysql(
 		visit through secondary index records that would not really
 		exist in our snapshot. */
 		
-		if ((old_vers || rec_get_deleted_flag(rec)) 
+		if (clust_rec && (old_vers || rec_get_deleted_flag(rec))
 		    && !row_sel_sec_rec_is_for_clust_rec(rec, sec_index,
 						clust_rec, clust_index)) {
 			clust_rec = NULL;
-		}								
+		}
 	}
 
 	*out_rec = clust_rec;

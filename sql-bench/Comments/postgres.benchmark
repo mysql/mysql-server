@@ -1,17 +1,24 @@
-# This file describes how to run MySQL benchmarks with PostgreSQL
+# This file describes how to run MySQL benchmark suite with PostgreSQL
 #
 # WARNING:
 #
 # Don't run the --fast test on a PostgreSQL 7.1.1 database on
 # which you have any critical data; During one of our test runs
 # PostgreSQL got a corrupted database and all data was destroyed!
-# (When we tried to restart postmaster, It died with a
+# When we tried to restart postmaster, It died with a
 # 'no such file or directory' error and never recovered from that!
+#
+# Another time vacuum() filled our system disk with had 6G free
+# while vaccuming a table of 60 M.
+#
+# We have sent a mail about this to the PostgreSQL mailing list, so
+# the PostgreSQL developers should be aware of these problems and should
+# hopefully fix this soon.
 #
 # WARNING
 
 # The test was run on a Intel Xeon 2x 550 Mzh machine with 1G memory,
-# 9G hard disk.  The OS is Suse 6.4, with Linux 2.2.14 compiled with SMP
+# 9G hard disk.  The OS is Suse 7.1, with Linux 2.4.0 compiled with SMP
 # support
 # Both the perl client and the database server is run
 # on the same machine. No other cpu intensive process was used during
@@ -73,8 +80,15 @@ make install
 
 run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512M, pg started with -o -F" --user=postgres --server=pg --cmp=mysql
 
-# and a test where we do a vacuum() after each update.
-# (The time for vacuum() is counted in the book-keeping() column)
+# When running with --fast we run the following vacuum commands on
+# the database between each major update of the tables:
+# vacuum table
+# or
+# vacuum analyze
+# vacuum
+
+# The time for vacuum() is accounted for in the book-keeping() column, not
+# in the test that updates the database.
 
 run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512M, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast
 

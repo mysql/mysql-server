@@ -25,7 +25,7 @@ use Getopt::Long;
 
 $opt_server="mysql";
 $opt_dir="output";
-$opt_machine="";
+$opt_machine=$opt_cmp="";
 $opt_relative=$opt_same_server=$opt_help=$opt_Information=$opt_skip_count=$opt_no_bars=$opt_verbose=0;
 
 GetOptions("Information","help","server=s","cmp=s","machine=s","relative","same-server","dir=s","skip-count","no-bars","html","verbose") || usage();
@@ -52,10 +52,6 @@ if ($#ARGV == -1)
 {
   @ARGV=glob($files);
   $automatic_files=1;
-}
-else
-{
-  $opt_cmp="";
 }
 
 foreach (@ARGV)

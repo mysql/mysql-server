@@ -21,7 +21,7 @@ benchdir_root=		$(prefix)
 benchdir =		$(benchdir_root)/sql-bench
 bench_SCRIPTS =		test-ATIS test-connect test-create test-insert \
 			test-big-tables test-select test-wisconsin \
-			test-alter-table \
+			test-alter-table graph-compare-results \
 			bench-init.pl compare-results run-all-tests \
 			server-cfg crash-me copy-db bench-count-distinct
 CLEANFILES =		$(bench_SCRIPTS)
@@ -30,7 +30,7 @@ EXTRA_SCRIPTS =		test-ATIS.sh test-connect.sh test-create.sh \
 			test-alter-table.sh test-wisconsin.sh \
 			bench-init.pl.sh compare-results.sh server-cfg.sh \
 			run-all-tests.sh crash-me.sh copy-db.sh \
-			bench-count-distinct.sh
+			bench-count-distinct.sh graph-compare-results.sh
 EXTRA_DIST =		$(EXTRA_SCRIPTS)
 
 dist-hook:
