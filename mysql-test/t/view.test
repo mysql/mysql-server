@@ -861,3 +861,12 @@ show create view v1;
 drop view v1;
 drop table t1;
 set sql_mode=default;
+
+#
+# VIEW without tables
+#
+create table t1 (t_column int);
+create view v1 as select 'a';
+select * from v1, t1;
+drop view v1;
+drop table t1;
