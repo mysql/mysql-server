@@ -58,10 +58,14 @@ NDBT_ResultRow::attributeStore(int i){
   return data[i];
 }
 
+const NdbRecAttr*
+NDBT_ResultRow::attributeStore(int i) const {
+  return data[i];
+}
 
 const 
 NdbRecAttr * 
-NDBT_ResultRow::attributeStore(const char* name){
+NDBT_ResultRow::attributeStore(const char* name) const {
   for(int i = 0; i<cols; i++){
     if (strcmp(names[i], name) == 0)
       return data[i];
