@@ -209,7 +209,7 @@ character-set=latin7
 "This operation cannot be performed with a running slave, run STOP SLAVE first",
 "This operation requires a running slave, configure slave and do START SLAVE",
 "The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
-"Could not initialize master info structure, check permisions on master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Could not create slave thread, check system resources",
 "Kasutajal %-.64s on juba rohkem ühendusi kui lubatud 'max_user_connections' muutujaga",
 "Ainult konstantsed suurused on lubatud SET klauslis",

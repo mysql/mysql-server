@@ -204,7 +204,7 @@ character-set=latin1
 "Cette opération ne peut être réalisée avec un esclave actif, faites STOP SLAVE d'abord",
 "Cette opération nécessite un esclave actif, configurez les esclaves et faites START SLAVE",
 "Le server n'est pas configuré comme un esclave, changez le fichier de configuration ou utilisez CHANGE MASTER TO",
-"Impossible d'initialiser les structures d'information de maître, vérifiez les permissions sur master.info",
+"Impossible d'initialiser les structures d'information de maître, vous trouverez des messages d'erreur supplémentaires dans le journal des erreurs de MySQL",
 "Impossible de créer une tâche esclave, vérifiez les ressources système",
 "L'utilisateur %-.64s possède déjà plus de 'max_user_connections' connections actives",
 "Seules les expressions constantes sont autorisées avec SET",

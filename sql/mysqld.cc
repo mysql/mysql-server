@@ -5783,7 +5783,8 @@ static void fix_paths(void)
   if (!lower_case_table_names &&
       test_if_case_insensitive(mysql_real_data_home) == 1)
   {
-    sql_print_error("Warning: Setting lower_case_table_names=1 because file system for '%s' is case insensitive", mysql_real_data_home);
+    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names= 1;
   }
 }
 
@@ -5984,9 +5985,10 @@ static void create_pid_file()
   if ((file = my_create(pidfile_name,0664,
 			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {
-    char buff[21];
-    sprintf(buff,"%lu\n",(ulong) getpid());
-    (void) my_write(file, buff,strlen(buff),MYF(MY_WME));
+    char buff[21], *end;
+    end= int2str((long) getpid(), buff, 10);
+    *end++= '\n';
+    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
     (void) my_close(file, MYF(0));
   }
 }
