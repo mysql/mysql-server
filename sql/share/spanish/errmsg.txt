@@ -300,3 +300,4 @@ character-set=latin1
 "Equivocado truncado %-.32s valor: '%-.128s'"
 "Incorrecta definición de tabla; Solamente debe haber una columna TIMESTAMP con CURRENT_TIMESTAMP en DEFAULT o ON UPDATE cláusula"
 "Inválido ON UPDATE cláusula para campo '%-.64s'",
+"This command is not supported in the prepared statement protocol yet",

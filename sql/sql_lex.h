@@ -603,6 +603,12 @@ typedef struct st_lex
       un->uncacheable|= cause;
     }
   }
+  TABLE_LIST *unlink_first_table(TABLE_LIST *tables,
+				 TABLE_LIST **global_first,
+				 TABLE_LIST **local_first);
+  TABLE_LIST *link_first_table_back(TABLE_LIST *tables,
+				    TABLE_LIST *global_first,
+				    TABLE_LIST *local_first);
 } LEX;
 
 
