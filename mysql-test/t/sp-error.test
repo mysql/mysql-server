@@ -7,6 +7,16 @@ delete from mysql.proc;
 
 delimiter |;
 
+# This should give three syntax errors (sometimes crashed; bug #643)
+# (Unfortunately, this is not a 100% test, on some platforms this
+#  passed despite the bug.)
+--error 1064
+create procedure syntaxerror(t int)|
+--error 1064
+create procedure syntaxerror(t int)|
+--error 1064
+create procedure syntaxerror(t int)|
+
 # Check that we get the right error, i.e. UDF declaration parses correctly,
 # but foo.so doesn't exist.
 # QQ This generates an error message containing a misleading errno which
