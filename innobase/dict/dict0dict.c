@@ -2139,36 +2139,39 @@ dict_scan_col(
 	}
 
 	if (*ptr == '`' || *ptr == '"') {
-	  /*
-	    The identifier is quoted. Search for end quote.
-	    We can't use the general code here as the name may contain
-	    special characters like space.
-	  */
-	  char quote= *ptr++;
+	  	/* The identifier is quoted. Search for the end quote. We
+		cannot use the general code here as the name may contain
+		special characters like the space. */
 
-	  old_ptr= ptr;
-	  /*
-	    The colum name should always end with 'quote' but we check for
-	    end zero just to be safe if this is called outside of MySQL
-	  */
-	  while (*ptr && *ptr != quote)
-	    ptr++;
-	  *column_name_len = (ulint)(ptr - old_ptr);
+	  	char quote = *ptr;
 
-	  if (*ptr)				/* Skip end quote */
-	    ptr++;
-	}
-	else
-	{
-	  old_ptr = ptr;
+		ptr++;		/* Skip the quote */
+
+	  	old_ptr = ptr;
+
+	  	/* The column name should always end with 'quote' but we check
+		for an end zero just to be safe if this is called outside of
+		MySQL. */
+
+	  	while (*ptr && *ptr != quote) {
+	    		ptr++;
+		}
+	  	*column_name_len = (ulint)(ptr - old_ptr);
+
+	  	if (*ptr) {	/* Skip end quote */
+	    		ptr++;
+		} else {			
+			return(ptr);	/* Syntax error */
+		}
+	} else {
+	  	old_ptr = ptr;
 	
-	  while (!isspace(*ptr) && *ptr != ',' && *ptr != ')'
-		 && *ptr != '\0') {
-		ptr++;
-	  }
-	  *column_name_len = (ulint)(ptr - old_ptr);
+	  	while (!isspace(*ptr) && *ptr != ',' && *ptr != ')'
+		 					&& *ptr != '\0') {
+			ptr++;
+	  	}
+	  	*column_name_len = (ulint)(ptr - old_ptr);
 	}
-
 	
 	if (table == NULL) {
 		*success = TRUE;
@@ -2181,7 +2184,7 @@ dict_scan_col(
 
 			if (ut_strlen(col->name) == *column_name_len
 			    && 0 == ut_cmp_in_lower_case(col->name, old_ptr,
-						*column_name_len)) {
+							*column_name_len)) {
 		    		/* Found */
 
 		    		*success = TRUE;
@@ -2211,10 +2214,10 @@ dict_scan_table_name(
 				the referenced table name; must be at least
 				2500 bytes */
 {
-	char*	dot_ptr			= NULL;
+	char*	dot_ptr		= NULL;
 	char*	old_ptr;
+	char	quote		= '\0';
 	ulint	i;
-	char	quote			= 0;
 	
 	*success = FALSE;
 	*table = NULL;
@@ -2229,22 +2232,33 @@ dict_scan_table_name(
 	}
 
 	if (*ptr == '`' || *ptr == '"') {
-		quote= *ptr++;
-	}
-
-	old_ptr = ptr;
-	
-	while (*ptr != quote &&
-	       (quote || (!isspace(*ptr) && *ptr != '(')) &&
-	       *ptr != '\0') {
-		if (!quote && *ptr == '.') {
-			dot_ptr = ptr;
-		}
-
+		quote = *ptr;
 		ptr++;
 	}
 
+	old_ptr = ptr;
+
+	if (quote) {
+		while (*ptr != quote && *ptr != '\0') {
+			ptr++;
+		}
+
+		if (*ptr == '\0') {
+
+			return(old_ptr);	/* Syntax error */
+		}
+	} else {
+		while (!isspace(*ptr) && *ptr != '(' && *ptr != '\0') {
+
+			if (*ptr == '.') {
+				dot_ptr = ptr;
+			}
+			ptr++;
+		}
+	}
+
 	if (ptr - old_ptr > 2000) {
+
 		return(old_ptr);
 	}
 	
@@ -2290,7 +2304,7 @@ dict_scan_table_name(
 
 	*table = dict_table_get_low(second_table_name);
 
-	if (*ptr && *ptr == quote) {
+	if (quote && *ptr == quote) {
 		ptr++;
 	}
 
@@ -2310,7 +2324,7 @@ dict_scan_id(
 			scannable */
 	ulint*	len)	/* out: length of the id */
 {
-	char quote	= 0;
+	char quote	= '\0';
 
 	*start = NULL;
 
@@ -2329,11 +2343,16 @@ dict_scan_id(
 	
 	*start = ptr;
 
-	while (*ptr != quote &&
-	       (!quote || (!isspace(*ptr) && *ptr != ',' && *ptr != '(' &&
-			   *ptr != ')'))
-	       && *ptr != '\0') {
-		ptr++;
+	if (quote) {
+		while (*ptr != quote && *ptr != '\0') {
+			ptr++;
+		}
+	} else {
+		while (!isspace(*ptr) && *ptr != '(' && *ptr != ')'
+		       && *ptr != ',' && *ptr != '\0') {
+
+			ptr++;
+		}
 	}
 
 	*len = (ulint) (ptr - *start);
