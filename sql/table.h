@@ -387,6 +387,10 @@ typedef struct st_table_list
   uint          effective_algorithm;    /* which algorithm was really used */
   uint		privilege_backup;       /* place for saving privileges */
   GRANT_INFO	grant;
+  /* data need by some engines in query cache*/
+  ulonglong     engine_data;
+  /* call back function for asking handler about caching in query cache */
+  qc_engine_callback callback_func;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
