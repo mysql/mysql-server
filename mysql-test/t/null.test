@@ -48,3 +48,34 @@ insert into t1 values(10,null);
 select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
 t2.b=t3.a order by 1;
 drop table t1;
+
+#
+# Test inserting and updating with NULL
+#
+CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
+INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
+UPDATE t1 SET d=1/NULL;
+UPDATE t1 SET d=NULL;
+--error 1048
+INSERT INTO t1 (a) values (null);
+--error 1048
+INSERT INTO t1 (a) values (1/null);
+INSERT INTO t1 (a) values (null),(null);
+--error 1048
+INSERT INTO t1 (b) values (null);
+--error 1048
+INSERT INTO t1 (b) values (1/null);
+INSERT INTO t1 (b) values (null),(null);
+--error 1048
+INSERT INTO t1 (c) values (null);
+--error 1048
+INSERT INTO t1 (c) values (1/null);
+INSERT INTO t1 (c) values (null),(null);
+--error 1048
+INSERT INTO t1 (d) values (null);
+--error 1048
+INSERT INTO t1 (d) values (1/null);
+INSERT INTO t1 (d) values (null),(null);
+select * from t1;
+drop table t1;
+

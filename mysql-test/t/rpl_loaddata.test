@@ -1,0 +1,16 @@
+# See if replication of a "LOAD DATA in an autoincrement column"
+# Honours autoincrement values
+# i.e. if the master and slave have the same sequence
+source include/master-slave.inc;
+
+create table t1(a int not null auto_increment, b int, primary key(a) );
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;                                     
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -357,8 +357,10 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 {
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
+  ulonglong id;
   DBUG_ENTER("read_fixed_length");
 
+  id=0;
   /* No fields can be null in this format. mark all fields as not null */
   while ((sql_field= (Item_field*) it++))
       sql_field->field->set_notnull();
@@ -401,6 +403,14 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
       thd->cuted_fields++;			/* To long row */
     if (write_record(table,&info))
       DBUG_RETURN(1);
+    /*
+      If auto_increment values are used, save the first one
+       for LAST_INSERT_ID() and for the binary/update log.
+       We can't use insert_id() as we don't want to touch the
+       last_insert_id_used flag.
+    */
+    if (!id && thd->insert_id_used)
+      id= thd->last_insert_id;
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
     if (read_info.next_line())			// Skip to next line
@@ -408,6 +418,8 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
     if (read_info.line_cuted)
       thd->cuted_fields++;			/* To long row */
   }
+  if (id && !read_info.error)
+    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 
@@ -421,10 +433,12 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
   uint enclosed_length;
+  ulonglong id;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-
+  id=0;
+  
   for (;;it.rewind())
   {
     if (thd->killed)
@@ -477,6 +491,14 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     }
     if (write_record(table,&info))
       DBUG_RETURN(1);
+    /*
+      If auto_increment values are used, save the first one
+       for LAST_INSERT_ID() and for the binary/update log.
+       We can't use insert_id() as we don't want to touch the
+       last_insert_id_used flag.
+    */
+    if (!id && thd->insert_id_used)
+      id= thd->last_insert_id;
     if (table->next_number_field)
       table->next_number_field->reset();	// Clear for next record
     if (read_info.next_line())			// Skip to next line
@@ -484,6 +506,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     if (read_info.line_cuted)
       thd->cuted_fields++;			/* To long row */
   }
+  if (id && !read_info.error)
+    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 
