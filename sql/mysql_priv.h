@@ -285,6 +285,12 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
+/*
+  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
+  use strictly more than 64 bits by adding one more define above, you should
+  contact the replication team because the replication code should then be
+  updated (to store more bytes on disk).
+*/
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -336,6 +342,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define WEEK_MONDAY_FIRST    1
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
+
+#define STRING_BUFFER_USUAL_SIZE 80
 
 enum enum_parsing_place
 {
@@ -401,9 +409,13 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
+typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+                                      uint key_length,
+                                      ulonglong *engine_data);
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
+#include "my_decimal.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
@@ -412,6 +424,7 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
+extern my_decimal decimal_zero;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -446,6 +459,7 @@ Item *negate_expression(THD *thd, Item *expr);
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
+  unsigned int client_protocol_41:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -714,7 +728,6 @@ bool mysql_do(THD *thd, List<Item> &values);
 
 /* sql_analyse.h */
 bool append_escaped(String *to_str, String *from_str);
-bool append_escaped(String *to_str, char *from, uint from_len);
 
 /* sql_show.cc */
 bool mysqld_show_open_tables(THD *thd,const char *wild);
@@ -1323,7 +1336,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->s->keys_in_use;
-  table->maybe_null= test(table->outer_join= table_list->outer_join);
+  table->maybe_null= table_list->outer_join;
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;

@@ -131,7 +131,7 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
 uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *, my_bool);
 
 FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, uint, byte *);
-FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint);
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint, CHARSET_INFO *);
 
 extern const struct _ft_vft _ft_vft_nlq;
 int ft_nlq_read_next(FT_INFO *, char *);

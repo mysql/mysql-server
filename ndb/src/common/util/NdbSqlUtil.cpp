@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <NdbSqlUtil.hpp>
+#include <NdbOut.hpp>
 
 int
 NdbSqlUtil::char_compare(const char* s1, unsigned n1,
@@ -550,8 +551,6 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
       return +1;
     return 0;
   }
-  assert(! full);
-  return CmpUnknown;
 #else
   char t1[4], t2[4];
   if (n1 == 3 && n2 == 3)
@@ -562,6 +561,7 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
     p2 = t2;
     n1 = n2 = 4;
   }
+#ifdef ndb_date_sol9x86_cc_xO3_madness
   if (n2 >= 4) {        // may access 4-th byte
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
@@ -576,9 +576,40 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
       return +1;
     return 0;
   }
+#else
+  if (n2 >= 4) {
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    uint j1 = uint3korr(v1);
+    uint j2 = uint3korr(v2);
+    uint d1 = (j1 & 31);
+    uint d2 = (j2 & 31);
+    j1 = (j1 >> 5);
+    j2 = (j2 >> 5);
+    uint m1 = (j1 & 15);
+    uint m2 = (j2 & 15);
+    j1 = (j1 >> 4);
+    j2 = (j2 >> 4);
+    uint y1 = j1;
+    uint y2 = j2;
+    if (y1 < y2)
+      return -1;
+    if (y1 > y2)
+      return +1;
+    if (m1 < m2)
+      return -1;
+    if (m1 > m2)
+      return +1;
+    if (d1 < d2)
+      return -1;
+    if (d1 > d2)
+      return +1;
+    return 0;
+  }
+#endif
+#endif
   assert(! full);
   return CmpUnknown;
-#endif
 }
 
 // not supported
@@ -828,6 +859,8 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), nsp, n1);
   if (n2 <= 0)
     return -1;
+  // XXX bug workaround - strnxfrm may not write full string
+  memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
   int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, src, srcLen);
   // pad with strxfrm-ed space chars

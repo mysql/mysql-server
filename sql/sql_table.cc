@@ -777,6 +777,14 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       sql_field->pack_flag= FIELDFLAG_NUMBER;
       break;
+    case FIELD_TYPE_NEWDECIMAL:
+      sql_field->pack_flag=(FIELDFLAG_NUMBER |
+                            (sql_field->flags & UNSIGNED_FLAG ? 0 :
+                             FIELDFLAG_DECIMAL) |
+                            (sql_field->flags & ZEROFILL_FLAG ?
+                             FIELDFLAG_ZEROFILL : 0) |
+                            (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
+      break;
     case FIELD_TYPE_TIMESTAMP:
       /* We should replace old TIMESTAMP fields with their newer analogs */
       if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
@@ -2396,6 +2404,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
 	    reg_ext, NullS);
+    /* Resolve symlinks (for windows) */
+    fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
@@ -2424,6 +2434,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
 	    reg_ext, NullS);
+    fn_format(dst_path, dst_path, "", "", MYF(MY_UNPACK_FILENAME));
     if (!access(dst_path, F_OK))
       goto table_exists;
   }

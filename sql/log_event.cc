@@ -953,7 +953,13 @@ void Query_log_event::pack_info(Protocol *protocol)
 
 bool Query_log_event::write(IO_CACHE* file)
 {
-  uchar buf[QUERY_HEADER_LEN+1+4+1+8+1+1+FN_REFLEN+5], *start, *start_of_status;
+  uchar buf[QUERY_HEADER_LEN+
+            1+4+           // code of flags2 and flags2
+            1+8+           // code of sql_mode and sql_mode
+            1+1+FN_REFLEN+ // code of catalog and catalog length and catalog
+            1+4+           // code of autoinc and the 2 autoinc variables
+            1+6            // code of charset and charset
+            ], *start, *start_of_status;
   ulong event_length;
 
   if (!query)
@@ -1048,9 +1054,15 @@ bool Query_log_event::write(IO_CACHE* file)
     int2store(start+2, auto_increment_offset);
     start+= 4;
   }
+  if (charset_inited)
+  {
+    *(start++)= Q_CHARSET_CODE;
+    memcpy(start, charset, 6);
+    start+= 6;
+  }
   /*
     Here there could be code like
-    if (command-line-option-which-says-"log_this_variable")
+    if (command-line-option-which-says-"log_this_variable" && inited)
     {
     *(start++)= Q_THIS_VARIABLE_CODE;
     int4store(start, this_variable);
@@ -1095,7 +1107,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
-   flags2_inited(1), sql_mode_inited(1), flags2(0),
+   flags2_inited(1), sql_mode_inited(1), charset_inited(1),
    sql_mode(thd_arg->variables.sql_mode),
    auto_increment_increment(thd_arg->variables.auto_increment_increment),
    auto_increment_offset(thd_arg->variables.auto_increment_offset)
@@ -1104,7 +1116,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   time(&end_time);
   exec_time = (ulong) (end_time  - thd->start_time);
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
-  status_vars_len= 1+4+1+8+1+1+catalog_len+1;
+  /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
   /*
     If we don't use flags2 for anything else than options contained in
@@ -1114,7 +1126,12 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     we will probably want to reclaim the 29 bits. So we need the &.
   */
   flags2= thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG;
-
+  DBUG_ASSERT(thd->variables.character_set_client->number < 256*256);
+  DBUG_ASSERT(thd->variables.collation_connection->number < 256*256);
+  DBUG_ASSERT(thd->variables.collation_server->number < 256*256);
+  int2store(charset, thd_arg->variables.character_set_client->number);
+  int2store(charset+2, thd_arg->variables.collation_connection->number);
+  int2store(charset+4, thd_arg->variables.collation_server->number);
   DBUG_PRINT("info",("Query_log_event has flags2=%lu sql_mode=%lu",flags2,sql_mode));
 }
 #endif /* MYSQL_CLIENT */
@@ -1129,7 +1146,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event *description_event)
   :Log_event(buf, description_event), data_buf(0), query(NullS), catalog(NullS), 
    db(NullS), catalog_len(0), status_vars_len(0),
-   flags2_inited(0), sql_mode_inited(0)
+   flags2_inited(0), sql_mode_inited(0), charset_inited(0),
+   auto_increment_increment(1), auto_increment_offset(1)
 {
   ulong data_len;
   uint32 tmp;
@@ -1156,8 +1174,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   exec_time = uint4korr(buf + Q_EXEC_TIME_OFFSET);
   db_len = (uint)buf[Q_DB_LEN_OFFSET];
   error_code = uint2korr(buf + Q_ERR_CODE_OFFSET);
-  /* If auto_increment is not set by query_event, they should not be used */
-  auto_increment_increment= auto_increment_offset= 1;
 
   /*
     5.0 format starts here.
@@ -1216,6 +1232,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       auto_increment_offset=    uint2korr(pos+2);
       pos+= 4;
       break;
+    case Q_CHARSET_CODE:
+    {
+      charset_inited= 1;
+      memcpy(charset, pos, 6);
+      pos+= 6;
+      break;
+    }
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
@@ -1348,6 +1371,27 @@ void Query_log_event::print(FILE* file, bool short_form,
     last_event_info->auto_increment_offset=    auto_increment_offset;
   }
 
+  if (likely(charset_inited))
+  {
+    if (unlikely(!last_event_info->charset_inited)) /* first Query event */
+    {
+      last_event_info->charset_inited= 1;
+      last_event_info->charset[0]= ~charset[0]; // force a difference to force write
+    }
+    if (unlikely(bcmp(last_event_info->charset, charset, 6)))
+    {
+      fprintf(file,"SET "
+              "@@session.character_set_client=%d,"
+              "@@session.collation_connection=%d,"
+              "@@session.collation_server=%d"
+              ";\n",
+              uint2korr(charset),
+              uint2korr(charset+2),
+              uint2korr(charset+4));
+      memcpy(last_event_info->charset, charset, 6);
+    }
+  }
+
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fputs(";\n", file);
 }
@@ -1400,34 +1444,64 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     mysql_log.write(thd,COM_QUERY,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
-
-    if (flags2_inited)
-      /*
-        all bits of thd->options which are 1 in OPTIONS_WRITTEN_TO_BIN_LOG must
-        take their value from flags2.
-      */
-      thd->options= flags2|(thd->options & ~(ulong)OPTIONS_WRITTEN_TO_BIN_LOG);
-    /*
-      else, we are in a 3.23/4.0 binlog; we previously received a
-      Rotate_log_event which reset thd->options and sql_mode, so nothing to do.
-    */
-    
-    /*
-      We do not replicate IGNORE_DIR_IN_CREATE. That is, if the master is a
-      slave which runs with SQL_MODE=IGNORE_DIR_IN_CREATE, this should not
-      force us to ignore the dir too. Imagine you are a ring of machines, and
-      one has a disk problem so that you temporarily need IGNORE_DIR_IN_CREATE
-      on this machine; you don't want it to propagate elsewhere (you don't want
-      all slaves to start ignoring the dirs).
-    */
-    if (sql_mode_inited)
-      thd->variables.sql_mode=
-	(ulong) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
-		 (sql_mode & ~(ulong) MODE_NO_DIR_IN_CREATE));
     
     if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
+    {
+      if (flags2_inited)
+        /*
+          all bits of thd->options which are 1 in OPTIONS_WRITTEN_TO_BIN_LOG must
+          take their value from flags2.
+        */
+        thd->options= flags2|(thd->options & ~(ulong)OPTIONS_WRITTEN_TO_BIN_LOG);
+      /*
+        else, we are in a 3.23/4.0 binlog; we previously received a
+        Rotate_log_event which reset thd->options and sql_mode etc, so nothing to do.
+      */
+      /*
+        We do not replicate IGNORE_DIR_IN_CREATE. That is, if the master is a
+        slave which runs with SQL_MODE=IGNORE_DIR_IN_CREATE, this should not
+        force us to ignore the dir too. Imagine you are a ring of machines, and
+        one has a disk problem so that you temporarily need IGNORE_DIR_IN_CREATE
+        on this machine; you don't want it to propagate elsewhere (you don't want
+        all slaves to start ignoring the dirs).
+      */
+      if (sql_mode_inited)
+        thd->variables.sql_mode=
+          (ulong) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
+                   (sql_mode & ~(ulong) MODE_NO_DIR_IN_CREATE));
+      if (charset_inited)
+      {
+        if (rli->cached_charset_compare(charset))
+        {
+          /* Verify that we support the charsets found in the event. */
+          if (!(thd->variables.character_set_client=
+                get_charset(uint2korr(charset), MYF(MY_WME))) ||
+              !(thd->variables.collation_connection=
+                get_charset(uint2korr(charset+2), MYF(MY_WME))) ||
+              !(thd->variables.collation_server=
+                get_charset(uint2korr(charset+4), MYF(MY_WME))))
+          {
+            /*
+              We updated the thd->variables with nonsensical values (0), and the
+              thread is not guaranteed to terminate now (as it may be configured
+              to ignore EE_UNKNOWN_CHARSET);if we're going to execute a next
+              statement we'll have a new charset info with it, so no problem to
+              have stored 0 in thd->variables. But we invalidate cached
+              charset to force a check next time (otherwise if next time
+              charset is unknown again we won't detect it).
+            */
+            rli->cached_charset_invalidate();
+            goto compare_errors;
+          }
+          thd->update_charset(); // for the charset change to take effect
+        }
+      }
+
+      /* Execute the query (note that we bypass dispatch_command()) */
       mysql_parse(thd, thd->query, q_len);
+
+    }
     else
     {
       /*
@@ -1452,6 +1526,8 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
       }
       goto end;
     }
+
+compare_errors:
  
     /*
       If we expected a non-zero error code, and we don't get the same error
@@ -1666,12 +1742,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
 int Start_log_event_v3::exec_event(struct st_relay_log_info* rli)
 {
   DBUG_ENTER("Start_log_event_v3::exec_event");
-  /*
-    If the I/O thread has not started, mi->old_format is BINLOG_FORMAT_CURRENT
-    (that's what the MASTER_INFO constructor does), so the test below is not
-    perfect at all.
-  */
-  switch (rli->relay_log.description_event_for_exec->binlog_version)
+  switch (binlog_version)
   {
   case 3:
   case 4:
@@ -2789,14 +2860,24 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
     /*
-      Reset thd->options and sql_mode, because this could be the signal of a
-      master's downgrade from 5.0 to 4.0.
+      Reset thd->options and sql_mode etc, because this could be the signal of
+      a master's downgrade from 5.0 to 4.0.
       However, no need to reset description_event_for_exec: indeed, if the next
       master is 5.0 (even 5.0.1) we will soon get a Format_desc; if the next
       master is 4.0 then the events are in the slave's format (conversion).
     */
     set_slave_thread_options(thd);
     thd->variables.sql_mode= global_system_variables.sql_mode;
+    thd->variables.auto_increment_increment=
+      thd->variables.auto_increment_offset= 1;
+    thd->variables.character_set_client=
+      global_system_variables.character_set_client;
+    thd->variables.collation_connection=
+      global_system_variables.collation_connection;
+    thd->variables.collation_server=
+      global_system_variables.collation_server;
+    thd->update_charset();
+    rli->cached_charset_invalidate();
   }
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
@@ -3018,6 +3099,16 @@ void User_var_log_event::pack_info(Protocol* protocol)
       buf= my_malloc(val_offset + 22, MYF(MY_WME));
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
       break;
+    case DECIMAL_RESULT:
+    {
+      buf= my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH, MYF(MY_WME));
+      String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH, &my_charset_bin);
+      my_decimal dec;
+      binary2my_decimal(E_DEC_FATAL_ERROR, val+2, &dec, val[0], val[1]);
+      my_decimal2string(E_DEC_FATAL_ERROR, &dec, 0, 0, 0, &str);
+      event_len= str.length() + val_offset;
+      break;
+    } 
     case STRING_RESULT:
       /* 15 is for 'COLLATE' and other chars */
       buf= my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15, MYF(MY_WME));
@@ -3086,7 +3177,7 @@ bool User_var_log_event::write(IO_CACHE* file)
   char buf[UV_NAME_LEN_SIZE];
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
-  char buf2[8], *pos= buf2;
+  char buf2[max(8, DECIMAL_MAX_FIELD_SIZE + 2)], *pos= buf2;
   uint buf1_length;
   ulong event_length;
 
@@ -3101,8 +3192,6 @@ bool User_var_log_event::write(IO_CACHE* file)
   {
     buf1[1]= type;
     int4store(buf1 + 2, charset_number);
-    int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
-    buf1_length= 10;
 
     switch (type) {
     case REAL_RESULT:
@@ -3111,6 +3200,16 @@ bool User_var_log_event::write(IO_CACHE* file)
     case INT_RESULT:
       int8store(buf2, *(longlong*) val);
       break;
+    case DECIMAL_RESULT:
+    {
+      my_decimal *dec= (my_decimal *)val;
+      dec->fix_buffer_pointer();
+      buf2[0]= (char)(dec->intg + dec->frac);
+      buf2[1]= (char)dec->frac;
+      decimal2bin((decimal*)val, buf2+2, buf2[0], buf2[1]);
+      val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
+      break;
+    }
     case STRING_RESULT:
       pos= val;
       break;
@@ -3119,6 +3218,8 @@ bool User_var_log_event::write(IO_CACHE* file)
       DBUG_ASSERT(1);
       return 0;
     }
+    int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
+    buf1_length= 10;
   }
 
   /* Length of the whole event */
@@ -3166,6 +3267,23 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       longlong10_to_str(uint8korr(val), int_buf, -10);
       fprintf(file, ":=%s;\n", int_buf);
       break;
+    case DECIMAL_RESULT:
+    {
+      char str_buf[200];
+      int str_len= sizeof(str_buf) - 1;
+      int precision= (int)val[0];
+      int scale= (int)val[1];
+      decimal_digit dec_buf[10];
+      decimal dec;
+      dec.len= 10;
+      dec.buf= dec_buf;
+
+      bin2decimal(val+2, &dec, precision, scale);
+      decimal2string(&dec, str_buf, &str_len, 0, 0, 0);
+      str_buf[str_len]= 0;
+      fprintf(file, "%s",str_buf);
+      break;
+    }
     case STRING_RESULT:
     {
       /*
@@ -3242,7 +3360,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     switch (type) {
     case REAL_RESULT:
       float8get(real_val, val);
-      it= new Item_real(real_val);
+      it= new Item_float(real_val);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
@@ -3252,6 +3370,14 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
       val= (char*) &int_val;		// Pointer to value in native format
       val_len= 8;
       break;
+    case DECIMAL_RESULT:
+    {
+      Item_decimal *dec= new Item_decimal(val+2, val[0], val[1]);
+      it= dec;
+      val= (char *)dec->val_decimal(NULL);
+      val_len= sizeof(my_decimal);
+      break;
+    }
     case STRING_RESULT:
       it= new Item_string(val, val_len, charset);
       break;

@@ -273,6 +273,7 @@ dtype_get_fixed_size(
 				/* out: fixed size, or 0 */
 	dtype_t*	type)	/* in: type */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	mtype;
 
 	mtype = dtype_get_mtype(type);
@@ -321,6 +322,12 @@ dtype_get_fixed_size(
 	}
 
 	return(0);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /***************************************************************************

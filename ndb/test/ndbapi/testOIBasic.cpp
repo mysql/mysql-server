@@ -1812,14 +1812,16 @@ Val::calckeychars(Par par, unsigned i, unsigned& n, unsigned char* buf)
   const Chs* chs = col.m_chs;
   CHARSET_INFO* cs = chs->m_cs;
   n = 0;
-  // our random chars may not fill value exactly
-  while (n + cs->mbmaxlen <= col.m_bytelength) {
+  unsigned len = 0;
+  while (len < col.m_length) {
     if (i % (1 + n) == 0) {
       break;
     }
     const Chr& chr = chs->m_chr[i % maxcharcount];
+    assert(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
+    len++;
   }
 }
 
@@ -1884,8 +1886,8 @@ Val::calcnokeychars(Par par, unsigned& n, unsigned char* buf)
   const Chs* chs = col.m_chs;
   CHARSET_INFO* cs = chs->m_cs;
   n = 0;
-  // our random chars may not fill value exactly
-  while (n + cs->mbmaxlen <= col.m_bytelength) {
+  unsigned len = 0;
+  while (len < col.m_length) {
     if (urandom(1 + col.m_bytelength) == 0) {
       break;
     }
@@ -1898,8 +1900,10 @@ Val::calcnokeychars(Par par, unsigned& n, unsigned char* buf)
     unsigned i = half + r;
     assert(i < maxcharcount);
     const Chr& chr = chs->m_chr[i];
+    assert(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
+    len++;
   }
 }
 

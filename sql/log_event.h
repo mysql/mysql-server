@@ -232,6 +232,7 @@ struct sql_ex_info
 #define Q_SQL_MODE_CODE         1
 #define Q_CATALOG_CODE          2
 #define Q_AUTO_INCREMENT	3
+#define Q_CHARSET_CODE          4
 
 /* Intvar event post-header */
 
@@ -401,11 +402,19 @@ typedef struct st_last_event_info
   bool sql_mode_inited;
   ulong sql_mode;		/* must be same as THD.variables.sql_mode */
   ulong auto_increment_increment, auto_increment_offset;
+  bool charset_inited;
+  char charset[6]; // 3 variables, each of them storable in 2 bytes
   st_last_event_info()
-    :flags2_inited(0), flags2(0), sql_mode_inited(0), sql_mode(0),
-     auto_increment_increment(1),auto_increment_offset(1)
+    :flags2_inited(0), sql_mode_inited(0),
+     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0)
     {
-      db[0]= 0; /* initially, the db is unknown */
+      /*
+        Currently we only use static LAST_EVENT_INFO objects, so zeroed at
+        program's startup, but these explicit bzero() is for the day someone
+        creates dynamic instances.
+      */
+      bzero(db, sizeof(db));
+      bzero(charset, sizeof(charset));
     }
 } LAST_EVENT_INFO;
 #endif
@@ -634,7 +643,7 @@ public:
     status_vars on disk is a sequence of pairs (code, value) where 'code' means
     'sql_mode', 'affected' etc. Sometimes 'value' must be a short string, so
     its first byte is its length. For now the order of status vars is:
-    flags2 - sql_mode - catalog.
+    flags2 - sql_mode - catalog - autoinc - charset
     We should add the same thing to Load_log_event, but in fact
     LOAD DATA INFILE is going to be logged with a new type of event (logging of
     the plain text query), so Load_log_event would be frozen, so no need. The
@@ -655,11 +664,13 @@ public:
   */
   bool flags2_inited;
   bool sql_mode_inited;
+  bool charset_inited;
 
   uint32 flags2;
   /* In connections sql_mode is 32 bits now but will be 64 bits soon */
   ulong sql_mode;
   ulong auto_increment_increment, auto_increment_offset;
+  char charset[6];
 
 #ifndef MYSQL_CLIENT
 

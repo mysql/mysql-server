@@ -43,18 +43,20 @@
   handle bulk inserts as well (that is if someone was trying to read at
   the same time since we would want to flush).
 
-  A "meta" file is kept. All this file does is contain information on
-  the number of rows. 
+  A "meta" file is kept alongside the data file. This file serves two purpose.
+  The first purpose is to track the number of rows in the table. The second 
+  purpose is to determine if the table was closed properly or not. When the 
+  meta file is first opened it is marked as dirty. It is opened when the table 
+  itself is opened for writing. When the table is closed the new count for rows 
+  is written to the meta file and the file is marked as clean. If the meta file 
+  is opened and it is marked as dirty, it is assumed that a crash occured. At 
+  this point an error occurs and the user is told to rebuild the file.
+  A rebuild scans the rows and rewrites the meta file. If corruption is found
+  in the data file then the meta file is not repaired.
 
-  No attempts at durability are made. You can corrupt your data. A repair
-  method was added to repair the meta file that stores row information,
-  but if your data file gets corrupted I haven't solved that. I could
-  create a repair that would solve this, but do you want to take a 
-  chance of loosing your data?
+  At some point a recovery method for such a drastic case needs to be divised.
 
-  Locks are row level, and you will get a consistant read. Transactions
-  will be added later (they are not that hard to add at this
-  stage). 
+  Locks are row level, and you will get a consistant read. 
 
   For performance as far as table scans go it is quite fast. I don't have
   good numbers but locally it has out performed both Innodb and MyISAM. For
@@ -89,7 +91,6 @@
      compression but may speed up ordered searches).
    Checkpoint the meta file to allow for faster rebuilds.
    Dirty open (right now the meta file is repaired if a crash occured).
-   Transactions.
    Option to allow for dirty reads, this would lower the sync calls, which would make
      inserts a lot faster, but would mean highly arbitrary reads.
 
@@ -347,6 +348,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
       share->crashed= TRUE;
     else
       (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
+
     /* 
       It is expensive to open and close the data files and since you can't have
       a gzip file that can be both read and written we keep a writer open
@@ -393,7 +395,8 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
     if (gzclose(share->archive_write) == Z_ERRNO)
       rc= 1;
-    my_close(share->meta_file,MYF(0));
+    if (my_close(share->meta_file, MYF(0)))
+      rc= 1;
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&archive_mutex);

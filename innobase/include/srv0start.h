@@ -53,6 +53,16 @@ srv_parse_log_group_home_dirs(
 					error */
 	char*	str,			/* in: character string */
 	char***	log_group_home_dirs);	/* out, own: log group home dirs */
+/*************************************************************************
+Adds a slash or a backslash to the end of a string if it is missing
+and the string is not empty. */
+
+char*
+srv_add_path_separator_if_needed(
+/*=============================*/
+			/* out: string which has the separator if the
+			string is not empty */
+	char*	str);	/* in: null-terminated character string */
 /********************************************************************
 Starts Innobase and creates a new database if database files
 are not found and the user wants. Server parameters are

@@ -59,8 +59,11 @@ int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
   return compare_ulonglong(s,t);
 }
 
-bool append_escaped(String *to_str, String *from_str);
-bool append_escaped(String *to_str, char *from, uint from_len);
+int compare_decimal2(int* len, const char *s, const char *t)
+{
+  return memcmp(s, t, *len);
+}
+
 
 Procedure *
 proc_analyse_init(THD *thd, ORDER *param, select_result *result,
@@ -142,6 +145,8 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
       }
       if (item->result_type() == REAL_RESULT)
         *f_info++ = new field_real(item, pc);
+      if (item->result_type() == DECIMAL_RESULT)
+        *f_info++= new field_decimal(item, pc);
       if (item->result_type() == STRING_RESULT)
         *f_info++ = new field_str(item, pc);
     }
@@ -263,7 +268,7 @@ bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
   }
   else		// ulonglong is as big as bigint in MySQL
   {
-    if ((check_ulonglong(num, info->integers) == REAL_NUM))
+    if ((check_ulonglong(num, info->integers) == DECIMAL_NUM))
       return 0;
     ev_info->ullval = (ulonglong) max(ev_info->ullval, info->ullval);
     ev_info->max_dval =  (double) max(ev_info->max_dval, info->dval);
@@ -449,6 +454,80 @@ void field_real::add()
       max_arg = num;
   }
 } // field_real::add
+
+
+void field_decimal::add()
+{
+  my_decimal dec_buf, *dec= item->val_decimal(&dec_buf);
+  uint length, zero_count, decs;
+  TREE_ELEMENT *element;
+
+  if (item->null_value)
+  {
+    nulls++;
+    return;
+  }
+
+  length= my_decimal_string_length(dec);
+
+  if (room_in_tree)
+  {
+    char buf[DECIMAL_MAX_FIELD_SIZE];
+    my_decimal2binary(E_DEC_FATAL_ERROR, dec, buf,
+                      item->max_length, item->decimals);
+    if (!(element = tree_insert(&tree, (void*)buf, 0, tree.custom_arg)))
+    {
+      room_in_tree = 0;    // Remove tree, out of RAM ?
+      delete_tree(&tree);
+    }
+    /*
+      if element->count == 1, this element can be found only once from tree
+      if element->count == 2, or more, this element is already in tree
+    */
+    else if (element->count == 1 && (tree_elements++) >= pc->max_tree_elements)
+    {
+      room_in_tree = 0;  // Remove tree, too many elements
+      delete_tree(&tree);
+    }
+  }
+
+  if (!found)
+  {
+    found = 1;
+    min_arg = max_arg = sum[0] = *dec;
+    min_arg.fix_buffer_pointer();
+    max_arg.fix_buffer_pointer();
+    sum[0].fix_buffer_pointer();
+    my_decimal_mul(E_DEC_FATAL_ERROR, sum_sqr, dec, dec);
+    cur_sum= 0;
+    min_length = max_length = length;
+  }
+  else
+  {
+    int next_cur_sum= cur_sum ^ 1;
+    my_decimal sqr_buf;
+
+    my_decimal_add(E_DEC_FATAL_ERROR, sum+next_cur_sum, sum+cur_sum, dec);
+    my_decimal_mul(E_DEC_FATAL_ERROR, &sqr_buf, dec, dec);
+    my_decimal_add(E_DEC_FATAL_ERROR,
+                   sum_sqr+next_cur_sum, sum_sqr+cur_sum, &sqr_buf);
+    cur_sum= next_cur_sum;
+    if (length < min_length)
+      min_length = length;
+    if (length > max_length)
+      max_length = length;
+    if (my_decimal_cmp(dec, &min_arg) < 0)
+    {
+      min_arg= *dec;
+      min_arg.fix_buffer_pointer();
+    }
+    if (my_decimal_cmp(dec, &max_arg) > 0)
+    {
+      max_arg= *dec;
+      max_arg.fix_buffer_pointer();
+    }
+  }
+}
 
 
 void field_longlong::add()
@@ -888,6 +967,70 @@ void field_ulonglong::get_opt_type(String *answer,
 } //field_ulonglong::get_opt_type
 
 
+void field_decimal::get_opt_type(String *answer,
+                                 ha_rows total_rows __attribute__((unused)))
+{
+  my_decimal zero;
+  char buff[MAX_FIELD_WIDTH];
+
+  my_decimal_set_zero(&zero);
+  my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
+
+  sprintf(buff, "DECIMAL(%d, %d)",
+          (int)(max_length - (item->decimals ? 1 : 0)), item->decimals);
+  if (is_unsigned)
+    strcat(buff, " UNSIGNED");
+  answer->append(buff, (uint) strlen(buff));
+}
+
+
+String *field_decimal::get_min_arg(String *str)
+{
+  my_decimal2string(E_DEC_FATAL_ERROR, &min_arg, 0, 0, '0', str);
+  return str;
+}
+
+
+String *field_decimal::get_max_arg(String *str)
+{
+  my_decimal2string(E_DEC_FATAL_ERROR, &max_arg, 0, 0, '0', str);
+  return str;
+}
+
+
+String *field_decimal::avg(String *s, ha_rows rows)
+{
+  if (!(rows - nulls))
+  {
+    s->set((double) 0.0, 1,my_thd_charset);
+    return s;
+  }
+  my_decimal num, avg_val;
+  int2my_decimal(E_DEC_FATAL_ERROR, rows - nulls, FALSE, &num);
+  my_decimal_div(E_DEC_FATAL_ERROR, &avg_val, sum+cur_sum, &num, 0);
+  my_decimal2string(E_DEC_FATAL_ERROR, &avg_val, 0, 0, '0', s);
+  return s;
+}
+
+
+String *field_decimal::std(String *s, ha_rows rows)
+{
+  if (!(rows - nulls))
+  {
+    s->set((double) 0.0, 1,my_thd_charset);
+    return s;
+  }
+  my_decimal num, std_val, sum2, sum2d;
+  int2my_decimal(E_DEC_FATAL_ERROR, rows - nulls, FALSE, &num);
+  my_decimal_mul(E_DEC_FATAL_ERROR, &sum2, sum+cur_sum, sum+cur_sum);
+  my_decimal_div(E_DEC_FATAL_ERROR, &std_val, &sum2, &num, 0);
+  my_decimal_sub(E_DEC_FATAL_ERROR, &sum2, sum_sqr+cur_sum, &std_val);
+  my_decimal_div(E_DEC_FATAL_ERROR, &std_val, &sum2, &num, 0);
+  my_decimal2string(E_DEC_FATAL_ERROR, &std_val, 0, 0, '0', s);
+  return s;
+}
+
+
 int collect_string(String *element,
 		   element_count count __attribute__((unused)),
 		   TREE_INFO *info)
@@ -920,6 +1063,28 @@ int collect_real(double *element, element_count count __attribute__((unused)),
   info->str->append('\'');
   return 0;
 } // collect_real
+
+
+int collect_decimal(char *element, element_count count,
+                    TREE_INFO *info)
+{
+  char buff[DECIMAL_MAX_STR_LENGTH];
+  String s(buff, sizeof(buff),&my_charset_bin);
+
+  if (info->found)
+    info->str->append(',');
+  else
+    info->found = 1;
+  my_decimal dec;
+  binary2my_decimal(E_DEC_FATAL_ERROR, element, &dec,
+                    info->item->max_length, info->item->decimals);
+  
+  info->str->append('\'');
+  my_decimal2string(E_DEC_FATAL_ERROR, &dec, 0, 0, '0', &s);
+  info->str->append(s);
+  info->str->append('\'');
+  return 0;
+}
 
 
 int collect_longlong(longlong *element,
@@ -1023,12 +1188,12 @@ uint check_ulonglong(const char *str, uint length)
     bigger = LONG_NUM;
   }
   else if (length > ulonglong_len)
-    return REAL_NUM;
+    return DECIMAL_NUM;
   else
   {
     cmp = ulonglong_str;
     smaller = LONG_NUM;
-    bigger = REAL_NUM;
+    bigger = DECIMAL_NUM;
   }
   while (*cmp && *cmp++ == *str++) ;
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
@@ -1062,41 +1227,6 @@ bool append_escaped(String *to_str, String *from_str)
 
   from= (char*) from_str->ptr();
   end= from + from_str->length();
-  for (; from < end; from++)
-  {
-    c= *from;
-    switch (c) {
-    case '\0':
-      c= '0';
-      break;
-    case '\032':
-      c= 'Z';
-      break;
-    case '\\':
-    case '\'':
-      break;
-    default:
-      goto normal_character;
-    }
-    if (to_str->append('\\'))
-      return 1;
-
-  normal_character:
-    if (to_str->append(c))
-      return 1;
-  }
-  return 0;
-}
-
-bool append_escaped(String *to_str, char *from, uint from_len)
-{
-  char *end, c;
-
-  if (to_str->realloc(to_str->length() + from_len))
-    return 1;
-
-  end= from + from_len;
-
   for (; from < end; from++)
   {
     c= *from;

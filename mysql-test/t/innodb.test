@@ -129,6 +129,19 @@ insert into t1 values (6);
 -- error 1062
 insert into t1 values (4);
 select n from t1;
+set autocommit=0;
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+rollback to savepoint `savept2`;
+release savepoint `my_savepoint`;
+select n from t1;
+-- error 1181
+rollback to savepoint `my_savepoint`;
+set autocommit=1;
 # nop
 rollback;
 drop table t1;
