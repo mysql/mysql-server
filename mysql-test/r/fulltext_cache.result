@@ -24,7 +24,7 @@ INSERT INTO t2 VALUES (8,1,'Pizza de Salmao');
 SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi') as x FROM t1, t2
 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 q	item	id	x
-aaaaaaaaa dsaass de	sushi	1	1.92378665219675
+aaaaaaaaa dsaass de	sushi	1	1.92378664016724
 aaaaaaaaa dsaass de	Bolo de Chocolate	2	0
 aaaaaaaaa dsaass de	Feijoada	3	0
 aaaaaaaaa dsaass de	Mousse de Chocolate	4	0
@@ -35,7 +35,7 @@ aaaaaaaaa dsaass de	Pizza de Salmao	8	0
 SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi') as x FROM t2, t1
 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 q	item	id	x
-aaaaaaaaa dsaass de	sushi	1	1.92378665219675
+aaaaaaaaa dsaass de	sushi	1	1.92378664016724
 aaaaaaaaa dsaass de	Bolo de Chocolate	2	0
 aaaaaaaaa dsaass de	Feijoada	3	0
 aaaaaaaaa dsaass de	Mousse de Chocolate	4	0
