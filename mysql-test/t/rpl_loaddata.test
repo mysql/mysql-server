@@ -1,16 +1,34 @@
 # See if replication of a "LOAD DATA in an autoincrement column"
 # Honours autoincrement values
 # i.e. if the master and slave have the same sequence
+#
+# check replication of load data for temporary tables with additional parameters
+#
 source include/master-slave.inc;
 
 create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+
+create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+#load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionaly enclosed by '%' escaped by '@' lines terminated by '\n%%\n' ignore 1 lines;
+ load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' ignore 1 lines;
+
+create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+insert into t3 select * from t2;
+
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from t1;                                     
+
+select * from t1;
+select * from t3;
+
 connection master;
+
 drop table t1;
+drop table t2;
+drop table t3;
+
 save_master_pos;
 connection slave;
 sync_with_master;
