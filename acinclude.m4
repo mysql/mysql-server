@@ -615,7 +615,8 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_BDB], [
   AC_ARG_WITH([berkeley-db],
               [\
-  --with-berkely-db[=DIR] Use BerkeleyDB located in DIR],
+  --with-berkeley-db[=DIR]
+                          Use BerkeleyDB located in DIR],
               [bdb="$withval"],
               [bdb=default])
 
