@@ -1219,6 +1219,7 @@ parent	child
 1	2
 1	3
 2	1
+drop table t1;
 create table t1 (a int not null auto_increment primary key, b int, c int, key(c)) type=innodb;
 create table t2 (a int not null auto_increment primary key, b int);
 insert into t1 (b) values (null),(null),(null),(null),(null),(null),(null);

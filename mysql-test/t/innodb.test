@@ -809,7 +809,7 @@ drop table  t1,t2;
 create table t1  ( pk         int primary key,    parent     int not null,    child      int not null,       index (parent)  ) type = innodb;
 insert into t1 values   (1,0,4),  (2,1,3),  (3,2,1),  (4,1,2);
 select distinct  parent,child   from t1   order by parent;
-drop table t1,t2;
+drop table t1;
 
 #
 # Test that MySQL priorities clustered indexes
