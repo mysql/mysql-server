@@ -36,8 +36,7 @@ my_string my_load_path(my_string to, const char *path,
       test_if_hard_path(path))
     VOID(strmov(buff,path));
   else if ((path[0] == FN_CURLIB && path[1] == FN_LIBCHAR) ||
-	   (is_prefix((gptr) path,FN_PARENTDIR) &&
-	    path[strlen(FN_PARENTDIR)] == FN_LIBCHAR) ||
+	   (is_prefix((gptr) path,FN_PARENTDIR)) ||
 	   ! own_path_prefix)
   {
     if (! my_getwd(buff,(uint) (FN_REFLEN-strlen(path)),MYF(0)))

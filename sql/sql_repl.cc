@@ -562,6 +562,8 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     return 1;
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   init_thread_mask(&thread_mask,mi,1 /* inverse */);
+  if (thd->lex.slave_thd_opt)
+    thread_mask &= thd->lex.slave_thd_opt;
   if (thread_mask)
   {
     if (server_id_supplied && (!mi->inited || (mi->inited && *mi->host)))
@@ -602,6 +604,8 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   int thread_mask;
   lock_slave_threads(mi);
   init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
+  if (thd->lex.slave_thd_opt)
+    thread_mask &= thd->lex.slave_thd_opt;
   slave_errno = (thread_mask) ?
     terminate_slave_threads(mi,thread_mask,
 			    1 /*skip lock */) :    ER_SLAVE_NOT_RUNNING;

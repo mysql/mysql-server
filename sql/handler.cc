@@ -542,7 +542,8 @@ int handler::read_first_row(byte * buf, uint primary_key)
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
   */
-  if (deleted < 10 || primary_key >= MAX_KEY)
+  if (deleted < 10 || primary_key >= MAX_KEY || 
+      !(option_flag() & HA_READ_ORDER))
   {
     (void) rnd_init();
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;

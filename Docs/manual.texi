@@ -6252,7 +6252,7 @@ shell> groupadd mysql
 shell> useradd -g mysql mysql
 shell> cd /usr/local
 shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
-shell> ln -s mysql-VERSION-OS mysql
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R root  .
@@ -6327,7 +6327,7 @@ Unpack the distribution and create the installation directory:
 
 @example
 shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
-shell> ln -s mysql-VERSION-OS mysql
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
 @end example
 
 The first command creates a directory named @file{mysql-VERSION-OS}.  The
@@ -9638,13 +9638,6 @@ client/server and don't need to access the server from other hosts.
 Add some nice start and shutdown icons to the MySQL installation.
 
 @item
-Create a tool to manage registry entries for the MySQL startup
-options.  The registry entry reading is already coded into @file{mysqld.cc},
-but it should be recoded to be more parameter oriented.  The tool should
-also be able to update the @file{C:\my.cnf} option file if the user prefers
-to use that instead of the registry.
-
-@item
 When registering @code{mysqld} as a service with @code{--install} (on NT)
 it would be nice if you could also add default options on the command line.
 For the moment, the workaround is to list the parameters in the
@@ -9671,12 +9664,8 @@ interruptible. This would make it possible to kill open threads with
 We would like to have @code{mysqld} use the current locale for the sort order.
 
 @item
-Implement UDF functions with @code{.DLL}s.
-
-@item
 Add macros to use the faster thread-safe increment/decrement methods
 provided by Windows.
-
 @end itemize
 
 Other Windows-specific issues are described in the @file{README} file that
@@ -11025,6 +11014,12 @@ make sure that @file{gmalloc.o} is included in @file{libgthreads.a} and
 In FSU Pthreads, the following system calls are pthreads-aware: @code{read()},
 @code{write()}, @code{getmsg()}, @code{connect()}, @code{accept()},
 @code{select()}, and @code{wait()}.
+
+@item
+The CSSA-2001-SCO.35.2 (the patch is listed in custom as
+erg711905-dscr_remap security patch (ver 2.0.0) breaks FSU threads and
+makes mysqld instable.  You have to remove this one if you want to run
+mysqld on an OpenServer 5.0.6 machine.
 @end itemize
 
 If you want to install DBI on SCO, you have to edit the @file{Makefile} in
@@ -37994,7 +37989,19 @@ you at the startup that it is creating new log files.
 @subsection Backing up and Recovering an InnoDB Database
 
 The key to safe database management is taking regular backups.
-To take a 'binary' backup of your database you have to do the following:
+
+InnoDB Hot Backup is an online backup tool you can use to
+backup your InnoDB database while it is running. InnoDB
+Hot Backup does not require you to shut down your database
+and it does not set any locks or disturb your normal
+database processing. InnoDB Hot Backup is a non-free
+additional tool which is not included in the standard
+MySQL distribution. See the InnoDB Hot Backup homepage
+@uref{http://www.innodb.com/hotbackup.html}
+for detailed information and screenshots. 
+
+If you are able to shut down your MySQL server, then to take
+a 'binary' backup of your database you have to do the following: 
 
 @itemize @bullet
 @item
@@ -41037,7 +41044,7 @@ Returns the error number for the most recently invoked MySQL function.
 Returns the error message for the most recently invoked MySQL function.
 
 @item @strong{mysql_real_escape_string()} @tab
-Escapes special characters in a string for use in a SQL statement taking
+Escapes special characters in a string for use in a SQL statement, taking
 into account the current charset of the connection.
 
 @item @strong{mysql_escape_string()} @tab
@@ -48708,6 +48715,8 @@ Fixed bug with indexless boolean fulltext search.
 Fixed bug that sometimes appeared when fulltext search was used
 with ``const'' tables.
 @item
+Fixed wrong error value when doing a @code{SELECT} with an empty HEAP table.
+@item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
 @item
 Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimization.
@@ -49086,6 +49095,12 @@ not yet 100% confident in this code.
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
+@item
+Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
+32 indexes.
+@item
+Fixed that one can use @code{SET PASSWORD} for the anonymous user.
+@item
 Fixed core-dump bug when reading client groups from option files using
 @code{mysql_options()}.
 @item
@@ -51002,6 +51017,8 @@ Fixed coredump in LOAD_FILE(NULL).
 @appendixsubsec Changes in release 3.23.14
 
 @itemize @bullet
+@item
+Added @code{mysql_real_escape_string()} function to the MySQL C API.
 @item
 Fixed a bug in @code{CONCAT()} where one of the arguments was a function
 that returned a modified argument.

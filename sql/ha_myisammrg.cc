@@ -189,7 +189,7 @@ void ha_myisammrg::info(uint flag)
   deleted = (ha_rows) info.deleted;
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
-  table->keys_in_use=(((key_map) 1) << table->keys)- (key_map) 1;
+  table->keys_in_use= set_bits(key_map, table->keys);
   table->db_options_in_use    = info.options;
   table->is_view=1;
   mean_rec_length=info.reclength;

@@ -21,11 +21,6 @@
 int heap_rfirst(HP_INFO *info, byte *record)
 {
   DBUG_ENTER("heap_rfirst");
-  if (!(info->s->records))
-  {
-    my_errno=HA_ERR_END_OF_FILE;
-    DBUG_RETURN(my_errno);
-  }
   info->current_record=0;
   info->current_hash_ptr=0;
   info->update=HA_STATE_PREV_FOUND;
