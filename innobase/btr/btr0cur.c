@@ -1784,6 +1784,28 @@ btr_cur_pessimistic_update(
 								trx->id);
 	}
 
+	/* We have to set appropriate extern storage bits in the new
+	record to be inserted: we have to remember which fields were such */
+
+	ext_vect = mem_heap_alloc(heap, sizeof(ulint) * rec_get_n_fields(rec));
+	n_ext_vect = btr_push_update_extern_fields(ext_vect, rec, update);
+	
+	if ((rec_get_converted_size(new_entry) >=
+				page_get_free_space_of_empty() / 2)
+	    || (rec_get_converted_size(new_entry) >= REC_MAX_DATA_SIZE)) {
+
+                big_rec_vec = dtuple_convert_big_rec(index, new_entry,
+                					ext_vect, n_ext_vect);
+		if (big_rec_vec == NULL) {
+
+			mem_heap_free(heap);
+		
+			err = DB_TOO_BIG_RECORD;
+
+			goto return_after_reservations;
+		}
+	}
+
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -1813,29 +1835,9 @@ btr_cur_pessimistic_update(
 						 		TRUE, mtr);
 	}
 
-	/* We have to set appropriate extern storage bits in the new
-	record to be inserted: we have to remember which fields were such */
-
-	ext_vect = mem_heap_alloc(heap, sizeof(ulint) * rec_get_n_fields(rec));
-	n_ext_vect = btr_push_update_extern_fields(ext_vect, rec, update);
-	
 	page_cur_delete_rec(page_cursor, mtr);
 
 	page_cur_move_to_prev(page_cursor);
-
-	if ((rec_get_converted_size(new_entry) >=
-				page_get_free_space_of_empty() / 2)
-	    || (rec_get_converted_size(new_entry) >= REC_MAX_DATA_SIZE)) {
-
-                big_rec_vec = dtuple_convert_big_rec(index, new_entry,
-                					ext_vect, n_ext_vect);
-		if (big_rec_vec == NULL) {
-
-			mem_heap_free(heap);
-		
-			goto return_after_reservations;
-		}
-	}
 
 	rec = btr_cur_insert_if_possible(cursor, new_entry,
 						&dummy_reorganized, mtr);
