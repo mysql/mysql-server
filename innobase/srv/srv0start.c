@@ -141,21 +141,21 @@ srv_normalize_path_for_win(
 }
 	
 /*************************************************************************
-Adds a slash or a backslash to the end of a string if it is missing. */
+Adds a slash or a backslash to the end of a string if it is missing
+and the string is not empty. */
 static
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
-			/* out, own: string which has the separator */
+			/* out, own: string which has the separator if the
+			string is not empty */
 	char*	str)	/* in: null-terminated character string */
 {
 	char*	out_str;
 
 	if (ut_strlen(str) == 0) {
-		out_str = ut_malloc(2);
-		sprintf(out_str, "%s", SRV_PATH_SEPARATOR);
 
-		return(out_str);
+		return(str);
 	}
 
 	if (str[ut_strlen(str) - 1] == SRV_PATH_SEPARATOR[0]) {
