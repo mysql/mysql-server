@@ -13,7 +13,7 @@ path=`dirname $0`
 suffix="standard"
 
 extra_configs=" \
-	--with-innodb
+	--with-innodb \
 	"
 
 . $path/compile-netware-END

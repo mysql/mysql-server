@@ -1,4 +1,4 @@
-#  Copyright (c) 2002 Novell, Inc. All Rights Reserved. 
+#  Copyright (c) 2002 Novell, Inc. All Rights Reserved.
 #
 #  This program is free software; you can redistribute it and/or modify 
 #  it under the terms of the GNU General Public License as published by 
@@ -20,7 +20,7 @@ mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
 mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
 mysql_test_run_SOURCES=		mysql_test_run.c my_manage.c
 libmysql_SOURCES=		libmysqlmain.c
-libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a
+libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a @openssl_libs@
 
 netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 client/mysqlbinlog.def client/mysqlcheck.def \
@@ -29,12 +29,12 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 extra/mysql_install.def extra/my_print_defaults.def \
                                 extra/perror.def extra/replace.def \
                                 extra/resolveip.def extra/comp_err.def \
-																isam/isamchk.def \
+                                isam/isamchk.def \
                                 isam/isamlog.def isam/pack_isam.def \
                                 libmysqld/libmysqld.def myisam/myisamchk.def \
                                 myisam/myisamlog.def myisam/myisampack.def \
                                 sql/mysqld.def
-																
+
 link_sources:
 	set -x; \
 	for f in $(netware_build_files); do \
