@@ -2122,12 +2122,12 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if (compare_hostname(&grant_table->host, host, ip))
+      if (compare_hostname(&grant_name->host, host, ip))
 	return grant_name;
     }
     else
     {
-      if (compare_hostname(&grant_table->host, host, ip) &&
+      if (compare_hostname(&grant_name->host, host, ip) &&
           (!found || found->sort < grant_name->sort))
 	found=grant_name;					// Host ok
     }
@@ -3178,7 +3178,7 @@ my_bool grant_init(THD *org_thd)
 
       if (check_no_resolve)
       {
-	if (hostname_requires_resolving(mem_check->host))
+	if (hostname_requires_resolving(mem_check->host.hostname))
 	{
           sql_print_warning("'tables_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
@@ -4057,7 +4057,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str,
-                       grant_proc->orig_host))
+                       grant_proc->host.hostname))
     {
       ulong proc_access= grant_proc->privs;
       if (proc_access != 0)
@@ -4543,19 +4543,22 @@ static int handle_grant_struct(uint struct_no, bool drop,
     case 1:
       acl_db= dynamic_element(&acl_dbs, idx, ACL_DB*);
       user= acl_db->user;
-      host= acl_db->host.hostname;
+      if (!(host= acl_db->host.hostname))
+        host= "%";
       break;
 
     case 2:
       grant_name= (GRANT_NAME*) hash_element(&column_priv_hash, idx);
       user= grant_name->user;
-      host= grant_name->host;
+      if (!(host= grant_name->host.hostname))
+        host= "%";
       break;
 
     case 3:
       grant_name= (GRANT_NAME*) hash_element(&proc_priv_hash, idx);
       user= grant_name->user;
-      host= grant_name->host;
+      if (!(host= grant_name->host.hostname))
+        host= "%";
       break;
     }
     if (! user)
@@ -4610,7 +4613,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
       case 2:
       case 3:
         grant_name->user= strdup_root(&mem, user_to->user.str);
-        grant_name->host= strdup_root(&mem, user_to->host.str);
+        update_hostname(&grant_name->host,
+                        strdup_root(&mem, user_to->host.str));
 	break;
       }
     }
@@ -5067,7 +5071,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 							   counter);
 	if (!(user=grant_proc->user))
 	  user= "";
-	if (!(host=grant_proc->host))
+	if (!(host=grant_proc->host.hostname))
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
@@ -5139,8 +5143,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
         LEX_USER lex_user;
 	lex_user.user.str= grant_proc->user;
 	lex_user.user.length= strlen(grant_proc->user);
-	lex_user.host.str= grant_proc->host;
-	lex_user.host.length= strlen(grant_proc->host);
+	lex_user.host.str= grant_proc->host.hostname;
+	lex_user.host.length= strlen(grant_proc->host.hostname);
 	if (!replace_proc_table(thd,grant_proc,tables[4].table,lex_user,
 				grant_proc->db, grant_proc->tname, ~0, 1))
 	{
@@ -5424,7 +5428,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
       if (!(table_access & GRANT_ACL))
         is_grantable= "NO";
 
-      strxmov(buff,"'",user,"'@'",grant_table->orig_host,"'",NullS);
+      strxmov(buff,"'",user,"'@'",grant_table->host.hostname,"'",NullS);
       if (!test_access)
         update_schema_privilege(table, buff, grant_table->db, grant_table->tname,
                                 0, 0, "USAGE", 5, is_grantable);
@@ -5471,7 +5475,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
         is_grantable= "NO";
 
       ulong test_access= table_access & ~GRANT_ACL;
-      strxmov(buff,"'",user,"'@'",grant_table->orig_host,"'",NullS);
+      strxmov(buff,"'",user,"'@'",grant_table->host.hostname,"'",NullS);
       if (!test_access)
         continue;
       else

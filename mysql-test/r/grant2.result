@@ -233,6 +233,7 @@ drop user mysqltest_B@'%';
 ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql'
 drop user mysqltest_B@'%';
 drop user mysqltest_3@localhost;
+set @@sql_mode='';
 create database mysqltest_1;
 create table mysqltest_1.t1 (i int);
 insert into mysqltest_1.t1 values (1),(2),(3);

@@ -247,6 +247,7 @@ drop user mysqltest_B@'%';
 drop user mysqltest_3@localhost;
 #
 # Bug #3309: Test IP addresses with netmask
+set @@sql_mode='';
 create database mysqltest_1;
 create table mysqltest_1.t1 (i int);
 insert into mysqltest_1.t1 values (1),(2),(3);
