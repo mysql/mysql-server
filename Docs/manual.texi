@@ -15577,7 +15577,7 @@ Users of Java JDBC:
 Do not transmit plain (unencrypted) data over the Internet. These data are
 accessible to everyone who has the time and ability to intercept it and use
 it for their own purposes. Instead, use an encrypted protocol such as SSL or
-SSH. MySQL supports internal SSL connections as of Version 3.23.9.
+SSH. MySQL supports internal SSL connections as of Version 4.0.0.
 SSH port-forwarding can be used to create an encrypted (and compressed)
 tunnel for the communication.
 @item
@@ -16979,7 +16979,11 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
     TO user_name [IDENTIFIED BY 'password']
         [, user_name [IDENTIFIED BY 'password'] ...]
-    [REQUIRE @{SSL|X509@} [ISSUER issuer] [SUBJECT subject]]
+    [REQUIRE 
+    	[@{SSL| X509@}] 
+	[CIPHER cipher [AND]] 
+	[ISSUER issuer [AND]] 
+	[SUBJECT subject]]
     [WITH GRANT OPTION]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
@@ -17202,6 +17206,120 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 MySQL grant tables.
 @end itemize
 
+-----------
+@cindex SSL and X509 Basics
+MySQL has support for SSL encrypted connetions. To understand how MySQL uses 
+SSL we need to explain some basics about SSL and X509. People who are already 
+aware of it can skip this chapter.
+
+By default, MySQL uses unencrypted connections between client and server. This means
+that anyone on the way can listen and read all your data which moves there. Even
+more, some people can change content of data while it is moving between client and
+server. Sometime you may need to move really secret data over public networks and 
+such publicity is unacceptable. 
+
+SSL is a protocol which uses different encryption algorithms to ensure that data 
+which comes from public network can be trusted. It have mechanisms to detect any
+change, loss or replay of data. SSL also incorpores algorithms to recognize and 
+verification of identity using X509 standard.
+
+@cindex What is encryption
+Encryption is the way to make any kind of data unreadable. Even more, today's 
+practice require many additional security elements from encryption algorithms.
+They should resist many kind of known attacks like just messing with order 
+of encrypted messages or replaying data twice.
+
+@cindex What is X509/Certificate?
+X509 is standard which makes possible to identity someone in the Internet. Mostly
+it is used in e-commerce over the Internet. Shortly speaking there should be some
+company called "Certificate Authority" which assigns electronic certificates to
+everyone who needs. Certificates rely on asymmetric encryption algorithms which
+have two encryption keys - public and secret. Certificate owner can prove his
+identity showing certificate to other party. Certificate consists his owner public
+key. Any data encrypted with it can be decrypted only by secret key holder. 
+
+@cindex Possible questions:
+Q: Why MySQL not uses encrypted connections by default?
+A: Because it makes MySQL slower. Any kind of additional functionality requires 
+computer to do additional work and encrypting data is CPU-intensive operation which
+can overcome MySQL own work and consumed time. MySQL is tuned to be fast by default.
+
+Q: I need more information about SSL/X509/encrpytion/whatever
+A: Use your favourite internet search engine and search for keywords you are interested in.
+
+------------
+
+
+@cindex SSL related options
+
+MySQL can check x509 certificate attributes additionally to most used username/password 
+cheme. All usual options are still required (username, password, IP address mask, database/table name).
+
+There are different possibilities to limit connections:
+
+@itemize @bullet
+@item
+Without any SSL/X509 options all kind of encrypted/unencrypted connections are allowed if
+  username and password are valid.
+
+@item
+@code{REQUIRE SSL} option makes SSL encrypted connection must. Note that this requirement
+can be omitted of there are any other ACL record which allows non-SSL connection.
+
+Example:
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE SSL
+@end example
+
+
+@item
+* @code{REQUIRE X509} Requiring X509 certificate means that client should have valid certificate
+but we do not care about exact certificate, issuer or subject. Only restriction is it should
+be possible to verify its signature with some of our CA certificates.
+
+Example:
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE X509
+@end example
+
+@item
+@code{REQUIRE ISSUER issuer} makes connection more restrictive: now client must present
+  valid x509 certificate issued by CA "issuer". Using x509 certificates always implies encryption,
+  so option "SSL" is not neccessary anymore.
+
+Example:
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
+@end example
+
+@item
+@code{REQUIRE SUBJECT subject} requires client to have valid x509 certificate with subject "subject" on it. If client have valid certificate but having different "subject" then connection is still
+not allowed.
+
+Example:
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
+@end example
+
+@item
+@code{REQUIRE CIPHER cipher} is needed to assure enough strong ciphers and keylengths to be used. SSL himself can be weak if old algorithms with short encryption keys are used. Using this option we can ask for some exact cipher to allow connection.
+
+Example:
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+@end example
+
+Also it is allowed to combine those options with each other like this:
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" 
+	REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com" 
+	AND ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com" 
+	AND CIPHER "EDH-RSA-DES-CBC3-SHA"
+@end example
+
+But it is not allowed to use any of options twice. Only different options can be mixed.
+@end itemize
+-----------
 
 @node User names, Privilege changes, GRANT, User Account Management
 @subsection MySQL User Names and Passwords
@@ -19829,7 +19947,7 @@ differ somewhat:
 | have_bdb                | YES                       |
 | have_innodb             | YES                       |
 | have_raid               | YES                       |
-| have_ssl                | NO                        |
+| have_openssl            | NO                        |
 | init_file               |                           |
 | interactive_timeout     | 28800                     |
 | join_buffer_size        | 131072                    |
@@ -20016,7 +20134,7 @@ if @code{--skip-bdb} is used.
 if @code{--skip-innodb} is used.
 @item @code{have_raid}
 @code{YES} if @code{mysqld} supports the @code{RAID} option.
-@item @code{have_ssl}
+@item @code{have_openssl}
 @code{YES} if @code{mysqld} supports SSL (encryption) on the client/server
 protocol.
 
@@ -21680,7 +21798,7 @@ mysql> show variables like "have_%";
 | have_innodb   | NO    |
 | have_isam     | YES   |
 | have_raid     | NO    |
-| have_ssl      | NO    |
+| have_openssl  | NO    |
 +---------------+-------+
 @end example
 
@@ -48424,7 +48542,7 @@ Allow hex constants in the @code{--fields-*-by} and
 Added option @code{--safe-show-database} to @code{mysqld}.
 @item
 Added @code{have_bdb}, @code{have_gemini}, @code{have_innobase},
-@code{have_raid} and @code{have_ssl} to @code{SHOW VARIABLES} to make it
+@code{have_raid} and @code{have_openssl} to @code{SHOW VARIABLES} to make it
 easy to test for supported extensions.
 @item
 Added option @code{--open-files-limit} to @code{mysqld}.

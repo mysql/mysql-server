@@ -169,9 +169,6 @@ struct st_VioSSLAcceptorFd
     state_connect       = 1,
     state_accept        = 2
   };
-//  BIO* bio_;
-//  char desc_[100];
-//  Vio* sd_;
 
   /* function pointers which are only once for SSL server 
   Vio*(*sslaccept)(struct st_VioSSLAcceptorFd*,Vio*); */
@@ -184,21 +181,26 @@ struct st_VioSSLConnectorFd
   SSL_METHOD* ssl_method_;
   /* function pointers which are only once for SSL client */ 
 };
-void sslaccept(struct st_VioSSLAcceptorFd*, Vio*);
-void sslconnect(struct st_VioSSLConnectorFd*, Vio*);
+void sslaccept(struct st_VioSSLAcceptorFd*, Vio*, long timeout);
+void sslconnect(struct st_VioSSLConnectorFd*, Vio*, long timeout);
 
 struct st_VioSSLConnectorFd
 *new_VioSSLConnectorFd(const char* key_file, const char* cert_file,
-		       const char* ca_file,  const char* ca_path);
+		       const char* ca_file,  const char* ca_path,
+		       const char* cipher);
 struct st_VioSSLAcceptorFd
 *new_VioSSLAcceptorFd(const char* key_file, const char* cert_file,
-		      const char* ca_file,const char* ca_path);
+		      const char* ca_file,const char* ca_path,
+		      const char* cipher);
 Vio* new_VioSSL(struct st_VioSSLAcceptorFd* fd, Vio* sd,int state);
 
 #ifdef	__cplusplus
 }
 #endif
 #endif /* HAVE_OPENSSL */
+
+/* This enumerator is used in parser - should be always visible */
+enum SSL_type {SSL_TYPE_NONE, SSL_TYPE_ANY, SSL_TYPE_X509, SSL_TYPE_SPECIFIED};
 
 #ifndef EMBEDDED_LIBRARY
 /* This structure is for every connection on both sides */
@@ -229,10 +231,8 @@ struct st_vio
   my_bool (*poll_read)(Vio*,uint);
 
 #ifdef HAVE_OPENSSL
-  BIO* bio_;
   SSL* ssl_;
   my_bool open_;
-  char *ssl_cip_;
 #endif /* HAVE_OPENSSL */
 #endif /* HAVE_VIO */
 };

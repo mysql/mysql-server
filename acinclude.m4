@@ -663,7 +663,7 @@ if test "$cpu_vendor" = "AuthenticAMD"; then
     fi
 elif test "$cpu_vendor" = "GenuineIntel"; then
     if test $cpu_family>=6; then
-      cpu_set=" pentiumpro pentium i486 i386";
+      cpu_set="pentiumpro pentium i486 i386";
     elif test $cpu_family=5; then
       cpu_set="pentium i486 i386";
     elif test $cpu_family=4; then
@@ -682,9 +682,9 @@ done
 if test "$mysql_cv_cpu" = "unknown"
 then
   CFLAGS="$ac_save_CFLAGS"
-      AC_MSG_RESULT(none)
+  AC_MSG_RESULT(none)
 else
-      AC_MSG_RESULT($mysql_cv_cpu)
+  AC_MSG_RESULT($mysql_cv_cpu)
 fi
 ]))
 

@@ -21,5 +21,6 @@
    --ssl-key            X509 key in PEM format (implies --ssl)\n\
    --ssl-cert           X509 cert in PEM format (implies --ssl)\n\
    --ssl-ca             CA file in PEM format (check OpenSSL docs, implies --ssl)\n\
-   --ssl-capath         CA directory (check OpenSSL docs, implies --ssl)");
+   --ssl-capath         CA directory (check OpenSSL docs, implies --ssl)\n\
+   --ssl-cipher         SSL cipher to use (implies --ssl)");
 #endif
