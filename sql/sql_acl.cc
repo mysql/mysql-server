@@ -3170,9 +3170,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	db.append (" ON `",5);
-	db.append(acl_db->db);
-	db.append ("`.* TO '",8);
+	db.append (" ON ",4);
+	append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
+	db.append (".* TO '",7);
 	db.append(lex_user->user.str,lex_user->user.length);
 	db.append ("'@'",3);
 	db.append(lex_user->host.str, lex_user->host.length);
@@ -3270,11 +3270,13 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	global.append(" ON `",5);
-	global.append(grant_table->db);
-	global.append("`.`",3);
-	global.append(grant_table->tname);
-	global.append("` TO '",6);
+	global.append(" ON ",4);
+	append_identifier(thd, &global, grant_table->db,
+			  strlen(grant_table->db));
+	global.append('.');
+	append_identifier(thd, &global, grant_table->tname,
+			  strlen(grant_table->tname));
+	global.append(" TO '",5);
 	global.append(lex_user->user.str,lex_user->user.length);
 	global.append("'@'",3);
 	global.append(lex_user->host.str,lex_user->host.length);
