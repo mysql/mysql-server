@@ -742,8 +742,8 @@ extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
-extern void load_defaults(const char *conf_file, const char **groups,
-			  int *argc, char ***argv);
+extern int load_defaults(const char *conf_file, const char **groups,
+			 int *argc, char ***argv);
 extern void free_defaults(char **argv);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
