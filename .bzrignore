@@ -528,3 +528,5 @@ support-files/MacOSX/Info.plist
 support-files/MacOSX/StartupParameters.plist
 support-files/MacOSX/postinstall
 support-files/MacOSX/preinstall
+configure.lineno
+innobase/configure.lineno
