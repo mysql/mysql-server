@@ -355,7 +355,7 @@ static int examine_log(my_string file_name, char **table_names)
     }
     command=(uint) head[0];
     if (command < sizeof(com_count)/sizeof(com_count[0][0])/3 &&
-	(!curr_file_info || curr_file_info->used))
+	(!table_names[0] || (curr_file_info && curr_file_info->used)))
     {
       com_count[command][0]++;
       if (result)
@@ -363,9 +363,12 @@ static int examine_log(my_string file_name, char **table_names)
     }
     switch ((enum myisam_log_commands) command) {
     case MI_LOG_OPEN:
-      com_count[command][0]--;			/* Must be counted explicite */
-      if (result)
-	com_count[command][1]--;
+      if (!table_names[0])
+      {
+	com_count[command][0]--;			/* Must be counted explicite */
+	if (result)
+	  com_count[command][1]--;
+      }
 
       if (curr_file_info)
 	printf("\nWarning: %s is opened twice with same process and filenumber\n",
@@ -502,6 +505,8 @@ static int examine_log(my_string file_name, char **table_names)
 	{
 	  if (!recover)
 	    goto com_err;
+	  if (verbose)
+	    printf_log("error: Didn't find row to delete with mi_rrnd");
 	  com_count[command][2]++;		/* Mark error */
 	}
 	mi_result=mi_delete(curr_file_info->isam,curr_file_info->record);
@@ -512,6 +517,9 @@ static int examine_log(my_string file_name, char **table_names)
 	    goto com_err;
 	  if (mi_result)
 	    com_count[command][2]++;		/* Mark error */
+	  if (verbose)
+	    printf_log("error: Got result %d from mi_delete instead of %d",
+		       mi_result, result);
 	}
       }
       break;
@@ -550,6 +558,8 @@ static int examine_log(my_string file_name, char **table_names)
 	      result=0;
 	      goto com_err;
 	    }
+	    if (verbose)
+	      printf_log("error: Didn't find row to update with mi_rrnd");
 	    if (recover == 1 || result ||
 		find_record_with_key(curr_file_info,buff))
 	    {
@@ -564,6 +574,9 @@ static int examine_log(my_string file_name, char **table_names)
 	  {
 	    if (!recover)
 	      goto com_err;
+	    if (verbose)
+	      printf_log("error: Got result %d from mi_update instead of %d",
+			 mi_result, result);
 	    if (mi_result)
 	      com_count[command][2]++;		/* Mark error */
 	  }
@@ -576,15 +589,18 @@ static int examine_log(my_string file_name, char **table_names)
 	  {
 	    if (!recover)
 	      goto com_err;
+	    if (verbose)
+	      printf_log("error: Got result %d from mi_write instead of %d",
+			 mi_result, result);
 	    if (mi_result)
 	      com_count[command][2]++;		/* Mark error */
 	  }
-	  if (! recover && filepos != curr_file_info->isam->lastpos)
+	  if (!recover && filepos != curr_file_info->isam->lastpos)
 	  {
-	    printf("Warning: Wrote at position: %s, should have been %s",
+	    printf("error: Wrote at position: %s, should have been %s",
 		   llstr(curr_file_info->isam->lastpos,llbuff),
 		   llstr(filepos,llbuff2));
-	    goto com_err;
+	    goto end;
 	  }
 	}
       }
