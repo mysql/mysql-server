@@ -69,7 +69,8 @@ a	max(id)	b
 0	0	
 NULL	NULL	NULL
 grp	count(*)
-0	7
+NULL	1
+0	6
 1	6
 FACILITY
 NULL
