@@ -351,14 +351,14 @@ public:
     db - currently selected database
     ip - client IP
    */
-  char	  *host,*user,*priv_user,*db,*ip;
+  char	  *host,*user,*priv_user,*priv_host,*db,*ip;
   /* remote (peer) port */
   uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
- 
+
   uint client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   uint sql_mode;
@@ -366,7 +366,6 @@ public:
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
-  
   /*
     open_tables - list of regular tables in use by this thread
     temporary_tables - list of temp tables in use by this thread
