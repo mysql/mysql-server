@@ -104,6 +104,32 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
   thd->total_warn_count++;
 }
 
+/*
+  Store warning to the list
+*/
+
+void store_warning(THD *thd, uint errcode, ...)
+{
+  va_list args;
+  const   char *format;
+  char    warning[ERRMSGSIZE+20];
+  DBUG_ENTER("store_warning");  
+  DBUG_PRINT("enter",("warning: %u",errcode));
+  
+  va_start(args,errcode);
+  if (errcode)
+    format= ER(errcode);
+  else
+  {
+    format=va_arg(args,char*);
+    errcode= ER_UNKNOWN_ERROR;
+  }
+  (void) vsprintf (warning,format,args);
+  va_end(args);
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, errcode, warning);
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Send all notes, errors or warnings to the client in a result set
