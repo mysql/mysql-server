@@ -3232,13 +3232,20 @@ static const char* construct_prompt()
 	break;
       }
       case 'p':
+      {
 #ifndef EMBEDDED_LIBRARY
 	if (!connected)
 	{
 	  processed_prompt.append("not_connected");
 	  break;
 	}
-	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
+
+	const char *host_info = mysql_get_host_info(&mysql);
+	if (strstr(host_info, "memory")) 
+	{
+		processed_prompt.append( mysql.host );
+	}
+	else if (strstr(host_info,"TCP/IP") ||
 	    !mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
@@ -3247,6 +3254,7 @@ static const char* construct_prompt()
  	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
 	}
 #endif
+      }
 	break;
       case 'U':
 	if (!full_username)
