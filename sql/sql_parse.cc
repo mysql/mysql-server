@@ -362,7 +362,7 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
   uc_update_queries[SQLCOM_DELETE_MULTI]=1;
   uc_update_queries[SQLCOM_DROP_INDEX]=1;
-  uc_update_queries[SQLCOM_MULTI_UPDATE]=1;
+  uc_update_queries[SQLCOM_UPDATE_MULTI]=1;
 }
 
 
@@ -1911,7 +1911,7 @@ mysql_execute_command(THD *thd)
       TABLE_LIST *auxi;
       const char *msg=0;
 
-      lex->sql_command=SQLCOM_MULTI_UPDATE;
+      lex->sql_command=SQLCOM_UPDATE_MULTI;
       for (auxi= (TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
 	table_count++;
 
@@ -2056,11 +2056,11 @@ mysql_execute_command(THD *thd)
 
     /* sql_yacc guarantees that tables and aux_tables are not zero */
     if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-	check_table_access(thd,SELECT_ACL, tables) || 
+	check_table_access(thd,SELECT_ACL, tables) ||
 	check_table_access(thd,DELETE_ACL, aux_tables))
       goto error;
     if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
-    {		
+    {
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       goto error;
     }
