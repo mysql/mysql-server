@@ -26,7 +26,7 @@ select @@global.max_relay_log_size;
 start slave;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	1	master-bin.001	50477	slave-relay-bin.004	9457	master-bin.001	Yes	Yes			0		0	50477	9457
+127.0.0.1	root	MASTER_PORT	1	master-bin.001	50477	slave-relay-bin.004	9457	master-bin.001	Yes	Yes			0		0	50477	#
 stop slave;
 reset slave;
 set global max_relay_log_size=0;

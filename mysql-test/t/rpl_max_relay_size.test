@@ -37,6 +37,7 @@ select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_column 18 #
 show slave status;
 stop slave;
 reset slave;

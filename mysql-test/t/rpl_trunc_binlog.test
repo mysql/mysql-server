@@ -21,4 +21,5 @@ start slave;
 # can't sync_with_master so we must sleep
 sleep 3;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 18 #
 show slave status;

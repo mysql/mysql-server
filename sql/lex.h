@@ -131,6 +131,7 @@ static SYMBOL symbols[] = {
   { "DYNAMIC",		SYM(DYNAMIC_SYM),0,0},
   { "END",		SYM(END),0,0},
   { "ELSE",             SYM(ELSE),0,0},
+  { "ENGINE",		SYM(TYPE_SYM),0,0},	/* Alias for TYPE= */
   { "ESCAPE",		SYM(ESCAPE_SYM),0,0},
   { "ESCAPED",		SYM(ESCAPED),0,0},
   { "ENABLE",		SYM(ENABLE_SYM),0,0},
