@@ -9258,7 +9258,7 @@ installed, it can be immediately started from the @code{Services}
 utility, or by using the command @code{NET START MySQL}.
 
 Once running, @code{mysqld-max-nt} can be stopped using
-@code{mysqladmin}, from the Services utility or by using the
+@code{mysqladmin}, from the Services utility, or by using the
 command @code{NET STOP MySQL}.
 
 When running as a service, the operating system will automatically stop
@@ -9622,7 +9622,7 @@ option to the new MySQL clients or create an option file
 host = localhost
 @end example
 
-Starting from 3.23.50, named pipes are only enabled if mysqld is started
+Starting from 3.23.50, named pipes are only enabled if @code{mysqld} is started
 with @code{--enable-named-pipe}.
 
 @item @code{Access denied for user} error
