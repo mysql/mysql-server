@@ -20,6 +20,7 @@
 @set _body_tags BGCOLOR=#FFFFFF TEXT=#000000 LINK=#101090 VLINK=#7030B0
 @settitle @strong{MySQL} internals Manual for version @value{mysql_version}.
 @setchapternewpage off
+@paragraphindent 0
 @c %**end of header
 
 @ifinfo
@@ -32,7 +33,7 @@ END-INFO-DIR-ENTRY
 
 @titlepage
 @sp 10
-@center @titlefont{@strong{MySQL} Internals Manual.}
+@center @titlefont{@strong{MySQL} Internals Manual}
 @sp 10
 @center Copyright @copyright{} 1998 TcX AB, Detron HB and Monty Program KB
 @end titlepage
@@ -49,30 +50,33 @@ This is a manual about @strong{MySQL} internals.
 @node caching
 @chapter How MySQL handles caching
 
-MySQL has the following caches:
+@strong{MySQL} has the following caches:
 (Note that the some of the filename have a wrong spelling of cache. :)
 
 @itemize @bullet
+
 @item Key cache
 A shared cache for all B-tree index blocks in the different NISAM
 files. Uses hashing and reverse linked lists for quick caching of the
 last used blocks and quick flushing of changed entries for a specific
-table. mysys/mf_keycash.c
+table. (@file{mysys/mf_keycash.c})
 
 @item Record cache
 This is used for quick scanning of all records in a table.
-mysys/mf_iocash.c and isam/_cash.c
+(@file{mysys/mf_iocash.c} and @file{isam/_cash.c})
 
 @item Table cache
-This holds the last used tables. sql/sql_base.cc
+This holds the last used tables. (@file{sql/sql_base.cc})
 
 @item Hostname cache
 For quick lookup (with reverse name resolving). Is a must when one has a
-slow DNS. sql/hostname.cc
+slow DNS. 
+(@file{sql/hostname.cc})
 
 @item Privilege cache
 To allow quick change between databases the last used privileges are
-cached for each user/database combination. sql/sql_acl.cc
+cached for each user/database combination.
+(@file{sql/sql_acl.cc})
 
 @item Heap table cache
 Many use of GROUP BY or DISTINCT caches all found
@@ -89,123 +93,208 @@ join caches in the worst case.
 @chapter How MySQL handles flush tables
 
 @itemize @bullet
+
 @item
-Flush tables is handled in sql/sql_base.cc::close_cached_tables().
-@Item
+Flush tables is handled in @code{sql/sql_base.cc::close_cached_tables()}.
+
+@item
 The idea of flush tables is to force all tables to be closed. This
 is mainly to ensure that if someone adds a new table outside of
-MySQL (for example with 'cp') all threads will start using the new table.
-This will also ensure that all table changes are flushed to disk
-(but of course not as optimally as simple calling a sync on all tables)!
+@strong{MySQL} (for example with @code{cp}) all threads will start using 
+the new table. This will also ensure that all table changes are flushed 
+to disk (but of course not as optimally as simple calling a sync on
+all tables)!
+
 @item
-When one does a 'flush tables', the variable 'refresh_version' will
-be incremented. Every time a thread releases a table it checks if
+When one does a @code{FLUSH TABLES}, the variable @code{refresh_version} 
+will be incremented. Every time a thread releases a table it checks if
 the refresh version of the table (updated at open) is the same as
 the current refresh_version.  If not it will close it and broadcast
 a signal on COND_refresh (to wait any thread that is waiting for
 all instanses of a table to be closed).
+
 @item
-The current refresh_version is also compared to the open refresh_version
-after a thread gets a lock on a table.  If the refresh version is
-different the thread will free all locks, reopen the table and try
-to get the locks again;  This is just to quickly get all tables to
-use the newest version.  This is handled by
-sql/lock.cc::mysql_lock_tables() and sql/sql_base.cc::wait_for_tables().
+The current @code{refresh_version} is also compared to the open 
+@code{refresh_version} after a thread gets a lock on a table.  If the 
+refresh version is different the thread will free all locks, reopen the
+table and try to get the locks again;  This is just to quickly get all 
+tables to use the newest version.  This is handled by
+@code{sql/lock.cc::mysql_lock_tables()} and 
+@code{sql/sql_base.cc::wait_for_tables()}.
+
 @item
-When all tables has been closed flush-tables will return an ok to client.
+When all tables has been closed @code{FLUSH TABLES} will return an ok 
+to client.
+
 @item
-If the thread that is doing flush-table has a lock on some tables,
-it will first closes the locked tables, wait until all other threads
-have also closed these and then reopen these and get the locks.
-After this it will give other threads a possibility to open the
-same tables.
+If the thread that is doing @code{FLUSH TABLES} has a lock on some tables,
+it will first close the locked tables, then wait until all other threads
+have also closed them, and then reopen them and get the locks.
+After this it will give other threads a chance to open the same tables.
+
 @end itemize
 
 @node Filesort
 @chapter How MySQL does sorting (filesort)
 
-- Read all rows according to key or by table-scanning.
-- Store the sort-key in a buffer (sort_buffer).
-- When the buffer gets full, run a qsort on it and store the result
-  in a temporary file.  Save a pointer to the sorted block.
-- Repeat the above until all rows have been read.
+@itemize @bullet
 
-- Repeat the following until there is less than MERGEBUFF2 (15) blocks left.
-  - Do a multi-merge of up to MERGEBUFF (7) regions to one block in
-    another temporary file.  Repeat until all blocks from the first file
-    are in the second file.
-- On the last multi-merge, only the pointer to the row (last part of
-  the sort-key) is written to a result file.
+@item
+Read all rows according to key or by table scanning.
 
-- Now the code in sql/records.cc will be used to read through them
-  in sorted order by using the row pointers in the result file.
-  To optimize this, we read in a big block of row pointers, sort these
-  and then we read the rows in the sorted order into a row buffer
-  (record_buffer) .
+@item
+Store the sort-key in a buffer (@code{sort_buffer}).
+
+@item
+When the buffer gets full, run a qsort on it and store the result
+in a temporary file.  Save a pointer to the sorted block.
+
+@item
+Repeat the above until all rows have been read.
+
+@item
+Repeat the following until there is less than @code{MERGEBUFF2} (15) 
+blocks left.
+
+@item
+Do a multi-merge of up to @code{MERGEBUFF} (7) regions to one block in
+another temporary file.  Repeat until all blocks from the first file
+are in the second file.
+
+@item
+On the last multi-merge, only the pointer to the row (last part of
+the sort-key) is written to a result file.
+
+@item
+Now the code in @file{sql/records.cc} will be used to read through them
+in sorted order by using the row pointers in the result file.
+To optimize this, we read in a big block of row pointers, sort these
+and then we read the rows in the sorted order into a row buffer
+(@code{record_buffer}) .
+
+@end itemize
 
 @node Coding guidelines
 @chapter Coding guidelines
 
-- We are using bitkeeper (www.bitkeeper.com) for source management.
-- You should use the MySQL 3.23 or MySQL 4.0 source for all developments.
-- If you have any questions about the MySQL source, you can post these
-  to developers@mysql.com and we will answer them.
-  Note that we will shortly change the name of this list to
-  internals@mysql.com, to more accurately reflect what should be
-  posted to this list.
+@itemize @bullet
 
-- Try to write code in a lot of black boxes that can be reused or at
-  least have a clean interface
-- Reuse code;  There is already in MySQL a lot of algorithms for list handling,
-  queues, dynamic and hashed arrays, sorting...) that can be reused.
-- Try to always write optimized code, so that you don't have to
-  go back and rewrite it a couple of months later.  It's better to
-  spend 3 times as much time designing and writing and optimal function than
-  having to do it all over again later on.
-- Avoid CPU wasteful code, even where it does not matter, so that
-  you will not develop sloppy coding habits.
-- If you can write it in fewer lines, do it (as long as the code will not
-  be slower or much harder to read)
-- do not check the same pointer for NULL more than once.
-- Use long function and variable names in English;  This makes your
-  code easier to read.
-- Think assembly - make it easier for the compiler to optimize your code.
-- Comment your code when you do something that someone else may think
-  is 'not trivial'.
-- Use the my_ functions like my_read/my_write/my_malloc() that you can
-  find in the mysys library instead of the direct system calls;  This
-  will make your code easier to debug and more portable.
-- use libstring functions instead of standard libc string functions
-  whenever possible
-- Avoid using alloc (its REAL slow);  For memory allocations that only
-  needs to live for the lifetime of one thread, on should use
-  sql_alloc() instead.
-- Before doing big design decision, please first post a summary of
-  what you want to do, why you want to do it and how you plan to do
-  it.  This way we can easily provide you with feedback and also
-  easily discuss is throughly if some other developer thinks there is better
-  way to do the same thing!
+@item
+We are using @uref{http://www.bitkeeper.com/, BitKeeper} for source management.
 
-- Use my_var as opposed to myVar or MyVar ( _ rather than dancing SHIFT
-  to spearate words in identifiers)
-- class names start with a capital 
-- structure types are typedefed to all caps identifier
-- #defines are capitalized
-- matching { are in the same column
- - functions return 0 on success , non-zero on error, so you can do
-  if(a() || b() || c()) { error("something went wrong");}
-- goto is ok if not abused
-- avoid default variable initalizations, use LINT_INIT() if the
-  compiler complains after making sure that there is really no way
-  the variable can be used uninitialized
-- Do not instantiate a class if you do not have to
-- Use pointers rather than array indexing when operating on strings
+@item
+You should use the @strong{MySQL} 3.23 or 4.0 source for all developments.
 
+@item
+If you have any questions about the @strong{MySQL} source, you can post these
+to @email{developers@@mysql.com} and we will answer them.
+Note that we will shortly change the name of this list to
+@email{internals@@mysql.com}, to more accurately reflect what should be
+posted to this list.
 
-@node Index
-@unnumbered Index
+@item
+Try to write code in a lot of black boxes that can be reused or at
+least have a clean interface.
 
-@printindex fn
+@item
+Reuse code;  There is already a lot of algorithms in MySQL for list handling,
+queues, dynamic and hashed arrays, sorting, etc. that can be reused.
+
+@item
+Try to always write optimized code, so that you don't have to
+go back and rewrite it a couple of months later.  It's better to
+spend 3 times as much time designing and writing an optimal function than
+having to do it all over again later on.
+
+@item
+Avoid CPU wasteful code, even where it does not matter, so that
+you will not develop sloppy coding habits.
+
+@item
+If you can write it in fewer lines, do it (as long as the code will not
+be slower or much harder to read).
+
+@item
+Do not check the same pointer for @code{NULL} more than once.
+
+@item
+Use long function and variable names in English;  This makes your
+code easier to read.
+
+@item
+Think assembly - make it easier for the compiler to optimize your code.
+
+@item
+Comment your code when you do something that someone else may think
+is not ''trivial''.
+
+@item
+Use the @code{my_*} functions like @code{my_read()}/@code{my_write()}/
+@code{my_malloc()} that you can find in the @code{mysys} library instead 
+of the direct system calls;  This will make your code easier to debug and 
+more portable.
+
+@item
+Use @code{libstring} functions instead of standard libc string functions
+whenever possible.
+
+@item
+Avoid using @code{malloc()} (its REAL slow);  For memory allocations 
+that only need to live for the lifetime of one thread, one should use
+@code{sql_alloc()} instead.
+
+@item
+Before making big design decisions, please first post a summary of
+what you want to do, why you want to do it, and how you plan to do
+it.  This way we can easily provide you with feedback and also
+easily discuss it thoroughly if some other developer thinks there is better
+way to do the same thing!
+
+@item
+Use my_var as opposed to myVar or MyVar (@samp{_} rather than dancing SHIFT
+to seperate words in identifiers).
+
+@item
+Class names start with a capital letter.
+
+@item
+Structure types are @code{typedef}'ed to an all-caps identifier.
+
+@item
+Any @code{#define}'s are in all-caps.
+
+@item
+Matching @samp{@{} are in the same column.
+
+@item
+Functions return 0 on success, and non-zero on error, so you can do:
+
+@example
+if(a() || b() || c()) { error("something went wrong"); }
+@end example
+
+@item
+Using @code{goto} is okay if not abused.
+
+@item
+Avoid default variable initalizations, use @code{LINT_INIT()} if the
+compiler complains after making sure that there is really no way
+the variable can be used uninitialized.
+
+@item
+Do not instantiate a class if you do not have to.
+
+@item
+Use pointers rather than array indexing when operating on strings.
+
+@end itemize
+
+@c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)
+
+@c @node Index
+@c @unnumbered Index
+
+@c @printindex fn
 
 @summarycontents
 @contents
