@@ -8725,7 +8725,7 @@ void Dblqh::sendKeyinfo20(Signal* signal,
 	  sendSignal(ref, GSN_KEYINFO20, signal, 25, JBB);
 	  src += KeyInfo20::DataLength;;
 	  keyLen -= KeyInfo20::DataLength;
-	} while(keyLen >= KeyInfo20::DataLength);
+	}
 	
 	MEMCOPY_NO_WORDS(keyInfo->keyData, src, keyLen);
 	sendSignal(ref, GSN_KEYINFO20, signal, 

@@ -99,46 +99,57 @@ create table t1(number int auto_increment primary key, original_value varchar(50
 
 set @value= "aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= "1aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= "aa1";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= "1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= "-1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= 1e+1111111111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= -1e+1111111111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= 1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= -1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= 1;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 set @value= -1;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--replace_result e-0 e- e+0 e+
 --query_vertical select * from t1 where number =last_insert_id()
 
 drop table t1;

@@ -315,3 +315,11 @@ alter table t1 modify a char(5);
 select a, hex(a) from t1;
 drop table t1;
 
+#
+# Check prepare statement from an UCS2 string
+#
+set @ivar= 1234;
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
