@@ -346,17 +346,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       }
     }
     if (reg_field->unireg_check == Field::NEXT_NUMBER)
-    {
-      if ((int) (outparam->next_number_index= (uint)
-		 find_ref_key(outparam,reg_field,
-			      &outparam->next_number_key_offset)) < 0)
-	reg_field->unireg_check=Field::NONE;	/* purecov: inspected */
-      else
-      {
-	outparam->found_next_number_field=reg_field;
-	reg_field->flags|=AUTO_INCREMENT_FLAG;
-      }
-    }
+      outparam->found_next_number_field= reg_field;
     if (outparam->timestamp_field == reg_field)
       outparam->timestamp_field_offset=i;
     if (use_hash)
@@ -505,6 +495,19 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     bfill(outparam->null_flags+outparam->rec_buff_length,null_length,255);
     if (records > 2)
       bfill(outparam->null_flags+outparam->rec_buff_length*2,null_length,255);
+  }
+
+  if ((reg_field=outparam->found_next_number_field))
+  {
+    if ((int) (outparam->next_number_index= (uint)
+	       find_ref_key(outparam,reg_field,
+			    &outparam->next_number_key_offset)) < 0)
+    {
+      reg_field->unireg_check=Field::NONE;	/* purecov: inspected */
+      outparam->found_next_number_field=0;
+    }
+    else
+      reg_field->flags|=AUTO_INCREMENT_FLAG;
   }
 
   if (outparam->blob_fields)

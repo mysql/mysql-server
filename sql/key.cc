@@ -59,7 +59,7 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
     {
       if (key_part->offset == fieldpos)
 	return(i);			/* Use this key */
-      *key_length+=key_part->length;
+      *key_length+=key_part->store_length;
     }
   }
   return(-1);					/* No key is ok */
