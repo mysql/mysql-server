@@ -56,8 +56,8 @@ static double scaler1[] = {
 double my_strtod(const char *str, char **end_ptr, int *error)
 {
   double result= 0.0;
-  uint negative= 0, ndigits, dec_digits= 0, pre_zero, neg_exp= 0;
-  int exp= 0;
+  uint negative= 0, ndigits, dec_digits= 0, neg_exp= 0;
+  int exp= 0, digits_after_dec_point= 0;
   const char *old_str, *end= *end_ptr, *start_of_number;
   char next_char;
   my_bool overflow=0;
@@ -100,18 +100,20 @@ double my_strtod(const char *str, char **end_ptr, int *error)
   }
   ndigits= (uint) (str-old_str);
 
-  pre_zero= 0;
   if (next_char == '.' && str < end-1)
   {
-    double p10= 10;
+    /*
+      Continue to add numbers after decimal point to the result, as if there
+      was no decimal point. We will later (in the exponent handling) shift
+      the number down with the required number of fractions.  We do it this
+      way to be able to get maximum precision for numbers like 123.45E+02,
+      which are normal for some ODBC applications.
+    */
     old_str= ++str;
     while (my_isdigit(&my_charset_latin1, (next_char= *str)))
     {
-      result+= (next_char - '0')/p10;
-      if (!result)
-        pre_zero++;
-      else
-        p10*= 10;
+      result= result*10.0 + (next_char - '0');
+      digits_after_dec_point++;
       if (++str == end)
       {
         next_char= 0;
@@ -136,13 +138,14 @@ double my_strtod(const char *str, char **end_ptr, int *error)
     {
       do
       {
-        if (exp < 9999)                         /* protec against exp overfl. */
-          exp= exp*10 + *str - '0';
+        if (exp < 9999)                         /* prot. against exp overfl. */
+          exp= exp*10 + (*str - '0');
         str++;
       } while (str < end && my_isdigit(&my_charset_latin1, *str));
     }
   }
-  if ((exp= neg_exp ? exp + pre_zero : exp - pre_zero))
+  if ((exp= (neg_exp ? exp + digits_after_dec_point :
+             exp - digits_after_dec_point)))
   {
     double scaler;
     if (exp < 0)

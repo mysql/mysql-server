@@ -3592,23 +3592,20 @@ static void mysql_rm_tmp_tables(void)
 *****************************************************************************/
 
 /*
-** Invalidate any cache entries that are for some DB
-** We can't use hash_delete when looping hash_elements. We mark them first
-** and afterwards delete those marked unused.
+  Invalidate any cache entries that are for some DB
+
+  SYNOPSIS
+    remove_db_from_cache()
+    db		Database name. This will be in lower case if
+		lower_case_table_name is set
+
+  NOTE:
+  We can't use hash_delete when looping hash_elements. We mark them first
+  and afterwards delete those marked unused.
 */
 
 void remove_db_from_cache(const char *db)
 {
-  char name_buff[NAME_LEN+1];
-  if (db && lower_case_table_names)
-  {
-    /*
-      convert database to lower case for comparision.
-    */
-    strmake(name_buff, db, sizeof(name_buff)-1);
-    my_casedn_str(files_charset_info, name_buff);
-    db= name_buff;
-  }
   for (uint idx=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *table=(TABLE*) hash_element(&open_cache,idx);

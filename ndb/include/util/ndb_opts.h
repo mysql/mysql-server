@@ -33,7 +33,11 @@ const char *opt_ndb_connectstring= 0;
 const char *opt_connect_str= 0;
 const char *opt_ndb_mgmd= 0;
 char opt_ndb_constrbuf[1024];
-unsigned opt_ndb_constrbuf_len;
+unsigned opt_ndb_constrbuf_len= 0;
+
+#ifndef DBUG_OFF
+const char *opt_debug= 0;
+#endif
 
 #define OPT_NDB_CONNECTSTRING 'c'
 
@@ -75,7 +79,8 @@ unsigned opt_ndb_constrbuf_len;
 #ifndef DBUG_OFF
 #define NDB_STD_OPTS(prog_name) \
   { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
-    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 }, \
+    (gptr*) &opt_debug, (gptr*) &opt_debug, \
+    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 }, \
   NDB_STD_OPTS_COMMON
 #else
 #define NDB_STD_OPTS(prog_name) NDB_STD_OPTS_COMMON
@@ -101,15 +106,21 @@ enum ndb_std_options {
 static my_bool
 ndb_std_get_one_option(int optid,
 		       const struct my_option *opt __attribute__((unused)),
-		       const char *argument)
+		       char *argument)
 {
   switch (optid) {
+#ifndef DBUG_OFF
   case '#':
-    if (argument)
+    if (opt_debug)
     {
-      DBUG_PUSH(argument);
+      DBUG_PUSH(opt_debug);
+    }
+    else
+    {
+      DBUG_PUSH("d:t");
     }
     break;
+#endif
   case 'V':
     ndb_std_print_version();
     exit(0);

@@ -204,32 +204,3 @@ max-time: 2500
 cmd: test_event
 args: -n BasicEventOperation T1 T6 
 
-max-time: 300
-cmd: DbCreate
-args:
-
-max-time: 180
-cmd: DbAsyncGenerator
-args: -time 60 -p 1
-type: bench
-
-max-time: 180
-cmd: DbAsyncGenerator
-args: -time 60 -p 25
-type: bench
-
-max-time: 180
-cmd: DbAsyncGenerator
-args: -time 60 -p 100
-type: bench
-
-max-time: 180
-cmd: DbAsyncGenerator
-args: -time 60 -p 200
-type: bench
-
-max-time: 180
-cmd: DbAsyncGenerator
-args: -time 60 -p 1 -proc 25
-type: bench
-

@@ -1,7 +1,7 @@
 # bug in decimal() with negative numbers by kaido@tradenet.ee
 
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 SET SQL_WARNINGS=1;
 
@@ -268,3 +268,20 @@ insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000
 --enable_warnings
 select * from t1;
 drop table t1;
+
+# Test for BUG#8397: decimal type in subselects (Item_cache_decimal)
+CREATE TABLE t1
+(EMPNUM   CHAR(3) NOT NULL,
+HOURS    DECIMAL(5));
+CREATE TABLE t2
+(EMPNUM   CHAR(3) NOT NULL,
+HOURS    BIGINT);
+
+INSERT INTO t1 VALUES ('E1',40);
+INSERT INTO t1 VALUES ('E8',NULL);
+INSERT INTO t2 VALUES ('E1',40);
+
+SELECT EMPNUM FROM t1 WHERE HOURS IN (SELECT HOURS FROM t2);
+SELECT EMPNUM FROM t1 WHERE HOURS IN (SELECT HOURS FROM t1);
+
+DROP TABLE t1,t2;
