@@ -377,7 +377,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       auto_increment++;
     if(!sql_field->charset)
       sql_field->charset = create_info->table_charset ?
-			     create_info->table_charset : default_charset_info;
+			   create_info->table_charset : 
+			   thd->db_charset? thd->db_charset :
+			   default_charset_info;
     pos+=sql_field->pack_length;
   }
   if (auto_increment > 1)
