@@ -34,18 +34,24 @@ static void init_variables(const struct my_option *options);
 static int setval (const struct my_option *opts, char *argument,
 		   my_bool set_maximum_value);
 
-#define DISABLE_OPTION_COUNT      2 /* currently 'skip' and 'disable' below */
-
-/* 'disable'-option prefixes must be in the beginning, DISABLE_OPTION_COUNT
-   is the number of disabling prefixes */
+/*
+  The following three variables belong to same group and the number and
+  order of their arguments must correspond to each other.
+*/
 static const char *special_opt_prefix[]=
 {"skip", "disable", "enable", "maximum", "loose", 0};
+static const uint special_opt_prefix_lengths[]=
+{ 4,      7,         6,        7,         5,      0};
+enum enum_special_opt { OPT_SKIP, OPT_DISABLE, OPT_ENABLE, OPT_MAXIMUM,
+			OPT_LOOSE};
 
 char *disabled_my_option= (char*) "0";
 
-/* This is a flag that can be set in client programs. 0 means that
+/* 
+   This is a flag that can be set in client programs. 0 means that
    my_getopt will not print error messages, but the client should do
-   it by itself */
+   it by itself
+*/
 
 my_bool my_getopt_print_errors= 1;
 
@@ -66,7 +72,7 @@ int handle_options(int *argc, char ***argv,
 					     const struct my_option *,
 					     char *))
 {
-  uint opt_found, argvpos= 0, length, spec_len, i;
+  uint opt_found, argvpos= 0, length, i;
   my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
           option_is_loose, option_used= 0;
   char *progname= *(*argv), **pos, *optend, *prev_found;
@@ -111,15 +117,9 @@ int handle_options(int *argc, char ***argv,
 	    (*argc)--;
 	  }
 	}
-	else if (!compare_strings(cur_arg, "-set-variable", 13) ||
-		 !compare_strings(cur_arg, "-loose-set-variable", 19))
+	else if (!compare_strings(cur_arg, "-set-variable", 13))
 	{
 	  must_be_var= 1;
-	  if (cur_arg[1] == 'l')
-	  {
-	    option_is_loose= 1;
-	    cur_arg+= 6;
-	  }
 	  if (cur_arg[13] == '=')
 	  {
 	    cur_arg+= 14;
@@ -183,18 +183,19 @@ int handle_options(int *argc, char ***argv,
 	      must_be_var= 1; /* option is followed by an argument */
 	    for (i= 0; special_opt_prefix[i]; i++)
 	    {
-	      spec_len= strlen(special_opt_prefix[i]);
-	      if (!compare_strings(special_opt_prefix[i], cur_arg, spec_len) &&
-		  cur_arg[spec_len] == '-')
+	      if (!compare_strings(special_opt_prefix[i], cur_arg,
+				   special_opt_prefix_lengths[i]) &&
+		  cur_arg[special_opt_prefix_lengths[i]] == '-')
 	      {
 		/*
 		  We were called with a special prefix, we can reuse opt_found
 		*/
 		special_used= 1;
-		cur_arg+= (spec_len + 1);
-		if (!compare_strings(special_opt_prefix[i], "loose", 5))
+		cur_arg+= (special_opt_prefix_lengths[i] + 1);
+		if (i == OPT_LOOSE)
 		  option_is_loose= 1;
-		if ((opt_found= findopt(cur_arg, length - (spec_len + 1),
+		if ((opt_found= findopt(cur_arg, length -
+					(special_opt_prefix_lengths[i] + 1),
 					&optp, &prev_found)))
 		{
 		  if (opt_found > 1)
@@ -206,14 +207,18 @@ int handle_options(int *argc, char ***argv,
 			      special_opt_prefix[i], prev_found);
 		    return EXIT_AMBIGUOUS_OPTION;
 		  }
-		  if (i < DISABLE_OPTION_COUNT)
+		  switch (i) {
+		  case OPT_SKIP:
+		  case OPT_DISABLE: /* fall through */
 		    optend= disabled_my_option;
-		  else if (!compare_strings(special_opt_prefix[i],"enable",6))
+		    break;
+		  case OPT_ENABLE:
 		    optend= (char*) "1";
-		  else if (!compare_strings(special_opt_prefix[i],"maximum",7))
-		  {
+		    break;
+		  case OPT_MAXIMUM:
 		    set_maximum_value= 1;
 		    must_be_var= 1;
+		    break;
 		  }
 		  break; /* break from the inner loop, main loop continues */
 		}
