@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
 #include "NdbSchemaOp.hpp"
@@ -92,6 +94,8 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theNdbBlockNumber(-1),
   theInitState(NotConstructed)
 {
+  fullyQualifiedNames = true;
+
   cgetSignals =0;
   cfreeSignals = 0;
   cnewSignals = 0;
@@ -126,10 +130,10 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   uint schema_len = 
     MIN(strlen(theDataBaseSchema), NDB_MAX_SCHEMA_NAME_SIZE - 1);
   strncpy(prefixName, theDataBase, NDB_MAX_DATABASE_NAME_SIZE - 1);
-  prefixName[db_len] = '/';
+  prefixName[db_len] = table_name_separator;
   strncpy(prefixName+db_len+1, theDataBaseSchema, 
 	  NDB_MAX_SCHEMA_NAME_SIZE - 1);
-  prefixName[db_len+schema_len+1] = '/';
+  prefixName[db_len+schema_len+1] = table_name_separator;
   prefixName[db_len+schema_len+2] = '\0';
   prefixEnd = prefixName + db_len+schema_len + 2;
 
