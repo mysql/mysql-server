@@ -98,7 +98,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     if (strlen(dir)+ pfx_len > FN_REFLEN-2)
     {
       errno=my_errno= ENAMETOOLONG;
-      return 1;
+      DBUG_RETURN(file);
     }
     strmov(convert_dirname(to,dir,NullS),prefix_buff);
     org_file=mkstemp(to);
@@ -124,7 +124,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 #ifdef OS2
     /* changing environ variable doesn't work with VACPP */
     char  buffer[256], *end;
-    buffer[sizeof[buffer)-1]= 0;
+    buffer[sizeof(buffer)-1]= 0;
     end= strxnmov(buffer, sizeof(buffer)-1, (char*) "TMP=", dir, NullS);
     /* remove ending backslash */
     if (end[-1] == '\\')
