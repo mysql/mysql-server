@@ -278,7 +278,7 @@ if ($limits->{'group_functions'})
   $rows=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
-    fetch_all_rows($dbh,"select grp,count(*) from bench1 group by grp");
+    $rows+=fetch_all_rows($dbh,"select grp,count(*) from bench1 group by grp");
   }
   $end_time=new Benchmark;
   print "Time for count_group_on_key_parts ($i:$rows): " .
