@@ -40,3 +40,10 @@ armscii8	  32
 utf8		  33
 win1250ch	  34
 ucs2		  35
+cp866		  36
+keybcs2		  37
+macce		  38
+macroman	  39
+pclatin2	  40
+latvian		  41
+latvian1	  42
