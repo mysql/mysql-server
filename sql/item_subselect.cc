@@ -33,7 +33,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect():
-  Item_result_field(), engine_owner(1), value_assigned(0)
+  Item_result_field(), engine_owner(1), value_assigned(0), substitution(0)
 {
   assign_null();
   /*
@@ -89,6 +89,13 @@ void Item_subselect::make_field (Send_field *tmp_field)
 
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  if (substitution)
+  {
+    (*ref)= substitution;
+    engine->exclude();
+    return substitution->fix_fields(thd, tables, ref);
+  }
+
   char const *save_where= thd->where;
   int res= engine->prepare();
   if (!res)
@@ -291,12 +298,12 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     else
       item= (Item*) sl->item_list.pop();
 
-    left_expr= new Item_outer_select_context_saver(left_expr);
+    Item *expr= new Item_outer_select_context_saver(left_expr);
 
     if (sl->having || sl->with_sum_func || sl->group_list.first)
     {
       sl->item_list.push_back(item);
-      item= (*func)(left_expr, new Item_ref(sl->item_list.head_ref(),
+      item= (*func)(expr, new Item_ref(sl->item_list.head_ref(),
 					    0, (char*)"<result>"));
       if (sl->having)
 	sl->having= new Item_cond_and(sl->having, item);
@@ -307,11 +314,42 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     {
       sl->item_list.empty();
       sl->item_list.push_back(new Item_int(1));
-      item= (*func)(left_expr, new Item_asterisk_remover(item));
-      if (sl->where)
-	sl->where= new Item_cond_and(sl->where, item);
+      if (sl->table_list.elements)
+      {
+	item= (*func)(expr, new Item_asterisk_remover(item));
+	if (sl->where)
+	  sl->where= new Item_cond_and(sl->where, item);
+	else
+	  sl->where= item;
+      }
       else
-	sl->where= item;
+      {
+	if (item->type() == Item::FIELD_ITEM &&
+	    ((Item_field*) item)->field_name[0] == '*')
+	{
+	  my_error(ER_NO_TABLES_USED, MYF(0));
+	  DBUG_VOID_RETURN;
+	}
+	if (select_lex->next_select())
+	{
+	  // it is in union => we should perform it
+	  sl->having= (*func)(expr, item);
+	}
+	else
+	{
+	  // it is single select without tables => possible optimization
+	  item= (*func)(left_expr, item);
+	  substitution= item;
+	  THD *thd= current_thd;
+	  if (thd->lex.describe)
+	  {
+	    char warn_buff[MYSQL_ERRMSG_SIZE];
+	    sprintf(warn_buff, ER(ER_SELECT_REDUCED), sl->select_number);
+	    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			 ER_SELECT_REDUCED, warn_buff);
+	  }
+	}
+      }
     }
   }
   DBUG_VOID_RETURN;
@@ -501,4 +539,18 @@ bool subselect_union_engine::check_loop(uint id)
     if (sl->join && sl->join->check_loop(id))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
+}
+
+void subselect_single_select_engine::exclude()
+{
+  select_lex->master_unit()->exclude_level();
+  //if (current_thd->lex->describe)
+}
+
+void subselect_union_engine::exclude()
+{
+  unit->exclude_level();
+  // for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  //  if (sl->join && sl->join->check_loop(id))
+  //    DBUG_RETURN(1);
 }

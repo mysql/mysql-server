@@ -3334,11 +3334,10 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select
+	| describe_command { Lex->describe=1; } select
           { 
 	    LEX *lex=Lex;
 	    lex->select_lex.options|= SELECT_DESCRIBE; 
-	    lex->describe=1;
 	  };
 
 

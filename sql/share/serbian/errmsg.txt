@@ -243,3 +243,4 @@
 "Cyclic reference on subqueries",
 "Converting column '%s' from %s to %s",
 "Reference '%-.64s' not supported (%s)",
+"Select %u was reduced during optimisation",
