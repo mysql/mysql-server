@@ -31,7 +31,7 @@ pthread_key(struct st_my_thread_var, THR_KEY_mysys);
 pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
 	        THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_myisam,THR_LOCK_heap,
 	        THR_LOCK_net, THR_LOCK_charset; 
-#ifndef HAVE_LOCALTIME_R
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
 pthread_mutex_t LOCK_localtime_r;
 #endif
 #ifndef HAVE_GETHOSTBYNAME_R
@@ -73,7 +73,7 @@ my_bool my_thread_global_init(void)
 #if defined( __WIN__) || defined(OS2)
   win_pthread_init();
 #endif
-#ifndef HAVE_LOCALTIME_R
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_SLOW);
 #endif
 #ifndef HAVE_GETHOSTBYNAME_R
@@ -103,7 +103,7 @@ void my_thread_global_end(void)
   pthread_mutex_destroy(&THR_LOCK_heap);
   pthread_mutex_destroy(&THR_LOCK_net);
   pthread_mutex_destroy(&THR_LOCK_charset);
-#ifndef HAVE_LOCALTIME_R
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_destroy(&LOCK_localtime_r);
 #endif
 #ifndef HAVE_GETHOSTBYNAME_R
