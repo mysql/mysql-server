@@ -469,7 +469,11 @@ INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 explain SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
-drop table t1,t2;
+CREATE TABLE t3 (a int(11) default '0');
+INSERT INTO t3 VALUES (1),(2),(3);
+SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
+explain SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
+drop table t1,t2,t3;
 
 #LIMIT is not supported now
 create table t1 (a float);

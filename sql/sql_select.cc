@@ -456,7 +456,7 @@ err:
 bool JOIN::test_in_subselect(Item **where)
 {
   if (conds->type() == Item::FUNC_ITEM &&
-      ((class Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
+      ((Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
       ((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
       ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM)
   {
@@ -763,38 +763,57 @@ JOIN::optimize()
   /*
     is this simple IN subquery?
   */
-  if (!group_list && !order && !having &&
+  if (!group_list && !order &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
       tables == 1 && conds &&
       !unit->first_select()->next_select())
   {
-    Item *where= 0;
-    if (join_tab[0].type == JT_EQ_REF)
+    if (!having)
     {
-      if (test_in_subselect(&where))
+      Item *where= 0;
+      if (join_tab[0].type == JT_EQ_REF)
       {
-	join_tab[0].type= JT_SIMPLE_IN;
-	error= 0;
-	DBUG_RETURN(unit->item->
-		    change_engine(new subselect_simplein_engine(thd, join_tab,
-								unit->item,
-								where)));
+	if (test_in_subselect(&where))
+	{
+	  join_tab[0].type= JT_SIMPLE_IN;
+	  error= 0;
+	  DBUG_RETURN(unit->item->
+		      change_engine(new subselect_simplein_engine(thd,
+								  join_tab,
+								  unit->item,
+								  where)));
+	}
       }
-    }
-    else if (join_tab[0].type == JT_REF)
+      else if (join_tab[0].type == JT_REF)
+      {
+	if (test_in_subselect(&where))
+	{
+	  join_tab[0].type= JT_INDEX_IN;
+	  error= 0;
+	  DBUG_RETURN(unit->item->
+		      change_engine(new subselect_indexin_engine(thd,
+								 join_tab,
+								 unit->item,
+								 where,
+								 0)));
+	}
+      }
+    } else if (join_tab[0].type == JT_REF_OR_NULL &&
+	       having->type() == Item::FUNC_ITEM &&
+	       ((Item_func *) having)->functype() ==
+	       Item_func::ISNOTNULLTEST_FUNC)
     {
-      if (test_in_subselect(&where))
-      {
-	join_tab[0].type= JT_INDEX_IN;
-	error= 0;
-	DBUG_RETURN(unit->item->
-		    change_engine(new subselect_indexin_engine(thd, join_tab,
-							       unit->item,
-							       where)));
-      }
+      join_tab[0].type= JT_INDEX_IN;
+      error= 0;
+      DBUG_RETURN(unit->item->
+		  change_engine(new subselect_indexin_engine(thd,
+							     join_tab,
+							     unit->item,
+							     conds,
+							     1)));
     }
+	       
   }
-
   /*
     Need to tell Innobase that to play it safe, it should fetch all
     columns of the tables: this is because MySQL may build row
@@ -5445,7 +5464,7 @@ int report_error(TABLE *table, int error)
 }
 
 
-static int safe_index_read(JOIN_TAB *tab)
+int safe_index_read(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;

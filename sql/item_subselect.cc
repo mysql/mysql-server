@@ -999,8 +999,15 @@ int subselect_indexin_engine::exec()
   DBUG_ENTER("subselect_indexin_engine::exec");
   int error;
   TABLE *table= tab->table;
+
   ((Item_in_subselect *) item)->value= 0;
-  if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  if (check_null)
+  {
+    *tab->null_ref_key= 0;
+    ((Item_in_subselect *) item)->was_null= 0;
+  }
+
+  if ((*tab->ref.key_copy) && (tab->ref.key_err= (*tab->ref.key_copy)->copy()))
   {
     table->status= STATUS_NOT_FOUND;
     error= -1;
@@ -1022,12 +1029,21 @@ int subselect_indexin_engine::exec()
 	{
 	  if (!cond || cond->val_int())
 	  {
-	    ((Item_in_subselect *) item)->value= 1;
+	    if (check_null && *tab->null_ref_key)
+	      ((Item_in_subselect *) item)->was_null= 1;
+	    else
+	      ((Item_in_subselect *) item)->value= 1;
 	    goto finish;
 	  }
 	}
 	else
-	  goto finish;
+	{
+	  if (!check_null || *tab->null_ref_key)
+	    goto finish;
+	  *tab->null_ref_key= 1;
+	  if (safe_index_read(tab))
+	    goto finish;
+	}
 	error= table->file->index_next_same(table->record[0],
 					    tab->ref.key_buff,
 					    tab->ref.key_length);
