@@ -352,6 +352,8 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* TRUE for fake select, which used in UNION processing */
+  bool fake_select;
 
   void init_query();
   void init_select();
@@ -405,7 +407,7 @@ public:
   
   friend void mysql_init_query(THD *thd);
   st_select_lex(struct st_lex *lex);
-  st_select_lex() {}
+  st_select_lex() :fake_select(0) {}
   void make_empty_select(st_select_lex *last_select)
   {
     select_number=INT_MAX;

@@ -201,7 +201,8 @@ void relink_tables(SELECT_LEX *select_lex)
   for (TABLE_LIST *cursor= (TABLE_LIST *) select_lex->table_list.first;
        cursor;
        cursor=cursor->next)
-    cursor->table= cursor->table_list->table;
+    if (cursor->table_list)
+      cursor->table= cursor->table_list->table;
 }
 
 
@@ -314,6 +315,19 @@ JOIN::prepare(Item ***rref_pointer_array,
       having->split_sum_func(ref_pointer_array, all_fields);
   }
   
+  // Is it subselect
+  {
+    Item_subselect *subselect;
+    if ((subselect= select_lex->master_unit()->item) &&
+	!select_lex->fake_select)
+    {
+      Item_subselect::trans_res res;
+      if ((res= subselect->select_transformer(thd, this)) !=
+	  Item_subselect::OK)
+	DBUG_RETURN((res == Item_subselect::ERROR));
+    }
+  }
+
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
   /*

@@ -111,7 +111,7 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,bool fuzzydate)
   { return get_date(ltime,fuzzydate); }
-  virtual bool is_null() { return 0; };
+  virtual bool is_null() { return 0; }
   virtual void top_level_item() {}
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
@@ -571,6 +571,15 @@ public:
   longlong val_int();
   String* val_str(String* s);
   bool get_date(TIME *ltime, bool fuzzydate);
+  void print(String *str)
+  {
+    str->append("ref_null_helper(");
+    if (ref && *ref)
+      (*ref)->print(str);
+    else
+      str->append('?');
+    str->append(')');
+  }
 };
 
 
@@ -616,6 +625,15 @@ public:
   {}
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
   Item **storage() {return &item;}
+  void print(String *str)
+  {
+    str->append("ref_null_helper('");
+    if (item)
+      item->print(str);
+    else
+      str->append('?');
+    str->append(')');
+  }
 };
 
 /*
