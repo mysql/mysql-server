@@ -172,22 +172,21 @@ vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 	      const char * fmt, va_list ap){
   char buf[1000];
   char *buf2 = buf;
-  size_t size = sizeof(buf);
+  size_t size;
 
-  if (fmt != 0) {
+  if (fmt != 0 && fmt[0] != 0) {
     size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     /* Check if the output was truncated */
-    if(size >= sizeof(buf)) {
-      buf2 = (char *)malloc(size+1);
+    if(size > sizeof(buf)) {
+      buf2 = (char *)malloc(size);
       if(buf2 == NULL)
 	return -1;
       BaseString::vsnprintf(buf2, size, fmt, ap);
-    } else
-      size = sizeof(buf);
+    }
   } else
-    buf[0] = 0;
+    return 0;
 
-  int ret = write_socket(socket, timeout_millis, buf2, strlen(buf2));
+  int ret = write_socket(socket, timeout_millis, buf2, size);
   if(buf2 != buf)
     free(buf2);
   return ret;
@@ -199,23 +198,23 @@ vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 		const char * fmt, va_list ap){
   char buf[1000];
   char *buf2 = buf;
-  size_t size = sizeof(buf);
+  size_t size;
 
-  if (fmt != 0) {
-    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
+  if (fmt != 0 && fmt[0] != 0) {
+    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap)+1;// extra byte for '/n'
     /* Check if the output was truncated */
-    if(size >= sizeof(buf)-1) {
-      buf2 = (char *)malloc(size+2);
+    if(size > sizeof(buf)) {
+      buf2 = (char *)malloc(size);
       if(buf2 == NULL)
 	return -1;
-      BaseString::vsnprintf(buf2, size+1, fmt, ap);
-    } else
-      size = sizeof(buf);
-  } else
-    buf[0] = 0;
-  strlcat(buf2, "\n", size+2);
+      BaseString::vsnprintf(buf2, size, fmt, ap);
+    }
+  } else {
+    size = 1;
+  }
+  buf2[size-1]='\n';
 
-  int ret = write_socket(socket, timeout_millis, buf2, strlen(buf2));
+  int ret = write_socket(socket, timeout_millis, buf2, size);
   if(buf2 != buf)
     free(buf2);
   return ret;
