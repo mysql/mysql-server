@@ -361,10 +361,10 @@ public:
 
 class Item_sum_bit :public Item_sum_int
 {
- protected:
+protected:
   ulonglong reset_bits,bits;
 
-  public:
+public:
   Item_sum_bit(Item *item_par,ulonglong reset_arg)
     :Item_sum_int(item_par),reset_bits(reset_arg),bits(reset_arg) {}
   enum Sumfunctype sum_func () const {return SUM_BIT_FUNC;}
@@ -373,6 +373,8 @@ class Item_sum_bit :public Item_sum_int
   void reset_field();
   void update_field();
   unsigned int size_of() { return sizeof(*this);}  
+  void fix_length_and_dec()
+  { decimals=0; max_length=21; unsigned_flag=1; maybe_null=null_value=0; }
 };
 
 
@@ -383,20 +385,16 @@ public:
   bool add();
   const char *func_name() const { return "bit_or"; }
   unsigned int size_of() { return sizeof(*this);}  
-  void fix_length_and_dec()
-  { decimals=0; max_length=21; unsigned_flag=1; maybe_null=null_value=0; }
 };
 
 
 class Item_sum_and :public Item_sum_bit
 {
-  public:
-  Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ~(ulonglong) LL(0)) {}
+public:
+  Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ULONGLONG_MAX) {}
   bool add();
   const char *func_name() const { return "bit_and"; }
   unsigned int size_of() { return sizeof(*this);}  
-  void fix_length_and_dec()
-  { decimals=0; max_length=21; unsigned_flag=0; maybe_null=null_value=0; }
 };
 
 /*
