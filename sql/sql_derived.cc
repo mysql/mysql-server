@@ -67,7 +67,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   int res;
   select_union *derived_result;
   TABLE_LIST *tables= (TABLE_LIST *)first_select->table_list.first;
-  TMP_TABLE_PARAM tmp_table_param;
   bool is_union= first_select->next_select() && 
     first_select->next_select()->linkage == UNION_TYPE;
   bool is_subsel= first_select->first_inner_unit() ? 1: 0;
@@ -128,7 +127,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	cursor->table->clear_query_id= 1;
     }
 	
-    bzero((char*) &derived_result->tmp_table_param, sizeof(tmp_table_param));
+    bzero((char*) &derived_result->tmp_table_param, sizeof(TMP_TABLE_PARAM));
     derived_result->tmp_table_param.field_count= unit->types.elements;
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
