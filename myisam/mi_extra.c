@@ -34,6 +34,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
   int error=0;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_extra");
+  DBUG_PRINT("enter",("function: %d",(int) function));
 
   switch (function) {
   case HA_EXTRA_RESET:

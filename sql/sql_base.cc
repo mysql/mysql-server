@@ -1590,7 +1590,8 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
-  if (check_grants && !thd->master_access && check_grant_column(thd,table,name,length))
+  if (check_grants && !thd->master_access &&
+      check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
   return field;
 }
@@ -1807,6 +1808,12 @@ bool setup_tables(TABLE_LIST *tables)
       if (map == ~(key_map) 0)
 	DBUG_RETURN(1);
       table->keys_in_use_for_query &= ~map;
+    }
+    if (table_list->shared)
+    {
+      /* Clear query_id that may have been set by previous select */
+      for (Field **ptr=table->field ; *ptr ; ptr++)
+	(*ptr)->query_id=0;
     }
   }
   if (tablenr > MAX_TABLES)
