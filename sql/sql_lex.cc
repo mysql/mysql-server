@@ -455,6 +455,13 @@ int yylex(void *arg, void *yythd)
       }
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
+      if (c == '-' && yyPeek() == '-' &&
+          (my_isspace(cs,yyPeek2()) || 
+           my_iscntrl(cs,yyPeek2())))
+      {
+        state=MY_LEX_COMMENT;
+        break;
+      }
       yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first chr
       yylval->lex_str.length=1;
       c=yyGet();
@@ -545,7 +552,7 @@ int yylex(void *arg, void *yythd)
       /* 
          Note: "SELECT _bla AS 'alias'"
          _bla should be considered as a IDENT if charset haven't been found.
-         So we don't use MYF(MY_WME) with get_charset_by_name to avoid 
+         So we don't use MYF(MY_WME) with get_charset_by_csname to avoid 
          producing an error.
       */
 
@@ -694,37 +701,6 @@ int yylex(void *arg, void *yythd)
       lex->next_state= MY_LEX_START;
       return(IDENT);
     }
-    case MY_LEX_SIGNED_NUMBER:		// Incomplete signed number
-      if (prev_state == MY_LEX_OPERATOR_OR_IDENT)
-      {
-	if (c == '-' && yyPeek() == '-' &&
-	    (my_isspace(cs,yyPeek2()) || 
-             my_iscntrl(cs,yyPeek2())))
-	  state=MY_LEX_COMMENT;
-	else
-	  state= MY_LEX_CHAR;		// Must be operator
-	break;
-      }
-      if (!my_isdigit(cs,c=yyGet()) || yyPeek() == 'x')
-      {
-	if (c != '.')
-	{
-	  if (c == '-' && my_isspace(cs,yyPeek()))
-	    state= MY_LEX_COMMENT;
-	  else
-	    state= MY_LEX_CHAR;		// Return sign as single char
-	  break;
-	}
-	yyUnget();			// Fix for next loop
-      }
-      while (my_isdigit(cs,c=yyGet())) ;	// Incomplete real or int number
-      if ((c == 'e' || c == 'E') &&
-	  (yyPeek() == '+' || yyPeek() == '-' || my_isdigit(cs,yyPeek())))
-      {					// Real number
-	yyUnget();
-	c= '.';				// Fool next test
-      }
-      // fall through
     case MY_LEX_INT_OR_REAL:		// Compleat int or incompleat real
       if (c != '.')
       {					// Found complete integer number.
@@ -983,7 +959,7 @@ void st_select_lex_node::init_select()
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
-  select_items= 0;
+  select_n_having_items= 0;
   with_sum_func= 0;
   parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
@@ -1010,7 +986,8 @@ void st_select_lex::init_query()
   join= 0;
   where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
-  insert_select= having_fix_field= 0;
+  having_fix_field= 0;
+  resolve_mode= NOMATTER_MODE;
   with_wild= 0;
 }
 
