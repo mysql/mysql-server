@@ -779,8 +779,8 @@ int ha_recovery_logging(THD *thd, bool on)
   {
 #ifdef HAVE_GEMINI_DB
     error = gemini_recovery_logging(thd, on);
-  }
 #endif
+  }
 #endif
   DBUG_RETURN(error);
 }

@@ -18861,10 +18861,10 @@ When you insert a value of @code{NULL} (recommended) or @code{0} into an
 
 If you delete the row containing the maximum value for an
 @code{AUTO_INCREMENT} column, the value will be reused with an
-@code{ISAM}, @code{GEMINI}, @code{BDB} or @code{INNODB} table but not with a
-@code{MyISAM} table.  If you delete all rows in the table with
-@code{DELETE FROM table_name} (without a @code{WHERE}) in
-@code{AUTOCOMMIT} mode, the sequence starts over for both table types.
+@code{ISAM}, @code{GEMINI} or @code{BDB} table but not with a
+@code{MyISAM} or @code{InnoDB} table.  If you delete all rows in the table
+with @code{DELETE FROM table_name} (without a @code{WHERE}) in
+@code{AUTOCOMMIT} mode, the sequence starts over for all table types.
 
 @strong{NOTE:} There can be only one @code{AUTO_INCREMENT} column per
 table, and it must be indexed. @strong{MySQL} Version 3.23 will also only
@@ -45510,6 +45510,8 @@ Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
 Optimized queries of type:
 @code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
+@item
+Added support for sym-linking of MyISAM tables.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -45602,6 +45604,9 @@ not yet 100% confident in this code.
 @node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
+@item
+We are now using the @code{-lcma} thread library on HPUX 10.20 to
+get @strong{MySQL} more stabile on HPUX.
 @item
 Fixed problem with @code{IF()} and number of decimals in the result.
 @item
