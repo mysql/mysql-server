@@ -807,6 +807,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 					       log_file.pos_in_file);
     if (error)
       goto err;
+
+    if (my_b_tell(&log_file) >= (my_off_t) max_binlog_size)
+      new_file(1); // inside mutex
   }
   error=0;
 
