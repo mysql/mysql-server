@@ -307,7 +307,7 @@ static int init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
   }
   else if (default_val)
   {
-    strmake(var,  default_val, max_size);
+    strmake(var,  default_val, max_size-1);
     return 0;
   }
   return 1;
@@ -548,14 +548,14 @@ int init_master_info(MASTER_INFO* mi)
     }
 
     mi->log_file_name[length-1]= 0; // kill \n
-    char buf[FN_REFLEN];
-    if(!my_b_gets(&mi->file, buf, sizeof(buf)))
+    /* Reuse fname buffer */
+    if(!my_b_gets(&mi->file, fname, sizeof(fname)))
     {
       msg="Error reading log file position from master info file";
       goto error;
     }
+    mi->pos = strtoull(fname,(char**) 0, 10);
 
-    mi->pos = strtoull(buf,(char**) 0, 10);
     mi->fd = fd;
     if(init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
 			     master_host) ||

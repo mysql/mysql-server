@@ -28165,6 +28165,13 @@ column that only can take 2 values: A @code{CHAR(0)}, that is not defined
 as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
 @code{NULL} or @code{""}. @xref{CHAR}.
 
+@tindex BOOL
+@tindex BIT
+@item BIT
+@itemx BOOL
+@itemx CHAR
+These three are synonyms for @code{CHAR(1)}.
+
 @tindex CHARACTER VARYING
 @tindex CHAR VARYING
 @tindex VARCHAR
@@ -30980,7 +30987,8 @@ mysql> select ATAN(-2);
 @end example
 
 @findex ATAN2()
-@item ATAN2(Y,X)
+@item ATAN(Y,X)
+@itemx ATAN2(Y,X)
 Returns the arc tangent of the two variables @code{X} and @code{Y}. It is
 similar to calculating the arc tangent of @code{Y / X}, except that the
 signs of both arguments are used to determine the quadrant of the
@@ -30988,7 +30996,7 @@ result:
 @example
 mysql> select ATAN(-2,2);
         -> -0.785398
-mysql> select ATAN(PI(),0);
+mysql> select ATAN2(PI(),0);
         -> 1.570796
 @end example
 
@@ -32192,6 +32200,18 @@ to tell the optimizer that the result set will have many rows.  In this case,
 MySQL will directly use disk-based temporary tables if needed.
 MySQL will also, in this case, prefer sorting to doing a
 temporary table with a key on the @code{GROUP BY} elements.
+
+@item
+@code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
+table. This will help MySQL free the table locks early and will help
+in cases where it takes a long time to send the result set to the client.
+
+@item
+@code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
+with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
+result set will be small.  In this case, MySQL will use fast
+temporary tables to store the resulting table instead of using sorting. In
+MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
@@ -47546,6 +47566,9 @@ not yet 100% confident in this code.
 @node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
+@item
+Fixed a bug in @code{INSERT DELAYED} and @code{FLUSH TABLES} introduced
+in 3.23.42.
 @item
 Fixed unlikely bug, which returned not matching rows, in SELECT with
 many tables and multi-column indexes and 'range' type.

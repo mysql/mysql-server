@@ -968,7 +968,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     {					// mSQL or postgreSQL style command ?
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
-      if (*in_string || inchar == 'N')
+      if (*in_string || inchar == 'N')	// \N is short for NULL
       {					// Don't allow commands in string
 	*out++='\\';
 	*out++= (char) inchar;
