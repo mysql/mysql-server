@@ -75,6 +75,7 @@ extern "C" {
 #include "../innobase/include/btr0cur.h"
 #include "../innobase/include/btr0btr.h"
 #include "../innobase/include/fsp0fsp.h"
+#include "../innobase/include/fil0fil.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -738,6 +739,7 @@ innobase_init(void)
 
 	if (mysql_embedded) {
 		default_path = mysql_real_data_home;
+		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
 	  	/* It's better to use current lib, to keep paths short */
 	  	current_dir[0] = FN_CURLIB;

@@ -409,7 +409,7 @@ os_file_opendir(
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
 
 	strcpy(path, dirname);
-	strcpy(path + strlen(path), "\\");
+	strcpy(path + strlen(path), "\\*");
 
 	/* Note that in Windows opening the 'directory stream' also retrieves
 	the first entry in the directory. Since it is '.', that is no problem,
