@@ -154,6 +154,8 @@ sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
+sys_var_thd_ulong	sys_max_seeks_for_key("max_seeks_for_key",
+					      &SV::max_seeks_for_key);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
@@ -348,6 +350,7 @@ sys_var *sys_variables[]=
   &sys_max_delayed_threads,
   &sys_max_heap_table_size,
   &sys_max_join_size,
+  &sys_max_seeks_for_key,
   &sys_max_sort_length,
   &sys_max_tmp_tables,
   &sys_max_user_connections,
@@ -492,6 +495,7 @@ struct show_var_st init_vars[]= {
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
+  {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
