@@ -445,8 +445,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   info.this_unique= (ulong) info.dfile; /* Uniq number in process */
   if (share->data_file_type == COMPRESSED_RECORD)
     info.this_unique= share->state.unique;
-  info.this_loop=0;			/* Update counter */
+  info.this_loop=0;				/* Update counter */
   info.last_unique= share->state.unique;
+  info.last_loop=   share->state.update_count;
   if (mode == O_RDONLY)
     share->options|=HA_OPTION_READ_ONLY_DATA;
   info.lock_type=F_UNLCK;
@@ -669,7 +670,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   mi_int4store(ptr,state->process);		ptr +=4;
   mi_int4store(ptr,state->unique);		ptr +=4;
   mi_int4store(ptr,state->status);		ptr +=4;
-  *ptr++=0; *ptr++=0;  *ptr++=0; *ptr++=0;	/* extra */
+  mi_int4store(ptr,state->update_count);	ptr +=4;
 
   ptr+=state->state_diff_length;
 

@@ -205,10 +205,7 @@ for ($i=0 ; $i < $opt_small_loop_count ; $i++)
 					 $opt_small_loop_count));
 }
 
-if ($estimated)
-{ print "Estimated time"; }
-else
-{ print "Time"; }
+print_time($estimated);
 print " for select_range ($count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
@@ -243,10 +240,7 @@ if ($limits->{'group_functions'})
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,
 					   $tests+1, $opt_loop_count));
   }
-  if ($estimated)
-  { print "Estimated time"; }
-  else
-  { print "Time"; }
+  print_time($estimated);
   print " for min_max_on_key ($count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
@@ -267,10 +261,7 @@ if ($limits->{'group_functions'})
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,
 					   $tests+1, $opt_loop_count));
   }
-  if ($estimated)
-    { print "Estimated time"; }
-  else
-    { print "Time"; }
+  print_time($estimated);
   print " for count_on_key ($count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
   
@@ -278,7 +269,7 @@ if ($limits->{'group_functions'})
   $rows=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
-    fetch_all_rows($dbh,"select grp,count(*) from bench1 group by grp");
+    $rows+=fetch_all_rows($dbh,"select grp,count(*) from bench1 group by grp");
   }
   $end_time=new Benchmark;
   print "Time for count_group_on_key_parts ($i:$rows): " .
@@ -289,54 +280,74 @@ if ($limits->{'group_functions'})
 {
   print "Testing count(distinct) on the table\n";
   $loop_time=new Benchmark;
-  $rows=0;
+  $rows=$estimated=$count=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
+    $count+=2;
     $rows+=fetch_all_rows($dbh,"select count(distinct region) from bench1");
     $rows+=fetch_all_rows($dbh,"select count(distinct grp) from bench1");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for count_distinct ($i:$rows): " .
+  print_time($estimated);
+  print " for count_distinct ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;
-  $rows=0;
+  $rows=$estimated=$count=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
+    $count++;
     $rows+=fetch_all_rows($dbh,"select region,count(distinct idn) from bench1 group by region");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for count_distinct_group_on_key ($i:$rows): " .
+  print_time($estimated);
+  print " for count_distinct_group_on_key ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;
-  $rows=0;
+  $rows=$estimated=$count=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
+    $count++;
     $rows+=fetch_all_rows($dbh,"select grp,count(distinct idn) from bench1 group by grp");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for count_distinct_group_on_key_parts ($i:$rows): " .
+  print_time($estimated);
+  print " for count_distinct_group_on_key_parts ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;
-  $rows=0;
+  $rows=$estimated=$count=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
+    $count++;
     $rows+=fetch_all_rows($dbh,"select grp,count(distinct rev_idn) from bench1 group by grp");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for count_distinct_group ($i:$rows): " .
+  print_time($estimated);
+  print " for count_distinct_group ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;
-  $rows=0;
+  $rows=$estimated=$count=0;
   for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
   {
+    $count++;
     $rows+=fetch_all_rows($dbh,"select idn,count(distinct region) from bench1 group by idn");
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+					   $opt_medium_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for count_distinct_big ($i:$rows): " .
+  print_time($estimated);
+  print " for count_distinct_big ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 }
 

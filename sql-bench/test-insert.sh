@@ -270,7 +270,7 @@ for ($i=1 ; $i <= $small_loop_count ; $i++)
   {
     if (!$error++)
     {
-      print "Warning: Got $found_rows rows when selecting a hole table of " . ($total_rows) . " rows\nContact the database or DBD author!\n";
+      print "Warning: Got $found_rows rows when selecting a whole table of " . ($total_rows) . " rows\nContact the database or DBD author!\n";
     }
   }
   $count+=$found_rows;
@@ -280,44 +280,125 @@ $end_time=new Benchmark;
 print "Time for select_big ($small_loop_count:$count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
+#
+# Do a lot of different ORDER BY queries
+#
+
 $loop_time=new Benchmark;
-$estimated=0;
-$rows=0;
-$count=0;
-for ($i=1 ; $i <= $small_loop_count/2 ; $i++)
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
 {
   $rows+=fetch_all_rows($dbh,"select id from bench1 order by id",1);
-  $rows+=fetch_all_rows($dbh,"select id from bench1 order by id desc",1);
-  $count+=2;
   $end_time=new Benchmark;
-  last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$count,
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $small_loop_count));
 }
 if ($estimated)
 { print "Estimated time"; }
 else
 { print "Time"; }
-print " for order_by_key ($count:$rows): " .
+print " for order_by_big_key ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 $loop_time=new Benchmark;
-$estimated=0;
-$rows=0;
-$count=0;
-for ($i=1 ; $i <= $small_loop_count/2 ; $i++)
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
 {
-  $rows+=fetch_all_rows($dbh,"select id2 from bench1 order by id2",1);
-  $rows+=fetch_all_rows($dbh,"select id2 from bench1 order by id2 desc",1);
-  $count+=2;
+  $rows+=fetch_all_rows($dbh,"select id from bench1 order by id desc",1);
   $end_time=new Benchmark;
-  last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$count,
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
 					 $small_loop_count));
 }
 if ($estimated)
 { print "Estimated time"; }
 else
 { print "Time"; }
-print " for order_by ($count:$rows): " .
+print " for order_by_big_key_desc ($small_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
+{
+  $rows+=fetch_all_rows($dbh,"select id3 from bench1 order by id3",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $small_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_big_key2 ($small_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
+{
+  $rows+=fetch_all_rows($dbh,"select id2 from bench1 order by id3",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $small_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_big_key_diff ($small_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
+{
+  $rows+=fetch_all_rows($dbh,"select id from bench1 order by id2,id3",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $small_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_big ($small_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
+{
+  $start=$opt_loop_count/$small_loop_count*$i;
+  $end=$start+$i;
+  $rows+=fetch_all_rows($dbh,"select dummy1 from bench1 where id>=$start and id <= $end order by id",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $small_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_key ($small_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $small_loop_count ; $i++)
+{
+  $start=$opt_loop_count/$small_loop_count*$i;
+  $end=$start+$small_loop_count;
+  $rows+=fetch_all_rows($dbh,"select id2 from bench1 where id3>=$start and id3 <= $end order by id3",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $small_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_key2_diff ($small_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 #
@@ -417,6 +498,7 @@ if ($limits->{'group_functions'})
   $loop_time=new Benchmark;
   $count=1;
 
+  $estimated=0;
   for ($tests=0 ; $tests < $small_loop_count ; $tests++)
   {
     $sth=$dbh->prepare($query="select count(*) from bench1") or die $DBI::errstr;
@@ -492,9 +574,12 @@ if ($limits->{'group_functions'})
 	print "Warning: '$query' returned wrong number of rows\n";
       }
     }
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$tests,
+					   $small_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for select_group ($count): " .
+  print_time($estimated);
+  print " for select_group ($count): " .
       timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;

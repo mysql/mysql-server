@@ -70,8 +70,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
       thd->proc_info="Waiting for table";
       pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-      while (global_read_lock && ! thd->killed ||
-	     thd->version != refresh_version)
+      while (global_read_lock && ! thd->killed &&
+	     thd->version == refresh_version)
       {
 	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
       }
