@@ -3774,8 +3774,10 @@ lib_vio.c --  Emulate the vio directory's communication buffer
 Some user-contributed manual pages
 @*@*
 
-These are not the actual "man" (manual) pages, they are switches for
-the production.
+These are user-contributed "man" (manual) pages in a special markup 
+format. The format is described in a document with a heading like
+"man page for man" or "macros to format man pages" which you can find 
+in a Linux directory or on the Internet.
 @*@*
 
 @subsection myisam
@@ -3787,13 +3789,13 @@ The C files in this subdirectory come in six main groups:
 @itemize @bullet
 @item
 ft*.c files  --  ft stands for "Full Text", code contributed by Sergei
-Golubchik 
+Golubchik
 @item
 mi*.c files  --  mi stands for "My Isam", these are the main programs
-for Myisam 
+for Myisam
 @item
 myisam*.c files  --  for example, "myisamchk" utility routine
-functions source 
+functions source
 @item
 rt*.c files  --  rt stands for "rtree", some code was written by
 Alexander Barkov 
