@@ -632,7 +632,7 @@ void Field_decimal::store(const char *from,uint len)
   if (zerofill)
   {
     left_wall=to-1;
-    while (pos != left_wall)			// Fill with zeros
+    while (pos > left_wall)			// Fill with zeros
       *pos--='0';
   }
   else
@@ -640,7 +640,7 @@ void Field_decimal::store(const char *from,uint len)
     left_wall=to+(sign_char != 0)-1;
     if (!expo_sign_char)	// If exponent was specified, ignore prezeros
     {
-      for (;pos != left_wall && pre_zeros_from !=pre_zeros_end;
+      for (;pos > left_wall && pre_zeros_from !=pre_zeros_end;
 	   pre_zeros_from++)
 	*pos--= '0';
     }
