@@ -452,5 +452,5 @@ Dblqh::~Dblqh()
 		ctcNodeFailrecFileSize);
 }//Dblqh::~Dblqh()
 
-BLOCK_FUNCTIONS(Dblqh);
+BLOCK_FUNCTIONS(Dblqh)
 

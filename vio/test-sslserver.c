@@ -91,12 +91,7 @@ main(int argc __attribute__((unused)), char** argv)
 	struct sockaddr_in sa_cli;
 	int listen_sd;
 	int err;
-
-#if defined(__sgi) && _NO_XOPEN4 && _NO_XOPEN5
-	socklen_t client_len;
-#else
-	size_t client_len;
-#endif
+        size_socket client_len;
 	int	reuseaddr = 1; /* better testing, uh? */
 
 	MY_INIT(argv[0]);

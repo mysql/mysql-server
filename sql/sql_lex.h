@@ -53,7 +53,7 @@ enum enum_sql_command {
 
   SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
   SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_LOGS, SQLCOM_SHOW_STATUS,
-  SQLCOM_SHOW_INNODB_STATUS,
+  SQLCOM_SHOW_INNODB_STATUS, SQLCOM_SHOW_MUTEX_STATUS,
   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
   SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
   SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
@@ -682,7 +682,7 @@ typedef struct st_lex
   List<LEX_COLUMN>    columns;
   List<Key>	      key_list;
   List<create_field>  create_list;
-  List<Item>	      *insert_list,field_list,value_list;
+  List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item_param>    param_list;

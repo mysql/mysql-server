@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
@@ -1128,13 +1127,26 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    uint length=(uint) strlen(buff);
-    if (buff[length-1]!='\n' && !feof(file))
-    {
-      net_send_error(thd, ER_NET_PACKET_TOO_LARGE, NullS);
-      thd->fatal_error();
-      break;
-    }
+   ulong length= (ulong) strlen(buff);
+   while (buff[length-1] != '\n' && !feof(file))
+   {
+     /*
+       We got only a part of the current string. Will try to increase
+       net buffer then read the rest of the current string.
+     */
+     if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
+     {
+       net_send_error(thd, ER_NET_PACKET_TOO_LARGE, NullS);
+       thd->fatal_error();
+       break;
+     }
+     buff= (char*) thd->net.buff;
+     fgets(buff + length, thd->net.max_packet - length, file);
+     length+= (ulong) strlen(buff + length);
+   }
+   if (thd->is_fatal_error)
+     break;
+
     while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
@@ -1964,6 +1976,9 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       break;
     }
 #endif
+  case SCH_OPEN_TABLES:
+  case SCH_VARIABLES:
+  case SCH_STATUS:
   case SCH_PROCEDURES:
   case SCH_CHARSETS:
   case SCH_COLLATIONS:
@@ -2487,6 +2502,13 @@ mysql_execute_command(THD *thd)
       res = innodb_show_status(thd);
       break;
     }
+  case SQLCOM_SHOW_MUTEX_STATUS:
+    {
+      if (check_global_access(thd, SUPER_ACL))
+        goto error;
+      res = innodb_mutex_show_status(thd);
+      break;
+    }
 #endif
 #ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:
@@ -2803,7 +2825,9 @@ create_error:
 	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
 		       &first_table->grant.privilege, 0, 0))
 	goto error;
-      res = mysqld_show_create(thd, first_table);
+      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
+	goto error;
+      res= mysqld_show_create(thd, first_table);
       break;
     }
 #endif
@@ -2931,7 +2955,7 @@ create_error:
     if ((res= insert_precheck(thd, all_tables)))
       break;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
-		      select_lex->item_list, lex->value_list,
+		      lex->update_list, lex->value_list,
                       (lex->value_list.elements ?
                        DUP_UPDATE : lex->duplicates));
     if (first_table->view && !first_table->contain_auto_increment)
@@ -2942,7 +2966,7 @@ create_error:
   case SQLCOM_INSERT_SELECT:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if ((res= insert_select_precheck(thd, all_tables)))
+    if ((res= insert_precheck(thd, all_tables)))
       break;
 
     /* Fix lock for first table */
@@ -2963,11 +2987,10 @@ create_error:
       res= mysql_insert_select_prepare(thd);
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
+                                             &lex->update_list, &lex->value_list,
                                              lex->duplicates,
                                              lex->duplicates == DUP_IGNORE)))
       {
-        TABLE_LIST *first_select_table;
-
         /*
           insert/replace from SELECT give its SELECT_LEX for SELECT,
           and item_list belong to SELECT
@@ -2977,6 +3000,9 @@ create_error:
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
+      /* in case of error first_table->table can be 0 */
+      if (first_table->table)
+        first_table->table->insert_values= 0;
       /* revert changes for SP */
       lex->select_lex.table_list.first= (byte*) first_table;
     }
@@ -3121,25 +3147,6 @@ create_error:
   case SQLCOM_SHOW_COLUMN_TYPES:
     res= mysqld_show_column_types(thd);
     break;
-  case SQLCOM_SHOW_STATUS:
-    STATUS_VAR tmp;
-    if (lex->option_type == OPT_GLOBAL)
-    {
-      pthread_mutex_lock(&LOCK_status);
-      calc_sum_of_all_status(&tmp);
-    }
-    res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     status_vars, OPT_GLOBAL, &LOCK_status,
-		     (lex->option_type == OPT_GLOBAL ? 
-		      &tmp: &thd->status_var));
-    if (lex->option_type == OPT_GLOBAL)
-      pthread_mutex_unlock(&LOCK_status);
-    break;
-  case SQLCOM_SHOW_VARIABLES:
-    res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     init_vars, lex->option_type,
-		     &LOCK_global_system_variables, 0);
-    break;
   case SQLCOM_SHOW_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
@@ -3153,9 +3160,6 @@ create_error:
       break;
     }
 #endif
-  case SQLCOM_SHOW_OPEN_TABLES:
-    res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
-    break;
   case SQLCOM_CHANGE_DB:
     mysql_change_db(thd,select_lex->db);
     break;
@@ -3320,7 +3324,13 @@ create_error:
   }
   case SQLCOM_ALTER_DB:
   {
-    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    char *db= lex->name ? lex->name : thd->db;
+    if (!db)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      break;
+    }
+    if (!strip_sp(db) || check_db_name(db))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
@@ -3334,14 +3344,14 @@ create_error:
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(lex->name)))
+	(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(db)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
     }
 #endif
-    if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
+    if (check_access(thd, ALTER_ACL, db, 0, 1, 0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3349,7 +3359,7 @@ create_error:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res=mysql_alter_db(thd,lex->name,&lex->create_info);
+    res= mysql_alter_db(thd, db, &lex->create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
@@ -3361,12 +3371,6 @@ create_error:
     }
     if (check_access(thd,SELECT_ACL,lex->name,0,1,0))
       break;
-    if (thd->locked_tables || thd->active_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
@@ -3801,8 +3805,8 @@ create_error:
 	st_sp_security_context save_ctx;
 #endif
 	ha_rows select_limit;
-	uint smrx;
-	LINT_INIT(smrx);
+        /* bits that should be cleared in thd->server_status */
+	uint bits_to_be_cleared= 0;
 
 	/* In case the arguments are subselects... */
 	if (all_tables &&
@@ -3824,8 +3828,13 @@ create_error:
 #endif
 	    goto error;
 	  }
-	  smrx= thd->server_status & SERVER_MORE_RESULTS_EXISTS;
-	  thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          /*
+            If SERVER_MORE_RESULTS_EXISTS is not set,
+            then remember that it should be cleared
+          */
+	  bits_to_be_cleared= (~thd->server_status &
+                               SERVER_MORE_RESULTS_EXISTS);
+	  thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
 	}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3864,14 +3873,11 @@ create_error:
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
 #endif
-	if (sp->m_multi_results)
-	{
-	  if (! smrx)
-	    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
-	}
+        thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
-	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 : thd->row_count_func));
+	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
+                                thd->row_count_func));
 	else
 	  goto error;		// Substatement should already have sent error
       }
@@ -4126,7 +4132,7 @@ error:
 
 /*
   Check grants for commands which work only with one table and all other
-  tables belong to subselects.
+  tables belonging to subselects or implicitly opened tables.
 
   SYNOPSIS
     check_one_table_access()
@@ -4149,7 +4155,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
   if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, 0))
     return 1;
 
-  /* Check rights on tables of subselect (if exists) */
+  /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= all_tables->next_global))
   {
@@ -6000,9 +6006,9 @@ Item * all_any_subquery_creator(Item *left_expr,
   Item_allany_subselect *it=
     new Item_allany_subselect(left_expr, (*cmp)(all), select_lex, all);
   if (all)
-    return it->upper_not= new Item_func_not_all(it);	/* ALL */
+    return it->upper_item= new Item_func_not_all(it);	/* ALL */
 
-  return it;						/* ANY/SOME */
+  return it->upper_item= new Item_func_nop_all(it);      /* ANY/SOME */
 }
 
 
@@ -6106,7 +6112,9 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)
     {
-      if (!table->table_in_first_from_clause && table->derived)
+      if (!my_tz_check_n_skip_implicit_tables(&table,
+                                              lex->time_zone_tables_used) &&
+          !table->table_in_first_from_clause)
       {
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0) ||
@@ -6191,32 +6199,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
 
 
 /*
-  INSERT ... SELECT query pre-check
-
-  SYNOPSIS
-    insert_delete_precheck()
-    thd		Thread handler
-    tables	Global table list
-
-  RETURN VALUE
-    FALSE OK
-    TRUE  Error
-*/
-
-bool insert_select_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("insert_select_precheck");
-  /*
-    Check that we have modify privileges for the first table and
-    select privileges for the rest
-  */
-  ulong privilege= (thd->lex->duplicates == DUP_REPLACE ?
-		    INSERT_ACL | DELETE_ACL : INSERT_ACL);
-  DBUG_RETURN(check_one_table_access(thd, privilege, tables));
-}
-
-
-/*
   simple UPDATE query pre-check
 
   SYNOPSIS
@@ -6284,6 +6266,10 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
 
+  /*
+    Check that we have modify privileges for the first table and
+    select privileges for the rest
+  */
   ulong privilege= (INSERT_ACL |
                     (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
                     (lex->value_list.elements ? UPDATE_ACL : 0));
@@ -6291,7 +6277,7 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(TRUE);
 
-  if (lex->select_lex.item_list.elements != lex->value_list.elements)
+  if (lex->update_list.elements != lex->value_list.elements)
   {
     my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
     DBUG_RETURN(TRUE);

@@ -156,7 +156,7 @@ class ha_ndbcluster: public handler
   uint8 table_cache_type();
     
  private:
-  int alter_table_name(const char *from, const char *to);
+  int alter_table_name(const char *to);
   int drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);

@@ -937,9 +937,10 @@ run_again:
 
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
-
+    thr->lock_state= QUE_THR_LOCK_ROW;
 		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
 								&savept);
+    thr->lock_state= QUE_THR_LOCK_NOLOCK;
 		if (was_lock_wait) {
 			goto run_again;
 		}
@@ -1171,9 +1172,11 @@ run_again:
 
 			return((int) err);
 		}
-	
+
+    thr->lock_state= QUE_THR_LOCK_ROW;
 		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
 								&savept);
+    thr->lock_state= QUE_THR_LOCK_NOLOCK;;
 		if (was_lock_wait) {
 			goto run_again;
 		}

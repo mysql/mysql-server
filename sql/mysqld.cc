@@ -17,7 +17,6 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
-#include "sql_acl.h"
 #include "slave.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
@@ -55,6 +54,11 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
+#ifdef NDB_SHM_TRANSPORTER
+#define OPT_NDB_SHM_DEFAULT 1
+#else
+#define OPT_NDB_SHM_DEFAULT 0
+#endif
 #else
 #define OPT_NDBCLUSTER_DEFAULT 0
 #endif
@@ -289,6 +293,10 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
+#ifdef HAVE_NDBCLUSTER_DB
+const char *opt_ndbcluster_connectstring= 0;
+my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
+#endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
@@ -326,6 +334,7 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
+my_bool timed_mutexes= 0;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
@@ -2119,7 +2128,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 	if (!(opt_specialflag & SPECIAL_NO_PRIOR))
 	  my_pthread_attr_setprio(&connection_attrib,INTERRUPT_PRIOR);
 	if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
-			   (void*) sig))
+			   (void*) &sig))
 	  sql_print_error("Can't create thread to kill server");
 #else
 	kill_server((void*) sig);	// MIT THREAD has a alarm thread
@@ -4111,6 +4120,7 @@ enum options_mysqld
   OPT_INNODB, OPT_ISAM,
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
+  OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4204,7 +4214,8 @@ enum options_mysqld
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
   OPT_SP_AUTOMATIC_PRIVILEGES,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
-  OPT_ENABLE_LARGE_PAGES
+  OPT_ENABLE_LARGE_PAGES,
+  OPT_TIMED_MUTEXES
 };
 
 
@@ -4585,23 +4596,45 @@ Disable with --skip-ndbcluster (will save memory).",
 #ifdef HAVE_NDBCLUSTER_DB
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
-   (gptr*) &ndbcluster_connectstring, (gptr*) &ndbcluster_connectstring,
+   (gptr*) &opt_ndbcluster_connectstring,
+   (gptr*) &opt_ndbcluster_connectstring,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb_autoincrement_prefetch_sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-   "Specify number of autoincrement values that are prefetched",
+  {"ndb-autoincrement-prefetch-sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
+   "Specify number of autoincrement values that are prefetched.",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    0, GET_INT, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
-  {"ndb_force_send", OPT_NDB_FORCE_SEND,
-   "Force send of buffers to ndb immediately without waiting for other threads",
+  {"ndb-force-send", OPT_NDB_FORCE_SEND,
+   "Force send of buffers to ndb immediately without waiting for "
+   "other threads.",
    (gptr*) &global_system_variables.ndb_force_send,
    (gptr*) &global_system_variables.ndb_force_send,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb_force_send", OPT_NDB_FORCE_SEND,
+   "same as --ndb-force-send.",
+   (gptr*) &global_system_variables.ndb_force_send,
+   (gptr*) &global_system_variables.ndb_force_send,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
+   "Use exact records count during query planning and for fast "
+   "select count(*), disable for faster queries.",
+   (gptr*) &global_system_variables.ndb_use_exact_count,
+   (gptr*) &global_system_variables.ndb_use_exact_count,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb_use_exact_count", OPT_NDB_USE_EXACT_COUNT,
-   "Use exact records count during query planning and for "
-   "fast select count(*)",
+   "same as --ndb-use-exact-count.",
    (gptr*) &global_system_variables.ndb_use_exact_count,
    (gptr*) &global_system_variables.ndb_use_exact_count,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-shm", OPT_NDB_SHM,
+   "Use shared memory connections when available.",
+   (gptr*) &opt_ndb_shm,
+   (gptr*) &opt_ndb_shm,
+   0, GET_BOOL, OPT_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0},
+  {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,
+   "Select nodes for transactions in a more optimal way.",
+   (gptr*) &opt_ndb_optimized_node_selection,
+   (gptr*) &opt_ndb_optimized_node_selection,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
@@ -4807,6 +4840,10 @@ log and this option does nothing anymore.",
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
+  {"timed_mutexes", OPT_TIMED_MUTEXES,
+   "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
+   (gptr*) &timed_mutexes, (gptr*) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
+    0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
 #if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
@@ -4903,7 +4940,8 @@ log and this option does nothing anymore.",
     (gptr*) &delayed_queue_size, (gptr*) &delayed_queue_size, 0, GET_ULONG,
     REQUIRED_ARG, DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
-   "Binary logs will be rotated after expire-log-days days ",
+   "If non-zero, binary logs will be purged after expire_logs_days "
+   "days; possible purges happen at startup and at binary log rotation.",
    (gptr*) &expire_logs_days,
    (gptr*) &expire_logs_days, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 99, 0, 1, 0},
@@ -5154,7 +5192,7 @@ The minimum value for this variable is 4096.",
    "Default pointer size to be used for MyISAM tables.",
    (gptr*) &myisam_data_pointer_size,
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
-   4, 2, 7, 0, 1, 0},
+   4, 2, 8, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Used to help MySQL to decide when to use the slow but safe key cache index create method.",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,

@@ -145,8 +145,14 @@ struct st_table {
   int current_lock;			/* Type of lock on table */
   enum tmp_table_type tmp_table;
   my_bool copy_blobs;			/* copy_blobs when storing */
-  my_bool null_row;			/* All columns are null */
-  my_bool maybe_null,outer_join;	/* Used with OUTER JOIN */
+  /*
+    Used in outer joins: if true, all columns are considered to have NULL
+    values, including columns declared as "not null".
+  */
+  my_bool null_row;
+  /* 0 or JOIN_TYPE_{LEFT|RIGHT}, same as TABLE_LIST::outer_join */
+  my_bool outer_join;
+  my_bool maybe_null;                   /* true if (outer_join != 0) */
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
   my_bool key_read;
@@ -223,7 +229,7 @@ enum enum_schema_tables
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY, SCH_PROCEDURES, SCH_STATISTICS,
   SCH_VIEWS, SCH_USER_PRIVILEGES, SCH_SCHEMA_PRIVILEGES, SCH_TABLE_PRIVILEGES,
   SCH_COLUMN_PRIVILEGES, SCH_TABLE_CONSTRAINTS, SCH_KEY_COLUMN_USAGE,
-  SCH_TABLE_NAMES
+  SCH_TABLE_NAMES, SCH_OPEN_TABLES, SCH_STATUS, SCH_VARIABLES
 };
 
 

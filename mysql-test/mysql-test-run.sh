@@ -4,6 +4,7 @@
 # Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
+# List of failed cases (--force) backported from 4.1 by Joerg
 # :-)
 
 #++
@@ -490,6 +491,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
      echo "Fatal error: Cannot find embedded server 'mysqltest'" 1>&2
      exit 1
    fi
+   TESTS_BINDIR="$BASEDIR/libmysqld/examples"
  else
    MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
    if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
@@ -499,6 +501,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
    else
      MYSQL_TEST="$BASEDIR/client/mysqltest"
    fi
+   TESTS_BINDIR="$BASEDIR/tests"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
@@ -515,7 +518,6 @@ if [ x$SOURCE_DIST = x1 ] ; then
  fi
 
  CLIENT_BINDIR="$BASEDIR/client"
- TESTS_BINDIR="$BASEDIR/tests"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
@@ -948,7 +950,7 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --diskless --initial || exit 1
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || exit 1
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1352,7 +1354,7 @@ run_testcase ()
    result_file="$result_file$RESULT_EXT"
  fi
  if [ "$USE_MANAGER" = 1 ] ; then
-   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
  if $EXPR "$tname" '<' "$START_FROM" > /dev/null ; then
    #skip_test $tname

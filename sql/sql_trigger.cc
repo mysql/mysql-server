@@ -2,8 +2,6 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "parse_file.h"
-#include "sql_acl.h"
-
 
 static const LEX_STRING triggers_file_type= {(char *)"TRIGGERS", 8};
 static const char * const triggers_file_ext= ".TRG";
