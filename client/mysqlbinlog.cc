@@ -407,7 +407,8 @@ static void dump_local_log_entries(const char* logname)
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
-  char last_db[FN_REFLEN+1], tmp_buff[BIN_LOG_HEADER_SIZE];
+  char last_db[FN_REFLEN+1];
+  byte tmp_buff[BIN_LOG_HEADER_SIZE];
   bool old_format = 0;
 
   last_db[0]=0;

@@ -744,10 +744,10 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
     ident_offset = ROTATE_HEADER_LEN;
   }
   set_if_smaller(ident_len,FN_REFLEN-1);
-  if (!(new_log_ident= (char*) my_strdup_with_length((byte*) buf +
-						     ident_offset,
-						     (uint) ident_len,
-						     MYF(MY_WME))))
+  if (!(new_log_ident= my_strdup_with_length((byte*) buf +
+					     ident_offset,
+					     (uint) ident_len,
+					     MYF(MY_WME))))
     return;
   alloced = 1;
 }

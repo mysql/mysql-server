@@ -529,20 +529,20 @@ gptr _my_memdup(const byte *from, uint length, const char *sFile, uint uLine,
 } /*_my_memdup */
 
 
-my_string _my_strdup(const char *from, const char *sFile, uint uLine,
-		     myf MyFlags)
+char *_my_strdup(const char *from, const char *sFile, uint uLine,
+		 myf MyFlags)
 {
   gptr ptr;
   uint length=(uint) strlen(from)+1;
   if ((ptr=_mymalloc(length,sFile,uLine,MyFlags)) != 0)
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
-  return((my_string) ptr);
+  return((char*) ptr);
 } /* _my_strdup */
 
 
-my_string _my_strdup_with_length(const char *from, uint length,
-				 const char *sFile, uint uLine,
-				 myf MyFlags)
+char *_my_strdup_with_length(const byte *from, uint length,
+			     const char *sFile, uint uLine,
+			     myf MyFlags)
 {
   gptr ptr;
   if ((ptr=_mymalloc(length+1,sFile,uLine,MyFlags)) != 0)
@@ -550,5 +550,5 @@ my_string _my_strdup_with_length(const char *from, uint length,
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
     ptr[length]=0;
   }
-  return((my_string) ptr);
+  return((char *) ptr);
 }

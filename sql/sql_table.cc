@@ -18,10 +18,10 @@
 /* drop and alter of tables */
 
 #include "mysql_priv.h"
-#include <hash.h>
 #ifdef HAVE_BERKELEY_DB
-#include <ha_berkeley.h>
+#include "ha_berkeley.h"
 #endif
+#include <hash.h>
 #include <myisam.h>
 #include <assert.h>
 

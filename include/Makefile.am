@@ -20,8 +20,8 @@ pkginclude_HEADERS =	dbug.h m_string.h my_sys.h my_list.h \
 			mysql.h mysql_com.h mysqld_error.h mysql_embed.h \
 		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
-			my_getopt.h sslopt-longopts.h sslopt-usage.h \
-			sslopt-vars.h $(BUILT_SOURCES)
+			my_getopt.h sslopt-longopts.h \
+			sslopt-vars.h sslopt-case.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-os2.h \
 			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
