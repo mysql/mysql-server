@@ -1726,6 +1726,9 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
     }
     if (where && !where->fixed && where->fix_fields(thd, ancestor, &where))
       goto err;
+    if (check_option && !check_option->fixed &&
+        check_option->fix_fields(thd, ancestor, &where))
+      goto err;
     restore_want_privilege();
 
     /* WHERE/ON resolved => we can rename fields */
@@ -1873,11 +1876,19 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   /* full text function moving to current select */
   if (view->select_lex.ftfunc_list->elements)
   {
+    Item_arena *arena= thd->current_arena, backup;
+    if (arena->is_conventional())
+      arena= 0;                                   // For easier test
+    else
+      thd->set_n_backup_item_arena(arena, &backup);
+
     Item_func_match *ifm;
     List_iterator_fast<Item_func_match>
       li(*(view->select_lex.ftfunc_list));
     while ((ifm= li++))
       current_select_save->ftfunc_list->push_front(ifm);
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
   }
 
 ok:
