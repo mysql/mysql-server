@@ -2128,7 +2128,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 		rewind(ef);
 		ut_print_timestamp(ef);
 
-		fputs("  Cannot drop table ", ef);
+		fputs("  Cannot DISCARD table ", ef);
 		ut_print_name(ef, trx, name);
 		fputs("\n"
 			"because it is referenced by ", ef);
