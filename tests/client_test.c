@@ -786,9 +786,9 @@ static void client_use_result()
 
 void fill_tables(const char **query_list, unsigned query_count)
 {
-  DBUG_ENTER("fill_tables");
   int rc;
   const char **query;
+  DBUG_ENTER("fill_tables");
   for (query= query_list; query < query_list + query_count;
        ++query)
   {
@@ -11534,7 +11534,6 @@ static void test_bug6046()
 
 static void test_basic_cursors()
 {
-  DBUG_ENTER("test_basic_cursors");
   const char *basic_tables[]=
   {
     "DROP TABLE IF EXISTS t1, t2",
@@ -11567,6 +11566,7 @@ static void test_basic_cursors()
     "SELECT * FROM t2"
   };
 
+  DBUG_ENTER("test_basic_cursors");
   myheader("test_basic_cursors");
 
   fill_tables(basic_tables, sizeof(basic_tables)/sizeof(*basic_tables));
