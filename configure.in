@@ -1673,6 +1673,7 @@ AC_ARG_WITH(embedded-server,
     [with_embedded_server=no]
 )
 
+MYSQL_CHECK_CPU
 MYSQL_CHECK_MYSQLFS
 MYSQL_CHECK_VIO
 MYSQL_CHECK_OPENSSL

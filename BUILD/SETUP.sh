@@ -40,7 +40,7 @@ c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
-pentium_cflags="-mpentiumpro"
+pentium_cflags=""
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace
