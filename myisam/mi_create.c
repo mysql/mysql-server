@@ -37,7 +37,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 {
   register uint i,j;
   File dfile,file;
-  int errpos,save_errno;
+  int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
   myf create_flag;
   uint fields,length,max_key_length,packed,pointer,
        key_length,info_length,key_segs,options,min_key_length_skipp,
@@ -174,7 +174,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     min_pack_length+=varchar_length+2*varchar_count;
   }
   if (flags & HA_CREATE_TMP_TABLE)
+  {
     options|= HA_OPTION_TMP_TABLE;
+    create_mode|= O_EXCL | O_NOFOLLOW;
+  }
   if (flags & HA_CREATE_CHECKSUM || (options & HA_OPTION_CHECKSUM))
   {
     options|= HA_OPTION_CHECKSUM;
@@ -508,9 +511,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     create_flag=MY_DELETE_OLD;
   }
 
-  if ((file= my_create_with_symlink(linkname_ptr,
-				    filename,
-				    0, O_RDWR | O_TRUNC,
+  if ((file= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
 				    MYF(MY_WME | create_flag))) < 0)
     goto err;
   errpos=1;
@@ -521,7 +522,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (share.base.raid_type)
     {
       (void) fn_format(filename,name,"",MI_NAME_DEXT,2+4);
-      if ((dfile=my_raid_create(filename,0,O_RDWR | O_TRUNC,
+      if ((dfile=my_raid_create(filename, 0, create_mode
 				share.base.raid_type,
 				share.base.raid_chunks,
 				share.base.raid_chunksize,
@@ -544,9 +545,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	linkname_ptr=0;
 	create_flag=MY_DELETE_OLD;
       }
-      if ((dfile= 
-	   my_create_with_symlink(linkname_ptr, filename,
-				  0,O_RDWR | O_TRUNC,
+      if ((dfile=
+	   my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
 				  MYF(MY_WME | create_flag))) < 0)
 	goto err;
     }
