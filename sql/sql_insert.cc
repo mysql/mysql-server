@@ -988,23 +988,12 @@ static pthread_handler_decl(handle_delayed_insert,arg)
     if (!di->status && !di->stacked_inserts)
     {
       struct timespec abstime;
-#if defined(HAVE_TIMESPEC_TS_SEC)
-      abstime.ts_sec=time((time_t*) 0)+(time_t) delayed_insert_timeout;
-      abstime.ts_nsec=0;
-#elif defined(__WIN__)
-      abstime.tv_sec=time((time_t*) 0)+(time_t) delayed_insert_timeout;
-      abstime.tv_nsec=0;
-#else
-      struct timeval tv;
-      gettimeofday(&tv,0);
-      abstime.tv_sec=tv.tv_sec+(time_t) delayed_insert_timeout;
-      abstime.tv_nsec=tv.tv_usec*1000;
-#endif
+      set_timespec(abstime, delayed_insert_timeout);
 
       /* Information for pthread_kill */
       di->thd.mysys_var->current_mutex= &di->mutex;
       di->thd.mysys_var->current_cond= &di->cond;
-      di->thd.proc_info=0;
+      di->thd.proc_info="Waiting for INSERT";
 
       DBUG_PRINT("info",("Waiting for someone to insert rows"));
       while (!thd->killed)
@@ -1039,6 +1028,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
       pthread_mutex_unlock(&di->thd.mysys_var->mutex);
       pthread_mutex_lock(&di->mutex);
     }
+    di->thd.proc_info=0;
 
     if (di->tables_in_use && ! thd->lock)
     {

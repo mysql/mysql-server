@@ -160,3 +160,11 @@ SELECT * FROM t1 WHERE a='a' AND b=2;
 SELECT * FROM t1 WHERE a='a' AND b in (2);
 SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 drop table t1;
+
+#
+# Test of create key order
+#
+
+create table t1 (a int not null unique, b int unique, c int, d int not null primary key, key(c), e int not null unique);
+show keys from t1;
+drop table t1;

@@ -228,11 +228,11 @@ check_connections2(THD * thd)
   return 0;
 }
 
-
 static bool check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count)
 {
   NET *net= &thd->net;
+  uint max=0;
   thd->db=0;
 
   if (!(thd->user = my_strdup(user, MYF(0))))
@@ -244,7 +244,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD));
+				   CLIENT_LONG_PASSWORD),&max);
   DBUG_PRINT("general",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_packet_length,

@@ -31,6 +31,7 @@ class ha_heap: public handler
   ha_heap(TABLE *table): handler(table), file(0) {}
   ~ha_heap() {}
   const char *table_type() const { return "HEAP"; }
+  const char *index_type(uint key_number) { return "HASH"; }
   const char **bas_ext() const;
   ulong option_flag() const
   { return (HA_READ_RND_SAME | HA_NO_INDEX | HA_ONLY_WHOLE_INDEX |

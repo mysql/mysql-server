@@ -393,3 +393,18 @@ Item *create_wait_for_master_pos(Item* a, Item* b)
   current_thd->safe_to_cache_query=0;
   return new Item_master_pos_wait(a, b);
 }
+
+Item *create_func_cast(Item *a, Item_cast cast_type)
+{
+  Item *res;
+  LINT_INIT(res);
+  switch (cast_type) {
+  case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
+  case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
+  case ITEM_CAST_UNSIGNED_INT:  res= new Item_func_unsigned(a); break;
+  case ITEM_CAST_DATE:		res= new Item_date_typecast(a); break;
+  case ITEM_CAST_TIME:		res= new Item_time_typecast(a); break;
+  case ITEM_CAST_DATETIME:	res= new Item_datetime_typecast(a); break;
+  }
+  return res;
+}

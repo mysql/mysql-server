@@ -35,7 +35,7 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext" };
 
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
-                        DYNAMIC_ARRAY *keyuse);
+				 DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 				JOIN_TAB *join_tab,
                                 uint tables,COND *conds,table_map table_map);
@@ -4733,9 +4733,18 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     {
       if (join->select_options & OPTION_FOUND_ROWS)
       {
-	join->do_send_rows=0;
-	join->thd->select_limit = HA_POS_ERROR;
-	DBUG_RETURN(0);
+	JOIN_TAB *jt=join->join_tab;
+	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group && !join->send_group_parts && !join->having && !jt->select_cond )
+	{
+	  join->select_options ^= OPTION_FOUND_ROWS;
+	  join->send_records = jt->records;
+	}
+	else 
+	{
+	  join->do_send_rows=0;
+	  join->thd->select_limit = HA_POS_ERROR;
+	  DBUG_RETURN(0);
+	}
       }
       DBUG_RETURN(-3);				// Abort nicely
     }

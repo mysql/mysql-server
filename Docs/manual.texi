@@ -108,10 +108,10 @@ END-INFO-DIR-ENTRY
 @node Top, Introduction, (dir), (dir)
 
 @ifinfo
-This is a manual for MySQL. This version is about the
-@value{mysql_version} version of MySQL.  You can find a manual
-about any older version of MySQL in the binary or source
-distribution for that version.
+This is a manual for the MySQL Database System.
+This version is about the @value{mysql_version} version of MySQL Server.
+You can find a specific manual for any older version of MySQL Server
+in the binary or source distribution for that version.
 @end ifinfo
 
 @menu
@@ -144,38 +144,40 @@ distribution for that version.
 @cindex overview
 @cindex general information
 
-@code{MySQL (TM)} is a very fast, multi-threaded, multi-user, and robust
-@code{SQL} (@code{Structured Query Language}) database server.
-MySQL is intended for mission-critical, heavy load production systems
-as well as for embedding into mass-deployed software.
+The @code{MySQL (TM)} software delivers a very fast, multi-threaded,
+multi-user, and robust @code{SQL} (@code{Structured Query Language})
+database server.
+MySQL Server is intended for mission-critical, heavy load production
+systems as well as for embedding into mass-deployed software.
 @code{MySQL} is a trademark of @code{MySQL AB}.
 
-MySQL has @code{Dual licensing}, you can use MySQL free of charge
-under the @code{GNU GENERAL PUBLIC LICENSE}
+The MySQL software has @code{Dual licensing}, you can use MySQL Server
+free of charge under the @code{GNU GENERAL PUBLIC LICENSE}
 (@uref{http://www.gnu.org/licenses/}).
-You can also purchase commercial MySQL licenses from @code{MySQL AB}
-if you do not wish to be bound by the terms of the GPL.
+You can also purchase commercial MySQL Server licenses from
+@code{MySQL AB} if you do not wish to be bound by the terms of the GPL.
 @xref{Licensing and Support}.
 
 The MySQL web site (@uref{http://www.mysql.com/}) provides the latest
-information about MySQL.
+information about the MySQL software.
 
 The following list describes some useful sections of the manual:
 
 @itemize @bullet
 @item
-For information about the company behind MySQL, see 
-@ref{What is MySQL AB}.
+For information about the company behind the MySQL Database Server,
+see  @ref{What is MySQL AB}.
 
 @item
-For a discussion of MySQL's capabilities, see @ref{Features}.
+For a discussion about the capabilities of the MySQL Database Server,
+see @ref{Features}.
 
 @item
 For installation instructions, see @ref{Installing}.
 
 @item
-For tips on porting MySQL to new architectures or operating
-systems, see @ref{Porting}.
+For tips on porting the MySQL Database Software to new architectures
+or operating systems, see @ref{Porting}.
 
 @item
 For information about upgrading from a Version 3.23 release, see
@@ -186,7 +188,8 @@ For information about upgrading from a Version 3.22 release, see
 @ref{Upgrading-from-3.22}.
 
 @item
-For a tutorial introduction to MySQL, see @ref{Tutorial}.
+For a tutorial introduction to the MySQL Database Server,
+see @ref{Tutorial}.
 
 @item
 For examples of SQL and benchmarking information, see the benchmarking
@@ -215,7 +218,7 @@ The @code{mysqlbug} script should be used to generate bug reports.
 For source distributions, the @code{mysqlbug} script can be found in the
 @file{scripts} directory.  For binary distributions, @code{mysqlbug} can
 be found in the @file{bin} directory. If you have found a sensitive
-security bug in MySQL, you should send an e-mail to
+security bug in MySQL Server, you should send an e-mail to
 @email{security@@mysql.com}.
 
 @cindex errors, reporting
@@ -247,7 +250,8 @@ This is the MySQL reference manual; it documents MySQL Version
 @value{mysql_version}. Being a reference manual, it does not provide
 general instruction on SQL or relational database concepts.
 
-As MySQL is work in progress, the manual gets updated frequently.
+As the MySQL Database Software is work in progress, the manual gets
+updated frequently.
 The most recent version of this manual is available at
 @uref{http://www.mysql.com/documentation/} in many different formats,
 currently there are Texinfo, plain text, Info, HTML, PostScript, and
@@ -417,7 +421,7 @@ that builds its business providing services around the MySQL database.
 @xref{What is MySQL AB}.
 
 The MySQL web site (@uref{http://www.mysql.com/})
-provides the latest information about MySQL and MySQL AB.
+provides the latest information about MySQL software and MySQL AB.
 
 @table @asis
 
@@ -427,7 +431,7 @@ A database is a structured collection of data.  It may be anything from a
 simple shopping list to a picture gallery or the vast amounts of
 information in a corporate network.  To add, access, and process data
 stored in a computer database, you need a database management system
-such as MySQL.  Since computers are very good at handling large
+such as MySQL Server.  Since computers are very good at handling large
 amounts of data, database management plays a central role in computing,
 as stand-alone utilities, or as parts of other applications.
 
@@ -436,60 +440,62 @@ as stand-alone utilities, or as parts of other applications.
 @item MySQL is a relational database management system.
 
 A relational database stores data in separate tables rather than putting
-all the data in one big storeroom.  This adds speed and flexibility.  The
-tables are linked by defined relations making it possible to combine
-data from several tables on request.  The SQL part of MySQL
-stands for "Structured Query Language" - the most common standardised
-language used to access databases.
+all the data in one big storeroom.  This adds speed and flexibility.
+The tables are linked by defined relations making it possible to combine
+data from several tables on request. The @code{SQL} part of
+``@code{MySQL}'' stands for ``@code{Structured Query Language}''
+- the most common standardised language used to access databases.
 
 @cindex relational databases, defined
 @cindex SQL, defined
-@item MySQL is Open Source Software.
+@item MySQL Software is Open Source.
 
 Open Source means that it is possible for anyone to use and modify.
-Anybody can download MySQL from the Internet and use it
+Anybody can download the MySQL software from the Internet and use it
 without paying anything.  Anybody so inclined can study the source code
-and change it to fit their needs.  MySQL uses the GPL (GNU
+and change it to fit their needs.  The MySQL software uses the GPL (GNU
 General Public License) @uref{http://www.gnu.org/licenses/}, to define what you
 may and may not do with the software in different situations.  If you
-feel uncomfortable with the GPL or need to embed MySQL into a commercial
+feel uncomfortable with the GPL or need to embed MySQL code into a commercial
 application you can buy a commercially licensed version from us.
 @xref{MySQL server licenses}.
 
 @cindex Open Source, defined
 @cindex General Public License
 
-@item Why use MySQL?
+@item Why use the MySQL Database Server?
 
-MySQL is very fast, reliable, and easy to use.  If that is what
-you are looking for, you should give it a try.  MySQL also has a
+The MySQL Database Server is very fast, reliable, and easy to use.
+If that is what you are looking for, you should give it a try.
+MySQL Server also has a
 practical set of features developed in close cooperation with
-our users.  You can find a performance comparison of MySQL
+our users.  You can find a performance comparison of MySQL Server
 to some other database managers on our benchmark page.
 @xref{MySQL Benchmarks}.
 
-MySQL was originally developed to handle large databases
+MySQL Server was originally developed to handle large databases
 much faster than existing solutions and has been successfully used in
 highly demanding production environments for several years.  Though
-under constant development, MySQL today offers a rich and
+under constant development, MySQL Server today offers a rich and
 useful set of functions.  The connectivity, speed, and security make
-MySQL highly suited for accessing databases on the Internet.
+MySQL Server highly suited for accessing databases on the Internet.
 
-@item The technical features of MySQL
+@item The technical features of MySQL Server
 
-For advanced technical information, see @ref{Reference}.  MySQL is
-a client/server system that consists of a multi-threaded SQL server
-that supports different backends, several different client programs and
-libraries, administrative tools, and several programming interfaces.
+For advanced technical information, see @ref{Reference}.  The MySQL
+Database Software is a client/server system that consists of a
+multi-threaded SQL server that supports different backends, several
+different client programs and libraries, administrative tools, and
+several programming interfaces.
 
-We also provide MySQL as a multi-threaded library which you can
+We also provide MySQL Server as a multi-threaded library which you can
 link into your application to get a smaller, faster, easier to manage
 product.
 
-@item MySQL has a lot of contributed software available.
+@item There is a lot of contributed MySQL software available.
 
 It is very likely that you will find that your favorite application or
-language already supports MySQL.
+language already supports the MySQL Database Server.
 
 @end table
 
@@ -524,7 +530,7 @@ flexible enough for our needs.  This resulted in a new SQL interface to our
 database but with almost the same API interface as @code{mSQL}.  This API was
 chosen to ease porting of third-party code.
 
-The derivation of the name MySQL is not perfectly clear.  Our base
+The derivation of the name @code{MySQL} is not perfectly clear.  Our base
 directory and a large number of our libraries and tools have had the prefix
 ``my'' for well over 10 years.  However, Monty's daughter (some years younger)
 is also named My.  Which of the two gave its name to MySQL is
@@ -538,7 +544,7 @@ still a mystery, even for us.
 @cindex features of MySQL
 
 The following list describes some of the important characteristics
-of MySQL. @xref{MySQL 4.0 In A Nutshell}.
+of the MySQL Database Software. @xref{MySQL 4.0 In A Nutshell}.
 
 @c This list is too technical and should be divided into one feature
 @c list comparable to commercial competition and a very technical on
@@ -549,7 +555,7 @@ of MySQL. @xref{MySQL 4.0 In A Nutshell}.
 @item
 Written in C and C++.  Tested with a broad range of different compilers.
 @item
-No memory leaks.  MySQL has been tested with Purify, a commercial
+No memory leaks.  The MySQL code has been tested with Purify, a commercial
 memory leakage detector.
 @item
 Works on many different platforms.  @xref{Which OS}.
@@ -643,13 +649,13 @@ password traffic is encrypted when you connect to a server.
 @item Scalability and Limits
 @itemize @bullet
 @item
-Handles large databases.  We are using MySQL with some
+Handles large databases.  We are using MySQL Server with some
 databases that contain 50,000,000 records and we know of users that
-uses MySQL with 60,000 tables and about 5,000,000,000 rows.
+uses MySQL Server with 60,000 tables and about 5,000,000,000 rows.
 @item
 Up to 32 indexes per table are allowed.  Each index may consist of 1 to 16
 columns or parts of columns.  The maximum index width is 500 bytes
-(this may be changed when compiling MySQL).  An index may use a prefix
+(this may be changed when compiling MySQL Server).  An index may use a prefix
 of a @code{CHAR} or @code{VARCHAR} field.
 @end itemize
 
@@ -681,7 +687,7 @@ string columns are case insensitive.
 Sorting is done according to the chosen character set (the Swedish
 way by default).  It is possible to change this when the MySQL server
 is started up.  To see an example of very advanced sorting, look at the
-Czech sorting code.  MySQL supports many different character sets
+Czech sorting code.  MySQL Server supports many different character sets
 that can be specified at compile and run time.
 @end itemize
 
@@ -714,26 +720,27 @@ very active in identifying problems as well as reporting types of use.
 
 Original code stems back from the early 80s, providing a stable code
 base, and the ISAM table format remains backwards compatible.
-At TcX, the predecessor of MySQL AB, MySQL has worked in projects
+At TcX, the predecessor of MySQL AB, MySQL code has worked in projects
 since mid-1996, without any problems.
-When MySQL was released to a wider public, we noticed that there were
+When the MySQL Database Software was released to a wider public,
+we noticed that there were
 some pieces of ``untested code'' that were quickly found by the new
 users who made different types of queries from us. Each new release
 has had fewer portability problems (even though each new release has
 had many new features).
 
-Each release of MySQL has been usable. There have only been problems
+Each release of the MySQL Server has been usable. There have only been problems
 when users try code from the ``gray zones.''  Naturally, new users
 don't know what the gray zones are; this section attempts to indicate
 those that are currently known.
-The descriptions mostly deal with Version 3.23 of MySQL.
+The descriptions mostly deal with Version 3.23 of MySQL Server.
 All known and reported bugs are fixed in the latest version, with the
 exception of those listed in the bugs section, which are things that
 are design-related.  @xref{Bugs}.
 
-MySQL design is multi-layered with independent modules. Some of the
-newer modules are listed below with an indication of how well-tested
-each of them is:
+The MySQL Server design is multi-layered with independent modules.
+Some of the newer modules are listed below with an indication of how
+well-tested each of them is:
 
 @cindex modules, list of
 
@@ -750,7 +757,7 @@ used in some large, heavy load production systems.
 
 @item @code{BDB} tables -- Gamma
 The @code{Berkeley DB} code is very stable, but we are still improving
-the @code{BDB} transactional table handler interface in MySQL, so it
+the @code{BDB} transactional table handler interface in MySQL Server, so it
 will take some time before this is as well tested as the other table
 types.
 
@@ -817,7 +824,7 @@ On Linux 2.2 you can get bigger tables than 2G by using the LFS patch for
 the ext2 file system.  On Linux 2.4 there exists also patches for ReiserFS
 to get support for big files.
 
-This means that the table size for MySQL is normally limited by
+This means that the table size for MySQL databases is normally limited by
 the operating system.
 
 By default, MySQL tables have a maximum size of about 4G.  You can
@@ -851,14 +858,14 @@ tables}.
 @cindex compliance, Y2K
 @cindex date functions, Y2K compliance
 
-MySQL itself has no problems with Year 2000 (Y2K) compliance:
+The MySQL Server itself has no problems with Year 2000 (Y2K) compliance:
 
 @itemize @bullet
 @item
-MySQL uses Unix time functions and has no problems with dates
+MySQL Server uses Unix time functions and has no problems with dates
 until @code{2069}; all 2-digit years are regarded to be in the range
 @code{1970} to @code{2069}, which means that if you store @code{01} in a
-@code{year} column, MySQL treats it as @code{2001}.
+@code{year} column, MySQL Server treats it as @code{2001}.
 
 @item
 All MySQL date functions are stored in one file @file{sql/time.cc}
@@ -870,7 +877,7 @@ can store years @code{0} and @code{1901} to @code{2155} in 1 byte and display
 them using 2 or 4 digits.
 @end itemize
 
-You may run into problems with applications that use MySQL in a
+You may run into problems with applications that use MySQL Server in a
 way that is not Y2K-safe.  For example, many old applications store
 or manipulate years using 2-digit values (which are ambiguous) rather than
 4-digit values.  This problem may be compounded by applications that use
@@ -880,7 +887,7 @@ Unfortunately, these problems may be difficult to fix, because different
 applications may be written by different programmers, each of whom may
 use a different set of conventions and date-handling functions.
 
-Here is a simple demonstration illustrating that MySQL doesn't have
+Here is a simple demonstration illustrating that MySQL Server doesn't have
 any problems with dates until the year 2030:
 
 @example
@@ -940,8 +947,8 @@ range up to only @code{2030-01-01}.  @code{TIMESTAMP} has a range of
 @code{1970} to @code{2030} on 32-bit machines (signed value).  On 64-bit
 machines it handles times up to @code{2106} (unsigned value).
 
-Even though MySQL is Y2K-compliant, it is your responsibility to
-provide unambiguous input.  See @ref{Y2K issues} for MySQL's rules
+Even though MySQL Server is Y2K-compliant, it is your responsibility to
+provide unambiguous input.  See @ref{Y2K issues} for MySQL Server's rules
 for dealing with ambiguous date input data (data containing 2-digit year
 values).
 
@@ -961,9 +968,9 @@ We are a virtual organisation with people in a dozen countries around
 the world. We communicate extensively over the net every day with each
 other and with our users, supporters and partners.
 
-We are dedicated to developing MySQL and spreading our database to new 
-users. MySQL AB owns the copyright to the MySQL source code, the MySQL
-logo and trademark and this manual. @xref{What-is}.
+We are dedicated to developing the MySQL software and spreading our
+database to new users. MySQL AB owns the copyright to the MySQL source
+code, the MySQL logo and trademark and this manual. @xref{What-is}.
 
 @menu
 * MySQL AB business model and services::  The Business Model and Services of MySQL AB
@@ -972,7 +979,7 @@ logo and trademark and this manual. @xref{What-is}.
 
 The MySQL core values show our dedication to MySQL and Open Source.
 
-We want MySQL to be:
+We want the MySQL Database Software to be:
 @itemize @bullet
 @item
 The best and the most widely used database in the world.
@@ -1095,22 +1102,22 @@ Program, please e-mail @email{certification@@mysql.com}.
 @node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
 @subsubsection Consulting
 MySQL AB and its Authorised Partners offer consulting services to
-users of MySQL and to those who embed MySQL in their own software,
-all over the world.
+users of the MySQL Server and to those who embed the MySQL Server
+in their own software, all over the world.
 
 Our consultants can help you design and tune your databases, construct
 efficient queries, tune your platform for optimal performance, resolve
 migration issues, set up replication, build robust transactional
 applications, and more.
-We also help customers embed MySQL in their products and applications
-for large-scale deployment.
+We also help customers embed the MySQL Server in their products and
+applications for large-scale deployment.
 
 Our consultants work in close collaboration with our development team
 which ensures the technical quality of our professional services.
 Consulting assignments range from 2-day power start sessions to
 projects that span weeks and months. Our expertise does not only cover
-MySQL, but extends into programming and scripting languages such as
-PHP, Perl and more.
+MySQL Server, but extends into programming and scripting languages
+such as PHP, Perl and more.
 
 If you are interested in our consulting services or want to become a
 consulting partner, please visit the consulting section of our web site
@@ -1122,10 +1129,10 @@ consulting staff at @email{consulting@@mysql.com}.
 @node Business Services Commercial licenses, Business Services Partnering, Business Services Consulting, MySQL AB business model and services
 @subsubsection Commercial Licenses
 The MySQL database is released under the @code{GNU General Public License}
-(@code{GPL}). This means that MySQL can be used free of charge under the
-GPL. If you do not want to be bound by the GPL terms (like the requirement
-that your own application becomes GPL as well), you may purchase a
-commercial license for the same product from MySQL AB at
+(@code{GPL}). This means that the MySQL software can be used free of charge
+under the GPL. If you do not want to be bound by the GPL terms (like the
+requirement that your own application becomes GPL as well), you may purchase
+a commercial license for the same product from MySQL AB at
 @uref{https://order.mysql.com/}.
 Since MySQL AB owns the copyright to the MySQL server, we are able to
 employ @code{Dual Licensing} which means that the same product is
@@ -1135,14 +1142,14 @@ For details about when a commercial license is required, please see
 @ref{MySQL server licenses}.
 
 We also sell commercial licenses of third-party Open Source GPL software
-that adds value to MySQL. A good example is the @code{InnoDB}
+that adds value to the MySQL Server. A good example is the @code{InnoDB}
 transactional table handler that offers ACID support, row-level locking,
 crash recovery, multiversioning, foreign key support, and more.
 
 
 @node Business Services Partnering, Business Services Advertising, Business Services Commercial licenses, MySQL AB business model and services
 @subsubsection Partnering
-@cindex partnering with MySQL
+@cindex partnering with MySQL AB
 MySQL AB has a worldwide partner program that covers training courses,
 support, consulting, solutions, publications plus reselling and
 distributing MySQL and related products. Partners get visibility on the
@@ -1193,8 +1200,8 @@ For press service and inquiries not covered in our News releases
 @email{press@@mysql.com}.
 
 If you have a valid support contract with MySQL AB; you will get
-timely, precise answers to your technical questions about MySQL.
-For more information, see @ref{Support}.
+timely, precise answers to your technical questions about the MySQL
+software. For more information, see @ref{Support}.
 You can order your support contract at
 @uref{https://order.mysql.com/}, or send an email to
 @email{sales@@mysql.com}.
@@ -1254,7 +1261,7 @@ attention to the appropriate mailing list.
 Reports of errors (often called bugs), as well as questions and
 comments, should be sent to the mailing list at
 @email{mysql@@lists.mysql.com}. If you have found a sensitive
-security bug in MySQL, you should send an e-mail to
+security bug in the MySQL Server, you should send an e-mail to
 @email{security@@mysql.com}.
 @xref{Bug reports}.
 
@@ -1311,13 +1318,13 @@ unique problems direct from the software engineers who code the MySQL
 database engine.
 
 We try to take a broad and inclusive view of technical support. Almost
-any problem involving MySQL is important to us if it's important to you.
+any problem involving MySQL software is important to us if it's important to you.
 Typically customers seek help on how to get different commands and
 utilities to work, remove performance bottlenecks, restore crashed
 systems, understand operating system or networking impacts on MySQL,
 set-up best practices for backup and recovery, utilise APIs, etc.
 Our support covers only the MySQL server and our own utilities, not
-third-party products that access MySQL, though we try to help with
+third-party products that access the MySQL server, though we try to help with
 these where we can.
 
 Detailed information about our various support options is given at
@@ -1328,7 +1335,7 @@ our sales staff at @email{sales@@mysql.com}.
 Technical support is like life insurance. You can live happily
 without it for years, but when your hour arrives it becomes
 critically important, yet it's too late to buy it!
-If you use MySQL for important applications and encounter sudden
+If you use MySQL Server for important applications and encounter sudden
 troubles,  it might take too long to figure out all the answers
 yourself. You may need immediate access to the most experienced
 MySQL troubleshooters available, those employed by MySQL AB.
@@ -1456,7 +1463,7 @@ code.
 
 @item
 When you distribute a non-GPL application that ONLY works with the MySQL
-server and ships it with MySQL. This type of solution is actually
+server and ship it with the MySQL server. This type of solution is actually
 considered to be linking even if it's done over a network.
 
 @item
@@ -1467,7 +1474,7 @@ source code as required under the GPL license.
 When you want to support the further development of the MySQL database
 even if you don't formally need a commercial license. Purchasing support
 directly from MySQL AB is another good way of contributing to the
-development of MySQL, with immediate advantages for you.
+development of the MySQL software, with immediate advantages for you.
 @xref{Support}.
 @end itemize
 
@@ -1497,7 +1504,7 @@ resulting product under GPL.
 
 @item
 When you distribute the MySQL server source code bundled with other
-programs that are not linked to or dependant on MySQL for their
+programs that are not linked to or dependant on MySQL Server for their
 functionality even if you sell the distribution commercially.
 
 @item
@@ -1505,7 +1512,7 @@ When using the MySQL server internally in your company.
 
 @item
 When include the MySQL client code in a commercial program.
-The client part of MySQL is licensed under the LGPL
+The client part of the MySQL software is licensed under the LGPL
 @code{GNU Lesser General Public License}. The formal terms of the
 LGPL license can be found at @uref{http://www.gnu.org/licenses/}.
 
@@ -1529,29 +1536,31 @@ to our @code{announce} mailing list so that they can be aware of
 critical issues that may be relevant for their MySQL installations.
 
 Note that even if an ISP does not have a commercial license for
-MySQL, they should at least give their customers read access to the
+MySQL Server, they should at least give their customers read access to the
 source of the MySQL installation so that the customers can verify
 that it is patched correctly.
 
 @item
 @cindex web server, running
 @cindex running a web server
-When you use MySQL in conjunction with a Web server, you do not need
-a commercial license. This is true even if you run a commercial Web
-server that uses MySQL, because you are not selling an embedded MySQL
-version yourself.  However, in this case we would like you to
-purchase MySQL support, because MySQL is helping your enterprise.
+When you use the MySQL Database Software  in conjunction with a Web
+server, you do not need a commercial license. This is true even if
+you run a commercial Web server that uses MySQL Server, because you
+are not selling an embedded MySQL version yourself.  However, in this
+case we would like you to purchase MySQL support, because the MySQL
+software is helping your enterprise.
 @end itemize
 
-If your use of MySQL does not require a commercial license, we
-encourage you to purchase support from MySQL AB anyway. This way
-you contribute towards MySQL development and also gain immediate
-advantages for yourself. @xref{Support}.
+If your use of MySQL database software does not require a commercial
+license, we encourage you to purchase support from MySQL AB anyway.
+This way you contribute towards MySQL development and also gain
+immediate advantages for yourself. @xref{Support}.
 
-If you use MySQL in a commercial context such that you profit by 
-its use, we ask that you further the development of MySQL by 
-purchasing some level of support.  We feel that if MySQL helps 
-your business, it is reasonable to ask that you help MySQL.  
+If you use the MySQL database software in a commercial context such
+that you profit by its use, we ask that you further the development
+of the MySQL software by purchasing some level of support.  We feel
+that if the MySQL database helps your business, it is reasonable to
+ask that you help MySQL AB.  
 (Otherwise, if you ask us support questions, you are not only using
 for free something into which we've put a lot a work, you're asking
 us to provide free support, too.)
@@ -1675,7 +1684,7 @@ Please see @xref{Business Services Partnering,,Partnering}.
 MySQL AB welcomes references to the MySQL database, but note that the
 word @code{MySQL} is a trademark of MySQL AB. Because of this, you should
 append the trademark symbol @code{TM} to the first or most prominent use
-of the word MySQL in a text and where appropriate use a statement that
+of the word @code{MySQL} in a text and where appropriate use a statement that
 @code{MySQL} is a trademark of MySQL AB. Please refer to our trademark
 policy at @uref{http://www.mysql.com/company/trademark.html} for
 details.
@@ -1694,12 +1703,12 @@ domain names is not allowed without written permission from MySQL AB.
 Dateline: 16 October 2001, Uppsala, Sweden
 
 Long promised by MySQL AB and long awaited by our users,
-MySQL 4.0 is now available in alpha version for download from
+MySQL Server 4.0 is now available in alpha version for download from
 @uref{http://www.mysql.com/} and our mirrors.
 
-Main new features of MySQL 4.0 are geared towards our existing
-business and community users, enhancing MySQL as the solution
-for mission-critical, heavy load database systems.
+Main new features of MySQL Server 4.0 are geared towards our existing
+business and community users, enhancing the MySQL database software
+as the solution for mission-critical, heavy load database systems.
 Other new features target the users of embedded databases.
 
 @menu
@@ -1715,25 +1724,25 @@ Other new features target the users of embedded databases.
 @node Nutshell Stepwise Rollout, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
 @subsection Stepwise Rollout
 
-The rollout of MySQL 4.0 will come in several steps, with
+The rollout of MySQL Server 4.0 will come in several steps, with
 the first version labelled 4.0.0 already containing most of the
 new features. Additional features will be incorporated into
-MySQL 4.0.1, 4.0.2 onwards; very probably within two months,
+MySQL 4.0.1, 4.0.2 onwards; very probably within a couple of months,
 MySQL 4.0 will be labelled beta. Further new features will then
 be added in MySQL 4.1, which is targeted for alpha release
-in December/January.
+in early 2002.
 
 
 @node Nutshell Ready for Immediate Development Use, Nutshell Embedded MySQL, Nutshell Stepwise Rollout, MySQL 4.0 In A Nutshell
 @subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
-to MySQL 4.0 until it is released in beta version later Q4/2001.
+to MySQL Server 4.0 until it is released in beta version.
 However, even the initial release has passed our extensive
 test suite without any errors on any of the platforms we test on.
 Due to the large number of new features, we thus recommend
-MySQL 4.0 even in alpha form for development use, with
-the release schedule of MySQL 4.0 being such that it will
+MySQL Server 4.0 even in alpha form for development use, with
+the release schedule of MySQL Server 4.0 being such that it will
 reach stable state before the deployment of user applications
 now under development.
 
@@ -1741,20 +1750,20 @@ now under development.
 @node Nutshell Embedded MySQL, Nutshell Other features, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell
 @subsection Embedded MySQL
 
-@code{libmysqld} makes MySQL suitable for a vastly expanded realm of
+@code{libmysqld} makes MySQL Server suitable for a vastly expanded realm of
 applications. Using the embedded MySQL server library, one can
-embed MySQL into various applications and electronics devices, where
+embed MySQL Server into various applications and electronics devices, where
 the end user has no knowledge of there actually being an underlying
-database. Embedded MySQL is ideal for use behind
+database. Embedded MySQL Server is ideal for use behind
 the scenes in internet appliances, public kiosks, turn-key
 hardware/ software combination units, high performance internet
 servers, self-contained databases distributed on CD-ROM etc.
 
 Many embedded MySQL users will benefit from the @emph{dual licensing}
-scheme of MySQL, where besides the GPL license also commercial
+scheme of the MySQL software, where besides the GPL license also commercial
 licensing is available for those not wishing to be bound by the GPL.
 The embedded MySQL library uses the same interface as the normal
-client library, so it is convenient and easy to use.
+client library, so it is convenient and easy to use. @xref{libmysqld}.
 
 
 @node Nutshell Other features, Nutshell Future features, Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
@@ -1762,7 +1771,8 @@ client library, so it is convenient and easy to use.
 
 @itemize @bullet
 @item
-MySQL 4.0 further increases @emph{the speed of MySQL} in a number of areas,
+Version 4.0 further increases @emph{the speed of MySQL Server}
+in a number of areas,
 such as bulk @code{INSERT}s, searching on packed indices, creation of
 @code{FULLTEXT} indices as well as @code{COUNT(DISTINCT)}.
 
@@ -1772,7 +1782,7 @@ standard MySQL server, including full support for @code{transactions}
 and @code{row-level locking}.
 
 @item
-MySQL 4.0 will support secure traffic between the client and the server,
+MySQL Server 4.0 will support secure traffic between the client and the server,
 greatly increasing security against malicious intrusion and unauthorised
 access. Web applications being a cornerstone of MySQL use, web developers
 have been able to use SSL to secure the traffic between the
@@ -1780,7 +1790,7 @@ the end user browser and the Web application, be it written in
 PHP, Perl, ASP or using any other web development tool. However,
 the traffic between the development tool and the mysqld server
 process has been protected only by virtue of them being processes
-residing on computers within the same firewall. In MySQL 4.0,
+residing on computers within the same firewall. In MySQL Server 4.0,
 the @emph{mysqld} server daemon process can itself use
 @code{Secure Sockets Layer} (@code{SSL}),
 thus enabling secure traffic to MySQL databases from, say, a Windows
@@ -1793,9 +1803,9 @@ Umlauts in the same order as German telephone books.
 
 @item
 Features to simplify @code{migration} from other database systems to MySQL
-include @code{TRUNCATE TABLE} (like in Oracle) and @code{IDENTITY} as a
+Server include @code{TRUNCATE TABLE} (like in Oracle) and @code{IDENTITY} as a
 synonym for automatically incremented keys (like in Sybase). Many users will
-also be happy to learn that MySQL now supports the @code{UNION} statement,
+also be happy to learn that MySQL Server now supports the @code{UNION} statement,
 a long awaited standard SQL feature.
 
 @item
@@ -1815,12 +1825,12 @@ possible to know how many rows a query would have returned without a
 @node Nutshell Future features, Nutshell 4.1 development release, Nutshell Other features, MySQL 4.0 In A Nutshell
 @subsection Future MySQL 4.0 Features
 
-For the upcoming MySQL 4.0 releases (4.0.1, 4.0.2 and onwards), expect
-the following features now still under development:
+For the upcoming MySQL Server 4.0 releases (4.0.1, 4.0.2 and onwards),
+expect the following features now still under development:
 
 @itemize @bullet
 @item
-Mission-critical, heavy-load users of MySQL will appreciate
+Mission-critical, heavy-load users of MySQL Server will appreciate
 the additions to our replication system and our online hot backup.
 Later versions of 4.0 will include @code{fail-safe replication};
 already in existing 4.0.0, the @code{LOAD DATA FROM MASTER} command
@@ -1835,11 +1845,11 @@ mysqld parameters (startup options) can soon be set without
 taking down the servers.
 
 @item
-The new @code{FULLTEXT} search properties of MySQL 4.0 enables the use
-of @code{FULLTEXT} indexing of large text masses with both binary and
+The new @code{FULLTEXT} search properties of MySQL Server 4.0 enables the
+use of @code{FULLTEXT} indexing of large text masses with both binary and
 natural language searching logic. Users can customise minimal word
 length and define their own stop word lists in any human language,
-enabling a new set of applications to be built on MySQL.
+enabling a new set of applications to be built on MySQL Server.
 
 @item
 Many read-heavy applications will benefit from
@@ -1855,17 +1865,18 @@ in the client.
 @subsection MySQL 4.1, The Following Development Release
 
 Internally, through a new .frm file format for table definitions,
-MySQL 4.0 lays the foundation for the new features of MySQL 4.1,
+MySQL Server 4.0 lays the foundation for the new features of MySQL Server 4.1,
 such as @code{nested subqueries}, @code{stored procedures}, and
 @code{foreign key integrity rules}, which form the top of the
 wish list for many of our customers. Along with those, we will
 also include simpler additions, such as
 multi-table @code{UPDATE} statements.
 
-After those additions, critics of MySQL have to be more imaginative
+After those additions, critics of the MySQL Database Server have
+to be more imaginative
 than ever in pointing out deficiencies in the MySQL Database
 Management System. For long already known for its stability,
-speed, and ease of use, MySQL will then match the requirement
+speed, and ease of use, MySQL Server will then match the requirement
 checklist of very demanding buyers.
 
 
@@ -1918,25 +1929,25 @@ comment on, rate, or buy them.
 While this manual (particularly the online version) is still
 the right place for up to date technical information, its
 primary goal is to contain everything there is to know about
-MySQL.  It's sometimes nice to have a bound book to read in
-bed or while you travel.
+the MySQL database system.  It's sometimes nice to have a bound
+book to read in bed or while you travel.
 By purchasing a book through the hyperlinks provided, you
-will contribute to the development of MySQL.
+will contribute to the development of the MySQL software.
 
 @item Development
-This portal has links to sites that are using MySQL for various
+This portal has links to sites that are using MySQL Server for various
 purposes, with a description of each site. This information can
-give you an idea of who uses MySQL and how MySQL can fulfill
-their requirements.
+give you an idea of who uses the MySQL database software and how
+MySQL Server can fulfill their requirements.
 Do let us know about @emph{your} site or success story too!
  
 @item Software 
 Here you can find and download a multitude of applications and
-wrappers that make use of MySQL.
+wrappers that make use of the MySQL server.
 
 @item Distributions 
 From here you can find the various Linux distributions and other
-software packages that contain MySQL.
+software packages that contain the MySQL software.
 
 @item Consultants 
 Here you can find information about MySQL Consultants.
@@ -2034,7 +2045,7 @@ On this list you should only post a full, repeatable bug report using
 the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the MySQL version).
 Preferably, you should test the problem using the latest stable or development
-version of MySQL before posting!  Anyone should be able to repeat the
+version of MySQL Server before posting!  Anyone should be able to repeat the
 bug by just using @code{mysql test < script} on the included test case.  All 
 bugs posted on this list will be corrected or documented in the next 
 MySQL release!  If there are only small code changes involved, we
@@ -2051,20 +2062,20 @@ can also discuss MySQL development and post patches.
 A digest version of the @code{internals} list.
 
 @item @email{java-subscribe@@lists.mysql.com} java
-Discussion about MySQL and Java.  Mostly about the JDBC drivers.
+Discussion about the MySQL server and Java.  Mostly about the JDBC drivers.
 
 @item @email{java-digest-subscribe@@lists.mysql.com} java-digest
 A digest version of the @code{java} list.
 
 @item @email{win32-subscribe@@lists.mysql.com} win32
-All things concerning MySQL on Microsoft operating systems such as
-Win95, Win98, NT, and Win2000.
+All things concerning the MySQL software on Microsoft operating systems
+such as Win95, Win98, NT, and Win2000.
 
 @item @email{win32-digest-subscribe@@lists.mysql.com} win32-digest
 A digest version of the @code{win32} list.
 
 @item @email{myodbc-subscribe@@lists.mysql.com} myodbc
-All things about connecting to MySQL with ODBC.
+All things about connecting to the MySQL server with ODBC.
 
 @item @email{myodbc-digest-subscribe@@lists.mysql.com} myodbc-digest
 A digest version of the @code{myodbc} list.
@@ -2076,7 +2087,7 @@ All things concerning programming with the C++ API to MySQL.
 A digest version of the @code{plusplus} list.
 
 @item @email{msql-mysql-modules-subscribe@@lists.mysql.com} msql-mysql-modules
-A list about the Perl support in MySQL. msql-mysql-modules
+A list about the Perl support for MySQL with msql-mysql-modules.
 
 @item @email{msql-mysql-modules-digest-subscribe@@lists.mysql.com} msql-mysql-modules-digest
 A digest version of the @code{msql-mysql-modules} list.
@@ -2186,7 +2197,7 @@ list.  Note that on this list you should only post a full, repeatable bug
 report using the @code{mysqlbug} script.  If you are running on Windows,
 you should include a description of the operating system and the
 MySQL version.  Preferably, you should test the problem using
-the latest stable or development version of MySQL before
+the latest stable or development version of MySQL Server before
 posting!  Anyone should be able to repeat the bug by just using
 ``@code{mysql test < script}'' on the included test case or run the
 shell or perl script that is included in the bug report.  All bugs
@@ -2209,7 +2220,7 @@ first time.
 
 The most common errors are that people don't indicate the version number of
 the MySQL distribution they are using, or don't indicate what
-platform they have MySQL installed on (including the platform
+platform they have the MySQL server installed on (including the platform
 version number).  This is highly relevant information, and in 99 cases out of
 100 the bug report is useless without it!  Very often we get questions like,
 ``Why doesn't this work for me?'' then we find that the feature
@@ -2274,7 +2285,7 @@ Sometimes the amount of memory (real and virtual) is relevant. If in doubt,
 include these values.
 
 @item
-If you are using a source distribution of MySQL, the name and
+If you are using a source distribution of the MySQL software, the name and
 version number of the compiler used is needed.  If you have a binary 
 distribution, the distribution name is needed.
 
@@ -2343,7 +2354,7 @@ archive to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  Then send a
 short description of the problem to @email{bugs@@lists.mysql.com}.
 
 @item
-If you think that MySQL produces a strange result from a query,
+If you think that the MySQL server produces a strange result from a query,
 include not only the result, but also your opinion of what the result
 should be, and an account describing the basis for your opinion.
 
@@ -2402,17 +2413,17 @@ problem yourself.
 @item
 If you get a @code{parse error}, please check your syntax closely!  If
 you can't find something wrong with it, it's extremely likely that your
-current version of MySQL doesn't support the query you are
+current version of MySQL Server doesn't support the query you are
 using.  If you are using the current version and the manual at
 @uref{http://www.mysql.com/doc/} doesn't cover the
-syntax you are using, MySQL doesn't support your query.  In this
+syntax you are using, MySQL Server doesn't support your query.  In this
 case, your only options are to implement the syntax yourself or e-mail
 @email{mysql-licensing@@mysql.com} and ask for an offer to implement it!
 
 If the manual covers the syntax you are using, but you have an older version
-of MySQL, you should check the MySQL change history to see
+of MySQL Server, you should check the MySQL change history to see
 when the syntax was implemented.  In this case, you have the option of 
-upgrading to a newer version of MySQL.  @xref{News}.
+upgrading to a newer version of MySQL Server.  @xref{News}.
 
 @item
 If you have a problem such that your data appears corrupt or you get
@@ -2431,11 +2442,11 @@ it's much easier for us to provide you with a fix for the problem.
 @xref{What is crashing}.
 
 @item
-If possible, download and install the most recent version of MySQL
+If possible, download and install the most recent version of MySQL Server
 and check whether or not it solves your problem.  All versions of 
-MySQL are thoroughly tested and should work without problems.  We 
-believe in making everything as backward compatible as possible, and you 
-should be able to switch MySQL versions without any hassle.
+the MySQL software are thoroughly tested and should work without problems.
+We believe in making everything as backward compatible as possible,
+and you  should be able to switch MySQL versions without any hassle.
 @xref{Which version}.
 @end itemize
 
@@ -2488,34 +2499,34 @@ Many users don't read mail with a browser!
 @cindex ANSI SQL92, extensions to
 
 This section describes how MySQL relates to the ANSI SQL standards.
-MySQL has many extensions to the ANSI SQL standards, and here you
+MySQL Server has many extensions to the ANSI SQL standards, and here you
 will find out what they are, and how to use them.  You will also find 
-information about functionality missing from MySQL, and how to work 
+information about functionality missing from MySQL Server, and how to work 
 around some differences.
 
-Our goal is to not, without a very good reason, restrict MySQL usability
+Our goal is to not, without a very good reason, restrict MySQL Server usability
 for any usage.  Even if we don't have the resources to do development
 for every possible use, we are always willing to help and offer
-suggestions to people that is trying to use MySQL in new territories.
+suggestions to people that is trying to use MySQL Server in new territories.
 
 One of our main goals with the product is to continue to work towards
 ANSI 99 compliancy, but without sacrificing speed or reliability.
 We are not afraid to add extensions to SQL or support for non-SQL
-features if this greatly increase the usability of MySQL for a big
-part of our users.  (The new @code{HANDLER} interface in MySQL 4.0
+features if this greatly increase the usability of MySQL Server for a big
+part of our users.  (The new @code{HANDLER} interface in MySQL Server 4.0
 is an example of this strategy. @xref{HANDLER}.)
 
 We will continue to support transactional and not transactional
 databases to satisfy both heavy web/logging usage and mission critical
 24/7 usage.
 
-MySQL was designed from the start to work with medium large databases
+MySQL Server was designed from the start to work with medium large databases
 (10-100 million rows / about 100 MB per table) on small computer
-systems.  We will continue to extend MySQL to both work even better
+systems.  We will continue to extend MySQL Server to both work even better
 with terabyte size databases, but we are also doing work to make it possible
 to compile a reduced MySQL version that is more suitable for hand held
-devices and embedded usage.  The compact design of MySQL makes both of
-these directions possible without any conflicts in the source tree.
+devices and embedded usage.  The compact design of the MySQL server makes both
+of these directions possible without any conflicts in the source tree.
 
 We are currently not targeting real time support or clustered databases
 (even if you can already do a lot of things with our replication
@@ -2554,7 +2565,7 @@ but without concessions to speed and quality of the code.
 @cindex ANSI mode, running
 
 If you start @code{mysqld} with the @code{--ansi} option, the following
-behavior of MySQL changes:
+behavior of MySQL Server changes:
 
 @itemize @bullet
 @item
@@ -2565,7 +2576,7 @@ You can have any number of spaces between a function name and the @samp{(}.
 This forces all function names to be treated as reserved words.
 
 @item
-@samp{"} will be an identifier quote character (like the MySQL
+@samp{"} will be an identifier quote character (like the MySQL Server
 @samp{`} quote character) and not a string quote character.
 
 @item
@@ -2586,11 +2597,11 @@ IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
 @subsection MySQL Extensions to ANSI SQL92
 
 @cindex hints
-MySQL includes some extensions that you probably will not find in
+MySQL Server includes some extensions that you probably will not find in
 other SQL databases.  Be warned that if you use them, your code will not be
 portable to other SQL servers.  In some cases, you can write code that
 includes MySQL extensions, but is still portable, by using comments
-of the form @code{/*! ... */}.  In this case, MySQL will parse and
+of the form @code{/*! ... */}.  In this case, MySQL Server will parse and
 execute the code within the comment as it would any other MySQL
 statement, but other SQL servers will ignore the extensions.  For example:
 
@@ -2607,7 +2618,7 @@ CREATE /*!32302 TEMPORARY */ TABLE (a int);
 @end example
 
 The above means that if you have Version 3.23.02 or newer, then MySQL
-will use the @code{TEMPORARY} keyword.
+Server will use the @code{TEMPORARY} keyword.
 
 MySQL extensions are listed below:
 
@@ -2629,7 +2640,7 @@ comparisons to be done according to the ASCII order used on the
 MySQL server host.
 
 @item
-MySQL maps each database to a directory under the MySQL
+MySQL Server maps each database to a directory under the MySQL
 data directory, and tables within a database to filenames in the database
 directory.
 
@@ -2643,7 +2654,7 @@ This has a few implications:
 @itemize @minus
 
 @item
-Database names and table names are case sensitive in MySQL on
+Database names and table names are case sensitive in MySQL Server on
 operating systems that have case-sensitive filenames (like most Unix
 systems). @xref{Name case sensitivity}.
 
@@ -2661,7 +2672,7 @@ and @file{.frm} files to which the table corresponds.
 In SQL statements, you can access tables from different databases
 with the @code{db_name.tbl_name} syntax.  Some SQL servers provide
 the same functionality but call this @code{User space}.
-MySQL doesn't support tablespaces as in:
+MySQL Server doesn't support tablespaces as in:
 @code{create table ralph.my_table...IN my_tablespace}.
 
 @item
@@ -2751,18 +2762,18 @@ One can specify @code{ASC} and @code{DESC} with @code{GROUP BY}.
 
 @item
 To make it easier for users who come from other SQL environments,
-MySQL supports aliases for many functions. For example, all
+MySQL Server supports aliases for many functions. For example, all
 string functions support both ANSI SQL syntax and ODBC syntax.
 
 @item
-MySQL understands the @code{||} and @code{&&} operators to mean
-logical OR and AND, as in the C programming language.  In MySQL,
+MySQL Server understands the @code{||} and @code{&&} operators to mean
+logical OR and AND, as in the C programming language.  In MySQL Server,
 @code{||} and @code{OR} are synonyms, as are @code{&&} and @code{AND}.
-Because of this nice syntax, MySQL doesn't support
+Because of this nice syntax, MySQL Server doesn't support
 the ANSI SQL @code{||} operator for string concatenation; use
 @code{CONCAT()} instead. Because @code{CONCAT()} takes any number
 of arguments, it's easy to convert use of the @code{||} operator to
-MySQL.
+MySQL Server.
 
 @item
 @code{CREATE DATABASE} or @code{DROP DATABASE}.
@@ -2795,7 +2806,7 @@ operators.
 
 @item
 @code{CONCAT()} or @code{CHAR()} with one argument or more than two
-arguments.  (In MySQL, these functions can take any number of
+arguments.  (In MySQL Server, these functions can take any number of
 arguments.)
 
 @item The @code{BIT_COUNT()}, @code{CASE}, @code{ELT()},
@@ -2832,8 +2843,8 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 @node Differences from ANSI, Bugs, Extensions to ANSI, Compatibility
 @subsection MySQL Differences Compared to ANSI SQL92
 
-We try to make MySQL follow the ANSI SQL standard and the
-ODBC SQL standard, but in some cases MySQL does things
+We try to make MySQL Server follow the ANSI SQL standard and the
+ODBC SQL standard, but in some cases MySQL Server does things
 differently:
 
 @itemize @bullet
@@ -2867,7 +2878,7 @@ extra conditions in this case.
 @end menu
 
 For a prioritised list indicating when new extensions will be added to
-MySQL, you should consult the online MySQL TODO list at
+MySQL Server, you should consult the online MySQL TODO list at
 @uref{http://www.mysql.com/documentation/manual.php?section=TODO}.
 That is the latest version of the TODO list in this manual. @xref{TODO}.
 
@@ -2877,9 +2888,9 @@ That is the latest version of the TODO list in this manual. @xref{TODO}.
 
 @cindex sub-selects
 
-MySQL currently only supports nested queries of the form @code{INSERT
-... SELECT ...} and @code{REPLACE ... SELECT ...}. You can however use
-the function @code{IN()} in other contexts.
+MySQL Server currently only supports nested queries of the form
+@code{INSERT ... SELECT ...} and @code{REPLACE ... SELECT ...}.
+You can however use the function @code{IN()} in other contexts.
 Sub-selects are scheduled for implementation in Version 4.x.
 
 Meanwhile, you can often rewrite the query without a sub-select:
@@ -2913,7 +2924,7 @@ to hold the subquery.  In some cases, however this option will not
 work. The most frequently encountered of these cases arises with
 @code{DELETE} statements, for which standard SQL does not support joins
 (except in sub-selects).  For this situation there are two options
-available until subqueries are supported by MySQL.
+available until subqueries are supported by MySQL Server.
 
 The first option is to use a procedural programming language (such as
 Perl or PHP) to submit a @code{SELECT} query to obtain the primary keys
@@ -2940,9 +2951,9 @@ second instance of the interpreter:
 shell> mysql --skip-column-names mydb < myscript.sql | mysql mydb
 @end example
 
-MySQL 4.0 supports multi-table deletes that can be used to efficiently
-delete rows based on information from one table or even from many tables
-at the same time.
+MySQL Server 4.0 supports multi-table deletes that can be used to
+efficiently delete rows based on information from one table or even
+from many tables at the same time.
 
 
 @node ANSI diff SELECT INTO TABLE, ANSI diff Transactions, ANSI diff Sub-selects, Differences from ANSI
@@ -2950,8 +2961,8 @@ at the same time.
 
 @findex SELECT INTO TABLE
 
-MySQL doesn't yet support the Oracle SQL extension:
-@code{SELECT ... INTO TABLE ...}.  MySQL supports instead the
+MySQL Server doesn't yet support the Oracle SQL extension:
+@code{SELECT ... INTO TABLE ...}.  MySQL Server supports instead the
 ANSI SQL syntax @code{INSERT INTO ... SELECT ...}, which is basically
 the same thing. @xref{INSERT SELECT}.
 
@@ -2977,20 +2988,20 @@ TABLE ... SELECT}.
 @cindex @code{BDB} tables
 @cindex @code{ACID}
 
-MySQL supports transactions with the @code{InnoDB} and @code{BDB}
+MySQL Server supports transactions with the @code{InnoDB} and @code{BDB}
 @code{Transactional table handlers}. @xref{Table types}.
 @code{InnoDB} provides @code{ACID} compliancy.
 
-However, the non-transactional table types in MySQL such as
+However, the non-transactional table types in MySQL Server such as
 @code{MyISAM} follow another paradigm for data integrity called
 ``@code{Atomic Operations}.'' Atomic operations often offer equal or
 even better integrity with much better performance.
-With MySQL supporting both paradigms, the user is able to decide if
+With MySQL Server supporting both paradigms, the user is able to decide if
 they need the speed of atomic operations or if they need to use
 transactional features in their applications. This choice can be made
 on a per-table basis.
 
-How does one use the features of MySQL to maintain rigorous integrity
+How does one use the features of MySQL Server to maintain rigorous integrity
 and how do these features compare with the transactional paradigm?
 
 @enumerate
@@ -3003,7 +3014,7 @@ corrupting activities are not committed to the database; the server is
 given the opportunity to do an automatic rollback and your database is
 saved.
 
-MySQL, in almost all cases, allows you to resolve potential problems
+MySQL Server, in almost all cases, allows you to resolve potential problems
 by including simple checks before updates and by running simple scripts
 that check the databases for inconsistencies and automatically repair
 or warn if such an inconsistency occurs. Note that just by using the
@@ -3025,7 +3036,7 @@ time-lap is where they could lose data. No system is 100% secure, only
 transactional databases, is reported to sometimes lose data in such
 situations.
 
-To be safe with MySQL, whether using transactional tables or not, you
+To be safe with MySQL Server, whether using transactional tables or not, you
 only need to have backups and have the update logging turned on. With
 this you can recover from any situation that you could with any
 other transactional database.  It is, of course, always good to have
@@ -3040,7 +3051,7 @@ familiar with transactions, do consider the speed benefit that
 non-transactional tables can offer, on the order of three to five times
 the speed of the fastest and most optimally tuned transactional tables.
 
-In situations where integrity is of highest importance, MySQL offers
+In situations where integrity is of highest importance, MySQL Server offers
 transaction-level or better reliability and integrity even for
 non-transactional tables.
 If you lock tables with @code{LOCK TABLES}, all updates will stall
@@ -3056,7 +3067,7 @@ for the insert to complete. @xref{INSERT DELAYED}.
 means that you can be sure that while each specific update is running,
 no other user can interfere with it, and there will never be an
 automatic rollback (which can happen with transactional tables if you
-are not very careful).  MySQL also guarantees that there will not be
+are not very careful).  MySQL Server also guarantees that there will not be
 any dirty reads.
 
 Following are some techniques for working with non-transactional tables:
@@ -3152,7 +3163,7 @@ UPDATE tbl_name SET row_flag=1 WHERE id=ID;
 MySQL returns 1 for the number of affected rows if the row was
 found and @code{row_flag} wasn't already 1 in the original row.
 
-You can think of it as MySQL changed the above query to:
+You can think of it as MySQL Server changed the above query to:
 
 @example
 UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
@@ -3181,7 +3192,7 @@ deletes the corresponding customer from a customer table when all his
 transactions are deleted.
 
 The planned update language will be able to handle stored procedures.
-Our aim is to have stored procedures implemented in MySQL 4.1.
+Our aim is to have stored procedures implemented in MySQL Server 4.1.
 We are also looking at triggers.
 
 
@@ -3202,8 +3213,8 @@ SELECT * from table1,table2 where table1.id = table2.id;
 
 @xref{JOIN, , @code{JOIN}}. @xref{example-Foreign keys}.
 
-In MySQL 3.23.44 and up, @code{InnoDB} tables supports checking of
-foreign key constraints. @xref{InnoDB}. For other table types, MySQL
+In MySQL Server 3.23.44 and up, @code{InnoDB} tables supports checking of
+foreign key constraints. @xref{InnoDB}. For other table types, MySQL Server
 does parse the @code{FOREIGN KEY} syntax in @code{CREATE TABLE}
 commands, but without further action being taken.
 
@@ -3214,13 +3225,13 @@ override. @code{FOREIGN KEY} is sometimes used as a constraint check,
 but this check is unnecessary in practice if rows are inserted into the
 tables in the right order.
 
-In MySQL, you can work around the problem of @code{ON DELETE ...} not
+In MySQL Server, you can work around the problem of @code{ON DELETE ...} not
 being implemented by adding the appropriate @code{DELETE} statement to
 an application when you delete records from a table that has a foreign
 key. In practice this is as quick (in some cases quicker) and much more
 portable than using foreign keys.
 
-In MySQL 4.0 you can use multi-table delete to delete rows from many
+In MySQL Server 4.0 you can use multi-table delete to delete rows from many
 tables with one command. @xref{DELETE}.
 
 In the near future we will extend the @code{FOREIGN KEY} implementation
@@ -3276,20 +3287,20 @@ to backup or restore individual tables.
 
 @cindex views
 
-It is planned to implement views in MySQL around Version 4.1.
+It is planned to implement views in MySQL Server around Version 4.1.
 
 Views are mostly useful for letting users access a set of relations as one
 table (in read-only mode).  Many SQL databases don't allow one to update
 any rows in a view, but you have to do the updates in the separate tables.
 
-As MySQL is mostly used in applications and on web system where
+As MySQL Server is mostly used in applications and on web system where
 the application writer has full control on the database usage, most of
 our users haven't regarded views to be very important.
 (At least no one has been interested enough in this to be prepared to
 finance the implementation of views).
 
-One doesn't need views in MySQL to restrict access to columns
-as MySQL has a very sophisticated privilege system.
+One doesn't need views in MySQL Server to restrict access to columns
+as MySQL Server has a very sophisticated privilege system.
 @xref{Privilege system}.
 
 
@@ -3300,11 +3311,11 @@ as MySQL has a very sophisticated privilege system.
 @cindex starting, comments
 
 Some other SQL databases use @samp{--} to start comments.
-MySQL has @samp{#} as the start comment character. You can also use
-the C comment style @code{/* this is a comment */} with MySQL.
+MySQL Server has @samp{#} as the start comment character. You can also use
+the C comment style @code{/* this is a comment */} with MySQL Server.
 @xref{Comments}.
 
-MySQL Version 3.23.3 and above supports the @samp{--} comment style,
+MySQL Server Version 3.23.3 and above supports the @samp{--} comment style,
 provided the comment is followed by a space.  This is because this
 comment style has caused many problems with automatically generated
 SQL queries that have used something like the following code, where
@@ -3319,7 +3330,7 @@ Think about what happens if the value of @code{payment} is negative?
 Because @code{1--1} is legal in SQL, the consequences of allowing
 comments to start with @samp{--} are terrible.
 
-Using our implementation of this method of commenting in MySQL
+Using our implementation of this method of commenting in MySQL Server
 Version 3.23.3 and up, @code{1-- This is a comment} is actually safe.
 
 Another safe feature is that the @code{mysql} command-line client
@@ -3438,13 +3449,13 @@ precision, @code{IF}, and @code{ELT()} with @code{BIGINT} or @code{DOUBLE}
 precision and the rest with @code{DOUBLE} precision.  One should try to
 avoid using bigger unsigned long long values than 63 bits
 (9223372036854775807) for anything else than bit fields!
-MySQL 4.0 has better @code{BIGINT} handling than 3.23.
+MySQL Server 4.0 has better @code{BIGINT} handling than 3.23.
 
 @item
 All string columns, except @code{BLOB} and @code{TEXT} columns, automatically
 have all trailing spaces removed when retrieved. For @code{CHAR} types this
 is okay, and may be regarded as a feature according to ANSI SQL92. The bug is
-that in MySQL, @code{VARCHAR} columns are treated the same way.
+that in MySQL Server, @code{VARCHAR} columns are treated the same way.
 
 @item
 You can only have up to 255 @code{ENUM} and @code{SET} columns in one table.
@@ -3507,7 +3518,7 @@ SELECT DISTINCT band_downloads.mp3id
        ORDER BY band_downloads.id DESC;
 @end example
 
-In the second case you may in MySQL 3.23.x get two identical rows
+In the second case you may in MySQL Server 3.23.x get two identical rows
 in the result set (because the hidden 'id' column may differ).
 
 Note that the this only happens for queries where you don't have the
@@ -3515,38 +3526,38 @@ ORDER BY columns in the result, something that is you are not allowed
 to do in ANSI SQL.
 
 @item
-Because MySQL allows you to work with table types that don't
+Because MySQL Server allows you to work with table types that don't
 support transactions, and thus can't @code{rollback} data, some things
-behave a little differently in MySQL than in other SQL servers.
-This is just to ensure that MySQL never need to do a rollback
+behave a little differently in MySQL Server than in other SQL servers.
+This is just to ensure that MySQL Server never need to do a rollback
 for a SQL command.  This may be a little awkward at times as column
 values must be checked in the application, but this will actually give
-you a nice speed increase as it allows MySQL to do some
+you a nice speed increase as it allows MySQL Server to do some
 optimisations that otherwise would be very hard to do.
 
-If you set a column to an incorrect value, MySQL will, instead of
+If you set a column to an incorrect value, MySQL Server will, instead of
 doing a rollback, store the @code{best possible value} in the column:
 
 @itemize @minus
 @item
 If you try to store a value outside the range in a numerical column,
-MySQL will instead store the smallest or biggest possible value in
+MySQL Server will instead store the smallest or biggest possible value in
 the column.
 
 @item
 If you try to store a string that doesn't start with a number into a
-numerical column, MySQL will store 0 into it.
+numerical column, MySQL Server will store 0 into it.
 
 @item
 If you try to store @code{NULL} into a column that doesn't take
-@code{NULL} values, MySQL will store 0 or @code{''} (empty
+@code{NULL} values, MySQL Server will store 0 or @code{''} (empty
 string) in it instead. (This behavior can, however, be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option).
 
 @item
 MySQL allows you to store some wrong date values into
 @code{DATE} and @code{DATETIME} columns. (Like 2000-02-31 or 2000-02-00).
-If the date is totally wrong, MySQL will store the special
+If the date is totally wrong, MySQL Server will store the special
 0000-00-00 date value in the column.
 
 @item
@@ -3568,7 +3579,7 @@ Creation of a table of type @code{MERGE} doesn't check if the underlying
 tables are of compatible types.
 
 @item
-MySQL can't yet handle @code{NaN}, @code{-Inf} and @code{Inf}
+MySQL Server can't yet handle @code{NaN}, @code{-Inf} and @code{Inf}
 values in double. Using these will cause problems when trying to export
 and import data. We should as an intermediate solution change @code{NaN} to
 @code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
@@ -3608,7 +3619,7 @@ Delayed insert handler has pending inserts to a table.
 @end itemize
 
 @item
-Before MySQL Version 3.23.2 an @code{UPDATE} that updated a key with
+Before MySQL Server Version 3.23.2 an @code{UPDATE} that updated a key with
 a @code{WHERE} on the same key may have failed because the key was used to
 search for records and the same row may have been found multiple times:
 
@@ -3622,14 +3633,14 @@ A workaround is to use:
 mysql> UPDATE tbl_name SET KEY=KEY+1 WHERE KEY+0 > 100;
 @end example
 
-This will work because MySQL will not use index on expressions in
+This will work because MySQL Server will not use index on expressions in
 the @code{WHERE} clause.
 
 @item
-Before MySQL Version 3.23, all numeric types where treated as fixed-point
-fields. That means you had to specify how many decimals a floating-point
-field shall have. All results were returned with the correct number of
-decimals.
+Before MySQL Server Version 3.23, all numeric types where treated as
+fixed-point fields. That means you had to specify how many decimals
+a floating-point field shall have. All results were returned with the
+correct number of decimals.
 @end itemize
 
 For platform-specific bugs, see the sections about compiling and porting.
@@ -3647,7 +3658,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 * TODO unplanned::              Things we don't Have any Plans to do
 @end menu
 
-This appendix lists the features that we plan to implement in MySQL.
+This appendix lists the features that we plan to implement in MySQL Server.
 
 Everything in this list is approximately in the order it will be done.  If you
 want to affect the priority order, please register a license or support us and
@@ -3661,16 +3672,16 @@ this without sacrifying the speed or compromise the code.
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @subsection Things That Should be in 4.0
 
-We have now shifted development to MySQL Version 4.0.  Most of the basic
+We have now shifted development to MySQL Server 4.0.  Most of the basic
 things we want to have in 4.0 are already done.  The target is to quickly
 implement the rest of the following features and then shift development
-to MySQL 4.1. @xref{MySQL 4.0 In A Nutshell}.
+to MySQL Server 4.1. @xref{MySQL 4.0 In A Nutshell}.
 
 The news section for 4.0 includes a list of the features we have already
 implemented in the 4.0 tree. @xref{News-4.0.x}.
 
 This section lists features not yet implemented in the current
-version of MySQL 4.0, which will however be implemented in 
+version of MySQL Server 4.0, which will however be implemented in 
 later versions of MySQL 4.0. This being very volatile information,
 please consider this list valid only if you are reading it from
 the MySQL web site (@uref{http://www.mysql.com/}).
@@ -3737,7 +3748,7 @@ corrupt the table.
 @itemize @bullet
 @item
 Subqueries.
-@code{select id from t where grp in (select grp from g where u > 100)}
+@code{SELECT id FROM t WHERE grp IN (SELECT grp FROM g WHERE u > 100)}
 @item
 Atomic multi-table updates, eg @code{update items,month set
 items.price=month.price where items.id=month.id;};
@@ -3798,7 +3809,7 @@ options like database in use, time and date...
 @item
 Link the @code{myisampack} code into the server.
 @item
-Port of MySQL to BeOS.
+Port of the MySQL code to BeOS.
 @item
 Port of the MySQL clients to LynxOS.
 @item
@@ -4119,10 +4130,11 @@ Nothing;  We aim towards full ANSI 92 / ANSI 99 compliancy.
 @cindex comparisons, MySQL vs. others
 
 Our users have successfully run their own benchmarks against a number
-of @code{Open Source} and traditional database servers. We are aware of
-tests against @code{Oracle}, @code{DB/2}, @code{Microsoft SQL Server}
-and other commercial products. Due to legal reasons we are restricted
-from publishing some of those benchmarks in our reference manual.
+of @code{Open Source} and traditional database servers.
+We are aware of tests against @code{Oracle} server, @code{DB/2} server,
+@code{Microsoft SQL Server} and other commercial products.
+Due to legal reasons we are restricted from publishing some of those
+benchmarks in our reference manual.
 
 This section includes a comparison with @code{mSQL} for historical
 reasons and with @code{PostgreSQL} as it is also an Open Source
@@ -4171,9 +4183,9 @@ easy.)
 
 Because these operations are so simple, it is hard to be better at
 them when you have a higher startup overhead. After the connection
-is established, MySQL should perform much better.
+is established, MySQL Server should perform much better.
 
-On the other hand, MySQL is much faster than @code{mSQL} (and
+On the other hand, MySQL Server is much faster than @code{mSQL} (and
 most other SQL implementations) on the following:
 
 @itemize @bullet
@@ -4181,11 +4193,11 @@ most other SQL implementations) on the following:
 Complex @code{SELECT} operations.
 
 @item
-Retrieving large results (MySQL has a better, faster, and safer
+Retrieving large results (MySQL Server has a better, faster, and safer
 protocol).
 
 @item
-Tables with variable-length strings, because MySQL has more efficient
+Tables with variable-length strings, because MySQL Server has more efficient
 handling and can have indexes on @code{VARCHAR} columns.
 
 @item
@@ -4201,7 +4213,7 @@ Handling tables with large record lengths.
 @code{SELECT} on large tables.
 
 @item
-Handling many connections at the same time. MySQL is fully
+Handling many connections at the same time. MySQL Server is fully
 multi-threaded. Each connection has its own thread, which means that
 no thread has to wait for another (unless a thread is modifying
 a table another thread wants to access). In @code{mSQL}, once one
@@ -4214,7 +4226,7 @@ next can be served, while all the others wait again, etc.
 Joins.
 @code{mSQL} can become pathologically slow if you change the order of
 tables in a @code{SELECT}. In the benchmark suite, a time more than
-15000 times slower than MySQL was seen.  This is due to @code{mSQL}'s
+15000 times slower than MySQL Server was seen.  This is due to @code{mSQL}'s
 lack of a join optimiser to order tables in the optimal order.
 However, if you put the tables in exactly the right order in
 @code{mSQL}2 and the @code{WHERE} is simple and uses index columns,
@@ -4236,7 +4248,7 @@ Using @code{TEXT} or @code{BLOB} columns.
 @itemize @bullet
 @item @code{GROUP BY} and @code{HAVING}.
 @code{mSQL} does not support @code{GROUP BY} at all.
-MySQL supports a full @code{GROUP BY} with both @code{HAVING} and
+MySQL Server supports a full @code{GROUP BY} with both @code{HAVING} and
 the following functions: @code{COUNT()}, @code{AVG()}, @code{MIN()},
 @code{MAX()}, @code{SUM()}, and @code{STD()}.  @code{COUNT(*)} is
 optimised to return very quickly if the @code{SELECT} retrieves from
@@ -4245,7 +4257,7 @@ one table, no other columns are retrieved, and there is no
 arguments.
 
 @item @code{INSERT} and @code{UPDATE} with calculations.
-MySQL can do calculations in an @code{INSERT} or @code{UPDATE}.
+MySQL Server can do calculations in an @code{INSERT} or @code{UPDATE}.
 For example:
 
 @example
@@ -4253,21 +4265,21 @@ mysql> UPDATE SET x=x*10+y WHERE x<20;
 @end example
 
 @item Aliasing.
-MySQL has column aliasing.
+MySQL Server has column aliasing.
 
 @item Qualifying column names.
-In MySQL, if a column name is unique among the tables used in a
+In MySQ ServerL, if a column name is unique among the tables used in a
 query, you do not have to use the full qualifier.
 
 @item @code{SELECT} with functions.
-MySQL has many functions (too many to list here; see @ref{Functions}).
+MySQL Server has many functions (too many to list here; see @ref{Functions}).
 
 @end itemize
 
 @item Disk Space Efficiency
 That is, how small can you make your tables?
 
-MySQL has very precise types, so you can create tables that take
+MySQ ServerL has very precise types, so you can create tables that take
 very little space. An example of a useful MySQL datatype is the
 @code{MEDIUMINT} that is 3 bytes long. If you have 100,000,000
 records, saving even one byte per record is very important.
@@ -4276,24 +4288,24 @@ records, saving even one byte per record is very important.
 more difficult to get small tables.
 
 @item Stability
-This is harder to judge objectively. For a discussion of MySQL
+This is harder to judge objectively. For a discussion of MySQL Server
 stability, see @ref{Stability}.
 
 We have no experience with @code{mSQL} stability, so we cannot say
 anything about that.
 
 @item Price
-Another important issue is the license. MySQL has a
+Another important issue is the license. MySQL Server has a
 more flexible license than @code{mSQL}, and is also less expensive
 than @code{mSQL}.  Whichever product you choose to use, remember to
 at least consider paying for a license or e-mail support.
 
 @item Perl Interfaces
-MySQL has basically the same interfaces to Perl as @code{mSQL} with
+MySQL Server has basically the same interfaces to Perl as @code{mSQL} with
 some added features.
 
 @item JDBC (Java)
-MySQL currently has a lot of different JDBC drivers:
+MySQL Server currently has a lot of different JDBC drivers:
 
 @itemize @bullet
 @item
@@ -4325,7 +4337,7 @@ We know that @code{mSQL} has a JDBC driver, but we have too little
 experience with it to compare.
 
 @item Rate of Development
-MySQL has a small core team of developers, but we are quite
+MySQL Server has a small core team of developers, but we are quite
 used to coding C and C++ very rapidly. Because threads, functions,
 @code{GROUP BY}, and so on are still not implemented in @code{mSQL}, it
 has a lot of catching up to do. To get some perspective on this, you
@@ -4335,17 +4347,17 @@ compare it with the News section of the MySQL Reference Manual
 most rapidly.
 
 @item Utility Programs
-Both @code{mSQL} and MySQL have many interesting third-party
+Both @code{mSQL} and MySQL Server have many interesting third-party
 tools. Because it is very easy to port upward (from @code{mSQL} to
-MySQL), almost all the interesting applications that are available for
-@code{mSQL} are also available for MySQL.
+MySQL Server), almost all the interesting applications that are available for
+@code{mSQL} are also available for MySQ ServerL.
 
-MySQL comes with a simple @code{msql2mysql} program that fixes
-differences in spelling between @code{mSQL} and MySQL for the
+MySQL Server comes with a simple @code{msql2mysql} program that fixes
+differences in spelling between @code{mSQL} and MySQL Server for the
 most-used C API functions.
 For example, it changes instances of @code{msqlConnect()} to
 @code{mysql_connect()}. Converting a client program from @code{mSQL} to
-MySQL usually requires only minor effort.
+MySQL Server usually requires only minor effort.
 @end table
 
 @menu
@@ -4371,7 +4383,7 @@ The conversion procedure is:
 @enumerate
 @item
 Run the shell script @code{msql2mysql} on the source. This requires
-the @code{replace} program, which is distributed with MySQL.
+the @code{replace} program, which is distributed with MySQL Server.
 
 @item
 Compile.
@@ -4384,7 +4396,7 @@ Differences between the @code{mSQL} C API and the MySQL C API are:
 
 @itemize @bullet
 @item
-MySQL uses a @code{MYSQL} structure as a connection type (@code{mSQL}
+MySQL Server uses a @code{MYSQL} structure as a connection type (@code{mSQL}
 uses an @code{int}).
 
 @item
@@ -4400,11 +4412,11 @@ Just add the parameter to your old @code{msql_error()} code if you are
 porting old code.
 
 @item
-MySQL returns an error number and a text error message for all
+MySQL Server returns an error number and a text error message for all
 errors. @code{mSQL} returns only a text error message.
 
 @item
-Some incompatibilities exist as a result of MySQL supporting
+Some incompatibilities exist as a result of MySQL Server supporting
 multiple connections to the server from the same process.
 @end itemize
 
@@ -4457,7 +4469,7 @@ If a connection is idle for 8 hours, the server closes the connection.
 @strong{Column types}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Has the following additional types (among others;
 @pxref{CREATE TABLE, , @code{CREATE TABLE}}):
 @itemize @bullet
@@ -4471,7 +4483,7 @@ Has the following additional types (among others;
 @code{BIGINT} type for 64-bit integers.
 @end itemize
 @item
-MySQL also supports
+MySQL Server also supports
 the following additional type attributes:
 @itemize @bullet
 @item
@@ -4505,7 +4517,7 @@ And @code{LIKE} works.
 @strong{Index Creation}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Indexes may be specified at table creation time with the @code{CREATE TABLE}
 statement.
 @item mSQL
@@ -4517,7 +4529,7 @@ Indexes must be created after the table has been created, with separate
 @strong{To Insert a Unique Identifier into a Table}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Use @code{AUTO_INCREMENT} as a column type
 specifier.
 @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
@@ -4529,7 +4541,7 @@ Create a @code{SEQUENCE} on a table and select the @code{_seq} column.
 @strong{To Obtain a Unique Identifier for a Row}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Add a @code{PRIMARY KEY} or @code{UNIQUE} key to the table and use this.
 New in Version 3.23.11: If the @code{PRIMARY} or @code{UNIQUE} key consists of only one
 column and this is of type integer, one can also refer to it as
@@ -4543,7 +4555,7 @@ depending on many factors.
 @strong{To Get the Time a Column Was Last Modified}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Add a @code{TIMESTAMP} column to the table. This column is automatically set
 to the current date and time for @code{INSERT} or @code{UPDATE} statements if
 you don't give the column a value or if you give it a @code{NULL} value.
@@ -4556,20 +4568,20 @@ Use the @code{_timestamp} column.
 @strong{@code{NULL} Value Comparisons}
 
 @table @code
-@item MySQL
-MySQL follows
+@item MySQL Server
+MySQL Server follows
 ANSI SQL, and a comparison with @code{NULL} is always @code{NULL}.
 @item mSQL
 In @code{mSQL}, @code{NULL = NULL} is TRUE.  You
 must change @code{=NULL} to @code{IS NULL} and @code{<>NULL} to
-@code{IS NOT NULL} when porting old code from @code{mSQL} to MySQL.
+@code{IS NOT NULL} when porting old code from @code{mSQL} to MySQL Server.
 @end table
 
 @noindent
 @strong{String Comparisons}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Normally, string comparisons are performed in case-independent fashion with
 the sort order determined by the current character set (ISO-8859-1 Latin1 by
 default).  If you don't like this, declare your columns with the
@@ -4584,7 +4596,7 @@ sorting in ASCII order.
 @strong{Case-insensitive Searching}
 
 @table @code
-@item MySQL
+@item MySQL Server
 @code{LIKE} is a case-insensitive or case-sensitive operator, depending on
 the columns involved. If possible, MySQL uses indexes if the
 @code{LIKE} argument doesn't start with a wild-card character.
@@ -4596,7 +4608,7 @@ Use @code{CLIKE}.
 @strong{Handling of Trailing Spaces}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Strips all spaces at the end of @code{CHAR} and @code{VARCHAR}
 columns. Use a @code{TEXT} column if this behavior is not desired.
 @item mSQL
@@ -4607,20 +4619,20 @@ Retains trailing space.
 @strong{@code{WHERE} Clauses}
 
 @table @code
-@item MySQL
+@item MySQL Server
 MySQL correctly prioritises everything (@code{AND} is evaluated
-before @code{OR}). To get @code{mSQL} behavior in MySQL, use
+before @code{OR}). To get @code{mSQL} behavior in MySQL Server, use
 parentheses (as shown in an example below).
 @item mSQL
 Evaluates everything from left to right. This means that some logical
 calculations with more than three arguments cannot be expressed in any
 way. It also means you must change some queries when you upgrade to
-MySQL. You do this easily by adding parentheses.  Suppose you
+MySQL Server. You do this easily by adding parentheses.  Suppose you
 have the following @code{mSQL} query:
 @example
 mysql> SELECT * FROM table WHERE a=1 AND b=2 OR a=3 AND b=4;
 @end example
-To make MySQL evaluate this the way that @code{mSQL} would,
+To make MySQL Server evaluate this the way that @code{mSQL} would,
 you must add parentheses:
 @example
 mysql> SELECT * FROM table WHERE (a=1 AND (b=2 OR (a=3 AND (b=4))));
@@ -4631,7 +4643,7 @@ mysql> SELECT * FROM table WHERE (a=1 AND (b=2 OR (a=3 AND (b=4))));
 @strong{Access Control}
 
 @table @code
-@item MySQL
+@item MySQL Server
 Has tables to store grant (permission) options per user, host, and
 database. @xref{Privileges}.
 @item mSQL
@@ -4651,17 +4663,17 @@ on making our respective database as good as possible, so we are both a
 serious alternative to any commercial database.
 
 The following comparison is made by us at MySQL AB.  We have tried to be
-as accurate and fair as possible, but because while we know MySQL througly
+as accurate and fair as possible, but because while we know MySQL Server thorougly
 we don't have a full knowledge of all PostgreSQL features, so we may have
 got some things wrong.  We will however correct these when they come to our
 attention.
 
-We would first like to note that PostgreSQL and MySQL are both widely used
+We would first like to note that PostgreSQL and MySQL Server are both widely used
 products, but with different design goals, even if we are both striving
-towards ANSI SQL compliancy.  This means that for some applications MySQL
+towards ANSI SQL compliancy.  This means that for some applications MySQL Server
 is more suited, while for others PostgreSQL is more suited.  When choosing 
 which database to use, you should first check if the database's feature set
-satisfies your application.  If you need raw speed, MySQL is probably your
+satisfies your application.  If you need raw speed, MySQL Server is probably your
 best choice.  If you need some of the extra features that only PostgreSQL
 can offer, you should use @code{PostgreSQL}.
 
@@ -4676,7 +4688,7 @@ can offer, you should use @code{PostgreSQL}.
 @subsubsection MySQL and PostgreSQL development strategies
 
 @cindex PostgreSQL vs. MySQL, strategies
-When adding things to MySQL we take pride to do an optimal, definite
+When adding things to MySQL Server we take pride to do an optimal, definite
 solution.  The code should be so good that we shouldn't have any need to
 change it in the foreseeable future.  We also do not like to sacrifice
 speed for features but instead will do our utmost to find a solution
@@ -4696,7 +4708,7 @@ it makes sense to prioritise adding a lot of new features, instead of
 implementing them optimally, because one can always optimise things
 later if there arises a need for this.
 
-Another big difference between MySQL and PostgreSQL is that
+Another big difference between MySQL Server and PostgreSQL is that
 nearly all of the code in the MySQL server are coded by developers that
 are employed by MySQL AB and are still working on the server code. The
 exceptions are the transaction engines, and the regexp library.
@@ -4728,26 +4740,27 @@ database.  The above web page is however extremely useful when you want to
 ensure that your applications works with many different databases or
 when you want to convert your application from one database to another.
 
-MySQL offers the following advantages over PostgreSQL:
+MySQL Server offers the following advantages over PostgreSQL:
 
 @itemize @bullet
 @item
-@code{MySQL} is generally much faster than PostgreSQL.
+@code{MySQL} Server is generally much faster than PostgreSQL.  MySQL
+4.0.1 has also a query cache that can boost up the query speed for
+mostly-read-only sites many times.
 
 @item
-MySQL has a much larger user base than PostgreSQL, therefore the
-code is more tested and has historically proven more stable than
-PostgreSQL.  MySQL is the much more used in production
-environments than PostgreSQL, mostly thanks to that MySQL AB,
-formerly TCX DataKonsult AB, has provided top quality commercial support
-for MySQL from the day it was released, whereas until recently
-PostgreSQL was unsupported.
+MySQL has a much larger user base than PostgreSQL, therefore the code is
+more tested and has historically proven more stable than PostgreSQL.
+MySQL Server is more used in production environments than PostgreSQL,
+mostly thanks to that MySQL AB, formerly TCX DataKonsult AB, has
+provided top quality commercial support for MySQL Server from the day it
+was released, whereas until recently PostgreSQL was unsupported.
 
 @item
-MySQL works better on Windows than PostgreSQL does.  MySQL runs as a
-native Windows application (a service on NT/Win2000/WinXP), while
-PostgreSQL is run under the @code{Cygwin} emulation.  We have heard
-that PostgreSQL is not yet that stable on Windows but we haven't
+MySQL Server works better on Windows than PostgreSQL does.  MySQL Server
+runs as a native Windows application (a service on NT/Win2000/WinXP),
+while PostgreSQL is run under the @code{Cygwin} emulation.  We have
+heard that PostgreSQL is not yet that stable on Windows but we haven't
 been able to verify this ourselves.
 
 @item
@@ -4755,8 +4768,8 @@ MySQL has more APIs to other languages and is supported by more
 existing programs than PostgreSQL.  @xref{Contrib}.
 
 @item
-MySQL works on 24/7 heavy duty systems.  In most circumstances
-you never have to run any cleanups on MySQL.  PostgreSQL doesn't
+MySQL Server works on 24/7 heavy duty systems.  In most circumstances
+you never have to run any cleanups on MySQL Server.  PostgreSQL doesn't
 yet support 24/7 systems because you have to run @code{VACUUM()}
 once in a while to reclaim space from @code{UPDATE} and @code{DELETE}
 commands and to perform statistics analyses that are critical to get
@@ -4782,31 +4795,31 @@ Included in the MySQL distribution are two different testing suites,
 (@uref{http://www.mysql.com/information/crash-me.php}), as well
 as a benchmark suite.  The test system is actively updated with code to
 test each new feature and almost all reproduceable bugs that have come to
-our attention.  We test MySQL with these on a lot of platforms before
+our attention.  We test MySQL Server with these on a lot of platforms before
 every release.  These tests are more sophisticated than anything we have 
-seen from PostgreSQL, and they ensures that the MySQL is kept to a high
+seen from PostgreSQL, and they ensures that the MySQL Server is kept to a high
 standard.
 
 @item
-There are far more books in print about MySQL than about PostgreSQL.
+There are far more books in print about MySQL Server than about PostgreSQL.
 O'Reilly, SAMS, Que, and New Riders are all major publishers with books
 about MySQL.  All MySQL features are also documented in the MySQL on-line
 manual, because when a new feature is implemented, the MySQL developers 
 are required to document it before it's included in the source.
 
 @item
-MySQL supports more of the standard ODBC functions than @code{PostgreSQL}.
+MySQL Server supports more of the standard ODBC functions than @code{PostgreSQL}.
 
 @item
-MySQL has a much more sophisticated @code{ALTER TABLE}.
+MySQL Server has a much more sophisticated @code{ALTER TABLE}.
 
 @item
-MySQL has support for tables without transactions for applications that 
+MySQL Server has support for tables without transactions for applications that 
 need all speed they can get. The tables may be memory based, @code{HEAP}
 tables or disk based @code{MyISAM}.  @xref{Table types}.
 
 @item
-MySQL has support for two different table handlers that support
+MySQL Server has support for two different table handlers that support
 transactions, @code{InnoDB} and @code{BerkeleyDB}.  Because every 
 transaction engine performs differently under different conditions, this 
 gives the application writer more options to find an optimal solution for
@@ -4825,33 +4838,35 @@ reads.  This is very useful when you are archiving things.
 @xref{myisampack}.
 
 @item
-MySQL has internal support for fulltext search. @xref{Fulltext Search}.
+MySQL Server has internal support for fulltext search. @xref{Fulltext Search}.
 
 @item
 You can access many databases from the same connection (depending of course
 on your privileges).
 
 @item
-MySQL is coded from the start to be multi-threaded while PostgreSQL uses
-processes.  Context switching and access to common storage areas is much 
-faster between threads than between separate processes, this gives MySQL
-a big speed advantage in multi-user applications and also makes it easier
-for MySQL to take full advantage of symmetric multiprocessor (SMP) systems.
+MySQL Server is coded from the start to be multi-threaded while
+PostgreSQL uses processes.  Context switching and access to common
+storage areas is much faster between threads than between separate
+processes, this gives MySQL Server a big speed advantage in multi-user
+applications and also makes it easier for MySQL Server to take full
+advantage of symmetric multiprocessor (SMP) systems.
 
 @item
-MySQL has a much more sophisticated privilege system than PostgreSQL.  
-While PostgreSQL only supports @code{INSERT}, @code{SELECT}, and
-@code{UPDATE/DELETE} grants per user on a database or a table, MySQL allows
-you to define a full set of different privileges on database, table and 
-column level.  MySQL also allows you to specify the privilege on host and 
-user combinations.  @xref{GRANT}.
+MySQL Server has a much more sophisticated privilege system than
+PostgreSQL.  While PostgreSQL only supports @code{INSERT},
+@code{SELECT}, and @code{UPDATE/DELETE} grants per user on a database or
+a table, MySQL Server allows you to define a full set of different
+privileges on database, table and column level.  MySQL Server also
+allows you to specify the privilege on host and user combinations.
+@xref{GRANT}.
 
 @item
-MySQL supports a compressed client/server protocol which improves 
+MySQL Server supports a compressed client/server protocol which improves 
 performance over slow links.
 
 @item
-MySQL employs a ``table handler'' concept, and is the only relational 
+MySQL Server employs a ``table handler'' concept, and is the only relational 
 database we know of built around this concept.  This allows different 
 low-level table types to be called from the SQL engine, and each table 
 type can be optimised for different performance characteristics.
@@ -4868,19 +4883,20 @@ of a data file happens, usually from a hardware failure.  It allows a
 majority of the data to be recovered.
 
 @item
-Upgrading MySQL is painless.  When you are upgrading MySQL, you don't need
-to dump/restore your data, as you have to do with most PostgreSQL upgrades.
+Upgrading MySQL Server is painless.  When you are upgrading MySQL
+Server, you don't need to dump/restore your data, as you have to do with
+most PostgreSQL upgrades.
 @end itemize
 
-Drawbacks with MySQL compared to PostgreSQL:
+Drawbacks with MySQL Server compared to PostgreSQL:
 
 @itemize @bullet
 @item
-The transaction support in MySQL is not yet as well tested as PostgreSQL's
-system.
+The transaction support in MySQL Server is not yet as well tested as
+PostgreSQL's system.
 
 @item
-Because MySQL uses threads, which are not yet flawless on many OSes, one
+Because MySQL Server uses threads, which are not yet flawless on many OSes, one
 must either use binaries from @uref{http://www.mysql.com/downloads/}, or
 carefully follow our instructions on
 @uref{http://www.mysql.com/doc/I/n/Installing_source.html} to get an
@@ -4896,22 +4912,22 @@ application.  If not, one can always switch the trouble table to use one
 of the transactional table types. @xref{Table locking}.
 
 @item
-With UDF (user defined functions) one can extend MySQL with both normal 
+With UDF (user defined functions) one can extend MySQL Server with both normal 
 SQL functions and aggregates, but this is not yet as easy or as flexible
 as in PostgreSQL.  @xref{Adding functions}.
 
 @item
-Updates that run over multiple tables is harder to do in MySQL.
-This will, however, be fixed in MySQL 4.0 with multi-table @code{UPDATE}
-and in MySQL 4.1 with subselects.
-In MySQL 4.0 one can use multi-table deletes to delete from many tables
-at the same time. @xref{DELETE}.
+Updates that run over multiple tables is harder to do in MySQL Server.
+This will, however, be fixed in MySQL Server 4.0.2 with multi-table
+@code{UPDATE} and in MySQL Server 4.1 with subselects.  In MySQL Server
+4.0 one can use multi-table deletes to delete from many tables at the
+same time. @xref{DELETE}.
 @end itemize
 
-PostgreSQL currently offers the following advantages over MySQL:
+PostgreSQL currently offers the following advantages over MySQL Server:
 
 Note that because we know the MySQL road map, we have included in the
-following table the version when MySQL should support this feature.
+following table the version when MySQL Server should support this feature.
 Unfortunately we couldn't do this for previous comparison, because we 
 don't know the PostgreSQL roadmap.
 
@@ -4941,7 +4957,7 @@ Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
 One can speed up PostgreSQL by coding things as stored procedures.
 
 @item
-For geographical data, R-TREES makes PostgreSQL better than MySQL.
+For geographical data, R-TREES makes PostgreSQL better than MySQL Server.
 
 @item
 The PostgreSQL optimiser can do some optimisation that the current MySQL
@@ -4956,7 +4972,7 @@ databases.
 PostgreSQL has a bigger team of developers that contribute to the server.
 @end itemize
 
-Drawbacks with PostgreSQL compared to MySQL:
+Drawbacks with PostgreSQL compared to MySQL Server:
 
 @itemize @bullet
 @item
@@ -4979,7 +4995,7 @@ in this section.
 @cindex PostgreSQL vs. MySQL, benchmarks
 
 The only open source benchmark that we know of that can be used to
-benchmark MySQL and PostgreSQL (and other databases) is our own. It can
+benchmark MySQL Server and PostgreSQL (and other databases) is our own. It can
 be found at @uref{http://www.mysql.com/information/benchmarks.html}.
 
 We have many times asked the PostgreSQL developers and some PostgreSQL
@@ -5023,12 +5039,12 @@ database is very good at and not testing anything that the database is
 not good at.  If one, after doing this, summarises the result with as
 a single figure, things are even easier.
 
-This would be like us measuring the speed of MySQL compared to PostgreSQL
+This would be like us measuring the speed of MySQL Server compared to PostgreSQL
 by looking at the summary time of the MySQL benchmarks on our web page.
-Based on this MySQL would be more than 40 times faster than PostgreSQL, 
+Based on this MySQL Server would be more than 40 times faster than PostgreSQL, 
 something that is of course not true.  We could make things even worse 
 by just taking the test where PostgreSQL performs worst and claim that 
-MySQL is more than 2000 times faster than PostgreSQL.
+MySQL Server is more than 2000 times faster than PostgreSQL.
 
 The case is that MySQL does a lot of optimisations that PostgreSQL
 doesn't do. This is of course also true the other way around.  An SQL
@@ -5043,7 +5059,7 @@ give you a notion about things to avoid and what you may have to do in
 other ways.
 
 We know of two benchmark tests that claims that PostgreSQL performs better 
-than MySQL.  These both where multi-user tests, a test that we here at 
+than MySQL Server.  These both where multi-user tests, a test that we here at 
 MySQL AB haven't had time to write and include in the benchmark suite, 
 mainly because it's a big task to do this in a manner that is fair against
 all databases.
@@ -5101,7 +5117,7 @@ database itself.
 
 @item
 When running the database against Oracle and MS-SQL (Great Bridge has
-indirectly indicated that the databases they used in the test), they 
+indirectly indicated the databases they used in the test), they 
 didn't use the native protocol but instead ODBC.  Anyone that has ever 
 used Oracle knows that all real application uses the native interface 
 instead of ODBC.  Doing a test through ODBC and claiming that the results
@@ -5123,7 +5139,7 @@ doing this.
 
 @item
 After the first test, we contacted Great Bridge and mentioned to them
-some of the obvious mistakes they had done with MySQL: 
+some of the obvious mistakes they had done with MySQL Server: 
 
 @itemize @minus
 @item
@@ -5136,12 +5152,12 @@ Running on a Linux system that wasn't optimised for threads
 Using an old MySQL version when there was a recommended newer one available
 
 @item
-Not starting MySQL with the right options for heavy multi-user use (the 
-default installation of MySQL is tuned for minimal resource use). 
+Not starting MySQL Server with the right options for heavy multi-user use (the 
+default installation of MySQL Server is tuned for minimal resource use). 
 @end itemize
 
 Great Bridge did run a new test, with our optimised ODBC driver and with 
-better startup options for MySQL, but refused to either use our updated 
+better startup options for MySQL Server, but refused to either use our updated 
 glibc library or our standard binary (used by 80% of our users), which was
 statically linked with a fixed glibc library.
 
@@ -5161,9 +5177,9 @@ published a comparison on PHPbuilder
 
 When we became aware of the comparison, we phoned Tim Perdue about this
 because there were a lot of strange things in his results.  For example,
-he claimed that MySQL had a problem with five users in his tests, when we
+he claimed that MySQL Server had a problem with five users in his tests, when we
 know that there are users with similar machines as his that are using
-MySQL with 2000 simultaneous connections doing 400 queries per second.
+MySQL Server with 2000 simultaneous connections doing 400 queries per second.
 (In this case the limit was the web bandwidth, not the database.)
 
 It sounded like he was using a Linux kernel that either had some
@@ -5185,10 +5201,10 @@ He has not done that yet.
 Because of this we can't put any trust in this benchmark either :(
 
 Over time things also changes and the above benchmarks are not that
-relevant anymore.  MySQL now have a couple of different table handlers
+relevant anymore.  MySQL Server now has a couple of different table handlers
 with different speed/concurrency tradeoffs.  @xref{Table types}. It
 would be interesting to see how the above tests would run with the
-different transactional table types in MySQL.  PostgreSQL has of course
+different transactional table types in MySQL Server.  PostgreSQL has of course
 also got new features since the test was made.  As the above test are
 not publicly available there is no way for us to know how the
 database would preform in the same tests today.
@@ -5197,7 +5213,8 @@ database would preform in the same tests today.
 Conclusion:
 
 The only benchmarks that exist today that anyone can download and run
-against MySQL and PostgreSQL is the MySQL benchmarks.  We here at MySQL 
+against MySQL Server and PostgreSQL is the MySQL benchmarks.
+We here at MySQL AB
 believe that open source databases should be tested with open source tools!
 This is the only way to ensure that no one does tests that nobody can 
 reproduce and use this to claim that a database is better than another.
@@ -5208,7 +5225,7 @@ The thing we find strange is that every test we have seen about
 PostgreSQL, that is impossible to reproduce, claims that PostgreSQL is
 better in most cases while our tests, which anyone can reproduce,
 clearly shows otherwise.  With this we don't want to say that PostgreSQL
-isn't good at many things (it is!) or that it isn't faster than MySQL
+isn't good at many things (it is!) or that it isn't faster than MySQL Server
 under certain conditions.  We would just like to see a fair test where
 they are very good so that we could get some friendly competition going!
 
@@ -8050,6 +8067,11 @@ version 4.0;
 
 @itemize @bullet
 @item
+@code{SHOW INDEX} has 2 columns more (@code{Null} and @code{Index_type})
+than it had in 3.23.
+@item
+@code{SIGNED} is a reserved word.
+@item
 To use @code{MATCH ... AGAINST (... IN BOOLEAN MODE)} with your tables,
 you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @strong{even} if they are of @code{MyISAM} type.
@@ -9929,11 +9951,16 @@ appropriate class for this user in the password file if you are not
 using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
+If you have a lot of memory you should consider rebuilding
+the kernel to allow MySQL to take more than 512M of RAM.
+Take a look at @code{option MAXDSIZ} in the LINT config
+file for more info.
+
 If you get problems with the current date in MySQL, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
 
 To get a secure and stable system you should only use FreeBSD kernels
-that are marked @code{-STABLE}.
+that are marked @code{-RELEASE}.
 
 
 @node NetBSD, OpenBSD, FreeBSD, BSD Notes
@@ -14154,7 +14181,6 @@ MySQL reads default options from the following files on Windows:
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{windows-system-directory\my.ini} @tab Global options
 @item @code{C:\my.cnf} @tab Global options
-@item @code{C:\mysql\data\my.cnf} @tab Server-specific options
 @end multitable
 
 Note that on Windows, you should specify all paths with @code{/} instead of
@@ -16098,7 +16124,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 @example
 GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
-    TO user_name [IDENTIFIED BY 'password']
+    TO user_name [IDENTIFIED BY [PASSWORD] 'password']
         [, user_name [IDENTIFIED BY 'password'] ...]
     [REQUIRE 
     	[@{SSL| X509@}] 
@@ -16243,6 +16269,9 @@ if a new user is created or if you have global grant privileges, the user's
 password will be set to the password specified by the @code{IDENTIFIED BY}
 clause, if one is given.  If the user already had a password, it is replaced
 by the new one.
+
+Optional @code{PASSWORD} changes behaviour of @code{IDENTIFIED BY} from 
+accepting plain password to accept encrypted password as argument. 
 
 @strong{Warning:} If you create a new user but do not specify an
 @code{IDENTIFIED BY} clause, the user has no password.  This is insecure.
@@ -18898,13 +18927,16 @@ are returned:
 @item @code{Sub_part}            @tab Number of indexed characters if the 
                                       column is only partly indexed. 
                                       @code{NULL} if the entire key is indexed.
+@item @code{Null}		 $tab Contains 'YES' if the column may contain @code{NULL}.
+@item @code{Index_type}		 @tab Index method used.
 @item @code{Comment}             @tab Various remarks.  For now, it tells 
-                                      whether index is FULLTEXT or not.
+in MySQL < 4.0.2 whether index is @code{FULLTEXT} or not.
 @end multitable
 
 Note that as the @code{Cardinality} is counted based on statistics
 stored as integers, it's not necessarily accurate for small tables.
 
+The @code{Null} and @code{Index_type} column was added in MySQL 4.0.2.
 
 @node SHOW TABLE STATUS, SHOW STATUS, SHOW DATABASE INFO, SHOW
 @subsubsection @code{SHOW TABLE STATUS}
@@ -19741,7 +19773,7 @@ subsystem)
 @cindex threads, display
 @cindex processes, display
 
-@code{SHOW PROCESSLIST} shows you which threads are running.  You can
+@code{SHOW [FULL] PROCESSLIST} shows you which threads are running.  You can
 also get this information using the @code{mysqladmin processlist}
 command.  If you have the @strong{process} privilege, you can see all
 threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
@@ -21146,7 +21178,7 @@ the following configure options:
 You can find the MySQL-max binaries at
 @uref{http://www.mysql.com/downloads/mysql-max-3.23.html}.
 
-The Windows MySQL 3.23 binary distribution includes both the
+The Windows MySQL binary distributions includes both the
 standard @code{mysqld.exe} binary and the @code{mysqld-max.exe} binary.
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 @xref{Windows installation}.
@@ -22094,10 +22126,10 @@ is @code{localhost}.
 Lock all tables before starting the dump.  The tables are locked with
 @code{READ LOCAL} to allow concurrent inserts in the case of @code{MyISAM}
 tables.
-@item -K, --no-disable-keys.
+@item -K, --disable-keys
 @code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
 @code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
-will not be put in the output.
+will be put in the output.
 @item -n, --no-create-db
 @code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
 output. The above line will be added otherwise, if --databases or
@@ -29409,6 +29441,7 @@ mysql> select MOD(29,9);
 * String functions::            String functions
 * Numeric Functions::           Numeric Functions
 * Date and time functions::     Date and time functions
+* Cast Functions::              
 * Other Functions::             Other Functions
 * Group by functions::          Functions for Use with @code{GROUP BY} Clauses
 @end menu
@@ -30637,6 +30670,8 @@ mysql> select BINARY "a" = "A";
         -> 0
 @end example
 
+@code{BINARY string} is a shorthand for @code{CAST(string AS BINARY)}.
+@xref{Cast Functions}.
 @code{BINARY} was introduced in MySQL Version 3.23.0.
 
 Note that in some context MySQL will not be able to use the
@@ -31125,8 +31160,7 @@ The above happens because 10.28 is actually stored as something like
 10.2799999999999999.
 @end table
 
-
-@node Date and time functions, Other Functions, Numeric Functions, Functions
+@node Date and time functions, Cast Functions, Numeric Functions, Functions
 @subsection Date and Time Functions
 
 @findex date and time functions
@@ -31603,10 +31637,11 @@ mysql> select NOW() + 0;
 @item UNIX_TIMESTAMP()
 @itemx UNIX_TIMESTAMP(date)
 If called with no argument, returns a Unix timestamp (seconds since
-@code{'1970-01-01 00:00:00'} GMT). If @code{UNIX_TIMESTAMP()} is called with
-a @code{date} argument, it returns the value of the argument as seconds since
-@code{'1970-01-01 00:00:00'} GMT.  @code{date} may be a @code{DATE} string,
-a @code{DATETIME} string, a @code{TIMESTAMP}, or a number in the format
+@code{'1970-01-01 00:00:00'} GMT) as an unsigned integer. If
+@code{UNIX_TIMESTAMP()} is called with a @code{date} argument, it
+returns the value of the argument as seconds since @code{'1970-01-01
+00:00:00'} GMT.  @code{date} may be a @code{DATE} string, a
+@code{DATETIME} string, a @code{TIMESTAMP}, or a number in the format
 @code{YYMMDD} or @code{YYYYMMDD} in local time:
 
 @example
@@ -31617,10 +31652,13 @@ mysql> select UNIX_TIMESTAMP('1997-10-04 22:23:00');
 @end example
 
 When @code{UNIX_TIMESTAMP} is used on a @code{TIMESTAMP} column, the function
-will receive the value directly, with no implicit
+will return the internal timestamp value directly, with no implicit
 ``string-to-unix-timestamp'' conversion.
 If you give @code{UNIX_TIMESTAMP()} a wrong or out-of-range date, it will
 return 0.
+
+If you want to subtract @code{UNIX_TIMESTAMP()} columns, you may want to
+cast the result to signed integers. @xref{Cast Functions}.
 
 @findex FROM_UNIXTIME()
 @item FROM_UNIXTIME(unix_timestamp)
@@ -31672,8 +31710,74 @@ mysql> select TIME_TO_SEC('00:39:38');
 @end example
 @end table
 
+@node Cast Functions, Other Functions, Date and time functions, Functions
+@subsection Cast Functions
 
-@node Other Functions, Group by functions, Date and time functions, Functions
+The syntax of the @code{CAST} function is:
+
+@findex CAST
+@findex CONVERT
+
+@example
+CAST(expression AS type)
+
+or
+
+CONVERT(expression,type)
+@end example
+
+Where type is one of:
+@itemize @bullet
+@item
+@code{BINARY}
+@item
+@code{DATE}
+@item
+@code{DATETIME}
+@item
+@code{SIGNED @{INTEGER@}}
+@item
+@code{TIME}
+@item
+@code{UNSIGNED @{INTEGER@}}
+@end itemize
+
+@code{CAST()} is ANSI SQL99 syntax and @code{CONVERT()} is ODBC syntax.
+
+The cast function is mainly useful when you want to create a column with
+a specific type in a @code{CREATE ... SELECT}:
+
+@example
+CREATE TABLE new_table SELECT CAST('2000-01-01' AS DATE);
+@end example
+
+@code{CAST(string AS BINARY} is the same thing as @code{BINARY string}.
+
+To cast a string to a numeric value, you don't normally have to do
+anything; Just use the string value as it would be a number:
+
+@example
+mysql> select 1+'1';
+        -> 2
+@end example
+
+MySQL supports arithmetic with both signed and unsigned 64 bit values.
+If you are using an numerical operations (like @code{+}) and one of the
+operands are @code{unsigned}, then the result will be unsigned.  You can
+override this by using the @code{SIGNED} and @code{UNSIGNED} cast
+operators, which will cast the operation to signed respective unsigned
+64 bit integer.
+
+@example
+mysql> select CAST(1-2 AS UNSIGNED)
+        -> 18446744073709551615
+mysql  select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED);
+        -> -1
+@end example
+
+The @code{CAST()} and @code{CONVERT()} function was added in MySQL 4.0.2.
+
+@node Other Functions, Group by functions, Cast Functions, Functions
 @subsection Other Functions
 
 @menu
@@ -36772,15 +36876,26 @@ In the source distribution of MySQL, InnoDB appears as a subdirectory.
 @node InnoDB start, InnoDB init, InnoDB overview, InnoDB
 @subsection InnoDB Startup Options
 
-To use InnoDB tables you @strong{MUST} specify configuration parameters
+To use InnoDB tables in MySQL-Max-3.23
+you @strong{MUST} specify configuration parameters
 in the MySQL configuration file in the @code{[mysqld]} section of
 the configuration file @file{my.cnf}. @xref{Option files}.
 
-The only required parameter to use InnoDB is @code{innodb_data_file_path},
-but you should set others if you want to get a better performance.
+The only required parameter to use InnoDB in MySQL-Max-3.23
+is @code{innodb_data_file_path}.
+In MySQL-4.0 you do not need to specify even
+@code{innodb_data_file_path}. The default is to create a 64 MB
+data file @file{ibdata1} to the @code{datadir} of MySQL.
+
+But to get good performance you MUST explicitly set the InnoDB parameters
+listed below in examples.
+
+The default value for @code{innodb_data_home_dir} is the @code{datadir}
+of MySQL. If you do not specify @code{innodb_data_home_dir}, then
+you cannot use absolute paths in @code{innodb_data_file_path}.
 
 Suppose you have a Windows NT machine with 128 MB RAM and a single 10 GB
-hard disk.  Below is an example of possible configuration parameters in
+hard disk. Below is an example of possible configuration parameters in
 @file{my.cnf} for InnoDB:
 
 @example
@@ -36788,32 +36903,42 @@ hard disk.  Below is an example of possible configuration parameters in
 # You can write your other MySQL server options here
 # ...
 #
-innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
 innodb_data_home_dir = c:\ibdata
-set-variable = innodb_mirrored_log_groups=1
-innodb_log_group_home_dir = c:\iblogs
-set-variable = innodb_log_files_in_group=3
-set-variable = innodb_log_file_size=30M
-set-variable = innodb_log_buffer_size=8M
-innodb_flush_log_at_trx_commit=1
-#.._arch_dir must be the same as .._log_group_home_dir
-innodb_log_arch_dir = c:\iblogs
-innodb_log_archive=0
+#                                            Data files must be able to
+#                                            hold your data and indexes
+innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
+#                                            Set buffer pool size to 50 - 80 %
+#                                            of your computer's memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
+innodb_log_group_home_dir = c:\iblogs
+#                                            .._log_arch_dir must be the same
+#                                            as .._log_group_home_dir
+innodb_log_arch_dir = c:\iblogs
+innodb_log_archive=0
+set-variable = innodb_log_files_in_group=3
+#                                            Set the log file size to about
+#                                            15 % of the buffer pool size
+set-variable = innodb_log_file_size=10M
+set-variable = innodb_log_buffer_size=8M
+#                                            Set ..flush_log_at_trx_commit to
+#                                            0 if you can afford losing
+#                                            a few last transactions 
+innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
-Note that some operating systems
-restrict file size to < 2G.
-The total size of data files has
-to be >= 10 MB.
-InnoDB does not create directories:
-you have to create them yourself.
-Check that the MySQL server
-has the rights to create files in the directories you specify.
+Note that data files must be < 2G in
+some file systems! The total size of data files has
+to be >= 10 MB. The combined size of log files MUST be < 4G
+in 32-bit computers.
 
+@strong{InnoDB does not create directories:
+you have to create them yourself.}
+Check also that the MySQL server
+has the rights to create files in the directories you specify.
+ 
 When you the first time create an InnoDB database, it
 is best that you start the MySQL server from the command
 prompt. Then InnoDB will print the information about the
@@ -36825,7 +36950,7 @@ For example, in Windows you can start @file{mysqld-max.exe} with:
 your-path-to-mysqld>mysqld-max --standalone --console
 @end example
 
-Suppose you have a Linux machine with 512 MB RAM and
+Suppose you have a Linux computer with 512 MB RAM and
 three 20 GB hard disks (at directory paths @file{/},
 @file{/dr2} and @file{/dr3}).
 Below is an example of possible configuration parameters in @file{my.cnf} for
@@ -36836,21 +36961,33 @@ InnoDB:
 # You can write your other MySQL server options here
 # ...
 #
-innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
 innodb_data_home_dir = /
-set-variable = innodb_mirrored_log_groups=1
-innodb_log_group_home_dir = /dr3
-set-variable = innodb_log_files_in_group=3
-set-variable = innodb_log_file_size=50M
-set-variable = innodb_log_buffer_size=8M
-innodb_flush_log_at_trx_commit=1
-#.._arch_dir must be the same as .._log_group_home_dir
-innodb_log_arch_dir = /dr3/iblogs
-innodb_log_archive=0
+#                                            Data files must be able to
+#                                            hold your data and indexes
+innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
+#                                            Set buffer pool size to 50 - 80 %
+#                                            of your computer's memory
 set-variable = innodb_buffer_pool_size=350M
 set-variable = innodb_additional_mem_pool_size=20M
+innodb_log_group_home_dir = /dr3/iblogs
+#                                            .._log_arch_dir must be the same
+#                                            as .._log_group_home_dir
+innodb_log_arch_dir = /dr3/iblogs
+innodb_log_archive=0
+set-variable = innodb_log_files_in_group=3
+#                                            Set the log file size to about
+#                                            15 % of the buffer pool size
+set-variable = innodb_log_file_size=50M
+set-variable = innodb_log_buffer_size=8M
+#                                            Set ..flush_log_at_trx_commit to
+#                                            0 if you can afford losing
+#                                            a few last transactions 
+innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
+#innodb_flush_method=fdatasync
+#innodb_fast_shutdown=1
+#set-variable = innodb_thread_concurrency=5
 @end example
 
 Note that we have placed the two data files on different disks.
@@ -36870,6 +37007,7 @@ The meanings of the configuration parameters are the following:
 @item @strong{Option} @tab @strong{Description}
 @item @code{innodb_data_home_dir} @tab 
 The common part of the directory path for all InnoDB data files.
+The default for this parameter is the @code{datadir} of MySQL.
 @item @code{innodb_data_file_path} @tab 
 Paths to individual data files and their sizes. The full directory path
 to each data file is acquired by concatenating innodb_data_home_dir to
@@ -36891,8 +37029,10 @@ Number of log files in the log group. InnoDB writes to the files in a
 circular fashion. Value 3 is recommended here.
 @item @code{innodb_log_file_size} @tab 
 Size of each log file in a log group in megabytes. Sensible values range
-from 1M to the size of the buffer pool specified below. The bigger the
-value, the less checkpoint flush activity is needed in the buffer pool,
+from 1M to 1/nth of the size of the buffer pool specified below,
+where n is the number of log files in the group. The
+bigger the value,
+the less checkpoint flush activity is needed in the buffer pool,
 saving disk i/o. But bigger log files also mean that recovery will be
 slower in case of a crash. The combined size of log files must
 be < 4 GB on 32-bit computers.
@@ -43135,6 +43275,11 @@ No UDF functions.
 No stack trace on core dump.
 @item
 No internal RAID support.
+@item
+You can set this up as a server or a master (no replication).
+@item
+You can't connect to the embedded server from an outside process with
+sockets or TCP/IP.
 @end itemize
 
 Some of these limitations can be changed by editing the @file{mysql_embed.h}
@@ -43142,6 +43287,8 @@ include file and recompiling MySQL.
 
 @node libmysqld options, libmysqld TODO, libmysqld restrictions, libmysqld
 @subsubsection Using Option Files with the Embedded Server
+
+@cindex defaults, embedded
 
 The following is the recommended way to use option files to make it easy
 to switch between a client/server application and one where MySQL is
@@ -43876,7 +44023,7 @@ is not the case, you should run the script
 
 @menu
 * UDF calling::                 UDF Calling Sequences
-* UDF aggr. calling::           UDF Calling Sequences for aggregate functions
+* UDF aggr. calling ::          
 * UDF arguments::               Argument Processing
 * UDF return values::           Return Values and Error Handling
 * UDF compiling::               Compiling and Installing User-definable Functions
@@ -46568,13 +46715,12 @@ variables.
 @cindex OLEDB
 @item OLEDB
 @itemize @bullet
-@item MyOLEDB 2.5: @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe}
-OLEDB handler for MySQL. By SWsoft.
-@item MyOLEDB 3.0: @uref{http://old.sw.com.sg/products/myoledb/form/}
+@item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB3.exe}
+MyOLEDB 3.0 installation package from SWSoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/mysql-oledb-3.0.0.zip}
+Source for MyOLEDB 3.0.
 @item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip}
-Examples and documentation for MyOLEDB. By SWsoft.
-@item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip}
-Source for MyOLEDB. By SWsoft.
+Examples and documentation for MyOLEDB.
 @item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.chm}
 Help files for MyOLEDB.
 @item @uref{http://www.mysql.com/Downloads/Win32/libmyodbc.zip}
@@ -47328,13 +47474,14 @@ helped to make MySQL what it is today.
 @appendixsec Developers at MySQL AB
 
 These are the developers that are or have been employed by @code{MySQL AB}
-to work on @code{MySQL}, roughly in the order they started to work with us.
-Following each developer is a small list of the tasks that the developer is
-responsible for, or the accomplishments they have made.
+to work on the @code{MySQL} database software, roughly in the order they
+started to work with us. Following each developer is a small list of the
+tasks that the developer is responsible for, or the accomplishments they
+have made.
 
 @table @asis
 @item Michael (Monty) Widenius
-Has written the following parts of MySQL:
+Has written the following parts of the MySQL database software:
 @itemize @bullet
 @item
 All the main code in @code{mysqld}.
@@ -47353,7 +47500,7 @@ The @code{replace} program (take a look at it, it's @strong{COOL}!).
 @item
 @strong{MyODBC}, the ODBC driver for Windows95.
 @item
-Fixing bugs in MIT-pthreads to get it to work for MySQL. And
+Fixing bugs in MIT-pthreads to get it to work for MySQL Server. And
 also Unireg, a curses-based application tool with many utilities.
 @item
 Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI}, and
@@ -47555,16 +47702,16 @@ Win32 port with Borland compiler.  @code{mysqlshutdown.exe} and
 For the effort to make a shareware SQL database. At TcX, the predecessor
 of MySQL AB, we started with @code{mSQL}, but found that it couldn't
 satisfy our purposes so instead we wrote a SQL interface to our
-application builder Unireg.  @code{mysqladmin} and @code{mysql} ar
- programs that were largely influenced by their @code{mSQL} counterparts.
+application builder Unireg.  @code{mysqladmin} and @code{mysql} client are
+programs that were largely influenced by their @code{mSQL} counterparts.
 We have put a lot of effort into making the MySQL syntax a superset of
 @code{mSQL}. Many of the API's ideas are borrowed from @code{mSQL} to
-make it easy to port free @code{mSQL} programs to MySQL.
-MySQL doesn't contain any code from @code{mSQL}.
+make it easy to port free @code{mSQL} programs to the MySQL API.
+The MySQL software doesn't contain any code from @code{mSQL}.
 Two files in the distribution (@file{client/insert_test.c} and
 @file{client/select_test.c}) are based on the corresponding (non-copyrighted)
 files in the @code{mSQL} distribution, but are modified as examples showing
-the changes necessary to convert code from @code{mSQL} to MySQL.
+the changes necessary to convert code from @code{mSQL} to MySQL Server.
 (@code{mSQL} is copyrighted David J. Hughes.)
 @item Fred Fish
 For his excellent C debugging and trace library. Monty has made a number
@@ -47595,9 +47742,9 @@ For the @code{DBD} (Perl) interface.
 @item Tim Bunce
 Author of @code{mysqlhotcopy}.
 @item Andreas Koenig @email{a.koenig@@mind.de}
-For the Perl interface to MySQL.
+For the Perl interface for MySQL Server.
 @item Eugene Chan @email{eugene@@acenet.com.sg}
-For porting PHP to MySQL.
+For porting PHP for MySQL Server.
 @item Michael J. Miller Jr. @email{mke@@terrapin.turbolift.com}
 For the first MySQL manual. And a lot of spelling/language
 fixes for the FAQ (that turned into the MySQL manual a long
@@ -47616,7 +47763,7 @@ software developed by Chris Provenzano, the University of California,
 Berkeley, and contributors.  We are currently using version 1_60_beta6
 patched by Monty (see @file{mit-pthreads/Changes-mysql}).
 @item Xavier Leroy @email{Xavier.Leroy@@inria.fr}
-The author of LinuxThreads (used by MySQL on Linux).
+The author of LinuxThreads (used by the MySQL Server on Linux).
 @item Zarko Mocnik @email{zarko.mocnik@@dem.si}
 Sorting for Slovenian language and the @file{cset.tar.gz} module that makes
 it easier to add other character sets.
@@ -47628,15 +47775,14 @@ answering on the MySQL mailing list.
 @item Yves Carlier @email{Yves.Carlier@@rug.ac.be}
 @code{mysqlaccess}, a program to show the access rights for a user.
 @item Rhys Jones @email{rhys@@wales.com} (And GWE Technologies Limited)
-For the JDBC, a module to extract data from MySQL with a Java
-client.
+For the JDBC, a module to extract data from a MySQL Database with a Java client.
 @item Dr Xiaokun Kelvin ZHU @email{X.Zhu@@brad.ac.uk}
 Further development of the JDBC driver and other MySQL-related
 Java tools.
 @item James Cooper @email{pixel@@organic.com}
 For setting up a searchable mailing list archive at his site.
 @item Rick Mehalick @email{Rick_Mehalick@@i-o.com}
-For @code{xmysql}, a graphical X client for MySQL.
+For @code{xmysql}, a graphical X client for MySQL Server.
 @item Doug Sisk @email{sisk@@wix.com}
 For providing RPM packages of MySQL for RedHat Linux.
 @item Diemand Alexander V. @email{axeld@@vial.ethz.ch}
@@ -47702,11 +47848,11 @@ Help to set up InstallShield for MySQL-Win32.
 @item Jethro Wright III @email{jetman@@li.net}
 The @file{libmysql.dll} library.
 @item James Pereria @email{jpereira@@iafrica.com}
-Mysqlmanager, a Win32 GUI tool for administrating MySQL.
+Mysqlmanager, a Win32 GUI tool for administrating MySQL Server.
 @item Curt Sampson @email{cjs@@portal.ca}
 Porting of MIT-pthreads to NetBSD/Alpha and NetBSD 1.3/i386.
 @item Antony T. Curtis @email{antony.curtis@@olcs.net}
-Porting of MySQL to OS/2.
+Porting of the MySQL Database software to OS/2.
 @item Martin Ramsch @email{m.ramsch@@computer.org}
 Examples in the MySQL Tutorial.
 @item Steve Harvey
@@ -47840,14 +47986,29 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @cindex changes, version 4.0
 
 @menu
+* News-4.0.2::                  Changes in release 4.0.2
 * News-4.0.1::                  Changes in release 4.0.1
 * News-4.0.0::                  Changes in release 4.0.0
 @end menu
 
-@node News-4.0.1, News-4.0.0, News-4.0.x, News-4.0.x
+@node News-4.0.2, News-4.0.1, News-4.0.x, News-4.0.x
+@appendixsubsec Changes in release 4.0.2
+
+@itemize @bullet
+@item
+Added @code{CAST()} and @code{CONVERT()} functions.
+@item
+Changed order of how keys are created in tables.
+@item
+Added a new columns @code{Null} and @code{Index_type} to @code{SHOW INDEX}.
+@end itemize
+
+@node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Fixed bug when @code{HANDLER} was used with some unsupported table type.
 @item
 @code{mysqldump} now puts @code{ALTER TABLE table_name DISABLE KEYS} and
 @code{ALTER TABLE table_name DISABLE KEYS} in the sql dump.
@@ -48125,15 +48286,18 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+Fixed in when using the following construct:
+@code{SELECT ... WHERE key=@@var_name OR $key=@@var_name2}
+@item
+Restrict InnoDB keys to 500 bytes.
+@item
 InnoDB now supports @code{NULL} in keys.
 @item
 Fixed shutdown problem on HPUX. (Introduced in 3.23.46)
 @item
-Added 'DO expression' command.
-@item
 Fixed core-dump bug in replication when using SELECT RELEASE_LOCK();
 @item
-Added new statement DO expression,[expression].
+Added new command: @code{DO expression,[expression]}
 @item
 Added @code{slave-skip-errors} option
 @item

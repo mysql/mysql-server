@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.4";
+$VER = "2.6";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -152,19 +152,77 @@ sub main
   $dbh->disconnect if (!$opt_test);
 
   $ignored = ($mail_no_from_f + $mail_no_subject_f + $mail_no_txt_f +
-	      $mail_too_big + $mail_duplicates);
-  print "Mails inserted:\t\t\t$mail_inserted\n";
-  print "Mails ignored:\t\t\t$ignored\n";
-  print "Mails without \"From:\" -field:\t$mail_no_from_f\n";
-  print "Mails without message:\t\t$mail_no_txt_f\n";
-  print "Mails without subject:\t\t$mail_no_subject_f\n";
-  print "Too big mails (> $opt_max_mail_size):\t$mail_too_big\n";
-  print "Duplicate mails:\t\t$mail_duplicates\n";
-  print "Forwarded mails:\t\t$mail_forwarded\n";
-  print "Total number of mails:\t\t"; 
+	      $mail_too_big + $mail_duplicates + $mail_fixed);
+  print "################################ Mail Report #################################\n\n";
+  print "Mails inserted:\t\t\t\t\t$mail_inserted\n";
+  print "---------------                                ";
+  print "=" . "=" x length("$mail_inserted") . "=\n\n";
+  if ($ignored)
+  {
+    print "Ignored mails\n";
+    print "-------------\n";
+    if ($mail_no_from_f)
+    {
+      print "Reason: mail without \"From:\" -field:\t\t$mail_no_from_f\n";
+    }
+    else
+    {
+      print "";
+    }
+    if ($mail_no_txt_f)
+    {
+      print "Reason: mail without message:\t\t\t$mail_no_txt_f\n";
+    }
+    else
+    {
+      print "";
+    }
+    if ($mail_no_subject_f)
+    {
+      print "Reason: mail without subject:\t\t\t$mail_no_subject_f\n";
+    }
+    else
+    {
+      print "";
+    }
+    if ($mail_too_big)
+    {
+      print "Reason: mail too big, over $opt_max_mail_size bytes:\t\t";
+      print $mail_too_big;
+      print " (see --max_mail_size=#)\n";
+    }
+    else
+    {
+      print "";
+    }
+    if ($mail_duplicates)
+    {
+      print "Reason: duplicate mail, or in db already:\t$mail_duplicates\n";
+    }
+    else
+    {
+      print "";
+    }
+    if ($mail_fixed)
+    {
+      print "Reason: mail was an unsubscribe - mail:\t\t$mail_fixed\n";
+    }
+    else
+    {
+      print "";
+    }
+    print "                                               ";
+    print "=" . "=" x length("$ignored") . "=\n";
+    print "Total number of ignored mails:\t\t\t$ignored\n\n";
+  }
+  print "Total number of mails:\t\t\t\t"; 
   print $mail_inserted + $ignored;
-  print "\n";
-  print "Mails with unsubscribe removed:\t$mail_fixed\n";
+  print " (OK: ";
+  print sprintf("%.1f", (($mail_inserted / ($mail_inserted+$ignored)) * 100));
+  print "% Ignored: ";
+  print sprintf("%.1f", (($ignored / ($mail_inserted + $ignored)) * 100));
+  print "%)\n";
+  print "################################ End Report ##################################\n";
   exit(0);
 }
 
@@ -269,7 +327,8 @@ sub process_mail_file
       $values{$type} .= "\n" . $_;
       $check--;
     }
-    elsif (/^From .* \d\d:\d\d:\d\d\s\d\d\d\d$/)
+    elsif (/^From .* \d\d:\d\d:\d\d\s\d\d\d\d/ ||
+           /^From .* \d\d\d\d\s\d\d:\d\d:\d\d/)
     {
       $values{'hash'} = checksum("$values{'message'}");
       update_table($dbh, $file_name, \%values);
@@ -338,26 +397,26 @@ sub date_parser
 sub update_table
 {
   my($dbh, $file_name, $values) = @_;
-  my($q,$tail,$message);
+  my($q, $tail, $message);
 
   if (!defined($values->{'subject'}) || !defined($values->{'to'}))
   {
     $mail_no_subject_f++;
     return;			# Ignore these
   }
-  $message=$values->{'message'};
-  $message =~ s/^\s*//; #removes whitespaces from the beginning 
+  $message = $values->{'message'};
+  $message =~ s/^\s*//; # removes whitespaces from the beginning 
 
  restart:
-  $message =~ s/[\s\n>]*$//; #removes whitespaces and '>' from the end
-  $values->{'message'}=$message;
+  $message =~ s/[\s\n>]*$//; # removes whitespaces and '>' from the end
+  $values->{'message'} = $message;
   foreach $tail (@remove_tail)
   {
     $message =~ s/$tail//;
   }
   if ($message ne $values->{'message'})
   {
-    $message =~ s/\s*$//; #removes whitespaces from the end
+    $message =~ s/\s*$//; # removes whitespaces from the end
     $mail_fixed++;
     goto restart;	  # Some mails may have duplicated messages
   }
@@ -445,7 +504,7 @@ sub update_table
 sub checksum
 {
   my ($txt)= @_;
-  my ($crc,$i,$count);
+  my ($crc, $i, $count);
   $count = length($txt);
   for ($crc = $i = 0; $i < $count ; $i++)
   {

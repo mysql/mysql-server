@@ -285,11 +285,11 @@ char* rewrite_db(char* db)
   I_List_iterator<i_string_pair> it(replicate_rewrite_db);
   i_string_pair* tmp;
 
-  while((tmp=it++))
-    {
-      if (!strcmp(tmp->key, db))
-	return tmp->val;
-    }
+  while ((tmp=it++))
+  {
+    if (!strcmp(tmp->key, db))
+      return tmp->val;
+  }
 
   return db;
 }
@@ -310,7 +310,7 @@ int db_ok(const char* db, I_List<i_string> &do_list,
     I_List_iterator<i_string> it(do_list);
     i_string* tmp;
 
-    while((tmp=it++))
+    while ((tmp=it++))
     {
       if (!strcmp(tmp->ptr, db))
 	return 1; // match
@@ -322,7 +322,7 @@ int db_ok(const char* db, I_List<i_string> &do_list,
     I_List_iterator<i_string> it(ignore_list);
     i_string* tmp;
 
-    while((tmp=it++))
+    while ((tmp=it++))
     {
       if (!strcmp(tmp->ptr, db))
 	return 0; // match
@@ -346,7 +346,7 @@ static int init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
       // if we truncated a line or stopped on last char, remove all chars
       // up to and including newline
       int c;
-      while( ((c=my_b_get(f)) != '\n' && c != my_b_EOF));
+      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF));
     }
     return 0;
   }
@@ -803,7 +803,7 @@ int st_master_info::wait_for_pos(THD* thd, String* log_name, ulonglong log_pos)
   bool pos_reached;
   int event_count = 0;
   pthread_mutex_lock(&lock);
-  while(!thd->killed)
+  while (!thd->killed)
   {
     int cmp_result;
     if (*log_file_name)
@@ -1002,8 +1002,8 @@ server_errno=%d)",
 
   if (len == 1)
   {
-     sql_print_error("Slave: received 0 length packet from server, apparent\
- master shutdown: %s (%d)",
+     sql_print_error("Slave: received 0 length packet from server, apparent \
+master shutdown: %s (%d)",
 		     mc_mysql_error(mysql), read_errno);
      return packet_error;
   }
@@ -1015,24 +1015,23 @@ server_errno=%d)",
 
 int check_expected_error(THD* thd, int expected_error)
 {
-  switch(expected_error)
-    {
-    case ER_NET_READ_ERROR:
-    case ER_NET_ERROR_ON_WRITE:  
-    case ER_SERVER_SHUTDOWN:  
-    case ER_NEW_ABORTING_CONNECTION:
-      my_snprintf(last_slave_error, sizeof(last_slave_error), 
-		 "Slave: query '%s' partially completed on the master \
+  switch (expected_error) {
+  case ER_NET_READ_ERROR:
+  case ER_NET_ERROR_ON_WRITE:  
+  case ER_SERVER_SHUTDOWN:  
+  case ER_NEW_ABORTING_CONNECTION:
+    my_snprintf(last_slave_error, sizeof(last_slave_error),"\
+Slave: query '%s' partially completed on the master \
 and was aborted. There is a chance that your master is inconsistent at this \
-point. If you are sure that your master is ok, run this query manually on the\
- slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
- SLAVE START;", thd->query);
-      last_slave_errno = expected_error;
-      sql_print_error("%s",last_slave_error);
-      return 1;
-    default:
-      return 0;
-    }
+point. If you are sure that your master is ok, run this query manually on the \
+slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
+SLAVE START;", thd->query);
+    last_slave_errno = expected_error;
+    sql_print_error("%s",last_slave_error);
+    return 1;
+  default:
+    return 0;
+  }
 }
 
 
@@ -1230,8 +1229,7 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
       goto connected;
     }
 
-
-    while(!slave_killed(thd))
+    while (!slave_killed(thd))
     {
       thd->proc_info = "Reading master update";
       ulong event_len = read_event(mysql, &glob_mi);
@@ -1323,8 +1321,8 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
 	  events_till_disconnect++;
       }
 #endif	  
-    } // while(!slave_killed(thd)) - read/exec loop
-  } // while(!slave_killed(thd)) - slave loop
+    } // while (!slave_killed(thd)) - read/exec loop
+  } // while (!slave_killed(thd)) - slave loop
 
   // error = 0;
 err:

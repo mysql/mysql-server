@@ -55,7 +55,7 @@ enum enum_sql_command {
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS,
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
-  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI,
+  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_MULTI_UPDATE,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_END
 };
@@ -182,7 +182,7 @@ typedef struct st_lex {
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
-  uint grant,grant_tot_col,which_columns, union_option;
+  uint grant,grant_tot_col,which_columns, union_option, mqh;
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type;

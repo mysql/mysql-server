@@ -264,6 +264,7 @@ bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
 bool mysql_new_select(LEX *lex);
+void mysql_init_multi_delete(LEX *lex);
 void init_max_user_conn(void);
 void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
@@ -512,7 +513,7 @@ int write_record(TABLE *table,COPY_INFO *info);
 /* bits set in manager_status */
 #define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
 extern ulong volatile manager_status;
-extern bool volatile manager_thread_in_use;
+extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
 extern pthread_mutex_t LOCK_manager;
 extern pthread_cond_t COND_manager;

@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.1-alpha)
+AM_INIT_AUTOMAKE(mysql, 4.0.2-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -2262,7 +2262,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
- man/Makefile readline/Makefile vio/Makefile \
+ man/Makefile BUILD/Makefile readline/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
  libmysql/Makefile client/Makefile \
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile \
