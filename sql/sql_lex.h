@@ -249,12 +249,6 @@ protected:
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
-  enum enum_parsing_place
-  {
-    NO_MATTER,
-    IN_HAVING,
-    SELECT_LIST
-  };
 
   ulong options;
   /*
@@ -700,6 +694,12 @@ typedef struct st_lex
   bool prepared_stmt_code_is_varref;
   /* Names of user variables holding parameters (in EXECUTE) */
   List<LEX_STRING> prepared_stmt_params; 
+  /*
+    If points to fake_time_zone_tables_list indicates that time zone
+    tables are implicitly used by statement, also is used for holding
+    list of those tables after they are opened.
+  */
+  TABLE_LIST *time_zone_tables_used;
   sp_head *sphead;
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
@@ -753,6 +753,7 @@ typedef struct st_lex
   bool only_view_structure();
 } LEX;
 
+extern TABLE_LIST fake_time_zone_tables_list;
 struct st_lex_local: public st_lex
 {
   static void *operator new(size_t size)

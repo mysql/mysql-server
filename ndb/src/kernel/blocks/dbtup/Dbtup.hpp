@@ -950,9 +950,6 @@ typedef Ptr<TableDescriptor> TableDescriptorPtr;
 
 struct HostBuffer {
   bool  inPackedList;
-  Uint32 packetLenRC;
-  Uint32 noOfPacketsRC;
-  Uint32 packetBufferRC[29];
   Uint32 packetLenTA;
   Uint32 noOfPacketsTA;
   Uint32 packetBufferTA[30];
@@ -1017,9 +1014,15 @@ public:
   void tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData);
 
   /*
-   * TUX reads primary key for md5 summing and when returning keyinfo.
+   * TUX reads primary key without headers into an array of words.  Used
+   * for md5 summing and when returning keyinfo.
    */
-  void tuxReadKeys();   // under construction
+  void tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pkSize, Uint32* pkData);
+
+  /*
+   * TUX checks if tuple is visible to scan.
+   */
+  bool tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId);
 
 private:
   BLOCK_DEFINES(Dbtup);
@@ -1065,9 +1068,6 @@ private:
   void execTUP_WRITELOG_REQ(Signal* signal);
 
   // Ordered index related
-  void execTUP_READ_ATTRS(Signal* signal);
-  void execTUP_QUERY_TH(Signal* signal);
-  void execTUP_STORE_TH(Signal* signal);
   void execBUILDINDXREQ(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
@@ -1662,11 +1662,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void bufferREADCONF(Signal* signal, BlockReference aRef, Uint32* buffer, Uint32 Tlen);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32* buffer, Uint32 Tlen);
+  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32 Tlen);
 
 //------------------------------------------------------------------
 // Trigger handling routines
@@ -2326,10 +2322,15 @@ private:
   // Counters for num UNDO log records executed
   Uint32 cSrUndoRecords[9];
 
+  STATIC_CONST(MAX_PARALLELL_TUP_SRREQ = 2); 
+  Uint32 c_sr_free_page_0;
+
   Uint32 c_errorInsert4000TableId;
 
   void initGlobalTemporaryVars();
   void reportMemoryUsage(Signal* signal, int incDec);
+
+  
 #ifdef VM_TRACE
   struct Th {
     Uint32 data[1];

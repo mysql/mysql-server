@@ -57,10 +57,6 @@ public:
   int pkDeleteRecord(Ndb*,
 		     int recordNo,
 		     int numRecords = 1);
-
-  int scanReadRecords(Ndb* pNdb, 
-		      Uint32 parallelism = 240, ScanLock lock = SL_Read);
-  int executeScanRead(Ndb*);
   
   int execute_Commit(Ndb*, 
 		     AbortOption ao = AbortOnError);
@@ -93,7 +89,11 @@ public:
 			int recordNo,
 			int numRecords = 1,
 			int updatesValue = 0);
-  
+
+  int scanReadRecords(Ndb*, NdbScanOperation::LockMode = 
+		      NdbScanOperation::LM_CommittedRead, 
+		      int numRecords = 1);
+
 protected:
   void allocRows(int rows);
   void deallocRows();
@@ -102,48 +102,12 @@ protected:
   HugoCalculator calc;
 
   Vector<BaseString> savedRecords;
+
+  struct RsPair { NdbResultSet* m_result_set; int records; };
+  Vector<RsPair> m_result_sets;
+  Vector<RsPair> m_executed_result_sets;
 private:
   NdbConnection* pTrans;
-
-  struct ScanTmp {
-    ScanTmp() { 
-      pTrans = 0; 
-      m_tmpRow = 0; 
-      m_delete = true; 
-      m_op = DONE;
-    }
-    ScanTmp(NdbConnection* a, NDBT_ResultRow* b){ 
-      pTrans = a; 
-      m_tmpRow = b; 
-      m_delete = true; 
-      m_op = DONE;
-    }
-    ScanTmp(const ScanTmp& org){
-      * this = org;
-    }
-    ScanTmp& operator=(const ScanTmp& org){
-      pTrans = org.pTrans; 
-      m_tmpRow = org.m_tmpRow; 
-      m_delete = org.m_delete;
-      m_op = org.m_op;
-      return * this;
-    }
-    
-    ~ScanTmp() { 
-      if(m_delete && pTrans)
-	pTrans->close(); 
-      if(m_delete && m_tmpRow)
-	delete m_tmpRow;
-    }
-    
-    NdbConnection * pTrans;
-    NDBT_ResultRow * m_tmpRow;
-    bool m_delete;
-    enum { DONE, READ, UPDATE, DELETE } m_op;
-  };
-  Vector<ScanTmp> m_scans;
-  int run(ScanTmp & tmp);
-
 };
 
 #endif

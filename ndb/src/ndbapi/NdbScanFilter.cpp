@@ -337,7 +337,6 @@ static const tab2 table2[] = {
 const int tab_sz = sizeof(table)/sizeof(table[0]);
 const int tab2_sz = sizeof(table2)/sizeof(table2[0]);
 
-template<typename T>
 int
 matchType(const NdbDictionary::Column * col){
   return 1;
@@ -382,7 +381,7 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
     return -1;
   }
   
-  if(!matchType<T>(col)){
+  if(!matchType(col)){
     /**
      * Code not reached
      */
@@ -777,3 +776,10 @@ main(void){
   return 0;
 }
 #endif
+
+template class Vector<NdbScanFilterImpl::State>;
+#if __SUNPRO_CC != 0x560
+template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint32);
+template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint64);
+#endif
+

@@ -1,5 +1,18 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind */
+/* Copyright (C) 2003 MySQL AB
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Knud Riishøjgård knudriis@post.tele.dk 99 &&
    Carsten H. Pedersen, carsten.pedersen@bitbybit.dk oct. 1999 / aug. 2001. */
@@ -82,7 +95,7 @@ character-set=latin1
 "BLOB feltet '%-.64s' kan ikke bruges ved specifikation af indeks",
 "For stor feltlængde for kolonne '%-.64s' (maks = %d). Brug BLOB i stedet",
 "Der kan kun specificeres eet AUTO_INCREMENT-felt, og det skal være indekseret",
-"%s: klar til tilslutninger\n",
+"%s: klar til tilslutninger",
 "%s: Normal nedlukning\n",
 "%s: Fangede signal %d. Afslutter!!\n",
 "%s: Server lukket\n",
@@ -307,7 +320,8 @@ character-set=latin1
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

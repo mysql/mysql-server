@@ -251,9 +251,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       global_system_variables.old_passwords= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      sql_print_error("mysql.user table is not updated to new password format; "
-                      "Disabling new password usage until "
-                      "mysql_fix_privilege_tables is run");
+      sql_print_warning("mysql.user table is not updated to new password format; "
+                        "Disabling new password usage until "
+                        "mysql_fix_privilege_tables is run");
     }
     thd->variables.old_passwords= 1;
   }
@@ -543,22 +543,28 @@ static ulong get_sort(uint count,...)
   va_start(args,count);
   ulong sort=0;
 
+  /* Should not use this function with more than 4 arguments for compare. */
+  DBUG_ASSERT(count <= 4);
+
   while (count--)
   {
-    char *str=va_arg(args,char*);
-    uint chars=0,wild=0;
+    char *start, *str= va_arg(args,char*);
+    uint chars= 0;
+    uint wild_pos= 0;           /* first wildcard position */
 
-    if (str)
+    if ((start= str))
     {
       for (; *str ; str++)
       {
 	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
-	  wild++;
-	else
-	  chars++;
+        {
+          wild_pos= (uint) (str - start) + 1;
+          break;
+        }
+        chars= 128;                             // Marker that chars existed
       }
     }
-    sort= (sort << 8) + (wild ? 1 : chars ? 2 : 0);
+    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127) : chars);
   }
   va_end(args);
   return sort;
@@ -1208,13 +1214,14 @@ bool acl_check_host(const char *host, const char *ip)
       1		ERROR  ; In this case the error is sent to the client.
 */
 
-bool check_change_password(THD *thd, const char *host, const char *user)
+bool check_change_password(THD *thd, const char *host, const char *user,
+                           char *new_password)
 {
   if (!initialized)
   {
     net_printf(thd,ER_OPTION_PREVENTS_STATEMENT,
-             "--skip-grant-tables"); /* purecov: inspected */
-    return(1);                             /* purecov: inspected */
+             "--skip-grant-tables");
+    return(1);
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
@@ -1227,6 +1234,15 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   {
     send_error(thd, ER_PASSWORD_ANONYMOUS_USER);
     return(1);
+  }
+  uint len=strlen(new_password);
+  if (len && len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
+      len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+  {
+    net_printf(thd, 0,
+               "Password hash should be a %d-digit hexadecimal number",
+               SCRAMBLED_PASSWORD_CHAR_LENGTH);
+    return -1;
   }
   return(0);
 }
@@ -1255,7 +1271,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (check_change_password(thd, host, user))
+  if (check_change_password(thd, host, user, new_password))
     DBUG_RETURN(1);
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -1513,7 +1529,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
         combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
     {
-      my_printf_error(ER_PASSWORD_NO_MATCH,
+      my_printf_error(ER_UNKNOWN_ERROR,
                       "Password hash should be a %d-digit hexadecimal number",
                       MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
       DBUG_RETURN(-1);

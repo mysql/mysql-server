@@ -38,6 +38,9 @@
 #ifdef HAVE_ARCHIVE_DB
 #include "examples/ha_archive.h"
 #endif
+#ifdef HAVE_CSV_DB
+#include "examples/ha_tina.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
@@ -91,6 +94,8 @@ struct show_table_type_st sys_table_types[]=
    "Example storage engine", DB_TYPE_EXAMPLE_DB},
   {"ARCHIVE",&have_archive_db,
    "Archive storage engine", DB_TYPE_ARCHIVE_DB},
+  {"CSV",&have_csv_db,
+   "CSV storage engine", DB_TYPE_CSV_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -195,6 +200,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_CSV_DB
+  case DB_TYPE_CSV_DB:
+    return new ha_tina(table);
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
@@ -463,31 +472,45 @@ int ha_release_temporary_latches(THD *thd)
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;
-  DBUG_ENTER("ha_commit");
+  DBUG_ENTER("ha_commit_trans");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    bool operation_done= 0;
     bool transaction_commited= 0;
+    bool operation_done= 0, need_start_waiters= 0;
 
-    /* Update the binary log if we have cached some queries */
+    /* If transaction has done some updates to tables */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
-	my_b_tell(&thd->transaction.trans_log))
+        my_b_tell(&thd->transaction.trans_log))
     {
-      mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
-      statistic_increment(binlog_cache_use, &LOCK_status);
-      if (thd->transaction.trans_log.disk_writes != 0)
+      if (error= wait_if_global_read_lock(thd, 0, 0))
       {
-        /* 
-          We have to do this after addition of trans_log to main binlog since
-          this operation can cause flushing of end of trans_log to disk. 
+        /*
+          Note that ROLLBACK [TO SAVEPOINT] does not have this test; it's
+          because ROLLBACK never updates data, so needn't wait on the lock.
         */
-        statistic_increment(binlog_cache_disk_use, &LOCK_status);
-        thd->transaction.trans_log.disk_writes= 0;
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+        error= 1;
       }
-      reinit_io_cache(&thd->transaction.trans_log,
-		      WRITE_CACHE, (my_off_t) 0, 0, 1);
-      thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      else
+        need_start_waiters= 1;
+      if (mysql_bin_log.is_open())
+      {
+        mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+        statistic_increment(binlog_cache_use, &LOCK_status);
+        if (thd->transaction.trans_log.disk_writes != 0)
+        {
+          /* 
+            We have to do this after addition of trans_log to main binlog since
+            this operation can cause flushing of end of trans_log to disk. 
+          */
+          statistic_increment(binlog_cache_disk_use, &LOCK_status);
+          thd->transaction.trans_log.disk_writes= 0;
+        }
+        reinit_io_cache(&thd->transaction.trans_log,
+                        WRITE_CACHE, (my_off_t) 0, 0, 1);
+        thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      }
     }
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
@@ -495,9 +518,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-	else
-	    ndbcluster_print_error(error);
+	  my_error(ER_ERROR_DURING_COMMIT, MYF(0));
         error=1;
       }
       if (trans == &thd->transaction.all)
@@ -544,6 +565,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       statistic_increment(ha_commit_count,&LOCK_status);
       thd->transaction.cleanup();
     }
+    if (need_start_waiters)
+      start_waiting_global_read_lock(thd);
   }
 #endif // using transactions
   DBUG_RETURN(error);
@@ -553,7 +576,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 {
   int error=0;
-  DBUG_ENTER("ha_rollback");
+  DBUG_ENTER("ha_rollback_trans");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
@@ -564,9 +587,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);	  
-	else
-	  ndbcluster_print_error(error);
+	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0));
         error=1;
       }
       trans->ndb_tid = 0;
@@ -747,12 +768,12 @@ bool ha_flush_logs()
 {
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
-  if ((have_berkeley_db == SHOW_OPTION_YES) && 
+  if ((have_berkeley_db == SHOW_OPTION_YES) &&
       berkeley_flush_logs())
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if ((have_innodb == SHOW_OPTION_YES) && 
+  if ((have_innodb == SHOW_OPTION_YES) &&
       innobase_flush_logs())
     result=1;
 #endif
@@ -847,7 +868,7 @@ my_off_t ha_get_ptr(byte *ptr, uint pack_length)
 int handler::ha_open(const char *name, int mode, int test_if_locked)
 {
   int error;
-  DBUG_ENTER("handler::open");
+  DBUG_ENTER("handler::ha_open");
   DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
 		      name, table->db_type, table->db_stat, mode,
 		      test_if_locked));
@@ -946,7 +967,7 @@ void handler::update_auto_increment()
 {
   longlong nr;
   THD *thd;
-  DBUG_ENTER("update_auto_increment");
+  DBUG_ENTER("handler::update_auto_increment");
   if (table->next_number_field->val_int() != 0 ||
       table->auto_increment_field_not_null &&
       current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
@@ -1004,7 +1025,7 @@ longlong handler::get_auto_increment()
 
 void handler::print_error(int error, myf errflag)
 {
-  DBUG_ENTER("print_error");
+  DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
   int textno=ER_GET_ERRNO;
@@ -1143,7 +1164,7 @@ bool handler::get_error_message(int error, String* buf)
 
 uint handler::get_dup_key(int error)
 {
-  DBUG_ENTER("get_dup_key");
+  DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);

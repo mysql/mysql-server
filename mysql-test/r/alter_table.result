@@ -476,3 +476,9 @@ alter table t1 drop key no_such_key;
 ERROR 42000: Can't DROP 'no_such_key'; check that column/key exists
 alter table t1 drop key a;
 drop table t1;
+create table t1 (a int);
+alter table t1 rename to `t1\\`;
+ERROR 42000: Incorrect table name 't1\\'
+rename table t1 to `t1\\`;
+ERROR 42000: Incorrect table name 't1\\'
+drop table t1;

@@ -14,18 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbIndexOperation.cpp
- * Include:
- * Link:
- * Author:        UABMASD Martin Sköld INN/V Alzato
- * Date:          2002-04-01
- * Version:       0.1
- * Description:   Secondary index support
- * Documentation:
- * Adjust:  2002-04-01  UABMASD   First version.
- ****************************************************************************/
-
+#include <ndb_global.h>
 #include <NdbIndexOperation.hpp>
 #include <NdbResultSet.hpp>
 #include <Ndb.hpp>
@@ -36,8 +25,6 @@
 #include <signaldata/TcKeyReq.hpp>
 #include <signaldata/IndxKeyInfo.hpp>
 #include <signaldata/IndxAttrInfo.hpp>
-
-#define CHECK_NULL(v) assert(v == NULL); v = NULL;
 
 NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   NdbOperation(aNdb),
@@ -675,10 +662,8 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
       tSignal = tnextSignal;
     } while (tSignal != NULL);
   }//if
-  NdbRecAttr* tRecAttrObject = theFirstRecAttr;
   theStatus = WaitResponse;
-  theCurrentRecAttr = tRecAttrObject;
-
+  theReceiver.prepareSend();
   return 0;
 }
 

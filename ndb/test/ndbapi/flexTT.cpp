@@ -173,7 +173,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
 {
   ThreadNdb*            pThreadData;
   int                   returnValue = NDBT_OK;
-
+  int i;
   flexTTErrorData = new ErrorData;
   flexTTErrorData->resetErrorCounters();
 
@@ -250,7 +250,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
      *  Create NDB objects.                                   *
      ****************************************************************/
     resetThreads();
-    for (int i = 0; i < tNoOfThreads ; i++) {
+    for (i = 0; i < tNoOfThreads ; i++) {
       pThreadData[i].threadNo = i;
       threadLife[i] = NdbThread_Create(threadLoop,
                                        (void**)&pThreadData[i],
@@ -301,7 +301,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
         
     execute(stStop);
     void * tmp;
-    for(int i = 0; i<tNoOfThreads; i++){
+    for(i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(threadLife[i], &tmp);
       NdbThread_Destroy(&threadLife[i]);
     }

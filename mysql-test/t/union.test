@@ -265,6 +265,14 @@ drop table t1,t2;
 select length(version()) > 1 as `*` UNION select 2;
 
 #
+# Bug #4980: problem with explain
+#
+
+create table t1 (a int);
+insert into t1 values (0), (3), (1), (2);
+explain (select * from t1) union (select * from t1) order by a;
+drop table t1;
+#
 # Test for another bug with UNION and LEFT JOIN
 #
 CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;

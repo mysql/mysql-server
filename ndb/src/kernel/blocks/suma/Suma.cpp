@@ -267,6 +267,40 @@ Suma::execREAD_NODESCONF(Signal* signal){
   sendSTTORRY(signal);
 }
 
+#if 0
+void
+Suma::execREAD_CONFIG_REQ(Signal* signal) 
+{
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
+  jamEntry();
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_FILES, 
+					&cnoLogFiles));
+  ndbrequire(cnoLogFiles > 0);
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &cfragrecFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
+					&ctcConnectrecFileSize));
+  clogFileFileSize       = 4 * cnoLogFiles;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
+  cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_SCANS_PER_FRAG;
+
+  initRecords();
+  initialiseRecordsLab(signal, 0, ref, senderData);
+  
+  return;
+}//Dblqh::execSIZEALT_REP()
+#endif
+
 void
 Suma::sendSTTORRY(Signal* signal){
   signal->theData[0] = 0;
@@ -581,34 +615,33 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
   jamEntry();
 
   Uint32 tCase = signal->theData[0];
-  if(tCase < 8000 || tCase > 8004)
-    return;
+  if(tCase >= 8000 && tCase <= 8003){
+    SubscriptionPtr subPtr;
+    c_subscriptions.getPtr(subPtr, g_subPtrI);
+    
+    Ptr<SyncRecord> syncPtr;
+    c_syncPool.getPtr(syncPtr, subPtr.p->m_syncPtrI);
+    
+    if(tCase == 8000){
+      syncPtr.p->startMeta(signal);
+    }
+    
+    if(tCase == 8001){
+      syncPtr.p->startScan(signal);
+    }
 
-  SubscriptionPtr subPtr;
-  c_subscriptions.getPtr(subPtr, g_subPtrI);
-  
-  Ptr<SyncRecord> syncPtr;
-  c_syncPool.getPtr(syncPtr, subPtr.p->m_syncPtrI);
-  
-  if(tCase == 8000){
-    syncPtr.p->startMeta(signal);
-  }
-
-  if(tCase == 8001){
-    syncPtr.p->startScan(signal);
-  }
-
-  if(tCase == 8002){
-    syncPtr.p->startTrigger(signal);
-  }
-
-  if(tCase == 8003){
-    subPtr.p->m_subscriptionType = SubCreateReq::SingleTableScan;
-    LocalDataBuffer<15> attrs(c_dataBufferPool, syncPtr.p->m_attributeList);
-    Uint32 tab = 0;
-    Uint32 att[] = { 0, 1, 1 };
-    syncPtr.p->m_tableList.append(&tab, 1);
-    attrs.append(att, 3);
+    if(tCase == 8002){
+      syncPtr.p->startTrigger(signal);
+    }
+    
+    if(tCase == 8003){
+      subPtr.p->m_subscriptionType = SubCreateReq::SingleTableScan;
+      LocalDataBuffer<15> attrs(c_dataBufferPool, syncPtr.p->m_attributeList);
+      Uint32 tab = 0;
+      Uint32 att[] = { 0, 1, 1 };
+      syncPtr.p->m_tableList.append(&tab, 1);
+      attrs.append(att, 3);
+    }
   }
 
   if(tCase == 8004){
@@ -1229,6 +1262,9 @@ SumaParticipant::parseTable(Signal* signal, GetTabInfoConf* conf, Uint32 tableId
   if(!tabPtr.isNull() &&
      tabPtr.p->m_schemaVersion != tableDesc.TableVersion){
     jam();
+
+    tabPtr.p->release(* this);
+
     // oops wrong schema version in stored tabledesc
     // we need to find all subscriptions with old table desc
     // and all subscribers to this
@@ -3972,3 +4008,6 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
     }
   }
 }
+
+template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);
+

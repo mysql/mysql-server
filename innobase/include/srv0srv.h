@@ -42,6 +42,7 @@ extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
 extern ibool	srv_file_per_table;
+extern ibool    srv_locks_unsafe_for_binlog;
 
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
@@ -97,6 +98,8 @@ extern ulint	srv_max_n_threads;
 extern lint	srv_conc_n_threads;
 
 extern ibool	srv_fast_shutdown;
+
+extern ibool	srv_innodb_status;
 
 extern ibool	srv_use_doublewrite_buf;
 

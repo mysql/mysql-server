@@ -1,0 +1,275 @@
+--source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+--enable_warnings
+
+#
+# Minimal NDB blobs test.
+#
+# On NDB API level there is an extensive test program "testBlobs".
+# A prerequisite for this handler test is that "testBlobs" succeeds.
+#
+
+# make test harder with autocommit off
+set autocommit=0;
+
+create table t1 (
+  a int not null primary key,
+  b text not null,
+  c int not null,
+  d longblob,
+  key (c)
+) engine=ndbcluster;
+
+# -- values --
+
+# x0 size 256 (current inline size)
+set @x0 = '01234567012345670123456701234567';
+set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
+
+# b1 length 2000+256 (blob part aligned)
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+set @b1 = concat(@b1,@x0);
+# d1 length 3000
+set @d1 = 'dd1';
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+set @d1 = concat(@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1,@d1);
+
+# b2 length 20000
+set @b2 = 'b2';
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
+# d2 length 30000
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+
+select length(@x0),length(@b1),length(@d1) from dual;
+select length(@x0),length(@b2),length(@d2) from dual;
+
+# -- pk ops --
+
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1 where a = 1;
+
+# pk read
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=1;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=2;
+
+# pk update
+update t1 set b=@b2,d=@d2 where a=1;
+update t1 set b=@b1,d=@d1 where a=2;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=1;
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=2;
+
+# pk update
+update t1 set b=concat(b,b),d=concat(d,d) where a=1;
+update t1 set b=concat(b,b),d=concat(d,d) where a=2;
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where a=1;
+select a,length(b),substr(b,1+4*900,2),length(d),substr(d,1+6*900,3)
+from t1 where a=2;
+
+# pk update to null
+update t1 set d=null where a=1;
+commit;
+select a from t1 where d is null;
+
+# pk delete
+delete from t1 where a=1;
+delete from t1 where a=2;
+commit;
+select count(*) from t1;
+
+# -- hash index ops --
+
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1 where c = 111;
+
+# hash key read
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where c=111;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where c=222;
+
+# hash key update
+update t1 set b=@b2,d=@d2 where c=111;
+update t1 set b=@b1,d=@d1 where c=222;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where c=111;
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where c=222;
+
+# hash key update to null
+update t1 set d=null where c=111;
+commit;
+select a from t1 where d is null;
+
+# hash key delete
+delete from t1 where c=111;
+delete from t1 where c=222;
+commit;
+select count(*) from t1;
+
+# -- table scan ops, short values --
+
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+explain select * from t1;
+
+# table scan read
+select * from t1 order by a;
+
+# table scan update
+update t1 set b=concat(a,'x',b),d=concat(a,'x',d);
+commit;
+select * from t1 order by a;
+
+# table scan delete
+delete from t1;
+commit;
+select count(*) from t1;
+
+# -- table scan ops, long values --
+
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1;
+
+# table scan read
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 order by a;
+
+# table scan update
+update t1 set b=concat(b,b),d=concat(d,d);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 order by a;
+
+# table scan delete
+delete from t1;
+commit;
+select count(*) from t1;
+
+# -- range scan ops, short values --
+
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+explain select * from t1 where c >= 100 order by a;
+
+# range scan read
+select * from t1 where c >= 100 order by a;
+
+# range scan update
+update t1 set b=concat(a,'x',b),d=concat(a,'x',d)
+where c >= 100;
+commit;
+select * from t1 where c >= 100 order by a;
+
+# alter table
+
+select * from t1 order by a;
+alter table t1 add x int;
+select * from t1 order by a;
+alter table t1 drop x;
+select * from t1 order by a;
+
+# multi db
+
+create database mysqltest;
+use mysqltest;
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+insert into t2 values (1,1,1),(2,2,2);
+select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
+
+drop table t2;
+use test;
+
+# range scan delete
+delete from t1 where c >= 100;
+commit;
+select count(*) from t1;
+
+# -- range scan ops, long values --
+
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+commit;
+explain select * from t1 where c >= 100 order by a;
+
+# range scan read
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where c >= 100 order by a;
+
+# range scan update
+update t1 set b=concat(b,b),d=concat(d,d);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where c >= 100 order by a;
+
+# range scan delete
+delete from t1 where c >= 100;
+commit;
+select count(*) from t1;
+
+# -- rollback --
+
+insert into t1 values(1,@b1,111,@d1);
+insert into t1 values(2,@b2,222,@d2);
+# 626
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a = 0;
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a = 1;
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a = 2;
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 order by a;
+rollback;
+select count(*) from t1;
+drop table t1;
+drop database mysqltest;

@@ -227,14 +227,9 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     res= 1;
   if (unlikely(res))
   {
-    if (result)
-    {
-      if (res > 0)
-        result->send_error(0, NullS);
-      result->abort();
-    }
-    else if (res > 0)
-      send_error(thd, 0, NullS);
+    if (res > 0)
+      result->send_error(0, NullS);
+    result->abort();
     res= 1;					// Error sent to client
   }
   if (result != lex->result)
@@ -772,6 +767,10 @@ JOIN::optimize()
 		     (select_lex->ftfunc_list->elements ?
 		      SELECT_NO_JOIN_CACHE : 0));
 
+  /* Perform FULLTEXT search before all regular searches */
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   /*
     is this simple IN subquery?
   */
@@ -827,7 +826,7 @@ JOIN::optimize()
 	join_tab->info= "Using index; Using where";
       else
 	join_tab->info= "Using index";
- 
+
       DBUG_RETURN(unit->item->
 		  change_engine(new subselect_indexsubquery_engine(thd,
 								   join_tab,
@@ -864,7 +863,7 @@ JOIN::optimize()
     as in other cases the join is done before the sort.
   */
   if (const_tables != tables &&
-      (order || group_list) && 
+      (order || group_list) &&
       join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
       join_tab[const_tables].type != JT_REF_OR_NULL &&
@@ -878,8 +877,7 @@ JOIN::optimize()
       ((group_list && const_tables != tables &&
 	(!simple_group ||
 	 !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-				  unit->select_limit_cnt,
-				  0))) ||
+				  unit->select_limit_cnt, 0))) ||
        select_distinct) &&
       tmp_table_param.quick_group && !procedure)
   {
@@ -894,8 +892,6 @@ JOIN::optimize()
   }
   having= 0;
 
-  /* Perform FULLTEXT search before all regular searches */
-  init_ftfuncs(thd, select_lex, test(order));
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -903,7 +899,7 @@ JOIN::optimize()
     thd->proc_info="Creating tmp table";
 
     init_items_ref_array();
-    
+
     tmp_table_param.hidden_field_count= (all_fields.elements -
 					 fields_list.elements);
     if (!(exec_tmp_table1 =
@@ -2432,7 +2428,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	}
 	else if (old->eq_func && new_fields->eq_func &&
 		 old->val->eq(new_fields->val, old->field->binary()))
-		 
+
 	{
 	  old->level= and_level;
 	  old->optimize= ((old->optimize & new_fields->optimize &
@@ -2491,7 +2487,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
-				Is NULL for BETWEEN and IN    
+                                Is NULL for BETWEEN and IN
     usable_tables		Tables which can be used for key optimization
 
   NOTES
@@ -2565,22 +2561,32 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 	number. cmp_type() is checked to allow compare of dates to numbers.
         eq_func is NEVER true when num_values > 1
        */
-      if (!eq_func ||
-	  field->result_type() == STRING_RESULT &&
-	  (*value)->result_type() != STRING_RESULT &&
-	  field->cmp_type() != (*value)->result_type())
-	return;
-      
-      /*
-        We can't use indexes if the effective collation
-        of the operation differ from the field collation.
-      */
-      if (field->result_type() == STRING_RESULT &&
-	  (*value)->result_type() == STRING_RESULT &&
-	  field->cmp_type() == STRING_RESULT &&
-	  ((Field_str*)field)->charset() != cond->compare_collation())
-	return;
+      if (!eq_func)
+        return;
+      if (field->result_type() == STRING_RESULT)
+      {
+        if ((*value)->result_type() != STRING_RESULT)
+        {
+          if (field->cmp_type() != (*value)->result_type())
+            return;
+        }
+        else
+        {
+          /*
+            We can't use indexes if the effective collation
+            of the operation differ from the field collation.
 
+            We can also not used index on a text column, as the column may
+            contain 'x' 'x\t' 'x ' and 'read_next_same' will stop after
+            'x' when searching for WHERE col='x '
+          */
+          if (field->cmp_type() == STRING_RESULT &&
+              (((Field_str*)field)->charset() != cond->compare_collation() ||
+               ((*value)->type() != Item::NULL_ITEM &&
+                (field->flags & BLOB_FLAG) && !field->binary())))
+            return;
+        }
+      }
     }
   }
   DBUG_ASSERT(num_values == 1);
@@ -2683,7 +2689,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       Item *tmp=new Item_null;
-      if (!tmp)					// Should never be true
+      if (unlikely(!tmp))                       // Should never be true
 	return;
       add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
@@ -4055,7 +4061,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  rec= keyuse->ref_table_rows;
 		/*
 		  If there is one 'key_column IS NULL' expression, we can
-		  use this ref_or_null optimsation of this field
+		  use this ref_or_null optimisation of this field
 		*/
 		found_ref_or_null|= (keyuse->optimize &
 				     KEY_OPTIMIZE_REF_OR_NULL);
@@ -4572,6 +4578,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
   store_key **ref_key= j->ref.key_copy;
   byte *key_buff=j->ref.key_buff, *null_ref_key= 0;
+  bool keyuse_uses_no_tables= TRUE;
   if (ftkey)
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
@@ -4591,6 +4598,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
       j->ref.items[i]=keyuse->val;		// Save for cond removal
+      keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant
@@ -4630,7 +4638,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
-  else if (ref_key == j->ref.key_copy)
+  else if (keyuse_uses_no_tables)
   {
     /*
       This happen if we are using a constant expression in the ON part
@@ -5425,6 +5433,10 @@ JOIN::join_free(bool full)
   if (full)
   {
     group_fields.delete_elements();
+    /*
+      We can't call delete_elements() on copy_funcs as this will cause
+      problems in free_elements() as some of the elements are then deleted.
+    */
     tmp_table_param.copy_funcs.empty();
     tmp_table_param.cleanup();
   }
@@ -5609,7 +5621,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 	}
 	if ((ref=order_tables & (not_const_tables ^ first_table)))
 	{
-	  if (only_eq_ref_tables(join,first_order,ref))
+	  if (!(order_tables & first_table) && only_eq_ref_tables(join,first_order,ref))
 	  {
 	    DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
 	    continue;
@@ -5732,7 +5744,10 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
   Item *right_item= func->arguments()[1];
   Item_func::Functype functype=  func->functype();
 
-  if (right_item->eq(field,0) && left_item != value)
+  if (right_item->eq(field,0) && left_item != value &&
+      (left_item->result_type() != STRING_RESULT ||
+       value->result_type() != STRING_RESULT ||
+       left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -5750,7 +5765,10 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
       func->set_cmp_func();
     }
   }
-  else if (left_item->eq(field,0) && right_item != value)
+  else if (left_item->eq(field,0) && right_item != value &&
+           (right_item->result_type() != STRING_RESULT ||
+            value->result_type() != STRING_RESULT ||
+            right_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -5871,62 +5889,6 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 
 
 /*
-  Eliminate NOT functions from the condition tree.
-
-  SYNPOSIS
-    eliminate_not_funcs()
-    thd		thread handler
-    cond	condition tree
-
-  DESCRIPTION
-    Eliminate NOT functions from the condition tree where it's possible.
-    Recursively traverse condition tree to find all NOT functions.
-    Call neg_transformer() method for negated arguments.
-
-  NOTE
-    If neg_transformer() returned a new condition we call fix_fields().
-    We don't delete any items as it's not needed. They will be deleted 
-    later at once.
-
-  RETURN
-    New condition tree
-*/
-
-COND *eliminate_not_funcs(THD *thd, COND *cond)
-{
-  DBUG_ENTER("eliminate_not_funcs");
-
-  if (!cond)
-    DBUG_RETURN(cond);
-  if (cond->type() == Item::COND_ITEM)		/* OR or AND */
-  {
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
-    Item *item;
-    while ((item= li++))
-    {
-      Item *new_item= eliminate_not_funcs(thd, item);
-      if (item != new_item)
-	VOID(li.replace(new_item));	/* replace item with a new condition */
-    }
-  }
-  else if (cond->type() == Item::FUNC_ITEM &&	/* 'NOT' operation? */
-	   ((Item_func*) cond)->functype() == Item_func::NOT_FUNC)
-  {
-    COND *new_cond= ((Item_func*) cond)->arguments()[0]->neg_transformer(thd);
-    if (new_cond)
-    {
-      /*
-        Here we can delete the NOT function. Something like: delete cond;
-        But we don't need to do it. All items will be deleted later at once.
-      */
-      cond= new_cond;
-    }
-  }
-  DBUG_RETURN(cond);
-}
-
-
-/*
   Simplify joins replacing outer joins by inner joins whenever it's possible
 
   SYNOPSIS
@@ -5990,9 +5952,9 @@ COND *eliminate_not_funcs(THD *thd, COND *cond)
    
     The function removes all unnecessary braces from the expression
     produced by the conversions.
-    E.g. SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b
+    E.g. SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a AND t3.b=t1.b
     finally is converted to: 
-      SELECT * FROM t1, t2, t3 WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b
+      SELECT * FROM t1, t2, t3 WHERE t2.c < 5 AND t2.a=t1.a AND t3.b=t1.b
 
     It also will remove braces from the following queries:
       SELECT * from (t1 LEFT JOIN t2 ON t2.a=t1.a) LEFT JOIN t3 ON t3.b=t2.b
@@ -6162,27 +6124,26 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   }
   return conds;         
 }
-      
+
+     
 static COND *
 optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
 {
+  SELECT_LEX *select= thd->lex->current_select;
   DBUG_ENTER("optimize_cond");
 
   THD *thd= join->thd;
   SELECT_LEX *select= thd->lex->current_select;
   if (select->first_cond_optimization)
   {
-    Item_arena *arena= thd->current_arena;
-    Item_arena backup;
-    if (arena)
-      thd->set_n_backup_item_arena(arena, &backup);
+    Item_arena *arena, backup;
+    select->first_cond_optimization= 0;
 
-    if (conds)
-    {
-      DBUG_EXECUTE("where",print_where(conds,"original"););
-      /* eliminate NOT operators */
-      conds= eliminate_not_funcs(thd, conds);
-    }
+    arena= thd->current_arena;
+    if (!arena->is_stmt_prepare())
+      arena= 0;
+    else
+      thd->set_n_backup_item_arena(arena, &backup);
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(join, join->join_list, conds, TRUE);
@@ -6196,19 +6157,21 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
   if (!conds)
   {
     *cond_value= Item::COND_TRUE;
-    DBUG_RETURN(conds);
+    select->prep_where= 0;
   }
-
-  DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
-  /* change field = field to field = const for each found field = const */
-  propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
-  /*
-    Remove all instances of item == item
-    Remove all and-levels where CONST item != CONST item
-  */
-  DBUG_EXECUTE("where",print_where(conds,"after const change"););
-  conds= remove_eq_conds(thd, conds, cond_value) ;
-  DBUG_EXECUTE("info",print_where(conds,"after remove"););
+  else
+  {
+    DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
+    /* change field = field to field = const for each found field = const */
+    propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
+    /*
+      Remove all instances of item == item
+      Remove all and-levels where CONST item != CONST item
+    */
+    DBUG_EXECUTE("where",print_where(conds,"after const change"););
+    conds= remove_eq_conds(thd, conds, cond_value) ;
+    DBUG_EXECUTE("info",print_where(conds,"after remove"););
+  }
   DBUG_RETURN(conds);
 }
 
@@ -6536,7 +6499,7 @@ static Field* create_tmp_field_from_item(THD *thd,
     copy_func		If set and item is a function, store copy of item
 			in this array
     from_field          if field will be created using other field as example,
-                        pointer example field will be written here 
+                        pointer example field will be written here
     group		1 if we are going to do a relative group by on result
     modify_item		1 if item->result_field should point to new item.
 			This is relevent for how fill_record() is going to
@@ -6545,7 +6508,7 @@ static Field* create_tmp_field_from_item(THD *thd,
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
-		       
+
   RETURN
     0			on error
     new_created field
@@ -6569,13 +6532,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
     case Item_sum::VARIANCE_FUNC:		/* Place for sum & count */
-    case Item_sum::STD_FUNC:	
+    case Item_sum::STD_FUNC:
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
 				 0, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
-				item->name,table,item_sum->decimals);				
+				item->name,table,item_sum->decimals);
     case Item_sum::UNIQUE_USERS_FUNC:
       return new Field_long(9,maybe_null,item->name,table,1);
     default:
@@ -6683,7 +6646,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
-  
+
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, path);
 
@@ -6799,14 +6762,21 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  tmp_from_field++;
 	  *(reg_field++)= new_field;
 	  reclength+=new_field->pack_length();
-	  if (!(new_field->flags & NOT_NULL_FLAG))
-	    null_count++;
 	  if (new_field->flags & BLOB_FLAG)
 	  {
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
 	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+	  if (!(new_field->flags & NOT_NULL_FLAG))
+          {
+	    null_count++;
+            /*
+              new_field->maybe_null() is still false, it will be
+              changed below. But we have to setup Item_field correctly
+            */
+            ((Item_sum*) item)->args[i]->maybe_null=1;
+          }
 	}
       }
     }
@@ -7338,6 +7308,18 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     new_table.file->extra(HA_EXTRA_NO_ROWS);
     new_table.no_rows=1;
   }
+
+#ifdef TO_BE_DONE_LATER_IN_4_1
+  /*
+    To use start_bulk_insert() (which is new in 4.1) we need to find
+    all places where a corresponding end_bulk_insert() should be put.
+  */
+  table->file->info(HA_STATUS_VARIABLE); /* update table->file->records */
+  new_table.file->start_bulk_insert(table->file->records);
+#else
+  /* HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it */
+  new_table.file->extra(HA_EXTRA_WRITE_CACHE);
+#endif
 
   /* copy all old rows */
   while (!table->file->rnd_next(new_table.record[1]))
@@ -9275,9 +9257,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       keys.merge(table->used_keys);
 
       /*
-	We are adding here also the index speified in FORCE INDEX clause, 
+	We are adding here also the index specified in FORCE INDEX clause, 
 	if any.
-      This is to allow users to use index in ORDER BY.
+        This is to allow users to use index in ORDER BY.
       */
       if (table->force_index) 
 	keys.merge(table->keys_in_use_for_query);
@@ -10054,7 +10036,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   Item *itemptr=*order->item;
   if (itemptr->type() == Item::INT_ITEM)
   {						/* Order by position */
-    uint count= itemptr->val_int();
+    uint count= (uint) itemptr->val_int();
     if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
@@ -10067,13 +10049,18 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(itemptr, fields, &counter, IGNORE_ERRORS);
-  if (item)
+  Item **item= find_item_in_list(itemptr, fields, &counter,
+                                 REPORT_EXCEPT_NOT_FOUND);
+  if (!item)
+    return 1;
+
+  if (item != (Item **)not_found_item)
   {
     order->item= ref_pointer_array + counter;
     order->in_field_list=1;
     return 0;
   }
+
   order->in_field_list=0;
   Item *it= *order->item;
   /*
@@ -10536,7 +10523,16 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       {
 	if (!(pos= new Item_copy_string(pos)))
 	  goto err;
-	if (param->copy_funcs.push_back(pos))
+       /*
+         Item_copy_string::copy for function can call 
+         Item_copy_string::val_int for blob via Item_ref.
+         But if Item_copy_string::copy for blob isn't called before,
+         it's value will be wrong
+         so let's insert Item_copy_string for blobs in the beginning of 
+         copy_funcs
+         (to see full test case look at having.test, BUG #4358) 
+       */
+	if (param->copy_funcs.push_front(pos))
 	  goto err;
       }
       else

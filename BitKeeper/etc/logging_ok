@@ -61,6 +61,7 @@ hf@genie.(none)
 igor@hundin.mysql.fi
 igor@rurik.mysql.com
 ingo@mysql.com
+jan@hundin.mysql.fi
 jani@a80-186-24-72.elisa-laajakaista.fi
 jani@dsl-jkl1657.dial.inet.fi
 jani@dsl-kpogw4gb5.dial.inet.fi
@@ -80,10 +81,12 @@ jcole@mugatu.jcole.us
 jcole@mugatu.spaceapes.com
 jcole@sarvik.tfr.cafe.ee
 jcole@tetra.spaceapes.com
+joerg@mysql.com
 joreland@mysql.com
 jorge@linux.jorge.mysql.com
 jplindst@t41.(none)
 kaj@work.mysql.com
+kent@mysql.com
 konstantin@mysql.com
 kostja@oak.local
 lenz@kallisto.mysql.com
@@ -94,9 +97,11 @@ miguel@hegel.(none)
 miguel@hegel.br
 miguel@hegel.local
 miguel@hegel.txg
+miguel@hegel.txg.br
 miguel@light.
 miguel@light.local
 miguel@sartre.local
+mikron@c-fb0ae253.1238-1-64736c10.cust.bredbandsbolaget.se
 mikron@mikael-ronstr-ms-dator.local
 mmatthew@markslaptop.
 monty@bitch.mysql.fi
@@ -127,6 +132,8 @@ mysql@home.(none)
 mysqldev@build.mysql2.com
 mysqldev@melody.local
 mysqldev@mysql.com
+mysqldev@o2k.irixworld.net
+ndbdev@eel.hemma.oreland.se
 ndbdev@ndbmaster.mysql.com
 nick@mysql.com
 nick@nick.leippe.com
@@ -153,6 +160,7 @@ ram@gw.udmsearch.izhnet.ru
 ram@mysql.r18.ru
 ram@ram.(none)
 ranger@regul.home.lan
+rburnett@build.mysql.com
 root@home.(none)
 root@x3.internalnet
 salle@banica.(none)

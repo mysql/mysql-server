@@ -958,15 +958,21 @@ int ha_myisam::indexes_are_disabled(void)
     start_bulk_insert(rows)
     rows        Rows to be inserted
                 0 if we don't know
+
+  NOTICE
+    Do not forget to call end_bulk_insert() later!
 */
 
 void ha_myisam::start_bulk_insert(ha_rows rows)
 {
+  DBUG_ENTER("ha_myisam::start_bulk_insert");
   THD *thd=current_thd;
   ulong size= min(thd->variables.read_buff_size, table->avg_row_length*rows);
+  DBUG_PRINT("info",("start_bulk_insert: rows %lu size %lu",
+                     (ulong) rows, size));
 
   /* don't enable row cache if too few rows */
-  if (!rows && rows >  MI_MIN_ROWS_TO_USE_WRITE_CACHE)
+  if (! rows || (rows > MI_MIN_ROWS_TO_USE_WRITE_CACHE))
     mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
 
   can_enable_indexes= (file->s->state.key_map ==
@@ -990,7 +996,21 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
       mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }
   }
+  DBUG_VOID_RETURN;
 }
+
+/*
+  end special bulk-insert optimizations,
+  which have been activated by start_bulk_insert().
+
+  SYNOPSIS
+    end_bulk_insert()
+    no arguments
+
+  RETURN
+    0     OK
+    != 0  Error
+*/
 
 int ha_myisam::end_bulk_insert()
 {

@@ -159,7 +159,7 @@ static byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length)
     result= hash->default_value;
   else
     result= ((SAFE_HASH_ENTRY*) result)->data;
-  DBUG_PRINT("exit",("data: %lx", result));
+  DBUG_PRINT("exit",("data: 0x%lx", result));
   DBUG_RETURN(result);
 }
 
@@ -190,7 +190,7 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
   SAFE_HASH_ENTRY *entry;
   my_bool error= 0;
   DBUG_ENTER("safe_hash_set");
-  DBUG_PRINT("enter",("key: %.*s  data: %lx", length, key, data));
+  DBUG_PRINT("enter",("key: %.*s  data: 0x%lx", length, key, data));
 
   rw_wrlock(&hash->mutex);
   entry= (SAFE_HASH_ENTRY*) hash_search(&hash->hash, key, length);

@@ -1,4 +1,4 @@
-/*	$NetBSD: el.c,v 1.21 2001/01/05 22:45:30 christos Exp $	*/
+/*	$NetBSD: el.c,v 1.30 2002/11/12 00:00:23 thorpej Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,13 +36,18 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
+#else
+__RCSID("$NetBSD: el.c,v 1.30 2002/11/12 00:00:23 thorpej Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * el.c: EditLine interface functions
  */
-#include "sys.h"
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <string.h>
@@ -58,9 +63,6 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 {
 
 	EditLine *el = (EditLine *) el_malloc(sizeof(EditLine));
-#ifdef DEBUG
-	char *tty;
-#endif
 
 	if (el == NULL)
 		return (NULL);
@@ -77,8 +79,12 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
          */
 	el->el_flags = 0;
 
-	(void) term_init(el);
-	(void) key_init(el);
+	if (term_init(el) == -1) {
+		free(el->el_prog);
+		el_free(el);
+		return NULL;
+	}
+	(void) el_key_init(el);
 	(void) map_init(el);
 	if (tty_init(el) == -1)
 		el->el_flags |= NO_TTY;
@@ -87,6 +93,7 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 	(void) hist_init(el);
 	(void) prompt_init(el);
 	(void) sig_init(el);
+	(void) read_init(el);
 
 	return (el);
 }
@@ -105,7 +112,7 @@ el_end(EditLine *el)
 	el_reset(el);
 
 	term_end(el);
-	key_end(el);
+	el_key_end(el);
 	map_end(el);
 	tty_end(el);
 	ch_end(el);
@@ -138,11 +145,12 @@ public int
 el_set(EditLine *el, int op, ...)
 {
 	va_list va;
-	int rv;
-	va_start(va, op);
+	int rv = 0;
 
 	if (el == NULL)
 		return (-1);
+	va_start(va, op);
+
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
@@ -162,7 +170,6 @@ el_set(EditLine *el, int op, ...)
 			el->el_flags |= HANDLE_SIGNALS;
 		else
 			el->el_flags &= ~HANDLE_SIGNALS;
-		rv = 0;
 		break;
 
 	case EL_BIND:
@@ -239,8 +246,20 @@ el_set(EditLine *el, int op, ...)
 		rv = 0;
 		break;
 
+	case EL_GETCFN:
+	{
+		el_rfunc_t rc = va_arg(va, el_rfunc_t);
+		rv = el_read_setfn(el, rc);
+		break;
+	}
+
+	case EL_CLIENTDATA:
+		el->el_data = va_arg(va, void *);
+		break;
+
 	default:
 		rv = -1;
+		break;
 	}
 
 	va_end(va);
@@ -261,11 +280,11 @@ el_get(EditLine *el, int op, void *ret)
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
-		rv = prompt_get(el, (el_pfunc_t *) & ret, op);
+		rv = prompt_get(el, (void *) &ret, op);
 		break;
 
 	case EL_EDITOR:
-		rv = map_get_editor(el, (const char **) &ret);
+		rv = map_get_editor(el, (void *) &ret);
 		break;
 
 	case EL_SIGNAL:
@@ -349,6 +368,16 @@ el_get(EditLine *el, int op, void *ret)
 		break;
 #endif /* XXX */
 
+	case EL_GETCFN:
+		*((el_rfunc_t *)ret) = el_read_getfn(el);
+		rv = 0;
+		break;
+
+	case EL_CLIENTDATA:
+		*((void **)ret) = el->el_data;
+		rv = 0;
+		break;
+
 	default:
 		rv = -1;
 	}
@@ -367,15 +396,6 @@ el_line(EditLine *el)
 	return (const LineInfo *) (void *) &el->el_line;
 }
 
-static const char elpath[] = "/.editrc";
-
-#if defined(MAXPATHLEN)
-#define LIBEDIT_MAXPATHLEN MAXPATHLEN
-#elif defined(PATH_MAX)
-#define LIBEDIT_MAXPATHLEN PATH_MAX
-#else
-#define LIBEDIT_MAXPATHLEN 1024
-#endif
 
 /* el_source():
  *	Source a file
@@ -385,10 +405,14 @@ el_source(EditLine *el, const char *fname)
 {
 	FILE *fp;
 	size_t len;
-	char *ptr, path[LIBEDIT_MAXPATHLEN];
+	char *ptr;
 
 	fp = NULL;
 	if (fname == NULL) {
+#ifdef HAVE_ISSETUGID
+		static const char elpath[] = "/.editrc";
+		char path[MAXPATHLEN];
+
 		if (issetugid())
 			return (-1);
 		if ((ptr = getenv("HOME")) == NULL)
@@ -398,6 +422,14 @@ el_source(EditLine *el, const char *fname)
 		if (strlcat(path, elpath, sizeof(path)) >= sizeof(path))
 			return (-1);
 		fname = path;
+#else
+		/*
+		 * If issetugid() is missing, always return an error, in order
+		 * to keep from inadvertently opening up the user to a security
+		 * hole.
+		 */
+		return (-1);
+#endif
 	}
 	if (fp == NULL)
 		fp = fopen(fname, "r");

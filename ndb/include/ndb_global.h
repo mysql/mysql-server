@@ -3,6 +3,10 @@
 #define NDBGLOBAL_H
 
 #include <my_global.h>
+#define NDB_BASE_PORT 2200
+
+/** signal & SIG_PIPE */
+#include <my_alarm.h>
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32
@@ -89,6 +93,14 @@ extern size_t strlcat (char *dst, const char *src, size_t dst_sz);
 extern int strcasecmp(const char *s1, const char *s2);
 extern int strncasecmp(const char *s1, const char *s2, size_t n);
 #endif
+
+#ifdef SCO
+
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
+#endif /* SCO */
 
 #ifdef  __cplusplus
 }

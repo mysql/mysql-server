@@ -1259,11 +1259,6 @@ a	b
 2	NULL
 3	1
 drop table t1, t2;
-create table t1(City VARCHAR(30),Location geometry);
-insert into t1 values("Paris",GeomFromText('POINT(2.33 48.87)'));
-select City from t1 where (select intersects(GeomFromText(AsText(Location)),GeomFromText('Polygon((2 50, 2.5 50, 2.5 47, 2 47, 2 50))'))=0);
-City
-drop table t1;
 CREATE TABLE `t1` (
 `id` mediumint(8) unsigned NOT NULL auto_increment,
 `pseudo` varchar(35) NOT NULL default '',
@@ -1907,3 +1902,77 @@ select t000.a, count(*) `C` FROM t1 t000 GROUP BY t000.a HAVING count(*) > ALL (
 a	C
 1	1
 drop table t1,t2;
+create table t1 (a int not null auto_increment primary key, b varchar(40), fulltext(b));
+insert into t1 (b) values ('ball'),('ball games'), ('games'), ('foo'), ('foobar'), ('Serg'), ('Sergei'),('Georg'), ('Patrik'),('Hakan');
+create table t2 (a int);
+insert into t2 values (1),(3),(2),(7);
+select a,b from t1 where match(b) against ('Ball') > 0;
+a	b
+1	ball
+2	ball games
+select a from t2 where a in (select a from t1 where match(b) against ('Ball') > 0);
+a
+1
+2
+drop table t1,t2;
+CREATE TABLE t1(`IZAVORGANG_ID` VARCHAR(11) CHARACTER SET latin1 COLLATE latin1_bin,`KUERZEL` VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin,`IZAANALYSEART_ID` VARCHAR(11) CHARACTER SET latin1 COLLATE latin1_bin,`IZAPMKZ_ID` VARCHAR(11) CHARACTER SET latin1 COLLATE latin1_bin);
+CREATE INDEX AK01IZAVORGANG ON t1(izaAnalyseart_id,Kuerzel);
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000001','601','D0000000001','I0000000001');
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000002','602','D0000000001','I0000000001');
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000003','603','D0000000001','I0000000001');
+INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES('D0000000004','101','D0000000001','I0000000001');
+SELECT `IZAVORGANG_ID` FROM t1 WHERE `KUERZEL` IN(SELECT MIN(`KUERZEL`)`Feld1` FROM t1 WHERE `KUERZEL` LIKE'601%'And`IZAANALYSEART_ID`='D0000000001');
+IZAVORGANG_ID
+D0000000001
+drop table t1;
+CREATE TABLE `t1` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
+CREATE TABLE `t2` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
+insert into t1 values (1,1),(1,2),(2,1),(2,2);
+insert into t2 values (1,2),(2,2);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+aid	bid
+1	1
+2	1
+alter table t2 drop primary key;
+alter table t2 add key KEY1 (aid, bid);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+aid	bid
+1	1
+2	1
+alter table t2 drop key KEY1;
+alter table t2 add primary key (bid, aid);
+select * from t1 where t1.aid not in (select aid from t2 where bid=t1.bid);
+aid	bid
+1	1
+2	1
+drop table t1,t2;
+CREATE TABLE t1 (howmanyvalues bigint, avalue int);
+INSERT INTO t1 VALUES (1, 1),(2, 1),(2, 2),(3, 1),(3, 2),(3, 3),(4, 1),(4, 2),(4, 3),(4, 4);
+SELECT howmanyvalues, count(*) from t1 group by howmanyvalues;
+howmanyvalues	count(*)
+1	1
+2	2
+3	3
+4	4
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
+howmanyvalues	mycount
+1	1
+2	2
+3	3
+4	4
+CREATE INDEX t1_howmanyvalues_idx ON t1 (howmanyvalues);
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues+1 = a.howmanyvalues+1) as mycount from t1 a group by a.howmanyvalues;
+howmanyvalues	mycount
+1	1
+2	2
+3	3
+4	4
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
+howmanyvalues	mycount
+1	1
+2	2
+3	3
+4	4
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
+ERROR 42S22: Unknown column 'a.avalue' in 'where clause'
+drop table t1;

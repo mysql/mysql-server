@@ -1,0 +1,446 @@
+drop table if exists t1;
+reset master;
+set @a=UNIX_TIMESTAMP("2020-01-21 15:32:22");
+set timestamp=@a;
+create table t1 (a int auto_increment not null primary key, b char(3));
+insert into t1 values(null, "a");
+insert into t1 values(null, "b");
+set timestamp=@a+2;
+insert into t1 values(null, "c");
+set timestamp=@a+4;
+insert into t1 values(null, "d");
+insert into t1 values(null, "e");
+flush logs;
+set timestamp=@a+1;
+insert into t1 values(null, "f");
+
+--- Local --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- offset --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=1;
+use test;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- start-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- stop-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+
+--- start-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=3;
+use test;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- stop-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+
+--- Local with 2 binlogs on command line --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- offset --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=1;
+use test;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- start-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- stop-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+
+--- start-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=3;
+use test;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- stop-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+
+--- Remote --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- offset --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=1;
+use test;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- start-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- stop-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+
+--- start-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=3;
+use test;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+
+--- stop-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+
+--- Remote with 2 binlogs on command line --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- offset --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=1;
+use test;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- start-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- stop-position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+
+--- start-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET INSERT_ID=3;
+use test;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+use test;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- stop-datetime --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+
+--- to-last-log --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+use test;
+SET TIMESTAMP=1579609942;
+create table t1 (a int auto_increment not null primary key, b char(3));
+SET INSERT_ID=1;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "a");
+SET INSERT_ID=2;
+SET TIMESTAMP=1579609942;
+insert into t1 values(null, "b");
+SET INSERT_ID=3;
+SET TIMESTAMP=1579609944;
+insert into t1 values(null, "c");
+SET INSERT_ID=4;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "d");
+SET INSERT_ID=5;
+SET TIMESTAMP=1579609946;
+insert into t1 values(null, "e");
+SET INSERT_ID=6;
+SET TIMESTAMP=1579609943;
+insert into t1 values(null, "f");
+
+--- end of test --
+drop table t1;

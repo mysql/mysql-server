@@ -30,20 +30,34 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   fprintf(output, " apiConnectPtr: H\'%.8x\n", 
 	  sig->apiConnectPtr);
   fprintf(output, " requestInfo: H\'%.8x:\n",  requestInfo);
-  fprintf(output, "  Parallellism: %u, LockMode: %u, Holdlock: %u, RangeScan: %u\n",
-	  sig->getParallelism(requestInfo), sig->getLockMode(requestInfo), sig->getHoldLockFlag(requestInfo), sig->getRangeScanFlag(requestInfo));
-
+  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Holdlock: %u, RangeScan: %u\n",
+	  sig->getParallelism(requestInfo), 
+	  sig->getScanBatch(requestInfo), 
+	  sig->getLockMode(requestInfo), 
+	  sig->getHoldLockFlag(requestInfo), 
+	  sig->getRangeScanFlag(requestInfo));
+  
   fprintf(output, " attrLen: %d, tableId: %d, tableSchemaVer: %d\n",
 	  sig->attrLen, sig->tableId, sig->tableSchemaVersion);
     
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x) storedProcId: H\'%.8x\n",
 	  sig->transId1, sig->transId2, sig->storedProcId);
   
-  fprintf(output, " OperationPtr(s):\n");
-  for(int i = 0; i<16; i=i+4){
-    fprintf(output, "  H\'%.8x, H\'%.8x, H\'%.8x, H\'%.8x\n", 
-	    sig->apiOperationPtr[i], sig->apiOperationPtr[i+1], 
-	    sig->apiOperationPtr[i+2], sig->apiOperationPtr[i+3]);
+  fprintf(output, " OperationPtr(s):\n  ");
+  Uint32 restLen = (len - 9);
+  const Uint32 * rest = &sig->apiOperationPtr[0];
+  while(restLen >= 7){
+    fprintf(output, 
+	    " H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x H\'%.8x\n",
+	    rest[0], rest[1], rest[2], rest[3], 
+	    rest[4], rest[5], rest[6]);
+    restLen -= 7;
+    rest += 7;
+  }
+  if(restLen > 0){
+    for(Uint32 i = 0; i<restLen; i++)
+      fprintf(output, " H\'%.8x", rest[i]);
+    fprintf(output, "\n");
   }
   return false;
 }
@@ -60,51 +74,28 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x)\n",
 	  sig->transId1, sig->transId2);
 
-  fprintf(output, " requestInfo: H\'%.8x(Operations: %u, ScanStatus: %u(\"", 
-	  requestInfo, sig->getOperations(requestInfo), sig->getScanStatus(requestInfo));
-  switch(sig->getScanStatus(requestInfo)){
-  case 0:
-    fprintf(output, "ZFALSE");
-    break;
-  case 1:
-    fprintf(output, "ZTRUE");
-    break;
-  case 2:
-    fprintf(output, "ZCLOSED");
-    break;
-  default:
-    fprintf(output, "UNKNOWN");
-    break;
+  fprintf(output, " requestInfo: Eod: %d OpCount: %d\n", 
+	  (requestInfo & ScanTabConf::EndOfData == ScanTabConf::EndOfData),
+	  (requestInfo & (~ScanTabConf::EndOfData)));
+  size_t op_count= requestInfo & (~ScanTabConf::EndOfData);
+  if(op_count){
+    fprintf(output, " Operation(s) [api tc rows len]:\n");
+    ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+      (theData + ScanTabConf::SignalLength);
+    for(int i = 0; i<op_count; i++){
+      if(op->info != ScanTabConf::EndOfData)
+	fprintf(output, " [0x%x 0x%x %d %d]",
+		op->apiPtrI, op->tcPtrI,
+		ScanTabConf::getRows(op->info),
+		ScanTabConf::getLength(op->info));
+      else
+	fprintf(output, " [0x%x 0x%x eod]",
+		op->apiPtrI, op->tcPtrI);
+      
+      op++;
+    }
+    fprintf(output, "\n");
   }
-  fprintf(output, "\"))\n");
-#if 0
-  fprintf(output, " Operation(s):\n");
-  for(int i = 0; i<16; i++){
-    fprintf(output, " [%.2u]ix=%d l=%.2d,", 
-	    i, sig->getIdx(sig->operLenAndIdx[i]), sig->getLen(sig->operLenAndIdx[i]));
-    if (((i+1) % 4) == 0)
-      fprintf(output, "\n");
-  }
-#endif
-  return false;
-}
-
-bool
-printSCANTABINFO(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
-  const ScanTabInfo * const sig = (ScanTabInfo *) theData;
-  
-  fprintf(output, " apiConnectPtr: H\'%.8x\n", 
-	  sig->apiConnectPtr);
-
-  fprintf(output, " Operation(s):\n");
-  for(int i = 0; i<16; i++){
-    fprintf(output, " [%.2u]ix=%d l=%.2d,", 
-	    i, sig->getIdx(sig->operLenAndIdx[i]), sig->getLen(sig->operLenAndIdx[i]));
-    if (((i+1) % 4) == 0)
-      fprintf(output, "\n");
-  }
-
   return false;
 }
 
@@ -120,8 +111,8 @@ printSCANTABREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
 	  sig->transId1, sig->transId2);
   
   fprintf(output, " Errorcode: %u\n", sig->errorCode);
-
-  // fprintf(output, " sendScanNextReqWithClose: %u\n", sig->sendScanNextReqWithClose);
+  
+  fprintf(output, " closeNeeded: %u\n", sig->closeNeeded);
   return false;
 }
 
@@ -147,13 +138,21 @@ printSCANNEXTREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
   if(receiverBlockNo == DBTC){
     const ScanNextReq * const sig = (ScanNextReq *) theData;
     
-    fprintf(output, " aipConnectPtr: H\'%.8x\n", 
+    fprintf(output, " apiConnectPtr: H\'%.8x\n", 
 	    sig->apiConnectPtr);
     
-    fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x)\n",
+    fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x) ",
 	    sig->transId1, sig->transId2);
     
     fprintf(output, " Stop this scan: %u\n", sig->stopScan);
+
+    const Uint32 * ops = theData + ScanNextReq::SignalLength;
+    if(len > ScanNextReq::SignalLength){
+      fprintf(output, " tcFragPtr(s): ");
+      for(size_t i = ScanNextReq::SignalLength; i<len; i++)
+	fprintf(output, " 0x%x", * ops++);
+      fprintf(output, "\n");
+    }
   }
   if (receiverBlockNo == DBLQH){
     return printSCANFRAGNEXTREQ(output, theData, len, receiverBlockNo);
