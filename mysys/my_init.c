@@ -381,22 +381,12 @@ static void netware_init()
     {
       if (*name == '\\')
       {
-	*name = '/';
+        *name = '/';
       }
       else
       {
-	*name = tolower(*name);
+        *name = tolower(*name);
       }
-    }
-    /*
-      Set the current working directory to the base directory of the file
-      name (assuming the binary is in 'base-file-name/bin/'
-    */
-    strmov(cwd, my_progname);
-    if ((name= strindex(cwd, "/bin/")) != NULL)
-    {
-      *name= 0;
-      chdir(cwd);
     }
   }
 }

@@ -356,14 +356,6 @@ extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
 #define pthread_cond_timedwait(A,B,C) my_pthread_cond_timedwait((A),(B),(C))
 #endif
 
-
-#ifdef __NETWARE__
-extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
-				     pthread_mutex_t *mutex,
-				     struct timespec *abstime);
-#define pthread_cond_timedwait(A,B,C) my_pthread_cond_timedwait((A),(B),(C))
-#endif /* __NETWARE__ */
-
 #if defined(OS2)
 #define my_pthread_getspecific(T,A) ((T) &(A))
 #define pthread_setspecific(A,B) win_pthread_setspecific(&(A),(B),sizeof(A))
