@@ -1630,6 +1630,12 @@ run_testcase ()
      fi
    fi
  fi
+
+ if [ "x$START_AND_EXIT" = "x1" ] ; then
+  echo "Servers started, exiting"
+  exit
+ fi
+
  cd $MYSQL_TEST_DIR
 
  if [ -f $tf ] ; then
@@ -1765,11 +1771,6 @@ then
   fi
   $ECHO  "Loading Standard Test Databases"
   mysql_loadstd
-fi
-
-if [ "x$START_AND_EXIT" = "x1" ] ; then
- echo "Servers started, exiting"
- exit
 fi
 
 $ECHO  "Starting Tests"
