@@ -3302,17 +3302,25 @@ mentioned strategy of not sacrificing speed or reliability in the
 server.
 
 @menu
+* Standards::                   What standards does MySQL follow?
 * Extensions to ANSI::          MySQL extensions to ANSI SQL92
 * Differences from ANSI::       MySQL differences compared to ANSI SQL92
 * ANSI mode::                   Running MySQL in ANSI mode
-* Missing functions::           Functionality missing from MySQL
-* Standards::                   What standards does MySQL follow?
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 * Bugs::                        Known errors and design deficiencies in MySQL
 @end menu
 
 
-@node Extensions to ANSI, Differences from ANSI, Compatibility, Compatibility
+@node Standards, Extensions to ANSI, Compatibility, Compatibility
+@subsection What Standards Does MySQL Follow?
+
+Entry level SQL92. ODBC levels 0-2.
+
+We are aiming towards supporting the full ANSI SQL99 standard,
+but without concessions to speed and quality of the code.
+
+
+@node Extensions to ANSI, Differences from ANSI, Standards, Compatibility
 @subsection MySQL Extensions to ANSI SQL92
 
 @cindex hints
@@ -3590,45 +3598,6 @@ This is because we don't think it's good to have to evaluate a lot of
 extra conditions in this case.
 @end itemize
 
-
-@node ANSI mode, Missing functions, Differences from ANSI, Compatibility
-@subsection Running MySQL in ANSI Mode
-
-@cindex running, ANSI mode
-@cindex ANSI mode, running
-
-If you start @code{mysqld} with the @code{--ansi} option, the following
-behavior of MySQL changes:
-
-@itemize @bullet
-@item
-@code{||} is string concatenation instead of @code{OR}.
-
-@item
-You can have any number of spaces between a function name and the @samp{(}.
-This forces all function names to be treated as reserved words.
-
-@item
-@samp{"} will be an identifier quote character (like the MySQL
-@samp{`} quote character) and not a string quote character.
-
-@item
-@code{REAL} will be a synonym for @code{FLOAT} instead of a synonym of
-@code{DOUBLE}.
-
-@item
-The default transaction isolation level is @code{SERIALIZABLE}.
-@xref{SET TRANSACTION}.
-@end itemize
-
-This is the same as using @code{--sql-mode=REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
-
-@node Missing functions, Standards, ANSI mode, Compatibility
-@subsection Functionality Missing from MySQL
-
-@cindex missing functionality
-@cindex functionality, missing
-
 The following functionality is missing in the current version of
 MySQL.  For a prioritized list indicating when new extensions
 may be added to MySQL, you should consult
@@ -3648,7 +3617,7 @@ list in this manual. @xref{TODO}.
 @end menu
 
 
-@node Missing Sub-selects, Missing SELECT INTO TABLE, Missing functions, Missing functions
+@node Missing Sub-selects, Missing SELECT INTO TABLE, Differences from ANSI, Differences from ANSI
 @subsubsection Sub-selects
 
 @cindex sub-selects
@@ -3717,7 +3686,7 @@ MySQL 4.0 supports multi-table deletes that can be used to efficiently
 delete rows based on information from one table or even from many tables
 at the same time.
 
-@node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Missing functions
+@node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Differences from ANSI
 @subsubsection @code{SELECT INTO TABLE}
 
 @findex SELECT INTO TABLE
@@ -3736,7 +3705,7 @@ Alternatively, you can use @code{SELECT INTO OUTFILE...} or @code{CREATE
 TABLE ... SELECT} to solve your problem.
 
 
-@node Missing Transactions, Missing Triggers, Missing SELECT INTO TABLE, Missing functions
+@node Missing Transactions, Missing Triggers, Missing SELECT INTO TABLE, Differences from ANSI
 @subsubsection Transactions
 
 @cindex transactions, support
@@ -3852,7 +3821,7 @@ know of. This system will work most reliably under the atomic
 operations, non-transactional, paradigm. Stay tuned.
 
 
-@node Missing Triggers, Missing Foreign Keys, Missing Transactions, Missing functions
+@node Missing Triggers, Missing Foreign Keys, Missing Transactions, Differences from ANSI
 @subsubsection Stored Procedures and Triggers
 
 @cindex stored procedures and triggers, defined
@@ -3879,7 +3848,7 @@ down everything, even queries for which they are not needed.
 To see when MySQL might get stored procedures, see @ref{TODO}.
 
 
-@node Missing Foreign Keys, Broken Foreign KEY, Missing Triggers, Missing functions
+@node Missing Foreign Keys, Broken Foreign KEY, Missing Triggers, Differences from ANSI
 @subsubsection Foreign Keys
 
 @cindex foreign keys
@@ -3930,7 +3899,7 @@ key constraints. @xref{InnoDB}.
 @end menu
 
 
-@node Broken Foreign KEY, Missing Views, Missing Foreign Keys, Missing functions
+@node Broken Foreign KEY, Missing Views, Missing Foreign Keys, Differences from ANSI
 @subsubsection Why We Did Not Implement Foreign Keys
 
 @cindex foreign keys, why not implemented
@@ -3996,7 +3965,7 @@ individual tables.
 @end itemize
 
 
-@node Missing Views, Missing comments, Broken Foreign KEY, Missing functions
+@node Missing Views, Missing comments, Broken Foreign KEY, Differences from ANSI
 @subsubsection Views
 
 @cindex views
@@ -4019,7 +3988,7 @@ as MySQL has a very sophisticated privilege
 system. @xref{Privilege system}.
 
 
-@node Missing comments,  , Missing Views, Missing functions
+@node Missing comments,  , Missing Views, Differences from ANSI
 @subsubsection @samp{--} as the Start of a Comment
 
 @cindex comments, starting
@@ -4083,13 +4052,40 @@ shell> replace " #" " --" -- text-file-with-funny-comments.sql
 @end example
 
 
-@node Standards, Commit-rollback, Missing functions, Compatibility
-@subsection What Standards Does MySQL Follow?
+@node ANSI mode, Commit-rollback, Differences from ANSI, Compatibility
+@subsection Running MySQL in ANSI Mode
 
-Entry level SQL92. ODBC levels 0-2.
+@cindex running, ANSI mode
+@cindex ANSI mode, running
+
+If you start @code{mysqld} with the @code{--ansi} option, the following
+behavior of MySQL changes:
+
+@itemize @bullet
+@item
+@code{||} is string concatenation instead of @code{OR}.
+
+@item
+You can have any number of spaces between a function name and the @samp{(}.
+This forces all function names to be treated as reserved words.
+
+@item
+@samp{"} will be an identifier quote character (like the MySQL
+@samp{`} quote character) and not a string quote character.
+
+@item
+@code{REAL} will be a synonym for @code{FLOAT} instead of a synonym of
+@code{DOUBLE}.
+
+@item
+The default transaction isolation level is @code{SERIALIZABLE}.
+@xref{SET TRANSACTION}.
+@end itemize
+
+This is the same as using @code{--sql-mode=REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
 
 
-@node Commit-rollback, Bugs, Standards, Compatibility
+@node Commit-rollback, Bugs, ANSI mode, Compatibility
 @subsection How to Cope Without @code{COMMIT}/@code{ROLLBACK}
 
 @findex COMMIT
@@ -35359,7 +35355,7 @@ The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything.  The syntax for them is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
 that create tables with references.
-@xref{Missing functions}.
+@xref{Differences from ANSI}.
 
 @item
 Each @code{NULL} column takes one bit extra, rounded up to the nearest byte.
@@ -35816,7 +35812,7 @@ The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything.  The syntax for them is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
 that create tables with references.
-@xref{Missing functions}.
+@xref{Differences from ANSI}.
 @end itemize
 
 Here is an example that shows some of the uses of @code{ALTER TABLE}.  We
