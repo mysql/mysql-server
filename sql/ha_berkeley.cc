@@ -81,7 +81,7 @@ u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
 ulong berkeley_cache_size;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 long berkeley_lock_scan_time=0;
-ulong berkeley_trans_retry=5;
+ulong berkeley_trans_retry=1;
 ulong berkeley_max_lock;
 pthread_mutex_t bdb_mutex;
 
@@ -99,7 +99,7 @@ static void berkeley_print_error(const char *db_errpfx, char *buffer);
 static byte* bdb_get_key(BDB_SHARE *share,uint *length,
 			 my_bool not_used __attribute__((unused)));
 static BDB_SHARE *get_share(const char *table_name, TABLE *table);
-static void free_share(BDB_SHARE *share, TABLE *table);
+static int free_share(BDB_SHARE *share, TABLE *table);
 static int write_status(DB *status_block, char *buff, uint length);
 static void update_status(BDB_SHARE *share, TABLE *table);
 static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
@@ -433,8 +433,6 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   uint max_key_length= table->max_key_length + MAX_REF_PARTS*2;
   if (!(alloc_ptr=
 	my_multi_malloc(MYF(MY_WME),
-			&key_file, (table->keys+1)*sizeof(*key_file),
-			&key_type, (table->keys+1)*sizeof(u_int32_t),
 			&key_buff,  max_key_length,
 			&key_buff2, max_key_length,
 			&primary_key_buff,
@@ -449,7 +447,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   }
 
-  /* Init table lock structure */
+  /* Init shared structure */
   if (!(share=get_share(name,table)))
   {
     my_free(rec_buff,MYF(0));
@@ -457,82 +455,93 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   }
   thr_lock_data_init(&share->lock,&lock,(void*) 0);
+  key_file = share->key_file;
+  key_type = share->key_type;
 
-  if ((error=db_create(&file, db_env, 0)))
+  /* Fill in shared structure, if needed */
+  pthread_mutex_lock(&share->mutex);
+  file = share->file;
+  if (!share->use_count++)
   {
-    free_share(share,table);
-    my_free(rec_buff,MYF(0));
-    my_free(alloc_ptr,MYF(0));
-    my_errno=error;
-    DBUG_RETURN(1);
-  }
+    if ((error=db_create(&file, db_env, 0)))
+    {
+      free_share(share,table);
+      my_free(rec_buff,MYF(0));
+      my_free(alloc_ptr,MYF(0));
+      my_errno=error;
+      DBUG_RETURN(1);
+    }
+    share->file = file;
 
-  file->set_bt_compare(file,
-		       (hidden_primary_key ? berkeley_cmp_hidden_key :
-			berkeley_cmp_packed_key));
-  if (!hidden_primary_key)
-    file->app_private= (void*) (table->key_info+table->primary_key);
-  if ((error=(file->open(file, fn_format(name_buff,name,"", ha_berkeley_ext,
-					 2 | 4),
-			 "main", DB_BTREE, open_mode,0))))
-  {
-    free_share(share,table);
-    my_free(rec_buff,MYF(0));
-    my_free(alloc_ptr,MYF(0));
-    my_errno=error;
-    DBUG_RETURN(1);
+    file->set_bt_compare(file,
+			 (hidden_primary_key ? berkeley_cmp_hidden_key :
+			  berkeley_cmp_packed_key));
+    if (!hidden_primary_key)
+      file->app_private= (void*) (table->key_info+table->primary_key);
+    if ((error=(file->open(file, fn_format(name_buff,name,"", ha_berkeley_ext,
+					   2 | 4),
+			   "main", DB_BTREE, open_mode,0))))
+    {
+      free_share(share,table);
+      my_free(rec_buff,MYF(0));
+      my_free(alloc_ptr,MYF(0));
+      my_errno=error;
+      DBUG_RETURN(1);
+    }
+
+    /* Open other keys */
+    key_file[primary_key]=file;
+    key_type[primary_key]=DB_NOOVERWRITE;
+    bzero((char*) &current_row,sizeof(current_row));
+
+    DB **ptr=key_file;
+    for (uint i=0, used_keys=0; i < table->keys ; i++, ptr++)
+    {
+      char part[7];
+      if (i != primary_key)
+      {
+	if ((error=db_create(ptr, db_env, 0)))
+	{
+	  close();
+	  my_errno=error;
+	  DBUG_RETURN(1);
+	}
+	sprintf(part,"key%02d",++used_keys);
+	key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
+	(*ptr)->set_bt_compare(*ptr, berkeley_cmp_packed_key);
+	(*ptr)->app_private= (void*) (table->key_info+i);
+	if (!(table->key_info[i].flags & HA_NOSAME))
+	  (*ptr)->set_flags(*ptr, DB_DUP);
+	if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
+				 open_mode, 0))))
+	{
+	  close();
+	  my_errno=error;
+	  DBUG_RETURN(1);
+	}
+      }
+    }
+    /* Calculate pack_length of primary key */
+    if (!hidden_primary_key)
+    {
+      ref_length=0;
+      KEY_PART_INFO *key_part= table->key_info[primary_key].key_part;
+      KEY_PART_INFO *end=key_part+table->key_info[primary_key].key_parts;
+      for ( ; key_part != end ; key_part++)
+	ref_length+= key_part->field->max_packed_col_length(key_part->length);
+      fixed_length_primary_key=
+	(ref_length == table->key_info[primary_key].key_length);
+      share->status|=STATUS_PRIMARY_KEY_INIT;
+    }    
   }
+  pthread_mutex_unlock(&share->mutex);
 
   transaction=0;
   cursor=0;
   key_read=0;
   fixed_length_row=!(table->db_create_options & HA_OPTION_PACK_RECORD);
 
-  /* Open other keys */
-  bzero((char*) key_file,sizeof(*key_file)*table->keys);
-  key_file[primary_key]=file;
-  key_type[primary_key]=DB_NOOVERWRITE;
-  bzero((char*) &current_row,sizeof(current_row));
 
-  DB **ptr=key_file;
-  for (uint i=0, used_keys=0; i < table->keys ; i++, ptr++)
-  {
-    char part[7];
-    if (i != primary_key)
-    {
-      if ((error=db_create(ptr, db_env, 0)))
-      {
-	close();
-	my_errno=error;
-	DBUG_RETURN(1);
-      }
-      sprintf(part,"key%02d",++used_keys);
-      key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
-      (*ptr)->set_bt_compare(*ptr, berkeley_cmp_packed_key);
-      (*ptr)->app_private= (void*) (table->key_info+i);
-      if (!(table->key_info[i].flags & HA_NOSAME))
-	(*ptr)->set_flags(*ptr, DB_DUP);
-      if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
-			       open_mode, 0))))
-      {
-	close();
-	my_errno=error;
-	DBUG_RETURN(1);
-      }
-    }
-  }
-  /* Calculate pack_length of primary key */
-  if (!hidden_primary_key)
-  {
-    ref_length=0;
-    KEY_PART_INFO *key_part= table->key_info[primary_key].key_part;
-    KEY_PART_INFO *end=key_part+table->key_info[primary_key].key_parts;
-    for ( ; key_part != end ; key_part++)
-      ref_length+= key_part->field->max_packed_col_length(key_part->length);
-    fixed_length_primary_key=
-      (ref_length == table->key_info[primary_key].key_length);
-    share->status|=STATUS_PRIMARY_KEY_INIT;
-  }
   get_status();
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   DBUG_RETURN(0);
@@ -541,21 +550,12 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 
 int ha_berkeley::close(void)
 {
-  int error,result=0;
   uint keys=table->keys + test(hidden_primary_key);
   DBUG_ENTER("ha_berkeley::close");
 
-  for (uint i=0; i < keys; i++)
-  {
-    if (key_file[i] && (error=key_file[i]->close(key_file[i],0)))
-      result=error;
-  }
-  free_share(share,table);
   my_free(rec_buff,MYF(MY_ALLOW_ZERO_PTR));
   my_free(alloc_ptr,MYF(MY_ALLOW_ZERO_PTR));
-  if (result)
-    my_errno=result;
-  DBUG_RETURN(result);
+  DBUG_RETURN(free_share(share,table));
 }
 
 
@@ -2024,16 +2024,26 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
   uint length=(uint) strlen(table_name);
   if (!(share=(BDB_SHARE*) hash_search(&bdb_open_tables, table_name, length)))
   {
-    if ((share=(BDB_SHARE *) my_malloc(ALIGN_SIZE(sizeof(*share))+
-				       sizeof(ha_rows)* table->keys +
-				       length+1,
-				       MYF(MY_WME | MY_ZEROFILL))))
+    ha_rows *rec_per_key;
+    char *tmp_name;
+    DB **key_file;
+    u_int32_t *key_type;
+    
+    if ((share=(BDB_SHARE *)
+	 my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+			 &share, sizeof(*share),
+			 &rec_per_key, table->keys * sizeof(ha_rows),
+			 &tmp_name, length+1,
+			 &key_file, (table->keys+1) * sizeof(*key_file),
+			 &key_type, (table->keys+1) * sizeof(u_int32_t),
+			 NullS)))
     {
-      share->rec_per_key= (ha_rows*) ((char*) share +
-				      ALIGN_SIZE(sizeof(*share)));
-      share->table_name=(char*) (share->rec_per_key+table->keys);
+      share->rec_per_key = rec_per_key;
+      share->table_name = tmp_name;
       share->table_name_length=length;
       strmov(share->table_name,table_name);
+      share->key_file = key_file;
+      share->key_type = key_type;
       if (hash_insert(&bdb_open_tables, (char*) share))
       {
 	pthread_mutex_unlock(&bdb_mutex);
@@ -2044,25 +2054,34 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
       pthread_mutex_init(&share->mutex,NULL);
     }
   }
-  share->use_count++;
   pthread_mutex_unlock(&bdb_mutex);
   return share;
 }
 
-static void free_share(BDB_SHARE *share, TABLE *table)
+static int free_share(BDB_SHARE *share, TABLE *table)
 {
+  int error, result = 0;
   pthread_mutex_lock(&bdb_mutex);
   if (!--share->use_count)
   {
+    DB **key_file = share->key_file;
     update_status(share,table);
-    if (share->status_block)
-      share->status_block->close(share->status_block,0);
+    /* this does share->file->close() implicitly */
+    for (uint i=0; i < table->keys; i++)
+    {
+      if (key_file[i] && (error=key_file[i]->close(key_file[i],0)))
+	result=error;
+    }
+    if (share->status_block &&
+	(error = share->status_block->close(share->status_block,0)))
+      result = error;
     hash_delete(&bdb_open_tables, (gptr) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&bdb_mutex);
+  return result;
 }
 
 /*
