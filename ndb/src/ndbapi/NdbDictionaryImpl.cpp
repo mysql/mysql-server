@@ -621,9 +621,11 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       delete NdbDictionary::Column::FRAGMENT; 
       delete NdbDictionary::Column::ROW_COUNT;
       delete NdbDictionary::Column::COMMIT_COUNT;
+      delete NdbDictionary::Column::ROW_SIZE;
       NdbDictionary::Column::FRAGMENT= 0;
       NdbDictionary::Column::ROW_COUNT= 0;
       NdbDictionary::Column::COMMIT_COUNT= 0;
+      NdbDictionary::Column::ROW_SIZE= 0;
     }
     m_globalHash->unlock();
   } else {
@@ -690,6 +692,8 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 	NdbColumnImpl::create_psuedo("NDB$ROW_COUNT");
       NdbDictionary::Column::COMMIT_COUNT= 
 	NdbColumnImpl::create_psuedo("NDB$COMMIT_COUNT");
+      NdbDictionary::Column::ROW_SIZE=
+	NdbColumnImpl::create_psuedo("NDB$ROW_SIZE");
     }
     m_globalHash->unlock();
     return true;

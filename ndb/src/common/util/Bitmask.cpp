@@ -17,6 +17,7 @@ void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
 }
 
 #ifndef __TEST_BITMASK__
+
 void
 BitmaskImpl::getFieldImpl(const Uint32 src[],
 			  unsigned shiftL, unsigned len, Uint32 dst[])
@@ -32,8 +33,15 @@ BitmaskImpl::getFieldImpl(const Uint32 src[],
     len -= 32;
   }
   
-  * dst++ |= (* src) << shiftL;
-  * dst = ((* src) >> shiftR) & ((1 << len) - 1) & undefined;
+  if(len < shiftR)
+  {
+    * dst |= ((* src) & ((1 << len) - 1)) << shiftL;
+  }
+  else
+  {
+    * dst++ |= ((* src) << shiftL);
+    * dst = ((* src) >> shiftR) & ((1 << (len - shiftR)) - 1) & undefined;
+  }
 }
 
 void
@@ -57,10 +65,16 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
   
   Uint32 mask = ((1 << len) -1);
   * dst = (* dst & ~mask);
-  * dst |= ((* src++) >> shiftL) & mask;
-  * dst |= ((* src) << shiftR) & mask & undefined;
+  if(len < shiftR)
+  {
+    * dst |= ((* src++) >> shiftL) & mask;
+  }
+  else
+  {
+    * dst |= ((* src++) >> shiftL);
+    * dst |= ((* src) & ((1 << (len - shiftR)) - 1)) << shiftR ;
+  }
 }
-
 #else
 
 #define DEBUG 0
@@ -121,7 +135,7 @@ static
 void rand(Uint32 dst[], Uint32 len)
 {
   for(int i = 0; i<len; i++)
-    BitmaskImpl::set((len + 31) >> 5, dst, i,  (lrand() % 1000) > 500);
+    BitmaskImpl::set((len + 31) >> 5, dst, i, (lrand() % 1000) > 500);
 }
 
 static
@@ -135,9 +149,9 @@ void simple(int pos, int size)
   const Uint32 sz = 4 * sz32;
   
   Uint32 zero = 0;
-  _mask.fill(sz32, zero);
-  _src.fill(sz32, zero);
-  _dst.fill(sz32, zero);
+  _mask.fill(sz32+1, zero);
+  _src.fill(sz32+1, zero);
+  _dst.fill(sz32+1, zero);
 
   Uint32 * src = _src.getBase();
   Uint32 * dst = _dst.getBase();
@@ -149,18 +163,18 @@ void simple(int pos, int size)
   rand(src, size);
   BitmaskImpl::setField(sz32, mask, pos, size, src);
   BitmaskImpl::getField(sz32, mask, pos, size, dst);
-  printf("src: "); print(src, size); printf("\n");
-  printf("msk: "); print(mask, sz32 << 5); printf("\n");
-  printf("dst: "); print(dst, size); printf("\n");
-  require(cmp(src, dst, size));
+  printf("src: "); print(src, size+31); printf("\n");
+  printf("msk: "); print(mask, (sz32 << 5) + 31); printf("\n");
+  printf("dst: "); print(dst, size+31); printf("\n");
+  require(cmp(src, dst, size+31));
 };
 
 static void 
 do_test(int bitmask_size)
 {
-#if 0
+#if 1
   simple(rand() % 33, (rand() % 63)+1);
-#else
+//#else
   Vector<Alloc> alloc_list;
   bitmask_size = (bitmask_size + 31) & ~31;
   Uint32 sz32 = (bitmask_size >> 5);
@@ -235,8 +249,10 @@ do_test(int bitmask_size)
 	    !BitmaskImpl::get(sz32, alloc_mask.getBase(), pos+free))
 	free++;
 
-      Uint32 sz = (lrand() % free); 
+      Uint32 sz = 
+	(free <= 64 && ((lrand() % 100) > 80)) ? free : (lrand() % free); 
       sz = sz ? sz : 1;
+      sz = pos + sz == bitmask_size ? sz - 1 : sz;
       Alloc a;
       a.pos = pos;
       a.size = sz;

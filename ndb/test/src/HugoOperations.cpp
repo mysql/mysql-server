@@ -414,15 +414,18 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
     return NDBT_FAILED;
   }
     
+  int len = attr->getLength();
   switch (attr->getType()){
   case NdbDictionary::Column::Bit:
+    len = 4 * ((len + 31) >> 5);
   case NdbDictionary::Column::Char:
   case NdbDictionary::Column::Varchar:
   case NdbDictionary::Column::Binary:
   case NdbDictionary::Column::Varbinary:{
     char buf[8000];
     memset(buf, 0, sizeof(buf));
-    check = pOp->equal( attr->getName(), calc.calcValue(rowId, attrId, 0, buf));
+    check = pOp->equal( attr->getName(), 
+			calc.calcValue(rowId, attrId, 0, buf, len));
     break;
   }
   case NdbDictionary::Column::Int:
@@ -451,16 +454,18 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
 				      int updateId){
   int check = -1;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
-
+  
+  int len = attr->getLength();
   switch (attr->getType()){
   case NdbDictionary::Column::Bit:
+    len = 4 * ((len + 31) >> 5);
   case NdbDictionary::Column::Char:
   case NdbDictionary::Column::Varchar:
   case NdbDictionary::Column::Binary:
   case NdbDictionary::Column::Varbinary:{
     char buf[8000];
     check = pOp->setValue( attr->getName(), 
-			   calc.calcValue(rowId, attrId, updateId, buf));
+			   calc.calcValue(rowId, attrId, updateId, buf, len));
     break;
   }
   case NdbDictionary::Column::Int:{
