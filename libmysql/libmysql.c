@@ -1643,9 +1643,10 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL *mysql, const char *query,
                                    unsigned long query_length)
 {
+  MYSQL_STMT *stmt;
   DBUG_ENTER("mysql_prepare");
 
-  MYSQL_STMT *stmt= mysql_stmt_init(mysql);
+  stmt= mysql_stmt_init(mysql);
   if (stmt && mysql_stmt_prepare(stmt, query, query_length))
   {
     stmt_close(stmt, 0);
