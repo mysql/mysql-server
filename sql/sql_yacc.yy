@@ -2432,7 +2432,8 @@ order_clause:
 	    net_printf(lex->thd, ER_WRONG_USAGE, "UPDATE", "ORDER BY");
 	    YYABORT;
 	  }	
-	  if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
+	  if (lex->select->linkage != GLOBAL_OPTIONS_TYPE &&
+	      lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	  {
 	    net_printf(lex->thd, ER_WRONG_USAGE,
 		       "CUBE/ROLLUP",
@@ -2458,7 +2459,8 @@ limit_clause:
 	| LIMIT ULONG_NUM
 	  {
 	    LEX *lex=Lex;
-	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
+	    if (lex->select->linkage != GLOBAL_OPTIONS_TYPE &&
+	        lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
 		        "LIMIT");
@@ -2471,7 +2473,8 @@ limit_clause:
 	| LIMIT ULONG_NUM ',' ULONG_NUM
 	  {
 	    LEX *lex=Lex;
-	    if (lex->select->olap != UNSPECIFIED_OLAP_TYPE)
+	    if (lex->select->linkage != GLOBAL_OPTIONS_TYPE &&
+                lex->select->olap != UNSPECIFIED_OLAP_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
 		        "LIMIT");

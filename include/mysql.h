@@ -447,7 +447,7 @@ typedef struct st_mysql_stmt
   unsigned long param_count;		/* parameters count */
   unsigned long field_count;		/* fields count */
   unsigned long long_length;		/* long buffer alloced length */
-  ulong		stmt_id;		/* Id for prepared statement */
+  unsigned long	stmt_id;		/* Id for prepared statement */
   uint		last_errno;		/* error code */
   enum MY_STMT_STATE state;		/* statement state */
   char		last_error[MYSQL_ERRMSG_SIZE]; /* error message */
@@ -506,7 +506,7 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 
 my_bool
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       ulong length, my_bool skip_check);
+	       unsigned long length, my_bool skip_check);
 unsigned long net_safe_read(MYSQL* mysql);
 
 #ifdef	__cplusplus
