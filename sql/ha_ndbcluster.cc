@@ -611,58 +611,60 @@ int ha_ndbcluster::get_metadata(const char *path)
 {
   NDBDICT *dict= m_ndb->getDictionary();
   const NDBTAB *tab;
-  const void *data, *pack_data;
-  const char **key_name;
-  uint ndb_columns, mysql_columns, length, pack_length;
   int error;
+  bool invalidating_ndb_table= false;
+
   DBUG_ENTER("get_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, path));
 
-  if (!(tab= dict->getTable(m_tabname)))
-    ERR_RETURN(dict->getNdbError());
-  DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
-  
-  /*
-    This is the place to check that the table we got from NDB
-    is equal to the one on local disk
-  */
-  ndb_columns=   (uint) tab->getNoOfColumns();
-  mysql_columns= table->fields;
-  if (table->primary_key == MAX_KEY)
-    ndb_columns--;
-  if (ndb_columns != mysql_columns)
-  {
-    DBUG_PRINT("error",
-               ("Wrong number of columns, ndb: %d mysql: %d", 
-                ndb_columns, mysql_columns));
-    DBUG_RETURN(HA_ERR_OLD_METADATA);
-  }
-  
-  /*
-    Compare FrmData in NDB with frm file from disk.
-  */
-  error= 0;
-  if (readfrm(path, &data, &length) ||
-      packfrm(data, length, &pack_data, &pack_length))
-  {
-    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
-    DBUG_RETURN(1);
-  }
+  do {
+    const void *data, *pack_data;
+    uint length, pack_length;
+
+    if (!(tab= dict->getTable(m_tabname)))
+      ERR_RETURN(dict->getNdbError());
+    DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
+    /*
+      Compare FrmData in NDB with frm file from disk.
+    */
+    error= 0;
+    if (readfrm(path, &data, &length) ||
+	packfrm(data, length, &pack_data, &pack_length))
+    {
+      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+      DBUG_RETURN(1);
+    }
     
-  if ((pack_length != tab->getFrmLength()) || 
-      (memcmp(pack_data, tab->getFrmData(), pack_length)))
-  {
-    DBUG_PRINT("error", 
-	       ("metadata, pack_length: %d getFrmLength: %d memcmp: %d", 
-		pack_length, tab->getFrmLength(),
-		memcmp(pack_data, tab->getFrmData(), pack_length)));      
-    DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
-    DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
-    error= HA_ERR_OLD_METADATA;
-  }
-  my_free((char*)data, MYF(0));
-  my_free((char*)pack_data, MYF(0));
+    if ((pack_length != tab->getFrmLength()) || 
+	(memcmp(pack_data, tab->getFrmData(), pack_length)))
+    {
+      if (!invalidating_ndb_table)
+      {
+	DBUG_PRINT("info", ("Invalidating table"));
+	dict->invalidateTable(m_tabname);
+	invalidating_ndb_table= true;
+      }
+      else
+      {
+	DBUG_PRINT("error", 
+		   ("metadata, pack_length: %d getFrmLength: %d memcmp: %d", 
+		    pack_length, tab->getFrmLength(),
+		    memcmp(pack_data, tab->getFrmData(), pack_length)));      
+	DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
+	DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
+	error= HA_ERR_OLD_METADATA;
+	invalidating_ndb_table= false;
+      }
+    }
+    else
+    {
+      invalidating_ndb_table= false;
+    }
+    my_free((char*)data, MYF(0));
+    my_free((char*)pack_data, MYF(0));
+  } while (invalidating_ndb_table);
+
   if (error)
     DBUG_RETURN(error);
 
