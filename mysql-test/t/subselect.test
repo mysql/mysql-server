@@ -805,3 +805,14 @@ INSERT INTO t1 VALUES("2f6161e879db43c1a5b82c21ddc49089", "Default", "System", "
 INSERT INTO t1 VALUES("c373e9f5ad0791724315444553544200", "AddDocumentTest", "admin", "2003-06-09 10:51:25", "Movie Reviews", "0", "2003-06-09 10:51:25", "admin", "0", "2f6161e879db43c1a5b82c21ddc49089", "03eea05112b845949f3fd03278b5fe43", NULL);
 SELECT 'c373e9f5ad0791a0dab5444553544200' IN(SELECT t1.FOLDERID FROM t1 WHERE t1.PARENTID='2f6161e879db43c1a5b82c21ddc49089' AND t1.FOLDERNAME = 'Level1');
 drop table t1;
+#
+# alloc_group_fields() working
+#
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+create table t3 (a int, b int);
+insert into t1 values (0,100),(1,2), (1,3), (2,2), (2,7), (2,-1), (3,10);
+insert into t2 values (0,0), (1,1), (2,1), (3,1), (4,1);
+insert into t3 values (3,3), (2,2), (1,1); 
+select a,(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1) from t3;
+drop table t1,t2,t3;s
