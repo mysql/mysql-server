@@ -739,7 +739,7 @@ bool do_command(THD *thd)
       kill_zombie_dump_threads(slave_server_id = uint4korr(packet+7));
       thd->server_id = slave_server_id;
       pthread_mutex_unlock(&LOCK_server_id);
-      mysql_binlog_send(thd, strdup(packet + 11), pos, flags);
+      mysql_binlog_send(thd, thd->strdup(packet + 11), pos, flags);
       // fake COM_QUIT -- if we get here, the thread needs to terminate
       error = TRUE;
       net->error = 0;
