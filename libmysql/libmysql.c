@@ -4518,17 +4518,17 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   if (mysql)
   {
     mysql->stmts= list_delete(mysql->stmts, &stmt->list);
+    /*
+      Clear NET error state: if the following commands come through
+      successfully, connection will still be usable for other commands.
+    */
+    net_clear_error(&mysql->net);
     if ((int) stmt->state > (int) MYSQL_STMT_INIT_DONE)
     {
       char buff[MYSQL_STMT_HEADER];             /* 4 bytes - stmt id */
 
       if (mysql->unbuffered_fetch_owner == &stmt->unbuffered_fetch_cancelled)
         mysql->unbuffered_fetch_owner= 0;
-      /*
-        Clear NET error state: if the following commands come through
-        successfully, connection will still be usable for other commands.
-      */
-      net_clear_error(&mysql->net);
       if (mysql->status != MYSQL_STATUS_READY)
       {
         /*
