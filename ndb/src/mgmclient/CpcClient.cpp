@@ -478,9 +478,9 @@ SimpleCpcClient::connect() {
   if (::connect(cpc_sock, (struct sockaddr*) &sa, sizeof(sa)) < 0)
     return -1;
 
-  cpc_in = new SocketInputStream(cpc_sock);
+  cpc_in = new SocketInputStream(cpc_sock, 60000);
   cpc_out = new SocketOutputStream(cpc_sock);
-
+  
   return 0;
 }
 
@@ -557,4 +557,6 @@ SimpleCpcClient::cpc_call(const char *cmd,
 SimpleCpcClient::ParserDummy::ParserDummy(NDB_SOCKET_TYPE sock)
   : SocketServer::Session(sock) {
 }
-  
+ 
+template class Vector<SimpleCpcClient::Process>; 
+template class Vector<ParserRow<SimpleCpcClient::ParserDummy> const*>;

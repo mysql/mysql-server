@@ -27,13 +27,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST * view);
 
 void insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
-enum frm_type_enum
-{
-  FRMTYPE_ERROR,
-  FRMTYPE_TABLE,
-  FRMTYPE_VIEW
-};
-
 frm_type_enum mysql_frm_type(char *path);
 
 extern TYPELIB sql_updatable_view_key_typelib;

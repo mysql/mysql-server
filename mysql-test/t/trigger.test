@@ -1,0 +1,195 @@
+#
+# Basic triggers test
+#
+
+--disable_warnings
+drop table if exists t1, t2;
+drop view if exists v1;
+--enable_warnings
+
+create table t1 (i int);
+
+# let us test some very simple trigger
+create trigger trg before insert on t1 for each row set @a:=1;
+set @a:=0;
+select @a;
+insert into t1 values (1);
+select @a;
+drop trigger t1.trg;
+
+# let us test simple trigger reading some values 
+create trigger trg before insert on t1 for each row set @a:=new.i;
+insert into t1 values (123);
+select @a;
+drop trigger t1.trg;
+
+drop table t1;
+
+# Let us test before insert trigger
+# Such triggers can be used for setting complex default values
+create table t1 (i int not null, j int);
+delimiter |;
+create trigger trg before insert on t1 for each row 
+begin 
+  if isnull(new.j) then
+    set new.j:= new.i * 10;
+  end if;
+end|
+insert into t1 (i) values (1)|
+insert into t1 (i,j) values (2, 3)|
+select * from t1|
+drop trigger t1.trg|
+drop table t1|
+delimiter ;|
+
+# After insert trigger
+# Useful for aggregating data
+create table t1 (i int not null primary key);
+create trigger trg after insert on t1 for each row 
+  set @a:= if(@a,concat(@a, ":", new.i), new.i);
+set @a:="";
+insert into t1 values (2),(3),(4),(5);
+select @a;
+drop trigger t1.trg;
+drop table t1;
+
+# Before update trigger
+# (In future we will achieve this via proper error handling in triggers)
+create table t1 (aid int not null primary key, balance int not null default 0);
+insert into t1 values (1, 1000), (2,3000);
+delimiter |;
+create trigger trg before update on t1 for each row 
+begin
+  declare loc_err varchar(255);
+  if abs(new.balance - old.balance) > 1000 then
+    set new.balance:= old.balance;
+    set loc_err := concat("Too big change for aid = ", new.aid);
+    set @update_failed:= if(@update_failed, concat(@a, ":", loc_err), loc_err);
+  end if;
+end|
+set @update_failed:=""|
+update t1 set balance=1500|
+select @update_failed;
+select * from t1|
+drop trigger t1.trg|
+drop table t1|
+delimiter ;|
+
+# After update trigger
+create table t1 (i int);
+insert into t1 values (1),(2),(3),(4);
+create trigger trg after update on t1 for each row 
+  set @total_change:=@total_change + new.i - old.i;
+set @total_change:=0;
+update t1 set i=3;
+select @total_change;
+drop trigger t1.trg;
+drop table t1;
+
+# Before delete trigger
+# This can be used for aggregation too :)
+create table t1 (i int);
+insert into t1 values (1),(2),(3),(4);
+create trigger trg before delete on t1 for each row 
+  set @del_sum:= @del_sum + old.i;
+set @del_sum:= 0;
+delete from t1 where i <= 3;
+select @del_sum;
+drop trigger t1.trg;
+drop table t1;
+
+# After delete trigger. 
+# Just run out of imagination.
+create table t1 (i int);
+insert into t1 values (1),(2),(3),(4);
+create trigger trg after delete on t1 for each row set @del:= 1;
+set @del:= 0;
+delete from t1 where i <> 0;
+select @del;
+drop trigger t1.trg;
+drop table t1;
+
+# Several triggers on one table
+create table t1 (i int, j int);
+
+delimiter |;
+create trigger trg1 before insert on t1 for each row 
+begin
+  if new.j > 10 then
+    set new.j := 10;
+  end if;
+end|
+create trigger trg2 before update on t1 for each row 
+begin
+  if old.i % 2 = 0 then
+    set new.j := -1;
+  end if;
+end|
+create trigger trg3 after update on t1 for each row 
+begin
+  if new.j = -1 then
+    set @fired:= "Yes";
+  end if;
+end|
+delimiter ;|
+set @fired:="";
+insert into t1 values (1,2),(2,3),(3,14);
+select @fired;
+select * from t1;
+update t1 set j= 20;
+select @fired;
+select * from t1;
+
+drop trigger t1.trg1;
+drop trigger t1.trg2;
+drop trigger t1.trg3;
+drop table t1;
+
+
+#
+# Test of wrong column specifiers in triggers
+#
+create table t1 (i int);
+
+--error 1363
+create trigger trg before insert on t1 for each row set @a:= old.i;
+--error 1363
+create trigger trg before delete on t1 for each row set @a:= new.i;
+--error 1362
+create trigger trg before update on t1 for each row set old.i:=1;
+--error 1363
+create trigger trg before delete on t1 for each row set new.i:=1;
+--error 1362
+create trigger trg after update on t1 for each row set new.i:=1;
+# TODO: We should also test wrong field names here, we don't do it now
+#       because proper error handling is not in place yet.
+
+
+#
+# Let us test various trigger creation errors
+#
+#
+--error 1146
+create trigger trg before insert on t2 for each row set @a:=1;
+
+create trigger trg before insert on t1 for each row set @a:=1;
+--error 1359
+create trigger trg after insert on t1 for each row set @a:=1;
+--error 1359
+create trigger trg2 before insert on t1 for each row set @a:=1;
+drop trigger t1.trg;
+
+--error 1360
+drop trigger t1.trg;
+
+create view v1 as select * from t1;
+--error 1361
+create trigger trg before insert on v1 for each row set @a:=1;
+drop view v1;
+
+drop table t1;
+
+create temporary table t1 (i int);
+--error 1361
+create trigger trg before insert on t1 for each row set @a:=1;
+drop table t1;

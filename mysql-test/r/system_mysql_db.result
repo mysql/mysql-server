@@ -19,77 +19,77 @@ user	BASE TABLE
 show create table db;
 Table	Create Table
 db	CREATE TABLE `db` (
-  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
-  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
-  `Select_priv` enum('N','Y') NOT NULL default 'N',
-  `Insert_priv` enum('N','Y') NOT NULL default 'N',
-  `Update_priv` enum('N','Y') NOT NULL default 'N',
-  `Delete_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_priv` enum('N','Y') NOT NULL default 'N',
-  `Drop_priv` enum('N','Y') NOT NULL default 'N',
-  `Grant_priv` enum('N','Y') NOT NULL default 'N',
-  `References_priv` enum('N','Y') NOT NULL default 'N',
-  `Index_priv` enum('N','Y') NOT NULL default 'N',
-  `Alter_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
-  `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
-  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Host` char(60) collate utf8_bin NOT NULL default '',
+  `Db` char(64) collate utf8_bin NOT NULL default '',
+  `User` char(16) collate utf8_bin NOT NULL default '',
+  `Select_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Insert_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Update_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Delete_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Drop_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Grant_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `References_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Index_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Alter_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_tmp_table_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Lock_tables_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`,`User`),
   KEY `User` (`User`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Database privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Database privileges'
 show create table host;
 Table	Create Table
 host	CREATE TABLE `host` (
-  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
-  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `Select_priv` enum('N','Y') NOT NULL default 'N',
-  `Insert_priv` enum('N','Y') NOT NULL default 'N',
-  `Update_priv` enum('N','Y') NOT NULL default 'N',
-  `Delete_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_priv` enum('N','Y') NOT NULL default 'N',
-  `Drop_priv` enum('N','Y') NOT NULL default 'N',
-  `Grant_priv` enum('N','Y') NOT NULL default 'N',
-  `References_priv` enum('N','Y') NOT NULL default 'N',
-  `Index_priv` enum('N','Y') NOT NULL default 'N',
-  `Alter_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
-  `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
-  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Host` char(60) collate utf8_bin NOT NULL default '',
+  `Db` char(64) collate utf8_bin NOT NULL default '',
+  `Select_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Insert_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Update_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Delete_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Drop_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Grant_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `References_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Index_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Alter_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_tmp_table_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Lock_tables_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Host privileges;  Merged with database privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Host privileges;  Merged with database privileges'
 show create table user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` varchar(60) character set latin1 collate latin1_bin NOT NULL default '',
-  `User` varchar(16) character set latin1 collate latin1_bin NOT NULL default '',
-  `Password` varchar(41) character set latin1 collate latin1_bin NOT NULL default '',
-  `Select_priv` enum('N','Y') NOT NULL default 'N',
-  `Insert_priv` enum('N','Y') NOT NULL default 'N',
-  `Update_priv` enum('N','Y') NOT NULL default 'N',
-  `Delete_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_priv` enum('N','Y') NOT NULL default 'N',
-  `Drop_priv` enum('N','Y') NOT NULL default 'N',
-  `Reload_priv` enum('N','Y') NOT NULL default 'N',
-  `Shutdown_priv` enum('N','Y') NOT NULL default 'N',
-  `Process_priv` enum('N','Y') NOT NULL default 'N',
-  `File_priv` enum('N','Y') NOT NULL default 'N',
-  `Grant_priv` enum('N','Y') NOT NULL default 'N',
-  `References_priv` enum('N','Y') NOT NULL default 'N',
-  `Index_priv` enum('N','Y') NOT NULL default 'N',
-  `Alter_priv` enum('N','Y') NOT NULL default 'N',
-  `Show_db_priv` enum('N','Y') NOT NULL default 'N',
-  `Super_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
-  `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
-  `Execute_priv` enum('N','Y') NOT NULL default 'N',
-  `Repl_slave_priv` enum('N','Y') NOT NULL default 'N',
-  `Repl_client_priv` enum('N','Y') NOT NULL default 'N',
-  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
-  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
-  `ssl_type` enum('','ANY','X509','SPECIFIED') NOT NULL default '',
+  `Host` varchar(60) collate utf8_bin NOT NULL default '',
+  `User` varchar(16) collate utf8_bin NOT NULL default '',
+  `Password` varchar(41) collate utf8_bin NOT NULL default '',
+  `Select_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Insert_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Update_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Delete_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Drop_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Reload_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Shutdown_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Process_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `File_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Grant_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `References_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Index_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Alter_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Show_db_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Super_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_tmp_table_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Lock_tables_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Execute_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Repl_slave_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Repl_client_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
+  `ssl_type` enum('','ANY','X509','SPECIFIED') collate utf8_bin NOT NULL default '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
   `x509_subject` blob NOT NULL,
@@ -97,41 +97,41 @@ user	CREATE TABLE `user` (
   `max_updates` int(11) unsigned NOT NULL default '0',
   `max_connections` int(11) unsigned NOT NULL default '0',
   PRIMARY KEY  (`Host`,`User`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Users and global privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Users and global privileges'
 show create table func;
 Table	Create Table
 func	CREATE TABLE `func` (
-  `name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
+  `name` char(64) collate utf8_bin NOT NULL default '',
   `ret` tinyint(1) NOT NULL default '0',
-  `dl` char(128) NOT NULL default '',
-  `type` enum('function','aggregate') NOT NULL default 'function',
+  `dl` char(128) collate utf8_bin NOT NULL default '',
+  `type` enum('function','aggregate') collate utf8_bin NOT NULL default 'function',
   PRIMARY KEY  (`name`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='User defined functions'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User defined functions'
 show create table tables_priv;
 Table	Create Table
 tables_priv	CREATE TABLE `tables_priv` (
-  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
-  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
-  `Table_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `Grantor` char(77) NOT NULL default '',
+  `Host` char(60) collate utf8_bin NOT NULL default '',
+  `Db` char(64) collate utf8_bin NOT NULL default '',
+  `User` char(16) collate utf8_bin NOT NULL default '',
+  `Table_name` char(64) collate utf8_bin NOT NULL default '',
+  `Grantor` char(77) collate utf8_bin NOT NULL default '',
   `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') NOT NULL default '',
-  `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
+  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') collate utf8_bin NOT NULL default '',
+  `Column_priv` set('Select','Insert','Update','References') collate utf8_bin NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`),
   KEY `Grantor` (`Grantor`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Table privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Table privileges'
 show create table columns_priv;
 Table	Create Table
 columns_priv	CREATE TABLE `columns_priv` (
-  `Host` char(60) character set latin1 collate latin1_bin NOT NULL default '',
-  `Db` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `User` char(16) character set latin1 collate latin1_bin NOT NULL default '',
-  `Table_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
-  `Column_name` char(64) character set latin1 collate latin1_bin NOT NULL default '',
+  `Host` char(60) collate utf8_bin NOT NULL default '',
+  `Db` char(64) collate utf8_bin NOT NULL default '',
+  `User` char(16) collate utf8_bin NOT NULL default '',
+  `Table_name` char(64) collate utf8_bin NOT NULL default '',
+  `Column_name` char(64) collate utf8_bin NOT NULL default '',
   `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
+  `Column_priv` set('Select','Insert','Update','References') collate utf8_bin NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Column privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Column privileges'
 show tables;
 Tables_in_test	table_type

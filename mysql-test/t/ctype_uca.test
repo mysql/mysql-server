@@ -176,7 +176,7 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_turkish_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_czech_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_danish_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_lithuanian_ci;
---select group_concat(c1 order by c1) from t1 group by c1 collate utf8_slovak_ci;
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_slovak_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
 

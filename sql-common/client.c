@@ -133,6 +133,7 @@ static void mysql_close_free(MYSQL *mysql);
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
+
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
   a timeout value, in seconds, that we should wait until we
@@ -723,7 +724,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   Flush result set sent from server
 */
 
-void flush_use_result(MYSQL *mysql)
+static void cli_flush_use_result(MYSQL *mysql)
 {
   /* Clear the current execution status */
   DBUG_PRINT("warning",("Not all packets read, clearing them"));
@@ -842,7 +843,7 @@ mysql_free_result(MYSQL_RES *result)
         mysql->unbuffered_fetch_owner= 0;
       if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-        flush_use_result(mysql);
+        (*mysql->methods->flush_use_result)(mysql);
         mysql->status=MYSQL_STATUS_READY;
       }
     }
@@ -1037,7 +1038,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	    options->client_flag&= ~CLIENT_LOCAL_FILES;
 	  break;
 	case 22:
-	  options->client_flag&= CLIENT_LOCAL_FILES;
+	  options->client_flag&= ~CLIENT_LOCAL_FILES;
           break;
 	case 23:  /* replication probe */
 #ifndef TO_BE_DELETED
@@ -1057,9 +1058,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
         case 28:		/* protocol */
-          if ((options->protocol = find_type(opt_arg,
-					     &sql_protocol_typelib,0))
-	      == ~(ulong) 0)
+          if ((options->protocol= find_type(opt_arg,
+					    &sql_protocol_typelib,0)) <= 0)
           {
             fprintf(stderr, "Unknown option to protocol: %s\n", opt_arg);
             exit(1);
@@ -1493,7 +1493,8 @@ static MYSQL_METHODS client_methods=
   cli_advanced_command,
   cli_read_rows,
   cli_use_result,
-  cli_fetch_lengths
+  cli_fetch_lengths,
+  cli_flush_use_result
 #ifndef MYSQL_SERVER
   ,cli_list_fields,
   cli_read_prepare_result,

@@ -73,21 +73,17 @@ Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
   thd->lex->safe_to_cache_query= 0;
-  return new Item_int(NullS,(longlong)
-                      ((thd->slave_thread) ?
-                       thd->variables.pseudo_thread_id :
-                       thd->thread_id),
-                      10);
-} 
+  return new Item_static_int_func("connection_id()",
+                                  (longlong)
+                                  ((thd->slave_thread) ?
+                                   thd->variables.pseudo_thread_id :
+                                   thd->thread_id),
+                                  10);
+}
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
 {
   return new Item_func_conv(a,b,c);
-}
-
-Item *create_func_convert_tz(Item* a, Item *b, Item *c)
-{
-  return new Item_func_convert_tz(a,b,c);
 }
 
 Item *create_func_cos(Item* a)
@@ -293,7 +289,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_real("pi()",M_PI,6,8);
+  return new Item_static_real_func("pi()", M_PI, 6, 8);
 }
 
 Item *create_func_pow(Item* a, Item *b)
@@ -309,8 +305,9 @@ Item *create_func_current_user()
 
   length= (uint) (strxmov(buff, thd->priv_user, "@", thd->priv_host, NullS) -
 		  buff);
-  return new Item_string(NullS, thd->memdup(buff, length), length,
-			 system_charset_info);
+  return new Item_static_string_func("current_user()",
+                                     thd->memdup(buff, length), length,
+                                     system_charset_info);
 }
 
 Item *create_func_radians(Item *a)
@@ -434,7 +431,7 @@ Item *create_func_uuid(void)
 
 Item *create_func_version(void)
 {
-  return new Item_string(NullS,server_version, 
+  return new Item_static_string_func("version()", server_version,
 			 (uint) strlen(server_version),
 			 system_charset_info, DERIVATION_IMPLICIT);
 }

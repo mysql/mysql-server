@@ -47,7 +47,8 @@ dyn_array_open(
 /*===========*/
 				/* out: pointer to the buffer */
 	dyn_array_t*	arr,	/* in: dynamic array */
-	ulint		size);	/* in: size in bytes of the buffer */
+	ulint		size);	/* in: size in bytes of the buffer; MUST be
+				smaller than DYN_ARRAY_DATA_SIZE! */
 /*************************************************************************
 Closes the buffer returned by dyn_array_open. */
 UNIV_INLINE

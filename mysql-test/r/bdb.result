@@ -146,7 +146,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	level	level	1	const	1	Using index
 explain select level,id,parent_id from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	level	level	1	const	1	Using where
+1	SIMPLE	t1	ref	level	level	1	const	1	
 select level,id from t1 where level=1;
 level	id
 1	1002

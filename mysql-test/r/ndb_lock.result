@@ -1,0 +1,30 @@
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+create table t1 (x integer not null primary key, y varchar(32)) engine = ndb;
+insert into t1 values (1,'one'), (2,'two');
+select * from t1 order by x;
+x	y
+1	one
+2	two
+select * from t1 order by x;
+x	y
+1	one
+2	two
+start transaction;
+insert into t1 values (3,'three');
+select * from t1 order by x;
+x	y
+1	one
+2	two
+3	three
+start transaction;
+select * from t1 order by x;
+x	y
+1	one
+2	two
+commit;
+select * from t1 order by x;
+x	y
+1	one
+2	two
+3	three
+commit;

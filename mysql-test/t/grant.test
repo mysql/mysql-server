@@ -175,6 +175,22 @@ DROP DATABASE ÂÄ;
 SET NAMES latin1;
 
 #
+# Bug #4898: User privileges depending on ORDER BY Settings of table db
+#
+insert into mysql.user (host, user) values ('localhost', 'test11');
+insert into mysql.db (host, db, user, select_priv) values 
+('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
+alter table mysql.db order by db asc;
+flush privileges;
+show grants for test11@localhost;
+alter table mysql.db order by db desc;
+flush privileges;
+show grants for test11@localhost;
+delete from mysql.user where user='test11';
+delete from mysql.db where user='test11';
+
+
+#
 # just SHOW PRIVILEGES test
 #
 SHOW PRIVILEGES;

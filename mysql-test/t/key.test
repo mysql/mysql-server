@@ -97,7 +97,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (name,author,category)
 );
 INSERT INTO t1 VALUES
-('patnom','patauteur',0,'p.favre@cryo-networks.fr',NULL,NULL,'#p2sndnq6ae5g1u6t','essai\nsalut','scol://195.242.78.119:patauteur.patnom',NULL,NULL,NULL,950036174,-882087474,NULL,3,0,3,'1','Pub/patnom/futur_divers.scs',NULL,'pat','CC1');
+('patnom','patauteur',0,'p.favre@cryo-networks.fr',NULL,NULL,'#p2sndnq6ae5g1u6t','essai salut','scol://195.242.78.119:patauteur.patnom',NULL,NULL,NULL,950036174,-882087474,NULL,3,0,3,'1','Pub/patnom/futur_divers.scs',NULL,'pat','CC1');
 INSERT INTO t1 VALUES
 ('LeNomDeMonSite','Marc',0,'m.barilley@cryo-networks.fr',NULL,NULL,NULL,NULL,'scol://195.242.78.119:Marc.LeNomDeMonSite',NULL,NULL,NULL,950560434,-881563214,NULL,3,0,3,'1','Pub/LeNomDeMonSite/domus_hibere.scs',NULL,'Marq','CC1');
 select * from t1 where name='patnom' and author='patauteur' and category=0;
@@ -129,7 +129,11 @@ create table t2
 INSERT t2 select * from t1;
 SELECT * FROM t2 WHERE name='[T,U]_axpy';
 SELECT * FROM t2 WHERE name='[T,U]_axpby';
-drop table t1,t2;
+# Test possible problems with warnings in CREATE ... SELECT
+CREATE TABLE t3 SELECT * FROM t2 WHERE name='[T,U]_axpby';
+SELECT * FROM t2 WHERE name='[T,U]_axpby';
+
+drop table t1,t2,t3;
 
 #
 # Test bug with long primary key
@@ -228,3 +232,27 @@ EXPLAIN SELECT numeropost FROM t1 WHERE numreponse='1';
 FLUSH TABLES;
 SELECT numeropost FROM t1 WHERE numreponse='1';
 drop table t1;
+
+#
+# UNIQUE prefix keys and multi-byte charsets
+#
+
+create table t1 (c varchar(30) character set utf8, t text character set utf8, unique (c(2)), unique (t(3))) engine=myisam;
+show create table t1;
+insert t1 values ('cccc', 'tttt'),
+  (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
+  (0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
+--error 1062
+insert t1 (c) values ('cc22');
+--error 1062
+insert t1 (t) values ('ttt22');
+--error 1062
+insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
+--error 1062
+insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
+select c from t1 where c='cccc';
+select t from t1 where t='tttt';
+select c from t1 where c=0xD0B1212223D0B1D0B1D0B1D0B1D0B1;
+select t from t1 where t=0xD0B1D0B1212223D0B1D0B1D0B1D0B1;
+drop table t1;
+

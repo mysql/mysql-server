@@ -30,17 +30,15 @@
 #define NdbResultSet_H
 
 
-#include <NdbCursorOperation.hpp>
-#include <NdbIndexOperation.hpp>
 #include <NdbScanOperation.hpp>
 
 /**
  * @class NdbResultSet
- * @brief NdbResultSet contains a NdbCursorOperation.
+ * @brief NdbResultSet contains a NdbScanOperation.
  */
 class NdbResultSet
 {
-  friend class NdbCursorOperation;
+  friend class NdbScanOperation;
 
 public:
   
@@ -93,22 +91,62 @@ public:
    */
   int nextResult(bool fetchAllowed = true);
 
+  /**
+   * Close result set (scan)
+   */
   void close();
 
-  NdbOperation* updateTuple();
-  NdbOperation* updateTuple(NdbConnection* takeOverTransaction);
+  /**
+   * Restart
+   */
+  int restart();
   
+  /**
+   * Transfer scan operation to an updating transaction. Use this function 
+   * when a scan has found a record that you want to update. 
+   * 1. Start a new transaction.
+   * 2. Call the function takeOverForUpdate using your new transaction 
+   *    as parameter, all the properties of the found record will be copied 
+   *    to the new transaction.
+   * 3. When you execute the new transaction, the lock held by the scan will 
+   *    be transferred to the new transaction(it's taken over).
+   *
+   * @note You must have started the scan with openScanExclusive
+   *       to be able to update the found tuple.
+   *
+   * @param updateTrans the update transaction connection.
+   * @return an NdbOperation or NULL.
+   */
+  NdbOperation* updateTuple();
+  NdbOperation*	updateTuple(NdbConnection* updateTrans);
+
+  /**
+   * Transfer scan operation to a deleting transaction. Use this function 
+   * when a scan has found a record that you want to delete. 
+   * 1. Start a new transaction.
+   * 2. Call the function takeOverForDelete using your new transaction 
+   *    as parameter, all the properties of the found record will be copied 
+   *    to the new transaction.
+   * 3. When you execute the new transaction, the lock held by the scan will 
+   *    be transferred to the new transaction(its taken over).
+   *
+   * @note You must have started the scan with openScanExclusive
+   *       to be able to delete the found tuple.
+   *
+   * @param deleteTrans the delete transaction connection.
+   * @return an NdbOperation or NULL.
+   */
   int deleteTuple();
   int deleteTuple(NdbConnection* takeOverTransaction);
   
 private:
-  NdbResultSet(NdbCursorOperation*);
+  NdbResultSet(NdbScanOperation*);
 
   ~NdbResultSet();
 
   void init();
 
-  NdbCursorOperation* m_operation;
+  NdbScanOperation* m_operation;
 };
 
 #endif

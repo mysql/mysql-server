@@ -71,6 +71,18 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #
+# Bug#
+# CREATE TABLE and CREATE DATABASE didn't fail in some cases
+#
+--error 1302
+create table t1 (a char) character set latin1 character set latin2;
+--error 1253
+create table t1 (a char) character set latin1 collate latin2_bin;
+--error 1302
+create database d1 default character set latin1 character set latin2;
+--error 1253
+create database d1 default character set latin1 collate latin2_bin; 
+
 #
 #
 DROP DATABASE mysqltest1;

@@ -85,6 +85,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
+  SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -249,12 +250,6 @@ protected:
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
-  enum enum_parsing_place
-  {
-    NO_MATTER,
-    IN_HAVING,
-    SELECT_LIST
-  };
 
   ulong options;
   /*
@@ -608,6 +603,15 @@ struct st_sp_chistics
   bool detistic;
 };
 
+
+struct st_trg_chistics
+{
+  enum trg_action_time_type action_time;
+  enum trg_event_type event;
+};
+
+extern sys_var_long_ptr trg_new_row_fake_var;
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -639,8 +643,13 @@ typedef struct st_lex
   THD *thd;
   CHARSET_INFO *charset;
   TABLE_LIST *query_tables;	/* global list of all tables in this query */
-  /* last element next_global of previous list */
+  /*
+    last element next_global of previous list (used only for list building
+    during parsing and VIEW processing. This pointer is not valid in
+    mysql_execute_command
+  */
   TABLE_LIST **query_tables_last;
+  TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -700,6 +709,12 @@ typedef struct st_lex
   bool prepared_stmt_code_is_varref;
   /* Names of user variables holding parameters (in EXECUTE) */
   List<LEX_STRING> prepared_stmt_params; 
+  /*
+    If points to fake_time_zone_tables_list indicates that time zone
+    tables are implicitly used by statement, also is used for holding
+    list of those tables after they are opened.
+  */
+  TABLE_LIST *time_zone_tables_used;
   sp_head *sphead;
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
@@ -712,8 +727,16 @@ typedef struct st_lex
     rexecuton
   */
   bool empty_field_list_on_rset;
+  /* Characterstics of trigger being created */
+  st_trg_chistics trg_chistics;
+  /*
+    Points to table being opened when we are parsing trigger definition
+    while opening table. 0 if we are parsing user provided CREATE TRIGGER
+    or any other statement. Used for NEW/OLD row field lookup in trigger.
+  */
+  TABLE *trg_table;
 
-  st_lex()
+  st_lex() :result(0)
   {
     bzero((char *)&spfuns, sizeof(spfuns));
   }
@@ -746,12 +769,19 @@ typedef struct st_lex
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
+  inline void add_to_query_tables(TABLE_LIST *table)
+  {
+    *(table->prev_global= query_tables_last)= table;
+    query_tables_last= &table->next_global;
+  }
 
   bool can_be_merged();
   bool can_use_merged();
+  bool can_not_use_merged();
   bool only_view_structure();
 } LEX;
 
+extern TABLE_LIST fake_time_zone_tables_list;
 struct st_lex_local: public st_lex
 {
   static void *operator new(size_t size)

@@ -497,6 +497,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   TABLE *table;
   Protocol *protocol= thd->protocol;
   TIME time;
+  int res;
   DBUG_ENTER("mysqld_extend_show_tables");
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
@@ -554,13 +555,18 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     table_list.select_lex= &thd->lex->select_lex;
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, file_name);
-    if (open_and_lock_tables(thd, &table_list))
+    if ((res= open_and_lock_tables(thd, &table_list)))
     {
       for (uint i=2 ; i < field_list.elements ; i++)
         protocol->store_null();
-      // Send error to Comment field
-      protocol->store(thd->net.last_error, system_charset_info);
-      thd->clear_error();
+      // Send error to Comment field if possible
+      if (res < 0)
+      {
+        protocol->store(thd->net.last_error, system_charset_info);
+        thd->clear_error();
+      }
+      else
+        DBUG_RETURN(1);
     }
     else if (table_list.view)
     {
@@ -693,16 +699,19 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   TABLE *table;
   handler *file;
   char tmp[MAX_FIELD_WIDTH];
+  char tmp1[MAX_FIELD_WIDTH];
   Item *item;
   Protocol *protocol= thd->protocol;
+  int res;
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
   table_list->lock_type= TL_UNLOCK;
-  if (open_and_lock_tables(thd, table_list))
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
-    send_error(thd);
+    if (res < 0)
+      send_error(thd);
     DBUG_RETURN(1);
   }
   table= table_list->table;
@@ -779,9 +788,24 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         else if (field->unireg_check != Field::NEXT_NUMBER &&
                  !field->is_null())
         {                                               // Not null by default
+          /*
+            Note: we have to convert the default value into
+            system_charset_info before sending.
+            This is necessary for "SET NAMES binary":
+            If the client character set is binary, we want to
+            send metadata in UTF8 rather than in the column's
+            character set.
+            This conversion also makes "SHOW COLUMNS" and
+            "SHOW CREATE TABLE" output consistent. Without
+            this conversion the default values were displayed
+            differently.
+          */
+          String def(tmp1,sizeof(tmp1), system_charset_info);
           type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type);
-          protocol->store(type.ptr(),type.length(),type.charset());
+          def.copy(type.ptr(), type.length(), type.charset(), 
+                   system_charset_info);
+          protocol->store(def.ptr(), def.length(), def.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
                  field->maybe_null())
@@ -836,14 +860,16 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
+  int res;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
   /* Only one table for now, but VIEW can involve several tables */
-  if (open_and_lock_tables(thd, table_list))
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
-    send_error(thd);
+    if (res < 0)
+      send_error(thd);
     DBUG_RETURN(1);
   }
   /* TODO: add environment variables show when it become possible */
@@ -853,6 +879,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
              table_list->real_name, "VIEW");
     DBUG_RETURN(-1);
   }
+
   table= table_list->table;
 
   if ((table_list->view ?
@@ -861,10 +888,19 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
 
   List<Item> field_list;
-  field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  // 1024 is for not to confuse old clients
-  field_list.push_back(new Item_empty_string("Create Table",
-					     max(buffer.length(),1024)));
+  if (table_list->view)
+  {
+    field_list.push_back(new Item_empty_string("View",NAME_LEN));
+    field_list.push_back(new Item_empty_string("Create View",
+                                               max(buffer.length(),1024)));
+  }
+  else
+  {
+    field_list.push_back(new Item_empty_string("Table",NAME_LEN));
+    // 1024 is for not to confuse old clients
+    field_list.push_back(new Item_empty_string("Create Table",
+                                               max(buffer.length(),1024)));
+  }
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1114,14 +1150,19 @@ void
 mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 {
   TABLE *table;
+  int res;
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->real_name));
 
-  if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
+  table_list->lock_type= TL_UNLOCK;
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
-    send_error(thd);
+    if (res < 0)
+      send_error(thd);
     DBUG_VOID_RETURN;
   }
+  table= table_list->table;
+
   List<Item> field_list;
 
   Field **ptr,*field;
@@ -1565,19 +1606,19 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
   buff->append("CREATE ", 7);
-  if(!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
-                          table->algorithm == VIEW_ALGORITHM_TMEPTABLE))
+  if (!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
+                           table->algorithm == VIEW_ALGORITHM_TMPTABLE))
   {
     buff->append("ALGORITHM=", 10);
-    if (table->algorithm == VIEW_ALGORITHM_TMEPTABLE)
-      buff->append("TMPTABLE ", 9);
+    if (table->algorithm == VIEW_ALGORITHM_TMPTABLE)
+      buff->append("TEMPTABLE ", 10);
     else
       buff->append("MERGE ", 6);
   }
   buff->append("VIEW ", 5);
-  buff->append(table->view_db.str, table->view_db.length);
+  append_identifier(thd, buff, table->view_db.str, table->view_db.length);
   buff->append('.');
-  buff->append(table->view_name.str, table->view_name.length);
+  append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
   buff->append(table->query.str, table->query.length);
   return 0;
@@ -1843,7 +1884,8 @@ err:
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type,
-		pthread_mutex_t *mutex)
+		pthread_mutex_t *mutex,
+		struct system_status_var *status_var)
 {
   char buff[1024];
   List<Item> field_list;
@@ -1881,6 +1923,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
       pos= end= buff;
       switch (show_type) {
+      case SHOW_LONG_STATUS:
+      case SHOW_LONG_CONST_STATUS:
+	value= ((char *) status_var + (uint) value);
+	  /* fall through */
       case SHOW_LONG:
       case SHOW_LONG_CONST:
 	end= int10_to_str(*(long*) value, buff, 10);
@@ -2149,6 +2195,31 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   pthread_mutex_unlock(mutex);
   DBUG_RETURN(1);
 }
+
+
+/* collect status for all running threads */
+
+void calc_sum_of_all_status(STATUS_VAR *to)
+{
+  DBUG_ENTER("calc_sum_of_all_status");
+
+  /* Ensure that thread id not killed during loop */
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
+
+  I_List_iterator<THD> it(threads);
+  THD *tmp;
+  
+  /* Get global values as base */
+  *to= global_status_var;
+  
+  /* Add to this status from existing threads */
+  while ((tmp= it++))
+    add_to_status(to, &tmp->status_var);
+  
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  DBUG_VOID_RETURN;
+}
+
 
 #ifdef __GNUC__
 template class List_iterator_fast<char>;

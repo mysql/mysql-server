@@ -114,6 +114,8 @@ Cmvmi::Cmvmi(const Configuration & conf) :
     }
     setNodeInfo(nodeId).m_type = nodeType;
   }
+
+  setNodeInfo(getOwnNodeId()).m_connected = true;
 }
 
 Cmvmi::~Cmvmi()
@@ -360,7 +362,7 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
       
       globalTransporterRegistry.setIOState(i, HaltIO);
-      globalTransporterRegistry.setPerformState(i, PerformDisconnect);
+      globalTransporterRegistry.do_disconnect(i);
 
       /**
        * Cancel possible event subscription
@@ -388,7 +390,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 
   const Uint32 len = signal->getLength();
   if(len == 2){
-    globalTransporterRegistry.setPerformState(tStartingNode, PerformConnect);
+    globalTransporterRegistry.do_connect(tStartingNode);
     globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
 
     //-----------------------------------------------------
@@ -403,7 +405,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
       jam();
       if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2){
 	jam();
-	globalTransporterRegistry.setPerformState(i, PerformConnect);
+	globalTransporterRegistry.do_connect(i);
 	globalTransporterRegistry.setIOState(i, HaltIO);
 	
 	signal->theData[0] = EventReport::CommunicationOpened;
@@ -454,34 +456,21 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
   const NodeInfo::NodeType type = getNodeInfo(hostId).getType();
   ndbrequire(type != NodeInfo::INVALID);
   
-  if (globalTransporterRegistry.performState(hostId) != PerformDisconnect) {
+  if(type == NodeInfo::DB || globalData.theStartLevel == NodeState::SL_STARTED){
     jam();
-
-    // -------------------------------------------------------------------
-    // We do not report the disconnection when disconnection is already ongoing.
-    // This reporting should be looked into but this secures that we avoid
-    // crashes due to too quick re-reporting of disconnection.
-    // -------------------------------------------------------------------
-    if(type == NodeInfo::DB || globalData.theStartLevel == NodeState::SL_STARTED){
-      jam();
-      DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
-      rep->nodeId = hostId;
-      rep->err = errNo;
-      sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
-		 DisconnectRep::SignalLength, JBA);
-      globalTransporterRegistry.setPerformState(hostId, PerformDisconnect);
-    } else if(globalData.theStartLevel == NodeState::SL_CMVMI ||
-	      globalData.theStartLevel == NodeState::SL_STARTING) {
-      /**
-       * Someone disconnected during cmvmi period
-       */
-      if(type == NodeInfo::MGM){
-	jam();
-	globalTransporterRegistry.setPerformState(hostId, PerformConnect);
-      } else {
-	globalTransporterRegistry.setPerformState(hostId, PerformDisconnect);
-      }
-    }
+    DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
+    rep->nodeId = hostId;
+    rep->err = errNo;
+    sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
+	       DisconnectRep::SignalLength, JBA);
+  } else if((globalData.theStartLevel == NodeState::SL_CMVMI ||
+	     globalData.theStartLevel == NodeState::SL_STARTING)
+	    && type == NodeInfo::MGM) {
+    /**
+     * Someone disconnected during cmvmi period
+     */
+    jam();
+    globalTransporterRegistry.do_connect(hostId);
   }
 
   signal->theData[0] = EventReport::Disconnected;
@@ -491,7 +480,6 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
  
 void Cmvmi::execCONNECT_REP(Signal *signal){
   const Uint32 hostId = signal->theData[0];
-  
   jamEntry();
   
   const NodeInfo::NodeType type = (NodeInfo::NodeType)getNodeInfo(hostId).m_type;
@@ -520,7 +508,8 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
       /**
        * Dont allow api nodes to connect
        */
-      globalTransporterRegistry.setPerformState(hostId, PerformDisconnect);
+      abort();
+      globalTransporterRegistry.do_disconnect(hostId);
     }
   }
   
@@ -754,8 +743,8 @@ Cmvmi::execSTART_ORD(Signal* signal) {
      */
     for(unsigned int i = 1; i < MAX_NODES; i++ ){
       if (getNodeInfo(i).m_type == NodeInfo::MGM){ 
-        if(globalTransporterRegistry.performState(i) != PerformIO){
-          globalTransporterRegistry.setPerformState(i, PerformConnect);
+        if(!globalTransporterRegistry.is_connected(i)){
+          globalTransporterRegistry.do_connect(i);
           globalTransporterRegistry.setIOState(i, NoHalt);
         }
       }
@@ -781,7 +770,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     // without any connected nodes.   
     for(unsigned int i = 1; i < MAX_NODES; i++ ){
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM){
-        globalTransporterRegistry.setPerformState(i, PerformDisconnect);
+        globalTransporterRegistry.do_disconnect(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
@@ -1060,29 +1049,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       if(nodeTypeStr == 0)
 	continue;
 
-      const char* actionStr = "";
-      switch (globalTransporterRegistry.performState(i)){
-      case PerformNothing:
-        actionStr = "does nothing";
-        break;
-      case PerformIO:
-        actionStr = "is connected";
-        break;
-      case PerformConnect:
-        actionStr = "is trying to connect";
-        break;
-      case PerformDisconnect:
-        actionStr = "is trying to disconnect";
-        break;
-      case RemoveTransporter:
-        actionStr = "will be removed";
-        break;
-      }
-
       infoEvent("Connection to %d (%s) %s", 
                 i, 
                 nodeTypeStr,
-                actionStr);
+                globalTransporterRegistry.getPerformStateString(i));
     }
   }
   
@@ -1100,14 +1070,15 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if (dumpState->args[0] == DumpStateOrd::CmvmiTestLongSigWithDelay) {
+    unsigned i;
     Uint32 loopCount = dumpState->args[1];
     const unsigned len0 = 11;
     const unsigned len1 = 123;
     Uint32 sec0[len0];
     Uint32 sec1[len1];
-    for (unsigned i = 0; i < len0; i++)
+    for (i = 0; i < len0; i++)
       sec0[i] = i;
-    for (unsigned i = 0; i < len1; i++)
+    for (i = 0; i < len1; i++)
       sec1[i] = 16 * i;
     Uint32* sig = signal->getDataPtrSend();
     sig[0] = reference();
@@ -1160,6 +1131,7 @@ static LinearSectionPtr g_test[3];
 
 void
 Cmvmi::execTESTSIG(Signal* signal){
+  Uint32 i;
   /**
    * Test of SafeCounter
    */
@@ -1184,14 +1156,14 @@ Cmvmi::execTESTSIG(Signal* signal){
 					   getOwnNodeId(),
 					   true);
     ndbout_c("-- Fixed section --");    
-    for(Uint32 i = 0; i<signal->length(); i++){
+    for(i = 0; i<signal->length(); i++){
       fprintf(stdout, "H'0x%.8x ", signal->theData[i]);
       if(((i + 1) % 6) == 0)
 	fprintf(stdout, "\n");
     }
     fprintf(stdout, "\n");
     
-    for(Uint32 i = 0; i<signal->header.m_noOfSections; i++){
+    for(i = 0; i<signal->header.m_noOfSections; i++){
       SegmentedSectionPtr ptr;
       ndbout_c("-- Section %d --", i);
       signal->getSection(ptr, i);
@@ -1204,7 +1176,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   /**
    * Validate length:s
    */
-  for(Uint32 i = 0; i<signal->header.m_noOfSections; i++){
+  for(i = 0; i<signal->header.m_noOfSections; i++){
     SegmentedSectionPtr ptr;
     signal->getSection(ptr, i);
     ndbrequire(ptr.p != 0);
@@ -1249,7 +1221,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 4:{
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr;
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
@@ -1298,7 +1270,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 8:{
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr;
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
@@ -1332,7 +1304,7 @@ Cmvmi::execTESTSIG(Signal* signal){
       sendNextLinearFragment(signal, fragSend);
     }
     
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       delete[] ptr[i].p;
     }
     break;
@@ -1364,7 +1336,7 @@ Cmvmi::execTESTSIG(Signal* signal){
 
     const Uint32 secs = signal->getNoOfSections();
     memset(g_test, 0, sizeof(g_test));
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr;
       signal->getSection(sptr, i);
       g_test[i].sz = sptr.sz;
@@ -1408,7 +1380,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 14:{
     Uint32 count = signal->theData[8];
     signal->theData[10] = count * rg.m_nodes.count();
-    for(Uint32 i = 0; i<count; i++){
+    for(i = 0; i<count; i++){
       sendSignal(rg, GSN_TESTSIG, signal, signal->length(), JBB); 
     }
     return;
