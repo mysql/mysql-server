@@ -182,7 +182,7 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
-sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
+sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
 sys_var_thd_bool	sys_low_priority_updates("low_priority_updates",
