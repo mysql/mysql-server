@@ -253,7 +253,11 @@ typedef struct xid_t XID;
 
 /* for recover() handlerton call */
 #define MIN_XID_LIST_SIZE  128
+#ifdef SAFEMALLOC
+#define MAX_XID_LIST_SIZE  256
+#else
 #define MAX_XID_LIST_SIZE  (1024*128)
+#endif
 
 /*
   handlerton is a singleton structure - one instance per storage engine -
