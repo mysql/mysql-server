@@ -1123,7 +1123,7 @@ MgmApiSession::logSignals(Parser<MgmApiSession>::Context &,
   args.get("blocks", blockList);
   // fast fix - pekka
   char buf[200];
-  snprintf(buf, 200, "%s", blockList.c_str());
+  BaseString::snprintf(buf, 200, "%s", blockList.c_str());
   Vector<BaseString> blocks;  
 
   blockName=strtok(buf,"|");

@@ -119,7 +119,7 @@ AsyncFile::doStart(Uint32 nodeId,
 
   char buf[16];
   numAsyncFiles++;
-  snprintf(buf, sizeof(buf), "AsyncFile%d", numAsyncFiles);
+  BaseString::snprintf(buf, sizeof(buf), "AsyncFile%d", numAsyncFiles);
 
   theStartMutexPtr = NdbMutex_Create();
   theStartConditionPtr = NdbCondition_Create();
@@ -816,7 +816,7 @@ AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
   struct dirent * dp;
   while ((dp = readdir(dirp)) != NULL){
     if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) {
-      snprintf(path_add, (size_t)path_max_copy, "%s%s",
+      BaseString::snprintf(path_add, (size_t)path_max_copy, "%s%s",
 	       DIR_SEPARATOR, dp->d_name);
       if(remove((const char*)path) == 0){
         path[path_len] = 0;

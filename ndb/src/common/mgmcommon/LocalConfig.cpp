@@ -90,7 +90,7 @@ LocalConfig::init(const char *connectString,
   //7. Check
   {
     char buf[256];
-    snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_BASE_PORT);
+    BaseString::snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_BASE_PORT);
     if(readConnectString(buf, "default connect string"))
       return true;
   }
@@ -234,7 +234,7 @@ bool LocalConfig::readFile(const char * filename, bool &fopenError)
   
   FILE * file = fopen(filename, "r");
   if(file == 0){
-    snprintf(line, sizeof(line),
+    BaseString::snprintf(line, sizeof(line),
 	     "Unable to open local config file: %s", filename);
     setError(0, line);
     fopenError = true;

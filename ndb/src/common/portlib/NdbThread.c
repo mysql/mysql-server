@@ -51,8 +51,7 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (tmpThread == NULL)
     return NULL;
 
-  snprintf(tmpThread->thread_name, sizeof(tmpThread->thread_name),
-	   "%s", p_thread_name);
+  strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);

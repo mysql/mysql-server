@@ -130,9 +130,9 @@ main(int argc, const char** argv){
   for(int i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
-    snprintf(g_table, sizeof(g_table), T);
-    snprintf(g_ordered, sizeof(g_ordered), "IDX_O_%s", T);
-    snprintf(g_unique, sizeof(g_unique), "IDX_U_%s", T);
+    BaseString::snprintf(g_table, sizeof(g_table), T);
+    BaseString::snprintf(g_ordered, sizeof(g_ordered), "IDX_O_%s", T);
+    BaseString::snprintf(g_unique, sizeof(g_unique), "IDX_U_%s", T);
     if(create_table())
       goto error;
     if(load_table())

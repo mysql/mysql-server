@@ -251,7 +251,7 @@ public:
       // Convert to Uint32 in order to be able to print it to screen
     Uint32 lapTime = (Uint32)m_ticks;
     Uint32 secTime = lapTime/1000;
-    snprintf(buf, 255, "%d secs (%d ms)", secTime, lapTime);
+    BaseString::snprintf(buf, 255, "%d secs (%d ms)", secTime, lapTime);
     return buf;
   }
 private:

@@ -2020,46 +2020,46 @@ CmdBackupCallback(const MgmtSrvr::BackupEvent & event){
   switch(event.Event){
   case MgmtSrvr::BackupEvent::BackupStarted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d started", event.Started.BackupId);
     break;
   case MgmtSrvr::BackupEvent::BackupFailedToStart:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup failed to start (Error %d)",
 	     event.FailedToStart.ErrorCode);
     break;
   case MgmtSrvr::BackupEvent::BackupCompleted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d completed", 
 	     event.Completed.BackupId);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " StartGCP: %d StopGCP: %d", 
 	     event.Completed.startGCP, event.Completed.stopGCP);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " #Records: %d #LogRecords: %d", 
 	     event.Completed.NoOfRecords, event.Completed.NoOfLogRecords);
     ndbout << str << endl;
 
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     " Data: %d bytes Log: %d bytes", 
 	     event.Completed.NoOfBytes, event.Completed.NoOfLogBytes);
     break;
   case MgmtSrvr::BackupEvent::BackupAborted:
     ok = true;
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Backup %d has been aborted reason %d",
 	     event.Aborted.BackupId,
 	     event.Aborted.Reason);
     break;
   }
   if(!ok){
-    snprintf(str, sizeof(str), 
+    BaseString::snprintf(str, sizeof(str), 
 	     "Unknown backup event: %d",
 	     event.Event);
     

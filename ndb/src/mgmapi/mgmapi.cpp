@@ -110,7 +110,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
 
   va_list ap;
   va_start(ap, msg);
-  vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
+  BaseString::vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
   va_end(ap);
 }
 
@@ -359,7 +359,7 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
   * Open the log file
   */
   char logname[64];
-  snprintf(logname, 64, "mgmapi.log");
+  BaseString::snprintf(logname, 64, "mgmapi.log");
   handle->logfile = fopen(logname, "w");
 #endif
 

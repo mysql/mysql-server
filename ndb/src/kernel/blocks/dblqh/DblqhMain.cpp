@@ -14807,7 +14807,7 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
   tdebug = logPagePtr.p->logPageWord[0];
 
   char buf[100];
-  snprintf(buf, 100, 
+  BaseString::snprintf(buf, 100, 
 	   "Error while reading REDO log.\n"
 	   "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d",
 	   signal->theData[2], signal->theData[3], signal->theData[4],

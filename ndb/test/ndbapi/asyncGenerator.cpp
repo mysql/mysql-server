@@ -248,7 +248,7 @@ doTransaction_T1(Ndb * pNDB, ThreadData * td, int async)
   /*----------------*/
   getRandomSubscriberNumber(td->transactionData.number);
   getRandomChangedBy(td->transactionData.changed_by);
-  snprintf(td->transactionData.changed_time,
+  BaseString::snprintf(td->transactionData.changed_time,
 	   sizeof(td->transactionData.changed_time),
 	   "%ld - %d", td->changedTime++, myRandom48(65536*1024));
   //getRandomChangedTime(td->transactionData.changed_time);

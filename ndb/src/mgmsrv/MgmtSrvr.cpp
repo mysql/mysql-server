@@ -1825,7 +1825,7 @@ const char* MgmtSrvr::getErrorText(int errorCode)
     }
   }
   
-  snprintf(text, 255, "Unknown management server error code %d", errorCode);
+  BaseString::snprintf(text, 255, "Unknown management server error code %d", errorCode);
   return text;
 }
 

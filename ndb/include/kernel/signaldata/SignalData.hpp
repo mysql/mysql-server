@@ -20,6 +20,7 @@
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include <kernel_types.h>
+#include <BaseString.hpp>
 
 #define ASSERT_BOOL(flag, message) assert(flag<=1)
 #define ASSERT_RANGE(value, min, max, message) \

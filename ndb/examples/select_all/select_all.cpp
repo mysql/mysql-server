@@ -98,7 +98,7 @@ void ResultSetContainer::init(NdbDictionary::Dictionary * dict,
   // Store all attribute names for the table
   for (int i = 0; i < m_cols; i++) {
     m_names[i] = new char[255];
-    snprintf(m_names[i], 255, "%s", tab->getColumn(i)->getName());
+    BaseString::snprintf(m_names[i], 255, "%s", tab->getColumn(i)->getName());
   }
 }
 
