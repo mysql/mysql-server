@@ -4566,6 +4566,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/south-korea} Korea [Webiiz] @
 @uref{http://mysql.webiiz.com/, WWW}
 
+@item
+@c EMAIL: hollywar@holywar.net (Oh Junseon)
+@image{Flags/south-korea} South Korea [PanworldNet] @
+@uref{http://mysql.holywar.net/, WWW}
+
 @c @item
 @c ftp -> remove old files
 @c EX: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
