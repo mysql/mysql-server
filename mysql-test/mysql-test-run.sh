@@ -703,6 +703,8 @@ export NDB_MGM
 export NDB_BACKUP_DIR
 export NDB_TOOLS_OUTPUT
 export PURIFYOPTIONS
+NDB_STATUS_OK=1
+export NDB_STATUS_OK
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
@@ -1083,13 +1085,15 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    NDB_STARTED=1
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STARTED=0
-    if [ x$NDB_STARTED != x1 ] ; then
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STATUS_OK=0
+    if [ x$NDB_STATUS_OK != x1 ] ; then
       if [ x$FORCE != x1 ] ; then
         exit 1
       fi
+      USE_NDBCLUSTER=
+      return
     fi
+
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1803,7 +1807,6 @@ then
   $ECHO  "Loading Standard Test Databases"
   mysql_loadstd
 fi
-
 
 $ECHO  "Starting Tests"
 
