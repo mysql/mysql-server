@@ -296,13 +296,21 @@ AC_PATH_PROG(CMP, cmp, cmp)
 AC_PATH_PROG(CHMOD, chmod, chmod)
 AC_PATH_PROG(HOSTNAME, hostname, hostname)
 dnl We use a path for perl so the script startup works
-AC_PATH_PROG(PERL5, perl5, no)
+dnl We make sure to use perl, not perl5, in hopes that the RPMs will
+dnl not depend on the perl5 binary being installed (probably a bug in RPM)
 AC_PATH_PROG(PERL, perl, no)
-if test "$PERL5" != no
+if test "$PERL" != "no" && $PERL -e 'require 5' > /dev/null 2>&1
 then
-  PERL=$PERL5
-  ac_cv_path_PERL=$ac_cv_path_PERL5
+  PERL5=$PERL
+else
+  AC_PATH_PROG(PERL5, perl5, no)
+  if test "$PERL5" != no
+  then
+    PERL=$PERL5
+    ac_cv_path_PERL=$ac_cv_path_PERL5
+  fi
 fi
+
 AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
