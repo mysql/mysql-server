@@ -1154,7 +1154,6 @@ bool delayed_insert::handle_inserts(void)
 int
 select_insert::prepare(List<Item> &values)
 {
-  TABLE *form=table;
   DBUG_ENTER("select_insert::prepare");
 
   save_time_stamp=table->time_stamp;
@@ -1163,15 +1162,16 @@ select_insert::prepare(List<Item> &values)
 
   if (fields->elements)
   {
-    restore_record(form,2);			// Get empty record
+    restore_record(table,2);			// Get empty record
   }
   else
-    form->record[0][0]=form->record[2][0];	// Fix delete marker
-  form->next_number_field=form->found_next_number_field;
+    table->record[0][0]=table->record[2][0];	// Fix delete marker
+  table->next_number_field=table->found_next_number_field;
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0;
   if (info.handle_duplicates != DUP_REPLACE)
-    form->file->extra(HA_EXTRA_WRITE_CACHE);
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+  table->file->deactivate_non_unique_index((ha_rows) 0);
   DBUG_RETURN(0);
 }
 
@@ -1213,14 +1213,16 @@ bool select_insert::send_data(List<Item> &values)
 void select_insert::send_error(uint errcode,const char *err)
 {
   ::send_error(&thd->net,errcode,err);
-  VOID(table->file->extra(HA_EXTRA_NO_CACHE));
+  table->file->extra(HA_EXTRA_NO_CACHE);
+  table->file->activate_all_index(thd);
 }
 
 
 bool select_insert::send_eof()
 {
   int error;
-  if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
+  if ((error=table->file->extra(HA_EXTRA_NO_CACHE)) ||
+      (error=table->file->activate_all_index(thd)))
   {
     table->file->print_error(error,MYF(0));
     ::send_error(&thd->net);
