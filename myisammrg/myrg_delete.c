@@ -18,12 +18,10 @@
 
 #include "myrg_def.h"
 
-int myrg_delete(
-MYRG_INFO *info,
-const byte *record)
+int myrg_delete(MYRG_INFO *info, const byte *record)
 {
   if (!info->current_table)
-    return my_errno=HA_ERR_NO_ACTIVE_RECORD ;
+    return (my_errno= HA_ERR_NO_ACTIVE_RECORD);
 
   return mi_delete(info->current_table->table,record);
 }

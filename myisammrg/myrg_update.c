@@ -21,7 +21,7 @@
 int myrg_update(register MYRG_INFO *info,const byte *oldrec, byte *newrec)
 {
   if (!info->current_table)
-    return my_errno=HA_ERR_NO_ACTIVE_RECORD;
+    return (my_errno=HA_ERR_NO_ACTIVE_RECORD);
 
   return mi_update(info->current_table->table,oldrec,newrec);
 }
