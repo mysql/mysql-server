@@ -2222,7 +2222,6 @@ pkupdateindexbuild(Par par)
 {
   if (par.m_no == 0) {
     CHK(createindex(par) == 0);
-    CHK(invalidateindex(par) == 0);
   } else {
     CHK(pkupdate(par) == 0);
   }
@@ -2513,6 +2512,7 @@ tbusybuild(Par par)
   RUNSTEP(par, pkinsert, MT);
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, pkupdateindexbuild, MT);
+    RUNSTEP(par, invalidateindex, MT);
     RUNSTEP(par, readverify, MT);
     RUNSTEP(par, dropindex, ST);
   }
