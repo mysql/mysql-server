@@ -4,8 +4,8 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options="";
 $opt_tmp="";
-$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=0;
-GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s") || usage();
+$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=0;
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
@@ -20,6 +20,7 @@ $log="$pwd/Logs/$host.log";
 $opt_distribution =~ /(mysql-[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
+$connect_option= ($opt_tcpip ? "--host=$host" : "");
 if (defined($gcc_version) && ! $opt_config_env)
 {
   $tmp=`$gcc_version -v 2>&1`;
@@ -186,7 +187,7 @@ if ($opt_stage <= 7 && !$opt_no_test)
 {
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f limits/mysql.cfg");
-  safe_system("perl ./crash-me --force --batch-mode");
+  safe_system("perl ./crash-me --force --batch-mode $connect_option");
 }
 
 if ($opt_stage <= 8 && !$opt_no_test)
@@ -194,7 +195,7 @@ if ($opt_stage <= 8 && !$opt_no_test)
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
-  check_system("perl ./run-all-tests --log --die-on-errors $tmp","RUN-mysql");
+  check_system("perl ./run-all-tests --log --die-on-errors $connect_option $tmp","RUN-mysql");
 }
 
 if ($opt_stage <= 9 && $opt_result)
