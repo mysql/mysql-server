@@ -392,3 +392,11 @@ Docs/manual.tp
 Docs/manual.vr
 Docs/manual_a4.ps
 Docs/manual_letter.ps
+mysql-test/var/lib/test/test1.frm
+mysql-test/var/lib/test/test1.MYD
+mysql-test/var/lib/test/test1.MYI
+mysql-test/var/lib/test/test2.frm
+mysql-test/var/lib/test/test2.MYD
+mysql-test/var/lib/test/test2.MYI
+mysql-test/var/run/mysqld.pid
+mysql-test/var/tmp/mysql.sock

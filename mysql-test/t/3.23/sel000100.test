@@ -1,0 +1,30 @@
+DROP TABLE IF EXISTS test1;
+DROP TABLE IF EXISTS test2;
+
+CREATE TABLE test1 (
+  ID int(11) NOT NULL auto_increment,
+  NAME varchar(75) DEFAULT '' NOT NULL,
+  LINK_ID int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (ID),
+  KEY NAME (NAME),
+  KEY LINK_ID (LINK_ID)
+);
+
+INSERT INTO test1 (ID, NAME, LINK_ID) VALUES (1,'Mike',0);
+INSERT INTO test1 (ID, NAME, LINK_ID) VALUES (2,'Jack',0);
+INSERT INTO test1 (ID, NAME, LINK_ID) VALUES (3,'Bill',0);
+
+CREATE TABLE test2 (
+  ID int(11) NOT NULL auto_increment,
+  NAME varchar(150) DEFAULT '' NOT NULL,
+  PRIMARY KEY (ID),
+  KEY NAME (NAME)
+);
+
+@r/3.23/sel000100.res SELECT DISTINCT
+    test2.id AS key_link_id,
+    test2.name AS link
+FROM test1
+LEFT JOIN test2 ON test1.link_id=test2.id
+GROUP BY test1.id
+ORDER BY link;
