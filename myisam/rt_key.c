@@ -69,7 +69,7 @@ int rtree_delete_key(MI_INFO *info, uchar *page_buf, uchar *key,
   uchar *key_start;
 
   key_start= key - nod_flag;
-  if (nod_flag)
+  if (!nod_flag)
     key_length += info->s->base.rec_reflength;
 
   memmove(key_start, key + key_length, page_size - key_length -
