@@ -1267,7 +1267,9 @@ String *Item_func_password::val_str(String *str)
   if (res->length() == 0)
     return &empty_string;
   make_scrambled_password(tmp_value,res->c_ptr());
-  str->set(tmp_value,16,res->charset());
+  printf("Returned to the function\n");
+  str->set(tmp_value,get_password_length(),res->charset());
+  printf("At the exit\n");
   return str;
 }
 
