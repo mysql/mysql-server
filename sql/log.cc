@@ -584,7 +584,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   }
 
   /* Start logging with a new file */
-  close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  close(LOG_CLOSE_INDEX);
   my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
   if (!thd->slave_thread)
     need_start_event=1;
@@ -1544,7 +1544,7 @@ void MYSQL_LOG::close(uint exiting)
 {					// One can't set log_type here!
   DBUG_ENTER("MYSQL_LOG::close");
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
-  if (is_open())
+  if (log_type != LOG_CLOSED && log_type != LOG_TO_BE_OPENED)
   {
     if (log_type == LOG_BIN && !no_auto_events &&
 	(exiting & LOG_CLOSE_STOP_EVENT))
