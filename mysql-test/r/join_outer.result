@@ -657,3 +657,11 @@ i	i	i
 1	NULL	NULL
 2	2	2
 drop table t1,t2,t3;
+create table t1 (f1 integer,f2 integer,f3 integer);
+create table t2 (f2 integer,f4 integer);
+create table t3 (f3 integer,f5 integer);
+select * from t1
+left outer join t2 using (f2)
+left outer join t3 using (f3);
+ERROR 42S22: Unknown column 'test.t2.f3' in 'on clause'
+drop table t1,t2,t3;

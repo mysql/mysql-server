@@ -571,21 +571,21 @@ longlong Item_func_from_days::val_int()
 
 void Item_func_curdate::fix_length_and_dec()
 {
-  struct tm tm_tmp,*start;
-  time_t query_start=current_thd->query_start();
+  struct tm start;
   
   collation.set(default_charset());
   decimals=0; 
   max_length=10*default_charset()->mbmaxlen;
-  localtime_r(&query_start,&tm_tmp);
-  start=&tm_tmp;
-  value=(longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
-		    ((uint) start->tm_mon+1)*100+
-		    (uint) start->tm_mday);
+
+  store_now_in_tm(current_thd->query_start(),&start);
+  
+  value=(longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
+		    ((uint) start.tm_mon+1)*100+
+		    (uint) start.tm_mday);
   /* For getdate */
-  ltime.year=	start->tm_year+1900;
-  ltime.month=	start->tm_mon+1;
-  ltime.day=	start->tm_mday;
+  ltime.year=	start.tm_year+1900;
+  ltime.month=	start.tm_mon+1;
+  ltime.day=	start.tm_mday;
   ltime.hour=	0;
   ltime.minute=	0;
   ltime.second=	0;
@@ -594,12 +594,34 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.time_type=TIMESTAMP_DATE;
 }
 
+
 bool Item_func_curdate::get_date(TIME *res,
 				 bool fuzzy_date __attribute__((unused)))
 {
   *res=ltime;
   return 0;
 }
+
+
+/*
+    Converts time in time_t to struct tm represenatation for local timezone.
+    Defines timezone (local) used for whole CURDATE function
+*/
+void Item_func_curdate_local::store_now_in_tm(time_t now, struct tm *now_tm)
+{
+  localtime_r(&now,now_tm);
+}
+
+
+/*
+    Converts time in time_t to struct tm represenatation for UTC
+    Defines timezone (UTC) used for whole UTC_DATE function
+*/
+void Item_func_curdate_utc::store_now_in_tm(time_t now, struct tm *now_tm)
+{
+  gmtime_r(&now,now_tm);
+}
+
 
 String *Item_func_curtime::val_str(String *str)
 { 
@@ -609,23 +631,43 @@ String *Item_func_curtime::val_str(String *str)
 
 void Item_func_curtime::fix_length_and_dec()
 {
-  struct tm tm_tmp,*start;
-  time_t query_start=current_thd->query_start();
-  CHARSET_INFO *cs=default_charset();
+  struct tm start;
+  CHARSET_INFO *cs= default_charset();
 
   decimals=0; 
   max_length=8*cs->mbmaxlen;
-  localtime_r(&query_start,&tm_tmp);
-  start=&tm_tmp;
   collation.set(cs);
-  value=(longlong) ((ulong) ((uint) start->tm_hour)*10000L+
-		    (ulong) (((uint) start->tm_min)*100L+
-			     (uint) start->tm_sec));
+  
+  store_now_in_tm(current_thd->query_start(),&start);
+  
+  value=(longlong) ((ulong) ((uint) start.tm_hour)*10000L+
+		    (ulong) (((uint) start.tm_min)*100L+
+			     (uint) start.tm_sec));
 
   buff_length=cs->cset->snprintf(cs,buff,sizeof(buff),"%02d:%02d:%02d",
-				 (int) start->tm_hour,
-				 (int) start->tm_min,
-				 (int) start->tm_sec);
+				 (int) start.tm_hour,
+				 (int) start.tm_min,
+				 (int) start.tm_sec);
+}
+
+
+/*
+    Converts time in time_t to struct tm represenatation for local timezone.
+    Defines timezone (local) used for whole CURTIME function
+*/
+void Item_func_curtime_local::store_now_in_tm(time_t now, struct tm *now_tm)
+{
+  localtime_r(&now,now_tm);
+}
+
+
+/*
+    Converts time in time_t to struct tm represenatation for UTC.
+    Defines timezone (UTC) used for whole UTC_TIME function
+*/
+void Item_func_curtime_utc::store_now_in_tm(time_t now, struct tm *now_tm)
+{
+  gmtime_r(&now,now_tm);
 }
 
 
@@ -638,37 +680,37 @@ String *Item_func_now::val_str(String *str)
 
 void Item_func_now::fix_length_and_dec()
 {
-  struct tm tm_tmp,*start;
-  time_t query_start=current_thd->query_start();
+  struct tm start;
   CHARSET_INFO *cs= &my_charset_bin;
   
   decimals=0;
   max_length=19*cs->mbmaxlen;
   collation.set(cs);
-  localtime_r(&query_start,&tm_tmp);
-  start=&tm_tmp;
-  value=((longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
-		     (((uint) start->tm_mon+1)*100+
-		      (uint) start->tm_mday))*(longlong) 1000000L+
-	 (longlong) ((ulong) ((uint) start->tm_hour)*10000L+
-		     (ulong) (((uint) start->tm_min)*100L+
-			    (uint) start->tm_sec)));
+
+  store_now_in_tm(current_thd->query_start(),&start);
+  
+  value=((longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
+		     (((uint) start.tm_mon+1)*100+
+		      (uint) start.tm_mday))*(longlong) 1000000L+
+	 (longlong) ((ulong) ((uint) start.tm_hour)*10000L+
+		     (ulong) (((uint) start.tm_min)*100L+
+			    (uint) start.tm_sec)));
   
   buff_length= (uint) cs->cset->snprintf(cs,buff, sizeof(buff),
 				   "%04d-%02d-%02d %02d:%02d:%02d",
-				   ((int) (start->tm_year+1900)) % 10000,
-				   (int) start->tm_mon+1,
-				   (int) start->tm_mday,
-				   (int) start->tm_hour,
-				   (int) start->tm_min,
-				   (int) start->tm_sec);
+				   ((int) (start.tm_year+1900)) % 10000,
+				   (int) start.tm_mon+1,
+				   (int) start.tm_mday,
+				   (int) start.tm_hour,
+				   (int) start.tm_min,
+				   (int) start.tm_sec);
   /* For getdate */
-  ltime.year=	start->tm_year+1900;
-  ltime.month=	start->tm_mon+1;
-  ltime.day=	start->tm_mday;
-  ltime.hour=	start->tm_hour;
-  ltime.minute=	start->tm_min;
-  ltime.second=	start->tm_sec;
+  ltime.year=	start.tm_year+1900;
+  ltime.month=	start.tm_mon+1;
+  ltime.day=	start.tm_mday;
+  ltime.hour=	start.tm_hour;
+  ltime.minute=	start.tm_min;
+  ltime.second=	start.tm_sec;
   ltime.second_part=0;
   ltime.neg=0;
   ltime.time_type=TIMESTAMP_FULL;
@@ -687,6 +729,26 @@ int Item_func_now::save_in_field(Field *to, bool no_conversions)
   to->set_notnull();
   to->store_time(&ltime,TIMESTAMP_FULL);
   return 0;
+}
+
+
+/*
+    Converts time in time_t to struct tm represenatation for local timezone.
+    Defines timezone (local) used for whole CURRENT_TIMESTAMP function
+*/
+void Item_func_now_local::store_now_in_tm(time_t now, struct tm *now_tm)
+{
+  localtime_r(&now,now_tm);
+}
+
+
+/*
+    Converts time in time_t to struct tm represenatation for UTC.
+    Defines timezone (UTC) used for whole UTC_TIMESTAMP function
+*/
+void Item_func_now_utc::store_now_in_tm(time_t now, struct tm *now_tm)
+{
+  gmtime_r(&now,now_tm);
 }
 
 
@@ -1289,14 +1351,12 @@ String *Item_date_add_interval::val_str(String *str)
 longlong Item_date_add_interval::val_int()
 {
   TIME ltime;
+  longlong date;
   if (Item_date_add_interval::get_date(&ltime,0))
     return (longlong) 0;
-  return ((longlong) (((ulong) ltime.year)*10000L+
-		      (((uint) ltime.month)*100+
-		       (uint) ltime.day))*(longlong) 1000000L+
-	  (longlong) ((ulong) ((uint) ltime.hour)*10000L+
-		      (ulong) (((uint)ltime.minute)*100L+
-			       (uint) ltime.second)));
+  date = (ltime.year*100L + ltime.month)*100L + ltime.day;
+  return ltime.time_type == TIMESTAMP_DATE ? date :
+    ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
 void Item_extract::fix_length_and_dec()
@@ -1388,6 +1448,22 @@ longlong Item_extract::val_int()
   return 0;					// Impossible
 }
 
+bool Item_extract::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM ||
+      func_name() != ((Item_func*)item)->func_name())
+    return 0;
+
+  Item_extract* ie= (Item_extract*)item;
+  if (ie->int_type != int_type)
+    return 0;
+
+  if (!args[0]->eq(ie->args[0], binary_cmp))
+      return 0;
+  return 1;
+}
 
 void Item_typecast::print(String *str)
 {
@@ -1396,6 +1472,59 @@ void Item_typecast::print(String *str)
   str->append(" AS ");
   str->append(func_name());
   str->append(')');
+}
+
+String *Item_char_typecast::val_str(String *str)
+{
+  String *res, *res1;
+  uint32 length;
+
+  if (!charset_conversion && !(res= args[0]->val_str(str)))
+  {
+    null_value= 1;
+    return 0;
+  }
+  else
+  {
+    // Convert character set if differ
+    if (!(res1= args[0]->val_str(&tmp_value)) ||
+	str->copy(res1->ptr(), res1->length(),res1->charset(), cast_cs))
+    {
+      null_value= 1;
+      return 0;
+    }
+    res= str;
+  }
+  
+  /*
+     Cut the tail if cast with length
+     and the result is longer than cast length, e.g.
+     CAST('string' AS CHAR(1))
+  */
+  if (cast_length >= 0 && 
+      (res->length() > (length= (uint32) res->charpos(cast_length))))
+  {						// Safe even if const arg
+    if (!res->alloced_length())
+    {						// Don't change const str
+      str_value= *res;				// Not malloced string
+      res= &str_value;
+    }
+    res->length((uint) length);
+  } 
+  null_value= 0;
+  return res;
+}
+
+void Item_char_typecast::fix_length_and_dec()
+{
+  uint32 char_length;
+  charset_conversion= !my_charset_same(args[0]->collation.collation, cast_cs) &&
+		      args[0]->collation.collation != &my_charset_bin &&
+		      cast_cs != &my_charset_bin;
+  collation.set(cast_cs, DERIVATION_IMPLICIT);
+  char_length= (cast_length >= 0) ? cast_length : 
+	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+  max_length= char_length * cast_cs->mbmaxlen;
 }
 
 String *Item_datetime_typecast::val_str(String *str)

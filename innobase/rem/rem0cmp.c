@@ -38,7 +38,7 @@ Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
 differ from dtuple in some of the m fields rec has. */
-static
+
 int
 cmp_debug_dtuple_rec_with_match(
 /*============================*/	
@@ -50,9 +50,10 @@ cmp_debug_dtuple_rec_with_match(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	ulint*	 	matched_fields);/* in/out: number of already completely 
-				matched fields; when function returns,
-				contains the value for current comparison */
+	ulint*	 	matched_fields);/* in/out: number of already
+				completely  matched fields; when function
+				returns, contains the value for current
+				comparison */
 /*****************************************************************
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
@@ -79,17 +80,12 @@ UNIV_INLINE
 ulint
 cmp_collate(
 /*========*/
-				/* out: collation order position */
-	dtype_t*	type __attribute__((unused)) ,	/* in: type */
-	ulint		code)	/* in: code of a character stored in database
-				record */
-{
-	ut_ad((type->mtype == DATA_CHAR) || (type->mtype == DATA_VARCHAR));
-	
+			/* out: collation order position */
+	ulint	code)	/* in: code of a character stored in database record */
+{	
 	return((ulint) srv_latin1_ordering[code]);
 }
 
-					
 /*****************************************************************
 Returns TRUE if two types are equal for comparison purposes. */
 
@@ -118,7 +114,8 @@ cmp_types_are_equal(
 
         if (type1->mtype == DATA_INT
 	    && (type1->prtype & DATA_UNSIGNED)
-					!= (type2->prtype & DATA_UNSIGNED)) {
+		!= (type2->prtype & DATA_UNSIGNED)) {
+
 		/* The storage format of an unsigned integer is different
 		from a signed integer: in a signed integer we OR
 		0x8000... to the value of positive integers. */
@@ -131,12 +128,17 @@ cmp_types_are_equal(
 		return(FALSE);
 	}
 
+	if (type1->mtype == DATA_BLOB && (type1->prtype & DATA_BINARY_TYPE)
+			           != (type2->prtype & DATA_BINARY_TYPE)) {
+	        return(FALSE);
+	} 
+
 	return(TRUE);
 }
 
 /*****************************************************************
-Innobase uses this function is to compare two data fields for which the
-data type is such that we must compare whole fields. */
+Innobase uses this function to compare two data fields for which the data type
+is such that we must compare whole fields or call MySQL to do the comparison */
 static
 int
 cmp_whole_field(
@@ -239,8 +241,34 @@ cmp_whole_field(
       		return(0);
 	case DATA_VARMYSQL:
 	case DATA_MYSQL:
+	case DATA_BLOB:
+		if (data_type == DATA_BLOB
+		    && 0 != (type->prtype & DATA_BINARY_TYPE)) {
+
+			ut_print_timestamp(stderr);
+		        fprintf(stderr,
+"  InnoDB: Error: comparing a binary BLOB with a character set sensitive\n"
+"InnoDB: comparison!\n");
+		}		   
+
+		/* MySQL does not pad the ends of strings with spaces in a
+		comparison. That would cause a foreign key check to fail for
+		non-latin1 character sets if we have different length columns.
+		To prevent that we remove trailing spaces here before doing
+		the comparison. NOTE that if we in the future map more MySQL
+		types to DATA_MYSQL or DATA_VARMYSQL, we have to change this
+		code. */
+
+		while (a_length > 0 && a[a_length - 1] == ' ') {
+		      a_length--;
+		}
+
+		while (b_length > 0 && b[b_length - 1] == ' ') {
+		      b_length--;
+		}
+
 		return(innobase_mysql_cmp(
-				(int)(type->prtype & ~DATA_NOT_NULL),
+				(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
 				a, a_length, b, b_length));
 	default:
 	        fprintf(stderr,
@@ -291,7 +319,10 @@ cmp_data_data_slow(
 		return(1);
 	}
 	
-	if (cur_type->mtype >= DATA_FLOAT) {
+	if (cur_type->mtype >= DATA_FLOAT
+	    || (cur_type->mtype == DATA_BLOB
+	        && (cur_type->prtype & DATA_NONLATIN1))) {
+
 		return(cmp_whole_field(cur_type, data1, len1, data2, len2));
 	}
 	
@@ -334,9 +365,12 @@ cmp_data_data_slow(
 			goto next_byte;
 		}
 
-		if (cur_type->mtype <= DATA_CHAR) {
-			data1_byte = cmp_collate(cur_type, data1_byte);
-			data2_byte = cmp_collate(cur_type, data2_byte);
+		if (cur_type->mtype <= DATA_CHAR
+		    || (cur_type->mtype == DATA_BLOB
+		        && 0 == (cur_type->prtype & DATA_BINARY_TYPE))) {
+
+			data1_byte = cmp_collate(data1_byte);
+			data2_byte = cmp_collate(data2_byte);
 		}
 			
 		if (data1_byte > data2_byte) {
@@ -487,7 +521,9 @@ cmp_dtuple_rec_with_match(
 			}
 		}
 
-		if (cur_type->mtype >= DATA_FLOAT) {
+		if (cur_type->mtype >= DATA_FLOAT
+		    || (cur_type->mtype == DATA_BLOB
+	                && (cur_type->prtype & DATA_NONLATIN1))) {
 
 			ret = cmp_whole_field(cur_type,
 				dfield_get_data(dtuple_field), dtuple_f_len,
@@ -547,10 +583,13 @@ cmp_dtuple_rec_with_match(
 				goto next_byte;
 			}
 
-			if (cur_type->mtype <= DATA_CHAR) {
-				rec_byte = cmp_collate(cur_type, rec_byte);
-				dtuple_byte = cmp_collate(cur_type, 
-								dtuple_byte);
+			if (cur_type->mtype <= DATA_CHAR
+			    || (cur_type->mtype == DATA_BLOB
+			        && 0 ==
+				    (cur_type->prtype & DATA_BINARY_TYPE))) {
+
+				rec_byte = cmp_collate(rec_byte);
+				dtuple_byte = cmp_collate(dtuple_byte);
 			}
 			
 			if (dtuple_byte > rec_byte) {
@@ -583,8 +622,8 @@ order_resolved:
 							matched_fields));
 	ut_ad(*matched_fields == cur_field); /* In the debug version, the
 						above cmp_debug_... sets
-						*matched_fields to a value */	
-	*matched_fields = cur_field;	
+						*matched_fields to a value */
+	*matched_fields = cur_field;
 	*matched_bytes = cur_bytes;
 
 	return(ret);
@@ -804,7 +843,10 @@ cmp_rec_rec_with_match(
 			}
 		}
 
-		if (cur_type->mtype >= DATA_FLOAT) {
+		if (cur_type->mtype >= DATA_FLOAT
+		    || (cur_type->mtype == DATA_BLOB
+	                && (cur_type->prtype & DATA_NONLATIN1))) {
+
 			ret = cmp_whole_field(cur_type,
 						rec1_b_ptr, rec1_f_len,
 						rec2_b_ptr, rec2_f_len);
@@ -861,9 +903,13 @@ cmp_rec_rec_with_match(
 				goto next_byte;
 			}
 
-			if (cur_type->mtype <= DATA_CHAR) {
-				rec1_byte = cmp_collate(cur_type, rec1_byte);
-				rec2_byte = cmp_collate(cur_type, rec2_byte);
+			if (cur_type->mtype <= DATA_CHAR
+			    || (cur_type->mtype == DATA_BLOB
+			        && 0 ==
+				    (cur_type->prtype & DATA_BINARY_TYPE))) {
+
+				rec1_byte = cmp_collate(rec1_byte);
+				rec2_byte = cmp_collate(rec2_byte);
 			}
 
 			if (rec1_byte < rec2_byte) {
@@ -906,7 +952,7 @@ This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
 differ from dtuple in some of the m fields rec has. If encounters an
 externally stored field, returns 0. */
-static
+
 int
 cmp_debug_dtuple_rec_with_match(
 /*============================*/	
@@ -918,9 +964,10 @@ cmp_debug_dtuple_rec_with_match(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	ulint*	 	matched_fields) /* in/out: number of already completely 
-				matched fields; when function returns,
-				contains the value for current comparison */
+	ulint*	 	matched_fields) /* in/out: number of already
+				completely matched fields; when function
+				returns, contains the value for current
+				comparison */
 {
 	dtype_t*	cur_type;	/* pointer to type of the current
 					field in dtuple */

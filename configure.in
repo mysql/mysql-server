@@ -755,7 +755,7 @@ AC_CHECK_LIB(crypt, crypt)
 AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
 
 # For sem_xxx functions on Solaris 2.6
-AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4))
+AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 
 # For compress in zlib
 MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
@@ -1280,12 +1280,12 @@ then
 	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
       fi
       AC_MSG_RESULT("yes")
-    # Hack for SCO UnixWare 7.1
+    # Hack for SCO UnixWare 7.1.x
     #
     elif test "$with_named_thread" = "no"
     then
       AC_MSG_RESULT("no")
-      AC_MSG_CHECKING("SCO UnixWare 7.1 native threads")
+      AC_MSG_CHECKING("SCO UnixWare 7.1.x native threads")
       if expr "$SYSTEM_TYPE" : ".*sco.*" > /dev/null
       then
         if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
@@ -1308,11 +1308,11 @@ then
           AC_MSG_CHECKING("for gcc")
           if expr "$CC" : ".*gcc.*"
           then
-	    CC="$CC -pthread -DUNIXWARE_7";
-	    CXX="$CXX -pthread -DUNIXWARE_7";
+	    CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
           else
-	    CC="$CC -Kthread -DUNIXWARE_7";
-	    CXX="$CXX -Kthread -DUNIXWARE_7";
+	    CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
           fi
         else
           { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
@@ -1348,10 +1348,11 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	{ echo "configure: error: On SCO UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       else
-	CC="$CC -Kthread -DUNIXWARE_7";
-	CXX="$CXX -Kthread -DUNIXWARE_7";
+	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       fi
       AC_MSG_RESULT("yes")
     else
@@ -1383,7 +1384,8 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	{ echo "configure: error: On OpenUNIX8 and UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       else
  	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
  	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
@@ -1812,7 +1814,7 @@ AC_CHECK_FUNCS(alarm bmove \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror \
  tell atod memcpy memmove \
- setupterm strcasecmp sighold vidattr lrand48 localtime_r \
+ setupterm strcasecmp sighold vidattr lrand48 localtime_r gmtime_r \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
@@ -2795,22 +2797,6 @@ esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-
-if test "$compile_readline" = "yes"
-then
-    AC_OUTPUT(cmd-line-utils/readline/Makefile)
-fi
-
-if test "$compile_libedit" = "yes"
-then
-    AC_OUTPUT(cmd-line-utils/libedit/Makefile)
-fi
-
-if [test "$compile_libedit" = "yes"] || [test "$compile_readline" = "yes"]
-then
-    AC_OUTPUT(cmd-line-utils/Makefile)
-fi 
-
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
  bdb/Makefile dnl
@@ -2826,6 +2812,9 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  include/mysql_version.h dnl
+ cmd-line-utils/Makefile dnl
+ cmd-line-utils/libedit/Makefile dnl
+ cmd-line-utils/readline/Makefile dnl
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
  ])

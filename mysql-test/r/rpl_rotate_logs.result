@@ -5,7 +5,7 @@ ERROR HY000: Could not initialize master info structure, check permisions on mas
 start slave;
 ERROR HY000: Could not initialize master info structure, check permisions on master.info
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
-Could not initialize master info
+ERROR HY000: Could not initialize master info structure, check permisions on master.info
 reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
@@ -73,17 +73,15 @@ show binary logs;
 Log_name
 master-bin.000003
 master-bin.000004
-master-bin.000005
-master-bin.000006
 show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.000006	838		
+master-bin.000004	2886		
 select * from t4;
 a
 testing temporary tables part 2
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	60	master-bin.000006	838	slave-relay-bin.000001	8067	master-bin.000006	Yes	Yes							0		0	838	8067
+127.0.0.1	root	MASTER_PORT	60	master-bin.000004	2886	slave-relay-bin.000001	7891	master-bin.000004	Yes	Yes							0		0	2886	7891
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)

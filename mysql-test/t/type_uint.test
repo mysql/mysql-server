@@ -5,6 +5,7 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
+SET SQL_WARNINGS=1;
 
 create table t1 (this int unsigned);
 insert into t1 values (1);

@@ -216,7 +216,8 @@ public:
 
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
-  Item_in_subselect(): Item_exists_subselect(), abort_on_null(0) {}
+  Item_in_subselect()
+    :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
 
   subs_type substype() { return IN_SUBS; }
   void reset() 
@@ -237,7 +238,6 @@ public:
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
 
-  friend class Item_asterisk_remover;
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
   friend class subselect_indexin_engine;

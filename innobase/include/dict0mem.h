@@ -111,10 +111,13 @@ by the column name may be released only after publishing the index. */
 void
 dict_mem_index_add_field(
 /*=====================*/
-	dict_index_t*	index,	/* in: index */
-	char*		name,	/* in: column name */
-	ulint		order);	/* in: order criterion; 0 means an ascending
-				order */
+	dict_index_t*	index,		/* in: index */
+	char*		name,		/* in: column name */
+	ulint		order,		/* in: order criterion; 0 means an
+					ascending order */
+	ulint		prefix_len);	/* in: 0 or the column prefix length
+					in a MySQL index like
+					INDEX (textcol(25)) */
 /**************************************************************************
 Frees an index memory object. */
 
@@ -158,12 +161,18 @@ struct dict_col_struct{
 				in some of the functions below */
 };
 
+#define DICT_MAX_COL_PREFIX_LEN	512
+
 /* Data structure for a field in an index */
 struct dict_field_struct{
-	dict_col_t*	col;	/* pointer to the table column */
-	char*		name;	/* name of the column */
-	ulint		order;	/* flags for ordering this field:
-				DICT_DESCEND, ... */
+	dict_col_t*	col;		/* pointer to the table column */
+	char*		name;		/* name of the column */
+	ulint		order;		/* flags for ordering this field:
+					DICT_DESCEND, ... */
+	ulint		prefix_len;	/* 0 or the length of the column
+					prefix in a MySQL index of type, e.g.,
+					INDEX (textcol(25)); must be smaller
+					than DICT_MAX_COL_PREFIX_LEN */
 };
 
 /* Data structure for an index tree */

@@ -23,11 +23,13 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
---error 1248
+--error 1249
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
-#(select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
-#select found_rows();
+(select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
+select found_rows();
+select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
+select found_rows();
 
 #
 # Test some error conditions with UNION
@@ -176,6 +178,22 @@ SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left
 drop table t1,t2,t3,t4,t5,t6;
 
 #
+# Test insert ... SELECT with UNION
+#
+
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+create table t3 select a,b from t1 union select a,b from t2;
+create table t4 (select a,b from t1) union (select a,b from t2) limit 2;
+insert into  t4 select a,b from t1 union select a,b from t2;
+insert into  t3 (select a,b from t1) union (select a,b from t2) limit 2;
+select * from t3;
+select * from t4;
+drop table t1,t2,t3,t4;
+
+#
 # Test for another bug with UNION and LEFT JOIN
 #
 CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;
@@ -218,3 +236,13 @@ insert into t2 (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
 select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
 drop table t1, t2, t3;
+
+#
+# fix_fields problem
+#
+create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
+create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
+insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
+insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
+SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id union SELECT 0, 0;
+drop table t1, t2;

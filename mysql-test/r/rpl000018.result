@@ -1,3 +1,4 @@
+reset master;
 reset slave;
 start slave;
 show binary logs;

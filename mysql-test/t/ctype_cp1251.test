@@ -1,0 +1,17 @@
+# Test of charset cp1251
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Test problem with LEFT() (Bug #514)
+#
+
+create table t1 (a varchar(10) not null);
+insert into t1 values ("a"),("ab"),("abc");
+select * from t1;
+select a, left(a,1) as b from t1;
+select a, left(a,1) as b from t1 group by a;
+SELECT DISTINCT RIGHT(a,1) from t1;
+drop table t1;

@@ -253,8 +253,8 @@ unsigned long my_net_read(NET *net);
   Currently it's used internally by manager.c
 */
 struct sockaddr;
-my_bool my_connect(my_socket s, const struct sockaddr *name,
-		   unsigned int namelen, unsigned int timeout);
+int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
+	       unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

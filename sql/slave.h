@@ -47,6 +47,11 @@ extern "C" {
   extern ulong slave_net_timeout;
 };
 
+enum enum_binlog_formats {
+  BINLOG_FORMAT_CURRENT=0, /* 0 is important for easy 'if (mi->old_format)' */
+  BINLOG_FORMAT_323_LESS_57, 
+  BINLOG_FORMAT_323_GEQ_57 };
+
 /*
   TODO: this needs to be redone, but for now it does not matter since
   we do not have multi-master yet.
@@ -284,20 +289,20 @@ Log_event* next_event(RELAY_LOG_INFO* rli);
 typedef struct st_master_info
 {
   char master_log_name[FN_REFLEN];
+  char host[HOSTNAME_LENGTH+1];
+  char user[USERNAME_LENGTH+1];
+  char password[MAX_PASSWORD_LENGTH+1];
   
   my_off_t master_log_pos;
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
   
   /* the variables below are needed because we can change masters on the fly */
-  char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
-  char password[HASH_PASSWORD_LENGTH+1];
   pthread_mutex_t data_lock,run_lock;
   pthread_cond_t data_cond,start_cond,stop_cond;
   THD *io_thd;
   MYSQL* mysql;
-  uint32 file_id; /* for 3.23 load data infile */
+  uint32 file_id;				/* for 3.23 load data infile */
   RELAY_LOG_INFO rli;
   uint port;
   uint connect_retry;
@@ -305,16 +310,16 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   bool inited;
-  bool old_format;			/* master binlog is in 3.23 format */
+  enum enum_binlog_formats old_format;
   volatile bool abort_slave, slave_running;
   volatile ulong slave_run_id;
   
   st_master_info()
-    :fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),
-     slave_running(0), slave_run_id(0)
+    :fd(-1), io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
+     abort_slave(0),slave_running(0), slave_run_id(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
-    bzero(&file, sizeof(file));
+    bzero((char*) &file, sizeof(file));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&data_cond, NULL);
@@ -418,12 +423,15 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
-char* rewrite_db(char* db);
+const char *rewrite_db(const char* db);
+const char *print_slave_db_safe(const char* db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
-void slave_print_error(RELAY_LOG_INFO* rli,int err_code, const char* msg, ...);
+void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 
 void end_slave(); /* clean up */
+void init_master_info_with_options(MASTER_INFO* mi);
+void clear_last_slave_error(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file);
@@ -438,6 +446,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
 
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
+void rotate_relay_log(MASTER_INFO* mi);
 
 extern "C" pthread_handler_decl(handle_slave_io,arg);
 extern "C" pthread_handler_decl(handle_slave_sql,arg);

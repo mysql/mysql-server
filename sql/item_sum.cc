@@ -118,6 +118,20 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
   return sum_item;
 }
 
+bool Item_sum::walk (Item_processor processor, byte *argument)
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      if ((*arg)->walk(processor, argument))
+	return 1;
+    }
+  }
+  return (this->*processor)(argument);
+}
+
 String *
 Item_sum_num::val_str(String *str)
 {
@@ -1149,7 +1163,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
 				select_lex->options | thd->options,
-				HA_POS_ERROR)))
+				HA_POS_ERROR, (char*)"")))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
@@ -1838,7 +1852,8 @@ bool Item_func_group_concat::setup(THD *thd)
     (types, sizes and so on).
   */
   if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 0,
-			       0, 0, 0,select_lex->options | thd->options)))
+			       0, 0, 0,select_lex->options | thd->options,
+			       (char *) "")))
     DBUG_RETURN(1);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;

@@ -30,21 +30,25 @@ class Slave_log_event;
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE, DUP_UPDATE };
-enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
+enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 
 extern char internal_table_name[2];
 
-// log info errors
+/* log info errors */
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
 #define LOG_INFO_INVALID -3
 #define LOG_INFO_SEEK -4
-#define LOG_INFO_PURGE_NO_ROTATE -5
 #define LOG_INFO_MEM -6
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
+
+/* bitmap to SQL_LOG::close() */
+#define LOG_CLOSE_INDEX		1
+#define LOG_CLOSE_TO_BE_OPENED	2
+#define LOG_CLOSE_STOP_EVENT	4
 
 struct st_relay_log_info;
 
@@ -70,8 +74,10 @@ typedef struct st_user_var_events
 
 class Log_event;
 
-class MYSQL_LOG {
+class MYSQL_LOG
+ {
  private:
+  /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_log, LOCK_index;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
@@ -86,15 +92,20 @@ class MYSQL_LOG {
   uint open_count;				// For replication
   volatile enum_log_type log_type;
   enum cache_type io_cache_type;
-  bool write_error,inited;
-  /*
-    For binlog - if log name can never change we should not try to rotate it
-    or write any rotation events. The user should use FLUSH MASTER instead
-    of FLUSH LOGS for purging.
-  */
-  bool no_rotate;
+  bool write_error, inited;
   bool need_start_event;
-  bool no_auto_events; // for relay binlog
+  bool no_auto_events;				// For relay binlog
+  /* 
+     The max size before rotation (usable only if log_type == LOG_BIN: binary
+     logs and relay logs).
+     For a binlog, max_size should be max_binlog_size.
+     For a relay log, it should be max_relay_log_size if this is non-zero,
+     max_binlog_size otherwise.
+     max_size is set in init(), and dynamically changed (when one does SET
+     GLOBAL MAX_BINLOG_SIZE|MAX_RELAY_LOG_SIZE) by fix_max_binlog_size and
+     fix_max_relay_log_size). 
+  */
+  ulong max_size;
   friend class Log_event;
 
 public:
@@ -116,17 +127,19 @@ public:
     bytes_written=0;
     DBUG_VOID_RETURN;
   }
+  void set_max_size(ulong max_size_arg);
   void signal_update() { pthread_cond_broadcast(&update_cond);}
   void wait_for_update(THD* thd);
   void set_need_start_event() { need_start_event = 1; }
   void init(enum_log_type log_type_arg,
-	    enum cache_type io_cache_type_arg = WRITE_CACHE,
-	    bool no_auto_events_arg = 0);
+	    enum cache_type io_cache_type_arg,
+	    bool no_auto_events_arg, ulong max_size);
+  void init_pthread_objects();
   void cleanup();
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
 	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg);
+	    bool no_auto_events_arg, ulong max_size);
   void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
@@ -152,8 +165,7 @@ public:
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(struct st_relay_log_info* rli, bool included); 
   bool reset_logs(THD* thd);
-  // if we are exiting, we also want to close the index file
-  void close(bool exiting = 0);
+  void close(uint exiting);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
@@ -161,7 +173,6 @@ public:
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
-
   inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
@@ -376,6 +387,7 @@ struct system_variables
   ulong tx_isolation;
   ulong sql_mode;
   ulong default_week_format;
+  ulong max_seeks_for_key;
   ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
@@ -520,7 +532,7 @@ public:
   */
   ulonglong  current_insert_id;
   ulonglong  limit_found_rows;
-  ha_rows    select_limit, offset_limit, cuted_fields,
+  ha_rows    cuted_fields,
              sent_row_count, examined_row_count;
   table_map  used_tables;
   USER_CONN *user_connect;
@@ -559,6 +571,7 @@ public:
   bool	     volatile killed;
   bool       prepare_command;
   bool	     tmp_table_used;
+  bool	     charset_is_system_charset, charset_is_collation_connection;
 
   /*
     If we do a purge of binary logs, log index info of the threads
@@ -666,6 +679,9 @@ public:
       memcpy(ptr,str,size);
     return ptr;
   }
+  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+		      const char *from, uint from_length,
+		      CHARSET_INFO *from_cs);
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
@@ -691,6 +707,7 @@ public:
     DBUG_PRINT("error",("Fatal error set"));
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
+  void update_charset();
 };
 
 /*
@@ -1019,11 +1036,12 @@ class Unique :public Sql_alloc
   TREE tree;
   byte *record_pointers;
   bool flush();
+  uint size;
 
 public:
   ulong elements;
   Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
-	 uint size, ulong max_in_memory_size_arg);
+	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
   inline bool unique_add(gptr ptr)
   {
@@ -1038,10 +1056,11 @@ public:
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };
 
-class multi_delete : public select_result
+
+class multi_delete :public select_result
 {
   TABLE_LIST *delete_tables, *table_being_deleted;
-  Unique  **tempfiles;
+  Unique **tempfiles;
   THD *thd;
   ha_rows deleted;
   uint num_of_tables;
@@ -1061,7 +1080,7 @@ public:
 };
 
 
-class multi_update : public select_result
+class multi_update :public select_result
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;

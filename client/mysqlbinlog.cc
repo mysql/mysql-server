@@ -1,4 +1,4 @@
-/* Copyright (C) 2001 MySQL AB
+/* Copyright (C) 2001-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,21 +51,19 @@ static bool short_form = 0;
 static ulonglong offset = 0;
 static const char* host = "localhost";
 static int port = MYSQL_PORT;
+static const char* sock= MYSQL_UNIX_ADDR;
 static const char* user = "test";
 static const char* pass = "";
 static ulonglong position = 0;
 static bool use_remote = 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static const char* table = 0;
-
 static const char* dirname_for_local_load= 0;
 
 static void dump_local_log_entries(const char* logname);
 static void dump_remote_log_entries(const char* logname);
 static void dump_log_entries(const char* logname);
 static void dump_remote_file(NET* net, const char* fname);
-static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
 
@@ -224,8 +222,9 @@ static struct my_option my_long_options[] =
   {"short-form", 's', "Just show the queries, no extra info.",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"table", 't', "Get raw table dump using COM_TABLE_DUMB.", (gptr*) &table,
-   (gptr*) &table, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection.",
+   (gptr*) &sock, (gptr*) &sock, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 
+   0, 0},
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
@@ -369,7 +368,7 @@ static MYSQL* safe_connect()
   if(!local_mysql)
     die("Failed on mysql_init");
 
-  if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, 0, 0))
+  if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
 
   return local_mysql;
@@ -381,35 +380,6 @@ static void dump_log_entries(const char* logname)
     dump_remote_log_entries(logname);
   else
     dump_local_log_entries(logname);  
-}
-
-static void dump_remote_table(NET* net, const char* db, const char* table)
-{
-  char buf[1024];
-  char * p = buf;
-  uint table_len = (uint) strlen(table);
-  uint db_len = (uint) strlen(db);
-  if (table_len + db_len > sizeof(buf) - 2)
-    die("Buffer overrun");
-
-  *p++ = db_len;
-  memcpy(p, db, db_len);
-  p += db_len;
-  *p++ = table_len;
-  memcpy(p, table, table_len);
-
-  if (simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
-    die("Error sending the table dump command");
-
-  for (;;)
-  {
-    uint packet_len = my_net_read(net);
-    if (packet_len == 0) break; // end of file
-    if (packet_len == packet_error)
-      die("Error reading packet in table dump");
-    my_fwrite(result_file, (byte*)net->read_pos, packet_len, MYF(MY_WME));
-    fflush(result_file);
-  }
 }
 
 static int check_master_version(MYSQL* mysql)
@@ -491,7 +461,7 @@ static void dump_remote_log_entries(const char* logname)
     len = net_safe_read(mysql);
     if (len == packet_error)
       die("Error reading packet from server: %s", mysql_error(mysql));
-    if (len == 1 && net->read_pos[0] == 254)
+    if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
@@ -527,8 +497,8 @@ static int check_header(IO_CACHE* file)
     if (buf[4] == START_EVENT)
     {
       uint event_len;
-      event_len = uint4korr(buf + 4);
-      old_format = (event_len < LOG_EVENT_HEADER_LEN + START_HEADER_LEN);
+      event_len = uint4korr(buf + EVENT_LEN_OFFSET);
+      old_format = (event_len < (LOG_EVENT_HEADER_LEN + START_HEADER_LEN));
     }
   }
   my_b_seek(file, pos);
@@ -673,7 +643,7 @@ int main(int argc, char** argv)
   MY_INIT(argv[0]);
   parse_args(&argc, (char***)&argv);
 
-  if (!argc && !table)
+  if (!argc)
   {
     usage();
     return -1;
@@ -696,22 +666,8 @@ int main(int argc, char** argv)
   else
     load_processor.init_by_cur_dir();
 
-  if (table)
-  {
-    if (!use_remote)
-      die("You must specify connection parameter to get table dump");
-    char* db = (char*) table;
-    char* tbl = (char*) strchr(table, '.');
-    if (!tbl)
-      die("You must use database.table syntax to specify the table");
-    *tbl++ = 0;
-    dump_remote_table(&mysql->net, db, tbl);
-  }
-  else
-  {
-    while (--argc >= 0)
-      dump_log_entries(*(argv++));
-  }
+  while (--argc >= 0)
+    dump_log_entries(*(argv++));
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
   if (result_file != stdout)
