@@ -241,5 +241,6 @@ select @@key_buffer_size;
 select * from t1 where a=2;
 select * from t2 where a=3;
 check table t1,t2;
+select max(a) +1, max(a) +2 into @xx,@yy from t1;
 drop table t1,t2;
 
