@@ -951,7 +951,8 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-	(field->flags & PRI_KEY_FLAG))
+	(field->flags & PRI_KEY_FLAG) || 
+	retrieve_all_fields)
     {      
       if (get_ndb_value(op, i, field->ptr))
 	ERR_RETURN(op->getNdbError());
@@ -1779,6 +1780,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 					 where field->query_id is the same as
 					 the current query id */
     DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_ALL_COLS"));
+    retrieve_all_fields = TRUE;
     break;
   case HA_EXTRA_PREPARE_FOR_DELETE:
     DBUG_PRINT("info", ("HA_EXTRA_PREPARE_FOR_DELETE"));
@@ -2025,6 +2027,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       (NdbConnection*)thd->transaction.all.ndb_tid:
       (NdbConnection*)thd->transaction.stmt.ndb_tid;
     DBUG_ASSERT(m_active_trans);
+
+    retrieve_all_fields = FALSE;
     
   } 
   else 
@@ -2076,6 +2080,8 @@ int ha_ndbcluster::start_stmt(THD *thd)
     thd->transaction.stmt.ndb_tid= trans;
   }
   m_active_trans= trans;
+
+  retrieve_all_fields = FALSE;
   
   DBUG_RETURN(error);
 }
@@ -2553,6 +2559,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_DROP_BEFORE_CREATE | 
                 HA_NOT_READ_AFTER_KEY),
   m_use_write(false),
+  retrieve_all_fields(FALSE),
   rows_to_insert(0),
   rows_inserted(0),
   bulk_insert_rows(1024)

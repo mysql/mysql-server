@@ -208,6 +208,7 @@ class ha_ndbcluster: public handler
   const char*  m_unique_index_name[MAX_KEY];
   NdbRecAttr *m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
+  bool retrieve_all_fields;
   ha_rows rows_to_insert;
   ha_rows rows_inserted;
   ha_rows bulk_insert_rows;
