@@ -6,6 +6,10 @@
 source include/master-slave.inc;
 
 connection slave;
+# If we are not supporting transactions in the slave, the unfinished transaction
+# won't cause any error, so we need to skip the test. In the 4.0 testsuite, the
+# slave always runs without InnoDB, so we check for BDB.
+source include/have_bdb.inc;
 stop slave;
 connection master;
 flush logs;

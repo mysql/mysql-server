@@ -2328,7 +2328,7 @@ com_status(String *buffer __attribute__((unused)),
 	(result=mysql_use_result(&mysql)))
     {
       MYSQL_ROW cur=mysql_fetch_row(result);
-      tee_fprintf(stdout, "Current database:\t%s\n",cur[0]);
+      tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
       tee_fprintf(stdout, "Current user:\t\t%s\n",cur[1]);
       (void) mysql_fetch_row(result);		// Read eof
     }

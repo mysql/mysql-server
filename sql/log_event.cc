@@ -2102,10 +2102,10 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
     if (rli->inside_transaction)
     {
       slave_print_error(rli, 0,
-                        "there is an unfinished transaction in the relay log \
-(could find neither COMMIT nor ROLLBACK in the relay log); it could be that \
-the master died while writing the transaction to its binary log. Now the slave \
-is rolling back the transaction.");
+                        "\
+Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
+Probably cause is that the master died while writing the transaction to it's \
+binary log.");
       return(1);
     }
     break;
@@ -2208,7 +2208,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
   {
     memcpy(rli->master_log_name, new_log_ident, ident_len+1);
     rli->master_log_pos= pos;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) rli->master_log_pos));
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) rli->master_log_pos));
   }
   rli->relay_log_pos += get_event_len();
   pthread_mutex_unlock(&rli->data_lock);
