@@ -31,6 +31,9 @@
 #include <string.h>
 #endif
 
+/* need by my_vsnprintf */
+#include <stdarg.h> 
+
 /* Correct some things for UNIXWARE7 */
 #ifdef HAVE_UNIXWARE7_THREADS
 #undef HAVE_STRINGS_H

@@ -1749,12 +1749,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       }
       if (report_error)
       {
-	if (thd->lex.current_select->get_master()->order_list.elements)
-	  my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, ER(ER_TABLENAME_NOT_ALLOWED_HERE), 
-			  MYF(0), table_name, thd->where);
-	else
-	  my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			  table_name, thd->where);
+	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+			table_name, thd->where);
       }
       else
 	return (Field*) not_found_field;

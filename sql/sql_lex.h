@@ -212,6 +212,7 @@ public:
   bool with_sum_func;
   bool	create_refs;
   bool dependent;	/* dependent from outer select subselect */
+  bool no_table_names_allowed; /* used for global order by */
 
   static void *operator new(size_t size)
   {
