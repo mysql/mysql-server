@@ -210,7 +210,7 @@ page_parse_create(
 /*==============*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
+	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
@@ -283,7 +283,7 @@ page_create(
 	tuple = dtuple_create(heap, 1);
 	field = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(field, "infimum", strlen("infimum") + 1);
+	dfield_set_data(field,(char *) "infimum", strlen("infimum") + 1);
 	dtype_set(dfield_get_type(field), DATA_VARCHAR, DATA_ENGLISH, 20, 0);
 	
 	/* Set the corresponding physical record to its place in the page
@@ -305,7 +305,7 @@ page_create(
 	tuple = dtuple_create(heap, 1);
 	field = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(field, "supremum", strlen("supremum") + 1);
+	dfield_set_data(field, (char *) "supremum", strlen("supremum") + 1);
 	dtype_set(dfield_get_type(field), DATA_VARCHAR, DATA_ENGLISH, 20, 0);
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, tuple);

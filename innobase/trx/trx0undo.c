@@ -374,7 +374,7 @@ trx_undo_seg_create(
 /*================*/
 				/* out: segment header page x-latched, NULL
 				if no space left */
-	trx_rseg_t*	rseg,	/* in: rollback segment */
+	trx_rseg_t*	rseg __attribute__((unused)),/* in: rollback segment */
 	trx_rsegf_t*	rseg_hdr,/* in: rollback segment header, page
 				x-latched */
 	ulint		type,	/* in: type of the segment: TRX_UNDO_INSERT or
@@ -657,7 +657,7 @@ trx_undo_parse_discard_latest(
 /*==========================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
+	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
@@ -844,7 +844,7 @@ static
 void
 trx_undo_free_page_in_rollback(
 /*===========================*/
-	trx_t*		trx,	/* in: transaction */
+	trx_t*		trx __attribute__((unused)), /* in: transaction */
 	trx_undo_t*	undo,	/* in: undo log memory copy */
 	ulint		page_no,/* in: page number to free: must not be the
 				header page */
@@ -1560,7 +1560,7 @@ trx_undo_set_state_at_finish(
 /*=========================*/
 				/* out: undo log segment header page,
 				x-latched */
-	trx_t*		trx,	/* in: transaction */
+	trx_t*		trx __attribute__((unused)), /* in: transaction */
 	trx_undo_t*	undo,	/* in: undo log memory copy */
 	mtr_t*		mtr)	/* in: mtr */
 {

@@ -101,7 +101,7 @@ trx_rollback_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	trx->op_info = "rollback";
+	trx->op_info = (char *) "rollback";
 	
 	/* Tell Innobase server that there might be work for
 	utility threads: */
@@ -117,7 +117,7 @@ trx_rollback_for_mysql(
 
 	srv_active_wake_master_thread();
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
 	return(err);
 }	
@@ -138,7 +138,7 @@ trx_rollback_last_sql_stat_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	trx->op_info = "rollback of SQL statement";
+	trx->op_info = (char *) "rollback of SQL statement";
 	
 	/* Tell Innobase server that there might be work for
 	utility threads: */
@@ -154,7 +154,7 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	srv_active_wake_master_thread();
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 	
 	return(err);
 }
@@ -180,7 +180,7 @@ trx_rollback_all_without_sess(void)
 
 	if (!trx_dummy_sess) {
 		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-					ut_strlen("Dummy sess"));
+					ut_strlen((char *) "Dummy sess"));
 	}
 	
 	mutex_exit(&kernel_mutex);

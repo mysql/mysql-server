@@ -674,9 +674,9 @@ trx_purge_choose_next_log(void)
 	trx_rseg_t*	rseg;
 	trx_rseg_t*	min_rseg;
 	dulint		min_trx_no;
-	ulint		space;
-	ulint		page_no;
-	ulint		offset;
+	ulint		space = 0;   /* remove warning (??? bug ???) */
+	ulint		page_no = 0; /* remove warning (??? bug ???) */
+	ulint		offset = 0;  /* remove warning (??? bug ???) */
 	mtr_t		mtr;
 	
 	ut_ad(mutex_own(&(purge_sys->mutex)));

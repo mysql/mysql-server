@@ -539,7 +539,8 @@ lock_sec_rec_cons_read_sees(
 				index record */
 	rec_t*		rec,	/* in: user record which should be read or
 				passed over by a read cursor */
-	dict_index_t*	index,	/* in: non-clustered index */
+	dict_index_t*	index __attribute__((unused)), 
+                                /* in: non-clustered index */
 	read_view_t*	view)	/* in: consistent read view */
 {
 	dulint	max_trx_id;
@@ -2292,7 +2293,7 @@ list start is moved to another page. */
 void
 lock_move_rec_list_start(
 /*=====================*/
-	page_t*	new_page,	/* in: index page to move to */
+	page_t*	new_page __attribute__((unused)),/*in: index page to move to */
 	page_t*	page,		/* in: index page */
 	rec_t*	rec,		/* in: record on page: this is the
 				first record NOT copied */
@@ -2736,7 +2737,7 @@ lock_deadlock_recursive(
 				we return TRUE */
 {
 	lock_t*	lock;
-	ulint	bit_no;
+	ulint	bit_no = 0; /* remove warning */
 	trx_t*	lock_trx;
 	
 	ut_a(trx && start && wait_lock);
