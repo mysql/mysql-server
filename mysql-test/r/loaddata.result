@@ -30,6 +30,8 @@ NULL	2003-03-03	2003-03-03	NULL
 drop table t1;
 create table t1 (a text, b text);
 load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+Warnings:
+Warning	1260	Record count is fewer than the column count at row 3
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 concat('|',a,'|')	concat('|',b,'|')
 |Field A|	|Field B|

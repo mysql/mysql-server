@@ -348,11 +348,7 @@ select found_rows();
 found_rows()
 4
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
-a
-1
-select found_rows();
-found_rows()
-4
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
 a
 1
@@ -435,7 +431,7 @@ a
 3
 3
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
-Wrong usage/placement of 'SQL_CALC_FOUND_ROWS'
+ERROR 42000: Wrong usage/placement of 'SQL_CALC_FOUND_ROWS'
 drop table t1,t2;
 CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");

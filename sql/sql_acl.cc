@@ -532,36 +532,13 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 
 /*
-  Prepare crypted scramble to be sent to the client
-*/
+  Seek ACL entry for a user, check password, SSL cypher, and if
+  everything is OK, update THD user data and USER_RESOURCES struct.
 
-void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
-{
-  /* Binary password format to be used for generation*/
-  char bin_password[SCRAMBLE41_LENGTH];
-  /* Generate new long scramble for the thread */
-  create_random_string(SCRAMBLE41_LENGTH,&thd->rand,thd->scramble);
-  thd->scramble[SCRAMBLE41_LENGTH]=0;
-  /* Get binary form, First 4 bytes of prepared scramble is salt */
-  get_hash_and_password(acl_user->salt,acl_user->pversion,prepared_scramble,
-			(unsigned char*) bin_password);
-  /* Store "*" as identifier for old passwords */
-  if (!acl_user->pversion)
-    prepared_scramble[0]='*';
-  /* Finally encrypt password to get prepared scramble */
-  password_crypt(thd->scramble, prepared_scramble+4, bin_password,
-		 SCRAMBLE41_LENGTH);
-}
-
-
-/*
-    Seek ACL entry for a user, check password, SSL cypher, and if
-    everything is OK, update THD user data and USER_RESOURCES struct.
-
- IMPLEMENTATION
-    This function does not check if the user has any sensible privileges:
-    only user's existence and  validity is checked.
-    Note, that entire operation is protected by acl_cache_lock.
+  IMPLEMENTATION
+   This function does not check if the user has any sensible privileges:
+   only user's existence and  validity is checked.
+   Note, that entire operation is protected by acl_cache_lock.
 
   SYNOPSIS
     acl_getroot()
@@ -578,7 +555,7 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
                 SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
     'thd' and 'mqh' are updated on success; other params are IN.
   
- RETURN VALUE
+  RETURN VALUE
     0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
        updated
     1  user not found or authentification failure
@@ -616,29 +593,29 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
-    ACL_USER *acl_user= dynamic_element(&acl_users,i,ACL_USER*);
-    if (!acl_user->user || !strcmp(thd->user, acl_user->user))
+    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
+    if (!acl_user_tmp->user || !strcmp(thd->user, acl_user_tmp->user))
     {
-      if (compare_hostname(&acl_user->host, thd->host, thd->ip))
+      if (compare_hostname(&acl_user_tmp->host, thd->host, thd->ip))
       {
         /* check password: it should be empty or valid */
-        if (passwd_len == acl_user->salt_len)
+        if (passwd_len == acl_user_tmp->salt_len)
         {
-          if (acl_user->salt_len == 0 ||
-              acl_user->salt_len == SCRAMBLE_LENGTH &&
-              check_scramble(passwd, thd->scramble, acl_user->salt) == 0 ||
+          if (acl_user_tmp->salt_len == 0 ||
+              acl_user_tmp->salt_len == SCRAMBLE_LENGTH &&
+              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) == 0 ||
               check_scramble_323(passwd, thd->scramble,
-                                 (ulong *) acl_user->salt) == 0)
+                                 (ulong *) acl_user_tmp->salt) == 0)
           {
-            acl_user= acl_user;
+            acl_user= acl_user_tmp;
             res= 0;
           }
         }
         else if (passwd_len == SCRAMBLE_LENGTH &&
-                 acl_user->salt_len == SCRAMBLE_LENGTH_323)
+                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH_323)
           res= -1;
         else if (passwd_len == SCRAMBLE_LENGTH_323 &&
-                 acl_user->salt_len == SCRAMBLE_LENGTH)
+                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH)
           res= 2;
         /* linear search complete: */
         break;
@@ -2472,7 +2449,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       {
 	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
 			"DB GRANT","GLOBAL PRIVILEGES");
-	result= 1;
+	result= -1;
       }
     }
   }
@@ -3113,7 +3090,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     protocol->store(global.ptr(),global.length(),global.charset());
     if (protocol->write())
     {
-      error=-1;
+      error= -1;
       goto end;
     }
   }
@@ -3171,7 +3148,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	protocol->store(db.ptr(),db.length(),db.charset());
 	if (protocol->write())
 	{
-	  error=-1;
+	  error= -1;
 	  goto end;
 	}
       }
@@ -3421,7 +3398,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   {
     if (!(acl_user= check_acl_user(user_name, &counter)))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; No such user",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3429,7 +3406,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if ((acl_user->access & ~0))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Global privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3452,7 +3429,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != acl_dbs.elements)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Database privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3475,7 +3452,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != column_priv_hash.records)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s';  Table privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;

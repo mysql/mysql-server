@@ -212,8 +212,10 @@ select found_rows();
 select found_rows();
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1);
 select found_rows();
+# This used to work in 4.0 but not anymore in 4.1
+--error 1149
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
-select found_rows();
+#select found_rows();
 
 # In these case found_rows() should work
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;

@@ -1035,7 +1035,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 			     const char *filename)
 {
   uint length;
-  if (filename && !(thd->sql_mode & MODE_NO_DIR_IN_CREATE))
+  if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
     length= dirname_length(filename);
     packet->append(' ');

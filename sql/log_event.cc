@@ -913,18 +913,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_parse(thd, thd->query, q_len);
 
       /*
-	Set a flag if we are inside an transaction so that we can restart
-	the transaction from the start if we are killed
-
-	This will only be done if we are supporting transactional tables
-	in the slave.
-      */
-      if (!strcmp(thd->query,"BEGIN"))
-	rli->inside_transaction= opt_using_transactions;
-      else if (!(strcmp(thd->query,"COMMIT") && strcmp(thd->query,"ROLLBACK")))
-	rli->inside_transaction=0;
-
-      /*
         If we expected a non-zero error code, and we don't get the same error
         code, and none of them should be ignored.
       */
@@ -1771,7 +1759,7 @@ Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 void Rotate_log_event::pack_info(Protocol *protocol)
 {
   char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1));
+  String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   tmp.append(new_log_ident, ident_len);
   tmp.append(";pos=");
@@ -1896,16 +1884,19 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 
   pthread_mutex_lock(&rli->data_lock);
 
+#ifdef TO_BE_CHECKED_BY_GUILHEM
   if (rli->inside_transaction)
   {
     slave_print_error(rli, 0,
-                      "there is an unfinished transaction in the relay log \
-(could find neither COMMIT nor ROLLBACK in the relay log); it could be that \
-the master died while writing the transaction to its binary log. Now the slave \
-is rolling back the transaction.");
+                      "\
+There is an unfinished transaction in the relay log (could find neither \
+COMMIT nor ROLLBACK in the relay log); It could be that the master died while \
+writing the transaction to its binary log. Now the slave is rolling back the \
+transaction.");
     pthread_mutex_unlock(&rli->data_lock);
     DBUG_RETURN(1);
   }
+#endif
 
   memcpy(log_name, new_log_ident, ident_len+1);
   rli->group_master_log_pos = pos;
