@@ -54,7 +54,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   it= it->this_item();
   DBUG_PRINT("info", ("type: %d", type));
 
-  if (it->fix_fields(thd, 0, NULL))
+  if (it->fix_fields(thd, 0, &it))
   {
     DBUG_PRINT("info", ("fix_fields() failed"));
     DBUG_RETURN(it);		// Shouldn't happen?
