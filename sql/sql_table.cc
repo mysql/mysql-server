@@ -1159,6 +1159,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_snprintf(path, sizeof(path), "%s%s%lx_%lx_%x%s",
 		mysql_tmpdir, tmp_file_prefix, current_pid, thd->thread_id,
 		thd->tmp_table++, reg_ext);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else
@@ -2086,6 +2088,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_snprintf(dst_path, sizeof(dst_path), "%s%s%lx_%lx_%x%s",
 		mysql_tmpdir, tmp_file_prefix, current_pid,
 		thd->thread_id, thd->tmp_table++, reg_ext);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, dst_path);
     create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
   }
   else
@@ -3044,6 +3048,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="rename result table";
   my_snprintf(old_name, sizeof(old_name), "%s2-%lx-%lx", tmp_file_prefix,
 	      current_pid, thd->thread_id);
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, old_name);
   if (new_name != table_name || new_db != db)
   {
     if (!access(new_name_buff,F_OK))

@@ -4909,6 +4909,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
+  
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, path);
 
   if (group)
   {
