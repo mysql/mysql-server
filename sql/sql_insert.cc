@@ -128,6 +128,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
   bool transactional_table, log_delayed;
+  bool check;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -268,6 +269,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (lock_type != TL_WRITE_DELAYED)
     table->file->start_bulk_insert(values_list.elements);
 
+  check= (table_list->check_option != 0);
+
   while ((values= its++))
   {
     if (fields.elements || !value_count)
@@ -299,6 +302,21 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  continue;
 	}
 	error=1;
+	break;
+      }
+    }
+    if (check && table_list->check_option->val_int() == 0)
+    {
+      if (thd->lex->duplicates == DUP_IGNORE)
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
+        continue;
+      }
+      else
+      {
+        my_error(ER_VIEW_CHECK_FAILED, MYF(0));
+        error=1;
 	break;
       }
     }
@@ -1562,6 +1580,11 @@ int mysql_insert_select_prepare(THD *thd)
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_insert_select_prepare");
 
+  /*
+    SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
+    clasue if table is VIEW
+  */
+  table_list->no_where_clause= 1;
   if (setup_tables(thd, table_list, &lex->select_lex.where))
     DBUG_RETURN(-1);
 
@@ -1627,6 +1650,20 @@ bool select_insert::send_data(List<Item> &values)
     fill_record(*fields, values, 1);
   else
     fill_record(table->field, values, 1);
+  if (table_list->check_option && table_list->check_option->val_int() == 0)
+  {
+    if (thd->lex->duplicates == DUP_IGNORE)
+    {
+      push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                   ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
+      DBUG_RETURN(0);
+    }
+    else
+    {
+      my_error(ER_VIEW_CHECK_FAILED, MYF(0));
+      DBUG_RETURN(1);
+    }
+  }
   if (thd->net.report_error || write_record(table,&info))
     DBUG_RETURN(1);
   if (table->next_number_field)		// Clear for next record

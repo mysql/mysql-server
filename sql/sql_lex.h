@@ -682,6 +682,7 @@ typedef struct st_lex
   uint8 describe;
   uint8 derived_tables;
   uint8 create_view_algorithm;
+  uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   /* special JOIN::prepare mode: changing of query is prohibited */
