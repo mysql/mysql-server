@@ -210,9 +210,13 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
-  bool with_sum_func;
-  bool	create_refs;
+  // Arrays of pointers to top elements of all_fields list
+  Item **ref_pointer_array;
+
+  uint with_sum_func;   /* sum function indicator and number of it */
+  bool create_refs;
   bool dependent;	/* dependent from outer select subselect */
+  bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
 
   static void *operator new(size_t size)
@@ -274,11 +278,10 @@ class select_union;
 class st_select_lex_unit: public st_select_lex_node {
 protected:
   List<Item> item_list; 
-  List<JOIN*> joins; /* list of *JOINs, to delete it in cleanup() */
   TABLE_LIST result_table_list;
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
-  THD *thd;
+
   select_result *result;
   int res;
   bool describe, found_rows_for_union,
@@ -295,10 +298,13 @@ public:
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if union used in subselect, point to subselect item */
   Item_subselect *item;
+  THD *thd;
+
   uint union_option;
 
   void init_query();
-  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
+  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result,
+			 bool check_current_derived);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
@@ -314,7 +320,8 @@ public:
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
-				       TABLE_LIST ***result);
+				       TABLE_LIST ***result,
+				       bool check_current_derived);
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
@@ -342,6 +349,7 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+  uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
@@ -468,6 +476,13 @@ typedef struct st_lex
   CHARSET_INFO *charset;
   char *help_arg;
   bool tmp_table_used;
+
+  inline void uncacheable()
+  {
+    safe_to_cache_query= 0;
+    current_select->uncacheable = 
+      current_select->master_unit()->uncacheable= 1;
+  }
 } LEX;
 
 

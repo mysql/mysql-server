@@ -1807,11 +1807,15 @@ const Item **not_found_item= (const Item**) 0x1;
 
 /*
   Find Item in list of items (find_field_in_tables analog)
-  
+
+  TODO
+    is it better return only counter?
+
   SYNOPSIS
     find_item_in_list()
     find - item to find
     items - list of items
+    counter - to return number of found item
     report_error
       REPORT_ALL_ERRORS - report errors, return 0 if error
       REPORT_EXCEPT_NOT_FOUND - do not report 'not found' error and return not_        found_item, report other errors, return 0
@@ -1828,7 +1832,7 @@ const Item **not_found_item= (const Item**) 0x1;
 */
 
 Item **
-find_item_in_list(Item *find, List<Item> &items,
+find_item_in_list(Item *find, List<Item> &items, uint *counter,
 		  find_item_error_report_type report_error)
 {
   List_iterator<Item> li(items);
@@ -1841,8 +1845,10 @@ find_item_in_list(Item *find, List<Item> &items,
     table_name= ((Item_ident*) find)->table_name;
   }
 
+  uint i= 0;
   while ((item=li++))
   {
+    i++;
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       if (!my_strcasecmp(system_charset_info,
@@ -1859,11 +1865,13 @@ find_item_in_list(Item *find, List<Item> &items,
 			      find->full_name(), current_thd->where);
 	    return (Item**) 0;
 	  }
-	  found=li.ref();
+	  found= li.ref();
+	  *counter= i;
 	}
 	else if (!strcmp(((Item_field*) item)->table_name,table_name))
 	{
-	  found=li.ref();
+	  found= li.ref();
+	  *counter= i;
 	  break;
 	}
       }
@@ -1873,7 +1881,8 @@ find_item_in_list(Item *find, List<Item> &items,
 		     !my_strcasecmp(system_charset_info, 
                                     item->name,find->name)))
     {
-      found=li.ref();
+      found= li.ref();
+      *counter= i;
       break;
     }
   }
@@ -1891,30 +1900,26 @@ find_item_in_list(Item *find, List<Item> &items,
 }
 
 /****************************************************************************
-** Check that all given fields exists and fill struct with current data
+** Expand all '*' in given fields
 ****************************************************************************/
 
-int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
-		 bool set_query_id, List<Item> *sum_func_list,
-		 bool allow_sum_func)
+int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
+	       List<Item> *sum_func_list,
+	       uint wild_num)
 {
+  if (!wild_num)
+    return 0;
   reg2 Item *item;
   List_iterator<Item> it(fields);
-  DBUG_ENTER("setup_fields");
-
-  thd->set_query_id=set_query_id;
-  thd->allow_sum_func= allow_sum_func;
-  thd->where="field list";
-
-  while ((item=it++))
-  {
+  while ( wild_num && (item= it++))
+  {    
     if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
 	((Item_field*) item)->field_name[0] == '*')
     {
       uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
 			((Item_field*) item)->table_name, &it))
-	DBUG_RETURN(-1); /* purecov: inspected */
+	return (-1);
       if (sum_func_list)
       {
 	/*
@@ -1924,21 +1929,43 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	*/
 	sum_func_list->elements+= fields.elements - elem;
       }
+      wild_num--;
     }
-    else
-    {
-      if (item->fix_fields(thd, tables, it.ref()) || item->check_cols(1))
-	DBUG_RETURN(-1); /* purecov: inspected */
-      item= *(it.ref()); //Item can be chenged in fix fields
-      if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
-	  sum_func_list)
-	item->split_sum_func(*sum_func_list);
-      thd->used_tables|=item->used_tables();
-    }
+  }
+  return 0;
+}
+
+/****************************************************************************
+** Check that all given fields exists and fill struct with current data
+****************************************************************************/
+
+int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
+		 List<Item> &fields, bool set_query_id,
+		 List<Item> *sum_func_list, bool allow_sum_func)
+{
+  reg2 Item *item;
+  List_iterator<Item> it(fields);
+  DBUG_ENTER("setup_fields");
+
+  thd->set_query_id=set_query_id;
+  thd->allow_sum_func= allow_sum_func;
+  thd->where="field list";
+
+  for (uint i= 0; (item= it++); i++)
+  {
+    if (item->fix_fields(thd, tables, it.ref()) ||
+	item->check_cols(1))
+      DBUG_RETURN(-1); /* purecov: inspected */
+    item= *(it.ref()); //Item can be chenged in fix fields
+    if (ref_pointer_array)
+      ref_pointer_array[i]= item;
+    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
+	sum_func_list)
+      item->split_sum_func(ref_pointer_array, *sum_func_list);
+    thd->used_tables|=item->used_tables();
   }
   DBUG_RETURN(test(thd->fatal_error || thd->net.report_error));
 }
-
 
 /*
   Remap table numbers if INSERT ... SELECT
@@ -2254,7 +2281,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, (ORDER*)0, FALSE,
+				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
 				DUP_ERROR));
 }
 
@@ -2271,7 +2298,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, (ORDER*)0, FALSE,
+				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
 				DUP_ERROR));
 }
 
