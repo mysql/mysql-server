@@ -16,3 +16,4 @@ master_pos_wait('master-bin.001',3000,120)=-1
 select * from t1 where a=8000;
 a
 8000
+drop table t1;
