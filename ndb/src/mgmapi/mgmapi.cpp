@@ -1788,9 +1788,9 @@ ndb_mgm_set_int_parameter(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, 0);
   
   Properties args;
-  args.put("node: ", node);
-  args.put("param: ", param);
-  args.put("value: ", value);
+  args.put("node", node);
+  args.put("param", param);
+  args.put("value", value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set parameter reply", NULL, ""),
@@ -1827,9 +1827,9 @@ ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, 0);
   
   Properties args;
-  args.put("node: ", node);
-  args.put("param: ", param);
-  args.put("value: ", value);
+  args.put("node", node);
+  args.put("param", param);
+  args.put("value", value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set parameter reply", NULL, ""),
@@ -1870,9 +1870,9 @@ ndb_mgm_set_string_parameter(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, 0);
   
   Properties args;
-  args.put("node: ", node);
-  args.put("parameter: ", param);
-  args.put("value: ", value);
+  args.put("node", node);
+  args.put("parameter", param);
+  args.put("value", value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set parameter reply", NULL, ""),
