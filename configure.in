@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.50)
+AM_INIT_AUTOMAKE(mysql, 3.23.51)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -921,6 +921,10 @@ dnl Is this the right match for DEC OSF on alpha?
 	  CFLAGS="$CFLAGS -mieee"
 	  CXXFLAGS="$CXXFLAGS -mieee"
       fi
+      echo "Adding defines for OSF1"
+      # gethostbyname_r is deprecated and doesn't work ok on OSF1
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
     ;;
 esac
 
