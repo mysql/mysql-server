@@ -458,6 +458,10 @@ struct mysql_row_templ_struct {
 					numbers DATA_CHAR... */
 	ulint	charset;		/* MySQL charset-collation code
 					of the column, or zero */
+	ulint	mbminlen;		/* minimum length of a char, in bytes,
+					or zero if not a char type */
+	ulint	mbmaxlen;		/* maximum length of a char, in bytes,
+					or zero if not a char type */
 	ulint	is_unsigned;		/* if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */
