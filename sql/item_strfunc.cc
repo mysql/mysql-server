@@ -1663,13 +1663,16 @@ longlong Item_func_elt::val_int()
 String *Item_func_elt::val_str(String *str)
 {
   uint tmp;
+  String *res;
   if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
   {
     null_value=1;
     return NULL;
   }
   null_value=0;
-  return args[tmp-1]->val_str(str);
+  res= args[tmp-1]->val_str(str);
+  res->set_charset(charset());
+  return res;
 }
 
 
