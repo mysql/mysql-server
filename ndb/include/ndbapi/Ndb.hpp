@@ -122,8 +122,7 @@
      // 4. Attribute Actions
      MyRecAttr= MyOperation->getValue("ATTR2", NULL);
    @endcode
-   For additional examples of this sort, see @ref ndbapi_example1.cpp and 
-   @ref ndbapi_example2.cpp.
+   For additional examples of this sort, see @ref ndbapi_example1.cpp.
 
    The second example uses an NdbIndexOperation:
    @code
@@ -428,10 +427,12 @@
  * @include ndbapi_example1.cpp 
  */
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
  * @page ndbapi_example2.cpp ndbapi_example2.cpp
  * @include ndbapi_example2.cpp 
  */
+#endif
 
 /**
  * @page ndbapi_example3.cpp ndbapi_example3.cpp
