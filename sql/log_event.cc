@@ -231,7 +231,7 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
     else
     {
       rli->inc_pos(get_event_len(),log_pos);
-      flush_relay_log_info(rli);
+      flush_relay_log_info(rli, 1);
     }
   }
   return 0;
@@ -2201,7 +2201,7 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
     the target position when in fact we have not.
   */
   rli->inc_pos(get_event_len(), 0);  
-  flush_relay_log_info(rli);
+  flush_relay_log_info(rli, 0);
   return 0;
 }
 
@@ -2248,7 +2248,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
   }
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
-  flush_relay_log_info(rli);
+  flush_relay_log_info(rli, 0);
   DBUG_RETURN(0);
 }
 

@@ -4463,13 +4463,22 @@ free_tmp_table(THD *thd, TABLE *entry)
   save_proc_info=thd->proc_info;
   thd->proc_info="removing tmp table";
   free_blobs(entry);
-  if (entry->db_stat && entry->file)
+  if (entry->file)
   {
-    (void) entry->file->close();
+    if (entry->db_stat)
+    {
+      (void) entry->file->close();
+    }
+    /*
+      We can't call ha_delete_table here as the table may created in mixed case
+      here and we have to ensure that delete_table gets the table name in
+      the original case.
+    */
+    if (!(test_flags & TEST_KEEP_TMP_TABLES) || entry->db_type == DB_TYPE_HEAP)
+      entry->file->delete_table(entry->real_name);
     delete entry->file;
   }
-  if (!(test_flags & TEST_KEEP_TMP_TABLES) || entry->db_type == DB_TYPE_HEAP)
-    (void) ha_delete_table(entry->db_type,entry->real_name);
+
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
     delete *ptr;
