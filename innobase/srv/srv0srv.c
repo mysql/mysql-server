@@ -2475,12 +2475,23 @@ srv_error_monitor_thread(
 	void*	arg)	/* in: a dummy parameter required by
 			os_thread_create */
 {
+	ulint	cnt	= 0;
+
 	UT_NOT_USED(arg);
 loop:
 	srv_error_monitor_active = TRUE;
 
-	os_thread_sleep(10000000);
+	cnt++;
 
+	os_thread_sleep(2000000);
+
+/*	mem_print_new_info();
+
+	if (cnt % 10 == 0) {
+
+		mem_print_info();
+	}
+*/
 	sync_array_print_long_waits();
 
 	/* Flush stdout and stderr so that a database user gets their output

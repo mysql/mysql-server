@@ -266,10 +266,39 @@ innobase_mysql_print_thd(
 
   	thd = (THD*) input_thd;
 
+        buf += sprintf(buf, "MySQL thread id %lu, query id %lu",
+		       thd->thread_id, thd->query_id);
+        if (thd->host) {
+	  buf += sprintf(buf, " %.30s", thd->host);
+        }
+
+        if (thd->ip) {
+	  buf += sprintf(buf, " %.20s", thd->ip);
+        }
+
+        if (thd->user) {
+	  buf += sprintf(buf, " %.20s", thd->user);
+        }
+
+        if (thd->proc_info) {
+	  buf += sprintf(buf, " %.50s", thd->proc_info);
+        }
+
+        if (thd->query) {
+	  buf += sprintf(buf, "\n%.150s", thd->query);
+        }
+
+        buf += sprintf(buf, "\n");
+
+#ifdef notdefined
+	/* July 30, 2002
+	Revert Monty's changes because they seem to make control
+	characters sometimes appear in the output */
+
 	/*  We can't use value of sprintf() as this is not portable */
   	buf+= my_sprintf(buf,
-			 (buf, "MySQL thread id %lu, query id %lu",
-			  thd->thread_id, thd->query_id));
+			 (buf, "MySQL thread id %lu",
+			  thd->thread_id));
     	if (thd->host)
 	{
 	  *buf++=' ';
@@ -296,10 +325,11 @@ innobase_mysql_print_thd(
 
   	if (thd->query)
 	{
-	  *buf++=' ';
+	  *buf++='\n';
 	  buf=strnmov(buf, thd->query, 150);
   	}  
 	*buf='\n';
+#endif
 }
 }
 
@@ -1414,6 +1444,7 @@ ha_innobase::write_row(
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	int 		error;
 	longlong	auto_inc;
+	longlong	dummy;
 	
   	DBUG_ENTER("ha_innobase::write_row");
 
@@ -1436,7 +1467,31 @@ ha_innobase::write_row(
   	if (table->next_number_field && record == table->record[0]) {
 		/* This is the case where the table has an
 		auto-increment column */
-  	
+
+		/* Initialize the auto-inc counter if it has not been
+		initialized yet */
+
+		if (0 == dict_table_autoinc_peek(prebuilt->table)) {
+
+			/* This call initializes the counter */
+		        error = innobase_read_and_init_auto_inc(&dummy);
+
+			if (error) {
+				/* Deadlock or lock wait timeout */
+
+				goto func_exit;
+			}
+
+			/* We have to set sql_stat_start to TRUE because
+			the above call probably has called a select, and
+			has reset that flag; row_insert_for_mysql has to
+			know to set the IX intention lock on the table,
+			something it only does at the start of each
+			statement */
+
+			prebuilt->sql_stat_start = TRUE;
+		}
+
 	        /* Fetch the value the user possibly has set in the
 	        autoincrement field */
 	        
@@ -1469,10 +1524,9 @@ ha_innobase::write_row(
 		}
 		
 		if (auto_inc != 0) {
-			/* This call will calculate the max of the
-			current value and the value supplied by the user, if
-			the auto_inc counter is already initialized
-			for the table */
+			/* This call will calculate the max of the current
+			value and the value supplied by the user and
+			update the counter accordingly */
 
 			/* We have to use the transactional lock mechanism
 			on the auto-inc counter of the table to ensure
@@ -1512,46 +1566,18 @@ ha_innobase::write_row(
 			auto_inc = dict_table_autoinc_get(prebuilt->table);
 			srv_conc_exit_innodb(prebuilt->trx);
 
-			/* If auto_inc is now != 0 the autoinc counter
-			was already initialized for the table: we can give
-			the new value for MySQL to place in the field */
+			/* We can give the new value for MySQL to place in
+			the field */
 
-			if (auto_inc != 0) {
-				user_thd->next_insert_id = auto_inc;
-			}
+			user_thd->next_insert_id = auto_inc;
 		}
-	        
+
+		/* This call of a handler.cc function places
+		user_thd->next_insert_id to the column value, if the column
+		value was not set by the user */
+
     		update_auto_increment();
-
-		if (auto_inc == 0) {
-			/* The autoinc counter for our table was not yet
-			initialized, initialize it now */
-
-	        	auto_inc = table->next_number_field->val_int();
-
-			srv_conc_enter_innodb(prebuilt->trx);
-			error = row_lock_table_autoinc_for_mysql(prebuilt);
-			srv_conc_exit_innodb(prebuilt->trx);
-
-			if (error != DB_SUCCESS) {
-			
-				error = convert_error_code_to_mysql(error,
-								user_thd);
-				goto func_exit;
-			}	
-			
-			dict_table_autoinc_initialize(prebuilt->table,
-								auto_inc);
-		}
-    		
-		/* We have to set sql_stat_start to TRUE because
-		update_auto_increment may have called a select, and
-		has reset that flag; row_insert_for_mysql has to
-		know to set the IX intention lock on the table, something
-		it only does at the start of each statement */
-
-		prebuilt->sql_stat_start = TRUE;
-    	}
+	}
 
 	if (prebuilt->mysql_template == NULL
 			|| prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
@@ -3572,37 +3598,53 @@ ha_innobase::store_lock(
 }
 
 /***********************************************************************
-Returns the next auto-increment column value for the table. write_row
-normally fetches the value from the cache in the data dictionary. This
-function in used by SHOW TABLE STATUS and when the first insert to the table
-is done after database startup. */
+This function initializes the auto-inc counter if it has not been
+initialized yet. This function does not change the value of the auto-inc
+counter if it already has been initialized. In parameter ret returns
+the value of the auto-inc counter. */
 
-longlong
-ha_innobase::get_auto_increment()
-/*=============================*/
-                         /* out: the next auto-increment column value */
+int
+ha_innobase::innobase_read_and_init_auto_inc(
+/*=========================================*/
+				/* out: 0 or error code: deadlock or
+				lock wait timeout */
+	longlong*	ret)	/* out: auto-inc value */
 {
   	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-  	longlong        nr;
+    	longlong        auto_inc;
   	int     	error;
 
+  	ut_a(prebuilt);
 	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
+	ut_a(prebuilt->table);
+	
+	auto_inc = dict_table_autoinc_read(prebuilt->table);
 
-	/* Also SHOW TABLE STATUS calls this function. Previously, when we did
-	always read the max autoinc key value, setting x-locks, users were
-	surprised that SHOW TABLE STATUS could end up in a deadlock with
-	ordinary SQL queries. We avoid these deadlocks if the auto-inc
-	counter for the table has been initialized by fetching the value
-	from the table struct in dictionary cache. */
+	if (auto_inc != 0) {
+		/* Already initialized */
+		*ret = auto_inc;
+	
+		return(0);
+	}
 
-	assert(prebuilt->table);
-  	
-	nr = dict_table_autoinc_read(prebuilt->table);
+	srv_conc_enter_innodb(prebuilt->trx);
+	error = row_lock_table_autoinc_for_mysql(prebuilt);
+	srv_conc_exit_innodb(prebuilt->trx);
 
-	if (nr != 0) {
+	if (error != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(error, user_thd);
 
-		return(nr + 1);
+		goto func_exit;
+	}	
+
+	/* Check again if someone has initialized the counter meanwhile */
+	auto_inc = dict_table_autoinc_read(prebuilt->table);
+
+	if (auto_inc != 0) {
+		*ret = auto_inc;
+	
+		return(0);
 	}
 
   	(void) extra(HA_EXTRA_KEYREAD);
@@ -3622,22 +3664,63 @@ ha_innobase::get_auto_increment()
   	
 	prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
 
-  	prebuilt->trx->mysql_n_tables_locked += 1;
+	prebuilt->trx->mysql_n_tables_locked += 1;
   
-  	error = index_last(table->record[1]);
+	error = index_last(table->record[1]);
 
   	if (error) {
-  		nr = 1;
+		if (error == HA_ERR_END_OF_FILE) {
+			/* The table was empty, initialize to 1 */
+			auto_inc = 1;
+
+			error = 0;
+		} else {
+			/* Deadlock or a lock wait timeout */
+  			auto_inc = -1;
+
+  			goto func_exit;
+  		}
   	} else {
-    		nr = (longlong) table->next_number_field->
+		/* Initialize to max(col) + 1 */
+    		auto_inc = (longlong) table->next_number_field->
                         	val_int_offset(table->rec_buff_length) + 1;
   	}
 
+	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
+
+func_exit:
   	(void) extra(HA_EXTRA_NO_KEYREAD);
 
-  	index_end();
+	index_end();
 
-  	return(nr);
+	*ret = auto_inc;
+
+  	return(error);
+}
+
+/***********************************************************************
+This function initializes the auto-inc counter if it has not been
+initialized yet. This function does not change the value of the auto-inc
+counter if it already has been initialized. Returns the value of the
+auto-inc counter. */
+
+longlong
+ha_innobase::get_auto_increment()
+/*=============================*/
+                         /* out: auto-increment column value, -1 if error
+                         (deadlock or lock wait timeout) */
+{
+  	longlong        nr;
+  	int     	error;
+	
+	error = innobase_read_and_init_auto_inc(&nr);
+
+	if (error) {
+
+		return(-1);
+	}
+
+	return(nr);
 }
 
 #endif /* HAVE_INNOBASE_DB */

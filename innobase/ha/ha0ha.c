@@ -335,6 +335,11 @@ ha_print_info(
 		}
 	}
 
-	buf += sprintf(buf, "Hash table size %lu, used cells %lu\n",
-					hash_get_n_cells(table), cells);
+	buf += sprintf(buf,
+"Hash table size %lu, used cells %lu", hash_get_n_cells(table), cells);
+
+	if (table->heaps == NULL && table->heap != NULL) {
+	        buf += sprintf(buf,
+", node heap has %lu buffer(s)\n", UT_LIST_GET_LEN(table->heap->base));
+	}
 }	

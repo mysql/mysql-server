@@ -927,6 +927,8 @@ innobase_start_or_create_for_mysql(void)
 	ulint	max_arch_log_no;
 	ibool	start_archive;
 	ulint   sum_of_new_sizes;
+	ulint	sum_of_data_file_sizes;
+	ulint	tablespace_size_in_header;
 	ulint	err;
 	ulint	i;
 	ulint	k;
@@ -1324,7 +1326,33 @@ innobase_start_or_create_for_mysql(void)
 	os_thread_create(&srv_master_thread, NULL, thread_ids + 1 +
 							SRV_MAX_N_IO_THREADS);
 	/* buf_debug_prints = TRUE; */
+
+	sum_of_data_file_sizes = 0;
 	
+	for (i = 0; i < srv_n_data_files; i++) {
+		sum_of_data_file_sizes += srv_data_file_sizes[i];
+	}
+
+	tablespace_size_in_header = fsp_header_get_tablespace_size(0);
+
+	if (!srv_auto_extend_last_data_file
+		&& sum_of_data_file_sizes != tablespace_size_in_header) {
+
+		fprintf(stderr,
+"InnoDB: Error: tablespace size stored in header is %lu pages, but\n"
+"InnoDB: the sum of data file sizes is %lu pages\n",
+ 			tablespace_size_in_header, sum_of_data_file_sizes);
+	}
+
+	if (srv_auto_extend_last_data_file
+		&& sum_of_data_file_sizes < tablespace_size_in_header) {
+
+		fprintf(stderr,
+"InnoDB: Error: tablespace size stored in header is %lu pages, but\n"
+"InnoDB: the sum of data file sizes is only %lu pages\n",
+ 			tablespace_size_in_header, sum_of_data_file_sizes);
+	}
+
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  InnoDB: Started\n");
 

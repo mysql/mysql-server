@@ -1565,6 +1565,7 @@ index->table_name);
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
 
@@ -2961,6 +2962,7 @@ table->name);
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
 
@@ -3503,6 +3505,10 @@ lock_print_info(
 		return;
 	}
 
+	buf += sprintf(buf, "Number of sessions %lu\n",
+		       UT_LIST_GET_LEN(trx_sys->mysql_trx_list)
+		       + UT_LIST_GET_LEN(trx_sys->trx_list));
+
 	buf += sprintf(buf, "Trx id counter %lu %lu\n", 
 		ut_dulint_get_high(trx_sys->max_trx_id),
 		ut_dulint_get_low(trx_sys->max_trx_id));
@@ -3587,7 +3593,8 @@ loop:
 
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			buf += sprintf(buf,
-			"------------------TRX IS WAITING FOR THE LOCK:\n");
+ "------- TRX HAS BEEN WAITING %lu SEC FOR THIS LOCK TO BE GRANTED:\n",
+		   (ulint)difftime(time(NULL), trx->wait_started));
 
 			if (lock_get_type(trx->wait_lock) == LOCK_REC) {
 				lock_rec_print(buf, trx->wait_lock);

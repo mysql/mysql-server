@@ -431,14 +431,29 @@ log_block_set_data_len(
 	byte*	log_block,	/* in: log block */
 	ulint	len);		/* in: data length */
 /****************************************************************
-Gets a log block number stored in the trailer. */
+Calculates the checksum for a log block. */
 UNIV_INLINE
 ulint
-log_block_get_trl_no(
-/*=================*/
-				/* out: log block number stored in the block
-				trailer */
+log_block_calc_checksum(
+/*====================*/
+			/* out: checksum */
+	byte*	block);	/* in: log block */
+/****************************************************************
+Gets a log block checksum field value. */
+UNIV_INLINE
+ulint
+log_block_get_checksum(
+/*===================*/
+				/* out: checksum */
 	byte*	log_block);	/* in: log block */
+/****************************************************************
+Sets a log block checksum field value. */
+UNIV_INLINE
+void
+log_block_set_checksum(
+/*===================*/
+	byte*	log_block,	/* in: log block */
+	ulint	checksum);	/* in: checksum */
 /****************************************************************
 Gets a log block first mtr log record group offset. */
 UNIV_INLINE
@@ -544,10 +559,11 @@ extern log_t*	log_sys;
 					bytes */
 
 /* Offsets of a log block trailer from the end of the block */
-#define	LOG_BLOCK_TRL_CHECKSUM	4	/* 1 byte checksum of the log block
-					contents */
-#define	LOG_BLOCK_TRL_NO	3	/* 3 lowest bytes of the log block
-					number */
+#define	LOG_BLOCK_CHECKSUM	4	/* 4 byte checksum of the log block
+					contents; in InnoDB versions
+					< 3.23.52 this did not contain the
+					checksum but the same value as
+					.._HDR_NO */
 #define	LOG_BLOCK_TRL_SIZE	4	/* trailer size in bytes */
 
 /* Offsets for a checkpoint field */

@@ -1707,10 +1707,11 @@ buf_print(void)
 
 	mutex_enter(&(buf_pool->mutex));
 	
-	printf("LRU len %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
-	printf("free len %lu \n", UT_LIST_GET_LEN(buf_pool->free));
-	printf("flush len %lu \n", UT_LIST_GET_LEN(buf_pool->flush_list));
 	printf("buf_pool size %lu \n", size);
+	printf("database pages %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
+	printf("free pages %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+	printf("modified database pages %lu \n",
+				UT_LIST_GET_LEN(buf_pool->flush_list));
 
 	printf("n pending reads %lu \n", buf_pool->n_pend_reads);
 
@@ -1819,13 +1820,20 @@ buf_print_io(
 	mutex_enter(&(buf_pool->mutex));
 	
 	buf += sprintf(buf,
-		"Free list length  %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+		"Buffer pool size   %lu\n", size);
 	buf += sprintf(buf,
-		"LRU list length   %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
+		"Free buffers       %lu\n", UT_LIST_GET_LEN(buf_pool->free));
 	buf += sprintf(buf,
-		"Flush list length %lu \n",
+		"Database pages     %lu\n", UT_LIST_GET_LEN(buf_pool->LRU));
+/*
+	buf += sprintf(buf,
+		"Lock heap buffers  %lu\n", buf_pool->n_lock_heap_pages);
+	buf += sprintf(buf,
+		"Hash index buffers %lu\n", buf_pool->n_adaptive_hash_pages);
+*/
+	buf += sprintf(buf,
+		"Modified db pages  %lu\n",
 				UT_LIST_GET_LEN(buf_pool->flush_list));
-	buf += sprintf(buf, "Buffer pool size  %lu\n", size);
 
 	buf += sprintf(buf, "Pending reads %lu \n", buf_pool->n_pend_reads);
 

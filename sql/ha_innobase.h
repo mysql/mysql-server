@@ -68,6 +68,7 @@ class ha_innobase: public handler
 	int update_thd(THD* thd);
 	int change_active_index(uint keynr);
 	int general_fetch(byte* buf, uint direction, uint match_mode);
+	int innobase_read_and_init_auto_inc(longlong* ret);
 
 	/* Init values for the class: */
  public:

@@ -666,7 +666,7 @@ mem_print_info_low(
 
 	mem_pool_print_info(outfile, mem_comm_pool);
 	
-	mem_validate();
+/*	mem_validate(); */
 
 /* 	fclose(outfile); */
 #endif

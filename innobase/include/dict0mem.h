@@ -388,8 +388,8 @@ struct dict_table_struct{
 				/* TRUE if the autoinc counter has been
 				inited; MySQL gets the init value by executing
 				SELECT MAX(auto inc column) */
-	ib_longlong	autoinc;/* autoinc counter value already given to
-				a row */	
+	ib_longlong	autoinc;/* autoinc counter value to give to the
+				next inserted row */	
 	ulint		magic_n;/* magic number */
 };
 #define	DICT_TABLE_MAGIC_N	76333786

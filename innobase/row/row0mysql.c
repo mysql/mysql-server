@@ -595,6 +595,11 @@ row_lock_table_autoinc_for_mysql(
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
+	if (trx->auto_inc_lock) {
+
+		return(DB_SUCCESS);
+	}
+
 	trx->op_info = "setting auto-inc lock";
 
 	if (node == NULL) {

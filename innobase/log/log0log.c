@@ -270,7 +270,7 @@ part_loop:
 
 		log->lsn = ut_dulint_add(log->lsn, len);
 
-		/* Initialize the next block header and trailer */
+		/* Initialize the next block header */
 		log_block_init(log_block + OS_FILE_LOG_BLOCK_SIZE, log->lsn);
 	} else {
 		log->lsn = ut_dulint_add(log->lsn, len);
@@ -1070,28 +1070,16 @@ log_group_file_header_flush(
 }
 
 /**********************************************************
-Stores a 1-byte checksum to the trailer checksum field of a log block
+Stores a 4-byte checksum to the trailer checksum field of a log block
 before writing it to a log file. This checksum is used in recovery to
-check the consistency of a log block. The checksum is simply the 8 low
-bits of 1 + the sum of the bytes in the log block except the trailer bytes. */
+check the consistency of a log block. */
 static
 void
 log_block_store_checksum(
 /*=====================*/
 	byte*	block)	/* in/out: pointer to a log block */
 {
-	ulint	i;
-	ulint	sum;
-
-	sum = 1;
-
-	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
-		sum += (ulint)(*(block + i));
-	}
-
-	mach_write_to_1(block + OS_FILE_LOG_BLOCK_SIZE
-						- LOG_BLOCK_TRL_CHECKSUM,
-			0xFF & sum);
+	log_block_set_checksum(block, log_block_calc_checksum(block));
 }
 	
 /**********************************************************

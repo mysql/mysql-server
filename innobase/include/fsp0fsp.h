@@ -57,6 +57,16 @@ fsp_header_get_free_limit(
 			/* out: free limit in megabytes */
 	ulint	space);	/* in: space id */
 /**************************************************************************
+Gets the size of the tablespace from the tablespace header. If we do not
+have an auto-extending data file, this should be equal to the size of the
+data files. If there is an auto-extending data file, this can be smaller. */
+
+ulint
+fsp_header_get_tablespace_size(
+/*===========================*/
+			/* out: size in pages */
+	ulint	space);	/* in: space id */
+/**************************************************************************
 Initializes the space header of a new created space. */
 
 void
