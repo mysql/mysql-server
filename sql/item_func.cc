@@ -1951,6 +1951,9 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   List_iterator<Item> li(fields);
   Item *item;
 
+  maybe_null=1;
+  join_key=0;
+
   /* Why testing for const_item ? Monty */
   /* I'll remove it later, but this should include modifications to
      find_best and auto_close as complement to auto_init code above. SerG */
@@ -2044,8 +2047,6 @@ bool Item_func_match::fix_index()
       continue;
 
     this->key=ft_to_key[key];
-    maybe_null=1;
-    join_key=0;
 
     return 0;
   }
