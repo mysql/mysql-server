@@ -256,8 +256,11 @@ void set_param_short(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 2)
     return;
-#endif
   int16 value= sint2korr(*pos);
+#else
+  int16 value;
+  shortget(value, *pos);
+#endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint16) value) :
                                         (longlong) value);
   *pos+= 2;
@@ -268,8 +271,11 @@ void set_param_int32(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-#endif
   int32 value= sint4korr(*pos);
+#else
+  int32 value;
+  longget(value, *pos);
+#endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint32) value) :
                                         (longlong) value);
   *pos+= 4;
@@ -280,9 +286,13 @@ void set_param_int64(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-#endif
   param->set_int((longlong)sint8korr(*pos));
   *pos+= 8;
+#else
+  longlong value;
+  longlongget(value, *pos);
+  param->set_int(value);
+#endif
 }
 
 void set_param_float(Item_param *param, uchar **pos, ulong len)
