@@ -12,10 +12,9 @@ commands="\
 $make -k clean || true 
 /bin/rm -f */.deps/*.P config.cache
 
-aclocal; autoheader; aclocal; automake; autoconf
-cd innobase
-aclocal; autoheader; aclocal; automake; autoconf
-cd ..
+aclocal && autoheader && aclocal && automake && autoconf
+(cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
 CFLAGS=\"$cflags\" CXX=gcc CXXFLAGS=\"$cxxflags\" $configure"
 
