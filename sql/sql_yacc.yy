@@ -1134,8 +1134,13 @@ repair:
 opt_mi_check_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
 	| TYPE_SYM EQ mi_check_types {}
+	| mi_check_types {}
 
 mi_check_types:
+	mi_check_type {}
+	| mi_check_type mi_check_types {}
+
+mi_check_type:
 	QUICK      { Lex->check_opt.quick = 1; }
 	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }

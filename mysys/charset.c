@@ -67,7 +67,7 @@ static char *name_from_csnum(CS_ID **cs, uint number)
     for (c = cs; *c; ++c)
       if ((*c)->number == number)
 	return (*c)->name;
-  return "?";   /* this mimics find_type() */
+  return (char*) "?";   /* this mimics find_type() */
 }
 
 static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
@@ -487,7 +487,7 @@ char * list_charsets(myf want_flags)
   {
     CS_ID **c;
     char buf[FN_REFLEN];
-    MY_STAT stat;
+    MY_STAT status;
 
     if((c=available_charsets))
       for (; *c; ++c)
@@ -495,7 +495,7 @@ char * list_charsets(myf want_flags)
 	  if (charset_in_string((*c)->name, &s))
 	    continue;
 	  get_charset_conf_name((*c)->number, buf);
-	  if (!my_stat(buf, &stat, MYF(0)))
+	  if (!my_stat(buf, &status, MYF(0)))
 	    continue;       /* conf file doesn't exist */
 	  dynstr_append(&s, (*c)->name);
 	  dynstr_append(&s, " ");

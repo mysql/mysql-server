@@ -155,10 +155,10 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	printf("  - Merging %lu keys\n",records);
       if (merge_many_buff(info,keys,sort_keys,buffpek,&maxbuffer,&tempfile))
 	goto err;
-      if (flush_io_cache(&tempfile) ||
-	  reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
-      goto err;
     }
+    if (flush_io_cache(&tempfile) ||
+	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
+      goto err;
     if (!no_messages)
       puts("  - Last merge and dumping keys");
     if (merge_index(info,keys,sort_keys,buffpek,maxbuffer,&tempfile))

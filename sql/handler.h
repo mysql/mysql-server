@@ -66,7 +66,6 @@
 #define HA_NO_WRITE_DELAYED	(HA_NOT_EXACT_COUNT*2)
 #define HA_PRIMARY_KEY_IN_READ_INDEX (HA_NO_WRITE_DELAYED*2)
 #define HA_DROP_BEFORE_CREATE	(HA_PRIMARY_KEY_IN_READ_INDEX*2)
-#define HA_CHECK_AND_REPAIR	(HA_DROP_BEFORE_CREATE*2)
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */
@@ -146,9 +145,10 @@ typedef struct st_ha_check_opt
   bool quick;
   bool changed_files;
   bool optimize;
+  bool retry_without_quick;
   inline void init()
   {
-    flags= 0; quick= optimize=0;
+    flags= 0; quick= optimize= retry_without_quick=0;
     sort_buffer_size = myisam_sort_buffer_size;
   }
 } HA_CHECK_OPT;
@@ -249,7 +249,7 @@ public:
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
   virtual int check(THD* thd,   HA_CHECK_OPT* check_opt );
   virtual int repair(THD* thd,  HA_CHECK_OPT* check_opt);
-  virtual bool check_and_repair(THD *thd, const char *name) {return 1;}
+  virtual bool check_and_repair(THD *thd) {return 1;}
   virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
@@ -274,6 +274,8 @@ public:
   virtual uint max_key_length()const =0;
   virtual uint min_record_length(uint options) const { return 1; }
   virtual bool low_byte_first() const { return 1; }
+  virtual bool is_crashed() const  { return 0; }
+  virtual bool auto_repair() const { return 0; }
 
   virtual int rename_table(const char *from, const char *to);
   virtual int delete_table(const char *name);

@@ -46,6 +46,7 @@
 #define HA_OPEN_TMP_TABLE		4	/* Table is a temp table */
 #define HA_OPEN_DELAY_KEY_WRITE		8	/* Don't update index  */
 #define HA_OPEN_ABORT_IF_CRASHED	16
+#define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
 
 	/* The following is parameter to ha_rkey() how to use key */
 

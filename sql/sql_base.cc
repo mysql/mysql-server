@@ -34,7 +34,7 @@ HASH open_cache;				/* Used by mysql_test */
 
 
 static int open_unireg_entry(TABLE *entry,const char *db,const char *name,
-			     const char *alias);
+			     const char *alias, bool locked);
 static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 			  List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
@@ -572,7 +572,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(table, db, table_name, table_name) ||
+  if (open_unireg_entry(table, db, table_name, table_name,0) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
     {
@@ -706,7 +706,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
       DBUG_RETURN(NULL);
-    if (open_unireg_entry(table,db,table_name,alias) ||
+    if (open_unireg_entry(table,db,table_name,alias,0) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
@@ -816,7 +816,7 @@ bool reopen_table(TABLE *table,bool locked)
   if (!locked)
     VOID(pthread_mutex_lock(&LOCK_open));
 
-  if (open_unireg_entry(&tmp,db,table_name,table->table_name))
+  if (open_unireg_entry(&tmp,db,table_name,table->table_name,locked))
     goto end;
   free_io_cache(table);
 
@@ -1113,23 +1113,72 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 */
 
 static int open_unireg_entry(TABLE *entry,const char *db,const char *name,
-			     const char *alias)
+			     const char *alias, bool locked)
 {
   char path[FN_REFLEN];
+  int error;
   DBUG_ENTER("open_unireg_entry");
 
   (void) sprintf(path,"%s/%s/%s",mysql_data_home,db,name);
   if (openfrm(path,alias,
-	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
-		      HA_TRY_READ_ONLY),
-	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-	      ha_open_options,
-	      entry))
+	       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
+		       HA_TRY_READ_ONLY),
+	       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+		 ha_open_options,
+		 entry))
   {
-    DBUG_RETURN(1);
+    THD *thd=current_thd;
+    if (!entry->crashed)
+      goto err;					// Can't repair the table
+
+    TABLE_LIST table_list;
+    table_list.db=(char*) db;
+    table_list.name=(char*) name;
+    table_list.next=0;
+    if (!locked)
+      pthread_mutex_lock(&LOCK_open);
+    if ((error=lock_table_name(thd,&table_list)))
+    {
+      if (error < 0)
+      {
+	if (!locked)
+	  pthread_mutex_lock(&LOCK_open);
+	goto err;
+      }
+      if (wait_for_locked_table_names(thd,&table_list))
+      {
+	unlock_table_name(thd,&table_list);
+	if (!locked)
+	  pthread_mutex_lock(&LOCK_open);
+	goto err;
+      }
+    }
+    pthread_mutex_unlock(&LOCK_open);
+    thd->net.last_error[0]=0;				// Clear error message
+    thd->net.last_errno=0;
+    error=0;
+    sql_print_error("Warning: Repairing table: %s.%s",db,name);
+    if (openfrm(path,alias,
+		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
+			 HA_TRY_READ_ONLY),
+		READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+		ha_open_options | HA_OPEN_FOR_REPAIR,
+		entry) ||
+	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
+    {
+      sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
+      error=1;
+    }
+    unlock_table_name(thd,&table_list);
+    if (locked)
+      pthread_mutex_lock(&LOCK_open);      // Get back old lock
+    if (error)
+      goto err;
   }
   (void) entry->file->extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
   DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
 }
 
 

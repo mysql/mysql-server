@@ -64,7 +64,7 @@ static FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, byte *keybuf,
       return NULL;
   }
   /* Handle the case where all columns are NULL */
-  if (!parsed && !(parsed=ft_parse(0, "", 0)))
+  if (!parsed && !(parsed=ft_parse(0, (byte*) "", 0)))
     return NULL;
   return ft_linearize(info, keynr, keybuf, parsed);
 }
