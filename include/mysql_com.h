@@ -146,14 +146,14 @@ enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 #define FIELD_TYPE_CHAR FIELD_TYPE_TINY		/* For compability */
 #define FIELD_TYPE_INTERVAL FIELD_TYPE_ENUM	/* For compability */
 
-extern unsigned long max_allowed_packet;
-extern unsigned long net_buffer_length;
-
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern unsigned long max_allowed_packet;
+extern unsigned long net_buffer_length;
 
 int	my_net_init(NET *net, Vio* vio);
 void	net_end(NET *net);

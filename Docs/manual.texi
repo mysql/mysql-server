@@ -45712,6 +45712,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
+@item
+Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
+@item
 Speed up all internal list handling.
 @item
 Added support for @code{UNION}.

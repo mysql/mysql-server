@@ -55,35 +55,13 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
 	Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
 	Wait until the lock is gone
       */
-      if (thd->global_read_lock)	// This thread had the read locks
+      if (wait_if_global_read_lock(thd, 1))
       {
-	my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
-		 write_lock_used->table_name);
 	my_free((gptr) sql_lock,MYF(0));
 	sql_lock=0;
 	break;
       }	
-
-      pthread_mutex_lock(&LOCK_open);
-      pthread_mutex_lock(&thd->mysys_var->mutex);
-      thd->mysys_var->current_mutex= &LOCK_open;
-      thd->mysys_var->current_cond= &COND_refresh;
-      thd->proc_info="Waiting for table";
-      pthread_mutex_unlock(&thd->mysys_var->mutex);
-
-      while (global_read_lock && ! thd->killed &&
-	     thd->version == refresh_version)
-      {
-	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-      }
-      pthread_mutex_unlock(&LOCK_open);
-      pthread_mutex_lock(&thd->mysys_var->mutex);
-      thd->mysys_var->current_mutex= 0;
-      thd->mysys_var->current_cond= 0;
-      thd->proc_info= 0;
-      pthread_mutex_unlock(&thd->mysys_var->mutex);
-
-      if (thd->version != refresh_version || thd->killed)
+      if (thd->version != refresh_version)
       {
 	my_free((gptr) sql_lock,MYF(0));
 	goto retry;
@@ -502,3 +480,94 @@ static void print_lock_error(int error)
   DBUG_VOID_RETURN;
 }
 
+
+/****************************************************************************
+  Handling of global read locks
+
+  The global locks are handled through the global variables:
+  global_read_lock
+  waiting_for_read_lock 
+  protect_against_global_read_lock
+****************************************************************************/
+
+volatile uint global_read_lock=0;
+static volatile uint protect_against_global_read_lock=0;
+static volatile uint waiting_for_read_lock=0;
+
+bool lock_global_read_lock(THD *thd)
+{
+  DBUG_ENTER("lock_global_read_lock");
+
+  if (!thd->global_read_lock)
+  {
+    (void) pthread_mutex_lock(&LOCK_open);
+    const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
+					    "Waiting to get readlock");
+    waiting_for_read_lock++;
+    while (protect_against_global_read_lock && !thd->killed)
+      pthread_cond_wait(&COND_refresh, &LOCK_open);
+    waiting_for_read_lock--;
+    if (thd->killed)
+    {
+      (void) pthread_mutex_unlock(&LOCK_open);
+      DBUG_RETURN(1);
+    }
+    thd->global_read_lock=1;
+    global_read_lock++;
+    (void) pthread_mutex_unlock(&LOCK_open);
+  }
+  DBUG_RETURN(0);
+}
+
+void unlock_global_read_lock(THD *thd)
+{
+  uint tmp;
+  thd->global_read_lock=0;
+  pthread_mutex_lock(&LOCK_open);
+  tmp= --global_read_lock;
+  pthread_mutex_unlock(&LOCK_open);
+  /* Send the signal outside the mutex to avoid a context switch */
+  if (!tmp)
+    pthread_cond_broadcast(&COND_refresh);
+}
+
+
+bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
+{
+  const char *old_message;
+  bool result=0;
+  DBUG_ENTER("wait_if_global_read_lock");
+
+  (void) pthread_mutex_lock(&LOCK_open);
+  if (global_read_lock)
+  {
+    if (thd->global_read_lock)		// This thread had the read locks
+    {
+      my_error(ER_CANT_UPDATE_WITH_READLOCK,MYF(0));
+      DBUG_RETURN(1);
+    }	
+    old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
+				"Waiting for release of readlock");
+    while (global_read_lock && ! thd->killed &&
+	   (!abort_on_refresh || thd->version == refresh_version))
+      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    if (thd->killed)
+      result=1;
+    thd->exit_cond(old_message);
+  }
+  if (!abort_on_refresh && !result)
+    protect_against_global_read_lock++;
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(result);
+}
+
+
+void start_waiting_global_read_lock(THD *thd)
+{
+  bool tmp;
+  (void) pthread_mutex_lock(&LOCK_open);
+  tmp= (!--protect_against_global_read_lock && waiting_for_read_lock);
+  (void) pthread_mutex_unlock(&LOCK_open);
+  if (tmp)
+    pthread_cond_broadcast(&COND_refresh);
+}

@@ -781,9 +781,9 @@ typedef union {
 				  *((uchar*) (T))=  (uchar)(def_temp); \
 				  *((uchar*) (T+1))=(uchar)((def_temp >> 8)); }
 #define int3store(T,A)		{ /*lint -save -e734 */\
-				  *((T))=(char) ((A));\
-				  *((T)+1)=(char) (((A) >> 8));\
-				  *((T)+2)=(char) (((A) >> 16)); \
+				  *((uchar*)(T))=(uchar) ((A));\
+				  *((uchar*) (T)+1)=(uchar) (((A) >> 8));\
+				  *((uchar*)(T)+2)=(uchar) (((A) >> 16)); \
 				  /*lint -restore */}
 #define int4store(T,A)		{ *(T)=(char) ((A));\
 				  *((T)+1)=(char) (((A) >> 8));\

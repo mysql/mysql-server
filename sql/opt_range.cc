@@ -2637,7 +2637,6 @@ int QUICK_SELECT_DESC::get_next()
     }
     range = 0;					// To next range
   }
-  DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 /*

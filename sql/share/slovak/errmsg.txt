@@ -226,3 +226,4 @@
 "Error when executing command %s: %-.128s",
 "Wrong usage of %s and %s",
 "The used SELECT statements have a different number of columns",
+"Can't execute the query because you have a conflicting read lock",

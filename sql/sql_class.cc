@@ -82,6 +82,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   global_read_lock(0),bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
+  host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=0;
   query_length=col_access=0;
@@ -183,12 +184,7 @@ THD::~THD()
   }
 #endif
   if (global_read_lock)
-  {
-    pthread_mutex_lock(&LOCK_open);
-    ::global_read_lock--;
-    pthread_cond_broadcast(&COND_refresh);
-    pthread_mutex_unlock(&LOCK_open);
-  }
+    unlock_global_read_lock(this);
   if (ull)
   {
     pthread_mutex_lock(&LOCK_user_locks);

@@ -262,7 +262,7 @@ bool server_id_supplied = 0;
 uint mysql_port;
 uint test_flags = 0, select_errors=0, dropping_tables=0,ha_open_options=0;
 uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
-	      wake_thread=0, global_read_lock=0;
+	      wake_thread=0;
 ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
 uint protocol_version=PROTOCOL_VERSION;
