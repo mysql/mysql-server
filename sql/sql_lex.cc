@@ -359,8 +359,6 @@ static char *get_text(LEX *lex)
 	*to=0;
 	lex->yytoklen=(uint) (to-start);
       }
-      if (lex->convert_set)
-	lex->convert_set->convert((char*) start,lex->yytoklen);
       return (char*) start;
     }
   }
@@ -849,6 +847,8 @@ int yylex(void *arg, void *yythd)
 	break;
       }
       yylval->lex_str.length=lex->yytoklen;
+      if (lex->convert_set)
+	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(TEXT_STRING);
 
     case STATE_COMMENT:			//  Comment
