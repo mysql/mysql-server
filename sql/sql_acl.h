@@ -37,6 +37,8 @@
 #define REPL_CLIENT_ACL	(1L << 20)
 #define CREATE_VIEW_ACL	(1L << 21)
 #define SHOW_VIEW_ACL	(1L << 22)
+#define CREATE_PROC_ACL	(1L << 23)
+#define ALTER_PROC_ACL  (1L << 24)
 /*
   don't forget to update
     static struct show_privileges_st sys_privileges[]
@@ -47,7 +49,8 @@
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
  GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | \
- LOCK_TABLES_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+ LOCK_TABLES_ACL | EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | \
+ CREATE_PROC_ACL | ALTER_PROC_ACL)
 
 #define TABLE_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
@@ -57,15 +60,22 @@
 #define COL_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | REFERENCES_ACL)
 
+#define PROC_ACLS \
+(ALTER_PROC_ACL | EXECUTE_ACL | GRANT_ACL)
+
 #define GLOBAL_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
  RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL | GRANT_ACL | \
  REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL | \
  CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
- EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+ EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL | \
+ ALTER_PROC_ACL )
 
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
+
+#define DEFAULT_CREATE_PROC_ACLS \
+(ALTER_PROC_ACL | EXECUTE_ACL)
 
 /*
   Defines to change the above bits to how things are stored in tables
@@ -73,27 +83,38 @@
 */
 
 /* Continius bit-segments that needs to be shifted */
-#define DB_REL1 (RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL)
-#define DB_REL2 (GRANT_ACL | REFERENCES_ACL)
-#define DB_REL3 (INDEX_ACL | ALTER_ACL)
+#define DB_REL1 ((1L << 6) | (1L << 7) | (1L << 8) | (1L << 9))
+#define DB_REL2 ((1L << 10) | (1L << 11))
+#define DB_REL3 ((1L << 12) | (1L << 13) | (1L << 14) | (1L << 15))
+#define DB_REL4 ((1L << 16))
 
 /* Privileges that needs to be reallocated (in continous chunks) */
 #define DB_CHUNK1 (GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL)
 #define DB_CHUNK2 (CREATE_TMP_ACL | LOCK_TABLES_ACL)
-#define DB_CHUNK3 (CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+#define DB_CHUNK3 (CREATE_VIEW_ACL | SHOW_VIEW_ACL | \
+		   CREATE_PROC_ACL | ALTER_PROC_ACL )
+#define DB_CHUNK4 (EXECUTE_ACL)
 
 #define fix_rights_for_db(A) (((A) & 63) | \
 			      (((A) & DB_REL1) << 4) | \
 			      (((A) & DB_REL2) << 6) | \
-			      (((A) & DB_REL3) << 9))
+			      (((A) & DB_REL3) << 9) | \
+			      (((A) & DB_REL4) << 2))
 #define get_rights_for_db(A) (((A) & 63) | \
 			      (((A) & DB_CHUNK1) >> 4) | \
 			      (((A) & DB_CHUNK2) >> 6) | \
-			      (((A) & DB_CHUNK3) >> 9))
+			      (((A) & DB_CHUNK3) >> 9) | \
+			      (((A) & DB_CHUNK4) >> 2))
 #define fix_rights_for_table(A) (((A) & 63) | (((A) & ~63) << 4))
 #define get_rights_for_table(A) (((A) & 63) | (((A) & ~63) >> 4))
 #define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 8))
 #define get_rights_for_column(A) (((A) & 7) | ((A) >> 8))
+#define fix_rights_for_procedure(A) ((((A) << 18) & EXECUTE_ACL) | \
+				     (((A) << 23) & ALTER_PROC_ACL) | \
+				     (((A) << 8) & GRANT_ACL))
+#define get_rights_for_procedure(A) ((((A) & EXECUTE_ACL) >> 18) |  \
+				     (((A) & ALTER_PROC_ACL) >> 23) | \
+				     (((A) & GRANT_ACL) >> 8))
 
 /* Classes */
 
@@ -163,6 +184,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
 bool mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
                        List <LEX_COLUMN> &column_list, ulong rights,
                        bool revoke);
+bool mysql_procedure_grant(THD *thd, TABLE_LIST *table, 
+			   List <LEX_USER> &user_list, ulong rights,
+			   bool revoke, bool no_error);
 my_bool grant_init(THD *thd);
 void grant_free(void);
 void grant_reload(THD *thd);
@@ -174,6 +198,8 @@ bool check_grant_column (THD *thd, GRANT_INFO *grant,
 bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
                              char* db_name, char *table_name,
                              Field_iterator *fields);
+bool check_grant_procedure(THD *thd, ulong want_access, 
+			   TABLE_LIST *procs, bool no_error);
 bool check_grant_db(THD *thd,const char *db);
 ulong get_table_grant(THD *thd, TABLE_LIST *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant,
@@ -188,6 +214,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
+bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name);
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0

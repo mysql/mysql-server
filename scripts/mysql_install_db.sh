@@ -3,7 +3,7 @@
 # For a more info consult the file COPYRIGHT distributed with this file.
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
-# columns_priv in the mysql database, as well as the func table.
+# columns_priv, procs_priv in the mysql database, as well as the func table.
 #
 # All unrecognized arguments to this script are passed to mysqld.
 

@@ -420,6 +420,8 @@ void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0,
                          TABLE *stopper= 0);
 bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
+bool check_procedure_access(THD *thd,ulong want_access,char *db,char *name,
+			    bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
@@ -828,7 +830,6 @@ int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
-int transactional_lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(enum db_type base, char *path);
@@ -1024,6 +1025,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm;
 extern my_bool opt_secure_auth;
+extern my_bool sp_automatic_privileges;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
