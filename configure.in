@@ -28,7 +28,7 @@ MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
-romanian russian slovak spanish swedish"
+romanian russian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
 AVAILABLE_LANGUAGES_ERRORS=
