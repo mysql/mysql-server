@@ -1,4 +1,18 @@
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 write;
+ update low_priority t1 set n = 4;
+ select n from t1;
+unlock tables;
 n
 4
+drop table t1;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 read;
+ update low_priority t1 set n = 4;
+ select n from t1;
+unlock tables;
 n
 1
+drop table t1;

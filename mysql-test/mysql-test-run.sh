@@ -124,7 +124,7 @@ MASTER_RUNNING=0
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
-MYSQL_MANAGER_PORT=23546
+MYSQL_MANAGER_PORT=9308
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
@@ -152,6 +152,7 @@ while test $# -gt 0; do
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
+    --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
      --ssl-ca=$BASEDIR/SSL/cacert.pem \

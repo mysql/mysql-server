@@ -168,6 +168,7 @@ typedef struct st_lex {
   CONVERT *convert_set;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
+  THD *thd;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;

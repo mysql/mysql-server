@@ -13,20 +13,20 @@ select * from t1;
 1	table 1
 1	table 1
 rename table t1 to t2;
-Table './test/t2.frm' already exists
+Got one of the listed errors
 rename table t1 to t1;
-Table './test/t1.frm' already exists
+Got one of the listed errors
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
-Table './test/t2.frm' already exists
+Got one of the listed errors
 show tables like "t_";
 Tables_in_test (t_)
 t1
 t2
 t3
 rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
-Table './test/t1.frm' already exists
+Got one of the listed errors
 rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
-Can't find file: './test/t5.frm' (errno: 2)
+Got one of the listed errors
 select * from t1;
 1	table 1
 1	table 1

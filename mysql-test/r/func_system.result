@@ -1,5 +1,5 @@
 select database(),user() like "%@%";
-database()	user()
+database()	user() like "%@%"
 test	1
 select version()>="3.23.29";
 version()>="3.23.29"

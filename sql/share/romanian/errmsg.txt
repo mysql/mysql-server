@@ -226,6 +226,4 @@
 "The used SELECT statements have a different number of columns",
 "Can't execute the query because you have a conflicting read lock",
 "Mixing of transactional and non-transactional tables is disabled",
-"Duplicate SUBJECT option in GRANT clause",
-"Duplicate ISSUER option in GRANT clause",
-"Duplicate CIPHER option in GRANT clause",
+"Option '%s' used twice in statement",

@@ -645,7 +645,7 @@ err:
   return 1;
 }
 
-HANDLE_DECL(query)
+HANDLE_DECL(handle_query)
 {
   const char* error=0;
   struct manager_exec* e;

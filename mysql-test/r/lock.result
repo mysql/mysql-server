@@ -43,21 +43,3 @@ Table	Op	Msg_type	Msg_text
 test.t2	check	error	Table 't2' was not locked with LOCK TABLES
 unlock tables;
 drop table t1,t2;
-create table t1(n int);
-insert into t1 values (1);
-lock tables t1 write;
- update low_priority t1 set n = 4;
- select n from t1;
-unlock tables;
-n
-4
-drop table t1;
-create table t1(n int);
-insert into t1 values (1);
-lock tables t1 read;
- update low_priority t1 set n = 4;
- select n from t1;
-unlock tables;
-n
-1
-drop table t1;

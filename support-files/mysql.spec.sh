@@ -1,6 +1,6 @@
 %define mysql_version		@VERSION@
 %define shared_lib_version	@SHARED_LIB_VERSION@
-%define release			1
+%define release			2
 %define mysqld_user		mysql
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
@@ -139,6 +139,20 @@ Optional MySQL server binary that supports features
 like transactional tables. To active this binary, just install this
 package after the MySQL package.
 
+%package embedded
+Release: %{release}
+Requires: devel
+Summary: MySQL - embedded library
+Group: Applications/Databases
+Summary(pt_BR): MySQL - Medições de desempenho
+Group(pt_BR): Aplicações/Banco_de_Dados
+Obsoletes: embedded
+
+%description devel
+This package contains the MySQL server as library.
+
+%{see_base}
+
 %prep
 %setup -n mysql-%{mysql_version}
 
@@ -172,6 +186,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
             --infodir=/usr/info \
             --includedir=/usr/include \
             --mandir=/usr/man \
+	    --with-embedded-server \
 	    --with-comment=\"Official MySQL RPM\";
 	    # Add this for more debugging support
 	    # --with-debug
@@ -345,6 +360,7 @@ fi
 %attr(755, root, root) /usr/bin/mysqlbug
 %attr(755, root, root) /usr/bin/mysqltest
 %attr(755, root, root) /usr/bin/mysqlhotcopy
+%attr(755, root, root) /usr/bin/mysql_explain
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
@@ -412,7 +428,14 @@ fi
 %attr(755, root, root) /usr/sbin/mysqld-max
 %attr(644, root, root) /usr/lib/mysql/mysqld-max.sym
 
+%files embedded
+%attr(755, root, root) /usr/lib/mysql/libmysqld.a
+
 %changelog 
+
+* Mon Oct  8 2001 Monty
+
+- Added embedded server as a separate RPM
 
 * Fri Apr 13 2001 Monty
 

@@ -43,7 +43,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	hostname.cc init.cc \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
-	item_uniq.cc key.cc lock.cc log.cc log_event.cc md5.c \
+	item_uniq.cc key.cc lock.cc log.cc log_event.cc \
 	mini_client.cc net_pkg.cc net_serv.cc opt_ft.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc slave.cc sql_acl.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
