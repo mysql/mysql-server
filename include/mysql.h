@@ -55,6 +55,7 @@ typedef int my_socket;
 #endif /* _global_h */
 
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysql_version.h"
 #include "typelib.h"
 
@@ -532,23 +533,6 @@ enum enum_mysql_stmt_state
   MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,
   MYSQL_STMT_FETCH_DONE
 };
-
-/* 
-  client TIME structure to handle TIME, DATE and TIMESTAMP directly in 
-  binary protocol 
-*/
-enum mysql_st_timestamp_type { MYSQL_TIMESTAMP_NONE, MYSQL_TIMESTAMP_DATE, 
-                               MYSQL_TIMESTAMP_FULL, MYSQL_TIMESTAMP_TIME };
-
-typedef struct mysql_st_time 
-{
-  unsigned int  year,month,day,hour,minute,second;
-  unsigned long second_part;  
-  my_bool       neg;
-
-  enum mysql_st_timestamp_type time_type;
-  
-} MYSQL_TIME;
 
 
 /* bind structure */
