@@ -149,6 +149,11 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     if ((memavl=memavl/4*3) < MIN_SORT_MEMORY && old_memavl > MIN_SORT_MEMORY)
       memavl=MIN_SORT_MEMORY;
   }
+  if (memavl < param.sort_length*MERGEBUFF2)
+  {
+    my_error(ER_OUT_OF_SORTMEMORY,MYF(0));
+    goto err;
+  }
   if (memavl < MIN_SORT_MEMORY)
   {
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),
