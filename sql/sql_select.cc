@@ -32,7 +32,7 @@
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
-			      "ref_or_null","simple_in","index_in"
+			      "ref_or_null","unique_subquery","index_subquery"
 };
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
@@ -773,13 +773,14 @@ JOIN::optimize()
       {
 	if (test_in_subselect(&where))
 	{
-	  join_tab[0].type= JT_SIMPLE_IN;
+	  join_tab[0].type= JT_UNIQUE_SUBQUERY;
 	  error= 0;
 	  DBUG_RETURN(unit->item->
-		      change_engine(new subselect_simplein_engine(thd,
-								  join_tab,
-								  unit->item,
-								  where)));
+		      change_engine(new
+				    subselect_uniquesubquery_engine(thd,
+								    join_tab,
+								    unit->item,
+								    where)));
 	}
       }
       else if (join_tab[0].type == JT_REF &&
@@ -787,14 +788,15 @@ JOIN::optimize()
       {
 	if (test_in_subselect(&where))
 	{
-	  join_tab[0].type= JT_INDEX_IN;
+	  join_tab[0].type= JT_INDEX_SUBQUERY;
 	  error= 0;
 	  DBUG_RETURN(unit->item->
-		      change_engine(new subselect_indexin_engine(thd,
-								 join_tab,
-								 unit->item,
-								 where,
-								 0)));
+		      change_engine(new
+				    subselect_indexsubquery_engine(thd,
+								   join_tab,
+								   unit->item,
+								   where,
+								   0)));
 	}
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
@@ -803,7 +805,7 @@ JOIN::optimize()
 	       ((Item_func *) having)->functype() ==
 	       Item_func::ISNOTNULLTEST_FUNC)
     {
-      join_tab[0].type= JT_INDEX_IN;
+      join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
 
       if ((conds= remove_additional_cond(conds)))
@@ -812,11 +814,11 @@ JOIN::optimize()
 	join_tab->info= "Using index";
  
       DBUG_RETURN(unit->item->
-		  change_engine(new subselect_indexin_engine(thd,
-							     join_tab,
-							     unit->item,
-							     conds,
-							     1)));
+		  change_engine(new subselect_indexsubquery_engine(thd,
+								   join_tab,
+								   unit->item,
+								   conds,
+								   1)));
     }
 	       
   }
