@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 10	10.0	10.	.1e+2	100.0e-1
 10	10.0	10	10	10
@@ -8,6 +8,9 @@ SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
 SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
 1e1	1.e1	1.0e1	1e+1	1.e+1	1.0e+1	1e-1	1.e-1	1.0e-1
 10	10	10	10	10	10	0.1	0.1	0.1
+SELECT 0.001e+1,0.001e-1, -0.001e+01,-0.001e-01;
+0.001e+1	0.001e-1	-0.001e+01	-0.001e-01
+0.01	0.0001	-0.01	-0.0001
 create table t1 (f1 float(24),f2 float(52));
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -143,6 +146,15 @@ drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
+create table t1 (d1 double, d2 double unsigned);
+insert into t1 set d1 = -1.0;
+update t1 set d2 = d1;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'd2' at row 1
+select * from t1;
+d1	d2
+-1	0
+drop table t1;
 create table t1 (f float(4,3));
 insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
 Warnings:

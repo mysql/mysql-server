@@ -54,6 +54,17 @@ dict_create_index_step(
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
 /***********************************************************************
+Truncates the index tree associated with a row in SYS_INDEXES table. */
+
+void
+dict_truncate_index_tree(
+/*=====================*/
+	dict_table_t*	table,	/* in: the table the index belongs to */
+	rec_t*		rec,	/* in: record in the clustered index of
+				SYS_INDEXES table */
+	mtr_t*		mtr);	/* in: mtr having the latch
+				on the record page */
+/***********************************************************************
 Drops the index tree associated with a row in SYS_INDEXES table. */
 
 void
@@ -142,6 +153,7 @@ struct ind_node_struct{
 	/*----------------------*/
 	/* Local storage for this graph node */
 	ulint		state;	/* node execution state */
+	ulint		page_no;/* root page number of the index */
 	dict_table_t*	table;	/* table which owns the index */
 	dtuple_t*	ind_row;/* index definition row built */
 	ulint		field_no;/* next field definition to insert */

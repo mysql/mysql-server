@@ -584,6 +584,7 @@ void field_conv(Field *to,Field *from)
   if (to->real_type() == from->real_type())
   {
     if (to->pack_length() == from->pack_length() &&
+        !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
         from->charset() == to->charset() &&
