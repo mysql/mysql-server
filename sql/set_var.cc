@@ -1539,7 +1539,7 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
   String str(buff, sizeof(buff), system_charset_info), *res;
 
@@ -1576,7 +1576,7 @@ err:
 bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 {
   bool not_used;
-  char buff[80], *error= 0;
+  char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
   uint error_len= 0;
   String str(buff, sizeof(buff), system_charset_info), *res;
 
@@ -1787,7 +1787,7 @@ bool sys_var_thd_date_time_format::update(THD *thd, set_var *var)
 
 bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String str(buff,sizeof(buff), system_charset_info), *res;
   DATE_TIME_FORMAT *format;
 
@@ -1891,7 +1891,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
@@ -1925,7 +1925,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
@@ -2982,7 +2982,7 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if ((!value->fixed && 
+  if ((!value->fixed &&
        value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
@@ -3121,7 +3121,7 @@ int set_var_password::update(THD *thd)
 
 bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
   String str(buff, sizeof(buff), &my_charset_latin1), *res;
 

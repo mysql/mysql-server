@@ -239,6 +239,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CURRENT_USER
 %token	DATABASES
 %token	DATA_SYM
+%token	DECIMAL_NUM
 %token  DECLARE_SYM
 %token	DEFAULT
 %token	DELAYED_SYM
@@ -382,7 +383,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	RAID_CHUNKSIZE
 %token	READ_SYM
 %token	READS_SYM
-%token	REAL_NUM
 %token	REDUNDANT_SYM
 %token	REFERENCES
 %token	REGEXP
@@ -667,7 +667,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %right	BINARY COLLATE_SYM
 
 %type <lex_str>
-	IDENT IDENT_QUOTED TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
+        IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
@@ -1464,6 +1464,7 @@ call:
 	    lex->sql_command= SQLCOM_CALL;
 	    lex->spname= $2;
 	    lex->value_list.empty();
+	    sp_add_to_hash(&lex->spprocs, $2);
 	  }
           '(' sp_cparam_list ')' {}
 	;
@@ -1869,36 +1870,21 @@ sp_proc_stmt:
 	    if (lex->sql_command != SQLCOM_SET_OPTION ||
 		! lex->var_list.is_empty())
 	    {
-              /*
-                Currently we can't handle queries inside a FUNCTION or
-                TRIGGER, because of the way table locking works. This is 
-                unfortunate, and limits the usefulness of functions and
-                especially triggers a tremendously, but it's nothing we 
-                can do about this at the moment.
-              */
-	      if (sp->m_type != TYPE_ENUM_PROCEDURE)
-	      {
-		my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
-		YYABORT;
-	      }
-	      else
-	      {
-		sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
-						   lex->spcont);
+	      sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
+						 lex->spcont);
 
-		/* Extract the query statement from the tokenizer:
-                   The end is either lex->tok_end or tok->ptr. */
-		if (lex->ptr - lex->tok_end > 1)
-		  i->m_query.length= lex->ptr - sp->m_tmp_query;
-		else
-		  i->m_query.length= lex->tok_end - sp->m_tmp_query;
-		i->m_query.str= strmake_root(YYTHD->mem_root,
-					     (char *)sp->m_tmp_query,
-					     i->m_query.length);
-		i->set_lex(lex);
-		sp->add_instr(i);
-		lex->sp_lex_in_use= TRUE;
-	      }
+	      /* Extract the query statement from the tokenizer:
+                 The end is either lex->tok_end or tok->ptr. */
+	      if (lex->ptr - lex->tok_end > 1)
+		i->m_query.length= lex->ptr - sp->m_tmp_query;
+	      else
+		i->m_query.length= lex->tok_end - sp->m_tmp_query;
+	      i->m_query.str= strmake_root(YYTHD->mem_root,
+					   (char *)sp->m_tmp_query,
+					   i->m_query.length);
+	      i->set_lex(lex);
+	      sp->add_instr(i);
+	      lex->sp_lex_in_use= TRUE;
             }
 	    sp->restore_lex(YYTHD);
           }
@@ -1915,11 +1901,6 @@ sp_proc_stmt:
 	    {
 	      sp_instr_freturn *i;
 
-	      if ($2->type() == Item::SUBSELECT_ITEM)
-	      {  /* QQ For now, just disallow subselects as values */
-	        my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
-	        YYABORT;
-	      }
 	      i= new sp_instr_freturn(lex->sphead->instructions(),
 				      lex->spcont,
 		                      $2, lex->sphead->m_returns);
@@ -2658,6 +2639,7 @@ udf_func_type:
 udf_type:
 	STRING_SYM {$$ = (int) STRING_RESULT; }
 	| REAL {$$ = (int) REAL_RESULT; }
+        | DECIMAL_SYM {$$ = (int) DECIMAL_RESULT; }
 	| INT_SYM {$$ = (int) INT_RESULT; };
 
 field_list:
@@ -2838,11 +2820,11 @@ type:
 	| MEDIUMTEXT opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGTEXT opt_binary		{ $$=FIELD_TYPE_LONG_BLOB; }
 	| DECIMAL_SYM float_options field_options
-					{ $$=FIELD_TYPE_DECIMAL;}
+                                        { $$=FIELD_TYPE_NEWDECIMAL;}
 	| NUMERIC_SYM float_options field_options
-					{ $$=FIELD_TYPE_DECIMAL;}
+                                        { $$=FIELD_TYPE_NEWDECIMAL;}
 	| FIXED_SYM float_options field_options
-					{ $$=FIELD_TYPE_DECIMAL;}
+                                        { $$=FIELD_TYPE_NEWDECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  { $$=FIELD_TYPE_ENUM; }
 	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
@@ -2904,8 +2886,8 @@ real_type:
 
 
 float_options:
-	/* empty */		{}
-	| '(' NUM ')'		{ Lex->length=$2.str; }
+        /* empty */		{ Lex->dec=Lex->length= (char*)0; }
+        | '(' NUM ')'		{ Lex->length=$2.str; Lex->dec= (char*)0; }
 	| precision		{};
 
 precision:
@@ -4187,13 +4169,15 @@ simple_expr:
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY simple_expr %prec NEG
 	  {
-	    $$= create_func_cast($2, ITEM_CAST_CHAR, -1, &my_charset_bin);
+            $$= create_func_cast($2, ITEM_CAST_CHAR, -1, 0, &my_charset_bin);
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
 	  {
+            LEX *lex= Lex;
 	    $$= create_func_cast($3, $5,
-				 Lex->length ? atoi(Lex->length) : -1,
-				 Lex->charset);
+                                 lex->length ? atoi(lex->length) : -1,
+                                 lex->dec ? atoi(lex->dec) : 0,
+                                 lex->charset);
 	  }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
@@ -4201,6 +4185,7 @@ simple_expr:
 	  {
 	    $$= create_func_cast($3, $5,
 				 Lex->length ? atoi(Lex->length) : -1,
+                                 Lex->dec ? atoi(Lex->dec) : 0,
 				 Lex->charset);
 	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
@@ -4503,7 +4488,7 @@ simple_expr:
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
-	    sp_add_fun_to_lex(Lex, name);
+	    sp_add_to_hash(&Lex->spfuns, name);
 	    if ($5)
 	      $$= new Item_func_sp(name, *$5);
 	    else
@@ -4565,6 +4550,22 @@ simple_expr:
                     $$ = new Item_sum_udf_int(udf);
                 }
                 break;
+              case DECIMAL_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_decimal(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_decimal(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_decimal(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_decimal(udf);
+                }
+                break;
               default:
                 YYABORT;
               }
@@ -4574,7 +4575,7 @@ simple_expr:
             {
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
-              sp_add_fun_to_lex(Lex, name);
+              sp_add_to_hash(&Lex->spfuns, name);
               if ($3)
                 $$= new Item_func_sp(name, *$3);
               else
@@ -4814,16 +4815,17 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY opt_len		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; }
-	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
-	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
-	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
-	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
-	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
-	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
-	| DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; Lex->length= (char*)0; }
-	| TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; Lex->length= (char*)0; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->length= (char*)0; }
+        BINARY opt_len		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; Lex->dec= 0; }
+        | CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; Lex->dec= 0; }
+	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
+        | SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | DECIMAL_SYM float_options { $$=ITEM_CAST_DECIMAL; Lex->charset= NULL; }
 	;
 
 expr_list:
@@ -5326,7 +5328,7 @@ ULONG_NUM:
 	NUM	        { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-	| REAL_NUM 	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+        | DECIMAL_NUM 	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	;
 
@@ -5334,7 +5336,7 @@ ulonglong_num:
 	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	| ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	| LONG_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-	| REAL_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+        | DECIMAL_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	;
 
@@ -6123,6 +6125,8 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_STATUS_PROC;
+	    if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
+	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
 	  }
@@ -6131,6 +6135,8 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_STATUS_FUNC;
+	    if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
+	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
 	  };
@@ -6575,9 +6581,9 @@ NUM_literal:
 	NUM		{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| LONG_NUM	{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
-	| REAL_NUM
+        | DECIMAL_NUM
 	{
-	   $$= new Item_real($1.str, $1.length);
+           $$= new Item_decimal($1.str, $1.length, YYTHD->charset());
 	   if (YYTHD->net.report_error)
 	   {
 	     YYABORT;
@@ -7434,7 +7440,14 @@ set_expr_or_default:
 lock:
 	LOCK_SYM table_or_tables
 	{
-	  Lex->sql_command=SQLCOM_LOCK_TABLES;
+	  LEX *lex= Lex;
+
+	  if (lex->sphead)
+	  {
+	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    YYABORT;
+	  }
+	  lex->sql_command= SQLCOM_LOCK_TABLES;
 	}
 	table_lock_list
 	{}
@@ -7464,7 +7477,19 @@ lock_option:
         ;
 
 unlock:
-	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; }
+	UNLOCK_SYM
+	{
+	  LEX *lex= Lex;
+
+	  if (lex->sphead)
+	  {
+	    my_message(ER_SP_BADSTATEMENT, ER(ER_SP_BADSTATEMENT), MYF(0));
+	    YYABORT;
+	  }
+	  lex->sql_command= SQLCOM_UNLOCK_TABLES;
+	}
+	table_or_tables
+	{}
         ;
 
 

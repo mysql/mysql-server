@@ -142,6 +142,8 @@ public:
   double val_real();
   longlong val_int ();
   String *val_str (String *);
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
   enum Item_result result_type() const;
   void fix_length_and_dec();
 
@@ -155,7 +157,7 @@ public:
   friend class select_singlerow_subselect;
 };
 
-/* used in static ALL/ANY optimisation */
+/* used in static ALL/ANY optimization */
 class select_max_min_finder_subselect;
 class Item_maxmin_subselect :public Item_singlerow_subselect
 {
@@ -193,6 +195,8 @@ public:
   longlong val_int();
   double val_real();
   String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
   void fix_length_and_dec();
   void print(String *str);
 
@@ -294,7 +298,7 @@ public:
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
-  virtual uint cols()= 0; /* return number of columnss in select */
+  virtual uint cols()= 0; /* return number of columns in select */
   virtual uint8 uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
   virtual void exclude()= 0;
