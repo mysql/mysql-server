@@ -342,17 +342,17 @@ static void handle_sigterm(int sig __attribute__((unused)))
   exit(0);
 }
 
+#ifdef DO_STACKTRACE
 static void handle_segfault(int sig)
 {
   if (in_segfault)
     exit(1);
   in_segfault=1;
   fprintf(errfp,"Got fatal signal %d\n",sig);
-#ifdef DO_STACKTRACE
   print_stacktrace();
-#endif
   exit(1);
 }
+#endif
 
 static void handle_sigpipe(int __attribute__((unused)) sig)
 {
