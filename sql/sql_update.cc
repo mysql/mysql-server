@@ -86,6 +86,13 @@ int mysql_update(THD *thd,
       setup_conds(thd,update_table_list,&conds)
       || setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_INSERT_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
+
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
   /*
