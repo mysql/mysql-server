@@ -753,9 +753,11 @@ Uint64
 Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
 {
   DEBUG_TRACE("getAutoIncrementValue");
-  const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0)
+  const char * internalTableName = internalizeTableName(aTableName);
+  Ndb_local_table_info *info= theDictionary->get_local_table_info(internalTableName);
+  if (info == 0)
     return ~0;
+  const NdbTableImpl *table= info->m_table_impl;
   Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
   return tupleId;
 }
@@ -832,11 +834,13 @@ bool
 Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 {
   DEBUG_TRACE("setAutoIncrementValue " << val);
-  const NdbTableImpl* table = theDictionary->getTable(aTableName);
-  if (table == 0) {
+  const char * internalTableName= internalizeTableName(aTableName);
+  Ndb_local_table_info *info= theDictionary->get_local_table_info(internalTableName);
+  if (info == 0) {
     theError= theDictionary->getNdbError();
     return false;
   }
+  const NdbTableImpl* table= info->m_table_impl;
   return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
