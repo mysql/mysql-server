@@ -230,7 +230,20 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
       goto done;
     }
 
-    lex_start(thd, (uchar*)defstr, deflen);
+    {
+      /* This is something of a kludge. We need to initialize some fields
+       * in thd->lex (the unit and master stuff), and the easiest way to
+       * do it is, is to call mysql_init_query(), but this unfortunately
+       * resets teh value_list where we keep the CALL parameters. So we
+       * copy the list and then restore it.
+       */
+      List<Item> vals= thd->lex->value_list;
+
+      mysql_init_query(thd, TRUE);
+      lex_start(thd, (uchar*)defstr, deflen);
+      thd->lex->value_list= vals;
+    }
+
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
     {
       LEX *newlex= thd->lex;
