@@ -1263,6 +1263,9 @@ void subselect_uniquesubquery_engine::print(String *str)
   tab->ref.items[0]->print(str);
   str->append(" in ");
   str->append(tab->table->real_name);
+  KEY *key_info= tab->table->key_info+ tab->ref.key;
+  str->append(" on ");
+  str->append(key_info->name);
   if (cond)
   {
     str->append(" where ");
@@ -1278,6 +1281,9 @@ void subselect_indexsubquery_engine::print(String *str)
   tab->ref.items[0]->print(str);
   str->append(" in ");
   str->append(tab->table->real_name);
+  KEY *key_info= tab->table->key_info+ tab->ref.key;
+  str->append(" on ");
+  str->append(key_info->name);
   if (check_null)
     str->append(" chicking NULL");
     if (cond)
