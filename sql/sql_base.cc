@@ -277,6 +277,7 @@ void intern_close_table(TABLE *table)
   free_io_cache(table);
   if (table->file)
     VOID(closefrm(table));			// close file
+  hash_free(&table->name_hash);
 }
 
 
