@@ -2947,7 +2947,7 @@ extension @code{CONCAT()} (in lieu of the standard @code{||} operator).
 For example:
 
 @example
-SELECT CONCAT('DELETE FROM tab1 WHERE pkid = ', tab1.pkid, ';')
+SELECT CONCAT('DELETE FROM tab1 WHERE pkid = ', "'", tab1.pkid, "'", ';')
   FROM tab1, tab2
  WHERE tab1.col1 = tab2.col2;
 @end example
