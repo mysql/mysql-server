@@ -496,7 +496,6 @@ longlong Item_func_eq::val_int()
   return value == 0 ? 1 : 0;
 }
 
-
 /* Same as Item_func_eq, but NULL = NULL */
 
 void Item_func_equal::fix_length_and_dec()
@@ -1652,10 +1651,10 @@ longlong Item_func_bit_and::val_int()
   return (longlong) (arg1 & arg2);
 }
 
-Item_cond::Item_cond(THD *thd, Item_cond &item)
+Item_cond::Item_cond(THD *thd, Item_cond *item)
   :Item_bool_func(thd, item),
-   abort_on_null(item.abort_on_null),
-   and_tables_cache(item.and_tables_cache)
+   abort_on_null(item->abort_on_null),
+   and_tables_cache(item->and_tables_cache)
 {
   /*
     here should be following text:
@@ -1754,7 +1753,7 @@ void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      li.replace(new Item_ref(ref_pointer_array + el, 0, item->name));
+      li.replace(new Item_ref(ref_pointer_array + el, li.ref(), 0, item->name));
     }
     item->update_used_tables();
     used_tables_cache|=item->used_tables();

@@ -69,6 +69,7 @@ public:
 		     select_subselect *result);
 
   ~Item_subselect();
+  void cleanup();
   virtual void reset() 
   {
     null_value= 1;
@@ -199,6 +200,13 @@ public:
      
   {}
 
+  void cleanup()
+  {
+    Item_exists_subselect::cleanup();
+    abort_on_null= 0;
+    transformed= 0;
+    upper_not= 0;
+  }
   subs_type substype() { return IN_SUBS; }
   void reset() 
   {
@@ -261,6 +269,7 @@ public:
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
+  virtual void cleanup() {}
   
   // set_thd should be called before prepare()
   void set_thd(THD *thd_arg) { thd= thd_arg; }
@@ -290,6 +299,7 @@ public:
   subselect_single_select_engine(st_select_lex *select,
 				 select_subselect *result,
 				 Item_subselect *item);
+  void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();

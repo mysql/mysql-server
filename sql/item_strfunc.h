@@ -95,7 +95,6 @@ class Item_func_concat_ws :public Item_str_func
 public:
   Item_func_concat_ws(Item *a,List<Item> &list) 
     :Item_str_func(list),separator(a) {}
-  ~Item_func_concat_ws() { delete separator; }
   String *val_str(String *);
   void fix_length_and_dec();
   void update_used_tables();
@@ -409,7 +408,6 @@ class Item_func_make_set :public Item_str_func
 
 public:
   Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
-  ~Item_func_make_set() { delete item; }
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
