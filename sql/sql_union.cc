@@ -143,7 +143,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
     first_select->braces= 1;
   }
 
-  for (sl= select_cursor; sl; sl= sl->next_select())
+  for (;sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | SELECT_NO_UNLOCK,
