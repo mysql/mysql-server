@@ -765,34 +765,47 @@ int _mi_init_bulk_insert(MI_INFO *info)
   MYISAM_SHARE *share=info->s;
   MI_KEYDEF *key=share->keyinfo;
   bulk_insert_param *params;
-  uint i;
+  uint i, num_keys;
+  ulonglong key_map=0;
 
   if (info->bulk_insert)
     return 0;
   
+  for (i=num_keys=0 ; i < share->base.keys ; i++)
+  {
+    if (!(key[i].flag & HA_NOSAME) && share->base.auto_key != i+1
+        && test(share->state.key_map & ((ulonglong) 1 << i)))
+    {
+      num_keys++;
+      key_map |=((ulonglong) 1 << i);
+    }
+  }
+
+  if (!num_keys)
+    return 0;
+  
   info->bulk_insert=(TREE *)
-    my_malloc((sizeof(TREE)+sizeof(bulk_insert_param))*share->base.keys,
-	      MYF(0));
+    my_malloc((sizeof(TREE)*share->base.keys+
+               sizeof(bulk_insert_param)*num_keys),MYF(0));
 
   if (!info->bulk_insert)
     return HA_ERR_OUT_OF_MEM;
-  
+
   params=(bulk_insert_param *)(info->bulk_insert+share->base.keys);
-  
-  for (i=0 ; i < share->base.keys ; i++,key++,params++)
+  for (i=0 ; i < share->base.keys ; i++,key++)
   {
     params->info=info;
     params->keynr=i;
-    if (!(key->flag & HA_NOSAME) && share->base.auto_key != i+1
-        && test(share->state.key_map & ((ulonglong) 1 << i)))
+    if (test(key_map & ((ulonglong) 1 << i)))
     {
       init_tree(& info->bulk_insert[i], 0, 
-		myisam_bulk_insert_tree_size / share->base.keys, 0,
+		myisam_bulk_insert_tree_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,
-		(tree_element_free) keys_free, (void *)params);
+		(tree_element_free) keys_free, (void *)params++);
     }
     else
      info->bulk_insert[i].root=0; 
   }
+
   return 0;
 }
