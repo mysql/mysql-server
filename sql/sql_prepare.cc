@@ -937,6 +937,13 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   DBUG_RETURN(0);
 
 yyparse_err:
+  if (thd->lex->sphead)
+  {
+    if (lex != thd->lex)
+      thd->lex->sphead->restore_lex(thd);
+    delete thd->lex->sphead;
+    thd->lex->sphead= NULL;
+  }
   lex_end(lex);
   stmt->set_statement(thd);
   thd->set_statement(&thd->stmt_backup);
