@@ -9245,8 +9245,8 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
   for (Uint32 i = 0; i < ZWRITEPAGESIZE; i++) {
     regFragPtr.p->datapages[i] = RNIL;
   }//for
-  for (Uint32 i = 0; i < 4; i++) {
-    regFragPtr.p->longKeyPageArray[i] = RNIL;
+  for (Uint32 j = 0; j < 4; j++) {
+    regFragPtr.p->longKeyPageArray[j] = RNIL;
   }//for
 }//Dbacc::initFragGeneral()
 

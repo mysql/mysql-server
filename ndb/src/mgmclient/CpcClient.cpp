@@ -557,4 +557,5 @@ SimpleCpcClient::cpc_call(const char *cmd,
 SimpleCpcClient::ParserDummy::ParserDummy(NDB_SOCKET_TYPE sock)
   : SocketServer::Session(sock) {
 }
-  
+ 
+template class Vector<SimpleCpcClient::Process>; 

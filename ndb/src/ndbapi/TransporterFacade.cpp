@@ -168,13 +168,6 @@ setSignalLog(){
 #endif
 #endif
 
-// These symbols are needed, but not used in the API
-int g_sectionSegmentPool;
-struct ErrorReporter {
-  void handleAssert(const char*, const char*, int);
-};
-void ErrorReporter::handleAssert(const char*, const char*, int) {}
-
 /**
  * The execute function : Handle received signal
  */
@@ -316,6 +309,14 @@ execute(void * callbackObj, SignalHeader * const header,
       abort();
     }
   }
+}
+
+// These symbols are needed, but not used in the API
+void 
+SignalLoggerManager::printSegmentedSection(FILE *, const SignalHeader &,
+					   const SegmentedSectionPtr ptr[3],
+					   unsigned i){
+  abort();
 }
 
 void 
@@ -462,11 +463,15 @@ void TransporterFacade::threadMainSend(void)
   SocketServer socket_server;
 
   theTransporterRegistry->startSending();
-  if (!theTransporterRegistry->start_service(socket_server))
-    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_service");
+  if (!theTransporterRegistry->start_service(socket_server)){
+    ndbout_c("Unable to start theTransporterRegistry->start_service");
+    exit(0);
+  }
 
-  if (!theTransporterRegistry->start_clients())
-    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_clients");
+  if (!theTransporterRegistry->start_clients()){
+    ndbout_c("Unable to start theTransporterRegistry->start_clients");
+    exit(0);
+  }
 
   socket_server.startServer();
 
@@ -1023,3 +1028,6 @@ TransporterFacade::ThreadData::close(int number){
   m_statusFunction[number] = 0;
   return 0;
 }
+
+template class Vector<NodeStatusFunction>;
+template class Vector<TransporterFacade::ThreadData::Object_Execute>;

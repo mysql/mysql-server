@@ -965,3 +965,5 @@ void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
 }
 
 BLOCK_FUNCTIONS(Trix);
+
+template void append(DataBuffer<15>&,SegmentedSectionPtr,SectionSegmentPool&);

@@ -169,6 +169,7 @@ put(PropertiesImpl * impl, const char * name, T value, bool replace){
   return tmp->put(new PropertyImpl(short_name, value));  
 }
 
+
 bool
 Properties::put(const char * name, Uint32 value, bool replace){
   return ::put(impl, name, value, replace);
@@ -1120,3 +1121,8 @@ bool
 Properties::getCaseInsensitiveNames() const {
   return impl->m_insensitive;
 }
+
+template bool put(PropertiesImpl *, const char *, Uint32, bool);
+template bool put(PropertiesImpl *, const char *, Uint64, bool);
+template bool put(PropertiesImpl *, const char *, const char *, bool);
+template bool put(PropertiesImpl *, const char *, const Properties*, bool);

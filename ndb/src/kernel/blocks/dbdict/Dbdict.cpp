@@ -5769,6 +5769,7 @@ void
 Dbdict::execLIST_TABLES_REQ(Signal* signal)
 {
   jamEntry();
+  Uint32 i;
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtr();
   Uint32 senderRef  = req->senderRef;
   Uint32 senderData = req->senderData;
@@ -5782,7 +5783,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
   conf->senderData = senderData;
   conf->counter = 0;
   Uint32 pos = 0;
-  for (Uint32 i = 0; i < c_tableRecordPool.getSize(); i++) {
+  for (i = 0; i < c_tableRecordPool.getSize(); i++) {
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, i);
     // filter
@@ -5862,12 +5863,12 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->counter++;
       pos = 0;
     }
-    Uint32 i = 0;
-    while (i < size) {
+    Uint32 k = 0;
+    while (k < size) {
       char* p = (char*)&conf->tableData[pos];
       for (Uint32 j = 0; j < 4; j++) {
-        if (i < size)
-          *p++ = tablePtr.p->tableName[i++];
+        if (k < size)
+          *p++ = tablePtr.p->tableName[k++];
         else
           *p++ = 0;
       }
@@ -5881,7 +5882,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
     }
   }
   // XXX merge with above somehow
-  for (Uint32 i = 0; i < c_triggerRecordPool.getSize(); i++) {
+  for (i = 0; i < c_triggerRecordPool.getSize(); i++) {
     if (reqListIndexes)
       break;
     TriggerRecordPtr triggerPtr;
@@ -5925,12 +5926,12 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->counter++;
       pos = 0;
     }
-    Uint32 i = 0;
-    while (i < size) {
+    Uint32 k = 0;
+    while (k < size) {
       char* p = (char*)&conf->tableData[pos];
       for (Uint32 j = 0; j < 4; j++) {
-        if (i < size)
-          *p++ = triggerPtr.p->triggerName[i++];
+        if (k < size)
+          *p++ = triggerPtr.p->triggerName[k++];
         else
           *p++ = 0;
       }
@@ -6167,6 +6168,7 @@ Dbdict::createIndex_slavePrepare(Signal* signal, OpCreateIndexPtr opPtr)
 void
 Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
 {
+  Uint32 k;
   jam();
   const CreateIndxReq* const req = &opPtr.p->m_request;
   // signal data writer
@@ -6236,7 +6238,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   }
   // hash index attributes must currently be in table order
   Uint32 prevAttrId = RNIL;
-  for (Uint32 k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     jam();
     bool found = false;
     for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
@@ -6296,7 +6298,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   // write index key attributes
   AttributeRecordPtr aRecPtr;
   c_attributeRecordPool.getPtr(aRecPtr, tablePtr.p->firstAttribute);
-  for (Uint32 k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     jam();
     for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
       AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);

@@ -1534,11 +1534,12 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   StartMeConf * const startMe = (StartMeConf *)&signal->theData[0];  
   Uint32 nodeId = startMe->startingNodeId;
   const Uint32 startWord = startMe->startWord;
+  Uint32 i;
   
   CRASH_INSERTION(7130);
   ndbrequire(nodeId == cownNodeId);
   arrGuard(startWord + StartMeConf::DATA_SIZE, sizeof(cdata)/4);
-  for(Uint32 i = 0; i < StartMeConf::DATA_SIZE; i++)
+  for(i = 0; i < StartMeConf::DATA_SIZE; i++)
     cdata[startWord+i] = startMe->data[i];
   
   if(startWord + StartMeConf::DATA_SIZE < Sysfile::SYSFILE_SIZE32){
@@ -1556,12 +1557,12 @@ void Dbdih::execSTART_MECONF(Signal* signal)
    * But dont copy lastCompletedGCI:s
    */
   Uint32 tempGCP[MAX_NDB_NODES];
-  for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
+  for(i = 0; i < MAX_NDB_NODES; i++)
     tempGCP[i] = SYSFILE->lastCompletedGCI[i];
 
-  for(Uint32 i = 0; i < Sysfile::SYSFILE_SIZE32; i++)
+  for(i = 0; i < Sysfile::SYSFILE_SIZE32; i++)
     sysfileData[i] = cdata[i];
-  for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
+  for(i = 0; i < MAX_NDB_NODES; i++)
     SYSFILE->lastCompletedGCI[i] = tempGCP[i];
 
   setNodeActiveStatus();
@@ -3599,6 +3600,7 @@ void Dbdih::writeInitGcpLab(Signal* signal, FileRecordPtr filePtr)
 /*---------------------------------------------------------------------------*/
 void Dbdih::execNODE_FAILREP(Signal* signal)
 {
+  Uint32 i;
   Uint32 failedNodes[MAX_NDB_NODES];
   jamEntry();
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
@@ -3611,7 +3613,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   // The first step is to convert from a bit mask to an array of failed nodes.
   /*-------------------------------------------------------------------------*/
   Uint32 index = 0;
-  for (Uint32 i = 1; i < MAX_NDB_NODES; i++) {
+  for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
     if(NodeBitmask::get(nodeFail->theNodes, i)){
       jam();
@@ -3629,7 +3631,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   // We also set certain state variables ensuring that the node no longer is 
   // used in transactions and also mark that we received this signal.
   /*-------------------------------------------------------------------------*/
-  for (Uint32 i = 0; i < noOfFailedNodes; i++) {
+  for (i = 0; i < noOfFailedNodes; i++) {
     jam();
     NodeRecordPtr TNodePtr;
     TNodePtr.i = failedNodes[i];
@@ -3671,7 +3673,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
 
   const bool masterTakeOver = (oldMasterId != newMasterId);
 
-  for(Uint32 i = 0; i < noOfFailedNodes; i++) {
+  for(i = 0; i < noOfFailedNodes; i++) {
     NodeRecordPtr failedNodePtr;
     failedNodePtr.i = failedNodes[i];
     ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRecord);
@@ -6882,8 +6884,9 @@ void Dbdih::releaseFragments(TabRecordPtr tabPtr)
 
 void Dbdih::initialiseFragstore()
 {
+  Uint32 i;
   FragmentstorePtr fragPtr;
-  for (Uint32 i = 0; i < cfragstoreFileSize; i++) {
+  for (i = 0; i < cfragstoreFileSize; i++) {
     fragPtr.i = i;
     ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
     initFragstore(fragPtr);
@@ -6892,7 +6895,7 @@ void Dbdih::initialiseFragstore()
   fragPtr.i = 0;
   cfirstfragstore = RNIL;
   cremainingfrags = 0;
-  for (Uint32 i = 0; i < noOfChunks; i++) {
+  for (i = 0; i < noOfChunks; i++) {
     ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
     fragPtr.p->nextFragmentChunk = cfirstfragstore;
     cfirstfragstore = fragPtr.i;
@@ -10231,11 +10234,12 @@ void Dbdih::allocStoredReplica(FragmentstorePtr fragPtr,
                                ReplicaRecordPtr& newReplicaPtr,
                                Uint32 nodeId) 
 {
+  Uint32 i;
   ReplicaRecordPtr arrReplicaPtr;
   ReplicaRecordPtr arrPrevReplicaPtr;
 
   seizeReplicaRec(newReplicaPtr);
-  for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
+  for (i = 0; i < MAX_LCP_STORED; i++) {
     newReplicaPtr.p->maxGciCompleted[i] = 0;
     newReplicaPtr.p->maxGciStarted[i] = 0;
     newReplicaPtr.p->lcpId[i] = 0;
@@ -10243,7 +10247,7 @@ void Dbdih::allocStoredReplica(FragmentstorePtr fragPtr,
   }//for
   newReplicaPtr.p->noCrashedReplicas = 0;
   newReplicaPtr.p->initialGci = currentgcp;
-  for (Uint32 i = 0; i < 8; i++) {
+  for (i = 0; i < 8; i++) {
     newReplicaPtr.p->replicaLastGci[i] = (Uint32)-1;
     newReplicaPtr.p->createGci[i] = 0;
   }//for
@@ -10354,7 +10358,8 @@ void Dbdih::checkEscalation()
 {
   Uint32 TnodeGroup[MAX_NDB_NODES];
   NodeRecordPtr nodePtr;
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
+  Uint32 i;
+  for (i = 0; i < MAX_NDB_NODES; i++) {
     TnodeGroup[i] = ZFALSE;
   }//for
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
@@ -10366,7 +10371,7 @@ void Dbdih::checkEscalation()
       TnodeGroup[nodePtr.p->nodeGroup] = ZTRUE;
     }
   }
-  for (Uint32 i = 0; i < cnoOfNodeGroups; i++) {
+  for (i = 0; i < cnoOfNodeGroups; i++) {
     jam();
     if (TnodeGroup[i] == ZFALSE) {
       jam();
@@ -10929,7 +10934,8 @@ void Dbdih::initNodeState(NodeRecordPtr nodePtr)
 /*************************************************************************/
 void Dbdih::initRestartInfo() 
 {
-  for (int i = 0; i < MAX_NDB_NODES; i++) {
+  Uint32 i;
+  for (i = 0; i < MAX_NDB_NODES; i++) {
     SYSFILE->lastCompletedGCI[i] = 0;
   }//for
   NodeRecordPtr nodePtr;
@@ -10950,10 +10956,10 @@ void Dbdih::initRestartInfo()
   SYSFILE->oldestRestorableGCI = 1;
   SYSFILE->newestRestorableGCI = 1;
   SYSFILE->systemRestartBits   = 0;
-  for (Uint32 i = 0; i < NodeBitmask::Size; i++) {
+  for (i = 0; i < NodeBitmask::Size; i++) {
     SYSFILE->lcpActive[0]        = 0;
   }//for  
-  for (Uint32 i = 0; i < Sysfile::TAKE_OVER_SIZE; i++) {
+  for (i = 0; i < Sysfile::TAKE_OVER_SIZE; i++) {
     SYSFILE->takeOver[i] = 0;
   }//for
   Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
@@ -11032,10 +11038,11 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   tabPtr.p->tabFile[1] = RNIL;
   tabPtr.p->m_dropTab.tabUserRef = 0;
   tabPtr.p->m_dropTab.tabUserPtr = RNIL;
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
+  Uint32 i;
+  for (i = 0; i < MAX_NDB_NODES; i++) {
     tabPtr.p->startFid[i] = RNIL;
   }//for
-  for (Uint32 i = 0; i < 8; i++) {
+  for (i = 0; i < 8; i++) {
     tabPtr.p->pageRef[i] = RNIL;
   }//for
   tabPtr.p->tableType = DictTabInfo::UndefTableType;
@@ -11367,6 +11374,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
   Uint32 tmngNodeGroup;
   Uint32 tmngReplica;
   Uint32 tmngLimit;
+  Uint32 i;
 
   /**-----------------------------------------------------------------------
    * ASSIGN ALL ACTIVE NODES INTO NODE GROUPS. HOT SPARE NODES ARE ASSIGNED 
@@ -11376,7 +11384,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
   tmngReplica = 0;
   tmngLimit = csystemnodes - cnoHotSpare;
   ndbrequire(tmngLimit < MAX_NDB_NODES);
-  for (Uint32 i = 0; i < tmngLimit; i++) {
+  for (i = 0; i < tmngLimit; i++) {
     NodeGroupRecordPtr NGPtr;
     jam();
     tmngNode = nodeArray[i];
@@ -11396,14 +11404,14 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
   }//for
   cnoOfNodeGroups = tmngNodeGroup;
   ndbrequire(csystemnodes < MAX_NDB_NODES);
-  for (Uint32 i = tmngLimit + 1; i < csystemnodes; i++) {
+  for (i = tmngLimit + 1; i < csystemnodes; i++) {
     jam();
     tmngNode = nodeArray[i];
     mngNodeptr.i = tmngNode;
     ptrCheckGuard(mngNodeptr, MAX_NDB_NODES, nodeRecord);
     mngNodeptr.p->nodeGroup = ZNIL;
   }//for
-  for(int i = 0; i < MAX_NDB_NODES; i++){
+  for(i = 0; i < MAX_NDB_NODES; i++){
     jam();
     Sysfile::setNodeGroup(i, SYSFILE->nodeGroups, NO_NODE_GROUP_ID);
   }//for
@@ -11690,12 +11698,13 @@ Uint32 Dbdih::readPageWord(RWFragment* rf)
 
 void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr) 
 {
+  Uint32 i;
   readReplicaPtr.p->procNode = readPageWord(rf);
   readReplicaPtr.p->initialGci = readPageWord(rf);
   readReplicaPtr.p->noCrashedReplicas = readPageWord(rf);
   readReplicaPtr.p->nextLcp = readPageWord(rf);
 
-  for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
+  for (i = 0; i < MAX_LCP_STORED; i++) {
     readReplicaPtr.p->maxGciCompleted[i] = readPageWord(rf);
     readReplicaPtr.p->maxGciStarted[i] = readPageWord(rf);
     readReplicaPtr.p->lcpId[i] = readPageWord(rf);
@@ -11703,13 +11712,13 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   }//for
   const Uint32 noCrashedReplicas = readReplicaPtr.p->noCrashedReplicas;
   ndbrequire(noCrashedReplicas < 8);
-  for (Uint32 i = 0; i < noCrashedReplicas; i++) {
+  for (i = 0; i < noCrashedReplicas; i++) {
     readReplicaPtr.p->createGci[i] = readPageWord(rf);
     readReplicaPtr.p->replicaLastGci[i] = readPageWord(rf);
     ndbrequire(readReplicaPtr.p->createGci[i] != 0xF1F1F1F1);
     ndbrequire(readReplicaPtr.p->replicaLastGci[i] != 0xF1F1F1F1);
   }//for
-  for(Uint32 i = noCrashedReplicas; i<8; i++){
+  for(i = noCrashedReplicas; i<8; i++){
     readReplicaPtr.p->createGci[i] = readPageWord(rf);
     readReplicaPtr.p->replicaLastGci[i] = readPageWord(rf);
     // They are not initialized...
@@ -11732,7 +11741,7 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
   /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
   /* ---------------------------------------------------------------------- */
-  for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
+  for (i = 0; i < MAX_LCP_STORED; i++) {
     jam();
     if ((readReplicaPtr.p->lcpStatus[i] == ZVALID) &&
         (readReplicaPtr.p->maxGciStarted[i] > SYSFILE->newestRestorableGCI)) {
@@ -11764,6 +11773,7 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
 
 void Dbdih::readReplicas(RWFragment* rf, FragmentstorePtr fragPtr)
 {
+  Uint32 i;
   ReplicaRecordPtr newReplicaPtr;
   Uint32 noStoredReplicas = fragPtr.p->noStoredReplicas;
   Uint32 noOldStoredReplicas = fragPtr.p->noOldStoredReplicas;
@@ -11775,7 +11785,7 @@ void Dbdih::readReplicas(RWFragment* rf, FragmentstorePtr fragPtr)
   fragPtr.p->noOldStoredReplicas = 0;
   Uint32 replicaIndex = 0;
   ndbrequire(noStoredReplicas + noOldStoredReplicas <= MAX_REPLICAS);
-  for (Uint32 i = 0; i < noStoredReplicas; i++) {
+  for (i = 0; i < noStoredReplicas; i++) {
     seizeReplicaRec(newReplicaPtr);
     readReplica(rf, newReplicaPtr);
     if (checkNodeAlive(newReplicaPtr.p->procNode)) {
@@ -11790,7 +11800,7 @@ void Dbdih::readReplicas(RWFragment* rf, FragmentstorePtr fragPtr)
     }//if
   }//for
   fragPtr.p->fragReplicas = noStoredReplicas;
-  for (Uint32 i = 0; i < noOldStoredReplicas; i++) {
+  for (i = 0; i < noOldStoredReplicas; i++) {
     jam();
     seizeReplicaRec(newReplicaPtr);
     readReplica(rf, newReplicaPtr);
@@ -12640,11 +12650,11 @@ void Dbdih::setNodeRestartInfoBits()
   NodeRecordPtr nodePtr;
   Uint32 tsnrNodeGroup;
   Uint32 tsnrNodeActiveStatus;
-  
-  for(int i = 1; i < MAX_NDB_NODES; i++){
+  Uint32 i; 
+  for(i = 1; i < MAX_NDB_NODES; i++){
     Sysfile::setNodeStatus(i, SYSFILE->nodeStatus, Sysfile::NS_Active);
   }//for
-  for(Uint32 i = 1; i < Sysfile::NODE_GROUPS_SIZE; i++){
+  for(i = 1; i < Sysfile::NODE_GROUPS_SIZE; i++){
     SYSFILE->nodeGroups[i] = 0;
   }//for
   NdbNodeBitmask::clear(SYSFILE->lcpActive);
@@ -12786,13 +12796,14 @@ void Dbdih::writeReplicas(RWFragment* wf, Uint32 replicaStartIndex)
     writePageWord(wf, wfReplicaPtr.p->initialGci);
     writePageWord(wf, wfReplicaPtr.p->noCrashedReplicas);
     writePageWord(wf, wfReplicaPtr.p->nextLcp);
-    for (Uint32 i = 0; i < MAX_LCP_STORED; i++) {
+    Uint32 i;
+    for (i = 0; i < MAX_LCP_STORED; i++) {
       writePageWord(wf, wfReplicaPtr.p->maxGciCompleted[i]);
       writePageWord(wf, wfReplicaPtr.p->maxGciStarted[i]);
       writePageWord(wf, wfReplicaPtr.p->lcpId[i]);
       writePageWord(wf, wfReplicaPtr.p->lcpStatus[i]);
     }//if
-    for (Uint32 i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++) {
       writePageWord(wf, wfReplicaPtr.p->createGci[i]);
       writePageWord(wf, wfReplicaPtr.p->replicaLastGci[i]);
     }//if
@@ -13003,7 +13014,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if(signal->theData[0] == 7012){
-    char buf[c_lcpState.m_participatingDIH.TextLength+1];
+    char buf[8*_NDB_NODE_BITMASK_SIZE+1];
     infoEvent("ParticipatingDIH = %s", c_lcpState.m_participatingDIH.getText(buf));
     infoEvent("ParticipatingLQH = %s", c_lcpState.m_participatingLQH.getText(buf));
     infoEvent("m_LCP_COMPLETE_REP_Counter_DIH = %s",
@@ -13020,8 +13031,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       jam();
       ptrAss(nodePtr, nodeRecord);
       if(nodePtr.p->nodeStatus == NodeRecord::ALIVE){
-	
-	for(Uint32 i = 0; i<nodePtr.p->noOfStartedChkpt; i++){
+        Uint32 i;
+	for(i = 0; i<nodePtr.p->noOfStartedChkpt; i++){
 	  infoEvent("Node %d: started: table=%d fragment=%d replica=%d",
 		    nodePtr.i, 
 		    nodePtr.p->startedChkpt[i].tableId,
@@ -13029,7 +13040,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 		    nodePtr.p->startedChkpt[i].replicaPtr);
 	}
 	
-	for(Uint32 i = 0; i<nodePtr.p->noOfQueuedChkpt; i++){
+	for(i = 0; i<nodePtr.p->noOfQueuedChkpt; i++){
 	  infoEvent("Node %d: queued: table=%d fragment=%d replica=%d",
 		    nodePtr.i, 
 		    nodePtr.p->queuedChkpt[i].tableId,
