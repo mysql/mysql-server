@@ -379,7 +379,7 @@ typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
 
 /* Forward declaration for condition pushdown to storage engine */
-typedef struct Item COND;
+typedef class Item COND;
 
 typedef struct st_ha_check_opt
 {

@@ -20,47 +20,50 @@
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
-typedef int32 decimal_digit;
+typedef int32 decimal_digit_t;
 
-typedef struct st_decimal {
+typedef struct st_decimal_t {
   int    intg, frac, len;
   my_bool sign;
-  decimal_digit *buf;
-} decimal;
+  decimal_digit_t *buf;
+} decimal_t;
 
-int internal_str2dec(const char *from, decimal *to, char **end, my_bool fixed);
-int decimal2string(decimal *from, char *to, int *to_len,
+int internal_str2dec(const char *from, decimal_t *to, char **end,
+                     my_bool fixed);
+int decimal2string(decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler);
-int decimal2ulonglong(decimal *from, ulonglong *to);
-int ulonglong2decimal(ulonglong from, decimal *to);
-int decimal2longlong(decimal *from, longlong *to);
-int longlong2decimal(longlong from, decimal *to);
-int decimal2double(decimal *from, double *to);
-int double2decimal(double from, decimal *to);
-void decimal_optimize_fraction(decimal *from);
-int decimal2bin(decimal *from, char *to, int precision, int scale);
-int bin2decimal(char *from, decimal *to, int precision, int scale);
+int decimal2ulonglong(decimal_t *from, ulonglong *to);
+int ulonglong2decimal(ulonglong from, decimal_t *to);
+int decimal2longlong(decimal_t *from, longlong *to);
+int longlong2decimal(longlong from, decimal_t *to);
+int decimal2double(decimal_t *from, double *to);
+int double2decimal(double from, decimal_t *to);
+void decimal_optimize_fraction(decimal_t *from);
+int decimal2bin(decimal_t *from, char *to, int precision, int scale);
+int bin2decimal(char *from, decimal_t *to, int precision, int scale);
 
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
-int decimal_result_size(decimal *from1, decimal *from2, char op, int param);
+int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,
+                        int param);
 
-int decimal_add(decimal *from1, decimal *from2, decimal *to);
-int decimal_sub(decimal *from1, decimal *from2, decimal *to);
-int decimal_cmp(decimal *from1, decimal *from2);
-int decimal_mul(decimal *from1, decimal *from2, decimal *to);
-int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
-int decimal_mod(decimal *from1, decimal *from2, decimal *to);
-int decimal_round(decimal *from, decimal *to, int new_scale,
+int decimal_add(decimal_t *from1, decimal_t *from2, decimal_t *to);
+int decimal_sub(decimal_t *from1, decimal_t *from2, decimal_t *to);
+int decimal_cmp(decimal_t *from1, decimal_t *from2);
+int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to);
+int decimal_div(decimal_t *from1, decimal_t *from2, decimal_t *to,
+                int scale_incr);
+int decimal_mod(decimal_t *from1, decimal_t *from2, decimal_t *to);
+int decimal_round(decimal_t *from, decimal_t *to, int new_scale,
                   decimal_round_mode mode);
-int decimal_is_zero(decimal *from);
-void max_decimal(int precision, int frac, decimal *to);
+int decimal_is_zero(decimal_t *from);
+void max_decimal(int precision, int frac, decimal_t *to);
 
 #define string2decimal(A,B,C) internal_str2dec((A), (B), (C), 0)
 #define string2decimal_fixed(A,B,C) internal_str2dec((A), (B), (C), 1)
 
-/* set a decimal to zero */
+/* set a decimal_t to zero */
 
 #define decimal_make_zero(dec)        do {                \
                                         (dec)->buf[0]=0;    \

@@ -19,14 +19,10 @@
 #endif
 
 #include "mysql_connection.h"
+
 #include "priv.h"
-
-#include <mysql.h>
-#include <violite.h>
-#include <mysql_com.h>
-#include <m_string.h>
-#include <my_sys.h>
-
+#include "mysql_manager_error.h"
+#include "mysqld_error.h"
 #include "thread_registry.h"
 #include "log.h"
 #include "user_map.h"
@@ -35,6 +31,13 @@
 #include "command.h"
 #include "factory.h"
 #include "parse.h"
+
+#include <mysql.h>
+#include <violite.h>
+#include <mysql_com.h>
+#include <m_string.h>
+#include <my_sys.h>
+
 
 Command *parse_command(Command_factory * factory, const char *text);
 

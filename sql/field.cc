@@ -2451,14 +2451,15 @@ static bool test_if_minus(CHARSET_INFO *cs,
 
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  ulong tmp_scan;
   longlong tmp;
   long store_tmp;
   int error;
   char *end;
   
-  tmp= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
-  len-= tmp;
-  from+= tmp;
+  tmp_scan= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
+  len-= tmp_scan;
+  from+= tmp_scan;
 
   end= (char*) from+len;
   tmp= cs->cset->my_strtoll10(cs, from, &end, &error);

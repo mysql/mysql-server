@@ -27,8 +27,9 @@ kill @id;
 --sleep 5
 # verify that con1 is doning a reconnect
 connection con1;
-ping
-ping
+--ping
+--ping
+select ((@id := kill_id) - kill_id) from t1; 
 select @id != connection_id();
 
 #make sure the server is still alive
