@@ -336,3 +336,19 @@ select a from t1;
 show status like "Qcache_queries_in_cache";
 drop table t1;
 show status like "Qcache_queries_in_cache";
+
+#
+# Test of query cache resizing
+#
+set GLOBAL query_cache_size=1000;
+show global variables like "query_cache_size";
+set GLOBAL query_cache_size=1100;
+set GLOBAL query_cache_size=1200;
+set GLOBAL query_cache_size=1300;
+set GLOBAL query_cache_size=1400;
+set GLOBAL query_cache_size=1500;
+set GLOBAL query_cache_size=1600;
+set GLOBAL query_cache_size=1700;
+set GLOBAL query_cache_size=1800;
+set GLOBAL query_cache_size=1900;
+show global variables like "query_cache_size";

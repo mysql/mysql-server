@@ -490,3 +490,19 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+set GLOBAL query_cache_size=1000;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+set GLOBAL query_cache_size=1100;
+set GLOBAL query_cache_size=1200;
+set GLOBAL query_cache_size=1300;
+set GLOBAL query_cache_size=1400;
+set GLOBAL query_cache_size=1500;
+set GLOBAL query_cache_size=1600;
+set GLOBAL query_cache_size=1700;
+set GLOBAL query_cache_size=1800;
+set GLOBAL query_cache_size=1900;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	1024

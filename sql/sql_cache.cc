@@ -1276,10 +1276,11 @@ ulong Query_cache::init_cache()
   query_cache_size -= additional_data_size;
 
   STRUCT_LOCK(&structure_guard_mutex);
-  if (query_cache_size	<= min_allocation_unit)
+  if (max_mem_bin_size	<= min_allocation_unit)
   {
     DBUG_PRINT("qcache",
-	       (" query_cache_size <= min_allocation_unit => cache disabled"));
+	       (" max bin size (%lu) <= min_allocation_unit => cache disabled",
+		max_mem_bin_size));
     STRUCT_UNLOCK(&structure_guard_mutex);
     goto err;
   }
