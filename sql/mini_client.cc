@@ -38,6 +38,8 @@
 #include "mysqld_error.h"
 #include "errmsg.h"
 #include <violite.h>
+
+extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/stat.h>
 #include <signal.h>
 #ifdef	 HAVE_PWD_H
@@ -65,6 +67,7 @@
 #define INADDR_NONE	-1
 #endif
 
+}
 
 static void mc_end_server(MYSQL *mysql);
 static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, uint to);

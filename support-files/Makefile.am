@@ -49,7 +49,7 @@ CLEANFILES =		my-small.cnf \
 
 mysql-@VERSION@.spec:	mysql.spec
 			rm -f $@
-			cp -p mysql.spec $@
+			cp mysql.spec $@
 
 SUFFIXES = .sh
 

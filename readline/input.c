@@ -41,6 +41,7 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
+#include <time.h>
 #if defined (HAVE_SELECT)
 #  if !defined (HAVE_SYS_SELECT_H) || !defined (M_UNIX)
 #    include <sys/time.h>
