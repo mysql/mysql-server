@@ -23,7 +23,7 @@
 enum file_opt_type {
   FILE_OPTIONS_STRING,		/* String (LEX_STRING) */
   FILE_OPTIONS_ESTRING,		/* Escaped string (LEX_STRING) */
-  FILE_OPTIONS_ULONGLONG,	/* ulonglong parapeter (ulonglong) */
+  FILE_OPTIONS_ULONGLONG,	/* ulonglong parameter (ulonglong) */
   FILE_OPTIONS_REV,		/* Revision version number (ulonglong) */
   FILE_OPTIONS_TIMESTAMP,	/* timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */

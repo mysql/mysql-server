@@ -463,7 +463,7 @@ ALTER TABLE t1 DROP PRIMARY KEY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` int(11) default NULL,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1

@@ -94,10 +94,22 @@ enum enum_sql_command {
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 
-enum suid_behaviour
+enum enum_sp_suid_behaviour
 {
-  IS_DEFAULT_SUID= 0, IS_NOT_SUID, IS_SUID
+  SP_IS_DEFAULT_SUID= 0,
+  SP_IS_NOT_SUID,
+  SP_IS_SUID
 };
+
+enum enum_sp_data_access
+{
+  SP_DEFAULT_ACCESS= 0,
+  SP_CONTAINS_SQL,
+  SP_NO_SQL,
+  SP_READS_SQL_DATA,
+  SP_MODIFIES_SQL_DATA
+};
+
 
 #define DERIVED_SUBQUERY	1
 #define DERIVED_VIEW		2
@@ -581,6 +593,9 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_RENAME		32
 #define ALTER_ORDER		64
 #define ALTER_OPTIONS		128
+#define ALTER_CHANGE_COLUMN_DEFAULT 256
+#define ALTER_KEYS_ONOFF        512
+#define ALTER_CONVERT          1024
 
 typedef struct st_alter_info
 {
@@ -589,7 +604,6 @@ typedef struct st_alter_info
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
-  bool                        is_simple;
 
   st_alter_info(){clear();}
   void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
@@ -599,8 +613,9 @@ typedef struct st_alter_info
 struct st_sp_chistics
 {
   LEX_STRING comment;
-  enum suid_behaviour suid;
+  enum enum_sp_suid_behaviour suid;
   bool detistic;
+  enum enum_sp_data_access daccess;
 };
 
 
@@ -691,6 +706,7 @@ typedef struct st_lex
   uint8 describe;
   uint8 derived_tables;
   uint8 create_view_algorithm;
+  uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   /* special JOIN::prepare mode: changing of query is prohibited */

@@ -11,7 +11,7 @@ create table t1 (b char(0) not null);
 create table if not exists t1 (b char(0) not null);
 insert into t1 values (""),(null);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
 select * from t1;
 b
 
@@ -152,7 +152,7 @@ create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` int(11) default NULL,
   PRIMARY KEY  (`a`),
   KEY `b` (`b`),
@@ -203,7 +203,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0'
+  `a` int(11) NOT NULL
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION storage_engine="gemini";
@@ -215,7 +215,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0'
+  `a` int(11) NOT NULL
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 SET SESSION storage_engine=default;
 drop table t1;
@@ -291,7 +291,7 @@ create table t3 like t1;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   `name` char(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3;
@@ -306,7 +306,7 @@ create temporary table t3 like t2;
 show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `id` int(11) NOT NULL default '0'
+  `id` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3;
 id
@@ -314,7 +314,7 @@ drop table t3;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   `name` char(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3;
@@ -326,14 +326,14 @@ create temporary table t3 like mysqltest.t3;
 show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   `name` char(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 create table t2 like t3;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL,
   `name` char(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
@@ -360,7 +360,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0'
+  `a` int(11) NOT NULL
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION storage_engine="gemini";
@@ -372,7 +372,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0'
+  `a` int(11) NOT NULL
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 SET SESSION storage_engine=default;
 drop table t1;

@@ -159,24 +159,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 execute stmt1 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 deallocate prepare stmt1;
 drop tables t1,t2;
 set @arg00=1;

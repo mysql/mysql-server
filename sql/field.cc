@@ -2290,10 +2290,13 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
   double nr= my_strntod(cs,(char*) from,len,&end,&error);
-  if (error || ((uint) (end-from) != len && table->in_use->count_cuted_fields))
+  if (error || (!len || (uint) (end-from) != len &&
+                table->in_use->count_cuted_fields))
   {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                (error ? ER_WARN_DATA_OUT_OF_RANGE : ER_WARN_DATA_TRUNCATED),
+                1);
     error= 1;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   }
   Field_float::store(nr);
   return error;
@@ -2592,10 +2595,13 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
   double nr= my_strntod(cs,(char*) from, len, &end, &error);
-  if (error || ((uint) (end-from) != len && table->in_use->count_cuted_fields))
+  if (error || (!len || (uint) (end-from) != len &&
+                table->in_use->count_cuted_fields))
   {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                (error ? ER_WARN_DATA_OUT_OF_RANGE : ER_WARN_DATA_TRUNCATED),
+                1);
     error= 1;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   }
   Field_double::store(nr);
   return error;

@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4,t5;
+drop table if exists t0,t1,t2,t3,t4,t5;
 CREATE TABLE t1 (
 grp int(11) default NULL,
 a bigint(20) unsigned default NULL,
@@ -745,3 +745,47 @@ player_id	match_1_h	*	match_id	home	UUX
 7	4	*	1	2	2
 3	3	*	1	2	1
 drop table t1, t2;
+CREATE TABLE t0 (a0 int PRIMARY KEY);
+CREATE TABLE t1 (a1 int PRIMARY KEY);
+CREATE TABLE t2 (a2 int);
+CREATE TABLE t3 (a3 int);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+SELECT * FROM t1 LEFT JOIN t2 ON a1=0;
+a1	a2
+1	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON a1=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
+a1	a2	a3
+1	NULL	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
+a0	a1	a2	a3
+1	1	NULL	NULL
+EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
+INSERT INTO t0 VALUES (0);
+INSERT INTO t1 VALUES (0);
+SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+a0	a1	a2	a3
+1	1	NULL	NULL
+EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
+DROP TABLE t0,t1,t2,t3;

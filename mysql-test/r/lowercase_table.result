@@ -26,9 +26,9 @@ RENAME TABLE T1 TO T2;
 ALTER TABLE T2 ADD new_col int not null;
 ALTER TABLE T2 RENAME T3;
 show tables like 't_';
-Tables_in_test (t_)	table_type
-t3	BASE TABLE
-t4	BASE TABLE
+Tables_in_test (t_)
+t3
+t4
 drop table t3,t4;
 create table t1 (a int);
 select count(*) from T1;
@@ -79,4 +79,4 @@ select C.a, c.a from t1 c, t2 C;
 ERROR 42000: Not unique table/alias: 'C'
 drop table t1, t2;
 show tables;
-Tables_in_test	table_type
+Tables_in_test

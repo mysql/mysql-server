@@ -17,8 +17,8 @@
 
 /*
   The privileges are saved in the following tables:
-  mysql/user	 ; super user who are allowed to do almoust anything
-  mysql/host	 ; host priviliges. This is used if host is empty in mysql/db.
+  mysql/user	 ; super user who are allowed to do almost anything
+  mysql/host	 ; host privileges. This is used if host is empty in mysql/db.
   mysql/db	 ; database privileges / user
 
   data in tables is sorted according to how many not-wild-cards there is
@@ -301,6 +301,12 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       uint next_field;
       user.access= get_access(table,3,&next_field) & GLOBAL_ACLS;
+      /*
+        if it is pre 5.0.1 privilege table then map CREATE privilege on
+        CREATE VIEW & SHOW VIEW privileges
+      */
+      if (table->fields <= 31 && (user.access & CREATE_ACL))
+        user.access|= (CREATE_VIEW_ACL | SHOW_VIEW_ACL);
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
@@ -597,7 +603,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
                 thd->host, thd->ip, thd->user are used for checks.
     mqh         user resources; on success mqh is reset, else
                 unchanged
-    passwd      scrambled & crypted password, recieved from client
+    passwd      scrambled & crypted password, received from client
                 (to check): thd->scramble or thd->scramble_323 is
                 used to decrypt passwd, so they must contain
                 original random string,
@@ -608,7 +614,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
   RETURN VALUE
     0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
        updated
-    1  user not found or authentification failure
+    1  user not found or authentication failure
     2  user found, has long (4.1.1) salt, but passwd is in old (3.23) format.
    -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
 */
@@ -748,7 +754,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	break;
       }
       DBUG_PRINT("info",("checkpoint 2"));
-      /* If X509 issuer is speified, we check it... */
+      /* If X509 issuer is specified, we check it... */
       if (acl_user->x509_issuer)
       {
         DBUG_PRINT("info",("checkpoint 3"));
@@ -810,7 +816,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 /*
  * This is like acl_getroot() above, but it doesn't check password,
  * and we don't care about the user resources.
- * Used to get access rights for SQL SECURITY DEFINER invokation of
+ * Used to get access rights for SQL SECURITY DEFINER invocation of
  * stored procedures.
  */
 int acl_getroot_no_password(THD *thd)
@@ -1544,13 +1550,28 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 			      (byte*) table->field[0]->ptr,0,
 			      HA_READ_KEY_EXACT))
   {
-    if (!create_user)
+    /* what == 'N' means revoke */
+    if (what == 'N')
     {
-      if (what == 'N')
-	my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
-      else
-	my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
-                 thd->user, thd->host_or_ip);
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
+      goto end;
+    }
+    /*
+      There are four options which affect the process of creation of 
+      a new user(mysqld option --safe-create-user, 'insert' privilege
+      on 'mysql.user' table, using 'GRANT' with 'IDENTIFIED BY' and
+      SQL_MODE flag NO_AUTO_CREATE_USER). Below is the simplified rule
+      how it should work.
+      if (safe-user-create && ! INSERT_priv) => reject
+      else if (identified_by) => create
+      else if (no_auto_create_user) => reject
+      else create
+    */
+    else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
+              !password_len) || !create_user)
+    {
+      my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+               thd->user, thd->host_or_ip);
       goto end;
     }
     old_row_exists = 0;
@@ -1564,6 +1585,17 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   }
   else
   {
+    /*
+      Check that the user isn't trying to change a password for another
+      user if he doesn't have UPDATE privilege to the MySQL database
+    */
+    DBUG_ASSERT(combo.host.str);
+    if (thd->user && combo.password.str &&
+        (strcmp(thd->user,combo.user.str) ||
+         my_strcasecmp(&my_charset_latin1,
+                       combo.host.str, thd->host_or_ip)) &&
+        check_access(thd, UPDATE_ACL, "mysql",0,1,0))
+      goto end;
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
@@ -1831,7 +1863,7 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
 {
   /* Host given by user */
   orig_host=  strdup_root(&memex,h);
-  /* Convert empty hostname to '%' for easy comparision */
+  /* Convert empty hostname to '%' for easy comparison */
   host=  orig_host[0] ? orig_host : (char*) "%";
   db =   strdup_root(&memex,d);
   user = strdup_root(&memex,u);
@@ -1900,7 +1932,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
              col_privs->field[1]->pack_length()+
              col_privs->field[2]->pack_length()+
              col_privs->field[3]->pack_length());
-    key_copy(key,col_privs,0,key_len);
+    key_copy(key,col_privs->record[0],col_privs->key_info,key_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
     col_privs->file->ha_index_init(0);
     if (col_privs->file->index_read(col_privs->record[0],
@@ -2012,7 +2044,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
   key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
 	      table->field[2]->pack_length()+ table->field[3]->pack_length());
-  key_copy(key,table,0,key_length);
+  key_copy(key,table->record[0],table->key_info,key_length);
 
   rights &= COL_ACLS;				// Only ACL for columns
 
@@ -2025,7 +2057,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   {
     ulong privileges = xx->rights;
     bool old_row_exists=0;
-    key_restore(table,key,0,key_length);
+    key_restore(table->record[0],key,table->key_info,key_length);
     table->field[4]->store(xx->column.ptr(),xx->column.length(),
                            &my_charset_latin1);
 
@@ -2041,7 +2073,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       }
       old_row_exists = 0;
       restore_record(table,default_values);		// Get empty record
-      key_restore(table,key,0,key_length);
+      key_restore(table->record[0],key,table->key_info,key_length);
       table->field[4]->store(xx->column.ptr(),xx->column.length(),
                              &my_charset_latin1);
     }
@@ -2778,7 +2810,7 @@ void grant_reload(THD *thd)
 /****************************************************************************
   Check table level grants
 
-  SYNPOSIS
+  SYNOPSIS
    bool check_grant()
    thd		Thread handler
    want_access  Bits of privileges user needs to have
@@ -2792,7 +2824,7 @@ void grant_reload(THD *thd)
 
    RETURN
      0  ok
-     1  Error: User did not have the requested privielges
+     1  Error: User did not have the requested privileges
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
@@ -3870,8 +3902,8 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
   fill effective privileges for table
 
   SYNOPSIS
-    get_effectlige_privileges()
-    thd     thread handleg
+    fill_effective_table_privileges()
+    thd     thread handler
     grant   grants table descriptor
     db      db name
     table   table name

@@ -90,6 +90,7 @@ public:
 };
 
 typedef bool (Item::*Item_processor)(byte *arg);
+typedef Item* (Item::*Item_transformer) (byte *arg);
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -261,8 +262,16 @@ public:
     return (this->*processor)(arg);
   }
 
+   virtual Item* transform(Item_transformer transformer, byte *arg)
+  {
+    return (this->*transformer)(arg);
+  }
+ 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
+  virtual bool collect_item_field_processor(byte * arg) { return 0; }
+  virtual Item *equal_fields_propagator(byte * arg) { return this; }
+  virtual bool replace_equal_field_processor(byte * arg) { return 0; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
   virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
@@ -440,6 +449,8 @@ public:
                             bool any_privileges, bool allocate_view_names);
 };
 
+class Item_equal;
+class COND_EQUAL;
 
 class Item_field :public Item_ident
 {
@@ -447,6 +458,8 @@ protected:
   void set_field(Field *field);
 public:
   Field *field,*result_field;
+  Item_equal *item_equal;
+  bool no_const_subst;
   /*
     if any_privileges set to TRUE then here real effective privileges will
     be stored
@@ -458,7 +471,8 @@ public:
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),
-     field(0), result_field(0), have_privileges(0), any_privileges(0)
+    field(0), result_field(0), item_equal(0), no_const_subst(0),
+     have_privileges(0), any_privileges(0)
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
@@ -497,7 +511,11 @@ public:
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
+  bool collect_item_field_processor(byte * arg);
   void cleanup();
+  Item_equal *find_item_equal(COND_EQUAL *cond_equal);
+  Item *equal_fields_propagator(byte *arg);
+  bool replace_equal_field_processor(byte *arg);
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
   friend class Item_default_value;
@@ -707,13 +725,7 @@ class Item_real :public Item_num
 public:
   double value;
   // Item_real() :value(0) {}
-  Item_real(const char *str_arg, uint length) :value(my_atof(str_arg))
-  {
-    presentation= name=(char*) str_arg;
-    decimals=(uint8) nr_of_decimals(str_arg);
-    max_length=length;
-    fixed= 1;
-  }
+  Item_real(const char *str_arg, uint length);
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
   {
@@ -994,6 +1006,8 @@ public:
     (*ref)->save_in_field(result_field, no_conversions);
   }
   Item *real_item() { return *ref; }
+  bool walk(Item_processor processor, byte *arg)
+  { return (*ref)->walk(processor, arg); }
   void print(String *str);
   void cleanup();
 };
@@ -1178,6 +1192,19 @@ public:
   {
     return arg->walk(processor, args) ||
       (this->*processor)(args);
+  }
+
+  /* 
+     This method like the walk method traverses the item tree, but
+     at the same time it can replace some nodes in the tree
+  */ 
+  Item *transform(Item_transformer transformer, byte *args)
+  {
+    Item *new_item= arg->transform(transformer, args);
+    if (!new_item)
+      return 0;
+    arg= new_item;
+    return (this->*transformer)(args);
   }
 };
 

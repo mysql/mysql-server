@@ -21,6 +21,7 @@ class Item;				/* Needed by ORDER */
 class GRANT_TABLE;
 class st_select_lex_unit;
 class st_select_lex;
+class COND_EQUAL;
 
 /* Order clause list element */
 
@@ -34,7 +35,7 @@ typedef struct st_order {
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
   bool	 in_field_list;			/* true if in select field list */
-  bool   counter_used;                  /* parapeter was counter of columns */
+  bool   counter_used;                  /* parameter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
   table_map used,depend_map;
@@ -116,7 +117,7 @@ struct st_table {
     These two members hold offset in record + 1 for TIMESTAMP field
     with NOW() as default value or/and with ON UPDATE NOW() option. 
     If 0 then such field is absent in this table or auto-set for default
-    or/and on update should be temporaly disabled for some reason.
+    or/and on update should be temporally disabled for some reason.
     These values is setup to offset value for each statement in open_table()
     and turned off in statement processing code (see mysql_update as example).
   */
@@ -188,6 +189,16 @@ struct st_table {
 #define VIEW_ALGORITHM_TMPTABLE	1
 #define VIEW_ALGORITHM_MERGE		2
 
+/* view WITH CHECK OPTION parameter options */
+#define VIEW_CHECK_NONE       0
+#define VIEW_CHECK_LOCAL      1
+#define VIEW_CHECK_CASCADED   2
+
+/* result of view WITH CHECK OPTION parameter check */
+#define VIEW_CHECK_OK         0
+#define VIEW_CHECK_ERROR      1
+#define VIEW_CHECK_SKIP       2
+
 struct st_lex;
 
 typedef struct st_table_list
@@ -199,6 +210,7 @@ typedef struct st_table_list
   char		*db, *alias, *real_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+  COND_EQUAL    *cond_equal;            /* Used with outer join */
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
   List<String>	*use_index, *ignore_index;
@@ -223,16 +235,23 @@ typedef struct st_table_list
   /* next_global before adding VIEW tables */
   st_table_list	*old_next;
   Item          *where;                 /* VIEW WHERE clause condition */
+  Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
-  LEX_STRING	md5;			/* md5 of query tesxt */
+  LEX_STRING	md5;			/* md5 of query text */
   LEX_STRING	source;			/* source of CREATE VIEW */
-  LEX_STRING	view_db;		/* save view database */
-  LEX_STRING	view_name;		/* save view name */
+  LEX_STRING	view_db;		/* saved view database */
+  LEX_STRING	view_name;		/* saved view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  ulonglong     with_check;             /* WITH CHECK OPTION */
+  /*
+    effective value of WITH CHECK OPTION (differ for temporary table
+    algorithm)
+  */
+  uint8         effective_with_check;
   uint          effective_algorithm;    /* which algorithm was really used */
   GRANT_INFO	grant;
   thr_lock_type lock_type;
@@ -244,17 +263,18 @@ typedef struct st_table_list
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* prefer index over table scan */
   bool          ignore_leaves;          /* preload only non-leaf nodes */
+  bool          no_where_clause;        /* do not attach WHERE to SELECT */
   table_map     dep_tables;             /* tables the table depends on      */
   table_map     on_expr_dep_tables;     /* tables on expression depends on  */
   struct st_nested_join *nested_join;   /* if the element is a nested join  */
   st_table_list *embedding;             /* nested join containing the table */
   List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
-  /* used in multi-upd/views privelege check */
+  /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
   bool		skip_temporary;		/* this table shouldn't be temporary */
   bool          setup_is_done;          /* setup_tables() is done */
-  /* do view contain auto_increment field */
+  /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
@@ -262,7 +282,8 @@ typedef struct st_table_list
 
   void calc_md5(char *buffer);
   void set_ancestor();
-  bool setup_ancestor(THD *thd, Item **conds);
+  int view_check_option(THD *thd, bool ignore_failure);
+  bool setup_ancestor(THD *thd, Item **conds, uint8 check_option);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
   inline st_table_list *next_independent()

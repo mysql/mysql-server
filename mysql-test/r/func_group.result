@@ -476,7 +476,7 @@ CHI	Los Angeles
 explain
 select max(a3) from t1 where a2 is null and a2 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 select max(a3) from t1 where a2 is null and a2 = 2;
 max(a3)
 NULL

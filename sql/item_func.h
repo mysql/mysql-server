@@ -40,7 +40,8 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,NOTLIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC, BETWEEN, IN_FUNC,
+		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC,
+                  BETWEEN, IN_FUNC, MULT_EQUAL_FUNC,
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
@@ -50,7 +51,8 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   GUSERVAR_FUNC};
-  enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
+  enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
+                       OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
   Item_func(void):
@@ -150,6 +152,7 @@ public:
                                          bool allow_superset_comversion= FALSE);
 
   bool walk(Item_processor processor, byte *arg);
+  Item *transform(Item_transformer transformer, byte *arg);
 };
 
 

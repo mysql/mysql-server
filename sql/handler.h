@@ -139,16 +139,16 @@
 #define HA_CACHE_TBL_TRANSACT    4
 
 
-enum db_type 
-{ 
+enum db_type
+{
   DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
   DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
   DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
   DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-  DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, 
+  DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB,
   DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
   DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_CSV_DB,
-	       
+
   DB_TYPE_DEFAULT // Must be last
 };
 
@@ -165,16 +165,24 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 /* struct to hold information about the table that should be created */
 
 /* Bits in used_fields */
-#define HA_CREATE_USED_AUTO		1
-#define HA_CREATE_USED_RAID		2
-#define HA_CREATE_USED_UNION		4
-#define HA_CREATE_USED_INSERT_METHOD	8
-#define HA_CREATE_USED_MIN_ROWS		16
-#define HA_CREATE_USED_MAX_ROWS		32
-#define HA_CREATE_USED_AVG_ROW_LENGTH	64
-#define HA_CREATE_USED_PACK_KEYS	128
-#define HA_CREATE_USED_CHARSET		256
-#define HA_CREATE_USED_DEFAULT_CHARSET	512
+#define HA_CREATE_USED_AUTO             (1L << 0)
+#define HA_CREATE_USED_RAID             (1L << 1)
+#define HA_CREATE_USED_UNION            (1L << 2)
+#define HA_CREATE_USED_INSERT_METHOD    (1L << 3)
+#define HA_CREATE_USED_MIN_ROWS         (1L << 4)
+#define HA_CREATE_USED_MAX_ROWS         (1L << 5)
+#define HA_CREATE_USED_AVG_ROW_LENGTH   (1L << 6)
+#define HA_CREATE_USED_PACK_KEYS        (1L << 7)
+#define HA_CREATE_USED_CHARSET          (1L << 8)
+#define HA_CREATE_USED_DEFAULT_CHARSET  (1L << 9)
+#define HA_CREATE_USED_DATADIR          (1L << 10)
+#define HA_CREATE_USED_INDEXDIR         (1L << 11)
+#define HA_CREATE_USED_ENGINE           (1L << 12)
+#define HA_CREATE_USED_CHECKSUM         (1L << 13)
+#define HA_CREATE_USED_DELAY_KEY_WRITE  (1L << 14)
+#define HA_CREATE_USED_ROW_FORMAT       (1L << 15)
+#define HA_CREATE_USED_COMMENT          (1L << 16)
+#define HA_CREATE_USED_PASSWORD         (1L << 17)
 
 typedef struct st_thd_trans {
   void *bdb_tid;
@@ -205,6 +213,7 @@ typedef struct st_ha_create_information
   uint raid_type,raid_chunks;
   uint merge_insert_method;
   bool table_existed;			/* 1 in create if table existed */
+  bool frm_only;                        /* 1 if no ha_create_table() */
 } HA_CREATE_INFO;
 
 
