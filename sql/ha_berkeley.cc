@@ -1596,12 +1596,13 @@ int ha_berkeley::rnd_pos(byte * buf, byte *pos)
 {
   DBT db_pos;
   statistic_increment(ha_read_rnd_count,&LOCK_status);
+  DBUG_ENTER("ha_berkeley::rnd_pos");
 
   active_index= (uint) -1;			// Don't delete via cursor
-  return read_row(file->get(file, transaction,
-			    get_pos(&db_pos, pos),
-			    &current_row, 0),
-		 (char*) buf, primary_key, &current_row, (DBT*) 0, 0);
+  DBUG_RETURN(read_row(file->get(file, transaction,
+				 get_pos(&db_pos, pos),
+				 &current_row, 0),
+		       (char*) buf, primary_key, &current_row, (DBT*) 0, 0));
 }
 
 void ha_berkeley::position(const byte *record)

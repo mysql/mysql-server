@@ -257,8 +257,6 @@ int mysql_update(THD *thd,
     }
   }
 
-  if (!(test_flags & TEST_READCHECK))		/* For debugging */
-    VOID(table->file->extra(HA_EXTRA_NO_READCHECK));
   if (handle_duplicates == DUP_IGNORE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   init_read_record(&info,thd,table,select,0,1);
@@ -303,7 +301,6 @@ int mysql_update(THD *thd,
   }
   end_read_record(&info);
   thd->proc_info="end";
-  VOID(table->file->extra(HA_EXTRA_READCHECK));
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
   using_transactions=table->file->has_transactions();
@@ -363,7 +360,6 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
   for (TABLE_LIST *dt=ut ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=ut->table;
-    (void) ut->table->file->extra(HA_EXTRA_NO_READCHECK);
     (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
     dt->table->used_keys=0;
     if (table->timestamp_field)
@@ -525,14 +521,12 @@ multi_update::initialize_tables(JOIN *join)
 
 multi_update::~multi_update()
 {
-  /* Add back EXTRA_READCHECK;  In 4.0.1 we shouldn't need this anymore */
   int counter = 0;
   for (table_being_updated=update_tables ;
        table_being_updated ;
        counter++, table_being_updated=table_being_updated->next)
   {
     TABLE *table=table_being_updated->table;
-    (void)table->file->extra(HA_EXTRA_READCHECK);
     table->no_keyread=0;
     if (error) 
       table->time_stamp=save_time_stamps[counter];

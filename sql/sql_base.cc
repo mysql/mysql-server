@@ -300,6 +300,7 @@ static void free_cache_entry(TABLE *table)
 
 void free_io_cache(TABLE *table)
 {
+  DBUG_ENTER("free_io_cache");
   if (table->io_cache)
   {
     close_cached_file(table->io_cache);
@@ -311,6 +312,7 @@ void free_io_cache(TABLE *table)
     my_free((gptr) table->record_pointers,MYF(0));
     table->record_pointers=0;
   }
+  DBUG_VOID_RETURN;
 }
 
 	/* Close all tables which aren't in use by any thread */
@@ -1301,7 +1303,6 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     if (error)
       goto err;
   }
-  (void) entry->file->extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
@@ -1499,7 +1500,6 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);
   }
 
-  tmp_table->file->extra(HA_EXTRA_NO_READCHECK); // Not needed in SQL
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
   tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);

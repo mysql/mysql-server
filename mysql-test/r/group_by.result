@@ -344,3 +344,30 @@ a	1
 b	1
 SET SQL_BIG_TABLES=0;
 drop table t1;
+CREATE TABLE t1 (
+`a` char(193) default NULL,
+`b` char(63) default NULL
+);
+INSERT INTO t1 VALUES ('abc','def'),('hij','klm');
+SELECT CONCAT(a, b) FROM t1 GROUP BY 1;
+CONCAT(a, b)
+abcdef
+hijklm
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(*)
+abcdef	1
+hijklm	1
+SELECT CONCAT(a, b),count(distinct a) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(distinct a)
+abcdef	1
+hijklm	1
+SELECT 1 FROM t1 GROUP BY CONCAT(a, b);
+1
+1
+1
+INSERT INTO t1 values ('hij','klm');
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(*)
+abcdef	1
+hijklm	2
+DROP TABLE t1;

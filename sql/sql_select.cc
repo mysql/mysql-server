@@ -3447,7 +3447,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (!param->quick_group)
       group=0;					// Can't use group key
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
+    {
       (*tmp->item)->marker=4;			// Store null in key
+      if ((*tmp->item)->max_length >= MAX_CHAR_WIDTH)
+	using_unique_constraint=1;
+    }
     if (param->group_length >= MAX_BLOB_WIDTH)
       using_unique_constraint=1;
     if (group)
@@ -3852,7 +3856,6 @@ static bool open_tmp_table(TABLE *table)
     return(1);
   }
   /* VOID(ha_lock(table,F_WRLCK)); */		/* Single thread table */
-  (void) table->file->extra(HA_EXTRA_NO_READCHECK);	/* Not needed */
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
   return(0);
 }
@@ -5651,7 +5654,6 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   DBUG_ENTER("remove_duplicates");
 
   entry->reginfo.lock_type=TL_WRITE;
-  entry->file->extra(HA_EXTRA_NO_READCHECK);
 
   /* Calculate how many saved fields there is in list */
   field_count=0;
