@@ -1443,7 +1443,9 @@ mysql_execute_command(void)
 	{
 	  SELECT_LEX *first= sl->master_unit()->first_select();
 	  res= mysql_explain_select(thd, sl,
-				    ((select_lex==sl)?"FIRST":
+				    ((select_lex==sl)?
+				     ((sl->next_select_in_list())?"PRIMARY":
+				       "SIMPLE"):
 				     ((sl == first)?
 				      ((sl->depended)?"DEPENDENT SUBSELECT":
 				       "SUBSELECT"):

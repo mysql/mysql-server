@@ -52,26 +52,26 @@ create table t1 (a int not null, b int not null, c int not null, primary key (a)
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 explain select * from t1 order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 explain select * from t1 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 explain select * from t1 order by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 explain select a from t1 order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
 explain select b from t1 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	index	NULL	b	4	NULL	4	Using index
+1	SIMPLE	t1	index	NULL	b	4	NULL	4	Using index
 explain select a,b from t1 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 explain select a,b from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
 explain select a,b,c from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table t1;
