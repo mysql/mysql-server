@@ -258,7 +258,7 @@ class THD :public ilink {
 public:
   NET	  net; // client connection descriptor
   LEX	  lex; // parse tree descriptor
-  MEM_ROOT mem_root; // memory allocation pool
+  MEM_ROOT mem_root; // 1 command-life memory allocation pool
   HASH     user_vars; // hash for user variables
   String  packet; // dynamic string buffer used for network I/O		
   struct  sockaddr_in remote; // client socket address
@@ -326,6 +326,19 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
+
+    /* 
+       Tables changed in transaction (that must be invalidated in query cache).
+       List contain only transactional tables, that not invalidated in query 
+       cache (instead of full list of changed in transaction tables).
+    */
+    CHANGED_TABLE_LIST* changed_tables;
+    MEM_ROOT mem_root; // Transaction-life memory allocation pool
+    void cleanup()
+    {
+      changed_tables = 0;
+      free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+    }
   } transaction;
   Item	     *free_list, *handler_items;
   CONVERT    *convert_set;
@@ -374,7 +387,7 @@ public:
   ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
-
+   
   THD();
   ~THD();
   void cleanup(void);
@@ -471,6 +484,12 @@ public:
       memcpy(ptr,str,size);
     return ptr;
   }
+  inline gptr trans_alloc(unsigned int size) 
+  { 
+    return alloc_root(&transaction.mem_root,size);
+  }
+  void add_changed_table(TABLE *table);
+  CHANGED_TABLE_LIST * changed_table_dup(TABLE *table);
 };
 
 

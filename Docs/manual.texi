@@ -36304,9 +36304,8 @@ If a table changes (@code{INSERT}, @code{UPDATE}, @code{DELETE},
 then all cached queries that used this table (possibly through a
 @code{MRG_MyISAM} table!) become invalid and are removed from the cache.
 
-Currently all @code{InnoDB} tables are invalidated on @code{COMMIT},
-in the future this will be changed so only tables changed in the
-transaction cause the corresponding cache entries to be invalidated.
+Changed transactional @code{InnoDB} tables will be invalidated on
+@code{COMMIT}.
 
 A query cannot be cached if it contains one of the functions:
 @multitable @columnfractions .25 .25 .25 .25
