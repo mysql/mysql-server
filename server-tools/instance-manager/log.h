@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_LOG_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_LOG_H
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,8 @@
   Two logging streams are supported: error log and info log. Additionally
   libdbug may be used for debug information output.
   ANSI C buffered I/O is used to perform logging.
-  Logging may be performed in two modes: 
-  - console application mode (default), stdout/stderr is used for logging
-  init_logs() must be called to initialize logging environment
-  - daemon mode, without controlling terminal, call
-  init_logs_in_daemon_mode() to initialize
+  Logging is performed via stdout/stder, so one can reopen them to point to
+  ordinary files. To initialize loggin environment log_init() must be called.
   
   Rationale:
   - no MYSQL_LOG as it has BIN mode, and not easy to fetch from sql_class.h
