@@ -2081,8 +2081,13 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   else
   {
     sql_print_error("\
-Could not parse log event entry, check the master for binlog corruption\n\
-This may also be a network problem, or just a bug in the master or slave code.\
+Could not parse relay log event entry. The possible reasons are: the master's \
+binary log is corrupted (you can check this by running 'mysqlbinlog' on the \
+binary log), the slave's relay log is corrupted (you can check this by running \
+'mysqlbinlog' on the relay log), a network problem, or a bug in the master's \
+or slave's MySQL code. If you want to check the master's binary log or slave's \
+relay log, you will be able to know their names by issuing 'SHOW SLAVE STATUS' \
+on this slave.\
 ");
     return 1;
   }
