@@ -139,7 +139,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
    */
   if ((lock_type == TL_WRITE_DELAYED &&
        ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
-	thd->slave_thread || !max_insert_delayed_threads)) ||
+	thd->slave_thread || !thd->variables.max_insert_delayed_threads)) ||
       (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE))
     lock_type=TL_WRITE;
 
@@ -655,7 +655,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   if (!(tmp=find_handler(thd,table_list)))
   {
     /* Don't create more than max_insert_delayed_threads */
-    if (delayed_insert_threads >= max_insert_delayed_threads)
+    if (delayed_insert_threads >= thd->variables.max_insert_delayed_threads)
       DBUG_RETURN(0);
     thd->proc_info="Creating delayed handler";
     pthread_mutex_lock(&LOCK_delayed_create);
