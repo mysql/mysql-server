@@ -1678,7 +1678,10 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!(res=var->value->val_str(&str)))
-    res= &my_empty_string;
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+    return 1;
+  }
 
   if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
   {
@@ -1700,7 +1703,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   { 
     if (!nullable)
     {
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "NULL");
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
       return 1;
     }
     tmp= NULL;
