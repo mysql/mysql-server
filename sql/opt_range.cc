@@ -5000,7 +5000,9 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
 		 char *min_key,uint min_key_flag, char *max_key,
 		 uint max_key_flag)
 {
-  ha_rows records=0,tmp;
+  ha_rows records=0, tmp;
+  uint tmp_min_flag, tmp_max_flag, keynr, min_key_length, max_key_length;
+  char *tmp_min_key, *tmp_max_key;
 
   param->max_key_part=max(param->max_key_part,key_tree->part);
   if (key_tree->left != &null_element)
@@ -5018,13 +5020,12 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       return records;
   }
 
-  uint tmp_min_flag,tmp_max_flag,keynr;
-  char *tmp_min_key=min_key,*tmp_max_key=max_key;
-
+  tmp_min_key= min_key;
+  tmp_max_key= max_key;
   key_tree->store(param->key[idx][key_tree->part].store_length,
 		  &tmp_min_key,min_key_flag,&tmp_max_key,max_key_flag);
-  uint min_key_length= (uint) (tmp_min_key- param->min_key);
-  uint max_key_length= (uint) (tmp_max_key- param->max_key);
+  min_key_length= (uint) (tmp_min_key- param->min_key);
+  max_key_length= (uint) (tmp_max_key- param->max_key);
 
   if (param->is_ror_scan)
   {
@@ -8448,7 +8449,10 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
       store_length--;
     }
     field->set_key_image((char*) key, key_part->length);
-    field->val_str(&tmp);
+    if (field->type() == MYSQL_TYPE_BIT)
+      (void) field->val_int_as_str(&tmp, 1);
+    else
+      field->val_str(&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);

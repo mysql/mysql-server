@@ -131,6 +131,16 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       key=end;
       break;
     }
+    case HA_KEYTYPE_BIT:
+    {
+      uint i;
+      fputs("0x",stream);
+      for (i=0 ; i < keyseg->length ; i++)
+        fprintf(stream, "%02x", (uint) *key++);
+      key= end;
+      break;
+    }
+
 #endif
     case HA_KEYTYPE_VARTEXT1:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARTEXT2:                   /* VARCHAR and TEXT */
