@@ -780,8 +780,8 @@ void Item_func_replace::fix_length_and_dec()
   int diff=(int) (args[2]->max_length - args[1]->max_length);
   if (diff > 0 && args[1]->max_length)
   {						// Calculate of maxreplaces
-    max_length= max_length/args[1]->max_length;
-    max_length= (max_length+1)*(uint) diff;
+    uint max_substrs= max_length/args[1]->max_length;
+    max_length+= max_substrs * (uint)diff;
   }
   if (max_length > MAX_BLOB_WIDTH)
   {
