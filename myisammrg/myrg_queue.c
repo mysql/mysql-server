@@ -14,8 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Read record based on a key */
-
 #include "myrg_def.h"
 
 static int queue_key_cmp(void *keyseg, byte *a, byte *b)
@@ -54,4 +52,14 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
     }
   }
   return error;
+}
+
+int _myrg_mi_read_record(MI_INFO *info, byte *buf)
+{
+  if (!(*info->read_record)(info,info->lastpos,buf))
+  {
+    info->update|= HA_STATE_AKTIV;		/* Record is read */
+    return 0;
+  }
+  return my_errno;
 }
