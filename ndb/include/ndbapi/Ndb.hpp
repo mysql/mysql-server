@@ -97,7 +97,7 @@
 
    @section secNdbOperations            Operations
 
-   Each NdbTransaction consists of a list of operations, each of which is represented 
+   A NdbTransaction consists of a list of operations, each of which is represented 
    by an instance of NdbOperation, NdbScanOperation, NdbIndexOperation, or
    NdbIndexScanOperation.
 
@@ -221,7 +221,8 @@
       @ref NdbIndexScanOperation::setBound()
    -# Specify attribute actions, using NdbOperation::getValue()
    -# Executing the transaction, using NdbTransaction::execute()
-   -# Iterating through the result set using NdbScanOperation::nextResult()
+   -# Traversing the result set by means of succssive calls to 
+      NdbScanOperation::nextResult()
 
    Here are two brief examples illustrating this process. Once again, in order
    to keep things relatively short and simple, we will forego any error handling.
@@ -264,7 +265,7 @@
 
    Some additional discussion of each step required to perform a scan follows:
 
-   <h4>Step 1: Define scan operation operation type</h4>
+   <h4>Step 1: Define Scan Operation Type</h4>
    It is important to remember that only a single operation is supported for each scan operation 
    (@ref NdbScanOperation::readTuples() or @ref NdbIndexScanOperation::readTuples()).
 
@@ -292,8 +293,8 @@
    As with transaction attributes, scan attributes are defined by name but it is
    also possible to use the attributes' identities to define attributes.
 
-   As previously discussed (see @ref secSync), the value read is returned as an NdbRecAttr object by
-   the NdbOperation::getValue() method.
+   As previously discussed (see @ref secSync), the value read is returned as 
+   an NdbRecAttr object by the NdbOperation::getValue() method.
 
    <h3>Using Scan to Update/Delete</h3>
    Scanning can also be used to update or delete rows.
@@ -322,9 +323,11 @@
    It is also important to note that, when using NdbIndexScanOperation::BoundEQ 
    on a partition key, only fragments containing rows will actually be scanned.
    
-   @note When performing a sorted scan, parameter parallelism to 
-   NdbIndexScanOperation::readTuples() will
-   be ignored and max parallelism will be used instead. 
+   @note When performing a sorted scan, any value passed as the 
+   NdbIndexScanOperation::readTuples() method's <code>parallel</code> argument 
+   will be ignored and maximum parallelism will be used instead. In other words, all 
+   fragments which it is possible to scan will be scanned simultaneously and in parallel 
+   in such cases.
 
    @subsection secScanLocks Lock handling with scans
 
@@ -394,7 +397,7 @@
      }
    @endcode
 
-   Here <code>errorLine</code> will be 3 as the error occurred in the 
+   Here <code>errorLine</code> will be 3, as the error occurred in the 
    third method called on the NdbOperation object (in this case, 
    <code>theOperation</code>); if the result of 
    NdbTransaction::getNdbErrorLine() is 0, this means that the error 
