@@ -6545,6 +6545,8 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
   jamEntry();
   DropIndxReq* const req = (DropIndxReq*)signal->getDataPtrSend();
   OpDropIndexPtr opPtr;
+
+  int err = DropIndxRef::BadRequestType;
   const Uint32 senderRef = signal->senderBlockRef();
   const DropIndxReq::RequestType requestType = req->getRequestType();
   if (requestType == DropIndxReq::RT_USER) {
@@ -6559,6 +6561,20 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
         return;
       }
       // forward initial request plus operation key to all
+      Uint32 indexId= req->getIndexId();
+      Uint32 indexVersion= req->getIndexVersion();
+      TableRecordPtr tmp;
+      int res = getMetaTablePtr(tmp, indexId,  indexVersion);
+      switch(res){
+      case MetaData::InvalidArgument:
+      case MetaData::TableNotFound:
+	err = DropTableRef::NoSuchTable;
+	goto error;
+      case MetaData::InvalidTableVersion:
+	err = DropIndxRef::InvalidIndexVersion;
+	goto error;
+      }
+
       req->setOpKey(++c_opRecordSequence);
       NodeReceiverGroup rg(DBDICT, c_aliveNodes);
       sendSignal(rg, GSN_DROP_INDX_REQ,
@@ -6608,12 +6624,13 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       return;
     }
   }
+error:
   jam();
   // return to sender
   OpDropIndex opBad;
   opPtr.p = &opBad;
   opPtr.p->save(req);
-  opPtr.p->m_errorCode = DropIndxRef::BadRequestType;
+  opPtr.p->m_errorCode = (DropIndxRef::ErrorCode)err;
   opPtr.p->m_errorLine = __LINE__;
   dropIndex_sendReply(signal, opPtr, true);
 }
