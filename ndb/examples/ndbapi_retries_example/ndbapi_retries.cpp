@@ -15,9 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 // 
-//  ndbapi_example3.cpp: Error handling and transaction retries
+//  ndbapi_retries.cpp: Error handling and transaction retries
 //
-//  Execute ndbapi_example1 to create the table "MYTABLENAME"
+//  Execute ndbapi_simple to create the table "MYTABLENAME"
 //  before executing this program.
 //
 //  There are many ways to program using the NDB API.  In this example

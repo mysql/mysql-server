@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 //
-//  ndbapi_example2.cpp: Using asynchronous transactions in NDB API
+//  ndbapi_async1.cpp: Using asynchronous transactions in NDB API
 //
 //  Execute ndbapi_example1 to create the table "MYTABLENAME"
 //  before executing this program.
