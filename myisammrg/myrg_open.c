@@ -110,7 +110,9 @@ int handle_locking;
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
-  m_info->keys=m_info->open_tables->table->s->base.keys;
+  if (files)
+    m_info->keys=m_info->open_tables->table->s->base.keys;
+
   bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
   m_info->end_table=m_info->open_tables+files;
