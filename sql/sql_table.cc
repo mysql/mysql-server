@@ -74,7 +74,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   }
   error=mysql_rm_table_part2(thd,tables,if_exists,0);
 
- err:  
+ err:
   pthread_mutex_unlock(&LOCK_open);
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
@@ -136,6 +136,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
+    mysql_ha_closeall(thd, table, 1);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
