@@ -1097,7 +1097,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }
-    } else{
+    } else {
       if(pIndexScanOp)
       {
 	int rows_found = 0;
@@ -1759,7 +1759,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	  pNdb->closeTransaction(pTrans);
 	  return NDBT_FAILED;
 	}
-	check = 0;
+	check = sOp->readTuples();
       }
       
       if( check == -1 ) {
@@ -1948,7 +1948,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
     }
 
     if(ordered && check != 0){
-      g_err << "Row: " << r << " not found!!" << endl;
+      g_err << check << " - Row: " << r << " not found!!" << endl;
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;    
     }

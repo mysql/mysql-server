@@ -532,7 +532,7 @@ os_mem_alloc_large(
 	ibool	assert_on_error) /* in: if TRUE, we crash mysqld if the memory
 				cannot be allocated */
 {
-#ifdef UNIV_LINUX
+#ifdef HAVE_LARGE_PAGES
   ulint size;
   int shmid;
   void *ptr = NULL;
@@ -541,7 +541,8 @@ os_mem_alloc_large(
   if (!os_use_large_pages || !os_large_page_size) {
     goto skip;
   }
-  
+
+#ifdef UNIV_LINUX
   /* Align block size to os_large_page_size */
   size = ((n - 1) & ~(os_large_page_size - 1)) + os_large_page_size;
   
@@ -561,11 +562,12 @@ os_mem_alloc_large(
     */
     shmctl(shmid, IPC_RMID, &buf);
   }
+#endif
   
   if (ptr) {
     if (set_to_zero) {
 #ifdef UNIV_SET_MEM_TO_ZERO
-      memset(ret, '\0', size);
+      memset(ptr, '\0', size);
 #endif
     }
 
@@ -573,8 +575,8 @@ os_mem_alloc_large(
   }
 
   fprintf(stderr, "InnoDB HugeTLB: Warning: Using conventional memory pool\n");
-#endif
 skip:
+#endif /* HAVE_LARGE_PAGES */
   
 	return(ut_malloc_low(n, set_to_zero, assert_on_error));
 }
@@ -587,8 +589,12 @@ os_mem_free_large(
 /*=================*/
 	void	*ptr)	/* in: number of bytes */
 {
+#ifdef HAVE_LARGE_PAGES
+  if (os_use_large_pages && os_large_page_size
 #ifdef UNIV_LINUX
-  if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
+      && !shmdt(ptr)
+#endif
+      ) {
     return;
   }
 #endif
