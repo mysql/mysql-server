@@ -1055,7 +1055,7 @@ uint my_instr_simple(CHARSET_INFO *cs,
     end= (const uchar*) b+b_length-s_length+1;
     search_end= (const uchar*) s + s_length;
     
-skipp:
+skip:
     while (str != end)
     {
       if (cs->sort_order[*str++] == cs->sort_order[*search])
@@ -1067,7 +1067,7 @@ skipp:
 	
 	while (j != search_end)
 	  if (cs->sort_order[*i++] != cs->sort_order[*j++]) 
-            goto skipp;
+            goto skip;
         
 	if (nmatch > 0)
 	{

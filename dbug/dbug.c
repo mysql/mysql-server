@@ -1640,7 +1640,7 @@ static char *static_strtok (char *s1, pchar separator)
 	  cpy--;		/* Point at separator */
 	  break;
 	}
-	end++;			/* Two separators in a row, skipp one */
+	end++;			/* Two separators in a row, skip one */
       }
     } while (*end != EOS);
     *cpy=EOS;			/* Replace last separator */

@@ -829,7 +829,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     next_pos_in_file=(info->pos_in_file+ (uint)
 		      (info->read_end - info->request_pos));
 
-	/* If reading large blocks, or first read or read with skipp */
+	/* If reading large blocks, or first read or read with skip */
   if (Count)
   {
     if (next_pos_in_file == info->end_of_file)

@@ -294,7 +294,7 @@ uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
     end= (const uchar*) b+b_length-s_length+1;
     search_end= (const uchar*) s + s_length;
 
-skipp:
+skip:
     while (str != end)
     {
       if ( (*str++) == (*search))
@@ -306,7 +306,7 @@ skipp:
 
 	while (j != search_end)
 	  if ((*i++) != (*j++))
-            goto skipp;
+            goto skip;
 
         if (nmatch > 0)
 	{

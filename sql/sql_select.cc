@@ -82,7 +82,7 @@ static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 static int sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
 static int sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
-static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last);
+static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last);
 static int end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static int end_send_group(JOIN *join, JOIN_TAB *join_tab,bool end_of_records);
 static int end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
@@ -5759,14 +5759,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
 
 static int
-flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
+flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
 {
   int error;
   READ_RECORD *info;
 
   if (!join_tab->cache.records)
     return 0;				/* Nothing to do */
-  if (skipp_last)
+  if (skip_last)
     (void) store_record_in_cache(&join_tab->cache); // Must save this for later
   if (join_tab->use_quick == 2)
   {
@@ -5800,21 +5800,21 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
     }
     SQL_SELECT *select=join_tab->select;
     if (!error && (!join_tab->cache.select ||
-		   !join_tab->cache.select->skipp_record()))
+		   !join_tab->cache.select->skip_record()))
     {
       uint i;
       reset_cache(&join_tab->cache);
-      for (i=(join_tab->cache.records- (skipp_last ? 1 : 0)) ; i-- > 0 ;)
+      for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
       {
 	read_cached_record(join_tab);
-	if (!select || !select->skipp_record())
+	if (!select || !select->skip_record())
 	  if ((error=(join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error; /* purecov: inspected */
       }
     }
   } while (!(error=info->read_record(info)));
 
-  if (skipp_last)
+  if (skip_last)
     read_cached_record(join_tab);		// Restore current record
   reset_cache(&join_tab->cache);
   join_tab->cache.records=0; join_tab->cache.ptr_record= (uint) ~0;
