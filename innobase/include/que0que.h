@@ -307,22 +307,6 @@ que_thr_peek_stop(
 				mutex reserved is necessary before deciding
 				the actual stopping */
 	que_thr_t*	thr);	/* in: query thread */
-/***************************************************************************
-Returns TRUE if the query graph is for a SELECT statement. */
-UNIV_INLINE
-ibool
-que_graph_is_select(
-/*================*/
-					/* out: TRUE if a select */
-	que_t*		graph);		/* in: graph */
-/**************************************************************************
-Prints info of an SQL query graph node. */
-
-void
-que_node_print_info(
-/*================*/
-	que_node_t*	node);	/* in: query graph node */
-
 
 /* Query graph query thread node: the fields are protected by the kernel
 mutex with the exceptions named below */

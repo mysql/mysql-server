@@ -1036,9 +1036,10 @@ que_thr_stop_for_mysql_no_error(
 	trx->n_active_thrs--;
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Prints info of an SQL query graph node. */
-
+static
 void
 que_node_print_info(
 /*================*/
@@ -1095,6 +1096,7 @@ que_node_print_info(
 
 	fprintf(stderr, "Node type %lu: %s, address %p\n", (ulong) type, str, node);
 }
+#endif /* UNIV_DEBUG */
 
 /**************************************************************************
 Performs an execution step on a query thread. */
