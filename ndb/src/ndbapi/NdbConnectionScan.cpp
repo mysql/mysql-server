@@ -99,11 +99,12 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
     }
     
     for(Uint32 i = 0; i<len; i += 3){
+      Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
       Uint32 tcPtrI = * ops++;
       Uint32 info = * ops++;
-      Uint32 opCount  = ScanTabConf::getRows(info);
-      Uint32 totalLen = ScanTabConf::getLength(info);
+      opCount  = ScanTabConf::getRows(info);
+      totalLen = ScanTabConf::getLength(info);
       
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now

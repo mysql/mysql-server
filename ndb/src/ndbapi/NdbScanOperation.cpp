@@ -140,17 +140,9 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 
   Uint32 fragCount = m_currentTable->m_fragmentCount;
 
-  if (batch + parallel == 0) {
-    batch = 16;
-    parallel= fragCount;
- } else {
-   if (batch == 0 && parallel > 0) { // Backward
-     batch = (parallel >= 16 ? 16 : parallel);
-     parallel = (parallel + 15) / 16;
-   }
-   if (parallel > fragCount || parallel == 0)
+  if (parallel > fragCount || parallel == 0) {
      parallel = fragCount;
- }
+  }
 
   // It is only possible to call openScan if 
   //  1. this transcation don't already  contain another scan operation
@@ -201,7 +193,6 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   }
   
   theParallelism = parallel;
-  theBatchSize = batch;
 
   if(fix_receivers(parallel) == -1){
     setErrorCodeAbort(4000);
@@ -223,7 +214,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   
   Uint32 reqInfo = 0;
   ScanTabReq::setParallelism(reqInfo, parallel);
-  ScanTabReq::setScanBatch(reqInfo, batch);
+  ScanTabReq::setScanBatch(reqInfo, 0);
   ScanTabReq::setLockMode(reqInfo, lockExcl);
   ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
   ScanTabReq::setReadCommittedFlag(reqInfo, readCommitted);
@@ -815,8 +806,23 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   theReceiver.prepareSend();
   bool keyInfo = m_keyInfo;
   Uint32 key_size = keyInfo ? m_currentTable->m_keyLenInWords : 0;
+  /**
+   * The number of records sent by each LQH is calculated and the kernel
+   * is informed of this number by updating the SCAN_TABREQ signal
+   */
+  Uint32 batch_size, batch_byte_size, first_batch_size;
+  theReceiver.calculate_batch_size(key_size,
+                                   theParallelism,
+                                   batch_size,
+                                   batch_byte_size,
+                                   first_batch_size);
+  ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+  ScanTabReq::setScanBatch(req->requestInfo, batch_size);
+  req->batch_byte_size= batch_byte_size;
+  req->first_batch_size= first_batch_size;
+
   for(Uint32 i = 0; i<theParallelism; i++){
-    m_receivers[i]->do_get_value(&theReceiver, theBatchSize, key_size);
+    m_receivers[i]->do_get_value(&theReceiver, batch_size, key_size);
   }
   return 0;
 }
@@ -856,23 +862,13 @@ NdbScanOperation::doSendScan(int aProcessorId)
   if (theOperationType == OpenRangeScanRequest)
     req->attrLen += theTotalBoundAI_Len;
   TransporterFacade *tp = TransporterFacade::instance();
-  if(theParallelism > 16){
-    LinearSectionPtr ptr[3];
-    ptr[0].p = m_prepared_receivers;
-    ptr[0].sz = theParallelism;
-    if (tp->sendFragmentedSignal(tSignal, aProcessorId, ptr, 1) == -1) {
-      setErrorCode(4002);
-      return -1;
-    } 
-  } else {
-    tSignal->setLength(9+theParallelism);
-    memcpy(tSignal->getDataPtrSend()+9, m_prepared_receivers, 4*theParallelism);
-    if (tp->sendSignal(tSignal, aProcessorId) == -1) {
-      setErrorCode(4002);
-      return -1;
-    } 
-  }
-
+  LinearSectionPtr ptr[3];
+  ptr[0].p = m_prepared_receivers;
+  ptr[0].sz = theParallelism;
+  if (tp->sendFragmentedSignal(tSignal, aProcessorId, ptr, 1) == -1) {
+    setErrorCode(4002);
+    return -1;
+  } 
   if (theOperationType == OpenRangeScanRequest) {
     // must have at least one signal since it contains attrLen for bounds
     assert(theBoundATTRINFO != NULL);
@@ -969,8 +965,8 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
     }
     
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
-    const Uint32 tScanInfo = src[len] & 0xFFFF;
-    const Uint32 tTakeOverNode = src[len] >> 16;
+    const Uint32 tScanInfo = src[len] & 0x3FFFF;
+    const Uint32 tTakeOverNode = src[len] >> 20;
     {
       UintR scanInfo = 0;
       TcKeyReq::setTakeOverScanFlag(scanInfo, 1);

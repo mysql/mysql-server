@@ -68,7 +68,22 @@
  * API can order a multiple of this number of records at a time since
  * fragments can be scanned in parallel.
  */
-#define MAX_PARALLEL_OP_PER_SCAN 16
+#define MAX_PARALLEL_OP_PER_SCAN 64
+/*
+* When calculating the number of records sent from LQH in each batch
+* one uses SCAN_BATCH_SIZE divided by the expected size of signals
+* per row. This gives the batch size used for the scan. The NDB API
+* will receive one batch from each node at a time so there has to be
+* some care taken also so that the NDB API is not overloaded with
+* signals.
+*/
+#define SCAN_BATCH_SIZE 32768
+/*
+* To protect the NDB API from overload we also define a maximum total
+* batch size from all nodes. This parameter should most likely be
+* configurable, or dependent on sendBufferSize.
+*/
+#define MAX_SCAN_BATCH_SIZE 196608
 /*
  * Maximum number of Parallel Scan queries on one hash index fragment
  */

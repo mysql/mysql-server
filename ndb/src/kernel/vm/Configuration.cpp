@@ -549,7 +549,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     /*-----------------------------------------------------------------------*/
     cfg.put(CFG_ACC_OP_RECS,
 	    ((11 * noOfOperations) / 10 + 50) + 
-	    (noOfLocalScanRecords * MAX_PARALLEL_SCANS_PER_FRAG) +
+	    (noOfLocalScanRecords * MAX_PARALLEL_OP_PER_SCAN) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
     
     cfg.put(CFG_ACC_OVERFLOW_RECS,
