@@ -130,6 +130,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
   bool transactional_table, log_delayed;
+  bool ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -243,6 +244,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   info.handle_duplicates=duplic;
   info.update_fields=&update_fields;
   info.update_values=&update_values;
+  info.view= (table_list->view ? table_list : 0);
+  info.ignore= ignore_err;
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
@@ -314,6 +317,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	error=1;
 	break;
       }
+    }
+    if ((res= table_list->view_check_option(thd, ignore_err)) ==
+        VIEW_CHECK_SKIP)
+      continue;
+    else if (res == VIEW_CHECK_ERROR)
+    {
+      error= 1;
+      break;
     }
 
     /*
@@ -716,6 +727,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
       }
       if (info->handle_duplicates == DUP_UPDATE)
       {
+        int res= 0;
         /* we don't check for other UNIQUE keys - the first row
            that matches, is updated. If update causes a conflict again,
            an error is returned
@@ -724,6 +736,15 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         restore_record(table,record[1]);
         if (fill_record(*info->update_fields, *info->update_values, 0))
           goto err;
+
+        /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
+        if (info->view &&
+            (res= info->view->view_check_option(current_thd, info->ignore)) ==
+            VIEW_CHECK_SKIP)
+          break;
+        else if (res == VIEW_CHECK_ERROR)
+          goto err;
+
         if ((error=table->file->update_row(table->record[1],table->record[0])))
           goto err;
         info->updated++;
@@ -1635,11 +1656,31 @@ int mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("mysql_insert_select_prepare");
+  /*
+    SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
+    clasue if table is VIEW
+  */
+  lex->query_tables->no_where_clause= 1;
   if (mysql_prepare_insert_check_table(thd, lex->query_tables,
                                        lex->field_list,
                                        &lex->select_lex.where))
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
+}
+
+
+select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
+                             List<Item> *fields_par, enum_duplicates duplic,
+                             bool ignore_check_option_errors)
+  :table_list(table_list_par), table(table_par), fields(fields_par),
+   last_insert_id(0),
+   insert_into_view(table_list_par && table_list_par->view != 0)
+{
+  bzero((char*) &info,sizeof(info));
+  info.handle_duplicates=duplic;
+  if (table_list_par)
+    info.view= (table_list_par->view ? table_list_par : 0);
+  info.ignore= ignore_check_option_errors;
 }
 
 
@@ -1702,6 +1743,14 @@ bool select_insert::send_data(List<Item> &values)
     fill_record(*fields, values, 1);
   else
     fill_record(table->field, values, 1);
+  switch (table_list->view_check_option(thd,
+                                        thd->lex->duplicates == DUP_IGNORE))
+  {
+  case VIEW_CHECK_SKIP:
+    DBUG_RETURN(0);
+  case VIEW_CHECK_ERROR:
+    DBUG_RETURN(1);
+  }
   if (thd->net.report_error || write_record(thd, table, &info))
     DBUG_RETURN(1);
   if (table->next_number_field)		// Clear for next record

@@ -7898,9 +7898,13 @@ algorithm:
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
 	;
 check_option:
-        /* empty */ {}
-        | WITH CHECK_SYM OPTION {}
-        | WITH CASCADED CHECK_SYM OPTION {}
-        | WITH LOCAL_SYM CHECK_SYM OPTION {}
+        /* empty */
+          { Lex->create_view_check= VIEW_CHECK_NONE; }
+        | WITH CHECK_SYM OPTION
+          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
+        | WITH CASCADED CHECK_SYM OPTION
+          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
+        | WITH LOCAL_SYM CHECK_SYM OPTION
+          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
         ;
 
