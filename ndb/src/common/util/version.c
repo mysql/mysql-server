@@ -37,13 +37,19 @@ Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
 
 char * getVersionString(Uint32 version, char * status) {
   char buff[100];
-  snprintf(buff, sizeof(buff),
-	   "Version %d.%d.%d (%s)",
-	   getMajor(version),
-	   getMinor(version),
-	   getBuild(version),
-	   status);
-
+  if (status && status[0] != 0)
+    snprintf(buff, sizeof(buff),
+	     "Version %d.%d.%d (%s)",
+	     getMajor(version),
+	     getMinor(version),
+	     getBuild(version),
+	     status);
+  else
+    snprintf(buff, sizeof(buff),
+	     "Version %d.%d.%d",
+	     getMajor(version),
+	     getMinor(version),
+	     getBuild(version));
   return strdup(buff);
 }
 
@@ -63,6 +69,7 @@ struct NdbUpGradeCompatible {
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(3,5,2), MAKE_VERSION(3,5,1), UG_Exact },
   { 0, 0, UG_Null }
 };
 
