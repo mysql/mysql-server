@@ -7141,35 +7141,39 @@ factors:
 @item
 General stability of the thread library. A platform may have excellent
 reputation otherwise, but if the thread library is unstable in the code
-that is called by MySQL, even if
-everything else is perfect, MySQL will be only as stable as the
-thread library.
+that is called by MySQL, even if everything else is perfect, MySQL will
+be only as stable as the thread library.
+
 @item
 The ability of the kernel and/or thread library to take advantage of
-@strong{SMP} on
-multi-processor systems. In other words, when a process creates a thread, it
-should be possible for that thread to run on a different CPU than the original
-process.
+@strong{SMP} on multi-processor systems. In other words, when a process
+creates a thread, it should be possible for that thread to run on a different
+CPU than the original process.
+
 @item
 The ability of the kernel and/or the thread library to run many threads which
 acquire/release a mutex over a short critical region frequently without
 excessive context switches. In other words, if the implementation of
 @code{pthread_mutex_lock()} is too anxious to yield CPU, this will hurt
-MySQL tremendously. If this issue
-is not taken care of, adding extra CPUs will actually make MySQL
-slower.
+MySQL tremendously. If this issue is not taken care of, adding extra CPUs
+will actually make MySQL slower.
+
 @item
 General file system stability/performance.
+
 @item
 Ability of the file system to deal with large files at all and deal with them
 efficiently, if your tables are big.
+
 @item
 Our level of expertise here at MySQL AB with the platform. If we know
 a platform well, we introduce platform-specific optimizations/fixes enabled at
 compile time. We can also provide advice on configuring your system optimally
 for MySQL.
+
 @item
 The amount of testing of similar configurations we have done internally.
+
 @item
 The number of users that have successfully run MySQL on that
 platform in similar configurations. If this number is high, the chances of
@@ -7943,7 +7947,7 @@ shell> ./configure --with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
 
 Note that the given file must be an absolute pathname!
 
-@cindex compiling statically
+@cindex compiling, statically
 @cindex statically, compiling
 @item
 If you want to compile statically linked programs (for example, to make a
@@ -7955,13 +7959,13 @@ shell> ./configure --with-client-ldflags=-all-static \
            --with-mysqld-ldflags=-all-static
 @end example
 
-@tindex CC environment variable
-@tindex environment variable, CC
-@tindex CXX environment variable
-@tindex environment variable, CXX
-@cindex gcc
-@cindex C++ complier, gcc
-@cindex compiler, C++ gcc
+@tindex @code{CC} environment variable
+@tindex environment variable, @code{CC}
+@tindex @code{CXX} environment variable
+@tindex environment variable, @code{CXX}
+@cindex @code{gcc}
+@cindex C++ compiler, @code{gcc}
+@cindex compiler, C++ @code{gcc}
 @item
 If you are using @code{gcc} and don't have @code{libg++} or @code{libstdc++}
 installed, you can tell @code{configure} to use @code{gcc} as your C++
@@ -14822,7 +14826,7 @@ Note that on Windows, you should specify all paths with @code{/} instead of
 @code{\}. If you use @code{\}, you need to specify this twice, as
 @code{\} is the escape character in MySQL.
 
-@cindex Environment variables
+@cindex environment variables
 MySQL tries to read option files in the order listed above.  If
 multiple option files exist, an option specified in a file read later takes
 precedence over the same option specified in a file read earlier.  Options
@@ -14967,10 +14971,10 @@ users access to different @code{mysqld} servers that they manage themselves.
 One way to get a new server running is by starting it with a different
 socket and port as follows:
 
-@tindex MYSQL_UNIX_PORT environment variable
-@tindex MYSQL_TCP_PORT environment variable
-@tindex Environment variable, MYSQL_UNIX_PORT
-@tindex Environment variable, MYSQL_TCP_PORT
+@tindex @code{MYSQL_UNIX_PORT} environment variable
+@tindex @code{MYSQL_TCP_PORT} environment variable
+@tindex environment variable, @code{MYSQL_UNIX_PORT}
+@tindex environment variable, @code{MYSQL_TCP_PORT}
 @example
 shell> MYSQL_UNIX_PORT=/tmp/mysqld-new.sock
 shell> MYSQL_TCP_PORT=3307
@@ -15983,12 +15987,12 @@ password=your_pass
 @xref{Option files}.
 
 @item
-@tindex MYSQL_HOST environment variable
-@tindex Environment variable, MYSQL_HOST
-@tindex MYSQL_PWD environment variable
-@tindex Environment variable, MYSQL_PWD
-@tindex USER environment variable
-@tindex Environment variable, USER
+@tindex @code{MYSQL_HOST} environment variable
+@tindex environment variable, @code{MYSQL_HOST}
+@tindex @code{MYSQL_PWD} environment variable
+@tindex environment variable, @code{MYSQL_PWD}
+@tindex @code{USER} environment variable
+@tindex environment variable, @code{USER}
 You can specify connection parameters using environment variables.  The
 host can be specified for @code{mysql} using @code{MYSQL_HOST}.  The
 MySQL user name can be specified using @code{USER} (this is for
@@ -16229,7 +16233,7 @@ database administrators.  For other users, you should leave the privileges
 in the @code{user} table set to @code{'N'} and grant privileges on a
 database-specific basis only, using the @code{db} and @code{host} tables.
 
-@cindex Anonymous user
+@cindex anonymous user
 @cindex wild cards, in @code{mysql.db} table
 @cindex wild cards, in @code{mysql.host} table
 The @code{db} and @code{host} tables grant database-specific privileges.
@@ -20539,14 +20543,14 @@ size in bytes of the largest character in the set.
 All MySQL clients that communicate with the server using the
 @code{mysqlclient} library use the following environment variables:
 
-@tindex MYSQL_UNIX_PORT environment variable
-@tindex Environment variable, MYSQL_UNIX_PORT
-@tindex MYSQL_TCP_PORT environment variable
-@tindex Environment variable, MYSQL_TCP_PORT
-@tindex MYSQL_PWD environment variable
-@tindex Environment variable, MYSQL_PWD
-@tindex MYSQL_DEBUG environment variable
-@tindex Environment variable, MYSQL_DEBUG
+@tindex @code{MYSQL_UNIX_PORT} environment variable
+@tindex environment variable, @code{MYSQL_UNIX_PORT}
+@tindex @code{MYSQL_TCP_PORT} environment variable
+@tindex environment variable, @code{MYSQL_TCP_PORT}
+@tindex @code{MYSQL_PWD} environment variable
+@tindex environment variable, @code{MYSQL_PWD}
+@tindex @code{MYSQL_DEBUG} environment variable
+@tindex environment variable, @code{MYSQL_DEBUG}
 @multitable @columnfractions .25 .75
 @item @strong{Name} @tab @strong{Description}
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
@@ -20559,10 +20563,10 @@ All MySQL clients that communicate with the server using the
 Use of @code{MYSQL_PWD} is insecure.
 @xref{Connecting}.
 
-@tindex MYSQL_HISTFILE environment variable
-@tindex Environment variable, MYSQL_HISTFILE
-@tindex HOME environment variable
-@tindex Environment variable, HOME
+@tindex @code{MYSQL_HISTFILE} environment variable
+@tindex environment variable, @code{MYSQL_HISTFILE}
+@tindex @code{HOME} environment variable
+@tindex environment variable, @code{HOME}
 @cindex history file
 @cindex command line history
 @tindex .mysql_history file
@@ -21468,14 +21472,14 @@ binaries includes:
 All MySQL clients that communicate with the server using the
 @code{mysqlclient} library use the following environment variables:
 
-@tindex MYSQL_UNIX_PORT environment variable
-@tindex Environment variable, MYSQL_UNIX_PORT
-@tindex MYSQL_TCP_PORT environment variable
-@tindex Environment variable, MYSQL_TCP_PORT
-@tindex MYSQL_PWD environment variable
-@tindex Environment variable, MYSQL_PWD
-@tindex MYSQL_DEBUG environment variable
-@tindex Environment variable, MYSQL_DEBUG
+@tindex @code{MYSQL_UNIX_PORT} environment variable
+@tindex environment variable, @code{MYSQL_UNIX_PORT}
+@tindex @code{MYSQL_TCP_PORT} environment variable
+@tindex environment variable, @code{MYSQL_TCP_PORT}
+@tindex @code{MYSQL_PWD} environment variable
+@tindex environment variable, @code{MYSQL_PWD}
+@tindex @code{MYSQL_DEBUG} environment variable
+@tindex environment variable, @code{MYSQL_DEBUG}
 @multitable @columnfractions .25 .75
 @item @strong{Name} @tab @strong{Description}
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
@@ -21488,10 +21492,10 @@ All MySQL clients that communicate with the server using the
 Use of @code{MYSQL_PWD} is insecure.
 @xref{Connecting}.
 
-@tindex MYSQL_HISTFILE environment variable
-@tindex Environment variable, MYSQL_HISTFILE
-@tindex HOME environment variable
-@tindex Environment variable, HOME
+@tindex @code{MYSQL_HISTFILE} environment variable
+@tindex environment variable, @code{MYSQL_HISTFILE}
+@tindex @code{HOME} environment variable
+@tindex environment variable, @code{HOME}
 @cindex history file
 @cindex command line history
 @tindex .mysql_history file
@@ -21614,140 +21618,181 @@ Using @code{mysql} is very easy. Just start it as follows:
 @code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type a SQL statement, end it with @samp{;}, @samp{\g}, or @samp{\G}
 and press RETURN/ENTER.
 
-@cindex command line options
-@cindex options, command line
-@cindex startup parameters
+@cindex @code{mysql} command line options
+@cindex command line options, @code{mysql}
+@cindex options, command line, @code{mysql}
+@cindex startup parameters, @code{mysql}
 @code{mysql} supports the following options:
 
 @table @code
-@cindex help option
+@cindex @code{help}, @code{mysql} option
 @item -?, --help
 Display this help and exit.
-@cindex automatic rehash option
+
+@cindex @code{no-auto-rehash}, @code{mysql} option
 @item -A, --no-auto-rehash
 No automatic rehashing. One has to use 'rehash' to get table and field
 completion. This gives a quicker start of mysql.
-@cindex batch option
+
+@cindex @code{batch}, @code{mysql} option
 @item -B, --batch
 Print results with a tab as separator, each row on a new line. Doesn't use
 history file.
-@cindex character sets option
+
+@cindex @code{character-sets-dir}, @code{mysql} option
 @item --character-sets-dir=...
 Directory where character sets are located.
-@cindex compress option.
+
+@cindex @code{compress}, @code{mysql} option
 @item -C, --compress
 Use compression in server/client protocol.
-@cindex debug option
+
+@cindex @code{debug}, @code{mysql} option
 @item -#, --debug[=...]
 Debug log. Default is 'd:t:o,/tmp/mysql.trace'.
-@cindex database option
+
+@cindex @code{database}, @code{mysql} option
 @item -D, --database=...
 Database to use. This is mainly useful in the @code{my.cnf} file.
-@cindex default character set option
+
+@cindex @code{default-character-set}, @code{mysql} option
 @item --default-character-set=...
 Set the default character set.
-@cindex execute option
+
+@cindex @code{execute}, @code{mysql} option
 @item -e, --execute=...
 Execute command and quit. (Output like with --batch)
-@cindex vertical option
+
+@cindex @code{vertical}, @code{mysql} option
 @item -E, --vertical
 Print the output of a query (rows) vertically. Without this option you
 can also force this output by ending your statements with @code{\G}.
-@cindex force option
+
+@cindex @code{force}, @code{mysql} option
 @item -f, --force
 Continue even if we get a SQL error.
-@cindex no-named-commands option
+
+@cindex @code{no-named-commands}, @code{mysql} option
 @item -g, --no-named-commands
 Named commands are disabled. Use \* form only, or use named commands
 only in the beginning of a line ending with a semicolon (;). Since
 Version 10.9, the client now starts with this option ENABLED by default!
 With the -g option, long format commands will still work from the first
 line, however.
-@cindex enable-named-commands option
+
+@cindex @code{enable-named-commands}, @code{mysql} option
 @item -G, --enable-named-commands
 Named commands are @strong{enabled}.  Long format commands are allowed as
 well as shortened \* commands.
-@cindex ignore space option.
+
+@cindex @code{ignore-space}, @code{mysql} option
 @item -i, --ignore-space
 Ignore space after function names.
-@cindex host option
+
+@cindex @code{host}, @code{mysql} option
 @item -h, --host=...
 Connect to the given host.
-@cindex html option
+
+@cindex @code{html}, @code{mysql} option
 @item -H, --html
 Produce HTML output.
-@cindex skip line numbers option
+
+@cindex @code{skip-line-numbers}, @code{mysql} option
 @item -L, --skip-line-numbers
 Don't write line number for errors. Useful when one wants to compare result
 files that includes error messages
-@cindex no pager option
+
+@cindex @code{no-pager}, @code{mysql} option
 @item --no-pager
 Disable pager and print to stdout. See interactive help (\h) also.
-@cindex no tee option
+
+@cindex @code{no-tee}, @code{mysql} option
 @item --no-tee
 Disable outfile. See interactive help (\h) also.
-@cindex unbuffered option.
+
+@cindex @code{unbuffered}, @code{mysql} option
 @item -n, --unbuffered
 Flush buffer after each query.
-@cindex skip column names option
+
+@cindex @code{skip-column-names}, @code{mysql} option
 @item -N, --skip-column-names
 Don't write column names in results.
-@cindex set variable option
+
+@cindex @code{set-variable}, @code{mysql} option
 @item -O, --set-variable var=option
 Give a variable a value. @code{--help} lists variables.
-@cindex one database option
+
+@cindex @code{one-database}, @code{mysql} option
 @item -o, --one-database
 Only update the default database. This is useful for skipping updates to
 other database in the update log.
-@cindex pager option
+
+@cindex @code{pager}, @code{mysql} option
 @item @code{--pager[=...]}
 Output type. Default is your @code{ENV} variable @code{PAGER}. Valid
 pagers are less, more, cat [> filename], etc.  See interactive help (\h)
 also. This option does not work in batch mode. Pager works only in UNIX.
-@cindex password option
+
+@cindex @code{password}, @code{mysql} option
 @item -p[password], --password[=...]
 Password to use when connecting to server. If a password is not given on
 the command line, you will be prompted for it.  Note that if you use the
 short form @code{-p} you can't have a space between the option and the
 password.
+
+@cindex @code{port}, @code{mysql} option
 @item -P  --port=...
 TCP/IP port number to use for connection.
-@cindex quick option
+
+@cindex @code{quick}, @code{mysql} option
 @item -q, --quick
 Don't cache result, print it row-by-row. This may slow down the server
 if the output is suspended. Doesn't use history file.
-@cindex raw option
+
+@cindex @code{raw}, @code{mysql} option
 @item -r, --raw
 Write column values without escape conversion. Used with @code{--batch}
-@cindex silent option
+
+@cindex @code{silent}, @code{mysql} option
 @item -s, --silent
 Be more silent.
+
+@cindex @code{socket}, @code{mysql} option
 @item -S  --socket=...
 Socket file to use for connection.
-@cindex table option
+
+@cindex @code{table}, @code{mysql} option
 @item -t  --table
 Output in table format. This is default in non-batch mode.
+
+@cindex @code{debug-info}, @code{mysql} option
 @item -T, --debug-info
 Print some debug information at exit.
-@cindex tee option
+
+@cindex @code{tee}, @code{mysql} option
 @item --tee=...
 Append everything into outfile. See interactive help (\h) also. Does not
 work in batch mode.
-@cindex user option
+
+@cindex @code{user}, @code{mysql} option
 @item -u, --user=#
 User for login if not current user.
-@cindex safe updates option
+
+@cindex @code{safe-updates}, @code{mysql} option
 @item -U, --safe-updates[=#], --i-am-a-dummy[=#]
 Only allow @code{UPDATE} and @code{DELETE} that uses keys. See below for
 more information about this option.  You can reset this option if you have
 it in your @code{my.cnf} file by using @code{--safe-updates=0}.
-@cindex verbose option
+
+@cindex @code{verbose}, @code{mysql} option
 @item -v, --verbose
 More verbose output (-v -v -v gives the table output format).
-@cindex version option
+
+@cindex @code{version}, @code{mysql} option
 @item -V, --version
 Output version information and exit.
-@cindex wait option
+
+@cindex @code{wait}, @code{mysql} option
 @item -w, --wait
 Wait and retry if connection is down instead of aborting.
 @end table
@@ -21755,14 +21800,19 @@ Wait and retry if connection is down instead of aborting.
 You can also set the following variables with @code{-O} or
 @code{--set-variable}:
 
-@cindex timeout
+@cindex timeout, @code{connect_timeout} variable
+@cindex @code{connect_timeout} variable
+@cindex @code{max_allowed_packet}
+@cindex @code{net_buffer_length}
+@cindex @code{select_limit}
+@cindex @code{max_join_size}
 @multitable @columnfractions .3 .2 .5
-@item Variablename @tab Default @tab Description
-@item connect_timeout @tab 0 @tab Number of seconds before timeout connection.
-@item max_allowed_packet @tab 16777216 @tab Max packetlength to send/receive from to server
-@item net_buffer_length @tab 16384 @tab Buffer for TCP/IP and socket communication
-@item select_limit @tab 1000 @tab Automatic limit for SELECT when using --i-am-a-dummy
-@item max_join_size @tab 1000000 @tab Automatic limit for rows in a join when using --i-am-a-dummy.
+@item Variable Name      @tab Default   @tab Description
+@item connect_timeout    @tab 0         @tab Number of seconds before timeout connection.
+@item max_allowed_packet @tab 16777216  @tab Max packetlength to send/receive from to server
+@item net_buffer_length  @tab 16384     @tab Buffer for TCP/IP and socket communication
+@item select_limit       @tab 1000      @tab Automatic limit for SELECT when using --i-am-a-dummy
+@item max_join_size      @tab 1000000   @tab Automatic limit for rows in a join when using --i-am-a-dummy.
 @end multitable
 
 If you type 'help' on the command line, @code{mysql} will print out the
@@ -29097,9 +29147,9 @@ the number of enumeration values (65535 values maximum)
 on the number of set members (64 members maximum)
 @end multitable
 
-@cindex BLOB, size
-@cindex TEXT, size
-@cindex VARCHAR, size
+@cindex @code{BLOB}, size
+@cindex @code{TEXT}, size
+@cindex @code{VARCHAR}, size
 @code{VARCHAR} and the @code{BLOB} and @code{TEXT} types are variable-length
 types, for which the storage requirements depend on the actual length of
 column values (represented by @code{L} in the preceding table), rather than
@@ -37926,8 +37976,8 @@ $dth->trace(2);               # trace this database handle
 $sth->trace(2);               # trace this statement handle
 @end example
 
-@tindex DBI_TRACE environment variable
-@tindex Environment variable, DBI_TRACE
+@tindex @code{DBI_TRACE} environment variable
+@tindex environment variable, @code{DBI_TRACE}
 You can also enable @code{DBI} tracing by setting the @code{DBI_TRACE}
 environment variable.  Setting it to a numeric value is equivalent to calling
 @code{DBI->(value)}.  Setting it to a pathname is equivalent to calling
@@ -38458,7 +38508,7 @@ You should use the option flag @code{Return matching rows}.
 To get these to work, you should set the option flags
 @code{Don't optimize column widths} and @code{Return matching rows}.
 
-@cindex Borland Buidler 4 program
+@cindex Borland Builder 4 program
 @item Borland Builder 4
 When you start a query you can use the property @code{Active} or use the
 method @code{Open}.  Note that @code{Active} will start by automatically
@@ -38606,8 +38656,8 @@ fReg:= TRegistry.Create;
   AliasEditor.Add('DocumentsFab','MySQL',Memo1.Lines);
 @end example
 
-@cindex C++Builder
-@item C++Builder
+@cindex C++ Builder
+@item C++ Builder
 Tested with BDE Version 3.0. The only known problem is that when the table
 schema changes, query fields are not updated. BDE, however, does not seem
 to recognize primary keys, only the index PRIMARY, though this has not
@@ -50561,7 +50611,7 @@ Changed @code{net_write()} to @code{my_net_write()} because of a name
 conflict with Sybase.
 @item
 @cindex ODBC compatibility
-@cindex Compatibility, with ODBC
+@cindex compatibility, with ODBC
 New function @code{DAYOFWEEK()} compatible with ODBC.
 @item
 Stack checking and @code{bison} memory overrun checking to make MySQL
