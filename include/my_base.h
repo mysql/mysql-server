@@ -141,7 +141,12 @@ enum ha_extra_function {
   HA_EXTRA_RETRIEVE_PRIMARY_KEY,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
-  HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
+  HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
+  /*
+    On-the-fly switching between unique and non-unique key inserting.
+  */
+  HA_EXTRA_CHANGE_KEY_TO_UNIQUE,
+  HA_EXTRA_CHANGE_KEY_TO_DUP
 };
 
 	/* The following is parameter to ha_panic() */
