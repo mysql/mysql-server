@@ -500,6 +500,7 @@ Examples of common queries
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      
 * example-Foreign keys::        Using foreign keys
 
 Creating and using a database
@@ -948,7 +949,7 @@ Changes in release 3.19.x
 
 MySQL and the future (The TODO)
 
-* TODO MySQL 4.0::              
+* TODO MySQL 4.0::              Things that should be in 4.0
 * TODO future::                 Things that must done in the very near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
@@ -22657,6 +22658,7 @@ SELECT * FROM shop
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      
 * example-Foreign keys::        Using foreign keys
 @end menu
 
@@ -22736,7 +22738,7 @@ GROUP BY article
 +---------+-------+
 @end example
 
-@node example-Maximum-column-group-row, example-Foreign keys, example-Maximum-column-group, Examples
+@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
 @subsection The rows holding the group-wise maximum of a certain field
 
 ``For each article, find the dealer(s) with the most expensive price.''
@@ -22807,9 +22809,31 @@ GROUP BY article;
 The last example can of course be made a bit more efficient by doing the
 splitting of the concatenated column in the client.
 
+@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
+@subsection Using user variables
+
+You can use @strong{MySQL} user variables to remember results without
+having to store them in a temporary variables in the client.
+@xref{Variables}.
+
+For example to find the articles with the highest and lowest price you
+can do:
+
+@example
+select @@min_price:=min(price),@@max_price:=max(price) from shop;
+select * from shop where price=@@min_price or price=@@max_price;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
 @cindex foreign keys
 @cindex keys, foreign
-@node example-Foreign keys,  , example-Maximum-column-group-row, Examples
+@node example-Foreign keys,  , example-user-variables, Examples
 @subsection Using foreign keys
 
 You don't need foreign keys to join 2 tables.
@@ -37609,6 +37633,8 @@ With source code. By Matthias Fichtner.
 A library to use @strong{MySQL} with Delphi}
 
 @item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html, Delphi TDataset-component}
+@item 
+@item @uref{http://www.mysql.com/Downloads/Contrib/Win32/SBMySQL50Share.exe, Delphi 5 Shareware MySQL Dataset Components}
 @end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-ruby-2.2.0.tar.gz, mysql-ruby-2.2.0.tar.gz}
@@ -37752,9 +37778,13 @@ An open source client for exploring databases and executing SQL. Supports
 A query tool for @strong{MySQL} and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
 A query tool written in Perl. Uses DBI and Tk.
-@item @uref{http://www.mysql.com/Downloads/Contrib/mascon1.exe, mascon1.exe}
-You can get the newest one from
-@uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,Mascon.asp}.
+@item @uref{http://www.mysql.com/Downloads/Win32/Msc18.exe, Mascon 2000.1.8}
+@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc18.exe, Free Mascon 2000.1.8}
+Mascon is a powerful Win32 GUI for the administering MySQL server
+databases. Mascon's features include visual table design, connections to
+multiple servers, data and blob editing of tables, security setting, SQL
+colour coding, dump functionality and much more.
+@uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,Mascon home page}.
 @item @uref{http://www.virtualbeer.net/dbui/,DBUI}
 DBUI is a Gtk graphical database editor.
 @end itemize
@@ -38502,6 +38532,9 @@ though, so Version 3.23 is not released as a stable version yet.
 @itemize @bullet
 @item
 Fixed the @code{--skip-networking} works properly on NT.
+@item
+Fixed long outstanding bug in the @code{ISAM} tables when a row with a length
+of more than 65K was shortened by a single byte.
 @item
 Fixed bug in @code{MyISAM} when running multiple updating processes on
 the same table.

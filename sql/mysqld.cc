@@ -569,7 +569,6 @@ static sig_handler print_signal_warning(int sig)
 
 void unireg_end(int signal_number __attribute__((unused)))
 {
-  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
   clean_up();
   pthread_exit(0);				// Exit is in main thread
 }
@@ -580,7 +579,6 @@ void unireg_abort(int exit_code)
   if (exit_code)
     sql_print_error("Aborting\n");
   clean_up(); /* purecov: inspected */
-  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -610,6 +608,7 @@ void clean_up(void)
   free_defaults(defaults_argv);
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
+  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
   /* Tell main we are ready */
@@ -1520,7 +1519,7 @@ int main(int argc, char **argv)
     sql_print_error("Can't init databases");
     exit(1);
   }
-#ifdef HAVE_MLOCKALL
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   if (locked_in_memory && !geteuid())
   {
     ha_key_cache();

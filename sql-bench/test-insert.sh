@@ -371,6 +371,25 @@ for ($i=1 ; $i <= $range_loop_count ; $i++)
 {
   $start=$opt_loop_count/$range_loop_count*$i;
   $end=$start+$i;
+  $rows+=fetch_all_rows($dbh,"select dummy1 from bench1 where id>=$start and id <= $end order by id3",1);
+  $end_time=new Benchmark;
+  last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
+					 $range_loop_count));
+}
+if ($estimated)
+{ print "Estimated time"; }
+else
+{ print "Time"; }
+print " for order_by_range ($range_loop_count:$rows): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+
+$loop_time=new Benchmark;
+$estimated=$rows=0;
+for ($i=1 ; $i <= $range_loop_count ; $i++)
+{
+  $start=$opt_loop_count/$range_loop_count*$i;
+  $end=$start+$i;
   $rows+=fetch_all_rows($dbh,"select dummy1 from bench1 where id>=$start and id <= $end order by id",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,

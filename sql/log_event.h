@@ -363,7 +363,7 @@ public:
   Stop_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id):
     Log_event(when_arg,0,0,server_id)
   {
-    char skip[4];
+    byte skip[4];
     my_b_read(file, skip, sizeof(skip));	// skip the event length
   }
   Stop_log_event(const char* buf):Log_event(buf)
