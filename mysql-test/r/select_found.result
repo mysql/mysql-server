@@ -66,7 +66,7 @@ a
 2
 select FOUND_ROWS();
 FOUND_ROWS()
-5
+3
 drop table t1;
 CREATE TABLE t1 (
 `id` smallint(5) unsigned NOT NULL auto_increment,
@@ -153,3 +153,19 @@ SELECT FOUND_ROWS();
 FOUND_ROWS()
 199
 drop table t1,t2;
+CREATE TABLE `t1` (
+`titre` char(80) NOT NULL default '',
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+INSERT INTO t1 (titre,maxnumrep) VALUES
+('test1','1'),('test2','2'),('test3','3');
+SELECT SQL_CALC_FOUND_ROWS titre,numeropost,maxnumrep FROM t1 WHERE numeropost IN (1,2) ORDER BY maxnumrep DESC LIMIT 0, 1;
+titre	numeropost	maxnumrep
+test2	2	2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+drop table t1;
