@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -409,6 +409,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
   }
 }
 
+
 /*
   Execute a command.
   Return 0 on ok
@@ -420,13 +421,13 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   const char *status;
 
-/*
-  MySQL documentation relies on the fact that mysqladmin will
-  execute commands in the order specified, e.g.
-  mysqladmin -u root flush-privileges password "newpassword"
-  to reset a lost root password.
-  If this behaviour is ever changed, Docs should be notified.
-*/
+  /*
+    MySQL documentation relies on the fact that mysqladmin will
+    execute commands in the order specified, e.g.
+    mysqladmin -u root flush-privileges password "newpassword"
+    to reset a lost root password.
+    If this behaviour is ever changed, Docs should be notified.
+  */
 
   for (; argc > 0 ; argv++,argc--)
   {
