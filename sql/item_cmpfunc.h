@@ -70,7 +70,7 @@ public:
 
 class Item_func_equal :public Item_bool_func2
 {
-  Item_result result_type;
+  Item_result cmp_result_type;
 public:
   Item_func_equal(Item *a,Item *b) :Item_bool_func2(a,b) { };
   longlong val_int();

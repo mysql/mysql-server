@@ -1915,14 +1915,16 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
   uint length=(uint) strlen(table_name);
   if (!(share=(BDB_SHARE*) hash_search(&bdb_open_tables, table_name, length)))
   {
-    if ((share=(BDB_SHARE *) my_malloc(sizeof(*share)+length+1 +
-				       sizeof(ha_rows)* table->keys,
+    if ((share=(BDB_SHARE *) my_malloc(ALIGN_SIZE(sizeof(*share))+
+				       sizeof(ha_rows)* table->keys +
+				       length+1,
 				       MYF(MY_WME | MY_ZEROFILL))))
     {
+      share->rec_per_key= (ha_rows*) ((char*) share +
+				      ALIGN_SIZE(sizeof(*share)));
+      share->table_name=(char*) (share->rec_per_key+table->keys);
       share->table_name_length=length;
-      share->table_name=(char*) (share+1);
       strmov(share->table_name,table_name);
-      share->rec_per_key= (ha_rows*) (share+1);
       if (hash_insert(&bdb_open_tables, (char*) share))
       {
 	pthread_mutex_unlock(&bdb_mutex);

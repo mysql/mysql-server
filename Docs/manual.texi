@@ -460,6 +460,7 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 * SHOW TABLE STATUS::           
 * SHOW STATUS::                 
 * SHOW VARIABLES::              
+* SHOW LOGS::                   
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
 * SHOW CREATE TABLE::           
@@ -838,6 +839,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; Gamma)
 
+* News-3.23.30::                
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
@@ -6608,18 +6610,21 @@ SPARC!
 The recommended @code{configure} line when using @code{gcc} 2.95.2 is:
 
 @example
-shell> CC=gcc CFLAGS="-O6" \
-       CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" \
-       ./configure --prefix=/usr/local/mysql --with-low-memory
+CC=gcc CFLAGS="-O6" \
+CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" \
+./configure --prefix=/usr/local/mysql --with-low-memory --enable-assembler
 @end example
 
-If you have the Sun Workshop 4.2 compiler, you can run @code{configure} like
-this:
+If you have a ultra sparc, you can get 4 % more performance by adding
+"-mcpu=v8 -Wa,-xarch=v8plusa" to CFLAGS and CXXFLAGS.
+
+If you have the Sun Workshop (SunPro) 4.2 (or newer) compiler, you can
+run @code{configure} like this:
 
 @example
-shell> CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt" \
-       CXX=CC CXXFLAGS="-noex -XO4 -mt" \
-       ./configure
+CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt" \
+CXX=CC CXXFLAGS="-noex -xO4 -mt" \
+./configure --prefix=/usr/local/mysql --enable-assembler
 @end example
 
 You may also have to edit the @code{configure} script to change this line:
@@ -6811,10 +6816,10 @@ experience problems with core dumps under load, you should use the
 following @code{configure} command:
 
 @example
-shell> CC=gcc CFLAGS="-O6 -fomit-frame-pointer -DHAVE_CURSES_H" \
-       CXX=gcc \
-       CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
-       ./configure --prefix=/usr/local/mysql
+CC=gcc CFLAGS="-O6 -fomit-frame-pointer -DHAVE_CURSES_H" \
+CXX=gcc \
+CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
+./configure --prefix=/usr/local/mysql
 @end example
 
 This will avoid problems with the @code{libstdc++} library and with C++
@@ -7255,8 +7260,8 @@ the libraries @code{-lmach -lexc} (in addition to @code{-lpthread}).  You
 should run @code{configure} something like this:
 
 @example
-shell> CC="cc -pthread" CXX="cxx -pthread -O" \
-       ./configure --with-named-thread-libs="-lpthread -lmach -lexc -lc"
+CC="cc -pthread" CXX="cxx -pthread -O" \
+./configure --with-named-thread-libs="-lpthread -lmach -lexc -lc"
 @end example
 
 When compiling @code{mysqld}, you may see a couple of warnings like this:
@@ -7329,18 +7334,18 @@ If you have problems compiling and have DEC @code{CC} and @code{gcc}
 installed, try running @code{configure} like this:
 
 @example
-shell> CC=cc CFLAGS=-O CXX=gcc CXXFLAGS=-O3 \
-       ./configure --prefix=/usr/local/mysql
+CC=cc CFLAGS=-O CXX=gcc CXXFLAGS=-O3 \
+./configure --prefix=/usr/local/mysql
 @end example
 
 If you get problems with the @file{c_asm.h} file, you can create and use
 a 'dummy' @file{c_asm.h} file with:
 
 @example
-shell> touch include/c_asm.h
-shell> CC=gcc CFLAGS=-I./include \
-       CXX=gcc CXXFLAGS=-O3 \
-       ./configure --prefix=/usr/local/mysql
+touch include/c_asm.h
+CC=gcc CFLAGS=-I./include \
+CXX=gcc CXXFLAGS=-O3 \
+./configure --prefix=/usr/local/mysql
 @end example
 
 Note that the following problems with the @code{ld} program can be fixed
@@ -7355,7 +7360,7 @@ have managed to compile @strong{MySQL} with the following @code{configure}
 line, after replacing @code{/bin/ld} with the version from OSF 4.0C:
 
 @example
-shell> CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql
+CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql
 @end example
 
 With the Digital compiler "C++ V6.1-029", the following should work:
@@ -7364,9 +7369,9 @@ With the Digital compiler "C++ V6.1-029", the following should work:
 CC=cc -pthread
 CFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host
 CXX=cxx -pthread
-CXXFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host
+CXXFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host -noexceptions -nortti
 export CC CFLAGS CXX CXXFLAGS
-./configure --prefix=/usr/mysql/mysql --with-low-memory --enable-large-files --with-mysqld-ldflags=-all-static --disable-shared --with-named-thread-libs="-lmach -lexc -lc"
+./configure --prefix=/usr/mysql/mysql --with-mysqld-ldflags=-all-static --disable-shared --with-named-thread-libs="-lmach -lexc -lc"
 @end example
 
 In some versions of OSF1, the @code{alloca()} function is broken. Fix
@@ -7471,8 +7476,8 @@ If you are compiling with @code{gcc}, you can use the following
 @code{configure} command:
 
 @example
-shell> CC=gcc CXX=gcc CXXFLAGS=-O3 \
-       ./configure --prefix=/usr/local/mysql --with-thread-safe-client --with-named-thread-libs=-lpthread
+CC=gcc CXX=gcc CXXFLAGS=-O3 \
+./configure --prefix=/usr/local/mysql --with-thread-safe-client --with-named-thread-libs=-lpthread
 @end example
 
 @node FreeBSD, NetBSD, SGI-Irix, Source install system issues
@@ -7795,7 +7800,7 @@ We have been able to compile @strong{MySQL} with the following @code{configure}
 command on Unixware Version 7.0.1:
 
 @example
-shell> CC=cc CXX=CC ./configure --prefix=/usr/local/mysql
+CC=cc CXX=CC ./configure --prefix=/usr/local/mysql
 @end example
 
 If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
@@ -7842,10 +7847,10 @@ We recommend the following @code{configure} line with @code{egcs} and
 @code{gcc 2.95} on AIX:
 
 @example
-shell> CC="gcc -pipe -mcpu=power2 -Wa,-many" \
-       CXX="gcc -pipe -mcpu=power2 -Wa,-many" \
-       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
-       ./configure --prefix=/usr/local/mysql --with-low-memory
+CC="gcc -pipe -mcpu=power2 -Wa,-many" \
+CXX="gcc -pipe -mcpu=power2 -Wa,-many" \
+CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
+./configure --prefix=/usr/local/mysql --with-low-memory
 @end example
 
 The @code{-Wa,-many} is necessary for the compile to be successful. IBM is
@@ -19917,7 +19922,7 @@ and @samp{_} wild-card characters.
 * SHOW TABLE STATUS::           
 * SHOW STATUS::                 
 * SHOW VARIABLES::              
-* SHOW LOGS::              
+* SHOW LOGS::                   
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
 * SHOW CREATE TABLE::           
@@ -26263,13 +26268,13 @@ Here is a list of some mesurements that we have done:
 @itemize @bullet
 @item
 If you use @code{pgcc} and compile everything with @code{-O6}, the
-@code{mysqld} server is 11% faster than with @code{gcc} versions
-older than @code{gcc} 2.95.2.
+@code{mysqld} server is 1% faster than with @code{gcc} 2.95.2.
 
 @item
 If you link dynamically (without @code{-static}), the result is 13%
-slower.  Note that you still can use a dynamic linked @strong{MySQL}
-library. It is only the server that is critical for performance.
+slower on Linux.  Note that you still can use a dynamic linked
+@strong{MySQL} library. It is only the server that is critical for
+performance.
 
 @item
 If you connect using TCP/IP rather than Unix sockets, the result is 7.5%
@@ -26277,12 +26282,25 @@ slower on the same computer. (If you are connection to @code{localhost},
 @strong{MySQL} will, by default, use sockets).
 
 @item
+If you compile with @code{--with-debug=full}, then you will loose 20 %
+for most queries, but some queries may take substantially longer (The
+@strong{MySQL} benchmarks ran 35 % slower)
+If you use @code{--with-debug}, then you will only loose 15 %.
+
+@item
 On a Sun SPARCstation 10, @code{gcc} 2.7.3 is 13% faster than Sun Pro C++ 4.2.
+
+@item
+Compiling with @code{gcc} 2.95.2 for ultrasparc with the option
+@code{-mcpu=v8 -Wa,-xarch=v8plusa} gives 4 % more performance.
 
 @item
 On Solaris 2.5.1, MIT-pthreads is 8-12% slower than Solaris native
 threads on a single processor. With more load/CPUs the difference should
 get bigger.
+
+@item
+Running with @code{--log-bin} makes @strong{[MySQL} 1 % slower.
 @end itemize
 
 The @strong{MySQL}-Linux distribution provided by MySQL AB used to be
@@ -32746,7 +32764,7 @@ Check also the error code that you get with @code{perror}. One reason
 may also be a disk full error;
 
 @example
-shell >perror 28
+shell> perror 28
 Error code  28:  No space left on device
 @end example
 
@@ -37917,7 +37935,7 @@ DELAYED} threads.
 @cindex searching, full-text
 @cindex full-text search
 @cindex FULLTEXT
-@node MySQL full-text search,MySQL test suite, MySQL threads, MySQL internals
+@node MySQL full-text search, MySQL test suite, MySQL threads, MySQL internals
 @section MySQL Full-text Search
 
 Since Version 3.23.23, @strong{MySQL} has support for full-text indexing
@@ -38052,7 +38070,7 @@ There is no need to rebuild the indexes though.
 
 @end itemize
 
-@node MySQL test suite, ,MySQL full-text search, MySQL internals
+@node MySQL test suite,  , MySQL full-text search, MySQL internals
 @section MySQL Test Suite
 
 Until recently, our main full-coverage test suite was based on
@@ -39767,6 +39785,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so Version 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
@@ -39799,7 +39818,27 @@ though, so Version 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
+@node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.30
+@itemize @bullet
+@item
+Fixed a bug from 3.23.29 when allocation the shared structure needed
+for BDB tables.
+@item
+Changed mysqld_mult.sh to use configure variables. Patch by
+Christopher McCrory.
+@item
+Added fixing of include files for Solaris 2.8.
+@item
+Fixed bug with @code{--skip-networking} on Debian Linux.
+@item
+Fixed problem that some temporary files where reported as having the
+name @code{UNOPENED} in error messages.
+@item
+Fixed bug when running two simultaneous @code{SHOW LOGS} queries.
+@end itemize
+
+@node News-3.23.29, News-3.23.28, News-3.23.30, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item

@@ -11,7 +11,7 @@ $opt_example       = 0;
 $opt_help          = 0;
 $opt_log           = "/tmp/mysqld_multi.log";
 $opt_mysqladmin    = "mysqladmin";
-$opt_mysqld        = "mysqld";
+$opt_mysqld        = "@libexecdir@/mysqld";
 $opt_no_log        = 0;
 $opt_password      = undef();
 $opt_tcp_ip        = 0;
@@ -497,41 +497,42 @@ sub example
 #   give you extra performance in a threaded system!
 #
 [mysqld_multi]
-mysqld     = /usr/local/bin/safe_mysqld
-mysqladmin = /usr/local/bin/mysqladmin
+mysqld     = @bindir@/safe_mysqld
+mysqladmin = @bindir@/mysqladmin
 user       = multi_admin
 password   = multipass
 
 [mysqld2]
 socket     = /tmp/mysql.sock2
 port       = 3307
-pid-file   = /usr/local/mysql/var2/hostname.pid2
-datadir    = /usr/local/mysql/var2
-language   = /usr/local/share/mysql/english
+pid-file   = @localstatedir@2/hostname.pid2
+datadir    = @localstatedir@2
+language   = @datadir@/mysql/english
 user       = john
 
 [mysqld3]
 socket     = /tmp/mysql.sock3
 port       = 3308
-pid-file   = /usr/local/mysql/var3/hostname.pid3
-datadir    = /usr/local/mysql/var3
-language   = /usr/local/share/mysql/swedish
+pid-file   = @localstatedir@3/hostname.pid3
+datadir    = @localstatedir@3
+language   = @datadir@/mysql/swedish
 user       = monty
 
 [mysqld4]
 socket     = /tmp/mysql.sock4
 port       = 3309
-pid-file   = /usr/local/mysql/var4/hostname.pid4
-datadir    = /usr/local/mysql/var4
-language   = /usr/local/share/mysql/estonia
+pid-file   = @localstatedir@4/hostname.pid4
+datadir    = @localstatedir@4
+language   = @datadir@/mysql/estonia
 user       = tonu
+ 
 
 [mysqld6]
 socket     = /tmp/mysql.sock6
 port       = 3311
-pid-file   = /usr/local/mysql/var6/hostname.pid6
-datadir    = /usr/local/mysql/var6
-language   = /usr/local/share/mysql/japanese
+pid-file   = @localstatedir@6/hostname.pid6
+datadir    = @localstatedir@6
+language   = @datadir@/mysql/japanese
 user       = jani
 EOF
   exit(0);

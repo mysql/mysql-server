@@ -132,7 +132,7 @@ languages and applications need to dynamically load and use MySQL.
 
 %build
 # The all-static flag is to make the RPM work on different
-# distributions. This version tries to put shared mysqlcliet libraries
+# distributions. This version tries to put shared mysqlclient libraries
 # in a separate package.
 
 BuildMySQL() {
@@ -310,6 +310,7 @@ fi
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
 %attr(755, root, root) /usr/bin/safe_mysqld
+%attr(755, root, root) /usr/bin/mysqld_multi
 %attr(755, root, root) /usr/bin/my_print_defaults
 
 %attr(644, root, root) /usr/info/mysql.info*
@@ -348,7 +349,7 @@ fi
 
 %files shared
 # Shared libraries (omit for architectures that don't support them)
-%attr(755, root, root) /usr/lib/*
+%attr(755, root, root) /usr/lib/*.so*
 
 %files bench
 %attr(-, root, root) /usr/share/sql-bench

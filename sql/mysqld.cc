@@ -2385,10 +2385,10 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "bdb_cache_size",          (long*) &berkeley_cache_size, 
       KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE },
   { "bdb_max_lock",            (long*) &berkeley_max_lock, 
-      1000, 0, (long) ~0, 0, 1 },
+      10000, 0, (long) ~0, 0, 1 },
     /* QQ: The following should be removed soon! */
   { "bdb_lock_max",            (long*) &berkeley_max_lock, 
-      1000, 0, (long) ~0, 0, 1 },
+      10000, 0, (long) ~0, 0, 1 },
 #endif
   { "binlog_cache_size", 	(long*) &binlog_cache_size,
       32*1024L, IO_SIZE, ~0L, 0, IO_SIZE },
