@@ -1111,12 +1111,12 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     const char* bounds[]= {"LE", "LT", "GE", "GT", "EQ"};
     DBUG_ASSERT(bound >= 0 && bound <= 4);    
-    DBUG_PRINT("info", ("Set Bound%s on %s %s %s %s", 
+    DBUG_PRINT("info", ("Set Bound%s on %s %s %s", 
 			bounds[bound],
 			field->field_name,
 			key_nullable ? "NULLABLE" : "",
 			key_null ? "NULL":""));
-    DBUG_PRINT("info", ("Total length %ds", tot_len));
+    DBUG_PRINT("info", ("Total length %d", tot_len));
     
     DBUG_DUMP("key", (char*) key_ptr, key_store_len);
     
@@ -1143,6 +1143,42 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   DBUG_RETURN(0);
 }
 
+const char* key_flag_strs[] = 
+{  "HA_READ_KEY_EXACT", 
+   "HA_READ_KEY_OR_NEXT",
+   "HA_READ_KEY_OR_PREV",
+   "HA_READ_AFTER_KEY",
+   "HA_READ_BEFORE_KEY",
+   "HA_READ_PREFIX",
+   "HA_READ_PREFIX_LAST",
+   "HA_READ_PREFIX_LAST_OR_PREV",
+   "HA_READ_MBR_CONTAIN",
+   "HA_READ_MBR_INTERSECT",
+   "HA_READ_MBR_WITHIN",
+   "HA_READ_MBR_DISJOINT",
+   "HA_READ_MBR_EQUAL"
+};
+
+const int no_of_key_flags = sizeof(key_flag_strs)/sizeof(char*);
+
+void print_key(const key_range* key, const char* info)
+{
+  if (key)
+  {  
+    const char* str= key->flag < no_of_key_flags ? 
+      key_flag_strs[key->flag] : "Unknown flag";
+    
+    DBUG_LOCK_FILE;
+    fprintf(DBUG_FILE,"%s: %s, length=%d, key=", info, str, key->length);
+    uint i;
+    for (i=0; i<key->length-1; i++)
+      fprintf(DBUG_FILE,"%0d ", key->key[i]);
+    fprintf(DBUG_FILE, "\n");
+    DBUG_UNLOCK_FILE;
+  }
+  return;
+}
+
 
 /*
   Start ordered index scan in NDB
@@ -1160,6 +1196,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_ENTER("ordered_index_scan");
   DBUG_PRINT("enter", ("index: %u, sorted: %d", active_index, sorted));  
   DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
+
+  DBUG_EXECUTE("enter", print_key(start_key, "start_key"););
+  DBUG_EXECUTE("enter", print_key(end_key, "end_key"););
   
   index_name= get_index_name(active_index);
   if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
