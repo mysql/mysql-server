@@ -1000,7 +1000,7 @@ void st_select_lex::init_query()
   item_list.empty();
   join= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
-  having_fix_field= 0;
+  insert_select= having_fix_field= 0;
   with_wild= 0;
 }
 

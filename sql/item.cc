@@ -758,6 +758,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 #ifdef EMBEDDED_LIBRARY
       thd->net.last_errno= 0;
 #endif
+      TABLE_LIST *table_list;
       Item **refer= (Item **)not_found_item;
       uint counter;
       // Prevent using outer fields in subselects, that is not supported now
@@ -768,8 +769,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     sl;
 	     sl= sl->outer_select())
 	{
+	  table_list= (last= sl)->get_table_list();
+	  if (sl->insert_select && table_list)
+	  {
+	    // it is primary INSERT st_select_lex => skip first table resolving
+	    table_list= table_list->next;
+	  }
 	  if ((tmp= find_field_in_tables(thd, this,
-					 (last= sl)->get_table_list(), &where,
+					 table_list, &where,
 					 0)) != not_found_field)
 	    break;
 	  if ((refer= find_item_in_list(this, sl->item_list, &counter, 
@@ -1221,7 +1228,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   uint counter;
   if (!ref)
   {
-    TABLE_LIST *where= 0;
+    TABLE_LIST *where= 0, *table_list;
     SELECT_LEX *sl= (outer_resolving?
 		     thd->lex.current_select->select_lex():
 		     thd->lex.current_select->outer_select());
@@ -1260,8 +1267,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
 	  break;
+	table_list= sl->get_table_list();
+	if (sl->insert_select && table_list)
+	{
+	  // it is primary INSERT st_select_lex => skip first table resolving
+	  table_list= table_list->next;
+	}
 	if ((tmp= find_field_in_tables(thd, this,
-				       sl->get_table_list(), &where,
+				       table_list, &where,
 				       0)) != not_found_field)
 	  break;
 	if (sl->master_unit()->first_select()->linkage ==
