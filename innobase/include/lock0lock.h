@@ -463,13 +463,17 @@ lock_rec_hash(
 	ulint	space,	/* in: space */
 	ulint	page_no);/* in: page number */
 /*************************************************************************
-Gets the table covered by an IX table lock. */
+Gets the table covered by an IX or IS table lock, if there are no
+other locks on the table. */
 
 dict_table_t*
-lock_get_ix_table(
-/*==============*/
-			/* out: the table covered by the lock */
-	lock_t*	lock);	/* in: table lock */
+lock_get_table(
+/*===========*/
+			/* out: the table covered by the lock,
+			or NULL if it is not an IX or IS table lock,
+			or there are other locks on the table */
+	lock_t*	lock,	/* in: lock */
+	ulint*	mode);	/* out: lock mode of table */
 /*************************************************************************
 Checks that a transaction id is sensible, i.e., not in the future. */
 
