@@ -14,13 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  This file defines the InnoDB handler: the interface between MySQL and InnoDB */
+/* This file defines the InnoDB handler: the interface between MySQL and
+InnoDB */
 
 /* TODO list for the InnoDB handler:
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in 4.1 yes.
-
 */
 
 #ifdef __GNUC__
@@ -29,6 +28,8 @@
 
 #include "mysql_priv.h"
 #include "slave.h"
+#include "sql_cache.h"
+
 #ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>
 #include <assert.h>
@@ -101,17 +102,10 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
+uint	innobase_flush_log_at_trx_commit	= 0;
 my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
-
-/* innodb_flush_log_at_trx_commit can now have 3 values:
-0 : write to the log file once per second and flush it to disk;
-1 : write to the log file at each commit and flush it to disk;
-2 : write to the log file at each commit, but flush to disk only once per
-second */
-
-uint    innobase_flush_log_at_trx_commit	= 0;
 
 /*
   Set default InnoDB data file size to 10 MB and let it be
@@ -410,6 +404,176 @@ ha_innobase::update_thd(
 	user_thd = thd;
 
 	return(0);
+}
+
+
+/*   BACKGROUND INFO: HOW THE MYSQL QUERY CACHE WORKS WITH INNODB
+     ------------------------------------------------------------
+
+1) The use of the query cache for TBL is disabled when there is an
+uncommitted change to TBL.
+
+2) When a change to TBL commits, InnoDB stores the current value of
+its global trx id counter, let us denote it by INV_TRX_ID, to the table object
+in the InnoDB data dictionary, and does only allow such transactions whose
+id >= INV_TRX_ID to use the query cache.
+
+3) When InnoDB does an INSERT/DELETE/UPDATE to a table TBL, or an implicit
+modification because an ON DELETE CASCADE, we invalidate the MySQL query cache
+of TBL immediately.
+
+How this is implemented inside InnoDB:
+
+1) Since every modification always sets an IX type table lock on the InnoDB
+table, it is easy to check if there can be uncommitted modifications for a
+table: just check if there are locks in the lock list of the table.
+
+2) When a transaction inside InnoDB commits, it reads the global trx id
+counter and stores the value INV_TRX_ID to the tables on which it had a lock.
+
+3) If there is an implicit table change from ON DELETE CASCADE or SET NULL,
+InnoDB calls an invalidate method for the MySQL query cache for that table.
+
+How this is implemented inside sql_cache.cc:
+
+1) The query cache for an InnoDB table TBL is invalidated immediately at an
+INSERT/UPDATE/DELETE, just like in the case of MyISAM. No need to delay
+invalidation to the transaction commit.
+
+2) To store or retrieve a value from the query cache of an InnoDB table TBL,
+any query must first ask InnoDB's permission. We must pass the thd as a
+parameter because InnoDB will look at the trx id, if any, associated with
+that thd.
+
+3) Use of the query cache for InnoDB tables is now allowed also when
+AUTOCOMMIT==0 or we are inside BEGIN ... COMMIT. Thus transactions no longer
+put restrictions on the use of the query cache.
+*/
+
+/**********************************************************************
+The MySQL query cache uses this to check from InnoDB if the query cache at
+the moment is allowed to operate on an InnoDB table. The SQL query must
+be a non-locking SELECT.
+
+The query cache is allowed to operate on certain query only if this function
+returns TRUE for all tables in the query.
+
+If thd is not in the autocommit state, this function also starts a new
+transaction for thd if there is no active trx yet, and assigns a consistent
+read view to it if there is no read view yet. */
+
+my_bool
+innobase_query_caching_of_table_permitted(
+/*======================================*/
+				/* out: TRUE if permitted, FALSE if not;
+				note that the value FALSE does not mean
+				we should invalidate the query cache:
+				invalidation is called explicitly */
+	THD*	thd,		/* in: thd of the user who is trying to
+				store a result to the query cache or
+				retrieve it */
+	char*	full_name,	/* in: concatenation of database name,
+				the null character '\0', and the table
+				name */
+	uint	full_name_len)	/* in: length of the full name, i.e.
+				len(dbname) + len(tablename) + 1 */
+{
+	ibool	is_autocommit;
+	trx_t*	trx;
+	char*	ptr;
+	char	norm_name[1000];
+
+	ut_a(full_name_len < 999);
+
+	if (thd->variables.tx_isolation == ISO_SERIALIZABLE) {
+		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
+		plain SELECT */
+	
+		return((my_bool)FALSE);
+	}
+
+	trx = (trx_t*) thd->transaction.all.innobase_tid;
+
+	if (trx == NULL) {
+		trx = check_trx_exists(thd);
+	}
+
+	innobase_release_stat_resources(trx);
+
+	if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+
+		is_autocommit = TRUE;
+	} else {
+		is_autocommit = FALSE;
+
+	}
+
+	if (is_autocommit && trx->conc_state == TRX_NOT_STARTED) {
+		/* We are going to retrieve the query result from the
+		query cache. This cannot be a store operation because then
+		we would have started the trx already.
+
+		We can imagine we instantaneously serialize
+		this consistent read trx to the current trx id counter.
+		If trx2 would have changed the tables of a query
+		result stored in the cache, and trx2 would have already
+		committed, making the result obsolete, then trx2 would have
+		already invalidated the cache. Thus we can trust the result
+		in the cache is ok for this query. */
+
+		return((my_bool)TRUE);
+	}
+	
+	/* Normalize the table name to InnoDB format */
+
+	memcpy(norm_name, full_name, full_name_len);
+
+	norm_name[strlen(norm_name)] = '/'; /* InnoDB uses '/' as the
+					    separator between db and table */
+	norm_name[full_name_len] = '\0';
+#ifdef __WIN__
+	/* Put to lower case */
+
+	ptr = norm_name;
+
+	while (*ptr != '\0') {
+	        *ptr = tolower(*ptr);
+	        ptr++;
+	}
+#endif
+	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
+
+		printf("Query cache for %s permitted\n", norm_name);
+
+		return((my_bool)TRUE);
+	}
+
+	printf("Query cache for %s NOT permitted\n", norm_name);
+
+	return((my_bool)FALSE);
+}
+
+extern "C" {
+/*********************************************************************
+Invalidates the MySQL query cache for the table.
+NOTE that the exact prototype of this function has to be in
+/innobase/row/row0ins.c! */
+
+void
+innobase_invalidate_query_cache(
+/*============================*/
+	trx_t*	trx,		/* in: transaction which modifies the table */
+	char*	full_name,	/* in: concatenation of database name, null
+				char '\0', table name; NOTE that in
+				Windows this is always in LOWER CASE! */
+	ulint	full_name_len)	/* in: full name length */
+{
+	/* Argument TRUE below means we are using transactions */
+	query_cache.invalidate((THD*)(trx->mysql_thd),
+					(const char*)full_name,
+					(uint32)full_name_len,
+					TRUE);
+}
 }
 
 /*********************************************************************

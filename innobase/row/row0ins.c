@@ -32,6 +32,23 @@ Created 4/20/1996 Heikki Tuuri
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
 
+
+/*********************************************************************
+This prototype is copied from /mysql/sql/ha_innodb.cc.
+Invalidates the MySQL query cache for the table.
+NOTE that the exact prototype of this function has to be in
+/innobase/row/row0ins.c! */
+
+void
+innobase_invalidate_query_cache(
+/*============================*/
+	trx_t*	trx,		/* in: transaction which modifies the table */
+	char*	full_name,	/* in: concatenation of database name, null
+				char '\0', table name; NOTE that in
+				Windows this is always in LOWER CASE! */
+	ulint	full_name_len);	/* in: full name length */
+
+
 /*************************************************************************
 Creates an insert node struct. */
 
@@ -386,10 +403,30 @@ row_ins_foreign_delete_or_set_null(
 	upd_t*		update;
 	ulint		err;
 	ulint		i;
+	char*		ptr;
+	char		table_name_buf[1000];
 	char		err_buf[1000];
 	
 	ut_a(thr && foreign && pcur && mtr);
 
+	/* Since we are going to delete or update a row, we have to invalidate
+	the MySQL query cache for table */
+
+	ut_a(ut_strlen(table->name) < 998);
+	
+	ut_memcpy(table_name_buf, table->name, ut_strlen(table->name) + 1);
+
+	ptr = table_name_buf;
+
+	while (*ptr != '/') {
+		ptr++;
+	}
+
+	*ptr = '\0';
+	
+	/* We call a function in ha_innodb.cc */
+	innobase_invalidate_query_cache(thr_get_trx(thr), table_name_buf,
+						ut_strlen(table->name));
 	node = thr->run_node;
 
 	ut_a(que_node_get_type(node) == QUE_NODE_UPDATE);

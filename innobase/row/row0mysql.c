@@ -1186,12 +1186,7 @@ row_create_table_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	
-	/* We allow a create table also if innodb_force_recovery is used. This
-        enables the user to stop a runaway rollback or a crash caused by
-	a temporary table #sql... He can use the trick explained in the
-	manual to rename the temporary table to rsql..., and then drop it. */
-
-	if (srv_created_new_raw) {
+	if (srv_created_new_raw || srv_force_recovery) {
 		fprintf(stderr,
 		"InnoDB: A new raw disk partition was initialized or\n"
 		"InnoDB: innodb_force_recovery is on: we do not allow\n"
@@ -1712,13 +1707,7 @@ row_drop_table_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 
-	/* Note that we allow dropping of a table even if innodb_force_recovery
-        is used. If a rollback or purge would crash because of a corrupt
-        table, the user can try dropping it to avoid the crash. This is also
-        a nice way to stop a runaway rollback caused by a failing big
-        table import in a single transaction. */
-
-	if (srv_created_new_raw) {
+	if (srv_created_new_raw || srv_force_recovery) {
 		fprintf(stderr,
 		"InnoDB: A new raw disk partition was initialized or\n"
 		"InnoDB: innodb_force_recovery is on: we do not allow\n"

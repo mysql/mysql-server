@@ -74,6 +74,8 @@ dict_mem_table_create(
 
 	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
 
+	table->query_cache_inv_trx_id = ut_dulint_zero;
+
 	UT_LIST_INIT(table->locks);
 	UT_LIST_INIT(table->foreign_list);
 	UT_LIST_INIT(table->referenced_list);
