@@ -2,7 +2,7 @@ source include/master-slave.inc;
 
 #clean up slave binlogs
 connection slave;
-slave stop;
+stop slave;
 reset master;
 reset slave;
 let $VERSION=`select version()`;
@@ -26,10 +26,10 @@ flush logs;
 
 save_master_pos;
 connection slave;
-slave start;
+start slave;
 sync_with_master;
 flush logs;
-slave stop;
+stop slave;
 connection master;
 
 # Create some entries for second log
@@ -40,12 +40,12 @@ drop table t1;
 --replace_result $VERSION VERSION
 show binlog events;
 show binlog events in 'master-bin.002';
-show master logs;
+show binary logs;
 save_master_pos;
 connection slave;
-slave start;
+start slave;
 sync_with_master;
-show master logs;
+show binary logs;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
 show binlog events in 'slave-bin.001' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION

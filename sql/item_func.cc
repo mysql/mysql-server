@@ -743,17 +743,31 @@ double Item_func_round::val()
 
 double Item_func_rand::val()
 {
+  THD* thd = current_thd;
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
-    randominit(&current_thd->rand,(uint32) (tmp*0x10001L+55555555L),
+    randominit(&thd->rand,(uint32) (tmp*0x10001L+55555555L),
 	       (uint32) (tmp*0x10000001L));
 #ifdef DELETE_ITEMS
     delete args[0];
 #endif
     arg_count=0;
   }
-  return rnd(&current_thd->rand);
+  else if (!thd->rand_used)
+  {
+    // no need to send a Rand log event if seed was given eg: RAND(seed),
+    // as it will be replicated in the query as such.
+
+    // save the seed only the first time RAND() is used in the query
+
+    // once events are forwarded rather than recreated,
+    // the following can be skipped if inside the slave thread
+    thd->rand_used=1;
+    thd->rand_saved_seed1=thd->rand.seed1;
+    thd->rand_saved_seed2=thd->rand.seed2;
+  }
+  return rnd(&thd->rand);
 }
 
 longlong Item_func_sign::val_int()

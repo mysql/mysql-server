@@ -37,6 +37,8 @@
 #include <mysys_err.h>
 #include <assert.h>
 
+extern struct rand_struct sql_rand;
+
 /*****************************************************************************
 ** Instansiate templates
 *****************************************************************************/
@@ -79,7 +81,7 @@ static void free_var(user_var_entry *entry)
 
 THD::THD():user_time(0), fatal_error(0),
 	   last_insert_id_used(0),
-	   insert_id_used(0), in_lock_tables(0),
+	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
@@ -172,6 +174,18 @@ THD::THD():user_time(0), fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
+
+  /*
+    We need good random number initialization for new thread
+    Just coping global one will not work
+  */
+  {
+    pthread_mutex_lock(&LOCK_thread_count);
+    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
+    randominit(&rand, tmp + (ulong) start_time,
+	       tmp + (ulong) thread_id);
+    pthread_mutex_unlock(&LOCK_thread_count);
+  }
 }
 
 /* Do operations that may take a long time */
