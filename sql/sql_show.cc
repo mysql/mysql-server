@@ -75,8 +75,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		thd->priv_user, file_name,0) ||
+	acl_get(thd->host, thd->ip, thd->priv_user, file_name,0) ||
 	(grant_option && !check_grant_db(thd, file_name)))
 #endif
     {
