@@ -355,11 +355,11 @@ int check_user(THD *thd, enum enum_server_command command,
       if (check_count)
       {
         VOID(pthread_mutex_lock(&LOCK_thread_count));
-        bool count_ok= thread_count < max_connections + delayed_insert_threads
+        bool count_ok= thread_count <= max_connections + delayed_insert_threads
                        || (thd->master_access & SUPER_ACL);
         VOID(pthread_mutex_unlock(&LOCK_thread_count));
         if (!count_ok)
-        {                                         // too many connections 
+        {                                         // too many connections
           net_send_error(thd, ER_CON_COUNT_ERROR);
           DBUG_RETURN(-1);
         }
