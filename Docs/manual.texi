@@ -47133,8 +47133,11 @@ A Delphi Interface to MySQL, with source code. By Matthias Fichtner.
 @item @uref{http://www.productivity.org/projects/tmysql/}
 @code{TmySQL}, a library to use MySQL with Delphi.
 
-@item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html}
-Delphi TDataset-component.
+@item @uref{https://sourceforge.net/projects/zeoslib/}
+Zeos Library is a set of delphi native datasets and database 
+components for MySql, PostgreSql, Interbase, MS SQL, Oracle, 
+DB/2. Also it includes development tools such as Database 
+Explorer and Database Designer.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Win32/SBMySQL50Share.exe}
 Delphi 5 Shareware MySQL Dataset Components.
@@ -47327,7 +47330,7 @@ Utility from Artronic to stop MySQL on win9x.
 @item @uref{http://bardo.hyperlink.cz/mysqlmon/}
 A light weight GUI client for Windows.
 
-@item @uref{http://dbtools.vila.bol.com.br/}
+@item @uref{http://www.dbtools.com.br/}
 Dbtools, a tool to manage MySQL databases. Currently only for Windows.
 Some features:
 @itemize @bullet
