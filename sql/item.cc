@@ -121,7 +121,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 bool Item::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),NULL),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
@@ -139,7 +139,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
 bool Item::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),NULL),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
   {
@@ -1146,7 +1146,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
   if (res_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),default_charset_info),*result;
+    String tmp(buff,sizeof(buff),NULL),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
     {
@@ -1160,7 +1160,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
 #ifdef DELETE_ITEMS
     delete item;
 #endif
-    return new Item_string(name,tmp_str,length,default_charset_info);
+    return new Item_string(name,tmp_str,length,result->charset());
   }
   if (res_type == INT_RESULT)
   {
@@ -1201,8 +1201,8 @@ bool field_is_equal_to_item(Field *field,Item *item)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),default_charset_info),*item_result;
-    String field_tmp(field_buff,sizeof(field_buff),default_charset_info);
+    String item_tmp(item_buff,sizeof(item_buff),NULL),*item_result;
+    String field_tmp(field_buff,sizeof(field_buff),NULL);
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true
