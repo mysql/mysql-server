@@ -51,6 +51,7 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
     client_field->name=   strdup_root(alloc, server_field.col_name);
     client_field->org_table= strdup_root(alloc, server_field.org_table_name);
     client_field->org_name=  strdup_root(alloc, server_field.org_col_name);
+    client_field->catalog= strdup_root(alloc, "");
     client_field->length= server_field.length;
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;
@@ -60,6 +61,7 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
     client_field->name_length=		strlen(client_field->name);
     client_field->org_name_length=	strlen(client_field->org_name);
     client_field->org_table_length=	strlen(client_field->org_table);
+    client_field->catalog_length=       0;
     client_field->charsetnr=		server_field.charsetnr;
     
     if (INTERNAL_NUM_FIELD(client_field))
@@ -100,17 +102,17 @@ bool Protocol_cursor::write()
   byte *to;
 
   new_record= (MYSQL_ROWS *)alloc_root(alloc, 
-       sizeof(MYSQL_ROWS) + (field_count + 1)*sizeof(char *) + packet->length());
+    sizeof(MYSQL_ROWS) + (field_count + 1)*sizeof(char *) + packet->length());
   if (!new_record)
     goto err;
   data= (byte **)(new_record + 1);
   new_record->data= (char **)data;
 
-  to= (byte *)(fields + field_count + 1);
+  to= (byte *)data + (field_count + 1)*sizeof(char *);
 
   for (; cur_field < fields_end; ++cur_field, ++data)
   {
-    if ((len=net_field_length((uchar **)&cp)))
+    if ((len= net_field_length((uchar **)&cp)) == 0)
     {
       *data= 0;
     }
@@ -121,6 +123,7 @@ bool Protocol_cursor::write()
 // TODO error signal      send_error(thd, CR_MALFORMED_PACKET);
 	return TRUE;
       }
+      *data= to;
       memcpy(to,(char*) cp,len);
       to[len]=0;
       to+=len+1;
@@ -129,6 +132,7 @@ bool Protocol_cursor::write()
 	cur_field->max_length=len;
     }
   }
+  *data= 0;
 
   *prev_record= new_record;
   prev_record= &new_record->next;
@@ -139,5 +143,3 @@ bool Protocol_cursor::write()
 // TODO error signal      send_error(thd, ER_OUT_OF_RESOURCES);
   return TRUE;
 }
-
-

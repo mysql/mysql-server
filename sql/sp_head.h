@@ -33,10 +33,9 @@ Item_result
 sp_map_result_type(enum enum_field_types type);
 
 struct sp_label;
-
 class sp_instr;
-
 struct sp_cond_type;
+struct sp_pvar;
 
 class sp_head : public Sql_alloc
 {
@@ -278,6 +277,10 @@ public:
     return m_lex;
   }
 
+protected:
+
+  int exec_stmt(THD *thd, LEX *lex); // Execute a statement
+
 private:
 
   LEX *m_lex;			// My own lex
@@ -501,6 +504,128 @@ private:
   uint m_frame;
 
 }; // class sp_instr_hreturn : public sp_instr
+
+
+class sp_instr_cpush : public sp_instr
+{
+  sp_instr_cpush(const sp_instr_cpush &); /* Prevent use of these */
+  void operator=(sp_instr_cpush &);
+
+public:
+
+  sp_instr_cpush(uint ip, LEX *lex)
+    : sp_instr(ip), m_lex(lex)
+  {}
+
+  virtual ~sp_instr_cpush();
+
+  virtual int execute(THD *thd, uint *nextp);
+
+private:
+
+  LEX *m_lex;
+
+}; // class sp_instr_cpush : public sp_instr
+
+
+class sp_instr_cpop : public sp_instr
+{
+  sp_instr_cpop(const sp_instr_cpop &); /* Prevent use of these */
+  void operator=(sp_instr_cpop &);
+
+public:
+
+  sp_instr_cpop(uint ip, uint count)
+    : sp_instr(ip), m_count(count)
+  {}
+
+  virtual ~sp_instr_cpop()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+private:
+
+  uint m_count;
+
+}; // class sp_instr_cpop : public sp_instr
+
+
+class sp_instr_copen : public sp_instr_stmt
+{
+  sp_instr_copen(const sp_instr_copen &); /* Prevent use of these */
+  void operator=(sp_instr_copen &);
+
+public:
+
+  sp_instr_copen(uint ip, uint c)
+    : sp_instr_stmt(ip), m_cursor(c)
+  {}
+
+  virtual ~sp_instr_copen()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+private:
+
+  uint m_cursor;		// Stack index
+
+}; // class sp_instr_copen : public sp_instr_stmt
+
+
+class sp_instr_cclose : public sp_instr
+{
+  sp_instr_cclose(const sp_instr_cclose &); /* Prevent use of these */
+  void operator=(sp_instr_cclose &);
+
+public:
+
+  sp_instr_cclose(uint ip, uint c)
+    : sp_instr(ip), m_cursor(c)
+  {}
+
+  virtual ~sp_instr_cclose()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+private:
+
+  uint m_cursor;
+
+}; // class sp_instr_cclose : public sp_instr
+
+
+class sp_instr_cfetch : public sp_instr
+{
+  sp_instr_cfetch(const sp_instr_cfetch &); /* Prevent use of these */
+  void operator=(sp_instr_cfetch &);
+
+public:
+
+  sp_instr_cfetch(uint ip, uint c)
+    : sp_instr(ip), m_cursor(c)
+  {
+    m_varlist.empty();
+  }
+
+  virtual ~sp_instr_cfetch()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  void add_to_varlist(struct sp_pvar *var)
+  {
+    m_varlist.push_back(var);
+  }
+
+private:
+
+  uint m_cursor;
+  List<struct sp_pvar> m_varlist;
+
+}; // class sp_instr_cfetch : public sp_instr
 
 
 #endif /* _SP_HEAD_H_ */

@@ -29,7 +29,7 @@ typedef enum
   sp_param_inout
 } sp_param_mode_t;
 
-typedef struct
+typedef struct sp_pvar
 {
   LEX_STRING name;
   enum enum_field_types type;
@@ -200,17 +200,41 @@ class sp_pcontext : public Sql_alloc
     return m_handlers;
   }
 
+  //
+  // Cursors
+  //
+
+  void
+  push_cursor(LEX_STRING *name);
+
+  my_bool
+  find_cursor(LEX_STRING *name, uint *poff);
+
+  inline void
+  pop_cursor(uint num)
+  {
+    while (num--)
+      pop_dynamic(&m_cursor);
+  }
+
+  inline uint
+  cursors()
+  {
+    return m_cursmax;
+  }
+
 private:
 
   uint m_params;		// The number of parameters
   uint m_framesize;		// The maximum framesize
   uint m_handlers;		// The total number of handlers
+  uint m_cursmax;		// The maximum number of cursors
 
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
+  DYNAMIC_ARRAY m_cursor;	// Cursors
 
   List<sp_label_t> m_label;	// The label list
-  uint m_genlab;		// Gen. label counter
 
 }; // class sp_pcontext : public Sql_alloc
 
