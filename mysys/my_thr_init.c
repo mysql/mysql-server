@@ -35,6 +35,9 @@ pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
 #ifndef HAVE_LOCALTIME_R
 pthread_mutex_t LOCK_localtime_r;
 #endif
+#ifndef HAVE_GETHOSTBYNAME_R
+pthread_mutex_t LOCK_gethostbyname_r;
+#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -78,6 +81,9 @@ my_bool my_thread_global_init(void)
 #ifndef HAVE_LOCALTIME_R
   pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_SLOW);
 #endif
+#ifndef HAVE_GETHOSTBYNAME_R
+  pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
+#endif
   return my_thread_init();
 }
 
@@ -91,6 +97,9 @@ void my_thread_global_end(void)
 #endif
 #ifdef PPTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_errchk_mutexattr);
+#endif
+#ifndef HAVE_GETHOSTBYNAME_R
+  pthread_mutex_destroy(&LOCK_gethostbyname_r);
 #endif
 }
 

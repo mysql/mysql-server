@@ -23,9 +23,6 @@
 #include <m_string.h>
 #include <thr_alarm.h>
 #include <assert.h>
-#if !defined(MSDOS) && !defined(__WIN__)
-#include <netdb.h>
-#endif
 
 #if (defined(__BSD__) || defined(_BSDI_VERSION)) && !defined(HAVE_mit_thread)
 #define SCHED_POLICY SCHED_RR
@@ -423,57 +420,6 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
   return error == EAGAIN ? ETIMEDOUT : error;
 }
 #endif /* HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT */
-
-/*
-  Emulate SOLARIS style calls, not because it's better, but just to make the
-  usage of getbostbyname_r simpler.
-*/
-
-#if !defined(my_gethostbyname_r) && defined(HAVE_GETHOSTBYNAME_R)
-
-#if defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop)
-{
-  struct hostent *hp;
-  dbug_assert((size_t) buflen >= sizeof(*result));
-  if (gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop))
-    return 0;
-  return hp;
-}
-
-#elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
-
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop)
-{
-  dbug_assert(buflen >= sizeof(struct hostent_data));
-  if (gethostbyname_r(name,result,(struct hostent_data *) buffer) == -1)
-  {
-    *h_errnop= errno;
-    return 0;
-  }
-  return result;
-}
-
-#else
-
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop)
-{
-  struct hostent *hp;
-  dbug_assert(buflen >= sizeof(struct hostent_data));
-  hp= gethostbyname_r(name,result,(struct hostent_data *) buffer);
-  *h_errnop= errno;
-  return hp;
-}
-
-#endif /* GLIBC2_STYLE_GETHOSTBYNAME_R */
-#endif
 
 
 /* Some help functions */
