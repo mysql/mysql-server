@@ -847,6 +847,15 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   {
     uchar chr= (uchar) *name;
     length= my_mbcharlen(system_charset_info, chr);
+    /*
+      my_mbcharlen can retur 0 on a wrong multibyte
+      sequence. It is possible when upgrading from 4.0,
+      and identifier contains some accented characters.
+      The manual says it does not work. So we'll just
+      change length to 1 not to hang in the endless loop.
+    */
+    if (!length)
+      length= 1;
     if (length == 1 && chr == (uchar) quote_char)
       packet->append(&quote_char, 1, system_charset_info);
     packet->append(name, length, packet->charset());

@@ -877,7 +877,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     1           should be logged/replicated                  
 */
 
-int tables_ok(THD* thd, TABLE_LIST* tables)
+bool tables_ok(THD* thd, TABLE_LIST* tables)
 {
   bool some_tables_updating= 0;
   DBUG_ENTER("tables_ok");

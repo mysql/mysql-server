@@ -155,6 +155,9 @@ select hex(c1), hex(c2) from t1;
 
 stop slave;
 delete from t1;
+change master to master_log_pos=5847;
+start slave until master_log_file='master-bin.000001', master_log_pos=5983;
+# Slave is supposed to stop _after_ the INSERT, even though 5983 is
 
 # Note that the following positions may change between MySQL versions!
 
