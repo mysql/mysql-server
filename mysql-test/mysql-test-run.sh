@@ -674,8 +674,8 @@ start_master()
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
-      manager_launch master $XTERM -display :0 -title "Master" -e gdb -x \
-       $GDB_MASTER_INIT $MYSQLD 
+      manager_launch master $XTERM -display $DISPLAY \
+      -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD 
     else	    
       manager_launch master $MYSQLD $master_args  
     fi  

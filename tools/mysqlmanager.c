@@ -291,9 +291,9 @@ static void die(const char* fmt,...);
 static void print_time(FILE* fp);
 static void clean_up();
 static struct manager_cmd* lookup_cmd(char* s,int len);
-static void client_msg(NET* net,int err_code,const char* fmt,...);
-static void client_msg_pre(NET* net,int err_code,const char* fmt,...);
-static void client_msg_raw(NET* net,int err_code,int pre,const char* fmt,
+static int client_msg(NET* net,int err_code,const char* fmt,...);
+static int client_msg_pre(NET* net,int err_code,const char* fmt,...);
+static int client_msg_raw(NET* net,int err_code,int pre,const char* fmt,
 			    va_list args);
 static int authenticate(struct manager_thd* thd);
 static char* read_line(struct manager_thd* thd); /* returns pointer to end of
@@ -306,6 +306,27 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
 #ifdef DO_STACKTRACE
 void print_stacktrace();
 #endif
+
+static void log_msg(const char* fmt, int msg_type, va_list args);
+
+/* No 'inline' here becasue functions with ... can't do that portable */
+#define LOG_MSG_FUNC(type,TYPE) static void type  \
+ (const char* fmt,...) { \
+  va_list args; \
+  va_start(args,fmt); \
+  log_msg(fmt,TYPE,args);\
+ }
+
+LOG_MSG_FUNC(log_err,LOG_ERR)
+LOG_MSG_FUNC(log_warn,LOG_WARN)
+LOG_MSG_FUNC(log_info,LOG_INFO)
+
+#ifndef DBUG_OFF
+LOG_MSG_FUNC(log_debug,LOG_DEBUG)
+#else
+void log_debug(const char* __attribute__((unused)) fmt,...) {}
+#endif
+
 
 static void handle_segfault(int sig)
 {
@@ -369,11 +390,13 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
   struct manager_cmd* cmd;
   for (;p<buf_end && !isspace(*p);p++)
     *p=tolower(*p);
+  log_info("Command '%s'", buf);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
   {
-    client_msg(&thd->net,MANAGER_CLIENT_ERR,
-	       "Unrecognized command, type help to see list of supported\
- commands");
+    if(client_msg(&thd->net,MANAGER_CLIENT_ERR,
+	       "Unrecognized command '%s', type help to see list of supported\
+ commands", buf))
+      thd->fatal=1;
     return 1;
   }
   for (;p<buf_end && isspace(*p);p++);
@@ -1025,24 +1048,6 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
   pthread_mutex_unlock(&lock_log);
 }
 
-/* No 'inline' here becasue functions with ... can't do that portable */
-#define LOG_MSG_FUNC(type,TYPE) static void type  \
- (const char* fmt,...) { \
-  va_list args; \
-  va_start(args,fmt); \
-  log_msg(fmt,TYPE,args);\
- }
-
-LOG_MSG_FUNC(log_err,LOG_ERR)
-LOG_MSG_FUNC(log_warn,LOG_WARN)
-LOG_MSG_FUNC(log_info,LOG_INFO)
-
-#ifndef DBUG_OFF
-LOG_MSG_FUNC(log_debug,LOG_DEBUG)
-#else
-void log_debug(const char* __attribute__((unused)) fmt,...) {}
-#endif
-
 static pthread_handler_decl(process_launcher_messages,
 			    __attribute__((unused)) arg)
 {
@@ -1121,7 +1126,7 @@ static pthread_handler_decl(process_connection,arg)
   return 0;					/* Don't get cc warning */
 }
 
-static void client_msg_raw(NET* net, int err_code, int pre, const char* fmt,
+static int client_msg_raw(NET* net, int err_code, int pre, const char* fmt,
 			   va_list args)
 {
   char buf[MAX_CLIENT_MSG_LEN],*p,*buf_end;
@@ -1136,29 +1141,36 @@ static void client_msg_raw(NET* net, int err_code, int pre, const char* fmt,
     p=buf_end - 2;
   *p++='\r';
   *p++='\n';
+  
   if (my_net_write(net,buf,(uint)(p-buf)) || net_flush(net))
-    log_err("Failed writing to client: errno=%d",net->last_errno);
+  {
+    p[-2]=0;
+    log_err("Failed writing '%s' to client: errno=%d",buf,errno);
+    net_end(net);
+    return 1;
+  }
+  return 0;
 }
 
-static void client_msg(NET* net, int err_code, const char* fmt, ...)
+static int client_msg(NET* net, int err_code, const char* fmt, ...)
 {
   va_list args;
   va_start(args,fmt);
-  client_msg_raw(net,err_code,0,fmt,args);
+  return client_msg_raw(net,err_code,0,fmt,args);
 }
 
-static void client_msg_pre(NET* net, int err_code, const char* fmt, ...)
+static int client_msg_pre(NET* net, int err_code, const char* fmt, ...)
 {
   va_list args;
   va_start(args,fmt);
-  client_msg_raw(net,err_code,1,fmt,args);
+  return client_msg_raw(net,err_code,1,fmt,args);
 }
 
 static char* read_line(struct manager_thd* thd)
 {
-  uint len;
+  int len;
   char* p, *buf_end;
-  if ((len=my_net_read(&thd->net)) == packet_error)
+  if ((len=my_net_read(&thd->net)) == (int)packet_error || !len)
     {
       log_err("Error reading command from client (Error: %d)",
 	      errno);
@@ -1212,6 +1224,12 @@ struct manager_thd* manager_thd_new(Vio* vio)
 
 static void manager_thd_free(struct manager_thd* thd)
 {
+  NET* net=&thd->net;
+  if (net->vio)
+  {
+    vio_delete(net->vio);
+    net->vio=0;
+  }
   net_end(&thd->net);
 }
 
@@ -1379,15 +1397,18 @@ static int run_server_loop()
       vio_close(vio);
       continue;
     }
-    
     if (authenticate(thd))
     {
       client_msg(&thd->net,MANAGER_ACCESS, "Access denied");
       manager_thd_free(thd);
+      log_info("Client failed to authenticate");
       continue;
     }
     if (shutdown_requested)
+    {
+      manager_thd_free(thd);
       break;
+    }
     if (one_thread)
     {
       process_connection((void*)thd);
