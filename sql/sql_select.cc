@@ -4791,7 +4791,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     (void) ha_delete_table(entry->db_type,entry->real_name);
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
-    delete *ptr;
+    (*ptr)->free();
   my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
 
