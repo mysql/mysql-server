@@ -147,12 +147,12 @@ SELECT lower(utf8_f) FROM t1 ORDER BY 1 DESC;
 
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 WHERE CONVERT(t11.koi8_ru_f USING utf8)=t12.utf8_f
-ORDER BY t11.koi8_ru_f;
+ORDER BY t11.koi8_ru_f,t11.comment,t12.comment;
 
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 
 WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8_ru)
-ORDER BY t12.utf8_f;
+ORDER BY t12.utf8_f,t11.comment,t12.comment;
 
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2 NOT NULL;
 
