@@ -23,7 +23,7 @@
 #include "slave.h"
 #endif /* MYSQL_CLIENT */
 
-
+#ifdef MYSQL_CLIENT
 static void pretty_print_char(FILE* file, int c)
 {
   fputc('\'', file);
@@ -41,6 +41,7 @@ static void pretty_print_char(FILE* file, int c)
   }
   fputc('\'', file);
 }
+#endif
 
 #ifndef MYSQL_CLIENT
 
@@ -444,6 +445,7 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len)
   return NULL;  // default value
 }
 
+#ifdef MYSQL_CLIENT
 void Log_event::print_header(FILE* file)
 {
   fputc('#', file);
@@ -507,6 +509,8 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
   fprintf(file, "pos=%s\n", llstr(pos, buf));
   fflush(file);
 }
+
+#endif /* #ifdef MYSQL_CLIENT */
 
 Start_log_event::Start_log_event(const char* buf) :Log_event(buf)
 {
@@ -576,6 +580,8 @@ Query_log_event::Query_log_event(const char* buf, int event_len):
   *((char*)query+q_len) = 0;
 }
 
+#ifdef MYSQL_CLIENT
+
 void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   char buff[40],*end;				// Enough for SET TIMESTAMP
@@ -603,6 +609,8 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fprintf(file, ";\n");
 }
+
+#endif
 
 int Query_log_event::write_data(IO_CACHE* file)
 {
@@ -644,6 +652,7 @@ int Intvar_log_event::write_data(IO_CACHE* file)
   return my_b_write(file, (byte*) buf, sizeof(buf));
 }
 
+#ifdef MYSQL_CLIENT
 void Intvar_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   char llbuff[22];
@@ -667,6 +676,7 @@ void Intvar_log_event::print(FILE* file, bool short_form, char* last_db)
   fflush(file);
   
 }
+#endif
 
 int Load_log_event::write_data(IO_CACHE* file)
 {
@@ -742,6 +752,7 @@ void Load_log_event::copy_log_event(const char *buf, ulong data_len)
     field_block_len;
 }
 
+#ifdef MYSQL_CLIENT
 
 void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 {
@@ -825,6 +836,8 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   fprintf(file, ";\n");
 }
 
+#endif /* #ifdef MYSQL_CLIENT */
+
 #ifndef MYSQL_CLIENT
 
 void Log_event::set_log_seq(THD* thd, MYSQL_LOG* log)
@@ -879,6 +892,8 @@ Slave_log_event::~Slave_log_event()
   my_free(mem_pool, MYF(MY_ALLOW_ZERO_PTR));
 }
 
+#ifdef MYSQL_CLIENT
+
 void Slave_log_event::print(FILE* file, bool short_form = 0,
 			    char* last_db = 0)
 {
@@ -891,6 +906,8 @@ void Slave_log_event::print(FILE* file, bool short_form = 0,
  master_log=%s master_pos=%s\n", master_host, master_port, master_log,
 	  llstr(master_pos, llbuff));
 }
+
+#endif
 
 int Slave_log_event::get_data_size()
 {
@@ -934,3 +951,41 @@ Slave_log_event::Slave_log_event(const char* buf, int event_len):
   mem_pool[event_len] = 0;
   init_from_mem_pool(event_len);
 }
+
+#ifndef MYSQL_CLIENT
+Create_file_log_event::Create_file_log_event(THD* thd, TABLE_LIST * table,
+					     char* block_arg,
+					     uint block_len_arg) :
+  Log_event(thd->start_time), db(table->db),tbl_name(table->real_name),
+ db_len(strlen(table->db)),tbl_name_len(strlen(table->real_name)),
+ block(block_arg),block_len(block_len_arg),
+  file_id(thd->file_id = thd->query_id)
+{
+  set_log_seq(thd, &mysql_bin_log);
+}
+#endif
+
+int Create_file_log_event::write_data(IO_CACHE* file)
+{
+  return 0;
+}
+
+#ifdef MYSQL_CLIENT
+void Create_file_log_event::print(FILE* file, bool short_form = 0,
+				  char* last_db = 0)
+{
+}
+#endif
+
+#ifndef MYSQL_CLIENT
+void Create_file_log_event::pack_info(String* packet)
+{
+}
+#endif  
+
+
+
+
+
+
+
