@@ -2246,7 +2246,17 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   else
     rec_length=share->base.pack_reclength;
   sort_info.max_records=
-    ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records :
+  /* +1 below is required hack for parallel repair mode.
+     The info->state->records value, that is compared later
+     to sort_info.max_records and cannot exceed it, is
+     increased in sort_key_write. In mi_repair_by_sort, sort_key_write
+     is called after sort_key_read, where the comparison is performed,
+     but in parallel mode master thread can call sort_key_write
+     before some other repair thread calls sort_key_read.
+     Furthermore I'm not even sure +1 would be enough.
+     May be sort_info.max_records shold be always set to max value in
+     parallel mode. */
+    ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records + 1:
      (ha_rows) (sort_info.filelength/rec_length+1));
 
   del=info->state->del;
