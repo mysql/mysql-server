@@ -5136,8 +5136,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   {
     table_map used_tables;
     if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
-    {                        /* there may be a select without a cond. */
-    
+    {                        /* there may be a select without a cond. */    
       if (join->tables > 1)
         cond->update_used_tables();		// Tablenr may have changed
       if (join->const_tables == join->tables &&
@@ -5173,7 +5172,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         if (const_cond && !const_cond->val_int())
         {
 	  DBUG_PRINT("info",("Found impossible WHERE condition"));
-	  DBUG_RETURN(1);				// Impossible const condition
+	  DBUG_RETURN(1);	 // Impossible const condition
         }
       }
     }
