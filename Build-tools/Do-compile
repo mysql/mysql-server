@@ -617,16 +617,20 @@ sub abort
 
   if ($opt_user)
   {
-    $mail_header_file="$opt_tmp/do-command.$$";
-    open(TMP,">$mail_header_file");
+    # Take the last 40 lines of the build log
+    open(LOG, "$log") or die $!;
+    my @log= <LOG>;
+    close LOG;
+    splice @log => 0, -40;
+    my $mail_file="$opt_tmp/do-command.$$";
+    open(TMP,">$mail_file") or die $!;
     print TMP "From: mysqldev\@$full_host_name\n";
     print TMP "To: $email\n";
     print TMP "Subject: $host($uname): $ver$opt_version_suffix compilation failed\n\n";
+    print TMP @log;
     close TMP;
-    system("tail -n 40 $log > $log.mail");
-    system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
-    unlink($mail_header_file);
-    unlink("$log.mail");
+    system("$sendmail -t -f $email < $mail_file");
+    unlink($mail_file);
   }
   exit 1;
 }
