@@ -311,7 +311,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
 
-  if (fields.elements && check_that_all_fields_are_given_values(thd, table))
+  if ((fields.elements || !value_count) &&
+      check_that_all_fields_are_given_values(thd, table))
   {
     /* thd->net.report_error is now set, which will abort the next loop */
     error= 1;

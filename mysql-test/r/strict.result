@@ -921,3 +921,40 @@ col1	col2
 3	
 99	
 DROP TABLE t1;
+SET @@sql_mode = 'traditional';
+CREATE TABLE t1 (i int not null);
+INSERT INTO t1 VALUES ();
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT);
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT(i));
+ERROR HY000: Field 'i' doesn't have a default value
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1 SET j = 1;
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT;
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT(i);
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT,1);
+ERROR HY000: Field 'i' doesn't have a default value
+DROP TABLE t1;
+SET @@sql_mode = '';
+CREATE TABLE t1 (i int not null);
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 VALUES (DEFAULT);
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT(i));
+ERROR HY000: Field 'i' doesn't have a default value
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1 SET j = 1;
+INSERT INTO t1 SET j = 1, i = DEFAULT;
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+INSERT INTO t1 SET j = 1, i = DEFAULT(i);
+ERROR HY000: Field 'i' doesn't have a default value
+INSERT INTO t1 VALUES (DEFAULT,1);
+Warnings:
+Warning	1364	Field 'i' doesn't have a default value
+DROP TABLE t1;
