@@ -13411,8 +13411,9 @@ Dbacc::execREAD_PSUEDO_REQ(Signal* signal){
   default:
     tmp = 0;
   }
-  memcpy(signal->theData, &tmp, 8); /* must be memcpy, gives strange results
-				     * on IRIX 64 otherwise
+  memcpy(signal->theData, &tmp, 8); /* must be memcpy, gives strange results on
+				     * ithanium gcc (GCC) 3.4.1 smp linux 2.4
+				     * otherwise
 				     */
   //  Uint32 * src = (Uint32*)&tmp;
   //  signal->theData[0] = src[0];
