@@ -1672,18 +1672,31 @@ build_template(
 		field = table->field[i];
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS
+		    && prebuilt->read_just_key
+	            && dict_index_get_nth_col_pos(index, i)
+		    == ULINT_UNDEFINED) {
+		  /* Skip a column which is not in the index */
+
+		  goto skip_field;
+		}
+
+
+		/* TODO: we have removed temporarily the test of which columns
+		     to fetch, until the new client/server protocol of 4.1
+		     is fixed!!!!!!!!!!!!!!!!!
+
+		if (templ_type == ROW_MYSQL_REC_FIELDS
 			&& !(fetch_all_in_key &&
-				ULINT_UNDEFINED != dict_index_get_nth_col_pos(
-								index, i))
+	                    ULINT_UNDEFINED != dict_index_get_nth_col_pos(
+					    index, i))
 			&& thd->query_id != field->query_id
 			&& thd->query_id != (field->query_id ^ MAX_ULONG_BIT)
 			&& thd->query_id !=
 				(field->query_id ^ (MAX_ULONG_BIT >> 1))) {
 
-			/* This field is not needed in the query, skip it */
-
 			goto skip_field;
 		}
+	        */
 
 		n_requested_fields++;
 
