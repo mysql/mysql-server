@@ -3084,6 +3084,7 @@ void Dblqh::execATTRINFO(Signal* signal)
       return;
       break;
     default:
+      ndbout_c("%d", regTcPtr->transactionState);
       ndbrequire(false);
       break;
     }//switch
