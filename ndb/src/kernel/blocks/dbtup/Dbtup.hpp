@@ -1068,9 +1068,6 @@ private:
   void execTUP_WRITELOG_REQ(Signal* signal);
 
   // Ordered index related
-  void execTUP_READ_ATTRS(Signal* signal);
-  void execTUP_QUERY_TH(Signal* signal);
-  void execTUP_STORE_TH(Signal* signal);
   void execBUILDINDXREQ(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
