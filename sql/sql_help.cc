@@ -254,7 +254,7 @@ int get_all_topics_for_category(THD *thd, TABLE *topics, TABLE *relations,
   rcat_id->get_key_image(buff, rcat_id->pack_length(), help_charset,
 			 Field::itRAW);
   int key_res= relations->file->index_read(relations->record[0],
-					   buff, rcat_id->pack_length(),
+					   (byte *)buff, rcat_id->pack_length(),
 					   HA_READ_KEY_EXACT);
   
   for ( ; !key_res && cat_id == (int16) rcat_id->val_int() ;
@@ -267,7 +267,7 @@ int get_all_topics_for_category(THD *thd, TABLE *topics, TABLE *relations,
     field->get_key_image(topic_id_buff, field->pack_length(), help_charset,
 			 Field::itRAW);
 
-    if (!topics->file->index_read(topics->record[0], topic_id_buff,
+    if (!topics->file->index_read(topics->record[0], (byte *)topic_id_buff,
 				  field->pack_length(),
 				  HA_READ_KEY_EXACT))
       res->push_back(get_field(&thd->mem_root,

@@ -676,7 +676,7 @@ static inline void reg_requests(BLOCK_LINK *block, int count)
 static inline void unreg_request(BLOCK_LINK *block, int at_end)
 {
   if (! --block->requests)
-    link_block(block, at_end);
+    link_block(block, (my_bool)at_end);
 }
 
 /*
@@ -1000,7 +1000,7 @@ restart:
             if (block->wqueue[COND_FOR_SAVED].last_thread)
               release_queue(&block->wqueue[COND_FOR_SAVED]);
           }
-          link_to_file_list(block, file, block->hash_link ? 1 : 0);
+          link_to_file_list(block, file, (my_bool)(block->hash_link ? 1 : 0));
           block->status=error? BLOCK_ERROR : 0;
           block->length=0;
           block->offset=key_cache_block_size;
@@ -1150,7 +1150,7 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
       {
         /* The requested page is to be read into the block buffer */
         read_block(block,key_cache_block_size,read_length+offset,
-                   page_st == PAGE_TO_BE_READ);
+                   (my_bool)(page_st == PAGE_TO_BE_READ));
       }
       else if (! (block->status & BLOCK_ERROR) &&
                block->length < read_length + offset)
@@ -1270,7 +1270,7 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
         read_block(block,
                    offset + read_length >= key_cache_block_size?
                    offset : key_cache_block_size,
-                   offset,page_st == PAGE_TO_BE_READ);
+                   offset,(my_bool)(page_st == PAGE_TO_BE_READ));
       
       if (!dont_write)
       { /* buff has been written to disk at start */
