@@ -276,6 +276,17 @@ handle_new_error:
 		"InnoDB: my.cnf and restart the database.\n");
 		
 		exit(1);
+	} else if (err == DB_CORRUPTION) {
+
+	       fprintf(stderr,
+	    "InnoDB: We detected index corruption in an InnoDB type table.\n"
+	    "InnoDB: You have to dump + drop + reimport the table or, in\n"
+	    "InnoDB: a case of widespread corruption, dump all InnoDB\n"
+	    "InnoDB: tables and recreate the whole InnoDB tablespace.\n"
+	    "InnoDB: If the mysqld server crashes after the startup or when\n"
+	    "InnoDB: you dump the tables, look at section 6.1 of\n"
+	    "InnoDB: http://www.innodb.com/ibman.html for help.\n");
+
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n", err);
 		ut_a(0);
