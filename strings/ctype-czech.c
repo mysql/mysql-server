@@ -618,6 +618,7 @@ CHARSET_INFO my_charset_czech =
     sort_order_czech,
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
+    "","",
     4,			/* strxfrm_multiply */
     my_strnncoll_czech,
     my_strnncollsp_czech,

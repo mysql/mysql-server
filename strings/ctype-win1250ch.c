@@ -653,6 +653,7 @@ CHARSET_INFO my_charset_win1250ch =
     sort_order_win1250ch,
     tab_cp1250_uni,		/* tab_to_uni   */
     idx_uni_cp1250,		/* tab_from_uni */
+    "","",
     2,				/* strxfrm_multiply */
     my_strnncoll_win1250ch,
     my_strnncollsp_win1250ch,

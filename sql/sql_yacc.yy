@@ -3867,7 +3867,7 @@ literal:
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
-			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
+			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
@@ -3964,8 +3964,8 @@ ident:
 	  LEX *lex= Lex;
 	  $$.str= lex->thd->strmake($1.str,$1.length);
 	  $$.length=$1.length;
-	  if (lex->next_state != STATE_END)
-	    lex->next_state=STATE_OPERATOR_OR_IDENT;
+	  if (lex->next_state != MY_LEX_END)
+	    lex->next_state= MY_LEX_OPERATOR_OR_IDENT;
 	}
 	;
 

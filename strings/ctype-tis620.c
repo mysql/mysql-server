@@ -709,6 +709,7 @@ CHARSET_INFO my_charset_tis620 =
     sort_order_tis620,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     4,			/* strxfrm_multiply */
     my_strnncoll_tis620,
     my_strnncollsp_tis620,
