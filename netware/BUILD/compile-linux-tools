@@ -1,0 +1,52 @@
+#! /bin/sh                   
+
+#debug
+#set -x
+
+if test ! -r ./sql/mysqld.cc
+then
+  echo "you must start from the top source directory"
+  exit 1
+fi
+
+path=`dirname $0`
+
+# clean
+if test -e "Makefile"; then make -k clean; fi
+
+# remove files
+rm -f NEW-RPMS/*
+rm -f */.deps/*.P
+rm -f */*.linux
+
+# run autotools
+. $path/compile-AUTOTOOLS
+
+# configure
+./configure --without-innodb --without-docs
+
+# build	tools only
+make clean config.h
+(cd dbug; make libdbug.a)
+(cd strings; make libmystrings.a)
+(cd mysys; make libmysys.a)
+(cd heap; make libheap.a)
+(cd vio; make libvio.a)
+(cd regex; make libregex.a)
+(cd isam; make libnisam.a)
+(cd merge; make libmerge.a)
+(cd myisam; make libmyisam.a)
+(cd myisammrg; make libmyisammrg.a)
+(cd extra; make comp_err)
+(cd libmysql; make conf_to_src)
+(cd libmysql_r; make conf_to_src)
+(cd sql; make gen_lex_hash)
+(cd strings; make conf_to_src)
+
+# copying required linux tools
+cp extra/comp_err extra/comp_err.linux
+cp libmysql/conf_to_src libmysql/conf_to_src.linux
+cp libmysql_r/conf_to_src libmysql_r/conf_to_src.linux
+cp sql/gen_lex_hash sql/gen_lex_hash.linux
+cp strings/conf_to_src strings/conf_to_src.linux
+
