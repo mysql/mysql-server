@@ -7179,8 +7179,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           /*
             We'll use ref access method on key new_ref_key. In general case 
             the index search tuple for new_ref_key will be different (e.g.
-            when one of the indexes only covers prefix of the field, see
-            BUG#9213 in group_by.test).
+            when one index is defined as (part1, part2, ...) and another as
+            (part1, part2(N), ...) and the WHERE clause contains 
+            "part1 = const1 AND part2=const2". 
             So we build tab->ref from scratch here.
           */
           KEYUSE *keyuse= tab->keyuse;
