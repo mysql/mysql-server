@@ -10,6 +10,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "buf0lru.ic"
+#include "srv0srv.h"	/* Needed to getsrv_print_innodb_monitor */
 #endif
 
 #include "ut0byte.h"

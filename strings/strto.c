@@ -197,7 +197,7 @@ function (const char *nptr,char **endptr,int base)
   }
 
   /* Return the result of the appropriate sign.  */
-  return (negative ? -((longtype) i) : i);
+  return (negative ? -((longtype) i) : (longtype) i);
 
 noconv:
   /* There was no number to convert.  */

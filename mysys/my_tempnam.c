@@ -15,6 +15,13 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
+/*
+  This function is only used by some old ISAM code.
+  When we remove ISAM support from MySQL, we should also delete this file
+
+  One should instead use the functions in mf_tempfile.c
+*/
+
 #include "mysys_priv.h"
 #include <m_string.h>
 #include "my_static.h"
@@ -103,13 +110,13 @@ my_string my_tempnam(const char *dir, const char *pfx,
   old_env=(char**)environ;
   if (dir)
   {				/* Don't use TMPDIR if dir is given */
-    environ=(const char**)temp_env;
+    environ=(const char**)temp_env;		/* May give warning */
     temp_env[0]=0;
   }
 #endif
   res=tempnam((char*) dir,(my_string) pfx); /* Use stand. dir with prefix */
 #ifndef OS2
-  environ=(const char**)old_env;
+  environ=(const char**)old_env;		/* May give warning */
 #endif
   if (!res)
     DBUG_PRINT("error",("Got error: %d from tempnam",errno));

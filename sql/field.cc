@@ -2412,8 +2412,7 @@ String *Field_timestamp::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_timestamp::get_date(TIME *ltime,
-			       bool fuzzydate __attribute__((unused)))
+bool Field_timestamp::get_date(TIME *ltime, bool fuzzydate)
 {
   long temp;
 #ifdef WORDS_BIGENDIAN
@@ -2424,6 +2423,8 @@ bool Field_timestamp::get_date(TIME *ltime,
     longget(temp,ptr);
   if (temp == 0L)
   {				      /* Zero time is "000000" */
+    if (!fuzzydate)
+      return 1;
     bzero((char*) ltime,sizeof(*ltime));
   }
   else
@@ -2447,8 +2448,7 @@ bool Field_timestamp::get_date(TIME *ltime,
 
 bool Field_timestamp::get_time(TIME *ltime)
 {
-  Field_timestamp::get_date(ltime,0);
-  return 0;
+  return Field_timestamp::get_date(ltime,0);
 }
 
 int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
@@ -3029,13 +3029,12 @@ bool Field_newdate::get_date(TIME *ltime,bool fuzzydate)
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
   ltime->time_type=TIMESTAMP_DATE;
-  return (!fuzzydate && (!ltime->month || !ltime->day) && ltime->year) ? 1 : 0;
+  return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
 bool Field_newdate::get_time(TIME *ltime)
 {
-  Field_newdate::get_date(ltime,0);
-  return 0;
+  return Field_newdate::get_date(ltime,0);
 }
 
 int Field_newdate::cmp(const char *a_ptr, const char *b_ptr)
@@ -3214,13 +3213,12 @@ bool Field_datetime::get_date(TIME *ltime,bool fuzzydate)
   ltime->day=		part1%100;
   ltime->month= 	part1/100%100;
   ltime->year= 		part1/10000;
-  return (!fuzzydate && (!ltime->month || !ltime->day) && ltime->year) ? 1 : 0;
+  return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
 bool Field_datetime::get_time(TIME *ltime)
 {
-  Field_datetime::get_date(ltime,0);
-  return 0;
+  return Field_datetime::get_date(ltime,0);
 }
 
 int Field_datetime::cmp(const char *a_ptr, const char *b_ptr)

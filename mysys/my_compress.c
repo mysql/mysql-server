@@ -20,6 +20,7 @@
 #include <global.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
+#include <m_string.h>
 #include <zlib.h>
 
 /*

@@ -513,29 +513,37 @@ bool MYSQL_LOG::is_active(const char* log_file_name)
 
 void MYSQL_LOG::new_file(bool inside_mutex)
 {
-  // only rotate open logs that are marked non-rotatable
-  // (binlog with constant name are non-rotatable)
-  if (is_open() && ! no_rotate)
+  if (is_open())
   {
     char new_name[FN_REFLEN], *old_name=name;
     if (!inside_mutex)
       VOID(pthread_mutex_lock(&LOCK_log));
-    if (generate_new_name(new_name, name))
-    {
-      if (!inside_mutex)
-        VOID(pthread_mutex_unlock(&LOCK_log));
-      return;					// Something went wrong
-    }
-    if (log_type == LOG_BIN)
+
+    if (!no_rotate)
     {
       /*
-	We log the whole file name for log file as the user may decide
-	to change base names at some point.
+	only rotate open logs that are marked non-rotatable
+	(binlog with constant name are non-rotatable)
       */
-      Rotate_log_event r(new_name+dirname_length(new_name));
-      r.write(&log_file);
-      VOID(pthread_cond_broadcast(&COND_binlog_update));
+      if (generate_new_name(new_name, name))
+      {
+	if (!inside_mutex)
+	  VOID(pthread_mutex_unlock(&LOCK_log));
+	return;					// Something went wrong
+      }
+      if (log_type == LOG_BIN)
+      {
+	/*
+	  We log the whole file name for log file as the user may decide
+	  to change base names at some point.
+	*/
+	Rotate_log_event r(new_name+dirname_length(new_name));
+	r.write(&log_file);
+	VOID(pthread_cond_broadcast(&COND_binlog_update));
+      }
     }
+    else
+      strmov(new_name, old_name);		// Reopen old file name
     name=0;
     close();
     open(old_name, log_type, new_name);

@@ -25,6 +25,7 @@
 
 #include "mysys_priv.h"
 #include <m_ctype.h>
+#include <m_string.h>
 
 	/* string to uppercase */
 

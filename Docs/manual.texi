@@ -22958,7 +22958,7 @@ By default, the @code{mysql.server} script starts the MySQL
 server with the @code{-l} option.  If you need better performance when
 you start using MySQL in a production environment, you can
 remove the @code{-l} option from @code{mysql.server} or change it to
-@code{--log-binary}.
+@code{--log-bin}.
 
 The entries in this log are written as @code{mysqld} receives the questions.
 This may be different than the order in which the statements are executed.
@@ -23032,8 +23032,8 @@ and the crash.
 @cindex binary log
 @cindex files, binary log
 
-In the future the binary log will replace the update log, so we
-recommend you to switch to this log format as soon as possible!
+The intention is that the binary log should replace the update log, so
+we recommend you to switch to this log format as soon as possible!
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
@@ -23048,6 +23048,14 @@ file name is given, it defaults to the name of the host machine followed
 by @code{-bin}. If file name is given, but it doesn't contain a path, the
 file is written in the data directory.
 
+If you supply an extension to @code{--log-bin=filename.extension}, the
+extension will be silenty removed.
+
+To the binary log filename @code{mysqld} will append an extension that is a
+number that is incremented each time you execute @code{mysqladmin
+refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
+statement or restart the server. 
+
 You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:
 
@@ -23061,11 +23069,6 @@ exclude all others not explicitly mentioned.
 Tells the master that updates to the given database should not be logged
 to the binary log (Example: @code{binlog-ignore-db=some_database})
 @end multitable
-
-To the binary log filename @code{mysqld} will append an extension that is a
-number that is incremented each time you execute @code{mysqladmin
-refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
-statement or restart the server.
 
 To be able to know which different binary log files have been used,
 @code{mysqld} will also create a binary log index file that
@@ -46840,6 +46843,11 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
 @item
+Fixed bug when using a reference to a @code{AVG()} column in @code{HAVING}.
+@item
+Fixed that date functions that require correct dates, like
+@code{DAYOFYEAR(column)} will return @code{NULL} for @code{0000-00-00} dates.
+@item
 Fixed bug in const-propagation when comparing columns of different
 types. (@code{SELECT * FROM date_col="2001-01-01" and date_col=time_col})
 @item
@@ -52724,15 +52732,15 @@ Make a second backup of the tables.
 Remove (or move away) any old log files from the MySQL data
 directory if you need more space.
 @item
-Start @code{mysqld} with @code{--log-binary}. @xref{Binary log}.
+Start @code{mysqld} with @code{--log-bin}. @xref{Binary log}.
 If you want to find a query that crashes @code{mysqld}, you should use
-@code{--log --log-binary}.
+@code{--log --log-bin}.
 @item
 When you have gotten a crashed table, stop the @code{mysqld server}.
 @item
 Restore the backup.
 @item
-Restart the @code{mysqld} server @strong{without} @code{--log-binary}
+Restart the @code{mysqld} server @strong{without} @code{--log-bin}
 @item
 Re-execute the commands with @code{mysqlbinlog update-log-file | mysql}.
 The update log is saved in the MySQL database directory with
