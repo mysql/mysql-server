@@ -7903,6 +7903,7 @@ object_privilege:
 	| SHOW VIEW_SYM { Lex->grant |= SHOW_VIEW_ACL; }
 	| CREATE ROUTINE_SYM { Lex->grant |= CREATE_PROC_ACL; }
 	| ALTER ROUTINE_SYM { Lex->grant |= ALTER_PROC_ACL; }
+	| CREATE USER { Lex->grant |= CREATE_USER_ACL; }
 	;
 
 

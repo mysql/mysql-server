@@ -508,9 +508,6 @@ Package=<4>
     Project_Dep_Name mysqlimport
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name MySqlManager
-    End Project Dependency
-    Begin Project Dependency
     Project_Dep_Name mysqlshow
     End Project Dependency
     Begin Project Dependency
