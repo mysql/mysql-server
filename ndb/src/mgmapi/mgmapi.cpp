@@ -629,7 +629,6 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     malloc(sizeof(ndb_mgm_cluster_state)+
 	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
-  state->hostname= 0;
   state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
@@ -1046,6 +1045,7 @@ struct ndb_mgm_event_categories
   { "CHECKPOINT", NDB_MGM_EVENT_CATEGORY_CHECKPOINT },
   { "DEBUG", NDB_MGM_EVENT_CATEGORY_DEBUG },
   { "INFO", NDB_MGM_EVENT_CATEGORY_INFO },
+  { "WARNING", NDB_MGM_EVENT_CATEGORY_WARNING },
   { "ERROR", NDB_MGM_EVENT_CATEGORY_ERROR },
   { "GREP", NDB_MGM_EVENT_CATEGORY_GREP },
   { "BACKUP", NDB_MGM_EVENT_CATEGORY_BACKUP },
