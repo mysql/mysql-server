@@ -23,7 +23,7 @@ bench_SCRIPTS =		test-ATIS test-connect test-create test-insert \
 			test-big-tables test-select test-wisconsin \
 			test-alter-table graph-compare-results \
 			bench-init.pl compare-results run-all-tests \
-			server-cfg crash-me copy-db \
+			server-cfg crash-me copy-db
 CLEANFILES =		$(bench_SCRIPTS)
 EXTRA_SCRIPTS =		test-ATIS.sh test-connect.sh test-create.sh \
 			test-insert.sh test-big-tables.sh test-select.sh \
