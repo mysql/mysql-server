@@ -20,6 +20,7 @@
   we are working on.  In this case we should just return read errors from
   the file descriptior.
 */
+#ifdef DUMMY
 
 #include <my_global.h>
 #include "mysql_embed.h"
@@ -219,7 +220,7 @@ int create_vio(NET *net, int separate_thread)
   Vio * v  = net->vio;
   if (!v)
   {
-    v = vio_new(0, separate_thread ? VIO_TYPE_SHARED_MEMORY : VIO_TYPE_BUFFER, 0);
+    v = vio_new(0, separate_thread ? VIO_CLOSED : VIO_TYPE_TCPIP, 0);
     net->vio = v;
   }
   return !v;
@@ -233,3 +234,5 @@ void set_thd(Vio *v, void *thd)
   } 
 }
 #endif /* HAVE_VIO */
+#endif /* DUMMY */
+

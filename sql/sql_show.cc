@@ -234,7 +234,7 @@ int mysqld_show_table_types(THD *thd)
       option_name= "DEFAULT";
     net_store_data(packet, option_name);
     net_store_data(packet, types->comment);
-    if (my_net_write(&thd->net, (char*) packet->ptr(), packet->length()))
+    if (SEND_ROW(thd, field_list.elements, (char*) packet->ptr(), packet->length()))
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -296,7 +296,7 @@ int mysqld_show_privileges(THD *thd)
     net_store_data(packet,privilege->privilege);
     net_store_data(packet,privilege->context);
     net_store_data(packet,privilege->comment);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    if (SEND_ROW(thd,field_list.elements,(char*) packet->ptr(),packet->length()))
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -382,7 +382,7 @@ int mysqld_show_column_types(THD *thd)
     net_store_data(packet,sys_column_types[i].case_sensitivity);
     net_store_data(packet,sys_column_types[i].default_value);
     net_store_data(packet,sys_column_types[i].comment);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    if (SEND_ROW(thd,field_list.elements,(char*) packet->ptr(),packet->length()))
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -997,7 +997,9 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   restore_record(table,2);              // Get empty record
   if (send_fields(thd,field_list,2))
     DBUG_VOID_RETURN;
+#ifndef EMBEDDED_LIBRARY
   VOID(net_flush(&thd->net));
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1016,6 +1018,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 
   if (convert)
     convert->convert((char*) packet->ptr(), packet->length());
+#ifndef EMBEDDED_LIBRARY
   if (fd < 0)
   {
     if (my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
@@ -1028,6 +1031,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 		 MYF(MY_WME)))
       DBUG_RETURN(-1);
   }
+#endif
   DBUG_RETURN(0);
 }
 
@@ -1273,7 +1277,7 @@ public:
 template class I_List<thread_info>;
 #endif
 
-
+#ifndef EMBEDDED_LIBRARY
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
@@ -1398,7 +1402,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   send_eof(thd);
   DBUG_VOID_RETURN;
 }
-
+#else /* EMBEDDED_LIBRARY */
+void mysqld_list_processes(THD *thd __attribute__(unused),
+			   const char *user __attribute__(unused),
+			   bool verbose __attribute__(unused))
+{}
+#endif
 
 /*****************************************************************************
   Status functions
@@ -1434,7 +1443,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
       net_store_data(&packet2,(uint32) cs[0]->strxfrm_multiply);
       net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen));
 
-      if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
+      if (SEND_ROW(thd, field_list.elements, (char*) packet2.ptr(),packet2.length()))
          goto err;
     }
   }
@@ -1510,6 +1519,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_QUESTION:
         net_store_data(&packet2,(uint32) thd->query_id);
         break;
+#ifndef EMBEDDED_LIBRARY
       case SHOW_RPL_STATUS:
 	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
 	break;
@@ -1522,6 +1532,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
+#endif /* EMBEDDED_LIBRARY */
       case SHOW_OPENTABLES:
         net_store_data(&packet2,(uint32) cached_tables());
         break;

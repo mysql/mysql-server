@@ -62,11 +62,14 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
+#ifndef EMBEDDED_LIBRARY
   if (thd->net.vio == 0)
   {
     sql_print_error(msgbuf);
     return;
   }
+#endif
+
   if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR | T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE,msgbuf,MYF(MY_WME));
@@ -139,6 +142,7 @@ const char *ha_myisam::index_type(uint key_number)
 
 int ha_myisam::net_read_dump(NET* net)
 {
+#ifndef EMBEDDED_LIBRARY
   int data_fd = file->dfile;
   int error = 0;
 
@@ -161,14 +165,17 @@ int ha_myisam::net_read_dump(NET* net)
       goto err;
     }
   }
-
 err:
   return error;
+#else
+  return (int)net;
+#endif
 }
 
 
 int ha_myisam::dump(THD* thd, int fd)
 {
+#ifndef EMBEDDED_LIBRARY
   MYISAM_SHARE* share = file->s;
   NET* net = &thd->net;
   uint blocksize = share->blocksize;
@@ -217,6 +224,9 @@ int ha_myisam::dump(THD* thd, int fd)
 err:
   my_free((gptr) buf, MYF(0));
   return error;
+#else
+  return (int)thd - fd;
+#endif
 }
 
 	/* Name is here without an extension */

@@ -476,6 +476,7 @@ static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
   Returns 0 on ok, -1 < if error is given > 0 on error.
 */
 
+#ifndef EMBEDDED_LIBRARY  
 static int
 check_connections(THD *thd)
 {
@@ -622,7 +623,7 @@ check_connections(THD *thd)
      thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
        opt_using_transactions)
-  thd->net.return_status= &thd->server_status;
+  net->return_status= &thd->server_status;
   net->read_timeout=(uint) thd->variables.net_read_timeout;
 
   char prepared_scramble[SCRAMBLE41_LENGTH+4]; /* Buffer for scramble and hash */
@@ -684,7 +685,6 @@ check_connections(THD *thd)
   thd->password=using_password;
   return 0;
 }
-
 
 pthread_handler_decl(handle_one_connection,arg)
 {
@@ -876,6 +876,8 @@ end:
   DBUG_RETURN(0);				// Never reached
 }
 
+#endif /* EMBEDDED_LIBRARY */
+
     /* This works because items are allocated with sql_alloc() */
 
 void free_items(Item *item)
@@ -920,7 +922,9 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     my_error(ER_GET_ERRNO, MYF(0));
     goto err;
   }
+#ifndef EMBEDDED_LIBRARY
   net_flush(&thd->net);
+#endif
   if ((error = table->file->dump(thd,fd)))
     my_error(ER_GET_ERRNO, MYF(0));
 
@@ -1000,12 +1004,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!mysql_change_db(thd,packet))
       mysql_log.write(thd,command,"%s",thd->db);
     break;
+#ifndef EMBEDDED_LIBRARY
   case COM_REGISTER_SLAVE:
   {
     if (!register_slave(thd, (uchar*)packet, packet_length))
       send_ok(thd);
     break;
   }
+#endif
   case COM_TABLE_DUMP:
     {
       statistic_increment(com_other, &LOCK_status);
@@ -1023,6 +1029,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       break;
     }
+#ifndef EMBEDDED_LIBRARY
   case COM_CHANGE_USER:
   {
     thd->change_user();
@@ -1139,7 +1146,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->priv_user=save_priv_user;
     break;
   }
-
+#endif /* EMBEDDED_LIBRARY */
   case COM_EXECUTE:
   {
     mysql_stmt_execute(thd, packet);
@@ -1252,6 +1259,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_rm_db(thd,db,0,0);
       break;
     }
+#ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP:
     {
       statistic_increment(com_other,&LOCK_status);
@@ -1276,6 +1284,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       net->error = 0;
       break;
     }
+#endif
   case COM_REFRESH:
     {
       statistic_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
@@ -1289,6 +1298,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	send_eof(thd);
       break;
     }
+#ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
     statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
@@ -1309,7 +1319,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     kill_mysql();
     error=TRUE;
     break;
-
+#endif
+#ifndef EMBEDDED_LIBRARY
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
@@ -1331,6 +1342,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     VOID(net_flush(net));
     break;
   }
+#endif
   case COM_PING:
     statistic_increment(com_other,&LOCK_status);
     send_ok(thd);				// Tell client we are alive
@@ -1480,6 +1492,7 @@ mysql_execute_command(THD *thd)
   */
   thd->old_total_warn_count= thd->total_warn_count;
 
+#ifndef EMBEDDED_LIBRARY
   if (thd->slave_thread)
   {
     /*
@@ -1501,7 +1514,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-
+#endif /* EMBEDDED_LIBRARY */
   /*
     TODO: make derived tables processing 'inside' SELECT processing.
     TODO: solve problem with depended derived tables in subselects
@@ -1525,9 +1538,13 @@ mysql_execute_command(THD *thd)
 	}
   }
   if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables)) ||
+       lex->unit.create_total_list(thd, lex, &tables)) 
+#ifndef EMBEDDED_LIBRARY
+      ||
       (table_rules_on && tables && thd->slave_thread &&
-       !tables_ok(thd,tables)))
+       !tables_ok(thd,tables))
+#endif
+      )
     DBUG_VOID_RETURN;
 
   statistic_increment(com_stat[lex->sql_command],&LOCK_status);
@@ -1610,6 +1627,7 @@ mysql_execute_command(THD *thd)
     res= mysqld_help(thd,lex->help_arg);
     break;
 
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_PURGE:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -1617,6 +1635,8 @@ mysql_execute_command(THD *thd)
     res = purge_master_logs(thd, lex->to_log);
     break;
   }
+#endif
+
   case SQLCOM_SHOW_WARNS:
   {
     res= mysqld_show_warnings(thd, (ulong)
@@ -1642,6 +1662,8 @@ mysql_execute_command(THD *thd)
 #endif
     break;
   }
+
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -1656,6 +1678,8 @@ mysql_execute_command(THD *thd)
     res = show_binlog_events(thd);
     break;
   }
+#endif
+
   case SQLCOM_BACKUP_TABLE:
   {
     if (check_db_used(thd,tables) ||
@@ -1675,6 +1699,8 @@ mysql_execute_command(THD *thd)
     res = mysql_restore_table(thd, tables);
     break;
   }
+
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_CHANGE_MASTER:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -1709,6 +1735,7 @@ mysql_execute_command(THD *thd)
     else
       res = load_master_data(thd);
     break;
+#endif /* EMBEDDED_LIBRARY */
 
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
@@ -1720,6 +1747,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
 
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_LOAD_MASTER_TABLE:
   {
     if (!tables->db)
@@ -1751,6 +1779,8 @@ mysql_execute_command(THD *thd)
     UNLOCK_ACTIVE_MI;
     break;
   }
+#endif /* EMBEDDED_LIBRARY */
+
   case SQLCOM_CREATE_TABLE:
   {
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
@@ -1852,6 +1882,7 @@ mysql_execute_command(THD *thd)
       res = mysql_create_index(thd, tables, lex->key_list);
     break;
 
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_SLAVE_START:
   {
     LOCK_ACTIVE_MI;
@@ -1866,6 +1897,8 @@ mysql_execute_command(THD *thd)
     UNLOCK_ACTIVE_MI;
     break;
   }
+#endif
+
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
     send_error(thd,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
@@ -1956,6 +1989,7 @@ mysql_execute_command(THD *thd)
       res= -1;
     break;
   }
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_SHOW_BINLOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
@@ -1968,6 +2002,7 @@ mysql_execute_command(THD *thd)
       break;
     }
 #endif
+#endif /* EMBEDDED_LIBRARY */
   case SQLCOM_SHOW_CREATE:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
@@ -2423,6 +2458,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CHANGE_DB:
     mysql_change_db(thd,select_lex->db);
     break;
+#ifndef EMBEDDED_LIBRARY
   case SQLCOM_LOAD:
   {
     uint privilege= (lex->duplicates == DUP_REPLACE ?
@@ -2449,6 +2485,7 @@ mysql_execute_command(THD *thd)
 		   lex->duplicates, (bool) lex->local_file, lex->lock_option);
     break;
   }
+#endif /* EMBEDDED_LIBRARY */
   case SQLCOM_SET_OPTION:
     if (!(res=sql_set_variables(thd, &lex->var_list)))
       send_ok(thd);
@@ -3124,7 +3161,9 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 	else
 	{
 	  mysql_execute_command(thd);
+#ifndef EMBEDDED_LIBRARY
 	  query_cache_end_of_result(&thd->net);
+#endif
 	}
       }
     }
@@ -3132,7 +3171,9 @@ mysql_parse(THD *thd, char *inBuf, uint length)
     {
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->fatal_error));
+#ifndef EMBEDDED_LIBRARY
       query_cache_abort(&thd->net);
+#endif
     }
     thd->proc_info="freeing items";
     free_items(thd->free_list);  /* Free strings used by items */
@@ -3712,9 +3753,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     refresh_status();
   if (options & REFRESH_THREADS)
     flush_thread_cache();
+#ifndef EMBEDDED_LIBRARY
   if (options & REFRESH_MASTER)
     if (reset_master(thd))
       result=1;
+#endif
 #ifdef OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
@@ -3722,6 +3765,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
        result=load_des_key_file(des_key_file);
    }
 #endif
+#ifndef EMBEDDED_LIBRARY
  if (options & REFRESH_SLAVE)
  {
    LOCK_ACTIVE_MI;
@@ -3729,6 +3773,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
      result=1;
    UNLOCK_ACTIVE_MI;
  }
+#endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
  return result;

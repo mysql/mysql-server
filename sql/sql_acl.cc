@@ -2937,7 +2937,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     }
     thd->packet.length(0);
     net_store_data(&thd->packet,global.ptr(),global.length());
-    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
+    if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 		     thd->packet.length()))
     {
       error=-1; goto end;
@@ -2993,7 +2993,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	  db.append(" WITH GRANT OPTION",18);
 	thd->packet.length(0);
 	net_store_data(&thd->packet,db.ptr(),db.length());
-	if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
+	if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 			 thd->packet.length()))
 	{
 	  error=-1;
@@ -3081,7 +3081,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	  global.append(" WITH GRANT OPTION",18);
 	thd->packet.length(0);
 	net_store_data(&thd->packet,global.ptr(),global.length());
-	if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
+	if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 			 thd->packet.length()))
 	{
 	  error= -1;

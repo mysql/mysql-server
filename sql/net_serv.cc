@@ -23,6 +23,7 @@
   3 byte length & 1 byte package-number.
 */
 
+#ifndef EMBEDDED_LIBRARY
 #ifdef __WIN__
 #include <winsock.h>
 #endif
@@ -852,3 +853,6 @@ my_net_read(NET *net)
 #endif /* HAVE_COMPRESS */
   return len;
 }
+
+#endif /* EMBEDDED_LIBRARY */
+

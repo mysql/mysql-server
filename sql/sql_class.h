@@ -388,9 +388,11 @@ struct system_variables
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
-
 class THD :public ilink {
 public:
+#ifdef EMBEDDED_LIBRARY
+  struct st_mysql  *mysql;
+#endif
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
   MEM_ROOT mem_root;			// 1 command-life memory pool
@@ -403,9 +405,6 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
-#ifdef EMBEDDED_LIBRARY
-  struct st_mysql  *mysql;
-#endif
 
   char	  *query;			// Points to the current query,
   /*
@@ -548,6 +547,7 @@ public:
 
   THD();
   ~THD();
+
   void init(void);
   void change_user(void);
   void cleanup(void);
@@ -643,12 +643,17 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
+#ifndef EMBEDDED_LIBRARY
   inline void clear_error()
   {
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
   }
+#else
+  void clear_error();
+#endif
+
   void add_possible_loop(Item *);
 };
 

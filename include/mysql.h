@@ -183,18 +183,14 @@ enum mysql_rpl_type
   MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 
-struct st_mysql_res;
+
+#ifndef EMBEDDED_LIBRARY
 
 typedef struct st_mysql
 {
   NET		net;			/* Communication parameters */
   gptr		connector_fd;		/* ConnectorFd for SSL */
-#ifndef _0EMBEDDED_LIBRARY
   char		*host,*user,*passwd,*unix_socket,*server_version,*host_info,*info;
-#endif
-#ifdef EMBEDDED_LIBRARY
-  struct st_mysql_res *result;
-#endif
   char          *db;
   struct charset_info_st *charset;
   MYSQL_FIELD	*fields;
@@ -234,11 +230,31 @@ typedef struct st_mysql
   LIST  *stmts;                     /* list of all statements */
 } MYSQL;
 
+#else
+
+struct st_mysql_res;
+
+typedef struct st_mysql
+{
+  struct st_mysql_res *result;
+  void *thd;
+  struct charset_info_st *charset;
+  unsigned int  server_language;
+  MYSQL_FIELD	*fields;
+  MEM_ROOT	field_alloc;
+  my_ulonglong affected_rows;
+  unsigned int	field_count;
+  struct st_mysql_options options;
+  enum mysql_status status;
+  my_bool	free_me;		/* If free in mysql_close */
+  my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
+  unsigned int last_errno;
+  char *last_error;
+} MYSQL;
+
+#endif
 
 typedef struct st_mysql_res {
-#ifdef EMBEDDED_LIBRARY
-  const char    *query_str;
-#endif
   my_ulonglong row_count;
   MYSQL_FIELD	*fields;
   MYSQL_DATA	*data;
