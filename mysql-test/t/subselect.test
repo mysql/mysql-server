@@ -807,6 +807,7 @@ INSERT INTO t1 VALUES("2f6161e879db43c1a5b82c21ddc49089", "Default", "System", "
 INSERT INTO t1 VALUES("c373e9f5ad0791724315444553544200", "AddDocumentTest", "admin", "2003-06-09 10:51:25", "Movie Reviews", "0", "2003-06-09 10:51:25", "admin", "0", "2f6161e879db43c1a5b82c21ddc49089", "03eea05112b845949f3fd03278b5fe43", NULL);
 SELECT 'c373e9f5ad0791a0dab5444553544200' IN(SELECT t1.FOLDERID FROM t1 WHERE t1.PARENTID='2f6161e879db43c1a5b82c21ddc49089' AND t1.FOLDERNAME = 'Level1');
 drop table t1;
+
 #
 # alloc_group_fields() working
 #
@@ -829,3 +830,14 @@ CREATE TABLE t1
  s2 CHAR(5) COLLATE latin1_swedish_ci);
 --error 1265
 SELECT * FROM t1 WHERE s1 = (SELECT s2 FROM t1);
+drop table t1;
+
+#
+# aggregate functions in HAVING test
+#
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
+drop table t1,t2;
