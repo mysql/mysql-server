@@ -348,7 +348,7 @@ int init_master_info(MASTER_INFO* mi)
   // keep other threads from reading bogus info
 
   pthread_mutex_lock(&mi->lock);
-  
+  mi->pending = 0;
   
   if(!my_stat(fname, &stat_area, MYF(0))) // we do not want any messages
     // if the file does not exist
@@ -1053,6 +1053,8 @@ static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
 static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  mi->pending = 0; // if we lost connection after reading a state set event
+  // we will be re-reading it, so pending needs to be cleared
   while(!slave_killed(thd) && mc_mysql_reconnect(mysql))
   {
     sql_print_error(

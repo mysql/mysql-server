@@ -1,0 +1,9 @@
+source t/include/master-slave.inc;
+connection master;
+drop table if exists x;
+create table x(n int primary key);
+!insert into x values (1),(2),(2);
+insert into x values (3);
+connection slave;
+sleep 1;
+@r/3.23/rpl000003.result select * from x;                                     
