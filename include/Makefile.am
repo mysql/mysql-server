@@ -28,7 +28,7 @@ noinst_HEADERS =	config-win.h \
 			my_dir.h mysys_err.h my_base.h \
 			my_nosys.h my_alarm.h queues.h \
 			my_tree.h hash.h thr_alarm.h thr_lock.h \
-			getopt.h t_ctype.h violite.h \
+			getopt.h t_ctype.h violite.h md5.h \
 			mysql_version.h.in
 
 # mysql_version.h are generated
