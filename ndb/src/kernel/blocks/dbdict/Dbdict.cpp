@@ -4538,6 +4538,15 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     parseP->errorLine = __LINE__;
     return;
   }
+
+  if(parseP->requestType == DictTabInfo::AlterTableFromAPI)
+  {  
+    ndbrequire(!checkExist);
+  }
+  if(!checkExist)
+  {
+    ndbrequire(parseP->requestType == DictTabInfo::AlterTableFromAPI);
+  }
   
   /* ---------------------------------------------------------------- */
   // Verify that table name is an allowed table name.
@@ -4633,12 +4642,10 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   strcpy(tablePtr.p->tableName, keyRecord.tableName);  
   if (parseP->requestType != DictTabInfo::AlterTableFromAPI) {
     jam();
-    c_tableRecordHash.add(tablePtr);
-  }
-
 #ifdef VM_TRACE
-  ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
+    ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
 #endif
+  }
   
   //tablePtr.p->noOfPrimkey = tableDesc.NoOfKeyAttr;
   //tablePtr.p->noOfNullAttr = tableDesc.NoOfNullable;
@@ -4677,11 +4684,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   handleTabInfo(it, parseP);
 
-  if(parseP->errorCode != 0){
+  if(parseP->errorCode != 0)
+  {
     /**
      * Release table
      */
-    releaseTableObject(tablePtr.i);
+    releaseTableObject(tablePtr.i, !checkExist);
   }
 }//handleTabInfoInit()
 
@@ -6563,13 +6571,27 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       int res = getMetaTablePtr(tmp, indexId,  indexVersion);
       switch(res){
       case MetaData::InvalidArgument:
-      case MetaData::TableNotFound:
-	err = DropTableRef::NoSuchTable;
+	err = DropIndxRef::IndexNotFound;
 	goto error;
+      case MetaData::TableNotFound:
       case MetaData::InvalidTableVersion:
 	err = DropIndxRef::InvalidIndexVersion;
 	goto error;
       }
+
+      if (! tmp.p->isIndex()) {
+	jam();
+	err = DropIndxRef::NotAnIndex;
+	goto error;
+      }
+
+      if (tmp.p->indexState == TableRecord::IS_DROPPING){
+	jam();
+	err = DropIndxRef::IndexNotFound;
+	goto error;
+      }
+
+      tmp.p->indexState = TableRecord::IS_DROPPING;
 
       req->setOpKey(++c_opRecordSequence);
       NodeReceiverGroup rg(DBDICT, c_aliveNodes);
