@@ -2023,11 +2023,6 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$3,$4,0); }
 	| expr '-' interval_expr interval
 	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| expr COLLATE_SYM ident_or_text
-	  { 
-	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
-					    YYTHD->variables.thd_charset));
-	  }
 	;
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
@@ -2137,6 +2132,11 @@ interval_expr:
 
 simple_expr:
 	simple_ident
+ 	| simple_expr COLLATE_SYM ident_or_text %prec NEG
+	  { 
+	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
+					    YYTHD->variables.thd_charset));
+	  }
 	| literal
 	| param_marker
 	| '@' ident_or_text SET_VAR expr
