@@ -37,6 +37,24 @@ a	b	c
 1	2	3
 2	3	5
 3	4	6
+select tt1.* from t1 as tt1, t1 as tt2 use index(b) where tt1.b = tt2.b order by tt1.b;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+select a, b, c from t1 where a!=2 and c=6;
+a	b	c
+3	4	6
+select a, b, c from t1 where a!=2 order by a;
+a	b	c
+1	2	3
+3	4	6
+4	5	8
+5	6	2
+6	7	2
 update t1 set c = 3 where b = 3;
 select * from t1 order by a;
 a	b	c

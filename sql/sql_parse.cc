@@ -501,12 +501,17 @@ void free_max_user_conn(void)
 /*
   Mark all commands that somehow changes a table
   This is used to check number of updates / hour
+
+  sql_command is actually set to SQLCOM_END sometimes
+  so we need the +1 to include it in the array.
 */
 
-char  uc_update_queries[SQLCOM_END];
+char  uc_update_queries[SQLCOM_END+1];
 
 void init_update_queries(void)
 {
+  bzero((gptr) &uc_update_queries, sizeof(uc_update_queries));
+
   uc_update_queries[SQLCOM_CREATE_TABLE]=1;
   uc_update_queries[SQLCOM_CREATE_INDEX]=1;
   uc_update_queries[SQLCOM_ALTER_TABLE]=1;
@@ -531,6 +536,7 @@ void init_update_queries(void)
 
 bool is_update_query(enum enum_sql_command command)
 {
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return uc_update_queries[command];
 }
 
@@ -894,7 +900,7 @@ static int check_connection(THD *thd)
     x_free(thd->user);
   if (!(thd->user= my_strdup(user, MYF(0))))
     return (ER_OUT_OF_RESOURCES);
-  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
+  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
 }
 
 
@@ -2682,12 +2688,11 @@ unsent_create_error:
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
   {
-    my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
-    if ((res= insert_precheck(thd, tables, update)))
+    if ((res= insert_precheck(thd, tables)))
       break;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
                        select_lex->item_list, lex->value_list,
-                       (update ? DUP_UPDATE : lex->duplicates));
+                       lex->duplicates);
     if (thd->net.report_error)
       res= -1;
     break;
@@ -4767,7 +4772,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     acl_reload(thd);
     grant_reload(thd);
     if (mqh_used)
-      reset_mqh(thd,(LEX_USER *) NULL,true);
+      reset_mqh(thd,(LEX_USER *) NULL,TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
@@ -5366,13 +5371,14 @@ int delete_precheck(THD *thd, TABLE_LIST *tables)
     -1  error (message is not sent to user)
 */
 
-int insert_precheck(THD *thd, TABLE_LIST *tables, bool update)
+int insert_precheck(THD *thd, TABLE_LIST *tables)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
 
-  ulong privilege= (lex->duplicates == DUP_REPLACE ?
-		    INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
+  ulong privilege= INSERT_ACL |
+                   (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
+                   (lex->duplicates == DUP_UPDATE ? UPDATE_ACL : 0);
 
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(1);

@@ -537,7 +537,8 @@ uint32 String::numchars()
 
 int String::charpos(int i,uint32 offset)
 {
-  if (i<0) return i;
+  if (i <= 0)
+    return i;
   return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
 }
 

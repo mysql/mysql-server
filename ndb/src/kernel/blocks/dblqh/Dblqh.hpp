@@ -234,10 +234,6 @@
 #define ZNODE_UP 0
 #define ZNODE_DOWN 1
 /* ------------------------------------------------------------------------- */
-/*       OPERATION TYPES                                                     */
-/* ------------------------------------------------------------------------- */
-#define ZSIMPLE_READ 1
-/* ------------------------------------------------------------------------- */
 /*       START PHASES                                                        */
 /* ------------------------------------------------------------------------- */
 #define ZLAST_START_PHASE 255
@@ -2248,7 +2244,7 @@ private:
   void sendAttrinfoLoop(Signal* signal);
   void sendAttrinfoSignal(Signal* signal);
   void sendLqhAttrinfoSignal(Signal* signal);
-  void sendKeyinfoAcc(Signal* signal);
+  void sendKeyinfoAcc(Signal* signal, Uint32 pos);
   Uint32 initScanrec(const class ScanFragReq *);
   void initScanTc(Signal* signal,
                   Uint32 transid1,
@@ -2437,6 +2433,7 @@ private:
   void abortStateHandlerLab(Signal* signal);
   void writeAttrinfoLab(Signal* signal);
   void scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
+  void abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode);
   void localAbortStateHandlerLab(Signal* signal);
   void logLqhkeyreqLab(Signal* signal);
   void lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);

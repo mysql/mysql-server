@@ -2398,7 +2398,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 			    table_list->db,
 			    table_list->real_name,
 			    rights, column_priv, revoke_grant))
-    {						// Crashend table ??
+    {
+      /* Should only happen if table is crashed */
       result= -1;			       /* purecov: deadcode */
     }
     else if (tables[2].table)
@@ -3636,12 +3637,17 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       if (!strcmp(lex_user->user.str,user) &&
 	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
       {
-	if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
-	  result= -1;
-	else
+	if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+        {
+          /*
+            Don't increment counter as replace_db_table deleted the
+            current element in acl_db's and shifted the higher elements down
+          */
 	  continue;
+        }
+        result= -1;                             // Something went wrong
       }
-      ++counter;
+      counter++;
     }
 
     /* Remove column access */
@@ -3664,26 +3670,27 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				~0, 0, 1))
 	{
 	  result= -1;
+          continue;
 	}
 	else
 	{
-	  if (grant_table->cols)
-	  {
-	    List<LEX_COLUMN> columns;
-	    if (replace_column_table(grant_table,tables[3].table, *lex_user,
-				     columns,
-				     grant_table->db,
-				     grant_table->tname,
-				     ~0, 1))
-	      result= -1;
-	    else
-	      continue;
-	  }
-	  else
-	    continue;
+	  if (!grant_table->cols)
+            continue;
+          List<LEX_COLUMN> columns;
+          if (replace_column_table(grant_table,tables[3].table, *lex_user,
+                                   columns,
+                                   grant_table->db,
+                                   grant_table->tname,
+                                   ~0, 1))
+          result= -1;
+          /*
+            Safer to do continue here as replace_table_table changed
+            column_priv_hash and we want to test the current element
+          */
+          continue;
 	}
       }
-      ++counter;
+      counter++;
     }
   }
 

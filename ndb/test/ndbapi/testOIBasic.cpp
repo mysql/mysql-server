@@ -40,18 +40,21 @@ struct Opt {
   bool m_core;
   const char* m_csname;
   CHARSET_INFO* m_cs;
+  int m_die;
   bool m_dups;
   NdbDictionary::Object::FragmentType m_fragtype;
-  unsigned m_idxloop;
+  unsigned m_subsubloop;
   const char* m_index;
   unsigned m_loop;
-  bool m_nologging;
   bool m_msglock;
+  bool m_nologging;
+  bool m_noverify;
   unsigned m_pctnull;
   unsigned m_rows;
   unsigned m_samples;
-  unsigned m_scanrd;
-  unsigned m_scanex;
+  unsigned m_scanbat;
+  unsigned m_scanpar;
+  unsigned m_scanstop;
   unsigned m_seed;
   unsigned m_subloop;
   const char* m_table;
@@ -64,22 +67,25 @@ struct Opt {
     m_core(false),
     m_csname("latin1_bin"),
     m_cs(0),
+    m_die(0),
     m_dups(false),
     m_fragtype(NdbDictionary::Object::FragUndefined),
-    m_idxloop(4),
+    m_subsubloop(4),
     m_index(0),
     m_loop(1),
-    m_nologging(false),
     m_msglock(true),
+    m_nologging(false),
+    m_noverify(false),
     m_pctnull(10),
     m_rows(1000),
     m_samples(0),
-    m_scanrd(240),
-    m_scanex(240),
+    m_scanbat(0),
+    m_scanpar(0),
+    m_scanstop(0),
     m_seed(0),
     m_subloop(4),
     m_table(0),
-    m_threads(4),
+    m_threads(10),
     m_v(1) {
   }
 };
@@ -100,16 +106,18 @@ printhelp()
     << "  -case abc     only given test cases (letters a-z)" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
     << "  -csname S     charset (collation) of non-pk char column [" << d.m_csname << "]" << endl
+    << "  -die nnn      exit immediately on NDB error code nnn" << endl
     << "  -dups         allow duplicate tuples from index scan [" << d.m_dups << "]" << endl
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
     << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
+    << "  -noverify     skip index verifications" << endl
     << "  -pctnull N    pct NULL values in nullable column [" << d.m_pctnull << "]" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
-    << "  -scanrd N     scan read parallelism [" << d.m_scanrd << "]" << endl
-    << "  -scanex N     scan exclusive parallelism [" << d.m_scanex << "]" << endl
+    << "  -scanbat N    scan batch per fragment (ignored by ndb api) [" << d.m_scanbat << "]" << endl
+    << "  -scanpar N    scan parallelism [" << d.m_scanpar << "]" << endl
     << "  -seed N       srandom seed 0=loop number[" << d.m_seed << "]" << endl
     << "  -subloop N    subtest loop count [" << d.m_subloop << "]" << endl
     << "  -table xyz    only given table numbers (digits 1-9)" << endl
@@ -208,10 +216,14 @@ struct Par : public Opt {
   Set& set() const { assert(m_set != 0); return *m_set; }
   Tmr* m_tmr;
   Tmr& tmr() const { assert(m_tmr != 0); return *m_tmr; }
+  unsigned m_lno;
+  unsigned m_slno;
   unsigned m_totrows;
   // value calculation
   unsigned m_range;
   unsigned m_pctrange;
+  // choice of key
+  bool m_randomkey;
   // do verify after read
   bool m_verify;
   // deadlock possible
@@ -224,9 +236,12 @@ struct Par : public Opt {
     m_tab(0),
     m_set(0),
     m_tmr(0),
+    m_lno(0),
+    m_slno(0),
     m_totrows(m_threads * m_rows),
     m_range(m_rows),
     m_pctrange(0),
+    m_randomkey(false),
     m_verify(false),
     m_deadlock(false) {
   }
@@ -688,13 +703,14 @@ struct Con {
   int setBound(int num, int type, const void* value);
   int execute(ExecType t);
   int execute(ExecType t, bool& deadlock);
-  int openScanRead(unsigned parallelism);
-  int openScanExclusive(unsigned parallelism);
+  int openScanRead(unsigned scanbat, unsigned scanpar);
+  int openScanExclusive(unsigned scanbat, unsigned scanpar);
   int executeScan();
   int nextScanResult(bool fetchAllowed);
   int nextScanResult(bool fetchAllowed, bool& deadlock);
   int updateScanTuple(Con& con2);
   int deleteScanTuple(Con& con2);
+  void closeScan();
   void closeTransaction();
   void printerror(NdbOut& out);
 };
@@ -815,18 +831,20 @@ Con::execute(ExecType t, bool& deadlock)
 }
 
 int
-Con::openScanRead(unsigned parallelism)
+Con::openScanRead(unsigned scanbat, unsigned scanpar)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON((m_resultset = m_scanop->readTuples(parallelism)) != 0, *this);
+  NdbOperation::LockMode lm = NdbOperation::LM_Read;
+  CHKCON((m_resultset = m_scanop->readTuples(lm, scanbat, scanpar)) != 0, *this);
   return 0;
 }
 
 int
-Con::openScanExclusive(unsigned parallelism)
+Con::openScanExclusive(unsigned scanbat, unsigned scanpar)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON((m_resultset = m_scanop->readTuplesExclusive(parallelism)) != 0, *this);
+  NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
+  CHKCON((m_resultset = m_scanop->readTuples(lm, scanbat, scanpar)) != 0, *this);
   return 0;
 }
 
@@ -880,11 +898,21 @@ Con::deleteScanTuple(Con& con2)
 }
 
 void
+Con::closeScan()
+{
+  assert(m_resultset != 0);
+  m_resultset->close();
+  m_scanop = 0, m_indexscanop = 0, m_resultset = 0;
+
+}
+
+void
 Con::closeTransaction()
 {
   assert(m_ndb != 0 && m_tx != 0);
   m_ndb->closeTransaction(m_tx);
   m_tx = 0, m_op = 0;
+  m_scanop = 0, m_indexscanop = 0, m_resultset = 0;
 }
 
 void
@@ -893,26 +921,36 @@ Con::printerror(NdbOut& out)
   m_errtype = ErrOther;
   unsigned any = 0;
   int code;
+  int die = 0;
   if (m_ndb) {
     if ((code = m_ndb->getNdbError().code) != 0) {
       LL0(++any << " ndb: error " << m_ndb->getNdbError());
+      die += (code == g_opt.m_die);
     }
     if (m_dic && (code = m_dic->getNdbError().code) != 0) {
       LL0(++any << " dic: error " << m_dic->getNdbError());
+      die += (code == g_opt.m_die);
     }
     if (m_tx) {
       if ((code = m_tx->getNdbError().code) != 0) {
         LL0(++any << " con: error " << m_tx->getNdbError());
+        die += (code == g_opt.m_die);
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499)
           m_errtype = ErrDeadlock;
       }
       if (m_op && m_op->getNdbError().code != 0) {
         LL0(++any << " op : error " << m_op->getNdbError());
+        die += (code == g_opt.m_die);
       }
     }
   }
   if (! any) {
     LL0("failed but no NDB error code");
+  }
+  if (die) {
+    if (g_opt.m_core)
+      abort();
+    exit(1);
   }
 }
 
@@ -1965,9 +2003,21 @@ BSet::calcpk(Par par, unsigned i)
 int
 BSet::setbnd(Par par) const
 {
-  for (unsigned j = 0; j < m_bvals; j++) {
-    const BVal& bval = *m_bval[j];
-    CHK(bval.setbnd(par) == 0);
+  if (m_bvals != 0) {
+    unsigned p1 = urandom(m_bvals);
+    unsigned p2 = 10009;        // prime
+    // random order
+    for (unsigned j = 0; j < m_bvals; j++) {
+      unsigned k = p1 + p2 * j;
+      const BVal& bval = *m_bval[k % m_bvals];
+      CHK(bval.setbnd(par) == 0);
+    }
+    // duplicate
+    if (urandom(5) == 0) {
+      unsigned k = urandom(m_bvals);
+      const BVal& bval = *m_bval[k];
+      CHK(bval.setbnd(par) == 0);
+    }
   }
   return 0;
 }
@@ -2054,7 +2104,8 @@ pkinsert(Par par)
   CHK(con.startTransaction() == 0);
   Lst lst;
   for (unsigned j = 0; j < par.m_rows; j++) {
-    unsigned i = thrrow(par, j);
+    unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
+    unsigned i = thrrow(par, j2);
     set.lock();
     if (set.exist(i) || set.pending(i)) {
       set.unlock();
@@ -2107,7 +2158,8 @@ pkupdate(Par par)
   Lst lst;
   bool deadlock = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
-    unsigned i = thrrow(par, j);
+    unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
+    unsigned i = thrrow(par, j2);
     set.lock();
     if (! set.exist(i) || set.pending(i)) {
       set.unlock();
@@ -2158,7 +2210,8 @@ pkdelete(Par par)
   Lst lst;
   bool deadlock = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
-    unsigned i = thrrow(par, j);
+    unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
+    unsigned i = thrrow(par, j2);
     set.lock();
     if (! set.exist(i) || set.pending(i)) {
       set.unlock();
@@ -2268,7 +2321,7 @@ scanreadtable(Par par)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   while (1) {
@@ -2296,7 +2349,7 @@ scanreadtablefast(Par par, unsigned countcheck)
   LL3("scanfast " << tab.m_name);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   // get 1st column
   NdbRecAttr* rec;
   CHK(con.getValue((Uint32)0, rec) == 0);
@@ -2328,7 +2381,7 @@ scanreadindex(Par par, const ITab& itab, const BSet& bset)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(itab, tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
@@ -2359,7 +2412,7 @@ scanreadindexfast(Par par, const ITab& itab, const BSet& bset, unsigned countche
   LL4(bset);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(itab, tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   CHK(bset.setbnd(par) == 0);
   // get 1st column
   NdbRecAttr* rec;
@@ -2382,7 +2435,7 @@ static int
 scanreadindex(Par par, const ITab& itab)
 {
   const Tab& tab = par.tab();
-  for (unsigned i = 0; i < par.m_idxloop; i++) {
+  for (unsigned i = 0; i < par.m_subsubloop; i++) {
     BSet bset(tab, itab, par.m_rows);
     bset.calc(par);
     CHK(scanreadindex(par, itab, bset) == 0);
@@ -2478,7 +2531,7 @@ scanupdatetable(Par par)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
-  CHK(con.openScanExclusive(par.m_scanex) == 0);
+  CHK(con.openScanExclusive(par.m_scanbat, par.m_scanpar) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   unsigned count = 0;
@@ -2496,6 +2549,10 @@ scanupdatetable(Par par)
       break;
     if (deadlock) {
       LL1("scanupdatetable: stop on deadlock");
+      break;
+    }
+    if (par.m_scanstop != 0 && urandom(par.m_scanstop) == 0) {
+      con.closeScan();
       break;
     }
     do {
@@ -2557,7 +2614,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(itab, tab) == 0);
-  CHK(con.openScanExclusive(par.m_scanex) == 0);
+  CHK(con.openScanExclusive(par.m_scanbat, par.m_scanpar) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
@@ -2576,6 +2633,10 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
       break;
     if (deadlock) {
       LL1("scanupdateindex: stop on deadlock");
+      break;
+    }
+    if (par.m_scanstop != 0 && urandom(par.m_scanstop) == 0) {
+      con.closeScan();
       break;
     }
     do {
@@ -2629,7 +2690,7 @@ static int
 scanupdateindex(Par par, const ITab& itab)
 {
   const Tab& tab = par.tab();
-  for (unsigned i = 0; i < par.m_idxloop; i++) {
+  for (unsigned i = 0; i < par.m_subsubloop; i++) {
     BSet bset(tab, itab, par.m_rows);
     bset.calc(par);
     CHK(scanupdateindex(par, itab, bset) == 0);
@@ -2663,9 +2724,60 @@ scanupdateall(Par par)
 static int
 readverify(Par par)
 {
+  if (par.m_noverify)
+    return 0;
   par.m_verify = true;
   CHK(pkread(par) == 0);
   CHK(scanreadall(par) == 0);
+  return 0;
+}
+
+static int
+readverifyfull(Par par)
+{
+  if (par.m_noverify)
+    return 0;
+  par.m_verify = true;
+  if (par.m_no == 0)
+    CHK(scanreadtable(par) == 0);
+  else {
+    const Tab& tab = par.tab();
+    unsigned i = par.m_no;
+    if (i <= tab.m_itabs && useindex(i)) {
+      const ITab& itab = tab.m_itab[i - 1];
+      BSet bset(tab, itab, par.m_rows);
+      CHK(scanreadindex(par, itab, bset) == 0);
+    }
+  }
+  return 0;
+}
+
+static int
+pkops(Par par)
+{
+  par.m_randomkey = true;
+  for (unsigned i = 0; i < par.m_subsubloop; i++) {
+    unsigned sel = urandom(10);
+    if (par.m_slno % 2 == 0) {
+      // favor insert
+      if (sel < 8) {
+        CHK(pkinsert(par) == 0);
+      } else if (sel < 9) {
+        CHK(pkupdate(par) == 0);
+      } else {
+        CHK(pkdelete(par) == 0);
+      }
+    } else {
+      // favor delete
+      if (sel < 1) {
+        CHK(pkinsert(par) == 0);
+      } else if (sel < 2) {
+        CHK(pkupdate(par) == 0);
+      } else {
+        CHK(pkdelete(par) == 0);
+      }
+    }
+  }
   return 0;
 }
 
@@ -2691,6 +2803,7 @@ mixedoperations(Par par)
 {
   par.m_dups = true;
   par.m_deadlock = true;
+  par.m_scanstop = par.m_totrows;       // randomly close scans
   unsigned sel = urandom(10);
   if (sel < 2) {
     CHK(pkdelete(par) == 0);
@@ -2710,6 +2823,7 @@ pkupdateindexbuild(Par par)
   if (par.m_no == 0) {
     CHK(createindex(par) == 0);
   } else {
+    par.m_randomkey = true;
     CHK(pkupdate(par) == 0);
   }
   return 0;
@@ -2913,6 +3027,8 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
     thr.m_par.m_tab = par.m_tab;
     thr.m_par.m_set = par.m_set;
     thr.m_par.m_tmr = par.m_tmr;
+    thr.m_par.m_lno = par.m_lno;
+    thr.m_par.m_slno = par.m_slno;
     thr.m_func = func;
     thr.start();
   }
@@ -2936,8 +3052,8 @@ tbuild(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
-    if (i % 2 == 0) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
+    if (par.m_slno % 2 == 0) {
       RUNSTEP(par, createindex, ST);
       RUNSTEP(par, invalidateindex, MT);
       RUNSTEP(par, pkinsert, MT);
@@ -2946,9 +3062,10 @@ tbuild(Par par)
       RUNSTEP(par, createindex, ST);
       RUNSTEP(par, invalidateindex, MT);
     }
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, pkupdate, MT);
+    RUNSTEP(par, readverifyfull, MT);
     RUNSTEP(par, pkdelete, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverifyfull, MT);
     RUNSTEP(par, dropindex, ST);
   }
   return 0;
@@ -2960,11 +3077,27 @@ tpkops(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
+  RUNSTEP(par, createindex, ST);
+  RUNSTEP(par, invalidateindex, MT);
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
+    RUNSTEP(par, pkops, MT);
+    LL2("rows=" << par.set().count());
+    RUNSTEP(par, readverifyfull, MT);
+  }
+  return 0;
+}
+
+static int
+tpkopsread(Par par)
+{
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
   RUNSTEP(par, pkinsert, MT);
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
   RUNSTEP(par, readverify, ST);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkupdatescanread, MT);
     RUNSTEP(par, readverify, ST);
   }
@@ -2983,7 +3116,7 @@ tmixedops(Par par)
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
   RUNSTEP(par, readverify, ST);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, mixedoperations, MT);
     RUNSTEP(par, readverify, ST);
   }
@@ -2997,7 +3130,7 @@ tbusybuild(Par par)
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
   RUNSTEP(par, pkinsert, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkupdateindexbuild, MT);
     RUNSTEP(par, invalidateindex, MT);
     RUNSTEP(par, readverify, ST);
@@ -3013,7 +3146,7 @@ ttimebuild(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     t1.on();
     RUNSTEP(par, createindex, ST);
@@ -3032,7 +3165,7 @@ ttimemaint(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     t1.on();
     RUNSTEP(par, pkupdate, MT);
@@ -3057,7 +3190,7 @@ ttimescan(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     RUNSTEP(par, createindex, ST);
     par.m_tmr = &t1;
@@ -3079,7 +3212,7 @@ ttimepkread(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     RUNSTEP(par, createindex, ST);
     par.m_tmr = &t1;
@@ -3115,9 +3248,10 @@ struct TCase {
 static const TCase
 tcaselist[] = {
   TCase("a", tbuild, "index build"),
-  TCase("b", tpkops, "pk operations and scan reads"),
-  TCase("c", tmixedops, "pk operations and scan operations"),
-  TCase("d", tbusybuild, "pk operations and index build"),
+  TCase("b", tpkops, "pk operations"),
+  TCase("c", tpkopsread, "pk operations and scan reads"),
+  TCase("d", tmixedops, "pk operations and scan operations"),
+  TCase("e", tbusybuild, "pk operations and index build"),
   TCase("t", ttimebuild, "time index build"),
   TCase("u", ttimemaint, "time index maintenance"),
   TCase("v", ttimescan, "time full scan table vs index on pk"),
@@ -3175,10 +3309,10 @@ runtest(Par par)
     Thr& thr = *g_thrlist[n];
     assert(thr.m_thread != 0);
   }
-  for (unsigned l = 0; par.m_loop == 0 || l < par.m_loop; l++) {
-    LL1("loop " << l);
+  for (par.m_lno = 0; par.m_loop == 0 || par.m_lno < par.m_loop; par.m_lno++) {
+    LL1("loop " << par.m_lno);
     if (par.m_seed == 0)
-      srandom(l);
+      srandom(par.m_lno);
     for (unsigned i = 0; i < tcasecount; i++) {
       const TCase& tcase = tcaselist[i];
       if (par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0)
@@ -3252,6 +3386,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
         continue;
       }
     }
+    if (strcmp(arg, "-die") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_die = atoi(argv[0]);
+        continue;
+      }
+    }
     if (strcmp(arg, "-dups") == 0) {
       g_opt.m_dups = true;
       continue;
@@ -3292,6 +3432,10 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
       g_opt.m_nologging = true;
       continue;
     }
+    if (strcmp(arg, "-noverify") == 0) {
+      g_opt.m_noverify = true;
+      continue;
+    }
     if (strcmp(arg, "-pctnull") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_pctnull = atoi(argv[0]);
@@ -3310,15 +3454,15 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
         continue;
       }
     }
-    if (strcmp(arg, "-scanrd") == 0) {
+    if (strcmp(arg, "-scanbat") == 0) {
       if (++argv, --argc > 0) {
-        g_opt.m_scanrd = atoi(argv[0]);
+        g_opt.m_scanbat = atoi(argv[0]);
         continue;
       }
     }
-    if (strcmp(arg, "-scanex") == 0) {
+    if (strcmp(arg, "-scanpar") == 0) {
       if (++argv, --argc > 0) {
-        g_opt.m_scanex = atoi(argv[0]);
+        g_opt.m_scanpar = atoi(argv[0]);
         continue;
       }
     }

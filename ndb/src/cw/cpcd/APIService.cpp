@@ -309,7 +309,7 @@ propToString(Properties *prop, const char *key) {
   case PropertiesType_Uint32:
     Uint32 val;
     prop->get(key, &val);
-    snprintf(buf, sizeof buf, "%d", val);
+    BaseString::snprintf(buf, sizeof buf, "%d", val);
     retval = buf;
     break;
   case PropertiesType_char:
@@ -318,7 +318,7 @@ propToString(Properties *prop, const char *key) {
     retval = str;
     break;
   default:
-    snprintf(buf, sizeof buf, "(unknown)");
+    BaseString::snprintf(buf, sizeof buf, "(unknown)");
     retval = buf;
   }
   return retval;

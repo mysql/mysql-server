@@ -123,7 +123,7 @@ MgmtSrvr::signalRecvThreadRun()
   while(!_isStopThread) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
-    if(m_signalRecvQueue.waitFor(siglist, handler, signal)) {
+    if(m_signalRecvQueue.waitFor(siglist, handler, signal, DEFAULT_TIMEOUT)) {
       if(handler->function != 0)
 	(this->*handler->function)(signal);
     }
@@ -1825,7 +1825,7 @@ const char* MgmtSrvr::getErrorText(int errorCode)
     }
   }
   
-  snprintf(text, 255, "Unknown management server error code %d", errorCode);
+  BaseString::snprintf(text, 255, "Unknown management server error code %d", errorCode);
   return text;
 }
 

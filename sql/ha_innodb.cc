@@ -302,7 +302,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-    		return(HA_ERR_CANNOT_ADD_FOREIGN); /* TODO: This is a bit
+    		return(HA_ERR_ROW_IS_REFERENCED); /* TODO: This is a bit
 						misleading, a new MySQL error
 						code should be introduced */
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
@@ -427,6 +427,36 @@ innobase_mysql_print_thd(
 	}
 
 	putc('\n', f);
+}
+
+/**********************************************************************
+Compares NUL-terminated UTF-8 strings case insensitively.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+int
+innobase_strcasecmp(
+/*================*/
+				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
+	const char*	a,	/* in: first string to compare */
+	const char*	b)	/* in: second string to compare */
+{
+	return(my_strcasecmp(system_charset_info, a, b));
+}
+
+/**********************************************************************
+Makes all characters in a NUL-terminated UTF-8 string lower case.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+void
+innobase_casedn_str(
+/*================*/
+	char*	a)	/* in/out: string to put in lower case */
+{
+	my_casedn_str(system_charset_info, a);
 }
 
 /*************************************************************************
@@ -687,14 +717,7 @@ innobase_query_caching_of_table_permitted(
 					    separator between db and table */
 	norm_name[full_name_len] = '\0';
 #ifdef __WIN__
-	/* Put to lower case */
-
-	char*	ptr = norm_name;
-
-	while (*ptr != '\0') {
-	        *ptr = tolower(*ptr);
-	        ptr++;
-	}
+	innobase_casedn_str(norm_name);
 #endif
 	/* The call of row_search_.. will start a new transaction if it is
 	not yet started */
@@ -855,7 +878,7 @@ innobase_init(void)
 	Note that when using the embedded server, the datadirectory is not
 	necessarily the current directory of this program. */
 
-	if (mysql_embedded) {
+	if (mysqld_embedded) {
 		default_path = mysql_real_data_home;
 		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
@@ -993,7 +1016,7 @@ innobase_init(void)
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
-	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
 		/* Store the default charset-collation number of this MySQL
 	installation */
@@ -1539,14 +1562,7 @@ normalize_table_name(
 	norm_name[name_ptr - db_ptr - 1] = '/';
 
 #ifdef __WIN__
-	/* Put to lower case */
-
-	ptr = norm_name;
-
-	while (*ptr != '\0') {
-	        *ptr = tolower(*ptr);
-	        ptr++;
-	}
+	innobase_casedn_str(norm_name);
 #endif
 }
 
@@ -2445,9 +2461,10 @@ ha_innobase::write_row(
 	        /* If the insert did not succeed we restore the value of
 		the auto-inc counter we used; note that this behavior was
 		introduced only in version 4.0.4.
-		NOTE that a REPLACE command handles a duplicate key error
+		NOTE that a REPLACE command and LOAD DATA INFILE REPLACE
+		handles a duplicate key error
 		itself, and we must not decrement the autoinc counter
-		if we are performing a REPLACE statement.
+		if we are performing a those statements.
 		NOTE 2: if there was an error, for example a deadlock,
 		which caused InnoDB to roll back the whole transaction
 		already in the call of row_insert_for_mysql(), we may no
@@ -2459,7 +2476,9 @@ ha_innobase::write_row(
 	        if (error == DB_DUPLICATE_KEY
 		    && (user_thd->lex->sql_command == SQLCOM_REPLACE
 			|| user_thd->lex->sql_command
-			                 == SQLCOM_REPLACE_SELECT)) {
+			                 == SQLCOM_REPLACE_SELECT
+		    	|| (user_thd->lex->sql_command == SQLCOM_LOAD
+			    && user_thd->lex->duplicates == DUP_REPLACE))) {
 
 		        skip_auto_inc_decr= TRUE;
 		}
@@ -3559,9 +3578,9 @@ create_index(
 
 			field = form->field[j];
 
-			if (0 == ut_cmp_in_lower_case(
-					(char*)field->field_name,
-					(char*)key_part->field->field_name)) {
+			if (0 == innobase_strcasecmp(
+					field->field_name,
+					key_part->field->field_name)) {
 				/* Found the corresponding column */
 
 				break;
@@ -4003,7 +4022,7 @@ innobase_drop_database(
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
 #ifdef  __WIN__
-	my_casedn_str(system_charset_info, namebuf);
+	innobase_casedn_str(namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = current_thd;
@@ -4318,6 +4337,8 @@ ha_innobase::info(
 	ha_rows		rec_per_key;
 	ulong		j;
 	ulong		i;
+	char		path[FN_REFLEN];
+	os_file_stat_t  stat_info;
 
  	DBUG_ENTER("info");
 
@@ -4355,6 +4376,26 @@ ha_innobase::info(
 
 		prebuilt->trx->op_info = (char*)
 		                          "returning various info to MySQL";
+
+		if (ib_table->space != 0) {
+			my_snprintf(path, sizeof(path), "%s/%s%s",
+				    mysql_data_home, ib_table->name,
+				    ".ibd");
+			unpack_filename(path,path);
+		} else {
+			my_snprintf(path, sizeof(path), "%s/%s%s", 
+				    mysql_data_home, ib_table->name,
+				    reg_ext);
+		
+			unpack_filename(path,path);
+		}
+
+		/* Note that we do not know the access time of the table, 
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(path,&stat_info)) {
+			create_time = stat_info.ctime;
+		}
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -4942,7 +4983,8 @@ ha_innobase::external_lock(
 		}
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
-			if (thd->in_lock_tables) {
+			if (thd->in_lock_tables &&
+			    thd->variables.innodb_table_locks) {
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt);
 
@@ -5465,6 +5507,32 @@ innobase_get_at_most_n_mbchars(
 	}
 
 	return(char_length);
+}
+}
+
+extern "C" {
+/**********************************************************************
+This function returns true if SQL-query in the current thread
+is either REPLACE or LOAD DATA INFILE REPLACE. 
+NOTE that /mysql/innobase/row/row0ins.c must contain the 
+prototype for this function ! */
+
+ibool
+innobase_query_is_replace(void)
+/*===========================*/
+{
+	THD*	thd;
+	
+	thd = (THD *)innobase_current_thd();
+	
+	if ( thd->lex->sql_command == SQLCOM_REPLACE ||
+	     thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
+	     ( thd->lex->sql_command == SQLCOM_LOAD &&
+	       thd->lex->duplicates == DUP_REPLACE )) {
+		return true;
+	} else {
+		return false;
+	}
 }
 }
 

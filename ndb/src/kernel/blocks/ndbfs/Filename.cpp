@@ -56,7 +56,7 @@ Filename::init(Uint32 nodeid,
     return;
   }
 
-  snprintf(theFileSystemDirectory, sizeof(theFileSystemDirectory),
+  BaseString::snprintf(theFileSystemDirectory, sizeof(theFileSystemDirectory),
 	   "%sndb_%u_fs%s", pFileSystemPath, nodeid, DIR_SEPARATOR);
   strncpy(theBackupDirectory, pBackupDirPath, sizeof(theBackupDirectory));
 
@@ -101,7 +101,7 @@ Filename::set(BlockReference blockReference,
     const Uint32 P_val  = FsOpenReq::v1_getP(filenumber);
 
     if (diskNo < 0xff){	  
-      snprintf(buf, sizeof(buf), "D%d%s", diskNo, DIR_SEPARATOR);
+      BaseString::snprintf(buf, sizeof(buf), "D%d%s", diskNo, DIR_SEPARATOR);
       strcat(theName, buf);
       theLevelDepth++;
     }
@@ -112,31 +112,31 @@ Filename::set(BlockReference blockReference,
 	ERROR_SET(ecError, AFS_ERROR_PARAMETER,"","No Block Name");
 	return;
       }
-      snprintf(buf, sizeof(buf), "%s%s", blockName, DIR_SEPARATOR);
+      BaseString::snprintf(buf, sizeof(buf), "%s%s", blockName, DIR_SEPARATOR);
       strcat(theName, buf);
       theLevelDepth++;
     }
     
     if (table < 0xffffffff){
-      snprintf(buf, sizeof(buf), "T%d%s", table, DIR_SEPARATOR);
+      BaseString::snprintf(buf, sizeof(buf), "T%d%s", table, DIR_SEPARATOR);
       strcat(theName, buf);
       theLevelDepth++;
     }
     
     if (frag < 0xffffffff){
-      snprintf(buf, sizeof(buf), "F%d%s", frag, DIR_SEPARATOR);
+      BaseString::snprintf(buf, sizeof(buf), "F%d%s", frag, DIR_SEPARATOR);
       strcat(theName, buf);
       theLevelDepth++;
     }
     
     
     if (S_val < 0xffffffff){
-      snprintf(buf, sizeof(buf), "S%d", S_val);
+      BaseString::snprintf(buf, sizeof(buf), "S%d", S_val);
       strcat(theName, buf);
     }
 
     if (P_val < 0xff){
-      snprintf(buf, sizeof(buf), "P%d", P_val);
+      BaseString::snprintf(buf, sizeof(buf), "P%d", P_val);
       strcat(theName, buf);
     }
     
@@ -147,14 +147,14 @@ Filename::set(BlockReference blockReference,
     const Uint32 nodeId = FsOpenReq::v2_getNodeId(filenumber);
     const Uint32 count = FsOpenReq::v2_getCount(filenumber);
     
-    snprintf(buf, sizeof(buf), "BACKUP%sBACKUP-%d%s",
+    BaseString::snprintf(buf, sizeof(buf), "BACKUP%sBACKUP-%d%s",
 	     DIR_SEPARATOR, seq, DIR_SEPARATOR); 
     strcat(theName, buf);
     if(count == 0xffffffff) {
-      snprintf(buf, sizeof(buf), "BACKUP-%d.%d",
+      BaseString::snprintf(buf, sizeof(buf), "BACKUP-%d.%d",
 	       seq, nodeId); strcat(theName, buf);
     } else {
-      snprintf(buf, sizeof(buf), "BACKUP-%d-%d.%d",
+      BaseString::snprintf(buf, sizeof(buf), "BACKUP-%d-%d.%d",
 	       seq, count, nodeId); strcat(theName, buf);
     }
     theLevelDepth = 2;
@@ -168,7 +168,7 @@ Filename::set(BlockReference blockReference,
       ERROR_SET(ecError, AFS_ERROR_PARAMETER,"","Invalid disk specification");
     }
 
-    snprintf(buf, sizeof(buf), "D%d%s", diskNo, DIR_SEPARATOR);
+    BaseString::snprintf(buf, sizeof(buf), "D%d%s", diskNo, DIR_SEPARATOR);
     strcat(theName, buf);
     theLevelDepth++;
   }

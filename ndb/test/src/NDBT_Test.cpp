@@ -484,7 +484,7 @@ void NDBT_TestCaseImpl1::startStepInThread(int stepNo, NDBT_Context* ctx){
   NDBT_Step* pStep = steps[stepNo];
   pStep->setContext(ctx);
   char buf[16];
-  snprintf(buf, sizeof(buf), "step_%d", stepNo);
+  BaseString::snprintf(buf, sizeof(buf), "step_%d", stepNo);
   NdbThread* pThread = NdbThread_Create(runStep_C,
 					(void**)pStep,
 					65535,
@@ -704,7 +704,7 @@ void NDBT_TestCaseImpl1::printTestResult(){
       res = "FAILED TO CREATE TABLE";
     else if (tcr->getResult() == FAILED_TO_DISCOVER)
       res = "FAILED TO DISCOVER TABLE";
-    snprintf(buf, 255," %-10s %-5s %-20s", tcr->getName(), res, tcr->getTimeStr());
+    BaseString::snprintf(buf, 255," %-10s %-5s %-20s", tcr->getName(), res, tcr->getTimeStr());
     ndbout << buf<<endl;    
   }
 }
@@ -1078,7 +1078,7 @@ const char* NDBT_TestSuite::getDate(){
   tm_now = gmtime(&now);
 #endif
   
-  snprintf(theTime, 128,
+  BaseString::snprintf(theTime, 128,
 	   "%d-%.2d-%.2d %.2d:%.2d:%.2d",
 	   tm_now->tm_year + 1900, 
 	   tm_now->tm_mon + 1, 
@@ -1148,6 +1148,20 @@ void NDBT_TestCaseImpl1::print(){
 void NDBT_Step::print(){
   ndbout << "      "<< name << endl;
 
+}
+
+void
+NDBT_Context::sync_down(const char * key){
+  Uint32 threads = getProperty(key, (unsigned)0);
+  if(threads){
+    decProperty(key);
+  }
+}
+
+void
+NDBT_Context::sync_up_and_wait(const char * key, Uint32 value){
+  setProperty(key, value);
+  getPropertyWait(key, (unsigned)0);
 }
 
 template class Vector<NDBT_TestCase*>;

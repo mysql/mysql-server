@@ -895,10 +895,9 @@ static int mysql_test_insert(Prepared_statement *stmt,
   int res= -1;
   TABLE_LIST *insert_table_list=
     (TABLE_LIST*) lex->select_lex.table_list.first;
-  my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
   DBUG_ENTER("mysql_test_insert");
 
-  if ((res= insert_precheck(thd, table_list, update)))
+  if ((res= insert_precheck(thd, table_list)))
     DBUG_RETURN(res);
 
   /*
@@ -1065,6 +1064,12 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
 
+  if (!lex->result && !(lex->result= new (&stmt->mem_root) select_send))
+  {
+    send_error(thd);
+    goto err;
+  }
+
   if (open_and_lock_tables(thd, tables))
   {
     send_error(thd);
@@ -1088,8 +1093,13 @@ static int mysql_test_select(Prepared_statement *stmt,
     }
     else
     {
-      if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
-          thd->protocol_simple.send_fields(&lex->select_lex.item_list, 0)
+      List<Item> &fields= lex->select_lex.item_list;
+      /*
+        We can use lex->result as it should've been
+        prepared in unit->prepare call above.
+      */
+      if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
+          lex->result->send_fields(fields, 0)
 #ifndef EMBEDDED_LIBRARY
           || net_flush(&thd->net)
 #endif
@@ -1388,8 +1398,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     res= mysql_test_insert(stmt, tables, lex->field_list,
 			   lex->many_values,
 			   select_lex->item_list, lex->value_list,
-			   (lex->value_list.elements ?
-			    DUP_UPDATE : lex->duplicates));
+			   lex->duplicates);
     break;
 
   case SQLCOM_UPDATE:
@@ -1781,7 +1790,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     goto set_params_data_err;
 #endif
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
-  execute_stmt(thd, stmt, &expanded_query, true);
+  execute_stmt(thd, stmt, &expanded_query, TRUE);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
   DBUG_VOID_RETURN;
 
@@ -1834,7 +1843,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     send_error(thd);
   }
-  execute_stmt(thd, stmt, &expanded_query, false);
+  execute_stmt(thd, stmt, &expanded_query, FALSE);
   DBUG_VOID_RETURN;
 }
 

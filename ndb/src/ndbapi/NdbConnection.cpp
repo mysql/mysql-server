@@ -83,6 +83,11 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
   theListState = NotInList;
   theError.code = 0;
   theId = theNdb->theNdbObjectIdMap->map(this);
+
+#define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
+
+  CHECK_SZ(m_db_nodes, NdbNodeBitmask::Size);
+  CHECK_SZ(m_failed_db_nodes, NdbNodeBitmask::Size);
 }//NdbConnection::NdbConnection()
 
 /*****************************************************************************
@@ -308,8 +313,8 @@ NdbConnection::execute(ExecType aTypeOfExec,
       tPrepOp = tPrepOp->next();
     }
     // save rest of prepared ops if batch
-    NdbOperation* tRestOp;
-    NdbOperation* tLastOp;
+    NdbOperation* tRestOp= 0;
+    NdbOperation* tLastOp= 0;
     if (tPrepOp != NULL) {
       tRestOp = tPrepOp->next();
       tPrepOp->next(NULL);
@@ -490,11 +495,6 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   theListState = InPreparedList;
   tNdb->theNoOfPreparedTransactions = tnoOfPreparedTransactions + 1;
 
-  if(tCommitStatus == Committed){
-    tCommitStatus = Started;
-    tTransactionIsStarted = false;
-  }
-
   if ((tCommitStatus != Started) ||
       (aTypeOfExec == Rollback)) {
 /*****************************************************************************
@@ -503,7 +503,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
  *      same action.
  ****************************************************************************/
     if (aTypeOfExec == Rollback) {
-      if (theTransactionIsStarted == false) {
+      if (theTransactionIsStarted == false || theSimpleState) {
 	theCommitStatus = Aborted;
 	theSendStatus = sendCompleted;
       } else {
@@ -528,7 +528,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
         tLastOp->theCommitIndicator = 1;
       }//if
     } else {
-      if (aTypeOfExec == Commit) {
+      if (aTypeOfExec == Commit && !theSimpleState) {
 	/**********************************************************************
 	 *   A Transaction have been started and no more operations exist. 
 	 *   We will use the commit method.
@@ -610,6 +610,8 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   theNoOfOpSent		= 0;
   theNoOfOpCompleted	= 0;
   theSendStatus = sendOperations;
+  NdbNodeBitmask::clear(m_db_nodes);
+  NdbNodeBitmask::clear(m_failed_db_nodes);
   DBUG_VOID_RETURN;
 }//NdbConnection::executeAsynchPrepare()
 
@@ -728,7 +730,8 @@ NdbConnection::doSend()
     theNdb->insert_completed_list(this); 
     DBUG_RETURN(0);
   default:
-    ndbout << "Inconsistent theSendStatus = " << theSendStatus << endl;
+    ndbout << "Inconsistent theSendStatus = "
+	   << (Uint32) theSendStatus << endl;
     abort();
     break;
   }//switch
@@ -1115,15 +1118,8 @@ NdbConnection::getNdbScanOperation(const NdbTableImpl * tab)
   if (tOp == NULL)
     goto getNdbOp_error1;
   
-  // Link scan operation into list of cursor operations
-  if (m_theLastScanOperation == NULL)
-    m_theFirstScanOperation = m_theLastScanOperation = tOp;
-  else {
-    m_theLastScanOperation->next(tOp);
-    m_theLastScanOperation = tOp;
-  }
-  tOp->next(NULL);
   if (tOp->init(tab, this) != -1) {
+    define_scan_op(tOp);
     return tOp;
   } else {
     theNdb->releaseScanOperation(tOp);
@@ -1134,6 +1130,31 @@ getNdbOp_error1:
   setOperationErrorCodeAbort(4000);
   return NULL;
 }//NdbConnection::getNdbScanOperation()
+
+void
+NdbConnection::remove_list(NdbOperation*& list, NdbOperation* op){
+  NdbOperation* tmp= list;
+  if(tmp == op)
+    list = op->next();
+  else {
+    while(tmp && tmp->next() != op) tmp = tmp->next();
+    if(tmp)
+      tmp->next(op->next());
+  }
+  op->next(NULL);
+}
+
+void
+NdbConnection::define_scan_op(NdbIndexScanOperation * tOp){
+  // Link scan operation into list of cursor operations
+  if (m_theLastScanOperation == NULL)
+    m_theFirstScanOperation = m_theLastScanOperation = tOp;
+  else {
+    m_theLastScanOperation->next(tOp);
+    m_theLastScanOperation = tOp;
+  }
+  tOp->next(NULL);
+}
 
 NdbScanOperation* 
 NdbConnection::getNdbScanOperation(const NdbDictionary::Table * table)
@@ -1517,12 +1538,21 @@ from other transactions.
     const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
-      tOp = theNdb->void2rec(theNdb->int2void(*tPtr));
-      tPtr++;
-      const Uint32 tAttrInfoLen = *tPtr;
-      tPtr++;
+      tOp = theNdb->void2rec(theNdb->int2void(*tPtr++));
+      const Uint32 tAttrInfoLen = *tPtr++;
       if (tOp && tOp->checkMagicNumber()) {
-	tNoComp += tOp->execTCOPCONF(tAttrInfoLen);
+	Uint32 done = tOp->execTCOPCONF(tAttrInfoLen);
+	if(tAttrInfoLen > TcKeyConf::SimpleReadBit){
+	  Uint32 node = tAttrInfoLen & (~TcKeyConf::SimpleReadBit);
+	  NdbNodeBitmask::set(m_db_nodes, node);
+	  if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
+	  {
+	    done = 1;
+	    tOp->setErrorCode(4119);
+	    theCompletionStatus = CompletedFailure;
+	  }	    
+	}
+	tNoComp += done;
       } else {
  	return -1;
       }//if
@@ -1613,6 +1643,10 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
 	theCompletionStatus = CompletedFailure;
 	setOperationErrorCodeAbort(4115);
 	tOp = NULL;
+	break;
+      case NdbOperation::NotDefined:
+      case NdbOperation::NotDefined2:
+	assert(false);
 	break;
       }//if
     }//while   
@@ -1772,7 +1806,7 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbConnection::OpCompleteFailure()
+NdbConnection::OpCompleteFailure(Uint8 abortOption)
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
@@ -1786,10 +1820,7 @@ NdbConnection::OpCompleteFailure()
     //decide the success of the whole transaction since a simple
     //operation is not really part of that transaction.
     //------------------------------------------------------------------------
-    if (theSimpleState == 1) {
-      theCommitStatus = NdbConnection::Aborted;
-    }//if
-    if (m_abortOption == IgnoreError){
+    if (abortOption == IgnoreError){
       /**
        * There's always a TCKEYCONF when using IgnoreError
        */
@@ -1824,9 +1855,6 @@ NdbConnection::OpCompleteSuccess()
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) { // Last operation completed
-    if (theSimpleState == 1) {
-      theCommitStatus = NdbConnection::Committed;
-    }//if
     return 0;
   } else if (tNoComp < tNoSent) {
     return -1;	// Continue waiting for more signals
@@ -1901,14 +1929,14 @@ NdbConnection::printState()
   CASE(Connected);
   CASE(DisConnecting);
   CASE(ConnectFailure);
-  default: ndbout << theStatus;
+  default: ndbout << (Uint32) theStatus;
   }
   switch (theListState) {
   CASE(NotInList);
   CASE(InPreparedList);
   CASE(InSendList);
   CASE(InCompletedList);
-  default: ndbout << theListState;
+  default: ndbout << (Uint32) theListState;
   }
   switch (theSendStatus) {
   CASE(NotInit);
@@ -1921,7 +1949,7 @@ NdbConnection::printState()
   CASE(sendTC_ROLLBACK);
   CASE(sendTC_COMMIT);
   CASE(sendTC_OP);
-  default: ndbout << theSendStatus;
+  default: ndbout << (Uint32) theSendStatus;
   }
   switch (theCommitStatus) {
   CASE(NotStarted);
@@ -1929,16 +1957,56 @@ NdbConnection::printState()
   CASE(Committed);
   CASE(Aborted);
   CASE(NeedAbort);
-  default: ndbout << theCommitStatus;
+  default: ndbout << (Uint32) theCommitStatus;
   }
   switch (theCompletionStatus) {
   CASE(NotCompleted);
   CASE(CompletedSuccess);
   CASE(CompletedFailure);
   CASE(DefinitionFailure);
-  default: ndbout << theCompletionStatus;
+  default: ndbout << (Uint32) theCompletionStatus;
   }
   ndbout << endl;
 }
 #undef CASE
 #endif
+
+int
+NdbConnection::report_node_failure(Uint32 id){
+  NdbNodeBitmask::set(m_failed_db_nodes, id);
+  if(!NdbNodeBitmask::get(m_db_nodes, id))
+  {
+    return 0;
+  }
+  
+  /**
+   *   Arrived
+   *   TCKEYCONF   TRANSIDAI
+   * 1)   -           -
+   * 2)   -           X
+   * 3)   X           -
+   * 4)   X           X
+   */
+  NdbOperation* tmp = theFirstExecOpInList;
+  const Uint32 len = TcKeyConf::SimpleReadBit | id;
+  Uint32 tNoComp = theNoOfOpCompleted;
+  Uint32 tNoSent = theNoOfOpSent;
+  while(tmp != 0)
+  {
+    if(tmp->theReceiver.m_expected_result_length == len && 
+       tmp->theReceiver.m_received_result_length == 0)
+    {
+      tNoComp++;
+      tmp->theError.code = 4119;
+    }
+    tmp = tmp->next();
+  }
+  theNoOfOpCompleted = tNoComp;
+  if(tNoComp == tNoSent)
+  {
+    theError.code = 4119;
+    theCompletionStatus = NdbConnection::CompletedFailure;    
+    return 1;
+  }
+  return 0;
+}

@@ -63,7 +63,7 @@ int runInsertRememberGci(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }
-    CHECK(hugoOps.pkReadRecord(pNdb, i, false) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, i) == 0);
     if (hugoOps.execute_Commit(pNdb) != 0){
       ndbout << "Did not find record in DB " << i << endl;
       result = NDBT_FAILED;
@@ -146,7 +146,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   // gci as in the vector
   for (unsigned i = 0; i < savedRecords.size(); i++){
     CHECK(hugoOps.startTransaction(pNdb) == 0);
-    CHECK(hugoOps.pkReadRecord(pNdb, i, false) == 0);
+    CHECK(hugoOps.pkReadRecord(pNdb, i) == 0);
     if (hugoOps.execute_Commit(pNdb) != 0){
       // Record was not found in db'
 

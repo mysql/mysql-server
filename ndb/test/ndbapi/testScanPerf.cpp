@@ -110,8 +110,8 @@ main(int argc, const char** argv){
   for(int i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
-    snprintf(g_tablename, sizeof(g_tablename), T);
-    snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
+    BaseString::snprintf(g_tablename, sizeof(g_tablename), T);
+    BaseString::snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
     if(create_table())
       goto error;
     if(load_table())

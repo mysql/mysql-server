@@ -64,32 +64,32 @@ extern "C" {
    *   NDB Cluster node types
    */
   enum ndb_mgm_node_type {
-    NDB_MGM_NODE_TYPE_UNKNOWN = -1,         /*/< Node type not known*/
-    NDB_MGM_NODE_TYPE_API     = NODE_TYPE_API,          /*/< An application node (API)*/
-    NDB_MGM_NODE_TYPE_NDB     = NODE_TYPE_DB,          /*/< A database node (DB)*/
-    NDB_MGM_NODE_TYPE_MGM     = NODE_TYPE_MGM,          /*/< A management server node (MGM)*/
-    NDB_MGM_NODE_TYPE_REP     = NODE_TYPE_REP,          ///< A replication node
+    NDB_MGM_NODE_TYPE_UNKNOWN = -1,           /*< Node type not known*/
+    NDB_MGM_NODE_TYPE_API     = NODE_TYPE_API,/*< An application node (API)*/
+    NDB_MGM_NODE_TYPE_NDB     = NODE_TYPE_DB, /*< A database node (DB)*/
+    NDB_MGM_NODE_TYPE_MGM     = NODE_TYPE_MGM,/*< A mgmt server node (MGM)*/
+    NDB_MGM_NODE_TYPE_REP     = NODE_TYPE_REP,/*< A replication node */
 
-    NDB_MGM_NODE_TYPE_MIN     = 0,          /*/< Min valid value*/
-    NDB_MGM_NODE_TYPE_MAX     = 3           /*/< Max valid value*/
+    NDB_MGM_NODE_TYPE_MIN     = 0,            /*< Min valid value*/
+    NDB_MGM_NODE_TYPE_MAX     = 3             /*< Max valid value*/
   };
 
   /**
    *   Database node status
    */
   enum ndb_mgm_node_status {
-    NDB_MGM_NODE_STATUS_UNKNOWN       = 0,  ///< Node status not known
-    NDB_MGM_NODE_STATUS_NO_CONTACT    = 1,  ///< No contact with node
-    NDB_MGM_NODE_STATUS_NOT_STARTED   = 2,  ///< Has not run starting protocol
-    NDB_MGM_NODE_STATUS_STARTING      = 3,  ///< Is running starting protocol
-    NDB_MGM_NODE_STATUS_STARTED       = 4,  ///< Running
-    NDB_MGM_NODE_STATUS_SHUTTING_DOWN = 5,  ///< Is shutting down
-    NDB_MGM_NODE_STATUS_RESTARTING    = 6,  ///< Is restarting
-    NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,  ///< Maintenance mode
-    NDB_MGM_NODE_STATUS_RESUME        = 8,  ///< Resume mode
+    NDB_MGM_NODE_STATUS_UNKNOWN       = 0,  /*< Node status not known*/
+    NDB_MGM_NODE_STATUS_NO_CONTACT    = 1,  /*< No contact with node*/
+    NDB_MGM_NODE_STATUS_NOT_STARTED   = 2,  /*< Has not run starting protocol*/
+    NDB_MGM_NODE_STATUS_STARTING      = 3,  /*< Is running starting protocol*/
+    NDB_MGM_NODE_STATUS_STARTED       = 4,  /*< Running*/
+    NDB_MGM_NODE_STATUS_SHUTTING_DOWN = 5,  /*< Is shutting down*/
+    NDB_MGM_NODE_STATUS_RESTARTING    = 6,  /*< Is restarting*/
+    NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,  /*< Maintenance mode*/
+    NDB_MGM_NODE_STATUS_RESUME        = 8,  /*< Resume mode*/
 
-    NDB_MGM_NODE_STATUS_MIN           = 0,  ///< Min valid value
-    NDB_MGM_NODE_STATUS_MAX           = 6   ///< Max valid value
+    NDB_MGM_NODE_STATUS_MIN           = 0,  /*< Min valid value*/
+    NDB_MGM_NODE_STATUS_MAX           = 6   /*< Max valid value*/
   };
 
   /**
@@ -122,7 +122,10 @@ extern "C" {
 
     /* Service errors - Single User Mode */
     NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE = 4001,
-    NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002
+    NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002,
+
+    /* Usage errors */
+    NDB_MGM_USAGE_ERROR = 5001
   };
 
   struct Ndb_Mgm_Error_Msg {
@@ -158,7 +161,11 @@ extern "C" {
     { NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE, 
       "Could not enter single user mode" },
     { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE, 
-      "Could not exit single user mode" }
+      "Could not exit single user mode" },
+
+    /* Usage errors */
+    { NDB_MGM_USAGE_ERROR,
+      "Usage error" }
   };
   
   const int ndb_mgm_noOfErrorMsgs = 
@@ -168,24 +175,27 @@ extern "C" {
    *   Structure returned by ndb_mgm_get_status
    */
   struct ndb_mgm_node_state {
-    int node_id;                            ///< NDB Cluster node id
-    enum ndb_mgm_node_type   node_type;     ///< Type of NDB Cluster node
-    enum ndb_mgm_node_status node_status;   ///< State of node
-    int start_phase;                        ///< Start phase. 
-                                            ///< @note Start phase is only 
-                                            ///< valid if 
-                                            ///< node_type is 
-                                            ///< NDB_MGM_NODE_TYPE_NDB and
-                                            ///< node_status is 
-                                            ///< NDB_MGM_NODE_STATUS_STARTING
-    int dynamic_id;                         ///< Id for heartbeats and
-                                            ///< master take-over
-                                            ///< (only valid for DB nodes)
-    int node_group;                         ///< Node group of node
-                                            ///< (only valid for DB nodes)
-    int version;                            ///< Internal version number
-    int connect_count;                      ///< No of times node has connected
-                                            ///< or disconnected to the mgm srv
+    int node_id;                            /*< NDB Cluster node id*/
+    enum ndb_mgm_node_type   node_type;     /*< Type of NDB Cluster node*/
+    enum ndb_mgm_node_status node_status;   /*< State of node*/
+    int start_phase;                        /*< Start phase.
+					     *< @note Start phase is only
+					     *< valid if
+					     *< node_type is
+					     *< NDB_MGM_NODE_TYPE_NDB and
+					     *< node_status is
+					     *< NDB_MGM_NODE_STATUS_STARTING
+					     */
+    int dynamic_id;                         /*< Id for heartbeats and
+					     *< master take-over
+					     *< (only valid for DB nodes)
+					     */
+    int node_group;                         /*< Node group of node
+					     *< (only valid for DB nodes)*/
+    int version;                            /*< Internal version number*/
+    int connect_count;                      /*< No of times node has connected
+					     *< or disconnected to the mgm srv
+					     */
     char connect_address[sizeof("000.000.000.000")+1];
   };
 
@@ -193,9 +203,10 @@ extern "C" {
    *   Cluster status
    */
   struct ndb_mgm_cluster_state {
-    int no_of_nodes;                        ///< No of entries in the 
-                                            ///< node_states array
-    struct ndb_mgm_node_state               ///< An array with node_states
+    int no_of_nodes;                        /*< No of entries in the 
+					     *< node_states array
+					     */
+    struct ndb_mgm_node_state               /*< An array with node_states*/
     node_states[1];
     const char *hostname;
   };
@@ -204,17 +215,18 @@ extern "C" {
    *   Default reply from the server
    */
   struct ndb_mgm_reply {
-    int return_code;                        ///< 0 if successful, 
-                                            ///< otherwise error code.
-    char message[256];                      ///< Error or reply message.
+    int return_code;                        /*< 0 if successful, 
+					     *< otherwise error code.
+					     */
+    char message[256];                      /*< Error or reply message.*/
   };
 
   /**
    *   Default information types
    */
   enum ndb_mgm_info {
-    NDB_MGM_INFO_CLUSTER,                   ///< ?
-    NDB_MGM_INFO_CLUSTERLOG                 ///< Cluster log
+    NDB_MGM_INFO_CLUSTER,                   /*< ?*/
+    NDB_MGM_INFO_CLUSTERLOG                 /*< Cluster log*/
   };
 
   /**
@@ -222,39 +234,47 @@ extern "C" {
    *   (Used only in the development of NDB Cluster.)
    */
   enum ndb_mgm_signal_log_mode {
-    NDB_MGM_SIGNAL_LOG_MODE_IN,             ///< Log receiving signals 
-    NDB_MGM_SIGNAL_LOG_MODE_OUT,            ///< Log sending signals
-    NDB_MGM_SIGNAL_LOG_MODE_INOUT,          ///< Log both sending/receiving
-    NDB_MGM_SIGNAL_LOG_MODE_OFF             ///< Log off
+    NDB_MGM_SIGNAL_LOG_MODE_IN,             /*< Log receiving signals */
+    NDB_MGM_SIGNAL_LOG_MODE_OUT,            /*< Log sending signals*/
+    NDB_MGM_SIGNAL_LOG_MODE_INOUT,          /*< Log both sending/receiving*/
+    NDB_MGM_SIGNAL_LOG_MODE_OFF             /*< Log off*/
   };
 
   /**
    *   Log severities (used to filter the cluster log)
    */
   enum ndb_mgm_clusterlog_level {
-    NDB_MGM_CLUSTERLOG_OFF = 0,             ///< Cluster log off
-    NDB_MGM_CLUSTERLOG_DEBUG = 1,           ///< Used in NDB Cluster 
-                                            ///< developement
-    NDB_MGM_CLUSTERLOG_INFO = 2,            ///< Informational messages
-    NDB_MGM_CLUSTERLOG_WARNING = 3,         ///< Conditions that are not
-                                            ///< error condition, but 
-                                            ///< might require handling
-    NDB_MGM_CLUSTERLOG_ERROR = 4,           ///< Conditions that should be
-                                            ///< corrected
-    NDB_MGM_CLUSTERLOG_CRITICAL = 5,        ///< Critical conditions, like
-                                            ///< device errors or out of 
-                                            ///< resources
-    NDB_MGM_CLUSTERLOG_ALERT = 6,           ///< A condition that should be
-                                            ///< corrected immediately,
-                                            ///< such as a corrupted system
-    NDB_MGM_CLUSTERLOG_ALL = 7              ///< All severities on
+    NDB_MGM_CLUSTERLOG_OFF = 0,             /*< Cluster log off*/
+    NDB_MGM_CLUSTERLOG_DEBUG = 1,           /*< Used in NDB Cluster
+					     *< developement
+					     */
+    NDB_MGM_CLUSTERLOG_INFO = 2,            /*< Informational messages*/
+    NDB_MGM_CLUSTERLOG_WARNING = 3,         /*< Conditions that are not
+					     *< error condition, but 
+					     *< might require handling
+					     */
+    NDB_MGM_CLUSTERLOG_ERROR = 4,           /*< Conditions that should be
+					     *< corrected
+					     */
+    NDB_MGM_CLUSTERLOG_CRITICAL = 5,        /*< Critical conditions, like
+					     *< device errors or out of 
+					     *< resources
+					     */
+    NDB_MGM_CLUSTERLOG_ALERT = 6,           /*< A condition that should be
+					     *< corrected immediately,
+					     *< such as a corrupted system
+					     */
+    NDB_MGM_CLUSTERLOG_ALL = 7              /*< All severities on*/
   };
 
   /**
    *   Log categories
    */
   enum ndb_mgm_event_category {
-    NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,     ///< Invalid
+    /**
+     * Invalid
+     */
+    NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,
     /**
      * Events during all kinds of startups
      */

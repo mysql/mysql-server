@@ -1230,7 +1230,7 @@ int
 HugoTransactions::pkReadRecords(Ndb* pNdb, 
 				int records,
 				int batchsize,
-				bool dirty){
+				NdbOperation::LockMode lm){
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
@@ -1275,11 +1275,22 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
 
-      if (dirty == true){
-	check = pOp->dirtyRead();
-      } else {
+  rand_lock_mode:
+      switch(lm){
+      case NdbOperation::LM_Read:
 	check = pOp->readTuple();
+	break;
+      case NdbOperation::LM_Exclusive:
+	check = pOp->readTupleExclusive();
+	break;
+      case NdbOperation::LM_CommittedRead:
+	check = pOp->dirtyRead();
+	break;
+      default:
+	lm = (NdbOperation::LockMode)((rand() >> 16) & 3);
+	goto rand_lock_mode;
       }
+      
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);

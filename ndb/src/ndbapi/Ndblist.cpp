@@ -33,7 +33,7 @@ Ndb::checkFailedNode()
   DBUG_PRINT("enter", ("theNoOfDBnodes: %d", theNoOfDBnodes));
 
   DBUG_ASSERT(theNoOfDBnodes < MAX_NDB_NODES);
-  for (int i = 0; i < theNoOfDBnodes; i++){
+  for (Uint32 i = 0; i < theNoOfDBnodes; i++){
     const NodeId node_id = theDBnodes[i];
     DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
@@ -432,11 +432,15 @@ Ndb::getSignal()
     theSignalIdleList = tSignalNext;
   } else {
     tSignal = new NdbApiSignal(theMyRef);
+#ifdef POORMANSPURIFY
     cnewSignals++;
+#endif
     if (tSignal != NULL)
       tSignal->next(NULL);
   }
+#ifdef POORMANSPURIFY
   cgetSignals++;
+#endif
   return tSignal;
 }
 
@@ -605,7 +609,9 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
   }
 #endif
 #endif
+#ifdef POORMANSPURIFY
   creleaseSignals++;
+#endif
   aSignal->next(theSignalIdleList);
   theSignalIdleList = aSignal;
 }
@@ -649,8 +655,8 @@ Remark:         Always release the first item in the free list
 void
 Ndb::freeScanOperation()
 {
-  NdbScanOperation* tOp = theScanOpIdleList;
-  theScanOpIdleList = (NdbIndexScanOperation *) theScanOpIdleList->next();
+  NdbIndexScanOperation* tOp = theScanOpIdleList;
+  theScanOpIdleList = (NdbIndexScanOperation *)tOp->next();
   delete tOp;
 }
 
@@ -769,7 +775,9 @@ Ndb::freeSignal()
   NdbApiSignal* tSignal = theSignalIdleList;
   theSignalIdleList = tSignal->next();
   delete tSignal;
+#ifdef POORMANSPURIFY
   cfreeSignals++;
+#endif
 }
 
 void

@@ -192,7 +192,8 @@ public:
     OS_WAIT_ATTR = 14,
     OS_WAIT_COMMIT_CONF = 15,
     OS_WAIT_ABORT_CONF = 16,
-    OS_WAIT_COMPLETE_CONF = 17
+    OS_WAIT_COMPLETE_CONF = 17,
+    OS_WAIT_SCAN = 18
   };
 
   enum AbortState {
@@ -1169,6 +1170,8 @@ public:
     // Length of expected attribute information
     Uint32 scanAiLength;
 
+    Uint32 scanKeyLen;
+
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
 
@@ -1194,18 +1197,7 @@ public:
     Uint16 first_batch_size;
     Uint32 batch_byte_size;
 
-    // Shall the locks be held until the application have read the 
-    // records
-    Uint8 scanLockHold;
-
-    // Shall the locks be read or write locks
-    Uint8 scanLockMode;
-
-    // Skip locks by other transactions and read latest committed
-    Uint8 readCommitted;
-
-    // Scan is on ordered index
-    Uint8 rangeScan;
+    Uint32 scanRequestInfo; // ScanFrag format
 
     // Close is ordered
     bool m_close_scan_req;
@@ -1467,7 +1459,7 @@ private:
   void releaseAttrinfo();
   void releaseGcp(Signal* signal);
   void releaseKeys();
-  void releaseSimpleRead(Signal* signal);
+  void releaseSimpleRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
@@ -1571,7 +1563,7 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
-  void packKeyData000Lab(Signal* signal, BlockReference TBRef);
+  void packKeyData000Lab(Signal* signal, BlockReference TBRef, Uint32 len);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);

@@ -55,7 +55,7 @@ int runCreateInvalidTables(NDBT_Context* ctx, NDBT_Step* step){
   char failTabName[256];
 
   for (int i = 0; i < 10; i++){
-    snprintf(failTabName, 256, "F%d", i);
+    BaseString::snprintf(failTabName, 256, "F%d", i);
   
     const NdbDictionary::Table* pFailTab = NDBT_Tables::getTable(failTabName);
     if (pFailTab != NULL){
@@ -425,7 +425,7 @@ int runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
   for (int i = 0; i < numTables && failures < 5; i++){
-    snprintf(tabName, 256, "MAXTAB%d", i);
+    BaseString::snprintf(tabName, 256, "MAXTAB%d", i);
 
     if (pNdb->waitUntilReady(30) != 0){
       // Db is not ready, return with failure
@@ -491,7 +491,7 @@ int runDropMaxTables(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
   for (int i = 0; i < numTables; i++){
-    snprintf(tabName, 256, "MAXTAB%d", i);
+    BaseString::snprintf(tabName, 256, "MAXTAB%d", i);
 
     if (pNdb->waitUntilReady(30) != 0){
       // Db is not ready, return with failure
@@ -707,7 +707,7 @@ int runPkSizes(NDBT_Context* ctx, NDBT_Step* step){
   int numRecords = ctx->getNumRecords();
 
   for (int i = minPkSize; i < maxPkSize; i++){
-    snprintf(tabName, 256, "TPK_%d", i);
+    BaseString::snprintf(tabName, 256, "TPK_%d", i);
 
     int records = numRecords;
     int max = ~0;

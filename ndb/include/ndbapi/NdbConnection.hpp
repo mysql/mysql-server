@@ -526,9 +526,8 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure();		// Operation Completed with success  
-  int	OpCompleteSuccess();		// Operation Completed with success  
-
+  int	OpCompleteFailure(Uint8 abortoption);
+  int	OpCompleteSuccess();
   void	CompletedOperations();	        // Move active ops to list of completed
  
   void	OpSent();			// Operation Sent with success
@@ -649,6 +648,18 @@ private:
   Uint32 theNodeSequence; // The sequence no of the db node
   bool theReleaseOnClose;
 
+  /**
+   * handle transaction spanning
+   *   multiple TC/db nodes
+   *
+   * 1) Bitmask with used nodes
+   * 2) Bitmask with nodes failed during op
+   */
+  Uint32 m_db_nodes[2];
+  Uint32 m_failed_db_nodes[2];
+  
+  int report_node_failure(Uint32 id);
+
   // Scan operations
   bool m_waitForReply;     
   NdbIndexScanOperation* m_theFirstScanOperation;
@@ -673,6 +684,9 @@ private:
   void printState();
 #endif
   bool checkState_TransId(const Uint32 * transId) const;
+
+  void remove_list(NdbOperation*& head, NdbOperation*);
+  void define_scan_op(NdbIndexScanOperation*);
 };
 
 inline

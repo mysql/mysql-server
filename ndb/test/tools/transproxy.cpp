@@ -32,7 +32,7 @@ fatal(char const* fmt, ...)
     va_list ap;
     char buf[200];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << "FATAL: " << buf << endl;
     sleep(1);
@@ -45,7 +45,7 @@ debug(char const* fmt, ...)
     va_list ap;
     char buf[200];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf << endl;
 }

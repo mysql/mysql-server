@@ -651,11 +651,11 @@ void Item_func_int_div::fix_length_and_dec()
 double Item_func_mod::val()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= floor(args[0]->val()+0.5);
-  double val2=floor(args[1]->val()+0.5);
-  if ((null_value=val2 == 0.0 || args[0]->null_value || args[1]->null_value))
+  double x= args[0]->val();
+  double y= args[1]->val();
+  if ((null_value= (y == 0.0) || args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
-  return fmod(value,val2);
+  return fmod(x, y);
 }
 
 longlong Item_func_mod::val_int()
@@ -670,10 +670,7 @@ longlong Item_func_mod::val_int()
 
 void Item_func_mod::fix_length_and_dec()
 {
-  max_length=args[1]->max_length;
-  decimals=0;
-  maybe_null=1;
-  find_num_type();
+  Item_num_op::fix_length_and_dec();
 }
 
 

@@ -55,7 +55,7 @@ private:
    * DATA VARIABLES
    */
   UintR apiConnectPtr;        // DATA 0
-  UintR attrLen;              // DATA 1
+  UintR attrLenKeyLen;        // DATA 1
   UintR requestInfo;          // DATA 2
   UintR tableId;              // DATA 3
   UintR tableSchemaVersion;   // DATA 4
@@ -74,6 +74,7 @@ private:
   static Uint8 getHoldLockFlag(const UintR & requestInfo);
   static Uint8 getReadCommittedFlag(const UintR & requestInfo);
   static Uint8 getRangeScanFlag(const UintR & requestInfo);
+  static Uint8 getKeyinfoFlag(const UintR & requestInfo);
   static Uint16 getScanBatch(const UintR & requestInfo);
 
   /**
@@ -85,6 +86,7 @@ private:
   static void setHoldLockFlag(UintR & requestInfo, Uint32 flag);
   static void setReadCommittedFlag(UintR & requestInfo, Uint32 flag);
   static void setRangeScanFlag(UintR & requestInfo, Uint32 flag);
+  static void setKeyinfoFlag(UintR & requestInfo, Uint32 flag);
   static void setScanBatch(Uint32& requestInfo, Uint32 sz);
 };
 
@@ -95,12 +97,13 @@ private:
  l = Lock mode             - 1  Bit 8
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
+ k = Keyinfo               - 1  Bit 12
  x = Range Scan (TUX)      - 1  Bit 15
  b = Scan batch            - 10 Bit 16-25 (max 1023)
 
            1111111111222222222233
  01234567890123456789012345678901
- ppppppppl hc   xbbbbbbbbbb
+ ppppppppl hck  xbbbbbbbbbb
 */
 
 #define PARALLELL_SHIFT     (0)
@@ -111,6 +114,9 @@ private:
 
 #define HOLD_LOCK_SHIFT     (10)
 #define HOLD_LOCK_MASK      (1)
+
+#define KEYINFO_SHIFT       (12)
+#define KEYINFO_MASK        (1)
 
 #define READ_COMMITTED_SHIFT     (11)
 #define READ_COMMITTED_MASK      (1)
@@ -205,6 +211,20 @@ ScanTabReq::setScanBatch(Uint32 & requestInfo, Uint32 flag){
   requestInfo &= ~(SCAN_BATCH_MASK << SCAN_BATCH_SHIFT);
   requestInfo |= (flag << SCAN_BATCH_SHIFT);
 }
+
+inline
+Uint8
+ScanTabReq::getKeyinfoFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> KEYINFO_SHIFT) & KEYINFO_MASK);
+}
+
+inline
+void 
+ScanTabReq::setKeyinfoFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setKeyinfoFlag");
+  requestInfo |= (flag << KEYINFO_SHIFT);
+}
+
 
 /**
  * 

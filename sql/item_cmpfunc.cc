@@ -859,6 +859,10 @@ void Item_func_between::fix_length_and_dec()
     Field *field=((Item_field*) args[0])->field;
     if (field->can_be_compared_as_longlong())
     {
+      /*
+        The following can't be recoded with || as convert_constant_item
+        changes the argument
+      */
       if (convert_constant_item(thd, field,&args[1]))
 	cmp_type=INT_RESULT;			// Works for all types.
       if (convert_constant_item(thd, field,&args[2]))

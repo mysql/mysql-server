@@ -1438,7 +1438,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 	continue;
       }
       char buf[255];
-      snprintf(buf, sizeof(buf), 
+      BaseString::snprintf(buf, sizeof(buf), 
 	       "Illegal configuration change."
 	       " Initial start needs to be performed "
 	       " when changing no of storage nodes (node %d)", i);
@@ -1638,7 +1638,7 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   }//if
   if (getNodeStatus(nodeId) != NodeRecord::DEAD){
     ndbout << "nodeStatus in START_PERMREQ = " 
-	   << getNodeStatus(nodeId) << endl;
+	   << (Uint32) getNodeStatus(nodeId) << endl;
     ndbrequire(false);
   }//if
 
@@ -3500,7 +3500,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
     Uint32 count = node_groups[nodePtr.i];
     if(count != 0 && count != cnoReplicas){
       char buf[255];
-      snprintf(buf, sizeof(buf), 
+      BaseString::snprintf(buf, sizeof(buf), 
 	       "Illegal configuration change."
 	       " Initial start needs to be performed "
 	       " when changing no of replicas (%d != %d)", 
@@ -4268,7 +4268,7 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       failedNodePtr.p->activeStatus = Sysfile::NS_NotActive_NotTakenOver;
       break;
     default:
-      ndbout << "activeStatus = " << failedNodePtr.p->activeStatus;
+      ndbout << "activeStatus = " << (Uint32) failedNodePtr.p->activeStatus;
       ndbout << " at failure after NODE_FAILREP of node = ";
       ndbout << failedNodePtr.i << endl;
       ndbrequire(false);
@@ -4618,6 +4618,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     /*       BUT NOT YET COMPLETED.                     */
     /*--------------------------------------------------*/
     ndbrequire(false);
+    gcpState= MasterGCPConf::GCP_READY; // remove warning
     break;
   default:
     /*------------------------------------------------*/
@@ -4627,6 +4628,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     /*       NODE WHICH WAS NOT A MASTER NODE.        */
     /*------------------------------------------------*/
     ndbrequire(false);
+    gcpState= MasterGCPConf::GCP_READY; // remove warning
     break;
   }//switch
   MasterGCPConf * const masterGCPConf = (MasterGCPConf *)&signal->theData[0];  
@@ -5535,6 +5537,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
      *   it not allowed
      */
     ndbrequire(false);
+    lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
   case LCP_COPY_GCI:
   case LCP_INIT_TABLES:
@@ -5543,6 +5546,7 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
      * These two states are handled by if statements above
      */
     ndbrequire(false);
+    lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
   }//switch
   ndbrequire(ok);
@@ -6198,7 +6202,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     if (primaryTableId == RNIL) {
       if(fragmentNode == 0){
         jam();
-        NGPtr.i = c_nextNodeGroup;
+	// needs to be fixed for single fragment tables
+        NGPtr.i = 0; //c_nextNodeGroup;
         c_nextNodeGroup = (NGPtr.i + 1 == cnoOfNodeGroups ? 0 : NGPtr.i + 1);
       } else if(! (fragmentNode < MAX_NDB_NODES)) {
         jam();
@@ -6255,20 +6260,22 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     //@todo use section writer
     Uint32 count = 2;
     Uint32 fragments[2 + 8*MAX_REPLICAS*MAX_NDB_NODES];
+    Uint32 next_replica_node[MAX_NDB_NODES];
+    memset(next_replica_node,0,sizeof(next_replica_node));
     if (primaryTableId == RNIL) {
       jam();
       for(Uint32 fragNo = 0; fragNo<noOfFragments; fragNo++){
         jam();
         ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);      
 
-        Uint32 ind = NGPtr.p->nextReplicaNode;
+        Uint32 ind = next_replica_node[NGPtr.i];
         const Uint32 max = NGPtr.p->nodeCount;
 
         //-------------------------------------------------------------------
         // We make an extra step to ensure that the primary replicas are
         // spread among the nodes.
         //-------------------------------------------------------------------
-        NGPtr.p->nextReplicaNode = (ind + 1 >= max ? 0 : ind + 1);
+        next_replica_node[NGPtr.i] = (ind + 1 >= max ? 0 : ind + 1);
         
         for(Uint32 replicaNo = 0; replicaNo<noOfReplicas; replicaNo++){
           jam();
@@ -7127,7 +7134,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
           jam();
 #ifdef VM_TRACE
           ndbout << "System crash due to GCP Stop in state = ";
-          ndbout << cgcpStatus << endl;
+          ndbout << (Uint32) cgcpStatus << endl;
 #endif
           crashSystemAtGcpStop(signal);
           return;
@@ -7141,7 +7148,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
             jam();
 #ifdef VM_TRACE
             ndbout << "System crash due to GCP Stop in state = ";
-            ndbout << cgcpStatus << endl;
+            ndbout << (Uint32) cgcpStatus << endl;
 #endif
 	    crashSystemAtGcpStop(signal);
             return;
@@ -8631,7 +8638,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     /*   POSSIBLE TO RESTORE THE SYSTEM.                                     */
     /* --------------------------------------------------------------------- */
     char buf[100];
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Unable to find restorable replica for "
 	     "table: %d fragment: %d gci: %d",
 	     tableId, fragId, SYSFILE->newestRestorableGCI);
@@ -9074,7 +9081,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
 {
   CRASH_INSERTION(7009);
   if (c_lcpState.lcpStatus != LCP_STATUS_IDLE) {
-    ndbout << "lcpStatus = " << c_lcpState.lcpStatus;
+    ndbout << "lcpStatus = " << (Uint32) c_lcpState.lcpStatus;
     ndbout << "lcpStatusUpdatedPlace = " << 
       c_lcpState.lcpStatusUpdatedPlace << endl;
     ndbrequire(false);
@@ -12735,6 +12742,7 @@ void Dbdih::setNodeRestartInfoBits()
       break;
     default:
       ndbrequire(false);
+      tsnrNodeActiveStatus = Sysfile::NS_NotDefined; // remove warning
       break;
     }//switch
     Sysfile::setNodeStatus(nodePtr.i, SYSFILE->nodeStatus, 
@@ -12939,7 +12947,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
-	  snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
+	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
 	  strcat(buf, tmp);
 	}
 	infoEvent(buf);
@@ -13155,12 +13163,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	replicaPtr.i = fragPtr.p->storedReplicas;
 	do {
 	  ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-	  snprintf(buf2, sizeof(buf2), "%s %d(on %d)=%d(%s)",
+	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d(on %d)=%d(%s)",
 		   buf, num, 
 		   replicaPtr.p->procNode, 
 		   replicaPtr.p->lcpIdStarted,
 		   replicaPtr.p->lcpOngoingFlag ? "Ongoing" : "Idle");
-	  snprintf(buf, sizeof(buf), "%s", buf2);
+	  BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
 	  
 	  num++;
 	  replicaPtr.i = replicaPtr.p->nextReplica;

@@ -1087,10 +1087,10 @@ private:
   void deleteLongKey(Signal* signal);
   void removeFromPageArrayList(Signal* signal);
   void insertPageArrayList(Signal* signal);
-  void checkPageArrayList(Signal* signal, char *);
-  void checkPageB4Insert(Uint32, char *); 
-  void checkPageB4Remove(Uint32, char *); 
-  void checkIndexInLongKeyPage(Uint32, char *);
+  void checkPageArrayList(Signal* signal, const char *);
+  void checkPageB4Insert(Uint32, const char *); 
+  void checkPageB4Remove(Uint32, const char *); 
+  void checkIndexInLongKeyPage(Uint32, const char *);
   void printoutInfoAndShutdown(LongKeyPage *);
   void releaseLongPage(Signal* signal);
   void abortOperation(Signal* signal);

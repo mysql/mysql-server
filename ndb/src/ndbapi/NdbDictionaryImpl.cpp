@@ -148,6 +148,9 @@ NdbColumnImpl::init(Type t)
     m_length = 4;
     m_cs = default_cs;
     break;
+  case Undefined:
+    assert(false);
+    break;
   }
   m_pk = false;
   m_nullable = false;
@@ -1466,7 +1469,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   impl.m_internalName.assign(internalName);
   UtilBufferWriter w(m_buffer);
   DictTabInfo::Table tmpTab; tmpTab.init();
-  snprintf(tmpTab.TableName, 
+  BaseString::snprintf(tmpTab.TableName, 
 	   sizeof(tmpTab.TableName), 
 	   internalName);
 
@@ -1522,7 +1525,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       continue;
     
     DictTabInfo::Attribute tmpAttr; tmpAttr.init();
-    snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
+    BaseString::snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
 	     col->m_name.c_str());
     tmpAttr.AttributeId = i;
     tmpAttr.AttributeKeyFlag = col->m_pk || col->m_tupleKey;
@@ -1557,7 +1560,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     (void)tmpAttr.translateExtType();
 
     tmpAttr.AttributeAutoIncrement = col->m_autoIncrement;
-    snprintf(tmpAttr.AttributeDefaultValue, 
+    BaseString::snprintf(tmpAttr.AttributeDefaultValue, 
 	     sizeof(tmpAttr.AttributeDefaultValue),
 	     col->m_defaultValue.c_str());
     s = SimpleProperties::pack(w, 

@@ -1552,7 +1552,7 @@ static int readArguments(int argc, const char** argv)
       const char *q = strrchr(p, ':');
       if (q == 0)
 	return -1;
-      snprintf(statHost, sizeof(statHost), "%.*s", q-p, p);
+      BaseString::snprintf(statHost, sizeof(statHost), "%.*s", q-p, p);
       statPort = atoi(q+1);
       statEnable = true;
       argc -= 1;
@@ -1618,17 +1618,17 @@ static int
 createTables(MYSQL* mysqlp){
 
   for (Uint32 i = 0; i < tNoOfAttributes; i++){
-    snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
+    BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 
   // Note! Uses only uppercase letters in table name's
   // so that we can look at the tables with SQL
   for (Uint32 i = 0; i < tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
     } else {
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     }
   }
   
@@ -1663,17 +1663,17 @@ static int
 createTables(Ndb* pMyNdb){
 
   for (Uint32 i = 0; i < tNoOfAttributes; i++){
-    snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
+    BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 
   // Note! Uses only uppercase letters in table name's
   // so that we can look at the tables with SQL
   for (Uint32 i = 0; i < tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
     } else {
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     }
   }
   

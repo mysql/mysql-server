@@ -19,8 +19,11 @@
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL  // Not part of public interface
 
 #include <ndb_types.h>
+#include <ndb_global.h>
 
 class Ndb;
+class NdbConnection;
+
 class NdbReceiver
 {
   friend class Ndb;
@@ -59,6 +62,7 @@ public:
   inline void next(NdbReceiver* next) { m_next = next;}
   inline NdbReceiver* next() { return m_next; }
   
+  void setErrorCode(int);
 private:
   Uint32 theMagicNumber;
   Ndb* m_ndb;
@@ -127,7 +131,8 @@ int
 NdbReceiver::execTCOPCONF(Uint32 len){
   Uint32 tmp = m_received_result_length;
   m_expected_result_length = len;
-  return (tmp == len ? 1 : 0);
+  assert(!(tmp && !len));
+  return ((bool)len ^ (bool)tmp ? 0 : 1);
 }
 
 inline

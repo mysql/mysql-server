@@ -641,17 +641,17 @@ defineOperation(NdbConnection* localNdbConnection, TransNdb* transNdbRef,
 
 static void setAttrNames()
 {
-  snprintf(attrName[0], MAXSTRLEN, "VPN_ID");
-  snprintf(attrName[1], MAXSTRLEN, "VPN_NB");
-  snprintf(attrName[2], MAXSTRLEN, "DIRECTORY_NB");
-  snprintf(attrName[3], MAXSTRLEN, "LAST_CALL_PARTY");
-  snprintf(attrName[4], MAXSTRLEN, "DESCR");
+  BaseString::snprintf(attrName[0], MAXSTRLEN, "VPN_ID");
+  BaseString::snprintf(attrName[1], MAXSTRLEN, "VPN_NB");
+  BaseString::snprintf(attrName[2], MAXSTRLEN, "DIRECTORY_NB");
+  BaseString::snprintf(attrName[3], MAXSTRLEN, "LAST_CALL_PARTY");
+  BaseString::snprintf(attrName[4], MAXSTRLEN, "DESCR");
 }
 
 
 static void setTableNames()
 {
-  snprintf(tableName[0], MAXSTRLEN, "VPN_USERS");
+  BaseString::snprintf(tableName[0], MAXSTRLEN, "VPN_USERS");
 }
 
 static

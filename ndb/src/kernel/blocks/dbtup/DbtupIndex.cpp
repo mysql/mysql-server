@@ -166,7 +166,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
   fragptr = fragptr_old;
   operPtr = operPtr_old;
   // done
-  if (ret == (Uint32)-1) {
+  if (ret == -1) {
     ret = terrorCode ? (-(int)terrorCode) : -1;
   }
   return ret;
@@ -200,13 +200,14 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
   operPtr.i = RNIL;
   operPtr.p = NULL;
   // do it
-  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL, true);
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds,
+			   numAttrs, dataOut, ZNIL, true);
   // restore globals
   tabptr = tabptr_old;
   fragptr = fragptr_old;
   operPtr = operPtr_old;
   // done
-  if (ret != (Uint32)-1) {
+  if (ret != -1) {
     // remove headers
     Uint32 n = 0;
     Uint32 i = 0;
@@ -220,7 +221,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
       n += 1;
       i += 1 + size;
     }
-    ndbrequire(i == ret);
+    ndbrequire((int)i == ret);
     ret -= numAttrs;
   } else {
     ret = terrorCode ? (-(int)terrorCode) : -1;

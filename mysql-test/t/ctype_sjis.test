@@ -32,3 +32,12 @@ select hex(CONVERT(@utf81 USING sjis));
 select hex(CONVERT(@utf82 USING sjis));
 select hex(CONVERT(@utf83 USING sjis));
 select hex(CONVERT(@utf84 USING sjis));
+
+#
+# Allow to insert extra CP932 characters
+# into a SJIS column
+#
+create table t1 (a char(10) character set sjis);
+insert into t1 values (0x878A);
+select hex(a) from t1;
+drop table t1;

@@ -1,14 +1,11 @@
-use test;
-drop table if exists personnel;
-Warnings:
-Note	1051	Unknown table 'personnel'
-create table personnel  (
+drop table if exists t1;
+create table t1  (
 id     INTEGER AUTO_INCREMENT PRIMARY KEY,
 emp    CHAR(10) NOT NULL,
 salary DECIMAL(6,2) NOT NULL,
 l INTEGER NOT NULL,
 r INTEGER NOT NULL);
-prepare st_ins from 'insert into personnel set emp = ?, salary = ?, l = ?, r = ?';
+prepare st_ins from 'insert into t1 set emp = ?, salary = ?, l = ?, r = ?';
 set @arg_nam= 'Jerry';
 set @arg_sal= 1000;
 set @arg_l= 1;
@@ -39,7 +36,7 @@ set @arg_sal=  600;
 set @arg_l= 9;
 set @arg_r= 10;
 execute st_ins using @arg_nam, @arg_sal, @arg_l, @arg_r ;
-select * from personnel;
+select * from t1;
 id	emp	salary	l	r
 1	Jerry	1000.00	1	12
 2	Bert	900.00	2	3
@@ -47,8 +44,8 @@ id	emp	salary	l	r
 4	Donna	800.00	5	6
 5	Eddie	700.00	7	8
 6	Fred	600.00	9	10
-prepare st_raise_base from 'update personnel set salary = salary * ( 1 + ? ) where r - l = 1';
-prepare st_raise_mgr  from 'update personnel set salary = salary + ? where r - l > 1';
+prepare st_raise_base from 'update t1 set salary = salary * ( 1 + ? ) where r - l = 1';
+prepare st_raise_mgr  from 'update t1 set salary = salary + ? where r - l > 1';
 set @arg_percent= .10;
 set @arg_amount= 100;
 execute st_raise_base using @arg_percent;
@@ -57,7 +54,7 @@ execute st_raise_base using @arg_percent;
 execute st_raise_mgr  using @arg_amount;
 execute st_raise_base using @arg_percent;
 execute st_raise_mgr  using @arg_amount;
-select * from personnel;
+select * from t1;
 id	emp	salary	l	r
 1	Jerry	1300.00	1	12
 2	Bert	1197.90	2	3
@@ -65,4 +62,4 @@ id	emp	salary	l	r
 4	Donna	1064.80	5	6
 5	Eddie	931.70	7	8
 6	Fred	798.60	9	10
-drop table personnel;
+drop table t1;

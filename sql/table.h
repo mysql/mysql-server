@@ -164,6 +164,7 @@ struct st_table {
   MEM_ROOT mem_root;
   GRANT_INFO grant;
 
+  /* A pair "database_name\0table_name\0", widely used as simply a db name */
   char		*table_cache_key;
   char		*table_name,*real_name,*path;
   uint		key_length;		/* Length of key */

@@ -881,6 +881,7 @@ class Table;
 class BaseString;
 class NdbEventOperation;
 class NdbBlob;
+class NdbReceiver;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
@@ -1612,7 +1613,6 @@ private:
   char                  prefixName[NDB_MAX_INTERNAL_TABLE_LENGTH];
   char *                prefixEnd;		
 
-  //Table*       		theTable;	// The table object		
   class NdbImpl * theImpl;
   class NdbDictionaryImpl* theDictionary;
   class NdbGlobalEventBufferHandle* theGlobalEventBufferHandle;
@@ -1698,10 +1698,13 @@ private:
   
   NdbApiSignal* theCommitAckSignal;
 
+
+#ifdef POORMANSPURIFY
   int cfreeSignals;
   int cnewSignals;
   int cgetSignals;
   int creleaseSignals;
+#endif
 
   static void executeMessage(void*, NdbApiSignal *, 
 			     struct LinearSectionPtr ptr[3]);

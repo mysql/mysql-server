@@ -1,0 +1,78 @@
+
+# ============================================================================
+#
+# Test of mysqltest itself
+#
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Positive case(statement)
+# ----------------------------------------------------------------------------
+
+select otto from (select 1 as otto) as t1;
+# expectation = response
+!$0 select otto from (select 1 as otto) as t1;
+--error 0
+select otto from (select 1 as otto) as t1;
+
+# expectation <> response
+-- // !$1054 select otto from (select 1 as otto) as t1;
+-- // --error 1054
+-- // select otto from (select 1 as otto) as t1;
+
+
+# ----------------------------------------------------------------------------
+# Negative case(statement):
+# The dervied table t1 does not contain a column named 'friedrich' . 
+# --> ERROR 42S22: Unknown column 'friedrich' in 'field list and
+# --> 1054: Unknown column 'friedrich' in 'field list'
+# ----------------------------------------------------------------------------
+
+# expectation <> response
+#!$0 select friedrich from (select 1 as otto) as t1;
+#--error 0
+#select friedrich from (select 1 as otto) as t1;
+
+# expectation = response
+!$1054 select friedrich from (select 1 as otto) as t1;
+--error 1054
+select friedrich from (select 1 as otto) as t1;
+
+# The following unmasked unsuccessful statement must give
+# 1. mysqltest gives a 'failed'
+# 2. does not produce a r/<test case>.reject file !!!
+# PLEASE uncomment it and check it's effect
+#select friedrich from (select 1 as otto) as t1;
+
+
+# ----------------------------------------------------------------------------
+# Tests for the new feature - SQLSTATE error code matching
+# Positive case(statement)
+# ----------------------------------------------------------------------------
+
+# expectation = response
+!S00000 select otto from (select 1 as otto) as t1;
+
+--error S00000
+select otto from (select 1 as otto) as t1;
+
+# expectation <> response
+#!S42S22 select otto from (select 1 as otto) as t1;
+#--error S42S22
+#select otto from (select 1 as otto) as t1;
+
+
+# ----------------------------------------------------------------------------
+# Negative case(statement)
+# ----------------------------------------------------------------------------
+
+# expectation = response
+!S42S22 select friedrich from (select 1 as otto) as t1;
+--error S42S22
+select friedrich from (select 1 as otto) as t1;
+
+# expectation !=response
+#!S00000 select friedrich from (select 1 as otto) as t1;
+#--error S00000
+#select friedrich from (select 1 as otto) as t1;
+

@@ -42,6 +42,8 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   int result;
   pthread_attr_t thread_attr;
 
+  (void)thread_prio; /* remove warning for unused parameter */
+
   if (p_thread_func == NULL)
     return 0;
 
@@ -49,8 +51,7 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (tmpThread == NULL)
     return NULL;
 
-  snprintf(tmpThread->thread_name, sizeof(tmpThread->thread_name),
-	   "%s", p_thread_name);
+  strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
@@ -109,6 +110,7 @@ int NdbThread_SetConcurrencyLevel(int level)
 #ifdef USE_PTHREAD_EXTRAS
   return pthread_setconcurrency(level);
 #else
+  (void)level; /* remove warning for unused parameter */
   return 0;
 #endif
 }

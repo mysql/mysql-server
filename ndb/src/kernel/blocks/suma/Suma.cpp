@@ -98,7 +98,7 @@ Suma::getNodeGroupMembers(Signal* signal) {
   }
 
   //  ndbout_c("c_noNodesInGroup=%d", c_noNodesInGroup);
-  ndbrequire(c_noNodesInGroup >= 0); // at least 1 node in the nodegroup
+  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
 
 #ifdef NODEFAIL_DEBUG
   for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
@@ -1891,7 +1891,7 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
-  req->fragmentNo = fd.m_fragDesc.m_fragmentNo;
+  req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
@@ -2713,6 +2713,7 @@ Suma::getResponsibleSumaNodeId(Uint32 D)
     id = RNIL;
   } else {
     jam();
+    id = RNIL;
     const Uint32 n = c_noNodesInGroup; // Number nodes in node group
     const Uint32 C1 = D / n;
     const Uint32 C2 = D - C1*n; // = D % n;

@@ -103,7 +103,7 @@ void showTime()
   now = ::time((time_t*)NULL);
   tm_now = ::gmtime(&now);
 
-  ::snprintf(buf, 128,
+  BaseString::snprintf(buf, 128,
 	     "%d-%.2d-%.2d %.2d:%.2d:%.2d", 
 	     tm_now->tm_year + 1900, 
 	     tm_now->tm_mon, 
