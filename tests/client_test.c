@@ -7467,24 +7467,26 @@ static void test_sqlmode()
 static void test_ts()
 {
   MYSQL_STMT *stmt;
-  MYSQL_BIND bind[2];
+  MYSQL_BIND bind[6];
   MYSQL_TIME ts;
+  MYSQL_RES  *prep_res;
   char       strts[30];
   long       length;
-  int        rc;
+  int        rc, field_count;
+  char       name;
 
   myheader("test_ts");
 
   rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_ts");
   myquery(rc);
   
-  rc= mysql_query(mysql,"CREATE TABLE test_ts(a TIMESTAMP)");
+  rc= mysql_query(mysql,"CREATE TABLE test_ts(a DATE, b TIME, c TIMESTAMP)");
   myquery(rc);
 
   rc = mysql_commit(mysql);
   myquery(rc);
 
-  stmt = mysql_prepare(mysql,"INSERT INTO test_ts VALUES(?),(?)",40);
+  stmt = mysql_prepare(mysql,"INSERT INTO test_ts VALUES(?,?,?),(?,?,?)",50);
   mystmt_init(stmt);
 
   ts.year= 2003;
@@ -7495,17 +7497,21 @@ static void test_ts()
   ts.second= 46;
   length= (long)(strmov(strts,"2003-07-12 21:07:46") - strts);
 
-  bind[0].buffer_type= MYSQL_TYPE_STRING;
-  bind[0].buffer= (char *)strts;
-  bind[0].buffer_length= sizeof(strts);
+  bind[0].buffer_type= MYSQL_TYPE_TIMESTAMP;
+  bind[0].buffer= (char *)&ts;
+  bind[0].buffer_length= sizeof(ts);
   bind[0].is_null= 0;
-  bind[0].length= &length;
+  bind[0].length= 0;
 
-  bind[1].buffer_type= MYSQL_TYPE_TIMESTAMP;
-  bind[1].buffer= (char *)&ts;
-  bind[1].buffer_length= sizeof(ts);
-  bind[1].is_null= 0;
-  bind[1].length= 0;
+  bind[2]= bind[1]= bind[0];
+
+  bind[3].buffer_type= MYSQL_TYPE_STRING;
+  bind[3].buffer= (char *)strts;
+  bind[3].buffer_length= sizeof(strts);
+  bind[3].is_null= 0;
+  bind[3].length= &length;
+
+  bind[5]= bind[4]= bind[3];
 
   rc = mysql_bind_param(stmt, bind);
   mystmt(stmt,rc);
@@ -7515,27 +7521,49 @@ static void test_ts()
 
   mysql_stmt_close(stmt);
 
-  verify_col_data("test_ts","a","2003-07-12 21:07:46");
+  verify_col_data("test_ts","a","2003-07-12");
+  verify_col_data("test_ts","b","21:07:46");
+  verify_col_data("test_ts","c","2003-07-12 21:07:46");
 
-  stmt = mysql_prepare(mysql,"SELECT a FROM test_ts WHERE a >= ?",50);
+  stmt = mysql_prepare(mysql,"SELECT * FROM test_ts",50);
   mystmt_init(stmt);
 
-  rc = mysql_bind_param(stmt, bind);
-  mystmt(stmt,rc);
+  prep_res = mysql_prepare_result(stmt);
+  mytest(prep_res);
 
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  rc = mysql_fetch(stmt);
-  mystmt(stmt,rc);
+  myassert( 2== my_process_stmt_result(stmt));
+  field_count= mysql_num_fields(prep_res);
 
-  rc = mysql_fetch(stmt);
-  mystmt(stmt,rc);
-
-  rc = mysql_fetch(stmt);
-  myassert(rc == MYSQL_NO_DATA);
-
+  mysql_free_result(prep_res);
   mysql_stmt_close(stmt);
+
+  for (name= 'a'; field_count--; name++)
+  {
+    int row_count= 0;
+
+    sprintf(query,"SELECT a,b,c FROM test_ts WHERE %c=?",name);
+    length= (long)(strmov(query,query)- query);
+
+    fprintf(stdout,"\n  %s", query);
+    stmt = mysql_prepare(mysql, query, length);
+    mystmt_init(stmt);
+
+    rc = mysql_bind_param(stmt, bind);
+    mystmt(stmt,rc);
+
+    rc = mysql_execute(stmt);
+    mystmt(stmt,rc);
+
+    while (mysql_fetch(stmt) == 0)
+      row_count++;
+
+    fprintf(stdout, "\n   returned '%d' rows", row_count);
+    myassert(row_count == 2);
+    mysql_stmt_close(stmt);
+  }
 }
 
 
