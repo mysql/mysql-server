@@ -48,6 +48,7 @@ typedef struct unicase_info_st {
 #define MY_CS_CONFIG    2      /* sets that have a *.conf file   */
 #define MY_CS_INDEX     4      /* sets listed in the Index file  */
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
+#define MY_CS_BINSORT	16     /* if binary sort order           */
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
@@ -116,6 +117,7 @@ typedef struct charset_info_st
 } CHARSET_INFO;
 
 
+extern CHARSET_INFO *my_charset_bin;
 extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *all_charsets[256];
