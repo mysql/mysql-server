@@ -1,0 +1,78 @@
+#
+# This is the test for mysql_fix_privilege_tables
+#
+
+-- disable_result_log
+-- disable_query_log
+
+use test;
+
+# create system tables as in mysql-3.20
+
+CREATE TABLE db (
+  Host char(60) binary DEFAULT '' NOT NULL,
+  Db char(32) binary DEFAULT '' NOT NULL,
+  User char(16) binary DEFAULT '' NOT NULL,
+  Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Create_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  PRIMARY KEY Host (Host,Db,User),
+  KEY User (User)
+)
+type=ISAM;
+
+INSERT INTO db VALUES ('%','test',   '','Y','Y','Y','Y','Y','Y');
+INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y');
+
+CREATE TABLE host (
+  Host char(60) binary DEFAULT '' NOT NULL,
+  Db char(32) binary DEFAULT '' NOT NULL,
+  Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Create_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  PRIMARY KEY Host (Host,Db)
+)
+type=ISAM;
+
+CREATE TABLE user (
+  Host char(60) binary DEFAULT '' NOT NULL,
+  User char(16) binary DEFAULT '' NOT NULL,
+  Password char(16),
+  Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Delete_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Create_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Drop_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Reload_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Shutdown_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  Process_priv enum('N','Y') DEFAULT 'N' NOT NULL,
+  PRIMARY KEY Host (Host,User)
+)
+type=ISAM;
+
+INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+INSERT INTO user VALUES ('localhost','',    '','N','N','N','N','N','N','N','N','N');
+
+-- exec $MYSQL_FIX_SYSTEM_TABLES --database=test
+-- enable_query_log
+-- enable_result_log
+
+-- source include/system_db_struct.inc
+
+-- disable_query_log
+
+DROP TABLE db;
+DROP TABLE host;
+DROP TABLE user;
+DROP TABLE func;
+DROP TABLE tables_priv;
+DROP TABLE columns_priv;
+
+-- enable_query_log

@@ -109,6 +109,7 @@ MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
+static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;;
 
 static FILE* file_stack[MAX_INCLUDE_DEPTH];
 static FILE** cur_file;
@@ -870,18 +871,25 @@ int do_exec(struct st_query* q)
   char buf[1024];
   FILE *res_file;
   char *cmd= q->first_argument;
+  DBUG_ENTER("do_exec");
 
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
     die("Missing argument in exec\n");
 
+  DBUG_PRINT("info", ("Executing '%s'", cmd));
+
+  if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
+    die("popen() failed\n");
+
   if (disable_result_log)
   {
-    if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
-      die("popen() failed\n");
-    while (fgets(buf, sizeof(buf), res_file));
-    pclose(res_file);
+    while (fgets(buf, sizeof(buf), res_file))
+    {
+      buf[strlen(buf)-1]=0;
+      DBUG_PRINT("exec_result",("%s", buf));
+    }
   }
   else
   {
@@ -893,11 +901,8 @@ int do_exec(struct st_query* q)
     else
       ds= &ds_res;
 
-    if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
-      die("popen() failed\n");
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
-    pclose(res_file);
   
     if (glob_replace)
       free_replace();
@@ -916,8 +921,9 @@ int do_exec(struct st_query* q)
     if (ds == &ds_tmp)
       dynstr_free(&ds_tmp);
   }
+  pclose(res_file);
   
-  return error;
+  DBUG_RETURN(error);
 }
 
 int var_query_set(VAR* v, const char* p, const char** p_end)
@@ -1052,7 +1058,7 @@ int do_system(struct st_query* q)
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
   {
-    char expr_buf[512];
+    char expr_buf[1024];
     if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
       v.str_val_len = sizeof(expr_buf) - 1;
     memcpy(expr_buf, v.str_val, v.str_val_len);
@@ -1646,24 +1652,49 @@ int do_while(struct st_query* q)
 }
 
 
-my_bool end_of_query(int c, char* p)
+/*
+  Read characters from line buffer or file. This is needed to allow
+  my_ungetc() to buffer MAX_DELIMITER characters for a file
+
+  NOTE:
+    This works as long as one doesn't change files (with 'source file_name')
+    when there is things pushed into the buffer.  This should however not
+    happen for any tests in the test suite.
+*/
+
+int my_getc(FILE *file)
 {
-  uint i, j;
-  int tmp[MAX_DELIMITER]= {0};
+  if (line_buffer_pos == line_buffer)
+    return fgetc(file);
+  return *--line_buffer_pos;
+}
 
-  for (i= 0; c == *(delimiter + i) && i < delimiter_length;
-       i++, c= fgetc(*cur_file))
+void my_ungetc(int c)
+{
+  *line_buffer_pos++= (char) c;
+}
+
+
+my_bool end_of_query(int c)
+{
+  uint i,j;
+  char tmp[MAX_DELIMITER];
+
+  if (c != *delimiter)
+    return 0;
+
+  for (i= 1; i < delimiter_length &&
+	 (c= my_getc(*cur_file)) == *(delimiter + i);
+       i++)
     tmp[i]= c;
-  tmp[i]= c;
 
-  for (j= i; j > 0 && i != delimiter_length; j--)
-    ungetc(tmp[j], *cur_file);
   if (i == delimiter_length)
-  {
-    ungetc(tmp[i], *cur_file);
-    *p= 0;
-    return 1;
-  }
+    return 1;					/* Found delimiter */
+
+  /* didn't find delimiter, push back things that we read */
+  my_ungetc(c);
+  while (i > 1)
+    my_ungetc(tmp[--i]);
   return 0;
 }
 
@@ -1681,7 +1712,7 @@ int read_line(char* buf, int size)
   for (; p < buf_end ;)
   {
     no_save= 0;
-    c= fgetc(*cur_file);
+    c= my_getc(*cur_file);
     if (feof(*cur_file))
     {
       if ((*cur_file) != stdin)
@@ -1696,8 +1727,11 @@ int read_line(char* buf, int size)
     switch(state) {
     case R_NORMAL:
       /*  Only accept '{' in the beginning of a line */
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       else if (c == '\'')
 	state = R_Q1;
       else if (c == '"')
@@ -1733,7 +1767,7 @@ int read_line(char* buf, int size)
 	*buf= 0;
 	return 0;
       }
-      else if (end_of_query(c, p) || c == '{')
+      else if (end_of_query(c) || c == '{')
       {
 	*p= 0;
 	return 0;
@@ -1753,8 +1787,11 @@ int read_line(char* buf, int size)
 	state= R_ESC_SLASH_Q1;
       break;
     case R_ESC_Q_Q1:
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       if (c != '\'')
 	state= R_NORMAL;
       else
@@ -1771,8 +1808,11 @@ int read_line(char* buf, int size)
 	state= R_ESC_SLASH_Q2;
       break;
     case R_ESC_Q_Q2:
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       if (c != '"')
 	state= R_NORMAL;
       else
@@ -1797,11 +1837,12 @@ int read_query(struct st_query** q_ptr)
   char *p = read_query_buf, * p1 ;
   int expected_errno;
   struct st_query* q;
+  DBUG_ENTER("read_query_buf");
 
   if (parser.current_line < parser.read_lines)
   {
     get_dynamic(&q_lines, (gptr) q_ptr, parser.current_line) ;
-    return 0;
+    DBUG_RETURN(0);
   }
   if (!(*q_ptr= q= (struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME))) ||
       insert_dynamic(&q_lines, (gptr) &q))
@@ -1820,7 +1861,7 @@ int read_query(struct st_query** q_ptr)
   q->type = Q_UNKNOWN;
   q->query_buf= q->query= 0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
-    return 1;
+    DBUG_RETURN(1);
 
   if (*p == '#')
   {
@@ -1874,7 +1915,7 @@ int read_query(struct st_query** q_ptr)
   q->first_argument= p;
   q->end= strend(q->query);
   parser.read_lines++;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2356,9 +2397,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       }
     }
 
-    if (glob_replace)
-      free_replace();
-
     if (record)
     {
       if (!q->record_file[0] && !result_file)
@@ -2379,6 +2417,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     mysql_error(mysql);
 
 end:
+  free_replace();
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
@@ -2392,10 +2431,12 @@ void get_query_type(struct st_query* q)
 {
   char save;
   uint type;
+  DBUG_ENTER("get_query_type");
+
   if (*q->query == '}')
   {
     q->type = Q_END_BLOCK;
-    return;
+    DBUG_VOID_RETURN;
   }
   if (q->type != Q_COMMENT_WITH_COMMAND)
     q->type = Q_QUERY;
@@ -2406,7 +2447,9 @@ void get_query_type(struct st_query* q)
   q->query[q->first_word_len]=save;
   if (type > 0)
     q->type=(enum enum_commands) type;		/* Found command */
+  DBUG_VOID_RETURN;
 }
+
 
 static byte *get_var_key(const byte* var, uint* len,
 			 my_bool __attribute__((unused)) t)

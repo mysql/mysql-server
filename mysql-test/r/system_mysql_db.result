@@ -3,6 +3,10 @@ Tables_in_db
 columns_priv
 db
 func
+help_category
+help_keyword
+help_relation
+help_topic
 host
 tables_priv
 user
@@ -26,7 +30,7 @@ db	CREATE TABLE `db` (
   `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`,`User`),
   KEY `User` (`User`)
-) TYPE=MyISAM COMMENT='Database privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Database privileges'
 show create table host;
 Table	Create Table
 host	CREATE TABLE `host` (
@@ -45,13 +49,13 @@ host	CREATE TABLE `host` (
   `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
   `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`)
-) TYPE=MyISAM COMMENT='Host privileges;  Merged with database privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Host privileges;  Merged with database privileges'
 show create table user;
 Table	Create Table
 user	CREATE TABLE `user` (
   `Host` varchar(60) binary NOT NULL default '',
   `User` varchar(16) binary NOT NULL default '',
-  `Password` varchar(16) binary NOT NULL default '',
+  `Password` varchar(41) binary NOT NULL default '',
   `Select_priv` enum('N','Y') NOT NULL default 'N',
   `Insert_priv` enum('N','Y') NOT NULL default 'N',
   `Update_priv` enum('N','Y') NOT NULL default 'N',
@@ -81,16 +85,16 @@ user	CREATE TABLE `user` (
   `max_updates` int(11) unsigned NOT NULL default '0',
   `max_connections` int(11) unsigned NOT NULL default '0',
   PRIMARY KEY  (`Host`,`User`)
-) TYPE=MyISAM COMMENT='Users and global privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Users and global privileges'
 show create table func;
 Table	Create Table
 func	CREATE TABLE `func` (
-  `name` char(64) NOT NULL default '',
+  `name` char(64) binary NOT NULL default '',
   `ret` tinyint(1) NOT NULL default '0',
   `dl` char(128) NOT NULL default '',
   `type` enum('function','aggregate') NOT NULL default 'function',
   PRIMARY KEY  (`name`)
-) TYPE=MyISAM COMMENT='User defined functions'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='User defined functions'
 show create table tables_priv;
 Table	Create Table
 tables_priv	CREATE TABLE `tables_priv` (
@@ -99,12 +103,12 @@ tables_priv	CREATE TABLE `tables_priv` (
   `User` char(16) binary NOT NULL default '',
   `Table_name` char(64) binary NOT NULL default '',
   `Grantor` char(77) NOT NULL default '',
-  `Timestamp` timestamp(14) NOT NULL,
+  `Timestamp` timestamp NOT NULL,
   `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') NOT NULL default '',
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`),
   KEY `Grantor` (`Grantor`)
-) TYPE=MyISAM COMMENT='Table privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Table privileges'
 show create table columns_priv;
 Table	Create Table
 columns_priv	CREATE TABLE `columns_priv` (
@@ -113,7 +117,7 @@ columns_priv	CREATE TABLE `columns_priv` (
   `User` char(16) binary NOT NULL default '',
   `Table_name` char(64) binary NOT NULL default '',
   `Column_name` char(64) binary NOT NULL default '',
-  `Timestamp` timestamp(14) NOT NULL,
+  `Timestamp` timestamp NOT NULL,
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
-) TYPE=MyISAM COMMENT='Column privileges'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Column privileges'
