@@ -1,0 +1,3 @@
+use test;
+drop table if exists foo;
+!$1146 insert into foo values(1);
