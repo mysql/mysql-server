@@ -299,6 +299,10 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
   use strictly more than 64 bits by adding one more define above, you should
   contact the replication team because the replication code should then be
   updated (to store more bytes on disk).
+
+  NOTE: When adding new SQL_MODE types, make sure to also add them to
+  ../scripts/mysql_create_system_tables.sh and
+  ../scripts/mysql_fix_privilege_tables.sql
 */
 
 #define RAID_BLOCK_SIZE 1024
