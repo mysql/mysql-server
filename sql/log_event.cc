@@ -89,7 +89,9 @@ void Log_event::pack_info(String* packet)
 
 void Query_log_event::pack_info(String* packet)
 {
-  String tmp;
+  char buf[256];
+  String tmp(buf, sizeof(buf));
+  tmp.length(0);
   if(db && db_len)
   {
    tmp.append("use ");
@@ -104,7 +106,9 @@ void Query_log_event::pack_info(String* packet)
 
 void Start_log_event::pack_info(String* packet)
 {
-  String tmp;
+  char buf1[256];
+  String tmp(buf1, sizeof(buf1));
+  tmp.length(0);
   char buf[22];
 
   tmp.append("Server ver: ");
@@ -116,7 +120,9 @@ void Start_log_event::pack_info(String* packet)
 
 void Load_log_event::pack_info(String* packet)
 {
-  String tmp;
+  char buf[256];
+  String tmp(buf, sizeof(buf));
+  tmp.length(0);
   if(db && db_len)
   {
    tmp.append("use ");
@@ -190,7 +196,9 @@ void Load_log_event::pack_info(String* packet)
 
 void Rotate_log_event::pack_info(String* packet)
 {
-  String tmp;
+  char buf1[256];
+  String tmp(buf1, sizeof(buf1));
+  tmp.length(0);
   char buf[22];
   tmp.append(new_log_ident, ident_len);
   tmp.append(";pos=");
@@ -202,7 +210,9 @@ void Rotate_log_event::pack_info(String* packet)
 
 void Intvar_log_event::pack_info(String* packet)
 {
-  String tmp;
+  char buf1[256];
+  String tmp(buf1, sizeof(buf1));
+  tmp.length(0);
   char buf[22];
   tmp.append(get_var_type_name());
   tmp.append('=');
@@ -212,7 +222,9 @@ void Intvar_log_event::pack_info(String* packet)
 
 void Slave_log_event::pack_info(String* packet)
 {
-  String tmp;
+  char buf1[256];
+  String tmp(buf1, sizeof(buf1));
+  tmp.length(0);
   char buf[22];
   tmp.append("host=");
   tmp.append(master_host);
@@ -967,19 +979,59 @@ Create_file_log_event::Create_file_log_event(THD* thd, TABLE_LIST * table,
 
 int Create_file_log_event::write_data(IO_CACHE* file)
 {
-  return 0;
+  char buf[CREATE_FILE_HEADER_LEN];
+  buf[CF_DB_LEN_OFFSET] = (uchar)db_len;
+  buf[CF_TBL_LEN_OFFSET] = (uchar)tbl_name_len;
+  int4store(buf + CF_FILE_ID_OFFSET, file_id);
+  return my_b_write(file, buf, CREATE_FILE_HEADER_LEN) ||
+     my_b_write(file, db, db_len) ||
+     my_b_write(file, tbl_name, tbl_name_len) ||
+     my_b_write(file, block, block_len);
 }
 
+Create_file_log_event::Create_file_log_event(const char* buf, int len):
+  Log_event(buf),db(0)
+{
+  db_len = (uint)buf[LOG_EVENT_HEADER_LEN + CF_DB_LEN_OFFSET];
+  tbl_name_len = (uint)buf[CF_TBL_LEN_OFFSET + LOG_EVENT_HEADER_LEN];
+  if ((uint)len < db_len + tbl_name_len + CREATE_FILE_EVENT_OVERHEAD)
+    return;
+
+  file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN + CF_FILE_ID_OFFSET);
+  db = (char*)buf + CREATE_FILE_EVENT_OVERHEAD;
+  tbl_name = db + db_len;
+  block = tbl_name + tbl_name_len;
+  block_len = len - (db_len + tbl_name_len + CREATE_FILE_EVENT_OVERHEAD);
+}
 #ifdef MYSQL_CLIENT
 void Create_file_log_event::print(FILE* file, bool short_form = 0,
 				  char* last_db = 0)
 {
+  if (short_form)
+    return;
+  print_header(file);
+  fputc('\n', file);
+  fprintf(file, "Create_file: db='%-*s' table='%-*s' file_id=%d,\
+ block_len=%d\n", db_len, db, tbl_name_len, tbl_name, file_id,
+	  block_len);
 }
 #endif
 
 #ifndef MYSQL_CLIENT
 void Create_file_log_event::pack_info(String* packet)
 {
+  char buf1[256];
+  String tmp(buf1, sizeof(buf1));
+  tmp.length(0);
+  char buf[22];
+  tmp.append("db=");
+  tmp.append(db, db_len);
+  tmp.append(";table=");
+  tmp.append(tbl_name, tbl_name_len);
+  tmp.append(";file_id=");
+  tmp.append(llstr(file_id,buf));
+  tmp.append(";block_len=");
+  tmp.append(llstr(block_len,buf));
 }
 #endif  
 
