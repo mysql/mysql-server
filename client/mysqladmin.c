@@ -25,7 +25,7 @@
 #include <sys/stat.h>
 #include <mysql.h>
 
-#define ADMIN_VERSION "8.40"
+#define ADMIN_VERSION "8.41"
 #define MAX_MYSQL_VAR 256
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -209,6 +209,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password=1;
