@@ -55,6 +55,8 @@ public:
    */
   Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds);
 
+  int setNodeId(Uint32 nodeid);
+
   /**
    * Get config using socket
    */
