@@ -58,7 +58,7 @@ int main(int argc,char *argv[])
 {
   int error=0, subkeys;
   uint keylen, keylen2=0, inx, doc_cnt=0;
-  float weight;
+  float weight= 1.0;
   double gws, min_gws=0, avg_gws=0;
   MI_INFO *info;
   char buf[MAX_LEN], buf2[MAX_LEN], buf_maxlen[MAX_LEN], buf_min_gws[MAX_LEN];
@@ -166,12 +166,13 @@ int main(int argc,char *argv[])
         }
       }
       if (dump)
+      {
         if (subkeys>=0)
           printf("%9qx %20.7f %s\n",info->lastpos,weight,buf);
         else
           printf("%9qx => %17d %s\n",info->lastpos,-subkeys,buf);
-
-      if(verbose && (total%HOW_OFTEN_TO_WRITE)==0)
+      }
+      if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
         printf("%10ld\r",total);
     }
 

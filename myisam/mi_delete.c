@@ -33,6 +33,8 @@ static int underflow(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *anc_buff,
 static uint remove_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
 		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block);
+static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
+			      uchar *key, uint key_length, my_off_t *root);
 
 
 int mi_delete(MI_INFO *info,const byte *record)
@@ -132,8 +134,9 @@ int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
                             &info->s->state.key_root[keynr]);
 } /* _mi_ck_delete */
 
-int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
-                       uchar *key, uint key_length, my_off_t *root)
+
+static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
+			      uchar *key, uint key_length, my_off_t *root)
 {
   int error;
   uint nod_flag;

@@ -283,7 +283,6 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 {
   int i;
   FTB_WORD   *ftbw;
-  MI_INFO    *info=ftb->info;
 
   if ((ftb->state != READY && ftb->state !=INDEX_DONE) ||
       ftb->keynr == NO_SUCH_KEY)
@@ -436,7 +435,7 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
     {
       weight /= ftbe->ythresh;
       ftbe->cur_weight += weight;
-      if (++ftbe->yesses == ythresh)
+      if ((int) ++ftbe->yesses == ythresh)
       {
         yn=ftbe->flags;
         weight=ftbe->cur_weight*ftbe->weight;
@@ -477,9 +476,9 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
       if (ftbe->ythresh)
 	weight/=3;
       ftbe->cur_weight +=  weight;
-      if (ftbe->yesses < ythresh)
+      if ((int) ftbe->yesses < ythresh)
         break;
-      yn= (ftbe->yesses++ == ythresh) ? ftbe->flags : 0 ;
+      yn= ((int) ftbe->yesses++ == ythresh) ? ftbe->flags : 0 ;
       weight*= ftbe->weight;
     }
   }

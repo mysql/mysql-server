@@ -1069,17 +1069,22 @@ longlong Item_func_field::val_int()
   return 0;
 }
 
-void Item_func_field::split_sum_func(List<Item> &fields)
+
+void Item_func_field::split_sum_func(Item **ref_pointer_array,
+				     List<Item> &fields)
 {
   if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(fields);
+    item->split_sum_func(ref_pointer_array, fields);
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
+    uint el= fields.elements;
     fields.push_front(item);
-    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
-  }  
-  Item_func::split_sum_func(fields);
+    ref_pointer_array[el]= item;
+    item= new Item_ref(ref_pointer_array + el, 0, item->name);
+  }
+  Item_func::split_sum_func(ref_pointer_array, fields);
 }
+
 
 longlong Item_func_ascii::val_int()
 {

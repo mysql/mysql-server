@@ -236,7 +236,7 @@ void udf_free()
   if (initialized)
   {
     initialized= 0;
-    pthread_mutex_destroy(&THR_LOCK_udf);
+    rwlock_destroy(&THR_LOCK_udf);
   }    
   DBUG_VOID_RETURN;
 }

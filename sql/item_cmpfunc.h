@@ -304,7 +304,6 @@ public:
     args[0]->top_level_item();
     return Item_func::fix_fields(thd, tlist, ref);
   }
-  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
 };
@@ -354,7 +353,7 @@ public:
   const char *func_name() const { return "case"; }
   void print(String *str);
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
-  void split_sum_func(List<Item> &fields);
+  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   Item *find_item(String *str);
   void set_outer_resolving();
 };

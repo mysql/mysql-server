@@ -983,7 +983,7 @@ static void clean_up_mutexes()
 {
   (void) pthread_mutex_destroy(&LOCK_mysql_create_db);
   (void) pthread_mutex_destroy(&LOCK_Acl);
-  (void) pthread_mutex_destroy(&LOCK_grant);
+  (void) rwlock_destroy(&LOCK_grant);
   (void) pthread_mutex_destroy(&LOCK_open);
   (void) pthread_mutex_destroy(&LOCK_thread_count);
   (void) pthread_mutex_destroy(&LOCK_mapped_file);
@@ -998,7 +998,10 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_timezone);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+#ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
+  (void) pthread_cond_destroy(&COND_rpl_status);
+#endif
   (void) pthread_mutex_destroy(&LOCK_active_mi);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_cond_destroy(&COND_thread_count);
@@ -1006,7 +1009,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
   (void) pthread_cond_destroy(&COND_manager);
-  (void) pthread_cond_destroy(&COND_rpl_status);
 }
 
 /****************************************************************************

@@ -1,9 +1,7 @@
-#see if queries that use both
-#auto_increment and LAST_INSERT_ID()
-#are replicated well
+# See if queries that use both auto_increment and LAST_INSERT_ID()
+# are replicated well
 source include/master-slave.inc;
 connection master;
-drop table if exists t1;
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
 insert into t1 values (1),(2),(3);

@@ -22,8 +22,6 @@
 #include <myisam.h>
 #include <my_dir.h>
 
-#define files_charset_info system_charset_info
-
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
@@ -937,7 +935,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     goto err;
   }
   if (lower_case_table_names)
-    casedn_str(tbl_name);
+    my_casedn_str(files_charset_info, tbl_name);
   remove_escape(table_list->real_name);
 
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
@@ -953,7 +951,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   thd->query = tbl_name;
   if ((error = mysqld_dump_create_info(thd, table, -1)))
   {
-    my_error(ER_GET_ERRNO, MYF(0));
+    my_error(ER_GET_ERRNO, MYF(0), my_errno);
     goto err;
   }
   net_flush(&thd->net);
@@ -966,9 +964,9 @@ err:
 }
 
 
-#ifndef EMBEDDED_LIBRARY
-
 	/* Execute one command from socket (query or simple command) */
+
+#ifndef EMBEDDED_LIBRARY
 bool do_command(THD *thd)
 {
   char *packet;
@@ -1267,9 +1265,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
-
-    if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
-      DBUG_RETURN(1);
 
     if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
       break;
@@ -2649,11 +2644,12 @@ mysql_execute_command(THD *thd)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
       break;
-
+#endif
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
     res=mysql_create_db(thd,lex->name,&lex->create_info,0);
@@ -2673,10 +2669,12 @@ mysql_execute_command(THD *thd)
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
       break;
+#endif
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
     if (thd->locked_tables || thd->active_transaction())

@@ -95,11 +95,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   if (my_read(file,(byte*) head,64,MYF(MY_NABP))) goto err_not_open;
   if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] > FRM_VER+2))
+      (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
     goto err_not_open;				/* purecov: inspected */
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
-  field_pack_length= new_frm_ver < 2 ? 11 : 15;
+  field_pack_length= new_frm_ver < 2 ? 11 : 17;
 
   error=3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
@@ -156,7 +156,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    if (new_frm_ver == 2)
+    if (new_frm_ver == 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
       keyinfo->key_length= (uint) uint2korr(strpos+2);
@@ -348,19 +348,25 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < outparam->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
-    uint pack_flag= uint2korr(strpos+6);
-    uint interval_nr= (uint) strpos[10];
+    uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
     CHARSET_INFO *charset=NULL;
     LEX_STRING comment;
 
-    if (new_frm_ver == 2)
+    if (new_frm_ver == 3)
     {
       /* new frm file in 4.1 */
-      uint comment_length=uint2korr(strpos+13);
-      field_type=(enum_field_types) (uint) strpos[11];
-      if (!(charset=get_charset((uint) strpos[12], MYF(0))))
-	charset=outparam->table_charset?outparam->table_charset:default_charset_info;
+      field_length= uint2korr(strpos+3);
+      recpos=	    uint3korr(strpos+5);
+      pack_flag=    uint2korr(strpos+8);
+      unireg_type=  (uint) strpos[10];
+      interval_nr=  (uint) strpos[12];
+
+      uint comment_length=uint2korr(strpos+15);
+      field_type=(enum_field_types) (uint) strpos[13];
+      if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+	charset= (outparam->table_charset ? outparam->table_charset: 
+		  default_charset_info);
       if (!comment_length)
       {
 	comment.str= (char*) "";
@@ -375,19 +381,26 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     }
     else
     {
+      field_length= (uint) strpos[3];
+      recpos=	    uint2korr(strpos+4),
+      pack_flag=    uint2korr(strpos+6);
+      unireg_type=  (uint) strpos[8];
+      interval_nr=  (uint) strpos[10];
+
       /* old frm file */
       field_type= (enum_field_types) f_packtype(pack_flag);
-      charset=outparam->table_charset?outparam->table_charset:default_charset_info;
+      charset=(outparam->table_charset ? outparam->table_charset :
+	       default_charset_info);
       bzero((char*) &comment, sizeof(comment));
     }
     *field_ptr=reg_field=
-      make_field(record+uint2korr(strpos+4),
-		 (uint32) strpos[3],		// field_length
+      make_field(record+recpos,
+		 (uint32) field_length,
 		 null_pos,null_bit,
 		 pack_flag,
 		 field_type,
 		 charset,
-		 (Field::utype) MTYP_TYPENR((uint) strpos[8]),
+		 (Field::utype) MTYP_TYPENR(unireg_type),
 		 (interval_nr ?
 		  outparam->intervals+interval_nr-1 :
 		  (TYPELIB*) 0),
@@ -1052,7 +1065,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     bzero((char*) fileinfo,64);
-    fileinfo[0]=(uchar) 254; fileinfo[1]= 1; fileinfo[2]= FRM_VER+2; // Header
+    fileinfo[0]=(uchar) 254; fileinfo[1]= 1; fileinfo[2]= FRM_VER+3; // Header
     fileinfo[3]= (uchar) ha_checktype(create_info->db_type);
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
@@ -1154,7 +1167,7 @@ bool check_db_name(char *name)
    char *start=name;
 
   if (lower_case_table_names)
-    casedn_str(name);
+    my_casedn_str(files_charset_info, name);
 
   while (*name)
   {
@@ -1250,7 +1263,7 @@ db_type get_table_type(const char *name)
   error=my_read(file,(byte*) head,4,MYF(MY_NABP));
   my_close(file,MYF(0));
   if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] < FRM_VER && head[2] > FRM_VER+2))
+      (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
   DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
 }
