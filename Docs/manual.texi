@@ -4502,6 +4502,13 @@ Minimum respective maximum possible @code{double} value.
 
 @item
 @code{LIMIT} on negative numbers are treated as big positive numbers.
+@item
+If you use @code{ALTER TABLE} to first add an @code{UNIQUE} index to a
+table used in a @code{MERGE} table and then use @code{ALTER TABLE} to
+add a normal index on the @code{MERGE} table, the key order will be
+different for the tables if there was an old not-unique key in the
+table. This is because @code{ALTER TABLE} puts @code{UNIQUE} keys before
+normal keys to be able to detect duplicate keys as early as possible.
 @end itemize
 
 The following are known bugs in earlier versions of MySQL:
@@ -11688,9 +11695,9 @@ work:
 
 @example
 CC="cc -pthread"
-CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host"
+CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
 CXX="cxx -pthread"
-CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host"
+CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
 export CC CFLAGS CXX CXXFLAGS
 ./configure \
 --prefix=/usr/local/mysql \
@@ -34149,6 +34156,12 @@ index exists, it drops the first @code{UNIQUE} index in the table.
 (MySQL marks the first @code{UNIQUE} key as the @code{PRIMARY KEY}
 if no @code{PRIMARY KEY} was specified explicitly.)
 
+@findex UNIQUE
+@findex PRIMARY KEY
+If you add a @code{UNIQUE INDEX} or @code{PRIMARY KEY} to a table, this
+is stored before any not @code[UNIQUE} index so that MySQL can detect
+duplicate keys as early as possible.
+
 @findex ORDER BY
 @item
 @code{ORDER BY} allows you to create the new table with the rows in a
@@ -35558,14 +35571,15 @@ mapped tables. (We plan to fix this in 4.0).
 
 With identical tables we mean that all tables are created with identical
 column and key information.  You can't put a MERGE over tables where the
-columns are packed differently or doesn't have exactly the same columns.
-Some of the tables can however be compressed with @code{myisampack}.
-@xref{myisampack}.
+columns are packed differently, doesn't have exactly the same columns or
+have the keys in different order.  Some of the tables can however be
+compressed with @code{myisampack}.  @xref{myisampack}.
 
 When you create a @code{MERGE} table, you will get a @code{.frm} table
 definition file and a @code{.MRG} table list file.  The @code{.MRG} just
 contains a list of the index files (@code{.MYI} files) that should
-be used as one.
+be used as one.  All used tables must be in the same database as the
+@code{MERGE} table itself.
 
 For the moment you need to have @code{SELECT}, @code{UPDATE}, and
 @code{DELETE} privileges on the tables you map to a @code{MERGE} table.
@@ -35690,7 +35704,6 @@ Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
 @code{MERGE} table and all underlying tables to force the handler to
 read the new definition file.
 @end itemize
-
 
 @node ISAM, HEAP, MERGE, Table types
 @section ISAM Tables
@@ -46683,9 +46696,20 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Enforce that all tables in a @code{MERGE} table comes from the same
+database.
+@item
+Fixed bug with @code{LOAD DATA INFILE} and transactional tables.
+@item
+Fix bug when using @code{INSERT DELAYED} with wrong column definition.
+@item
 Fixed coredump during REPAIR of some particulary broken tables.
 @item
 Fixed bug in @code{InnoDB} and @code{AUTO_INCREMENT} columns.
+@item
+Fixed critical bug in @code{InnoDB} and @code{BLOB}'s.  If one has used
+@code{BLOB}'s larger than 8K in an @code{InnoDB} table one must dump
+the table with @code{mysqldump}, drop it and restore it from the dump.
 @item
 Applied large patch for OS/2 from Yuri Dario.
 @item
@@ -46693,7 +46717,7 @@ Fixed problem with InnoDB when one could get the error @code{Can't
 execute the given command...} even when one didn't have an active
 transaction.
 @item
-Applied some fixes for Gemini.
+Applied some minor fixes that concerns Gemini.
 @item
 Use real arithmetic operations even in integer context if not
 all arguments are integers. (Fixes uncommon bug in some integer
