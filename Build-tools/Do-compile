@@ -321,7 +321,7 @@ if (!$opt_no_test)
   }
   if ($opt_innodb)
   {
-    $extra.=" --innodb_data_file_path=ibdata1:100M";
+    $extra.=" --innodb_data_file_path=ibdata1:100M:autoextend";
   }
   safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking $extra >> $log 2>&1 &");
   sleep(2);
