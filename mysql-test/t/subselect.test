@@ -1465,3 +1465,17 @@ select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
 -- error 1247
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
+
+#
+# cleaning up of results of subselects (BUG#8125)
+#
+CREATE TABLE `t1` ( `a` char(3) NOT NULL default '', `b` char(3) NOT NULL default '', `c` char(3) NOT NULL default '', PRIMARY KEY  (`a`,`b`,`c`)) ENGINE=InnoDB;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1,1,1);
+INSERT INTO t2 VALUES (1,1,1);
+PREPARE my_stmt FROM "SELECT t1.b, count(*) FROM t1 group by t1.b having
+count(*) > ALL (SELECT COUNT(*) FROM t2 WHERE t2.a=1 GROUP By t2.b)";
+EXECUTE my_stmt;
+EXECUTE my_stmt;
+deallocate prepare my_stmt;
+drop table t1,t2;
