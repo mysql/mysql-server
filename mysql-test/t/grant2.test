@@ -267,22 +267,22 @@ drop user '%@a'@'a';
 #
 create user mysqltest_2@localhost;
 grant create user on *.* to mysqltest_2@localhost;
-connect (user2,localhost,mysqltest_2,,);
-connection user2;
+connect (user3,localhost,mysqltest_2,,);
+connection user3;
 --error 1142
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
 drop user mysqltest_B@'%';
-disconnect user2;
+disconnect user3;
 connection default;
 drop user mysqltest_2@localhost;
 #
 # INSERT/UPDATE/DELETE is ok too
 create user mysqltest_3@localhost;
 grant INSERT,DELETE,UPDATE on mysql.* to mysqltest_3@localhost;
-connect (user3,localhost,mysqltest_3,,);
-connection user3;
+connect (user4,localhost,mysqltest_3,,);
+connection user4;
 show grants;
 --error 1142
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
@@ -290,7 +290,7 @@ insert into mysql.user set host='%', user='mysqltest_B';
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
 drop user mysqltest_C@'%';
-disconnect user3;
+disconnect user4;
 connection default;
 drop user mysqltest_3@localhost;
 #
