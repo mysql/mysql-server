@@ -30,6 +30,7 @@ static void pretty_print_str(FILE* file, char* str, int len)
   fputc('\'', file);
   while (str < end)
   {
+    char c;
     switch ((c=*str++)) {
     case '\n': fprintf(file, "\\n"); break;
     case '\r': fprintf(file, "\\r"); break;

@@ -1096,6 +1096,25 @@ char* safe_get_param(char* str, char** arg, const char* msg)
   DBUG_RETURN(str);
 }
 
+int safe_connect(MYSQL* con, const char* host, const char* user,
+		 const char* pass,
+		 const char* db, int port, const char* sock)
+{
+  int con_error = 1;
+  int i;
+  for (i = 0; i < MAX_CON_TRIES; ++i)
+  {
+    if(mysql_real_connect(con, host,user, pass,
+			  db, port, sock, 0))
+    {
+      con_error = 0;
+      break;
+    }
+    sleep(CON_RETRY_SLEEP);
+  }
+  return con_error;
+}
+
 
 int do_connect(struct st_query* q)
 {
@@ -1104,7 +1123,7 @@ int do_connect(struct st_query* q)
   char* p=q->first_argument;
   char buff[FN_REFLEN];
   int con_port;
-  int i, con_error;
+  int con_error;
   
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
@@ -1137,20 +1156,9 @@ int do_connect(struct st_query* q)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
-  con_error = 1;
-  for (i = 0; i < MAX_CON_TRIES; ++i)
-    {
-      if(mysql_real_connect(&next_con->mysql, con_host,
+  if((con_error = safe_connect(&next_con->mysql, con_host,
 			    con_user, con_pass,
-			    con_db, con_port, con_sock, 0))
-	{
-	  con_error = 0;
-	  break;
-	}
-      sleep(CON_RETRY_SLEEP);
-    }
-
-  if(con_error)
+			    con_db, con_port, con_sock)))
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
@@ -1950,9 +1958,8 @@ int main(int argc, char** argv)
   if (!cur_con->name)
     die("Out of memory");
 
-  if (!mysql_real_connect(&cur_con->mysql, host,
-			 user, pass, db, port, unix_sock,
-     0))
+  if (safe_connect(&cur_con->mysql, host,
+			 user, pass, db, port, unix_sock))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
 
   while (!read_query(&q))
