@@ -1566,7 +1566,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	thd->variables.long_query_time ||
 	((thd->lex.select_lex.options &
 	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
-	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
+	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
     {
       long_query_count++;
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);

@@ -1564,7 +1564,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
     }
-    if ((specialflag & SPECIAL_LONG_LOG_FORMAT) || query_start_arg)
+    if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT) || query_start_arg)
     {
       current_time=time(NULL);
       if (current_time != last_time)
@@ -1617,7 +1617,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     // Save value if we do an insert.
     if (thd->insert_id_used)
     {
-      if (specialflag & SPECIAL_LONG_LOG_FORMAT)
+      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
       {
         end=strmov(end,",insert_id=");
         end=longlong10_to_str((longlong) thd->last_insert_id,end,-10);
