@@ -240,7 +240,7 @@ private:
   struct TreeNode {
     TupLoc m_link[3];           // link to 0-left child 1-right child 2-parent
     unsigned m_side : 2;        // we are 0-left child 1-right child 2-root
-    int m_balance : 2;          // balance -1, 0, +1
+    unsigned m_balance : 2;     // balance -1, 0, +1 plus 1 for Solaris CC
     unsigned pad1 : 4;
     Uint8 m_occup;              // current number of entries
     Uint32 m_nodeScan;          // list of scans at this node
@@ -927,7 +927,7 @@ Dbtux::TreeEnt::cmp(const TreeEnt ent) const
 inline
 Dbtux::TreeNode::TreeNode() :
   m_side(2),
-  m_balance(0),
+  m_balance(0 + 1),
   pad1(0),
   m_occup(0),
   m_nodeScan(RNIL)
@@ -1156,7 +1156,7 @@ Dbtux::NodeHandle::getOccup()
 inline int
 Dbtux::NodeHandle::getBalance()
 {
-  return m_node->m_balance;
+  return (int)m_node->m_balance - 1;
 }
 
 inline Uint32
@@ -1191,7 +1191,7 @@ inline void
 Dbtux::NodeHandle::setBalance(int b)
 {
   ndbrequire(abs(b) <= 1);
-  m_node->m_balance = b;
+  m_node->m_balance = (unsigned)(b + 1);
 }
 
 inline void

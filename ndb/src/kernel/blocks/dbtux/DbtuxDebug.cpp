@@ -283,7 +283,7 @@ operator<<(NdbOut& out, const Dbtux::TreeNode& node)
   out << " [up " << node.m_link[2] << "]";
   out << " [side " << dec << node.m_side << "]";
   out << " [occup " << dec << node.m_occup << "]";
-  out << " [balance " << dec << (int)node.m_balance << "]";
+  out << " [balance " << dec << (int)node.m_balance - 1 << "]";
   out << " [nodeScan " << hex << node.m_nodeScan << "]";
   out << "]";
   return out;
