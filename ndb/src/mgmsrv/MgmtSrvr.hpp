@@ -510,7 +510,7 @@ public:
   int setConnectionDbParameter(int node1, int node2, int param, int value,
 			       BaseString& msg);
   int getConnectionDbParameter(int node1, int node2, int param,
-			       unsigned *value, BaseString& msg);
+			       int *value, BaseString& msg);
 
   int set_connect_string(const char *str);
 

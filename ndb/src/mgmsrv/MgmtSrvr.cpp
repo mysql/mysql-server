@@ -2849,7 +2849,7 @@ int
 MgmtSrvr::getConnectionDbParameter(int node1, 
 				   int node2,
 				   int param,
-				   unsigned *value,
+				   int *value,
 				   BaseString& msg){
   DBUG_ENTER("MgmtSrvr::getConnectionDbParameter");
 
@@ -2874,12 +2874,12 @@ MgmtSrvr::getConnectionDbParameter(int node1,
     return -1;
   }
   
-  if(iter.get(param, value) < 0) {
+  if(iter.get(param, (Uint32*)value) < 0) {
     msg.assign("Unable to get current value of parameter");
     return -1;
   }
 
-  msg.assfmt("%u",*value);
+  msg.assfmt("%d",*value);
   DBUG_RETURN(1);
 }
 

@@ -1373,7 +1373,7 @@ void
 MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
 				      Properties const &args) {
   BaseString node1, node2, param;
-  unsigned value = 0;
+  int value = 0;
 
   args.get("node1", node1);
   args.get("node2", node2);
@@ -1387,7 +1387,7 @@ MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
 					      result);
   
   m_output->println("get connection parameter reply");
-  m_output->println("value: %u", value);
+  m_output->println("value: %d", value);
   m_output->println("result: %s", (ret>0)?"Ok":result.c_str());
   m_output->println("");
 }
