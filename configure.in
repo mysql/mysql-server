@@ -2276,7 +2276,7 @@ fi
 
 if test "$static_nss" = "1"
 then
- LDFLAGS="$LDFLAGS -static -L$other_libc_lib " 
+ LDFLAGS="$LDFLAGS -static $OTHER_LIBC_LIB" 
  LIBS="$LIBS $STATIC_NSS_FLAGS"
 fi  
 
