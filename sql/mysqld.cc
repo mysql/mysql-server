@@ -2176,7 +2176,7 @@ static int init_server_components()
   if (opt_update_log)
   {
     open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
-! 	     NullS, LOG_NEW, 0, 0, 0);
+	     NullS, LOG_NEW, 0, 0, 0);
     using_update_log=1;
   }
   if (opt_slow_log)
@@ -5470,7 +5470,11 @@ static void get_options(int argc,char **argv)
 			files_charset_info :
 			&my_charset_bin);
   /* QQ To be deleted when we have key cache variables in a struct */
-  keybuff_size= (((KEY_CACHE *) find_named(&key_caches, "default", 7))->size);
+  {
+    NAMED_LIST *not_used;
+    keybuff_size= (((KEY_CACHE *) find_named(&key_caches, "default", 7,
+					     &not_used))->size);
+  }
 }
 
 

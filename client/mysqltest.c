@@ -722,8 +722,8 @@ int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
     int done;
     LINT_INIT(res);
 
-    if (mysql_query(mysql,"show status like 'Slave_running'")
-	|| !(res=mysql_store_result(mysql)))
+    if (mysql_query(mysql,"show status like 'Slave_running'") ||
+	!(res=mysql_store_result(mysql)))
       die("Query failed while probing slave for stop: %s",
 	  mysql_error(mysql));
     if (!(row=mysql_fetch_row(res)) || !row[1])
@@ -2183,19 +2183,21 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  goto end;				/* Ok */
 	}
       }
-      if (i)
-      {
-	replace_dynstr_append_mem(ds, mysql_error(mysql),
-				  strlen(mysql_error(mysql)));
-	dynstr_append_mem(ds,"\n",1);
-	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-		    q->query, mysql_errno(mysql), q->expected_errno[0]);
-	error=1;
-	goto end;
-      }
-      replace_dynstr_append_mem(ds,mysql_error(mysql),
+      DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
+      dynstr_append_mem(ds,"ERROR ",6);
+      replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+				strlen(mysql_sqlstate(mysql)));
+      dynstr_append_mem(ds,": ",2);
+      replace_dynstr_append_mem(ds, mysql_error(mysql),
 				strlen(mysql_error(mysql)));
       dynstr_append_mem(ds,"\n",1);
+      if (i)
+      {
+	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+		    q->query, mysql_errno(mysql), q->expected_errno[0]);
+	error= 1;
+	goto end;
+      }
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
       /*
@@ -2608,7 +2610,8 @@ int main(int argc, char **argv)
   }
   dynstr_free(&ds_res);
 
-  if (!silent) {
+  if (!silent)
+  {
     if (error)
       printf("not ok\n");
     else

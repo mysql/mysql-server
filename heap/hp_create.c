@@ -50,6 +50,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	length+= keyinfo->seg[j].length;
 	if (keyinfo->seg[j].null_bit)
 	{
+	  length++;
 	  if (!(keyinfo->flag & HA_NULL_ARE_EQUAL))
 	    keyinfo->flag|= HA_NULL_PART_KEY;
 	  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)

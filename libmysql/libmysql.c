@@ -46,11 +46,10 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif
+#endif /* !defined(MSDOS) && !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
-#endif /* !defined(MSDOS) && !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif

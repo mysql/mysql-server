@@ -47,18 +47,13 @@ public:
   struct my_option *option_limits;	/* Updated by by set_var_init() */
   uint name_length;			/* Updated by by set_var_init() */
   const char *name;
-  LEX_STRING base_name;			/* for structs */
   
   sys_after_update_func after_update;
   sys_var(const char *name_arg) :name(name_arg),after_update(0)
-  {
-    base_name.length=0;
-  }
+  {}
   sys_var(const char *name_arg,sys_after_update_func func)
     :name(name_arg),after_update(func)
-  {
-    base_name.length=0;
-  }
+  {}
   virtual ~sys_var() {}
   virtual bool check(THD *thd, set_var *var) { return 0; }
   bool check_enum(THD *thd, set_var *var, TYPELIB *enum_names);
@@ -167,7 +162,6 @@ public:
     return type != STRING_RESULT;		/* Only accept strings */
   }
   bool check_default(enum_var_type type) { return 0; }
-  void set_default(THD *thd, enum_var_type type);
 };
 
 
@@ -596,9 +590,11 @@ public:
     CHARSET_INFO *charset;
     ulong ulong_value;
   } save_result;
+  LEX_STRING base;			/* for structs */
 
-  set_var(enum_var_type type_arg, sys_var *var_arg, Item *value_arg)
-    :var(var_arg), type(type_arg)
+  set_var(enum_var_type type_arg, sys_var *var_arg, LEX_STRING *base_name_arg,
+	  Item *value_arg)
+    :var(var_arg), type(type_arg), base(*base_name_arg)
   {
     /*
       If the set value is a field, change it to a string to allow things like
@@ -677,12 +673,12 @@ public:
   gptr data;
 
   NAMED_LIST(I_List<NAMED_LIST> *links, const char *name_arg,
-	     uint name_length_arg, gptr data_arg):
-    name_length(name_length_arg), data(data_arg)
-    {
-      name=my_strdup(name_arg,MYF(MY_WME));
-      links->push_back(this);
-    }
+	     uint name_length_arg, gptr data_arg)
+    :name_length(name_length_arg), data(data_arg)
+  {
+    name= my_memdup(name_arg, name_length, MYF(MY_WME));
+    links->push_back(this);
+  }
   inline bool cmp(const char *name_cmp, uint length)
   {
     return length == name_length && !memcmp(name, name_cmp, length);
@@ -693,6 +689,13 @@ public:
   }
 };
 
+
+/* For sql_yacc */
+struct sys_var_with_base
+{
+  sys_var *var;
+  LEX_STRING base_name;
+};
 
 /*
   Prototypes for helper functions
@@ -706,7 +709,8 @@ void fix_delay_key_write(THD *thd, enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
-gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length);
+gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
+		NAMED_LIST **found);
 void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr));
 
 /* key_cache functions */

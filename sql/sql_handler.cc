@@ -203,7 +203,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-	if (item->fix_fields(thd, tables))
+	if (item->fix_fields(thd, tables, &item))
 	  goto err;
 	if (item->used_tables() & ~RAND_TABLE_BIT)
         {

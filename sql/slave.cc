@@ -1442,7 +1442,8 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     {
       char llbuf[22];
       sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
-		      rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
+		      rli->group_relay_log_name,
+		      llstr(rli->group_relay_log_pos, llbuf));
       goto err;
     }
   }
@@ -3491,10 +3492,9 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	it
       */
       DBUG_PRINT("info", ("\
-Before assert, my_b_tell(cur_log)=%s  rli->relay_log_pos=%s  rli->pending=%lu",
+Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
                           llstr(my_b_tell(cur_log),llbuf1), 
-                          llstr(rli->relay_log_pos,llbuf2),
-                          rli->pending));
+                          llstr(rli->group_relay_log_pos,llbuf2)));
        DBUG_ASSERT(my_b_tell(cur_log) == rli->event_relay_log_pos);
     }
 #endif

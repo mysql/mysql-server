@@ -742,9 +742,6 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 
-/* typedef used for length of string;  Should be unsigned! */
-typedef ulong		size_str;
-
 #ifdef USE_RAID
 /*
   The following is done with a if to not get problems with pre-processors

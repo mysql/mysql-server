@@ -1,9 +1,9 @@
-slave stop;
+stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-slave start;
+start slave;
 delete from mysql.user where user='rpl_ignore_grant';
 delete from mysql.db where user='rpl_ignore_grant';
 flush privileges;
@@ -17,7 +17,7 @@ Grants for rpl_ignore_grant@localhost
 GRANT SELECT ON *.* TO 'rpl_ignore_grant'@'localhost'
 GRANT DROP ON `test`.* TO 'rpl_ignore_grant'@'localhost'
 show grants for rpl_ignore_grant@localhost;
-There is no such grant defined for user 'rpl_ignore_grant' on host 'localhost'
+ERROR 42000: There is no such grant defined for user 'rpl_ignore_grant' on host 'localhost'
 select count(*) from mysql.user where user='rpl_ignore_grant';
 count(*)
 0

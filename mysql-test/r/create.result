@@ -10,7 +10,7 @@ create table t1 (b char(0) not null);
 create table if not exists t1 (b char(0) not null);
 insert into t1 values (""),(null);
 Warnings:
-Warning	1261	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
+Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
 select * from t1;
 b
 
@@ -193,7 +193,7 @@ SELECT @@table_type;
 GEMINI
 CREATE TABLE t1 (a int not null);
 Warnings:
-Warning	1264	Using storage engine MYISAM for table 't1'
+Warning	1265	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -302,7 +302,7 @@ SELECT @@table_type;
 GEMINI
 CREATE TABLE t1 (a int not null);
 Warnings:
-Warning	1264	Using storage engine MYISAM for table 't1'
+Warning	1265	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

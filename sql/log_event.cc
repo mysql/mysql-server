@@ -102,13 +102,13 @@ static char *pretty_print_str(char *packet, char *str, int len)
   {
     char c;
     switch ((c=*str++)) {
-    case '\n': *pos++= '\'; *pos++= 'n'; break;
-    case '\r': *pos++= '\'; *pos++= 'r'; break;
-    case '\\': *pos++= '\'; *pos++= '\'; break;
-    case '\b': *pos++= '\'; *pos++= 'b'; break;
-    case '\t': *pos++= '\'; *pos++= 't'; break;
-    case '\'': *pos++= '\'; *pos++= '\''; break;
-    case 0   : *pos++= '\'; *pos++= '0'; break;
+    case '\n': *pos++= '\\'; *pos++= 'n'; break;
+    case '\r': *pos++= '\\'; *pos++= 'r'; break;
+    case '\\': *pos++= '\\'; *pos++= '\\'; break;
+    case '\b': *pos++= '\\'; *pos++= 'b'; break;
+    case '\t': *pos++= '\\'; *pos++= 't'; break;
+    case '\'': *pos++= '\\'; *pos++= '\''; break;
+    case 0   : *pos++= '\\'; *pos++= '0'; break;
     default:
       *pos++= c;
       break;

@@ -133,7 +133,8 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-               tty_password= 0, opt_nobeep=0, opt_reconnect=1;
+	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
+	       default_charset_used= 0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -650,6 +651,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_CHARSETS_DIR:
     strmov(mysql_charsets_dir, argument);
     charsets_dir = mysql_charsets_dir;
+    break;
+  case  OPT_DEFAULT_CHARSET:
+    default_charset_used= 1;
     break;
   case OPT_DELIMITER:
     if (argument == disabled_my_option)
@@ -2563,7 +2567,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  if (default_charset_used)
+    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag | CLIENT_MULTI_QUERIES))

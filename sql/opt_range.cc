@@ -2392,7 +2392,7 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
     return 0;
   if (cp_buffer_from_ref(ref))
   {
-    if (current_thd->fatal_error)
+    if (current_thd->is_fatal_error)
       return 0;					// End of memory
     return quick;				// empty range
   }

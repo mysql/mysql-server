@@ -52,6 +52,20 @@ select 10 % 7, 10 mod 7, 10 div 3;
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 (1 << 64)-1	((1 << 64)-1) DIV 1	((1 << 64)-1) DIV 2
 18446744073709551615	18446744073709551615	9223372036854775807
+create table t1 (a int);
+insert t1 values (1);
+select * from t1 where 1 xor 1;
+a
+drop table t1;
+select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
+5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
+0	1
+select 1 and 2 between 2 and 10, 2 between 2 and 10 and 1;
+1 and 2 between 2 and 10	2 between 2 and 10 and 1
+1	1
+select 1 and 0 or 2, 2 or 1 and 0;
+1 and 0 or 2	2 or 1 and 0
+1	1
 select _koi8r'a' = _koi8r'A';
 _koi8r'a' = _koi8r'A'
 1
@@ -109,17 +123,3 @@ select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
 ERROR HY000: Illegal mix of collations (koi8r_general_ci,EXPLICIT) and (koi8r_bin,EXPLICIT) for operation 'like'
 select _koi8r'a' LIKE _latin1'A';
 ERROR HY000: Illegal mix of collations (koi8r_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'like'
-create table t1 (a int);
-insert t1 values (1);
-select * from t1 where 1 xor 1;
-a
-drop table t1;
-select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
-5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
-0	1
-select 1 and 2 between 2 and 10, 2 between 2 and 10 and 1;
-1 and 2 between 2 and 10	2 between 2 and 10 and 1
-1	1
-select 1 and 0 or 2, 2 or 1 and 0;
-1 and 0 or 2	2 or 1 and 0
-1	1

@@ -2353,8 +2353,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 }
 
 
-int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
-		 ulong rights, bool revoke_grant)
+int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
+		ulong rights, bool revoke_grant)
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str;
@@ -2364,8 +2364,8 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
-    send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: tested */
-    return 1;					/* purecov: tested */
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));	/* purecov: tested */
+    return -1;					/* purecov: tested */
   }
 
   if (lower_case_table_names && db)
@@ -2443,7 +2443,8 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
       }
       else
       {
-	net_printf(&thd->net,ER_WRONG_USAGE,"DB GRANT","GLOBAL PRIVILEGES");
+	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
+			"DB GRANT","GLOBAL PRIVILEGES");
 	result= -1;
       }
     }
@@ -2941,7 +2942,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   ulong want_access;
   uint counter,index;
   int  error = 0;
-  ACL_USER *acl_user; ACL_DB *acl_db;
+  ACL_USER *acl_user;
+  ACL_DB *acl_db;
   char buff[1024];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
@@ -2993,11 +2995,11 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
   /* Add first global access grants */
   {
-    want_access=acl_user->access;
     String global(buff,sizeof(buff),&my_charset_latin1);
     global.length(0);
     global.append("GRANT ",6);
 
+    want_access= acl_user->access;
     if (test_all_bits(want_access, (GLOBAL_ACLS & ~ GRANT_ACL)))
       global.append("ALL PRIVILEGES",14);
     else if (!(want_access & ~GRANT_ACL))
