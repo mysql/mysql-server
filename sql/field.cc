@@ -5971,6 +5971,7 @@ Field *make_field(char *ptr, uint32 field_length,
     if (!f_is_packed(pack_flag))
     {
       if (field_type == FIELD_TYPE_STRING ||
+          field_type == FIELD_TYPE_DECIMAL ||   // 3.23 or 4.0 string
           field_type == FIELD_TYPE_VAR_STRING)
         return new Field_string(ptr,field_length,null_pos,null_bit,
                                 unireg_check, field_name, table,
