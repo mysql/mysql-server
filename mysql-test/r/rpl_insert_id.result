@@ -39,3 +39,31 @@ b	c
 6	11
 drop table t1;
 drop table t2;
+create table t1(a int auto_increment, key(a));
+create table t2(b int auto_increment, c int, key(b));
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 (c) select * from t1;
+select * from t2;
+b	c
+5	0
+6	10
+7	11
+8	12
+9	13
+select * from t1;
+a
+10
+11
+12
+13
+select * from t2;
+b	c
+5	0
+6	10
+7	11
+8	12
+9	13
+drop table t1;
+drop table t2;
