@@ -120,7 +120,7 @@ int mysql_update(THD *thd,
   bool		used_key_is_modified, transactional_table, log_delayed;
   int           res;
   int		error=0;
-  uint		used_index= MAX_KEY;
+  uint		used_index;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -264,7 +264,10 @@ int mysql_update(THD *thd,
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
+  {
     used_key_is_modified=0;
+    used_index= MAX_KEY;
+  }
   if (used_key_is_modified || order)
   {
     /*

@@ -711,7 +711,7 @@ static void* flexBenchThread(void* pArg)
 			    the_socket_name,
 			    0) == NULL ) {
       ndbout << "failed" << endl;
-      NdbThread_Exit(0) ;
+      return 0;
     }
     mysql.reconnect= 1;
     ndbout << "ok" << endl;
@@ -724,7 +724,7 @@ static void* flexBenchThread(void* pArg)
 
     if (r) {
       ndbout << "autocommit on/off failed" << endl;
-      NdbThread_Exit(0) ;
+      return 0;
     }
   }
 #endif
@@ -743,7 +743,7 @@ static void* flexBenchThread(void* pArg)
     ndbout << threadNo << endl ;
     ndbout << "Thread #" << threadNo << " will now exit" << endl ;
     tResult = 13 ;
-    NdbThread_Exit(0) ;
+    return 0;
   }
   
   if (use_ndb) {
@@ -752,7 +752,7 @@ static void* flexBenchThread(void* pArg)
       ndbout << "Failed to get an NDB object" << endl;
       ndbout << "Thread #" << threadNo << " will now exit" << endl ;
       tResult = 13;
-      NdbThread_Exit(0) ;
+      return 0;
     }
     pNdb->waitUntilReady();
     return_ndb_object(pNdb, ndb_id);
@@ -902,11 +902,11 @@ static void* flexBenchThread(void* pArg)
       prep_insert[i] = mysql_prepare(&mysql, buf, pos);
       if (prep_insert[i] == 0) {
 	ndbout << "mysql_prepare: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
       if (mysql_bind_param(prep_insert[i], bind_insert)) {
 	ndbout << "mysql_bind_param: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
     }
     
@@ -928,11 +928,11 @@ static void* flexBenchThread(void* pArg)
       prep_update[i] = mysql_prepare(&mysql, buf, pos);
       if (prep_update[i] == 0) {
 	ndbout << "mysql_prepare: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
       if (mysql_bind_param(prep_update[i], bind_update)) {
 	ndbout << "mysql_bind_param: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
     }
     
@@ -955,15 +955,15 @@ static void* flexBenchThread(void* pArg)
       prep_read[i] = mysql_prepare(&mysql, buf, pos);
       if (prep_read[i] == 0) {
 	ndbout << "mysql_prepare: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
       if (mysql_bind_param(prep_read[i], bind_read)) {
 	ndbout << "mysql_bind_param: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
       if (mysql_bind_result(prep_read[i], &bind_read[1])) {
 	ndbout << "mysql_bind_result: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
     }
     
@@ -980,11 +980,11 @@ static void* flexBenchThread(void* pArg)
       prep_delete[i] = mysql_prepare(&mysql, buf, pos);
       if (prep_delete[i] == 0) {
 	ndbout << "mysql_prepare: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
       if (mysql_bind_param(prep_delete[i], bind_delete)) {
 	ndbout << "mysql_bind_param: " << mysql_error(&mysql) << endl;
-	NdbThread_Exit(0) ;
+	return 0;
       }
     }
   }
@@ -1433,8 +1433,7 @@ static void* flexBenchThread(void* pArg)
     ndbout << "I got here " << endl;
     return_ndb_object(pNdb, ndb_id);
   }
-  NdbThread_Exit(0);
-  return NULL; // Just to keep compiler happy
+  return NULL;
 }
 
 

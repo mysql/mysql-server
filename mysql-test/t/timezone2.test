@@ -266,3 +266,20 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 flush privileges;
 drop table t1, t2;
+
+#
+# Test for bug #7705 "CONVERT_TZ() crashes with subquery/WHERE on index 
+# column". Queries in which one of time zone arguments of CONVERT_TZ() is
+# determined as constant only at val() stage (not at fix_fields() stage),
+# should not crash server.
+#
+select convert_tz('2005-01-14 17:00:00', 'UTC', custTimeZone) from (select 'UTC' as custTimeZone) as tmp;
+
+#
+# Test for bug #7899 "CREATE TABLE .. SELECT .. and CONVERT_TZ() function
+# does not work well together". The following statement should return only
+# one NULL row and not result of full join.
+#
+create table t1 select convert_tz(NULL, NULL, NULL);
+select * from t1;
+drop table t1;

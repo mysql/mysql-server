@@ -3186,13 +3186,27 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
 {
   DBUG_ENTER("fixShmKey");
   {
+    static int last_signum= -1;
     Uint32 signum;
     if(!ctx.m_currentSection->get("Signum", &signum))
     {
       signum= OPT_NDB_SHM_SIGNUM_DEFAULT;
+      if (signum <= 0)
+      {
+	  ctx.reportError("Unable to set default parameter for [SHM]Signum"
+			  " please specify [SHM DEFAULT]Signum");
+	  return false;
+      }
       ctx.m_currentSection->put("Signum", signum);
       DBUG_PRINT("info",("Added Signum=%u", signum));
     }
+    if ( last_signum != (int)signum && last_signum >= 0 )
+    {
+      ctx.reportError("All shared memory transporters must have same [SHM]Signum defined."
+		      " Use [SHM DEFAULT]Signum");
+      return false;
+    }
+    last_signum= (int)signum;
   }
   {
     Uint32 id1= 0, id2= 0, key= 0;

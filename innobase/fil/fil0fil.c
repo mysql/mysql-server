@@ -3013,8 +3013,8 @@ fil_load_single_table_tablespaces(void)
 				/* printf(
 "     Looking at file %s\n", fileinfo.name); */
 
-			        if (fileinfo.type == OS_FILE_TYPE_DIR
-				    || dbinfo.type == OS_FILE_TYPE_UNKNOWN) {
+			        if (fileinfo.type == OS_FILE_TYPE_DIR) {
+
 				        goto next_file_item;
 				}
 

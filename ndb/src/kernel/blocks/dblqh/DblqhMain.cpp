@@ -8817,13 +8817,14 @@ void Dblqh::finishScanrec(Signal* signal)
     return;
   }
 
+  ndbrequire(restart.p->scanState == ScanRecord::IN_QUEUE);
+
   ScanRecordPtr tmpScan = scanptr;
   TcConnectionrecPtr tmpTc = tcConnectptr;
   
   tcConnectptr.i = restart.p->scanTcrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   restart.p->scanNumber = scanNumber;
-  restart.p->scanState = ScanRecord::WAIT_ACC_SCAN;
 
   queue.remove(restart);
   scans.add(restart);
@@ -8838,10 +8839,18 @@ void Dblqh::finishScanrec(Signal* signal)
     ndbout_c("adding-r (%d %d)", restart.p->scanNumber, restart.p->fragPtrI);
 #endif
   }
-  
-  scanptr = restart;
-  continueAfterReceivingAllAiLab(signal);  
-  
+
+  restart.p->scanState = ScanRecord::SCAN_FREE; // set in initScanRec
+  if(tcConnectptr.p->transactionState == TcConnectionrec::SCAN_STATE_USED)
+  {
+    jam();
+    scanptr = restart;
+    continueAfterReceivingAllAiLab(signal);  
+  }
+  else
+  {
+    ndbrequire(tcConnectptr.p->transactionState == TcConnectionrec::WAIT_SCAN_AI);
+  }
   scanptr = tmpScan;
   tcConnectptr = tmpTc;
 }//Dblqh::finishScanrec()

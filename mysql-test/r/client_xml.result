@@ -1,0 +1,74 @@
+create table t1 (
+`a&b` int,
+`a<b` int,
+`a>b` text
+);
+insert into t1 values (1, 2, 'a&b a<b a>b');
+<?xml version="1.0"?>
+
+<resultset statement="select * from t1
+">
+  <row>
+	<field name="a&amp;b">1</field>
+	<field name="a&lt;b">2</field>
+	<field name="a&gt;b">a&amp;b a&lt;b a&gt;b</field>
+  </row>
+</resultset>
+<?xml version="1.0"?>
+<mysqldump>
+<database name="test">
+	<table_structure name="t1">
+		<field Field="a&amp;b" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a&lt;b" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a&gt;b" Type="text" Null="YES" Key="" Extra="" />
+	</table_structure>
+	<table_data name="t1">
+	<row>
+		<field name="a&amp;b">1</field>
+		<field name="a&lt;b">2</field>
+		<field name="a&gt;b">a&amp;b a&lt;b a&gt;b</field>
+	</row>
+	</table_data>
+</database>
+</mysqldump>
+<?xml version="1.0"?>
+
+<resultset statement="select count(*) from t1
+">
+  <row>
+	<field name="count(*)">1</field>
+  </row>
+</resultset>
+<?xml version="1.0"?>
+
+<resultset statement="select 1 &lt; 2 from dual
+">
+  <row>
+	<field name="1 &lt; 2">1</field>
+  </row>
+</resultset>
+<?xml version="1.0"?>
+
+<resultset statement="select 1 &gt; 2 from dual
+">
+  <row>
+	<field name="1 &gt; 2">0</field>
+  </row>
+</resultset>
+<?xml version="1.0"?>
+
+<resultset statement="select 1 &amp; 3 from dual
+">
+  <row>
+	<field name="1 &amp; 3">1</field>
+  </row>
+</resultset>
+<?xml version="1.0"?>
+
+<resultset statement="select null from dual
+">
+  <row>
+	<field name="NULL">NULL</field>
+  </row>
+</resultset>
+drop table t1;
