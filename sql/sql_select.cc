@@ -2156,7 +2156,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     KEY_FIELD *key_fields,*end;
 
     if (!(key_fields=(KEY_FIELD*)
-	  thd->alloc(sizeof(key_fields[0])*(thd->cond_count+1)*2)))
+	  thd->alloc(sizeof(key_fields[0])*
+		     (thd->lex.current_select->cond_count+1)*2)))
       return TRUE; /* purecov: inspected */
     and_level=0; end=key_fields;
     if (cond)

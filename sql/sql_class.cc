@@ -107,7 +107,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   slave_thread = 0;
   variables.pseudo_thread_id= 0;
   file_id = 0;
-  cond_count=0;
   warn_id= 0;
   db_charset= global_system_variables.character_set_database;
   mysys_var=0;
