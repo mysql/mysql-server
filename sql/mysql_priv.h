@@ -602,7 +602,8 @@ void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      int use_record_cache, bool print_errors);
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(TABLE **form,struct st_sort_field *sortorder, uint s_length,
-		 SQL_SELECT *select, ha_rows special,ha_rows max_rows);
+		 SQL_SELECT *select, ha_rows special,ha_rows max_rows,
+		 ha_rows *examined_rows);
 void change_double_for_sort(double nr,byte *to);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
