@@ -244,7 +244,8 @@ static int my_strnncoll_cp932(CHARSET_INFO *cs __attribute__((unused)),
 
 static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
 			       const uchar *a, uint a_length, 
-			       const uchar *b, uint b_length)
+			       const uchar *b, uint b_length,
+			       my_bool diff_end_space __attribute__((unused)))
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;
@@ -291,7 +292,9 @@ static int my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
     else
       *dest++ = sort_order_cp932[(uchar)*src++];
   }
-  return srclen;
+  if (len > srclen)
+    bfill(dest, len - srclen, ' ');
+  return len;
 }
 
 
