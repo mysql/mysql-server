@@ -260,7 +260,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if (lock_type != TL_WRITE_DELAYED && values_list.elements != 1);
+  /*
+    let's *try* to start bulk inserts. It won't necessary
+    start them as values_list.elements should be greater than
+    some - handler dependent - threshold.
+    So we call start_bulk_insert to perform nesessary checks on
+    values_list.elements, and - if nothing else - to initialize
+    the code to make the call of end_bulk_insert() below safe.
+  */
+  if (lock_type != TL_WRITE_DELAYED)
     table->file->start_bulk_insert(values_list.elements);
 
   while ((values= its++))
