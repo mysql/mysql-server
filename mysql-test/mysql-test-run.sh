@@ -1508,9 +1508,6 @@ run_testcase ()
    for t in \
 	"init_connect" \
 	"init_file" \
-        "innodb" \
-	"innodb-deadlock" \
-	"innodb-lock" \
 	"mix_innodb_myisam_binlog" \
 	"mysqlbinlog2" \
 	"mysqlbinlog" \
