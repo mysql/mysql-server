@@ -50,11 +50,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 	 cursor;
 	 cursor=cursor->next)
     {
-      if (cursor->do_redirect)			// False if CUBE/ROLLUP
-      {
-	cursor->table= (my_reinterpret_cast(TABLE_LIST*) (cursor->table))->table;
-	cursor->do_redirect= 0;
-      }
+      cursor->table= (my_reinterpret_cast(TABLE_LIST*) (cursor->table))->table;
     }
   }
 

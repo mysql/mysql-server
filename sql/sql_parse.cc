@@ -3338,7 +3338,6 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
       for (; aux; aux=next)
       {
 	TABLE_LIST *cursor;
-	aux->do_redirect=true;
 	next= aux->next;
 	for (cursor= *result; cursor; cursor=cursor->next)
 	  if (!strcmp(cursor->db,aux->db) &&
