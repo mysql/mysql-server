@@ -1951,7 +1951,37 @@ row_discard_tablespace_for_mysql(
 	que_t*		graph			= NULL;
 	ibool		success;
 	ulint		err;
-	char		buf[2 * OS_FILE_MAX_PATH];
+	char*		buf;
+
+	static const char discard_tablespace_proc1[] =
+	"PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
+	"old_id CHAR;\n"
+	"new_id CHAR;\n"
+	"new_id_low INT;\n"
+	"new_id_high INT;\n"
+	"table_name CHAR;\n"
+	"BEGIN\n"
+	"table_name := ";
+	static const char discard_tablespace_proc2[] =
+	";\n"
+	"new_id_high := %lu;\n"
+	"new_id_low := %lu;\n"
+   "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
+	"SELECT ID INTO old_id\n"
+	"FROM SYS_TABLES\n"
+	"WHERE NAME = table_name;\n"
+	"IF (SQL %% NOTFOUND) THEN\n"
+	"	COMMIT WORK;\n"
+	"	RETURN;\n"
+	"END IF;\n"
+	"UPDATE SYS_TABLES SET ID = new_id\n"
+	"WHERE ID = old_id;\n"
+	"UPDATE SYS_COLUMNS SET TABLE_ID = new_id\n"
+	"WHERE TABLE_ID = old_id;\n"
+	"UPDATE SYS_INDEXES SET TABLE_ID = new_id\n"
+	"WHERE TABLE_ID = old_id;\n"
+	"COMMIT WORK;\n"
+	"END;\n";
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
@@ -1973,9 +2003,10 @@ row_discard_tablespace_for_mysql(
 
 	if (table->space == 0) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: table %s\n"
-"InnoDB: is in the system tablespace 0 which cannot be discarded\n", name);
+		fputs("  InnoDB: Error: table ", stderr);
+		ut_print_name(stderr, name);
+		fputs("\n"
+"InnoDB: is in the system tablespace 0 which cannot be discarded\n", stderr);
 		err = DB_ERROR;
 
 		goto funct_exit;
@@ -1983,36 +2014,16 @@ row_discard_tablespace_for_mysql(
 
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
-	sprintf(buf, 
-	"PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
-	"old_id CHAR;\n"
-	"new_id CHAR;\n"
-	"new_id_low INT;\n"
-	"new_id_high INT;\n"
-	"table_name CHAR;\n"
-	"BEGIN\n"
-	"table_name :='%s';\n"
-	"new_id_high := %lu;\n"
-	"new_id_low := %lu;\n"
-   "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
-	"SELECT ID INTO old_id\n"
-	"FROM SYS_TABLES\n"
-	"WHERE NAME = table_name;\n"
-	"IF (SQL %% NOTFOUND) THEN\n"
-	"	COMMIT WORK;\n"
-	"	RETURN;\n"
-	"END IF;\n"
-	"UPDATE SYS_TABLES SET ID = new_id\n"
-	"WHERE ID = old_id;\n"
-	"UPDATE SYS_COLUMNS SET TABLE_ID = new_id\n"
-	"WHERE TABLE_ID = old_id;\n"
-	"UPDATE SYS_INDEXES SET TABLE_ID = new_id\n"
-	"WHERE TABLE_ID = old_id;\n"
-	"COMMIT WORK;\n"
-	"END;\n", name, (ulong) ut_dulint_get_high(new_id),
-		(ulong) ut_dulint_get_low(new_id));
+	buf = mem_alloc((sizeof discard_tablespace_proc1) +
+			(sizeof discard_tablespace_proc2) +
+			20 + ut_strlenq(name, '\''));
 
-	ut_a(strlen(buf) < 2 * OS_FILE_MAX_PATH);
+	memcpy(buf, discard_tablespace_proc1, sizeof discard_tablespace_proc1);
+	sprintf(ut_strcpyq(buf + (sizeof discard_tablespace_proc1 - 1),
+			'\'', name),
+		discard_tablespace_proc2,
+		(ulong) ut_dulint_get_high(new_id),
+		(ulong) ut_dulint_get_low(new_id));
 
 	graph = pars_sql(buf);
 
@@ -2126,9 +2137,10 @@ row_import_tablespace_for_mysql(
 
 	if (table->space == 0) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: table %s\n"
-"InnoDB: is in the system tablespace 0 which cannot be imported\n", name);
+		fputs("  InnoDB: Error: table ", stderr);
+		ut_print_name(stderr, name);
+		fputs("\n"
+"InnoDB: is in the system tablespace 0 which cannot be imported\n", stderr);
 		err = DB_ERROR;
 
 		goto funct_exit;
@@ -2136,10 +2148,12 @@ row_import_tablespace_for_mysql(
 
 	if (!table->tablespace_discarded) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
+		fputs(
 "  InnoDB: Error: you are trying to IMPORT a tablespace\n"
-"InnoDB: %s, though you have not called DISCARD on it yet\n"
-"InnoDB: during the lifetime of the mysqld process!\n", name);
+"InnoDB: ", stderr);
+		ut_print_name(stderr, name);
+		fputs(", though you have not called DISCARD on it yet\n"
+"InnoDB: during the lifetime of the mysqld process!\n", stderr);
 
 		err = DB_ERROR;
 
@@ -2469,7 +2483,7 @@ row_drop_table_for_mysql(
 		if (dict_load_table(name) != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: not able to remove table ",
-			      stderr);
+				stderr);
 			ut_print_name(stderr, name);
 			fputs(" from the dictionary cache!\n", stderr);
 			err = DB_ERROR;
@@ -2491,8 +2505,10 @@ row_drop_table_for_mysql(
 			if (!success) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-"  InnoDB: Error: not able to delete tablespace %lu of table %s!\n",
-					(ulong) space_id, name);
+"  InnoDB: Error: not able to delete tablespace %lu of table ",
+					(ulong) space_id);
+				ut_print_name(stderr, name);
+				fputs("!\n", stderr);
 				err = DB_ERROR;
 			}
 		}
@@ -2757,15 +2773,14 @@ row_rename_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 	    	ut_print_timestamp(stderr);
 
-		fprintf(stderr, 
-     	"  InnoDB: Error: table %s\n"
-	"InnoDB: does not exist in the InnoDB internal\n"
+                fputs("  InnoDB: Error: table ", stderr);
+                ut_print_name(stderr, old_name);
+                fputs(" does not exist in the InnoDB internal\n"
      	"InnoDB: data dictionary though MySQL is trying to rename the table.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
 	"InnoDB: You can look for further help from section 15.1 of\n"
-        "InnoDB: http://www.innodb.com/ibman.html\n",
-				 old_name);
+        "InnoDB: http://www.innodb.com/ibman.php\n", stderr);
 		goto funct_exit;
 	}
 
@@ -2773,12 +2788,12 @@ row_rename_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 	    	ut_print_timestamp(stderr);
 
-		fprintf(stderr, 
-     	"  InnoDB: Error: table %s\n"
-	"InnoDB: does not have an .ibd file in the database directory.\n"
+                fputs("  InnoDB: Error: table ", stderr);
+                ut_print_name(stderr, old_name);
+                fputs(
+	" does not have an .ibd file in the database directory.\n"
 	"InnoDB: You can look for further help from section 15.1 of\n"
-        "InnoDB: http://www.innodb.com/ibman.html\n",
-				 old_name);
+        "InnoDB: http://www.innodb.com/ibman.php\n", stderr);
 		goto funct_exit;
 	}
 
@@ -2905,23 +2920,25 @@ row_rename_table_for_mysql(
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
 	    		ut_print_timestamp(stderr);
-			fprintf(stderr,
-     "  InnoDB: Error: table %s exists in the InnoDB internal data\n"
-     "InnoDB: dictionary though MySQL is trying rename table %s to it.\n"
+                fputs("  InnoDB: Error: table ", stderr);
+                ut_print_name(stderr, new_name);
+                fputs(" exists in the InnoDB internal data\n"
+     "InnoDB: dictionary though MySQL is trying rename table ", stderr);
+                ut_print_name(stderr, old_name);
+		fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
      "InnoDB: You can look for further help from section 15.1 of\n"
-     "InnoDB: http://www.innodb.com/ibman.html\n",
-			new_name, old_name);
-			fprintf(stderr,
-     "InnoDB: If table %s is a temporary table #sql..., then it can be that\n"
+	      "InnoDB: http://www.innodb.com/ibman.php\n"
+     "InnoDB: If table ", stderr);
+		ut_print_name(stderr, new_name);
+		fputs(" is a temporary table #sql..., then it can be that\n"
      "InnoDB: there are still queries running on the table, and it will be\n"
-     "InnoDB: dropped automatically when the queries end.\n", new_name);
-			fprintf(stderr,
+     "InnoDB: dropped automatically when the queries end.\n"
      "InnoDB: You can drop the orphaned table inside InnoDB by\n"
      "InnoDB: creating an InnoDB table with the same name in another\n"
      "InnoDB: database and moving the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
-     "InnoDB: succeed.\n");
+     "InnoDB: succeed.\n", stderr);
 		}
 		trx->error_state = DB_SUCCESS;
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
@@ -2937,9 +2954,12 @@ row_rename_table_for_mysql(
 			trx_general_rollback_for_mysql(trx, FALSE, NULL);
 			trx->error_state = DB_SUCCESS;
 			ut_print_timestamp(stderr);
-				fprintf(stderr,
-" InnoDB: Error in table rename, cannot rename %s to %s\n", old_name,
-								new_name);
+			fputs(" InnoDB: Error in table rename, cannot rename ",
+				stderr);
+			ut_print_name(stderr, old_name);
+			fputs(" to ", stderr);
+			ut_print_name(stderr, new_name);
+			putc('\n', stderr);
 			err = DB_ERROR;
 
 			goto funct_exit;
@@ -2958,11 +2978,14 @@ row_rename_table_for_mysql(
 
 			if (err != DB_SUCCESS) {
 	    			ut_print_timestamp(stderr);
-				fprintf(stderr,
-     "  InnoDB: Error: in ALTER TABLE table %s\n"
-     "InnoDB: has or is referenced in foreign key constraints\n"
-     "InnoDB: which are not compatible with the new table definition.\n",
-     new_name);
+				fputs("  InnoDB: Error: in ALTER TABLE ",
+					stderr);
+				ut_print_name(stderr, new_name);
+				fputs("\n"
+	"InnoDB: has or is referenced in foreign key constraints\n"
+	"InnoDB: which are not compatible with the new table definition.\n",
+					stderr);
+
 				ut_a(dict_table_rename_in_cache(table,
 							old_name, FALSE));
 				trx->error_state = DB_SUCCESS;
@@ -3160,9 +3183,11 @@ row_check_table_for_mysql(
 
 				ret = DB_ERROR;
  
+				fputs("Error: ", stderr);
+				dict_index_name_print(stderr, index);
 				fprintf(stderr,
-		"Error: index %s contains %lu entries, should be %lu\n",
-					index->name, (ulong) n_rows,
+				" contains %lu entries, should be %lu\n",
+					(ulong) n_rows,
 					(ulong) n_rows_in_table);
 			}
 		}

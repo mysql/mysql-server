@@ -403,12 +403,12 @@ public:
   {
     return (HA_DDL_SUPPORT);
   }
-  virtual int add_index(TABLE *table, KEY *key_info, uint num_of_keys)
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "online add index");
     return (HA_DDL_NOT_IMPLEMENTED);
   }
-  virtual int drop_index(TABLE *table, uint *key_num, uint num_of_keys)
+  virtual int drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "online drop index");
     return (HA_DDL_NOT_IMPLEMENTED);
