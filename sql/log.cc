@@ -1062,40 +1062,44 @@ bool MYSQL_LOG::write(Log_event* event_info)
       No check for auto events flag here - this write method should
       never be called if auto-events are enabled
     */
-    if (thd && thd->last_insert_id_used)
+    if (thd)
     {
-      Intvar_log_event e(thd,(uchar)LAST_INSERT_ID_EVENT,thd->last_insert_id);
-      e.set_log_pos(this);
-      if (thd->server_id)
-        e.server_id = thd->server_id;
-      if (e.write(file))
-	goto err;
-    }
-    if (thd && thd->insert_id_used)
-    {
-      Intvar_log_event e(thd,(uchar)INSERT_ID_EVENT,thd->last_insert_id);
-      e.set_log_pos(this);
-      if (thd->server_id)
-        e.server_id = thd->server_id;
-      if (e.write(file))
-	goto err;
-    }
-    if (thd && thd->rand_used)
-    {
-      Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
-    }
-    if (thd && thd->variables.convert_set)
-    {
-      char buf[1024] = "SET CHARACTER SET ";
-      char* p = strend(buf);
-      p = strmov(p, thd->variables.convert_set->name);
-      Query_log_event e(thd, buf, (ulong)(p - buf), 0);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
+      if (thd->last_insert_id_used)
+      {
+	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
+			   thd->last_insert_id);
+	e.set_log_pos(this);
+	if (thd->server_id)
+	  e.server_id = thd->server_id;
+	if (e.write(file))
+	  goto err;
+      }
+      if (thd->insert_id_used)
+      {
+	Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
+	e.set_log_pos(this);
+	if (thd->server_id)
+	  e.server_id = thd->server_id;
+	if (e.write(file))
+	  goto err;
+      }
+      if (thd->rand_used)
+      {
+	Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
+      if (thd->variables.convert_set)
+      {
+	char buf[256], *p;
+	p= strmov(strmov(buf, "SET CHARACTER SET "),
+		  thd->variables.convert_set->name);
+	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
     }
     event_info->set_log_pos(this);
     if (event_info->write(file) ||

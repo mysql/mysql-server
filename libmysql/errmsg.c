@@ -51,7 +51,7 @@ const char *client_errors[]=
   "Error connecting to slave:",
   "Error connecting to master:",
   "SSL connection error",
-  "Invalid connection handle",
+  "Malformed packet",
   "Invalid use of null pointer",
   "Statement not prepared",
   "Not all parameters data supplied",
@@ -70,7 +70,8 @@ const char *client_errors[]=
   "Can't open shared memory. %s event don't create for client (%lu)",
   "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
   "Can't open shared memory. Can't send the request event to server (%lu)",
-  "Wrong or unknown protocol"
+  "Wrong or unknown protocol",
+  "Invalid connection handle"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -83,7 +84,7 @@ const char *client_errors[]=
   "Não pode se conectar ao servidor MySQL local através do 'socket' '%-.64s' (%d)", 
   "Não pode se conectar ao servidor MySQL em '%-.64s' (%d)",
   "Não pode criar 'socket TCP/IP' (%d)",
-  "'Host' servidor MySQL '%-.64s' (%d) desconhecido", 
+  "'Host' servidor MySQL '%-.64s' (%d) desconhecido",
   "Servidor MySQL desapareceu",
   "Incompatibilidade de protocolos. Versão do Servidor: %d - Versão do Cliente: %d",
   "Cliente do MySQL com falta de memória",
@@ -105,7 +106,7 @@ const char *client_errors[]=
   "Error connecting to slave:",
   "Error connecting to master:",
   "SSL connection error",
-  "Invalid connection handle",
+  "Malformed packet",
   "Invalid use of null pointer",
   "Statement not prepared",
   "Not all parameters data supplied",
@@ -124,7 +125,8 @@ const char *client_errors[]=
   "Can't open shared memory. %s event don't create for client (%lu)",
   "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
   "Can't open shared memory. Can't send the request event to server (%lu)",
-  "Wrong or unknown protocol"
+  "Wrong or unknown protocol",
+  "Invalid connection handle"
 };
 
 #else /* ENGLISH */
@@ -157,7 +159,7 @@ const char *client_errors[]=
   "Error connecting to slave:",
   "Error connecting to master:",
   "SSL connection error",
-  "Invalid connection handle",
+  "Malformed packet",
   "Invalid use of null pointer",
   "Statement not prepared",
   "Not all parameters data supplied",
@@ -176,7 +178,8 @@ const char *client_errors[]=
   "Can't open shared memory. %s event don't create for client (%lu)",
   "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
   "Can't open shared memory. Can't send the request event to server (%lu)",
-  "Wrong or unknown protocol"
+  "Wrong or unknown protocol",
+  "Invalid connection handle"
 };
 #endif
 

@@ -554,7 +554,7 @@ net_safe_read(MYSQL *mysql)
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
     end_server(mysql);
-    net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ? 
+    net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ?
 		     CR_NET_PACKET_TOO_LARGE:
 		     CR_SERVER_LOST);
     strmov(net->last_error,ER(net->last_errno));
@@ -1196,7 +1196,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   ulong pkt_len;
   ulong len;
   uchar *cp;
-  char	*to;
+  char	*to, *end_to;
   MYSQL_DATA *result;
   MYSQL_ROWS **prev_ptr,*cur;
   NET *net = &mysql->net;
@@ -1242,6 +1242,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     *prev_ptr=cur;
     prev_ptr= &cur->next;
     to= (char*) (cur->data+fields+1);
+    end_to=to+pkt_len-1;
     for (field=0 ; field < fields ; field++)
     {
       if ((len=(ulong) net_field_length(&cp)) == NULL_LENGTH)
@@ -1251,6 +1252,13 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
       else
       {
 	cur->data[field] = to;
+        if (to+len > end_to)
+        {
+          free_rows(result);
+          net->last_errno=CR_MALFORMED_PACKET;
+          strmov(net->last_error,ER(net->last_errno));
+          DBUG_RETURN(0);
+        }
 	memcpy(to,(char*) cp,len); to[len]=0;
 	to+=len+1;
 	cp+=len;

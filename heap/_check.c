@@ -20,19 +20,34 @@
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			 ulong blength, my_bool print_status);
-static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
-			    my_bool print_status);
 
-/* Returns 0 if the HEAP is ok */
+
+/*
+  Check if keys and rows are ok in a heap table
+
+  SYNOPSIS
+    heap_check_heap()
+    info		Table handler
+    print_status	Prints some extra status
+
+  NOTES
+    Doesn't change the state of the table handler
+
+  RETURN VALUES
+    0	ok
+    1 error
+*/
 
 int heap_check_heap(HP_INFO *info, my_bool print_status)
 {
   int error;
   uint key;
+  ulong records=0, deleted=0, pos, next_block;
   HP_SHARE *share=info->s;
-  DBUG_ENTER("heap_check_keys");
+  HP_INFO save_info= *info;			/* Needed because scan_init */
+  DBUG_ENTER("heap_check_heap");
 
-  for (error=key=0 ; key < share->keys ; key++)
+  for (error=key= 0 ; key < share->keys ; key++)
   {
     if (share->keydef[key].algorithm == HA_KEY_ALG_BTREE)
       error|= check_one_rb_key(info, key, share->records, print_status);
@@ -40,7 +55,41 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
       error|= check_one_key(share->keydef + key, key, share->records,
 			    share->blength, print_status);
   }
+  /*
+    This is basicly the same code as in hp_scan, but we repeat it here to
+    get shorter DBUG log file.
+  */
+  for (pos=next_block= 0 ; ; pos++)
+  {
+    if (pos < next_block)
+    {
+      info->current_ptr+= share->block.recbuffer;
+    }
+    else
+    {
+      next_block+= share->block.records_in_block;
+      if (next_block >= share->records+share->deleted)
+      {
+	next_block= share->records+share->deleted;
+	if (pos >= next_block)
+	  break;				/* End of file */
+      }
+    }
+    _hp_find_record(info,pos);
 
+    if (!info->current_ptr[share->reclength])
+      deleted++;
+    else
+      records++;
+  }
+
+  if (records != share->records || deleted != share->deleted)
+  {
+    DBUG_PRINT("error",("Found rows: %lu (%lu)  deleted %lu (%lu)",
+			records, share->records, deleted, share->deleted));
+    error= 1;
+  }
+  *info= save_info;
   DBUG_RETURN(error);
 }
 

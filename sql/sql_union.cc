@@ -41,7 +41,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result)
 ***************************************************************************/
 
 select_union::select_union(TABLE *table_par)
-    :table(table_par)
+  :table(table_par), not_describe(0)
 {
   bzero((char*) &info,sizeof(info));
   /*
@@ -59,7 +59,7 @@ select_union::~select_union()
 int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  if (save_time_stamp && list.elements != table->fields)
+  if (not_describe && list.elements != table->fields)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
 	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
@@ -117,7 +117,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   prepared= 1;
   union_result=0;
   res= 0;
-  found_rows_for_union= false;
+  found_rows_for_union= 0;
   TMP_TABLE_PARAM tmp_table_param;
   this->thd= thd;
   this->result= result;
@@ -165,7 +165,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   if (!(union_result=new select_union(table)))
     goto err;
 
-  union_result->save_time_stamp=1;
+  union_result->not_describe=1;
   union_result->tmp_table_param=&tmp_table_param;
 
   // prepare selects

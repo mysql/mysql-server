@@ -37,7 +37,6 @@
 #include <mysys_err.h>
 #include <assert.h>
 
-extern struct rand_struct sql_rand;
 
 /*****************************************************************************
 ** Instansiate templates
@@ -172,9 +171,8 @@ THD::THD():user_time(0), fatal_error(0),
   {
     pthread_mutex_lock(&LOCK_thread_count);
     ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
-    randominit(&rand, tmp + (ulong) start_time,
-	       tmp + (ulong) thread_id);
     pthread_mutex_unlock(&LOCK_thread_count);
+    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
 }
 

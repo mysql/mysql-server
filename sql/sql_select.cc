@@ -132,7 +132,9 @@ static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 			     List<Item> &all_fields,ORDER *new_order);
-static ORDER *create_distinct_group(ORDER *order, List<Item> &fields);
+static ORDER *create_distinct_group(THD *thd, ORDER *order,
+				    List<Item> &fields,
+				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
@@ -248,7 +250,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   if (!fake_select_lex)
     select_lex->join= this;
   union_part= (unit->first_select()->next_select() != 0);
-  
+
   /* Check that all tables, fields, conds and order are ok */
 
   if (setup_tables(tables_list) ||
@@ -343,6 +345,10 @@ JOIN::prepare(TABLE_LIST *tables_init,
   this->group= group_list != 0;
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
+  /* select_limit is used to decide if we are likely to scan the whole table */
+  select_limit= unit->select_limit_cnt;
+  if (having || (select_options & OPTION_FOUND_ROWS))
+    select_limit= HA_POS_ERROR;
   do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
   this->unit= unit;
 
@@ -371,6 +377,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
 int
 JOIN::optimize()
 {
+  ha_rows select_limit;
   DBUG_ENTER("JOIN::optimize");
 
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
@@ -403,7 +410,8 @@ JOIN::optimize()
     // normal error processing & cleanup
     DBUG_RETURN(-1);
 
-  if (cond_value == Item::COND_FALSE || (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
+  if (cond_value == Item::COND_FALSE ||
+      (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {					/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
     DBUG_RETURN(0);
@@ -451,11 +459,12 @@ JOIN::optimize()
     found_const_table_map= 0;
   }
   thd->proc_info= "preparing";
-  result->initialize_tables(this);
+  if (result->initialize_tables(this))
+    DBUG_RETURN(-1);
   if (const_table_map != found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
-    zero_result_cause= "";
+    zero_result_cause= "no matching row in const table";
     select_options= 0; //TODO why option in return_zero_rows was droped
     DBUG_RETURN(0);
   }
@@ -513,21 +522,46 @@ JOIN::optimize()
     if (! hidden_group_fields)
       select_distinct=0;
   }
-  else if (select_distinct && tables - const_tables == 1 &&
-	   (unit->select_limit_cnt == HA_POS_ERROR ||
-	    (select_options & OPTION_FOUND_ROWS) ||
-	    order &&
-	    !(skip_sort_order=
-	      test_if_skip_sort_order(&join_tab[const_tables],
-				      order,
-				      unit->select_limit_cnt,
-				      1))))
+  else if (select_distinct && tables - const_tables == 1)
   {
-    if ((group_list= create_distinct_group(order, fields_list)))
+    /*
+      We are only using one table. In this case we change DISTINCT to a
+      GROUP BY query if:
+      - The GROUP BY can be done through indexes (no sort) and the ORDER
+        BY only uses selected fields.
+	(In this case we can later optimize away GROUP BY and ORDER BY)
+      - We are scanning the whole table without LIMIT
+        This can happen if:
+        - We are using CALC_FOUND_ROWS
+        - We are using an ORDER BY that can't be optimized away.
+
+      We don't want to use this optimization when we are using LIMIT
+      because in this case we can just create a temporary table that
+      holds LIMIT rows and stop when this table is full.
+    */
+    JOIN_TAB *tab= &join_tab[const_tables];
+    bool all_order_fields_used;
+    if (order)
+      skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
+    if ((group=create_distinct_group(thd, order, fields_list,
+				     &all_order_fields_used)))
     {
-      select_distinct= 0;
-      no_order= !order;
-      group= 1;				        // For end_write_group
+      bool skip_group= (skip_sort_order &&
+			test_if_skip_sort_order(tab, group, select_limit,
+						1) != 0);
+      if ((skip_group && all_order_fields_used) ||
+	  select_limit == HA_POS_ERROR ||
+	  (order && !skip_sort_order))
+      {
+	/*  Change DISTINCT to GROUP BY */
+	select_distinct= 0;
+	no_order= !order;
+	if (all_order_fields_used)
+	  order=0;
+	group=1;				// For end_write_group
+      }
+      else
+	group= 0;
     }
     else if (thd->fatal_error)			// End of memory
       DBUG_RETURN(-1);
@@ -727,11 +761,9 @@ JOIN::exec()
       order=group_list;
     if (order &&
 	(const_tables == tables ||
-	 (simple_order &&
+ 	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
-				  (select_options & OPTION_FOUND_ROWS) ?
-				  HA_POS_ERROR : unit->select_limit_cnt,
-				  0))))
+				  select_limit, 0))))
       order=0;
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
@@ -759,7 +791,7 @@ JOIN::exec()
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
 			   (order == 0 || skip_sort_order) &&
-			   !(select_options & OPTION_FOUND_ROWS),
+			   select_limit != HA_POS_ERROR,
 			   select_options, unit)))
       DBUG_VOID_RETURN;
 
@@ -813,9 +845,10 @@ JOIN::exec()
       /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
       if (order && skip_sort_order)
       {
-	(void) test_if_skip_sort_order(&this->join_tab[const_tables],
-				       order, unit->select_limit_cnt, 0);
-	order=0;
+ 	/* Should always succeed */
+	if (test_if_skip_sort_order(&this->join_tab[const_tables],
+				    order, unit->select_limit_cnt, 0))
+	  order=0;
       }
     }
 
@@ -989,8 +1022,7 @@ JOIN::exec()
       }
     }
     {
-      ha_rows select_limit= unit->select_limit_cnt;
-      if (having || group || (select_options & OPTION_FOUND_ROWS))
+      if (group)
 	select_limit= HA_POS_ERROR;
       else
       {
@@ -1002,7 +1034,13 @@ JOIN::exec()
 	JOIN_TAB *end_table= &join_tab[tables];
 	for (; table < end_table ; table++)
 	{
-	  if (table->select_cond)
+	  /*
+	    table->keyuse is set in the case there was an original WHERE clause
+	    on the table that was optimized away.
+	    table->on_expr tells us that it was a LEFT JOIN and there will be
+	    at least one row generated from the table.
+	  */
+	  if (table->select_cond || (table->keyuse && !table->on_expr))
 	  {
 	    /* We have to sort all rows */
 	    select_limit= HA_POS_ERROR;
@@ -1186,13 +1224,21 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
 }
 
 
+/*
+  Calculate the best possible join and initialize the join structure
+
+  RETURN VALUES
+  0	ok
+  1	Fatal error
+*/
+  
 static bool
 make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   uint i,table_count,const_count,found_ref,refs,key,const_ref,eq_part;
-  table_map const_table_map,found_const_table_map,all_table_map;
+  table_map found_const_table_map,all_table_map;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   SQL_SELECT *select;
@@ -1212,7 +1258,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   join->best_ref=stat_vector;
 
   stat_end=stat+table_count;
-  const_table_map=found_const_table_map=all_table_map=0;
+  found_const_table_map=all_table_map=0;
   const_count=0;
 
   for (s=stat,i=0 ; tables ; s++,tables=tables->next,i++)
@@ -1303,7 +1349,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       DBUG_RETURN(1);
 
   /* Read tables with 0 or 1 rows (system tables) */
-  join->const_table_map=const_table_map;
+  join->const_table_map= 0;
 
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
@@ -1340,16 +1386,16 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
-	if (s->dependent & ~(join->const_table_map))
+	if (s->dependent & ~(found_const_table_map))
 	  continue;
 	if (table->file->records <= 1L &&
 	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT))
 	{					// system table
-	  int tmp;
+	  int tmp= 0;
 	  s->type=JT_SYSTEM;
 	  join->const_table_map|=table->map;
 	  set_position(join,const_count++,s,(KEYUSE*) 0);
-	  if ((tmp=join_read_const_table(s,join->positions+const_count-1)))
+	  if ((tmp= join_read_const_table(s,join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
 	      DBUG_RETURN(1);			// Fatal error
@@ -1374,7 +1420,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  {
 	    if (keyuse->val->type() != Item::NULL_ITEM)
 	    {
-	      if (!((~join->const_table_map) & keyuse->used_tables))
+	      if (!((~found_const_table_map) & keyuse->used_tables))
 		const_ref|= (key_map) 1 << keyuse->keypart;
 	      else
 		refs|=keyuse->used_tables;
@@ -1395,7 +1441,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	      join->const_table_map|=table->map;
 	      set_position(join,const_count++,s,start_keyuse);
 	      if (create_ref_for_key(join, s, start_keyuse,
-				     join->const_table_map))
+				     found_const_table_map))
 		DBUG_RETURN(1);
 	      if ((tmp=join_read_const_table(s,
 					     join->positions+const_count-1)))
@@ -1443,8 +1489,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     {
       ha_rows records;
       if (!select)
-	select=make_select(s->table, join->const_table_map,
-			   join->const_table_map,
+	select=make_select(s->table, found_const_table_map,
+			   found_const_table_map,
 			   and_conds(conds,s->on_expr),&error);
       records=get_quick_record_count(select,s->table, s->const_keys,
 				     join->row_limit);
@@ -2607,12 +2653,13 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 bool
 store_val_in_field(Field *field,Item *item)
 {
+  bool error;
   THD *thd=current_thd;
   ha_rows cuted_fields=thd->cuted_fields;
   thd->count_cuted_fields=1;
-  (void) item->save_in_field(field);
+  error= item->save_in_field(field, 1);
   thd->count_cuted_fields=0;
-  return cuted_fields != thd->cuted_fields;
+  return error || cuted_fields != thd->cuted_fields;
 }
 
 
@@ -2957,6 +3004,38 @@ make_join_readinfo(JOIN *join, uint options)
 }
 
 
+/*
+  Give error if we some tables are done with a full join
+
+  SYNOPSIS
+    error_if_full_join()
+    join		Join condition
+
+  USAGE
+   This is used by multi_table_update and multi_table_delete when running
+   in safe mode
+
+ RETURN VALUES
+   0	ok
+   1	Error (full join used)
+*/
+
+bool error_if_full_join(JOIN *join)
+{
+  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
+       tab < end;
+       tab++)
+  {
+    if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
+    {
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,MYF(0));
+      return(1);
+    }
+  }
+  return(0);
+}
+
+
 static void
 join_free(JOIN *join)
 {
@@ -3021,9 +3100,7 @@ join_free(JOIN *join)
   }
   join->group_fields.delete_elements();
   join->tmp_table_param.copy_funcs.delete_elements();
-  if (join->tmp_table_param.copy_field)		// Because of bug in ecc
-    delete [] join->tmp_table_param.copy_field;
-  join->tmp_table_param.copy_field=0;
+  join->tmp_table_param.cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -3655,11 +3732,33 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 
 
 /****************************************************************************
-  Create a temp table according to a field list.
-  Set distinct if duplicates could be removed
-  Given fields field pointers are changed to point at tmp_table
-  for send_fields
+  Create internal temporary table
 ****************************************************************************/
+
+/*
+  Create field for temporary table
+
+  SYNOPSIS
+    create_tmp_field()
+    thd			Thread handler
+    table		Temporary table
+    item		Item to create a field for
+    type		Type of item (normally item->type)
+    copy_func		If set and item is a function, store copy of item
+			in this array
+    group		1 if we are going to do a relative group by on result
+    modify_item		1 if item->result_field should point to new item.
+			This is relevent for how fill_record() is going to
+			work:
+			If modify_item is 1 then fill_record() will update
+			the record in the original table.
+			If modify_item is 0 then fill_record() will update
+			the temporary table
+		       
+  RETURN
+    0			on error
+    new_created field
+*/
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
@@ -3778,6 +3877,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 }
 
 
+/*
+  Create a temp table according to a field list.
+  Set distinct if duplicates could be removed
+  Given fields field pointers are changed to point at tmp_table
+  for send_fields
+*/
+
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
@@ -3853,13 +3959,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		       NullS))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   if (!(param->copy_field=copy=new Copy_field[field_count]))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    my_free((gptr) table,MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    my_free((gptr) table,MYF(0));		/* purecov: inspected */
+    DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->funcs=copy_func;
   strmov(tmpname,path);
@@ -3940,9 +4046,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
     {
+      /*
+	The last parameter to create_tmp_field() is a bit tricky:
+
+	We need to set it to 0 in union, to get fill_record() to modify the
+	temporary table.
+	We need to set it to 1 on multi-table-update and in select to
+	write rows to the temporary table.
+	We here distinguish between UNION and multi-table-updates by the fact
+	that in the later case group is set to the row pointer.
+      */
       Field *new_field=create_tmp_field(thd, table, item,type, &copy_func,
 					tmp_from_field, group != 0,
-					not_all_columns);
+					not_all_columns || group !=0);
       if (!new_field)
       {
 	if (thd->fatal_error)
@@ -4258,7 +4374,6 @@ static bool open_tmp_table(TABLE *table)
     table->db_stat=0;
     return(1);
   }
-  /* VOID(ha_lock(table,F_WRLCK)); */		/* Single thread table */
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
   return(0);
 }
@@ -4411,12 +4526,11 @@ free_tmp_table(THD *thd, TABLE *entry)
 * If a HEAP table gets full, create a MyISAM table and copy all rows to this
 */
 
-bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
-			     bool ignore_last_dupp_key_error)
+bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
+			     int error, bool ignore_last_dupp_key_error)
 {
   TABLE new_table;
   const char *save_proc_info;
-  THD *thd=current_thd;
   int write_err;
   DBUG_ENTER("create_myisam_from_heap");
 
@@ -5392,7 +5506,8 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (error == HA_ERR_FOUND_DUPP_KEY ||
 	    error == HA_ERR_FOUND_DUPP_UNIQUE)
 	  goto end;
-	if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
+	if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
+				    error,1))
 	  DBUG_RETURN(-1);			// Not a table_is_full error
 	table->uniques=0;			// To ensure rows are the same
       }
@@ -5469,7 +5584,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   copy_funcs(join->tmp_table_param.funcs);
   if ((error=table->file->write_row(table->record[0])))
   {
-    if (create_myisam_from_heap(table, &join->tmp_table_param, error, 0))
+    if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
+				error, 0))
       DBUG_RETURN(-1);				// Not a table_is_full error
     /* Change method to update rows */
     table->file->index_init(0);
@@ -5563,7 +5679,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if ((error=table->file->write_row(table->record[0])))
 	  {
-	    if (create_myisam_from_heap(table, &join->tmp_table_param,
+	    if (create_myisam_from_heap(join.thd, table,
+					&join->tmp_table_param,
 					error, 0))
 	      DBUG_RETURN(-1);			// Not a table_is_full error
 	  }
@@ -6769,12 +6886,14 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 */
 
 static ORDER *
-create_distinct_group(ORDER *order_list,List<Item> &fields)
+create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields, 
+		      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
 
+  *all_order_by_fields_used= 1;
   while ((item=li++))
     item->marker=0;			/* Marker that field is not used */
 
@@ -6783,13 +6902,15 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
   {
     if (order->in_field_list)
     {
-      ORDER *ord=(ORDER*) sql_memdup(order,sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->memdup((char*) order,sizeof(ORDER));
       if (!ord)
 	return 0;
       *prev=ord;
       prev= &ord->next;
       (*ord->item)->marker=1;
     }
+    else
+      *all_order_by_fields_used= 0;
   }
 
   li.rewind();
@@ -6799,7 +6920,7 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
       continue;
     if (!item->marker)
     {
-      ORDER *ord=(ORDER*) sql_calloc(sizeof(ORDER));
+      ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
       ord->item=li.ref();
@@ -7251,7 +7372,7 @@ copy_sum_funcs(Item_sum **func_ptr)
 {
   Item_sum *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field);
+    (void) func->save_in_field(func->result_field, 1);
   return;
 }
 
@@ -7282,7 +7403,7 @@ copy_funcs(Item_result_field **func_ptr)
 {
   Item_result_field *func;
   for (; (func = *func_ptr) ; func_ptr++)
-    (void) func->save_in_field(func->result_field);
+    (void) func->save_in_field(func->result_field, 1);
   return;
 }
 
