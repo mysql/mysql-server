@@ -525,9 +525,6 @@ extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 extern void update_auto_increment(MI_INFO *info,const byte *record);
 extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**, uint*);
 extern gptr mi_get_rec_buff_ptr(MI_INFO *, byte *);
-#define mi_fix_rec_buff_for_blob(INFO,LENGTH)  \
-            mi_alloc_rec_buff((INFO),(LENGTH), \
-              &((INFO)->rec_buff), &((INFO)->alloced_rec_buff_length))
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
 extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);

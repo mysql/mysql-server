@@ -337,6 +337,7 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
 			HA_CHECK_OPT* check_opt);
 int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
+bool check_simple_select();
 
 /* net_pkg.c */
 void send_warning(NET *net, uint sql_errno, const char *err=0);

@@ -250,7 +250,9 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
   if (info->blobs && info->s->keyinfo[keynr].flag & HA_VAR_LENGTH_KEY)
   {
     if (!(blob_ptr=
-	  mi_fix_rec_buff_for_blob(info, info->s->keyinfo[keynr].keylength)))
+	  mi_alloc_rec_buff(info, info->s->keyinfo[keynr].keylength,
+			    &info->rec_buff,
+			    &info->alloced_rec_buff_length)))
       goto err;
   }
   key=(byte*) info->lastkey;
