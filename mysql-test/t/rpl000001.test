@@ -39,7 +39,13 @@ save_master_pos;
 connection slave;
 sync_with_master;
 
-#test handling of aborted connection in the middle of update
+# Test if the slave SQL thread can be more than 16K behind the slave
+# I/O thread (> IO_SIZE)
+
+connection master;
+# we'll use table-level locking to delay slave SQL thread
+create table t1 (n int) engine=myisam;
+sync_slave_with_master;
 connection master;
 reset master;
 connection slave;
@@ -47,28 +53,25 @@ stop slave;
 reset slave;
 
 connection master;
-create table t1(n int);
-#we want the log to exceed 16K to test deal with the log that is bigger than
-#IO_SIZE
 let $1=5000;
+# Generate 16K of relay log
 disable_query_log;
 while ($1)
 {
- eval insert into t1 values($1+get_lock("hold_slave",10)*0);
+ eval insert into t1 values($1);
  dec $1;
 }
 enable_query_log;
 
-# Try to cause a large relay log lag on the slave 
+# Try to cause a large relay log lag on the slave by locking t1
 connection slave;
-select get_lock("hold_slave",10);
-explain extended select get_lock("hold_slave",10);
+lock tables t1 read;
 start slave;
 #hope this is long enough for I/O thread to fetch over 16K relay log data
 sleep 3;
-select release_lock("hold_slave");
-explain extended select release_lock("hold_slave");
 unlock tables;
+
+#test handling of aborted connection in the middle of update
 
 connection master;
 create table t2(id int);

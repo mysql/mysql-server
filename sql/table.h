@@ -339,6 +339,15 @@ typedef struct st_table_list
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+  /*
+    The scturcture of ON expression presented in the member above
+    can be changed during certain optimizations. This member
+    contains a snapshot of AND-OR structure of the ON expression
+    made after permanent transformations of the parse tree, and is
+    used to restore ON clause before every reexecution of a prepared
+    statement or stored procedure.
+  */
+  Item          *prep_on_expr;
   COND_EQUAL    *cond_equal;            /* Used with outer join */
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */

@@ -819,6 +819,7 @@ sp_head::restore_lex(THD *thd)
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
 
+  init_stmt_after_parse(thd, sublex);
   if (! oldlex)
     return;			// Nothing to restore
 
