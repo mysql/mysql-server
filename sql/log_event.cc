@@ -328,7 +328,7 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
  ****************************************************************************/
 void Log_event::pack_info(Protocol *protocol)
 {
-  protocol->store("",0);
+  protocol->store("", &my_charset_bin);
 }
 
 
