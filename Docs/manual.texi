@@ -1412,7 +1412,7 @@ contributing to the development of @strong{MySQL}.
 @end multitable
 Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator.@*
 
-In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
+@image{Books/dubois} In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
 one of the most popular relational database systems. Paul has
 contributed to the online documentation for @strong{MySQL} and is an
 active member of the @strong{MySQL} community. The principal @strong{MySQL}
@@ -1469,7 +1469,7 @@ and PHP's @strong{MySQL}-related functions
 @item Price	@tab		$34.95
 @end multitable
 
-This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular
+@image{Books/msql} This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular
 and robust database products that support key subsets of SQL on both Linux
 and Unix systems. Anyone who knows basic C, Java, Perl, or Python can
 write a program to interact with a database, either as a stand-alone
@@ -1490,14 +1490,14 @@ material.
 @item Price     @tab            $39.99
 @end multitable
 
-Sams Teach Yourself @strong{MySQL} in 21 Days is for intermediate Linux users
-who want to move into databases.  A large share of the audience is Web
-developers who need a database to store large amounts of information that can
-be retrieved via the Web. @emph{Sams' Teach Yourself MySQL in 21 Days} is a
-practical, step-by-step tutorial.  The reader will learn to design and employ
-this open source database technology into his/her Web site using practical,
-hands-on examples to follow.
-@*
+@image{Books/in_21} Sams Teach Yourself @strong{MySQL} in 21 Days is for
+intermediate Linux users who want to move into databases.  A large share of
+the audience is Web developers who need a database to store large amounts of
+information that can be retrieved via the Web.
+@emph{Sams' Teach Yourself MySQL in 21 Days} is a practical, step-by-step
+tutorial.  The reader will learn to design and employ this open source
+database technology into his/her Web site using practical, hands-on examples
+to follow.@*
 
 @emph{E-Commerce Solutions with MySQL}
 @multitable @columnfractions .3 .7
@@ -1559,7 +1559,7 @@ No description available.
 @item Price     @tab            $47.99
 @end multitable
 
-In this follow-up to the best-selling Beginning Linux Programming, you
+@image{Books/prof} In this follow-up to the best-selling Beginning Linux Programming, you
 will learn from the authors' real-world knowledge and experience of
 developing software for Linux; you'll be taken through the development
 of a sample 'DVD Store' application, with 'theme' chapters addressing
@@ -1607,7 +1607,7 @@ advanced topics regarding table manipulation.
 @item Price     @tab            $55.96
 @end multitable
 
-This book contains complete descriptions of the new standards for
+@image{Books/sql-99} This book contains complete descriptions of the new standards for
 syntax, data structures, and retrieval processes of SQL databases. As
 an example-based reference manual, it includes all of the CLI
 functions, information, schema tables, and status codes, as well as a
@@ -1625,7 +1625,7 @@ working SQL database provided on the companion disk.
 @item Price     @tab            $35.99
 @end multitable
 
-A new and improved revision of the bestselling C language
+@image{Books/manual} A new and improved revision of the bestselling C language
 reference. This manual introduces the notion of "Clean C, " writing C
 code that can be compiled as a C++ program, C programming style that
 emphasizes correctness, portability, and maintainability. and
@@ -1644,7 +1644,7 @@ facilities for writing portable, international programs in C.
 @item Price     @tab            $39.95
 @end multitable
 
-C++ For Real Programmers bridges the gap between C++ as described in
+@image{Books/realmen} C++ For Real Programmers bridges the gap between C++ as described in
 beginner and intermediate-level books and C++ as it is practiced by
 experts. Numerous valuable techniques are described, organized into
 three simple themes: indirection, class hierarchies, and memory
@@ -1667,7 +1667,7 @@ for Windows with source code.
 @item Price     @tab            $45.75
 @end multitable
 
-Algorithms in C describes a variety of algorithms in a number of areas
+@image{Books/algor} Algorithms in C describes a variety of algorithms in a number of areas
 of interest, including: sorting, searching, string-processing, and
 geometric, graph and mathematical algorithms. The book emphasizes
 fundamental techniques, providing readers with the tools to
@@ -1685,7 +1685,7 @@ confidently implement, run, and debug useful algorithms.
 @item Price     @tab            $34.95
 @end multitable
 
-Based on the best-selling Threads Primer, Multithreaded Programming
+@image{Books/pthreads} Based on the best-selling Threads Primer, Multithreaded Programming
 with Pthreads gives you a solid understanding of Posix threads: what
 they are, how they work, when to use them, and how to optimize
 them. It retains the clarity and humor of the Primer, but includes
@@ -1705,7 +1705,7 @@ detailed explanations of how and why they use threads.
 @item Price     @tab            $27.96
 @end multitable
 
-Programming the Perl DBI is coauthored by Alligator Descartes, one of
+@image{Books/dbi} Programming the Perl DBI is coauthored by Alligator Descartes, one of
 the most active members of the DBI community, and by Tim Bunce, the
 inventor of DBI. For the uninitiated, the book explains the
 architecture of DBI and shows you how to write DBI-based programs. For
@@ -3952,8 +3952,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: sl@iuinfo.tuwien.ac.at (Tony Sprinzl)
-@c @image{Flags/austria}
-Austria [Univ. of Technology/Vienna] @
+@image{Flags/austria} Austria [Univ. of Technology/Vienna] @
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
 
@@ -3975,23 +3974,20 @@ Austria [Univ. of Technology/Vienna] @
 @item
 @c Added: 990614
 @c EMAIL: kas@informatics.muni.cz (Jan Kasprzak)
-@c @image{Flags/czech-republic}
-Czech Republic [Masaryk University in Brno] @
+@image{Flags/czech-republic} Czech Republic [Masaryk University in Brno] @
 @uref{http://mysql.linux.cz/index.html, WWW}
 @uref{ftp://ftp.fi.muni.cz/pub/mysql/, FTP}
 
 @item
 @c Added: 990920
 @c EMAIL: <radek@sopik.cz> (Radek Libovicky)
-@c @image{Flags/czech-republic}
-Czech Republic [www.sopik.cz] @
+@image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
 @uref{http://www.mysql.cz/, WWW}
 
 @item
 @c Added: 000418
 @c EMAIL: <feela@ipex.cz> (Ondrej Feela Filip)
-@c @image{Flags/czech-republic}
-Czech Republic [www.gin.cz] @
+@image{Flags/czech-republic} Czech Republic [www.gin.cz] @
 @uref{http://mysql.gin.cz/, WWW}
 @uref{ftp://ftp.gin.cz/pub/MIRRORS/www.mysql.com/, FTP}
 
@@ -3999,14 +3995,12 @@ Czech Republic [www.gin.cz] @
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
 @c EMAIL: mirrorman@borsen.dk  (Michael Kyed)
-@c @image{Flags/denmark}
-Denmark [Borsen] @
+@image{Flags/denmark} Denmark [Borsen] @
 @uref{ http://mysql.borsen.dk/, WWW}
 
 @item
 @c EMAIL: mkp@socsci.auc.dk (Martin Kasper Petersen)
-@c @image{Flags/denmark}
-Denmark [SunSITE] @
+@image{Flags/denmark} Denmark [SunSITE] @
 @uref{http://SunSITE.auc.dk/mysql/, WWW}
 @uref{ftp://SunSITE.auc.dk/pub/databases/mysql/, FTP}
 
@@ -4018,8 +4012,7 @@ Denmark [SunSITE] @
 
 @item
 @c EMAIL: tonu@spamm.ee (Tõnu Samuel)
-@c @image{Flags/estonia}
-Estonia [OKinteractive] @
+@image{Flags/estonia} Estonia [OKinteractive] @
 @uref{http://mysql.mirror.ok.ee, WWW}
 
 @c @item
@@ -4045,22 +4038,19 @@ Estonia [OKinteractive] @
 @item
 @c Added 20001019
 @c EMAIL: d@d.tj (Dominique L . Bouix)
-@c @image{Flags/finland}
-Finland [tonnikala.net] @
+@image{Flags/finland} Finland [tonnikala.net] @
 @uref{http://mysql.tonnikala.org/, WWW}
 
 @item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
-@c @image{Flags/germany}
-Germany [Bonn University, Bonn] @
+@image{Flags/germany} Germany [Bonn University, Bonn] @
 @uref{http://www.wipol.uni-bonn.de/MySQL/, WWW}
 @uref{ftp://ftp.wipol.uni-bonn.de/pub/mirror/MySQL/, FTP}
 
 @item
 @c EMAIL: th@rz.fh-wolfenbuettel.de (Thorsten Ludewig)
-@c @image{Flags/germany}
-Germany [Wolfenbuettel] @
+@image{Flags/germany} Germany [Wolfenbuettel] @
 @uref{http://www.fh-wolfenbuettel.de/ftp/pub/database/mysql/, WWW}
 @uref{ftp://ftp.fh-wolfenbuettel.de/pub/database/mysql/, FTP}
 
@@ -4081,22 +4071,19 @@ Germany [Wolfenbuettel] @
 @item
 @c Added 981208
 @c EMAIL: christias@noc.ntua.gr (Panagiotis Christias)
-@c @image{Flags/greece}
-Greece [NTUA, Athens] @
+@image{Flags/greece} Greece [NTUA, Athens] @
 @uref{http://www.ntua.gr/mysql/, WWW}
 @uref{ftp://ftp.ntua.gr/pub/databases/mysql/, FTP}
 
 @item
 @c EMAIL: torlasz@xenia.sote.hu (Laszlo L. Tornoc)
-@c @image{Flags/hungary}
-Hungary [Xenia] @
+@image{Flags/hungary} Hungary [Xenia] @
 @uref{http://mysql.sote.hu/, WWW}
 @uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/, FTP}
 
 @item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
-@c @image{Flags/iceland}
-Iceland [GM] @
+@image{Flags/iceland} Iceland [GM] @
 @uref{http://mysql.gm.is/, WWW}
 @uref{ftp://ftp.gm.is/pub/mysql/, FTP}
 
@@ -4114,20 +4101,17 @@ Iceland [GM] @
 
 @item
 @c EMAIL: gabriele@feelinglinux.com (Giansante Gabriele)
-@c @image{Flags/italy}
-Italy [feelinglinux.com] @
+@image{Flags/italy} Italy [feelinglinux.com] @
 @uref{http://mysql.feelinglinux.com/, WWW}
 
 @item
 @c EMAIL: irena@yacc.it
-@c @image{Flags/italy}
-Italy [Teta Srl] @
+@image{Flags/italy} Italy [Teta Srl] @
 @uref{http://www.teta.it/mysql/, WWW}
 
 @item
 @c EMAIL: rudy@comm2000.it (Rudy)
-@c @image{Flags/italy}
-Italy [tzone.it] @
+@image{Flags/italy} Italy [tzone.it] @
 @uref{http://mysql.tzone.it/, WWW}
 
 @c @item
@@ -4141,23 +4125,20 @@ Italy [tzone.it] @
 @item
 @c Added 20001031
 @c EMAIL: dave@esat.net (Dave Rynne)
-@c @image{Flags/ireland}
-Ireland [Esat Net] @
+@image{Flags/ireland} Ireland [Esat Net] @
 @uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, WWW}
 @uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, FTP}
 
 @item
 @c Added 20001125
 @c EMAIL: mleicher@silverpoint.nl (Marcel Leicher)
-@c @image{Flags/netherlands}
-Netherlands [Silverpoint] @
+@image{Flags/netherlands} Netherlands [Silverpoint] @
 @uref{http://mysql.silverpoint.nl/, WWW}
 
 @item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
-@c @image{Flags/poland}
-Poland [Sunsite] @
+@image{Flags/poland} Poland [Sunsite] @
 @uref{http://sunsite.icm.edu.pl/mysql/, WWW}
 @uref{ftp://sunsite.icm.edu.pl/pub/unix/mysql/, FTP}
 
@@ -4177,15 +4158,13 @@ Poland [Sunsite] @
 @item
 @c Added 20001031
 @c bofh@netc.pt (Bruno Rodrigues)
-@c @image{Flags/portugal}
-Portugal [Netc] @
+@image{Flags/portugal} Portugal [Netc] @
 @uref{http://ftp.netc.pt/pub/mysql/, WWW}
 @uref{ftp://ftp.netc.pt/pub/mysql/, FTP}
 
 @item
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
-@c @image{Flags/russia}
-Russia [DirectNet] @
+@image{Flags/russia} Russia [DirectNet] @
 @uref{http://mysql.directnet.ru/, WWW}
 @uref{ftp://ftp.dn.ru/pub/MySQL/, FTP}
 
@@ -4206,8 +4185,7 @@ Russia [DirectNet] @
 @item
 @c Added 990507
 @c EMAIL: demon@gpad.ac.ru (Dima Sivachenko)
-@c @image{Flags/russia}
-Russia [Scientific Center/Chernogolovka] @
+@image{Flags/russia} Russia [Scientific Center/Chernogolovka] @
 @uref{ftp://ftp.chg.ru/pub/databases/mysql/, FTP}
 
 @c @item
@@ -4241,8 +4219,7 @@ Russia [Scientific Center/Chernogolovka] @
 
 @item
 @c EMAIL: archive@sunsite.cnlab-switch.ch (Thomas Lenggenhager)
-@c @image{Flags/switzerland}
-Switzerland [Sunsite] @
+@image{Flags/switzerland} Switzerland [Sunsite] @
 @uref{http://sunsite.cnlab-switch.ch/ftp/mirror/mysql/, WWW}
 @uref{ftp://sunsite.cnlab-switch.ch/mirror/mysql/, FTP}
 
@@ -4254,22 +4231,19 @@ Switzerland [Sunsite] @
 
 @item
 @c gareth@omnipotent.net (Gareth Watts)
-@c @image{Flags/great-britain}
-UK [Omnipotent/UK] @
+@image{Flags/great-britain} UK [Omnipotent/UK] @
 @uref{http://mysql.omnipotent.net/, WWW}
 @uref{ftp://mysql.omnipotent.net/, FTP}
 
 @item
 @c keet@mordor.plig.net (Christiaan Keet)
-@c @image{Flags/great-britain}
-UK [PLiG/UK] @
+@image{Flags/great-britain} UK [PLiG/UK] @
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
 
 @item
 @c lance@uklinux.net (Lance)
-@c @image{Flags/great-britain}
-UK [uklinux.net] @
+@image{Flags/great-britain} UK [uklinux.net] @
 @uref{http://mirror.uklinux.net/mysql/, WWW}
 @uref{ftp://mirror.uklinux.net/pub/mysql/, FTP}
 
@@ -4287,8 +4261,7 @@ UK [uklinux.net] @
 
 @item
 @c sander@paco.net (Alexander Ivanov)
-@c @image{Flags/ukraine}
-Ukraine [PACO] @
+@image{Flags/ukraine} Ukraine [PACO] @
 @uref{http://mysql.paco.net.ua, WWW}
 @uref{ftp://mysql.paco.net.ua/, FTP}
 
@@ -4306,8 +4279,7 @@ Ukraine [PACO] @
 @item
 @c Ok 980109
 @c EMAIL: wojtek@tryc.on.ca (Wojtjeck Tryc)
-@c @image{Flags/canada}
-Canada [Tryc] @
+@image{Flags/canada} Canada [Tryc] @
 @uref{http://web.tryc.on.ca/mysql/, WWW}
 
 @c @item
@@ -4321,15 +4293,13 @@ Canada [Tryc] @
 @item
 @c EMAIL: mleber@he.net (Mike Leber)
 @c Added 980312
-@c @image{Flags/usa}
-USA [Hurricane Electric/San Jose] @
+@image{Flags/usa} USA [Hurricane Electric/San Jose] @
 @uref{http://mysql.he.net/, WWW}
 
 @item
 @c EMAIL: ask@valueclick.com (Ask Bjoern Hansen)
 @c Added 20000925
-@c @image{Flags/usa}
-USA [ValueClick, Los Angeles CA] @
+@image{Flags/usa} USA [ValueClick, Los Angeles CA] @
 @uref{http://mysql.valueclick.com/, WWW}
 @uref{ftp://mysql.valueclick.com/mysql/, FTP}
 
@@ -4378,8 +4348,7 @@ USA [ValueClick, Los Angeles CA] @
 
 @item
 @c EMAIL: tcobb@staff.circle.net (Troy Cobb)
-@c @image{Flags/usa}
-USA [Circle Net/North Carolina] @
+@image{Flags/usa} USA [Circle Net/North Carolina] @
 @uref{http://www.mysql.net, WWW}
 
 @c @item
@@ -4398,8 +4367,7 @@ USA [Circle Net/North Carolina] @
 
 @item
 @c EMAIL: ftpkeeper@mirror.sit.wisc.edu
-@c @image{Flags/usa}
-USA [Wisconsin University/Wisconsin] @
+@image{Flags/usa} USA [Wisconsin University/Wisconsin] @
 @uref{http://mirror.sit.wisc.edu/mysql/, WWW}
 @uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/, FTP}
 
@@ -4411,21 +4379,18 @@ USA [Wisconsin University/Wisconsin] @
 
 @item
 @c EMAIL: andrew.sawyers@thelinuxstore.com
-@c @image{Flags/usa}
-USA [LinuxWired/Scottsdale, AZ] @
+@image{Flags/usa} USA [LinuxWired/Scottsdale, AZ] @
 @uref{http://mysql.linuxwired.net/, WWW}
 @uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/, FTP}
 
 @item
 @c EMAIL: dan@surfsouth.com (Dan Muntz)
-@c @image{Flags/usa}
-USA [Venoma.Org/Valdosta, GA] @
+@image{Flags/usa} USA [Venoma.Org/Valdosta, GA] @
 @uref{http://mysql.venoma.org/, WWW}
 
 @item
 @c EMAIL: hkind@adgrafix.com (Hans Kind)
-@c @image{Flags/usa}
-USA [adgrafix.com/Boston, MA] @
+@image{Flags/usa} USA [adgrafix.com/Boston, MA] @
 @uref{http://mysql.adgrafix.com/, WWW}
 
 @end itemize
@@ -4437,8 +4402,7 @@ USA [adgrafix.com/Boston, MA] @
 @item
 @c Added 20001102
 @c EMAIL: nico@bannerlandia.com (Nicolas Moldavsky)
-@c @image{Flags/argentina}
-Argentina [bannerlandia.com] @
+@image{Flags/argentina} Argentina [bannerlandia.com] @
 @uref{http://mysql.bannerlandia.com.ar/, WWW}
 @uref{ftp://mysql.bannerlandia.com.ar/mirrors/mysql/, FTP}
 
@@ -4450,21 +4414,18 @@ Argentina [bannerlandia.com] @
 
 @item
 @c jpabuyer@vision.cl
-@c @image{Flags/chile}
-Chile [Vision] @
+@image{Flags/chile} Chile [Vision] @
 @uref{http://mysql.vision.cl/, WWW}
 
 @item
 @c EMAIL: bartschm@psi.com (Marcelo Bartsch)
-@c @image{Flags/chile}
-Chile [PSINet] @
+@image{Flags/chile} Chile [PSINet] @
 @uref{http://mysql.psinet.cl/, WWW}
 @uref{ftp://ftp.psinet.cl/pub/database/mysql/, FTP}
 
 @item
 @c EMAIL: jpabuyer@tecnoera.com (Juan Pablo Abuyeres)
-@c @image{Flags/chile}
-Chile [Tecnoera] @
+@image{Flags/chile} Chile [Tecnoera] @
 @uref{http://mysql.tecnoera.com/, WWW}
 
 @c @item
@@ -4480,26 +4441,22 @@ Chile [Tecnoera] @
 @itemize @bullet
 @item
 @c EMAIL: mirnshi@263.net (Meng Lingbo)
-@c @image{Flags/china}
-China [Freecode] @
+@image{Flags/china} China [Freecode] @
 @uref{http://www.freecode.net.cn/mirror/mysql/, WWW}
 
 @item
 @c EMAIL: yusun@atwell.co.jp (yu sun)
-@c @image{Flags/china}
-China [linuxforum.net] @
+@image{Flags/china} China [linuxforum.net] @
 @uref{http://www2.linuxforum.net/mirror/mysql/, WWW}
 
 @item
 @c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
-@c @image{Flags/china}
-China [ISL/Hong Kong] @
+@image{Flags/china} China [ISL/Hong Kong] @
 @uref{http://mysql.islnet.net, WWW}
 
 @item
 @c EMAIL: marquischan@hotmail.com (Marquis Chan)
-@c @image{Flags/china}
-China [TraLand.com/Hong Kong] @
+@image{Flags/china} China [TraLand.com/Hong Kong] @
 @uref{http://www.traland.com/mysql/, WWW}
 
 @c @item
@@ -4516,8 +4473,7 @@ China [TraLand.com/Hong Kong] @
 
 @item
 @c EMAIL: jasper@webiiz.com (Kang, Tae-jin)
-@c @image{Flags/south-korea}
-Korea [Webiiz] @
+@image{Flags/south-korea} Korea [Webiiz] @
 @uref{http://mysql.webiiz.com/, WWW}
 
 @c @item
@@ -4529,8 +4485,7 @@ Korea [Webiiz] @
 @item
 @c Ok 980805
 @c EMAIL: takeshi@SoftAgency.co.jp
-@c @image{Flags/japan}
-Japan [Soft Agency] @
+@image{Flags/japan} Japan [Soft Agency] @
 @uref{http://www.softagency.co.jp/MySQL, WWW}
 
 @c @item
@@ -4557,8 +4512,7 @@ Japan [Soft Agency] @
 
 @item
 @c EMAIL: csy@hjc.edu.sg
-@c @image{Flags/singapore}
-Singapore [HJC] @
+@image{Flags/singapore} Singapore [HJC] @
 @uref{http://mysql.hjc.edu.sg, WWW}
 @uref{ftp://ftp.hjc.edu.sg/mysql, FTP}
 
@@ -4572,8 +4526,7 @@ Singapore [HJC] @
 
 @item
 @c EMAIL: linda@ttn.com.tw (Linda Hu)
-@c @image{Flags/taiwan}
-Taiwan [TTN] @
+@image{Flags/taiwan} Taiwan [TTN] @
 @uref{http://mysql.ttn.net, WWW}
 
 @c @item
@@ -4605,8 +4558,7 @@ Taiwan [TTN] @
 @item
 @c Added 20001031
 @c EMAIL: ijliao@php.nctu.edu.tw (Ying-Chieh Liao)
-@c @image{Flags/taiwan}
-Taiwan [nctu.edu/HsinChu] @
+@image{Flags/taiwan} Taiwan [nctu.edu/HsinChu] @
 @uref{http://mysql.nctu.edu.tw/, WWW}
 
 @end itemize
@@ -4617,8 +4569,7 @@ Taiwan [nctu.edu/HsinChu] @
 @item
 @c Added 980610
 @c EMAIL: jason@dstc.edu.au (Jason Andrade)
-@c @image{Flags/australia}
-Australia [AARNet/Queensland] @
+@image{Flags/australia} Australia [AARNet/Queensland] @
 @uref{http://mirror.aarnet.edu.au/mysql, WWW}
 @uref{ftp://mirror.aarnet.edu.au/pub/mysql, FTP}
 
@@ -4641,8 +4592,7 @@ Australia [AARNet/Queensland] @
 @item
 @c Added 990531
 @c EMAIL: gavin@itworks.com.au (Gavin Cameron)
-@c @image{Flags/australia}
-Australia [ITworks Consulting/Victoria] @
+@image{Flags/australia} Australia [ITworks Consulting/Victoria] @
 @uref{http://mysql.itworks.com.au, WWW}
 
 @c @item
@@ -4658,15 +4608,13 @@ Australia [ITworks Consulting/Victoria] @
 
 @item
 @c EMAIL: ftp-admin@mweb.com (Warren Baker)
-@c @image{Flags/south-africa1}
-South-Africa [Mweb] @
+@image{Flags/south-africa1} South-Africa [Mweb] @
 @uref{http://www.mysql.mweb.co.za/, WWW}
 
 @item
 @c Ok 981010
 @c EMAIL: oskar@is.co.za (Oskar Pearson)
-@c @image{Flags/south-africa1}
-South Africa [The Internet Solution/Johannesburg] @
+@image{Flags/south-africa1} South Africa [The Internet Solution/Johannesburg] @
 @uref{ftp://ftp.is.co.za/linux/mysql/, FTP}
 
 @end itemize
