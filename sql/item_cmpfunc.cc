@@ -131,7 +131,7 @@ Compare_func_row::Compare_func_row(Item_bool_func2 *owner, Item *a, Item* b):
     return;
   }
   cmp_func= (Compare_func **) sql_alloc(sizeof(Compare_func*)*n);
-  for(uint i=0; i < n; i++)
+  for (uint i=0; i < n; i++)
     cmp_func[i]= Compare_func::get_compare_func(owner, a->el(i), b->el(i));
 }
 
@@ -191,7 +191,7 @@ int Compare_func_row::compare(Item *a, Item *b)
 {
   int res= 0;
   uint n= a->cols();
-  for(uint i= 0; i<n; i++)
+  for (uint i= 0; i<n; i++)
   {
     if ((res= cmp_func[i]->compare(a->el(i), b->el(i))))
       return res;
