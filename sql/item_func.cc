@@ -2339,26 +2339,6 @@ longlong Item_func_bit_count::val_int()
 
 #ifdef HAVE_DLOPEN
 
-udf_handler::~udf_handler()
-{
-  if (!not_original)
-  {
-    if (initialized)
-    {
-      if (u_d->func_deinit != NULL)
-      {
-        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-        u_d->func_deinit;
-        (*deinit)(&initid);
-      }
-      free_udf(u_d);
-    }
-    if (buffers)				// Because of bug in ecc
-      delete [] buffers;
-  }
-}
-
-
 bool
 udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
@@ -2746,6 +2726,31 @@ String *Item_func_udf_str::val_str(String *str)
   String *res=udf.val_str(str,&str_value);
   null_value = !res;
   return res;
+}
+
+
+/*
+   This has to come last in the udf_handler methods, or the compiler for IBM
+   AIX fails to compile with debugging enabled. (Yes, really.)
+ */
+
+udf_handler::~udf_handler()
+{
+  if (!not_original)
+  {
+    if (initialized)
+    {
+      if (u_d->func_deinit != NULL)
+      {
+        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
+        u_d->func_deinit;
+        (*deinit)(&initid);
+      }
+      free_udf(u_d);
+    }
+    if (buffers)				// Because of bug in ecc
+      delete [] buffers;
+  }
 }
 
 #else
