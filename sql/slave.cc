@@ -1107,7 +1107,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
     break;
   default:
     /* 5.0 is not supported */
-    errmsg = "Master reported an unrecognized MySQL version. Note that 4.0 \
+    errmsg = "Master reported an unrecognized MySQL version. Note that 4.1 \
 slaves can't replicate a 5.0 or newer master.";
     break;
   }
@@ -1368,32 +1368,9 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   }
 
   /*
-    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE. It is
-    notable that the last kilobytes of it (8 kB for example) may live in
-    memory, not on disk (depending on what the thread using it does). While
-    this is efficient, it has a side-effect one must know: 
-    The size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
-    few kilobytes less than one would expect by doing SHOW SLAVE STATUS; this
-    happens when only the IO thread is started (not the SQL thread). The
-    "missing" kilobytes are in memory, are preserved during 'STOP SLAVE; START
-    SLAVE IO_THREAD', and are flushed to disk when the slave's mysqld stops. So
-    this does not cause any bug. Example of how disk size grows by leaps:
-
-     Read_Master_Log_Pos: 7811 -rw-rw----    1 guilhem  qq              4 Jun  5 16:19 gbichot2-relay-bin.002
-     ...later...
-     Read_Master_Log_Pos: 9744 -rw-rw----    1 guilhem  qq           8192 Jun  5 16:27 gbichot2-relay-bin.002
-
-    See how 4 is less than 7811 and 8192 is less than 9744.
-
-    WARNING: this is risky because the slave can stay like this for a long
-    time; then if it has a power failure, master.info says the I/O thread has
-    read until 9744 while the relay-log contains only until 8192 (the
-    in-memory part from 8192 to 9744 has been lost), so the SQL slave thread
-    will miss some events, silently breaking replication.
-    Ideally we would like to flush master.info only when we know that the relay
-    log has no in-memory tail.
-    Note that the above problem may arise only when only the IO thread is
-    started, which is unlikely.
+    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
+    Note that the I/O thread flushes it to disk after writing every event, in
+    flush_master_info(mi, 1).
   */
 
   /*
@@ -1850,7 +1827,7 @@ file '%s')", fname);
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
-  if ((error=test(flush_master_info(mi))))
+  if ((error=test(flush_master_info(mi, 1))))
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -2100,7 +2077,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 }
 
 
-bool flush_master_info(MASTER_INFO* mi)
+bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
@@ -2124,6 +2101,20 @@ bool flush_master_info(MASTER_INFO* mi)
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key);
   flush_io_cache(file);
+  /*
+    Flush the relay log to disk. If we don't do it, then the relay log while
+    have some part (its last kilobytes) in memory only, so if the slave server
+    dies now, with, say, from master's position 100 to 150 in memory only (not
+    on disk), and with position 150 in master.info, then when the slave
+    restarts, the I/O thread will fetch binlogs from 150, so in the relay log
+    we will have "[0, 100] U [150, infinity[" and nobody will notice it, so the
+    SQL thread will jump from 100 to 150, and replication will silently break.
+
+    When we come to this place in code, relay log may or not be initialized;
+    the caller is responsible for setting 'flush_relay_log_cache' accordingly.
+  */
+  if (flush_relay_log_cache)
+    flush_io_cache(mi->rli.relay_log.get_log_file());
   DBUG_RETURN(0);
 }
 
@@ -2982,7 +2973,7 @@ reconnect done to recover from failed read");
 	sql_print_error("Slave I/O thread could not queue event from master");
 	goto err;
       }
-      flush_master_info(mi);
+      flush_master_info(mi, 1); /* sure that we can flush the relay log */
       /*
         See if the relay logs take too much space.
         We don't lock mi->rli.log_space_lock here; this dirty read saves time
