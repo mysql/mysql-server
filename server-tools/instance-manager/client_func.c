@@ -3,7 +3,7 @@
 #include <mysql.h>
 
 /*
-  Currently we cannot use libmysqlclient directly becouse of the linking
+  Currently we cannot use libmysqlclient directly because of the linking
   issues. Here we provide needed libmysqlclient functions.
   TODO: to think how to use libmysqlclient code instead of copy&paste.
   The other possible solution is to use simple_command directly.

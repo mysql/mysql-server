@@ -75,6 +75,7 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			instance_options.h instance_options.cc \
 			buffer.h buffer.cc parse.cc parse.h \
 			guardian.cc guardian.h \
+			parse_output.cc parse_output.h \
                         mysql_manager_error.h client_func.c
 
 mysqlmanager_LDADD=	liboptions.a \
