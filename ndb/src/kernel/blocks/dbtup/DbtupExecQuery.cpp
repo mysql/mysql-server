@@ -1837,12 +1837,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  tmpHabitant = attrId;
 	}
 
+        // get type
 	attrId >>= 16;
-	AttributeHeader ah(tmpArea[0]);
-	
-        const char* s1 = (char*)&tmpArea[1];
-        const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
-	Uint32 attrLen = (4 * ah.getDataSize());
 	Uint32 TattrDescrIndex = tabptr.p->tabDescriptor +
 	  (attrId << ZAD_LOG_SIZE);
 	Uint32 TattrDesc1 = tableDescriptor[TattrDescrIndex].tabDescr;
@@ -1855,27 +1851,32 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  cs = tabptr.p->charsetArray[pos];
 	}
 	const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(typeId);
-	
+
+        // get data
+	AttributeHeader ah(tmpArea[0]);
+        const char* s1 = (char*)&tmpArea[1];
+        const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
+        // fixed length in 5.0
+	Uint32 attrLen = AttributeDescriptor::getSizeInBytes(TattrDesc1);
+
 	bool r1_null = ah.isNULL();
 	bool r2_null = argLen == 0;
 	int res;
-	if(r1_null || r2_null)
-	{
-	  res = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
-	}
-        else if (cond != Interpreter::LIKE &&
-                 cond != Interpreter::NOT_LIKE)
-	{
-	  /* --------------------------------------------------------- */
-	  // If length of argument rounded to nearest word is
-	  // the same as attribute size, use that as argument size
-	  /* --------------------------------------------------------- */
-	  if ((((argLen + 3) >> 2) << 2) == attrLen) argLen= attrLen;
-	  res = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
-	}
-        else
-        {
-          res = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
+        if (cond != Interpreter::LIKE &&
+            cond != Interpreter::NOT_LIKE) {
+          if (r1_null || r2_null) {
+            // NULL==NULL and NULL<not-NULL
+            res = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
+          } else {
+            res = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
+          }
+	} else {
+          if (r1_null || r2_null) {
+            // NULL like NULL is true (has no practical use)
+            res =  r1_null && r2_null ? 0 : -1;
+          } else {
+            res = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
+          }
         }
 
         switch ((Interpreter::BinaryCondition)cond) {
