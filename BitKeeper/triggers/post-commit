@@ -61,7 +61,7 @@ EOF
 # docs-commit@ mail
 #--
  bk changes -v -r+ | grep -q Docs/manual.texi
- if [ $? == 0 ]
+ if [ $? -eq 0 ]
  then
   echo "Notifying docs list at $DOCS"
   (
