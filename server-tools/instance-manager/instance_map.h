@@ -43,12 +43,11 @@ public:
   Instance *find(const char *name, uint name_len);
   Instance *find(uint instance_number);
 
-  int show_instances(struct st_net *net);
-  int show_instance_status(struct st_net *net, const char *instance_name);
-  int show_instance_options(struct st_net *net, const char *instance_name);
   int flush_instances();
-  int init_guardian();
   int cleanup();
+  int lock();
+  int unlock();
+  Instance *get_instance(uint instance_number);
 
   Instance_map();
   ~Instance_map();
@@ -72,5 +71,23 @@ private:
   pthread_mutex_t LOCK_instance_map;
   HASH hash;
 };
+
+
+/* Instance_map iterator */
+
+class Imap_iterator
+{
+private:
+  uint current_instance;
+  Instance_map *instance_map;
+public:
+  Imap_iterator(Instance_map *instance_map_arg) :
+    instance_map(instance_map_arg), current_instance(0)
+  {}
+
+  void go_to_first();
+  Instance *next();
+};
+
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_MAP_H */

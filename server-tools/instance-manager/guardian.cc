@@ -21,6 +21,8 @@
 
 #include "guardian.h"
 #include "instance_map.h"
+#include "mysql_manager_error.h"
+#include "log.h"
 #include <string.h>
 
 C_MODE_START
@@ -46,6 +48,7 @@ Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
   thread_registry.register_thread(&thread_info);
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
   guarded_instances= NULL;
+  starting_instances= NULL;
 }
 
 
@@ -76,7 +79,6 @@ void Guardian_thread::run()
 {
   Instance *instance;
   LIST *loop;
-  int i= 0;
 
   my_thread_init();
 
@@ -88,14 +90,35 @@ void Guardian_thread::run()
     {
       instance= (Instance *) loop->data;
       /* instance-> start already checks whether instance is running */
-      instance->start();
+      if (instance->start() != ER_INSTANCE_ALREADY_STARTED)
+        log_info("guardian attempted to restart instance %s",
+                 instance->options.instance_name);
       loop= loop->next;
     }
+    move_to_list(&starting_instances, &guarded_instances);
     pthread_mutex_unlock(&LOCK_guardian);
     sleep(monitoring_interval);
   }
 
   my_thread_end();
+}
+
+
+int Guardian_thread::start()
+{
+  Instance *instance;
+  Imap_iterator iterator(instance_map);
+
+  instance_map->lock();
+  while (instance= iterator.next())
+  {
+    if ((instance->options.is_guarded != NULL) && (instance->is_running()))
+      if (guard(instance))
+        return 1;
+  }
+  instance_map->unlock();
+
+  return 0;
 }
 
 
@@ -116,20 +139,38 @@ void Guardian_thread::run()
     1 - error occured
 */
 
-int Guardian_thread::guard(const char *instance_name, uint name_len)
+
+int Guardian_thread::guard(Instance *instance)
+{
+  return add_instance_to_list(instance, &starting_instances);
+}
+
+
+void Guardian_thread::move_to_list(LIST **from, LIST **to)
+{
+  LIST *tmp;
+
+  while (*from)
+  {
+    tmp= rest(*from);
+    *to= list_add(*to, *from);
+    *from= tmp;
+  }
+}
+
+
+int Guardian_thread::add_instance_to_list(Instance *instance, LIST **list)
 {
   LIST *node;
-  Instance *instance;
 
   node= (LIST *) alloc_root(&alloc, sizeof(LIST));
   if (node == NULL)
     return 1;
-  instance= instance_map->find(instance_name, name_len);
   /* we store the pointers to instances from the instance_map's MEM_ROOT */
   node->data= (void *) instance;
 
   pthread_mutex_lock(&LOCK_guardian);
-  guarded_instances= list_add(guarded_instances, node);
+  *list= list_add(*list, node);
   pthread_mutex_unlock(&LOCK_guardian);
 
   return 0;
@@ -143,12 +184,9 @@ int Guardian_thread::guard(const char *instance_name, uint name_len)
   a piece of the MEM_ROOT).
 */
 
-int Guardian_thread::stop_guard(const char *instance_name, uint name_len)
+int Guardian_thread::stop_guard(Instance *instance)
 {
   LIST *node;
-  Instance *instance;
-
-  instance= instance_map->find(instance_name, name_len);
 
   pthread_mutex_lock(&LOCK_guardian);
   node= guarded_instances;

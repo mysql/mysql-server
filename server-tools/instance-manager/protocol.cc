@@ -101,14 +101,14 @@ char *net_store_length(char *pkg, uint length)
 
 void store_to_string(Buffer *buf, const char *string, uint *position)
 {
-  char* currpos;
+  uint currpos;
   uint string_len;
 
   string_len= strlen(string);
   buf->reserve(*position, 2);
-  currpos= net_store_length(buf->buffer + *position, string_len);
+  currpos= (net_store_length(buf->buffer + *position, string_len) - buf->buffer);
   buf->append(currpos, string, string_len);
-  *position= *position + string_len + (currpos - buf->buffer - *position);
+  *position= *position + string_len + (currpos - *position);
 }
 
 

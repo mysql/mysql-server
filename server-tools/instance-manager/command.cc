@@ -21,8 +21,8 @@
 #include "command.h"
 
 
-Command::Command(Command_factory *factory_arg)
-  :factory(factory_arg)
+Command::Command(Instance_map *imap_arg)
+  :instance_map(imap_arg)
 {}
 
 Command::~Command()
