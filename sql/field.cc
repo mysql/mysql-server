@@ -2755,6 +2755,7 @@ int Field_timestamp::store(longlong nr)
 
   if ((nr=fix_datetime(nr)))
   {
+    long not_used;
     part1=(long) (nr/LL(1000000));
     part2=(long) (nr - (longlong) part1*LL(1000000));
     l_time.year=  (int) (part1/10000L);  part1%=10000L;
@@ -2763,7 +2764,7 @@ int Field_timestamp::store(longlong nr)
     l_time.hour=  (int) (part2/10000L);  part2%=10000L;
     l_time.minute=(int) part2 / 100;
     l_time.second=(int) part2 % 100; 
-    timestamp=my_gmt_sec(&l_time);
+    timestamp=my_gmt_sec(&l_time, &not_used);
   }
   else
     timestamp=0;

@@ -246,7 +246,6 @@ void Item_bool_func2::fix_length_and_dec()
     We must set cmp_charset here as we may be called from for an automatic
     generated item, like in natural join
   */
-end:
   set_cmp_charset(args[0]->charset(), args[0]->coercibility,
 		  args[1]->charset(), args[1]->coercibility);
 }

@@ -217,10 +217,18 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 ** reset and add of sum_func
 ***********************************************************************/
 
-void Item_sum_sum::reset()
+Item *Item_sum_sum::copy_or_same(THD* thd)
 {
-  null_value=1; sum=0.0; Item_sum_sum::add();
+  return new (&thd->mem_root) Item_sum_sum(thd, *this);
 }
+
+
+bool Item_sum_sum::reset()
+{
+  null_value=1; sum=0.0;
+  return Item_sum_sum::add();
+}
+
 
 bool Item_sum_sum::add()
 {
@@ -230,16 +238,25 @@ bool Item_sum_sum::add()
   return 0;
 }
 
+
 double Item_sum_sum::val()
 {
   return sum;
 }
 
 
-void Item_sum_count::reset()
+Item *Item_sum_count::copy_or_same(THD* thd)
 {
-  count=0; add();
+  return new (&thd->mem_root) Item_sum_count(thd, *this);
 }
+
+
+bool Item_sum_count::reset()
+{
+  count=0;
+  return add();
+}
+
 
 bool Item_sum_count::add()
 {
@@ -260,13 +277,21 @@ longlong Item_sum_count::val_int()
 }
 
 /*
-** Avgerage
+  Avgerage
 */
 
-void Item_sum_avg::reset()
+Item *Item_sum_avg::copy_or_same(THD* thd)
 {
-  sum=0.0; count=0; Item_sum_avg::add();
+  return new (&thd->mem_root) Item_sum_avg(thd, *this);
 }
+
+
+bool Item_sum_avg::reset()
+{
+  sum=0.0; count=0;
+  return Item_sum_avg::add();
+}
+
 
 bool Item_sum_avg::add()
 {
@@ -292,7 +317,7 @@ double Item_sum_avg::val()
 
 
 /*
-** Standard deviation
+  Standard deviation
 */
 
 double Item_sum_std::val()
@@ -301,15 +326,27 @@ double Item_sum_std::val()
   return tmp <= 0.0 ? 0.0 : sqrt(tmp);
 }
 
+Item *Item_sum_std::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_std(thd, *this);
+}
+
+
 /*
-** variance
+  Variance
 */
 
-void Item_sum_variance::reset()
+Item *Item_sum_variance::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_variance(thd, *this);
+}
+
+
+bool Item_sum_variance::reset()
 {
   sum=sum_sqr=0.0; 
   count=0; 
-  (void) Item_sum_variance::add();
+  return Item_sum_variance::add();
 }
 
 bool Item_sum_variance::add()
@@ -440,6 +477,13 @@ Item_sum_hybrid::val_str(String *str)
   return str;					// Keep compiler happy
 }
 
+
+Item *Item_sum_min::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_min(thd, *this);
+}
+
+
 bool Item_sum_min::add()
 {
   switch (hybrid_type) {
@@ -484,6 +528,12 @@ bool Item_sum_min::add()
     break;
   }
   return 0;
+}
+
+
+Item *Item_sum_max::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_max(thd, *this);
 }
 
 
@@ -541,10 +591,18 @@ longlong Item_sum_bit::val_int()
   return (longlong) bits;
 }
 
-void Item_sum_bit::reset()
+
+bool Item_sum_bit::reset()
 {
-  bits=reset_bits; add();
+  bits=reset_bits;
+  return add();
 }
+
+Item *Item_sum_or::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_or(thd, *this);
+}
+
 
 bool Item_sum_or::add()
 {
@@ -553,6 +611,12 @@ bool Item_sum_or::add()
     bits|=value;
   return 0;
 }
+
+Item *Item_sum_and::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_and(thd, *this);
+}
+
 
 bool Item_sum_and::add()
 {
@@ -1032,11 +1096,20 @@ Item_sum_count_distinct::~Item_sum_count_distinct()
 bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
 					 Item **ref)
 {
-  if (Item_sum_num::fix_fields(thd, tables, ref) ||
-      !(tmp_table_param= new TMP_TABLE_PARAM))
+  if (Item_sum_num::fix_fields(thd, tables, ref))
     return 1;
   return 0;
 }
+
+/* This is used by rollup to create a separate usable copy of the function */
+
+void Item_sum_count_distinct::make_unique()
+{
+  table=0;
+  original= 0;
+  tree= &tree_base;
+}
+
 
 bool Item_sum_count_distinct::setup(THD *thd)
 {
@@ -1045,6 +1118,9 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;
     
+  if (!(tmp_table_param= new TMP_TABLE_PARAM))
+    return 1;
+
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
   {
@@ -1192,7 +1268,14 @@ int Item_sum_count_distinct::tree_to_myisam()
   return 0;
 }
 
-void Item_sum_count_distinct::reset()
+
+Item *Item_sum_count_distinct::copy_or_same(THD* thd) 
+{
+  return new (&thd->mem_root) Item_sum_count_distinct(thd, *this);
+}
+
+
+bool Item_sum_count_distinct::reset()
 {
   if (use_tree)
     reset_tree(tree);
@@ -1202,7 +1285,7 @@ void Item_sum_count_distinct::reset()
     table->file->delete_all_rows();
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   }
-  (void) add();
+  return add();
 }
 
 bool Item_sum_count_distinct::add()
@@ -1265,11 +1348,11 @@ longlong Item_sum_count_distinct::val_int()
 
 #ifdef HAVE_DLOPEN
 
-void Item_udf_sum::reset()
+bool Item_udf_sum::reset()
 {
   DBUG_ENTER("Item_udf_sum::reset");
   udf.reset(&null_value);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 bool Item_udf_sum::add()
@@ -1277,6 +1360,11 @@ bool Item_udf_sum::add()
   DBUG_ENTER("Item_udf_sum::add");
   udf.add(&null_value);
   DBUG_RETURN(0);
+}
+
+Item *Item_sum_udf_float::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_udf_float(thd, *this);
 }
 
 double Item_sum_udf_float::val()
@@ -1298,6 +1386,12 @@ String *Item_sum_udf_float::val_str(String *str)
 }
 
 
+Item *Item_sum_udf_int::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_udf_int(thd, *this);
+}
+
+
 longlong Item_sum_udf_int::val_int()
 {
   DBUG_ENTER("Item_sum_udf_int::val_int");
@@ -1305,6 +1399,7 @@ longlong Item_sum_udf_int::val_int()
 		     args[0]->result_type(), arg_count));
   DBUG_RETURN(udf.val_int(&null_value));
 }
+
 
 String *Item_sum_udf_int::val_str(String *str)
 {
@@ -1326,6 +1421,13 @@ void Item_sum_udf_str::fix_length_and_dec()
     set_if_bigger(max_length,args[i]->max_length);
   DBUG_VOID_RETURN;
 }
+
+
+Item *Item_sum_udf_str::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_udf_str(thd, *this);
+}
+
 
 String *Item_sum_udf_str::val_str(String *str)
 {
@@ -1569,7 +1671,13 @@ Item_func_group_concat::~Item_func_group_concat()
 }
 
 
-void Item_func_group_concat::reset()
+Item *Item_func_group_concat::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_func_group_concat(thd, *this);
+}
+
+
+bool Item_func_group_concat::reset()
 {
   result.length(0);
   result.copy();
@@ -1583,7 +1691,7 @@ void Item_func_group_concat::reset()
   }
   if (tree_mode)
     reset_tree(tree);
-  add();
+  return add();
 }
 
 
@@ -1780,6 +1888,16 @@ bool Item_func_group_concat::setup(THD *thd)
   }
   return 0;
 }
+
+/* This is used by rollup to create a separate usable copy of the function */
+
+void Item_func_group_concat::make_unique()
+{
+  table=0;
+  original= 0;
+  tree= &tree_base;
+}
+
 
 String* Item_func_group_concat::val_str(String* str)
 {

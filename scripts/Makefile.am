@@ -33,7 +33,6 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_explain_log \
 			mysql_tableinfo \
 			mysqld_multi \
-			fill_help_tables \
 			mysql_create_system_tables
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
@@ -62,6 +61,8 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug
+
+pkgdata_DATA =		fill_help_tables.sql mysql_fix_privilege_tables.sql
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
@@ -138,5 +139,7 @@ SUFFIXES = .sh
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-all: make_win_src_distribution make_binary_distribution
+all: fill_help_tables.sql make_win_src_distribution make_binary_distribution
 
+fill_help_tables.sql: fill_help_tables ../Docs/manual.texi
+		./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql

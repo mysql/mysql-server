@@ -6,7 +6,7 @@ multi line comment */;
 1
 1
 ;
-Query was empty
+ERROR 42000: Query was empty
 select 1 /*!32301 +1 */;
 1 /*!32301 +1
 2

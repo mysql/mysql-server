@@ -127,7 +127,7 @@ primary key (SEQNO, MOTYPEID, MOINSTANCEID, ATTRID, VALUE )
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'b');
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
-Duplicate entry '1-1-1-1-a' for key 1
+ERROR 23000: Duplicate entry '1-1-1-1-a' for key 1
 drop table t1;
 CREATE TABLE t1 (
 a tinytext NOT NULL,

@@ -173,7 +173,7 @@ REQ_ID	URL
 drop table T_URL;
 drop table T_REQUEST;
 select group_concat(sum(a)) from t1 group by grp;
-Invalid use of group function
+ERROR HY000: Invalid use of group function
 select grp,group_concat(c order by 2) from t1 group by grp;
-Unknown column '2' in 'group statement'
+ERROR 42S22: Unknown column '2' in 'group statement'
 drop table t1;

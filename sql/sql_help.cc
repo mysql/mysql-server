@@ -224,7 +224,7 @@ int search_keyword(THD *thd, TABLE *keywords, struct st_find_field *find_fields,
     if (!select->cond->val_int())		// Dosn't match like
       continue;
 
-    *key_id= find_fields[help_keyword_help_keyword_id].field->val_int();
+    *key_id= (int)find_fields[help_keyword_help_keyword_id].field->val_int();
 
     count++;
   }
@@ -553,16 +553,15 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
 
   String **pointers= (String**)alloc_root(mem_root,
 					  sizeof(String*)*names->elements);
-  String **pos= pointers;
+  String **pos;
+  String **end= pointers + names->elements;
 
   List_iterator<String> it(*names);
-  String *cur_name;
-  while ((*pos++= it++));
+  for ( pos= pointers; pos!=end; (*pos++= it++));
 
   qsort(pointers,names->elements,sizeof(String*),string_ptr_cmp);
 
-  String **end= pointers + names->elements;
-  for (String **pos= pointers; pos!=end; pos++)
+  for (pos= pointers; pos!=end; pos++)
   {
     protocol->prepare_for_resend();
     if (source_name)
@@ -688,8 +687,8 @@ int mysqld_help(THD *thd, const char *mask)
     res= -1;
     goto end;
   }
-  
-  for (size_t i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
+  size_t i;
+  for (i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
   
   if (!(select_topics_by_name= 
@@ -739,9 +738,9 @@ int mysqld_help(THD *thd, const char *mask)
     {
       Field *topic_cat_id= used_fields[help_topic_help_category_id].field;
       Item *cond_topic_by_cat= new Item_func_equal(new Item_field(topic_cat_id),
-						   new Item_int(category_id));
+						   new Item_int((int32)category_id));
       Item *cond_cat_by_cat= new Item_func_equal(new Item_field(cat_cat_id),
-						 new Item_int(category_id));
+						 new Item_int((int32)category_id));
       if (!(select_topics_by_cat= prepare_simple_select(thd,cond_topic_by_cat,
 							tables,tables[0].table,
 							&error)) ||
