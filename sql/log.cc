@@ -1878,11 +1878,10 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
 
 
 Disable_binlog::Disable_binlog(THD *thd_arg) : 
-  thd(thd_arg),
-  save_options(thd_arg->options)
+  thd(thd_arg), save_options(thd_arg->options)
 {
   thd_arg->options&= ~OPTION_BIN_LOG;
-};
+}
 
 
 Disable_binlog::~Disable_binlog()
