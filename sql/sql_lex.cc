@@ -40,10 +40,6 @@ sys_var_long_ptr trg_new_row_fake_var(0, 0);
 #define yySkip()	lex->ptr++
 #define yyLength()	((uint) (lex->ptr - lex->tok_start)-1)
 
-#if MYSQL_VERSION_ID < 32300
-#define FLOAT_NUM	REAL_NUM
-#endif
-
 pthread_key(LEX*,THR_LEX);
 
 /* Longest standard keyword name */
@@ -437,12 +433,12 @@ inline static uint int_token(const char *str,uint length)
     else if (length < signed_longlong_len)
       return LONG_NUM;
     else if (length > signed_longlong_len)
-      return REAL_NUM;
+      return DECIMAL_NUM;
     else
     {
       cmp=signed_longlong_str+1;
       smaller=LONG_NUM;				// If <= signed_longlong_str
-      bigger=REAL_NUM;
+      bigger=DECIMAL_NUM;
     }
   }
   else
@@ -458,10 +454,10 @@ inline static uint int_token(const char *str,uint length)
     else if (length > longlong_len)
     {
       if (length > unsigned_longlong_len)
-	return REAL_NUM;
+        return DECIMAL_NUM;
       cmp=unsigned_longlong_str;
       smaller=ULONGLONG_NUM;
-      bigger=REAL_NUM;
+      bigger=DECIMAL_NUM;
     }
     else
     {
@@ -799,7 +795,7 @@ int yylex(void *arg, void *yythd)
 	return(FLOAT_NUM);
       }
       yylval->lex_str=get_token(lex,yyLength());
-      return(REAL_NUM);
+      return(DECIMAL_NUM);
 
     case MY_LEX_HEX_NUMBER:		// Found x'hexstring'
       yyGet();				// Skip '

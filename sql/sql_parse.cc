@@ -2527,7 +2527,8 @@ mysql_execute_command(THD *thd)
       goto error;
     /* PURGE MASTER LOGS BEFORE 'data' */
     it= (Item *)lex->value_list.head();
-    if (it->check_cols(1) || it->fix_fields(lex->thd, 0, &it))
+    if ((!it->fixed &&it->fix_fields(lex->thd, 0, &it)) ||
+        it->check_cols(1))
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
       goto error;
@@ -3746,7 +3747,7 @@ unsent_create_error:
   {
     Item *it= (Item *)lex->value_list.head();
 
-    if (it->fix_fields(lex->thd, 0, &it) || it->check_cols(1))
+    if ((!it->fixed && it->fix_fields(lex->thd, 0, &it)) || it->check_cols(1))
     {
       my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
 		 MYF(0));
@@ -5070,21 +5071,19 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_NULL:
     break;
-  case FIELD_TYPE_DECIMAL:
+  case FIELD_TYPE_NEWDECIMAL:
     if (!length)
     {
-      if ((new_field->length= new_field->decimals))
-        new_field->length++;
-      else
+      if (!(new_field->length= new_field->decimals))
         new_field->length= 10;                  // Default length for DECIMAL
     }
-    if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
-    {
-      new_field->length+=sign_len;
-      if (new_field->decimals)
-	new_field->length++;
-    }
-    break;
+    new_field->pack_length=
+      my_decimal_get_binary_size(new_field->length, new_field->decimals);
+    if (new_field->length <= DECIMAL_MAX_LENGTH &&
+        new_field->length >= new_field->decimals)
+      break;
+    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
+    DBUG_RETURN(1);
   case MYSQL_TYPE_VARCHAR:
     /*
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
@@ -5270,6 +5269,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->pack_length= (new_field->length + 7) / 8;
       break;
     }
+  case FIELD_TYPE_DECIMAL:
+    DBUG_ASSERT(0); /* Was obsolete */
   }
 
   if (!(new_field->flags & BLOB_FLAG) &&
