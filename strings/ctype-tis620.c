@@ -562,17 +562,13 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
 			  const uchar *b0, uint b_length)
 {
   uchar	buf[80] ;
-  uchar *end, *a, *b;
+  uchar *end, *a, *b, *alloced= NULL;
   uint length;
   int res= 0;
-  int alloced= 0;
   
   a= buf;
   if ((a_length + b_length +2) > (int) sizeof(buf))
-  {
-    a= (uchar*) malloc(a_length+b_length);
-    alloced= 1;
-  }
+    alloced= a= (uchar*) malloc(a_length+b_length);
   
   b= a + a_length+1;
   memcpy((char*) a, (char*) a0, a_length);
@@ -618,7 +614,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
 ret:
   
   if (alloced)
-    free(a);
+    free(alloced);
   return res;
 }
 

@@ -2899,3 +2899,41 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 6109	-1	-1
 61	0	0
 DROP TABLE t1;
+CREATE TABLE t1 (
+`id` int(11) NOT NULL auto_increment,
+`url` varchar(200) NOT NULL default '',
+`name` varchar(250) NOT NULL default '',
+`type` int(11) NOT NULL default '0',
+`website` varchar(250) NOT NULL default '',
+`adddate` date NOT NULL default '0000-00-00',
+`size` varchar(20) NOT NULL default '',
+`movieid` int(11) NOT NULL default '0',
+`musicid` int(11) NOT NULL default '0',
+`star` varchar(20) NOT NULL default '',
+`download` int(11) NOT NULL default '0',
+`lastweek` int(11) NOT NULL default '0',
+`thisweek` int(11) NOT NULL default '0',
+`page` varchar(250) NOT NULL default '',
+PRIMARY KEY  (`id`),
+UNIQUE KEY `url` (`url`)
+) CHARACTER SET tis620;
+INSERT INTO t1 VALUES
+(1,'http://www.siamzone.com/download/download/000001-frodo_1024.jpg','The Lord
+of the Rings
+Wallpapers',1,'http://www.lordoftherings.net','2002-01-22','',448,0,'',3805,0,0,
+'');
+INSERT INTO t1 VALUES (2,'http://www.othemovie.com/OScreenSaver1.EXE','O
+Screensaver',2,'','2002-01-22','',491,0,'',519,0,0,'');
+INSERT INTO t1 VALUES
+(3,'http://www.siamzone.com/download/download/000003-jasonx2(800x600).jpg','Jaso
+n X Wallpapers',1,'','2002-05-31','',579,0,'',1091,0,0,'');
+select * from t1 order by id;
+id	url	name	type	website	adddate	size	movieid	musicid	star	download	lastweek	thisweek	page
+1	http://www.siamzone.com/download/download/000001-frodo_1024.jpg	The Lord
+of the Rings
+Wallpapers	1	http://www.lordoftherings.net	2002-01-22		448	0		3805	0	0	
+2	http://www.othemovie.com/OScreenSaver1.EXE	O
+Screensaver	2		2002-01-22		491	0		519	0	0	
+3	http://www.siamzone.com/download/download/000003-jasonx2(800x600).jpg	Jaso
+n X Wallpapers	1		2002-05-31		579	0		1091	0	0	
+DROP TABLE t1;
