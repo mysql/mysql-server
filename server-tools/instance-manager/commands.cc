@@ -170,12 +170,12 @@ int Show_instance_status::do_command(struct st_net *net,
     Instance *instance;
 
     store_to_string(&send_buff, (char *) instance_name, &position);
-    if ((instance= instance_map->find(instance_name, strlen(instance_name))) == NULL)
+    if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     if (instance->is_running())
     {
       store_to_string(&send_buff, (char *) "online", &position);
-      store_to_string(&send_buff, mysql_get_server_info(&(instance->mysql)), &position);
+      store_to_string(&send_buff, "unknown", &position);
     }
     else
     {
@@ -184,7 +184,8 @@ int Show_instance_status::do_command(struct st_net *net,
     }
 
 
-    if (my_net_write(net, send_buff.buffer, (uint) position))
+    if (send_buff.is_error() ||
+        my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
   }
 
@@ -200,7 +201,7 @@ err:
 
 int Show_instance_status::execute(struct st_net *net, ulong connection_id)
 {
-  if (instance_name != NULL)
+  if ((instance_name))
   {
     if (do_command(net, instance_name))
       return ER_OUT_OF_RESOURCES;
@@ -256,52 +257,31 @@ int Show_instance_options::do_command(struct st_net *net,
   {
     Instance *instance;
 
-    if ((instance= instance_map->
-                   find(instance_name, strlen(instance_name))) == NULL)
+    if (!(instance= instance_map->find(instance_name, strlen(instance_name))))
       goto err;
     store_to_string(&send_buff, (char *) "instance_name", &position);
     store_to_string(&send_buff, (char *) instance_name, &position);
     if (my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
-    if (instance->options.mysqld_path != NULL)
+    if ((instance->options.mysqld_path))
     {
       position= 0;
       store_to_string(&send_buff, (char *) "mysqld-path", &position);
       store_to_string(&send_buff,
                      (char *) instance->options.mysqld_path,
                      &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
+      if (send_buff.is_error() ||
+          my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
 
-    if (instance->options.is_guarded != NULL)
+    if ((instance->options.nonguarded))
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "guarded", &position);
+      store_to_string(&send_buff, (char *) "nonguarded", &position);
       store_to_string(&send_buff, "", &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
-        goto err;
-    }
-
-    if (instance->options.mysqld_user != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "admin-user", &position);
-      store_to_string(&send_buff,
-                      (char *) instance->options.mysqld_user,
-                      &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
-        goto err;
-    }
-
-    if (instance->options.mysqld_password != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "admin-password", &position);
-      store_to_string(&send_buff,
-                      (char *) instance->options.mysqld_password,
-                      &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
+      if (send_buff.is_error() ||
+          my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
 
@@ -318,7 +298,8 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff, option_value + 1, &position);
       /* join name and the value into the same option again */
       *option_value= '=';
-      if (my_net_write(net, send_buff.buffer, (uint) position))
+      if (send_buff.is_error() ||
+          my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
   }
@@ -335,7 +316,7 @@ err:
 
 int Show_instance_options::execute(struct st_net *net, ulong connection_id)
 {
-  if (instance_name != NULL)
+  if ((instance_name))
   {
     if (do_command(net, instance_name))
       return ER_OUT_OF_RESOURCES;
@@ -369,10 +350,10 @@ int Start_instance::execute(struct st_net *net, ulong connection_id)
   }
   else
   {
-    if (err_code= instance->start())
+    if ((err_code= instance->start()))
       return err_code;
 
-    if (instance->options.is_guarded != NULL)
+    if (!(instance->options.nonguarded))
         instance_map->guardian->guard(instance);
 
     net_send_ok(net, connection_id);
@@ -403,7 +384,7 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
   }
   else
   {
-    if (instance->options.is_guarded != NULL)
+    if (!(instance->options.nonguarded))
         instance_map->guardian->
                stop_guard(instance);
     if ((err_code= instance->stop()))
