@@ -1432,7 +1432,7 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
       m_globalHash->unlock();
     }
   }
-  DBUG_RETURN(ret)
+  DBUG_RETURN(ret);
 }
 
 int 
