@@ -71,6 +71,16 @@ select * from t1;
 drop table t1;
 
 #
+# why to scan strings for trunc*
+#
+create table t1 (a varchar(200) not null, fulltext (a));
+insert t1 values ("aaa10 bbb20"), ("aaa20 bbb15"), ("aaa30 bbb10");
+select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
+select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
+select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
+drop table t1;
+
+#
 # Check bug reported by Matthias Urlichs
 #
 
