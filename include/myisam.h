@@ -378,6 +378,8 @@ typedef struct st_mi_sort_param
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
   uchar **sort_keys;
+  byte *rec_buff;
+  uint alloced_rec_buff_length;
   void *wordlist, *wordptr;
   MI_KEYDEF *keyinfo;
   SORT_INFO *sort_info;

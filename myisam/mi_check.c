@@ -898,7 +898,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  info->checksum=mi_checksum(info,record);
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
-	    if (_mi_rec_check(info,record))
+	    if (_mi_rec_check(info,record, info->rec_buff))
 	    {
 	      mi_check_print_error(param,"Found wrong packed record at %s",
 			  llstr(start_recpos,llbuff));
@@ -1143,6 +1143,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 		      MYF(MY_WME | MY_WAIT_IF_FULL)))
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
+  sort_param.rec_buff=info->rec_buff;
+  sort_param.alloced_rec_buff_length=info->alloced_rec_buff_length;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -1787,6 +1789,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   param->testflag|=T_REP; /* for easy checking */
 
   bzero((char*)&sort_info,sizeof(sort_info));
+  bzero((char *)&sort_param, sizeof(sort_param));
   if (!(sort_info.key_block=
 	alloc_key_blocks(param,
 			 (uint) param->sort_key_blocks,
@@ -1804,6 +1807,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   info->opt_flag|=WRITE_CACHE_USED;
   info->rec_cache.file=info->dfile;		/* for sort_delete_record */
 
+  sort_param.rec_buff=info->rec_buff;
+  sort_param.alloced_rec_buff_length=info->alloced_rec_buff_length;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -2164,7 +2169,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     goto err;
   sort_info.key_block_end=sort_info.key_block+param->sort_key_blocks;
   info->opt_flag|=WRITE_CACHE_USED;
-  info->rec_cache.file=info->dfile;		/* for sort_delete_record */
+  info->rec_cache.file=info->dfile;         /* for sort_delete_record */
 
   if (!rep_quick)
   {
@@ -2570,15 +2575,13 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   my_off_t pos;
   byte *to;
   MI_BLOCK_INFO block_info;
-  MI_INFO *info;
-  MYISAM_SHARE *share;
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
+  MI_INFO *info=sort_info->info;
+  MYISAM_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("sort_get_next_record");
 
-  info=sort_info->info;
-  share=info->s;
   switch (share->data_file_type) {
   case STATIC_RECORD:
     for (;;)
@@ -2665,9 +2668,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
           param->testflag|=T_RETRY_WITHOUT_QUICK;
 	  DBUG_RETURN(1);	/* Something wrong with data */
 	}
-	if (((b_type=_mi_get_block_info(&block_info,-1,pos)) &
-	     (BLOCK_ERROR | BLOCK_FATAL_ERROR)) ||
-	    ((b_type & BLOCK_FIRST) &&
+	b_type=_mi_get_block_info(&block_info,-1,pos);
+	if ((b_type & (BLOCK_ERROR | BLOCK_FATAL_ERROR)) ||
+	   ((b_type & BLOCK_FIRST) &&
 	     (block_info.rec_len < (uint) share->base.min_pack_length ||
 	      block_info.rec_len > (uint) share->base.max_pack_length)))
 	{
@@ -2787,7 +2790,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	    sort_param->pos=block_info.filepos+block_info.block_len;
 	  if (share->base.blobs)
 	  {
-	    if (!(to=mi_fix_rec_buff_for_blob(info,block_info.rec_len)))
+	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
+                    &(sort_param->rec_buff),
+                    &(sort_param->alloced_rec_buff_length))))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(sort_param->start_recpos,llbuff));
@@ -2795,7 +2800,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	    }
 	  }
 	  else
-	    to= info->rec_buff;
+	    to= sort_param->rec_buff;
 	}
 	if (left_length < block_info.data_len || ! block_info.data_len)
 	{
@@ -2837,7 +2842,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
       } while (left_length);
 
-      if (_mi_rec_unpack(info,sort_param->record,info->rec_buff,
+      if (_mi_rec_unpack(info,sort_param->record,sort_param->rec_buff,
 			 sort_param->find_length) != MY_FILE_ERROR)
       {
 	if (sort_param->read_cache.error < 0)
@@ -2846,7 +2851,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  info->checksum=mi_checksum(info,sort_param->record);
 	if ((param->testflag & (T_EXTEND | T_REP)) || searching)
 	{
-	  if (_mi_rec_check(info, sort_param->record))
+	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
 				llstr(sort_param->start_recpos,llbuff));
@@ -2858,8 +2863,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	DBUG_RETURN(0);
       }
       if (!searching)
-	mi_check_print_info(param,"Found wrong stored record at %s",
-			    llstr(sort_param->start_recpos,llbuff));
+        mi_check_print_info(param,"Key %d - Found wrong stored record at %s",
+                            sort_param->key+1,
+                            llstr(sort_param->start_recpos,llbuff));
     try_next:
       pos=(sort_param->start_recpos+=MI_DYN_ALIGN_SIZE);
       searching=1;
@@ -2894,7 +2900,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 			      llstr(sort_param->pos,llbuff));
 	continue;
       }
-      if (_mi_read_cache(&sort_param->read_cache,(byte*) info->rec_buff,
+      if (_mi_read_cache(&sort_param->read_cache,(byte*) sort_param->rec_buff,
 			 block_info.filepos, block_info.rec_len,
 			 READING_NEXT))
       {
@@ -2903,7 +2909,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 			      llstr(sort_param->pos,llbuff));
 	continue;
       }
-      if (_mi_pack_rec_unpack(info,sort_param->record,info->rec_buff,
+      if (_mi_pack_rec_unpack(info,sort_param->record,sort_param->rec_buff,
 			      block_info.rec_len))
       {
 	if (! searching)
@@ -2963,7 +2969,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       break;
     case DYNAMIC_RECORD:
       if (! info->blobs)
-	from=info->rec_buff;
+	from=sort_param->rec_buff;
       else
       {
 	/* must be sure that local buffer is big enough */
@@ -3013,7 +3019,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       if (info->s->base.blobs)
 	length+=save_pack_length(block_buff+length,info->blob_length);
       if (my_b_write(&info->rec_cache,block_buff,length) ||
-	  my_b_write(&info->rec_cache,(byte*) info->rec_buff,reclength))
+	  my_b_write(&info->rec_cache,(byte*) sort_param->rec_buff,reclength))
       {
 	mi_check_print_error(param,"%d when writing to datafile",my_errno);
 	DBUG_RETURN(1);

@@ -182,7 +182,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
       goto err;					/* purecov: inspected */
     if (!no_messages)
-      puts("  - Last merge and dumping keys"); /* purecov: tested */
+      puts("  - Last merge and dumping keys\n"); /* purecov: tested */
     if (merge_index(info,keys,sort_keys,dynamic_element(&buffpek,0,BUFFPEK *),
                     maxbuffer,&tempfile))
       goto err;					/* purecov: inspected */
@@ -433,22 +433,26 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       got_error=1;
       continue;
     }
-    share->state.key_map|=(ulonglong) 1 << sinfo->key;
-    if (param->testflag & T_STATISTICS)
-      update_key_parts(sinfo->keyinfo, rec_per_key_part,
-		       sinfo->unique, (ulonglong) info->state->records);
-    if (!sinfo->buffpek.elements)
+    if (!got_error)
     {
-      if (param->testflag & T_VERBOSE)
+      share->state.key_map|=(ulonglong) 1 << sinfo->key;
+      if (param->testflag & T_STATISTICS)
+        update_key_parts(sinfo->keyinfo, rec_per_key_part,
+                         sinfo->unique, (ulonglong) info->state->records);
+      if (!sinfo->buffpek.elements)
       {
-        printf("Key %d  - Dumping %u keys\n",sinfo->key+1, sinfo->keys);
-	fflush(stdout);
+        if (param->testflag & T_VERBOSE)
+        {
+          printf("Key %d  - Dumping %u keys\n",sinfo->key+1, sinfo->keys);
+          fflush(stdout);
+        }
+        if (write_index(sinfo, sinfo->sort_keys, sinfo->keys) ||
+            flush_pending_blocks(sinfo))
+          got_error=1;
       }
-      if (write_index(sinfo, sinfo->sort_keys, sinfo->keys) ||
-	  flush_pending_blocks(sinfo))
-        got_error=1;
     }
     my_free((gptr) sinfo->sort_keys,MYF(0));
+    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
     sinfo->sort_keys=0;
   }
 
@@ -497,7 +501,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
         continue;
       }
       if (param->testflag & T_VERBOSE)
-        printf("Key %d  - Last merge and dumping keys", sinfo->key+1);
+        printf("Key %d  - Last merge and dumping keys\n", sinfo->key+1);
       if (merge_index(sinfo, keys, (uchar **)mergebuf,
                       dynamic_element(&sinfo->buffpek,0,BUFFPEK *),
                       maxbuffer,&sinfo->tempfile) ||
@@ -512,7 +516,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       uint key_length;
 
       if (param->testflag & T_VERBOSE)
-        printf("Key %d  - Dumping 'long' keys", sinfo->key+1);
+        printf("Key %d  - Dumping 'long' keys\n", sinfo->key+1);
 
       if (flush_io_cache(&sinfo->tempfile_for_exceptions) ||
           reinit_io_cache(&sinfo->tempfile_for_exceptions,READ_CACHE,0L,0,0))

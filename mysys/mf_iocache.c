@@ -524,13 +524,6 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
     }
     if (lock_io_cache(info))
     {
-#if 0 && SAFE_MUTEX
-#define PRINT_LOCK(M) printf("Thread %d: mutex is %s\n", my_thread_id(), \
-                      (((safe_mutex_t *)(M))->count ? "Locked" : "Unlocked"))
-#else
-#define PRINT_LOCK(M)
-#endif
-      PRINT_LOCK(&info->share->mutex);
       info->share->active=info;
       if (info->seek_not_done)             /* File touched, do seek */
         VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
@@ -539,7 +532,6 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error=(len == (int)length ? 0 : len);
       info->pos_in_file=pos_in_file;
       unlock_io_cache(info);
-      PRINT_LOCK(&info->share->mutex);
     }
     else
     {
@@ -547,7 +539,6 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
       info->read_end=       info->share->active->read_end;
       info->pos_in_file=    info->share->active->pos_in_file;
       len= (info->error == -1 ? -1 : info->read_end-info->buffer);
-      PRINT_LOCK(&info->share->mutex);
     }
     info->read_pos=info->buffer;
     info->seek_not_done=0;
