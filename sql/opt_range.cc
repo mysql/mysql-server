@@ -2011,7 +2011,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   TABLE_READ_PLAN **roru_read_plans;
   TABLE_READ_PLAN **cur_roru_plan;
   double roru_index_costs;
-  double blocks_in_index_read;
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
   DBUG_ENTER("get_best_disjunct_quick");
@@ -2077,7 +2076,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     goto skip_to_ror_scan;
   }
-  blocks_in_index_read= imerge_cost;
   if (cpk_scan)
   {
     /*
@@ -5654,7 +5652,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
-  DBUG_ASSERT(cur_quick);
+  DBUG_ASSERT(cur_quick != 0);
   
   /*
     We reuse the same instance of handler so we need to call both init and 
@@ -6099,7 +6097,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
     if (range)
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
-      DBUG_ASSERT(cur_prefix);
+      DBUG_ASSERT(cur_prefix != 0);
       result= file->index_read(record, cur_prefix, prefix_length,
                                HA_READ_AFTER_KEY);
       if (result || (file->compare_key(file->end_range) <= 0))
@@ -6880,6 +6878,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx;
+  key_map cur_used_key_parts;
 
   for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
        cur_index_info++, cur_index++)
@@ -6927,17 +6926,25 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     else if (join->select_distinct)
     {
       select_items_it.rewind();
+      cur_used_key_parts.clear_all();
       while ((item= select_items_it++))
       {
         item_field= (Item_field*) item; /* (SA5) already checked above. */
         /* Find the order of the key part in the index. */
         key_part_nr= get_field_keypart(cur_index_info, item_field->field);
+        /*
+          Check if this attribute was already present in the select list.
+          If it was present, then its corresponding key part was alredy used.
+        */
+        if (cur_used_key_parts.is_set(key_part_nr))
+          continue;
         if (key_part_nr < 1 || key_part_nr > join->fields_list.elements)
           goto next_index;
         cur_part= cur_index_info->key_part + key_part_nr - 1;
         cur_group_prefix_len+= cur_part->store_length;
+        cur_used_key_parts.set_bit(key_part_nr);
+        ++cur_group_key_parts;
       }
-      cur_group_key_parts= join->fields_list.elements;
     }
     else
       DBUG_ASSERT(FALSE);

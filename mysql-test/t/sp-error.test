@@ -641,6 +641,44 @@ call bug6807()|
 
 drop procedure bug6807|
 
+#
+# BUG#876: Stored Procedures: Invalid SQLSTATE is allowed in 
+#          a DECLARE ? HANDLER FOR stmt.
+#
+--disable_warnings
+drop procedure if exists bug8776_1|
+drop procedure if exists bug8776_2|
+drop procedure if exists bug8776_3|
+drop procedure if exists bug8776_4|
+--enable_warnings
+--error ER_SP_BAD_SQLSTATE
+create procedure bug8776_1()
+begin
+  declare continue handler for sqlstate '42S0200test' begin end;
+  begin end;
+end|
+
+--error ER_SP_BAD_SQLSTATE
+create procedure bug8776_2()
+begin
+  declare continue handler for sqlstate '4200' begin end;
+  begin end;
+end|
+
+--error ER_SP_BAD_SQLSTATE
+create procedure bug8776_3()
+begin
+  declare continue handler for sqlstate '420000' begin end;
+  begin end;
+end|
+
+--error ER_SP_BAD_SQLSTATE
+create procedure bug8776_4()
+begin
+  declare continue handler for sqlstate '42x00' begin end;
+  begin end;
+end|
+
 
 drop table t1|
 

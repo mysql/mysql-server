@@ -116,7 +116,7 @@ static const negated_function_mapping neg_map[]=
   Instances of Ndb_Item are stored in a linked list implemented by Ndb_cond
   class.
   The order of elements produced by Ndb_cond::next corresponds to
-  depth-first traversal of the Item (i.e. expression) tree in prefix order.
+  breadth-first traversal of the Item (i.e. expression) tree in prefix order.
   AND and OR have arbitrary arity, so the end of AND/OR group is marked with  
   Ndb_item with type == NDB_END_COND.
   NOT items represent negated conditions and generate NAND/NOR groups.

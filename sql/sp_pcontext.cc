@@ -26,6 +26,30 @@
 #include "sp_pcontext.h"
 #include "sp_head.h"
 
+/*
+ * Sanity check for SQLSTATEs. Will not check if it's really an existing
+ * state (there are just too many), but will check length and bad characters.
+ * Returns TRUE if it's ok, FALSE if it's bad.
+ */
+bool
+sp_cond_check(LEX_STRING *sqlstate)
+{
+  int i;
+  const char *p;
+
+  if (sqlstate->length != 5)
+    return FALSE;
+  for (p= sqlstate->str, i= 0 ; i < 5 ; i++)
+  {
+    char c = p[i];
+
+    if ((c < '0' || '9' < c) &&
+	(c < 'A' || 'Z' < c))
+      return FALSE;
+  }
+  return TRUE;
+}
+
 sp_pcontext::sp_pcontext(sp_pcontext *prev)
   : Sql_alloc(), m_psubsize(0), m_csubsize(0), m_hsubsize(0),
     m_handlers(0), m_parent(prev)
@@ -105,7 +129,6 @@ sp_pcontext::diff_handlers(sp_pcontext *ctx)
 uint
 sp_pcontext::diff_cursors(sp_pcontext *ctx)
 {
-  uint n= 0;
   sp_pcontext *pctx= this;
 
   while (pctx && pctx != ctx)
@@ -264,7 +287,7 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)n.str, n.length) == 0)
     {
-      *poff= i;
+      *poff= m_coffset + i;
       return TRUE;
     }
   }

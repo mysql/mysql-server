@@ -545,7 +545,6 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   register unsigned int cutlim;
   register ulonglong i;
   register const char *s, *e;
-  register unsigned char c;
   const char *save;
   int overflow;
 
@@ -608,8 +607,9 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
   overflow = 0;
   i = 0;
-  for (c = *s; s != e; c = *++s)
+  for ( ; s != e; s++)
   {
+    register unsigned char c= *s;
     if (c>='0' && c<='9')
       c -= '0';
     else if (c>='A' && c<='Z')
@@ -668,7 +668,6 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   register unsigned int cutlim;
   register ulonglong i;
   register const char *s, *e;
-  register unsigned char c;
   const char *save;
   int overflow;
 
@@ -731,8 +730,10 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
 
   overflow = 0;
   i = 0;
-  for (c = *s; s != e; c = *++s)
+  for ( ; s != e; s++)
   {
+    register unsigned char c= *s;
+
     if (c>='0' && c<='9')
       c -= '0';
     else if (c>='A' && c<='Z')

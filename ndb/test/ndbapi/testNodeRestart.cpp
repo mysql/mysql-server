@@ -344,6 +344,71 @@ err:
   return NDBT_FAILED;
 }
 
+int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  
+  int i = 0;
+  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
+    g_info << i << ": ";
+
+    if(hugoOps.startTransaction(pNdb) != 0)
+      return NDBT_FAILED;
+      
+    if(hugoOps.pkUpdateRecord(pNdb, 1) != 0)
+      return NDBT_FAILED;
+
+    if(hugoOps.execute_NoCommit(pNdb) != 0)
+      return NDBT_FAILED;
+
+    Uint32 transNode= hugoOps.getTransaction()->getConnectedNodeId();
+    int id = i % restarter.getNumDbNodes();
+    int nodeId;
+    while((nodeId = restarter.getDbNodeId(id)) == transNode)
+      id = (id + 1) % restarter.getNumDbNodes();
+
+    ndbout << "Restart node " << nodeId << endl; 
+    
+    restarter.restartOneDbNode(nodeId,
+			     /** initial */ false, 
+			     /** nostart */ true,
+			     /** abort   */ true);
+    
+    restarter.waitNodesNoStart(&nodeId, 1);
+    
+    int res;
+    if(i & 1)
+      res= hugoOps.execute_Commit(pNdb);
+    else
+      res= hugoOps.execute_Rollback(pNdb);
+    
+    ndbout_c("res= %d", res);
+    
+    hugoOps.closeTransaction(pNdb);
+    
+    restarter.startNodes(&nodeId, 1);
+    restarter.waitNodesStarted(&nodeId, 1);
+    
+    if(i & 1)
+    {
+      if(res != 286)
+	return NDBT_FAILED;
+    }
+    else
+    {
+      if(res != 0)
+	return NDBT_FAILED;
+    }
+    i++;
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -598,6 +663,12 @@ TESTCASE("CommittedRead",
 	 "Test committed read"){ 
   INITIALIZER(runLoadTable);
   STEP(runDirtyRead);
+  FINALIZER(runClearTable);
+}
+TESTCASE("LateCommit",
+	 "Test commit after node failure"){
+  INITIALIZER(runLoadTable);
+  STEP(runLateCommit);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);

@@ -4356,7 +4356,8 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
     lsPtr[0].p = buf;
     lsPtr[0].sz = sz;
     // note: ACC does not reply
-    sendSignal(DBACC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
+    if (tabPtr.p->isTable() || tabPtr.p->isHashIndex())
+      sendSignal(DBACC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
     sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
     return;
   }
@@ -6442,7 +6443,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   // write index key attributes
   AttributeRecordPtr aRecPtr;
   c_attributeRecordPool.getPtr(aRecPtr, tablePtr.p->firstAttribute);
-  for (unsigned k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     // insert the attributes in the order decided above in attrid_map
     // k is new order, current_id is in previous order
     // ToDo: make sure "current_id" is stored with the table and

@@ -32,13 +32,16 @@
   FEDERATED_SHARE is a structure that will be shared amoung all open handlers
   The example implements the minimum of what you will probably need.
 */
-//FIX document
 typedef struct st_federated_share {
   char *table_name;
   char *table_base_name;
-  // the primary select query to be used in rnd_init
+  /* 
+    the primary select query to be used in rnd_init
+  */
   char *select_query;
-  // remote host info, parse_url supplies
+  /*
+    remote host info, parse_url supplies
+  */
   char *scheme;
   char *hostname;
   char *username;
@@ -62,6 +65,7 @@ class ha_federated: public handler
   FEDERATED_SHARE *share;    /* Shared lock info */
   MYSQL *mysql;
   MYSQL_RES *result;
+  bool scan_flag;
   uint ref_length;
   uint fetch_num; // stores the fetch num
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
@@ -72,11 +76,12 @@ private:
       return errorcode otherwise
   */
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
-  bool create_where_from_key(String *to, KEY *key_info, const byte *key, uint key_length); 
+  bool create_where_from_key(String *to, KEY *key_info, 
+                             const byte *key, uint key_length); 
 
 public:
   ha_federated(TABLE *table): handler(table),
-    mysql(0), 
+    mysql(0), result(0), scan_flag(0), 
     ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
   {
   }
@@ -100,9 +105,9 @@ public:
   */
   ulong table_flags() const
   {
-    return (HA_TABLE_SCAN_ON_INDEX | HA_NOT_EXACT_COUNT | 
-            HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED | HA_AUTO_PART_KEY | 
-            HA_TABLE_SCAN_ON_INDEX | HA_CAN_INDEX_BLOBS);
+    return (HA_TABLE_SCAN_ON_INDEX | HA_NOT_EXACT_COUNT |
+            HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED |
+            HA_AUTO_PART_KEY | HA_CAN_INDEX_BLOBS);
   }
   /*
     This is a bitmap of flags that says how the storage engine
@@ -126,11 +131,16 @@ public:
   /*
     Called in test_quick_select to determine if indexes should be used.
   */
-  virtual double scan_time() { DBUG_PRINT("ha_federated::scan_time", ("rows %d", records)); return (double)(records*2); }
+  virtual double scan_time()
+  {
+    DBUG_PRINT("ha_federated::scan_time",
+               ("rows %d", records)); return (double)(records*2); 
+  }
   /*
     The next method will never be called if you do not implement indexes.
   */
-  virtual double read_time(uint index, uint ranges, ha_rows rows) { return (double) rows /  20.0+1; }
+  virtual double read_time(uint index, uint ranges, ha_rows rows) 
+  { return (double) rows /  20.0+1; }
 
   /*
     Everything below are methods that we implment in ha_federated.cc.
@@ -173,3 +183,6 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     //required
 };
+
+bool federated_db_init(void);
+bool federated_db_end(void);

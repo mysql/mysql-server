@@ -162,7 +162,7 @@ trx_create(
 	trx->read_view = NULL;
 
 	/* Set X/Open XA transaction identification to NULL */
-	memset(&trx->xid,0,sizeof(trx->xid));
+	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;
 
 	return(trx);
@@ -435,18 +435,14 @@ trx_lists_init_at_db_start(void)
 
 				if (undo->state == TRX_UNDO_PREPARED) {
 
-					fprintf(stderr,
-"InnoDB: Transaction %lu %lu was in the XA prepared state. We change it to\n"
-"InnoDB: the 'active' state, so that InnoDB's true-and-tested crash\n"
-"InnoDB: recovery will roll it back. If mysqld refuses to start after\n"
-"InnoDB: this, you may be able to resolve the problem by moving the binlog\n"
-"InnoDB: files to a safe place, and deleting all binlog files and the binlog\n"
-"InnoDB: .index file from the datadir.\n", ut_dulint_get_high(trx->id),
-					   ut_dulint_get_low(trx->id));
+ 					fprintf(stderr,
+"InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
+					ut_dulint_get_high(trx->id),
+					ut_dulint_get_low(trx->id));
 
-					/* trx->conc_state = TRX_PREPARED; */
-					trx->conc_state =
-						TRX_ACTIVE;
+					trx->conc_state = TRX_ACTIVE;
+
+					/* trx->conc_state = TRX_PREPARED;*/
 				} else {
 					trx->conc_state =
 						TRX_COMMITTED_IN_MEMORY;
@@ -502,20 +498,15 @@ trx_lists_init_at_db_start(void)
 					commit or abort decision from MySQL */
 
 					if (undo->state == TRX_UNDO_PREPARED) {
+ 						fprintf(stderr,
+"InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
+						ut_dulint_get_high(trx->id),
+						ut_dulint_get_low(trx->id));
 
-					fprintf(stderr,
-"InnoDB: Transaction %lu %lu was in the XA prepared state. We change it to\n"
-"InnoDB: the 'active' state, so that InnoDB's true-and-tested crash\n"
-"InnoDB: recovery will roll it back. If mysqld refuses to start after\n"
-"InnoDB: this, you may be able to resolve the problem by moving the binlog\n"
-"InnoDB: files to a safe place, and deleting all binlog files and the binlog\n"
-"InnoDB: .index file from the datadir.\n", ut_dulint_get_high(trx->id),
-					   ut_dulint_get_low(trx->id));
+						trx->conc_state = TRX_ACTIVE;
 
-					/* trx->conc_state = TRX_PREPARED; */
-					trx->conc_state =
-						TRX_ACTIVE;
-
+						/* trx->conc_state = 
+							TRX_PREPARED; */
 					} else {
 						trx->conc_state =
 						  TRX_COMMITTED_IN_MEMORY;
@@ -786,8 +777,8 @@ trx_commit_off_kernel(
 		mutex_enter(&kernel_mutex);
 	}
 
-	ut_ad(trx->conc_state == TRX_ACTIVE || trx->conc_state == TRX_PREPARED);
-
+	ut_ad(trx->conc_state == TRX_ACTIVE
+					|| trx->conc_state == TRX_PREPARED);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1646,8 +1637,11 @@ trx_print(
 			fputs(", not started", f);
 			break;
 		case TRX_ACTIVE:
-		case TRX_PREPARED:
 			fprintf(f, ", ACTIVE %lu sec",
+				(ulong)difftime(time(NULL), trx->start_time));
+                        break;
+		case TRX_PREPARED:
+			fprintf(f, ", ACTIVE (PREPARED) %lu sec",
 				(ulong)difftime(time(NULL), trx->start_time));
                         break;
 		case TRX_COMMITTED_IN_MEMORY:
@@ -1744,10 +1738,10 @@ trx_prepare_off_kernel(
 	trx_t*	trx)	/* in: transaction */
 {
 	page_t*		update_hdr_page;
-	dulint		lsn;
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 	ibool		must_flush_log	= FALSE;
+	dulint		lsn;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -1765,35 +1759,36 @@ trx_prepare_off_kernel(
 		must_flush_log = TRUE;
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE
-		to some other state: these modifications to the file data
-		structure define the transaction as prepared in the file
-		based world, at the serialization point of the log sequence
-		number lsn obtained below. */
+		to TRX_UNDO_PREPARED: these modifications to the file data
+		structure define the transaction as prepared in the
+		file-based world, at the serialization point of lsn. */
 
 		mutex_enter(&(rseg->mutex));
 			
 		if (trx->insert_undo != NULL) {
 			trx_undo_set_state_at_prepare(trx, trx->insert_undo,
-							   &mtr);
+							  		&mtr);
 		}
 
 		undo = trx->update_undo;
 
 		if (undo) {
-
 			/* It is not necessary to obtain trx->undo_mutex here
 			because only a single OS thread is allowed to do the
 			transaction prepare for this transaction. */
 					
-			update_hdr_page = trx_undo_set_state_at_prepare(trx,								undo, &mtr);
+			update_hdr_page = trx_undo_set_state_at_prepare(trx,
+								undo, &mtr);
 		}
 
 		mutex_exit(&(rseg->mutex));
 
 		/*--------------*/
-		mtr_commit(&mtr);
+		mtr_commit(&mtr);	/* This mtr commit makes the
+					transaction prepared in the file-based
+					world */
 		/*--------------*/
-		lsn = mtr.end_lsn;
+ 		lsn = mtr.end_lsn;
 
 		mutex_enter(&kernel_mutex);
 	}
@@ -1805,13 +1800,6 @@ trx_prepare_off_kernel(
 	/*--------------------------------------*/
 	trx->conc_state = TRX_PREPARED;
 	/*--------------------------------------*/
-
-	if (trx->read_view) {
-		read_view_close(trx->read_view);
-
-		mem_heap_empty(trx->read_view_heap);
-		trx->read_view = NULL;
-	}
 
 	if (must_flush_log) {
 
@@ -1834,7 +1822,7 @@ Does the transaction prepare for MySQL. */
 
 ulint
 trx_prepare_for_mysql(
-/*=================*/
+/*====-=============*/
 			/* out: 0 or error number */
 	trx_t*	trx)	/* in: trx handle */
 {
@@ -1881,9 +1869,8 @@ trx_recover_for_mysql(
 	fprintf(stderr,
 		"  InnoDB: Starting recovery for XA transactions...\n");
 
-
-	/* We should set those transactions which are in
-	the prepared state to the xid_list */
+	/* We should set those transactions which are in the prepared state
+	to the xid_list */
 
 	mutex_enter(&kernel_mutex);
 
@@ -1891,14 +1878,7 @@ trx_recover_for_mysql(
 
 	while (trx) {
 		if (trx->conc_state == TRX_PREPARED) {
-			xid_list[count].formatID = trx->xid.formatID;
-			xid_list[count].gtrid_length = trx->xid.gtrid_length;
-			xid_list[count].bqual_length = trx->xid.bqual_length;
-
-			memcpy(xid_list[count].data,
-					trx->xid.data,
-					trx->xid.gtrid_length + 
-					trx->xid.bqual_length);
+			xid_list[count] = trx->xid;
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -1935,15 +1915,16 @@ trx_recover_for_mysql(
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state */
 
-trx_t * 
+trx_t*
 trx_get_trx_by_xid(
 /*===============*/
 			/* out: trx or NULL */
-	XID*	xid)	/*  in: X/Open XA Transaction Idenfication */
+	XID*	xid)	/* in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
 
 	if (xid == NULL) {
+
 		return (NULL);
 	}
  
@@ -1959,7 +1940,7 @@ trx_get_trx_by_xid(
 
 		if (xid->gtrid_length == trx->xid.gtrid_length &&
 		    xid->bqual_length == trx->xid.bqual_length &&
-		    memcmp(xid, &trx->xid, 
+		    memcmp(xid->data, trx->xid.data, 
 				xid->gtrid_length + 
 				xid->bqual_length) == 0) {
 			break;
@@ -1972,6 +1953,7 @@ trx_get_trx_by_xid(
 
 	if (trx) {
 		if (trx->conc_state != TRX_PREPARED) {
+
 			return(NULL);
 		}
 
@@ -1980,4 +1962,3 @@ trx_get_trx_by_xid(
 		return(NULL);
 	}
 }
-

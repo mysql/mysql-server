@@ -668,7 +668,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       thd->clear_error();
       mysql_bin_log.write(&qinfo);
     }
+    thd->server_status|= SERVER_STATUS_DB_DROPPED;
     send_ok(thd, (ulong) deleted);
+    thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
 
 exit:
@@ -773,11 +775,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
              file->name[2] == 'c' && file->name[3] == '\0')
     {
       /* .frm archive */
-      char newpath[FN_REFLEN], *copy_of_path;
+      char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
-      uint length;
       strxmov(newpath, org_path, "/", "arc", NullS);
-      length= unpack_filename(newpath, newpath);
+      (void) unpack_filename(newpath, newpath);
       if ((new_dirp = my_dir(newpath, MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("Archive subdir found: %s", newpath));

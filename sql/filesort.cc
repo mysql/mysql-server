@@ -769,7 +769,7 @@ static void make_sortkey(register SORTPARAM *param,
     */
     SORT_ADDON_FIELD *addonf= param->addon_field;
     uchar *nulls= to;
-    DBUG_ASSERT(addonf);
+    DBUG_ASSERT(addonf != 0);
     bzero((char *) nulls, addonf->offset);
     to+= addonf->offset;
     for ( ; (field= addonf->field) ; addonf++)
@@ -1198,12 +1198,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
       else
       {
 	sortorder->length=sortorder->field->pack_length();
-        /*
-          We must test cmp_type() to ensure that ENUM and SET are sorted
-          as numbers
-        */
-	if (use_strnxfrm((cs=sortorder->field->charset())) &&
-            sortorder->field->cmp_type() == STRING_RESULT)
+	if (use_strnxfrm((cs=sortorder->field->sort_charset())))
 	{
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;

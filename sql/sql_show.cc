@@ -341,7 +341,6 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
-  int res;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->table_name));
@@ -535,7 +534,6 @@ void
 mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 {
   TABLE *table;
-  int res;
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
@@ -1951,7 +1949,7 @@ void store_schema_shemata(TABLE *table, const char *db_name,
 
 int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  char path[FN_REFLEN],*end;
+  char path[FN_REFLEN];
   bool found_libchar;
   INDEX_FIELD_VALUES idx_field_vals;
   List<char> files;
@@ -1960,14 +1958,15 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_shemata");
 
   get_index_field_values(thd->lex, &idx_field_vals);
   /* information schema name always is first in list */
   if (schema_db_add(thd, &files, idx_field_vals.db_value, &with_i_schema))
-    return 1;
+    DBUG_RETURN(1);
   if (mysql_find_files(thd, &files, NullS, mysql_data_home,
                        idx_field_vals.db_value, 1))
-    return 1;
+    DBUG_RETURN(1);
   List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
@@ -2000,7 +1999,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
                            create.default_table_charset->csname);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2192,7 +2191,6 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 				    const char *base_name,
 				    const char *file_name)
 {
-  TIME time;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
@@ -2224,14 +2222,12 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-      uint tmp_length;
       const char *tmp_buff;
       byte *pos;
       uint flags=field->flags;
       char tmp[MAX_FIELD_WIDTH];
       char tmp1[MAX_FIELD_WIDTH];
       String type(tmp,sizeof(tmp), system_charset_info);
-      char tmp_buffer[128];
       count++;
       restore_record(table, s->default_values);
       table->field[1]->store(base_name, strlen(base_name), cs);
@@ -2338,7 +2334,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
       table->field[15]->store((const char*) pos,
                               strlen((const char*) pos), cs);
-      char *end=tmp;
+      char *end= tmp;
       if (field->unireg_check == Field::NEXT_NUMBER)
         end=strmov(tmp,"auto_increment");
       table->field[16]->store(tmp, (uint) (end-tmp), cs);
@@ -2443,7 +2439,6 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
 int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   CHARSET_INFO **cs;
-  const char *wild= NullS;
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
@@ -2796,7 +2791,6 @@ static int get_schema_key_column_usage_record(THD *thd,
 					      const char *file_name)
 {
   DBUG_ENTER("get_schema_key_column_usage_record");
-  CHARSET_INFO *cs= system_charset_info;
   if (res)
   {
     if (!tables->view)
@@ -2822,7 +2816,6 @@ static int get_schema_key_column_usage_record(THD *thd,
       KEY_PART_INFO *key_part= key_info->key_part;
       for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
       {
-        uint f_idx= 0;
         if (key_part->field)
         {
           f_idx++;
@@ -2843,13 +2836,13 @@ static int get_schema_key_column_usage_record(THD *thd,
     List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
     while ((f_key_info= it++))
     {
-      LEX_STRING *f_info, *r_info;
+      LEX_STRING *f_info;
       List_iterator_fast<LEX_STRING> it(f_key_info->foreign_fields),
         it1(f_key_info->referenced_fields);
       uint f_idx= 0;
       while ((f_info= it++))
       {
-        r_info= it1++;
+        it1++;                                  // Ignore r_info
         f_idx++;
         restore_record(table, s->default_values);
         store_key_column_usage(table, base_name, file_name,
@@ -3335,11 +3328,13 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
 bool get_schema_tables_result(JOIN *join)
 {
-  DBUG_ENTER("get_schema_tables_result");
   JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
+  DBUG_ENTER("get_schema_tables_result");
+
+  thd->no_warnings_for_error= 1;
   for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
   {  
     if (!tab->table || !tab->table->pos_in_table_list)
@@ -3376,6 +3371,7 @@ bool get_schema_tables_result(JOIN *join)
       lex->query_tables_last= query_tables_last;
     }
   }
+  thd->no_warnings_for_error= 0;
   DBUG_RETURN(result);
 }
 

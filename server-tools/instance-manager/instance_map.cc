@@ -74,7 +74,7 @@ static void delete_instance(void *u)
     1 - error occured
 */
 
-static int process_option(void * ctx, const char *group, const char *option)
+static int process_option(void *ctx, const char *group, const char *option)
 {
   Instance_map *map= NULL;
   Instance *instance= NULL;
@@ -82,7 +82,8 @@ static int process_option(void * ctx, const char *group, const char *option)
 
   map = (Instance_map*) ctx;
   if (strncmp(group, prefix, sizeof prefix) == 0 &&
-      (my_isdigit(default_charset_info, group[sizeof prefix])))
+      ((my_isdigit(default_charset_info, group[sizeof prefix]))
+       || group[sizeof(prefix)] == '\0'))
     {
       if ((instance= map->find(group, strlen(group))) == NULL)
       {
@@ -110,13 +111,9 @@ C_MODE_END
 
 
 Instance_map::Instance_map(const char *default_mysqld_path_arg,
-                           const char *default_admin_user_arg,
-                           const char *default_admin_password_arg)
+                           const char *first_option_arg):
+mysqld_path(default_mysqld_path_arg), first_option(first_option_arg)
 {
-  mysqld_path= default_mysqld_path_arg;
-  user= default_admin_user_arg;
-  password= default_admin_password_arg;
-
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
 
@@ -154,12 +151,15 @@ int Instance_map::flush_instances()
 {
   int rc;
 
+  guardian->lock();
   pthread_mutex_lock(&LOCK_instance_map);
   hash_free(&hash);
   hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_instance_key, delete_instance, 0);
   pthread_mutex_unlock(&LOCK_instance_map);
   rc= load();
+  guardian->init();
+  guardian->unlock();
   return rc;
 }
 
@@ -181,48 +181,44 @@ Instance_map::find(const char *name, uint name_len)
 }
 
 
-void Instance_map::complete_initialization()
+int Instance_map::complete_initialization()
 {
   Instance *instance;
   uint i= 0;
 
-  while (i < hash.records)
+
+  if (hash.records == 0)                        /* no instances found */
   {
-    instance= (Instance *) hash_element(&hash, i);
-    instance->options.complete_initialization(mysqld_path, user, password);
-    i++;
+    if ((instance= new Instance) == 0)
+      goto err;
+
+    if (instance->init("mysqld") || add_instance(instance))
+      goto err_instance;
+
+
+    /*
+      After an instance have been added to the instance_map,
+      hash_free should handle it's deletion => goto err, not
+      err_instance.
+    */
+    if (instance->complete_initialization(this, mysqld_path, 1))
+      goto err;
   }
-}
+  else
+    while (i < hash.records)
+    {
+      instance= (Instance *) hash_element(&hash, i);
+      if (instance->complete_initialization(this, mysqld_path))
+        goto err;
+      i++;
+    }
 
-
-int Instance_map::cleanup()
-{
-  Instance *instance;
-  uint i= 0;
-
-  while (i < hash.records)
-  {
-    instance= (Instance *) hash_element(&hash, i);
-    if (instance->cleanup())
-			return 1;
-    i++;
-  }
-
-	return 0;
-}
-
-
-Instance *
-Instance_map::find(uint instance_number)
-{
-  Instance *instance;
-  char name[80];
-
-  sprintf(name, "mysqld%i", instance_number);
-  pthread_mutex_lock(&LOCK_instance_map);
-  instance= (Instance *) hash_search(&hash, (byte *) name, strlen(name));
-  pthread_mutex_unlock(&LOCK_instance_map);
-  return instance;
+  return 0;
+err:
+  return 1;
+err_instance:
+  delete instance;
+  return 1;
 }
 
 
@@ -230,13 +226,30 @@ Instance_map::find(uint instance_number)
 
 int Instance_map::load()
 {
-  int error;
+  int argc= 1;
+  /* this is a dummy variable for search_option_files() */
+  uint args_used= 0;
+  const char *argv_options[3];
+  char **argv= (char **) &argv_options;
 
-  error= process_default_option_files("my", process_option, (void *) this);
 
-  complete_initialization();
+  /* the name of the program may be orbitrary here in fact */
+  argv_options[0]= "mysqlmanager";
+  if (first_option != NULL)
+  {
+    argc= 2;
+    argv_options[1]= first_option;
+    argv_options[2]= '\0';
+  }
+  else
+    argv_options[1]= '\0';
 
-  return error;
+  if (my_search_option_files("my", &argc, (char ***) &argv, &args_used,
+                             process_option, (void *) this) ||
+      complete_initialization())
+    return 1;
+
+  return 0;
 }
 
 
