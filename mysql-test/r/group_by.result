@@ -569,3 +569,22 @@ a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
 1	4	c
 10	43	a,b,d,f
 drop table t1;
+create table t1 (id int not null, qty int not null);
+insert into t1 values (1,2),(1,3),(2,4),(2,5);
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and cqty>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select id, sum(qty) as sqty from t1 group by id having sqty>2 and count(qty)>1;
+id	sqty
+1	5
+2	9
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sqty>2 and cqty>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and count(qty)>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+drop table t1;

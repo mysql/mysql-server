@@ -665,6 +665,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;
     binary=	(*ref)->binary;
+    with_sum_func= (*ref)->with_sum_func;
   }
   return 0;
 }
