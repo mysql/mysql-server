@@ -646,7 +646,6 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 				 uchar * dest, uint len,
 				 const uchar * src, uint srclen)
 {
-  const uchar *dest_orig = dest;
   const uchar *de = dest + len;
   const uchar *se = src + srclen;
   for ( ; src < se && dest < de ; src++)
@@ -656,7 +655,9 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
     if ((chr=combo2map[*src]) && dest < de)
       *dest++=chr;
   }
-  return (int) (dest - dest_orig);
+  if (dest < de)
+    bfill(dest, de - dest, ' ');
+  return (int) len;
 }
 
 

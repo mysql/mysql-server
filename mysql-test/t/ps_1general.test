@@ -11,10 +11,6 @@
 --disable_warnings
 drop table if exists t5, t6, t7, t8;
 drop database if exists mysqltest ;
-# Cleanup from other tests
-drop database if exists testtets;
-drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
-drop view if exists t1Aa,t2Aa,v1Aa,v2Aa;
 --enable_warnings
 
 --disable_query_log
@@ -321,7 +317,7 @@ prepare stmt4 from ' show engine bdb logs ';
 execute stmt4;
 --enable_result_log
 prepare stmt4 from ' show full processlist ';
---replace_column 1 number 6 seconds
+--replace_column 1 number 6 time
 execute stmt4;
 prepare stmt4 from ' show grants for user ';
 --error 1295
@@ -478,7 +474,9 @@ prepare stmt1 from ' handler t1 open ';
 
 
 ## commit/rollback
+--error 1295
 prepare stmt3 from ' commit ' ;
+--error 1295
 prepare stmt3 from ' rollback ' ;
 
 
@@ -579,8 +577,11 @@ execute stmt3 using @arg00;
 select m from t3;
 drop table t3;
 
+--error 1295
 prepare stmt3 from ' create index t2_idx on t2(b) ';
+--error 1295
 prepare stmt3 from ' drop index t2_idx on t2 ' ; 
+--error 1295
 prepare stmt3 from ' alter table t2 drop primary key ';
 
 ## RENAME TABLE
