@@ -300,7 +300,8 @@ char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
-     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
+     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
+     *opt_init_connect, *opt_init_slave;
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
@@ -344,7 +345,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-rw_lock_t	LOCK_grant;
+rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
 	       COND_slave_start;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
@@ -883,6 +884,8 @@ void clean_up(bool print_message)
 #endif
   if (defaults_argv)
     free_defaults(defaults_argv);
+  my_free(sys_init_connect.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_init_slave.value, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -949,6 +952,8 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_rpl_status);
 #endif
   (void) pthread_mutex_destroy(&LOCK_active_mi);
+  (void) rwlock_destroy(&LOCK_sys_init_connect);
+  (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
@@ -2056,6 +2061,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
+  sys_init_connect.value_length= 0;
+  if ((sys_init_connect.value= opt_init_connect))
+    sys_init_connect.value_length= strlen(opt_init_connect);
+
+  sys_init_slave.value_length= 0;
+  if ((sys_init_slave.value= opt_init_slave))
+    sys_init_slave.value_length= strlen(opt_init_slave);
+
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     return 1;
   return 0;
@@ -2081,6 +2094,8 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
+  (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
@@ -3472,7 +3487,9 @@ enum options
   OPT_EXPIRE_LOGS_DAYS,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_GROUP_CONCAT_MAX_LEN,
-  OPT_DEFAULT_COLLATION
+  OPT_DEFAULT_COLLATION,
+  OPT_INIT_CONNECT,
+  OPT_INIT_SLAVE
 };
 
 
@@ -3638,6 +3655,12 @@ Disable with --skip-bdb (will save memory).",
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"init-connect", OPT_INIT_CONNECT, "Command what executes for all new connections",
+   (gptr*) &opt_init_connect, (gptr*) &opt_init_connect, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"init-slave", OPT_INIT_SLAVE, "Command what is executed when replication is starting",
+   (gptr*) &opt_init_slave, (gptr*) &opt_init_slave, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"init-file", OPT_INIT_FILE, "Read SQL commands from this file at startup.",
    (gptr*) &opt_init_file, (gptr*) &opt_init_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
