@@ -4502,6 +4502,13 @@ Minimum respective maximum possible @code{double} value.
 
 @item
 @code{LIMIT} on negative numbers are treated as big positive numbers.
+@item
+If you use @code{ALTER TABLE} to first add an @code{UNIQUE} index to a
+table used in a @code{MERGE} table and then use @code{ALTER TABLE} to
+add a normal index on the @code{MERGE} table, the key order will be
+different for the tables if there was an old not-unique key in the
+table. This is because @code{ALTER TABLE} puts @code{UNIQUE} keys before
+normal keys to be able to detect duplicate keys as early as possible.
 @end itemize
 
 The following are known bugs in earlier versions of MySQL:
@@ -11688,9 +11695,9 @@ work:
 
 @example
 CC="cc -pthread"
-CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host"
+CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
 CXX="cxx -pthread"
-CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host"
+CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
 export CC CFLAGS CXX CXXFLAGS
 ./configure \
 --prefix=/usr/local/mysql \
@@ -13163,75 +13170,89 @@ MySQL provides several functions that you can use to perform
 calculations on dates, for example, to calculate ages or extract
 parts of dates.
 
-To determine how many years old each of your pets is, compute age as the
-difference between the birth date and the current date.  Do this by
-converting the two dates to days, take the difference, and divide by 365 (the
-number of days in a year):
+To determine how many years old each of your pets is, compute the
+difference in the year part of the current date and the birth date, then
+subtract one if the current date occurs earlier in the calendar year than
+the birth date.  The following query shows, for each pet, the birth date,
+the current date, and the age in years.
 
 @example
-mysql> SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 FROM pet;
-+----------+-------------------------------------+
-| name     | (TO_DAYS(NOW())-TO_DAYS(birth))/365 |
-+----------+-------------------------------------+
-| Fluffy   |                                6.15 |
-| Claws    |                                5.04 |
-| Buffy    |                                9.88 |
-| Fang     |                                8.59 |
-| Bowser   |                                9.58 |
-| Chirpy   |                                0.55 |
-| Whistler |                                1.30 |
-| Slim     |                                2.92 |
-| Puffball |                                0.00 |
-+----------+-------------------------------------+
+mysql> SELECT name, birth, CURRENT_DATE,
+    -> (YEAR(CURRENT_DATE)-YEAR(birth))
+    -> - (RIGHT(CURRENT_DATE,5)<RIGHT(birth,5))
+    -> AS age
+    -> FROM pet;
++----------+------------+--------------+------+
+| name     | birth      | CURRENT_DATE | age  |
++----------+------------+--------------+------+
+| Fluffy   | 1993-02-04 | 2001-08-29   |    8 |
+| Claws    | 1994-03-17 | 2001-08-29   |    7 |
+| Buffy    | 1989-05-13 | 2001-08-29   |   12 |
+| Fang     | 1990-08-27 | 2001-08-29   |   11 |
+| Bowser   | 1989-08-31 | 2001-08-29   |   11 |
+| Chirpy   | 1998-09-11 | 2001-08-29   |    2 |
+| Whistler | 1997-12-09 | 2001-08-29   |    3 |
+| Slim     | 1996-04-29 | 2001-08-29   |    5 |
+| Puffball | 1999-03-30 | 2001-08-29   |    2 |
++----------+------------+--------------+------+
 @end example
 
-Although the query works, there are some things about it that could be
-improved.  First, the result could be scanned more easily if the rows were
-presented in some order.  Second, the heading for the age column isn't very
+Here, @code{YEAR()} pulls out the year part of a date and @code{RIGHT()}
+pulls off the rightmost five characters that represent the @code{MM-DD}
+(calendar year) part of the date.  The part of the expression that
+compares the @code{MM-DD} values evaluates to 1 or 0, which adjusts the
+year difference down a year if @code{CURRENT_DATE} occurs earlier in
+the year than @code{birth}.  The full expression is somewhat ungainly,
+so an alias (@code{age}) is used to make the output column label more
 meaningful.
 
-The first problem can be handled by adding an @code{ORDER BY name} clause to
-sort the output by name.  To deal with the column heading, provide a name for
-the column so that a different label appears in the output (this is called a
-column alias):
+The query works, but the result could be scanned more easily if the rows
+were presented in some order.  This can be done by adding an @code{ORDER
+BY name} clause to sort the output by name:
 
 @example
-mysql> SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 AS age
+mysql> SELECT name, birth, CURRENT_DATE,
+    -> (YEAR(CURRENT_DATE)-YEAR(birth))
+    -> - (RIGHT(CURRENT_DATE,5)<RIGHT(birth,5))
+    -> AS age
     -> FROM pet ORDER BY name;
-+----------+------+
-| name     | age  |
-+----------+------+
-| Bowser   | 9.58 |
-| Buffy    | 9.88 |
-| Chirpy   | 0.55 |
-| Claws    | 5.04 |
-| Fang     | 8.59 |
-| Fluffy   | 6.15 |
-| Puffball | 0.00 |
-| Slim     | 2.92 |
-| Whistler | 1.30 |
-+----------+------+
++----------+------------+--------------+------+
+| name     | birth      | CURRENT_DATE | age  |
++----------+------------+--------------+------+
+| Bowser   | 1989-08-31 | 2001-08-29   |   11 |
+| Buffy    | 1989-05-13 | 2001-08-29   |   12 |
+| Chirpy   | 1998-09-11 | 2001-08-29   |    2 |
+| Claws    | 1994-03-17 | 2001-08-29   |    7 |
+| Fang     | 1990-08-27 | 2001-08-29   |   11 |
+| Fluffy   | 1993-02-04 | 2001-08-29   |    8 |
+| Puffball | 1999-03-30 | 2001-08-29   |    2 |
+| Slim     | 1996-04-29 | 2001-08-29   |    5 |
+| Whistler | 1997-12-09 | 2001-08-29   |    3 |
++----------+------------+--------------+------+
 @end example
 
 To sort the output by @code{age} rather than @code{name}, just use a
 different @code{ORDER BY} clause:
 
 @example
-mysql>  SELECT name, (TO_DAYS(NOW())-TO_DAYS(birth))/365 AS age
-    ->  FROM pet ORDER BY age;
-+----------+------+
-| name     | age  |
-+----------+------+
-| Puffball | 0.00 |
-| Chirpy   | 0.55 |
-| Whistler | 1.30 |
-| Slim     | 2.92 |
-| Claws    | 5.04 |
-| Fluffy   | 6.15 |
-| Fang     | 8.59 |
-| Bowser   | 9.58 |
-| Buffy    | 9.88 |
-+----------+------+
+mysql> SELECT name, birth, CURRENT_DATE,
+    -> (YEAR(CURRENT_DATE)-YEAR(birth))
+    -> - (RIGHT(CURRENT_DATE,5)<RIGHT(birth,5))
+    -> AS age
+    -> FROM pet ORDER BY age;
++----------+------------+--------------+------+
+| name     | birth      | CURRENT_DATE | age  |
++----------+------------+--------------+------+
+| Chirpy   | 1998-09-11 | 2001-08-29   |    2 |
+| Puffball | 1999-03-30 | 2001-08-29   |    2 |
+| Whistler | 1997-12-09 | 2001-08-29   |    3 |
+| Slim     | 1996-04-29 | 2001-08-29   |    5 |
+| Claws    | 1994-03-17 | 2001-08-29   |    7 |
+| Fluffy   | 1993-02-04 | 2001-08-29   |    8 |
+| Fang     | 1990-08-27 | 2001-08-29   |   11 |
+| Bowser   | 1989-08-31 | 2001-08-29   |   11 |
+| Buffy    | 1989-05-13 | 2001-08-29   |   12 |
++----------+------------+--------------+------+
 @end example
 
 A similar query can be used to determine age at death for animals that have
@@ -13241,12 +13262,14 @@ values, compute the difference between the @code{death} and @code{birth}
 values:
 
 @example
-mysql>  SELECT name, birth, death, (TO_DAYS(death)-TO_DAYS(birth))/365 AS age
-    ->  FROM pet WHERE death IS NOT NULL ORDER BY age;
+mysql> SELECT name, birth, death,
+    -> (YEAR(death)-YEAR(birth)) - (RIGHT(death,5)<RIGHT(birth,5))
+    -> AS age
+    -> FROM pet WHERE death IS NOT NULL ORDER BY age;
 +--------+------------+------------+------+
 | name   | birth      | death      | age  |
 +--------+------------+------------+------+
-| Bowser | 1989-08-31 | 1995-07-29 | 5.91 |
+| Bowser | 1989-08-31 | 1995-07-29 |    5 |
 +--------+------------+------------+------+
 @end example
 
@@ -13321,7 +13344,7 @@ mysql> SELECT name, birth FROM pet
 
 Note that @code{MONTH} returns a number between 1 and 12. And
 @code{MOD(something,12)} returns a number between 0 and 11. So the
-addition has to be after the @code{MOD()} otherwise we would go from
+addition has to be after the @code{MOD()}, otherwise we would go from
 November (11) to January (1).
 
 
@@ -34149,6 +34172,12 @@ index exists, it drops the first @code{UNIQUE} index in the table.
 (MySQL marks the first @code{UNIQUE} key as the @code{PRIMARY KEY}
 if no @code{PRIMARY KEY} was specified explicitly.)
 
+@findex UNIQUE
+@findex PRIMARY KEY
+If you add a @code{UNIQUE INDEX} or @code{PRIMARY KEY} to a table, this
+is stored before any not @code{UNIQUE} index so that MySQL can detect
+duplicate keys as early as possible.
+
 @findex ORDER BY
 @item
 @code{ORDER BY} allows you to create the new table with the rows in a
@@ -35558,14 +35587,15 @@ mapped tables. (We plan to fix this in 4.0).
 
 With identical tables we mean that all tables are created with identical
 column and key information.  You can't put a MERGE over tables where the
-columns are packed differently or doesn't have exactly the same columns.
-Some of the tables can however be compressed with @code{myisampack}.
-@xref{myisampack}.
+columns are packed differently, doesn't have exactly the same columns or
+have the keys in different order.  Some of the tables can however be
+compressed with @code{myisampack}.  @xref{myisampack}.
 
 When you create a @code{MERGE} table, you will get a @code{.frm} table
 definition file and a @code{.MRG} table list file.  The @code{.MRG} just
 contains a list of the index files (@code{.MYI} files) that should
-be used as one.
+be used as one.  All used tables must be in the same database as the
+@code{MERGE} table itself.
 
 For the moment you need to have @code{SELECT}, @code{UPDATE}, and
 @code{DELETE} privileges on the tables you map to a @code{MERGE} table.
@@ -35690,7 +35720,6 @@ Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
 @code{MERGE} table and all underlying tables to force the handler to
 read the new definition file.
 @end itemize
-
 
 @node ISAM, HEAP, MERGE, Table types
 @section ISAM Tables
@@ -46683,22 +46712,38 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Fixes problem when one edited @code{.MRG} tables by hand.
+(Patch from Benjamin Pflugmann).
+@item
+Enforce that all tables in a @code{MERGE} table come from the same
+database.
+@item
+Fixed bug with @code{LOAD DATA INFILE} and transactional tables.
+@item
+Fix bug when using @code{INSERT DELAYED} with wrong column definition.
+@item
+Fixed coredump during @code{REPAIR} of some particularly broken tables.
+@item
 Fixed bug in @code{InnoDB} and @code{AUTO_INCREMENT} columns.
+@item
+Fixed critical bug in @code{InnoDB} and @code{BLOB} columns.  If one has
+used @code{BLOB} columns larger than 8K in an @code{InnoDB} table, one must
+dump the table with @code{mysqldump}, drop it and restore it from the dump.
 @item
 Applied large patch for OS/2 from Yuri Dario.
 @item
-Fixed problem with InnoDB when one could get the error @code{Can't
+Fixed problem with @code{InnoDB} when one could get the error @code{Can't
 execute the given command...} even when one didn't have an active
 transaction.
 @item
-Applied some fixes for Gemini.
+Applied some minor fixes that concern Gemini.
 @item
 Use real arithmetic operations even in integer context if not
 all arguments are integers. (Fixes uncommon bug in some integer
-context).
+contexts).
 @item
-Don't force everything to lower cases on windows. (To fix problem
-with windows and @code{ALTER TABLE}).  Now @code{--lower_case_names}
+Don't force everything to lower cases on Windows. (To fix problem
+with Windows and @code{ALTER TABLE}).  Now @code{--lower_case_names}
 also works on Unix.
 @item
 Fixed that automatic rollback that is done when thread end doesn't lock
@@ -46714,7 +46759,7 @@ Added option @code{--sql-mode=option[,option[,option]]}.
 @xref{Command-line options}.
 @item
 Fixed possible problem with @code{shutdown} on Solaris where the
-@code{.pid} file wasn't deleted.
+@file{.pid} file wasn't deleted.
 @item
 InnoDB now supports < 4 GB rows. The former limit was 8000 bytes.
 @item

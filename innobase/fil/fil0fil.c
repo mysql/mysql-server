@@ -19,6 +19,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "log0log.h"
 #include "log0recv.h"
 #include "fsp0fsp.h"
+#include "srv0srv.h"
 
 /*
 		IMPLEMENTATION OF THE LOW-LEVEL FILE SYSTEM
@@ -1152,6 +1153,7 @@ fil_aio_wait(
 	ut_ad(fil_validate());
 
 	if (os_aio_use_native_aio) {
+		srv_io_thread_op_info[segment] = "native aio handle";
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node, &message,
 								&type);
@@ -1161,12 +1163,16 @@ fil_aio_wait(
 		ut_a(0);
 #endif
 	} else {
+		srv_io_thread_op_info[segment] = "simulated aio handle";
+
 		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
 	                                               &message, &type);
 	}
 	
 	ut_a(ret);
-	
+
+	srv_io_thread_op_info[segment] = "complete io for fil node";
+
 	mutex_enter(&(system->mutex));
 
 	fil_node_complete_io(fil_node, fil_system, type);
@@ -1178,9 +1184,10 @@ fil_aio_wait(
 	/* Do the i/o handling */
 
 	if (buf_pool_is_block(message)) {
-	
+		srv_io_thread_op_info[segment] = "complete io for buf page";
 		buf_page_io_complete(message);
 	} else {
+		srv_io_thread_op_info[segment] = "complete io for log";
 		log_io_complete(message);
 	}
 }

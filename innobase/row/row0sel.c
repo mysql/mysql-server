@@ -2488,6 +2488,8 @@ row_search_for_mysql(
 	printf("N tables locked %lu\n", trx->mysql_n_tables_locked);
 */
 	if (direction == 0) {
+		trx->op_info = "starting index read";
+	
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
 		prebuilt->fetch_cache_first = 0;
@@ -2497,6 +2499,8 @@ row_search_for_mysql(
 			row_prebuild_sel_graph(prebuilt);
 		}
 	} else {
+		trx->op_info = "fetching rows";
+
 		if (prebuilt->n_rows_fetched == 0) {
 			prebuilt->fetch_direction = direction;
 		}
@@ -2519,6 +2523,9 @@ row_search_for_mysql(
 
 			prebuilt->n_rows_fetched++;
 
+			srv_n_rows_read++;
+			trx->op_info = "";
+
 			return(DB_SUCCESS);
 		}
 
@@ -2529,6 +2536,7 @@ row_search_for_mysql(
 		    	cache, but the cache was not full at the time of the
 		    	popping: no more rows can exist in the result set */
 		    
+			trx->op_info = "";
 		    	return(DB_RECORD_NOT_FOUND);
 		}
 		
@@ -2560,6 +2568,7 @@ row_search_for_mysql(
 
 			/* printf("%s record not found 1\n", index->name); */
 	
+			trx->op_info = "";
 			return(DB_RECORD_NOT_FOUND);
 		}
 
@@ -2599,6 +2608,9 @@ row_search_for_mysql(
 
  				/* printf("%s shortcut\n", index->name); */
 
+				srv_n_rows_read++;
+
+				trx->op_info = "";
 				return(DB_SUCCESS);
 			
 			} else if (shortcut == SEL_EXHAUSTED) {
@@ -2607,6 +2619,7 @@ row_search_for_mysql(
 
 				/* printf("%s record not found 2\n",
 							index->name); */
+				trx->op_info = "";
 				return(DB_RECORD_NOT_FOUND);
 			}
 
@@ -2980,6 +2993,8 @@ lock_wait_or_error:
 
 	/* printf("Using index %s cnt %lu ret value %lu err\n", index->name,
 							cnt, err); */
+	trx->op_info = "";
+
 	return(err);
 
 normal_return:
@@ -2995,5 +3010,11 @@ normal_return:
 
 	/* printf("Using index %s cnt %lu ret value %lu\n", index->name,
 							cnt, err); */
+	if (ret == DB_SUCCESS) {
+		srv_n_rows_read++;
+	}
+
+	trx->op_info = "";
+
 	return(ret);
 }

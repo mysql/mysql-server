@@ -353,6 +353,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
+	ibool		in_rollback,/* in: TRUE if called in rollback */
 	mtr_t*		mtr);	/* in: mtr */
 /***************************************************************
 Parses a redo log record of updating a record in-place. */
@@ -418,6 +419,52 @@ btr_estimate_number_of_different_key_vals(
 				/* out: estimated number of key values */
 	dict_index_t*	index);	/* in: index */
 /***********************************************************************
+Marks not updated extern fields as not-owned by this record. The ownership
+is transferred to the updated record which is inserted elsewhere in the
+index tree. In purge only the owner of externally stored field is allowed
+to free the field. */
+
+void
+btr_cur_mark_extern_inherited_fields(
+/*=================================*/
+	rec_t*	rec,	/* in: record in a clustered index */
+	upd_t*	update,	/* in: update vector */
+	mtr_t*	mtr);	/* in: mtr */
+/***********************************************************************
+The complement of the previous function: in an update entry may inherit
+some externally stored fields from a record. We must mark them as inherited
+in entry, so that they are not freed in a rollback. */
+
+void
+btr_cur_mark_dtuple_inherited_extern(
+/*=================================*/
+	dtuple_t*	entry,		/* in: updated entry to be inserted to
+					clustered index */
+	ulint*		ext_vec,	/* in: array of extern fields in the
+					original record */
+	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
+	upd_t*		update);	/* in: update vector */
+/***********************************************************************
+Marks all extern fields in a record as owned by the record. This function
+should be called if the delete mark of a record is removed: a not delete
+marked record always owns all its extern fields. */
+
+void
+btr_cur_unmark_extern_fields(
+/*=========================*/
+	rec_t*	rec,	/* in: record in a clustered index */
+	mtr_t*	mtr);	/* in: mtr */
+/***********************************************************************
+Marks all extern fields in a dtuple as owned by the record. */
+
+void
+btr_cur_unmark_dtuple_extern_fields(
+/*================================*/
+	dtuple_t*	entry,		/* in: clustered index entry */
+	ulint*		ext_vec,	/* in: array of numbers of fields
+					which have been stored externally */
+	ulint		n_ext_vec);	/* in: number of elements in ext_vec */
+/***********************************************************************
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec. The fields are stored on pages allocated from leaf node
 file segment of the index tree. */
@@ -435,7 +482,9 @@ btr_store_big_rec_extern_fields(
 					rec and to the tree */
 /***********************************************************************
 Frees the space in an externally stored field to the file space
-management. */
+management if the field in data is owned the externally stored field,
+in a rollback we may have the additional condition that the field must
+not be inherited. */
 
 void
 btr_free_externally_stored_field(
@@ -446,6 +495,9 @@ btr_free_externally_stored_field(
 					+ reference to the externally
 					stored part */
 	ulint		local_len,	/* in: length of data */
+	ibool		do_not_free_inherited,/* in: TRUE if called in a
+					rollback and we do not want to free
+					inherited fields */
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */
@@ -458,6 +510,9 @@ btr_rec_free_externally_stored_fields(
 	dict_index_t*	index,	/* in: index of the data, the index
 				tree MUST be X-latched */
 	rec_t*		rec,	/* in: record */
+	ibool		do_not_free_inherited,/* in: TRUE if called in a
+				rollback and we do not want to free
+				inherited fields */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -620,10 +675,21 @@ and sleep this many microseconds in between */
 						on that page */
 #define BTR_EXTERN_LEN			12	/* 8 bytes containing the
 						length of the externally
-						stored part of the BLOB */
+						stored part of the BLOB.
+						The 2 highest bits are
+						reserved to the flags below. */
 /*--------------------------------------*/
 #define BTR_EXTERN_FIELD_REF_SIZE	20
 
+/* The highest bit of BTR_EXTERN_LEN (i.e., the highest bit of the byte
+at lowest address) is set to 1 if this field does not 'own' the externally
+stored field; only the owner field is allowed to free the field in purge!
+If the 2nd highest bit is 1 then it means that the externally stored field
+was inherited from an earlier version of the row. In rollback we are not
+allowed to free an inherited external field. */
+
+#define BTR_EXTERN_OWNER_FLAG		128
+#define BTR_EXTERN_INHERITED_FLAG	64
 
 extern ulint	btr_cur_n_non_sea;
 

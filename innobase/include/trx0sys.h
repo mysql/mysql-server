@@ -315,6 +315,9 @@ struct trx_sys_struct{
 					/* List of active and committed in
 					memory transactions, sorted on trx id,
 					biggest first */
+	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
+					/* List of transactions created
+					for MySQL */
 	UT_LIST_BASE_NODE_T(trx_rseg_t) rseg_list;
 					/* List of rollback segment objects */
 	trx_rseg_t*	latest_rseg;	/* Latest rollback segment in the

@@ -1111,6 +1111,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   SORT_INFO *sort_info= &param->sort_info;
   DBUG_ENTER("mi_repair");
 
+  sort_info->buff=sort_info->record=0;
   start_records=info->state->records;
   new_header_length=(param->testflag & T_UNPACK) ? 0L :
     share->pack.header_length;
@@ -1329,9 +1330,7 @@ err:
     }
     mi_mark_crashed_on_repair(info);
   }
-  if (sort_info->record)
-    my_free(sort_info->record,MYF(0));
-
+  my_free(sort_info->record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info->buff,MYF(MY_ALLOW_ZERO_PTR));
   VOID(end_io_cache(&param->read_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
