@@ -647,7 +647,7 @@ int ha_tina::rnd_next(byte *buf)
   In the case of an order by rows will need to be sorted.
   ::position() is called after each call to ::rnd_next(), 
   the data it stores is to a byte array. You can store this
-  data via ha_store_ptr(). ref_length is a variable defined to the 
+  data via my_store_ptr(). ref_length is a variable defined to the 
   class that is the sizeof() of position being stored. In our case  
   its just a position. Look at the bdb code if you want to see a case 
   where something other then a number is stored.
@@ -655,14 +655,14 @@ int ha_tina::rnd_next(byte *buf)
 void ha_tina::position(const byte *record)
 {
   DBUG_ENTER("ha_tina::position");
-  ha_store_ptr(ref, ref_length, current_position);
+  my_store_ptr(ref, ref_length, current_position);
   DBUG_VOID_RETURN;
 }
 
 
 /* 
   Used to fetch a row from a posiion stored with ::position(). 
-  ha_get_ptr() retrieves the data for you.
+  my_get_ptr() retrieves the data for you.
 */
 
 int ha_tina::rnd_pos(byte * buf, byte *pos)
@@ -670,7 +670,7 @@ int ha_tina::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_tina::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= ha_get_ptr(pos,ref_length);
+  current_position= my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
 
