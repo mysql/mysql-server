@@ -253,7 +253,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       continue;
     if (num_rows >= offset_limit)
     {
-      String *packet = &thd->packet;
       Item *item;
       protocol->prepare_for_resend();
       it.rewind();
@@ -298,7 +297,20 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
         !my_strcasecmp(system_charset_info,
 		       (is_alias ? table->table_name : table->real_name),
 		       table_name))
+    {
+      if (table->version != refresh_version)
+      {
+        VOID(pthread_mutex_lock(&LOCK_open));
+        if (close_thread_table(thd, ptr))
+        {
+          /* Tell threads waiting for refresh that something has happened */
+          VOID(pthread_cond_broadcast(&COND_refresh));
+        }
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        continue;
+      }
       break;
+    }
     ptr= &(table->next);
   }
   return ptr;

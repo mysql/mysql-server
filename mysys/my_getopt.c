@@ -83,7 +83,7 @@ int handle_options(int *argc, char ***argv,
 					     char *))
 {
   uint opt_found, argvpos= 0, length, i;
-  my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
+  my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *prev_found,
        *opt_str, key_name[FN_REFLEN];
@@ -104,7 +104,6 @@ int handle_options(int *argc, char ***argv,
       char *argument=    0;
       must_be_var=       0;
       set_maximum_value= 0;
-      special_used=      0;
       option_is_loose=   0;
 
       cur_arg++;		/* skip '-' */
@@ -202,7 +201,6 @@ int handle_options(int *argc, char ***argv,
 		/*
 		  We were called with a special prefix, we can reuse opt_found
 		*/
-		special_used= 1;
 		opt_str+= (special_opt_prefix_lengths[i] + 1);
 		if (i == OPT_LOOSE)
 		  option_is_loose= 1;

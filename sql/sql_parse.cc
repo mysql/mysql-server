@@ -128,7 +128,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   USER_RESOURCES *mqh)
 {
   int return_val=0;
-  uint temp_len, user_len, host_len;
+  uint temp_len, user_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
 
@@ -136,7 +136,6 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(host != 0);
 
   user_len=strlen(user);
-  host_len=strlen(host);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,

@@ -271,7 +271,8 @@ int run_test(const char *filename)
 
   create_key(key, nrecords*upd);
   print_key(key," INTERSECT\n");
-  hrows=mi_records_in_range(file,0,key,0,HA_READ_MBR_INTERSECT,record+1,0,0);
+  hrows=mi_records_in_range(file,0,key,0,HA_READ_MBR_INTERSECT,record+1,0,
+			    HA_READ_KEY_EXACT);
   printf("     %ld rows\n", (long) hrows);
 
 
@@ -351,7 +352,7 @@ static void print_record(char * record, my_off_t offs,const char * tail)
   printf(" len=%d ",len);
   memcpy_fixed(&ptr,pos,sizeof(char*));
   if(ptr)
-    rtree_PrintWKB(ptr,SPDIMS);
+    rtree_PrintWKB((uchar*) ptr,SPDIMS);
   else
     printf("<NULL> ");
   printf(" offs=%ld ",(long int)offs);
@@ -406,7 +407,7 @@ static void create_linestring(char *record,uint rownr)
    pos++;
    
    memset(blob_key,0,sizeof(blob_key));
-   tmp=rtree_CreateLineStringWKB(x,SPDIMS,npoints,blob_key);
+   tmp=rtree_CreateLineStringWKB(x,SPDIMS,npoints, (uchar*) blob_key);
    
    int4store(pos,tmp);
    pos+=4;

@@ -632,8 +632,8 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-    Vio *vio=thd->net.vio;
 #ifdef HAVE_OPENSSL
+    Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
 #endif
 
@@ -3457,7 +3457,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
   uint counter;
   int result;
-  ACL_USER *acl_user; ACL_DB *acl_db;
+  ACL_DB *acl_db;
   TABLE_LIST tables[4];
   DBUG_ENTER("mysql_revoke_all");
 
@@ -3471,7 +3471,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   while ((lex_user=user_list++))
   {
-    if (!(acl_user= check_acl_user(lex_user, &counter)))
+    if (!check_acl_user(lex_user, &counter))
     {
       sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' not exists",
 		      lex_user->user.str,

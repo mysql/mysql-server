@@ -126,6 +126,10 @@ SOURCE=.\array.c
 # End Source File
 # Begin Source File
 
+SOURCE=".\charset-def.c"
+# End Source File
+# Begin Source File
+
 SOURCE=.\charset.c
 # End Source File
 # Begin Source File
@@ -291,6 +295,10 @@ SOURCE=.\my_compress.c
 # Begin Source File
 
 SOURCE=.\my_copy.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_crc32.c
 # End Source File
 # Begin Source File
 

@@ -7228,7 +7228,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   entry->file->info(HA_STATUS_VARIABLE);
   if (entry->db_type == DB_TYPE_HEAP ||
       (!entry->blob_fields &&
-       ((ALIGN_SIZE(reclength) +sizeof(HASH_LINK)) * entry->file->records <
+       ((ALIGN_SIZE(reclength) + HASH_OVERHEAD) * entry->file->records <
 	thd->variables.sortbuff_size)))
     error=remove_dup_with_hash_index(join->thd, entry,
 				     field_count, first_field,
@@ -7738,8 +7738,6 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   Item *itemptr=*order->item;
   if (itemptr->type() == Item::INT_ITEM)
   {						/* Order by position */
-    Item *item=0;
-
     uint count= (uint) ((Item_int*)itemptr)->value;
     if (!count || count > fields.elements)
     {
