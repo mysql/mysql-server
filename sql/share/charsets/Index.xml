@@ -36,7 +36,7 @@ To make maintaining easier please:
   <alias>iso_8859-2</alias>
   <alias>iso_8859-2:1987</alias>
   <alias>l2</alias>
-  <collation name="latin2_czech_ci" 	id="2"	order="Czech" flag="compiled"/>
+  <collation name="latin2_czech_cs" 	id="2"	order="Czech" flag="compiled"/>
   <collation name="latin2_general_ci"	id="9"	flag="primary">
     <order>Hungarian</order>
     <order>Polish</order>
@@ -349,7 +349,7 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="cp1250_czech_ci"	id="34"	order="Czech">
+  <collation name="cp1250_czech_cs"	id="34"	order="Czech">
     <flag>compiled</flag>
   </collation>
   <collation name="cp1250_bin"		id="66"	order="Binary"	flag="binary"/>
