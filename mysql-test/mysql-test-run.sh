@@ -591,7 +591,7 @@ start_master()
     if [ -z "$DO_BENCH" ]
     then
       master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-    	    --server-id=1 \
+    	    --server-id=1 --rpl-recovery-rank=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
 	    --exit-info=256 \
@@ -608,7 +608,7 @@ start_master()
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     else
       master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-	    --server-id=1 \
+	    --server-id=1 --rpl-recovery-rank=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
             --datadir=$MASTER_MYDDIR \
@@ -663,7 +663,7 @@ start_slave()
 	    --master-host=127.0.0.1 \
 	    --master-password= \
 	    --master-port=$MASTER_MYPORT \
-	    --server-id=2"
+	    --server-id=2 --rpl-recovery-rank=2"
    else
      master_info=$SLAVE_MASTER_INFO
    fi	    
