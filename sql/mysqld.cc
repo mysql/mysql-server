@@ -1326,7 +1326,11 @@ information that should help you find out what is causing the crash\n");
 #endif /* HAVE_STACKTRACE */
 
  if (test_flags & TEST_CORE_ON_SIGNAL)
+ {
+   fprintf(stderr, "Writing a core file\n");
+   fflush(stderr);
    write_core(sig);
+ }
  exit(1);
 }
 
