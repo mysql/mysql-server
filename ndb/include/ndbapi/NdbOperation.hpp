@@ -113,6 +113,7 @@ public:
    */
   virtual int 			readTuple(LockMode);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbOperation to be a standard operation of type readTuple.
    * When calling NdbTransaction::execute, this operation 
@@ -122,7 +123,6 @@ public:
    */  
   virtual int 			readTuple();				
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbOperation to be a standard operation of type 
    * readTupleExclusive.
