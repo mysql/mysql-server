@@ -155,7 +155,6 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 unlock tables;
 LOCK TABLES t1 write, t2 write;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
@@ -461,6 +460,7 @@ drop table t1, t2, t3;
 create table t1 (col1 int);
 create table t2 (col1 int);
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
 delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 drop table t1,t2;
@@ -490,3 +490,24 @@ insert into t2 select * from t1;
 delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 set @@storage_engine=@ttype_save;
 drop table t1,t2;
+create table t1 (a int, b int);
+insert into t1 values (1, 2), (2, 3), (3, 4);
+create table t2 (a int);
+insert into t2 values (10), (20), (30);
+create view v1 as select a as b, a/10 as a from t2;
+lock table t1 write;
+ alter table t1 add column c int default 100 after a;
+ update t1, v1 set t1.b=t1.a+t1.b+v1.b where t1.a=v1.a;
+unlock tables;
+select * from t1;
+a	c	b
+1	100	13
+2	100	25
+3	100	37
+select * from t2;
+a
+10
+20
+30
+drop view v1;
+drop table t1, t2;
