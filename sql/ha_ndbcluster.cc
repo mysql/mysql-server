@@ -1344,7 +1344,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
-  if ((op= trans->getNdbIndexScanOperation((NDBINDEX *)
+  if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
 					   m_index[active_index].index, 
 					   (const NDBTAB *) m_table)) ||
       !(cursor= op->readTuples(lm, 0, parallelism, sorted)))
