@@ -67,7 +67,7 @@ $errors=0;
 while (($pid=wait()) != -1)
 {
   $ret=$?/256;
-  print "thread '" . $work{$pid} . "' finnished with exit code $ret\n";
+  print "thread '" . $work{$pid} . "' finished with exit code $ret\n";
   $errors++ if ($ret != 0);
 }
 

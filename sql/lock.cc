@@ -407,15 +407,17 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
   uint  key_length;
-  key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->name)-key)+
-    1;
+  DBUG_ENTER("lock_table_name");
+
+  key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->name)
+		     -key)+ 1;
 
   /* Only insert the table if we haven't insert it already */
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table ;
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
     if (table->in_use == thd)
-      return 0;
+      DBUG_RETURN(0);
 
   /* Create a table entry with the right key and with an old refresh version */
   /* Note that we must use my_malloc() here as this is freed by the table
@@ -423,17 +425,18 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 
   if (!(table= (TABLE*) my_malloc(sizeof(*table)+key_length,
 				  MYF(MY_WME | MY_ZEROFILL))))
-    return -1;
+    DBUG_RETURN(-1);
   memcpy((table->table_cache_key= (char*) (table+1)), key, key_length);
   table->key_length=key_length;
   table->in_use=thd;
+  table->locked_by_name=1;
   table_list->table=table;
 
   if (hash_insert(&open_cache, (byte*) table))
-    return -1;
+    DBUG_RETURN(-1);
   if (remove_table_from_cache(thd, table_list->db, table_list->name))
-    return 1;					// Table is in use
-  return 0;
+    DBUG_RETURN(1);					// Table is in use
+  DBUG_RETURN(0);
 }
 
 void unlock_table_name(THD *thd, TABLE_LIST *table_list)
@@ -446,7 +449,7 @@ static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 {
   for ( ; table_list ; table_list=table_list->next)
   {
-    if (table_list->table && table_is_used(table_list->table))
+    if (table_list->table && table_is_used(table_list->table,0))
       return 1;
   }
   return 0;					// All tables are locked
@@ -456,6 +459,7 @@ static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
 {
   bool result=0;
+  DBUG_ENTER("wait_for_locked_table_names");
 
   while (locked_named_table(thd,table_list))
   {
@@ -467,5 +471,5 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
     wait_for_refresh(thd);
     pthread_mutex_lock(&LOCK_open);
   }
-  return result;
+  DBUG_RETURN(result);
 }

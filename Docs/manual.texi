@@ -178,7 +178,7 @@ Installing MySQL
 * MIT-pthreads::                MIT-pthreads notes
 * Perl support::                Perl installation comments
 * Source install system issues::  System-specific issues
-* Win32::                       Win32 notes
+* Windows::                     Windows notes
 * OS/2::                        OS/2 notes
 * MySQL binaries::
 * Post-installation::           Post-installation setup and testing
@@ -204,8 +204,8 @@ Installing a MySQL source distribution
 Perl installation comments
 
 * Perl installation::           Installing Perl on Unix
-* ActiveState Perl::            Installing ActiveState Perl on Win32
-* Win32 Perl::                  Installing the @strong{MySQL} Perl distribution on Win32
+* ActiveState Perl::            Installing ActiveState Perl on Windows
+* Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
 * Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
 
 System-specific issues
@@ -246,16 +246,16 @@ BSD/OS notes
 * BSDI3::                       BSD/OS 3.x notes
 * BSDI4::                       BSD/OS 4.x notes
 
-Win32 notes
+Windows notes
 
-* Win32 installation::          Installing @strong{MySQL} on Win32
+* Windows installation::        Installing @strong{MySQL} on Windows
 * Win95 start::                 Starting @strong{MySQL} on Win95 / Win98
 * NT start::                    Starting @strong{MySQL} on NT / Win2000
-* Win32 running::               Running @strong{MySQL} on Win32
-* Win32 and SSH::               Connecting to a remote @strong{MySQL} from Win32 with SSH
-* Win32 symbolic links::        Splitting data across different disks under Win32
-* Win32 compiling::
-* Win32 vs Unix::               @strong{MySQL}-Win32 compared to Unix @strong{MySQL}
+* Windows running::             Running @strong{MySQL} on Windows
+* Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
+* Windows symbolic links::      Splitting data across different disks under Windows
+* Windows compiling::           Compiling MySQL clients on Windows.
+* Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation setup and testing
 
@@ -275,7 +275,7 @@ Is there anything special to do when upgrading/downgrading MySQL?
 How standards-compatible is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Running @strong{MySQL} in ANSI mode
+* Ansi mode::                   Runnning @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -337,7 +337,7 @@ MySQL language reference
 * LOAD DATA::                   @code{LOAD DATA INFILE} syntax
 * UPDATE::                      @code{UPDATE} syntax
 * USE::                         @code{USE} syntax
-* FLUSH::                       @code{FLUSH} syntax (clearing caches)
+* FLUSH::                       @code{Flush} syntax (clearing caches)
 * KILL::                        @code{KILL} syntax
 * SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
 * EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
@@ -641,8 +641,9 @@ Some common errors when using MySQL
 * Too many connections::        @code{Too many connections} error
 * Out of memory::               @code{Out of memory} error
 * Packet too large::            @code{Packet too large} error
-* Communication errors::
+* Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
+* Cannot create::                
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -761,7 +762,7 @@ MySQL change history
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
-Changes in release 3.23.x  (Released as beta)
+Changes in release 3.23.x  (Recommended; beta)
 
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
@@ -1464,7 +1465,7 @@ which allows host-based verification.  Passwords are secure because all
 password traffic when connecting to a server is encrypted.
 
 @item
-ODBC (Open-DataBase-Connectivity) support for Windows95 (with source). All
+ODBC (Open-DataBase-Connectivity) support for Win32 (with source). All
 ODBC 2.5 functions and many others.  For example, you can use MS Access to
 connect to your @strong{MySQL} server. @xref{ODBC}.
 
@@ -1551,7 +1552,7 @@ languages. @xref{Languages}.
 
 @item
 Clients may connect to the @strong{MySQL} server using TCP/IP Sockets,
-Unix Sockets (Unixes), or Named Pipes (Windows NT).
+Unix Sockets (Unixes), or Named Pipes (NT).
 
 @item
 The @strong{MySQL}-specific @code{SHOW} command can be used to retrieve
@@ -1923,8 +1924,8 @@ organization.
 @uref{http://www.penguinpowered.com/~kmysql, KMySQL}
 KMySQL is a database client for KDE that primarily supports @strong{MySQL}.
 @item
-@uref{http://www.ecker-software.de, Win32 GUI client}
-A Win32 GUI client by David Ecker.
+@uref{http://www.ecker-software.de, Windows GUI client}
+A Windows GUI client by David Ecker.
 @item
 @uref{http://www.icaap.org/software/kiosk/, Kiosk; a @strong{MySQL} client for
 database management}. Written in Perl. Will be a part of Bazaar.
@@ -2381,7 +2382,7 @@ A digest version of the @code{java} list.
 
 @item win32
 All things concerning @strong{MySQL} on Microsoft operating systems such as
-Windows NT.
+Win95, Win98, NT and Win2000.
 
 @item win32-digest
 A digest version of the @code{win32} list.
@@ -3356,7 +3357,7 @@ encounter per year, but we are as always very flexible towards our customers!
 * MIT-pthreads::                MIT-pthreads notes
 * Perl support::                Perl installation comments
 * Source install system issues::  System-specific issues
-* Win32::                       Win32 notes
+* Windows::                     Windows notes
 * OS/2::                        OS/2 notes
 * MySQL binaries::
 * Post-installation::           Post-installation setup and testing
@@ -4012,7 +4013,7 @@ SCO UnixWare 7.0.1. @xref{SCO Unixware}.
 @item
 Tru64 Unix
 @item
-Win95, Win98, NT and Win2000. @xref{Win32}.
+Win95, Win98, NT and Win2000. @xref{Windows}.
 @end itemize
 
 @cindex @strong{MySQL} binary distribution
@@ -4581,6 +4582,25 @@ for the highest possible speed. We are always trying to use the fastest
 stable compiler available.
 
 @strong{MySQL} Perl support requires Perl 5.004_03 or newer.
+
+On some Linux 2.2 versions, you may get the error @code{Resource
+temporarily unavailable} when you do a lot of new connections to a
+@code{mysqld} server over TCP/IP.
+
+The problem is that Linux has a delay between when you close a TCP/IP
+socket and until this is actually freed by the system.  As there is only
+room for a finite number of TCP/IP slots you will get the above error if
+you try to do too many new TCP/IP connections during a small time, like
+when you run the @strong{MySQL} @file{test-connect} benchmark over
+TCP/IP.
+
+We have mailed about this problem a couple of times to different Linux
+mailing lists but have never been able to resolve this properly :(
+
+The only known 'fix' to this problem is to use persistent connections in
+your clients or use sockets, if you are running the database server
+and clients on the same machine.  We hope that the @code{Linux 2.4}
+kernel will fix this problem in the future.
 
 @node Binary notes-HP-UX,  , Binary notes-Linux, Binary install system issues
 @subsubsection HP-UX notes
@@ -5332,8 +5352,8 @@ needed, but may be interesting for someone.)
 
 @menu
 * Perl installation::           Installing Perl on Unix
-* ActiveState Perl::            Installing ActiveState Perl on Win32
-* Win32 Perl::                  Installing the @strong{MySQL} Perl distribution on Win32
+* ActiveState Perl::            Installing ActiveState Perl on Windows
+* Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
 * Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
 @end menu
 
@@ -5407,11 +5427,11 @@ you:
 Look under the heading
 @code{Installing New Modules that Require Locally Installed Modules}.
 
-@node ActiveState Perl, Win32 Perl, Perl installation, Perl support
-@subsection Installing ActiveState Perl on Win32
+@node ActiveState Perl, Windows Perl, Perl installation, Perl support
+@subsection Installing ActiveState Perl on Windows
 
 To install the @strong{MySQL} @code{DBD} module with ActiveState Perl on
-Win32, you should do the following:
+Windows, you should do the following:
 
 @itemize @bullet
 @item Open a DOS shell.
@@ -5434,23 +5454,23 @@ $dbh= DBI->connect("DBI:ODBC:$dsn","$user","$password") ||
   die "Got error $DBI::errstr when connecting to $dsn\n";
 @end example
 
-@node Win32 Perl, Perl support problems, ActiveState Perl, Perl support
-@subsection Installing the MySQL Perl distribution on Win32
+@node Windows Perl, Perl support problems, ActiveState Perl, Perl support
+@subsection Installing the MySQL Perl distribution on Windows
 
 The @strong{MySQL} Perl distribution contains @code{DBI},
 @code{DBD:MySQL} and @code{DBD:ODBC}.
 
 @itemize @bullet
-@item Get the Perl distribution for Win32 from
+@item Get the Perl distribution for Windows from
 @uref{http://www.mysql.com/download.html}.
 @item Unzip the distribution in @code{C:} so that you get a @file{C:\PERL} directory.
 @item Add the directory @file{C:\PERL\BIN} to your path.
-@item Add the directory @file{C:\PERL\BIN\MSWin32-x86-thread} or
-@file{C:\PERL\BIN\MSWin32-x86} to your path.
+@item Add the directory @file{C:\PERL\BIN\MSWIN32-x86-thread} or
+@file{C:\PERL\BIN\MSWIN32-x86} to your path.
 @item Test that @code{perl} works by executing @code{perl -v} in a DOS shell.
 @end itemize
 
-@node Perl support problems,  , Win32 Perl, Perl support
+@node Perl support problems,  , Windows Perl, Perl support
 @subsection Problems using the Perl @code{DBI}/@code{DBD} interface
 
 If Perl reports that it can't find the @code{../mysql/mysql.so} module,
@@ -5561,7 +5581,7 @@ shell> make perl
 Finally, you should install this new Perl.  Again, the output of @code{make
 perl} indicates the command to use.
 
-@node Source install system issues, Win32, Perl support, Installing
+@node Source install system issues, Windows, Perl support, Installing
 @section System-specific issues
 
 The following sections indicate some of the issues that have been observed to
@@ -7024,26 +7044,26 @@ alias mysql '/usr/local/mysql/bin/mysql'
 alias mysqladmin '/usr/local/mysql/libexec/mysqladmin'
 @end example
 
-@node Win32, OS/2, Source install system issues, Installing
-@section Win32 notes
+@node Windows, OS/2, Source install system issues, Installing
+@section Windows notes
 
-This section describes installation and use of @strong{MySQL} on Win32.  This
+This section describes installation and use of @strong{MySQL} on Windows.  This
 is also described in the @file{README} file that comes with the
-@strong{MySQL} Win32 distribution.
+@strong{MySQL} Windows distribution.
 
 @menu
-* Win32 installation::          Installing @strong{MySQL} on Win32
+* Windows installation::        Installing @strong{MySQL} on Windows
 * Win95 start::                 Starting @strong{MySQL} on Win95 / Win98
 * NT start::                    Starting @strong{MySQL} on NT / Win2000
-* Win32 running::               Running @strong{MySQL} on Win32
-* Win32 and SSH::               Connecting to a remote @strong{MySQL} from Win32 with SSH
-* Win32 symbolic links::        Splitting data across different disks under Win32
-* Win32 compiling::
-* Win32 vs Unix::               @strong{MySQL}-Win32 compared to Unix @strong{MySQL}
+* Windows running::             Running @strong{MySQL} on Windows
+* Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
+* Windows symbolic links::      Splitting data across different disks under Win32
+* Windows compiling::           Compiling MySQL clients on Windows.
+* Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
-@node Win32 installation, Win95 start, Win32, Win32
-@subsection Installing MySQL on Win32
+@node Windows installation, Win95 start, Windows, Windows
+@subsection Installing MySQL on Windows
 
 If you don't have a registered version of @strong{MySQL}, you should first
 download the shareware version from:
@@ -7057,7 +7077,7 @@ probably also need the @strong{MyODBC} driver. You can find this at the
 To install either distribution, unzip it in some empty directory and run the
 @code{Setup.exe} program.
 
-By default, @strong{MySQL}-Win32 is configured to be installed in
+By default, @strong{MySQL}-Windows is configured to be installed in
 @file{C:\mysql}.  If you want to install @strong{MySQL} elsewhere, install it
 in @file{C:\mysql}, then move the installation to where you want it.  If you
 do move @strong{MySQL}, you must tell @code{mysqld} where everything is by
@@ -7066,16 +7086,15 @@ display all options!  For example, if you have moved the @strong{MySQL}
 distribution to @file{D:\programs\mysql}, you must start @code{mysqld} with:
 @code{D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql}
 
-With the registered version of @strong{MySQL}, you can also create a
+With all newer @strong{MySQL} versions, you can also create a
 @file{C:\my.cnf} file that holds any default options for the
 @strong{MySQL} server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
 @file{C:\my.cnf} and edit this to suit your setup.  Note that you should
 specify all paths with @code{/} instead of @code{\}. If you use
 @code{\}, you need to specify this twice, as @code{\} is the escape
-character in @strong{MySQL}.
-@xref{Option files}.
+character in @strong{MySQL}.  @xref{Option files}.
 
-@node Win95 start, NT start, Win32 installation, Win32
+@node Win95 start, NT start, Windows installation, Windows
 @subsection Starting MySQL on Win95 / Win98
 
 @strong{MySQL} uses TCP/IP to connect a client to a server. (This will
@@ -7127,7 +7146,7 @@ that should contain the reason why @code{mysqld} doesn't start.  If you
 make a bug report about this, please only send the lines where something
 seams to go wrong to the mailing list!
 
-@node NT start, Win32 running, Win95 start, Win32
+@node NT start, Windows running, Win95 start, Windows
 @subsection Starting MySQL on NT / Win200
 
 The Win95/Win98 section also applies to @strong{MySQL} on NT / Win2000, with
@@ -7207,10 +7226,10 @@ C:\mysql\bin\mysqld --standalone --debug
 
 The last version gives you a debug trace in @file{C:\mysqld.trace}.
 
-@node Win32 running, Win32 and SSH, NT start, Win32
-@subsection Running MySQL on Win32
+@node Windows running, Windows and SSH, NT start, Windows
+@subsection Running MySQL on Windows
 
-@strong{MySQL} supports TCP/IP on all Win32 platforms and named pipes on NT.
+@strong{MySQL} supports TCP/IP on all Windows platforms and named pipes on NT.
 The default is to use named pipes for local connections on NT and TCP/IP for
 all other cases if the client has TCP/IP installed.  The host name specifies
 which protocol is used:
@@ -7247,7 +7266,7 @@ the @strong{MySQL} grant tables.  You can also avoid DNS when connecting to a
 
 There are two versions of the @strong{MySQL} command line tool:
 @multitable @columnfractions .15 .85
-@item @code{mysql} @tab Compiled on native Win32, which offers very limited text
+@item @code{mysql} @tab Compiled on native Windows, which offers very limited text
 editing capabilities.
 @item @code{mysqlc} @tab Compiled with the Cygnus GNU compiler and libraries, which offers @code{readline} editing.
 @end multitable
@@ -7256,7 +7275,7 @@ If you want to use @code{mysqlc.exe}, you must copy
 @file{C:\mysql\lib\cygwinb19.dll} to @file{\windows\system} (or similar
 place).
 
-The default privileges on Win32 give all local users full privileges
+The default privileges on Windows give all local users full privileges
 to all databases.  To make @strong{MySQL} more secure, you
 should set a password for all users and remove the row in the
 @code{mysql.user} table that has @code{Host='localhost'} and
@@ -7292,8 +7311,8 @@ With the newer @strong{MySQL} versions you can easily add new users
 and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @xref{GRANT}.
 
-@node Win32 and SSH, Win32 symbolic links, Win32 running, Win32
-@subsection Connecting to a remote MySQL from Win32 with SSH
+@node Windows and SSH, Windows symbolic links, Windows running, Windows
+@subsection Connecting to a remote MySQL from Windows with SSH
 
 Here is a note about how to connect to get a secure connection to remote MySQL
 server with SSH (by David Carlson).
@@ -7329,8 +7348,8 @@ usegroup!
 
 @findex Symbolic links
 @findex Using multiple disks to start data
-@node Win32 symbolic links, Win32 compiling, Win32 and SSH, Win32
-@subsection Splitting data across different disks under Win32
+@node Windows symbolic links, Windows compiling, Windows and SSH, Windows
+@subsection Splitting data across different disks under Windows
 
 On windows @strong{MySQL} 3.23.16 and above is compiled with the
 @code{-DUSE_SYMDIR} option.  This allows you to put a database on
@@ -7348,7 +7367,7 @@ should create the file @file{C:\mysql\data\foo.sym} that should contains the
 text @code{D:\data\foo}.  After this, all tables created in the database
 @code{foo} will be created in @file{D:\data\foo}.
 
-@node Win32 compiling, Win32 vs Unix, Win32 symbolic links, Win32
+@node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
 @subsection Compiling MySQL clients on Windows.
 
 In your source files, you should include @file{windows.h} before you include
@@ -7368,10 +7387,10 @@ with the static @file{mysqlclient.lib} library.
 Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
-@node Win32 vs Unix,  , Win32 compiling, Win32
-@subsection MySQL-Win32 compared to Unix MySQL
+@node Windows vs Unix,  , Windows compiling, Windows
+@subsection MySQL-Windows compared to Unix MySQL
 
-@strong{MySQL}-Win32 has by now proven itself to be very stable. This version
+@strong{MySQL}-Windows has by now proven itself to be very stable. This version
 of @strong{MySQL} has the same features as the corresponding Unix version
 with the following exceptions:
 
@@ -7413,21 +7432,23 @@ connections.
 We plan to fix this in the near future.
 
 @item UDF functions
-For the moment, @strong{MySQL}-Win32 does not support user definable functions.
+For the moment, @strong{MySQL}-Windows does not support user definable
+functions.
 
 @item @code{DROP DATABASE}
 You can't drop a database that is in use by some thread.
 
 @item Killing @strong{MySQL} from the task manager
 You can't kill @strong{MySQL} from the task manager or with the shutdown
-utility in Windows95. You must take it down with @code{mysqladmin shutdown}.
+utility in Win95. You must take it down with @code{mysqladmin shutdown}.
 
 @item Case-insensitive names
-Filenames are case insensitive on Win32, so database and table names
-are also case insensitive in @strong{MySQL} for Win32.  The only restriction is
-that database and table names must be given in the same case throughout a
-given statement.  The following query would not work because it refers to
-a table both as @code{my_table} and as @code{MY_TABLE}:
+Filenames are case insensitive on Windows, so database and table names
+are also case insensitive in @strong{MySQL} for Windows.  The only
+restriction is that database and table names must be given in the same
+case throughout a given statement.  The following query would not work
+because it refers to a table both as @code{my_table} and as
+@code{MY_TABLE}:
 @example
 SELECT * FROM my_table WHERE MY_TABLE.col=1;
 @end example
@@ -7443,8 +7464,8 @@ SELECT * INTO OUTFILE 'C:/tmp/skr.txt' FROM skr;
 @end example
 
 @item @code{Can't open named pipe} error
-If you use the shareware version of @strong{MySQL}-Win32 on NT with the
-newest mysql-clients you will get the following error:
+If you use an MySQL 3.22 version on NT with the newest mysql-clients you
+will get the following error:
 
 @example
 error 2017: can't open named pipe to host: . pipe...
@@ -7475,7 +7496,7 @@ following information:
 @end example
 @end table
 
-Here are some open issues for anyone who might want to help us with the Win32
+Here are some open issues for anyone who might want to help us with the Windows
 release:
 
 @itemize @bullet
@@ -7511,7 +7532,7 @@ It would be real nice to be able to kill @code{mysqld} from the
 task manager.  For the moment, you must use @code{mysqladmin shutdown}.
 
 @item
-Port @code{readline} to Win32 for use in the @code{mysql} command line tool.
+Port @code{readline} to Windows for use in the @code{mysql} command line tool.
 
 @item
 GUI versions of the standard @strong{MySQL} clients (@code{mysql},
@@ -7520,18 +7541,18 @@ GUI versions of the standard @strong{MySQL} clients (@code{mysql},
 @item
 It would be nice if the socket ``read'' and ``write'' functions in
 @file{net.c} were interruptible. This would make it possible to kill open
-threads with @code{mysqladmin kill} on Win32.
+threads with @code{mysqladmin kill} on Windows.
 
 @item
 Documentation of which Windows programs work with
-@strong{MySQL}-Win32/@strong{MyODBC} and what must be done to get them working.
+@strong{MySQL}-Windows/@strong{MyODBC} and what must be done to get them working.
 
 @item
 @code{mysqld} always starts in the "C" locale and not in the default locale.
 We would like to have @code{mysqld} use the current locale for the sort order.
 
 @item
-Port @code{sqlclient} to Win32 (almost done) and add more features to it!
+Port @code{sqlclient} to Windows (almost done) and add more features to it!
 
 @item
 Add more options to MysqlManager.
@@ -7545,14 +7566,14 @@ Implement UDF functions with @code{.DLL}s.
 
 @item
 Add macros to use the faster thread-safe increment/decrement methods
-provided by Win32.
+provided by Windows.
 
 @end itemize
 
-Other Win32-specific issues are described in the @file{README} file that comes
-with the @strong{MySQL}-Win32 distribution.
+Other Windows-specific issues are described in the @file{README} file that comes
+with the @strong{MySQL}-Windows distribution.
 
-@node OS/2, MySQL binaries, Win32, Installing
+@node OS/2, MySQL binaries, Windows, Installing
 @section OS/2 notes
 
 @strong{MySQL} uses quite a few open files. Because of this, you
@@ -8213,7 +8234,7 @@ C:\mysql\bin\mysqld --standalone --debug
 
 This will not run in the background and it should also write a trace in
 @file{\mysqld.trace}, which may help you determine the source of your
-problems. @xref{Win32}.
+problems. @xref{Windows}.
 
 @node Automatic start, Command-line options, Starting server, Post-installation
 @subsection Starting and stopping MySQL automatically
@@ -8487,7 +8508,7 @@ with @code{--datadir} when @code{mysqld} starts up!  (@code{--datadir} has no
 effect on where the server looks for option files, because it looks for them
 before it processes any command-line arguments.)
 
-@strong{MySQL} reads default options from the following files on Win32:
+@strong{MySQL} reads default options from the following files on Windows:
 
 @multitable @columnfractions .3 .7
 @item @strong{Filename} @tab @strong{Purpose}
@@ -8496,7 +8517,7 @@ before it processes any command-line arguments.)
 @item @code{C:\mysql\data\my.cnf} @tab Server-specific options
 @end multitable
 
-Note that you on Win32 should specify all paths with @code{/} instead of
+Note that you on Windows should specify all paths with @code{/} instead of
 @code{\}. If you use @code{\}, you need to specify this twice, as
 @code{\} is the escape character in @strong{MySQL}.
 
@@ -8664,9 +8685,13 @@ table to a @code{MyISAM} table with @code{ALTER TABLE} or the Perl script
 
 3.22 and 3.21 clients will work without any problems with a 3.23 server.
 
-The following lists what you have to watch out for when upgrading to 3.23:
+The following lists tell what you have to watch out for when upgrading to 3.23:
 
 @itemize @bullet
+@item @strong{MySQL} client 'mysql' now starts with option --no-named-commands
+(-g) by default. This option can be disabled with --enable-named-commands
+(-G). This may cause incompatibility problems in some cases, for example
+in SQL scripts that use named commands without a semicolon, etc. !
 @item The default return type of @code{IF} will now depend on both arguments
 and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
@@ -11035,8 +11060,8 @@ Other privileges are denied.  For example, normal users can't use
 @code{mysqladmin shutdown} or @code{mysqladmin processlist}.
 @end itemize
 
-@strong{NOTE:} The default privileges are different for Win32.
-@xref{Win32 running}.
+@strong{NOTE:} The default privileges are different for Windows.
+@xref{Windows running}.
 
 Because your installation is initially wide open, one of the first things you
 should do is specify a password for the @strong{MySQL}
@@ -12000,10 +12025,10 @@ In @strong{MySQL}, databases and tables correspond to directories and files
 within those directories.  Consequently, the case sensitivity of the
 underlying operating system determines the case sensitivity of database and
 table names.  This means database and table names are case sensitive in Unix
-and case insensitive in Win32.
+and case insensitive in Windows.
 
 @strong{Note:} Although database and table names are case insensitive for
-Win32, you should not refer to a given database or table using different
+Windows, you should not refer to a given database or table using different
 cases within the same query.  The following query would not work because it
 refers to a table both as @code{my_table} and as @code{MY_TABLE}:
 
@@ -16891,6 +16916,10 @@ renamed. While @code{OPTIMIZE TABLE} is executing, the original table is
 readable by other clients. Updates and writes to the table are stalled
 until the new table is ready. This is done in such a way that all updates
 are automatically redirected to the new table without any failed updates.
+
+Currently @code{OPTIMIZE TABLE} is done by doing an @code{ALTER TABLE},
+but we will soon change this to use the @code{REPAIR} code, which will make
+the repair much faster for @code{MyISAM} tables.
 
 @findex CHECK TABLE
 @node CHECK TABLE, ANALYZE TABLE, OPTIMIZE TABLE, Reference
@@ -23717,7 +23746,7 @@ if (1)
 
 On windows you can use internal symbolic links to directories by compiling
 @strong{MySQL} with @code{-DUSE_SYMDIR}. This allows you to put different
-databases on different disks. @xref{Win32 symbolic links}.
+databases on different disks. @xref{Windows symbolic links}.
 
 @cindex Startup parameters
 @node Server parameters, Table cache, Disk issues, System
@@ -25514,19 +25543,33 @@ completion. This gives a quicker start of mysql.
 @item -B, --batch
 Print results with a tab as separator, each row on a new line. Doesn't use
 history file.
+@item
+--character-sets-dir=...
+Directory where character sets are located.
 @item -C, --compress
 Use compression in server/client protocol.
 @item -#, --debug[=...]
 Debug log. Default is 'd:t:o,/tmp/mysql.trace'
 @item -D, --database=..
 Database to use;  This is mainly useful in the @code{my.cnf} file.
+@item
+--default-character-set=...    Set the default character set.
+@item
+-G, --enable-named-commands 
+Named commands are enabled. Opposite to -g.
 @item -e, --execute=...
 Execute command and quit. (Output like with --batch)
 @item -E, --vertical
 Print the output of a query (rows) vertically. Without this option you
 can also force this output by ending your statements with @code{\G}.
 @item -f, --force
-Continue even if we get a SQL error.
+Continue even if we get an SQL error.
+@item
+-g, --no-named-commands
+Named commands are disabled. Use \* form only, or use named commands
+only in the beginning of a line ending with a semicolon (;) Since
+version 10.9 the client now starts with this option ENABLED by default!
+Disable with '-G'
 @item -i, --ignore-space
 Ignore space after function names.
 @item -h, --host=...
@@ -25564,9 +25607,8 @@ Be more silent.
 Socket file to use for connection.
 @item -t  --table
 Output in table format. This is default in non-batch mode.
-@item -T, --exit-info
-Only used when debugging.  --exit-info=0 will print some usage information
-on exit.
+@item -T, --debug-info
+Print some debug info at exit.
 @item -u, --user=#
 User for login if not current user.
 @item -U, --safe-updates[=#], --i-am-a-dummy[=#]
@@ -28857,8 +28899,9 @@ sure that no other programs is using the dynamic libraries!
 * Too many connections::        @code{Too many connections} error
 * Out of memory::               @code{Out of memory} error
 * Packet too large::            @code{Packet too large} error
-* Communication errors::
+* Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
+* Cannot create::                
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -29134,7 +29177,7 @@ properly only by replacing hardware
 @end itemize
 
 @cindex The table is full
-@node Full table, Commands out of sync, Communication errors, Common errors
+@node Full table, Cannot create, Communication errors, Common errors
 @subsection @code{The table is full} error
 
 This error occurs in older @strong{MySQL} versions when an in-memory temporary
@@ -29151,8 +29194,31 @@ In @strong{MySQL} 3.23 in-memory temporary tables will automaticly be
 converted to a disk based @code{MyISAM} table after the table size gets
 bigger than @code{tmp_table_size}.
 
+@cindex Can't create/write to file
+@node Cannot create, Commands out of sync, Full table, Common errors
+@subsection @code{Can't create/write to file} error.
+
+If you get an error for some queries of type:
+
+@example
+Can't create/write to file '\\sqla3fe_0.ism'.
+@end example
+
+this means that @strong{MySQL} can't create a temporary file for the
+result set in the given temporary directory (the above error is a
+typical error message on windows, the unix error message is similar) .
+The fix is to start mysqld with @code{--tmpdir=path} or to add to your option
+file:
+
+@example
+[mysqld]
+tmpdir=C:/temp
+@end example
+
+assuming that the @file{c:\\temp} directory exists. @xref{Option files}.
+
 @cindex Commands out of sync
-@node Commands out of sync, Ignoring user, Full table, Common errors
+@node Commands out of sync, Ignoring user, Cannot create, Common errors
 @subsection @code{Commands out of sync} error in client
 
 If you get @code{Commands out of sync; You can't run this command now}
@@ -29213,7 +29279,7 @@ in the current database with the name @code{xxx}.
 
 Note that as @strong{MySQL} uses directories and files to store databases and
 tables, the database and table names are @strong{case sensitive}!
-(On Win32 the databases and tables names are not case sensitive, but all
+(On Windows the databases and tables names are not case sensitive, but all
 references to a given table within a query must use the same case!)
 
 You can check which tables you have in the current database with
@@ -30121,6 +30187,15 @@ Start the client with @code{--host 'hostname' --port=port_numer} or
 @item
 In your C or Perl programs, you can give the port and socket arguments
 when connecting to the @strong{MySQL} server.
+
+@item
+If your are using the @strong{MySQL} perl DBD module you can read the options
+from the @strong{MySQL} option files. @xref{Option files}.
+
+@example
+$dsn = "DBI:mysql:test;mysql_read_default_group=client;"
+$dbh = DBI->connect($dsn, $user, $password);
+@end example
 
 @item
 @tindex MYSQL_UNIX_PORT environment variable
@@ -32182,7 +32257,7 @@ example below.
 The value of @code{host} may be either a hostname or an IP address.  If
 @code{host} is @code{NULL} or the string @code{"localhost"}, a connection to
 the local host is assumed. If the OS supports sockets (Unix) or named pipes
-(Win32), they are used instead of TCP/IP to connect to the server.
+(Windows), they are used instead of TCP/IP to connect to the server.
 
 @item
 The @code{user} parameter contains the user's @strong{MySQL} login ID.  If
@@ -32267,13 +32342,13 @@ use a very old client library to connect to a new server that wasn't started
 with the @code{--old-protocol} option.
 
 @item CR_NAMEDPIPEOPEN_ERROR;
-Failed to create a named pipe on Win32.
+Failed to create a named pipe on Windows.
 
 @item CR_NAMEDPIPEWAIT_ERROR;
-Failed to wait for a named pipe on Win32.
+Failed to wait for a named pipe on Windows.
 
 @item CR_NAMEDPIPESETSTATE_ERROR;
-Failed to get a pipe handler on Win32.
+Failed to get a pipe handler on Windows.
 @end table
 
 @subsubheading Example
@@ -33462,10 +33537,12 @@ You can also find this at:
 @node Java, PHP, Eiffel, Clients
 @section MySQL Java connectivity (JDBC)
 
-There are 2 supported JDBC drivers for @strong{MySQL} (the twz and mm driver).
-You can find a copy of these at @uref{http://www.mysql.com/Downloads/Contrib/}.
-For documentation consult any JDBC documentation and the
-drivers own documentation for @strong{MySQL} specific features.
+There are 2 supported JDBC drivers for @strong{MySQL} (the mm driver and
+the Reisin JDBC driver).  You can find a copy of the mm driver at
+@uref{http://www.mysql.com/Downloads/Contrib/} and the Reisin driver at
+@uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp} For
+documentation consult any JDBC documentation and the drivers own
+documentation for @strong{MySQL} specific features.
 
 @node PHP, Cplusplus, Java, Clients
 @section MySQL PHP API
@@ -33674,24 +33751,28 @@ of course.)
 some added features.
 
 @item JDBC (Java)
-@strong{MySQL} currently has 4 JDBC drivers:
+@strong{MySQL} currently has a lot of different JDBC drivers:
 @itemize @bullet
+@item
+The mm driver: A type 4 JDBC driver by Mark Matthews
+@email{mmatthew@@ecn.purdue.edu}.  This is released under the LGPL.
+@item
+The Resin driver. This is a commercial JDBC driver released under open source.
+@uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
 @item
 The gwe driver: A Java interface by GWE technologies (not supported anymore).
 @item
 The jms driver: An improved gwe driver by Xiaokun Kelvin ZHU
-@email{X.Zhu@@brad.ac.uk}.
+@email{X.Zhu@@brad.ac.uk} (not supported anymore).
 @item
 The twz driver: A type 4 JDBC driver by Terrence W. Zellers
 @email{zellert@@voicenet.com}.  This is commercial but is free for private
-and educational use.
-@item
-The mm driver: A type 4 JDBC driver by Mark Matthews
-@email{mmatthew@@ecn.purdue.edu}.  This is released under the GPL.
+and educational use (not supported anymore).
 @end itemize
 
-The recommended drivers are the twz or mm driver. Both are reported to work
-excellently.
+The recommended driver is the mm driver. The Resin driver may also be
+good (at least the benchmarks looks good) but we haven't got that much
+information about this yet.
 
 We know that @code{mSQL} has a JDBC driver, but we have too little experience
 with it to compare.
@@ -34690,10 +34771,15 @@ The two drivers above have an LGPL
 license. Please check @uref{http://www.worldserver.com/mm.mysql/} for
 the latest drivers (and other JDBC information) because these drivers may be out of date.
 
+@item @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
+The Resin commercial JDBC driver which is released under open source.
+It claims to be faster than the mm driver, but we haven't got that much
+information about this yet.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/twz1jdbcForMysql-1.0.4-GA.tar.gz, twz1jdbcForMysql-1.0.4-GA.tar.gz}
 The twz driver: A type 4 JDBC driver by Terrence W. Zellers
 @email{zellert@@voicenet.com}.  This is commercial but is free for
-private and educational use.
+private and educational use. (not supported anymore)
 @c no answer from server 990830
 @c You can always find the latest driver at @uref{http://www.voicenet.com/~zellert/tjFM/}.
 @item
@@ -34818,7 +34904,7 @@ You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlwinadmn.zip, mysqlwinadmn.zip}
-Win32 GUI (binary only) to administrate a database, by David B. Mansel,
+Windows GUI (binary only) to administrate a database, by David B. Mansel,
 @email{david@@zhadum.org}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/netadmin.zip, netadmin.zip}
@@ -34832,12 +34918,12 @@ have still some bugs. you can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
 URL @url{http://www.it-netservice.de/pages/software/index.html}.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN201.EXE,Atronic's @strong{MySQL} client for Win32 2.0.1.0}.
+@item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN203.EXE,Atronic's @strong{MySQL} client for Windows 2.0.3.0}.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}
 
 @item @uref{http://dbtools.vila.bol.com.br/, Dbtools}
-A tool to manage @strong{MySQL} databases. Currently only for Win32.
+A tool to manage @strong{MySQL} databases. Currently only for Windows.
 Some features:
 @itemize @bullet
 @item manage servers, databases, tables, columns, indexes and users
@@ -34907,7 +34993,12 @@ A PHP3 tool in the spirit of mysql-webadmin, by Tobias Ratschiller, tobias@@dnet
 @item @uref{http://www.mysql.com/Downloads/Contrib/useradm.tar.gz, useradm.tar.gz}
 @strong{MySQL} administrator in PHP. By Ofni Thomas
 @email{othomas@@vaidsystems.com}.
+
+@item @uref{http://gossamer-threads.com/perl/mysqlman/mysql.cgi, MySQLMan}
+Similar functionality as phpmyadmin, but written with perl and using
+html templates. By Alex Krohn.
 @end itemize
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-editor.tar.gz,mysql-editor.tar.gz}
 This cgi scripts in Perl enables you to edit content of Mysql
 database. By Tomas Zeman.
@@ -34942,10 +35033,10 @@ programming!  By Marc Beneteau, @email{marc@@odbsoft.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlhtml.tar.gz, sqlhtml.tar.gz}
 SQL/HTML is an HTML database manager for @strong{MySQL} using @code{DBI} 1.06.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-2.2.1b.tar.gz, UdmSearch 2.2.1b (stable version)}
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.5.tar.gz, UdmSearch 3.0.5 (development version)}
+@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.21 (stable version)}
+@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}
 @item @uref{http://mysearch.udm.net, UdmSearch home page}
-A @strong{MySQL}- and PHP- based search engine over HTTP. By
+A SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/wmtcl.doc, wmtcl.doc}
@@ -35051,7 +35142,7 @@ Boekhold, @email{boekhold@@cindy.et.tudelft.nl}, and Michael Widenius.
 This converter can't handle MEMO fields.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql.zip, dbf2mysql.zip}
-Convert between FoxPro @file{.dbf} files and @strong{MySQL} tables on Win32.
+Convert between FoxPro @file{.dbf} files and @strong{MySQL} tables on Windows.
 By Alexander Eltsyn, @email{ae@@nica.ru} or @email{ae@@usa.net}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/dump2h-1.20.gz, dump2h-1.20.gz}
@@ -35570,6 +35661,27 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item
+@strong{MySQL} client 'mysql' now starts with option --no-named-commands
+(-g) by default. This option can be disabled with --enable-named-commands
+(-G). This may cause incompatibility problems in some cases, for example
+in SQL scripts that use named commands without a semicolon, etc. !
+@item
+Fixed a problem when using many pending @code{DROP TABLE} statement at
+the same time.
+@item
+Optimizer didn't use keys properly when using @code{LEFT JOIN} on an
+empty table.
+@item
+Added shorter help text when invoking @code{mysqld} with wrong options.
+@item
+Fixed not fatal @code{free()} bug in mysqlimport.
+@item
+Fixed bug in @code{MyISAM} index handling of
+@code{DECIMAL}/@code{NUMERIC} keys.
+@item
+Fixed a bug in concurrent insert in @code{MyISAM} tables; In some context
+usage of @code{MIN(key_part)} or @code{MAX(key_part)} returned an empty set.
+@item
 Updated mysqlhotcopy to use the new @code{FLUSH TABLES table_list} syntax. Only
 tables which are being backed up are flushed now.
 @item
@@ -35604,6 +35716,8 @@ that don't have the @code{pthread_rwlock_rdlock} code.
 @item
 When deleting rows with a non-unique key in a HEAP table, all rows weren't
 always deleted.
+@item
+Fixed bug in range optimizer for HEAP tables when one did search on part index.
 @item
 Fixed that @code{SELECT} on part keys works with BDB tables.
 @item
@@ -35819,7 +35933,7 @@ Fixed that @code{USE INDEX} works with @code{PRIMARY} keys.
 @item
 Added @code{BEGIN} statement to start a transaction in @code{AUTOCOMMIT} mode.
 @item
-Added symbolic links support for Win32.
+Added symbolic links support for Windows.
 @item
 Changed protocol to let client know if the server is in AUTOCOMMIT mode
 and if there is a pending transaction.  If there is a pending transaction
@@ -36564,7 +36678,8 @@ in scientific notation (1.0 E+10) when retrieved.
 @code{REPLACE} is now faster than before.
 @item
 Changed @code{LIKE} character comparison to behave as @code{=};
-This means that @code{'e' LIKE '@'e'} is now true.
+This means that @code{'e' LIKE '@'e'} (if the line doesn't display
+correctly, the latter 'e' means a French 'e' with a dot above) is now true.
 @item
 @code{SHOW TABLE STATUS} returns a lot of information about the tables.
 @item
@@ -36793,7 +36908,7 @@ packed indexes.
 
 @itemize @bullet
 @item
-A few small fixes for the Win32 version.
+A few small fixes for the Windows version.
 @end itemize
 
 
@@ -36867,7 +36982,7 @@ Some configure issues to fix problems with big file system detection.
 @item
 Fixed problem when sorting on big blob columns.
 @item
-@code{ROUND()} will now work on Win32.
+@code{ROUND()} will now work on Windows.
 @end itemize
 
 @node News-3.22.26, News-3.22.25, News-3.22.27, News-3.22.x
@@ -36918,7 +37033,7 @@ Fixed bug when using @code{LOCK TABLES table_name READ; FLUSH TABLES;}
 @item
 Applied some patches for HP-UX.
 @item
-@code{isamchk} should now work on Win32.
+@code{isamchk} should now work on Windows.
 @item
 Changed @file{configure} to not use big file handling on Linux as this
 crashes some RedHat 6.0 systems
@@ -36970,10 +37085,10 @@ Added patches for DEC 3.2 and SCO.
 @item
 Fixed path-bug when installing @strong{MySQL} as a service on NT.
 @item
-The @strong{MySQL}-Win32 version is now compiled with VC++ 6.0 instead of
+The @strong{MySQL}-Windows version is now compiled with VC++ 6.0 instead of
 with VC++ 5.0.
 @item
-New installation setup for @strong{MySQL}-Win32.
+New installation setup for @strong{MySQL}-Windows.
 @end itemize
 
 @node News-3.22.21, News-3.22.20, News-3.22.22, News-3.22.x
@@ -37034,7 +37149,7 @@ Fixes a fatal problem in 3.22.17 on Linux;  After @code{shutdown}
 all threads didn't die properly.
 @item
 Added option @code{-O flush_time=#} to @code{mysqld}.  This is mostly
-useful on Win32 and tells how often @strong{MySQL} should close all
+useful on Windows and tells how often @strong{MySQL} should close all
 unused tables and flush all updated tables to disk.
 @item
 Fixed problem that a @code{VARCHAR} column compared with @code{CHAR} column
@@ -37131,14 +37246,14 @@ value in the update log.
 Fixed lock handler bug when one did
 @code{INSERT INTO TABLE ... SELECT ... GROUP BY}.
 @item
-Added a patch for @code{localtime_r()} on Win32 so that it will not crash
+Added a patch for @code{localtime_r()} on Windows so that it will not crash
 anymore if your date is > 2039, but instead will return a time of all zero.
 @item
 Names for
 user-defined functions are no longer case sensitive.
 @item
 Added escape of @code{^Z} (ASCII 26) to @code{\Z} as @code{^Z} doesn't
-work with pipes on Win32.
+work with pipes on Windows.
 @item
 @code{mysql_fix_privileges} adds a new column to the @code{mysql.func} to
 support aggregate UDF functions in future @strong{MySQL} releases.
@@ -37157,8 +37272,8 @@ column didn't work.
 Updated @file{config.guess} to allow @strong{MySQL} to configure on
 UnixWare 7.0.x.
 @item
-Changed the implementation of @code{pthread_cond()} on the Win32 version.
-@code{get_lock()} now correctly times out on Win32!
+Changed the implementation of @code{pthread_cond()} on the Windows version.
+@code{get_lock()} now correctly times out on Windows!
 @end itemize
 
 @node News-3.22.12, News-3.22.11, News-3.22.13, News-3.22.x
@@ -37329,7 +37444,7 @@ Added @code{ESCAPE} option to @code{LIKE}.
 @item
 Added a lot more output to @code{mysqladmin debug}.
 @item
-You can now start @code{mysqld} on Win32 with the @code{--flush} option.
+You can now start @code{mysqld} on Windows with the @code{--flush} option.
 This will flush all tables to disk after each update.  This makes things
 much safer on NT/Win98 but also @strong{MUCH} slower.
 @end itemize
@@ -37360,7 +37475,7 @@ Fixed a big problem with @code{OPTIMIZE TABLE}.
 @strong{MySQL} clients on NT will now by default first try to connect with
 named pipes and after this with TCP/IP.
 @item
-Fixed a problem with @code{DROP TABLE} and @code{mysqladmin shutdown} on Win32
+Fixed a problem with @code{DROP TABLE} and @code{mysqladmin shutdown} on Windows
 (a fatal bug from 3.22.6).
 @item
 Fixed problems with @code{TIME columns} and negative strings.
@@ -37588,14 +37703,14 @@ delete rows from the table.
 Added optimization to remove const reference tables from @code{ORDER BY} and
 @code{GROUP BY}.
 @item
-@code{mysqld} now automatically disables system locking on Linux and Win32,
+@code{mysqld} now automatically disables system locking on Linux and Windows,
 and for systems that use MIT-pthreads.  You can force the use of locking
 with the @code{--enable-locking} option.
 @item
 Added @code{--console} option to @code{mysqld}, to force a console window
-(for error messages) when using Win32.
+(for error messages) when using Windows.
 @item
-Fixed table locks for Win32.
+Fixed table locks for Windows.
 @item
 Allow @samp{$} in identifiers.
 @item
@@ -38134,10 +38249,10 @@ A lot of small changes to the binary releases.
 @item
 Fixed a bug in the new protocol from @strong{MySQL} 3.21.20.
 @item
-Changed @code{ALTER TABLE} to work with Win32 (Win32 can't rename open files).
-Also fixed a couple of small bugs in the Win32 version.
+Changed @code{ALTER TABLE} to work with Windows (Windows can't rename
+open files).  Also fixed a couple of small bugs in the Windows version.
 @item
-All standard @strong{MySQL} clients are now ported to @strong{MySQL}-Win32.
+All standard @strong{MySQL} clients are now ported to @strong{MySQL}-Windows.
 @item
 @strong{MySQL} can now be started as a service on NT.
 @end itemize
@@ -39847,7 +39962,13 @@ should be implemented.
 @item
 Add support for UNICODE.
 @item
-@code{NATURAL JOIN}.
+@code{NATURAL JOIN} and @code{UNION JOIN}
+@item
+Allow @code{select a from crash_me left join crash_me2 using (a)}; In this
+case a is assumed to come from the crash_me table.
+@item
+Fix that @code{ON} and @code{USING} works with the @code{JOIN} and
+@code{INNER JOIN} join types.
 @item
 Oracle like @code{CONNECT BY PRIOR ...} to search hierarchy structures.
 @item
@@ -39857,6 +39978,8 @@ Oracle like @code{CONNECT BY PRIOR ...} to search hierarchy structures.
 added to @code{mysqld}
 @item
 Processlist should show number of queries/thread.
+@item
+@code{SHOW HOSTS} for printing information about the hostname cache.
 @item
 @code{DELETE} and @code{REPLACE} options to the @code{UPDATE} statement
 (this will delete rows when one gets a dupplicate key error while updating).
@@ -39876,9 +39999,6 @@ one (The GNU library should be much faster than the old one).
 @item
 Change that @code{ALTER TABLE} doesn't abort clients that executes
 @code{INSERT DELAYED}.
-@item
-Allow @code{select a from crash_me left join crash_me2 using (a)}; In this
-case a is assumed to come from the crash_me table.
 @item
 Fix that when columns referenced in an @code{UPDATE} clause contains the old
 values before the update started.
@@ -39903,6 +40023,14 @@ Add @code{ANY()},@code{EVERY()} and @code{SOME()} group functions. In
 ANSI SQL these only works on boolean columns, but we can extend these to
 work on any columns/expressions by applying: value == 0 -> FALSE and
 value <> 0 -> TRUE.
+@item
+Fix that the type for @code{MAX(column)} is the same as the column type.
+@example
+create table t1 (a DATE);
+insert into t1 values (now());
+create table t2 select max(a) from t1;
+show columns from t2;
+@end example
 @end itemize
 
 @node TODO sometime, TODO unplanned, TODO future, TODO

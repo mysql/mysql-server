@@ -225,7 +225,8 @@ static void mc_free_old_query(MYSQL *mysql)
 * Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, uint to)
+static int mc_sock_connect(my_socket s, const struct sockaddr *name,
+			   uint namelen, uint to)
 {
 #if defined(__WIN__)
   return connect(s, (struct sockaddr*) name, namelen);
@@ -451,7 +452,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		   uint port, const char *unix_socket,uint client_flag)
 {
   char		buff[100],*end,*host_info;
-  int		sock;
+  my_socket	sock;
   ulong		ip_addr;
   struct	sockaddr_in sock_addr;
   uint		pkt_length;

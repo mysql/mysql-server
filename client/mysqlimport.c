@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.3"
+#define IMPORT_VERSION "2.4"
 
 #include <global.h>
 #include <my_sys.h>
@@ -514,7 +514,6 @@ int main(int argc, char **argv)
 	exitcode = error;
   db_disconnect(current_host, sock);
   my_free(password,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(argv_to_free);
   my_end(0);
   return(exitcode);

@@ -582,9 +582,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->mysys_var->current_cond= &COND_refresh;
     thd->proc_info="Flushing tables";
     pthread_mutex_unlock(&thd->mysys_var->mutex);
-    VOID(pthread_cond_broadcast(&COND_refresh)); // If one flush is locked
 
-    close_old_data_files(thd,thd->open_tables,1);
+    close_old_data_files(thd,thd->open_tables,1,1);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info", ("Waiting for others threads to close their open tables"));
@@ -921,7 +920,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       ** There is a refresh in progress for this table
       ** Wait until the table is freed or the thread is killed.
       */
-      close_old_data_files(thd,thd->open_tables,0);
+      close_old_data_files(thd,thd->open_tables,0,0);
       if (table->in_use != thd)
 	wait_for_refresh(thd);
       else
@@ -1216,9 +1215,11 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
   abort_locks is set if called from flush_tables.
 */
 
-void close_old_data_files(THD *thd, TABLE *table, bool abort_locks)
+void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
+			  bool send_refresh)
 {
-  bool found=0;
+  DBUG_ENTER("close_old_data_files");
+  bool found=send_refresh;
   for (; table ; table=table->next)
   {
     if (table->version != refresh_version)
@@ -1241,6 +1242,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks)
   }
   if (found)
     VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1250,17 +1252,19 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks)
   if the table is closed
 */
 
-bool table_is_used(TABLE *table)
+bool table_is_used(TABLE *table, bool wait_for_name_lock)
 {
   do
   {
     char *key= table->table_cache_key;
     uint key_length=table->key_length;
-    for (TABLE *search=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+    for (TABLE *search=(TABLE*) hash_search(&open_cache,
+					    (byte*) key,key_length) ;
 	 search ;
 	 search = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
     {
       if (search->locked_by_flush ||
+	  search->locked_by_name && wait_for_name_lock ||
 	  search->db_stat && search->version < refresh_version)
 	return 1;				// Table is used
     }
@@ -1278,19 +1282,14 @@ bool wait_for_tables(THD *thd)
 
   thd->proc_info="Waiting for tables";
   pthread_mutex_lock(&LOCK_open);
-  thd->some_tables_deleted=0;
-  close_old_data_files(thd,thd->open_tables,0);
-  if (dropping_tables)
+  while (!thd->killed)
   {
-    (void) pthread_cond_broadcast(&COND_refresh); // Signal to refresh/delete
-    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    thd->some_tables_deleted=0;
+    close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
+    if (!table_is_used(thd->open_tables,1))
+      break;
+    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);    
   }
-
-  while (table_is_used(thd->open_tables) && ! thd->killed)
-  {
-    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-  }
-
   if (thd->killed)
     result= 1;					// aborted
   else

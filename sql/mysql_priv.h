@@ -319,10 +319,11 @@ TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
 bool reopen_table(TABLE *table,bool locked=0);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-void close_old_data_files(THD *thd, TABLE *table, bool abort_locks);
+void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
+			  bool send_refresh);
 bool close_data_tables(THD *thd,const char *db, const char *table_name);
 bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table);
+bool table_is_used(TABLE *table, bool wait_for_name_lock);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);
