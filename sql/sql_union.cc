@@ -104,11 +104,16 @@ bool select_union::flush()
 typedef JOIN * JOIN_P;
 int st_select_lex_unit::prepare(THD *thd, select_result *result)
 {
+  DBUG_ENTER("st_select_lex_unit::prepare");
+
+  if (prepared)
+    DBUG_RETURN(0);
+  prepared= 1;
+    
   describe=(first_select()->options & SELECT_DESCRIBE) ? 1 : 0;
   res= 0;
   found_rows_for_union= false;
   TMP_TABLE_PARAM tmp_table_param;
-  DBUG_ENTER("st_select_lex_unit::prepare");
   this->thd= thd;
   this->result= result;
   SELECT_LEX *lex_select_save= thd->lex.select;
