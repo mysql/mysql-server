@@ -51,6 +51,8 @@ static void __dbenv_set_errpfx __P((DB_ENV *, const char *));
 static int  __dbenv_set_feedback __P((DB_ENV *, void (*)(DB_ENV *, int, int)));
 static int  __dbenv_set_flags __P((DB_ENV *, u_int32_t, int));
 static int  __dbenv_set_mutexlocks __P((DB_ENV *, int));
+static void __dbenv_set_noticecall
+    __P((DB_ENV *, void (*)(DB_ENV *, db_notices)));
 static int  __dbenv_set_paniccall __P((DB_ENV *, void (*)(DB_ENV *, int)));
 static int  __dbenv_set_recovery_init __P((DB_ENV *, int (*)(DB_ENV *)));
 static int  __dbenv_set_server_noclnt
@@ -125,6 +127,7 @@ __dbenv_init(dbenv)
 		dbenv->set_feedback = __dbcl_env_set_feedback;
 		dbenv->set_flags = __dbcl_env_flags;
 		dbenv->set_mutexlocks = __dbcl_set_mutex_locks;
+		dbenv->set_noticecall = __dbcl_env_noticecall;
 		dbenv->set_paniccall = __dbcl_env_paniccall;
 		dbenv->set_recovery_init = __dbcl_set_recovery_init;
 		dbenv->set_server = __dbcl_envserver;
@@ -140,6 +143,7 @@ __dbenv_init(dbenv)
 		dbenv->set_feedback = __dbenv_set_feedback;
 		dbenv->set_flags = __dbenv_set_flags;
 		dbenv->set_mutexlocks = __dbenv_set_mutexlocks;
+		dbenv->set_noticecall = __dbenv_set_noticecall;
 		dbenv->set_paniccall = __dbenv_set_paniccall;
 		dbenv->set_recovery_init = __dbenv_set_recovery_init;
 		dbenv->set_server = __dbenv_set_server_noclnt;
@@ -301,6 +305,14 @@ __dbenv_set_feedback(dbenv, feedback)
 {
 	dbenv->db_feedback = feedback;
 	return (0);
+}
+
+static void
+__dbenv_set_noticecall(dbenv, noticecall)
+	DB_ENV *dbenv;
+	void (*noticecall) __P((DB_ENV *, db_notices));
+{
+	dbenv->db_noticecall = noticecall;
 }
 
 static int

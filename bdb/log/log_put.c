@@ -143,6 +143,9 @@ __log_put(dbenv, lsn, dbt, flags)
 
 		/* Reset the file write offset. */
 		lp->w_off = 0;
+
+		if (dbenv->db_noticecall != NULL)
+			dbenv->db_noticecall(dbenv, DB_NOTICE_LOGFILE_CHANGED);
 	} else
 		lastoff = 0;
 
