@@ -849,7 +849,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     varname= var_it++;
     if (get_var_with_binlog(stmt->thd, *varname, &entry))
         DBUG_RETURN(1);
-    DBUG_ASSERT(entry);
+    DBUG_ASSERT(entry != 0);
 
     if (param->set_from_user_var(stmt->thd, entry))
       DBUG_RETURN(1);
@@ -1008,7 +1008,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   {
     if (table_list->ancestor && table_list->ancestor->next_local)
     {
-      DBUG_ASSERT(table_list->view);
+      DBUG_ASSERT(table_list->view != 0);
       DBUG_PRINT("info", ("Switch to multi-update"));
       /* pass counter value */
       thd->lex->table_count= table_count;
@@ -1661,7 +1661,6 @@ error:
 static bool init_param_array(Prepared_statement *stmt)
 {
   LEX *lex= stmt->lex;
-  THD *thd= stmt->thd;
   if ((stmt->param_count= lex->param_list.elements))
   {
     if (stmt->param_count > (uint) UINT_MAX16)
@@ -2165,7 +2164,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   ulong stmt_id= uint4korr(packet);
   ulong num_rows= uint4korr(packet+=4);
   Statement *stmt;
-  int error;
   DBUG_ENTER("mysql_stmt_fetch");
 
   if (!(stmt= thd->stmt_map.find(stmt_id)) ||
@@ -2183,7 +2181,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
   thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
-  error= stmt->cursor->fetch(num_rows);
+  (void) stmt->cursor->fetch(num_rows);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))

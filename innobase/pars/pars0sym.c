@@ -220,7 +220,7 @@ sym_tab_add_id(
 	node->resolved = FALSE;
 	node->indirection = NULL;
 
-	node->name = mem_heap_strdupl(sym_tab->heap, name, len + 1);
+	node->name = mem_heap_strdupl(sym_tab->heap, (char*) name, len + 1);
 	node->name_len = len;
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);

@@ -701,7 +701,6 @@ public:
     int err_not_used;
     char *end;
     String *res;
-    longlong value;
     CHARSET_INFO *cs;
 
     if (!(res= val_str(&str_value)))
