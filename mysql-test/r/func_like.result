@@ -46,6 +46,12 @@ select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
 a
 a\b
 drop table t1;
+create table t1 (a datetime);
+insert into t1 values ('2004-03-11 12:00:21');
+select * from t1 where a like '2004-03-11 12:00:21';
+a
+2004-03-11 12:00:21
+drop table t1;
 SET NAMES koi8r;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
 INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
