@@ -78,31 +78,9 @@ public:
   {
     return 0;
   }
-  /*
-    Have to put something here, there is no real limit as far as
-    archive is concerned.
-  */
-  uint max_supported_record_length() const { return UINT_MAX; }
-  /*
-    Called in test_quick_select to determine if indexes should be used.
-  */
-  virtual double scan_time() { return (double) (records) / 20.0+10; }
-  /* The next method will never be called */
-  virtual double read_time(uint index, uint ranges, ha_rows rows)
-  { return (double) rows /  20.0+1; }
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
-  int index_read(byte * buf, const byte * key,
-                 uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
-                     uint key_len, enum ha_rkey_function find_flag);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
@@ -116,10 +94,7 @@ public:
   int write_data_header(gzFile file_to_write);
   void position(const byte *record);
   void info(uint);
-  int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
