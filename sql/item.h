@@ -463,7 +463,11 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *);
+#ifdef __WIN__
+  bool is_null();
+#else
   inline bool is_null();
+#endif
   void print(String *str);
 
   inline void make_field(Send_field *field)
