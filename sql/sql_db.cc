@@ -323,9 +323,6 @@ bool mysql_change_db(THD *thd,const char *name)
   uint db_access;
   DBUG_ENTER("mysql_change_db");
 
-  if (lower_case_table_names)
-    casedn_str(dbname);
-
   if (!dbname || !(length=strip_sp(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
@@ -338,6 +335,8 @@ bool mysql_change_db(THD *thd,const char *name)
     x_free(dbname);
     DBUG_RETURN(1);
   }
+  if (lower_case_table_names)
+    casedn_str(dbname);
   DBUG_PRINT("general",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
