@@ -374,19 +374,16 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
   return 0;
 }
 
-#ifdef THREAD
+
+#if !defined(PEDANTIC_SAFEMALLOC) && defined(THREAD)
 static int legal_leak(struct remember* pPtr)
 {
   /* TODO: This code needs to be made more general */
   return (pthread_self() == pPtr->thread_id || main_th == pPtr->thread_id ||
 	  shutdown_th == pPtr->thread_id || signal_th == pPtr->thread_id);
 }
-#else
-static int legal_leak(struct remember* pPtr)
-{
-  return 1;
-}
-#endif
+#endif /* THREAD */
+
 
 /*
   TERMINATE(FILE *file)
