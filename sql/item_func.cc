@@ -2071,6 +2071,16 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
+    /*
+      If we are here, we were called from a SET or a query which sets a
+      variable. Imagine it is this:
+      INSERT INTO t SELECT @a:=10, @a:=@a+1.
+      Then when we have a Item_func_get_user_var (because of the @a+1) so we
+      think we have to write the value of @a to the binlog. But before that,
+      we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+      the variable as "already logged" (line below) so that it won't be logged
+      by Item_func_get_user_var (because that's not necessary).
+    */
     entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
@@ -2083,7 +2093,10 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
   return entry;
 }
 
-
+/*
+  When a user variable is updated (in a SET command or a query like SELECT @a:=
+  ).
+*/
 
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
@@ -2093,6 +2106,11 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
   entry->type= cached_result_type;
+  /* 
+     Remember the last query which updated it, this way a query can later know
+     if this variable is a constant item in the query (it is if update_query_id
+     is different from query_id).
+  */
   entry->update_query_id=thd->query_id;
   return 0;
 }
@@ -2315,53 +2333,94 @@ longlong Item_func_get_user_var::val_int()
 }
 
 
+/*
+  When a user variable is invoked from an update query (INSERT, UPDATE etc),
+  stores this variable and its value in thd->user_var_events, so that it can be
+  written to the binlog (will be written just before the query is written, see
+  log.cc).
+*/
+
 void Item_func_get_user_var::fix_length_and_dec()
 {
-  BINLOG_USER_VAR_EVENT *user_var_event;
   THD *thd=current_thd;
+
+  if (!(opt_bin_log && is_update_query(thd->lex.sql_command)))
+       return;
+
+  BINLOG_USER_VAR_EVENT *user_var_event;
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
-  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
+  /*
+    If the variable does not exist, it's NULL, but we want to create it so
+    that it gets into the binlog (if it didn't, the slave could be
+    influenced by a variable of the same name previously set by another
+    thread).
+  */
+  
+  if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
   {
-    if (opt_bin_log && is_update_query(thd->lex.sql_command) &&
-	var_entry->used_query_id != thd->query_id)
-    {
-      uint size;
-      /*
-	First we need to store value of var_entry, when the next situation
-	appers:
-        > set @a:=1;
-	> insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
-	We have to write to binlog value @a= 1;
-      */
-      size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
-      if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
-        goto err;
+    /*
+      We create it like if it had been explicitely set with SET before.
+      The 'new' mimicks what sql_yacc.yy does when 'SET @a=10;'.
+      sql_set_variables() is what is called from 'case SQLCOM_SET_OPTION'
+      in dispatch_command()). Instead of building a one-element list to pass to
+      sql_set_variables(), we could instead manually call check() and update();
+      this would save memory and time; but calling sql_set_variables() makes one
+      unique place to maintain (sql_set_variables()). 
+    */
 
-      user_var_event->value= (char*) user_var_event +
-	                     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
-      user_var_event->user_var_event= var_entry;
-      user_var_event->type= var_entry->type;
-      user_var_event->charset_number= var_entry->collation.collation->number;
-      if (!var_entry->value)
-      {
-	/* NULL value*/
-	user_var_event->length= 0;
-	user_var_event->value= 0;
-      }
-      else
-      {
-	user_var_event->length= var_entry->length;
-	memcpy(user_var_event->value, var_entry->value,
-	       var_entry->length);
-      }
-      var_entry->used_query_id= thd->query_id;
-      if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
-        goto err;
-    }
+    List<set_var_base> tmp_var_list;
+    tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
+                                                                       new Item_null())));
+    if (sql_set_variables(thd, &tmp_var_list)) /* this will create the variable */
+      goto err;
+    if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
+      goto err;
   }
+  /* 
+     If this variable was already stored in user_var_events by this query
+     (because it's used in more than one place in the query), don't store
+     it.
+  */
+  else if (var_entry->used_query_id == thd->query_id)
+    return;
+
+  uint size;
+  /*
+    First we need to store value of var_entry, when the next situation
+    appers:
+    > set @a:=1;
+    > insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
+    We have to write to binlog value @a= 1;
+  */
+  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
+  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
+    goto err;
+  
+  user_var_event->value= (char*) user_var_event +
+    ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
+  user_var_event->user_var_event= var_entry;
+  user_var_event->type= var_entry->type;
+  user_var_event->charset_number= var_entry->collation.collation->number;
+  if (!var_entry->value)
+  {
+    /* NULL value*/
+    user_var_event->length= 0;
+    user_var_event->value= 0;
+  }
+  else
+  {
+    user_var_event->length= var_entry->length;
+    memcpy(user_var_event->value, var_entry->value,
+           var_entry->length);
+  }
+  /* Mark that this variable has been used by this query */
+  var_entry->used_query_id= thd->query_id;
+  if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
+    goto err;
+
   return;
 
 err:
