@@ -18622,6 +18622,36 @@ one extra connection for a client with the @code{Process_priv} privilege
 to ensure that you should always be able to login and check the system
 (assuming you are not giving this privilege to all your users).
 
+Some frequently asked states in @code{mysqladmin processlist}
+
+@code{WAITING FOR TABLES}
+
+This means that the server is trying to get a lock of a
+table(s). Usually this should happen very fast, unless there is some
+problem around, such as another program holding table files open (e.g
+@code{myisamchk}, anohter instance of @code{mysqld}), @code{mysqld} is
+run without @code{--skip-locking}, table files are nfs mounted for
+@code{mysqld}, etc.
+
+@code{OPENING TABLES}
+
+This simply means that the thread is trying to open a table. This also
+should be very instant procedure, unless something prevents opening. An
+@code{ALTER TABLE}, for example, can prevent opening a table until the
+command is finished. If someone runs @code{FLUSH TABLES} simultaneously
+with an @code{ALTER TABLE}, then all the threads that are trying to use
+the table in @code{ALTER TABLE} query will be in this state.
+
+@code{CLOSING TABLES}
+
+Means that the thread is closing the tables that the thread was using.
+If this is taking long, please check for the above for possible reasons
+why it might be taking long.
+
+All of the above are usually very quick operations. If threads last
+in any of these states for many seconds, there may be a problem around
+that needs to be investigated. Check also that you have not run out
+of harddisk space.
 
 @node SHOW GRANTS, SHOW CREATE TABLE, SHOW PROCESSLIST, SHOW
 @subsubsection @code{SHOW GRANTS}
