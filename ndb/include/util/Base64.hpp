@@ -21,6 +21,7 @@
 #include <BaseString.hpp>
 
 int base64_encode(const UtilBuffer &src, BaseString &dst);
+int base64_encode(const void * s, size_t src_len, BaseString &dst);
 int base64_decode(const BaseString &src, UtilBuffer &dst);
 int base64_decode(const char * s, size_t len, UtilBuffer &dst);
 

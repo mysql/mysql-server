@@ -183,6 +183,12 @@ Ndb_cluster_connection::no_db_nodes()
   return m_impl.m_all_nodes.size();
 }
 
+unsigned
+Ndb_cluster_connection::node_id()
+{
+  return m_impl.m_transporter_facade->ownId();
+}
+
 
 int
 Ndb_cluster_connection::wait_until_ready(int timeout,

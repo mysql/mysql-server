@@ -3081,6 +3081,15 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     execDIGETNODESREF(signal);
     return;
   }
+  
+  if(ERROR_INSERTED(8050) && signal->theData[3] != getOwnNodeId())
+  {
+    ndbassert(false);
+    signal->theData[1] = 626;
+    execDIGETNODESREF(signal);
+    return;
+  }
+  
   /****************>>*/
   /* DIGETNODESCONF >*/
   /* ***************>*/

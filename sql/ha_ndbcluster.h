@@ -467,6 +467,8 @@ class ha_ndbcluster: public handler
   Ndb *get_ndb();
 };
 
+extern struct show_var_st ndb_status_variables[];
+
 bool ndbcluster_init(void);
 bool ndbcluster_end(void);
 
