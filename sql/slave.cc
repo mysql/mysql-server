@@ -399,7 +399,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
-  tables.name = tables.real_name = (char*)table_name;
+  tables.alias= tables.real_name= (char*)table_name;
   tables.lock_type = TL_WRITE;
   thd->proc_info = "Opening master dump table";
   if (!open_ltable(thd, &tables, TL_WRITE))
@@ -1073,7 +1073,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	TABLE_LIST tables;
 	bzero((char*) &tables,sizeof(tables));
 	tables.db = thd->db;
-	tables.name = tables.real_name = (char*)lev->table_name;
+	tables.alias= tables.real_name= (char*)lev->table_name;
 	tables.lock_type = TL_WRITE;
 	// the table will be opened in mysql_load    
         if(table_rules_on && !tables_ok(thd, &tables))
