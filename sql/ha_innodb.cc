@@ -975,7 +975,9 @@ Cannot find table %s from the internal data dictionary\n\
 of InnoDB though the .frm file for the table exists. Maybe you\n\
 have deleted and recreated InnoDB data files but have forgotten\n\
 to delete the corresponding .frm files of InnoDB tables, or you\n\
-have moved .frm files to another database?",
+have moved .frm files to another database?\n\
+Look from section 15.1 of http://www.innodb.com/ibman.html\n\
+how you can resolve the problem.\n",
 			  norm_name);
 
 	        free_share(share);
