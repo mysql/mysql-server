@@ -927,17 +927,22 @@ public:
     UintR  distributionGroup;
     UintR  nextCacheRec;
     UintR  distributionKeySize;
-    Uint16 scanNode;
-    unsigned  scanTakeOverInd : 1;
-    unsigned  scanInfo : 15;    // 12 bits used currently
+    Uint32 scanInfo;
     
     //---------------------------------------------------
-    // Third and fourth 16 byte cache line in second 64
-    // byte cache line. Not used currently.
+    // Third 16 byte cache line in second 64
+    // byte cache line. Diverse use.
     //---------------------------------------------------
+    Uint32 scanNode;
+    Uint32 scanTakeOverInd;
     UintR  firstKeybuf;   /* POINTER THE LINKED LIST OF KEY BUFFERS       */
     UintR  lastKeybuf;    /* VARIABLE POINTING TO THE LAST KEY BUFFER     */
-    UintR  packedCacheVar[6];
+
+    //---------------------------------------------------
+    // Fourth 16 byte cache line in second 64
+    // byte cache line. Not used currently.
+    //---------------------------------------------------
+    UintR  packedCacheVar[4];
   };
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
