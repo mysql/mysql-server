@@ -237,7 +237,7 @@ int STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
   char* res_buf_end=res_buf+res_buf_size;
   char* net_buf=(char*) con->net.read_pos, *net_buf_end;
   int res_buf_shift=RES_BUF_SHIFT;
-  uint num_bytes;
+  ulong num_bytes;
 
   if (res_buf_size<RES_BUF_SHIFT)
   {
