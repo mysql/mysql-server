@@ -121,7 +121,7 @@ void lex_init(void)
   state_map[(uchar)'*']= (uchar) STATE_END_LONG_COMMENT;
   state_map[(uchar)'@']= (uchar) STATE_USER_END;
   state_map[(uchar) '`']= (uchar) STATE_USER_VARIABLE_DELIMITER;
-  if (thd_startup_options & OPTION_ANSI_MODE)
+  if (opt_sql_mode & MODE_ANSI_QUOTES)
   {
     state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
   }
@@ -149,7 +149,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->ftfunc_list.empty();
   lex->convert_set=(lex->thd=thd)->convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
-  lex->ignore_space=test(thd->client_capabilities & CLIENT_IGNORE_SPACE);
+  lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
   return lex;
 }
 
