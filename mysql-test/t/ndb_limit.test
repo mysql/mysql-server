@@ -1,0 +1,44 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+
+#
+# insert records into table
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t2 values($1*10, $1+9, 5*$1), ($1*10+1, $1+10, 7),($1*10+2, $1+10, 7*$1), ($1*10+3, $1+10, 10+$1), ($1*10+4, $1+10, 70*$1), ($1*10+5, $1+10, 7), ($1*10+6, $1+10, 9), ($1*10+7, $1+299, 899), ($1*10+8, $1+10, 12), ($1*10+9, $1+10, 14*$1);
+ dec $1;
+}
+enable_query_log;
+
+select count(*) from t2;
+
+delete from t2 limit 1;
+select count(*) from t2;
+
+delete from t2 limit 100;
+select count(*) from t2;
+
+delete from t2 limit 1000;
+select count(*) from t2;
+
+update t2 set c=12345678 limit 100;
+select count(*) from t2 where c=12345678;
+select count(*) from t2 where c=12345678 limit 1000;
+
+select * from t2 limit 0;
+
+drop table t2;
