@@ -47,9 +47,9 @@ show create table t3;
 
 # The following should give errors
 create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
---error 1016
+--error 1168
 select * from t4;
---error 1016
+--error 1168
 alter table t4 add column c int;
 
 #

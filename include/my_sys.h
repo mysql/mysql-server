@@ -43,8 +43,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
 #define MY_INIT(name);		{ my_progname= name; my_init(); }
 
-#define MAXMAPS		(4)	/* Number of error message maps */
-#define ERRMOD		(1000)	/* Max number of errors in a map */
 #define ERRMSGSIZE	(SC_MAXWIDTH)	/* Max length of a error message */
 #define NRERRBUFFS	(2)	/* Buffers for parameters */
 #define MY_FILE_ERROR	((uint) ~0)
@@ -213,7 +211,6 @@ void   __CDECL hfree(void *ptr);
 #else
 extern int errno;			/* declare errno */
 #endif
-extern const char ** NEAR my_errmsg[];
 extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
 extern char *my_progname;		/* program-name (printed in errors) */
@@ -610,6 +607,8 @@ extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...)
 				    __attribute__ ((format (printf, 2, 4))));
+extern int my_error_register(const char **errmsgs, int first, int last);
+extern const char **my_error_unregister(int first, int last);
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);

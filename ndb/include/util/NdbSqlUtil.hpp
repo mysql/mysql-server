@@ -62,35 +62,31 @@ public:
     CmpUnknown = 2      // insufficient partial data
   };
 
-  /**
-   * Kernel data types.  Must match m_typeList in NdbSqlUtil.cpp.
-   * Now also must match types in NdbDictionary.
-   */
   struct Type {
     enum Enum {
-      Undefined = 0,    // Undefined 
-      Tinyint,          // 8 bit
-      Tinyunsigned,     // 8 bit
-      Smallint,         // 16 bit
-      Smallunsigned,    // 16 bit
-      Mediumint,        // 24 bit
-      Mediumunsigned,   // 24 bit
-      Int,              // 32 bit
-      Unsigned,         // 32 bit
-      Bigint,           // 64 bit
-      Bigunsigned,      // 64 Bit
-      Float,            // 32-bit float
-      Double,           // 64-bit float
-      Decimal,          // Precision, Scale
-      Char,             // Len
-      Varchar,          // Max len
-      Binary,           // Len
-      Varbinary,        // Max len
-      Datetime,         // Precision down to 1 sec  (size 8 bytes)
-      Timespec,         // Precision down to 1 nsec (size 12 bytes)
-      Blob,             // Blob
-      Text,             // Text blob,
-      Bit               // A bit
+      Undefined = NDB_TYPE_UNDEFINED,
+      Tinyint = NDB_TYPE_TINYINT,
+      Tinyunsigned = NDB_TYPE_TINYUNSIGNED,
+      Smallint = NDB_TYPE_SMALLINT,
+      Smallunsigned = NDB_TYPE_SMALLUNSIGNED,
+      Mediumint = NDB_TYPE_MEDIUMINT,
+      Mediumunsigned = NDB_TYPE_MEDIUMUNSIGNED,
+      Int = NDB_TYPE_INT,
+      Unsigned = NDB_TYPE_UNSIGNED,
+      Bigint = NDB_TYPE_BIGINT,
+      Bigunsigned = NDB_TYPE_BIGUNSIGNED,
+      Float = NDB_TYPE_FLOAT,
+      Double = NDB_TYPE_DOUBLE,
+      Decimal = NDB_TYPE_DECIMAL,
+      Char = NDB_TYPE_CHAR,
+      Varchar = NDB_TYPE_VARCHAR,
+      Binary = NDB_TYPE_BINARY,
+      Varbinary = NDB_TYPE_VARBINARY,
+      Datetime = NDB_TYPE_DATETIME,
+      Timespec = NDB_TYPE_TIMESPEC,
+      Blob = NDB_TYPE_BLOB,
+      Text = NDB_TYPE_TEXT,
+      Bit = NDB_TYPE_BIT
     };
     Enum m_typeId;
     Cmp* m_cmp;         // comparison method
