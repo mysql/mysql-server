@@ -321,6 +321,11 @@ public:
     void setStripeSize(int size) { setLength(size); }
     int getStripeSize() const { return getLength(); }
 
+    /**
+     * Get size of element
+     */
+    int Column::getSize() const;
+
     /** 
      * Set distribution key
      *
@@ -372,6 +377,7 @@ public:
 #endif
     
   private:
+    friend class NdbRecAttr;
     friend class NdbColumnImpl;
     class NdbColumnImpl & m_impl;
     Column(NdbColumnImpl&);
@@ -1053,5 +1059,7 @@ public:
 				const char * tableName);
   };
 };
+
+class NdbOut& operator <<(class NdbOut& ndbout, const NdbDictionary::Column::Type type);
 
 #endif
