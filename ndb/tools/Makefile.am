@@ -11,7 +11,7 @@ select_all_SOURCES = select_all.cpp
 select_count_SOURCES = select_count.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
-include $(top_srcdir)/ndb/config/type_ndbapitest.mk.am
+include $(top_srcdir)/ndb/config/type_ndbapitools.mk.am
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

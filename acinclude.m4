@@ -1397,7 +1397,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       AC_DEFINE(HAVE_NDBCLUSTER_DB)
       have_ndbcluster="yes"
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
-      ndbcluster_libs="\$(top_builddir)/ndb/src/libndbclient.la"
+      ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
       ndbcluster_system_libs=""
       MYSQL_CHECK_NDB_OPTIONS
       ;;
