@@ -432,6 +432,9 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
+AC_PATH_PROG(DOXYGEN, doxygen, no)
+AC_SUBST(DOXYGEN)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
@@ -2907,6 +2910,7 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
+   ndb/docs/Makefile dnl
    ndb/Makefile ndb/include/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
