@@ -249,12 +249,18 @@ select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
        last_day('2001-01-01 01:01:01') as f5, last_day(NULL),
        last_day('2001-02-12');
 
-create table t1 select last_day('2000-02-05') as a;
+create table t1 select last_day('2000-02-05') as a,
+                from_days(to_days("960101")) as b;
 describe t1;
 select * from t1;
 drop table t1;
-select last_day('2000-02-05');
+select last_day('2000-02-05') as a,
+       from_days(to_days("960101")) as b;
 
+select date_add(last_day("1997-12-1"), INTERVAL 1 DAY);
+select length(last_day("1997-12-1"));
+select last_day("1997-12-1")+0;
+select last_day("1997-12-1")+0.0;
 
 # Test SAPDB UTC_% functions. This part is TZ dependant (It is supposed that
 # TZ variable set to GMT-3

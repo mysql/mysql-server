@@ -57,7 +57,7 @@ MYSQL_DATA * cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 int cli_stmt_execute(MYSQL_STMT *stmt);
 MYSQL_DATA * cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
-const char * cli_read_statistic(MYSQL *mysql);
+const char * cli_read_statistics(MYSQL *mysql);
 int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd);
 
 #ifdef EMBEDDED_LIBRARY

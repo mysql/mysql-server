@@ -21,6 +21,11 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+enum date_time_format_types 
+{ 
+  TIME_ONLY= 0, TIME_MICROSECOND, DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND
+};
+
 class Item_func_period_add :public Item_int_func
 {
 public:
@@ -318,6 +323,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   String *val_str(String *str);
+  longlong val_int();
   double val() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
@@ -407,6 +413,7 @@ public:
   Item_func_curdate() :Item_date() {}
   void set_result_from_tm(struct tm *now);
   longlong val_int() { return (value) ; }
+  String *val_str(String *str);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
   virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
@@ -477,8 +484,8 @@ class Item_func_from_days :public Item_date
 {
 public:
   Item_func_from_days(Item *a) :Item_date(a) {}
-  longlong val_int();
   const char *func_name() const { return "from_days"; }
+  bool get_date(TIME *res, uint fuzzy_date);
 };
 
 
@@ -610,6 +617,19 @@ public:
 };
 
 
+class Item_typecast_maybe_null :public Item_typecast
+{
+public:
+  Item_typecast_maybe_null(Item *a) :Item_typecast(a) {}
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length=args[0]->max_length;
+    maybe_null= 1;
+  }
+};
+
+
 class Item_char_typecast :public Item_typecast
 {
   int cast_length;
@@ -626,10 +646,10 @@ public:
 };
 
 
-class Item_date_typecast :public Item_typecast
+class Item_date_typecast :public Item_typecast_maybe_null
 {
 public:
-  Item_date_typecast(Item *a) :Item_typecast(a) {}
+  Item_date_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   String *val_str(String *str);
   bool get_date(TIME *ltime, uint fuzzy_date);
   const char *cast_type() const { return "date"; }
@@ -641,10 +661,10 @@ public:
 };
 
 
-class Item_time_typecast :public Item_typecast
+class Item_time_typecast :public Item_typecast_maybe_null
 {
 public:
-  Item_time_typecast(Item *a) :Item_typecast(a) {}
+  Item_time_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   String *val_str(String *str);
   bool get_time(TIME *ltime);
   const char *cast_type() const { return "time"; }
@@ -656,10 +676,10 @@ public:
 };
 
 
-class Item_datetime_typecast :public Item_typecast
+class Item_datetime_typecast :public Item_typecast_maybe_null
 {
 public:
-  Item_datetime_typecast(Item *a) :Item_typecast(a) {}
+  Item_datetime_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
@@ -793,37 +813,29 @@ public:
 };
 
 
-class Item_func_str_to_date :public Item_date_func
+class Item_func_str_to_date :public Item_str_func
 {
+  enum_field_types cached_field_type;
+  date_time_format_types cached_format_type;
+  timestamp_type cached_timestamp_type;
+  bool const_item;
 public:
   Item_func_str_to_date(Item *a, Item *b)
-    :Item_date_func(a, b)
+    :Item_str_func(a, b)
   {}
   String *val_str(String *str);
   bool get_date(TIME *ltime, uint fuzzy_date);
   const char *func_name() const { return "str_to_date"; }
-  void fix_length_and_dec()
-  {
-    maybe_null= 1;
-    decimals=0;
-    max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-  }
+  enum_field_types field_type() const { return cached_field_type; }
+  void fix_length_and_dec();
+  Field *tmp_table_field(TABLE *t_arg);
 };
 
-class Item_func_last_day :public Item_str_func
+
+class Item_func_last_day :public Item_date
 {
 public:
-  Item_func_last_day(Item *a) :Item_str_func(a) {}
-  String *val_str(String *str);
+  Item_func_last_day(Item *a) :Item_date(a) {}
   const char *func_name() const { return "last_day"; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  void fix_length_and_dec()
-  { 
-    decimals=0;
-    max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-  }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
-  }
+  bool get_date(TIME *res, uint fuzzy_date);
 };

@@ -104,9 +104,9 @@ drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
 Field	Type	Null	Key	Default	Extra
-d	date			0000-00-00	
-t	time			00:00:00	
-dt	datetime			0000-00-00 00:00:00	
+d	date	YES		NULL	
+t	time	YES		NULL	
+dt	datetime	YES		NULL	
 drop table t1,t2;
 create table t1 (a tinyint);
 create table t2 (a int) select * from t1;
@@ -396,12 +396,12 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)			0	
 c	bigint(10)			0	
-d	date			0000-00-00	
+d	date	YES		NULL	
 e	char(1)				
-f	datetime			0000-00-00 00:00:00	
-g	time			00:00:00	
+f	datetime	YES		NULL	
+g	time	YES		NULL	
 h	longblob				
-dd	time			00:00:00	
+dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
@@ -456,6 +456,20 @@ Field	Type	Null	Key	Default	Extra
 name	varchar(10)	YES		NULL	
 age	smallint(6)	YES		-1	
 drop table t1, t2;
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+Warnings:
+Error	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Error	1291	Column 'cset' has duplicated value 'b' in SET
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+Warnings:
+Error	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Error	1291	Column 'cenum' has duplicated value 'A' in ENUM
+Error	1291	Column 'cenum' has duplicated value 'c' in ENUM
+Error	1291	Column 'cset' has duplicated value 'b' in SET
+Error	1291	Column 'cset' has duplicated value 'B' in SET
+Error	1291	Column 'cset' has duplicated value 'd' in SET
+drop table t1, t2, t3;
 create database test_$1;
 use test_$1;
 select database();
@@ -468,3 +482,44 @@ NULL
 select database();
 database()
 NULL
+use test;
+create table t1 (a int, index `primary` (a));
+ERROR 42000: Incorrect index name 'primary'
+create table t1 (a int, index `PRIMARY` (a));
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `primary` int(11) default NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `PRIMARY` int(11) default NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t3 (a int);
+alter table t3 add index `primary` (a);
+ERROR 42000: Incorrect index name 'primary'
+alter table t3 add index `PRIMARY` (a);
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `primary` int(11) default NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `PRIMARY` int(11) default NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3, t4, t5;
