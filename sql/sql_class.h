@@ -537,12 +537,9 @@ public:
   void awake(bool prepare_to_die);
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond() but released before exit_cond() (in 4.1, assertions will soon
-    ensure this). Use must be:
-    lock mutex; enter_cond(); ...; unlock mutex; exit_cond().
-    If you don't do it this way, you will get a deadlock if another thread is
-    doing a THD::awake() on you.
-    
+    enter_cond() (in 4.1 an assertion will soon ensure this); this mutex is
+    then released by exit_cond(). Use must be:
+    lock mutex; enter_cond(); your code; exit_cond().
   */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
@@ -555,6 +552,13 @@ public:
   }
   inline void exit_cond(const char* old_msg)
   {
+    /*
+      Putting the mutex unlock in exit_cond() ensures that
+      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      locked (if that would not be the case, you'll get a deadlock if someone
+      does a THD::awake() on you).
+    */
+    pthread_mutex_unlock(mysys_var->current_mutex);
     pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;

@@ -1301,7 +1301,6 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	dropping_tables--;
       }
       thd->exit_cond(old_message);
-      pthread_mutex_unlock(&LOCK_open);
       if (thd->killed)
 	goto err;
       open_for_modify=0;
