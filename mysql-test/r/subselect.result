@@ -848,6 +848,13 @@ do @a:=(SELECT a from t);
 select @a;
 @a
 1
+set @a:=2;
+set @a:=(SELECT a from t);
+select @a;
+@a
+1
 drop table t;
 do (SELECT a from t);
+Table 'test.t' doesn't exist
+set @a:=(SELECT a from t);
 Table 'test.t' doesn't exist
