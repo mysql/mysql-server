@@ -70,7 +70,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     Table_triggers_list::create_trigger() because we want to avoid messing
     with table cash for views and temporary tables.
   */
-  if (tables->view || table->tmp_table != NO_TMP_TABLE)
+  if (tables->view || table->s->tmp_table != NO_TMP_TABLE)
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     DBUG_RETURN(TRUE);
@@ -188,7 +188,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", tables->db, "/", NullS);
   dir.length= unpack_filename(dir_buff, dir_buff);
   dir.str= dir_buff;
-  file.length=  strxnmov(file_buff, FN_REFLEN, tables->real_name,
+  file.length=  strxnmov(file_buff, FN_REFLEN, tables->table_name,
                          triggers_file_ext, NullS) - file_buff;
   file.str= file_buff;
 
@@ -257,7 +257,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
           elsewhere).
         */
         strxnmov(path, FN_REFLEN, mysql_data_home, "/", tables->db, "/",
-                 tables->real_name, triggers_file_ext, NullS);
+                 tables->table_name, triggers_file_ext, NullS);
         unpack_filename(path, path);
         return my_delete(path, MYF(MY_WME));
       }
@@ -270,7 +270,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
                  "/", NullS);
         dir.length= unpack_filename(dir_buff, dir_buff);
         dir.str= dir_buff;
-        file.length=  strxnmov(file_buff, FN_REFLEN, tables->real_name,
+        file.length=  strxnmov(file_buff, FN_REFLEN, tables->table_name,
                                triggers_file_ext, NullS) - file_buff;
         file.str= file_buff;
 
@@ -315,7 +315,7 @@ bool Table_triggers_list::prepare_old_row_accessors(TABLE *table)
   Field **fld, **old_fld;
 
   if (!(old_field= (Field **)alloc_root(&table->mem_root,
-                                        (table->fields + 1) *
+                                        (table->s->fields + 1) *
                                         sizeof(Field*))))
     return 1;
 
