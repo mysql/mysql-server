@@ -1216,7 +1216,7 @@ int log_loaded_block(IO_CACHE* file)
   lf_info->last_pos_in_file = file->pos_in_file;
   if (lf_info->wrote_create_file)
   {
-    Append_block_log_event a(lf_info->thd, buffer, block_len,
+    Append_block_log_event a(lf_info->thd, lf_info->db, buffer, block_len,
 			     lf_info->log_delayed);
     mysql_bin_log.write(&a);
   }
