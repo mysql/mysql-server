@@ -134,12 +134,12 @@ void
 os_io_init_simple(void);
 /*===================*/
 /***************************************************************************
-Creates a temporary file. In case of error, causes abnormal termination. */
+Creates a temporary file. */
 
 FILE*
 os_file_create_tmpfile(void);
 /*========================*/
-				/* out: temporary file handle (never NULL) */
+			/* out: temporary file handle, or NULL on error */
 /********************************************************************
 A simple function to open or create a file. */
 
