@@ -132,18 +132,6 @@ dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
 				/* out, own: foreign constraint struct */
-/**************************************************************************
-Creates a procedure memory object. */
-
-dict_proc_t*
-dict_mem_procedure_create(
-/*======================*/
-					/* out, own: procedure object */
-	char*		name,		/* in: procedure name */
-	char*		sql_string,	/* in: procedure definition as an SQL
-					string */
-	que_fork_t*	graph);		/* in: parsed procedure graph */
-					
 
 /* Data structure for a column in a table */
 struct dict_col_struct{
@@ -420,24 +408,6 @@ struct dict_table_struct{
 #endif /* UNIV_DEBUG */
 };
 					
-/* Data structure for a stored procedure */
-struct dict_proc_struct{
-	mem_heap_t*	heap;	/* memory heap */
-	char*		name;	/* procedure name */
-	char*		sql_string;
-				/* procedure definition as an SQL string:
-				we can produce more parsed instances of the
-				procedure by parsing this string */
-	hash_node_t	name_hash;
-				/* hash chain node */
-	UT_LIST_BASE_NODE_T(que_fork_t) graphs;
-				/* list of parsed instances of the procedure:
-				there may be many of them, and they are
-				recycled */
-	ulint		mem_fix;/* count of how many times this struct 
-				has been fixed in memory */
-};
-
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif

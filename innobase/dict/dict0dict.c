@@ -43,9 +43,6 @@ rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
 					creating a table or index object */
-#define DICT_POOL_PER_PROCEDURE_HASH 512 /* buffer pool max size per stored
-					procedure hash table fixed size in
-					bytes */
 #define DICT_POOL_PER_TABLE_HASH 512	/* buffer pool max size per table
 					hash table fixed size in bytes */
 #define DICT_POOL_PER_COL_HASH	128	/* buffer pool max size per column
@@ -666,9 +663,6 @@ dict_init(void)
 					UNIV_WORD_SIZE));
 	dict_sys->col_hash = hash_create(buf_pool_get_max_size() /
 					(DICT_POOL_PER_COL_HASH *
-					UNIV_WORD_SIZE));
-	dict_sys->procedure_hash = hash_create(buf_pool_get_max_size() /
-					(DICT_POOL_PER_PROCEDURE_HASH *
 					UNIV_WORD_SIZE));
 	dict_sys->size = 0;
 
@@ -2499,35 +2493,6 @@ dict_skip_word(
 	return(ptr);
 }
 
-#ifdef currentlynotused
-/*************************************************************************
-Returns the number of opening brackets '(' subtracted by the number
-of closing brackets ')' between string and ptr. */
-static
-int
-dict_bracket_count(
-/*===============*/
-			/* out: bracket count */
-	char*	string,	/* in: start of string */
-	char*	ptr)	/* in: end of string */
-{
-	int	count	= 0;
-
-	while (string != ptr) {
-		if (*string == '(') {
-			count++;
-		}
-		if (*string == ')') {
-			count--;
-		}
-
-		string++;
-	}
-
-	return(count);
-}
-#endif
-
 /*************************************************************************
 Removes MySQL comments from an SQL string. A comment is either
 (a) '#' to the end of the line,
@@ -3408,114 +3373,6 @@ syntax_error:
 }
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
-
-/**************************************************************************
-Adds a stored procedure object to the dictionary cache. */
-
-void
-dict_procedure_add_to_cache(
-/*========================*/
-	dict_proc_t*	proc)	/* in: procedure */
-{
-	ulint	fold;
-	
-	mutex_enter(&(dict_sys->mutex));
-	
-	fold = ut_fold_string(proc->name);
-
-	/* Look for a procedure with the same name: error if such exists */
-	{
-		dict_proc_t*	proc2;
-		
-		HASH_SEARCH(name_hash, dict_sys->procedure_hash, fold, proc2,
-				(ut_strcmp(proc2->name, proc->name) == 0));
-		ut_a(proc2 == NULL);
-	}
-
-	/* Add the procedure to the hash table */
-
-	HASH_INSERT(dict_proc_t, name_hash, dict_sys->procedure_hash, fold,
-									proc);
-	mutex_exit(&(dict_sys->mutex));
-}
-
-/**************************************************************************
-Reserves a parsed copy of a stored procedure to execute. If there are no
-free parsed copies left at the moment, parses a new copy. Takes the copy off
-the list of copies: the copy must be returned there with
-dict_procedure_release_parsed_copy. */
-
-que_t*
-dict_procedure_reserve_parsed_copy(
-/*===============================*/
-				/* out: the query graph */
-	dict_proc_t*	proc)	/* in: dictionary procedure node */
-{
-	que_t*		graph;
-	proc_node_t*	proc_node;
-	
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
-
-	mutex_enter(&(dict_sys->mutex));
-
-#ifdef UNIV_DEBUG
-	UT_LIST_VALIDATE(graphs, que_t, proc->graphs);
-#endif
-	graph = UT_LIST_GET_FIRST(proc->graphs);
-
-	if (graph) {
-		UT_LIST_REMOVE(graphs, proc->graphs, graph);
-
-/* 		printf("Graph removed, list length %lu\n",
-					UT_LIST_GET_LEN(proc->graphs)); */
-#ifdef UNIV_DEBUG
-		UT_LIST_VALIDATE(graphs, que_t, proc->graphs);
-#endif
-	}
-
-	mutex_exit(&(dict_sys->mutex));
-
-	if (graph == NULL) {	
-		graph = pars_sql(proc->sql_string);
-
-		proc_node = que_fork_get_child(graph);
-
-		proc_node->dict_proc = proc;
-
-		printf("Parsed a new copy of graph %s\n",
-						proc_node->proc_id->name);
-	}
-
-/*	printf("Returning graph %lu\n", (ulint)graph); */
-
-	return(graph);
-}
-
-/**************************************************************************
-Releases a parsed copy of an executed stored procedure. Puts the copy to the
-list of copies. */
-
-void
-dict_procedure_release_parsed_copy(
-/*===============================*/
-	que_t*	graph)	/* in: query graph of a stored procedure */
-{
-	proc_node_t*	proc_node;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
-
-	mutex_enter(&(dict_sys->mutex));
-
-	proc_node = que_fork_get_child(graph);
-
-	UT_LIST_ADD_FIRST(graphs, (proc_node->dict_proc)->graphs, graph);
-
-	mutex_exit(&(dict_sys->mutex));
-}
 
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache. */
