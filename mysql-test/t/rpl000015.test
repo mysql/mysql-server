@@ -8,12 +8,15 @@ connection slave;
 reset slave;
 show slave status;
 change master to master_host='127.0.0.1';
+--replace_result 3306 9998 9306 9999 3334 9999 3335 9999
 show slave status;
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 slave start;
 sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 connection master;
 drop table if exists t1;

@@ -10,7 +10,7 @@ AC_PROG_INSTALL
 AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_FUNCS(sched_yield)
-AC_C_INLINE
+#AC_C_INLINE  Already checked in MySQL
 AC_C_BIGENDIAN
 
 # Build optimized or debug version ?
@@ -56,10 +56,13 @@ else
 fi
 
 case "$target_os" in
-       hp*) AC_DEFINE(UNIV_MUST_NOT_INLINE, 1,
-	                     No inlining because gcc broken on HP-UX);;
-       *sgi-irix*) AC_DEFINE(UNIV_MUST_NOT_INLINE, 1,
-	                     No inlining because cc broken on irix);;
+       hp*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       irix*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       sysv5uw7*)
+	 # Problem when linking on SCO
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile
