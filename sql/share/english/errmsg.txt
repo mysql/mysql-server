@@ -247,3 +247,4 @@
 "Cyclic reference on subqueries",
 "Converting column '%s' from %s to %s",
 "Reference '%-.64s' not supported (%s)",
+"Every derived table must have it's own alias"

@@ -17,32 +17,32 @@ select t1.a,t4.y from t1,(select t2.a as y from t2,(select t3.b from t3 where t3
 a	y
 3	3
 3	3
-SELECT a FROM (SELECT 1 FROM (SELECT 1) HAVING a=1);
+SELECT a FROM (SELECT 1 FROM (SELECT 1) a HAVING a=1) b;
 Unknown column 'a' in 'having clause'
-SELECT a,b as a FROM (SELECT '1' as a,'2' as b) HAVING a=1;
+SELECT a,b as a FROM (SELECT '1' as a,'2' as b) b  HAVING a=1;
 Column: 'a' in having clause is ambiguous
-SELECT a,2 as a FROM (SELECT '1' as a) HAVING a=2;
+SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=2;
 a	a
 1	2
-SELECT a,2 as a FROM (SELECT '1' as a) HAVING a=1;
+SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=1;
 a	a
-SELECT 1 FROM (SELECT 1) WHERE a=2;
+SELECT 1 FROM (SELECT 1) a WHERE a=2;
 Unknown column 'a' in 'where clause'
-SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1);
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1) as a;
 Unknown column 'a' in 'having clause'
 drop table if exists  t1.t2,t3;
-select * from (select 1);
+select * from (select 1) as a;
 1
 1
-select a from (select 1 as a);
+select a from (select 1 as a) as b;
 a
 1
-select 1 from (select 1);
+select 1 from (select 1) as a;
 1
 1
 drop table if exists t1;
 create table t1(a int not null, t char(8), index(a));
-SELECT * FROM (SELECT * FROM t1) ORDER BY a  ASC LIMIT 0,20;
+SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
 a	t
 1	1
 2	2
@@ -65,6 +65,6 @@ a	t
 19	19
 20	20
 drop table if exists  t1;
-SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a)));
-(SELECT * FROM (SELECT 1 as a))
+SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
+(SELECT * FROM (SELECT 1 as a) as a )
 1
