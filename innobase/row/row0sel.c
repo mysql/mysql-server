@@ -3725,6 +3725,12 @@ rec_loop:
 
 	index_rec = rec;
 
+	/* Before and after the following "if" block, "offsets" will be
+	related to "rec", which may be in "index", a secondary index or
+	the clustered index ("clust_index").  However, after this "if" block,
+	"rec" may be pointing to "clust_rec" of "clust_index". */
+	ut_ad(rec_offs_validate(rec, index, offsets));
+
 	if (index != clust_index && (cons_read_requires_clust_rec
 				|| prebuilt->need_to_access_clustered)) {
 
