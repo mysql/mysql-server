@@ -331,33 +331,43 @@ buf_page_is_corrupted(
 		}
 	}
 #endif
-	old_checksum = buf_calc_page_old_checksum(read_buf);
+  
+  /* If we use checksums validation, make additional check before returning
+  TRUE to ensure that the checksum is not equal to BUF_NO_CHECKSUM_MAGIC which
+  might be stored by InnoDB with checksums disabled.
+     Otherwise, skip checksum calculation and return FALSE */
+  
+  if (srv_use_checksums) {
+    old_checksum = buf_calc_page_old_checksum(read_buf); 
 
-	old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+    old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN_OLD_CHKSUM);
 
-	/* There are 2 valid formulas for old_checksum_field:
-	1. Very old versions of InnoDB only stored 8 byte lsn to the start
-	and the end of the page.
-	2. Newer InnoDB versions store the old formula checksum there. */
+    /* There are 2 valid formulas for old_checksum_field:
+	  1. Very old versions of InnoDB only stored 8 byte lsn to the start
+	  and the end of the page.
+	  2. Newer InnoDB versions store the old formula checksum there. */
 	
-	if (old_checksum_field != mach_read_from_4(read_buf + FIL_PAGE_LSN)
-	    && old_checksum_field != old_checksum) {
+    if (old_checksum_field != mach_read_from_4(read_buf + FIL_PAGE_LSN)
+        && old_checksum_field != old_checksum
+        && old_checksum_field != BUF_NO_CHECKSUM_MAGIC) {
 
-		return(TRUE);
-	}
+      return(TRUE);
+    }
 
-	checksum = buf_calc_page_new_checksum(read_buf);
-	checksum_field = mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
+    checksum = buf_calc_page_new_checksum(read_buf);
+    checksum_field = mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
 
-	/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
-	(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+    /* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
+	  (always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
 
-	if (checksum_field != 0 && checksum_field != checksum) {
+    if (checksum_field != 0 && checksum_field != checksum
+        && checksum_field != BUF_NO_CHECKSUM_MAGIC) {
 
-	        return(TRUE);
-	}
-
+      return(TRUE);
+    }
+  }
+  
 	return(FALSE);
 }
 
@@ -379,8 +389,10 @@ buf_page_print(
 	ut_print_buf(stderr, read_buf, UNIV_PAGE_SIZE);
 	fputs("InnoDB: End of page dump\n", stderr);
 
-	checksum = buf_calc_page_new_checksum(read_buf);
-	old_checksum = buf_calc_page_old_checksum(read_buf);
+	checksum = srv_use_checksums ?
+    buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+	old_checksum = srv_use_checksums ?
+    buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, 
@@ -548,7 +560,7 @@ buf_pool_init(
 		}
 		/*----------------------------------------*/
 	} else {
-		buf_pool->frame_mem = ut_malloc_low(
+		buf_pool->frame_mem = os_mem_alloc_large(
 					UNIV_PAGE_SIZE * (n_frames + 1),
 					TRUE, FALSE);
 	}
