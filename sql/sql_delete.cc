@@ -24,8 +24,7 @@
   This will work even if the .ISM and .ISD tables are destroyed
 */
 
-int generate_table(THD *thd, TABLE_LIST *table_list,
-			  TABLE *locked_table)
+int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
 {
   char path[FN_REFLEN];
   int error;
