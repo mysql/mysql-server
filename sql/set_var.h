@@ -212,6 +212,15 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type);
 };
 
+class sys_var_pseudo_thread_id :public sys_var_thd_ulong
+{
+public:
+  sys_var_pseudo_thread_id(const char *name_arg, ulong SV::*offset_arg)
+    :sys_var_thd_ulong(name_arg, offset_arg) 
+  {}
+  bool check(THD *thd, set_var *var);
+};
+
 
 class sys_var_thd_ha_rows :public sys_var_thd
 {
