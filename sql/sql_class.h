@@ -762,8 +762,15 @@ class Table_ident :public Sql_alloc {
  public:
   LEX_STRING db;
   LEX_STRING table;
-  Table_ident(LEX_STRING db_arg,LEX_STRING table_arg,bool force);
-  Table_ident(LEX_STRING table_arg);
+  inline Table_ident(LEX_STRING db_arg,LEX_STRING table_arg,bool force)
+    :table(table_arg)
+  {
+    if (!force && (current_thd->client_capabilities & CLIENT_NO_SCHEMA))
+      db.str=0;
+    else
+      db= db_arg;
+  }
+  inline Table_ident(LEX_STRING table_arg) :table(table_arg) {db.str=0;}
   inline void change_db(char *db_name)
   { db.str= db_name; db.length=(uint) strlen(db_name); }
 };
