@@ -1614,6 +1614,17 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     }
     param.key_parts_end=key_parts;
 
+    /* Calculate cost of full index read for the shortest covering index */
+    if (!head->used_keys.is_clear_all())
+    {
+      int key_for_use= find_shortest_key(head, &head->used_keys);
+      double key_read_time= get_index_only_read_time(&param, records,
+                                                     key_for_use);
+      DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
+                           "read time %g", key_for_use, key_read_time));
+      if (key_read_time < read_time)
+        read_time= key_read_time;
+    }
           
     if ((tree=get_mm_tree(&param,cond)))
     {
@@ -1676,17 +1687,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
           LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
 
-          /* Calculate cost of full index read for the shortest covering index */
-          if (!head->used_keys.is_clear_all())
-          {           
-            int key_for_use= find_shortest_key(head, &head->used_keys);
-            double key_read_time= get_index_only_read_time(&param, records, 
-                                                           key_for_use);      
-            DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
-                                 "read time %g", key_for_use, key_read_time));
-            if (key_read_time < read_time)
-              read_time= key_read_time;
-          }
           
           DBUG_PRINT("info",("No range reads possible,"
                              " trying to construct index_merge"));
