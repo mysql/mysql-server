@@ -978,7 +978,6 @@ execute stmt1 using @arg00;
 select a,b from t1 where b=@arg00;
 a	b
 prepare stmt1 from 'truncate table t1' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 test_sequence
 ------ update tests ------
 delete from t1 ;
@@ -2171,7 +2170,6 @@ execute stmt1 using @arg00;
 select a,b from t1 where b=@arg00;
 a	b
 prepare stmt1 from 'truncate table t1' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 test_sequence
 ------ update tests ------
 delete from t1 ;
