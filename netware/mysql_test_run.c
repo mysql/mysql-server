@@ -53,6 +53,7 @@
 #define TEST_SKIP		"[ skip ]"
 #define TEST_FAIL		"[ fail ]"
 #define TEST_BAD		"[ bad  ]"
+#define TEST_IGNORE		"[ignore]"
 
 /******************************************************************************
 
@@ -69,7 +70,8 @@ int master_port           = 9306;
 int slave_port            = 9307;
 
 // comma delimited list of tests to skip or empty string
-char skip_test[PATH_MAX]  = "";
+char skip_test[PATH_MAX]  = " lowercase_table3 , system_mysql_db_fix ";
+char ignore_test[PATH_MAX]  = "";
 
 char bin_dir[PATH_MAX];
 char mysql_test_dir[PATH_MAX];
@@ -107,6 +109,7 @@ int total_pass    = 0;
 int total_fail    = 0;
 int total_test    = 0;
 
+int total_ignore  = 0;
 double total_time = 0;
 
 int use_openssl     = FALSE;
@@ -393,7 +396,7 @@ void start_master()
   {
     sleep_until_file_exists(master_pid);
 
-	if ((err = wait_for_server_start(bin_dir, user, password, master_port)) == 0)
+	if ((err = wait_for_server_start(bin_dir, user, password, master_port,mysql_tmp_dir)) == 0)
     {
       master_running = TRUE;
     }
@@ -582,7 +585,7 @@ void start_slave()
   {
     sleep_until_file_exists(slave_pid);
     
-    if ((err = wait_for_server_start(bin_dir, user, password, slave_port)) == 0)
+    if ((err = wait_for_server_start(bin_dir, user, password, slave_port,mysql_tmp_dir)) == 0)
     {
       slave_running = TRUE;
     }
@@ -633,7 +636,7 @@ void stop_slave()
   if (!slave_running) return;
 
   // stop
-  if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid)) == 0)
+  if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid,mysql_tmp_dir)) == 0)
   {
     slave_running = FALSE;
   }
@@ -657,7 +660,7 @@ void stop_master()
   // running?
   if (!master_running) return;
 
-  if ((err = stop_server(bin_dir, user, password, master_port, master_pid)) == 0)
+  if ((err = stop_server(bin_dir, user, password, master_port, master_pid,mysql_tmp_dir)) == 0)
   {
     master_running = FALSE;
   }
@@ -778,21 +781,31 @@ void run_test(char *test)
   char temp[PATH_MAX];
   char *rstr;
   double elapsed = 0;
-  int skip = FALSE;
+  int skip = FALSE, ignore=FALSE;
   int restart = FALSE;
   int flag = FALSE;
   struct stat info;
   
   // single test?
-  if (!single_test)
+//  if (!single_test)
   {
     // skip tests in the skip list
     snprintf(temp, PATH_MAX, " %s ", test);
     skip = (strindex(skip_test, temp) != NULL);
+    if( skip == FALSE )
+      ignore = (strindex(ignore_test, temp) != NULL);
   }
     
-  // skip test?
-  if (!skip)
+  if(ignore)
+  {
+    // show test
+    log("%-46s ", test);
+         
+    // ignore
+    rstr = TEST_IGNORE;
+    ++total_ignore;
+  }  
+  else if (!skip)     // skip test?
   {
     char test_file[PATH_MAX];
     char master_opt_file[PATH_MAX];
@@ -1148,9 +1161,33 @@ void setup(char *file)
 ******************************************************************************/
 int main(int argc, char **argv)
 {
+  int is_ignore_list = 0;
   // setup
   setup(argv[0]);
   
+  /* The --ignore option is comma saperated list of test cases to skip and should 
+   * be very first command line option to the test suite. 
+   * The usage is now:
+   * mysql_test_run --ignore=test1,test2 test3 test4
+   * where test1 and test2 are test cases to ignore
+   * and test3 and test4 are test cases to run. */
+  if( argc >= 2 && !strnicmp(argv[1], "--ignore=", sizeof("--ignore=")-1) )
+  {
+    char *temp, *token;
+    temp=strdup(strchr(argv[1],'=') + 1);
+    for(token=strtok(temp, ","); token != NULL; token=strtok(NULL, ","))
+    {
+      if( strlen(ignore_test) + strlen(token) + 2 <= PATH_MAX-1 )
+        sprintf( ignore_test+strlen(ignore_test), " %s ", token);
+      else
+      {
+        free(temp);
+        die("ignore list too long.");
+      }
+    }
+    free(temp);
+    is_ignore_list = 1;
+  }
   // header
   log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   
@@ -1165,14 +1202,14 @@ int main(int argc, char **argv)
   log(HEADER);
   log(DASH);
 
-  if (argc > 1)
+  if ( argc > 1 + is_ignore_list )
   {
     int i;
 
     // single test
     single_test = TRUE;
 
-    for (i = 1; i < argc; i++)
+    for (i = 1 + is_ignore_list; i < argc; i++)
     {
       // run given test
       run_test(argv[i]);

@@ -77,25 +77,32 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/vio/libvio.a
 
 #
-# To make it easy for the end user to use the embedded library we 
-# generate a total libmysqld.a from all library files, 
+# To make it easy for the end user to use the embedded library we
+# generate a total libmysqld.a from all library files,
 
 libmysqld.a:	libmysqld_int.a $(INC_LIB)
-		if test ! -d tmp ; then mkdir tmp ; fi
-		rm -f $@ libmysqld_int2.a tmp/*.o tmp/*.a
-		cp $(INC_LIB) tmp
-		cp libmysqld_int.a libmysqld_int2.a ; \
-		cd tmp ; \
-		for file in *.a ; do \
-		  bfile=`basename $$file .a` ; \
-		  $(AR) x $$file; \
-		  for obj in *.o ; do mv $$obj $${bfile}_$$obj ; done ; \
-		  $(AR) q ../libmysqld_int2.a *.o ; \
-		  rm -f *.o ; \
-		done
-		mv libmysqld_int2.a libmysqld.a
-		rm -f tmp/*
-		$(RANLIB) libmysqld.a
+		if test "$(host_os)" = "netware" ; \
+		then \
+		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
+		else \
+		  if test ! -d tmp ; then mkdir tmp ; fi ; \
+		  rm -f $@ libmysqld_int2.a tmp/*.o tmp/*.a ; \
+		  cp $(INC_LIB) tmp ; \
+		  cp libmysqld_int.a libmysqld_int2.a ; \
+		  cd tmp ; \
+		  for file in *.a ; do \
+		    bfile=`basename $$file .a` ; \
+		    $(AR) x $$file; \
+		    for obj in *.o ; do mv $$obj $${bfile}_$$obj ; done ; \
+		    $(AR) q ../libmysqld_int2.a *.o ; \
+		    rm -f *.o ; \
+		  done ; \
+		  cd .. ; \
+		  mv libmysqld_int2.a libmysqld.a ; \
+		  rm -f tmp/* ; \
+		  $(RANLIB) libmysqld.a	; \
+		fi
+
 
 ## XXX: any time the client interface changes, we'll need to bump
 ## the version info for libmysqld; however, it's possible for the

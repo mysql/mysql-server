@@ -490,9 +490,12 @@ static void die(const char* fmt, ...)
   exit(1);
 }
 
+#include <help_start.h>
+
 static void print_version()
 {
   printf("%s Ver 3.0 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -510,6 +513,8 @@ the mysql command line client\n\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
