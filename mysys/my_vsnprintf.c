@@ -42,7 +42,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     }
     /* Skip if max size is used (to be compatible with printf) */
     fmt++;
-    while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
+    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
     if (*fmt == 'l')
       fmt++;

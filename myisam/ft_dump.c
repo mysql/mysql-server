@@ -106,7 +106,7 @@ int main(int argc,char *argv[])
 #endif
 
       snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
-      casedn_str(buf);
+      my_casedn_str(default_charset_info,buf);
       total++;
       lengths[keylen]++;
 

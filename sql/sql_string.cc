@@ -234,7 +234,7 @@ bool String::fill(uint32 max_length,char fill_char)
 
 void String::strip_sp()
 {
-   while (str_length && isspace(Ptr[str_length-1]))
+   while (str_length && my_isspace(str_charset,Ptr[str_length-1]))
     str_length--;
 }
 
@@ -296,10 +296,10 @@ uint32 String::numchars()
   register uint32 n=0,mblen;
   register const char *mbstr=Ptr;
   register const char *end=mbstr+str_length;
-  if (use_mb(default_charset_info))
+  if (use_mb(str_charset))
   {
     while (mbstr < end) {
-        if ((mblen=my_ismbchar(default_charset_info, mbstr,end))) mbstr+=mblen;
+        if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
         else ++mbstr;
         ++n;
     }
@@ -316,11 +316,11 @@ int String::charpos(int i,uint32 offset)
   register uint32 mblen;
   register const char *mbstr=Ptr+offset;
   register const char *end=Ptr+str_length;
-  if (use_mb(default_charset_info))
+  if (use_mb(str_charset))
   {
     if (i<=0) return i;
     while (i && mbstr < end) {
-       if ((mblen=my_ismbchar(default_charset_info, mbstr,end))) mbstr+=mblen;
+       if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
        else ++mbstr;
        --i;
     }
@@ -380,12 +380,14 @@ int String::strstr_case(const String &s,uint32 offset)
 skipp:
     while (str != end)
     {
-      if (my_sort_order[*str++] == my_sort_order[*search])
+      if (str_charset->sort_order[*str++] == str_charset->sort_order[*search])
       {
 	register char *i,*j;
 	i=(char*) str; j=(char*) search+1;
 	while (j != search_end)
-	  if (my_sort_order[*i++] != my_sort_order[*j++]) goto skipp;
+	  if (str_charset->sort_order[*i++] != 
+              str_charset->sort_order[*j++]) 
+            goto skipp;
 	return (int) (str-Ptr) -1;
       }
     }
@@ -459,6 +461,44 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
   return FALSE;
 }
 
+// added by Holyfoot for "geometry" needs
+int String::reserve(uint32 space_needed, uint32 grow_by)
+{
+  if (Alloced_length < str_length + space_needed)
+  {
+    if (realloc(Alloced_length + max(space_needed, grow_by) - 1))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+void String::qs_append(const char *str)
+{
+  int len = strlen(str);
+  memcpy(Ptr + str_length, str, len + 1);
+  str_length += len;
+}
+
+void String::qs_append(double d)
+{
+  char *buff = Ptr + str_length;
+  sprintf(buff,"%.14g", d);
+  str_length += strlen(buff);
+}
+
+void String::qs_append(double *d)
+{
+  double ld;
+  float8get(ld, d);
+  qs_append(ld);
+}
+
+void String::qs_append(const char &c)
+{
+  Ptr[str_length] = c;
+  str_length += sizeof(c);
+}
+
 
 int sortcmp(const String *x,const String *y)
 {
@@ -467,15 +507,15 @@ int sortcmp(const String *x,const String *y)
   uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info))
+  if (use_strcoll(x->str_charset))
   {
 #ifndef CMP_ENDSPACE
-    while (x_len && isspace(s[x_len-1]))
+    while (x_len && my_isspace(x->str_charset,s[x_len-1]))
       x_len--;
-    while (y_len && isspace(t[y_len-1]))
+    while (y_len && my_isspace(x->str_charset,t[y_len-1]))
       y_len--;
 #endif
-    return my_strnncoll(default_charset_info,
+    return my_strnncoll(x->str_charset,
                         (unsigned char *)s,x_len,(unsigned char *)t,y_len);
   }
   else
@@ -485,9 +525,10 @@ int sortcmp(const String *x,const String *y)
     y_len-=len;
     while (len--)
     {
-      if (my_sort_order[(uchar) *s++] != my_sort_order[(uchar) *t++])
-        return ((int) my_sort_order[(uchar) s[-1]] -
-                (int) my_sort_order[(uchar) t[-1]]);
+      if (x->str_charset->sort_order[(uchar) *s++] != 
+          x->str_charset->sort_order[(uchar) *t++])
+        return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
+                (int) x->str_charset->sort_order[(uchar) t[-1]]);
     }
 #ifndef CMP_ENDSPACE
     /* Don't compare end space in strings */
@@ -496,14 +537,14 @@ int sortcmp(const String *x,const String *y)
       {
         const char *end=t+y_len;
         for (; t != end ; t++)
-          if (!isspace(*t))
+          if (!my_isspace(x->str_charset,*t))
             return -1;
       }
       else
       {
         const char *end=s+x_len;
         for (; s != end ; s++)
-          if (!isspace(*s))
+          if (!my_isspace(x->str_charset,*s))
             return 1;
       }
       return 0;
@@ -551,11 +592,10 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 /* Make it easier to handle different charactersets */
 
 #ifdef USE_MB
-#define INC_PTR(A,B) A+=((use_mb_flag && \
-                          my_ismbchar(default_charset_info,A,B)) ? \
-                          my_ismbchar(default_charset_info,A,B) : 1)
+#define INC_PTR(cs,A,B) A+=((use_mb_flag && \
+                          my_ismbchar(cs,A,B)) ? my_ismbchar(cs,A,B) : 1)
 #else
-#define INC_PTR(A,B) A++
+#define INC_PTR(cs,A,B) A++
 #endif
 
 /*
@@ -566,18 +606,18 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 */
 
 #ifdef LIKE_CMP_TOUPPER
-#define likeconv(A) (uchar) toupper(A)
+#define likeconv(s,A) (uchar) my_toupper(s,A)
 #else
-#define likeconv(A) (uchar) my_sort_order[(uchar) (A)]
+#define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
 #endif
 
-int wild_case_compare(const char *str,const char *str_end,
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
 		      const char *wildstr,const char *wildend,
 		      char escape)
 {
   int result= -1;				// Not found, using wildcards
 #ifdef USE_MB
-  bool use_mb_flag=use_mb(default_charset_info);
+  bool use_mb_flag=use_mb(cs);
 #endif
   while (wildstr != wildend)
   {
@@ -588,7 +628,7 @@ int wild_case_compare(const char *str,const char *str_end,
 #ifdef USE_MB
       int l;
       if (use_mb_flag &&
-          (l = my_ismbchar(default_charset_info, wildstr, wildend)))
+          (l = my_ismbchar(cs, wildstr, wildend)))
       {
 	  if (str+l > str_end || memcmp(str, wildstr, l) != 0)
 	      return 1;
@@ -597,7 +637,7 @@ int wild_case_compare(const char *str,const char *str_end,
       }
       else
 #endif
-      if (str == str_end || likeconv(*wildstr++) != likeconv(*str++))
+      if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
 	return(1);				// No match
       if (wildstr == wildend)
 	return (str != str_end);		// Match if both are at end
@@ -609,7 +649,7 @@ int wild_case_compare(const char *str,const char *str_end,
       {
 	if (str == str_end)			// Skip one char if possible
 	  return (result);
-	INC_PTR(str,str_end);
+	INC_PTR(cs,str,str_end);
       } while (++wildstr < wildend && *wildstr == wild_one);
       if (wildstr == wildend)
 	break;
@@ -626,7 +666,7 @@ int wild_case_compare(const char *str,const char *str_end,
 	{
 	  if (str == str_end)
 	    return (-1);
-	  INC_PTR(str,str_end);
+	  INC_PTR(cs,str,str_end);
 	  continue;
 	}
 	break;					// Not a wild character
@@ -644,10 +684,10 @@ int wild_case_compare(const char *str,const char *str_end,
       int mblen;
       LINT_INIT(mblen);
       if (use_mb_flag)
-        mblen = my_ismbchar(default_charset_info, wildstr, wildend);
+        mblen = my_ismbchar(cs, wildstr, wildend);
 #endif
-      INC_PTR(wildstr,wildend);			// This is compared trough cmp
-      cmp=likeconv(cmp);   
+      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
+      cmp=likeconv(cs,cmp);   
       do
       {
 #ifdef USE_MB
@@ -665,26 +705,26 @@ int wild_case_compare(const char *str,const char *str_end,
                 break;
               }
             }
-            else if (!my_ismbchar(default_charset_info, str, str_end) &&
-                     likeconv(*str) == cmp)
+            else if (!my_ismbchar(cs, str, str_end) &&
+                     likeconv(cs,*str) == cmp)
             {
               str++;
               break;
             }
-            INC_PTR(str, str_end);
+            INC_PTR(cs,str, str_end);
           }
 	}
         else
         {
 #endif /* USE_MB */
-          while (str != str_end && likeconv(*str) != cmp)
+          while (str != str_end && likeconv(cs,*str) != cmp)
             str++;
           if (str++ == str_end) return (-1);
 #ifdef USE_MB
         }
 #endif
 	{
-	  int tmp=wild_case_compare(str,str_end,wildstr,wildend,escape);
+	  int tmp=wild_case_compare(cs,str,str_end,wildstr,wildend,escape);
 	  if (tmp <= 0)
 	    return (tmp);
 	}
@@ -701,7 +741,7 @@ int wild_case_compare(String &match,String &wild, char escape)
   DBUG_ENTER("wild_case_compare");
   DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
 			  ,match.ptr(),wild.ptr(),escape));
-  DBUG_RETURN(wild_case_compare(match.ptr(),match.ptr()+match.length(),
+  DBUG_RETURN(wild_case_compare(match.str_charset,match.ptr(),match.ptr()+match.length(),
 			   wild.ptr(), wild.ptr()+wild.length(),escape));
 }
 
@@ -805,3 +845,5 @@ int wild_compare(String &match,String &wild, char escape)
   DBUG_RETURN(wild_compare(match.ptr(),match.ptr()+match.length(),
 		      wild.ptr(), wild.ptr()+wild.length(),escape));
 }
+
+

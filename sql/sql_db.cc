@@ -218,7 +218,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
-    if (isdigit(file->name[0]) && isdigit(file->name[1]) &&
+    if (my_isdigit(system_charset_info,file->name[0]) && 
+        my_isdigit(system_charset_info,file->name[1]) &&
 	!file->name[2] && !level)
     {
       char newpath[FN_REFLEN];
@@ -243,7 +244,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(fn_ext(file->name), reg_ext))
+    if (db && !my_strcasecmp(system_charset_info, 
+                             fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */
       *fn_ext(file->name)=0;			// Remove extension

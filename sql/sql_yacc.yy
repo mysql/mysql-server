@@ -54,6 +54,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   List<Item> *item_list;
   List<String> *string_list;
   Key::Keytype key_type;
+  enum ha_key_alg  key_alg;
   enum db_type db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
@@ -156,6 +157,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BOOL_SYM
 %token	BOOLEAN_SYM
 %token	BOTH
+%token	BTREE_SYM
 %token	BY
 %token	CACHE_SYM
 %token	CASCADE
@@ -202,6 +204,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	GREATEST_SYM
 %token	GROUP
 %token	HAVING
+%token	HASH_SYM
 %token	HEAP_SYM
 %token	HEX_NUM
 %token	HIGH_PRIORITY
@@ -295,10 +298,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROWS_SYM
 %token	ROW_FORMAT_SYM
 %token	ROW_SYM
+%token	RTREE_SYM
 %token	SET
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
 %token	SHUTDOWN
+%token	SPATIAL_SYM
 %token	SQL_CACHE_SYM
 %token	SQL_NO_CACHE_SYM
 %token  SSL_SYM
@@ -349,6 +354,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ENUM
 %token	FAST_SYM
 %token	FLOAT_SYM
+%token  GEOMETRY_SYM
 %token	INT_SYM
 %token	LIMIT
 %token	LONGBLOB
@@ -406,6 +412,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FORMAT_SYM
 %token	FOR_SYM
 %token	FROM_UNIXTIME
+%token	GEOMCOLLFROMTEXT
+%token	GEOMFROMTEXT
+%token  GEOMETRYCOLLECTION
 %token	GROUP_UNIQUE_USERS
 %token	HOUR_MINUTE_SYM
 %token	HOUR_SECOND_SYM
@@ -417,6 +426,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INTERVAL_SYM
 %token	LAST_INSERT_ID
 %token	LEFT
+%token	LINEFROMTEXT
+%token  LINESTRING
 %token	LOCATE
 %token	MAKE_SET_SYM
 %token	MINUTE_SECOND_SYM
@@ -424,8 +435,17 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MODE_SYM
 %token	MODIFY_SYM
 %token	MONTH_SYM
+%token	MLINEFROMTEXT
+%token	MPOINTFROMTEXT
+%token	MPOLYFROMTEXT
+%token  MULTILINESTRING
+%token  MULTIPOINT
+%token  MULTIPOLYGON
 %token	NOW_SYM
 %token	PASSWORD
+%token	POINTFROMTEXT
+%token	POLYFROMTEXT
+%token  POLYGON
 %token	POSITION_SYM
 %token	PROCEDURE
 %token	RAND
@@ -531,6 +551,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <key_type>
 	key_type opt_unique_or_fulltext
+
+%type <key_alg>
+	key_alg opt_btree_or_rtree
 
 %type <string_list>
 	key_usage_list
@@ -736,21 +759,22 @@ create:
 	}
 	create2
 
-	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!add_table_to_list($6,NULL,1))
+	    if (!add_table_to_list($7,NULL,1))
 	      YYABORT;
 	    lex->create_list.empty();
 	    lex->key_list.empty();
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
-	  '(' key_list ')'
+	   '(' key_list ')' 
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new Key($2,$4.str,lex->col_list));
+
+	    lex->key_list.push_back(new Key($2,$5,$4.str,lex->col_list));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -897,10 +921,10 @@ field_list_item:
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| key_type opt_ident '(' key_list ')'
+	| key_type opt_ident key_alg '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new Key($1,$2,lex->col_list));
+	    lex->key_list.push_back(new Key($1,$3,$2,lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
@@ -965,6 +989,8 @@ type:
 					  $$=FIELD_TYPE_TINY_BLOB; }
 	| BLOB_SYM			{ Lex->type|=BINARY_FLAG;
 					  $$=FIELD_TYPE_BLOB; }
+	| GEOMETRY_SYM			{ Lex->type|=BINARY_FLAG;
+					  $$=FIELD_TYPE_GEOMETRY; }
 	| MEDIUMBLOB			{ Lex->type|=BINARY_FLAG;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGBLOB			{ Lex->type|=BINARY_FLAG;
@@ -1106,6 +1132,8 @@ key_type:
 	| key_or_index			    { $$= Key::MULTIPLE; }
 	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
 	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
+	| SPATIAL_SYM			    { $$= Key::SPATIAL; }
+	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; }
 	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
 	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; }
 
@@ -1122,6 +1150,16 @@ opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
 	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
 	| FULLTEXT_SYM	{ $$= Key::FULLTEXT; }
+	| SPATIAL_SYM	{ $$= Key::SPATIAL; }
+
+key_alg:
+	/* empty */		   { $$= HA_KEY_ALG_BTREE; }
+	| USING opt_btree_or_rtree { $$= $2 }
+
+opt_btree_or_rtree:
+	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
+	| RTREE_SYM	{ $$= HA_KEY_ALG_RTREE; }
+	| HASH_SYM	{ $$= HA_KEY_ALG_HASH; }
 
 key_list:
 	key_list ',' key_part order_dir { Lex->col_list.push_back($3); }
@@ -1655,6 +1693,20 @@ simple_expr:
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
+	| CONVERT_SYM '(' expr USING IDENT ')'
+	  { 
+	    CHARSET_INFO *cs=find_compiled_charset_by_name($5.str);
+	    if (!cs)
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$5);
+	      YYABORT;
+	    }
+	    $$= new Item_func_conv_charset($3,cs); 
+	  }
+	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
+	  { 
+	    $$= new Item_func_conv_charset3($3,$5,$7); 
+	  }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -1731,6 +1783,14 @@ simple_expr:
 	  }
 	| FIELD_FUNC '(' expr ',' expr_list ')'
 	  { $$= new Item_func_field($3, *$5); }
+	| GEOMFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GEOMFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GEOMETRYCOLLECTION '(' expr_list ')'
+	  { $$= new Item_func_spatial_collection(* $3, 
+                       Geometry::wkbGeometryCollection, 
+                       Geometry::wkbPoint); }
 	| HOUR_SYM '(' expr ')'
 	  { $$= new Item_func_hour($3); }
 	| IF '(' expr ',' expr ',' expr ')'
@@ -1755,18 +1815,50 @@ simple_expr:
 	  }
 	| LEFT '(' expr ',' expr ')'
 	  { $$= new Item_func_left($3,$5); }
+	| LINESTRING '(' expr_list ')'
+	  { $$= new Item_func_spatial_collection(* $3, 
+               Geometry::wkbLineString, Geometry::wkbPoint); }
 	| LOCATE '(' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3); }
 	| LOCATE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_locate($5,$3,$7); }
- 	| GREATEST_SYM '(' expr ',' expr_list ')'
+ 	| GEOMCOLLFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| GREATEST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_max(*$5); }
 	| LEAST_SYM '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_min(*$5); }
+ 	| LINEFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| LINEFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MONTH_SYM '(' expr ')'
 	  { $$= new Item_func_month($3); }
+ 	| MULTILINESTRING '(' expr_list ')'
+ 	  { $$= new Item_func_spatial_collection(* $3, 
+                    Geometry::wkbMultiLineString, Geometry::wkbLineString); }
+ 	| MLINEFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MLINEFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOINTFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOINTFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOLYFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MPOLYFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| MULTIPOINT '(' expr_list ')'
+ 	  { $$= new Item_func_spatial_collection(* $3, 
+                    Geometry::wkbMultiPoint, Geometry::wkbPoint); }
+ 	| MULTIPOLYGON '(' expr_list ')'
+ 	  { $$= new Item_func_spatial_collection(* $3, 
+                       Geometry::wkbMultiPolygon, Geometry::wkbPolygon ); }
 	| NOW_SYM optional_braces
 	  { $$= new Item_func_now(); current_thd->safe_to_cache_query=0;}
 	| NOW_SYM '(' expr ')'
@@ -1775,6 +1867,17 @@ simple_expr:
 	  {
 	    $$= new Item_func_password($3);
 	   }
+ 	| POINTFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POINTFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POLYFROMTEXT '(' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POLYFROMTEXT '(' expr ',' expr ')'
+	  { $$= new Item_func_geometry_from_text($3) }
+	| POLYGON '(' expr_list ')'
+ 	  { $$= new Item_func_spatial_collection(* $3, 
+			Geometry::wkbPolygon, Geometry::wkbLineString); }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
 	| RAND '(' expr ')'
@@ -2049,6 +2152,30 @@ join_table:
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
+        | '(' SELECT_SYM select_part3 ')' opt_table_alias 
+	{
+	  LEX *lex=Lex;
+	  lex->select=lex->select->prev;
+	  if (!($$=add_table_to_list(new Table_ident(Lex->last_select),$5,0,TL_UNLOCK)))
+	    YYABORT;
+	}
+
+select_part3:
+        {
+	  LEX *lex=Lex;
+	  lex->derived_tables=true;
+	  SELECT_LEX *tmp=lex->select;
+	  if (lex->select->linkage == NOT_A_SELECT || mysql_new_select(lex))
+	    YYABORT;
+	  mysql_init_select(lex);
+	  lex->select->linkage=DERIVED_TABLE_TYPE;
+	  lex->select->prev=tmp;
+	}
+        select_options select_item_list select_intoto
+
+select_intoto:
+	limit_clause {}
+	| select_from
 
 opt_outer:
 	/* empty */	{}
@@ -3608,7 +3735,8 @@ column_list_id:
 	  LEX *lex=Lex;
 	  while ((point=iter++))
 	  {
-	    if (!my_strcasecmp(point->column.ptr(),new_str->ptr()))
+	    if (!my_strcasecmp(system_charset_info,
+                               point->column.ptr(), new_str->ptr()))
 		break;
 	  }
 	  lex->grant_tot_col|= lex->which_columns;

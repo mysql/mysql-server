@@ -1227,7 +1227,7 @@ static bool test_if_number(register const char *str,
   while (*str++ == ' ') ;
   if (*--str == '-' || *str == '+')
     str++;
-  while (isdigit(*str) || (allow_wildcards &&
+  while (my_isdigit(system_charset_info,*str) || (allow_wildcards &&
 			   (*str == wild_many || *str == wild_one)))
   {
     flag=1;
@@ -1236,7 +1236,7 @@ static bool test_if_number(register const char *str,
   if (*str == '.')
   {
     for (str++ ;
-	 isdigit(*str) ||
+	 my_isdigit(system_charset_info,*str) ||
 	   (allow_wildcards && (*str == wild_many || *str == wild_one)) ;
 	 str++, flag=1) ;
   }

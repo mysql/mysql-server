@@ -50,7 +50,7 @@ void Item::set_name(char *str,uint length)
     name=str;					// Used by AS
   else
   {
-    while (length && !isgraph(*str))
+    while (length && !my_isgraph(system_charset_info,*str))
     {						// Fix problem with yacc
       length--;
       str++;
@@ -66,7 +66,7 @@ void Item::set_name(char *str,uint length)
 bool Item::eq(const Item *item, bool binary_cmp) const
 {
   return type() == item->type() && name && item->name &&
-    !my_strcasecmp(name,item->name);
+    !my_strcasecmp(system_charset_info,name,item->name);
 }
 
 bool Item_string::eq(const Item *item, bool binary_cmp) const

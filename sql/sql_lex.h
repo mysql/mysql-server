@@ -103,7 +103,7 @@ typedef struct st_lex_master_info
 } LEX_MASTER_INFO;
 
 
-enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT};
+enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT, DERIVED_TABLE_TYPE};
 
 /* The state of the lex parsing for selects */
 
@@ -122,7 +122,7 @@ typedef struct st_select_lex {
   List<Item_func_match> ftfunc_list;
   uint in_sum_expr, sort_default;
   bool	create_refs, braces;
-  st_select_lex *next;
+  st_select_lex *next, *prev;
 } SELECT_LEX;
 
 
@@ -143,7 +143,7 @@ public:
 typedef struct st_lex {
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
-  SELECT_LEX select_lex, *select;
+  SELECT_LEX select_lex, *select, *last_select;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
@@ -187,7 +187,7 @@ typedef struct st_lex {
   uint grant,grant_tot_col,which_columns, union_option, mqh;
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
-  bool  in_comment,ignore_space,verbose,simple_alter, option_type;
+  bool  in_comment,ignore_space,verbose,simple_alter, option_type, derived_tables;
   uint slave_thd_opt;
 } LEX;
 

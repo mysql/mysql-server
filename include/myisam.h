@@ -147,6 +147,8 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
 		  struct st_mi_s_param *s_temp);
   void (*store_key)(struct st_mi_keydef *keyinfo, uchar *key_pos,
 		    struct st_mi_s_param *s_temp);
+  int (*ck_insert)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
+  int (*ck_delete)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
 } MI_KEYDEF;
 
 

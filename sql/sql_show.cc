@@ -209,7 +209,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     else
     {
         // Return only .frm files which aren't temp files.
-      if (my_strcasecmp(ext=fn_ext(file->name),reg_ext) ||
+      if (my_strcasecmp(system_charset_info, ext=fn_ext(file->name),reg_ext) ||
           is_prefix(file->name,tmp_file_prefix))
         continue;
       *ext=0;
@@ -217,7 +217,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(file->name,wild))
+	  if (wild_case_compare(system_charset_info,file->name,wild))
 	    continue;
 	}
 	else if (wild_compare(file->name,wild))
@@ -472,7 +472,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   String *packet= &thd->packet;
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
-    if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
+    if (!wild || !wild[0] || 
+        !wild_case_compare(system_charset_info, field->field_name,wild))
     {
 #ifdef NOT_USED
       if (thd->col_access & TABLE_ACLS ||
@@ -744,7 +745,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
-    if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
+    if (!wild || !wild[0] || 
+        !wild_case_compare(system_charset_info, field->field_name,wild))
       field_list.push_back(new Item_field(field));
   }
   restore_record(table,2);              // Get empty record
@@ -880,10 +882,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append("UNIQUE ", 7);
     else if (key_info->flags & HA_FULLTEXT)
       packet->append("FULLTEXT ", 9);
+    else if (key_info->flags & HA_SPATIAL)
+      packet->append("SPATIAL ", 8);
     packet->append("KEY ", 4);
 
     if (!found_primary)
      append_identifier(thd,packet,key_info->name);
+
+    // +BAR: send USING only in non-default case: non-spatial rtree
+    if((key_info->key_alg == HA_KEY_ALG_RTREE) && !(key_info->flags & HA_SPATIAL))
+          packet->append(" USING RTREE",12);
 
     packet->append(" (", 2);
 

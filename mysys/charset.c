@@ -68,7 +68,7 @@ static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
 
   for (;;)
   {
-    while (isspace(*endptr))
+    while (my_isspace(system_charset_info, *endptr))
       ++endptr;
     if (*endptr && *endptr != '#')		/* Not comment */
       break;					/* Found something */
@@ -77,7 +77,7 @@ static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
     endptr = fb->buf;
   }
 
-  while (!isspace(*endptr))
+  while (!my_isspace(system_charset_info, *endptr))
     *buf++= *endptr++;
   *buf=0;
   fb->p = endptr;
@@ -329,6 +329,14 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   memcpy((char*) cs->to_upper, (char*) tmp_to_upper,	sizeof(tmp_to_upper));
   memcpy((char*) cs->sort_order, (char*) tmp_sort_order,
 	 sizeof(tmp_sort_order));
+
+  cs->caseup_str  = my_caseup_str_8bit;
+  cs->casedn_str  = my_casedn_str_8bit;
+  cs->caseup      = my_caseup_8bit;
+  cs->casedn      = my_casedn_8bit;
+  cs->strcasecmp  = my_strcasecmp_8bit;
+  cs->strncasecmp = my_strncasecmp_8bit;
+  
   insert_dynamic(&cs_info_table, (gptr) &cs);
   return cs;
 }
@@ -396,6 +404,7 @@ my_bool set_default_charset(uint cs, myf flags)
     DBUG_RETURN(TRUE);   /* error */
   }
   default_charset_info = new_charset;
+  system_charset_info = new_charset;
   DBUG_RETURN(FALSE);
 }
 
@@ -428,6 +437,7 @@ my_bool set_default_charset_by_name(const char *cs_name, myf flags)
   }
 
   default_charset_info = new_charset;
+  system_charset_info = new_charset;
   DBUG_RETURN(FALSE);
 }
 
@@ -540,11 +550,9 @@ void _print_csinfo(CHARSET_INFO *cs)
   printf("to_lower:\n"); _print_array(cs->to_lower, 256);
   printf("to_upper:\n"); _print_array(cs->to_upper, 256);
   printf("sort_order:\n"); _print_array(cs->sort_order, 256);
-  printf("collate:    %3s (%d, %p, %p, %p, %p, %p)\n",
+  printf("collate:    %3s (%d, %p, %p, %p)\n",
          cs->strxfrm_multiply ? "yes" : "no",
          cs->strxfrm_multiply,
-         cs->strcoll,
-         cs->strxfrm,
          cs->strnncoll,
          cs->strnxfrm,
          cs->like_range);

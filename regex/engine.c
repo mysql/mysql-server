@@ -63,7 +63,8 @@ struct match {
  ==	size_t nmatch, regmatch_t pmatch[], int eflags);
  */
 static int			/* 0 success, REG_NOMATCH failure */
-matcher(g, str, nmatch, pmatch, eflags)
+matcher(charset,g, str, nmatch, pmatch, eflags)
+CHARSET_INFO *charset;
 register struct re_guts *g;
 char *str;
 size_t nmatch;
@@ -120,7 +121,7 @@ int eflags;
 
 	/* this loop does only one repetition except for backrefs */
 	for (;;) {
-		endp = fast(m, start, stop, gf, gl);
+		endp = fast(charset, m, start, stop, gf, gl);
 		if (endp == NULL) {		/* a miss */
 		  if (m->pmatch != NULL)
 		    free((char *)m->pmatch);
@@ -136,7 +137,7 @@ int eflags;
 		assert(m->coldp != NULL);
 		for (;;) {
 			NOTE("finding start");
-			endp = slow(m, m->coldp, stop, gf, gl);
+			endp = slow(charset, m, m->coldp, stop, gf, gl);
 			if (endp != NULL)
 				break;
 			assert(m->coldp < m->endp);
@@ -159,7 +160,7 @@ int eflags;
 			m->pmatch[i].rm_so = m->pmatch[i].rm_eo = -1;
 		if (!g->backrefs && !(m->eflags&REG_BACKR)) {
 			NOTE("dissecting");
-			dp = dissect(m, m->coldp, endp, gf, gl);
+			dp = dissect(charset, m, m->coldp, endp, gf, gl);
 		} else {
 			if (g->nplus > 0 && m->lastpos == NULL)
 				m->lastpos = (char **)malloc((g->nplus+1) *
@@ -170,7 +171,7 @@ int eflags;
 				return(REG_ESPACE);
 			}
 			NOTE("backref dissect");
-			dp = backref(m, m->coldp, endp, gf, gl, (sopno)0);
+			dp = backref(charset, m, m->coldp, endp, gf, gl, (sopno)0);
 		}
 		if (dp != NULL)
 			break;
@@ -182,7 +183,7 @@ int eflags;
 			if (dp != NULL || endp <= m->coldp)
 				break;		/* defeat */
 			NOTE("backoff");
-			endp = slow(m, m->coldp, endp-1, gf, gl);
+			endp = slow(charset, m, m->coldp, endp-1, gf, gl);
 			if (endp == NULL)
 				break;		/* defeat */
 			/* try it on a shorter possibility */
@@ -193,7 +194,7 @@ int eflags;
 			}
 #endif
 			NOTE("backoff dissect");
-			dp = backref(m, m->coldp, endp, gf, gl, (sopno)0);
+			dp = backref(charset, m, m->coldp, endp, gf, gl, (sopno)0);
 		}
 		assert(dp == NULL || dp == endp);
 		if (dp != NULL)		/* found a shorter one */
@@ -235,7 +236,8 @@ int eflags;
  ==	char *stop, sopno startst, sopno stopst);
  */
 static char *			/* == stop (success) always */
-dissect(m, start, stop, startst, stopst)
+dissect(charset, m, start, stop, startst, stopst)
+CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -299,10 +301,10 @@ sopno stopst;
 			stp = stop;
 			for (;;) {
 				/* how long could this one be? */
-				rest = slow(m, sp, stp, ss, es);
+				rest = slow(charset, m, sp, stp, ss, es);
 				assert(rest != NULL);	/* it did match */
 				/* could the rest match the rest? */
-				tail = slow(m, rest, stop, es, stopst);
+				tail = slow(charset, m, rest, stop, es, stopst);
 				if (tail == stop)
 					break;		/* yes! */
 				/* no -- try a shorter match for this one */
@@ -312,8 +314,8 @@ sopno stopst;
 			ssub = ss + 1;
 			esub = es - 1;
 			/* did innards match? */
-			if (slow(m, sp, rest, ssub, esub) != NULL) {
-				dp = dissect(m, sp, rest, ssub, esub);
+			if (slow(charset, m, sp, rest, ssub, esub) != NULL) {
+				dp = dissect(charset, m, sp, rest, ssub, esub);
 				assert(dp == rest);
 			} else		/* no */
 				assert(sp == rest);
@@ -323,10 +325,10 @@ sopno stopst;
 			stp = stop;
 			for (;;) {
 				/* how long could this one be? */
-				rest = slow(m, sp, stp, ss, es);
+				rest = slow(charset, m, sp, stp, ss, es);
 				assert(rest != NULL);	/* it did match */
 				/* could the rest match the rest? */
-				tail = slow(m, rest, stop, es, stopst);
+				tail = slow(charset, m, rest, stop, es, stopst);
 				if (tail == stop)
 					break;		/* yes! */
 				/* no -- try a shorter match for this one */
@@ -338,7 +340,7 @@ sopno stopst;
 			ssp = sp;
 			oldssp = ssp;
 			for (;;) {	/* find last match of innards */
-				sep = slow(m, ssp, rest, ssub, esub);
+				sep = slow(charset, m, ssp, rest, ssub, esub);
 				if (sep == NULL || sep == ssp)
 					break;	/* failed or matched null */
 				oldssp = ssp;	/* on to next try */
@@ -350,8 +352,8 @@ sopno stopst;
 				ssp = oldssp;
 			}
 			assert(sep == rest);	/* must exhaust substring */
-			assert(slow(m, ssp, sep, ssub, esub) == rest);
-			dp = dissect(m, ssp, sep, ssub, esub);
+			assert(slow(charset, m, ssp, sep, ssub, esub) == rest);
+			dp = dissect(charset, m, ssp, sep, ssub, esub);
 			assert(dp == sep);
 			sp = rest;
 			break;
@@ -359,10 +361,10 @@ sopno stopst;
 			stp = stop;
 			for (;;) {
 				/* how long could this one be? */
-				rest = slow(m, sp, stp, ss, es);
+				rest = slow(charset, m, sp, stp, ss, es);
 				assert(rest != NULL);	/* it did match */
 				/* could the rest match the rest? */
-				tail = slow(m, rest, stop, es, stopst);
+				tail = slow(charset, m, rest, stop, es, stopst);
 				if (tail == stop)
 					break;		/* yes! */
 				/* no -- try a shorter match for this one */
@@ -373,7 +375,7 @@ sopno stopst;
 			esub = ss + OPND(m->g->strip[ss]) - 1;
 			assert(OP(m->g->strip[esub]) == OOR1);
 			for (;;) {	/* find first matching branch */
-				if (slow(m, sp, rest, ssub, esub) == rest)
+				if (slow(charset, m, sp, rest, ssub, esub) == rest)
 					break;	/* it matched all of it */
 				/* that one missed, try next one */
 				assert(OP(m->g->strip[esub]) == OOR1);
@@ -386,7 +388,7 @@ sopno stopst;
 				else
 					assert(OP(m->g->strip[esub]) == O_CH);
 			}
-			dp = dissect(m, sp, rest, ssub, esub);
+			dp = dissect(charset, m, sp, rest, ssub, esub);
 			assert(dp == rest);
 			sp = rest;
 			break;
@@ -423,7 +425,8 @@ sopno stopst;
  ==	char *stop, sopno startst, sopno stopst, sopno lev);
  */
 static char *			/* == stop (success) or NULL (failure) */
-backref(m, start, stop, startst, stopst, lev)
+backref(charset,m, start, stop, startst, stopst, lev)
+CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -486,8 +489,8 @@ sopno lev;			/* PLUS nesting level */
 					(sp < m->endp && *(sp-1) == '\n' &&
 						(m->g->cflags&REG_NEWLINE)) ||
 					(sp > m->beginp &&
-							!ISWORD(*(sp-1))) ) &&
-					(sp < m->endp && ISWORD(*sp)) )
+							!ISWORD(charset,*(sp-1))) ) &&
+					(sp < m->endp && ISWORD(charset,*sp)) )
 				{ /* yes */ }
 			else
 				return(NULL);
@@ -496,8 +499,8 @@ sopno lev;			/* PLUS nesting level */
 			if (( (sp == m->endp && !(m->eflags&REG_NOTEOL)) ||
 					(sp < m->endp && *sp == '\n' &&
 						(m->g->cflags&REG_NEWLINE)) ||
-					(sp < m->endp && !ISWORD(*sp)) ) &&
-					(sp > m->beginp && ISWORD(*(sp-1))) )
+					(sp < m->endp && !ISWORD(charset,*sp)) ) &&
+					(sp > m->beginp && ISWORD(charset,*(sp-1))) )
 				{ /* yes */ }
 			else
 				return(NULL);
@@ -543,28 +546,28 @@ sopno lev;			/* PLUS nesting level */
 			return(NULL);
 		while (m->g->strip[ss] != SOP(O_BACK, i))
 			ss++;
-		return(backref(m, sp+len, stop, ss+1, stopst, lev));
+		return(backref(charset, m, sp+len, stop, ss+1, stopst, lev));
 		break;
 	case OQUEST_:		/* to null or not */
-		dp = backref(m, sp, stop, ss+1, stopst, lev);
+		dp = backref(charset, m, sp, stop, ss+1, stopst, lev);
 		if (dp != NULL)
 			return(dp);	/* not */
-		return(backref(m, sp, stop, ss+OPND(s)+1, stopst, lev));
+		return(backref(charset, m, sp, stop, ss+OPND(s)+1, stopst, lev));
 		break;
 	case OPLUS_:
 		assert(m->lastpos != NULL);
 		assert(lev+1 <= m->g->nplus);
 		m->lastpos[lev+1] = sp;
-		return(backref(m, sp, stop, ss+1, stopst, lev+1));
+		return(backref(charset, m, sp, stop, ss+1, stopst, lev+1));
 		break;
 	case O_PLUS:
 		if (sp == m->lastpos[lev])	/* last pass matched null */
-			return(backref(m, sp, stop, ss+1, stopst, lev-1));
+			return(backref(charset, m, sp, stop, ss+1, stopst, lev-1));
 		/* try another pass */
 		m->lastpos[lev] = sp;
-		dp = backref(m, sp, stop, ss-OPND(s)+1, stopst, lev);
+		dp = backref(charset, m, sp, stop, ss-OPND(s)+1, stopst, lev);
 		if (dp == NULL)
-			return(backref(m, sp, stop, ss+1, stopst, lev-1));
+			return(backref(charset, m, sp, stop, ss+1, stopst, lev-1));
 		else
 			return(dp);
 		break;
@@ -573,7 +576,7 @@ sopno lev;			/* PLUS nesting level */
 		esub = ss + OPND(s) - 1;
 		assert(OP(m->g->strip[esub]) == OOR1);
 		for (;;) {	/* find first matching branch */
-			dp = backref(m, sp, stop, ssub, esub, lev);
+			dp = backref(charset, m, sp, stop, ssub, esub, lev);
 			if (dp != NULL)
 				return(dp);
 			/* that one missed, try next one */
@@ -594,7 +597,7 @@ sopno lev;			/* PLUS nesting level */
 		assert(0 < i && i <= m->g->nsub);
 		offsave = m->pmatch[i].rm_so;
 		m->pmatch[i].rm_so = sp - m->offp;
-		dp = backref(m, sp, stop, ss+1, stopst, lev);
+		dp = backref(charset, m, sp, stop, ss+1, stopst, lev);
 		if (dp != NULL)
 			return(dp);
 		m->pmatch[i].rm_so = offsave;
@@ -605,7 +608,7 @@ sopno lev;			/* PLUS nesting level */
 		assert(0 < i && i <= m->g->nsub);
 		offsave = m->pmatch[i].rm_eo;
 		m->pmatch[i].rm_eo = sp - m->offp;
-		dp = backref(m, sp, stop, ss+1, stopst, lev);
+		dp = backref(charset, m, sp, stop, ss+1, stopst, lev);
 		if (dp != NULL)
 			return(dp);
 		m->pmatch[i].rm_eo = offsave;
@@ -628,7 +631,8 @@ sopno lev;			/* PLUS nesting level */
  ==	char *stop, sopno startst, sopno stopst);
  */
 static char *			/* where tentative match ended, or NULL */
-fast(m, start, stop, startst, stopst)
+fast(charset, m, start, stop, startst, stopst)
+CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -678,12 +682,12 @@ sopno stopst;
 		}
 
 		/* how about a word boundary? */
-		if ( (flagch == BOL || (lastc != OUT && !ISWORD(lastc))) &&
-					(c != OUT && ISWORD(c)) ) {
+		if ( (flagch == BOL || (lastc != OUT && !ISWORD(charset,lastc))) &&
+					(c != OUT && ISWORD(charset,c)) ) {
 			flagch = BOW;
 		}
-		if ( (lastc != OUT && ISWORD(lastc)) &&
-				(flagch == EOL || (c != OUT && !ISWORD(c))) ) {
+		if ( (lastc != OUT && ISWORD(charset,lastc)) &&
+				(flagch == EOL || (c != OUT && !ISWORD(charset,c))) ) {
 			flagch = EOW;
 		}
 		if (flagch == BOW || flagch == EOW) {
@@ -719,7 +723,8 @@ sopno stopst;
  ==	char *stop, sopno startst, sopno stopst);
  */
 static char *			/* where it ended */
-slow(m, start, stop, startst, stopst)
+slow(charset, m, start, stop, startst, stopst)
+CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -767,12 +772,12 @@ sopno stopst;
 		}
 
 		/* how about a word boundary? */
-		if ( (flagch == BOL || (lastc != OUT && !ISWORD(lastc))) &&
-					(c != OUT && ISWORD(c)) ) {
+		if ( (flagch == BOL || (lastc != OUT && !ISWORD(charset,lastc))) &&
+					(c != OUT && ISWORD(charset,c)) ) {
 			flagch = BOW;
 		}
-		if ( (lastc != OUT && ISWORD(lastc)) &&
-				(flagch == EOL || (c != OUT && !ISWORD(c))) ) {
+		if ( (lastc != OUT && ISWORD(charset,lastc)) &&
+				(flagch == EOL || (c != OUT && !ISWORD(charset,c))) ) {
 			flagch = EOW;
 		}
 		if (flagch == BOW || flagch == EOW) {

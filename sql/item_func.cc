@@ -27,6 +27,8 @@
 #include <time.h>
 #include <ft_global.h>
 #include "slave.h" // for wait_for_master_pos
+#include "gstream.h"
+
 
 /* return TRUE if item is a constant */
 
@@ -828,7 +830,7 @@ longlong Item_func_locate::val_int()
   {
     start=(uint) args[2]->val_int()-1;
 #ifdef USE_MB
-    if (use_mb(default_charset_info))
+    if (use_mb(a->charset()))
     {
       start0=start;
       if (!binary_str)
@@ -841,7 +843,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary_str)
+  if (use_mb(a->charset()) && !binary_str)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -860,7 +862,7 @@ longlong Item_func_locate::val_int()
         return (longlong) start0+1;
       }
   skipp:
-      if ((l=my_ismbchar(default_charset_info,ptr,strend))) ptr+=l;
+      if ((l=my_ismbchar(a->charset(),ptr,strend))) ptr+=l;
       else ++ptr;
       ++start0;
     }
@@ -911,11 +913,10 @@ longlong Item_func_ord::val_int()
   null_value=0;
   if (!res->length()) return 0;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !args[0]->binary)
+  if (use_mb(res->charset()) && !args[0]->binary)
   {
     register const char *str=res->ptr();
-    register uint32 n=0, l=my_ismbchar(default_charset_info,
-                                       str,str+res->length());
+    register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
     if (!l) return (longlong)((uchar) *str);
     while (l--)
       n=(n<<8)|(uint32)((uchar) *str++);
@@ -989,7 +990,8 @@ longlong Item_func_find_in_set::val_int()
       const char *pos= f_pos;
       while (pos != f_end)
       {
-	if (toupper(*str) != toupper(*pos))
+	if (my_toupper(find->charset(),*str) != 
+            my_toupper(find->charset(),*pos))
 	  goto not_found;
 	str++;
 	pos++;
@@ -1419,7 +1421,8 @@ char *ull_get_key(const ULL *ull,uint *length,
 void item_user_lock_init(void)
 {
   pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
-  hash_init(&hash_user_locks,16,0,0,(hash_get_key) ull_get_key,NULL,0);
+  hash_init(&hash_user_locks,system_charset_info,
+	    16,0,0,(hash_get_key) ull_get_key,NULL,0);
 }
 
 void item_user_lock_free(void)
@@ -2253,4 +2256,131 @@ Item *get_system_var(LEX_STRING name)
 			current_thd->insert_id(),21);
   my_error(ER_UNKNOWN_SYSTEM_VARIABLE,MYF(0),name);
   return 0;
+}
+
+
+/**************************************************************************
+Spatial functions
+***************************************************************************/
+
+longlong Item_func_dimension::val_int()
+{
+  uint32 dim;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.dimension(&dim));
+
+  return (longlong) dim;
+}
+
+longlong Item_func_numinteriorring::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,num_interior_ring) || 
+	       geom.num_interior_ring(&num));
+
+  return (longlong) num;
+}
+
+longlong Item_func_numgeometries::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,num_geometries) || 
+               geom.num_geometries(&num));
+
+  return (longlong) num;
+}
+
+longlong Item_func_numpoints::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
+               !GEOM_METHOD_PRESENT(geom,num_points) ||
+               geom.num_points(&num));
+
+  return (longlong) num;
+}
+
+
+double Item_func_x::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,get_x) || 
+               geom.get_x(&res));
+
+  return res;
+}
+
+
+double Item_func_y::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,get_y) || 
+               geom.get_y(&res));
+
+  return res;
+}
+
+
+double Item_func_area::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,area) || 
+               geom.area(&res));
+
+  return res;
+}
+
+
+double Item_func_glength::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,length) || 
+               geom.length(&res));
+  return res;
 }

@@ -155,7 +155,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   {
     keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
     keyinfo->key_length= (uint) uint2korr(strpos+1);
-    keyinfo->key_parts=  (uint) strpos[3];  strpos+=4;
+    keyinfo->key_parts=  (uint) strpos[3];
+    strpos+=4;
+
     keyinfo->key_part=	 key_part;
     keyinfo->rec_per_key= rec_per_key;
     for (j=keyinfo->key_parts ; j-- ; key_part++)
@@ -327,6 +329,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   use_hash= outparam->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
     use_hash= !hash_init(&outparam->name_hash,
+			 system_charset_info,
 			 outparam->fields,0,0,
 			 (hash_get_key) get_field_name,0,
 			 HASH_CASE_INSENSITIVE);
@@ -404,6 +407,26 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  }
 	}
       }
+
+      keyinfo->key_alg=HA_KEY_ALG_BTREE;  // BAR : btree by default
+
+#define BAR_DIRTY_HACK
+#ifdef BAR_DIRTY_HACK
+      // BAR FIXME: Dirty hack while waiting for new .frm format
+      switch(keyinfo->name[0]){
+        case 'R':
+          keyinfo->key_alg=HA_KEY_ALG_RTREE;
+          break;
+        case 'S':
+          keyinfo->key_alg = HA_KEY_ALG_RTREE;
+          keyinfo->flags |= HA_SPATIAL;
+          break;
+        case 'B':
+        default:
+          keyinfo->key_alg=HA_KEY_ALG_BTREE;
+          break;
+      }
+#endif
 
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
@@ -1058,9 +1081,10 @@ bool check_db_name(const char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    if (use_mb(default_charset_info))
+    if (use_mb(system_charset_info))
     {
-      int len=my_ismbchar(default_charset_info, name, name+MBMAXLEN);
+      int len=my_ismbchar(system_charset_info, name, 
+		name+system_charset_info->mbmaxlen);
       if (len)
       {
         name += len;
@@ -1090,9 +1114,9 @@ bool check_table_name(const char *name, uint length)
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    if (use_mb(default_charset_info))
+    if (use_mb(system_charset_info))
     {
-      int len=my_ismbchar(default_charset_info, name, end);
+      int len=my_ismbchar(system_charset_info, name, end);
       if (len)
       {
         name += len;
@@ -1112,9 +1136,10 @@ bool check_column_name(const char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    if (use_mb(default_charset_info))
+    if (use_mb(system_charset_info))
     {
-      int len=my_ismbchar(default_charset_info, name, name+MBMAXLEN);
+      int len=my_ismbchar(system_charset_info, name, 
+		name+system_charset_info->mbmaxlen);
       if (len)
       {
         name += len;

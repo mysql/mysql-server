@@ -5892,8 +5892,10 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 		       (uint) (field_count*sizeof(*field_lengths)),
 		       NullS))
     DBUG_RETURN(1);
-  if (hash_init(&hash, (uint) file->records, 0, key_length,
-		(hash_get_key) 0, 0, 0))
+
+  // BAR TODO: this must be fixed to use charset from "table" argument
+  if (hash_init(&hash, default_charset_info, (uint) file->records, 0, 
+		key_length,(hash_get_key) 0, 0, 0))
   {
     my_free((char*) key_buffer,MYF(0));
     DBUG_RETURN(1);
@@ -7057,9 +7059,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_null());
       if (tab->ref.key_parts)
       {
-	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,
-					    strlen(table->key_info[tab->ref.key].name)));
-	item_list.push_back(new Item_int((int32) tab->ref.key_length));
+	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,strlen(table->key_info[tab->ref.key].name)));
+	item_list.push_back(new Item_int((int) tab->ref.key_length));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
 	  if (tmp2.length())
@@ -7071,13 +7072,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       else if (tab->type == JT_NEXT)
       {
 	item_list.push_back(new Item_string(table->key_info[tab->index].name,strlen(table->key_info[tab->index].name)));
-	item_list.push_back(new Item_int((int32) table->key_info[tab->index].key_length));
+	item_list.push_back(new Item_int((int) table->key_info[tab->index].key_length));
 	item_list.push_back(new Item_null());
       }
       else if (tab->select && tab->select->quick)
       {
 	item_list.push_back(new Item_string(table->key_info[tab->select->quick->index].name,strlen(table->key_info[tab->select->quick->index].name)));
-	item_list.push_back(new Item_int((int32) tab->select->quick->max_used_key_length));
+	item_list.push_back(new Item_int((int) tab->select->quick->max_used_key_length));
 	item_list.push_back(new Item_null());
       }
       else

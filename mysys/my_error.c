@@ -62,7 +62,7 @@ int my_error(int nr,myf MyFlags, ...)
     else
     {
       /* Skipp if max size is used (to be compatible with printf) */
-      while (isdigit(*tpos) || *tpos == '.' || *tpos == '-')
+      while (my_isdigit(system_charset_info, *tpos) || *tpos == '.' || *tpos == '-')
 	tpos++;
       if (*tpos == 'l')				/* Skipp 'l' argument */
 	tpos++;

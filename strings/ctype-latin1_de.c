@@ -36,6 +36,8 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_latin1_de
+
 uchar ctype_latin1_de[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
@@ -162,8 +164,9 @@ uchar sort_order_latin1_de[] = {
   }
 
 
-int my_strnncoll_latin1_de(const uchar * s1, int len1,
-                           const uchar * s2, int len2)
+int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+                           const uchar * s1, uint len1,
+                           const uchar * s2, uint len2)
 {
   const uchar *e1 = s1 + len1;
   const uchar *e2 = s2 + len2;
@@ -235,7 +238,9 @@ int my_strnncoll_latin1_de(const uchar * s1, int len1,
 }
 
 
-int my_strnxfrm_latin1_de(uchar * dest, const uchar * src, int len, int srclen)
+int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+                          uchar * dest, uint len,
+                          const uchar * src, uint srclen)
 {
   const uchar *dest_orig = dest;
   const uchar *de = dest + len;
@@ -274,19 +279,6 @@ int my_strnxfrm_latin1_de(uchar * dest, const uchar * src, int len, int srclen)
 }
 
 
-int my_strcoll_latin1_de(const uchar * s1, const uchar * s2)
-{
-  /* XXX QQ: This should be fixed to not call strlen */
-  return my_strnncoll_latin1_de(s1, strlen((char*) s1),
-				s2, strlen((char*) s2));
-}
-
-int my_strxfrm_latin1_de(uchar * dest, const uchar * src, int len)
-{
-  /* XXX QQ: This should be fixed to not call strlen */
-  return my_strnxfrm_latin1_de(dest, src, len, strlen((char*) src));
-}
-
 /*
  * Calculate min_str and max_str that ranges a LIKE string.
  * Arguments:
@@ -311,7 +303,8 @@ int my_strxfrm_latin1_de(uchar * dest, const uchar * src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
+my_bool my_like_range_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+				const char *ptr, uint ptr_length,
 				pchar escape, uint res_length,
 				char *min_str, char *max_str,
 				uint *min_length, uint *max_length)
@@ -359,3 +352,5 @@ my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
     *min_str++ = *max_str++ = ' ';		// Because if key compression
   return 0;
 }
+
+#endif

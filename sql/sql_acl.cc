@@ -383,7 +383,7 @@ static uint get_access(TABLE *form,uint fieldnr)
   for (pos=form->field+fieldnr,bit=1 ; *pos ; pos++ , bit<<=1)
   {
     (*pos)->val_str(&res,&res);
-    if (toupper(res[0]) == 'Y')
+    if (my_toupper(system_charset_info, res[0]) == 'Y')
       access_bits|=bit;
   }
   return access_bits;
@@ -731,7 +731,7 @@ uint acl_get(const char *host, const char *ip, const char *bin_ip,
   end=strmov((tmp_db=strmov(key+sizeof(struct in_addr),user)+1),db);
   if (lower_case_table_names)
   {
-    casedn_str(tmp_db);
+    my_casedn_str(system_charset_info, tmp_db);
     db=tmp_db;
   }
   key_length=(uint) (end-key);
@@ -795,7 +795,7 @@ exit:
 }
 
 
-int wild_case_compare(const char *str,const char *wildstr)
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 {
   reg3 int flag;
   DBUG_ENTER("wild_case_compare");
@@ -806,7 +806,8 @@ int wild_case_compare(const char *str,const char *wildstr)
     {
       if (*wildstr == wild_prefix && wildstr[1])
 	wildstr++;
-      if (toupper(*wildstr++) != toupper(*str++)) DBUG_RETURN(1);
+      if (my_toupper(cs, *wildstr++) != 
+          my_toupper(cs, *str++)) DBUG_RETURN(1);
     }
     if (! *wildstr ) DBUG_RETURN (*str != 0);
     if (*wildstr++ == wild_one)
@@ -824,12 +825,12 @@ int wild_case_compare(const char *str,const char *wildstr)
 	  char cmp;
 	  if ((cmp= *wildstr) == wild_prefix && wildstr[1])
 	    cmp=wildstr[1];
-	  cmp=toupper(cmp);
-	  while (*str && toupper(*str) != cmp)
+	  cmp=my_toupper(cs, cmp);
+	  while (*str && my_toupper(cs, *str) != cmp)
 	    str++;
 	  if (!*str) DBUG_RETURN (1);
 	}
-	if (wild_case_compare(str,wildstr) == 0) DBUG_RETURN (0);
+	if (wild_case_compare(cs, str,wildstr) == 0) DBUG_RETURN (0);
       } while (*str++);
       DBUG_RETURN(1);
     }
@@ -848,7 +849,7 @@ static void init_check_host(void)
   DBUG_ENTER("init_check_host");
   VOID(init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
-  VOID(hash_init(&acl_check_hosts,acl_users.elements,0,0,
+  VOID(hash_init(&acl_check_hosts,system_charset_info,acl_users.elements,0,0,
 		 (hash_get_key) check_get_key,0,HASH_CASE_INSENSITIVE));
   if (!allow_all_hosts)
   {
@@ -864,7 +865,8 @@ static void init_check_host(void)
 	{					// Check if host already exists
 	  acl_host_and_ip *acl=dynamic_element(&acl_wild_hosts,j,
 					       acl_host_and_ip *);
-	  if (!my_strcasecmp(acl_user->host.hostname,acl->hostname))
+	  if (!my_strcasecmp(system_charset_info,
+                             acl_user->host.hostname, acl->hostname))
 	    break;				// already stored
 	}
 	if (j == acl_wild_hosts.elements)	// If new
@@ -939,7 +941,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(host,thd->host ? thd->host : thd->ip)))
+       my_strcasecmp(system_charset_info, host,thd->host_or_ip))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       DBUG_RETURN(1);
@@ -1065,7 +1067,8 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
     return (tmp & host->ip_mask) == host->ip;
   }
   return (!host->hostname ||
-	  (hostname && !wild_case_compare(hostname,host->hostname)) ||
+	  (hostname && !wild_case_compare(system_charset_info,
+                                          hostname,host->hostname)) ||
 	  (ip && !wild_compare(ip,host->hostname)));
 }
 
@@ -1418,13 +1421,14 @@ public:
     tname= strdup_root(&memex,t);
     if (lower_case_table_names)
     {
-      casedn_str(db);
-      casedn_str(tname);
+      my_casedn_str(system_charset_info, db);
+      my_casedn_str(system_charset_info, tname);
     }
     key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
-    (void) hash_init(&hash_columns,0,0,0, (hash_get_key) get_key_column,0,
+    (void) hash_init(&hash_columns,system_charset_info,
+		     0,0,0, (hash_get_key) get_key_column,0,
 		     HASH_CASE_INSENSITIVE);
   }
 
@@ -1444,8 +1448,8 @@ public:
     }
     if (lower_case_table_names)
     {
-      casedn_str(db);
-      casedn_str(tname);
+      my_casedn_str(system_charset_info, db);
+      my_casedn_str(system_charset_info, tname);
     }
     key_length = ((uint) strlen(db) + (uint) strlen(user) +
 		  (uint) strlen(tname) + 3);
@@ -1456,7 +1460,8 @@ public:
     privs = fix_rights_for_table(privs);
     cols =  fix_rights_for_column(cols);
 
-    (void) hash_init(&hash_columns,0,0,0, (hash_get_key) get_key_column,0,
+    (void) hash_init(&hash_columns,system_charset_info,
+		     0,0,0, (hash_get_key) get_key_column,0,
 		     HASH_CASE_INSENSITIVE);
     if (cols)
     {
@@ -1538,8 +1543,10 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     }
     else
     {
-      if ((host && !wild_case_compare(host,grant_table->host)) ||
-	  (ip && !wild_case_compare(ip,grant_table->host)))
+      if ((host && !wild_case_compare(system_charset_info, 
+                                      host,grant_table->host)) ||
+	  (ip && !wild_case_compare(system_charset_info, 
+                                    ip,grant_table->host)))
 	found=grant_table;					// Host ok
     }
   }
@@ -2055,7 +2062,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
   if (lower_case_table_names && db)
   {
     strmov(tmp_db,db);
-    casedn_str(tmp_db);
+    my_casedn_str(system_charset_info, tmp_db);
     db=tmp_db;
   }
 
@@ -2141,7 +2148,8 @@ int  grant_init (void)
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
-  (void) hash_init(&hash_tables,0,0,0, (hash_get_key) get_grant_table,
+  (void) hash_init(&hash_tables,system_charset_info,
+		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
   init_sql_alloc(&memex,1024,0);
 
@@ -2480,8 +2488,10 @@ bool check_grant_db(THD *thd,const char *db)
     GRANT_TABLE *grant_table = (GRANT_TABLE*) hash_element(&hash_tables,idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-	(thd->host && !wild_case_compare(thd->host,grant_table->host) ||
-	 (thd->ip && !wild_case_compare(thd->ip,grant_table->host))))
+	(thd->host && !wild_case_compare(system_charset_info, 
+                                         thd->host,grant_table->host) ||
+	 (thd->ip && !wild_case_compare(system_charset_info, 
+                                        thd->ip,grant_table->host))))
     {
       error=0;					// Found match
       break;

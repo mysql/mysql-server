@@ -17,6 +17,8 @@
 /* Write a row to a MyISAM table */
 
 #include "fulltext.h"
+#include "rt_index.h"
+
 #ifdef	__WIN__
 #include <errno.h>
 #endif
@@ -121,17 +123,17 @@ int mi_write(MI_INFO *info, byte *record)
       }
       else
       {
-	uint key_length=_mi_make_key(info,i,buff,record,filepos);
-	if (_mi_ck_write(info,i,buff,key_length))
-	{
-	  if (local_lock_tree)
-	    rw_unlock(&share->key_root_lock[i]);
-	  DBUG_PRINT("error",("Got error: %d on write",my_errno));
-	  goto err;
-	}
+        if (share->keyinfo[i].ck_insert(info,i,buff,
+        			_mi_make_key(info,i,buff,record,filepos)))
+        {
+          if (local_lock_tree)
+            rw_unlock(&share->key_root_lock[i]);
+            DBUG_PRINT("error",("Got error: %d on write",my_errno));
+            goto err;
+        }
       }
       if (local_lock_tree)
-	rw_unlock(&share->key_root_lock[i]);
+        rw_unlock(&share->key_root_lock[i]);
     }
   }
   if (share->calc_checksum)

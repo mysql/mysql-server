@@ -48984,9 +48984,6 @@ Fixed bug in truncation operator for boolean full-text search.
 Allow value of @code{--user=#} option for @code{mysqld} to be specified
 as a numeric user ID.
 @item
-Fixed a bug where @code{SQL_CALC_ROWS} returned an incorrect value when used
-with one table and @code{ORDER BY} and with @code{InnoDB} tables.
-@item
 Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
 @item
 Fixed some problems with @code{USE/IGNORE INDEX} when using
