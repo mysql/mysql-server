@@ -3324,12 +3324,16 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 
 void add_join_on(TABLE_LIST *b,Item *expr)
 {
-  if (!b->on_expr)
-    b->on_expr=expr;
-  else
+  if (expr)
   {
-    // This only happens if you have both a right and left join
-    b->on_expr=new Item_cond_and(b->on_expr,expr);
+    if (!b->on_expr)
+      b->on_expr=expr;
+    else
+    {
+      // This only happens if you have both a right and left join
+      b->on_expr=new Item_cond_and(b->on_expr,expr);
+    }
+    b->on_expr->top_level_item();
   }
 }
 

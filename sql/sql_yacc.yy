@@ -2178,15 +2178,25 @@ opt_table_alias:
 
 where_clause:
 	/* empty */  { Select->where= 0; }
-	| WHERE expr { Select->where= $2; };
+	| WHERE expr
+	  {
+	    Select->where= $2;
+	    if ($2)
+	      $2->top_level_item();
+	  }
+	  ;
 
 having_clause:
 	/* empty */
 	| HAVING { Select->create_refs=1; } expr
 	{
 	  SELECT_LEX *sel=Select;
-	  sel->having= $3; sel->create_refs=0;
-	};
+	  sel->having= $3;
+	  sel->create_refs=0;
+	  if ($3)
+	    $3->top_level_item();
+	}
+	;
 
 opt_escape:
 	ESCAPE_SYM TEXT_STRING	{ $$= $2.str; }

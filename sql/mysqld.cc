@@ -2003,6 +2003,8 @@ int main(int argc, char **argv)
   if (ha_init())
   {
     sql_print_error("Can't init databases");
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   ha_key_cache();
@@ -2038,6 +2040,8 @@ int main(int argc, char **argv)
       pthread_key_create(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   start_signal_handler();				// Creates pidfile
@@ -2050,6 +2054,8 @@ int main(int argc, char **argv)
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   if (!opt_noacl)
@@ -4467,8 +4473,8 @@ fn_format_relative_to_data_home(my_string to, const char *name,
 static void fix_paths(void)
 {
   char buff[FN_REFLEN];
-  (void) fn_format(mysql_home,mysql_home,"","",16); // Remove symlinks
   convert_dirname(mysql_home,mysql_home,NullS);
+  my_realpath(mysql_home,mysql_home,MYF(0));
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
