@@ -23,7 +23,7 @@ pkginclude_HEADERS =	dbug.h m_string.h my_sys.h mysql.h mysql_com.h \
 			sslopt-case.h sslopt-longopts.h sslopt-usage.h \
 			sslopt-vars.h $(BUILT_SOURCES)
 noinst_HEADERS =	global.h config-win.h \
-			nisam.h heap.h merge.h \
+			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			my_dir.h mysys_err.h my_base.h \
 			my_nosys.h my_alarm.h queues.h \
