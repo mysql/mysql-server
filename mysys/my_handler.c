@@ -178,6 +178,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
       break;
     case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_BIT:
       if (keyseg->flag & HA_SPACE_PACK)
       {
         int a_length,b_length,pack_length;
