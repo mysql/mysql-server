@@ -34,6 +34,7 @@ BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
 COPYING
 COPYING.LIB
+Docs/#manual.texi#
 Docs/INSTALL-BINARY
 Docs/include.texi
 Docs/manual.aux
@@ -56,6 +57,7 @@ Docs/manual_letter.ps
 Docs/manual_toc.html
 Docs/my_sys.doc
 Docs/mysql.info
+Docs/texi2dvi.out
 INSTALL-SOURCE
 Logs/*
 MIRRORS
@@ -180,6 +182,7 @@ gmon.out
 heap/hp_test1
 heap/hp_test2
 include/my_config.h
+include/my_global.h
 include/mysql_version.h
 include/widec.h
 innobase/conftest.s1
@@ -419,4 +422,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-Docs/#manual.texi#

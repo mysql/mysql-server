@@ -20,6 +20,7 @@ select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 delete from t1 where a like "MySQL%";
 drop table t1;
 
