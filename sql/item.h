@@ -343,6 +343,11 @@ public:
     null_value=(*ref)->null_value;
     return tmp;
   }
+  bool is_null()
+  {
+    (void) (*ref)->val_int_result();
+    return (*ref)->null_value;
+  }
   bool get_date(TIME *ltime,bool fuzzydate)
   {  
     return (null_value=(*ref)->get_date(ltime,fuzzydate));
