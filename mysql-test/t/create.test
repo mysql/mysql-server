@@ -331,6 +331,16 @@ describe t2;
 drop table t1, t2;
 
 #
+# Bug #2075
+#
+
+create table t1(name varchar(10), age smallint default -1);
+describe t1;
+create table t2(name varchar(10), age smallint default - 1);
+describe t2;
+drop table t1, t2;
+
+#
 # Bug #1209
 #
 

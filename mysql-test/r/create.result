@@ -423,6 +423,17 @@ strnull	varchar(10)	YES		NULL
 intg	int(11)	YES		NULL	
 rel	double	YES		NULL	
 drop table t1, t2;
+create table t1(name varchar(10), age smallint default -1);
+describe t1;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint(6)	YES		-1	
+create table t2(name varchar(10), age smallint default - 1);
+describe t2;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint(6)	YES		-1	
+drop table t1, t2;
 create database test_$1;
 use test_$1;
 select database();

@@ -627,6 +627,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
+	NUM_literal
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -4409,11 +4410,8 @@ param_marker:
 
 literal:
 	text_literal	{ $$ =	$1; }
-	| NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
-	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
-	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
-	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
-	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
+	| opt_plus NUM_literal { $$ = $2; }
+	| '-' NUM_literal { $$ = new Item_func_neg($2); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
@@ -4429,6 +4427,17 @@ literal:
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };
 
+opt_plus:
+	| '+' ;
+
+NUM_literal:
+	NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
+	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
+	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
+	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
+	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
+	;
+	
 /**********************************************************************
 ** Createing different items.
 **********************************************************************/
