@@ -392,6 +392,41 @@ void check_duplicates_in_interval(const char *set_or_name,
   }
 }
 
+
+/*
+  Check TYPELIB (set or enum) max and total lengths
+
+  SYNOPSIS
+    calculate_interval_lengths()
+    cs            charset+collation pair of the interval
+    typelib       list of values for the column
+    max_length    length of the longest item
+    tot_length    sum of the item lengths
+
+  DESCRIPTION
+    After this function call:
+    - ENUM uses max_length
+    - SET uses tot_length.
+
+  RETURN VALUES
+    void
+*/
+void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
+                                uint32 *max_length, uint32 *tot_length)
+{
+  const char **pos;
+  uint *len;
+  *max_length= *tot_length= 0;
+  for (pos= interval->type_names, len= interval->type_lengths;
+       *pos ; pos++, len++)
+  {
+    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
+    *tot_length+= length;
+    set_if_bigger(*max_length, (uint32)length);
+  }
+}
+
+
 /*
   Preparation for table creation
 
@@ -453,6 +488,91 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       strmake(strmake(tmp, savecs->csname, sizeof(tmp)-4), "_bin", 4);
       my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
       DBUG_RETURN(-1);
+    }
+
+    if ((sql_field->sql_type == FIELD_TYPE_SET ||
+         sql_field->sql_type == FIELD_TYPE_ENUM) && !sql_field->interval)
+    {
+      uint32 dummy;
+      CHARSET_INFO *cs= sql_field->charset;
+      TYPELIB *interval;
+
+      /*
+        Create typelib from interval_list, and if necessary
+        convert strings from client character set to the
+        column character set.
+      */
+
+      interval= sql_field->interval= typelib(sql_field->interval_list);
+      List_iterator<String> it(sql_field->interval_list);
+      String conv, *tmp;
+      for (uint i= 0; (tmp= it++); i++)
+      {
+        if (String::needs_conversion(tmp->length(), tmp->charset(), cs, &dummy))
+        {
+          uint cnv_errs;
+          conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+          char *buf= (char*) sql_alloc(conv.length()+1);
+          memcpy(buf, conv.ptr(), conv.length());
+          buf[conv.length()]= '\0';
+          interval->type_names[i]= buf;
+          interval->type_lengths[i]= conv.length();
+        }
+
+        // Strip trailing spaces.
+        uint lengthsp= cs->cset->lengthsp(cs, interval->type_names[i],
+                                              interval->type_lengths[i]);
+        interval->type_lengths[i]= lengthsp;
+        ((uchar *)interval->type_names[i])[lengthsp]= '\0';
+      }
+      sql_field->interval_list.empty(); // Don't need interval_list anymore
+
+
+      /*
+        Convert the default value from client character
+        set into the column character set if necessary.
+      */
+      if (sql_field->def)
+      {
+        sql_field->def= 
+          sql_field->def->safe_charset_converter(cs);
+      }
+
+      if (sql_field->sql_type == FIELD_TYPE_SET)
+      {
+        if (sql_field->def)
+        {
+          char *not_used;
+          uint not_used2;
+          bool not_found= 0;
+          String str, *def= sql_field->def->val_str(&str);
+          def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
+          (void) find_set(interval, def->ptr(), def->length(),
+                          cs, &not_used, &not_used2, &not_found);
+          if (not_found)
+          {
+            my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+            DBUG_RETURN(-1);
+          }
+        }
+        calculate_interval_lengths(cs, interval, &dummy, &sql_field->length);
+        sql_field->length+= (interval->count - 1);
+      }
+      else  /* FIELD_TYPE_ENUM */
+      {
+        if (sql_field->def)
+        {
+          String str, *def= sql_field->def->val_str(&str);
+          def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
+          if (!find_type2(interval, def->ptr(), def->length(), cs))
+          {
+            my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+            DBUG_RETURN(-1);
+          }
+        }
+        calculate_interval_lengths(cs, interval, &sql_field->length, &dummy);
+      }
+      set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
     }
 
     sql_field->create_length_to_internal_length();
@@ -814,8 +934,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	DBUG_RETURN(-1);
       }
     }
-    else
-    if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
 #ifdef HAVE_RTREE_KEYS
       if ((key_info->key_parts & 1) == 1)
@@ -839,6 +958,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
+      key_part_spec *dup_column;
+
       it.rewind();
       field=0;
       while ((sql_field=it++) &&
@@ -853,9 +974,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
-      for (uint dup_nr= 0; dup_nr < column_nr; dup_nr++)
+      while ((dup_column= cols2++) != column)
       {
-	key_part_spec *dup_column= cols2++;
         if (!my_strcasecmp(system_charset_info,
 	     	           column->field_name, dup_column->field_name))
 	{
@@ -866,12 +986,6 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
       }
       cols2.rewind();
-      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
-	 ft code anyway, and 0 (set to column width later) for char's.
-	 it has to be correct col width for char's, as char data are not
-	 prefixed with length (unlike blobs, where ft code takes data length
-	 from a data prefix, ignoring column->length).
-      */
       if (key->type == Key::FULLTEXT)
       {
 	if ((sql_field->sql_type != FIELD_TYPE_STRING &&
