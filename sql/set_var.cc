@@ -100,6 +100,8 @@ static int  check_pseudo_thread_id(THD *thd, set_var *var);
 static bool set_log_bin(THD *thd, set_var *var);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
+static int check_completion_type(THD *thd, set_var *var);
+static void fix_completion_type(THD *thd, enum_var_type type);
 static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
@@ -149,6 +151,10 @@ sys_var_character_set_database	sys_character_set_database("character_set_databas
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
+sys_var_thd_ulong	sys_completion_type("completion_type",
+					 &SV::completion_type,
+					 check_completion_type,
+					 fix_completion_type);
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_collation_database sys_collation_database("collation_database");
 sys_var_collation_server sys_collation_server("collation_server");
@@ -352,6 +358,14 @@ sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
 #ifdef HAVE_REPLICATION
 sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
+sys_var_thd_ulong	sys_sync_replication("sync_replication",
+                                               &SV::sync_replication);
+sys_var_thd_ulong	sys_sync_replication_slave_id(
+						"sync_replication_slave_id",
+                                               &SV::sync_replication_slave_id);
+sys_var_thd_ulong	sys_sync_replication_timeout(
+						"sync_replication_timeout",
+                                               &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
@@ -532,6 +546,7 @@ sys_var *sys_variables[]=
   &sys_collation_connection,
   &sys_collation_database,
   &sys_collation_server,
+  &sys_completion_type,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_date_format,
@@ -640,6 +655,9 @@ sys_var *sys_variables[]=
   &sys_storage_engine,
 #ifdef HAVE_REPLICATION
   &sys_sync_binlog_period,
+  &sys_sync_replication,
+  &sys_sync_replication_slave_id,
+  &sys_sync_replication_timeout,
 #endif
   &sys_sync_frm,
   &sys_table_cache_size,
@@ -708,6 +726,7 @@ struct show_var_st init_vars[]= {
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_collation_database.name,(char*) &sys_collation_database,     SHOW_SYS},
   {sys_collation_server.name,(char*) &sys_collation_server,         SHOW_SYS},
+  {sys_completion_type.name,  (char*) &sys_completion_type,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
@@ -907,6 +926,9 @@ struct show_var_st init_vars[]= {
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+  {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
+  {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
+  {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
@@ -1120,6 +1142,21 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
   if (type == OPT_SESSION)
     thd->session_tx_isolation= ((enum_tx_isolation)
 				thd->variables.tx_isolation);
+}
+
+static void fix_completion_type(THD *thd __attribute__(unused), 
+				enum_var_type type __attribute__(unused)) {}
+
+static int check_completion_type(THD *thd, set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < 0 || val > 2)
+  {
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
+    return 1;
+  }
+  return 0;
 }
 
 

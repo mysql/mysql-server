@@ -80,10 +80,6 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
-#ifdef DBUG_ON
-#define UNIV_DEBUG
-#endif /* DBUG_ON */
-
 /*
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG

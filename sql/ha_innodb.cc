@@ -1613,6 +1613,31 @@ innobase_rollback_to_savepoint(
 }
 
 /*********************************************************************
+Release transaction savepoint name. */
+
+int
+innobase_release_savepoint_name(
+/*===========================*/
+				/* out: 0 if success, HA_ERR_NO_SAVEPOINT if
+				no savepoint with the given name */
+	THD*	thd,		/* in: handle to the MySQL thread of the user
+				whose transaction should be rolled back */
+	char*	savepoint_name)	/* in: savepoint name */
+{
+	ib_longlong mysql_binlog_cache_pos;
+	int	    error = 0;
+	trx_t*	    trx;
+
+	DBUG_ENTER("innobase_release_savepoint_name");
+
+	trx = check_trx_exists(thd);
+
+	error = trx_release_savepoint_for_mysql(trx, savepoint_name);
+
+	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+}
+
+/*********************************************************************
 Sets a transaction savepoint. */
 
 int
@@ -4846,11 +4871,11 @@ ha_innobase::update_table_comment(
 		dict_print_info_on_foreign_keys(FALSE, file,
 				prebuilt->trx, prebuilt->table);
 		flen = ftell(file);
-		if(length + flen + 3 > 64000) {
+		if (flen < 0) {
+			flen = 0;
+		} else if (length + flen + 3 > 64000) {
 			flen = 64000 - 3 - length;
 		}
-
-		ut_ad(flen > 0);
 
 		/* allocate buffer for the full string, and
 		read the contents of the temporary file */
@@ -4915,11 +4940,11 @@ ha_innobase::get_foreign_key_create_info(void)
 		prebuilt->trx->op_info = (char*)"";
 
 		flen = ftell(file);
-		if(flen > 64000 - 1) {
+		if (flen < 0) {
+			flen = 0;
+		} else if(flen > 64000 - 1) {
 			flen = 64000 - 1;
 		}
-
-		ut_ad(flen >= 0);
 
 		/* allocate buffer for the string, and
 		read the contents of the temporary file */
@@ -5521,11 +5546,11 @@ innodb_show_status(
 	srv_printf_innodb_monitor(srv_monitor_file);
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
-	if(flen > 64000 - 1) {
+	if (flen < 0) {
+		flen = 0;
+	} else if (flen > 64000 - 1) {
 		flen = 64000 - 1;
 	}
-
-	ut_ad(flen > 0);
 
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
@@ -6117,13 +6142,19 @@ innobase_get_at_most_n_mbchars(
 
 extern "C" {
 /**********************************************************************
-This function returns true if SQL-query in the current thread
+This function returns true if 
+
+1) SQL-query in the current thread
 is either REPLACE or LOAD DATA INFILE REPLACE. 
+
+2) SQL-query in the current thread
+is INSERT ON DUPLICATE KEY UPDATE.
+
 NOTE that /mysql/innobase/row/row0ins.c must contain the 
 prototype for this function ! */
 
 ibool
-innobase_query_is_replace(void)
+innobase_query_is_update(void)
 /*===========================*/
 {
 	THD*	thd;
@@ -6135,9 +6166,14 @@ innobase_query_is_replace(void)
 	     ( thd->lex->sql_command == SQLCOM_LOAD &&
 	       thd->lex->duplicates == DUP_REPLACE )) {
 		return true;
-	} else {
-		return false;
 	}
+
+	if ( thd->lex->sql_command == SQLCOM_INSERT &&
+	     thd->lex->duplicates  == DUP_UPDATE ) {
+		return true;
+	}
+
+	return false;
 }
 }
 
