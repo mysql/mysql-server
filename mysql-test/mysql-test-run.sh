@@ -1392,13 +1392,18 @@ run_testcase ()
  # script soon anyway so it is not worth it spending the time
  if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
    for t in \
+        "alter_table" \
 	"bdb-deadlock" \
 	"connect" \
+        "ctype_latin1_de" \
+        "ctype_ucs" \
 	"flush_block_commit" \
 	"grant2" \
 	"grant_cache" \
 	"grant" \
 	"init_connect" \
+	"init_file" \
+        "innodb" \
 	"innodb-deadlock" \
 	"innodb-lock" \
 	"mix_innodb_myisam_binlog" \
@@ -1406,10 +1411,12 @@ run_testcase ()
 	"mysqlbinlog" \
 	"mysqldump" \
 	"mysql_protocols" \
+        "packet" \
 	"ps_1general" \
 	"rename" \
 	"show_check" \
         "system_mysql_db_fix" \
+        "timezone2" \
 	"user_var" \
 	"variables"
    do

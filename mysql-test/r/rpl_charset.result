@@ -105,15 +105,15 @@ drop database mysqltest2;
 drop database mysqltest3;
 show binlog events from 95;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; drop database if exists mysqltest2
-master-bin.000001	#	Query	1	#	use `test`; drop database if exists mysqltest3
-master-bin.000001	#	Query	1	#	use `test`; create database mysqltest2 character set latin2
+master-bin.000001	#	Query	1	#	drop database if exists mysqltest2
+master-bin.000001	#	Query	1	#	drop database if exists mysqltest3
+master-bin.000001	#	Query	1	#	create database mysqltest2 character set latin2
 master-bin.000001	#	Query	1	#	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=30
-master-bin.000001	#	Query	1	#	use `test`; create database mysqltest3
+master-bin.000001	#	Query	1	#	create database mysqltest3
 master-bin.000001	#	Query	1	#	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
-master-bin.000001	#	Query	1	#	use `test`; drop database mysqltest3
+master-bin.000001	#	Query	1	#	drop database mysqltest3
 master-bin.000001	#	Query	1	#	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
-master-bin.000001	#	Query	1	#	use `test`; create database mysqltest3
+master-bin.000001	#	Query	1	#	create database mysqltest3
 master-bin.000001	#	Query	1	#	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	#	Query	1	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))
 master-bin.000001	#	Query	1	#	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
@@ -158,7 +158,7 @@ master-bin.000001	#	Intvar	1	#	INSERT_ID=1
 master-bin.000001	#	User var	1	#	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
 master-bin.000001	#	Query	1	#	use `mysqltest2`; insert into t1 (b) values(collation(@a))
 master-bin.000001	#	Query	1	#	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	#	Query	1	#	use `mysqltest2`; drop database mysqltest2
+master-bin.000001	#	Query	1	#	drop database mysqltest2
 master-bin.000001	#	Query	1	#	SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	#	Query	1	#	drop database mysqltest3
 set global character_set_server=latin2;
@@ -200,8 +200,8 @@ hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 stop slave;
 delete from t1;
-change master to master_log_pos=6763;
-start slave until master_log_file='master-bin.000001', master_log_pos=6921;
+change master to master_log_pos=6809;
+start slave until master_log_file='master-bin.000001', master_log_pos=6967;
 start slave;
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)

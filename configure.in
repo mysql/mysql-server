@@ -2435,7 +2435,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql strings regex client"
+sql_client_dirs="libmysql client"
 linked_client_targets="linked_libmysql_sources"
 CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
 if test "$THREAD_SAFE_CLIENT" != "no"

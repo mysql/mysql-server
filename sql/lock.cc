@@ -707,15 +707,70 @@ static void print_lock_error(int error)
 /****************************************************************************
   Handling of global read locks
 
-  The global locks are handled through the global variables:
-  global_read_lock
-  global_read_lock_blocks_commit
-  waiting_for_read_lock 
-  protect_against_global_read_lock
-
   Taking the global read lock is TWO steps (2nd step is optional; without
   it, COMMIT of existing transactions will be allowed):
   lock_global_read_lock() THEN make_global_read_lock_block_commit().
+
+  The global locks are handled through the global variables:
+  global_read_lock
+    count of threads which have the global read lock (i.e. have completed at
+    least the first step above)
+  global_read_lock_blocks_commit
+    count of threads which have the global read lock and block
+    commits (i.e. have completed the second step above)
+  waiting_for_read_lock
+    count of threads which want to take a global read lock but cannot
+  protect_against_global_read_lock
+    count of threads which have set protection against global read lock.
+
+  How blocking of threads by global read lock is achieved: that's
+  advisory. Any piece of code which should be blocked by global read lock must
+  be designed like this:
+  - call to wait_if_global_read_lock(). When this returns 0, no global read
+  lock is owned; if argument abort_on_refresh was 0, none can be obtained.
+  - job
+  - if abort_on_refresh was 0, call to start_waiting_global_read_lock() to
+  allow other threads to get the global read lock. I.e. removal of the
+  protection.
+  (Note: it's a bit like an implementation of rwlock).
+
+  [ I am sorry to mention some SQL syntaxes below I know I shouldn't but found
+  no better descriptive way ]
+
+  Why does FLUSH TABLES WITH READ LOCK need to block COMMIT: because it's used
+  to read a non-moving SHOW MASTER STATUS, and a COMMIT writes to the binary
+  log.
+
+  Why getting the global read lock is two steps and not one. Because FLUSH
+  TABLES WITH READ LOCK needs to insert one other step between the two:
+  flushing tables. So the order is
+  1) lock_global_read_lock() (prevents any new table write locks, i.e. stalls
+  all new updates)
+  2) close_cached_tables() (the FLUSH TABLES), which will wait for tables
+  currently opened and being updated to close (so it's possible that there is
+  a moment where all new updates of server are stalled *and* FLUSH TABLES WITH
+  READ LOCK is, too).
+  3) make_global_read_lock_block_commit().
+  If we have merged 1) and 3) into 1), we would have had this deadlock:
+  imagine thread 1 and 2, in non-autocommit mode, thread 3, and an InnoDB
+  table t.
+  thd1: SELECT * FROM t FOR UPDATE;
+  thd2: UPDATE t SET a=1; # blocked by row-level locks of thd1
+  thd3: FLUSH TABLES WITH READ LOCK; # blocked in close_cached_tables() by the
+  table instance of thd2
+  thd1: COMMIT; # blocked by thd3.
+  thd1 blocks thd2 which blocks thd3 which blocks thd1: deadlock.
+  
+  Note that we need to support that one thread does
+  FLUSH TABLES WITH READ LOCK; and then COMMIT;
+  (that's what innobackup does, for some good reason).
+  So in this exceptional case the COMMIT should not be blocked by the FLUSH
+  TABLES WITH READ LOCK.
+
+  TODO in MySQL 5.x: make_global_read_lock_block_commit() should be
+  killable. Normally CPU does not spend a long time in this function (COMMITs
+  are quite fast), but it would still be nice.
+
 ****************************************************************************/
 
 volatile uint global_read_lock=0;
@@ -831,6 +886,8 @@ void start_waiting_global_read_lock(THD *thd)
 {
   bool tmp;
   DBUG_ENTER("start_waiting_global_read_lock");
+  if (unlikely(thd->global_read_lock))
+    DBUG_VOID_RETURN;
   (void) pthread_mutex_lock(&LOCK_open);
   tmp= (!--protect_against_global_read_lock && waiting_for_read_lock);
   (void) pthread_mutex_unlock(&LOCK_open);

@@ -825,10 +825,17 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       if (argv[1][0])
       {
+        char *pw= argv[1];
+#ifdef __WIN__
+        uint pw_len= strlen(pw);
+        if (pw_len > 1 && pw[0] == '\'' && pw[pw_len-1] == '\'')
+          printf("Warning: single quotes were not trimmed from the password by"
+                 " your command\nline client, as you might have expected.\n");
+#endif
         if (find_type(argv[0], &command_typelib, 2) == ADMIN_OLD_PASSWORD)
-          make_scrambled_password_323(crypted_pw, argv[1]);
+          make_scrambled_password_323(crypted_pw, pw);
         else
-          make_scrambled_password(crypted_pw, argv[1]);
+          make_scrambled_password(crypted_pw, pw);
       }
       else
 	crypted_pw[0]=0;			/* No password */

@@ -482,7 +482,7 @@ int mysql_update(THD *thd,
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;				// Rollback update
     }
@@ -776,12 +776,10 @@ bool mysql_multi_update_prepare(THD *thd)
     */
     List_iterator_fast<Item> it(*fields);
     Item *item;
-    while (item= it++)
-    {
+    while ((item= it++))
       item->cleanup();
-    }
 
-    /* We have to cleunup translation tables of views. */
+    /* We have to cleanup translation tables of views. */
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
@@ -1417,7 +1415,7 @@ bool multi_update::send_eof()
       if (local_error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
 	local_error= 1;				// Rollback update
     }
