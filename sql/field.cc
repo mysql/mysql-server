@@ -4297,7 +4297,7 @@ if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
     like inserting 500.0 in char(1)
   */
   DBUG_ASSERT(field_length < 5 || length <= field_length+1);
-  return store((const char *)buff, min(length, field_length), charset());
+  return store((const char *) buff, length, charset());
 }
 
 

@@ -6876,7 +6876,8 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     int mblen;
     
     if (((mblen= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
-                                          scanner->sbeg, scanner->send)) < 0))
+                                          scanner->sbeg,
+                                          scanner->send)) <= 0))
       return -1;
     
     scanner->page= wc >> 8;
@@ -7918,7 +7919,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
     my_strnncoll_ucs2_uca,
     my_strnncollsp_ucs2_uca,
     my_strnxfrm_ucs2_uca,
-    my_like_range_simple,
+    my_like_range_ucs2,
     my_wildcmp_uca,
     NULL,
     my_instr_mb,
@@ -8369,7 +8370,7 @@ MY_COLLATION_HANDLER my_collation_any_uca_handler =
     my_strnncoll_any_uca,
     my_strnncollsp_any_uca,
     my_strnxfrm_any_uca,
-    my_like_range_simple,
+    my_like_range_mb,
     my_wildcmp_uca,
     NULL,
     my_instr_mb,

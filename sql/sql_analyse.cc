@@ -799,6 +799,13 @@ void field_real::get_opt_type(String *answer,
     if (min_arg >= 0)
       answer->append(" UNSIGNED");
   }
+  else if (item->decimals == NOT_FIXED_DEC)
+  {
+    if (min_arg >= -FLT_MAX && max_arg <= FLT_MAX)
+      answer->append("FLOAT", 5);      
+    else
+      answer->append("DOUBLE", 6);
+  }
   else
   {
     if (min_arg >= -FLT_MAX && max_arg <= FLT_MAX)

@@ -2121,6 +2121,8 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
+  if (result.length())
+    return &result;
   if (tree_mode)
   {
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,

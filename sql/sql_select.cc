@@ -5930,6 +5930,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
+      tab->index= tab->ref.key;
     }
     if ((error=join_read_const(tab)))
     {

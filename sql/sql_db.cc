@@ -852,6 +852,11 @@ err:
     communication packet (in case of 'connect' or 'COM_INIT_DB')
     we have to do end space removal in this function.
 
+  NOTES
+    Do as little as possible in this function, as it is not called for the
+    replication slave SQL thread (for that thread, setting of thd->db is done
+    in ::exec_event() methods of log_event.cc).
+
   RETURN VALUES
     0	ok
     1	error
