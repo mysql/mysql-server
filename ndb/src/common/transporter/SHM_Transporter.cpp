@@ -26,6 +26,8 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
+extern int g_ndb_shm_signum;
+
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 const char *lHostName,
 				 const char *rHostName, 
@@ -62,7 +64,9 @@ SHM_Transporter::~SHM_Transporter(){
 
 bool 
 SHM_Transporter::initTransporter(){
-  return true;
+  if (g_ndb_shm_signum)
+    return true;
+  return false;
 }
     
 void
@@ -355,6 +359,6 @@ SHM_Transporter::doSend()
   if(m_last_signal)
   {
     m_last_signal = 0;
-    kill(m_remote_pid, SIGUSR1);
+    kill(m_remote_pid, g_ndb_shm_signum);
   }
 }
