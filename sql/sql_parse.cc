@@ -23,6 +23,10 @@
 #include <my_dir.h>
 #include <assert.h>
 
+#ifdef HAVE_INNOBASE_DB
+#include "ha_innobase.h"
+#endif
+
 #ifdef HAVE_OPENSSL
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -1427,6 +1431,16 @@ mysql_execute_command(void)
     res = load_master_data(thd);
     break;
     
+#ifdef HAVE_INNOBASE_DB
+  case SQLCOM_SHOW_INNODB_STATUS:
+    {
+      if (check_process_priv(thd))
+	goto error;
+      res = innodb_show_status(thd);
+      break;
+    }
+#endif
+
   case SQLCOM_LOAD_MASTER_TABLE:
   {
     if (!tables->db)

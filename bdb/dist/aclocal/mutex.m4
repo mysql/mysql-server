@@ -314,6 +314,18 @@ AC_TRY_RUN([main(){
 }], [db_cv_mutex="x86/gcc-assembly"])
 fi
 
+dnl x86_64/gcc: FreeBSD, NetBSD, BSD/OS, Linux
+if test "$db_cv_mutex" = no; then
+AC_TRY_RUN([main(){
+#if defined(x86_64) || defined(__x86_64__)
+#if defined(__GNUC__)
+	exit(0);
+#endif
+#endif
+	exit(1);
+}], [db_cv_mutex="x86_64/gcc-assembly"])
+fi
+
 dnl ia86/gcc: Linux
 if test "$db_cv_mutex" = no; then
 AC_TRY_RUN([main(){

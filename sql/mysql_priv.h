@@ -162,6 +162,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define OPTION_BIG_SELECTS	1024		/* for SQL OPTION */
 #define OPTION_LOG_OFF		2048
 #define OPTION_UPDATE_LOG	4096		/* update log flag */
+#define TMP_TABLE_ALL_COLUMNS	8192
 #define OPTION_WARNINGS		16384
 #define OPTION_AUTO_IS_NULL	32768
 #define OPTION_FOUND_COMMENT	65536L
@@ -176,14 +177,19 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE OPTION_INTERNAL_SUBTRANSACTIONS*2
+#define OPTION_STATUS_NO_TRANS_UPDATE 	OPTION_INTERNAL_SUBTRANSACTIONS*2
 
 /* The following is set when parsing the query */
 #define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
 #define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
-
-#define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
-#define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
+/* The following can be set when importing tables in a 'wrong order'
+   to suppress foreign key checks */
+#define OPTION_NO_FOREIGN_KEY_CHECKS	QUERY_NO_GOOD_INDEX_USED*2
+/* The following speeds up inserts to InnoDB tables by suppressing unique
+   key checks in some cases */
+#define OPTION_RELAXED_UNIQUE_CHECKS	OPTION_NO_FOREIGN_KEY_CHECKS*2
+#define SELECT_NO_UNLOCK	((ulong) OPTION_RELAXED_UNIQUE_CHECKS*2)
+/* NOTE: we have now used up all 32 bits of the OPTION flag! */
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1

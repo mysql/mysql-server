@@ -101,14 +101,14 @@ extern "C" {					// Because of SCO 3.2V4.2
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 
-#ifdef __linux__
-#define my_fromhost(A)	   fromhost()
-#define my_hosts_access(A) hosts_access()
-#define my_eval_client(A)  eval_client()
-#else
+#ifdef __STDC__
 #define my_fromhost(A)	   fromhost(A)
 #define my_hosts_access(A) hosts_access(A)
 #define my_eval_client(A)  eval_client(A)
+#else
+#define my_fromhost(A)	   fromhost()
+#define my_hosts_access(A) hosts_access()
+#define my_eval_client(A)  eval_client()
 #endif
 #endif /* HAVE_LIBWRAP */
 
@@ -2967,8 +2967,9 @@ struct my_option my_long_options[] =
    "Set to 1 if you want to have logs archived", 0, 0, 0, GET_LONG, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"innodb_flush_log_at_trx_commit", OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
-   "Set to 0 if you don't want to flush logs", 0, 0, 0, GET_LONG, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
+   "Set to 0 if you don't want to flush logs",
+   &innobase_flush_log_at_trx_commit, &innobase_flush_log_at_trx_commit,
+   0, GET_LONG, OPT_ARG,  0, 0, 10, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data", (gptr*) &innobase_unix_file_flush_method,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
@@ -3654,6 +3655,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_slave_hosts",     (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_HOSTS),SHOW_LONG},
   {"Com_show_slave_status",    (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
   {"Com_show_status",	       (char*) (com_stat+(uint) SQLCOM_SHOW_STATUS),SHOW_LONG},
+  {"Com_show_innodb_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_INNODB_STATUS),SHOW_LONG},
   {"Com_show_tables",	       (char*) (com_stat+(uint) SQLCOM_SHOW_TABLES),SHOW_LONG},
   {"Com_show_variables",       (char*) (com_stat+(uint) SQLCOM_SHOW_VARIABLES),SHOW_LONG},
   {"Com_slave_start",	       (char*) (com_stat+(uint) SQLCOM_SLAVE_START),SHOW_LONG},
@@ -4237,9 +4239,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef HAVE_INNOBASE_DB
   case OPT_INNODB_LOG_ARCHIVE:
     innobase_log_archive= argument ? test(atoi(argument)) : 1;
-    break;
-  case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
-    innobase_flush_log_at_trx_commit= argument ? test(atoi(argument)) : 1;
     break;
   case OPT_INNODB_FAST_SHUTDOWN:
     innobase_fast_shutdown= argument ? test(atoi(argument)) : 1;

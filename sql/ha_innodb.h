@@ -202,4 +202,5 @@ int innobase_report_binlog_offset_and_commit(
 int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
+int innodb_show_status(THD* thd);
 

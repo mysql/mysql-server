@@ -124,6 +124,15 @@ void
 trx_commit_off_kernel(
 /*==================*/
 	trx_t*	trx);	/* in: transaction */
+/********************************************************************
+Cleans up a transaction at database startup. The cleanup is needed if
+the transaction already got to the middle of a commit when the database
+crashed, andf we cannot roll it back. */
+
+void
+trx_cleanup_at_db_startup(
+/*======================*/
+	trx_t*	trx);	/* in: transaction */
 /**************************************************************************
 Does the transaction commit for MySQL. */
 
@@ -252,7 +261,9 @@ own the kernel mutex. */
 void
 trx_print(
 /*======*/
-	  trx_t* trx); /* in: transaction */
+	char*	buf,	/* in/out: buffer where to print, must be at least
+			500 bytes */
+	trx_t* trx); 	/* in: transaction */
 
 
 /* Signal to a transaction */
@@ -322,13 +333,24 @@ struct trx_struct{
         void*           mysql_thd;      /* MySQL thread handle corresponding
                                         to this trx, or NULL */
 	char*		mysql_log_file_name;
-					/* If MySQL binlog is used, this field
+					/* if MySQL binlog is used, this field
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
 					used */
-	ib_longlong	mysql_log_offset;/* If MySQL binlog is used, this field
+	ib_longlong	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
+	char*		mysql_master_log_file_name;
+					/* if the database server is a MySQL
+					replication slave, we have here the
+					master binlog name up to which
+					replication has processed; otherwise
+					this is a pointer to a null character */
+	ib_longlong	mysql_master_log_pos;
+					/* if the database server is a MySQL
+					replication slave, this is the
+					position in the log file up to which
+					replication has processed */
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
 	/*------------------------------*/

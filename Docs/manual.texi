@@ -50610,11 +50610,28 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Fixed bug with creating an auto-increment value on second part of a
+@code{UNIQUE()} key where first part could contain NULL values.
+@item
+Don't write slave-timeout reconnects to the error log.
+@item
+Fixed bug with slave net read timeouting
+@item
+Fixed bug in ALTERing  TABLE of BDB type.
+@item
+Fixed bug when logging @code{LOAD DATA INFILE} to binary log with no 
+active database.
+@item
+Fixed a bug in range optimiser (causing crashes).
+@item
 Fixed possible problem in replication when doing @code{DROP DATABASE} on a
 database with @code{InnoDB} tables.
 @item
-Fixed @code{mysql_info()} to return 0 for the 'Duplicates' value for
-@code{INSERT DELAYED IGNORE} statements.
+Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
+@code{INSERT DELAYED IGNORE}.
+@item
+Added @code{-DHAVE_BROKEN_REALPATH} to the Mac OS X (darwin) compile
+options in @file{configure.in} to fix a failure under high load.
 @end itemize
 
 @node News-3.23.51, News-3.23.50, News-3.23.52, News-3.23.x
@@ -53411,7 +53428,7 @@ All C client API macros are now functions to make shared libraries more
 reliable. Because of this, you can no longer call @code{mysql_num_fields()} on
 a @code{MYSQL} object, you must use @code{mysql_field_count()} instead.
 @item
-Added use of @code{LIBEWRAP}; patch by Henning P. Schmiedehausen.
+Added use of @code{LIBWRAP}; patch by Henning P. Schmiedehausen.
 @item
 Don't allow @code{AUTO_INCREMENT} for other than numerical columns.
 @item

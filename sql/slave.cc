@@ -1802,6 +1802,7 @@ slave_begin:
     goto err;
   }
   
+
   thd->proc_info = "connecting to master";
 #ifndef DBUG_OFF  
   sql_print_error("Slave I/O thread initialized");

@@ -52,6 +52,7 @@
 #undef HAVE_MUTEX_WIN16
 #undef HAVE_MUTEX_WIN32
 #undef HAVE_MUTEX_X86_GCC_ASSEMBLY
+#undef HAVE_MUTEX_X86_64_GCC_ASSEMBLY
 
 /* Define if building on QNX. */
 #undef HAVE_QNX

@@ -26,7 +26,7 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
   MI_INFO *mi;
 
   if (!info->current_table)
-    return HA_ERR_KEY_NOT_FOUND;
+    return (HA_ERR_KEY_NOT_FOUND);
 
   /* at first, do rprev for the table found before */
   if ((err=mi_rprev(info->current_table->table,NULL,inx)))

@@ -460,6 +460,8 @@ Prints info of a table lock. */
 void
 lock_table_print(
 /*=============*/
+	char*	buf,	/* in/out: buffer where to print, must be at least
+			500 bytes */
 	lock_t*	lock);	/* in: table type lock */
 /*************************************************************************
 Prints info of a record lock. */
@@ -467,13 +469,17 @@ Prints info of a record lock. */
 void
 lock_rec_print(
 /*===========*/
+	char*	buf,	/* in/out: buffer where to print, must be at least
+			500 bytes */
 	lock_t*	lock);	/* in: record type lock */
 /*************************************************************************
 Prints info of locks for all transactions. */
 
 void
-lock_print_info(void);
-/*=================*/
+lock_print_info(
+/*============*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end);/* in: buffer end */
 /*************************************************************************
 Validates the lock queue on a table. */
 

@@ -874,6 +874,7 @@ sync_thread_levels_empty_gen(
 	sync_level_t*	slot;
 	rw_lock_t*	lock;
 	mutex_t*	mutex;
+	char*		buf;
 	ulint		i;
 
 	if (!sync_order_checks_on) {
@@ -907,7 +908,9 @@ sync_thread_levels_empty_gen(
 			mutex = slot->latch;
 			mutex_exit(&sync_thread_mutex);
 
-			sync_print();
+			buf = mem_alloc(20000);
+			
+			sync_print(buf, buf + 18000);
 			ut_error;
 
 			return(FALSE);
@@ -1243,14 +1246,21 @@ sync_close(void)
 Prints wait info of the sync system. */
 
 void
-sync_print_wait_info(void)
-/*======================*/
+sync_print_wait_info(
+/*=================*/
+	char*	buf,		/* in/out: buffer where to print */
+	char*	buf_end)	/* in: buffer end */
 {
 #ifdef UNIV_SYNC_DEBUG
 	printf("Mutex exits %lu, rws exits %lu, rwx exits %lu\n",
 		mutex_exit_count, rw_s_exit_count, rw_x_exit_count);
 #endif
-	printf(
+	if (buf_end - buf < 500) {
+
+		return;
+	}
+
+	sprintf(buf,
 "Mutex spin waits %lu, rounds %lu, OS waits %lu\n"
 "RW-shared spins %lu, OS waits %lu; RW-excl spins %lu, OS waits %lu\n",
 			mutex_spin_wait_count, mutex_spin_round_count,
@@ -1263,11 +1273,18 @@ sync_print_wait_info(void)
 Prints info of the sync system. */
 
 void
-sync_print(void)
-/*============*/
+sync_print(
+/*=======*/
+	char*	buf,		/* in/out: buffer where to print */
+	char*	buf_end)	/* in: buffer end */
 {
 	mutex_list_print_info();
+
 	rw_lock_list_print_info();
-	sync_array_print_info(sync_primary_wait_array);
-	sync_print_wait_info();
+
+	sync_array_print_info(buf, buf_end, sync_primary_wait_array);
+
+	buf = buf + strlen(buf);
+
+	sync_print_wait_info(buf, buf_end);
 }

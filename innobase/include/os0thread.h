@@ -12,8 +12,10 @@ Created 9/8/1995 Heikki Tuuri
 
 #include "univ.i"
 
-/* Maximum number of threads which can be created in the program */
-#define	OS_THREAD_MAX_N		1000
+/* Maximum number of threads which can be created in the program;
+this is also the size of the wait slot array for MySQL threads which
+can wait inside InnoDB */
+#define	OS_THREAD_MAX_N		10000
 
 /* Possible fixed priorities for threads */
 #define OS_THREAD_PRIORITY_NONE		100

@@ -230,6 +230,19 @@ row_update_cascade_for_mysql(
 				or set null operation */
 	dict_table_t*	table);	/* in: table where we do the operation */
 /*************************************************************************
+Locks the data dictionary exclusively for performing a table create
+operation. */
+
+void
+row_mysql_lock_data_dictionary(void);
+/*================================*/
+/*************************************************************************
+Unlocks the data dictionary exclusively lock. */
+
+void
+row_mysql_unlock_data_dictionary(void);
+/*==================================*/
+/*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
 printing of monitor output by the master thread. */

@@ -100,6 +100,11 @@ buf_read_page_low(
 	block = buf_page_init_for_read(mode, space, offset);
 
 	if (block != NULL) {
+		if (buf_debug_prints) {
+			printf("Posting read request for page %lu, sync %lu\n",
+				offset, sync);
+		}
+
 		fil_io(OS_FILE_READ | wake_later,
 			sync, space, offset, 0, UNIV_PAGE_SIZE,
 					(void*)block->frame, (void*)block);
@@ -467,6 +472,12 @@ buf_read_ahead_linear(
 
 	count = 0;
 
+	/* Since Windows XP seems to schedule the i/o handler thread
+	very eagerly, and consequently it does not wait for the
+	full read batch to be posted, we use special heuristics here */
+
+	os_aio_simulated_put_read_threads_to_sleep();
+	
 	for (i = low; i < high; i++) {
 		/* It is only sensible to do read-ahead in the non-sync
 		aio mode: hence FALSE as the first parameter */
@@ -556,15 +567,33 @@ buf_read_recv_pages(
 				highest page number the last in the array */
 	ulint	n_stored)	/* in: number of page numbers in the array */
 {
+	ulint	count;
 	ulint	i;
 
 	for (i = 0; i < n_stored; i++) {
+
+		count = 0;
+
+		os_aio_print_debug = FALSE;
 
 		while (buf_pool->n_pend_reads >= RECV_POOL_N_FREE_BLOCKS / 2) {
 
 			os_aio_simulated_wake_handler_threads();
 			os_thread_sleep(500000);
+
+			count++;
+
+			if (count > 100) {
+				fprintf(stderr,
+"InnoDB: Error: InnoDB has waited for 50 seconds for pending\n"
+"InnoDB: reads to the buffer pool to be finished.\n"
+"InnoDB: Number of pending reads %lu\n", buf_pool->n_pend_reads);
+
+				os_aio_print_debug = TRUE;
+			}
 		}
+
+		os_aio_print_debug = FALSE;
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(TRUE, BUF_READ_ANY_PAGE, space,

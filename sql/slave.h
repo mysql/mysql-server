@@ -252,6 +252,15 @@ typedef struct st_master_info
   
   my_off_t master_log_pos;
   File fd; 
+  
+ /*
+   InnoDB internally stores the master log position it has processed
+   so far; the position to store is really the sum of 
+   pos + pending + event_len here since we must store the pos of the
+   END of the current log event
+*/
+  int event_len;
+  File fd;
   IO_CACHE file;
   
   /* the variables below are needed because we can change masters on the fly */
