@@ -804,29 +804,37 @@ create view mysqltest.v1 as select * from mysqltest.t1;
 -- error 1143
 create view v3 as select a from mysqltest.t2;
 
-# give CRETEA VIEW privileges but without any privileges for result colemn
+# give CRETEA VIEW privileges (without any privileges for result colemn)
 connection root;
 create table mysqltest.v3 (b int);
 grant create view on mysqltest.v3 to mysqltest_1@localhost;
 drop table mysqltest.v3;
 connection user1;
--- error 1143
 create view mysqltest.v3 as select b from mysqltest.t2;
 
-# give UPDATE privileges -> create works
+# give UPDATE privileges
 connection root;
-create table mysqltest.v3 (b int);
 grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
-drop table mysqltest.v3;
+drop view mysqltest.v3;
 connection user1;
+create view mysqltest.v3 as select b from mysqltest.t2;
+
+# give UPDATE and INSERT privilege (to get more privileges then anderlying
+# table)
+connection root;
+grant create view, update, insert on mysqltest.v3 to mysqltest_1@localhost;
+drop view mysqltest.v3;
+connection user1;
+-- error 1143
 create view mysqltest.v3 as select b from mysqltest.t2;
 
 
 # If give other privileges for VIEW then underlaying table have =>
 # creation prohibited
 connection root;
+create table mysqltest.v3 (b int);
 grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
-drop view mysqltest.v3;
+drop table mysqltest.v3;
 connection user1;
 -- error 1142
 create view mysqltest.v3 as select b from mysqltest.t2;
@@ -1269,5 +1277,19 @@ insert into t2 select a from t1 where a > 1;
 create view v1 as select a from t1 where a > 1;
 select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
 select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
+drop view v1;
+drop table t1;
+
+#
+# Collation with view update
+#
+create table t1 (s1 char);
+create view v1 as select s1 collate latin1_german1_ci as s1 from t1;
+insert into v1 values ('a');
+select * from v1;
+update v1 set s1='b';
+select * from v1;
+update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
+select * from v1;
 drop view v1;
 drop table t1;
