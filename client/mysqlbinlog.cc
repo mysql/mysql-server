@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2001 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ static FILE *result_file;
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 
-void sql_print_error(const char *format,...);
+void sql_print_error(const char *format, ...);
 
 static bool one_database = 0;
 static const char* database;
