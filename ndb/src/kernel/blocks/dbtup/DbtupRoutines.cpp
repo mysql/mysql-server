@@ -1028,22 +1028,22 @@ Dbtup::readBitsNotNULL(Uint32* outBuffer,
   offsetInTuple += regTabPtr->tupNullIndex;
   ndbrequire(offsetInTuple < tCheckOffset);
 
+  Uint32 pos = offsetInTuple << 5 + offsetInWord;
   Uint32 indexBuf = tOutBufIndex;
   Uint32 newIndexBuf = indexBuf + ((bitCount + 31) >> 5);
   Uint32 maxRead = tMaxRead;
-
-  outBuffer[indexBuf] = 
-    (tTupleHeader[offsetInTuple] >> offsetInWord) & ((1 << bitCount) - 1);
-
-  if(offsetInWord + bitCount > 32)
-  {
-    ndbrequire(false);
-  }
-
+  
   if (newIndexBuf <= maxRead) {
     ljam();
     ahOut->setDataSize((bitCount + 31) >> 5);
     tOutBufIndex = newIndexBuf;
+    
+    BitmaskImpl::getField(regTabPtr->tupNullWords,
+			  tTupleHeader+regTabPtr->tupNullIndex,
+			  pos, 
+			  bitCount,
+			  outBuffer+indexBuf);
+    
     return true;
   } else {
     ljam();
@@ -1069,34 +1069,27 @@ Dbtup::readBitsNULLable(Uint32* outBuffer,
   Uint32 indexBuf = tOutBufIndex;
   Uint32 newIndexBuf = indexBuf + (bitCount + 31) >> 5;
   Uint32 maxRead = tMaxRead;
-
-  if((tTupleHeader[offsetInTuple] >> offsetInWord) & 1)
+  Uint32 pos = offsetInWord << 5 + offsetInTuple;
+  
+  if(BitmaskImpl::get(regTabPtr->tupNullWords,
+		      tTupleHeader+regTabPtr->tupNullIndex,
+		      pos))
   {
     ljam();
     ahOut->setNULL();
     return true;
   }
 
-  offsetInWord ++;
-  if(offsetInWord == 32)
-  {
-    ljam();
-    offsetInWord = 0;
-    offsetInTuple++;
-  }
-
-  outBuffer[indexBuf] = 
-    (tTupleHeader[offsetInTuple] >> offsetInWord) & ((1 << bitCount) - 1);
-  
-  if(offsetInWord + bitCount > 32)
-  {
-    ndbrequire(false);
-  }
 
   if (newIndexBuf <= maxRead) {
     ljam();
     ahOut->setDataSize((bitCount + 31) >> 5);
     tOutBufIndex = newIndexBuf;
+    BitmaskImpl::getField(regTabPtr->tupNullWords,
+			  tTupleHeader+regTabPtr->tupNullIndex,
+			  pos+1, 
+			  bitCount,
+			  outBuffer+indexBuf);
     return true;
   } else {
     ljam();
@@ -1123,24 +1116,16 @@ Dbtup::updateBitsNotNULL(Uint32* inBuffer,
   ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
              (nullWordOffset < tCheckOffset));
   Uint32 nullBits = tTupleHeader[nullWordOffset];
-
+  Uint32 pos = (nullFlagOffset << 5) + nullFlagBitOffset;
+  
   if (newIndex <= inBufLen) {
-    Uint32 updateWord = inBuffer[indexBuf + 1];
     if (!nullIndicator) {
+      BitmaskImpl::setField(regTabPtr->tupNullWords,
+			    tTupleHeader+regTabPtr->tupNullIndex,
+			    pos,
+			    bitCount,
+			    inBuffer+indexBuf+1);
       tInBufIndex = newIndex;
-      Uint32 mask = ((1 << bitCount) - 1) << nullFlagBitOffset;
-      if(nullFlagBitOffset + bitCount <= 32)
-      {
-	ljam();
-	tTupleHeader[nullWordOffset] = 
-	  (nullBits & ~mask) | 
-	  ((updateWord << nullFlagBitOffset) & mask);
-	return true;
-      }
-      else
-      {
-	abort();
-      }
       return true;
     } else {
       ljam();
@@ -1171,41 +1156,29 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
              (nullWordOffset < tCheckOffset));
   Uint32 nullBits = tTupleHeader[nullWordOffset];
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);  
+  Uint32 pos = (nullFlagOffset << 5) + nullFlagBitOffset;
 
   if (!nullIndicator) {
+    BitmaskImpl::clear(regTabPtr->tupNullWords,
+		       tTupleHeader+regTabPtr->tupNullIndex,
+		       pos);
+    BitmaskImpl::setField(regTabPtr->tupNullWords,
+			  tTupleHeader+regTabPtr->tupNullIndex,
+			  pos+1,
+			  bitCount,
+			  inBuffer+indexBuf+1);
+
     Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
-    nullBits &= (~(1 << nullFlagBitOffset));
-    ljam();
-    tTupleHeader[nullWordOffset] = nullBits;
-
-    nullFlagBitOffset++;
-    if(nullFlagBitOffset == 32)
-    {
-      ljam();
-      nullFlagBitOffset = 0;
-      nullWordOffset++;
-      nullBits = tTupleHeader[nullWordOffset];
-    }
-
-    Uint32 updateWord = inBuffer[indexBuf + 1];
-    Uint32 mask = ((1 << bitCount) - 1) << nullFlagBitOffset;
     tInBufLen = newIndex;
-    if(nullFlagBitOffset + bitCount <= 32)
-      {
-	ljam();
-      tTupleHeader[nullWordOffset] = 
-	(nullBits & ~mask) | 
-	((updateWord << nullFlagBitOffset) & mask);
-      return true;
-    }  
-    
-    abort();
+    return true;
   } else {
     Uint32 newIndex = tInBufIndex + 1;
     if (newIndex <= tInBufLen) {
-      nullBits |= (1 << nullFlagBitOffset);
       ljam();
-      tTupleHeader[nullWordOffset] = nullBits;
+      BitmaskImpl::set(regTabPtr->tupNullWords,
+		       tTupleHeader+regTabPtr->tupNullIndex,
+		       pos);
+      
       tInBufIndex = newIndex;
       return true;
     } else {
