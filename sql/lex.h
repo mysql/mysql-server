@@ -19,11 +19,11 @@
 
 #include "lex_symbol.h"
 
-/* We don't want to include sql_yacc.h into gen_lex_hash */
 SYM_GROUP sym_group_common= {"", ""};
 SYM_GROUP sym_group_geom= {"Spatial extentions", "HAVE_SPATIAL"};
 SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
 
+/* We don't want to include sql_yacc.h into gen_lex_hash */
 #ifdef NO_YACC_SYMBOLS
 #define SYM_OR_NULL(A) 0
 #else
@@ -314,6 +314,7 @@ static SYMBOL symbols[] = {
   { "MERGE",		SYM(MERGE_SYM)},
   { "MICROSECOND",	SYM(MICROSECOND_SYM)},
   { "MIDDLEINT",	SYM(MEDIUMINT)},	/* For powerbuilder */
+  { "MIGRATE",          SYM(MIGRATE_SYM)},
   { "MINUTE",		SYM(MINUTE_SYM)},
   { "MINUTE_MICROSECOND", SYM(MINUTE_MICROSECOND_SYM)},
   { "MINUTE_SECOND",	SYM(MINUTE_SECOND_SYM)},
@@ -346,6 +347,7 @@ static SYMBOL symbols[] = {
   { "OFFSET",		SYM(OFFSET_SYM)},
   { "OLD_PASSWORD",	SYM(OLD_PASSWORD)},
   { "ON",		SYM(ON)},
+  { "ONE",              SYM(ONE_SYM)},
   { "ONE_SHOT",		SYM(ONE_SHOT_SYM)},
   { "OPEN",		SYM(OPEN_SYM)},
   { "OPTIMIZE",		SYM(OPTIMIZE)},
@@ -359,6 +361,7 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",	SYM(PACK_KEYS_SYM)},
   { "PARTIAL",		SYM(PARTIAL)},
   { "PASSWORD",		SYM(PASSWORD)},
+  { "PHASE",            SYM(PHASE_SYM)},
   { "POINT",		SYM(POINT_SYM)},
   { "POLYGON",		SYM(POLYGON)},
   { "PRECISION",	SYM(PRECISION)},
@@ -380,6 +383,7 @@ static SYMBOL symbols[] = {
   { "READ",		SYM(READ_SYM)},
   { "READS",		SYM(READS_SYM)},
   { "REAL",		SYM(REAL)},
+  { "RECOVER",          SYM(RECOVER_SYM)},
   { "REDUNDANT",	SYM(REDUNDANT_SYM)},
   { "REFERENCES",	SYM(REFERENCES)},
   { "REGEXP",		SYM(REGEXP)},
@@ -398,6 +402,7 @@ static SYMBOL symbols[] = {
   { "RESET",		SYM(RESET_SYM)},
   { "RESTORE",		SYM(RESTORE_SYM)},
   { "RESTRICT",		SYM(RESTRICT)},
+  { "RESUME",           SYM(RESUME_SYM)},
   { "RETURN",           SYM(RETURN_SYM)},
   { "RETURNS",		SYM(RETURNS_SYM)},
   { "REVOKE",		SYM(REVOKE)},
@@ -467,6 +472,7 @@ static SYMBOL symbols[] = {
   { "STRIPED",		SYM(RAID_STRIPED_SYM)},
   { "SUBJECT",		SYM(SUBJECT_SYM)},
   { "SUPER",		SYM(SUPER_SYM)},
+  { "SUSPEND",          SYM(SUSPEND_SYM)},
   { "TABLE",		SYM(TABLE_SYM)},
   { "TABLES",		SYM(TABLES)},
   { "TABLESPACE",	SYM(TABLESPACE)},
@@ -528,6 +534,7 @@ static SYMBOL symbols[] = {
   { "WRITE",		SYM(WRITE_SYM)},
   { "X509",		SYM(X509_SYM)},
   { "XOR",		SYM(XOR)},
+  { "XA",               SYM(XA_SYM)},
   { "YEAR",		SYM(YEAR_SYM)},
   { "YEAR_MONTH",	SYM(YEAR_MONTH_SYM)},
   { "ZEROFILL",		SYM(ZEROFILL)},
