@@ -922,6 +922,10 @@ public:
     :Item_ref(item, table_name_par, field_name_par) {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  Item_direct_ref(Item **item, const char *table_name_par, 
+           const char *field_name_par, Item *src)
+    : Item_ref(item, table_name_par, field_name_par, src) {}
+
   double val()
   {
     double tmp=(*ref)->val();
