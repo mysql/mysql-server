@@ -45,6 +45,10 @@ public:
 
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
+  /*
+    Note that you can use table->in_use as replacement for current_thd member 
+    only inside of val_*() and store() members (e.g. you can't use it in cons)
+  */
   struct st_table *table;		// Pointer for table
   struct st_table *orig_table;		// Pointer to original table
   const char	*table_name,*field_name;
@@ -264,7 +268,16 @@ public:
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
-  void set_warning(const unsigned int level, const unsigned int code);
+  bool set_warning(const unsigned int level, const unsigned int code, 
+                   int cuted_increment);
+  void set_datetime_warning(const uint level, const uint code, 
+                            const char *str, uint str_len,
+                            timestamp_type ts_type, int cuted_increment);
+  void set_datetime_warning(const uint level, const uint code, 
+                            longlong nr, timestamp_type ts_type,
+                            int cuted_increment);
+  void set_datetime_warning(const uint level, const uint code, 
+                            double nr, timestamp_type ts_type);
   virtual field_cast_enum field_cast_type()= 0;
   bool field_cast_compatible(field_cast_enum type);
   /* maximum possible display length */

@@ -7473,55 +7473,62 @@ static int ch2x(int ch)
 
 static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
 {
-  for ( ;lexem->beg < lexem->end ; lexem->beg++)
+  const char *beg;
+  my_coll_lexem_num rc;
+  
+  for (beg= lexem->beg ; beg < lexem->end ; beg++)
   {
-    lexem->prev= lexem->beg;
-    if (lexem->beg[0] == ' '  || lexem->beg[0] == '\t' || 
-        lexem->beg[0] == '\r' || lexem->beg[0] == '\n')
+    if (*beg == ' ' || *beg == '\t' || *beg == '\r' || *beg == '\n')
       continue;
     
-    if (lexem->beg[0] == '&')
+    if (*beg == '&')
     {
-      lexem->beg++;
-      return MY_COLL_LEXEM_SHIFT;
+      beg++;
+      rc= MY_COLL_LEXEM_SHIFT;
+      goto ex;
     }
     
-    if (lexem->beg[0] == '<')
+    if (beg[0] == '<')
     {
-      for (lexem->beg++, lexem->diff=1; 
-           (lexem->beg < lexem->end) && 
-           (lexem->beg[0] == '<') && (lexem->diff<3);
-           lexem->beg++, lexem->diff++);
-        return MY_COLL_LEXEM_DIFF;
+      for (beg++, lexem->diff= 1;
+           (beg < lexem->end) && 
+           (*beg == '<') && (lexem->diff<3);
+           beg++, lexem->diff++);
+      rc= MY_COLL_LEXEM_DIFF;
+      goto ex;
     }
     
-    if ((lexem->beg[0] >= 'a' && lexem->beg[0] <= 'z') ||
-        (lexem->beg[0] >= 'A' && lexem->beg[0] <= 'Z'))
+    if ((*beg >= 'a' && *beg <= 'z') || (*beg >= 'A' && *beg <= 'Z'))
     {
-      lexem->code= lexem->beg[0];
-      lexem->beg++;
-      return MY_COLL_LEXEM_CHAR;
+      lexem->code= *beg++;
+      rc= MY_COLL_LEXEM_CHAR;
+      goto ex;
     }
     
-    if ((lexem->beg[0] == '\\') && 
-        (lexem->beg+2 < lexem->end) && 
-        (lexem->beg[1] == 'u'))
+    if ((*beg == '\\') && (beg+2 < lexem->end) && (beg[1] == 'u'))
     {
       int ch;
       
+      beg+= 2;
       lexem->code= 0;
-      for (lexem->beg+=2; 
-           (lexem->beg < lexem->end) && ((ch= ch2x(lexem->beg[0])) >= 0) ; 
-           lexem->beg++)
-      {
+      while ((beg < lexem->end) && ((ch= ch2x(beg[0])) >= 0))
+      { 
         lexem->code= (lexem->code << 4) + ch;
+        beg++;
       }
-      return MY_COLL_LEXEM_CHAR;
+      rc= MY_COLL_LEXEM_CHAR;
+      goto ex;
     }
     
-    return MY_COLL_LEXEM_ERROR;
+    rc= MY_COLL_LEXEM_ERROR;
+    goto ex;
   }
-  return MY_COLL_LEXEM_EOF;
+  rc= MY_COLL_LEXEM_EOF;
+  
+ex:
+  lexem->prev= lexem->beg;
+  lexem->beg= beg;
+  return rc;  
 }
 
 
@@ -7668,7 +7675,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
   weights applying tailorings, i.e. a set of
   alternative weights for some characters. 
   
-  The default UCA weights are stored in my_charset_ucs2_general_uca.
+  The default UCA weights are stored in uca_weight/uca_length.
   They consist of 256 pages, 256 character each.
   
   If a page is not overwritten by tailoring rules,
@@ -7685,8 +7692,8 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   char errstr[128];
   uchar   *newlengths;
   uint16 **newweights;
-  const uchar *deflengths= my_charset_ucs2_general_uca.sort_order;
-  uint16     **defweights= my_charset_ucs2_general_uca.sort_order_big;
+  const uchar *deflengths= uca_length;
+  uint16     **defweights= uca_weight;
   int rc, i;
   int ncontractions= 0;
   

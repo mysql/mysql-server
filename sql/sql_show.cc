@@ -529,7 +529,6 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     }
     else
     {
-      struct tm tm_tmp;
       const char *str;
       handler *file=table->file;
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
@@ -562,24 +561,21 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store_null();
       else
       {
-        localtime_r(&file->create_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->create_time);
         protocol->store(&time);
       }
       if (!file->update_time)
         protocol->store_null();
       else
       {
-        localtime_r(&file->update_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->update_time);
         protocol->store(&time);
       }
       if (!file->check_time)
         protocol->store_null();
       else
       {
-        localtime_r(&file->check_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->check_time);
         protocol->store(&time);
       }
       str= (table->table_charset ? table->table_charset->name : "default");

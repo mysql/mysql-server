@@ -304,3 +304,5 @@ character-set=latin1
 "This command is not supported in the prepared statement protocol yet",
 "Modtog fejl %d '%-.100s' fra %s",
 "Modtog temporary fejl %d '%-.100s' fra %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
