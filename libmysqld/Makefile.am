@@ -30,14 +30,14 @@ INCLUDES = @MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include -I../include \
 
 
 ## XXX: should we use client or server LDFLAGS for libmysqld?
-LDADD =				@CLIENT_EXTRA_LDFLAGS@ libmysqld.la
-pkglib_LTLIBRARIES =		libmysqld.la
+LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmysqld.la
+pkglib_LTLIBRARIES =	libmysqld.la
+SUBDIRS =		examples
+libmysqld_la_SOURCES=	libmysqld.c lib_sql.cc lib_load.cc
 
-libmysqld_la_SOURCES = libmysqld.c lib_sql.cc lib_load.cc
-
-libmysqlsources = errmsg.c get_password.c password.c
+libmysqlsources =	errmsg.c get_password.c password.c
 ## XXX: we should not have to duplicate info from the sources list
-libmysqlobjects = errmsg.lo get_password.lo password.lo
+libmysqlobjects =	errmsg.lo get_password.lo password.lo
 
 sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	ha_innobase.cc ha_berkeley.cc ha_heap.cc ha_isam.cc ha_isammrg.cc \
