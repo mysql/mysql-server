@@ -34,6 +34,7 @@
 struct Opt {
   // common options
   unsigned m_batch;
+  const char* m_bound;
   const char* m_case;
   bool m_core;
   bool m_dups;
@@ -43,6 +44,7 @@ struct Opt {
   unsigned m_loop;
   bool m_nologging;
   bool m_msglock;
+  unsigned m_pctnull;
   unsigned m_rows;
   unsigned m_samples;
   unsigned m_scanrd;
@@ -54,6 +56,7 @@ struct Opt {
   unsigned m_v;
   Opt() :
     m_batch(32),
+    m_bound("01234"),
     m_case(0),
     m_core(false),
     m_dups(false),
@@ -63,6 +66,7 @@ struct Opt {
     m_loop(1),
     m_nologging(false),
     m_msglock(true),
+    m_pctnull(10),
     m_rows(1000),
     m_samples(0),
     m_scanrd(240),
@@ -87,6 +91,7 @@ printhelp()
   ndbout
     << "usage: testOIbasic [options]" << endl
     << "  -batch N      pk operations in batch [" << d.m_batch << "]" << endl
+    << "  -bound xyz    use only these bound types 0-4 [" << d.m_bound << "]" << endl
     << "  -case abc     only given test cases (letters a-z)" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
     << "  -dups         allow duplicate tuples from index scan [" << d.m_dups << "]" << endl
@@ -94,6 +99,7 @@ printhelp()
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
     << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
+    << "  -pctnull N    pct NULL values in nullable column [" << d.m_pctnull << "]" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
     << "  -scanrd N     scan read parallelism [" << d.m_scanrd << "]" << endl
@@ -198,7 +204,6 @@ struct Par : public Opt {
   Tmr& tmr() const { assert(m_tmr != 0); return *m_tmr; }
   unsigned m_totrows;
   // value calculation
-  unsigned m_pctnull;
   unsigned m_range;
   unsigned m_pctrange;
   // do verify after read
@@ -214,7 +219,6 @@ struct Par : public Opt {
     m_set(0),
     m_tmr(0),
     m_totrows(m_threads * m_rows),
-    m_pctnull(10),
     m_range(m_rows),
     m_pctrange(0),
     m_verify(false),
@@ -1622,7 +1626,6 @@ Set::calc(Par par, unsigned i)
     m_row[i] = new Row(tab);
   Row& row = *m_row[i];
   // value generation parameters
-  par.m_pctnull = 10;
   par.m_pctrange = 40;
   row.calc(par, i);
 }
@@ -1898,8 +1901,11 @@ BSet::calc(Par par)
       BVal& bval = *new BVal(icol);
       m_bval[m_bvals++] = &bval;
       bval.m_null = false;
-      // equality bound only on i==0
-      unsigned sel = urandom(5 - i);
+      unsigned sel;
+      do {
+        // equality bound only on i==0
+        sel = urandom(5 - i);
+      } while (strchr(par.m_bound, '0' + sel) == 0);
       if (sel < 2)
         bval.m_type = 0 | (1 << i);
       else if (sel < 4)
@@ -3207,6 +3213,15 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
         continue;
       }
     }
+    if (strcmp(arg, "-bound") == 0) {
+      if (++argv, --argc > 0) {
+        const char* p = argv[0];
+        if (strlen(p) != 0 && strlen(p) == strspn(p, "01234")) {
+          g_opt.m_bound = strdup(p);
+          continue;
+        }
+      }
+    }
     if (strcmp(arg, "-case") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_case = strdup(argv[0]);
@@ -3256,6 +3271,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
     if (strcmp(arg, "-nologging") == 0) {
       g_opt.m_nologging = true;
       continue;
+    }
+    if (strcmp(arg, "-pctnull") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_pctnull = atoi(argv[0]);
+        continue;
+      }
     }
     if (strcmp(arg, "-rows") == 0) {
       if (++argv, --argc > 0) {
