@@ -466,4 +466,32 @@ ERROR 70100: Query execution was interrupted
 call bug6807()|
 ERROR 70100: Query execution was interrupted
 drop procedure bug6807|
+drop procedure if exists bug8776_1|
+drop procedure if exists bug8776_2|
+drop procedure if exists bug8776_3|
+drop procedure if exists bug8776_4|
+create procedure bug8776_1()
+begin
+declare continue handler for sqlstate '42S0200test' begin end;
+begin end;
+end|
+ERROR 42000: Bad SQLSTATE: '42S0200test'
+create procedure bug8776_2()
+begin
+declare continue handler for sqlstate '4200' begin end;
+begin end;
+end|
+ERROR 42000: Bad SQLSTATE: '4200'
+create procedure bug8776_3()
+begin
+declare continue handler for sqlstate '420000' begin end;
+begin end;
+end|
+ERROR 42000: Bad SQLSTATE: '420000'
+create procedure bug8776_4()
+begin
+declare continue handler for sqlstate '42x00' begin end;
+begin end;
+end|
+ERROR 42000: Bad SQLSTATE: '42x00'
 drop table t1|
