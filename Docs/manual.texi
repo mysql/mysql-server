@@ -11322,13 +11322,6 @@ Add the pathname of the directory where @file{libmysqlclient.so} is located
 to the @code{LD_RUN_PATH} environment variable before running your client.
 @end itemize
 
-When using the @code{--with-libwrap} configure option, you must also
-include the libraries that @file{libwrap.a} needs:
-
-@example
---with-libwrap="/opt/NUtcpwrapper-7.6/lib/libwrap.a -lnsl -lsocket
-@end example
-
 If you have problems with configure trying to link with @code{-lz} and
 you don't have @code{zlib} installed, you have two options:
 
