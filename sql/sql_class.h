@@ -39,7 +39,6 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 #define LOG_INFO_IO  -2
 #define LOG_INFO_INVALID -3
 #define LOG_INFO_SEEK -4
-#define LOG_INFO_PURGE_NO_ROTATE -5
 #define LOG_INFO_MEM -6
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
@@ -86,7 +85,6 @@ class MYSQL_LOG {
   volatile enum_log_type log_type;
   enum cache_type io_cache_type;
   bool write_error;
-  bool no_rotate;
   bool need_start_event;
   bool no_auto_events; // for relay binlog
   /* 
