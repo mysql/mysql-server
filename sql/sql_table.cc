@@ -779,7 +779,7 @@ bool close_cached_table(THD *thd,TABLE *table)
 #if defined(USING_TRANSACTIONS) || defined( __WIN__) || defined( __EMX__) || !defined(OS2)
     /* Wait until all there are no other threads that has this table open */
     while (remove_table_from_cache(thd,table->table_cache_key,
-				   table->table_name))
+				   table->real_name))
     {
       dropping_tables++;
       (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -787,7 +787,7 @@ bool close_cached_table(THD *thd,TABLE *table)
     }
 #else
     (void) remove_table_from_cache(thd,table->table_cache_key,
-				   table->table_name);
+				   table->real_name);
 #endif
     /* When lock on LOCK_open is freed other threads can continue */
     pthread_cond_broadcast(&COND_refresh);
