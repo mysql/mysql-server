@@ -197,3 +197,5 @@ a
 11
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
+select * union select 1;
+No tables used

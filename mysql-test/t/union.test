@@ -98,3 +98,6 @@ set SQL_SELECT_LIMIT=2;
 (select * from t1 limit 1) union (select * from t2 limit 3);
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
+
+--error 1096
+select * union select 1;
