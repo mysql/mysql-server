@@ -396,8 +396,8 @@ const char *myisam_recover_options_str="OFF";
 const char *sql_mode_str="OFF";
 ulong rpl_recovery_rank=0;
 
-
-my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL, mysql_tmpdir=NULL;
+my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL;
+MY_TMPDIR mysql_tmpdir_list;
 ulong my_bind_addr;			/* the address we bind to */
 char *my_bind_addr_str;
 DATE_FORMAT dayord;
@@ -854,7 +854,7 @@ void clean_up(bool print_message)
   if (defaults_argv)
     free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
+  free_tmpdir(&mysql_tmpdir_list);
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   x_free(opt_bin_logname);
   x_free(opt_relay_logname);
@@ -1835,17 +1835,6 @@ int main(int argc, char **argv)
 #endif
   load_defaults(MYSQL_CONFIG_NAME,load_default_groups,&argc,&argv);
   defaults_argv=argv;
-
-  /* Get default temporary directory */
-  opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(OS2)
-  if (!opt_mysql_tmpdir)
-    opt_mysql_tmpdir=getenv("TEMP");
-  if (!opt_mysql_tmpdir)
-    opt_mysql_tmpdir=getenv("TMP");
-#endif
-  if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
-    opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
   set_options();
   get_options(argc,argv);
@@ -2944,13 +2933,13 @@ struct my_option my_long_options[] =
 #endif /* HAVE_BERKELEY_DB */
   {"skip-bdb", OPT_BDB_SKIP, "Don't use berkeley db (will save memory)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"big-tables", OPT_BIG_TABLES, 
+  {"big-tables", OPT_BIG_TABLES,
    "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB, 
+  {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to",
@@ -3321,16 +3310,23 @@ struct my_option my_long_options[] =
 #ifdef HAVE_OPENSSL
 #include "sslopt-longopts.h"
 #endif
-  {"temp-pool", OPT_TEMP_POOL, 
+  {"temp-pool", OPT_TEMP_POOL,
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
-  {"tmpdir", 't', "Path for temporary files", (gptr*) &opt_mysql_tmpdir,
+  {"tmpdir", 't',
+   "Path for temporary files. Several paths may be specified, separated by a "
+#if defined( __WIN__) || defined(OS2)
+   "semicolon (;)"
+#else
+   "colon (:)"
+#endif
+   ", in this case they are used in a round-robin fashion.",
+   (gptr*) &opt_mysql_tmpdir,
    (gptr*) &opt_mysql_tmpdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transaction-isolation", OPT_TX_ISOLATION,
-   "Default transaction isolation level", 0, 0, 0, GET_NO_ARG, REQUIRED_ARG, 0,
-   0, 0, 0,
-   0, 0},
+   "Default transaction isolation level", 0, 0, 0, GET_STR, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3383,7 +3379,7 @@ struct my_option my_long_options[] =
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
   {"delayed_insert_timeout", OPT_DELAYED_INSERT_TIMEOUT,
-   "Ho wlong a INSERT DELAYED thread should wait for INSERT statements before terminating.",
+   "How long a INSERT DELAYED thread should wait for INSERT statements before terminating.",
    (gptr*) &delayed_insert_timeout, (gptr*) &delayed_insert_timeout, 0,
    GET_ULONG, REQUIRED_ARG, DELAYED_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"delayed_insert_limit", OPT_DELAYED_INSERT_LIMIT,
@@ -4179,7 +4175,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SKIP_SHOW_DB:
     opt_skip_show_db=1;
     opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
-    mysql_port=0;
     break;
 #ifdef ONE_THREAD
   case (int) OPT_ONE_THREAD:
@@ -4503,9 +4498,7 @@ static void fix_paths(void)
     charsets_dir=mysql_charsets_dir;
   }
 
-  char *end=convert_dirname(buff, opt_mysql_tmpdir, NullS);
-  if (!(mysql_tmpdir= my_memdup((byte*) buff,(uint) (end-buff)+1,
-				MYF(MY_FAE))))
+  if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
     exit(1);
   if (!slave_load_tmpdir)
   {
