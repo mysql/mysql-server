@@ -348,27 +348,37 @@ public:
 
 class Item_func_case :public Item_func
 {
-  Item * first_expr, *else_expr;
+  int first_expr_num, else_expr_num;
   enum Item_result cached_result_type;
   String tmp_value;
   bool first_expr_is_binary;
+  uint ncases;
 public:
   Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
-    :Item_func(list), first_expr(first_expr_arg), else_expr(else_expr_arg),
+    :Item_func(), first_expr_num(-1), else_expr_num(-1),
     cached_result_type(INT_RESULT)
-  {}
+  { 
+    ncases= list.elements;
+    if (first_expr_arg)
+    {
+      first_expr_num= list.elements;
+      list.push_back(first_expr_arg);
+    }
+    if (else_expr_arg)
+    {
+      else_expr_num= list.elements;
+      list.push_back(else_expr_arg);
+    }
+    set_arguments(list);
+  }
   double val();
   longlong val_int();
   String *val_str(String *);
   void fix_length_and_dec();
-  void update_used_tables();
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
-  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   Item *find_item(String *str);
-  void set_outer_resolving();
 };
 
 

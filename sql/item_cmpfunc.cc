@@ -872,9 +872,9 @@ Item *Item_func_case::find_item(String *str)
   LINT_INIT(first_expr_real);
 
   // Compare every WHEN argument with it and return the first match
-  for (uint i=0 ; i < arg_count ; i+=2)
+  for (uint i=0 ; i < ncases ; i+=2)
   {
-    if (!first_expr)
+    if (first_expr_num == -1)
     {
       // No expression between CASE and first WHEN
       if (args[i]->val_int())
@@ -887,8 +887,8 @@ Item *Item_func_case::find_item(String *str)
       {
 	str_used=1;
 	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= first_expr->val_str(&str_value)))
-	  return else_expr;			// Impossible
+	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
@@ -906,9 +906,9 @@ Item *Item_func_case::find_item(String *str)
       if (!int_used)
       {
 	int_used=1;
-	first_expr_int= first_expr->val_int();
-	if (first_expr->null_value)
-	  return else_expr;
+	first_expr_int= args[first_expr_num]->val_int();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
       }
       if (args[i]->val_int()==first_expr_int && !args[i]->null_value) 
         return args[i+1];
@@ -917,9 +917,9 @@ Item *Item_func_case::find_item(String *str)
       if (!real_used)
       {
 	real_used=1;
-	first_expr_real= first_expr->val();
-	if (first_expr->null_value)
-	  return else_expr;
+	first_expr_real= args[first_expr_num]->val();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
       }
       if (args[i]->val()==first_expr_real && !args[i]->null_value) 
         return args[i+1];
@@ -932,7 +932,7 @@ Item *Item_func_case::find_item(String *str)
     }
   }
   // No, WHEN clauses all missed, return ELSE expression
-  return else_expr;
+  return else_expr_num != -1 ? args[else_expr_num] : 0;
 }
 
 
@@ -989,103 +989,25 @@ double Item_func_case::val()
 }
 
 
-bool
-Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
-{
-  if (first_expr && (first_expr->fix_fields(thd, tables, &first_expr) ||
-		     first_expr->check_cols(1)) ||
-      else_expr && (else_expr->fix_fields(thd, tables, &else_expr) ||
-		    else_expr->check_cols(1)))
-    return 1;
-  if (Item_func::fix_fields(thd, tables, ref))
-    return 1;
-  if (first_expr)
-  {
-    used_tables_cache|=(first_expr)->used_tables();
-    const_item_cache&= (first_expr)->const_item();
-    with_sum_func= with_sum_func || (first_expr)->with_sum_func;
-    first_expr_is_binary= first_expr->charset()->state & MY_CS_BINSORT;
-  }
-  if (else_expr)
-  {
-    used_tables_cache|=(else_expr)->used_tables();
-    const_item_cache&= (else_expr)->const_item();
-    with_sum_func= with_sum_func || (else_expr)->with_sum_func;
-  }
-  if (!else_expr || else_expr->maybe_null)
-    maybe_null=1;				// The result may be NULL
-  return 0;
-}
-
-
-void Item_func_case::split_sum_func(Item **ref_pointer_array,
-				    List<Item> &fields)
-{
-  if (first_expr)
-  {
-    if (first_expr->with_sum_func && first_expr->type() != SUM_FUNC_ITEM)
-      first_expr->split_sum_func(ref_pointer_array, fields);
-    else if (first_expr->used_tables() || first_expr->type() == SUM_FUNC_ITEM)
-    {
-      uint el= fields.elements;
-      fields.push_front(first_expr);
-      ref_pointer_array[el]= first_expr;
-      first_expr= new Item_ref(ref_pointer_array + el, 0, first_expr->name);
-    }
-  }
-  if (else_expr)
-  {
-    if (else_expr->with_sum_func && else_expr->type() != SUM_FUNC_ITEM)
-      else_expr->split_sum_func(ref_pointer_array, fields);
-    else if (else_expr->used_tables() || else_expr->type() == SUM_FUNC_ITEM)
-    {
-      uint el= fields.elements;
-      fields.push_front(else_expr);
-      ref_pointer_array[el]= else_expr;
-      else_expr= new Item_ref(ref_pointer_array + el, 0, else_expr->name);
-    }
-  }
-  Item_func::split_sum_func(ref_pointer_array, fields);
-}
-
-
-void Item_func_case::set_outer_resolving()
-{
-  first_expr->set_outer_resolving();
-  else_expr->set_outer_resolving();
-  Item_func::set_outer_resolving();
-}
-
-void Item_func_case::update_used_tables()
-{
-  Item_func::update_used_tables();
-  if (first_expr)
-  {
-    used_tables_cache|=(first_expr)->used_tables();
-    const_item_cache&= (first_expr)->const_item();
-  }
-  if (else_expr)
-  {
-    used_tables_cache|=(else_expr)->used_tables();
-    const_item_cache&= (else_expr)->const_item();
-  }
-}
-
-
 void Item_func_case::fix_length_and_dec()
 {
+  if (first_expr_num != -1)
+    first_expr_is_binary= args[first_expr_num]->charset()->state & MY_CS_BINSORT;
+  if (!else_expr_num != -1 || args[else_expr_num]->maybe_null)
+    maybe_null=1;
+
   max_length=0;
   decimals=0;
   cached_result_type = args[1]->result_type();
-  for (uint i=0 ; i < arg_count ; i+=2)
+  for (uint i=0 ; i < ncases ; i+=2)
   {
     set_if_bigger(max_length,args[i+1]->max_length);
     set_if_bigger(decimals,args[i+1]->decimals);
   }
-  if (else_expr != NULL) 
+  if (else_expr_num != -1) 
   {
-    set_if_bigger(max_length,else_expr->max_length);
-    set_if_bigger(decimals,else_expr->decimals);
+    set_if_bigger(max_length,args[else_expr_num]->max_length);
+    set_if_bigger(decimals,args[else_expr_num]->decimals);
   }
 }
 
