@@ -1275,8 +1275,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       def->field=field;
       if (def->sql_type == FIELD_TYPE_TIMESTAMP)
 	use_timestamp=1;
-      create_list.push_back(def);
-      def_it.remove();
+      if (!def->after)
+      {
+	create_list.push_back(def);
+	def_it.remove();
+      }
     }
     else
     {						// Use old field value
@@ -1307,7 +1310,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   List_iterator<create_field> find_it(create_list);
   while ((def=def_it++))			// Add new columns
   {
-    if (def->change)
+    if (def->change && ! def->field)
     {
       my_error(ER_BAD_FIELD_ERROR,MYF(0),def->change,table_name);
       DBUG_RETURN(-1);

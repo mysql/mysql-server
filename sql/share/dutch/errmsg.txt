@@ -2,10 +2,9 @@
    This file is public domain and comes with NO WARRANTY of any kind
 
    Dutch error messages (share/dutch/errmsg.txt)
-   2001-08-02  Arjen Lentz (agl@bitbike.com)
+   Arjen G. Lentz (agl@bitbike.com)
    Completed earlier partial translation; worked on consistency and spelling.
-   2001-10-24  Arjen Lentz (arjen@mysql.com)
-   Update for 4.0.x
+   Version: 02-08-2001
 */
 
 "hashchk",
@@ -222,6 +221,10 @@
 "%-.32s@%-.64s mag geen nieuwe gebruikers creeren",
 "Incorrecte tabel definitie; Alle MERGE tabellen moeten tot dezelfde database behoren",
 "Deadlock gevonden tijdens lock-aanvraag poging; Probeer herstart van de transactie",
+"Het gebruikte tabel type ondersteund geen FULLTEXT indexen",
+"Cannot add foreign key constraint",
+"Cannot add a child row: a foreign key constraint fails",
+"Cannot delete a parent row: a foreign key constraint fails",
 "Fout bij opbouwen verbinding naar master: %-.128s",
 "Fout bij uitvoeren query op master: %-.128s",
 "Fout tijdens uitvoeren van commando %s: %-.128s",
@@ -230,4 +233,3 @@
 "Kan de query niet uitvoeren vanwege een conflicterende read lock",
 "Het combineren van transactionele en niet-transactionele tabellen is uitgeschakeld.",
 "Optie '%s' tweemaal gebruikt in opdracht",
-"Het gebruikte tabel type ondersteund geen FULLTEXT indexen",

@@ -91,17 +91,17 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
-int mysql_server_init(int argc __attribute__((unused)),
-		      char **argv __attribute__((unused)),
-		      char **groups __attribute__((unused)))
+int STDCALL mysql_server_init(int argc __attribute__((unused)),
+			      char **argv __attribute__((unused)),
+			      char **groups __attribute__((unused)))
 {
   return 0;
 }
 
-void mysql_server_end()
+void STDCALL mysql_server_end()
 {}
 
-my_bool mysql_thread_init()
+my_bool STDCALL mysql_thread_init()
 {
 #ifdef THREAD
     return my_thread_init();
@@ -110,7 +110,7 @@ my_bool mysql_thread_init()
 #endif
 }
 
-void mysql_thread_end()
+void STDCALL mysql_thread_end()
 {
 #ifdef THREAD
     my_thread_end();

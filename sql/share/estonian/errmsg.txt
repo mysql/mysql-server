@@ -1,9 +1,9 @@
 /*
-   Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind 
+  Copyright Abandoned 1997 MySQL AB
+  This file is public domain and comes with NO WARRANTY of any kind 
+  Esialgne tõlge: Tõnu Samuel (tonu@spam.ee)
+  Parandanud ja täiendanud: Indrek Siitan (tfr@mysql.com)
 
-   Esialgne tõlge: Tõnu Samuel (tonu@spam.ee)
-   Parandanud ja täiendanud: Indrek Siitan (tfr@mysql.com)
 */
 
 "hashchk",
@@ -192,8 +192,8 @@
 "Viga %d käsu CHECKPOINT täitmisel",
 "Ühendus katkestatud %ld andmebaas: '%-.64s' kasutaja: '%-.32s' masin: `%-.64s' (%-.64s)",
 "The handler for the table does not support binary table dump",
-"Binlog closed, cannot RESET MASTER",
-"Failed rebuilding the index of  dumped table '%-.64s'",
+"Binlog closed while trying to FLUSH MASTER",
+"Failed rebuilding the index of dumped table '%-.64s'",
 "Error from master: '%-.64s'",
 "Net error reading from master",
 "Net error writing to master",
@@ -220,6 +220,10 @@
 "Kasutajal %-.32s@%-.64s ei ole lubatud luua uusi kasutajaid",
 "Vigane tabelimääratlus; kõik MERGE tabeli liikmed peavad asuma samas andmebaasis",
 "Lukustamisel tekkis tupik (deadlock); alusta transaktsiooni otsast",
+"Antud tabelitüüp ei toeta FULLTEXT indekseid",
+"Cannot add foreign key constraint",
+"Cannot add a child row: a foreign key constraint fails",
+"Cannot delete a parent row: a foreign key constraint fails",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
 "Viga käsu %s täitmisel: %-.128s",
@@ -228,4 +232,3 @@
 "Ei suuda täita päringut konfliktse luku tõttu",
 "Transaktsioone toetavate ning mittetoetavate tabelite kooskasutamine ei ole lubatud",
 "Määrangut '%s' on lauses kasutatud topelt",
-"Antud tabelitüüp ei toeta FULLTEXT indekseid",

@@ -3213,7 +3213,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
     }
   }
   *cond_value=Item::COND_OK;
-  return cond;				/* Point at next and level */
+  return cond;					// Point at next and level
 }
 
 /*
