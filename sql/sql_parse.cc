@@ -3724,6 +3724,7 @@ purposes internal to the MySQL server", MYF(0));
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
+	thd->row_count_func= 0;
 	res= sp->execute_procedure(thd, &lex->value_list);
 
 	thd->variables.select_limit= select_limit;

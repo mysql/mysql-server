@@ -1894,6 +1894,32 @@ flush status|
 flush query cache|
 delete from t1|
 drop procedure bug3583|
+drop table if exists t3|
+drop procedure if exists bug4905|
+create table t3 (s1 int,primary key (s1))|
+create procedure bug4905()
+begin
+declare v int;
+declare continue handler for sqlstate '23000' set v = 5;
+insert into t3 values (1);
+end|
+call bug4905()|
+select row_count()|
+row_count()
+1
+call bug4905()|
+select row_count()|
+row_count()
+0
+call bug4905()|
+select row_count()|
+row_count()
+0
+select * from t3|
+s1
+1
+drop procedure bug4905|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
