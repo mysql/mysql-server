@@ -201,6 +201,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	CONCURRENT
+%token	CONNECTION_SYM
 %token	CONSTRAINT
 %token	CONVERT_SYM
 %token	DATABASES
@@ -4231,17 +4232,22 @@ purge:
 /* kill threads */
 
 kill:
-	KILL_SYM expr
+	KILL_SYM kill_option expr
 	{
 	  LEX *lex=Lex;
-	  if ($2->fix_fields(lex->thd, 0, &$2) || $2->check_cols(1))
+	  if ($3->fix_fields(lex->thd, 0, &$3) || $3->check_cols(1))
 	  {
 	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
 	  }
           lex->sql_command=SQLCOM_KILL;
-	  lex->thread_id= (ulong) $2->val_int();
+	  lex->thread_id= (ulong) $3->val_int();
 	};
+
+kill_option:
+	/* empty */	 { Lex->type= 0; }
+	| CONNECTION_SYM { Lex->type= 0; }
+	| QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; };
 
 /* change database */
 

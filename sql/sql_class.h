@@ -550,6 +550,7 @@ public:
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
+  bool       volatile only_kill_query;
   bool       prepare_command;
   bool	     tmp_table_used;
   sp_rcontext *spcont;		// SP runtime context
