@@ -733,6 +733,15 @@ one	2
 two	2
 three	1
 drop table t1;
+create table t1(a int, b datetime);
+insert into t1 values (1, NOW()), (2, NOW());
+create table t2 select MAX(b) from t1 group by a;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `MAX(b)` datetime default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
 create table t1(f1 datetime);
 insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
