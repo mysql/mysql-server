@@ -214,6 +214,12 @@ Thd_ndb::~Thd_ndb()
     delete ndb;
 }
 
+inline
+Ndb *ha_ndbcluster::get_ndb()
+{
+  return ((Thd_ndb*)current_thd->transaction.thd_ndb)->ndb;
+}
+
 /*
  * manage uncommitted insert/deletes during transactio to get records correct
  */
@@ -245,8 +251,9 @@ void ha_ndbcluster::records_update()
 		      info->no_uncommitted_rows_count));
   //  if (info->records == ~(ha_rows)0)
   {
+    Ndb *ndb= get_ndb();
     Uint64 rows;
-    if(ndb_get_table_statistics(m_ndb, m_tabname, &rows, 0) == 0){
+    if(ndb_get_table_statistics(ndb, m_tabname, &rows, 0) == 0){
       info->records= rows;
     }
   }
@@ -331,7 +338,8 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   switch (err.classification) {
   case NdbError::SchemaError:
   {
-    NDBDICT *dict= m_ndb->getDictionary();
+    Ndb *ndb= get_ndb();
+    NDBDICT *dict= ndb->getDictionary();
     DBUG_PRINT("info", ("invalidateTable %s", m_tabname));
     dict->invalidateTable(m_tabname);
     table->version=0L;			/* Free when thread is ready */
@@ -361,7 +369,7 @@ bool ha_ndbcluster::get_error_message(int error,
   DBUG_ENTER("ha_ndbcluster::get_error_message");
   DBUG_PRINT("enter", ("error: %d", error));
 
-  Ndb *ndb= ((Thd_ndb*)current_thd->transaction.thd_ndb)->ndb;
+  Ndb *ndb= get_ndb();
   if (!ndb)
     DBUG_RETURN(FALSE);
 
@@ -692,7 +700,8 @@ bool ha_ndbcluster::uses_blob_value(bool all_fields)
 
 int ha_ndbcluster::get_metadata(const char *path)
 {
-  NDBDICT *dict= m_ndb->getDictionary();
+  Ndb *ndb= get_ndb();
+  NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *tab;
   int error;
   bool invalidating_ndb_table= FALSE;
@@ -767,7 +776,8 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
   static const char* unique_suffix= "$unique";
   KEY* key_info= tab->key_info;
   const char **key_name= tab->keynames.type_names;
-  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
+  Ndb *ndb= get_ndb();
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
   DBUG_ENTER("build_index_list");
   
   // Save information about all known indexes
@@ -1739,7 +1749,8 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->primary_key == MAX_KEY) 
   {
     // Table has hidden primary key
-    Uint64 auto_value= m_ndb->getAutoIncrementValue((const NDBTAB *) m_table);
+    Ndb *ndb= get_ndb();
+    Uint64 auto_value= ndb->getAutoIncrementValue((const NDBTAB *) m_table);
     if (set_hidden_key(op, table->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -1816,11 +1827,12 @@ int ha_ndbcluster::write_row(byte *record)
   }
   if ((has_auto_increment) && (m_skip_auto_increment))
   {
+    Ndb *ndb= get_ndb();
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
 	       ("Trying to set next auto increment value to %lu",
                 (ulong) next_val));
-    if (m_ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, TRUE))
+    if (ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, TRUE))
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
   }
@@ -2667,9 +2679,14 @@ void ha_ndbcluster::info(uint flag)
     }
     else
     {
+      if ((my_errno= check_ndb_connection()))
+        DBUG_VOID_RETURN;
+      Ndb *ndb= get_ndb();
+      Uint64 rows;
+      if(ndb_get_table_statistics(ndb, m_tabname, &rows, 0) == 0){
       Uint64 rows= 100;
       if (current_thd->variables.ndb_use_exact_count)
-	ndb_get_table_statistics(m_ndb, m_tabname, &rows, 0);
+	ndb_get_table_statistics(ndb, m_tabname, &rows, 0);
       records= rows;
     }
   }
@@ -2998,6 +3015,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     DBUG_RETURN(1);
  
   Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
+  Ndb *ndb= thd_ndb->ndb;
 
   DBUG_PRINT("enter", ("transaction.thd_ndb->lock_count: %d", 
                        thd_ndb->lock_count));
@@ -3015,9 +3033,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         DBUG_ASSERT(!thd->transaction.stmt.ndb_tid);
         DBUG_PRINT("trans",("Starting transaction stmt"));      
 
-        trans= m_ndb->startTransaction();
+        trans= ndb->startTransaction();
         if (trans == NULL)
-          ERR_RETURN(m_ndb->getNdbError());
+          ERR_RETURN(ndb->getNdbError());
 	no_uncommitted_rows_reset(thd);
         thd->transaction.stmt.ndb_tid= trans;
       } 
@@ -3029,9 +3047,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           // A "master" transaction ha not been started yet
           DBUG_PRINT("trans",("starting transaction, all"));
           
-          trans= m_ndb->startTransaction();
+          trans= ndb->startTransaction();
           if (trans == NULL)
-            ERR_RETURN(m_ndb->getNdbError());
+            ERR_RETURN(ndb->getNdbError());
 	  no_uncommitted_rows_reset(thd);
 
           /*
@@ -3081,7 +3099,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_retrieve_primary_key= FALSE;
     m_ops_pending= 0;    
     {
-      NDBDICT *dict= m_ndb->getDictionary();
+      NDBDICT *dict= ndb->getDictionary();
       const NDBTAB *tab;
       void *tab_info;
       if (!(tab= dict->getTable(m_tabname, &tab_info)))
@@ -3108,7 +3126,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           We must in this case close the transaction to release resources
         */
         DBUG_PRINT("trans",("ending non-updating transaction"));
-        m_ndb->closeTransaction(m_active_trans);
+        ndb->closeTransaction(m_active_trans);
         thd->transaction.stmt.ndb_tid= 0;
       }
     }
@@ -3154,16 +3172,17 @@ int ha_ndbcluster::start_stmt(THD *thd)
 
   NdbConnection *trans= (NdbConnection*)thd->transaction.stmt.ndb_tid;
   if (!trans){
+    Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
     
     NdbConnection *tablock_trans= 
       (NdbConnection*)thd->transaction.all.ndb_tid;
     DBUG_PRINT("info", ("tablock_trans: %x", (uint)tablock_trans));
     DBUG_ASSERT(tablock_trans);
-//    trans= m_ndb->hupp(tablock_trans);
-    trans= m_ndb->startTransaction();
+//    trans= ndb->hupp(tablock_trans);
+    trans= ndb->startTransaction();
     if (trans == NULL)
-      ERR_RETURN(m_ndb->getNdbError());
+      ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd->transaction.stmt.ndb_tid= trans;
   }
@@ -3550,7 +3569,8 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(my_errno);
   
   // Create the table in NDB     
-  NDBDICT *dict= m_ndb->getDictionary();
+  Ndb *ndb= get_ndb();
+  NDBDICT *dict= ndb->getDictionary();
   if (dict->createTable(tab) != 0) 
   {
     const NdbError err= dict->getNdbError();
@@ -3595,7 +3615,8 @@ int ha_ndbcluster::create_index(const char *name,
 				KEY *key_info,
 				bool unique)
 {
-  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
+  Ndb *ndb= get_ndb();
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
   KEY_PART_INFO *key_part= key_info->key_part;
   KEY_PART_INFO *end= key_part + key_info->key_parts;
   
@@ -3678,7 +3699,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
 int ha_ndbcluster::alter_table_name(const char *to)
 {
-  NDBDICT * dict= m_ndb->getDictionary();
+  Ndb *ndb= get_ndb();
+  NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *orig_tab= (const NDBTAB *) m_table;
   int ret;
   DBUG_ENTER("alter_table_name_table");
@@ -3720,8 +3742,9 @@ int ha_ndbcluster::delete_table(const char *name)
 
 int ha_ndbcluster::drop_table()
 {
-  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
-
+  Ndb *ndb= get_ndb();
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  
   DBUG_ENTER("drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
   
@@ -3756,6 +3779,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
   Uint64 auto_value;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
+  Ndb *ndb= get_ndb();
   cache_size= 
     (m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
     m_rows_to_insert - m_rows_inserted 
@@ -3764,8 +3788,8 @@ ulonglong ha_ndbcluster::get_auto_increment()
     : m_autoincrement_prefetch;
   auto_value= 
     (m_skip_auto_increment) ? 
-    m_ndb->readAutoIncrementValue((const NDBTAB *) m_table)
-    : m_ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
+    ndb->readAutoIncrementValue((const NDBTAB *) m_table)
+    : ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -3778,7 +3802,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   handler(table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
-  m_ndb(NULL),
   m_table(NULL),
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
@@ -3909,7 +3932,6 @@ int ha_ndbcluster::close(void)
   DBUG_ENTER("close");  
   free_share(m_share); m_share= 0;
   release_metadata();
-  m_ndb= NULL;
   DBUG_RETURN(0);
 }
 
@@ -3971,11 +3993,12 @@ Ndb* check_ndb_in_thd(THD* thd)
 int ha_ndbcluster::check_ndb_connection()
 {
   THD* thd= current_thd;
+  Ndb *ndb;
   DBUG_ENTER("check_ndb_connection");
   
-  if (!(m_ndb= check_ndb_in_thd(thd)))
+  if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  m_ndb->setDatabaseName(m_dbname);
+  ndb->setDatabaseName(m_dbname);
   DBUG_RETURN(0);
 }
 
