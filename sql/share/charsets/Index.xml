@@ -124,11 +124,11 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="koi8_r">
+<charset name="koi8r">
   <family>Cyrillic</family>
-  <alias>koi8-ru</alias>
+  <alias>koi8-r</alias>
   <alias>cskoi8r</alias>
-  <collation name="koi8_r"	id="7"	order="Russian"	flag="primary"/>
+  <collation name="koi8r"	id="7"	order="Russian"	flag="primary"/>
 </charset>
 
 <charset name="swe7">
@@ -211,11 +211,11 @@ To make maintaining easier please:
   <collation name="tis620"	id="18"	order="Thai"	flag="primary"	flag="compiled"/>
 </charset>
 
-<charset name="euc_kr">
+<charset name="euckr">
   <family>Korean</family>
-  <alias>euckr</alias>
+  <alias>euc_kr</alias>
   <alias>euc-kr</alias>
-  <collation name="euc_kr"	id="19"	order="Korean"	flag="primary"	flag="compiled"/>
+  <collation name="euckr"	id="19"	order="Korean"	flag="primary"	flag="compiled"/>
 </charset>
 
 <charset name="latin7">
@@ -228,10 +228,10 @@ To make maintaining easier please:
   <collation name="latvian1"	id="42"	order="Latvian"/>
 </charset>
 
-<charset name="koi8_u">
+<charset name="koi8u">
   <family>Cyrillic</family>
   <alias>koi8-u</alias>
-  <collation name="koi8_u"	id="22"	order="Ukranian"	flag="primary"/>
+  <collation name="koi8u"	id="22"	order="Ukranian"	flag="primary"/>
 </charset>
 
 <charset name="gb2312">
