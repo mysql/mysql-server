@@ -3472,13 +3472,13 @@ static int create_ndb_column(NDBCOL &col,
     col.setLength(1);
     break;
   // Date types
-  case MYSQL_TYPE_TIMESTAMP:
-    col.setType(NDBCOL::Unsigned);
-    col.setLength(1);
-    break;
   case MYSQL_TYPE_DATETIME:    
     col.setType(NDBCOL::Datetime);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_DATE: // ?
+    col.setType(NDBCOL::Char);
+    col.setLength(field->pack_length());
     break;
   case MYSQL_TYPE_NEWDATE:
     col.setType(NDBCOL::Date);
@@ -3488,10 +3488,13 @@ static int create_ndb_column(NDBCOL &col,
     col.setType(NDBCOL::Time);
     col.setLength(1);
     break;
-  case MYSQL_TYPE_DATE: // ?
-  case MYSQL_TYPE_YEAR:        
-    col.setType(NDBCOL::Char);
-    col.setLength(field->pack_length());
+  case MYSQL_TYPE_YEAR:
+    col.setType(NDBCOL::Year);
+    col.setLength(1);
+    break;
+  case MYSQL_TYPE_TIMESTAMP:
+    col.setType(NDBCOL::Timestamp);
+    col.setLength(1);
     break;
   // Char types
   case MYSQL_TYPE_STRING:      
