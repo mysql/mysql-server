@@ -722,7 +722,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
-	opt_extended_describe curr_user
+	opt_extended_describe
 END_OF_INPUT
 
 %type <NONE>
@@ -2685,7 +2685,7 @@ simple_expr:
 	    $$= new Item_func_curtime_local($3);
 	    Lex->safe_to_cache_query=0;
 	  }
-	| curr_user
+	| CURRENT_USER optional_braces
           { $$= create_func_current_user(); }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
 	  { $$= new Item_date_add_interval($3,$5,$6,0); }
@@ -4769,11 +4769,6 @@ ident_or_text:
 	| TEXT_STRING_sys	{ $$=$1;}
 	| LEX_HOSTNAME		{ $$=$1;};
 
-curr_user: 
-        CURRENT_USER		{;}
-        | CURRENT_USER '(' ')'	{;}
-        ;
-
 user:
 	ident_or_text
 	{
@@ -4791,7 +4786,7 @@ user:
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
 	  }
-	| curr_user
+	| CURRENT_USER optional_braces
 	{
           THD *thd= YYTHD;
           if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
@@ -4846,7 +4841,6 @@ keyword:
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CUBE_SYM		{}
-	| CURRENT_USER		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
