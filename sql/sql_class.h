@@ -441,11 +441,23 @@ public:
     STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
   };
 
+  /*
+    This constructor is used only when Item_arena is created as
+    backup storage for another instance of Item_arena.
+  */
+  Item_arena() {};
+  /*
+    Create arena for already constructed THD using its variables as
+    parameters for memory root initialization.
+  */
   Item_arena(THD *thd);
-  Item_arena();
+  /*
+    Create arena and optionally init memory root with minimal values.
+    Particularly used if Item_arena is part of Statement.
+  */
   Item_arena(bool init_mem_root);
   virtual Type type() const;
-  virtual ~Item_arena();
+  virtual ~Item_arena() {};
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
