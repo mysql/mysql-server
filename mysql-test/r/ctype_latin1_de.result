@@ -192,7 +192,7 @@ strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
 select strcmp('u','öa'),strcmp('u','ö');
 strcmp('u','öa')	strcmp('u','ö')
 1	1
-create table t1 (a varchar(10), key(a));
+create table t1 (a varchar(10), key(a), fulltext (a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
 a
@@ -202,6 +202,9 @@ select * from t1 where a like "test%";
 a
 test
 select * from t1 where a like "te_t";
+a
+test
+select * from t1 where match a against ("te*" in boolean mode)+0;
 a
 test
 drop table t1;
