@@ -47,6 +47,9 @@
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
 #endif
+#ifdef HAVE_FEDERATED_DB
+#include "ha_federated.h"
+#endif
 #include <myisampack.h>
 #include <errno.h>
 
@@ -92,6 +95,8 @@ struct show_table_type_st sys_table_types[]=
    "Archive storage engine", DB_TYPE_ARCHIVE_DB},
   {"CSV",&have_csv_db,
    "CSV storage engine", DB_TYPE_CSV_DB},
+  {"FEDERATED",&have_federated_db,
+   "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -199,6 +204,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_FEDERATED_DB
+  case DB_TYPE_FEDERATED_DB:
+    return new ha_federated(table);
 #endif
 #ifdef HAVE_CSV_DB
   case DB_TYPE_CSV_DB:

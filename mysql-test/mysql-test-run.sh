@@ -1348,6 +1348,7 @@ run_testcase ()
  result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ SKIP_SLAVE=`$EXPR \( $tname : federated \) = 0`
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
  fi
