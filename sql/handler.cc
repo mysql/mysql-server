@@ -157,12 +157,11 @@ enum db_type ha_checktype(enum db_type database_type)
     break;
   }
   
-  return 
-    DB_TYPE_UNKNOWN != (enum db_type) thd->variables.table_type ?
-    (enum db_type) thd->variables.table_type :
-    DB_TYPE_UNKNOWN != (enum db_type) global_system_variables.table_type ?
-    (enum db_type) global_system_variables.table_type :
-    DB_TYPE_MYISAM;
+  return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
+          (enum db_type) thd->variables.table_type :
+          (enum db_type) global_system_variables.table_type !=
+          DB_TYPE_UNKNOWN ?
+          (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM);
 } /* ha_checktype */
 
 
@@ -784,10 +783,14 @@ bool ha_flush_logs()
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
+  handler *file;
   char tmp_path[FN_REFLEN];
-  handler *file=(table_type== DB_TYPE_UNKNOWN ? 0 : get_new_handler((TABLE*) 0, table_type));
-  if (!file)
+
+  /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
+  if (table_type == DB_TYPE_UNKNOWN ||
+      ! (file=get_new_handler((TABLE*) 0, table_type)))
     return ENOENT;
+
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
   {
     /* Ensure that table handler get path in lower case */
