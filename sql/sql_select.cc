@@ -24,8 +24,6 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-#include "opt_ft.h"
-
 #include <m_ctype.h>
 #include <hash.h>
 #include <ft_global.h>
@@ -82,7 +80,7 @@ static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 static int sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
 static int sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
-static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last);
+static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last);
 static int end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static int end_send_group(JOIN *join, JOIN_TAB *join_tab,bool end_of_records);
 static int end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
@@ -860,8 +858,10 @@ JOIN::optimize()
     as in other cases the join is done before the sort.
   */
   if (const_tables != tables &&
-      (order || group_list) && join_tab[const_tables].type != JT_ALL &&
+      (order || group_list) && 
+      join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
+      join_tab[const_tables].type != JT_REF_OR_NULL &&
       (order && simple_order || group_list && simple_group))
   {
     if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
@@ -2131,7 +2131,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields,uint and_level,
+add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 	      Field *field,bool eq_func,Item **value, uint num_values,
 	      table_map usable_tables)
 {
@@ -2198,6 +2198,17 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 	  (*value)->result_type() != STRING_RESULT &&
 	  field->cmp_type() != (*value)->result_type())
 	return;
+      
+      /*
+        We can't use indexes if the effective collation
+        of the operation differ from the field collation.
+      */
+      if (field->result_type() == STRING_RESULT &&
+	  (*value)->result_type() == STRING_RESULT &&
+	  field->cmp_type() == STRING_RESULT &&
+	  ((Field_str*)field)->charset() != cond->compare_collation())
+	return;
+
     }
   }
   DBUG_ASSERT(num_values == 1);
@@ -2261,7 +2272,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     // BETWEEN or IN
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->key_item()->real_item()))->
 		    field, 0,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
@@ -2275,7 +2286,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
 		    ->field,
 		    equal_func,
@@ -2285,7 +2296,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	cond_func->functype() != Item_func::LIKE_FUNC &&
 	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[1])->real_item())
 		    ->field,
 		    equal_func,
@@ -2301,7 +2312,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       Item *tmp=new Item_null;
       if (!tmp)					// Should never be true
 	return;
-      add_key_field(key_fields,*and_level,
+      add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
 		    ->field,
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
@@ -3257,7 +3268,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
-    j->null_ref_key= null_ref_key;
+    j->ref.null_ref_key= null_ref_key;
   }
   else if (ref_key == j->ref.key_copy)
   {
@@ -5746,14 +5757,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
 
 static int
-flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
+flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
 {
   int error;
   READ_RECORD *info;
 
   if (!join_tab->cache.records)
     return 0;				/* Nothing to do */
-  if (skipp_last)
+  if (skip_last)
     (void) store_record_in_cache(&join_tab->cache); // Must save this for later
   if (join_tab->use_quick == 2)
   {
@@ -5787,21 +5798,21 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
     }
     SQL_SELECT *select=join_tab->select;
     if (!error && (!join_tab->cache.select ||
-		   !join_tab->cache.select->skipp_record()))
+		   !join_tab->cache.select->skip_record()))
     {
       uint i;
       reset_cache(&join_tab->cache);
-      for (i=(join_tab->cache.records- (skipp_last ? 1 : 0)) ; i-- > 0 ;)
+      for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
       {
 	read_cached_record(join_tab);
-	if (!select || !select->skipp_record())
+	if (!select || !select->skip_record())
 	  if ((error=(join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error; /* purecov: inspected */
       }
     }
   } while (!(error=info->read_record(info)));
 
-  if (skipp_last)
+  if (skip_last)
     read_cached_record(join_tab);		// Restore current record
   reset_cache(&join_tab->cache);
   join_tab->cache.records=0; join_tab->cache.ptr_record= (uint) ~0;
@@ -6208,12 +6219,12 @@ join_read_always_key_or_null(JOIN_TAB *tab)
   int res;
 
   /* First read according to key which is NOT NULL */
-  *tab->null_ref_key=0;
+  *tab->ref.null_ref_key= 0;			// Clear null byte
   if ((res= join_read_always_key(tab)) >= 0)
     return res;
 
   /* Then read key with null value */
-  *tab->null_ref_key= 1;
+  *tab->ref.null_ref_key= 1;			// Set null byte
   return safe_index_read(tab);
 }
 
@@ -6227,10 +6238,10 @@ join_read_next_same_or_null(READ_RECORD *info)
   JOIN_TAB *tab= info->table->reginfo.join_tab;
 
   /* Test if we have already done a read after null key */
-  if (*tab->null_ref_key)
+  if (*tab->ref.null_ref_key)
     return -1;					// All keys read
-  *tab->null_ref_key= 1;			// Read null key
-  return safe_index_read(tab);
+  *tab->ref.null_ref_key= 1;			// Set null byte
+  return safe_index_read(tab);			// then read null keys
 }
 
 
@@ -7190,8 +7201,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick=get_ft_or_quick_select_for_ref(tab->join->thd,
-							 table, tab)))
+      if (!(select->quick= tab->type == JT_FT ?
+			   new FT_SELECT(thd, table, tab->ref.key) :
+			   get_quick_select_for_ref(thd, table, &tab->ref)))
 	goto err;
     }
   }
@@ -7200,7 +7212,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table->sort.found_records=filesort(thd, table,sortorder, length,
                                      select, filesort_limit, &examined_rows);
   tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
-  delete select;				// filesort did select
+  delete select;
   tab->select=0;
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record

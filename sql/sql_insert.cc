@@ -198,7 +198,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (duplic == DUP_UPDATE && !table->insert_values)
   {
     /* it should be allocated before Item::fix_fields() */
-    table->insert_values=(byte *)alloc_root(&table->mem_root, table->rec_buff_length);
+    table->insert_values= 
+      (byte *)alloc_root(&thd->mem_root, table->rec_buff_length);
     if (!table->insert_values)
       goto abort;
   }

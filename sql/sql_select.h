@@ -46,6 +46,8 @@ typedef struct st_table_ref
   store_key     **key_copy;               //
   Item          **items;                  // val()'s for each keypart
   table_map	depend_map;		  // Table depends on these tables.
+  byte          *null_ref_key;		  // null byte position in the key_buf.
+  					  // used for REF_OR_NULL optimization.
 } TABLE_REF;
 
 /*
@@ -88,7 +90,6 @@ typedef struct st_join_table {
   QUICK_SELECT	*quick;
   Item		*on_expr;
   const char	*info;
-  byte		*null_ref_key;
   int		(*read_first_record)(struct st_join_table *tab);
   int		(*next_select)(JOIN *,struct st_join_table *,bool);
   READ_RECORD	read_record;

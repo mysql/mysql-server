@@ -42,7 +42,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   int errpos,save_errno;
   myf create_flag;
   uint fields,length,max_key_length,packed,pointer,
-       key_length,info_length,key_segs,options,min_key_length_skipp,
+       key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,varchar_count,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
   ulong reclength, real_reclength,min_pack_length;
@@ -238,7 +238,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   {
 
     share.state.key_root[i]= HA_OFFSET_ERROR;
-    min_key_length_skipp=length=0;
+    min_key_length_skip=length=0;
     key_length=pointer;
     if (keydef->flag & HA_SPATIAL)
     {
@@ -269,7 +269,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       keydef->keysegs+=sp_segs;
       key_length+=SPLEN*sp_segs;
       length++;                              /* At least one length byte */
-      min_key_length_skipp+=SPLEN*2*SPDIMS;
+      min_key_length_skip+=SPLEN*2*SPDIMS;
     }
     else
     if (keydef->flag & HA_FULLTEXT)
@@ -291,7 +291,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       fulltext_keys++;
       key_length+= HA_FT_MAXBYTELEN+HA_FT_WLEN;
       length++;                              /* At least one length byte */
-      min_key_length_skipp+=HA_FT_MAXBYTELEN;
+      min_key_length_skip+=HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -348,10 +348,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  length++;				/* At least one length byte */
-	  min_key_length_skipp+=keyseg->length;
+	  min_key_length_skip+=keyseg->length;
 	  if (keyseg->length >= 255)
 	  {					/* prefix may be 3 bytes */
-	    min_key_length_skipp+=2;
+	    min_key_length_skip+=2;
 	    length+=2;
 	  }
 	}
@@ -360,10 +360,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length byte */
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-	  min_key_length_skipp+=keyseg->length;
+	  min_key_length_skip+=keyseg->length;
 	  if (keyseg->length >= 255)
 	  {					/* prefix may be 3 bytes */
-	    min_key_length_skipp+=2;
+	    min_key_length_skip+=2;
 	    length+=2;
 	  }
 	}
@@ -395,7 +395,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     }
     set_if_bigger(max_key_block_length,keydef->block_length);
     keydef->keylength= (uint16) key_length;
-    keydef->minlength= (uint16) (length-min_key_length_skipp);
+    keydef->minlength= (uint16) (length-min_key_length_skip);
     keydef->maxlength= (uint16) length;
 
     if (length > max_key_length)

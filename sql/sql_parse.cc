@@ -2319,7 +2319,7 @@ mysql_execute_command(THD *thd)
 			       lex->key_list, lex->drop_list, lex->alter_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->drop_primary, lex->duplicates,
+			       lex->duplicates,
 			       lex->alter_keys_onoff,
                                lex->tablespace_op,
 			       lex->simple_alter);
@@ -2466,7 +2466,7 @@ mysql_execute_command(THD *thd)
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
                              0, (ORDER *) 0,
-			     0, DUP_ERROR);
+			     DUP_ERROR);
     }
     else
       res = mysql_optimize_table(thd, tables, &lex->check_opt);

@@ -5919,7 +5919,7 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       {
 	if (my_toupper(mysqld_charset,*i++) !=
             my_toupper(mysqld_charset,*j++))
-	  goto skipp;
+	  goto skip;
       }
       found_int=bit;
       if (! *i)
@@ -5931,7 +5931,7 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       {
 	found_count++;				// Could be one of two values
       }
-skipp: ;
+skip: ;
     }
     if (found_count != 1)
       DBUG_RETURN(~(ulong) 0);				// No unique value

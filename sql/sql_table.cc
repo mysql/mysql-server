@@ -1962,7 +1962,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
                       uint order_num, ORDER *order,
-		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 	              enum enum_enable_or_disable keys_onoff,
 		      enum tablespace_op_type tablespace_op,
@@ -2171,7 +2170,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     def_it.rewind();
     while ((def=def_it++))
     {
-      if (def->change && 
+      if (def->change &&
           !my_strcasecmp(system_charset_info,field->field_name, def->change))
 	break;
     }
@@ -2265,14 +2264,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
     char *key_name= key_info->name;
-
-    if (drop_primary && (key_info-> flags & HA_NOSAME) &&
-	!my_strcasecmp(system_charset_info, key_name, primary_key_name))
-    {
-      drop_primary= 0;
-      continue;
-    }
-
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -2315,7 +2306,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {						// Check if sub key
 	if (cfield->field->type() != FIELD_TYPE_BLOB &&
 	    (cfield->field->pack_length() == key_part_length ||
-	     cfield->length <= key_part_length / 
+	     cfield->length <= key_part_length /
 			       key_part->field->charset()->mbmaxlen))
 	  key_part_length=0;			// Use whole field
       }

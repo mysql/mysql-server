@@ -291,10 +291,11 @@ typedef struct st_qsel_param {
   bool quick;				// Don't calulate possible keys
 } PARAM;
 
-static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
+static SEL_TREE * get_mm_parts(PARAM *param,COND *cond_func,Field *field,
 			       Item_func::Functype type,Item *value,
 			       Item_result cmp_type);
-static SEL_ARG *get_mm_leaf(PARAM *param,Field *field,KEY_PART *key_part,
+static SEL_ARG *get_mm_leaf(PARAM *param,COND *cond_func,Field *field,
+			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
 static SEL_TREE *get_mm_tree(PARAM *param,COND *cond);
 static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree);
@@ -834,10 +835,10 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       Field *field=((Item_field*) (cond_func->arguments()[0]))->field;
       Item_result cmp_type=field->cmp_type();
       DBUG_RETURN(tree_and(param,
-			   get_mm_parts(param, field,
+			   get_mm_parts(param, cond_func, field,
 					Item_func::GE_FUNC,
 					cond_func->arguments()[1], cmp_type),
-			   get_mm_parts(param, field,
+			   get_mm_parts(param, cond_func, field,
 					Item_func::LE_FUNC,
 					cond_func->arguments()[2], cmp_type)));
     }
@@ -850,13 +851,14 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     {
       Field *field=((Item_field*) (func->key_item()))->field;
       Item_result cmp_type=field->cmp_type();
-      tree= get_mm_parts(param,field,Item_func::EQ_FUNC,
+      tree= get_mm_parts(param,cond_func,field,Item_func::EQ_FUNC,
 			 func->arguments()[1],cmp_type);
       if (!tree)
 	DBUG_RETURN(tree);			// Not key field
       for (uint i=2 ; i < func->argument_count(); i++)
       {
-	SEL_TREE *new_tree=get_mm_parts(param,field,Item_func::EQ_FUNC,
+	SEL_TREE *new_tree=get_mm_parts(param,cond_func,field,
+					Item_func::EQ_FUNC,
 					func->arguments()[i],cmp_type);
 	tree=tree_or(param,tree,new_tree);
       }
@@ -875,7 +877,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   /* btw, ft_func's arguments()[0] isn't FIELD_ITEM.  SerG*/
   if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
   {
-    tree= get_mm_parts(param,
+    tree= get_mm_parts(param, cond_func,
 		       ((Item_field*) (cond_func->arguments()[0]))->field,
 		       cond_func->functype(),
 		       cond_func->arg_count > 1 ? cond_func->arguments()[1] :
@@ -888,7 +890,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       cond_func->have_rev_func() &&
       cond_func->arguments()[1]->type() == Item::FIELD_ITEM)
   {
-    DBUG_RETURN(get_mm_parts(param,
+    DBUG_RETURN(get_mm_parts(param, cond_func,
 			     ((Item_field*)
 			      (cond_func->arguments()[1]))->field,
 			     ((Item_bool_func2*) cond_func)->rev_functype(),
@@ -902,7 +904,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
 
 static SEL_TREE *
-get_mm_parts(PARAM *param, Field *field, Item_func::Functype type, 
+get_mm_parts(PARAM *param, COND *cond_func, Field *field,
+	     Item_func::Functype type, 
 	     Item *value, Item_result cmp_type)
 {
   bool ne_func= FALSE;
@@ -931,7 +934,8 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
 	DBUG_RETURN(0);				// OOM
       if (!value || !(value->used_tables() & ~param->read_tables))
       {
-	sel_arg=get_mm_leaf(param,key_part->field,key_part,type,value);
+	sel_arg=get_mm_leaf(param,cond_func,
+			    key_part->field,key_part,type,value);
 	if (!sel_arg)
 	  continue;
 	if (sel_arg->type == SEL_ARG::IMPOSSIBLE)
@@ -953,7 +957,8 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
 
   if (ne_func)
   {
-    SEL_TREE *tree2= get_mm_parts(param, field, Item_func::GT_FUNC,
+    SEL_TREE *tree2= get_mm_parts(param, cond_func,
+				  field, Item_func::GT_FUNC,
                                   value, cmp_type);
     if (tree2)
       tree= tree_or(param,tree,tree2);
@@ -963,7 +968,7 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
 
 
 static SEL_ARG *
-get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
+get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
   uint maybe_null=(uint) field->real_maybe_null(), copies;
@@ -971,6 +976,32 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   SEL_ARG *tree;
   char *str, *str2;
   DBUG_ENTER("get_mm_leaf");
+
+  if (!value)					// IS NULL or IS NOT NULL
+  {
+    if (field->table->outer_join)		// Can't use a key on this
+      DBUG_RETURN(0);
+    if (!maybe_null)				// Not null field
+      DBUG_RETURN(type == Item_func::ISNULL_FUNC ? &null_element : 0);
+    if (!(tree=new SEL_ARG(field,is_null_string,is_null_string)))
+      DBUG_RETURN(0);		// out of memory
+    if (type == Item_func::ISNOTNULL_FUNC)
+    {
+      tree->min_flag=NEAR_MIN;		    /* IS NOT NULL ->  X > NULL */
+      tree->max_flag=NO_MAX_RANGE;
+    }
+    DBUG_RETURN(tree);
+  }
+
+  /*
+    We can't use an index when comparing stings of 
+    different collations 
+  */
+  if (field->result_type() == STRING_RESULT &&
+      value->result_type() == STRING_RESULT &&
+      key_part->image_type == Field::itRAW &&
+      ((Field_str*)field)->charset() != conf_func->compare_collation())
+    DBUG_RETURN(0);
 
   if (type == Item_func::LIKE_FUNC)
   {
@@ -1035,22 +1066,6 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     DBUG_RETURN(new SEL_ARG(field,min_str,max_str));
   }
 
-  if (!value)					// IS NULL or IS NOT NULL
-  {
-    if (field->table->outer_join)		// Can't use a key on this
-      DBUG_RETURN(0);
-    if (!maybe_null)				// Not null field
-      DBUG_RETURN(type == Item_func::ISNULL_FUNC ? &null_element : 0);
-    if (!(tree=new SEL_ARG(field,is_null_string,is_null_string)))
-      DBUG_RETURN(0);		// out of memory
-    if (type == Item_func::ISNOTNULL_FUNC)
-    {
-      tree->min_flag=NEAR_MIN;		    /* IS NOT NULL ->  X > NULL */
-      tree->max_flag=NO_MAX_RANGE;
-    }
-    DBUG_RETURN(tree);
-  }
-
   if (!field->optimize_range(param->real_keynr[key_part->key]) &&
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
@@ -1064,7 +1079,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
     DBUG_RETURN(0);
-
+ 
   if (value->save_in_field(field, 1) > 0)
   {
     /* This happens when we try to insert a NULL field in a not null column */
@@ -2513,8 +2528,30 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       key_part->part_length+=HA_KEY_BLOB_LENGTH;
     key_part->null_bit=     key_info->key_part[part].null_bit;
   }
-  if (!quick->ranges.push_back(range))
-    return quick;
+  if (quick->ranges.push_back(range))
+    goto err;
+
+  /* 
+     Add a NULL range if REF_OR_NULL optimization is used.
+     For example:
+       if we have "WHERE A=2 OR A IS NULL" we created the (A=2) range above
+       and have ref->null_ref_key set. Will create a new NULL range here.
+  */
+  if (ref->null_ref_key)
+  {
+    QUICK_RANGE *null_range;
+
+    *ref->null_ref_key= 1;		// Set null byte then create a range
+    if (!(null_range= new QUICK_RANGE(ref->key_buff, ref->key_length,
+				      ref->key_buff, ref->key_length,
+				      EQ_RANGE)))
+      goto err;
+    *ref->null_ref_key= 0;		// Clear null byte
+    if (quick->ranges.push_back(null_range))
+      goto err;
+  }
+
+  return quick;
 
 err:
   delete quick;
