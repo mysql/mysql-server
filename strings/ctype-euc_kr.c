@@ -33,7 +33,7 @@
 #ifdef HAVE_CHARSET_euc_kr
 
 
-uchar NEAR ctype_euc_kr[257] =
+static uchar NEAR ctype_euc_kr[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -70,7 +70,7 @@ uchar NEAR ctype_euc_kr[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-uchar NEAR to_lower_euc_kr[]=
+static uchar NEAR to_lower_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -106,7 +106,7 @@ uchar NEAR to_lower_euc_kr[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR to_upper_euc_kr[]=
+static uchar NEAR to_upper_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -142,7 +142,7 @@ uchar NEAR to_upper_euc_kr[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR sort_order_euc_kr[]=
+static uchar NEAR sort_order_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -183,7 +183,7 @@ uchar NEAR sort_order_euc_kr[]=
 #define iseuc_kr(c)     ((0xa1<=(uchar)(c) && (uchar)(c)<=0xfe))
 
 
-int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 		    const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -191,12 +191,12 @@ int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
           0);
 }
 
-my_bool ismbhead_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static my_bool ismbhead_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iseuc_kr(c));
 }
 
-int mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static int mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iseuc_kr(c) ? 2 : 0);
 }
@@ -8587,7 +8587,7 @@ static int func_uni_ksc5601_onechar(int code){
 }
 
 
-int
+static int
 my_wc_mb_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 		 my_wc_t wc, uchar *s, uchar *e)
 {
@@ -8611,7 +8611,7 @@ my_wc_mb_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-int 
+static int 
 my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 		 my_wc_t *pwc, const uchar *s, const uchar *e)
 {
@@ -8633,5 +8633,38 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
+CHARSET_INFO my_charset_euc_kr =
+{
+    19,			/* number */
+    MY_CS_COMPILED,	/* state      */
+    "euc_kr",		/* name */
+    "",			/* comment    */
+    ctype_euc_kr,
+    to_lower_euc_kr,
+    to_upper_euc_kr,
+    sort_order_euc_kr,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    0,			/* strxfrm_multiply */
+    my_strnncoll_simple,/* strnncoll  */
+    NULL,		/* strnxfrm   */
+    NULL,		/* like_range */
+    2,			/* mbmaxlen */
+    ismbchar_euc_kr,
+    ismbhead_euc_kr,
+    mbcharlen_euc_kr,
+    my_mb_wc_euc_kr,	/* mb_wc   */
+    my_wc_mb_euc_kr,	/* wc_mb   */
+    my_caseup_str_mb,
+    my_casedn_str_mb,
+    my_caseup_mb,
+    my_casedn_mb,
+    my_tosort_8bit,
+    my_strcasecmp_mb,
+    my_strncasecmp_mb,
+    NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
+    0
+};
 
 #endif

@@ -83,7 +83,7 @@ static MY_UNI_IDX idx_uni_8859_1[]={
 #endif
 
 #if defined(HAVE_CHARSET_latin2)||defined(HAVE_CHARSET_croat)||\
-defined(HAVE_CHARSET_hungarian)||defined(HAVE_CHARSET_czech)
+defined(HAVE_CHARSET_hungarian)
 
 static uint16 tab_8859_2_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -2529,7 +2529,7 @@ static uchar sort_order_win1250[] = {
 };
 #endif
 
-#if defined(HAVE_CHARSET_win1250)||defined(HAVE_CHARSET_win1250ch)
+#if defined(HAVE_CHARSET_win1250)
 
 static uint16 tab_cp1250_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -2801,7 +2801,7 @@ static uchar sort_order_win1251ukr[] = {
 
 
 
-CHARSET_INFO compiled_charsets[] = {
+static CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_latin1
   {
@@ -2838,40 +2838,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_big5
-  {
-    1,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "big5",		/* name */
-    "",			/* comment    */
-    ctype_big5,
-    to_lower_big5,
-    to_upper_big5,
-    sort_order_big5,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    1,			/* strxfrm_multiply */
-    my_strnncoll_big5,
-    my_strnxfrm_big5,
-    my_like_range_big5,
-    2,			/* mbmaxlen */
-    ismbchar_big5,
-    ismbhead_big5,
-    mbcharlen_big5,
-    my_mb_wc_big5,	/* mb_wc      */
-    my_wc_mb_big5,	/* wc_mb      */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    NULL,		/* tosort      */
-    my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
 
 #ifdef HAVE_CHARSET_cp1251
   {
@@ -2978,40 +2944,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_czech
-  {
-    2,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "czech",		/* name */
-    "",			/* comment    */
-    ctype_czech,
-    to_lower_czech,
-    to_upper_czech,
-    sort_order_czech,
-    tab_8859_2_uni,	/* tab_to_uni   */
-    idx_uni_8859_2,	/* tab_from_uni */
-    4,			/* strxfrm_multiply */
-    my_strnncoll_czech,
-    my_strnxfrm_czech,
-    my_like_range_czech,
-    0,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* ismbhead  */
-    NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    NULL,		/* tosort      */
-    my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
 
 #ifdef HAVE_CHARSET_danish
   {
@@ -3153,110 +3085,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_euc_kr
-  {
-    19,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "euc_kr",		/* name */
-    "",			/* comment    */
-    ctype_euc_kr,
-    to_lower_euc_kr,
-    to_upper_euc_kr,
-    sort_order_euc_kr,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    0,			/* strxfrm_multiply */
-    my_strnncoll_simple,/* strnncoll  */
-    NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
-    2,			/* mbmaxlen */
-    ismbchar_euc_kr,
-    ismbhead_euc_kr,
-    mbcharlen_euc_kr,
-    my_mb_wc_euc_kr,	/* mb_wc   */
-    my_wc_mb_euc_kr,	/* wc_mb   */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    my_tosort_8bit,
-    my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
-
-#ifdef HAVE_CHARSET_gb2312
-  {
-    24,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "gb2312",		/* name */
-    "",			/* comment    */
-    ctype_gb2312,
-    to_lower_gb2312,
-    to_upper_gb2312,
-    sort_order_gb2312,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    0,			/* strxfrm_multiply */
-    my_strnncoll_simple,/* strnncoll  */
-    NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
-    2,			/* mbmaxlen */
-    ismbchar_gb2312,
-    ismbhead_gb2312,
-    mbcharlen_gb2312,
-    my_mb_wc_gb2312,	/* mb_wc      */
-    my_wc_mb_gb2312,	/* wc_mb      */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    my_tosort_8bit,
-    my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
-
-#ifdef HAVE_CHARSET_gbk
-  {
-    28,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "gbk",		/* name */
-    "",			/* comment    */
-    ctype_gbk,
-    to_lower_gbk,
-    to_upper_gbk,
-    sort_order_gbk,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    1,			/* strxfrm_multiply */
-    my_strnncoll_gbk,
-    my_strnxfrm_gbk,
-    my_like_range_gbk,
-    2,			/* mbmaxlen */
-    ismbchar_gbk,
-    ismbhead_gbk,
-    mbcharlen_gbk,
-    my_mb_wc_gbk,	/* mb_wc      */
-    my_wc_mb_gbk,	/* wc_mb      */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    NULL,		/* tosort      */
-    my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
 
 #ifdef HAVE_CHARSET_german1
   {
@@ -3503,40 +3331,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_latin1_de
-  {
-    31,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "latin1_de",	/* name */
-    "",			/* comment    */
-    ctype_latin1_de,
-    to_lower_latin1_de,
-    to_upper_latin1_de,
-    sort_order_latin1_de,
-    tab_8859_1_uni,	/* tab_to_uni   */
-    idx_uni_8859_1,	/* tab_from_uni */
-    2,			/* strxfrm_multiply */
-    my_strnncoll_latin1_de,
-    my_strnxfrm_latin1_de,
-    my_like_range_latin1_de,
-    0,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* ismbhead  */
-    NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    NULL,		/* tosort      */
-    my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
 
 #ifdef HAVE_CHARSET_latin2
   {
@@ -3608,40 +3402,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_sjis
-  {
-    13,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "sjis",		/* name */
-    "",			/* comment    */
-    ctype_sjis,
-    to_lower_sjis,
-    to_upper_sjis,
-    sort_order_sjis,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    1,			/* strxfrm_multiply */
-    my_strnncoll_sjis,
-    my_strnxfrm_sjis,
-    my_like_range_sjis,
-    2,			/* mbmaxlen */
-    ismbchar_sjis,
-    ismbhead_sjis,
-    mbcharlen_sjis,
-    my_mb_wc_sjis,	/* mb_wc */
-    my_wc_mb_sjis,	/* wc_mb */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    NULL,		/* tosort      */
-    my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
 
 #ifdef HAVE_CHARSET_swe7
   {
@@ -3678,146 +3438,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_tis620
-  {
-    18,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "tis620",		/* name */
-    "",			/* comment    */
-    ctype_tis620,
-    to_lower_tis620,
-    to_upper_tis620,
-    sort_order_tis620,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    4,			/* strxfrm_multiply */
-    my_strnncoll_tis620,
-    my_strnxfrm_tis620,
-    my_like_range_tis620,
-    0,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* ismbhead  */
-    NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc   */
-    my_wc_mb_8bit,	/* wc_mb   */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    NULL,		/* tosort      */
-    my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
-
-#ifdef HAVE_CHARSET_ucs2
-  {
-    35,			/* number       */
-    MY_CS_COMPILED,	/* state      */
-    "ucs2",		/* name         */
-    "",			/* comment    */
-    ctype_ucs2,		/* ctype        */
-    to_lower_ucs2,	/* to_lower     */
-    to_upper_ucs2,	/* to_upper     */
-    to_upper_ucs2,	/* sort_order   */
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    1,			/* strxfrm_multiply */
-    my_strnncoll_ucs2,	/* strnncoll    */
-    my_strnxfrm_ucs2,	/* strnxfrm     */
-    NULL,		/* like_range   */
-    2,			/* mbmaxlen     */
-    my_ismbchar_ucs2,	/* ismbchar     */
-    my_ismbhead_ucs2,	/* ismbhead     */
-    my_mbcharlen_ucs2,	/* mbcharlen    */
-    my_ucs2_uni,	/* mb_wc        */
-    my_uni_ucs2,	/* wc_mb        */
-    my_caseup_str_ucs2,
-    my_casedn_str_ucs2,
-    my_caseup_ucs2,
-    my_casedn_ucs2,
-    NULL,		/* tosort      */
-    my_strcasecmp_ucs2,
-    my_strncasecmp_ucs2,
-    my_hash_caseup_ucs2,/* hash_caseup */
-    my_hash_sort_ucs2,	/* hash_sort   */
-    0
-  },
-#endif
-
-
-#ifdef HAVE_CHARSET_ujis
-  {
-    12,			/* number       */
-    MY_CS_COMPILED,	/* state      */
-    "ujis",		/* name         */
-    "",			/* comment    */
-    ctype_ujis,
-    to_lower_ujis,
-    to_upper_ujis,
-    sort_order_ujis,
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll    */
-    NULL,		/* strnxfrm     */
-    NULL,		/* like_range   */
-    3,			/* mbmaxlen     */
-    ismbchar_ujis,
-    ismbhead_ujis,
-    mbcharlen_ujis,
-    my_mb_wc_euc_jp,	 /* mb_wc       */
-    my_wc_mb_euc_jp,	 /* wc_mb       */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    my_tosort_8bit,
-    my_strcasecmp_mb,
-    my_strncasecmp_mb,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
-    0
-  },
-#endif
-
-#ifdef HAVE_CHARSET_utf8
-  {
-    33,			/* number       */
-    MY_CS_COMPILED,	/* state      */
-    "utf8",		/* name         */
-    "",			/* comment    */
-    ctype_utf8,		/* ctype        */
-    to_lower_utf8,	/* to_lower     */
-    to_upper_utf8,	/* to_upper     */
-    to_upper_utf8,	/* sort_order   */
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    1,			/* strxfrm_multiply */
-    my_strnncoll_utf8,	/* strnncoll    */
-    my_strnxfrm_utf8,	/* strnxfrm     */
-    NULL,		/* like_range   */
-    3,			/* mbmaxlen     */
-    my_ismbchar_utf8,	/* ismbchar     */
-    my_ismbhead_utf8,	/* ismbhead     */
-    my_mbcharlen_utf8,	/* mbcharlen    */
-    my_utf8_uni,	/* mb_wc        */
-    my_uni_utf8,	/* wc_mb        */
-    my_caseup_str_utf8,
-    my_casedn_str_utf8,
-    my_caseup_utf8,
-    my_casedn_utf8,
-    NULL,		/* tosort      */
-    my_strcasecmp_utf8,
-    my_strncasecmp_utf8,
-    my_hash_caseup_utf8,/* hash_caseup */
-    my_hash_sort_utf8,	/* hash_sort   */
-    0
-  },
-#endif
 
 #ifdef HAVE_CHARSET_usa7
   {
@@ -3994,41 +3614,6 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
-#ifdef HAVE_CHARSET_win1250ch
-  {
-    34,				/* number    */
-    MY_CS_COMPILED,		/* state     */
-    "win1250ch",		/* name      */
-    "",				/* comment   */
-    ctype_win1250ch,
-    to_lower_win1250ch,
-    to_upper_win1250ch,
-    sort_order_win1250ch,
-    tab_cp1250_uni,		/* tab_to_uni   */
-    idx_uni_cp1250,		/* tab_from_uni */
-    2,				/* strxfrm_multiply */
-    my_strnncoll_win1250ch,
-    my_strnxfrm_win1250ch,
-    my_like_range_win1250ch,
-    0,				/* mbmaxlen  */
-    NULL,			/* ismbchar  */
-    NULL,			/* ismbhead  */
-    NULL,			/* mbcharlen */
-    my_mb_wc_8bit,		/* mb_wc     */
-    my_wc_mb_8bit,		/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    NULL,			/* tosort      */
-    my_strcasecmp_8bit,
-    my_strncasecmp_8bit,
-    NULL,			/* hash_caseup */
-    NULL,			/* hash_sort   */
-    0
-  },
-#endif
-
   {
     0,			/* end-of-list marker */
     0,			/* state      */
@@ -4066,45 +3651,84 @@ CHARSET_INFO compiled_charsets[] = {
 };
 
 
+CHARSET_INFO *all_charsets[256];
 CHARSET_INFO *default_charset_info = &compiled_charsets[0];
 CHARSET_INFO *system_charset_info = &compiled_charsets[0];
 
-CHARSET_INFO *find_compiled_charset(uint cs_number)
+#define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
+
+
+extern CHARSET_INFO my_charset_big5;
+extern CHARSET_INFO my_charset_czech;
+extern CHARSET_INFO my_charset_euc_kr;
+extern CHARSET_INFO my_charset_gb2312;
+extern CHARSET_INFO my_charset_gbk;
+extern CHARSET_INFO my_charset_latin1_de;
+extern CHARSET_INFO my_charset_sjis;
+extern CHARSET_INFO my_charset_tis620;
+extern CHARSET_INFO my_charset_ucs2;
+extern CHARSET_INFO my_charset_ujis;
+extern CHARSET_INFO my_charset_utf8;
+extern CHARSET_INFO my_charset_win1250ch;
+
+
+my_bool init_compiled_charsets(myf flags  __attribute__((unused)))
 {
   CHARSET_INFO *cs;
-  for (cs = compiled_charsets; cs->number > 0; cs++)
-    if (cs->number == cs_number)
-      return cs;
 
-  return NULL;
-}
+#ifdef HAVE_CHARSET_big5
+  MY_ADD_CHARSET(&my_charset_big5);
+#endif
 
-CHARSET_INFO *find_compiled_charset_by_name(const char *name)
-{
-  CHARSET_INFO *cs;
-  for (cs = compiled_charsets; cs->number > 0; cs++)
-    if (!strcmp(cs->name, name))
-      return cs;
+#ifdef HAVE_CHARSET_czech
+  MY_ADD_CHARSET(&my_charset_czech);
+#endif
 
-  return NULL;
-}
+#ifdef HAVE_CHARSET_euc_kr
+  MY_ADD_CHARSET(&my_charset_euc_kr);
+#endif
 
-uint compiled_charset_number(const char *name)
-{
-  CHARSET_INFO *cs;
-  for (cs = compiled_charsets; cs->number > 0; cs++)
-    if (!strcmp(cs->name, name))
-      return cs->number;
+#ifdef HAVE_CHARSET_gb2312
+  MY_ADD_CHARSET(&my_charset_gb2312);
+#endif
 
-  return 0;   /* this mimics find_type() */
-}
+#ifdef HAVE_CHARSET_gbk
+  MY_ADD_CHARSET(&my_charset_gbk);
+#endif
 
-const char *compiled_charset_name(uint charset_number)
-{
-  CHARSET_INFO *cs;
-  for (cs = compiled_charsets; cs->number > 0; cs++)
-    if (cs->number == charset_number)
-      return cs->name;
+#ifdef HAVE_CHARSET_latin1_de
+  MY_ADD_CHARSET(&my_charset_latin1_de);
+#endif
 
-  return "?";   /* this mimics get_type() */
+#ifdef HAVE_CHARSET_sjis
+  MY_ADD_CHARSET(&my_charset_sjis);
+#endif
+
+#ifdef HAVE_CHARSET_tis620
+  MY_ADD_CHARSET(&my_charset_tis620);
+#endif
+
+#ifdef HAVE_CHARSET_ucs2
+  MY_ADD_CHARSET(&my_charset_ucs2);
+#endif
+
+#ifdef HAVE_CHARSET_ujis
+  MY_ADD_CHARSET(&my_charset_ujis);
+#endif
+
+#ifdef HAVE_CHARSET_utf8
+  MY_ADD_CHARSET(&my_charset_utf8);
+#endif
+
+#ifdef HAVE_CHARSET_win1250ch
+  MY_ADD_CHARSET(&my_charset_win1250ch);
+#endif
+  
+  /* Copy compiled charsets */
+  for (cs=compiled_charsets; cs->name; cs++)
+  {
+    all_charsets[cs->number]=cs;
+  }
+  
+  return FALSE;
 }
