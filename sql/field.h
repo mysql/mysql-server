@@ -166,7 +166,12 @@ public:
     memcpy(to,from,length);
     return from+length;
   }
-  virtual char *keypack(char* to, const char *from, uint max_length=~(uint) 0)
+  virtual char *pack_key(char* to, const char *from, uint max_length)
+  {
+    return pack(to,from,max_length);
+  }
+  virtual char *pack_key_from_key_image(char* to, const char *from,
+					uint max_length)
   {
     return pack(to,from,max_length);
   }
@@ -861,39 +866,10 @@ public:
     tmp=(char*) value.ptr(); memcpy_fixed(ptr+packlength,&tmp,sizeof(char*));
     return 0;
   }
-  char *pack(char *to, const char *from, uint max_length= ~(uint) 0)
-  {
-    ulong length=get_length();
-    if (length > max_length)
-    {
-      length=max_length;
-      char *save=ptr;
-      ptr=to;
-      store_length(length);
-      ptr=save;
-    }
-    else
-      memcpy(to,from,packlength);
-    if (length)
-    {
-      get_ptr((char**) &from);
-      memcpy(to+packlength, from,length);
-      return to+packlength+length;
-    }
-    return to+packlength;
-  }
-  const char *unpack(char *to, const char *from)
-  {
-    memcpy(to,from,packlength);
-    from+=packlength;
-    ulong length=get_length();
-    if (length)
-      memcpy_fixed(to+packlength, &from, sizeof(from));
-    else
-      bzero(to+packlength,sizeof(from));
-    return from+length;
-  }
-  char *pack_key(char *to, const char *from, uint max_length=~(uint) 0);
+  char *pack(char *to, const char *from, uint max_length= ~(uint) 0);
+  const char *unpack(char *to, const char *from);
+  char *pack_key(char *to, const char *from, uint max_length);
+  char *pack_key_from_key_image(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
   uint packed_col_length(const char *col_ptr)

@@ -31588,17 +31588,22 @@ message to less than 80 characters so that it fits the width of a standard
 terminal screen.
 
 The return value of the main function @code{xxx()} is the function value, for
-@code{long long} and @code{double} functions.  For string functions, the
-string is returned in the @code{result} and @code{length} arguments.
-@code{result} is a buffer at least 255 bytes long.  Set these to the contents
-and length of the return value.  For example:
+@code{long long} and @code{double} functions.  A string functions should
+return a pointer to the result and store the length of the string in the
+@code{length} arguments. @code{result} is a buffer at least 255 bytes long.
+Set these to the contents and length of the return value.  For example:
 
 @example
 memcpy(result, "result string", 13);
 *length = 13;
 @end example
 
-The string function return value normally also points to the result.
+If your string functions that needs to return a string longer than 255
+bytes, you must allocate the space for it with @code{malloc()} in your
+@code{xxx_init()} function or your @code{xxx()} function and free it in
+your @code{xxx_deinit()} function.  You can store the allocated memory
+in the @code{ptr} slot in the @code{UDF_INIT} structure for reuse by
+future @code{xxx()} calls.  @xref{UDF calling sequences}.
 
 To indicate a return value of @code{NULL} in the main function, set
 @code{is_null} to @code{1}:
@@ -40403,6 +40408,12 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item
+Using @code{HAVING} on an empty table could produce one result row.
+@item
+Fixed that the @strong{MySQL} RPM is not depending on perl5 anymore.
+@item
+Fixed some problems with @code{HEAP} tables on windows.
+@item
 @code{SHOW TABLE STATUS} didn't show correct average row length for tables
 bigger than 4G.
 @item
@@ -40412,15 +40423,16 @@ Added option @code{MEDIUM} to @code{CHECK TABLE}.
 @item
 Fixed problem when using @code{DECIMAL()} keys on negative numbers.
 @item
-@code{HOUR()} on a @code{CHAR} column always returned @code{NULL}.
+@code{HOUR()} (and some other @code{TIME} functions) on a @code{CHAR} column
+always returned @code{NULL}.
 @item
 Fixed security bug in something (please upgrade if you are using a earlier
 MySQL 3.23 version).
 @item
 Fixed buffer overflow bug when writing a certain error message.
 @item
-Added usage of @code{getrlimit()} on Linux to get @code{-O --open-files-limit=#}
-to work on Linux.
+Added usage of @code{getrlimit()} on Linux to get @code{-O
+--open-files-limit=#} to work on Linux.
 @item
 Added new mysqld variable: bdb_version.
 @item

@@ -147,6 +147,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	error	The handler for the table doesn't support check/repair
 a	b
 2	testing
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	1	skr	1	a	A	3	NULL	NULL	
+a	b
+1	
 a	b
 a	1
 a	2
@@ -429,6 +435,8 @@ count(*)
 count(*)
 1
 count(*)
+0
+count(*)
 1
 count(*)
 1
@@ -468,4 +476,4 @@ hello	1
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
-t1	0	PRIMARY	1	a	A	1	NULL	NULL	
+t1	0	PRIMARY	1	a	A	2	NULL	NULL	
