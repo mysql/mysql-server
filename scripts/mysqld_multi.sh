@@ -9,7 +9,7 @@ $VER="2.6";
 $opt_config_file   = undef();
 $opt_example       = 0;
 $opt_help          = 0;
-$opt_log           = "";
+$opt_log           = undef();
 $opt_mysqladmin    = "@bindir@/mysqladmin";
 $opt_mysqld        = "@libexecdir@/mysqld";
 $opt_no_log        = 0;
@@ -47,7 +47,6 @@ sub main
     print "MySQL distribution.\n";
     $my_print_defaults_exists= 0;
   }
-  init_log();
   my @defops = `my_print_defaults mysqld_multi`;
   chop @defops;
   splice @ARGV, 0, 0, @defops;
@@ -55,8 +54,8 @@ sub main
 	     "config-file=s","user=s","password=s","log=s","no-log","tcp-ip")
   || die "Wrong option! See $my_progname --help for detailed information!\n";
 
+  init_log();
   $groupids = $ARGV[1];
-
   if ($opt_version)
   {
     print "$my_progname version $VER by Jani Tolonen\n";
@@ -145,20 +144,9 @@ sub init_log
   }
   if (!defined($logdir))
   {
-    $logdir= "/var/log" if (-d "/var/log" && -w "/var/log");
-  }
-  if (!defined($logdir))
-  {  
-    if (-d "/tmp" && -w "/tmp" && ! -e "/tmp/mysqld_multi.log")
-    {
-      $logdir= "/tmp";
-    }
-  }
-  if (!defined($logdir))
-  {
-    # We still couldn't get a default log file in place. Log file
-    # will be disabled unless user sets it with an option
-
+    # Log file was not specified and we could not log to a standard place,
+    # so log file be disabled for now.
+    print "WARNING: Log file disabled. Maybe directory/file isn't writable?\n";
     $opt_no_log= 1;
   }
   else
