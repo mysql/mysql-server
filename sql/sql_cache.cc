@@ -2444,14 +2444,14 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 
   if (lex->sql_command == SQLCOM_SELECT &&
       (thd->variables.query_cache_type == 1 ||
-       (thd->variables.query_cache_type == 2 && (lex->select->options &
+       (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
 						 OPTION_TO_QUERY_CACHE))) &&
       thd->safe_to_cache_query)
   {
     my_bool has_transactions = 0;
     DBUG_PRINT("qcache", ("options %lx %lx, type %u",
 			OPTION_TO_QUERY_CACHE,
-			lex->select->options,
+			lex->select_lex.options,
 			(int) thd->variables.query_cache_type));
 
     for (; tables_used; tables_used= tables_used->next)
@@ -2498,7 +2498,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	     ("not interesting query: %d or not cacheable, options %lx %lx, type %u",
 	      (int) lex->sql_command,
 	      OPTION_TO_QUERY_CACHE,
-	      lex->select->options,
+	      lex->select_lex.options,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }

@@ -497,7 +497,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
   }
-  if (setup_ftfuncs(thd)) 
+  if (setup_ftfuncs(&thd->lex.select_lex)) 
     DBUG_RETURN(1);
 
   /* 
@@ -543,7 +543,7 @@ static bool send_prepare_results(PREP_STMT *stmt)
   stmt->free_list= thd->free_list;		// Save items used in stmt
   thd->free_list= 0;
 
-  SELECT_LEX *select_lex = lex->select;
+  SELECT_LEX *select_lex = &lex->select_lex;
   TABLE_LIST *tables=(TABLE_LIST*) select_lex->table_list.first;
   
   switch (sql_command) {

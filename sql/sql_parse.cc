@@ -860,8 +860,7 @@ bool do_command(THD *thd)
   old_timeout=net->read_timeout;
   // Wait max for 8 hours
   net->read_timeout=(uint) thd->variables.net_wait_timeout;
-  net->last_error[0]=0;				// Clear error message
-  net->last_errno=0;
+  thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
@@ -2915,9 +2914,9 @@ mysql_init_query(THD *thd)
   thd->select_number= thd->lex.select_lex.select_number= 1;
   thd->lex.value_list.empty();
   thd->free_list= 0;
-  thd->lex.select= &thd->lex.select_lex;
+  thd->lex.current_select= &thd->lex.select_lex;
   thd->lex.olap=thd->lex.describe=0;
-  thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
+  thd->lex.select_lex.olap= UNSPECIFIED_OLAP_TYPE;
   thd->fatal_error= 0;				// Safety
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
@@ -2931,7 +2930,8 @@ mysql_init_query(THD *thd)
 void
 mysql_init_select(LEX *lex)
 {
-  SELECT_LEX *select_lex= lex->select;
+  SELECT_LEX *select_lex= lex->current_select->select_lex();
+  DBUG_ASSERT(select_lex->linkage != GLOBAL_OPTIONS_TYPE);
   select_lex->init_select();
   select_lex->master_unit()->select_limit= select_lex->select_limit= 
     lex->thd->variables.select_limit;
@@ -2945,7 +2945,7 @@ mysql_init_select(LEX *lex)
 bool
 mysql_new_select(LEX *lex, bool move_down)
 {
-  SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
+  SELECT_LEX *select_lex = new SELECT_LEX();
   select_lex->select_number= ++lex->thd->select_number;
   if (!select_lex)
     return 1;
@@ -2954,21 +2954,22 @@ mysql_new_select(LEX *lex, bool move_down)
   if (move_down)
   {
     /* first select_lex of subselect or derived table */
-    SELECT_LEX_UNIT *unit= 
-      (SELECT_LEX_UNIT *) lex->thd->calloc(sizeof(SELECT_LEX_UNIT));
+    SELECT_LEX_UNIT *unit= new SELECT_LEX_UNIT();
     if (!unit)
       return 1;
     unit->init_query();
     unit->init_select();
-    unit->include_down(lex->select);
+    unit->include_down(lex->current_select);
     select_lex->include_down(unit);
   }
   else
-    select_lex->include_neighbour(lex->select);
+    select_lex->include_neighbour(lex->current_select);
     
   select_lex->master_unit()->global_parameters= select_lex;
-  select_lex->include_global(lex->select->next_select_in_list_addr());
-  lex->select= select_lex;
+  DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
+  select_lex->include_global(lex->current_select->select_lex()->
+			     next_select_in_list_addr());
+  lex->current_select= select_lex;
   return 0;
 }
 
@@ -3004,10 +3005,10 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command=  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit= lex->select->master_unit()->select_limit_cnt=
+  lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
   lex->auxilliary_table_list= lex->select_lex.table_list;
-  lex->select->init_query();
+  lex->select_lex.init_query();
 }
 
 
@@ -3417,12 +3418,12 @@ bool add_to_list(SQL_LIST &list,Item *item,bool asc)
 }
 
 
-TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
-			      bool updating,
-			      thr_lock_type flags,
-			      List<String> *use_index,
-			      List<String> *ignore_index
-			      )
+TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
+					     LEX_STRING *alias,
+					     bool updating,
+					     thr_lock_type flags,
+					     List<String> *use_index,
+					     List<String> *ignore_index)
 {
   register TABLE_LIST *ptr;
   THD	*thd=current_thd;
@@ -3484,7 +3485,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   /* check that used name is unique */
   if (flags != TL_IGNORE)
   {
-    for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select->table_list.first ;
+    for (TABLE_LIST *tables=(TABLE_LIST*) table_list.first ;
 	 tables ;
 	 tables=tables->next)
     {
@@ -3495,7 +3496,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
       }
     }
   }
-  link_in_list(&thd->lex.select->table_list,(byte*) ptr,(byte**) &ptr->next);
+  link_in_list(&table_list, (byte*) ptr, (byte**) &ptr->next);
   DBUG_RETURN(ptr);
 }
 
@@ -3698,7 +3699,7 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
 bool check_simple_select()
 {
   THD *thd= current_thd;
-  if (thd->lex.select != &thd->lex.select_lex)
+  if (thd->lex.current_select != &thd->lex.select_lex)
   {
     char command[80];
     strmake(command, thd->lex.yylval->symbol.str,

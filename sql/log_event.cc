@@ -841,9 +841,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    thd->query_error = 0;			// clear error
-    thd->net.last_errno = 0;
-    thd->net.last_error[0] = 0;
+    thd->query_error= 0;			// clear error
+    thd->clear_error();
+    
     thd->slave_proxy_id = thread_id;		// for temp tables
 	
     /*
