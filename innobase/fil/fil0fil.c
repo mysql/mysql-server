@@ -2825,8 +2825,7 @@ fil_load_single_table_tablespaces(void)
 			if (!dbpath) {
 				dbpath = mem_alloc(dbpath_len);
 			} else {
-				dbpath = mem_realloc(dbpath, dbpath_len,
-							__FILE__, __LINE__);
+				dbpath = ut_realloc(dbpath, dbpath_len);
 			}
 		}
 		sprintf(dbpath, "%s/%s", fil_path_to_mysql_datadir,

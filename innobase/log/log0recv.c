@@ -1513,7 +1513,6 @@ skip_this_recv_addr:
 
 	recv_sys_empty_hash();
 }
-#endif /* UNIV_HOTBACKUP */
 
 #ifdef notdefined
 /***********************************************************************
