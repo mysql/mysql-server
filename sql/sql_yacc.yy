@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,6 +198,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FIRST_SYM
 %token	FIXED_SYM
 %token	FLOAT_NUM
+%token	FORCE_SYM
 %token	FOREIGN
 %token	FROM
 %token	FULL
@@ -735,7 +736,8 @@ create:
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!add_table_to_list($5,
 				 ($2 & HA_LEX_CREATE_TMP_TABLE ?
-				   &tmp_table_alias : (LEX_STRING*) 0),1))
+				   &tmp_table_alias : (LEX_STRING*) 0),
+				 TL_OPTION_UPDATING))
 	    YYABORT;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
@@ -751,7 +753,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!add_table_to_list($6,NULL,1))
+	    if (!add_table_to_list($6, NULL, TL_OPTION_UPDATING))
 	      YYABORT;
 	    lex->create_list.empty();
 	    lex->key_list.empty();
@@ -1171,7 +1173,7 @@ alter:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
-	  if (!add_table_to_list($4, NULL,1))
+	  if (!add_table_to_list($4, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 	  lex->drop_primary=0;
 	  lex->create_list.empty();
@@ -1442,8 +1444,9 @@ table_to_table_list:
 
 table_to_table:
 	table_ident TO_SYM table_ident
-	{ if (!add_table_to_list($1,NULL,1,TL_IGNORE) ||
-	      !add_table_to_list($3,NULL,1,TL_IGNORE))
+	{
+	   if (!add_table_to_list($1, NULL, TL_OPTION_UPDATING, TL_IGNORE) ||
+	       !add_table_to_list($3, NULL, TL_OPTION_UPDATING, TL_IGNORE))
 	     YYABORT;
  	};
 
@@ -2127,11 +2130,13 @@ join_table:
 	{
 	  SELECT_LEX *sel=Select;
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
+	  sel->table_join_options= 0;
 	}
         table_ident opt_table_alias opt_key_definition
 	{
 	  SELECT_LEX *sel=Select;
-	  if (!($$=add_table_to_list($2,$3,0,TL_UNLOCK, sel->use_index_ptr,
+	  if (!($$=add_table_to_list($2, $3, sel->table_join_options,
+				     TL_UNLOCK, sel->use_index_ptr,
 	                             sel->ignore_index_ptr)))
 	    YYABORT;
 	}
@@ -2150,12 +2155,20 @@ opt_key_definition:
 	    sel->use_index= *$2;
 	    sel->use_index_ptr= &sel->use_index;
 	  }
+	| FORCE_SYM key_usage_list
+          {
+	    SELECT_LEX *sel=Select;
+	    sel->use_index= *$2;
+	    sel->use_index_ptr= &sel->use_index;
+	    sel->table_join_options|= TL_OPTION_FORCE_INDEX;
+	  }
 	| IGNORE_SYM key_usage_list
 	  {
 	    SELECT_LEX *sel=Select;
 	    sel->ignore_index= *$2;
 	    sel->ignore_index_ptr= &sel->ignore_index;
-	  };
+	  }
+	;
 
 key_usage_list:
 	key_or_index { Select->interval_list.empty(); } '(' key_usage_list2 ')'
@@ -2443,7 +2456,7 @@ drop:
 	     lex->drop_list.empty();
 	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						     $3.str));
-	     if (!add_table_to_list($5,NULL, 1))
+	     if (!add_table_to_list($5, NULL, TL_OPTION_UPDATING))
 	      YYABORT;
 	  }
 	| DROP DATABASE if_exists ident
@@ -2467,7 +2480,7 @@ table_list:
 
 table_name:
 	table_ident
-	{ if (!add_table_to_list($1,NULL,1)) YYABORT; };
+	{ if (!add_table_to_list($1,NULL,TL_OPTION_UPDATING)) YYABORT; };
 
 if_exists:
 	/* empty */ { $$= 0; }
@@ -2678,7 +2691,8 @@ delete:
 single_multi:
  	FROM table_ident
 	{
-	  if (!add_table_to_list($2, NULL, 1, Lex->lock_option))
+	  if (!add_table_to_list($2, NULL, TL_OPTION_UPDATING,
+				 Lex->lock_option))
 	    YYABORT;
 	}
 	where_clause opt_order_clause
@@ -2699,13 +2713,14 @@ table_wild_list:
 table_wild_one:
 	 ident opt_wild
 	 {
-	   if (!add_table_to_list(new Table_ident($1), NULL, 1,
-				  Lex->lock_option))
+	   if (!add_table_to_list(new Table_ident($1), NULL,
+				  TL_OPTION_UPDATING, Lex->lock_option))
 	     YYABORT;
          }
 	 | ident '.' ident opt_wild
 	   {
-	     if (!add_table_to_list(new Table_ident($1,$3,0), NULL, 1,
+	     if (!add_table_to_list(new Table_ident($1,$3,0), NULL,
+				    TL_OPTION_UPDATING,
 				    Lex->lock_option))
 	      YYABORT;
 	   }
@@ -2774,7 +2789,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
-	    if (!add_table_to_list($4,NULL,0))
+	    if (!add_table_to_list($4, NULL, 0))
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
@@ -2807,7 +2822,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
 	      $3->change_db($4);
-	    if (!add_table_to_list($3,NULL,0))
+	    if (!add_table_to_list($3, NULL, 0))
 	      YYABORT;
 	  }
 	| STATUS_SYM wild
@@ -2834,7 +2849,7 @@ show_param:
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if(!add_table_to_list($3, NULL,0))
+	    if(!add_table_to_list($3, NULL, 0))
 	      YYABORT;
 	  }
         | MASTER_SYM STATUS_SYM
@@ -2879,7 +2894,7 @@ describe:
 	  lex->wild=0;
 	  lex->verbose=0;
 	  lex->sql_command=SQLCOM_SHOW_FIELDS;
-	  if (!add_table_to_list($2, NULL,0))
+	  if (!add_table_to_list($2, NULL, 0))
 	    YYABORT;
 	}
 	opt_describe_column {}
@@ -2999,14 +3014,14 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
 	opt_ignore_lines opt_field_spec
 	{
-	  if (!add_table_to_list($11,NULL,1))
+	  if (!add_table_to_list($11, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 	}
         |
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
-	  if (!add_table_to_list($3,NULL,1))
+	  if (!add_table_to_list($3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 
         }

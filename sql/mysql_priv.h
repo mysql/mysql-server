@@ -226,6 +226,10 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
+
 /* Some portable defines */
 
 #define portable_sizeof_char_ptr 8
@@ -509,7 +513,7 @@ bool add_field_to_list(char *field_name, enum enum_field_types type,
 void store_position_for_column(const char *name);
 bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
 TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
-			      bool updating,
+			      ulong table_option,
 			      thr_lock_type flags=TL_UNLOCK,
 			      List<String> *use_index=0,
 			      List<String> *ignore_index=0);

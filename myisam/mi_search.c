@@ -260,9 +260,11 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                       uchar *key, uint key_len, uint nextflag, uchar **ret_pos,
                       uchar *buff, my_bool *last_key)
 {
-  /* my_flag is raw comparison result to be changed according to
-     SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
-     flag is the value returned by _mi_key_cmp and as treated as final */
+  /*
+    my_flag is raw comparison result to be changed according to
+    SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
+    flag is the value returned by _mi_key_cmp and as treated as final
+  */
   int flag=0, my_flag=-1;
   uint nod_flag, length, len, matched, cmplen, kseg_len;
   uint prefix_len,suffix_len;
@@ -695,13 +697,29 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 }
 
 
-        /*
-        ** Compare two keys
-        ** Returns <0, 0, >0 acording to which is bigger
-        ** Key_length specifies length of key to use.  Number-keys can't
-        ** be splited
-        ** If flag <> SEARCH_FIND compare also position
-        */
+/*
+  Compare two keys
+
+  SYNOPSIS
+    _mi_key_cmp()
+    keyseg	Key segments of key to compare
+    a		First key to compare, in format from _mi_pack_key()
+		This is normally key specified by user
+    b		Second key to compare.  This is always from a row
+    key_length	Length of key to compare.  This can be shorter than
+		a to just compare sub keys
+    next_flag	How keys should be compared
+		If bit SEARCH_FIND is not set the keys includes the row
+		position and this should also be compared
+
+  NOTES
+    Number-keys can't be splited
+  
+  RETURN VALUES
+    <0	If a < b
+    0	If a == b
+    >0	If a > b
+*/
 
 #define FCMP(A,B) ((int) (A) - (int) (B))
 
@@ -738,6 +756,15 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
       {
         if (nextflag == (SEARCH_FIND | SEARCH_UPDATE))
           nextflag=SEARCH_SAME;                 /* Allow duplicate keys */
+	else if (nextflag & SEARCH_NULL_ARE_NOT_EQUAL)
+	{
+	  /*
+	    This is only used from mi_check() to calculate cardinality.
+	    It can't be used when searching for a key as this would cause
+	    compare of (a,b) and (b,a) to return the same value.
+	  */
+	  return -1;
+	}
         next_key_length=key_length;
         continue;                               /* To next key part */
       }
