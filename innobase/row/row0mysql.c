@@ -2362,7 +2362,7 @@ row_rename_table_for_mysql(
 				db_name, constraints_to_drop[i],
 				db_name, constraints_to_drop[i]);
 
-			if (!ut_str_contains(constraints_to_drop[i], '/')) {
+			if (!strchr(constraints_to_drop[i], '/')) {
 				/* If this happens to be an old format
 				constraint, let us delete it. Since all new
 				format constraints contain '/', it does no

@@ -1002,7 +1002,7 @@ dict_table_rename_in_cache(
 
 		sprintf(foreign->foreign_table_name, "%s", table->name);
 
-		if (ut_str_contains(foreign->id, '/')) {
+		if (strchr(foreign->id, '/')) {
 			ulint	db_len;
 			char	old_id[2000];
 
@@ -3331,7 +3331,7 @@ loop:
 
 	while (foreign != NULL) {
 		if (0 == ut_strcmp(foreign->id, id)
-		    || (ut_str_contains(foreign->id, '/')
+		    || (strchr(foreign->id, '/')
 			&& 0 == ut_strcmp(id,
 					dict_remove_db_name(foreign->id)))) {
 			/* Found */
@@ -4059,7 +4059,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	ulint	cpy_len;
 	ulint	i;
 	
-	if (ut_str_contains(foreign->id, '/')) {
+	if (strchr(foreign->id, '/')) {
 		/* Strip the preceding database name from the constraint id */
 		stripped_id = foreign->id + 1
 				+ dict_get_db_name_len(foreign->id);
