@@ -1150,7 +1150,8 @@ mysql_execute_command(void)
 	}
       }
       /* ALTER TABLE ends previous transaction */
-      if (!(thd->options & OPTION_AUTO_COMMIT) && ha_commit(thd))
+      if ((!(thd->options & OPTION_AUTO_COMMIT) ||
+           (thd->options & OPTION_BEGIN)) && ha_commit(thd))
 	res= -1;
       else
 	res= mysql_alter_table(thd, lex->db, lex->name,
