@@ -14,42 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*  -*- c-basic-offset: 4; -*-
-**  $Revision: 1.5 $
-**
-**  A "micro-shell" to test editline library.
-**  If given any arguments, commands aren't executed.
-*/
-#include <ndb_global.h>
-#include <editline/editline.h>
+#ifndef Ndb_mgmclient_h
+#define Ndb_mgmclient_h
 
-int
-main(int argc, char **argv)
+class CommandInterpreter;
+class Ndb_mgmclient
 {
-    char	*prompt;
-    char	*p;
-    int		doit;
+public:
+  Ndb_mgmclient(const char*);
+  ~Ndb_mgmclient();
+  int read_and_execute(int _try_reconnect=-1);
+  int execute(const char *_line, int _try_reconnect=-1);
+  int disconnect();
+private:
+  CommandInterpreter *m_cmd;
+};
 
-    (void)argv; /* Suppress warning */
-
-    doit = argc == 1;
-    if ((prompt = getenv("TESTPROMPT")) == NULL)
-	prompt = "testit>  ";
-
-    while ((p = readline(prompt)) != NULL) {
-	(void)printf("\t\t\t|%s|\n", p);
-	if (doit) {
-	    if (strncmp(p, "cd ", 3) == 0) {
-		if (chdir(&p[3]) < 0)
-		    perror(&p[3]);
-	    } else {
-		if (system(p) != 0)
-		    perror(p);
-	    }
-	}
-	add_history(p);
-	free(p);
-    }
-
-    return 0;
-}
+#endif // Ndb_mgmclient_h

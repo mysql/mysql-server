@@ -3093,7 +3093,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
    ndb/src/common/mgmcommon/Makefile dnl
-   ndb/src/common/editline/Makefile dnl
    ndb/src/kernel/Makefile dnl
    ndb/src/kernel/error/Makefile dnl
    ndb/src/kernel/blocks/Makefile dnl
