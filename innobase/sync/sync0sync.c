@@ -167,7 +167,7 @@ struct sync_level_struct{
 };
 
 
-#if defined(__GNUC__) && defined(UNIV_INTEL_X86)
+#if defined(notdefined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
 
 ulint
 sync_gnuc_intelx86_test_and_set(
