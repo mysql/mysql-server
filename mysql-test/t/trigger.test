@@ -207,3 +207,20 @@ create trigger tx1 before insert on t1 for each row set new.x1col = 'x';
 insert into t1 values ('y');
 drop trigger t1.tx1;
 drop table t1;
+
+#
+# Test for bug #5890 "Triggers fail for DELETE without WHERE".
+# If we are going to delete all rows in table but DELETE triggers exist
+# we should perform row-by-row deletion instead of using optimized
+# delete_all_rows() method.
+#
+create table t1 (i int) engine=myisam;
+insert into t1 values (1), (2);
+create trigger trg1 before delete on t1 for each row set @del_before:= @del_before + old.i;
+create trigger trg2 after delete on t1 for each row set @del_after:= @del_after + old.i;
+set @del_before:=0, @del_after:= 0;
+delete from t1;
+select @del_before, @del_after;
+drop trigger t1.trg1;
+drop trigger t1.trg2;
+drop table t1;
