@@ -3,6 +3,8 @@
 #
 
 drop table if exists t1;
+drop database if exists mysqltest;
+
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -98,4 +100,21 @@ alter table t1 rename mysqltest.t1;
 select * from t1;
 select * from mysqltest.t1;
 drop table t1;
+drop database mysqltest;
+
+#
+# Rights for renaming test (Bug #3270)
+#
+connect (root,localhost,root,,test,0,mysql-master.sock);
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+create table mysqltest.t1 (a int,b int,c int);
+grant all on mysqltest.t1 to mysqltest_1@localhost;
+connect (user1,localhost,mysqltest_1,,mysqltest,0,mysql-master.sock);
+connection user1;
+-- error 1142
+alter table t1 rename t2;
+connection root;
 drop database mysqltest;
