@@ -16,7 +16,7 @@ Copyright:	GPL / LGPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
-Packager:	David Axmark <david@mysql.com>
+Packager:	David Axmark <david@mysql.com>, Monty <monty@mysql.com>
 Provides:	msqlormysql MySQL-server
 Obsoletes:	mysql
 
@@ -45,7 +45,11 @@ used in a highly demanding production environment for many
 years. While MySQL is still in development, it already offers a rich
 and highly useful function set.
 
-See the documentation for more information
+The MySQL-max version differs from the normal MySQL server distribution
+in that the BDB and Innobase table handlers are enabled by default.
+You can use any normal MySQL client with the MySQL-max server.
+
+See the documentation for more information.
 
 %description -l pt_BR
 O MySQL é um servidor de banco de dados SQL realmente multiusuário e\
@@ -66,70 +70,9 @@ alta demanda por muitos anos. Mesmo o MySQL estando ainda em desenvolvimento,\
 ele já oferece um conjunto de funções muito ricas e úteis. Veja a documentação\
 para maiores informações.
 
-%package client
-Release: %{release}
-Summary: MySQL - Client
-Group: Applications/Databases
-Summary(pt_BR): MySQL - Cliente
-Group(pt_BR): Aplicações/Banco_de_Dados
-Obsoletes: mysql-client
-
-%description client
-This package contains the standard MySQL clients. 
-
-%{see_base}
-
-%description client -l pt_BR
-Este pacote contém os clientes padrão para o MySQL.
-
-%package bench
-Release: %{release}
-Requires: MySQL-client MySQL-DBI-perl-bin perl
-Summary: MySQL - Benchmarks and test system
-Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
-Obsoletes: mysql-bench
-
-%description bench
-This package contains MySQL benchmark scripts and data.
-
-%{see_base}
-
-%description bench -l pt_BR
-Este pacote contém medições de desempenho de scripts e dados do MySQL.
-
-%package devel
-Release: %{release}
-Requires: MySQL-client
-Summary: MySQL - Development header files and libraries
-Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
-Obsoletes: mysql-devel
-
-%description devel
-This package contains the development header files and libraries
-necessary to develop MySQL client applications.
-
-%{see_base}
-
-%description devel -l pt_BR
-Este pacote contém os arquivos de cabeçalho (header files) e bibliotecas 
-necessárias para desenvolver aplicações clientes do MySQL. 
-
-%package shared
-Release: %{release}
-Summary: MySQL - Shared libraries
-Group: Applications/Databases
-
-%description shared
-This package contains the shared libraries (*.so*) which certain
-languages and applications need to dynamically load and use MySQL.
-
 %prep
-%setup -n mysql-%{mysql_version}
-%setup -T -D -a 1 -n mysql-%{mysql_version}
+%setup -n mysql-max-%{mysql_version}
+# %setup -T -D -a 1 -n mysql-%{mysql_version}
 
 %build
 # The all-static flag is to make the RPM work on different
@@ -169,9 +112,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	    # Add this for MyISAM RAID support:
 	    # --with-raid
 	    "
-
- # benchdir does not fit in above model. Maybe a separate bench distribution
- make benchdir_root=$RPM_BUILD_ROOT/usr/share/
+ make
 }
 
 # Use the build root for temporary storage of the shared libraries.
@@ -186,32 +127,18 @@ fi
 rm -rf $RBR
 mkdir -p $RBR
 
-cd $MBD/db-%{db_version}/dist 
-./configure --prefix=$RBR/usr/BDB
-make install
-
-echo $RBR $MBD
-cd $MBD
-
-BuildMySQL "--enable-shared --enable-thread-safe-client --without-server"
-
-# Save everything for debus
-tar cf $RBR/all.tar .
-
-# Save shared libraries
-(cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
-(cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
-
-# Save manual to avoid rebuilding
-mv Docs/manual.ps Docs/manual.ps.save
-make distclean
-mv Docs/manual.ps.save Docs/manual.ps
+#cd $MBD/db-%{db_version}/dist 
+#./configure --prefix=$RBR/usr/BDB
+#make install
+#
+#echo $RBR $MBD
+#cd $MBD
 
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'"
 
-%install -n mysql-%{mysql_version}
+%install -n mysql-max-%{mysql_version}
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 # Ensure that needed directories exists
@@ -224,9 +151,6 @@ install -d $RBR/usr/doc/MySQL-%{mysql_version}
 install -d $RBR/usr/lib
 # Make install
 make install DESTDIR=$RBR benchdir_root=/usr/share/
-
-# Install shared libraries (Disable for architectures that don't support it)
-(cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
 
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
@@ -358,77 +282,7 @@ fi
 %attr(644, root, man) %doc /usr/man/man1/replace.1*
 %attr(644, root, man) %doc /usr/man/man1/safe_mysqld.1*
 
-%post shared
-/sbin/ldconfig
-
-%postun shared
-/sbin/ldconfig
-
-%files devel
-%attr(755, root, root) /usr/bin/comp_err
-%attr(755, root, root) /usr/include/mysql/
-%attr(755, root, root) /usr/lib/mysql/
-%attr(755, root, root) /usr/bin/mysql_config
-
-%files shared
-# Shared libraries (omit for architectures that don't support them)
-%attr(755, root, root) /usr/lib/*.so*
-
-%files bench
-%attr(-, root, root) /usr/share/sql-bench
-%attr(-, root, root) /usr/share/mysql-test
-
 %changelog 
 
-* Tue Jan 2  2001  Monty
-
-- Added mysql-test to the bench package
-
-* Fri Aug 18 2000 Tim Smith <tim@mysql.com>
-
-- Added separate libmysql_r directory; now both a threaded
-  and non-threaded library is shipped.
-
-* Wed Sep 28 1999 David Axmark <davida@mysql.com>
-
-- Added the support-files/my-example.cnf to the docs directory.
-
-- Removed devel dependency on base since it is about client
-  development.
-
-* Wed Sep 8 1999 David Axmark <davida@mysql.com>
-
-- Cleaned up some for 3.23.
-
-* Thu Jul 1 1999 David Axmark <davida@mysql.com>
-
-- Added support for shared libraries in a separate sub
-  package. Original fix by David Fox (dsfox@cogsci.ucsd.edu)
-
-- The --enable-assembler switch is now automatically disables on
-  platforms there assembler code is unavailable. This should allow
-  building this RPM on non i386 systems.
-
-* Mon Feb 22 1999 David Axmark <david@detron.se>
-
-- Removed unportable cc switches from the spec file. The defaults can
-  now be overridden with environment variables. This feature is used
-  to compile the official RPM with optimal (but compiler version
-  specific) switches.
-
-- Removed the repetitive description parts for the sub rpms. Maybe add
-  again if RPM gets a multiline macro capability.
-
-- Added support for a pt_BR translation. Translation contributed by
-  Jorge Godoy <jorge@bestway.com.br>.
-
-* Wed Nov 4 1998 David Axmark <david@detron.se>
-
-- A lot of changes in all the rpm and install scripts. This may even
-  be a working RPM :-)
-
-* Sun Aug 16 1998 David Axmark <david@detron.se>
-
-- A developers changelog for MySQL is available in the source RPM. And
-  there is a history of major user visible changed in the Reference
-  Manual.  Only RPM specific changes will be documented here.
+* 2000-04-01 Monty
+  First version of mysql-max.spec.sh based on mysql.spec.sh

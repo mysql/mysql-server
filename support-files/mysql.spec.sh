@@ -45,7 +45,7 @@ used in a highly demanding production environment for many
 years. While MySQL is still in development, it already offers a rich
 and highly useful function set.
 
-See the documentation for more information
+See the documentation for more information.
 
 %description -l pt_BR
 O MySQL é um servidor de banco de dados SQL realmente multiusuário e\
