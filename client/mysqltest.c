@@ -59,6 +59,7 @@
 #include <sys/stat.h>
 #include <violite.h>
 
+#define MAX_VAR_NAME	256
 #define MAX_QUERY	65536
 #define MAX_COLUMNS	256
 #define PAD_SIZE	128
@@ -628,6 +629,7 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
   return error;
 }
 
+
 VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
 	     my_bool ignore_not_existing)
 {
@@ -642,25 +644,26 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
   if (!(digit < 10 && digit >= 0))
   {
     const char* save_var_name = var_name, *end;
+    uint length;
     end = (var_name_end) ? *var_name_end : 0;
     while (my_isvar(charset_info,*var_name) && var_name != end)
-      ++var_name;
+      var_name++;
     if (var_name == save_var_name)
     {
       if (ignore_not_existing)
 	DBUG_RETURN(0);
       die("Empty variable");
     }
+    length= (uint) (var_name - save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, save_var_name,
-			       var_name - save_var_name)))
+    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)) &&
+        length < MAX_VAR_NAME)
     {
-      char c=*var_name, *s=(char*)var_name;;
-      *s=0;
-      v=var_from_env(save_var_name, "");
-      *s=c;
+      char buff[MAX_VAR_NAME+1];
+      strmake(buff, save_var_name, length); 
+      v= var_from_env(buff, "");
     }
-    --var_name;					/* Point at last character */
+    var_name--;					/* Point at last character */
   }
   else
     v = var_reg + digit;

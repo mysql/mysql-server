@@ -780,3 +780,4 @@ ndb/src/common/mgmcommon/printConfig/*.d
 ndb/src/mgmclient/test_cpcd/*.d
 *.d
 libmysqld/examples/client_test.c
+mysql-test/ndb/ndbcluster
