@@ -480,8 +480,6 @@ innobase_init(void)
 
 	srv_pool_size = (ulint) innobase_buffer_pool_size;
 
-	printf("Buffer pool size set to %lu\n", srv_pool_size);
-
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
