@@ -76,7 +76,6 @@ To make maintaining easier please:
 <charset name="latin1">
   <family>Western</family>
   <alias>csisolatin1</alias>
-  <alias>csisolatin1</alias>
   <alias>iso-8859-1</alias>
   <alias>iso-ir-100</alias>
   <alias>iso_8859-1</alias>
@@ -145,7 +144,7 @@ To make maintaining easier please:
   <alias>csascii</alias>
   <alias>iso-ir-6</alias>
   <alias>iso646-us</alias>
-  <collation name="ascii"	id="11"	order="Egnlish"	flag="primary"/>
+  <collation name="ascii"	id="11"	order="English"	flag="primary"/>
 </charset>
 
 <charset name="ujis">
