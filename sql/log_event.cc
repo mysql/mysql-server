@@ -556,6 +556,8 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     ev  = new Query_log_event(buf, event_len, old_format);
     break;
   case LOAD_EVENT:
+    ev = new Create_file_log_event(buf, event_len, old_format);
+    break;
   case NEW_LOAD_EVENT:
     ev = new Load_log_event(buf, event_len, old_format);
     break;
@@ -566,7 +568,7 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     ev = new Slave_log_event(buf, event_len);
     break;
   case CREATE_FILE_EVENT:
-    ev = new Create_file_log_event(buf, event_len);
+    ev = new Create_file_log_event(buf, event_len, old_format);
     break;
   case APPEND_BLOCK_EVENT:
     ev = new Append_block_log_event(buf, event_len);
@@ -959,6 +961,12 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
   if (use_new_format)
   {
     empty_flags=0;
+    /* the code below assumes that buf will not disappear from
+       under our feet during the lifetime of the event. This assumption
+       holds true in the slave thread if the log is in new format, but is not
+       the case when we have old format because we will be reusing net buffer
+       to read the actual file before we write out the Create_file event
+    */
     if (read_str(buf, buf_end, field_term, field_term_len) ||
 	read_str(buf, buf_end, enclosed,   enclosed_len) ||
 	read_str(buf, buf_end, line_term,  line_term_len) ||
@@ -970,11 +978,11 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
   else
   {
     field_term_len= enclosed_len= line_term_len= line_start_len= escaped_len=1;
-    *field_term=*buf++;
-    *enclosed=	*buf++;
-    *line_term= *buf++;
-    *line_start=*buf++;
-    *escaped=	*buf++;
+    field_term = buf++;
+    enclosed=	buf++;
+    line_term= buf++;
+    line_start= buf++;
+    escaped=   buf++;
     opt_flags = *buf++;
     empty_flags=*buf++;
     if (empty_flags & FIELD_TERM_EMPTY)
@@ -1095,7 +1103,9 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   db_len = (uint)data_head[L_DB_LEN_OFFSET];
   num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
 	  
-  int body_offset = get_data_body_offset();
+  int body_offset = (buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
+    LOAD_HEADER_LEN + OLD_HEADER_LEN : get_data_body_offset();
+  
   if ((int) event_len < body_offset)
     return 1;
   //sql_ex.init() on success returns the pointer to the first byte after
@@ -1117,7 +1127,6 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   fname = db + db_len + 1;
-  int type_code = get_type_code();
   fname_len = strlen(fname);
   // null termination is accomplished by the caller doing buf[event_len]=0
   return 0;
@@ -1367,20 +1376,29 @@ int Create_file_log_event::write_base(IO_CACHE* file)
   return res;
 }
 
-Create_file_log_event::Create_file_log_event(const char* buf, int len):
-  Load_log_event(buf,0,0),fake_base(0),block(0)
+Create_file_log_event::Create_file_log_event(const char* buf, int len,
+					     bool old_format):
+  Load_log_event(buf,0,old_format),fake_base(0),block(0),inited_from_old(0)
 {
   int block_offset;
-  if (copy_log_event(buf,len,0))
+  if (copy_log_event(buf,len,old_format))
     return;
-  file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
-		      + LOAD_HEADER_LEN + CF_FILE_ID_OFFSET);
-  block_offset = LOG_EVENT_HEADER_LEN + Load_log_event::get_data_size() +
-    CREATE_FILE_HEADER_LEN + 1; // 1 for \0 terminating fname  
-  if (len < block_offset)
-    return;
-  block = (char*)buf + block_offset;
-  block_len = len - block_offset;
+  if (!old_format)
+  {
+    file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
+			+ LOAD_HEADER_LEN + CF_FILE_ID_OFFSET);
+    block_offset = LOG_EVENT_HEADER_LEN + Load_log_event::get_data_size() +
+      CREATE_FILE_HEADER_LEN + 1; // 1 for \0 terminating fname  
+    if (len < block_offset)
+      return;
+    block = (char*)buf + block_offset;
+    block_len = len - block_offset;
+  }
+  else
+  {
+    sql_ex.force_new_format();
+    inited_from_old = 1;
+  }
 }
 
 
@@ -1568,6 +1586,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   int expected_error,actual_error = 0;
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
+  DBUG_ASSERT(q_len == strlen(query));
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->query = (char*)query;
@@ -1739,11 +1758,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
+  close_temporary_tables(thd);
+  // if we have old format, load_tmpdir is cleaned up by the I/O thread
+  // TODO: cleanup_load_tmpdir() needs to remove only the files associated
+  // with the server id that has just started
   if (!rli->mi->old_format)
-  {
-    close_temporary_tables(thd);
     cleanup_load_tmpdir();
-  }
   return Log_event::exec_event(rli);
 }
 

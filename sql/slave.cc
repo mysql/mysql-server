@@ -55,6 +55,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
 void skip_load_data_infile(NET* net);
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev);
+static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev);
 static int queue_old_event(MASTER_INFO* mi, const char* buf,
 			   uint event_len);
 static inline bool slave_killed(THD* thd,MASTER_INFO* mi);
@@ -654,7 +655,7 @@ char* rewrite_db(char* db)
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list )
 {
-  if(do_list.is_empty() && ignore_list.is_empty())
+  if (do_list.is_empty() && ignore_list.is_empty())
     return 1; // ok to replicate if the user puts no constraints
 
   // if the user has specified restrictions on which databases to replicate
@@ -1058,6 +1059,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   if (init_relay_log_info(&mi->rli, slave_info_fname))
     return 1;
   mi->rli.mi = mi;
+  mi->mysql=0;
+  mi->file_id=1;
   mi->ignore_stop_event=0;
   int fd,error;
   MY_STAT stat_area;
@@ -1621,7 +1624,7 @@ slave_begin:
   DBUG_PRINT("info",("master info: log_file_name=%s, position=%s",
 		     mi->master_log_name, llstr(mi->master_log_pos,llbuff)));
   
-  if (!(mysql = mc_mysql_init(NULL)))
+  if (!(mi->mysql = mysql = mc_mysql_init(NULL)))
   {
     sql_print_error("Slave I/O thread: error in mc_mysql_init()");
     goto err;
@@ -1780,8 +1783,11 @@ err:
   sql_print_error("Slave I/O thread exiting, read up to log '%s', position %s",
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   thd->query = thd->db = 0; // extra safety
-  if(mysql)
+  if (mysql)
+  {
     mc_mysql_close(mysql);
+    mi->mysql=0;
+  }
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&mi->run_lock);
   mi->slave_running = 0;
@@ -1790,7 +1796,7 @@ err:
   change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   mi->abort_slave = 0; // TODO: check if this is needed
   DBUG_ASSERT(thd->net.buff != 0);
-  net_end(&thd->net); // destructor will not free it, because we are weird
+  net_end(&thd->net); // destructor will not free it, because net.vio is 0
   pthread_mutex_lock(&LOCK_thread_count);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -1926,11 +1932,97 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_RETURN(0);				// Can't return anything here
 }
 
+static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
+{
+  int error = 1;
+  ulong num_bytes;
+  bool cev_not_written;
+  THD* thd;
+  NET* net = &mi->mysql->net;
+
+  if (unlikely(!cev->is_valid()))
+    return 1;
+  /*
+    TODO: fix to honor table rules, not only db rules
+  */
+  if (!db_ok(cev->db, replicate_do_db, replicate_ignore_db))
+  {
+    skip_load_data_infile(net);
+    return 0;
+  }
+  DBUG_ASSERT(cev->inited_from_old);
+  thd = mi->io_thd;
+  thd->file_id = cev->file_id = mi->file_id++;
+  cev_not_written = 1;
+  
+  if (unlikely(net_request_file(net,cev->fname)))
+  {
+    sql_print_error("Slave I/O: failed requesting download of '%s'",
+		    cev->fname);
+    goto err;
+  }
+
+  /* this dummy block is so we could insantiate Append_block_log_event
+     once and then modify it slightly instead of doing it multiple times
+     in the loop
+  */
+  {
+    Append_block_log_event aev(thd,0,0);
+  
+    for (;;)
+    {
+      if (unlikely((num_bytes=my_net_read(net)) == packet_error))
+      {
+	sql_print_error("Network read error downloading '%s' from master",
+			cev->fname);
+	goto err;
+      }
+      if (unlikely(!num_bytes)) /* eof */
+      {
+	send_ok(net); /* 3.23 master wants it */
+	Execute_load_log_event xev(mi->io_thd);
+	if (unlikely(mi->rli.relay_log.append(&xev)))
+	{
+	  sql_print_error("Slave I/O: error writing Exec_load event to \
+relay log");
+	  goto err;
+	}
+	break;
+      }
+      if (unlikely(cev_not_written))
+      {
+	cev->block = (char*)net->read_pos;
+	cev->block_len = num_bytes;
+	if (unlikely(mi->rli.relay_log.append(cev)))
+	{
+	  sql_print_error("Slave I/O: error writing Create_file event to \
+relay log");
+	  goto err;
+	}
+	cev_not_written=0;
+      }
+      else
+      {
+	aev.block = (char*)net->read_pos;
+	aev.block_len = num_bytes;
+	if (unlikely(mi->rli.relay_log.append(&aev)))
+	{
+	  sql_print_error("Slave I/O: error writing Append_block event to \
+relay log");
+	  goto err;
+	}
+      }
+    }
+  }
+  error=0;
+err:
+  return error;
+}
 
 // We assume we already locked mi->data_lock
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
 {
-  if (!rev->is_valid())
+  if (unlikely(!rev->is_valid()))
     return 1;
   DBUG_ASSERT(rev->ident_len<sizeof(mi->master_log_name));
   memcpy(mi->master_log_name,rev->new_log_ident,
@@ -1961,6 +2053,21 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   const char *errmsg = 0;
   bool inc_pos = 1;
   bool processed_stop_event = 0;
+  char* tmp_buf = 0;
+  /* if we get Load event, we need to pass a non-reusable buffer
+     to read_log_event, so we do a trick
+  */
+  if (buf[EVENT_TYPE_OFFSET] == LOAD_EVENT)
+  {
+    if (unlikely(!(tmp_buf=(char*)my_malloc(event_len+1,MYF(MY_WME)))))
+    {
+      sql_print_error("Slave I/O: out of memory for Load event");
+      return 1;
+    }
+    memcpy(tmp_buf,buf,event_len);
+    tmp_buf[event_len]=0; // Create_file constructor wants null-term buffer
+    buf = (const char*)tmp_buf;
+  }
   Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
 					    1 /*old format*/ );
   if (unlikely(!ev))
@@ -1968,6 +2075,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
 		    errmsg);
+    my_free((char*)tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
     return 1;
   }
   pthread_mutex_lock(&mi->data_lock);
@@ -1978,6 +2086,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     {
       delete ev;
       pthread_mutex_unlock(&mi->data_lock);
+      DBUG_ASSERT(!tmp_buf);      
       return 1;
     }
     mi->ignore_stop_event=1;
@@ -1986,12 +2095,16 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   case STOP_EVENT:
     processed_stop_event=1;
     break;
-  case LOAD_EVENT:
-    // TODO: actually process it
-    mi->master_log_pos += event_len;
+  case CREATE_FILE_EVENT:
+  {
+    int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
+    mi->master_log_pos += event_len;
     pthread_mutex_unlock(&mi->data_lock);
-    return 0;
+    DBUG_ASSERT(tmp_buf);
+    my_free((char*)tmp_buf, MYF(0));
+    return error;
+  }
   default:
     mi->ignore_stop_event=0;
     break;
@@ -2002,6 +2115,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     {
       delete ev;
       pthread_mutex_unlock(&mi->data_lock);
+      DBUG_ASSERT(!tmp_buf);
       return 1;
     }
   }
@@ -2011,6 +2125,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   if (unlikely(processed_stop_event))
     mi->ignore_stop_event=1;
   pthread_mutex_unlock(&mi->data_lock);
+  DBUG_ASSERT(!tmp_buf);
   return 0;
 }
 
@@ -2173,7 +2288,7 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
 int flush_relay_log_info(RELAY_LOG_INFO* rli)
 {
-  IO_CACHE* file = &rli->info_file;
+  register IO_CACHE* file = &rli->info_file;
   char lbuf[22],lbuf1[22];
   
   my_b_seek(file, 0L);
@@ -2251,7 +2366,10 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
     }
     DBUG_ASSERT(my_b_tell(cur_log) >= 4);
     DBUG_ASSERT(my_b_tell(cur_log) == rli->relay_log_pos + rli->pending);
-    if ((ev=Log_event::read_log_event(cur_log,0,rli->mi->old_format)))
+    /* relay log is always in new format - if the master is 3.23, the
+       I/O thread will convert the format for us
+    */
+    if ((ev=Log_event::read_log_event(cur_log,0,(bool)0/*new format*/)))
     {
       DBUG_ASSERT(thd==rli->sql_thd);
       if (hot_log)
