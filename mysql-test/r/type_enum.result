@@ -1636,3 +1636,13 @@ t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL default 'b'
 ) TYPE=MyISAM
 drop table t1;
+create table t1 (a enum ('0','1'));
+insert into t1 set a='foobar';
+select * from t1;
+a
+
+update t1 set a = replace(a,'x','y');
+select * from t1;
+a
+
+drop table t1;
