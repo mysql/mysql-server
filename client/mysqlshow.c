@@ -28,7 +28,8 @@
 #include <sslopt-vars.h>
 
 static my_string host=0,opt_password=0,user=0;
-static my_bool opt_show_keys=0,opt_compress=0,opt_status=0, tty_password=0;
+static my_bool opt_show_keys= 0, opt_compress= 0, opt_status= 0, 
+  tty_password= 0, opt_table_type= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 
@@ -193,6 +194,9 @@ static struct my_option my_long_options[] =
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"show-table-type", 't', "Show table type column.",
+   (gptr*) &opt_table_type, (gptr*) &opt_table_type, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -418,7 +422,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 {
   const char *header;
   uint head_length, counter = 0;
-  char query[255], rows[64], fields[16];
+  char query[255], rows[NAME_LEN], fields[16];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
   MYSQL_ROW row, rrow;
@@ -429,7 +433,20 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 	    mysql_error(mysql));
     return 1;
   }
-  if (!(result=mysql_list_tables(mysql,table)))
+  if (table)
+  {
+    /*
+      We just hijack the 'rows' variable for a bit to store the escaped
+      table name
+    */
+    mysql_escape_string(rows, table, sizeof(rows));
+    my_snprintf(query, sizeof(query), "show%s tables like '%s'",
+                opt_table_type ? " full" : "", rows);
+  }
+  else
+    my_snprintf(query, sizeof(query), "show%s tables",
+                opt_table_type ? " full" : "");
+  if (mysql_query(mysql, query) || !(result= mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot list tables in %s: %s\n",my_progname,db,
 	    mysql_error(mysql));
@@ -446,12 +463,27 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
   if (head_length < field->max_length)
     head_length=field->max_length;
 
-  if (!opt_verbose)
-    print_header(header,head_length,NullS);
-  else if (opt_verbose == 1)
-    print_header(header,head_length,"Columns",8,NullS);
+  if (opt_table_type)
+  {
+    if (!opt_verbose)
+      print_header(header,head_length,"table_type",10,NullS);
+    else if (opt_verbose == 1)
+      print_header(header,head_length,"table_type",10,"Columns",8,NullS);
+    else
+    {
+      print_header(header,head_length,"table_type",10,"Columns",8,
+		   "Total Rows",10,NullS);
+    }
+  }
   else
-    print_header(header,head_length,"Columns",8, "Total Rows",10,NullS);
+  {
+    if (!opt_verbose)
+      print_header(header,head_length,NullS);
+    else if (opt_verbose == 1)
+      print_header(header,head_length,"Columns",8,NullS);
+    else
+      print_header(header,head_length,"Columns",8, "Total Rows",10,NullS);
+  }
 
   while ((row = mysql_fetch_row(result)))
   {
@@ -500,17 +532,31 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 	strmov(rows,"N/A");
       }
     }
-    if (!opt_verbose)
-      print_row(row[0],head_length,NullS);
-    else if (opt_verbose == 1)
-      print_row(row[0],head_length, fields,8, NullS);
-    else 
-      print_row(row[0],head_length, fields,8, rows,10, NullS);
+    if (opt_table_type)
+    {
+      if (!opt_verbose)
+	print_row(row[0],head_length,row[1],10,NullS);
+      else if (opt_verbose == 1)
+	print_row(row[0],head_length,row[1],10,fields,8,NullS);
+      else
+	print_row(row[0],head_length,row[1],10,fields,8,rows,10,NullS);
+    }
+    else
+    {
+      if (!opt_verbose)
+	print_row(row[0],head_length,NullS);
+      else if (opt_verbose == 1)
+	print_row(row[0],head_length, fields,8, NullS);
+      else
+	print_row(row[0],head_length, fields,8, rows,10, NullS);
+    }
   }
 
   print_trailer(head_length,
-		(opt_verbose > 0 ? 8 : 0),
-		(opt_verbose > 1 ? 10 :0),
+		(opt_table_type ? 10 : opt_verbose > 0 ? 8 : 0),
+		(opt_table_type ? (opt_verbose > 0 ? 8 : 0) 
+		 : (opt_verbose > 1 ? 10 :0)),
+		!opt_table_type ? 0 : opt_verbose > 1 ? 10 :0,
 		0);
 
   if (counter && opt_verbose)
