@@ -470,19 +470,6 @@ String *Item_in_subselect::val_str(String *str)
   return str;
 }
 
-Item_in_subselect::Item_in_subselect(Item_in_subselect *item):
-  Item_exists_subselect(item)
-{
-  left_expr= item->left_expr;
-  abort_on_null= item->abort_on_null;
-}
-
-Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
-  Item_in_subselect(item)
-{
-  func= item->func;
-}
-
 Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
 					    Item *left_expr,
