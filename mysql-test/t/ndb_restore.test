@@ -142,10 +142,10 @@ create table t8_c engine=ndbcluster as select * from t8;
 create table t9_c engine=ndbcluster as select * from t9;
 
 
---exec $NDB_MGM --no-defaults -e "start backup" > /dev/null
+--exec $NDB_MGM --no-defaults -e "start backup" >> $NDB_TOOLS_OUTPUT
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 > /tmp/ndb_restore.out
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 > /tmp/ndb_restore.out
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 >> $NDB_TOOLS_OUTPUT
 
 show tables;
 

@@ -586,16 +586,13 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
   DBUG_RETURN(0);
 }
 
-bool ha_federated::create_where_from_key(
-  String *to,
-  KEY *key_info,
-  const byte *key, 
-  uint key_length
-  )
+bool ha_federated::create_where_from_key(String *to, KEY *key_info,
+                                         const byte *key, uint key_length)
 {
   uint second_loop= 0;
   KEY_PART_INFO *key_part;
   bool needs_quotes;
+  String tmp;
 
   DBUG_ENTER("ha_federated::create_where_from_key");
   for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
@@ -656,7 +653,9 @@ bool ha_federated::create_where_from_key(
       uint blob_length= uint2korr(key);
       key+= HA_KEY_BLOB_LENGTH;
       key_length-= HA_KEY_BLOB_LENGTH;
-      if (append_escaped(to, (char *)(key), blob_length))
+
+      tmp.set_quick((char*) key, blob_length, &my_charset_bin);
+      if (append_escaped(to, &tmp))
         DBUG_RETURN(1);
 
       DBUG_PRINT("ha_federated::create_where_from_key", ("blob type %s", to->c_ptr_quick()));
@@ -666,7 +665,8 @@ bool ha_federated::create_where_from_key(
     {
       length= uint2korr(key);
       key+= HA_KEY_BLOB_LENGTH;
-      if (append_escaped(to, (char *)(key), length))
+      tmp.set_quick((char*) key, length, &my_charset_bin);
+      if (append_escaped(to, &tmp))
         DBUG_RETURN(1);
 
       DBUG_PRINT("ha_federated::create_where_from_key", ("varchar type %s", to->c_ptr_quick()));
@@ -680,7 +680,7 @@ bool ha_federated::create_where_from_key(
       res= field->val_str(&str, (char *)(key));
       if (field->result_type() == STRING_RESULT)
       {
-        if (append_escaped(to, (char *) res->ptr(), res->length()))
+        if (append_escaped(to, res))
           DBUG_RETURN(1);
         res= field->val_str(&str, (char *)(key));
 
@@ -1235,7 +1235,7 @@ int ha_federated::update_row(
     update_string.append(new_field_value);
     new_field_value.length(0);
 
-    if (x+1 < table->s->fields)
+    if ((uint) x+1 < table->s->fields)
     {
       update_string.append(", ");
       if (! has_a_primary_key)
@@ -1311,7 +1311,7 @@ int ha_federated::delete_row(const byte * buf)
     delete_string.append(data_string);
     data_string.length(0);
 
-    if (x+1 < table->s->fields)
+    if ((uint) x+1 < table->s->fields)
       delete_string.append(" AND ");
   }
 

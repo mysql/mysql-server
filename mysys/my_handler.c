@@ -43,7 +43,7 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
     return 0;
   if (skip_end_space && a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       We are using space compression. We have to check if longer key
       has next character < ' ', in which case it's less than the shorter
@@ -57,12 +57,12 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
       /* put shorter key in a */
       a_length= b_length;
       a= b;
-      swap= -1 ^ 1;					/* swap sign of result */
+      swap= -1;					/* swap sign of result */
     }
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
     return 0;
   }
