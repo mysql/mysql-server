@@ -232,7 +232,7 @@ public:
   char	  *query,*thread_stack;
   char	  *host,*user,*priv_user,*db,*ip;
   const   char *proc_info;
-  uint	  client_capabilities,max_packet_length;
+  uint	  client_capabilities,sql_mode,max_packet_length;
   uint	  master_access,db_access;
   TABLE   *open_tables,*temporary_tables;
   MYSQL_LOCK *lock,*locked_tables;

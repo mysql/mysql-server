@@ -14595,6 +14595,13 @@ Disable using thread priorities for faster response time.
 Socket file to use for local connections instead of default
 @code{/tmp/mysql.sock}.
 
+@item --sql-mode=option[,option[,option...]]
+Option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES,
+IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY.
+
+By specifying all of the above options is same as using --ansi.
+With this option one can turn on only needed SQL modes. @xref{ANSI mode}.
+
 @item transaction-isolation= @{ READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE @}
 Sets the default transaction isolation level.  @xref{SET TRANSACTION}.
 
@@ -45720,6 +45727,8 @@ not yet 100% confident in this code.
 @node News-3.23.41, News-3.23.40, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.41
 @itemize @bullet
+@item Added option @code{--sql-mode=option[,option[,option]]}. Please see
+@code{mysqld --help} for legal modes.
 @item
 Fixed optimizing bug in @code{ORDER BY} where some @code{ORDER BY} parts
 where wrongly removed.
