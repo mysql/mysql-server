@@ -24,12 +24,14 @@ EXTRA_DIST =		INSTALL-SOURCE README \
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ @pstack_dirs@ @sql_client_dirs@ \
 			@sql_server_dirs@ @libmysqld_dirs@ scripts tests man \
-			@bench_dirs@ support-files @fs_dirs@
+			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \
 		 linked_libmysql_sources linked_libmysql_r_sources \
-		 linked_libmysqld_sources linked_include_sources
+		 linked_libmysqld_sources linked_include_sources \
+                 linked_tools_sources
+
 CLEANFILES = $(linked_sources)
 
 # This is just so that the linking is done early.
@@ -42,6 +44,11 @@ linked_include_sources:
 linked_client_sources:  @linked_client_targets@
 	cd client; $(MAKE) link_sources
 	echo timestamp > linked_client_sources
+
+linked_tools_sources: 
+	cd tools; $(MAKE) link_sources
+	echo timestamp > linked_tools_sources
+
 
 linked_libmysql_sources:
 	cd libmysql; $(MAKE) link_sources
