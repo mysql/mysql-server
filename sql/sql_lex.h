@@ -196,6 +196,7 @@ public:
   enum sub_select_type linkage;
   SQL_LIST order_list;                /* ORDER clause */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  bool with_sum_func;
   void init_query();
   void init_select();
   void include_down(st_select_lex_node *upper);
