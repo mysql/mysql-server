@@ -1436,9 +1436,9 @@ select:
 	select_init { Lex->sql_command=SQLCOM_SELECT; };
 
 select_init:
-	SELECT_SYM select_part2 { Select->braces=false;	} opt_union
+	SELECT_SYM select_part2 { Select->braces= 0;	} opt_union
 	|
-	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt;
+	'(' SELECT_SYM 	select_part2 ')' { Select->braces= 1;} union_opt;
 
 
 select_part2:
@@ -2350,7 +2350,7 @@ procedure_clause:
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
-	    if (add_proc_to_list(new Item_field(NULL,NULL,$2.str)))
+	    if (add_proc_to_list(lex->thd, new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
 	    current_thd->safe_to_cache_query=0;
 	  }
@@ -2368,10 +2368,11 @@ procedure_list2:
 procedure_item:
 	  remember_name expr
 	  {
-	    if (add_proc_to_list($2))
+	    LEX *lex= Lex;
+	    if (add_proc_to_list(lex->thd, $2))
 	      YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) Lex->tok_end - $1));
+	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1));
 	  };
 
 opt_into:

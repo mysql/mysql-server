@@ -242,6 +242,20 @@ typedef struct st_sql_list {
   uint elements;
   byte *first;
   byte **next;
+
+  inline void empty()
+  {
+    elements=0;
+    first=0;
+    next= &first;
+  }
+  inline void link_in_list(byte *element,byte **next_ptr)
+  {
+    elements++;
+    (*next)=element;
+    next= next_ptr;
+    *next=0;
+  }
 } SQL_LIST;
 
 
@@ -415,6 +429,10 @@ int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds, 
                  ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates);
+int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
+		       List<Item> *fields, List<Item> *values,
+		       COND *conds, ulong options,
+		       enum enum_duplicates handle_duplicates);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, enum_duplicates flag);
 void kill_delayed_threads(void);
@@ -498,7 +516,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
 void set_lock_for_tables(thr_lock_type lock_type);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
-bool add_proc_to_list(Item *item);
+bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,

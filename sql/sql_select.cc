@@ -437,7 +437,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (make_join_statistics(&join,tables,conds,&keyuse) || thd->fatal_error)
     goto err;
   thd->proc_info="preparing";
-  result->initialize_tables(&join);
+  if (result->initialize_tables(&join))
+    goto err;
   if (join.const_table_map != join.found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
@@ -2721,6 +2722,38 @@ make_join_readinfo(JOIN *join,uint options)
 }
 
 
+/*
+  Give error if we some tables are done with a full join
+
+  SYNOPSIS
+    error_if_full_join()
+    join		Join condition
+
+  USAGE
+   This is used by multi_table_update and multi_table_delete when running
+   in safe mode
+
+ RETURN VALUES
+   0	ok
+   1	Error (full join used)
+*/
+
+bool error_if_full_join(JOIN *join)
+{
+  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
+       tab < end;
+       tab++)
+  {
+    if (tab->type == JT_ALL && !tab->select->quick)
+    {
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,MYF(0));
+      return(1);
+    }
+  }
+  return(0);
+}
+
+
 static void
 join_free(JOIN *join)
 {
@@ -3401,11 +3434,33 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 
 
 /****************************************************************************
-  Create a temp table according to a field list.
-  Set distinct if duplicates could be removed
-  Given fields field pointers are changed to point at tmp_table
-  for send_fields
+  Create internal temporary table
 ****************************************************************************/
+
+/*
+  Create field for temporary table
+
+  SYNOPSIS
+    create_tmp_field()
+    thd			Thread handler
+    table		Temporary table
+    item		Item to create a field for
+    type		Type of item (normally item->type)
+    copy_func		If set and item is a function, store copy of item
+			in this array
+    group		1 if we are going to do a relative group by on result
+    modify_item		1 if item->result_field should point to new item.
+			This is relevent for how fill_record() is going to
+			work:
+			If modify_item is 1 then fill_record() will update
+			the record in the original table.
+			If modify_item is 0 then fill_record() will update
+			the temporary table
+		       
+  RETURN
+    0			on error
+    new_created field
+*/
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
@@ -3514,6 +3569,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
 }
 
+
+/*
+  Create a temp table according to a field list.
+  Set distinct if duplicates could be removed
+  Given fields field pointers are changed to point at tmp_table
+  for send_fields
+*/
 
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
@@ -3675,9 +3737,19 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
     {
+      /*
+	The last parameter to create_tmp_field() is a bit tricky:
+
+	We need to set it to 0 in union, to get fill_record() to modify the
+	temporary table.
+	We need to set it to 1 on multi-table-update and in select to
+	write rows to the temporary table.
+	We here distinguish between UNION and multi-table-updates by the fact
+	that in the later case group is set to the row pointer.
+      */
       Field *new_field=create_tmp_field(thd, table, item,type, &copy_func,
 					tmp_from_field, group != 0,
-					not_all_columns);
+					not_all_columns || group !=0);
       if (!new_field)
       {
 	if (thd->fatal_error)
@@ -3991,7 +4063,6 @@ static bool open_tmp_table(TABLE *table)
     table->db_stat=0;
     return(1);
   }
-  /* VOID(ha_lock(table,F_WRLCK)); */		/* Single thread table */
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
   return(0);
 }

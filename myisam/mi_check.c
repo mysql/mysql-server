@@ -2329,13 +2329,13 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   for (i=0 ; i < sort_info.total_keys ; i++)
   {
     sort_param[i].read_cache=param->read_cache;
+    /*
+      two approaches: the same amount of memory for each thread
+      or the memory for the same number of keys for each thread...
+      In the second one all the threads will fill their sort_buffers
+      (and call write_keys) at the same time, putting more stress on i/o.
+    */
     sort_param[i].sortbuff_size=
-      /*
-        two approaches: the same amount of memory for each thread
-        or the memory for the same number of keys for each thread...
-        In the second one all the threads will fill their sort_buffers
-        (and call write_keys) at the same time, putting more stress on i/o.
-      */
 #ifndef USING_SECOND_APPROACH
       param->sort_buffer_length/sort_info.total_keys;
 #else

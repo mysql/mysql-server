@@ -117,18 +117,22 @@ struct st_table {
   table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
   ulong		version,flush_version;
   uchar		*null_flags;
-  IO_CACHE	*io_cache;			/* If sorted trough file*/
-  byte		*record_pointers;		/* If sorted in memory */
-  ha_rows	found_records;			/* How many records in sort */
+  IO_CACHE	*io_cache;		/* If sorted trough file*/
+  byte		*record_pointers;	/* If sorted in memory */
+  ha_rows	found_records;		/* How many records in sort */
   ORDER		*group;
   ha_rows	quick_rows[MAX_KEY];
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
   ulong		query_id;
 
-  uint          temp_pool_slot;
+  union					/* Temporary variables */
+  {
+    uint        temp_pool_slot;		/* Used by intern temp tables */
+    struct st_table_list *pos_in_table_list;
+  };
 
-  THD		*in_use;			/* Which thread uses this */
+  THD		*in_use;		/* Which thread uses this */
   struct st_table *next,*prev;
 };
 
@@ -148,10 +152,10 @@ typedef struct st_table_list
   GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
+  uint		shared;			/* Used in union or in multi-upd */
   uint32        db_length, real_name_length;
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
-  bool		shared;			/* Used twice in union */
   bool		do_redirect;		/* To get the struct in UNION's */
 } TABLE_LIST;
 
