@@ -1,5 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
-@c Copyright 1997-2001 TcX AB, Detron HB und MySQL Finland AB
+@c Copyright 1997-2002 TcX AB, Detron HB und MySQL Finland AB
 @c
 @c *********************************************************
 @c Note that @node names are used on our Website.
@@ -6135,9 +6135,9 @@ Solaris 2.5 und höher mit nativen Threads auf SPARC und x86.  @xref{Solaris}.
 @item
 SunOS 4.x mit enthaltenem MIT-pThreads-Paket.  @xref{Solaris}.
 @item
-SCO OpenServer mit einem aktuellen Port des FSU-PThreads-Pakets.  @xref{SCO}.
+Caldera (SCO) OpenServer mit einem aktuellen Port des FSU-PThreads-Pakets.  @xref{Caldera}.
 @item
-SCO UnixWare 7.0.1.  @xref{SCO Unixware}.
+Caldera (SCO) UnixWare 7.0.1.  @xref{Caldera Unixware}.
 @item
 Tru64 Unix
 @item
@@ -10675,8 +10675,8 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 * Alpha-DEC-UNIX::              
 * Alpha-DEC-OSF1::              
 * SGI-Irix::                    
-* SCO::                         
-* SCO Unixware::                
+* Caldera::                     
+* Caldera Unixware::            
 @end menu
 
 @node Binary notes-HP-UX, HP-UX 10.20, Other Unix Notes, Other Unix Notes
@@ -11230,7 +11230,8 @@ hinzu, falls Sie keine @code{-O}-Option auf Ihrer Kompilierzeile haben.)
 Danach wechseln Sie einfach direkt zurück in oberste Verzeichnis und lassen
 @code{make} noch einmal laufen.
 
-@node SGI-Irix, SCO, Alpha-DEC-OSF1, Other Unix Notes
+
+@node SGI-Irix, Caldera, Alpha-DEC-OSF1, Other Unix Notes
 @c German node SGI-Irix
 @subsubsection Anmerkungen zu SGI Irix
 
@@ -11307,9 +11308,10 @@ CC=cc CXX=CC CFLAGS='-O3 -n32 -TARG:platform=IP22 -I/usr/local/include \
 @end example
 
 
-@node SCO, SCO Unixware, SGI-Irix, Other Unix Notes
+@node Caldera, Caldera Unixware, SGI-Irix, Other Unix Notes
 @c German node SCO
-@subsubsection Anmerkungen zu SCO
+@subsubsection Anmerkungen zu Caldera
+@c German fixup: 2002-03-22 monty changed SCO -> Caldera in English manual
 
 Die aktuelle Portierung wird auf ``sco3.2v5.0.4''-
 und-``sco3.2v5.0.5''-Systemen getestet. Die Portierung auf ``sco 3.2v4.2''
@@ -11336,7 +11338,7 @@ shell> cp -p /usr/include/pThread/stdtypes.h /usr/local/lib/gcc-lib/i386-pc-sco3
 
 @item
 Sie brauchen die Portierung von GCC 2.5.x für dieses Produkt und das
-Entwicklungssystem. Sie werden auf dieser Version von SCO Unix benötigt.
+Entwicklungssystem. Sie werden auf dieser Version von Caldera (SCO) Unix benötigt.
 Sie können nicht lediglich das GCC-Dev-System benutzen.
 
 @item
@@ -11349,10 +11351,10 @@ Sie finden ein vorkompiliertes Paket auf
 @item
 FSU-PThreads kann mit SCO Unix 4.2 mit TCP/IP kompiliert werden. Oder mit
 OpenServer 3.0 oder Open Desktop 3.0 (OS 3.0 ODT 3.0), mit installiertem
-SCO-Entwicklungssystem unter Benutzung einer guten Portierung von GCC 2.5.x
+Caldera (SCO) Entwicklungssystem unter Benutzung einer guten Portierung von GCC 2.5.x
 ODT oder OS 3.0. Hierbei brauchen Sie eine gute Portierung von GCC 2.5.x.
 Ohne gute Portierung gibt es eine Menge Probleme. Die Portierung für dieses
-Produkt erfordert das SCO-Unix-Entwicklungssystem. Ohne dieses fehlen die
+Produkt erfordert das Caldera (SCO) Unix-Entwicklungssystem. Ohne dieses fehlen die
 Bibliotheken und der Linker, die benötigt werden.
 
 @item
@@ -11410,7 +11412,7 @@ Entpacken Sie diese Datei ins @file{include}-Verzeichnis Ihres
 MySQL-Source-Trees.
 @end enumerate
 
-Anmerkungen zur SCO-Entwicklung:
+Anmerkungen zur Caldera (SCO) Entwicklung:
 
 @itemize @bullet
 @item
@@ -11419,7 +11421,7 @@ MySQL kann FSU-PThreads automatisch erkennen und @code{mysqld} mit
 
 @item
 @c Question: Good translation for "re-entrant"?
-Die SCO-Entwicklungsbibliotheken sind re-entrant in FSU-PThreads. SCO
+Die Caldera (SCO) Entwicklungsbibliotheken sind re-entrant in FSU-PThreads. Caldera
 behauptet, dass seine Bibliotheken-Funktionen re-entrant sind, daher müssen
 sie mit FSU-PThreads re-entrant sein. FSU-PThreads auf OpenServer versucht,
 das SCO-Scheme zu benutzen, um Bibliotheken re-entrant zu machen.
@@ -11436,7 +11438,7 @@ In FSU-PThreads achten folgende Systemaufrufe auf pThreads: @code{read()},
 @code{select()} und @code{wait()}.
 @end itemize
 
-Wenn Sie DBI auf SCO installieren wollen, müssen Sie @file{Makefile} in
+Wenn Sie DBI auf Caldera (SCO) installieren wollen, müssen Sie @file{Makefile} in
 DBI-xxx und jedem Unterverzeichnis editieren.
 
 Beachten Sie, dass folgendes gcc 2.95.2 oder neuer voraussetzt:
@@ -11467,9 +11469,10 @@ mit @code{icc} oder @code{cc} kompiliert wurden.
 Perl funktioniert am besten, wenn es mit @code{cc} kompiliert wird.
 
 
-@node SCO Unixware,  , SCO, Other Unix Notes
+@node Caldera Unixware,  , Caldera, Other Unix Notes
 @c German node SCO Unixware
-@subsubsection Anmerkungen zu SCO Unixware Version 7.0
+@subsubsection Anmerkungen zu Caldera Unixware Version 7.0
+@c German fixup: 2002-03-22 monty changed SCO -> Caldera in English manual
 
 Sie benötigen mindestens MySQL-Version 3.22.13, weil diese Version einige
 Portabilitätsprobleme unter Unixware behebt.
@@ -11851,7 +11854,7 @@ Danach @strong{müssen} Sie 'make realclean' laufen lassen und danach mit
 der Installation von Anfang an beginnen.
 
 Wenn Sie das Perl-Modul auf einem System laufen lassen wollen, das
-dynamisches Linken nicht unterstützt (wie SCO), können Sie eine
+dynamisches Linken nicht unterstützt (wie Caldera/SCO), können Sie eine
 statische Version von Perl erzeugen, die @code{DBI} und @code{DBD-mysql}
 enthält. Das bringt man zum Laufen, indem man eine Version von Perl
 erzeugt, in der der @code{DBI}-Code eingelinkt ist, und diese über das
@@ -11859,7 +11862,7 @@ aktuelle Perls installiert. Dann benutzen Sie diese, um eine Version von
 Perl zu bauen, die zusätzlich den @code{DBD}-Code eingelinkt hat, und
 installieren diese.
 
-Unter SCO müssen folgende Umgebungsvariablen gesetzt sein:
+Unter Caldera (SCO) müssen folgende Umgebungsvariablen gesetzt sein:
 
 @example
 shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
@@ -11885,7 +11888,7 @@ shell> make perl
 
 Dann müssen Sie das neue Perl installieren. Die Ausgabe von @code{make
 perl} zeigt den genauen @code{make}-Befehl an, den Sie für die
-Installation ausführen müssen. Unter SCO ist das @code{make -f
+Installation ausführen müssen. Unter Caldera (SCO) ist das @code{make -f
 Makefile.aperl inst_perl MAP_TARGET=perl}.
 
 Benutzen Sie als nächstes dieses soeben erzeugte Perl, um ein weiteres
@@ -22307,16 +22310,16 @@ Standard-@strong{MySQL-Max}-Binärdateien beinhalten:
 
 @multitable @columnfractions .4 .3 .3
 @item @strong{System} @tab @strong{BDB} @tab @strong{InnoDB}
-@item AIX 4.3       @tab NEIN @tab JA
-@item HP-UX 11.0    @tab NEIN @tab JA
-@item Linux-Alpha   @tab NEIN @tab JA
-@item Linux-Intel   @tab JA   @tab JA
-@item Linux-Ia64    @tab NEIN @tab JA
-@item Solaris-intel @tab NEIN @tab JA
-@item Solaris-sparc @tab JA   @tab JA
-@item SCO OSR5      @tab JA   @tab JA
-@item UnixWare      @tab JA   @tab JA
-@item Windows/NT    @tab JA   @tab JA
+@item AIX 4.3            @tab NEIN @tab JA
+@item HP-UX 11.0         @tab NEIN @tab JA
+@item Linux-Alpha        @tab NEIN @tab JA
+@item Linux-Intel        @tab JA   @tab JA
+@item Linux-Ia64         @tab NEIN @tab JA
+@item Solaris-intel      @tab NEIN @tab JA
+@item Solaris-sparc      @tab JA   @tab JA
+@item Caldera (SCO) OSR5 @tab JA   @tab JA
+@item UnixWare           @tab JA   @tab JA
+@item Windows/NT         @tab JA   @tab JA
 @end multitable
 
 
@@ -40449,9 +40452,9 @@ Linux 2.x intel
 @item
 Solaris sparc
 @item
-SCO OpenServer
+Caldera (SCO) OpenServer
 @item
-SCO UnixWare 7.0.1
+Caldera (SCO) UnixWare 7.0.1
 @end itemize
 
 Auf folgenden Betriebssystemen läuft BDB nicht:
