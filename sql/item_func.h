@@ -133,6 +133,7 @@ public:
   friend class udf_handler;
   Field *tmp_table_field(TABLE *t_arg);
   bool check_loop(uint id);
+  void set_outer_resolving();
 };
 
 
@@ -632,6 +633,11 @@ public:
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
   }
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_int_func::set_outer_resolving();
+  }
 };
 
 
@@ -1006,6 +1012,7 @@ public:
   bool fix_index();
   void init_search(bool no_order);
   bool check_loop(uint id);
+  void set_outer_resolving();
 };
 
 

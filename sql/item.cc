@@ -546,8 +546,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
   {
-    Field *tmp;
-    if ((tmp= find_field_in_tables(thd, this, tables, 0)) == not_found_field)
+    TABLE_LIST *where= 0;
+    Field *tmp= (Field *)not_found_field;
+    if (outer_resolving || 
+	(tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
+	not_found_field)
     {
       /*
 	We can't find table field in table list of current select, 
@@ -565,12 +568,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
       if (cursel->master_unit()->first_select()->linkage !=
 	  DERIVED_TABLE_TYPE)
-	for (SELECT_LEX *sl=cursel->outer_select();
+	for (SELECT_LEX *sl=(outer_resolving?cursel:cursel->outer_select());
 	     sl;
 	     sl= sl->outer_select())
 	{
 	  if ((tmp= find_field_in_tables(thd, this,
-					 (last= sl)->get_table_list(),
+					 (last= sl)->get_table_list(), &where,
 					 0)) != not_found_field)
 	    break;
 	  if ((refer= find_item_in_list(this, sl->item_list,
@@ -588,7 +591,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       else if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	// call to return error code
-	find_field_in_tables(thd, this, tables, 1);
+	find_field_in_tables(thd, this, tables, &where, 1);
 	return -1;
       }
       else if (refer != (Item **)not_found_item)
@@ -614,6 +617,17 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  found table as depended (of select where was found table)
 	*/
 	thd->lex.current_select->mark_as_dependent(last);
+	if (depended_from->having_fix_field)
+	{
+	  Item_ref *rf;
+	  *ref= rf= new Item_ref((where->db[0]?where->db:0), 
+				 (char *)where->alias,
+				 (char *)field_name);
+	  if (!rf)
+	    return 1;
+	  (rf)->outer_resolving= outer_resolving;
+	  return rf->check_cols(1) || rf->fix_fields(thd, tables, ref);
+	}
       }
     } 
     else if (!tmp)
@@ -628,14 +642,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     field->query_id=thd->query_id;
     table->used_fields++;
     table->used_keys&=field->part_of_key;
-  }
-  if (depended_from != 0 && depended_from->having_fix_field)
-  {
-    *ref= new Item_ref((char *)db_name, (char *)table_name,
-		       (char *)field_name);
-    if (!*ref)
-      return 1;
-    return (*ref)->check_cols(1) || (*ref)->fix_fields(thd, tables, ref);
   }
   fixed= 1;
   return 0;
@@ -1007,13 +1013,17 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    TABLE_LIST *where= 0;
+    SELECT_LEX *sl= (outer_resolving?
+		     thd->lex.current_select->select_lex():
+		     thd->lex.current_select->outer_select());
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
       fields for now)
     */
-    if ((ref= find_item_in_list(this, 
+    if (outer_resolving ||
+	(ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
 				((sl && 
 				  thd->lex.current_select->master_unit()->
@@ -1041,7 +1051,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	   (Item **)not_found_item)
 	  break;
 	if ((tmp= find_field_in_tables(thd, this,
-				       sl->get_table_list(),
+				       sl->get_table_list(), &where,
 				       0)) != not_found_field);
 	if (sl->master_unit()->first_select()->linkage ==
 	    DERIVED_TABLE_TYPE)
