@@ -48,12 +48,14 @@
 #endif
 
 #define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
+#define CLI_MYSQL_CLOSE cli_mysql_close
 
 #undef net_flush
 my_bool	net_flush(NET *net);
 
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT mysql_real_connect
+#define CLI_MYSQL_CLOSE mysql_close
 #endif /*EMBEDDED_LIBRARY*/
 
 #if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
@@ -965,25 +967,10 @@ void mysql_read_default_options(struct st_mysql_options *options,
 
 void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
-  ulong *prev_length;
-  byte *start=0;
   MYSQL_ROW end;
-
-  prev_length=0;				/* Keep gcc happy */
-  for (end=column + field_count + 1 ; column != end ; column++, to++)
-  {
-    if (!*column)
-    {
-      *to= 0;					/* Null */
-      continue;
-    }
-    if (start)					/* Found end of prev string */
-      *prev_length= (ulong) (*column-start-1);
-    start= *column;
-    prev_length= to;
-  }
+  for (end=column + field_count; column != end ; column++, to++)
+    *to= *column ? strlen(*column) : 0;
 }
-
 
 /***************************************************************************
   Change field rows to field structs
@@ -1422,14 +1409,12 @@ error:
   before calling mysql_real_connect !
 */
 
-static void STDCALL cli_mysql_close(MYSQL *mysql);
 static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
-  cli_mysql_close,
   cli_mysql_read_query_result,
   cli_advanced_command,
   cli_mysql_store_result,
@@ -2140,7 +2125,7 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
-static void STDCALL cli_mysql_close(MYSQL *mysql)
+void STDCALL CLI_MYSQL_CLOSE(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */

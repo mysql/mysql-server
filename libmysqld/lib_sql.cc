@@ -38,6 +38,7 @@ static char inited, org_my_init_done;
 C_MODE_START
 #include <mysql.h>
 #include "errmsg.h"
+#include <sql_common.h>
 
 static int check_connections1(THD * thd);
 static int check_connections2(THD * thd);
@@ -66,8 +67,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   /* Clear result variables */
   thd->clear_error();
   mysql->affected_rows= ~(my_ulonglong) 0;
+  mysql->field_count= 0;
 
   thd->store_globals();				// Fix if more than one connect
+  free_old_query(mysql);
   result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
 
   if (!skip_check)
