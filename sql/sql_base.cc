@@ -2039,15 +2039,28 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
 
 /*
-  Remap table numbers if INSERT ... SELECT
-  Check also that the 'used keys' and 'ignored keys' exists and set up the
-  table structure accordingly
+  prepare tables
 
-  This has to be called for all tables that are used by items, as otherwise
-  table->map is not set and all Item_field will be regarded as const items.
+  SYNOPSIS
+    setup_tables()
+    tables - tables list
+    reinit - true if called for table reinitialization before
+             subquery reexecuting
+
+   RETURN
+     0	ok;  In this case *map will includes the choosed index
+     1	error
+
+   NOTE
+     Remap table numbers if INSERT ... SELECT
+     Check also that the 'used keys' and 'ignored keys' exists and set up the
+     table structure accordingly
+
+     This has to be called for all tables that are used by items, as otherwise
+     table->map is not set and all Item_field will be regarded as const items.
 */
 
-bool setup_tables(TABLE_LIST *tables)
+bool setup_tables(TABLE_LIST *tables, my_bool reinit)
 {
   DBUG_ENTER("setup_tables");
   uint tablenr=0;
@@ -2074,7 +2087,7 @@ bool setup_tables(TABLE_LIST *tables)
       table->keys_in_use_for_query.subtract(map);
     }
     table->used_keys.intersect(table->keys_in_use_for_query);
-    if (table_list->shared  || table->clear_query_id)
+    if ((table_list->shared  || table->clear_query_id) && !reinit)
     {
       table->clear_query_id= 0;
       /* Clear query_id that may have been set by previous select */

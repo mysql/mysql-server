@@ -1222,11 +1222,6 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
       s->uncacheable|= UNCACHEABLE_DEPENDENT;
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable|= UNCACHEABLE_DEPENDENT;
-      //Tables will be reopened many times
-      for (TABLE_LIST *tbl= s->get_table_list();
-	   tbl;
-	   tbl= tbl->next)
-	tbl->shared= 1;
     }
 }
 
