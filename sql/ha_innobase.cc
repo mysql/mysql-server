@@ -557,10 +557,10 @@ innobase_init(void)
        "skip-innodb\n"
        "to the [mysqld] section of init parameters in your my.cnf\n"
        "or my.ini. If you want to use InnoDB tables, add for example,\n"
-       "innodb_data_file_path = /mysql/data/ibdata1:20M\n"
+       "innodb_data_file_path = ibdata1:30M\n"
        "But to get good performance you should adjust for your hardware\n"
-       "the InnoDB startup options listed in section 7.6 at\n"
-       "http://www.mysql.com/doc/\n");
+       "the InnoDB startup options listed in section 2 at\n"
+       "http://www.innodb.com/ibman.html\n");
 
 	  innodb_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
