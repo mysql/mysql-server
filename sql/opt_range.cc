@@ -413,7 +413,8 @@ QUICK_SELECT::~QUICK_SELECT()
 {
   if (!dont_free)
   {
-    file->ha_index_end();
+    if (file->inited)
+      file->ha_index_end();
     free_root(&alloc,MYF(0));
   }
 }
