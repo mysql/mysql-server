@@ -1886,7 +1886,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 
 
 /*
-  Find table in underlaying tables by mask and check that only this
+  Find table in underlying tables by mask and check that only this
   table belong to given mask
 
   SYNOPSIS

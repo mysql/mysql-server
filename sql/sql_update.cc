@@ -720,7 +720,7 @@ bool mysql_multi_update_prepare(THD *thd)
 
       /*
         Multi-update can't be constructed over-union => we always have
-        single SELECT on top and have to check underlaying SELECTs of it
+        single SELECT on top and have to check underlying SELECTs of it
       */
       if (lex->select_lex.check_updateable_in_subqueries(tl->db,
                                                          tl->real_name))
