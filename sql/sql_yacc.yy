@@ -381,6 +381,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  ERRORS
 %token  WARNINGS
 
+%token	ASCII_SYM
 %token	BIGINT
 %token	BLOB_SYM
 %token	CHAR_SYM
@@ -1258,6 +1259,7 @@ opt_db_default_character_set:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
+	| ASCII_SYM			{ Lex->charset=my_charset_latin1; }
 	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
 	| UNICODE_SYM
@@ -1269,7 +1271,6 @@ opt_binary:
 	  }
 	}
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
-
 
 opt_primary:
 	/* empty */
@@ -2023,6 +2024,7 @@ simple_expr:
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
           { Select->add_ftfunc_to_list((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
+	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,my_charset_bin); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
@@ -3730,6 +3732,7 @@ keyword:
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
 	| ANY_SYM		{}
+	| ASCII_SYM		{}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
