@@ -959,5 +959,5 @@ my_net_read(NET *net)
   return len;
 }
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* #ifndef EMBEDDED_LIBRARY */
 

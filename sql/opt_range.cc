@@ -832,10 +832,10 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       Field *field=((Item_field*) (func->key_item()))->field;
       Item_result cmp_type=field->cmp_type();
       tree= get_mm_parts(param,field,Item_func::EQ_FUNC,
-			 func->arguments()[0],cmp_type);
+			 func->arguments()[1],cmp_type);
       if (!tree)
 	DBUG_RETURN(tree);			// Not key field
-      for (uint i=1 ; i < func->argument_count(); i++)
+      for (uint i=2 ; i < func->argument_count(); i++)
       {
 	SEL_TREE *new_tree=get_mm_parts(param,field,Item_func::EQ_FUNC,
 					func->arguments()[i],cmp_type);

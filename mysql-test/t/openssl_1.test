@@ -2,7 +2,9 @@
 # Use mysql-test-run with --with-openssl option.
 -- source include/have_openssl_1.inc
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 create table t1(f1 int);
 insert into t1 values (5);
 

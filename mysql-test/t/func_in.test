@@ -54,3 +54,22 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 select * from t1 where id in (2,5,9);
 drop table t1;
 
+create table t1 (
+a char(1) character set latin1 collate latin1_general_ci,
+b char(1) character set latin1 collate latin1_swedish_ci,
+c char(1) character set latin1 collate latin1_danish_ci
+);
+insert into t1 values ('A','B','C');
+insert into t1 values ('a','c','c');
+--error 1265
+select * from t1 where a in (b);
+--error 1268
+select * from t1 where a in (b,c);
+--error 1269
+select * from t1 where 'a' in (a,b,c);
+select * from t1 where 'a' in (a);
+select * from t1 where a in ('a');
+select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
+select * from t1 where 'a' collate latin1_bin in (a,b,c);
+select * from t1 where 'a' in (a,b,c collate latin1_bin);
+drop table t1;

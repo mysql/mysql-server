@@ -626,33 +626,14 @@ public:
 
 class Item_func_field :public Item_int_func
 {
-  Item *item;
   String value,tmp;
   Item_result cmp_type;
   DTCollation cmp_collation;
 public:
-  Item_func_field(Item *a,List<Item> &list) :Item_int_func(list),item(a) {}
-  ~Item_func_field() { delete item; }
+  Item_func_field(List<Item> &list) :Item_int_func(list) {}
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
-  {
-    return (item->fix_fields(thd, tlist, &item) || item->check_cols(1) ||
-	    Item_func::fix_fields(thd, tlist, ref));
-  }
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
-  void update_used_tables()
-  {
-    item->update_used_tables() ; Item_func::update_used_tables();
-    used_tables_cache|= item->used_tables();
-    const_item_cache&=  item->const_item();
-  }
   const char *func_name() const { return "field"; }
   void fix_length_and_dec();
-  bool walk(Item_processor processor, byte *arg)
-  {
-    return item->walk(processor, arg) ||
-      Item_int_func::walk(processor, arg);
-  }
 };
 
 
