@@ -5675,7 +5675,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   }
 
   List<NDB_SHARE> util_open_tables;
-  set_timespec(abstime, ndb_cache_check_time);
+  set_timespec(abstime, 0);
   for (;;)
   {
 
@@ -5693,6 +5693,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
     if (ndb_cache_check_time == 0)
     {
+      /* Wake up in 10 seconds to check if value has changed */
       set_timespec(abstime, 10);
       continue;
     }
