@@ -980,3 +980,10 @@ drop table t1;
 -- error 1096
 CREATE VIEW v02 AS SELECT * FROM DUAL;
 SHOW TABLES;
+
+#
+# EXISTS with UNION VIEW
+#
+CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
+select * from v1;
+drop view v1;

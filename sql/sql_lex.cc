@@ -1481,8 +1481,9 @@ void st_select_lex::print_order(String *str, ORDER *order)
 
 void st_select_lex::print_limit(THD *thd, String *str)
 {
-  Item_subselect *item= master_unit()->item;
-  if (item &&
+  SELECT_LEX_UNIT *unit= master_unit();
+  Item_subselect *item= unit->item;
+  if (item && unit->global_parameters == this &&
       (item->substype() == Item_subselect::EXISTS_SUBS ||
        item->substype() == Item_subselect::IN_SUBS ||
        item->substype() == Item_subselect::ALL_SUBS))

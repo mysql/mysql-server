@@ -1042,3 +1042,8 @@ SHOW TABLES;
 Tables_in_test	table_type
 t2	BASE TABLE
 v4	VIEW
+CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
+select * from v1;
+EXISTS (SELECT 1 UNION SELECT 2)
+1
+drop view v1;
