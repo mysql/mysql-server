@@ -3,7 +3,7 @@ CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
 insert into t1 values ('000000000001'),('000000000002');
 explain select * from t1 where id=000000000001;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	FIRST	t1	index	PRIMARY	PRIMARY	12	NULL	2	where used; Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	12	NULL	2	where used; Using index
 select * from t1 where id=000000000001;
 id
 000000000001
