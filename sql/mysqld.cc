@@ -886,7 +886,8 @@ static void set_root(const char *path)
     sql_perror("chroot");
     unireg_abort(1);
   }
-  my_setwd("/", MYF(0));
+//  my_setwd("/", MYF(0));
+    sql_print_error("Warning: --chroot option doesn't provide 100%% closed chroot jail in MySQL 3.23. Upgrade to 4.0");
 #endif
 }
 
