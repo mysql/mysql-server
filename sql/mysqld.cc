@@ -968,7 +968,6 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_crypt);
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
-  (void) pthread_mutex_destroy(&LOCK_timezone);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
   (void) pthread_mutex_destroy(&LOCK_active_mi);
@@ -1998,19 +1997,11 @@ int main(int argc, char **argv)
   }
 #endif
 #ifdef HAVE_TZNAME
-#if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
     strmov(time_zone,tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
   }
-#else
-  {
-    struct tm *start_tm;
-    start_tm=localtime(&start_time);
-    strmov(time_zone,tzname[start_tm->tm_isdst != 0 ? 1 : 0]);
-  }
-#endif
 #endif
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
@@ -2067,7 +2058,6 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);

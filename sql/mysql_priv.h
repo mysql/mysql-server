@@ -755,7 +755,7 @@ uint calc_days_in_year(uint year);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
-long my_gmt_sec(TIME *);
+long my_gmt_sec(TIME *, long *current_timezone);
 time_t str_to_timestamp(const char *str,uint length);
 bool str_to_time(const char *str,uint length,TIME *l_time);
 longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
