@@ -1365,12 +1365,19 @@ TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
 bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
+  struct ndb_mgm_reply mgm_reply;
+
   DBUG_ENTER("TransporterRegistry::start_service");
   if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {
     ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
     DBUG_RETURN(false);
   }
+
+  if(!ndb_mgm_is_connected(m_mgm_handle))
+    ndb_mgm_connect(m_mgm_handle, 0, 0, 0);
+  if(!ndb_mgm_is_connected(m_mgm_handle))
+    DBUG_RETURN(false);
 
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
@@ -1404,6 +1411,18 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     }
     t.m_s_service_port= (t.m_s_service_port<=0)?-port:port; // -`ve if dynamic
     DBUG_PRINT("info", ("t.m_s_service_port = %d",t.m_s_service_port));
+
+    if(t.m_s_service_port < 0
+       && ndb_mgm_set_connection_int_parameter(m_mgm_handle,
+					     get_localNodeId(),
+					     t.m_remote_nodeId,
+					     CFG_CONNECTION_SERVER_PORT,
+					     t.m_s_service_port,
+					     &mgm_reply) < 0)
+    {
+      delete transporter_service;
+      DBUG_RETURN(false);
+    }
     transporter_service->setTransporterRegistry(this);
   }
   DBUG_RETURN(true);
@@ -1521,10 +1540,65 @@ TransporterRegistry::get_transporter(NodeId nodeId) {
   return theTransporters[nodeId];
 }
 
+bool TransporterRegistry::connect_client(NdbMgmHandle *h)
+{
+  DBUG_ENTER("TransporterRegistry::connect_client(NdbMgmHandle)");
+
+  Uint32 mgm_nodeid= ndb_mgm_get_mgmd_nodeid(*h);
+
+  if(!mgm_nodeid)
+    return false;
+
+  Transporter * t = theTransporters[mgm_nodeid];
+  if (!t)
+    return false;
+
+  DBUG_RETURN(t->connect_client(connect_ndb_mgmd(h)));
+}
+
+/**
+ * Given a connected NdbMgmHandle, turns it into a transporter
+ * and returns the socket.
+ */
+NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
+{
+  struct ndb_mgm_reply mgm_reply;
+
+  if ( h==NULL || *h == NULL )
+  {
+    return NDB_INVALID_SOCKET;
+  }
+
+  for(unsigned int i=0;i < m_transporter_interface.size();i++)
+    if (m_transporter_interface[i].m_s_service_port < 0
+	&& ndb_mgm_set_connection_int_parameter(*h,
+				   get_localNodeId(),
+				   m_transporter_interface[i].m_remote_nodeId,
+				   CFG_CONNECTION_SERVER_PORT,
+				   m_transporter_interface[i].m_s_service_port,
+				   &mgm_reply) < 0)
+    {
+      ndb_mgm_destroy_handle(h);
+      return NDB_INVALID_SOCKET;
+    }
+
+  /**
+   * convert_to_transporter also disposes of the handle (i.e. we don't leak
+   * memory here.
+   */
+  NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
+  if ( sockfd == NDB_INVALID_SOCKET)
+    ndb_mgm_destroy_handle(h);
+  return sockfd;
+}
+
+/**
+ * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
+ * and returns the socket.
+ */
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
-  struct ndb_mgm_reply mgm_reply;
 
   if ( h == NULL )
   {
@@ -1562,22 +1636,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
     return NDB_INVALID_SOCKET;
   }
 
-  for(unsigned int i=0;i < m_transporter_interface.size();i++)
-    if (ndb_mgm_set_connection_int_parameter(h,
-				   get_localNodeId(),
-				   m_transporter_interface[i].m_remote_nodeId,
-				   CFG_CONNECTION_SERVER_PORT,
-				   m_transporter_interface[i].m_s_service_port,
-				   &mgm_reply) < 0)
-    {
-      ndb_mgm_destroy_handle(&h);
-      return NDB_INVALID_SOCKET;
-    }
-
-  NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
-  if ( sockfd == NDB_INVALID_SOCKET)
-    ndb_mgm_destroy_handle(&h);
-  return sockfd;
+  return connect_ndb_mgmd(&h);
 }
 
 template class Vector<TransporterRegistry::Transporter_interface>;
