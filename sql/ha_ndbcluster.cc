@@ -3977,7 +3977,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       TABLE_LIST table_list;
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char*) db;
-      table_list.real_name=(char*)file_name;
+      table_list.alias=table_list.real_name=(char*)file_name;
       (void)mysql_rm_table_part2(thd, &table_list, 
 				 /* if_exists */ true, 
 				 /* drop_temporary */ false, 
