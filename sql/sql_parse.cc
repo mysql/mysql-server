@@ -2897,6 +2897,38 @@ mysql_execute_command(THD *thd)
     res= -1;
 #endif
     break;
+  case SQLCOM_DROP_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1))
+      break;
+    if (!(res= mysql_drop_user(thd, lex->users_list)))
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
+  case SQLCOM_REVOKE_ALL:
+  {
+    if (check_access(thd, GRANT_ACL ,"mysql",0,1))
+      break;
+    if (!(res = mysql_revoke_all(thd, lex->users_list)))
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
