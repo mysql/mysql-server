@@ -2509,6 +2509,12 @@ Tek-Tips Forums are 800+ independent peer-to-peer non-commercial support
 forums for Computer Professionals.  Features include automatic e-mail
 notification of responses, a links library, and member confidentiality
 guaranteed.
+
+@item @uref{http://www.public.asu.edu/~peterjn/btree/, B-tree paper}
+B-Trees: Balanced Tree Data Structures
+
+@item @uref{http://www.fit.qut.edu.au/~maire/baobab/lecture/sld001.htm, B-tree lecture}
+A lecture about B-Trees
 @end itemize
 
 There are also many Web pages that use
