@@ -1612,11 +1612,9 @@ trx_print(
 			fputs(", not started", f);
 			break;
 		case TRX_ACTIVE:
+		case TRX_PREPARED:
 			fprintf(f, ", ACTIVE %lu sec",
 				(ulong)difftime(time(NULL), trx->start_time));
-                        break;
-                case TRX_PREPARED:
-			fputs(", PREPARED", f);
                         break;
 		case TRX_COMMITTED_IN_MEMORY:
 			fputs(", COMMITTED IN MEMORY", f);
