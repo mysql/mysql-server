@@ -1877,14 +1877,14 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   for (; tables ; tables=tables->next)
   {
     TABLE *table=tables->table;
-    if (grant_option && !(table->grant.privilege &
-			  table->grant.want_privilege) &&
-	check_grant_all_columns(thd,SELECT_ACL,table))
-      DBUG_RETURN(-1);
     if (!table_name || (!strcmp(table_name,tables->alias) &&
 			(!db_name || !tables->db ||
 			 !strcmp(tables->db,db_name))))
     {
+      if (!(table->grant.privilege & SELECT_ACL) &&
+	  check_grant_all_columns(thd,SELECT_ACL,table))
+	DBUG_RETURN(-1);
+
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
