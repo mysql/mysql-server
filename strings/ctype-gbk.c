@@ -2614,11 +2614,12 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
 		     const uchar *a, uint a_length,
-		     const uchar *b, uint b_length)
+                     const uchar *b, uint b_length,
+                     my_bool b_is_prefix)
 {
   uint length= min(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
-  return res ? res : (int) (a_length - b_length);
+  return res ? res : (int) ((b_is_prefix ? length : a_length) - b_length);
 }
 
 
@@ -2715,7 +2716,7 @@ static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;				/* Skipp escape */
+      ptr++;				/* Skip escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }
@@ -9918,6 +9919,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_gbk,
   my_strnncollsp_gbk,
   my_strnxfrm_gbk,
@@ -9930,6 +9932,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_gbk,
   mbcharlen_gbk,
   my_numchars_mb,
@@ -9962,20 +9965,22 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     "gbk",		/* cs name    */
     "gbk_chinese_ci",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -9987,20 +9992,22 @@ CHARSET_INFO my_charset_gbk_bin=
     "gbk",		/* cs name    */
     "gbk_bin",		/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gbk,
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

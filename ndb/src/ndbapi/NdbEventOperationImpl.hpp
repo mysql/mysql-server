@@ -60,7 +60,6 @@ public:
 
   void print();
   void printAll();
-  void printRecAttr(NdbRecAttr *);
 
   Ndb *m_ndb;
   NdbEventImpl *m_eventImpl;

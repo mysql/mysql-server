@@ -61,7 +61,8 @@ NdbResultSet::updateTuple(){
   }
   
   NdbScanOperation * op = (NdbScanOperation*)(m_operation);
-  return op->takeOverScanOp(UpdateRequest, op->m_transConnection);
+  return op->takeOverScanOp(NdbOperation::UpdateRequest, 
+			    op->m_transConnection);
 }
 
 NdbOperation* 
@@ -71,7 +72,8 @@ NdbResultSet::updateTuple(NdbConnection* takeOverTrans){
     return 0;
   }
   
-  return m_operation->takeOverScanOp(UpdateRequest, takeOverTrans);
+  return m_operation->takeOverScanOp(NdbOperation::UpdateRequest, 
+				     takeOverTrans);
 }
 
 int
@@ -82,7 +84,8 @@ NdbResultSet::deleteTuple(){
   }
   
   NdbScanOperation * op = (NdbScanOperation*)(m_operation);
-  void * res = op->takeOverScanOp(DeleteRequest, op->m_transConnection);
+  void * res = op->takeOverScanOp(NdbOperation::DeleteRequest, 
+				  op->m_transConnection);
   if(res == 0)
     return -1;
   return 0;
@@ -95,7 +98,8 @@ NdbResultSet::deleteTuple(NdbConnection * takeOverTrans){
     return 0;
   }
   
-  void * res = m_operation->takeOverScanOp(DeleteRequest, takeOverTrans);
+  void * res = m_operation->takeOverScanOp(NdbOperation::DeleteRequest, 
+					   takeOverTrans);
   if(res == 0)
     return -1;
   return 0;

@@ -179,7 +179,7 @@ Dbdih::Dbdih(const class Configuration & config):
   addRecSignal(GSN_START_LCP_REQ, &Dbdih::execSTART_LCP_REQ);
   addRecSignal(GSN_START_LCP_CONF, &Dbdih::execSTART_LCP_CONF);
   
-  addRecSignal(GSN_SIZEALT_REP, &Dbdih::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbdih::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_UNBLO_DICTCONF, &Dbdih::execUNBLO_DICTCONF);
   addRecSignal(GSN_COPY_ACTIVECONF, &Dbdih::execCOPY_ACTIVECONF);
   addRecSignal(GSN_TAB_COMMITREQ, &Dbdih::execTAB_COMMITREQ);
@@ -201,7 +201,6 @@ Dbdih::Dbdih(const class Configuration & config):
   addRecSignal(GSN_NDB_STARTREQ, &Dbdih::execNDB_STARTREQ);
   addRecSignal(GSN_GETGCIREQ, &Dbdih::execGETGCIREQ);
   addRecSignal(GSN_DIH_RESTARTREQ, &Dbdih::execDIH_RESTARTREQ);
-  addRecSignal(GSN_CNTR_CHANGEREP, &Dbdih::execCNTR_CHANGEREP);
   addRecSignal(GSN_START_RECCONF, &Dbdih::execSTART_RECCONF);
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGCONF, &Dbdih::execADD_FRAGCONF);

@@ -135,7 +135,7 @@ explain extended select * from t6 where exists (select * from t7 where uq = clin
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 
 # different tipes & group functions
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;
 
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
@@ -1163,3 +1163,57 @@ SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
 DROP TABLE t1;
+
+#
+# SELECT(EXISTS * ...)optimisation
+#
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4);
+select * from t1 up where exists (select * from t1 where t1.a=up.a);
+explain extended select * from t1 up where exists (select * from t1 where t1.a=up.a);
+drop table t1;
+
+#
+# Bug #4102: subselect in HAVING
+#
+
+CREATE TABLE t1 (t1_a int);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (t2_a int, t2_b int, PRIMARY KEY (t2_a, t2_b));
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+SELECT * FROM t1, t2 table2 WHERE t1_a = 1 AND table2.t2_a = 1
+  HAVING table2.t2_b = (SELECT MAX(t2_b) FROM t2 WHERE t2_a = table2.t2_a);
+DROP TABLE t1, t2;
+
+#
+# Test problem with NULL and derived tables (Bug #4097)
+#
+
+CREATE TABLE t1 (id int(11) default NULL,name varchar(10) default NULL);
+INSERT INTO t1 VALUES (1,'Tim'),(2,'Rebecca'),(3,NULL);
+CREATE TABLE t2 (id int(11) default NULL, pet varchar(10) default NULL);
+INSERT INTO t2 VALUES (1,'Fido'),(2,'Spot'),(3,'Felix');
+SELECT a.*, b.* FROM (SELECT * FROM t1) AS a JOIN t2 as b on a.id=b.id;
+drop table t1,t2;
+
+#
+# outer fields resolving in INSERT/REPLACE and CRETE with SELECT
+#
+CREATE TABLE t1 ( a int, b int );
+CREATE TABLE t2 ( c int, d int );
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t2;
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t3;
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+deallocate prepare stmt1;
+select * from t2;
+drop table t3;
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+select * from t3;
+deallocate prepare stmt1;
+DROP TABLE t1, t2, t3;

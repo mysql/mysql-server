@@ -65,7 +65,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_pread.lo mf_cache.lo md5.lo sha1.lo\
 			my_getopt.lo my_gethostbyname.lo my_port.lo
 sqlobjects =		net.lo
-sql_cmn_objects =	pack.lo client.lo
+sql_cmn_objects =	pack.lo client.lo my_time.lo
 
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo

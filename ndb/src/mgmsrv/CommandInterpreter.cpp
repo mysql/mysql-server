@@ -27,7 +27,6 @@
 #include <signaldata/SetLogLevelOrd.hpp>
 #include "ConfigInfo.hpp"
 
-extern "C" 
 #include <version.h>
 
 
@@ -453,14 +452,15 @@ void CommandInterpreter::executeShow(char* parameters) {
     return;
   } else if (strcmp(parameters, "PROPERTIES") == 0 ||
 	     strcmp(parameters, "PROP") == 0) {
-    _mgmtSrvr.getConfig()->print();
+    ndbout << "_mgmtSrvr.getConfig()->print();" << endl; /* XXX */
   } else if (strcmp(parameters, "CONFIGURATION") == 0 ||
 	     strcmp(parameters, "CONFIG") == 0){
+    ndbout << "_mgmtSrvr.getConfigFile()->print();" << endl; /* XXX */
     _mgmtSrvr.getConfig()->printConfigFile();
   } else if (strcmp(parameters, "PARAMETERS") == 0 ||
 	     strcmp(parameters, "PARAMS") == 0 ||
 	     strcmp(parameters, "PARAM") == 0) {
-    _mgmtSrvr.getConfig()->getConfigInfo()->print();
+    ndbout << "_mgmtSrvr.getConfigInfo()->print();" << endl; /* XXX */
   } else {
     ndbout << "Invalid argument." << endl;
   }
@@ -773,11 +773,11 @@ void CommandInterpreter::executeStatus(int processId,
   }
   
   ndb_mgm_node_status status;
-  Uint32 startPhase, version, dynamicId, nodeGroup;
+  Uint32 startPhase, version, dynamicId, nodeGroup, connectCount;
   bool system;
   int result = _mgmtSrvr.status(processId, 
 				&status, &version, &startPhase, &system,
-				&dynamicId, &nodeGroup);
+				&dynamicId, &nodeGroup, &connectCount);
   if(result != 0){
     ndbout << _mgmtSrvr.getErrorText(result) << endl;
     return;

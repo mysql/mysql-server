@@ -203,13 +203,13 @@ BaseString::empty() const
 inline void
 BaseString::ndb_toupper() {
   for(unsigned i = 0; i < length(); i++)
-    m_chr[i] = ::toupper(m_chr[i]);
+    m_chr[i] = toupper(m_chr[i]);
 }
 
 inline void
 BaseString::ndb_tolower() {
   for(unsigned i = 0; i < length(); i++)
-    m_chr[i] = ::tolower(m_chr[i]);
+    m_chr[i] = tolower(m_chr[i]);
 }
 
 inline bool

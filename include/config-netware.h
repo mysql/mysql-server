@@ -57,6 +57,10 @@ extern "C" {
   #undef HAVE_CRYPT
 #endif /* HAVE_OPENSSL */
 
+/* Configure can't detect this because it uses AC_TRY_RUN */
+#undef HAVE_COMPRESS
+#define HAVE_COMPRESS
+
 /* include the old function apis */
 #define USE_OLD_FUNCTIONS 1
 

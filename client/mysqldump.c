@@ -43,7 +43,6 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include <assert.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -56,6 +55,7 @@
 #define EX_MYSQLERR 2
 #define EX_CONSCHECK 3
 #define EX_EOM 4
+#define EX_EOF 5 /* ferror for output file was got */
 
 /* index into 'show fields from table' */
 
@@ -82,7 +82,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0;
-
+static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -95,7 +95,6 @@ static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
 static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
-extern ulong net_buffer_length;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
 FILE  *md_result_file;
@@ -129,6 +128,9 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 
 static struct my_option my_long_options[] =
 {
+  {"all", 'a', "Deprecated. Use --create-options instead.",
+   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
@@ -241,10 +243,10 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
-   "Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
+   "Deprecated. Use --skip-set-charset instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "'SET CHARACTER_SET_CLIENT=default_character_set' will be put in the output",
+   "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
    (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"set-variable", 'O',
@@ -304,11 +306,11 @@ static struct my_option my_long_options[] =
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-    (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0,
+    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
     GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
    (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-    (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
+    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
     MALLOC_OVERHEAD-1024, 1024, 0},
   {"comments", 'i', "Write additional information.",
@@ -333,6 +335,23 @@ static char *quote_name(const char *name, char *buff, my_bool force);
 static const char *check_if_ignore_table(const char *table_name);
 
 #include <help_start.h>
+
+/*
+  exit with message if ferror(file)
+  
+  SYNOPSIS
+    check_io()
+    file	- checked file
+*/
+
+void check_io(FILE *file)
+{
+  if (ferror(file))
+  {
+    fprintf(stderr, "%s: Got errno %d on write\n", my_progname, errno);
+    safe_exit(EX_EOF);
+  }
+}
 
 static void print_version(void)
 {
@@ -380,6 +399,7 @@ static void write_header(FILE *sql_file, char *db_name)
   {
     fputs("<?xml version=\"1.0\"?>\n", sql_file);
     fputs("<mysqldump>\n", sql_file);
+    check_io(sql_file);
   }
   else if (!opt_compact)
   {
@@ -395,7 +415,11 @@ static void write_header(FILE *sql_file, char *db_name)
 	      mysql_get_server_info(&mysql_connection));
     }
     if (opt_set_charset)
-      fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
+      fprintf(sql_file,
+"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
+"\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
+"\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
+"\n/*!40101 SET NAMES %s */;\n",default_charset);
     if (!path)
     {
       fprintf(md_result_file,"\
@@ -407,6 +431,7 @@ static void write_header(FILE *sql_file, char *db_name)
 	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=\"%s%s%s\" */;\n",
 	    path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
 	    compatible_mode_normal_str);
+    check_io(sql_file);
   }
 } /* write_header */
 
@@ -414,7 +439,10 @@ static void write_header(FILE *sql_file, char *db_name)
 static void write_footer(FILE *sql_file)
 {
   if (opt_xml)
+  {
     fputs("</mysqldump>\n", sql_file);
+    check_io(sql_file);
+  }
   else if (!opt_compact)
   {
     fprintf(sql_file,"\n/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n");
@@ -426,8 +454,11 @@ static void write_footer(FILE *sql_file)
     }
     if (opt_set_charset)
       fprintf(sql_file,
-	      "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n");
+"/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
+"/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
+"/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
     fputs("\n", sql_file);
+    check_io(sql_file);
   }
 } /* write_footer */
 
@@ -566,12 +597,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static int get_options(int *argc, char ***argv)
 {
   int ho_error;
+  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
+
+  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
+  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
   load_defaults("my",load_default_groups,argc,argv);
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
+  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
 
   if (opt_delayed)
     opt_lock=0;				/* Can't have lock with delayed */
@@ -714,6 +752,7 @@ static void unescape(FILE *file,char *pos,uint length)
   fputc('\'', file);
   fputs(tmp, file);
   fputc('\'', file);
+  check_io(file);
   my_free(tmp, MYF(MY_WME));
   DBUG_VOID_RETURN;
 } /* unescape */
@@ -805,6 +844,7 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
       break;
     }
   }
+  check_io(xml_file);
 }
 
 
@@ -838,6 +878,7 @@ static void print_xml_tag1(FILE * xml_file, const char* sbeg,
   print_quoted_xml(xml_file, sval, strlen(sval));
   fputs("\">", xml_file);
   fputs(send, xml_file);
+  check_io(xml_file);
 }
 
 
@@ -866,6 +907,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   ulong *lengths= mysql_fetch_lengths(tableRes);
   
   fprintf(xml_file, "\t\t<%s", row_name);
+  check_io(xml_file);
   mysql_field_seek(tableRes, 0);
   for (i= 0; (field= mysql_fetch_field(tableRes)); i++)
   {
@@ -876,9 +918,11 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
       fputs("=\"", xml_file);
       print_quoted_xml(xml_file, (*row)[i], lengths[i]);
       fputc('"', xml_file);
+      check_io(xml_file);
     }
   }
   fputs(" />\n", xml_file);
+  check_io(xml_file);
 }
 
 /*
@@ -945,14 +989,21 @@ static uint getTableStructure(char *table, char* db)
         write_header(sql_file, db);
       }
       if (!opt_xml && opt_comments)
+      {
         fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
 		result_table);
+	check_io(sql_file);
+      }
       if (opt_drop)
+      {
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", opt_quoted_table);
+	check_io(sql_file);
+      }
 
       tableRes=mysql_store_result(sock);
       row=mysql_fetch_row(tableRes);
       fprintf(sql_file, "%s;\n", row[1]);
+      check_io(sql_file);
       mysql_free_result(tableRes);
     }
     sprintf(insert_pat,"show fields from %s", result_table);
@@ -1032,6 +1083,7 @@ static uint getTableStructure(char *table, char* db)
 	fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
       else
         print_xml_tag1(sql_file, "\t", "table_structure name=", table, "\n");
+      check_io(sql_file);
     }
     if (cFlag)
       sprintf(insert_pat, "INSERT %sINTO %s (", delayed, result_table);
@@ -1049,7 +1101,10 @@ static uint getTableStructure(char *table, char* db)
       if (init)
       {
         if (!opt_xml && !tFlag)
+	{
 	  fputs(",\n",sql_file);
+	  check_io(sql_file);
+	}
         if (cFlag)
 	  strpos=strmov(strpos,", ");
       }
@@ -1081,6 +1136,7 @@ static uint getTableStructure(char *table, char* db)
 	  fputs(" NOT NULL", sql_file);
         if (row[SHOW_EXTRA][0])
 	  fprintf(sql_file, " %s",row[SHOW_EXTRA]);
+	check_io(sql_file);
       }
     }
     numFields = (uint) mysql_num_rows(tableRes);
@@ -1149,12 +1205,14 @@ static uint getTableStructure(char *table, char* db)
         fputs(quote_name(row[4], name_buff, 0), sql_file);
         if (row[7])
 	  fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
+	check_io(sql_file);
       }
       if (!opt_xml)
       {
 	if (keynr)
 	  putc(')', sql_file);
 	fputs("\n)",sql_file);
+	check_io(sql_file);
       }
 
       /* Get MySQL specific create options */
@@ -1193,6 +1251,7 @@ static uint getTableStructure(char *table, char* db)
 	    print_value(sql_file,tableRes,row,"","Create_options",0);
 	    print_value(sql_file,tableRes,row,"comment=","Comment",1);
 	    fputs(" */",sql_file);
+	    check_io(sql_file);
 	  }
         }
         mysql_free_result(tableRes);		/* Is always safe to free */
@@ -1201,6 +1260,7 @@ static uint getTableStructure(char *table, char* db)
 	fputs(";\n", sql_file);
       else
 	fputs("\t</table_structure>\n", sql_file);
+      check_io(sql_file);
     }
   }
   if (cFlag)
@@ -1354,19 +1414,28 @@ static void dumpTable(uint numFields, char *table)
   else
   {
     if (!opt_xml && opt_comments)
+    {
       fprintf(md_result_file,"\n--\n-- Dumping data for table %s\n--\n",
 	      result_table);
+      check_io(md_result_file);
+    }
     sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
 	    result_table);
     if (where)
     {
       if (!opt_xml && opt_comments)
+      {
 	fprintf(md_result_file,"-- WHERE:  %s\n",where);
+	check_io(md_result_file);
+      }
       query= alloc_query_str((ulong) (strlen(where) + strlen(query) + 10));
       strxmov(query, query_buf, " WHERE ", where, NullS);
     }
     if (!opt_xml && !opt_compact)
+    {
       fputs("\n", md_result_file);
+      check_io(md_result_file);
+    }
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -1394,12 +1463,18 @@ static void dumpTable(uint numFields, char *table)
     }
 
     if (opt_disable_keys)
+    {
       fprintf(md_result_file, "\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
 	      opt_quoted_table);
+      check_io(md_result_file);
+    }
     if (opt_lock)
+    {
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
+      check_io(md_result_file);
+    }
 
-    total_length=net_buffer_length;		/* Force row break */
+    total_length= opt_net_buffer_length;		/* Force row break */
     row_break=0;
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
@@ -1407,7 +1482,10 @@ static void dumpTable(uint numFields, char *table)
       print_xml_tag1(md_result_file, "\t", "table_data name=", table, "\n");
 
     if (opt_autocommit)
+    {
       fprintf(md_result_file, "set autocommit=0;\n");
+      check_io(md_result_file);
+    }
 
     while ((row=mysql_fetch_row(res)))
     {
@@ -1415,11 +1493,17 @@ static void dumpTable(uint numFields, char *table)
       ulong *lengths=mysql_fetch_lengths(res);
       rownr++;
       if (!extended_insert && !opt_xml)
+      {
 	fputs(insert_pat,md_result_file);
+	check_io(md_result_file);
+      }
       mysql_field_seek(res,0);
 
       if (opt_xml)
+      {
         fputs("\t<row>\n", md_result_file);
+	check_io(md_result_file);
+      }
 
       for (i = 0; i < mysql_num_fields(res); i++)
       {
@@ -1492,7 +1576,10 @@ static void dumpTable(uint numFields, char *table)
 	else
 	{
 	  if (i && !opt_xml)
+	  {
 	    fputc(',', md_result_file);
+	    check_io(md_result_file);
+	  }
 	  if (row[i])
 	  {
 	    if (!IS_NUM_FIELD(field))
@@ -1533,18 +1620,24 @@ static void dumpTable(uint numFields, char *table)
 		fputs(ptr, md_result_file);
 	    }
 	  }
+	  else
+            fputs("NULL", md_result_file);
+          check_io(md_result_file);
 	}
       }
 
       if (opt_xml)
+      {
         fputs("\t</row>\n", md_result_file);
+	check_io(md_result_file);
+      }
 
       if (extended_insert)
       {
 	ulong row_length;
 	dynstr_append(&extended_row,")");
         row_length = 2 + extended_row.length;
-        if (total_length + row_length < net_buffer_length)
+        if (total_length + row_length < opt_net_buffer_length)
         {
 	  total_length += row_length;
 	  fputc(',',md_result_file);		/* Always row break */
@@ -1560,9 +1653,13 @@ static void dumpTable(uint numFields, char *table)
           fputs(extended_row.str,md_result_file);
 	  total_length = row_length+init_length;
         }
+	check_io(md_result_file);
       }
       else if (!opt_xml)
+      {
 	fputs(");\n", md_result_file);
+	check_io(md_result_file);
+      }
     }
 
     /* XML - close table tag and supress regular output */
@@ -1571,6 +1668,7 @@ static void dumpTable(uint numFields, char *table)
     else if (extended_insert && row_break)
       fputs(";\n", md_result_file);		/* If not empty table */
     fflush(md_result_file);
+    check_io(md_result_file);
     if (mysql_errno(sock))
     {
       sprintf(query,"%s: Error %d: %s when dumping table %s at row: %ld\n",
@@ -1584,12 +1682,21 @@ static void dumpTable(uint numFields, char *table)
       goto err;
     }
     if (opt_lock)
+    {
       fputs("UNLOCK TABLES;\n", md_result_file);
+      check_io(md_result_file);
+    }
     if (opt_disable_keys)
+    {
       fprintf(md_result_file,"/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
 	      opt_quoted_table);
+      check_io(md_result_file);
+    }
     if (opt_autocommit)
+    {
       fprintf(md_result_file, "commit;\n");
+      check_io(md_result_file);
+    }
     mysql_free_result(res);
     if (query != query_buf)
       my_free(query, MYF(MY_ALLOW_ZERO_PTR));
@@ -1680,7 +1787,10 @@ static int init_dumping(char *database)
       char quoted_database_buf[64*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
       if (opt_comments)
+      {
 	fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", qdatabase);
+	check_io(md_result_file);
+      }
       if (!opt_create_db)
       {
         char qbuf[256];
@@ -1707,6 +1817,7 @@ static int init_dumping(char *database)
 	}
       }
       fprintf(md_result_file,"\nUSE %s;\n", qdatabase);
+      check_io(md_result_file);
     }
   }
   if (extended_insert && init_dynamic_string(&extended_row, "", 1024, 1024))
@@ -1753,7 +1864,10 @@ static int dump_all_tables_in_db(char *database)
       dumpTable(numrows,table);
   }
   if (opt_xml)
+  {
     fputs("</database>\n", md_result_file);
+    check_io(md_result_file);
+  }
   if (lock_tables)
     mysql_query(sock,"UNLOCK TABLES");
   return 0;
@@ -1799,7 +1913,10 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       dumpTable(numrows, *table_names);
   }
   if (opt_xml)
+  {
     fputs("</database>\n", md_result_file);
+    check_io(md_result_file);
+  }
   if (lock_tables)
     mysql_query(sock,"UNLOCK TABLES");
   return 0;
@@ -1868,6 +1985,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 	  unescape(file,row[0],(uint) strlen(row[0]));
 	else
 	  fputs(row[0], file);
+	check_io(file);
 	return;
       }
     }
@@ -2007,6 +2125,7 @@ int main(int argc, char **argv)
 	  fprintf(md_result_file,
 		  "CHANGE MASTER TO MASTER_LOG_FILE='%s', \
 MASTER_LOG_POS=%s ;\n",row[0],row[1]); 
+	  check_io(md_result_file);
 	}
 	mysql_free_result(master);
       }

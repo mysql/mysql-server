@@ -21,7 +21,6 @@
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
-#include "AttrType.hpp"
 #include "NdbApiSignal.hpp"
 #include "API.hpp"
 #include <NdbSleep.h>
@@ -32,6 +31,10 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
+
+#include <mgmapi.h>
+#include <mgmapi_configuration.hpp>
+#include <mgmapi_config_parameters.h>
 
 // Just a C wrapper for threadMain
 extern "C" 
@@ -70,32 +73,49 @@ ClusterMgr::~ClusterMgr(){
 }
 
 void
-ClusterMgr::init(const IPCConfig & config){
-  NodeId tmp = 0;
-  while(config.getNextRemoteNodeId(tmp)) {
+ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
+  for(iter.first(); iter.valid(); iter.next()){
+    Uint32 tmp = 0;
+    if(iter.get(CFG_NODE_ID, &tmp))
+      continue;
+
     theNodes[tmp].defined = true;
 #if 0
     ndbout << "--------------------------------------" << endl;
-    config.print();
     ndbout << "--------------------------------------" << endl;
     ndbout_c("ClusterMgr: Node %d defined as %s", tmp, config.getNodeType(tmp));
 #endif
-    if(strcmp(config.getNodeType(tmp), "DB") == 0) {
+
+    unsigned type;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type))
+      continue;
+
+    switch(type){
+    case NODE_TYPE_DB:
       theNodes[tmp].m_info.m_type = NodeInfo::DB;
-    } else if(strcmp(config.getNodeType(tmp), "API") == 0) {
+      break;
+    case NODE_TYPE_API:
       theNodes[tmp].m_info.m_type = NodeInfo::API;
-    } else if(strcmp(config.getNodeType(tmp), "MGM") == 0) {
+      break;
+    case NODE_TYPE_MGM:
       theNodes[tmp].m_info.m_type = NodeInfo::MGM;
-    } else if(strcmp(config.getNodeType(tmp), "REP") == 0) {
+      break;
+    case NODE_TYPE_REP:
       theNodes[tmp].m_info.m_type = NodeInfo::REP;
-    } else if(strcmp(config.getNodeType(tmp), "EXTERNAL REP") == 0) {
+      break;
+    case NODE_TYPE_EXT_REP:
       theNodes[tmp].m_info.m_type = NodeInfo::REP;
-      theNodes[tmp].hbFrequency = config.getREPHBFrequency(tmp);
-      assert(100 <= theNodes[tmp].hbFrequency && 
-	     theNodes[tmp].hbFrequency < 60 * 60 * 1000);
-    } else {
+      {
+	Uint32 hbFreq = 10000;
+	//ndb_mgm_get_int_parameter(iter, CFG_, &hbFreq);
+	theNodes[tmp].hbFrequency = hbFreq;
+	assert(100 <= hbFreq && hbFreq < 60 * 60 * 1000);
+      }
+      break;
+    default:
+      type = type;
 #if 0
-      ndbout_c("ClusterMgr: Unknown node type: %s", config.getNodeType(tmp));
+      ndbout_c("ClusterMgr: Unknown node type: %d", type);
 #endif
     }
   }
@@ -163,45 +183,43 @@ ClusterMgr::threadMain( ){
       const NodeId nodeId = i;
       Node & theNode = theNodes[nodeId];
       
-      if (theNode.defined == true) {
-#if 0
-	ndbout_c("ClusterMgr: compatible %d", (int)nodeId);
-#endif
+      if (!theNode.defined)
+	continue;
 
-	if (theNode.connected == false){
-	  theFacade.doConnect(nodeId);
-	  continue;
+      if (theNode.connected == false){
+	theFacade.doConnect(nodeId);
+	continue;
+      }
+      
+      if (!theNode.compatible){
+	continue;
+      }
+      
+      theNode.hbCounter += timeSlept;
+      if (theNode.hbCounter >= theNode.hbFrequency){
+	/**
+	 * It is now time to send a new Heartbeat
+	 */
+	theNode.hbSent++;
+	theNode.hbCounter = 0;
+	/**
+	 * If the node is of type REP, 
+	 * then the receiver of the signal should be API_CLUSTERMGR
+	 */
+	if (theNode.m_info.m_type == NodeInfo::REP) {
+	  signal.theReceiversBlockNumber = API_CLUSTERMGR;
 	}
-	
-#if 0
-	ndbout_c("ClusterMgr: connected %d", (int)nodeId);
+#if 0 
+	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
-
-	theNode.hbCounter += timeSlept;
-	if (theNode.hbCounter >= theNode.hbFrequency){
-	  /**
-	   * It is now time to send a new Heartbeat
-	   */
-	  theNode.hbSent++;
-	  theNode.hbCounter = 0;
-	  /**
-	   * If the node is of type REP, 
-	   * then the receiver of the signal should be API_CLUSTERMGR
-	   */
-	  if (theNode.m_info.m_type == NodeInfo::REP) {
-	    signal.theReceiversBlockNumber = API_CLUSTERMGR;
-	  }
-#if 0
-	  ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
-#endif
-	  theFacade.sendSignalUnCond(&signal, nodeId);
-	}//if
-	
-	if (theNode.hbSent == 4 && theNode.hbFrequency > 0){
-	  reportNodeFailed(i);
-	}//if
-      }//if(defined)
-    }//for
+	theFacade.sendSignalUnCond(&signal, nodeId);
+      }//if
+      
+      if (theNode.hbSent == 4 && theNode.hbFrequency > 0){
+	reportNodeFailed(i);
+      }//if
+    }
+    
     /**
      * End of secure area. Let other threads in
      */
@@ -282,6 +300,10 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   const ApiRegConf * const apiRegConf = (ApiRegConf *)&theData[0];
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
+#if 0 
+  ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
+#endif
+
   assert(nodeId > 0 && nodeId < MAX_NODES);
   
   Node & node = theNodes[nodeId];

@@ -55,6 +55,7 @@ typedef int my_socket;
 #endif /* _global_h */
 
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysql_version.h"
 #include "typelib.h"
 
@@ -77,7 +78,6 @@ extern char *mysql_unix_port;
 #define IS_NUM_FIELD(f)	 ((f)->flags & NUM_FLAG)
 #define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && ((f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8)) || (f)->type == FIELD_TYPE_YEAR)
 
-#define HAVE_DEPRECATED_411_API 1
 
 typedef struct st_mysql_field {
   char *name;                 /* Name of column */
@@ -302,7 +302,6 @@ typedef struct st_mysql_res {
 #endif
 
 
-
 typedef struct st_mysql_manager
 {
   NET net;
@@ -317,6 +316,17 @@ typedef struct st_mysql_manager
   char last_error[MAX_MYSQL_MANAGER_ERR];
 } MYSQL_MANAGER;
 
+typedef struct st_mysql_parameters
+{
+  unsigned long *p_max_allowed_packet;
+  unsigned long *p_net_buffer_length;
+} MYSQL_PARAMETERS;
+
+#if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
+#define net_buffer_length (*mysql_get_parameters()->p_net_buffer_length)
+#endif
+
 /*
   Set up and bring down the server; to ensure that applications will
   work when linked against either the standard client library or the
@@ -324,6 +334,8 @@ typedef struct st_mysql_manager
 */
 int STDCALL mysql_server_init(int argc, char **argv, char **groups);
 void STDCALL mysql_server_end(void);
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void);
 
 /*
   Set up and bring down a thread; these function should be called
@@ -441,7 +453,9 @@ int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 					const char* user,
 					const char* passwd);
 
-int		STDCALL mysql_shutdown(MYSQL *mysql);
+int		STDCALL mysql_shutdown(MYSQL *mysql,
+                                       enum enum_shutdown_level
+                                       shutdown_level);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
 				     unsigned int refresh_options);
@@ -519,34 +533,17 @@ enum enum_mysql_stmt_state
   MYSQL_STMT_FETCH_DONE
 };
 
-/* 
-  client TIME structure to handle TIME, DATE and TIMESTAMP directly in 
-  binary protocol 
-*/
-enum mysql_st_timestamp_type { MYSQL_TIMESTAMP_NONE, MYSQL_TIMESTAMP_DATE, 
-                               MYSQL_TIMESTAMP_FULL, MYSQL_TIMESTAMP_TIME };
-
-typedef struct mysql_st_time 
-{
-  unsigned int  year,month,day,hour,minute,second;
-  unsigned long second_part;  
-  my_bool       neg;
-
-  enum mysql_st_timestamp_type time_type;
-  
-} MYSQL_TIME;
-
 
 /* bind structure */
 typedef struct st_mysql_bind
 {
   unsigned long	*length;          /* output length pointer */
   my_bool       *is_null;	  /* Pointer to null indicators */
-  char		*buffer;	  /* buffer to get/put data */
+  void		*buffer;	  /* buffer to get/put data */
   enum enum_field_types buffer_type;	/* buffer type */
   unsigned long buffer_length;    /* buffer length, must be set for str/binary */  
 
-  /* Following are for internal use. Set by mysql_bind_param */
+  /* Following are for internal use. Set by mysql_stmt_bind_param */
   unsigned char *inter_buffer;    /* for the current data position */
   unsigned long offset;           /* offset position for char/binary fetch */
   unsigned long	internal_length;  /* Used if length is 0 */
@@ -698,6 +695,7 @@ void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
 my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt);
+unsigned int STDCALL mysql_stmt_field_count(MYSQL_STMT *stmt);
 
 my_bool STDCALL mysql_commit(MYSQL * mysql);
 my_bool STDCALL mysql_rollback(MYSQL * mysql);

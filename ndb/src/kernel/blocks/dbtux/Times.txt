@@ -1,0 +1,52 @@
+index maintenance overhead
+==========================
+
+"mc02" 2x1700 MHz linux-2.4.9 gcc-2.96 -O3 one db-node
+
+case a: index on Unsigned
+testOIBasic -case u -table 1 -index 1 -fragtype small -threads 10 -rows 100000 -subloop 1 -nologging
+
+case b: index on Varchar(5) + Varchar(5) + Varchar(20) + Unsigned
+testOIBasic -case u -table 2 -index 4 -fragtype small -threads 10 -rows 100000 -subloop 1 -nologging
+
+1 million rows, pk update without index, pk update with index
+shows ms / 1000 rows for each and pct overhead
+the figures are based on single run on idle machine
+
+040616          mc02/a  40 ms   87 ms   114 pct
+                mc02/b  51 ms  128 ms   148 pct
+
+optim 1         mc02/a  38 ms   85 ms   124 pct
+                mc02/b  51 ms  123 ms   140 pct
+
+optim 2         mc02/a  41 ms   80 ms    96 pct
+                mc02/b  51 ms  117 ms   128 pct
+
+optim 3         mc02/a  43 ms   80 ms    85 pct
+                mc02/b  54 ms  118 ms   117 pct
+
+optim 4         mc02/a  42 ms   80 ms    87 pct
+                mc02/b  51 ms  119 ms   129 pct
+
+optim 5         mc02/a  43 ms   77 ms    77 pct
+                mc02/b  54 ms  118 ms   117 pct
+
+optim 6         mc02/a  42 ms   70 ms    66 pct
+                mc02/b  53 ms  109 ms   105 pct
+
+optim 7         mc02/a  42 ms   69 ms    61 pct
+                mc02/b  52 ms  106 ms   101 pct
+
+optim 8         mc02/a  42 ms   69 ms    62 pct
+                mc02/b  54 ms  104 ms    92 pct
+
+optim 9         mc02/a  43 ms   67 ms    54 pct
+                mc02/b  53 ms  102 ms    91 pct
+
+optim 10        mc02/a  44 ms   65 ms    46 pct
+                mc02/b  53 ms   88 ms    66 pct
+
+optim 11        mc02/a  43 ms   63 ms    46 pct
+                mc02/b  52 ms   86 ms    63 pct
+
+vim: set et:

@@ -177,43 +177,43 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_API_FAILCONF                113
 #define GSN_API_FAILREQ                 114
-#define GSN_APPL_CHANGEREP              115
+#define GSN_CNTR_START_REQ              115
 // 116 not unused
-#define GSN_APPL_HB                     117
-#define GSN_APPL_HBREQ                  118
-#define GSN_APPL_REGCONF                119
-#define GSN_APPL_REGREF                 120
-#define GSN_APPL_REGREQ                 121
-#define GSN_APPL_RUN                    122
-#define GSN_APPL_STARTCONF              123
-#define GSN_APPL_STARTREG               124
+#define GSN_CNTR_START_REF              117
+#define GSN_CNTR_START_CONF             118
+#define GSN_CNTR_START_REP              119
+// 120 unused
+// 121 unused
+// 122 unused
+// 123 unused
+// 124 unused
 #define GSN_CHECK_LCP_STOP              125
-#define GSN_CLOSE_COMCONF               126
-#define GSN_CLOSE_COMREQ                127
-#define GSN_CM_ACKADD                   128
-#define GSN_CM_ACKALARM                 129
-#define GSN_CM_ADD                      130
-#define GSN_CM_APPCHG                   131
+#define GSN_CLOSE_COMCONF               126 // local
+#define GSN_CLOSE_COMREQ                127 // local
+#define GSN_CM_ACKADD                   128 // distr.
+// 129 unused
+#define GSN_CM_ADD                      130 // distr.
+// 131 unused
 // 132 not unused
 // 133 not unused
-#define GSN_CM_HEARTBEAT                134
-#define GSN_CM_INFOCONF                 135
-#define GSN_CM_INFOREQ                  136
-#define GSN_CM_INIT                     137
-#define GSN_CM_NODEINFOCONF             138
-#define GSN_CM_NODEINFOREF              139
-#define GSN_CM_NODEINFOREQ              140
-#define GSN_CM_REGCONF                  141
-#define GSN_CM_REGREF                   142
-#define GSN_CM_REGREQ                   143
-#define GSN_CM_RUN                      144
-#define GSN_CMVMI_CFGCONF               145
-#define GSN_CMVMI_CFGREQ                146
-#define GSN_CNTR_CHANGEREP              147
-#define GSN_CNTR_MASTERCONF             148
-#define GSN_CNTR_MASTERREF              149
-#define GSN_CNTR_MASTERREQ              150
-#define GSN_CNTR_WAITREP                151
+#define GSN_CM_HEARTBEAT                134 // distr.
+// 135 unused
+// 136 unused
+// 137 unused
+#define GSN_CM_NODEINFOCONF             138 // distr.
+#define GSN_CM_NODEINFOREF              139 // distr.
+#define GSN_CM_NODEINFOREQ              140 // distr.
+#define GSN_CM_REGCONF                  141 // distr.
+#define GSN_CM_REGREF                   142 // distr.
+#define GSN_CM_REGREQ                   143 // distr.
+// 144 unused
+// 145 unused
+// 146 unused
+#define GSN_CM_ADD_REP                  147 // local
+// 148 unused 
+// 149 unused 
+// 150 unused 
+#define GSN_CNTR_WAITREP                151 // distr.
 #define GSN_COMMIT                      152
 #define GSN_COMMIT_FAILCONF             153
 #define GSN_COMMIT_FAILREQ              154
@@ -426,11 +426,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_NEXT_SCANREF                331
 #define GSN_NEXT_SCANREQ                332
 #define GSN_NEXTOPERATION               333
-#define GSN_SIZEALT_ACK                 334
-#define GSN_SIZEALT_REP                 335
-#define GSN_NODE_STATESCONF             336
-#define GSN_NODE_STATESREF              337
-#define GSN_NODE_STATESREQ              338
+
+#define GSN_READ_CONFIG_REQ             334 // new name for sizealt, local
+#define GSN_READ_CONFIG_CONF            335 // new name for sizealt, local
+
+// 336 unused
+// 337 unused
+// 338 unused
 #define GSN_OPEN_COMCONF                339
 #define GSN_OPEN_COMREF                 340
 #define GSN_OPEN_COMREQ                 341
@@ -511,8 +513,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TEST_ORD                    407
 #define GSN_TESTSIG                     408
 #define GSN_TIME_SIGNAL                 409
-#define GSN_VOTE_MASTERORD              410
-// 411 unused
+// 410 unused 
+// 411 unused 
 // 412 unused
 #define GSN_TUP_ABORTREQ                414
 #define GSN_TUP_ADD_ATTCONF             415
@@ -580,7 +582,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CHECKNODEGROUPSREQ          471
 #define GSN_CHECKNODEGROUPSCONF         472
 
-#define GSN_ARBIT_CFG                   473
+// 473 unused
 #define GSN_ARBIT_PREPREQ               474
 #define GSN_ARBIT_PREPCONF              475
 #define GSN_ARBIT_PREPREF               476
