@@ -694,7 +694,6 @@ class Item_func_group_concat : public Item_sum
   ORDER **order;
   TABLE_LIST *tables_list;
   ulong group_concat_max_len;
-  uint show_elements;
   uint arg_count_order;
   uint arg_count_field;
   uint field_list_offset;

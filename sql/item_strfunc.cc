@@ -950,17 +950,10 @@ String *Item_func_left::val_str(String *str)
     return 0;
   if (length <= 0)
     return &my_empty_string;
-  length= res->charpos(length);
-  if (res->length() > (ulong) length)
-  {						// Safe even if const arg
-    if (!res->alloced_length())
-    {						// Don't change const str
-      str_value= *res;				// Not malloced string
-      res= &str_value;
-    }
-    res->length((uint) length);
-  }
-  return res;
+  if (res->length() <= (uint) length)
+    return res;
+  tmp_value.set(*res, 0, res->charpos(length));
+  return &tmp_value;
 }
 
 
