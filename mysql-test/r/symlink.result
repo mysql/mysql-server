@@ -36,7 +36,7 @@ show create table t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` int(11) NOT NULL auto_increment,
-  `b` char(16) character set latin1 NOT NULL default '',
+  `b` char(16) NOT NULL default '',
   `c` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
 ) TYPE=MyISAM CHARSET=latin1
@@ -45,6 +45,8 @@ alter table t8 rename t7;
 rename table t7 to t9;
 drop table t1;
 Got one of the listed errors
+Warnings:
+Note	1008	Can't drop database 'test_mysqltest'. Database doesn't exist
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
@@ -57,7 +59,7 @@ show create table test_mysqltest.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` int(11) NOT NULL auto_increment,
-  `b` char(16) character set latin1 NOT NULL default '',
+  `b` char(16) NOT NULL default '',
   `c` int(11) NOT NULL default '0',
   `d` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
