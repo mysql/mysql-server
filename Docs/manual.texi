@@ -50850,6 +50850,9 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Fixed bug with caching system database ('mysql'). Now query to system 
+database is not cached by query cache.
+@item
 Small fix in @code{mysqld_safe} for some shells.
 @item
 Give error if a @code{MyISAM} @code{MERGE} table has more than 2 ^ 32 rows and
