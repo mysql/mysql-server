@@ -1003,12 +1003,6 @@ JOIN::reinit()
   
   /* Reset of sum functions */
   first_record= 0;
-  if (sum_funcs)
-  {
-    Item_sum *func, **func_ptr= sum_funcs;
-    while ((func= *(func_ptr++)))
-      func->null_value= 1;
-  }
 
   if (exec_tmp_table1)
   {
@@ -5979,8 +5973,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  if (!join->first_record)
 	  {
 	    /* No matching rows for group function */
-	    clear_tables(join);
-	    copy_fields(&join->tmp_table_param);
+	    join->clear();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -6246,8 +6239,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (!join->first_record)
 	{
 	  /* No matching rows for group function */
-	  clear_tables(join);
-	  copy_fields(&join->tmp_table_param);
+	  join->clear();
 	}
 	copy_sum_funcs(join->sum_funcs);
 	if (!join->having || join->having->val_int())
@@ -8542,6 +8534,26 @@ int JOIN::rollup_send_data(uint idx)
   return 0;
 }
 
+/*
+  clear results if there are not rows found for group
+  (end_send_group/end_write_group)
+
+  SYNOPSYS
+     JOIN::clear()
+*/
+
+void JOIN::clear()
+{
+  clear_tables(this);
+  copy_fields(&tmp_table_param);
+
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->clear();
+  }
+}
 
 /****************************************************************************
   EXPLAIN handling

@@ -912,3 +912,13 @@ select * from t1 where s1 > (select max(s2) from t1);
 -- error 1266
 select * from t1 where s1 > any (select max(s2) from t1);
 drop table t1;
+
+#
+# aggregate functions reinitialization
+#
+create table t1(toid int,rd int);
+create table t2(userid int,pmnew int,pmtotal int);
+insert into t2 values(1,0,0),(2,0,0);
+insert into t1 values(1,0),(1,0),(1,0),(1,12),(1,15),(1,123),(1,12312),(1,12312),(1,123),(2,0),(2,0),(2,1),(2,2);
+select userid,pmtotal,pmnew, (select count(rd) from t1 where toid=t2.userid) calc_total, (select count(rd) from t1 where rd=0 and toid=t2.userid) calc_new from t2 where userid in (select distinct toid from t1);
+drop table t1, t2;
