@@ -113,7 +113,7 @@ my_bool	innobase_fast_shutdown			= TRUE;
 2 : write to the log file at each commit, but flush to disk only once per
 second */
 
-long     innobase_flush_log_at_trx_commit	= 0;
+long     innobase_flush_log_at_trx_commit	= 1;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call

@@ -784,10 +784,7 @@ static int safe_sleep(THD* thd, int sec)
     */
     thr_alarm(&alarmed, 2 * nap_time,&alarm_buff);
     sleep(nap_time);
-    // if we wake up before the alarm goes off, hit the button
-    // so it will not wake up the wife and kids :-)
-    if (thr_alarm_in_use(&alarmed))
-      thr_end_alarm(&alarmed);
+    thr_end_alarm(&alarmed);
     
     if (slave_killed(thd))
       return 1;
