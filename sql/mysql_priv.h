@@ -156,8 +156,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define OPTION_LOW_PRIORITY_UPDATES	8192
 #define OPTION_WARNINGS		16384
 #define OPTION_AUTO_IS_NULL	32768
-#define OPTION_ANSI_MODE	65536L
-#define OPTION_SAFE_UPDATES	OPTION_ANSI_MODE*2
+#define OPTION_SAFE_UPDATES	65536L*2
 #define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
 #define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
 #define OPTION_NOT_AUTO_COMMIT	OPTION_BIN_LOG*2
@@ -172,6 +171,14 @@ void kill_one_thread(THD *thd, ulong id);
 /* The following is set when parsing the query */
 #define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
 #define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
+
+/* Bits for different SQL modes modes (including ANSI mode) */
+#define MODE_REAL_AS_FLOAT      1
+#define MODE_PIPES_AS_CONCAT    2
+#define MODE_ANSI_QUOTES        4
+#define MODE_IGNORE_SPACE	8
+#define MODE_SERIALIZABLE	16
+#define MODE_ONLY_FULL_GROUP_BY	32
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -530,7 +537,7 @@ extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     what_to_log,flush_time,
 	     max_tmp_tables,max_heap_table_size,query_buff_size,
 	     lower_case_table_names,thread_stack,thread_stack_min,
-	     binlog_cache_size, max_binlog_cache_size;
+	     binlog_cache_size, max_binlog_cache_size, opt_sql_mode;
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates, using_update_log;
 extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings;
