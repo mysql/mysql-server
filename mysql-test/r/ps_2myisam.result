@@ -1793,7 +1793,7 @@ t5	CREATE TABLE `t5` (
   `const12` char(0) default NULL,
   `param12` bigint(20) default NULL,
   `param13` double default NULL,
-  `param14` longblob,
+  `param14` longtext,
   `param15` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t5 ;
@@ -1823,7 +1823,7 @@ def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	0	0	8
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	5	20	0	Y	32768	31	63
-def	test	t5	t5	param14	param14	252	16777215	0	Y	144	0	63
+def	test	t5	t5	param14	param14	252	16777215	0	Y	16	0	8
 def	test	t5	t5	param15	param15	252	16777215	0	Y	144	0	63
 const01	8
 param01	8
@@ -1976,19 +1976,19 @@ def					@arg16	254	8192	0	Y	128	31	63
 def					@arg17	254	20	0	Y	128	31	63
 def					@arg18	254	20	0	Y	128	31	63
 def					@arg19	254	20	0	Y	128	31	63
-def					@arg20	254	8192	0	Y	128	31	63
-def					@arg21	254	8192	0	Y	128	31	63
-def					@arg22	254	8192	0	Y	128	31	63
+def					@arg20	254	8192	0	Y	0	31	8
+def					@arg21	254	8192	0	Y	0	31	8
+def					@arg22	254	8192	0	Y	0	31	8
 def					@arg23	254	8192	0	Y	128	31	63
-def					@arg24	254	8192	0	Y	128	31	63
+def					@arg24	254	8192	0	Y	0	31	8
 def					@arg25	254	8192	0	Y	128	31	63
-def					@arg26	254	8192	0	Y	128	31	63
+def					@arg26	254	8192	0	Y	0	31	8
 def					@arg27	254	8192	0	Y	128	31	63
-def					@arg28	254	8192	0	Y	128	31	63
+def					@arg28	254	8192	0	Y	0	31	8
 def					@arg29	254	8192	0	Y	128	31	63
-def					@arg30	254	8192	0	Y	128	31	63
-def					@arg31	254	8192	0	Y	128	31	63
-def					@arg32	254	8192	0	Y	128	31	63
+def					@arg30	254	8192	0	Y	0	31	8
+def					@arg31	254	8192	0	Y	0	31	8
+def					@arg32	254	8192	0	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select 
@@ -2066,19 +2066,19 @@ def					@arg16	254	8192	0	Y	128	31	63
 def					@arg17	254	20	0	Y	128	31	63
 def					@arg18	254	20	0	Y	128	31	63
 def					@arg19	254	20	0	Y	128	31	63
-def					@arg20	254	8192	0	Y	128	31	63
-def					@arg21	254	8192	0	Y	128	31	63
-def					@arg22	254	8192	0	Y	128	31	63
+def					@arg20	254	8192	0	Y	0	31	8
+def					@arg21	254	8192	0	Y	0	31	8
+def					@arg22	254	8192	0	Y	0	31	8
 def					@arg23	254	8192	0	Y	128	31	63
-def					@arg24	254	8192	0	Y	128	31	63
+def					@arg24	254	8192	0	Y	0	31	8
 def					@arg25	254	8192	0	Y	128	31	63
-def					@arg26	254	8192	0	Y	128	31	63
+def					@arg26	254	8192	0	Y	0	31	8
 def					@arg27	254	8192	0	Y	128	31	63
-def					@arg28	254	8192	0	Y	128	31	63
+def					@arg28	254	8192	0	Y	0	31	8
 def					@arg29	254	8192	0	Y	128	31	63
-def					@arg30	254	8192	0	Y	128	31	63
-def					@arg31	254	8192	0	Y	128	31	63
-def					@arg32	254	8192	0	Y	128	31	63
+def					@arg30	254	8192	0	Y	0	31	8
+def					@arg31	254	8192	0	Y	0	31	8
+def					@arg32	254	8192	0	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select ? := c1 from t9 where c1= 1" ;
@@ -2158,19 +2158,19 @@ def					@arg16	254	8192	0	Y	128	31	63
 def					@arg17	254	20	0	Y	128	31	63
 def					@arg18	254	20	0	Y	128	31	63
 def					@arg19	254	20	0	Y	128	31	63
-def					@arg20	254	8192	0	Y	128	31	63
-def					@arg21	254	8192	0	Y	128	31	63
-def					@arg22	254	8192	0	Y	128	31	63
+def					@arg20	254	8192	0	Y	0	31	8
+def					@arg21	254	8192	0	Y	0	31	8
+def					@arg22	254	8192	0	Y	0	31	8
 def					@arg23	254	8192	0	Y	128	31	63
-def					@arg24	254	8192	0	Y	128	31	63
+def					@arg24	254	8192	0	Y	0	31	8
 def					@arg25	254	8192	0	Y	128	31	63
-def					@arg26	254	8192	0	Y	128	31	63
+def					@arg26	254	8192	0	Y	0	31	8
 def					@arg27	254	8192	0	Y	128	31	63
-def					@arg28	254	8192	0	Y	128	31	63
+def					@arg28	254	8192	0	Y	0	31	8
 def					@arg29	254	8192	0	Y	128	31	63
-def					@arg30	254	8192	0	Y	128	31	63
-def					@arg31	254	8192	0	Y	128	31	63
-def					@arg32	254	8192	0	Y	128	31	63
+def					@arg30	254	8192	0	Y	0	31	8
+def					@arg31	254	8192	0	Y	0	31	8
+def					@arg32	254	8192	0	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
@@ -2242,19 +2242,19 @@ def					@arg16	254	8192	0	Y	128	31	63
 def					@arg17	254	20	0	Y	128	31	63
 def					@arg18	254	20	0	Y	128	31	63
 def					@arg19	254	20	0	Y	128	31	63
-def					@arg20	254	8192	0	Y	128	31	63
-def					@arg21	254	8192	0	Y	128	31	63
-def					@arg22	254	8192	0	Y	128	31	63
+def					@arg20	254	8192	0	Y	0	31	8
+def					@arg21	254	8192	0	Y	0	31	8
+def					@arg22	254	8192	0	Y	0	31	8
 def					@arg23	254	8192	0	Y	128	31	63
-def					@arg24	254	8192	0	Y	128	31	63
+def					@arg24	254	8192	0	Y	0	31	8
 def					@arg25	254	8192	0	Y	128	31	63
-def					@arg26	254	8192	0	Y	128	31	63
+def					@arg26	254	8192	0	Y	0	31	8
 def					@arg27	254	8192	0	Y	128	31	63
-def					@arg28	254	8192	0	Y	128	31	63
+def					@arg28	254	8192	0	Y	0	31	8
 def					@arg29	254	8192	0	Y	128	31	63
-def					@arg30	254	8192	0	Y	128	31	63
-def					@arg31	254	8192	0	Y	128	31	63
-def					@arg32	254	8192	0	Y	128	31	63
+def					@arg30	254	8192	0	Y	0	31	8
+def					@arg31	254	8192	0	Y	0	31	8
+def					@arg32	254	8192	0	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select c1 into ? from t9 where c1= 1" ;
