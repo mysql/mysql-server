@@ -1021,11 +1021,11 @@ uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 uint my_wellformedlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			const char *b,
-			const char *e,
+			const char *start,
+			const char *end,
 			uint nchars)
 {
-  uint nbytes= e-b;
+  uint nbytes= (uint) (end-start);
   return nbytes < nchars ? nbytes : nchars;
 }
 

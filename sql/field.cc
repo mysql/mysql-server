@@ -4072,7 +4072,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   }
 
   /* 
-    Make sure we don't break a multybite sequence
+    Make sure we don't break a multibyte sequence
     as well as don't copy a malformed data.
   */
   copy_length= field_charset->cset->wellformedlen(field_charset,
@@ -4084,8 +4084,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     field_charset->cset->fill(field_charset,ptr+copy_length,
 			      field_length-copy_length,' ');
   
-  
-  if (current_thd->count_cuted_fields && (copy_length < length))
+  if ((copy_length < length) && current_thd->count_cuted_fields)
   {					// Check if we loosed some info
     const char *end=from+length;
     from+= copy_length;
