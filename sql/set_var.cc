@@ -860,8 +860,8 @@ static void sys_default_init_slave(THD* thd, enum_var_type type)
 static int sys_check_ftb_syntax(THD *thd,  set_var *var)
 {
   if (thd->master_access & SUPER_ACL)
-    return ft_boolean_check_syntax_string(var->value->str_value.ptr()) ?
-           -1 : 0;
+    return ft_boolean_check_syntax_string(var->value->str_value.c_ptr()) ?
+      -1 : 0;
   else
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
@@ -871,13 +871,15 @@ static int sys_check_ftb_syntax(THD *thd,  set_var *var)
 
 static bool sys_update_ftb_syntax(THD *thd, set_var * var)
 {
-  strnmov(ft_boolean_syntax, var->value->str_value.ptr(), sizeof(ft_boolean_syntax));
+  strmake(ft_boolean_syntax, var->value->str_value.c_ptr(),
+	  sizeof(ft_boolean_syntax)-1);
   return 0;
 }
 
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 {
-  strnmov(ft_boolean_syntax, opt_ft_boolean_syntax, sizeof(ft_boolean_syntax));
+  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+	  sizeof(ft_boolean_syntax)-1);
 }
 
 /*
