@@ -31,7 +31,7 @@ select *, MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE) as x from t
 
 # boolean w/o index:
 
-select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
+select * from t1 where MATCH a AGAINST ("sear*" IN BOOLEAN MODE);
 
 #update/delete with fulltext index
 
