@@ -2450,13 +2450,17 @@ procedure_item:
 opt_into:
 	INTO OUTFILE TEXT_STRING
 	{
-	  if (!(Lex->exchange= new sql_exchange($3.str,0)))
+	  THD *thd= current_thd;
+	  thd->safe_to_cache_query= 0; 
+	  if (!(thd->lex.exchange= new sql_exchange($3.str,0)))
 	    YYABORT;
 	}
 	opt_field_term opt_line_term
 	| INTO DUMPFILE TEXT_STRING
 	{
-	  if (!(Lex->exchange= new sql_exchange($3.str,1)))
+	  THD *thd= current_thd;
+	  thd->safe_to_cache_query= 0;
+	  if (!(thd->lex.exchange= new sql_exchange($3.str,1)))
 	    YYABORT;
 	};
 
