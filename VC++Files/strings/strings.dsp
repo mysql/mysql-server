@@ -128,6 +128,10 @@ SOURCE=".\ctype-latin1_de.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-simple.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-sjis.c"
 # End Source File
 # Begin Source File

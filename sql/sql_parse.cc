@@ -1287,6 +1287,7 @@ mysql_execute_command(THD *thd)
   int	res= 0;
   LEX	*lex= &thd->lex;
   TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
+  TABLE_LIST *cursor;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
@@ -1343,7 +1344,7 @@ mysql_execute_command(THD *thd)
       DBUG_VOID_RETURN;
     }
     //check rights
-    for (TABLE_LIST *cursor= tables;
+    for (cursor= tables;
 	 cursor;
 	 cursor= cursor->next)
       if (cursor->derived)
@@ -1361,7 +1362,7 @@ mysql_execute_command(THD *thd)
       }
     thd->send_explain_fields(explain_result);
     // EXPLAIN derived tables
-    for (TABLE_LIST *cursor= tables;
+    for (cursor= tables;
 	 cursor;
 	 cursor= cursor->next)
       if (cursor->derived)
