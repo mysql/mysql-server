@@ -755,9 +755,13 @@ lock_rec_has_to_wait(
 	ulint	type_mode,/* in: precise mode of the new lock to set:
 			LOCK_S or LOCK_X, possibly ORed to
 			LOCK_GAP or LOCK_REC_NOT_GAP, LOCK_INSERT_INTENTION */
-	lock_t*	lock2)	/* in: another record lock; NOTE that it is assumed
+	lock_t*	lock2,	/* in: another record lock; NOTE that it is assumed
 			that this has a lock bit set on the same record as
 			in the new lock we are setting */
+        ibool lock_is_on_supremum)  /* in: TRUE if we are setting the lock
+                                       on the 'supremum' record of an index page: we know
+                                       then that the lock request is really for a 'gap' type
+                                       lock */
 {
 	ut_ad(trx && lock2);
 	ut_ad(lock_get_type(lock2) == LOCK_REC);
@@ -768,6 +772,15 @@ lock_rec_has_to_wait(
 
 		/* We have somewhat complex rules when gap type record locks
 		cause waits */
+
+	        if( lock_is_on_supremum && !(type_mode & LOCK_INSERT_INTENTION))
+                {
+		        /* Lock on the supremum record is really a 'gap' type lock
+                           and gap type lock do not need to wait if it
+                           is not LOCK_INSERT_INTENSION type lock */
+
+                       return(FALSE);
+                }
 
 		if ((type_mode & LOCK_REC_NOT_GAP)
 						&& lock_rec_get_gap(lock2)) {
@@ -828,9 +841,10 @@ lock_has_to_wait(
 				     		lock_get_mode(lock2))) {
 		if (lock_get_type(lock1) == LOCK_REC) {
 			ut_ad(lock_get_type(lock2) == LOCK_REC);
-				
+
+
 			return(lock_rec_has_to_wait(lock1->trx,
-						lock1->type_mode, lock2));
+			       lock1->type_mode, lock2,(ibool)lock_rec_get_nth_bit(lock1,1)));
 		}
 
 		return(TRUE);
@@ -1419,7 +1433,7 @@ lock_rec_other_has_conflicting(
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
-		if (lock_rec_has_to_wait(trx, mode, lock)) {
+		if (lock_rec_has_to_wait(trx, mode, lock, (ibool)page_rec_is_supremum(rec))) {
 
 			return(lock);
 		}
