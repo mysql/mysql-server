@@ -1223,7 +1223,6 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
     thd->open_options&= ~extra_open_options;
-    protocol->prepare_for_resend();
 
     if (prepare_func)
     {
