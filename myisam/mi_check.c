@@ -19,7 +19,7 @@
 #include "ftdefs.h"
 #include <m_ctype.h>
 #include <stdarg.h>
-#include <getopt.h>
+#include <my_getopt.h>
 #include <assert.h>
 #ifdef HAVE_SYS_VADVISE_H
 #include <sys/vadvise.h>
