@@ -137,7 +137,7 @@ public:
   {  
     return (null_value=item->get_date(ltime, fuzzydate));
   }
-  bool send(THD *thd, String *tmp)	{ return item->send(thd, tmp); }
+  bool send(Protocol *prot, String *tmp) { return item->send(prot, tmp); }
   int  save_in_field(Field *field, bool no_conversions)
   {
     return item->save_in_field(field, no_conversions);
