@@ -237,7 +237,8 @@ extern int mi_create(const char *name,uint keys,MI_KEYDEF *keydef,
 extern int mi_delete_table(const char *name);
 extern int mi_rename(const char *from, const char *to);
 extern int mi_extra(struct st_myisam_info *file,
-		    enum ha_extra_function function);
+		    enum ha_extra_function function,
+		    void *extra_arg);
 extern ha_rows mi_records_in_range(struct st_myisam_info *info,int inx,
 				   const byte *start_key,uint start_key_len,
 				   enum ha_rkey_function start_search_flag,
@@ -251,9 +252,8 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
 /* this is used to pass to mysql_myisamchk_table -- by Sasha Pachev */
 
-#define   MYISAMCHK_REPAIR 1  /* equivalent to myisamchk -r*/
-#define   MYISAMCHK_VERIFY 2  /* run equivalent of myisamchk -c,
-			       * if corruption is detected, do myisamchk -r*/
+#define   MYISAMCHK_REPAIR 1  /* equivalent to myisamchk -r */
+#define   MYISAMCHK_VERIFY 2  /* Verify, run repair if failure */
 
 /*
   Definitions needed for myisamchk.c

@@ -85,7 +85,7 @@ wait_for_slave_to_stop;
 # --replace_result 9306 9999 3334 9999 3335 9999
 # show slave status;
 
-set sql_slave_skip_counter=1;
+set global sql_slave_skip_counter=1;
 slave start;
 select count(*) from t1;
 connection master1;

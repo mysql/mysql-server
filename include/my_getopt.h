@@ -49,4 +49,6 @@ extern int handle_options (int *argc, char ***argv,
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
 
+ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp);
+my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 C_MODE_END

@@ -82,7 +82,7 @@ void load_defaults(const char *conf_file, const char **groups,
   char *ptr,**res;
   DBUG_ENTER("load_defaults");
 
-  init_alloc_root(&alloc,128,0);
+  init_alloc_root(&alloc,512,0);
   if (*argc >= 2 && !strcmp(argv[0][1],"--no-defaults"))
   {
     /* remove the --no-defaults argument and return only the other arguments */

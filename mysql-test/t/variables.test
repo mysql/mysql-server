@@ -32,9 +32,200 @@ drop table t1;
 # Test system variables
 #
 
+set max_join_size=100;
+show variables like 'max_join_size';
+show global variables like 'max_join_size';
+set GLOBAL max_join_size=2000;
+show global variables like 'max_join_size';
+set max_join_size=DEFAULT;
+show variables like 'max_join_size';
+set GLOBAL max_join_size=DEFAULT;
+show global variables like 'max_join_size';
+set @@max_join_size=1000, @@global.max_join_size=2000;
+select @@local.max_join_size, @@global.max_join_size;
+select @@identity,  length(@@version)>0;
 select @@VERSION=version();
 select last_insert_id(345);
-select @@IDENTITY,last_insert_id();
-select @@identity;
+select @@IDENTITY,last_insert_id(), @@identity;
+
+set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
+
+set global concurrent_insert=ON;
+show variables like 'concurrent_insert';
+set global concurrent_insert=1;
+show variables like 'concurrent_insert';
+set global concurrent_insert=0;
+show variables like 'concurrent_insert';
+set global concurrent_insert=OFF;
+show variables like 'concurrent_insert';
+set global concurrent_insert=DEFAULT;
+show variables like 'concurrent_insert';
+
+set table_type=MYISAM, table_type="HEAP", global table_type="INNODB";
+show local variables like 'table_type';
+show global variables like 'table_type';
+set GLOBAL query_cache_size=100000;
+set GLOBAL safe_show_database=0;
+
+set myisam_max_sort_file_size=10000, GLOBAL myisam_max_sort_file_size=20000;
+show variables like 'myisam_max_sort_file_size';
+show global variables like 'myisam_max_sort_file_size';
+set myisam_max_sort_file_size=default;
+show variables like 'myisam_max_sort_file_size';
+
+set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
+set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
+show global variables like 'net_%';
+show session variables like 'net_%';
+set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
+show global variables like 'net_%';
+show session variables like 'net_%';
+set net_buffer_length=1;
+show variables like 'net_buffer_length';
+set net_buffer_length=2000000000;
+show variables like 'net_buffer_length';
+
+set GLOBAL character set cp1251_koi8;
+show global variables like "convert_character_set";
+set character set cp1251_koi8;
+show variables like "convert_character_set";
+set global character set default, session character set default;
+show variables like "convert_character_set";
+select @@timestamp>0;
+
+# The following should give errors
+
+--error 1231
+set big_tables=OFFF;
+--error 1231
+set big_tables="OFFF";
 --error 1193
-select @@unknown_variable;
+set unknown_variable=1;
+--error 1232
+set max_join_size="hello";
+--error 1231
+set table_type=UNKNOWN_TABLE_TYPE;
+--error 1231
+set table_type=INNODB, big_tables=2;
+show local variables like 'table_type';
+--error 1229
+set SESSION query_cache_size=10000;
+--error 1230
+set GLOBAL table_type=DEFAULT;
+--error 1115
+set convert_character_set=UNKNOWN_CHARACTER_SET;
+--error 1115
+set character set unknown;
+--error 1232
+set character set 0;
+--error 1228
+set global autocommit=1;
+--error 1228
+select @@global.timestamp;
+--error 1193
+set @@version='';
+--error 1229
+set @@concurrent_insert=1;
+--error 1228
+set @@global.sql_auto_is_null=1;
+--error 1228
+select @@global.sql_auto_is_null;
+
+# Test setting all variables
+
+set autocommit=1;
+set big_tables=1;
+select @@autocommit, @@big_tables;
+set global binlog_cache_size=100;
+set bulk_insert_buffer_size=100;
+set convert_character_set=cp1251_koi8;
+set convert_character_set=default;
+set @@global.concurrent_insert=1;
+set global connect_timeout=100;
+set global delay_key_write=1;
+set global delayed_insert_limit=100;
+set global delayed_insert_timeout=100;
+set global delayed_queue_size=100;
+set global flush=1;
+set global flush_time=100;
+set insert_id=1;
+set interactive_timeout=100;
+set join_buffer_size=100;
+set last_insert_id=1;
+set global local_infile=1;
+set long_query_time=100;
+set low_priority_updates=1;
+set max_allowed_packet=100;
+set global max_binlog_cache_size=100;
+set global max_binlog_size=100;
+set global max_connect_errors=100;
+set global max_connections=100;
+set global max_delayed_threads=100;
+set max_heap_table_size=100;
+set max_join_size=100;
+set max_sort_length=100;
+set max_tmp_tables=100;
+set global max_user_connections=100;
+select @@max_user_connections;
+set global max_write_lock_count=100;
+set myisam_max_extra_sort_file_size=100;
+select @@myisam_max_extra_sort_file_size;
+set myisam_max_sort_file_size=100;
+set myisam_sort_buffer_size=100;
+set net_buffer_length=100;
+set net_read_timeout=100;
+set net_write_timeout=100;
+set global query_cache_limit=100;
+set global query_cache_size=100;
+set global query_cache_type=demand;
+set read_buffer_size=100;
+set read_rnd_buffer_size=100;
+set global rpl_recovery_rank=100;
+set global safe_show_database=1;
+set global server_id=100;
+set global slave_net_timeout=100;
+set global slow_launch_time=100;
+set sort_buffer_size=100;
+set sql_auto_is_null=1;
+select @@sql_auto_is_null;
+set @@sql_auto_is_null=0;
+select @@sql_auto_is_null;
+set sql_big_selects=1;
+set sql_big_tables=1;
+set sql_buffer_result=1;
+set sql_log_bin=1;
+set sql_log_off=1;
+set sql_log_update=1;
+set sql_low_priority_updates=1;
+set sql_max_join_size=200;
+select @@sql_max_join_size,@@max_join_size;
+set sql_quote_show_create=1;
+set sql_safe_updates=1;
+set sql_select_limit=1;
+set global sql_slave_skip_counter=100;
+set sql_warnings=1;
+set global table_cache=100;
+set table_type=myisam;
+set global thread_cache_size=100;
+set timestamp=1, timestamp=default;
+set tmp_table_size=100;
+set tx_isolation="READ-COMMITTED";
+set wait_timeout=100;
+set log_warnings=1;
+
+#
+# key buffer
+#
+
+DROP TABLE IF EXISTS t1,t2;
+create table t1 (a int not null auto_increment, primary key(a));
+create table t2 (a int not null auto_increment, primary key(a));
+insert into t1 values(null),(null),(null);
+insert into t2 values(null),(null),(null);
+set global key_buffer_size=100000;
+select @@key_buffer_size;
+select * from t1 where a=2;
+select * from t2 where a=3;
+check table t1,t2;
+drop table t1,t2;
+

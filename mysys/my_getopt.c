@@ -25,7 +25,8 @@
 static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
 		   char **ffname);
-static my_bool compare_strings(register const char *s, register const char *t,
+my_bool getopt_compare_strings(const char *s,
+			       const char *t,
 			       uint length);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
@@ -116,7 +117,7 @@ int handle_options(int *argc, char ***argv,
 	    (*argc)--;
 	  }
 	}
-	else if (!compare_strings(cur_arg, "-set-variable", 13))
+	else if (!getopt_compare_strings(cur_arg, "-set-variable", 13))
 	{
 	  must_be_var= 1;
 	  if (cur_arg[13] == '=')
@@ -182,8 +183,8 @@ int handle_options(int *argc, char ***argv,
 	      must_be_var= 1; /* option is followed by an argument */
 	    for (i= 0; special_opt_prefix[i]; i++)
 	    {
-	      if (!compare_strings(special_opt_prefix[i], cur_arg,
-				   special_opt_prefix_lengths[i]) &&
+	      if (!getopt_compare_strings(special_opt_prefix[i], cur_arg,
+					  special_opt_prefix_lengths[i]) &&
 		  cur_arg[special_opt_prefix_lengths[i]] == '-')
 	      {
 		/*
@@ -481,21 +482,21 @@ static int setval (const struct my_option *opts, char *argument,
   the name in ffname argument
 */
 
-static int findopt (char *optpat, uint length,
-		    const struct my_option **opt_res,
-		    char **ffname)
+static int findopt(char *optpat, uint length,
+		   const struct my_option **opt_res,
+		   char **ffname)
 {
   int count;
   struct my_option *opt= (struct my_option *) *opt_res;
 
   for (count= 0; opt->name; opt++)
   {
-    if (!compare_strings(opt->name, optpat, length)) /* match found */
+    if (!getopt_compare_strings(opt->name, optpat, length)) /* match found */
     {
       (*opt_res)= opt;
       if (!count)
-	*ffname= (char *) opt->name;     /* we only need to know one prev */
-      if (length == strlen(opt->name))   /* exact match */
+	*ffname= (char *) opt->name;	/* We only need to know one prev */
+      if (!opt->name[length])		/* Exact match */
 	return 1;
       count++;
     }
@@ -511,7 +512,7 @@ static int findopt (char *optpat, uint length,
   2.) Returns -1 if strings differ, 0 if they are equal
 */
 
-static my_bool compare_strings(register const char *s, register const char *t,
+my_bool getopt_compare_strings(register const char *s, register const char *t,
 			       uint length)
 {
   char const *end= s + length;
@@ -565,7 +566,7 @@ static longlong eval_num_suffix (char *argument, int *error, char *option_name)
   In case of an error, set error value in *err.
 */
 
-static longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
+longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
 {
   longlong num;
   
@@ -594,16 +595,23 @@ static ulonglong getopt_ull (char *arg, const struct my_option *optp, int *err)
   ulonglong num;
 
   num= eval_num_suffix(arg, err, (char*) optp->name);  
+  return getopt_ull_limit_value(num, optp);
+}
+
+
+ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
+{
+  if ((ulonglong) num > (ulonglong) (ulong) optp->max_value &&
+      optp->max_value) /* if max value is not set -> no upper limit */
+    num= (ulonglong) (ulong) optp->max_value;
+  if (optp->block_size > 1)
+  {
+    num/= (ulonglong) optp->block_size;
+    num*= (ulonglong) optp->block_size;
+  }
   if (num < (ulonglong) optp->min_value)
     num= (ulonglong) optp->min_value;
-  else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value
-	   && optp->max_value) /* if max value is not set -> no upper limit */
-    num= (ulonglong) (ulong) optp->max_value;
-  num= ((num - (ulonglong) optp->sub_size) / (optp->block_size ?
-					      (ulonglong) optp->block_size :
-					      1L));
-  return (ulonglong) (num * (optp->block_size ? (ulonglong) optp->block_size :
-			     1L));
+  return num;
 }
 
 /* 

@@ -79,6 +79,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *scramble,char **priv_user,
 		  bool old_ver, USER_RESOURCES *max);
 bool acl_check_host(const char *host, const char *ip);
+bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *password);
 int mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,

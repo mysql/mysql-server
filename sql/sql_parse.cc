@@ -14,11 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef EMBEDDED_LIBRARY
-#define net_read_timeout net_read_timeout1
-#define net_write_timeout net_write_timeout1
-#endif
-
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_repl.h"
@@ -107,7 +102,7 @@ static void init_signals(void)
 inline bool end_active_trans(THD *thd)
 {
   int error=0;
-  if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN |
+  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
@@ -203,7 +198,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				   CLIENT_LONG_PASSWORD),&ur);
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
-	      thd->client_capabilities, thd->max_packet_length,
+	      thd->client_capabilities, thd->max_client_packet_length,
 	      thd->host_or_ip, thd->priv_user,
 	      passwd[0] ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
@@ -516,7 +511,7 @@ check_connections(THD *thd)
 #endif
   if (connect_errors)
     reset_host_errors(&thd->remote.sin_addr);
-  if (thd->packet.alloc(net_buffer_length))
+  if (thd->packet.alloc(thd->variables.net_buffer_length))
     return(ER_OUT_OF_RESOURCES);
 
   thd->client_capabilities=uint2korr(net->read_pos);
@@ -528,7 +523,7 @@ check_connections(THD *thd)
   {
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    sslaccept(ssl_acceptor_fd, net->vio, thd->inactive_timeout);
+    sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout);
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
@@ -550,7 +545,7 @@ check_connections(THD *thd)
   }
 #endif
 
-  thd->max_packet_length=uint3korr(net->read_pos+2);
+  thd->max_client_packet_length=uint3korr(net->read_pos+2);
   char *user=   (char*) net->read_pos+5;
   char *passwd= strend(user)+1;
   char *db=0;
@@ -559,11 +554,11 @@ check_connections(THD *thd)
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->inactive_timeout= thd->variables.net_interactive_timeout;
+    thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     thd->net.return_status= &thd->server_status;
-  net->timeout=(uint) net_read_timeout;
+  net->read_timeout=(uint) thd->variables.net_read_timeout;
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1))
     return (-1);
   thd->password=test(passwd[0]);
@@ -639,7 +634,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if (thd->max_join_size == HA_POS_ERROR)
+    if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -661,7 +656,7 @@ pthread_handler_decl(handle_one_connection,arg)
     free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0)
     {
-      if (!thd->killed && thd->variables.opt_warnings)
+      if (!thd->killed && thd->variables.log_warnings)
 	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
 			thd->thread_id,(thd->db ? thd->db : "unconnected"),
 			thd->user ? thd->user : "unauthenticated",
@@ -715,7 +710,7 @@ pthread_handler_decl(handle_bootstrap,arg)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  if (thd->max_join_size == (ulong) ~0L)
+  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -833,8 +828,9 @@ bool do_command(THD *thd)
   thd->current_tablenr=0;
 
   packet=0;
-  old_timeout=net->timeout;
-  net->timeout=(uint) thd->inactive_timeout;	// Wait max for 8 hours
+  old_timeout=net->read_timeout;
+  // Wait max for 8 hours
+  net->read_timeout=(uint) thd->variables.net_wait_timeout;
   net->last_error[0]=0;				// Clear error message
   net->last_errno=0;
 
@@ -853,7 +849,7 @@ bool do_command(THD *thd)
 		       vio_description(net->vio), command,
 		       command_name[command]));
   }
-  net->timeout=old_timeout;			// Timeout for writing
+  net->read_timeout=old_timeout;		// restore it
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 
@@ -871,13 +867,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
 
   thd->command=command;
+  thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id=query_id;
   if (command != COM_STATISTICS && command != COM_PING)
     query_id++;
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  thd->set_time();
+
   thd->lex.select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
@@ -972,7 +969,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 						thd->db_length+2)))
       break;
     thd->query[packet_length]=0;
-    thd->packet.shrink(net_buffer_length);	// Reclaim some memory
+    thd->packet.shrink(thd->variables.net_buffer_length);// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
     mysql_log.write(thd,command,"%s",thd->query);
@@ -1213,7 +1210,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->query=0;
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  thd->packet.shrink(net_buffer_length);	// Reclaim some memory
+  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
 }
@@ -2042,11 +2039,11 @@ mysql_execute_command(void)
     break;
   case SQLCOM_SHOW_STATUS:
     res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
-		     (struct system_variables*) 0);
+		     OPT_GLOBAL);
     break;
   case SQLCOM_SHOW_VARIABLES:
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
-		     init_vars, lex->variable_values);
+		     init_vars, lex->option_type);
     break;
   case SQLCOM_SHOW_LOGS:
   {
@@ -2153,7 +2150,7 @@ mysql_execute_command(void)
     else
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
-	  ! thd->variables.opt_local_infile)
+	  ! opt_local_infile)
       {
 	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);
 	goto error;
@@ -2167,39 +2164,11 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_SET_OPTION:
-  {
-    ulong org_options=thd->options;
-    thd->options=select_lex->options;
-    thd->update_lock_default= ((thd->options & OPTION_LOW_PRIORITY_UPDATES) ?
-			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
-    thd->default_select_limit=select_lex->select_limit;
-    thd->tx_isolation=lex->tx_isolation;
-    DBUG_PRINT("info",("options: %ld  limit: %ld",
-		       thd->options,(long) thd->default_select_limit));
-
-    /* Check if auto_commit mode changed */
-    if ((org_options ^ select_lex->options) & OPTION_NOT_AUTO_COMMIT)
-    {
-      if ((org_options & OPTION_NOT_AUTO_COMMIT))
-      {
-	/* We changed to auto_commit mode */
-	thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
-	thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
-	if (ha_commit(thd))
-	{
-	  res= -1;
-	  break;
-	}
-      }
-      else
-      {
-	thd->options&= ~(ulong) (OPTION_STATUS_NO_TRANS_UPDATE);
-	thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
-      }
-    }
-    send_ok(&thd->net);
+    if (sql_set_variables(thd, &lex->var_list))
+      res= -1;
+    else
+      send_ok(&thd->net);
     break;
-  }
   case SQLCOM_UNLOCK_TABLES:
     if (thd->locked_tables)
     {
@@ -2715,6 +2684,7 @@ mysql_init_query(THD *thd)
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
   thd->lex.select_lex.next=0;
   thd->lex.olap=0;
+  thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
@@ -2727,11 +2697,11 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex = lex->select;
   select_lex->where=select_lex->having=0;
-  select_lex->select_limit=lex->thd->default_select_limit;
+  select_lex->select_limit= lex->thd->variables.select_limit;
   select_lex->offset_limit=0;
   select_lex->options=0;
   select_lex->linkage=UNSPECIFIED_TYPE;
-  select_lex->olap= NON_EXISTING_ONE;
+  select_lex->olap=   UNSPECIFIED_OLAP_TYPE;
   lex->exchange = 0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
@@ -2798,7 +2768,11 @@ mysql_parse(THD *thd,char *inBuf,uint length)
       }
     }
     else
+    {
+      DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
+			 thd->fatal_error));
       query_cache_abort(&thd->net);
+    }
     thd->proc_info="freeing items";
     free_items(thd);  /* Free strings used by items */
     lex_end(lex);
@@ -3470,5 +3444,30 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
+  return 0;
+}
+
+/*
+  Check if the select is a simple select (not an union)
+
+  SYNOPSIS
+    check_simple_select()
+
+  RETURN VALUES
+    0	ok
+    1	error	; In this case the error messege is sent to the client
+*/
+
+bool check_simple_select()
+{
+  THD *thd= current_thd;
+  if (thd->lex.select != &thd->lex.select_lex)
+  {
+    char command[80];
+    strmake(command, thd->lex.yylval->symbol.str,
+	    min(thd->lex.yylval->symbol.length, sizeof(command)-1));
+    net_printf(&thd->net, ER_CANT_USE_OPTION_HERE, command);
+    return 1;
+  }
   return 0;
 }

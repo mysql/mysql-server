@@ -1,5 +1,5 @@
 set @a := foo;
-You may only use constant expressions with SET
+Unknown column 'foo' in 'field list'
 set @a := connection_id() + 3;
 select @a - connection_id();
 @a - connection_id()

@@ -15,7 +15,18 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* OLAP implementation by Sinisa Milivojevic <sinisa@mysql.com> */
+/*
+  OLAP implementation by Sinisa Milivojevic <sinisa@mysql.com>
+  Inspired by code submitted by Srilakshmi <lakshmi@gdit.iiit.net>
+
+  The ROLLUP code in this file has to be complitely rewritten as it's
+  not good enough to satisfy the goals of MySQL.
+
+  In 4.1 we will replace this with a working, superior implementation
+  of ROLLUP.
+*/
+
+#ifdef DISABLED_UNTIL_REWRITTEN_IN_4_1
 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
@@ -179,3 +190,5 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
     sl_return=1; // impossible
   return sl_return;
 }
+
+#endif /* DISABLED_UNTIL_REWRITTEN_IN_4_1 */

@@ -189,10 +189,10 @@ struct Query_cache_memory_bin
   uint number;
   Query_cache_block *free_blocks;
 
-  inline void init(ulong size)
+  inline void init(ulong size_arg)
   {
 #ifndef DBUG_OFF
-    this->size = size;
+    size = size_arg;
 #endif
     number = 0;
     free_blocks = 0;
@@ -204,11 +204,11 @@ struct Query_cache_memory_bin_step
   ulong size;
   ulong increment;
   uint idx;
-  inline void init(ulong size, uint idx, ulong increment)
+  inline void init(ulong size_arg, uint idx_arg, ulong increment_arg)
   {
-    this->size = size;
-    this->idx = idx;
-    this->increment = increment;
+    size = size_arg;
+    idx = idx_arg;
+    increment = increment_arg;
   }
 };
 
@@ -398,6 +398,7 @@ protected:
 };
 
 extern Query_cache query_cache;
+extern TYPELIB query_cache_type_typelib;
 void query_cache_insert(NET *net, const char *packet, ulong length);
 void query_cache_end_of_result(NET *net);
 void query_cache_abort(NET *net);

@@ -33,7 +33,7 @@ master-bin.003
 insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);
-set sql_slave_skip_counter=1;
+set global sql_slave_skip_counter=1;
 slave start;
 purge master logs to 'master-bin.003';
 show master logs;

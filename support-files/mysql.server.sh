@@ -140,7 +140,7 @@ case "$mode" in
       sleep 1
       while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
       do
-        [ -z "$flags" ] && echo "Wait for mysqld to exit\c" || echo ".\c"
+        [ -z "$flags" ] && echo -n "Wait for mysqld to exit" || echo -n "."
         flags=a$flags
         sleep 1
       done

@@ -333,7 +333,7 @@ static int examine_log(my_string file_name, char **table_names)
   bzero((gptr) com_count,sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
-  VOID(init_key_cache(KEY_CACHE_SIZE,(uint) (10*4*(IO_SIZE+MALLOC_OVERHEAD))));
+  VOID(init_key_cache(KEY_CACHE_SIZE));
 
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&
@@ -484,7 +484,7 @@ static int examine_log(my_string file_name, char **table_names)
 		   command_name[command], (int) extra_command,result);
       if (update && curr_file_info && !curr_file_info->closed)
       {
-	if (mi_extra(curr_file_info->isam, extra_command) != (int) result)
+	if (mi_extra(curr_file_info->isam, extra_command, 0) != (int) result)
 	{
 	  fflush(stdout);
 	  VOID(fprintf(stderr,

@@ -59,8 +59,8 @@ static int init_failsafe_rpl_thread(THD* thd)
   thd->system_thread = thd->bootstrap = 1;
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
-  thd->net.timeout = slave_net_timeout;
-  thd->max_packet_length=thd->net.max_packet;
+  thd->net.read_timeout = slave_net_timeout;
+  thd->max_client_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->system_thread = 1;
@@ -68,10 +68,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   thd->thread_id = thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  if (init_thr_lock() ||
-      my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root) ||
-      my_pthread_setspecific_ptr(THR_NET,  &thd->net))
+  if (init_thr_lock() || thd->store_globals())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES); // is this needed?
     end_thread(thd,0);
@@ -87,8 +84,8 @@ static int init_failsafe_rpl_thread(THD* thd)
 #endif
 
   thd->mem_root.free=thd->mem_root.used=0;	
-  if (thd->max_join_size == (ulong) ~0L)
-    thd->options |= OPTION_BIG_SELECTS;
+  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    thd->options|= OPTION_BIG_SELECTS;
 
   thd->proc_info="Thread initialized";
   thd->version=refresh_version;
@@ -626,7 +623,8 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
     return 1;
 
   if (!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
-		   mi->port, 0, 0))
+			mi->port, 0, 0,
+			slave_net_timeout))
   {
     sql_print_error("Connection to master failed: %s",
 		    mc_mysql_error(mysql));

@@ -480,3 +480,6 @@ mit-pthreads/machdep.c
 mit-pthreads/pg++
 mit-pthreads/pgcc
 scripts/mysql_tableinfo
+libmysql/net.c
+libmysqld/sql_olap.cc
+myisam/myisam.log

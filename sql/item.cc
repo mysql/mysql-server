@@ -383,11 +383,13 @@ void Item_datetime::make_field(Send_field *tmp_field)
   init_make_field(tmp_field,FIELD_TYPE_DATETIME);
 }
 
+
 void Item_null::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_NULL);
   tmp_field->length=4;
 }
+
 
 void Item_func::make_field(Send_field *tmp_field)
 {
@@ -593,7 +595,7 @@ bool Item::send(THD *thd, String *packet)
   String s(buff,sizeof(buff)),*res;
   if (!(res=val_str(&s)))
     return net_store_null(packet);
-  if ((convert=thd->convert_set))
+  if ((convert=thd->variables.convert_set))
     return convert->store(packet,res->ptr(),res->length());
   return net_store_data(packet,res->ptr(),res->length());
 }

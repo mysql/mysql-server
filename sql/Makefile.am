@@ -55,8 +55,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			opt_range.h opt_ft.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
-                        log_event.h mini_client.h sql_repl.h slave.h \
-			stacktrace.h sql_sort.h sql_cache.h
+			log_event.h mini_client.h sql_repl.h slave.h \
+			stacktrace.h sql_sort.h sql_cache.h set_var.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -65,7 +65,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			net_serv.cc net_pkg.cc lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
-			convert.cc sql_parse.cc sql_yacc.yy \
+			convert.cc set_var.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc item_uniq.cc sql_test.cc \

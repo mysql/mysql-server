@@ -70,6 +70,10 @@ public:
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
+  virtual void set_default()
+  {
+    memcpy(ptr, ptr + table->rec_buff_length, pack_length());
+  }
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }
   virtual enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
@@ -550,6 +554,10 @@ public:
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 0; }
   void set_time();
+  virtual void set_default()
+  {
+    set_time();
+  }
   inline long get_timestamp()
   {
 #ifdef WORDS_BIGENDIAN

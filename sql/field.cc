@@ -201,7 +201,7 @@ bool Field::send(THD *thd, String *packet)
   String tmp(buff,sizeof(buff));
   val_str(&tmp,&tmp);
   CONVERT *convert;
-  if ((convert=thd->convert_set))
+  if ((convert=thd->variables.convert_set))
     return convert->store(packet,tmp.ptr(),tmp.length());
   return net_store_data(packet,tmp.ptr(),tmp.length());
 }

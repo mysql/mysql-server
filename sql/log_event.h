@@ -214,8 +214,6 @@ class MYSQL_LOG;
 class THD;
 #endif
 
-extern uint32 server_id;
-
 struct st_relay_log_info;
 
 class Log_event

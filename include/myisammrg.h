@@ -62,14 +62,15 @@ typedef struct st_myrg_table_info
 typedef struct st_myrg_info
 {
   MYRG_TABLE *open_tables,*current_table,*end_table,*last_used_table;
-  uint merge_insert_method;
   ulonglong records;			/* records in tables */
   ulonglong del;			/* Removed records */
   ulonglong data_file_length;
+  ulong  cache_size;
+  uint	 merge_insert_method;
   uint	 tables,options,reclength,keys;
   my_bool cache_in_use;
-  LIST	open_list;
-  QUEUE     by_key;
+  LIST	 open_list;
+  QUEUE  by_key;
 } MYRG_INFO;
 
 
@@ -93,7 +94,8 @@ extern int myrg_status(MYRG_INFO *file,MYMERGE_INFO *x,int flag);
 extern int myrg_lock_database(MYRG_INFO *file,int lock_type);
 extern int myrg_create(const char *name, const char **table_names,
                        uint insert_method, my_bool fix_names);
-extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function);
+extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function,
+		      void *extra_arg);
 extern void myrg_extrafunc(MYRG_INFO *info,invalidator_by_filename inv);
 extern ha_rows myrg_records_in_range(MYRG_INFO *info,int inx,
 				    const byte *start_key,uint start_key_len,
