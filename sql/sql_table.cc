@@ -733,6 +733,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
              sql_field->sql_type != FIELD_TYPE_VAR_STRING &&
              !f_is_blob(sql_field->pack_flag)) ||
             sql_field->charset == &my_charset_bin ||
+            sql_field->charset->state & MY_CS_NONTEXT || // ucs2 doesn't work yet
             (ft_key_charset && sql_field->charset != ft_key_charset))
         {
             my_printf_error(ER_BAD_FT_COLUMN,ER(ER_BAD_FT_COLUMN),MYF(0),

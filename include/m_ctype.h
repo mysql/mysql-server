@@ -310,6 +310,7 @@ int my_wildcmp_8bit(CHARSET_INFO *,
 
 uint my_numchars_8bit(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
+int my_mbcharlen_8bit(CHARSET_INFO *, uint c);
 
 
 /* Functions for multibyte charsets */
