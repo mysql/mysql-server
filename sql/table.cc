@@ -120,10 +120,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_record_offset=1;
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     outparam->blob_ptr_size=portable_sizeof_char_ptr;
-  outparam->db_low_byte_first=test(outparam->db_type == DB_TYPE_MYISAM ||
-				   outparam->db_type == DB_TYPE_BERKELEY_DB ||
-				   outparam->db_type == DB_TYPE_HEAP);
-
+  /* Set temporaryly a good value for db_low_byte_first */
+  outparam->db_low_byte_first=test(outparam->db_type != DB_TYPE_ISAM);
   error=4;
   outparam->max_rows=uint4korr(head+18);
   outparam->min_rows=uint4korr(head+22);
