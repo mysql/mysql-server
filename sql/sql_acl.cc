@@ -741,11 +741,25 @@ static void acl_update_db(const char *user, const char *host, const char *db,
 }
 
 
+/*
+  Insert a user/db/host combination into the global acl_cache
+
+  SYNOPSIS
+    acl_insert_db()
+    user		User name
+    host		Host name
+    db			Database name
+    privileges		Bitmap of privileges
+
+  NOTES
+    acl_cache->lock must be locked when calling this
+*/
+
 static void acl_insert_db(const char *user, const char *host, const char *db,
 			  ulong privileges)
 {
   ACL_DB acl_db;
-  /* The acl_cache mutex is locked by mysql_grant */
+  safe_mutex_assert_owner(&acl_cache->lock);
   acl_db.user=strdup_root(&mem,user);
   update_hostname(&acl_db.host,strdup_root(&mem,host));
   acl_db.db=strdup_root(&mem,db);
@@ -1217,6 +1231,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   char *password,empty_string[1];
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_user_table");
+  safe_mutex_assert_owner(&acl_cache->lock);
 
   password=empty_string;
   empty_string[0]=0;
@@ -1240,7 +1255,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   {
     if (!create_user)
     {
-      THD *thd=current_thd;
       if (what == 'N')
 	my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
 			MYF(0),combo.user.str,combo.host.str);
@@ -1621,6 +1635,7 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_TABLE *grant_table,*found=0;
+  safe_mutex_assert_owner(&LOCK_grant);
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
   for (grant_table=(GRANT_TABLE*) hash_search(&hash_tables,(byte*) helping,
@@ -1828,6 +1843,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   int error=0;
   ulong store_table_rights, store_col_rights;
   DBUG_ENTER("replace_table_table");
+  safe_mutex_assert_owner(&LOCK_grant);
 
   strxmov(grantor, thd->user, "@", thd->host_or_ip, NullS);
 
