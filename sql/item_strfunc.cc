@@ -643,7 +643,12 @@ void Item_func_concat_ws::fix_length_and_dec()
   if (agg_arg_collations(collation, args, arg_count))
     return;
 
-  max_length= arg_count > 1 ? args[0]->max_length * (arg_count - 2) : 0;
+  /*
+     arg_count cannot be less than 2,
+     it is done on parser level in sql_yacc.yy
+     so, (arg_count - 2) is safe here.
+  */
+  max_length= args[0]->max_length * (arg_count - 2);
   for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
 
@@ -2155,13 +2160,14 @@ String *Item_func_conv_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *arg= args[0]->val_str(str);
+  uint dummy_errors;
   if (!arg)
   {
     null_value=1;
     return 0;
   }
   null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
-                             conv_charset);
+                             conv_charset, &dummy_errors);
   return null_value ? 0 : &str_value;
 }
 
@@ -2244,11 +2250,12 @@ String *Item_func_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
+  uint dummy_errors;
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, collation.collation);
+	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
 
@@ -2256,11 +2263,12 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
+  uint dummy_errors;
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, collation.collation);
+	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
 

@@ -174,3 +174,15 @@ Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'b' at row 1
 drop table t1;
+set names koi8r;
+create table t1 (a char(10) character set cp1251);
+insert into t1 values (_koi8r'×ÁÓÑ');
+select * from t1 where a=_koi8r'×ÁÓÑ';
+a
+×ÁÓÑ
+select * from t1 where a=concat(_koi8r'×ÁÓÑ');
+ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (koi8r_general_ci,COERCIBLE) for operation '='
+select * from t1 where a=_latin1'×ÁÓÑ';
+ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
+drop table t1;
+set names latin1;

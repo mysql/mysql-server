@@ -121,12 +121,13 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
+  uint dummy_errors;
 
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
     uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
-    return copy(buff, len, &my_charset_latin1, cs);
+    return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -191,7 +192,8 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs);
+  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs,
+              &dummy_errors);
 #endif
 }
 
@@ -336,14 +338,12 @@ bool String::copy(const char *str, uint32 arg_length,
   uint32 offset;
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
   {
-    if (errors)
-      *errors= 0;
+    *errors= 0;
     return copy(str, arg_length, to_cs);
   }
   if ((from_cs == &my_charset_bin) && offset)
   {
-    if (errors)
-      *errors= 0;
+    *errors= 0;
     return copy_aligned(str, arg_length, offset, to_cs);
   }
   uint32 new_length= to_cs->mbmaxlen*arg_length;
@@ -382,7 +382,8 @@ bool String::set_ascii(const char *str, uint32 arg_length)
     set(str, arg_length, str_charset);
     return 0;
   }
-  return copy(str, arg_length, &my_charset_latin1, str_charset);
+  uint dummy_errors;
+  return copy(str, arg_length, &my_charset_latin1, str_charset, &dummy_errors);
 }
 
 
@@ -436,10 +437,12 @@ bool String::append(const char *s,uint32 arg_length)
   if (str_charset->mbminlen > 1)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
+    uint dummy_errors;
     if (realloc(str_length+ add_length))
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
-				  s, arg_length, &my_charset_latin1);
+				  s, arg_length, &my_charset_latin1,
+                                  &dummy_errors);
     return FALSE;
   }
 
@@ -476,10 +479,11 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
   if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
   {
     uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    uint dummy_errors;
     if (realloc(str_length + add_length)) 
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
-				  s, arg_length, cs);
+				  s, arg_length, cs, &dummy_errors);
   }
   else
   {
@@ -816,8 +820,7 @@ outp:
     else
       break;
   }
-  if (errors)
-    *errors= error_count;
+  *errors= error_count;
   return (uint32) (to - to_start);
 }
 
