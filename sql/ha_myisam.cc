@@ -525,6 +525,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 
 int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 {
+  int error;
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   MI_CHECK param;
 
@@ -534,7 +535,14 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
 		    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length=  check_opt->sort_buffer_size;
-  return repair(thd,param,1);
+  if ((error= repair(thd,param,1)) && param.retry_repair)
+  {
+    sql_print_warning("Warning: Optimize table got errno %d, retrying",
+                      my_errno);
+    param.testflag&= ~T_REP_BY_SORT;
+    error= repair(thd,param,1);
+  }
+  return error;
 }
 
 
@@ -744,7 +752,13 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
     param.tmpdir=mysql_tmpdir;
-    error=repair(thd,param,0) != HA_ADMIN_OK;
+    if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
+    {
+      sql_print_warning("Warning: Enabling keys got errno %d, retrying",
+                        my_errno);
+      param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
+      error= (repair(thd,param,0) != HA_ADMIN_OK);
+    }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;
   }
