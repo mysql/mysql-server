@@ -90,6 +90,47 @@ NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
 #define KEY_ATTR_ID (~0)
 
 void
+NdbReceiver::calculate_batch_size(Uint32 key_size,
+                                  Uint32 parallelism,
+                                  Uint32& batch_size,
+                                  Uint32& batch_byte_size,
+                                  Uint32& first_batch_size)
+{
+  Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
+  NdbRecAttr *rec_attr= theFirstRecAttr;
+  while (rec_attr != NULL) {
+    Uint32 attr_size= rec_attr->attrSize() * rec_attr->arraySize();
+    attr_size= ((attr_size + 7) >> 2) << 2; //Even to word + overhead
+    tot_size+= attr_size;
+    rec_attr= rec_attr->next();
+  }
+  tot_size+= 32; //include signal overhead
+
+  /**
+   * Now we calculate the batch size by trying to get upto SCAN_BATCH_SIZE
+   * bytes sent for each batch from each node. We do however ensure that
+   * no more than MAX_SCAN_BATCH_SIZE is sent from all nodes in total per
+   * batch.
+   */
+  batch_byte_size= SCAN_BATCH_SIZE;
+  if (SCAN_BATCH_SIZE * parallelism > MAX_SCAN_BATCH_SIZE) {
+    batch_byte_size= MAX_SCAN_BATCH_SIZE / parallelism;
+  }
+  batch_size= batch_byte_size / tot_size;
+#ifdef VM_TRACE
+  ndbout << "batch_byte_size = " << batch_byte_size << " batch_size = ";
+  ndbout << batch_size << "tot_size = " << tot_size << endl;
+#endif
+  if (batch_size == 0) {
+    batch_size= 1;
+  } else if (batch_size > MAX_PARALLEL_OP_PER_SCAN) {
+    batch_size= MAX_PARALLEL_OP_PER_SCAN;
+  }
+  first_batch_size= batch_size;
+  return;
+}
+
+void
 NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
   if(rows > m_defined_rows){
     delete[] m_rows;
@@ -139,7 +180,7 @@ NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
   } 
 
   prepareSend();
-  return ; //0;
+  return;
 }
 
 void
