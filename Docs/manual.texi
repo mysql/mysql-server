@@ -27921,7 +27921,7 @@ mysql> SELECT x'FF'
          -> 255
 mysql> SELECT 0xa+0;
          -> 10
-mysql> select 0x5061756c;
+mysql> SELECT 0x5061756c;
          -> Paul
 @end example
 
@@ -30263,13 +30263,13 @@ Logical NOT. Returns @code{1} if the argument is @code{0}, otherwise returns
 @code{0}.
 Exception: @code{NOT NULL} returns @code{NULL}:
 @example
-mysql> select NOT 1;
+mysql> SELECT NOT 1;
         -> 0
-mysql> select NOT NULL;
+mysql> SELECT NOT NULL;
         -> NULL
-mysql> select ! (1+1);
+mysql> SELECT ! (1+1);
         -> 0
-mysql> select ! 1+1;
+mysql> SELECT ! 1+1;
         -> 1
 @end example
 The last example returns @code{1} because the expression evaluates
@@ -30282,11 +30282,11 @@ the same way as @code{(!1)+1}.
 Logical OR. Returns @code{1} if either argument is not @code{0} and not
 @code{NULL}:
 @example
-mysql> select 1 || 0;
+mysql> SELECT 1 || 0;
         -> 1
-mysql> select 0 || 0;
+mysql> SELECT 0 || 0;
         -> 0
-mysql> select 1 || NULL;
+mysql> SELECT 1 || NULL;
         -> 1
 
 @end example
@@ -30298,9 +30298,9 @@ mysql> select 1 || NULL;
 Logical AND. Returns @code{0} if either argument is @code{0} or @code{NULL},
 otherwise returns @code{1}:
 @example
-mysql> select 1 && NULL;
+mysql> SELECT 1 && NULL;
         -> 0
-mysql> select 1 && 0;
+mysql> SELECT 1 && 0;
         -> 0
 @end example
 @end table
@@ -30320,13 +30320,13 @@ If @code{expr1} is not @code{NULL}, @code{IFNULL()} returns @code{expr1},
 else it returns @code{expr2}.  @code{IFNULL()} returns a numeric or string
 value, depending on the context in which it is used:
 @example
-mysql> select IFNULL(1,0);
+mysql> SELECT IFNULL(1,0);
         -> 1
-mysql> select IFNULL(NULL,10);
+mysql> SELECT IFNULL(NULL,10);
         -> 10
-mysql> select IFNULL(1/0,10);
+mysql> SELECT IFNULL(1/0,10);
         -> 10
-mysql> select IFNULL(1/0,'yes');
+mysql> SELECT IFNULL(1/0,'yes');
         -> 'yes'
 @end example
 
@@ -30335,9 +30335,9 @@ mysql> select IFNULL(1/0,'yes');
 If @code{expr1 = expr2} is true, return @code{NULL} else return @code{expr1}.
 This is the same as @code{CASE WHEN x = y THEN NULL ELSE x END}:
 @example
-mysql> select NULLIF(1,1);
+mysql> SELECT NULLIF(1,1);
         -> NULL
-mysql> select NULLIF(1,2);
+mysql> SELECT NULLIF(1,2);
         -> 1
 @end example
 
@@ -30352,11 +30352,11 @@ If @code{expr1} is TRUE (@code{expr1 <> 0} and @code{expr1 <> NULL}) then
 in which it is used:
 
 @example
-mysql> select IF(1>2,2,3);
+mysql> SELECT IF(1>2,2,3);
         -> 3
-mysql> select IF(1<2,'yes','no');
+mysql> SELECT IF(1<2,'yes','no');
         -> 'yes'
-mysql> select IF(strcmp('test','test1'),'no','yes');
+mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
         -> 'no'
 @end example
 
@@ -30365,9 +30365,9 @@ testing floating-point or string values, you should do so using a comparison
 operation:
 
 @example
-mysql> select IF(0.1,1,0);
+mysql> SELECT IF(0.1,1,0);
         -> 0
-mysql> select IF(0.1<>0,1,0);
+mysql> SELECT IF(0.1<>0,1,0);
         -> 1
 @end example
 
@@ -30435,11 +30435,11 @@ Returns the ASCII code value of the leftmost character of the string
 @code{NULL} if @code{str} is @code{NULL}:
 
 @example
-mysql> select ASCII('2');
+mysql> SELECT ASCII('2');
         -> 50
-mysql> select ASCII(2);
+mysql> SELECT ASCII(2);
         -> 50
-mysql> select ASCII('dx');
+mysql> SELECT ASCII('dx');
         -> 100
 @end example
 
@@ -30455,7 +30455,7 @@ If the leftmost character is not a multi-byte character, returns the same
 value that the @code{ASCII()} function does:
 
 @example
-mysql> select ORD('2');
+mysql> SELECT ORD('2');
         -> 50
 @end example
 
@@ -30471,13 +30471,13 @@ signed number.  Otherwise, @code{N} is treated as unsigned.  @code{CONV} works
 with 64-bit precision:
 
 @example
-mysql> select CONV("a",16,2);
+mysql> SELECT CONV("a",16,2);
         -> '1010'
-mysql> select CONV("6E",18,8);
+mysql> SELECT CONV("6E",18,8);
         -> '172'
-mysql> select CONV(-17,10,-18);
+mysql> SELECT CONV(-17,10,-18);
         -> '-H'
-mysql> select CONV(10+"10"+'10'+0xa,10,10);
+mysql> SELECT CONV(10+"10"+'10'+0xa,10,10);
         -> '40'
 @end example
 
@@ -30488,7 +30488,7 @@ Returns a string representation of the binary value of @code{N}, where
 @code{CONV(N,10,2)}.  Returns @code{NULL} if @code{N} is @code{NULL}:
 
 @example
-mysql> select BIN(12);
+mysql> SELECT BIN(12);
         -> '1100'
 @end example
 
@@ -30499,7 +30499,7 @@ Returns a string representation of the octal value of @code{N}, where
 Returns @code{NULL} if @code{N} is @code{NULL}:
 
 @example
-mysql> select OCT(12);
+mysql> SELECT OCT(12);
         -> '14'
 @end example
 
@@ -30515,11 +30515,11 @@ character in N_OR_S is converted to 2 hexadecimal digits. This is the
 invers of the @code{0xff} strings.
 
 @example
-mysql> select HEX(255);
+mysql> SELECT HEX(255);
         -> 'FF'
-mysql> select HEX("abc");
+mysql> SELECT HEX("abc");
         -> 616263
-mysql> select 0x616263;
+mysql> SELECT 0x616263;
         -> "abc"
 @end example
 
@@ -30530,9 +30530,9 @@ consisting of the characters given by the ASCII code values of those
 integers. @code{NULL} values are skipped:
 
 @example
-mysql> select CHAR(77,121,83,81,'76');
+mysql> SELECT CHAR(77,121,83,81,'76');
         -> 'MySQL'
-mysql> select CHAR(77,77.3,'77.3');
+mysql> SELECT CHAR(77,77.3,'77.3');
         -> 'MMM'
 @end example
 
@@ -30543,11 +30543,11 @@ Returns the string that results from concatenating the arguments.  Returns
 A numeric argument is converted to the equivalent string form:
 
 @example
-mysql> select CONCAT('My', 'S', 'QL');
+mysql> SELECT CONCAT('My', 'S', 'QL');
         -> 'MySQL'
-mysql> select CONCAT('My', NULL, 'QL');
+mysql> SELECT CONCAT('My', NULL, 'QL');
         -> NULL
-mysql> select CONCAT(14.3);
+mysql> SELECT CONCAT(14.3);
         -> '14.3'
 @end example
 
@@ -30563,9 +30563,9 @@ separator argument. The separator will be added between the strings to be
 concatenated:
 
 @example
-mysql> select CONCAT_WS(",","First name","Second name","Last Name");
+mysql> SELECT CONCAT_WS(",","First name","Second name","Last Name");
        -> 'First name,Second name,Last Name'
-mysql> select CONCAT_WS(",","First name",NULL,"Last Name");
+mysql> SELECT CONCAT_WS(",","First name",NULL,"Last Name");
        -> 'First name,Last Name'
 @end example
 
@@ -30580,9 +30580,9 @@ mysql> select CONCAT_WS(",","First name",NULL,"Last Name");
 Returns the length of the string @code{str}:
 
 @example
-mysql> select LENGTH('text');
+mysql> SELECT LENGTH('text');
         -> 4
-mysql> select OCTET_LENGTH('text');
+mysql> SELECT OCTET_LENGTH('text');
         -> 4
 @end example
 
@@ -30594,7 +30594,7 @@ characters are only counted once.
 Returns the length of the string @code{str} in bits:
 
 @example
-mysql> select BIT_LENGTH('text');
+mysql> SELECT BIT_LENGTH('text');
         -> 32
 @end example
 
@@ -30606,9 +30606,9 @@ Returns the position of the first occurrence of substring @code{substr}
 in string @code{str}. Returns @code{0} if @code{substr} is not in @code{str}:
 
 @example
-mysql> select LOCATE('bar', 'foobarbar');
+mysql> SELECT LOCATE('bar', 'foobarbar');
         -> 4
-mysql> select LOCATE('xbar', 'foobar');
+mysql> SELECT LOCATE('xbar', 'foobar');
         -> 0
 @end example
 
@@ -30623,7 +30623,7 @@ string @code{str}, starting at position @code{pos}.
 Returns @code{0} if @code{substr} is not in @code{str}:
 
 @example
-mysql> select LOCATE('bar', 'foobarbar',5);
+mysql> SELECT LOCATE('bar', 'foobarbar',5);
         -> 7
 @end example
 
@@ -30638,9 +30638,9 @@ string @code{str}. This is the same as the two-argument form of
 @code{LOCATE()}, except that the arguments are swapped:
 
 @example
-mysql> select INSTR('foobarbar', 'bar');
+mysql> SELECT INSTR('foobarbar', 'bar');
         -> 4
-mysql> select INSTR('xbar', 'foobar');
+mysql> SELECT INSTR('xbar', 'foobar');
         -> 0
 @end example
 
@@ -30655,7 +30655,7 @@ until @code{str} is @code{len} characters long. If @code{str} is longer
 than @code{len'} then it will be shortened to @code{len} characters.
 
 @example
-mysql> select LPAD('hi',4,'??');
+mysql> SELECT LPAD('hi',4,'??');
         -> '??hi'
 @end example
 
@@ -30667,7 +30667,7 @@ Returns the string @code{str}, right-padded with the string
 @code{len} characters.
 
 @example
-mysql> select RPAD('hi',5,'?');
+mysql> SELECT RPAD('hi',5,'?');
         -> 'hi???'
 @end example
 
@@ -30676,7 +30676,7 @@ mysql> select RPAD('hi',5,'?');
 Returns the leftmost @code{len} characters from the string @code{str}:
 
 @example
-mysql> select LEFT('foobarbar', 5);
+mysql> SELECT LEFT('foobarbar', 5);
         -> 'fooba'
 @end example
 
@@ -30687,7 +30687,7 @@ This function is multi-byte safe.
 Returns the rightmost @code{len} characters from the string @code{str}:
 
 @example
-mysql> select RIGHT('foobarbar', 4);
+mysql> SELECT RIGHT('foobarbar', 4);
         -> 'rbar'
 @end example
 
@@ -30703,7 +30703,7 @@ starting at position @code{pos}.
 The variant form that uses @code{FROM} is ANSI SQL92 syntax:
 
 @example
-mysql> select SUBSTRING('Quadratically',5,6);
+mysql> SELECT SUBSTRING('Quadratically',5,6);
         -> 'ratica'
 @end example
 
@@ -30715,9 +30715,9 @@ This function is multi-byte safe.
 Returns a substring from string @code{str} starting at position @code{pos}:
 
 @example
-mysql> select SUBSTRING('Quadratically',5);
+mysql> SELECT SUBSTRING('Quadratically',5);
         -> 'ratically'
-mysql> select SUBSTRING('foobarbar' FROM 4);
+mysql> SELECT SUBSTRING('foobarbar' FROM 4);
         -> 'barbar'
 @end example
 
@@ -30733,9 +30733,9 @@ If @code{count} is negative, everything to the right of the final delimiter
 (counting from the right) is returned:
 
 @example
-mysql> select SUBSTRING_INDEX('www.mysql.com', '.', 2);
+mysql> SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2);
         -> 'www.mysql'
-mysql> select SUBSTRING_INDEX('www.mysql.com', '.', -2);
+mysql> SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2);
         -> 'mysql.com'
 @end example
 
@@ -30746,7 +30746,7 @@ This function is multi-byte safe.
 Returns the string @code{str} with leading space characters removed:
 
 @example
-mysql> select LTRIM('  barbar');
+mysql> SELECT LTRIM('  barbar');
         -> 'barbar'
 @end example
 
@@ -30755,7 +30755,7 @@ mysql> select LTRIM('  barbar');
 Returns the string @code{str} with trailing space characters removed:
 
 @example
-mysql> select RTRIM('barbar   ');
+mysql> SELECT RTRIM('barbar   ');
         -> 'barbar'
 @end example
 
@@ -30769,13 +30769,13 @@ removed. If none of the specifiers @code{BOTH}, @code{LEADING} or
 specified, spaces are removed:
 
 @example
-mysql> select TRIM('  bar   ');
+mysql> SELECT TRIM('  bar   ');
         -> 'bar'
-mysql> select TRIM(LEADING 'x' FROM 'xxxbarxxx');
+mysql> SELECT TRIM(LEADING 'x' FROM 'xxxbarxxx');
         -> 'barxxx'
-mysql> select TRIM(BOTH 'x' FROM 'xxxbarxxx');
+mysql> SELECT TRIM(BOTH 'x' FROM 'xxxbarxxx');
         -> 'bar'
-mysql> select TRIM(TRAILING 'xyz' FROM 'barxxyz');
+mysql> SELECT TRIM(TRAILING 'xyz' FROM 'barxxyz');
         -> 'barx'
 @end example
 
@@ -30792,9 +30792,9 @@ in the given string. All international alpha characters outside the A-Z range
 are treated as vowels:
 
 @example
-mysql> select SOUNDEX('Hello');
+mysql> SELECT SOUNDEX('Hello');
         -> 'H400'
-mysql> select SOUNDEX('Quadratically');
+mysql> SELECT SOUNDEX('Quadratically');
         -> 'Q36324'
 @end example
 
@@ -30803,7 +30803,7 @@ mysql> select SOUNDEX('Quadratically');
 Returns a string consisting of @code{N} space characters:
 
 @example
-mysql> select SPACE(6);
+mysql> SELECT SPACE(6);
         -> '      '
 @end example
 
@@ -30813,7 +30813,7 @@ Returns the string @code{str} with all all occurrences of the string
 @code{from_str} replaced by the string @code{to_str}:
 
 @example
-mysql> select REPLACE('www.mysql.com', 'w', 'Ww');
+mysql> SELECT REPLACE('www.mysql.com', 'w', 'Ww');
         -> 'WwWwWw.mysql.com'
 @end example
 
@@ -30826,7 +30826,7 @@ times. If @code{count <= 0}, returns an empty string. Returns @code{NULL} if
 @code{str} or @code{count} are @code{NULL}:
 
 @example
-mysql> select REPEAT('MySQL', 3);
+mysql> SELECT REPEAT('MySQL', 3);
         -> 'MySQLMySQLMySQL'
 @end example
 
@@ -30835,7 +30835,7 @@ mysql> select REPEAT('MySQL', 3);
 Returns the string @code{str} with the order of the characters reversed:
 
 @example
-mysql> select REVERSE('abc');
+mysql> SELECT REVERSE('abc');
         -> 'cba'
 @end example
 
@@ -30848,7 +30848,7 @@ Returns the string @code{str}, with the substring beginning at position
 @code{newstr}:
 
 @example
-mysql> select INSERT('Quadratic', 3, 4, 'What');
+mysql> SELECT INSERT('Quadratic', 3, 4, 'What');
         -> 'QuWhattic'
 @end example
 
@@ -30862,9 +30862,9 @@ or greater than the number of arguments.  @code{ELT()} is the complement of
 @code{FIELD()}:
 
 @example
-mysql> select ELT(1, 'ej', 'Heja', 'hej', 'foo');
+mysql> SELECT ELT(1, 'ej', 'Heja', 'hej', 'foo');
         -> 'ej'
-mysql> select ELT(4, 'ej', 'Heja', 'hej', 'foo');
+mysql> SELECT ELT(4, 'ej', 'Heja', 'hej', 'foo');
         -> 'foo'
 @end example
 
@@ -30876,9 +30876,9 @@ Returns @code{0} if @code{str} is not found.
 @code{FIELD()} is the complement of @code{ELT()}:
 
 @example
-mysql> select FIELD('ej', 'Hej', 'ej', 'Heja', 'hej', 'foo');
+mysql> SELECT FIELD('ej', 'Hej', 'ej', 'Heja', 'hej', 'foo');
         -> 2
-mysql> select FIELD('fo', 'Hej', 'ej', 'Heja', 'hej', 'foo');
+mysql> SELECT FIELD('fo', 'Hej', 'ej', 'Heja', 'hej', 'foo');
         -> 0
 @end example
 
@@ -30924,7 +30924,7 @@ with 'separator' (default ',') and only 'number_of_bits' (default 64) of
 'bits' is used:
 
 @example
-mysql> select EXPORT_SET(5,'Y','N',',',4)
+mysql> SELECT EXPORT_SET(5,'Y','N',',',4)
         -> Y,N,Y,N
 @end example
 
@@ -30937,7 +30937,7 @@ according to the current character set mapping (the default is ISO-8859-1
 Latin1):
 
 @example
-mysql> select LCASE('QUADRATICALLY');
+mysql> SELECT LCASE('QUADRATICALLY');
         -> 'quadratically'
 @end example
 
@@ -30952,7 +30952,7 @@ according to the current character set mapping (the default is ISO-8859-1
 Latin1):
 
 @example
-mysql> select UCASE('Hej');
+mysql> SELECT UCASE('Hej');
         -> 'HEJ'
 @end example
 
@@ -30970,7 +30970,7 @@ If the file doesn't exist or can't be read due to one of the above reasons,
 the function returns @code{NULL}:
 
 @example
-mysql> UPDATE table_name
+mysql> UPDATE tbl_name
            SET blob_column=LOAD_FILE("/tmp/picture")
            WHERE id=1;
 @end example
@@ -31032,9 +31032,9 @@ in the pattern:
 @end multitable
 
 @example
-mysql> select 'David!' LIKE 'David_';
+mysql> SELECT 'David!' LIKE 'David_';
         -> 1
-mysql> select 'David!' LIKE '%D%v%';
+mysql> SELECT 'David!' LIKE '%D%v%';
         -> 1
 @end example
 
@@ -31049,16 +31049,16 @@ with the escape character.  If you don't specify the @code{ESCAPE} character,
 @end multitable
 
 @example
-mysql> select 'David!' LIKE 'David\_';
+mysql> SELECT 'David!' LIKE 'David\_';
         -> 0
-mysql> select 'David_' LIKE 'David\_';
+mysql> SELECT 'David_' LIKE 'David\_';
         -> 1
 @end example
 
 To specify a different escape character, use the @code{ESCAPE} clause:
 
 @example
-mysql> select 'David_' LIKE 'David|_' ESCAPE '|';
+mysql> SELECT 'David_' LIKE 'David|_' ESCAPE '|';
         -> 1
 @end example
 
@@ -31066,7 +31066,7 @@ The following two statements illustrate that string comparisons are
 case insensitive unless one of the operands is a binary string:
 
 @example
-mysql> select 'abc' LIKE 'ABC';
+mysql> SELECT 'abc' LIKE 'ABC';
         -> 1
 mysql> SELECT 'abc' LIKE BINARY 'ABC';
         -> 0
@@ -31076,7 +31076,7 @@ mysql> SELECT 'abc' LIKE BINARY 'ABC';
 extension to the ANSI SQL @code{LIKE}.)
 
 @example
-mysql> select 10 LIKE '1%';
+mysql> SELECT 10 LIKE '1%';
         -> 1
 @end example
 
@@ -31107,15 +31107,15 @@ you use in your @code{REGEXP} strings.  As of MySQL Version 3.23.4,
 @code{REGEXP} is case insensitive for normal (not binary) strings:
 
 @example
-mysql> select 'Monty!' REGEXP 'm%y%%';
+mysql> SELECT 'Monty!' REGEXP 'm%y%%';
         -> 0
-mysql> select 'Monty!' REGEXP '.*';
+mysql> SELECT 'Monty!' REGEXP '.*';
         -> 1
-mysql> select 'new*\n*line' REGEXP 'new\\*.\\*line';
+mysql> SELECT 'new*\n*line' REGEXP 'new\\*.\\*line';
         -> 1
-mysql> select "a" REGEXP "A", "a" REGEXP BINARY "A";
+mysql> SELECT "a" REGEXP "A", "a" REGEXP BINARY "A";
         -> 1  0
-mysql> select "a" REGEXP "^[a-d]";
+mysql> SELECT "a" REGEXP "^[a-d]";
         -> 1
 @end example
 
@@ -31136,11 +31136,11 @@ argument is smaller than the second according to the current sort order,
 and @code{1} otherwise:
 
 @example
-mysql> select STRCMP('text', 'text2');
+mysql> SELECT STRCMP('text', 'text2');
         -> -1
-mysql> select STRCMP('text2', 'text');
+mysql> SELECT STRCMP('text2', 'text');
         -> 1
-mysql> select STRCMP('text', 'text');
+mysql> SELECT STRCMP('text', 'text');
         -> 0
 @end example
 
@@ -31171,9 +31171,9 @@ The @code{BINARY} operator casts the string following it to a binary string.
 This is an easy way to force a column comparison to be case sensitive even
 if the column isn't defined as @code{BINARY} or @code{BLOB}:
 @example
-mysql> select "a" = "A";
+mysql> SELECT "a" = "A";
         -> 1
-mysql> select BINARY "a" = "A";
+mysql> SELECT BINARY "a" = "A";
         -> 0
 @end example
 
@@ -31224,7 +31224,7 @@ is also an integer, the result will be an unsigned integer.
 @item +
 Addition:
 @example
-mysql> select 3+5;
+mysql> SELECT 3+5;
         -> 8
 @end example
 
@@ -31233,7 +31233,7 @@ mysql> select 3+5;
 @item -
 Subtraction:
 @example
-mysql> select 3-5;
+mysql> SELECT 3-5;
         -> -2
 @end example
 
@@ -31242,11 +31242,11 @@ mysql> select 3-5;
 @item *
 Multiplication:
 @example
-mysql> select 3*5;
+mysql> SELECT 3*5;
         -> 15
-mysql> select 18014398509481984*18014398509481984.0;
+mysql> SELECT 18014398509481984*18014398509481984.0;
         -> 324518553658426726783156020576256.0
-mysql> select 18014398509481984*18014398509481984;
+mysql> SELECT 18014398509481984*18014398509481984;
         -> 0
 @end example
 
@@ -31259,14 +31259,14 @@ calculations.
 @item /
 Division:
 @example
-mysql> select 3/5;
+mysql> SELECT 3/5;
         -> 0.60
 @end example
 
 Division by zero produces a @code{NULL} result:
 
 @example
-mysql> select 102/(1-1);
+mysql> SELECT 102/(1-1);
         -> NULL
 @end example
 
@@ -31289,7 +31289,7 @@ All mathematical functions return @code{NULL} in case of an error.
 @item -
 Unary minus. Changes the sign of the argument:
 @example
-mysql> select - 2;
+mysql> SELECT - 2;
         -> -2
 @end example
 
@@ -31301,9 +31301,9 @@ may have the value of @code{-2^63}!
 @item ABS(X)
 Returns the absolute value of @code{X}:
 @example
-mysql> select ABS(2);
+mysql> SELECT ABS(2);
         -> 2
-mysql> select ABS(-32);
+mysql> SELECT ABS(-32);
         -> 32
 @end example
 
@@ -31314,11 +31314,11 @@ This function is safe to use with @code{BIGINT} values.
 Returns the sign of the argument as @code{-1}, @code{0}, or @code{1}, depending
 on whether @code{X} is negative, zero, or positive:
 @example
-mysql> select SIGN(-32);
+mysql> SELECT SIGN(-32);
         -> -1
-mysql> select SIGN(0);
+mysql> SELECT SIGN(0);
         -> 0
-mysql> select SIGN(234);
+mysql> SELECT SIGN(234);
         -> 1
 @end example
 
@@ -31330,11 +31330,11 @@ mysql> select SIGN(234);
 Modulo (like the @code{%} operator in C).
 Returns the remainder of @code{N} divided by @code{M}:
 @example
-mysql> select MOD(234, 10);
+mysql> SELECT MOD(234, 10);
         -> 4
-mysql> select 253 % 7;
+mysql> SELECT 253 % 7;
         -> 1
-mysql> select MOD(29,9);
+mysql> SELECT MOD(29,9);
         -> 2
 @end example
 
@@ -31344,9 +31344,9 @@ This function is safe to use with @code{BIGINT} values.
 @item FLOOR(X)
 Returns the largest integer value not greater than @code{X}:
 @example
-mysql> select FLOOR(1.23);
+mysql> SELECT FLOOR(1.23);
         -> 1
-mysql> select FLOOR(-1.23);
+mysql> SELECT FLOOR(-1.23);
         -> -2
 @end example
 
@@ -31356,9 +31356,9 @@ Note that the return value is converted to a @code{BIGINT}!
 @item CEILING(X)
 Returns the smallest integer value not less than @code{X}:
 @example
-mysql> select CEILING(1.23);
+mysql> SELECT CEILING(1.23);
         -> 2
-mysql> select CEILING(-1.23);
+mysql> SELECT CEILING(-1.23);
         -> -1
 @end example
 
@@ -31368,11 +31368,11 @@ Note that the return value is converted to a @code{BIGINT}!
 @item ROUND(X)
 Returns the argument @code{X}, rounded to the nearest integer:
 @example
-mysql> select ROUND(-1.23);
+mysql> SELECT ROUND(-1.23);
         -> -1
-mysql> select ROUND(-1.58);
+mysql> SELECT ROUND(-1.58);
         -> -2
-mysql> select ROUND(1.58);
+mysql> SELECT ROUND(1.58);
         -> 2
 @end example
 
@@ -31390,9 +31390,9 @@ If @code{D} is @code{0}, the result will have no decimal point or fractional
 part:
 
 @example
-mysql> select ROUND(1.298, 1);
+mysql> SELECT ROUND(1.298, 1);
         -> 1.3
-mysql> select ROUND(1.298, 0);
+mysql> SELECT ROUND(1.298, 0);
         -> 1
 @end example
 
@@ -31401,18 +31401,18 @@ mysql> select ROUND(1.298, 0);
 Returns the value of @code{e} (the base of natural logarithms) raised to
 the power of @code{X}:
 @example
-mysql> select EXP(2);
+mysql> SELECT EXP(2);
         -> 7.389056
-mysql> select EXP(-2);
+mysql> SELECT EXP(-2);
         -> 0.135335
 @end example
 @findex LOG()
 @item LOG(X)
 Returns the natural logarithm of @code{X}:
 @example
-mysql> select LOG(2);
+mysql> SELECT LOG(2);
         -> 0.693147
-mysql> select LOG(-2);
+mysql> SELECT LOG(-2);
         -> NULL
 @end example
 If you want the log of a number @code{X} to some arbitary base @code{B}, use
@@ -31422,11 +31422,11 @@ the formula @code{LOG(X)/LOG(B)}.
 @item LOG10(X)
 Returns the base-10 logarithm of @code{X}:
 @example
-mysql> select LOG10(2);
+mysql> SELECT LOG10(2);
         -> 0.301030
-mysql> select LOG10(100);
+mysql> SELECT LOG10(100);
         -> 2.000000
-mysql> select LOG10(-100);
+mysql> SELECT LOG10(-100);
         -> NULL
 @end example
 
@@ -31436,9 +31436,9 @@ mysql> select LOG10(-100);
 @itemx POWER(X,Y)
 Returns the value of @code{X} raised to the power of @code{Y}:
 @example
-mysql> select POW(2,2);
+mysql> SELECT POW(2,2);
         -> 4.000000
-mysql> select POW(2,-2);
+mysql> SELECT POW(2,-2);
         -> 0.250000
 @end example
 
@@ -31446,9 +31446,9 @@ mysql> select POW(2,-2);
 @item SQRT(X)
 Returns the non-negative square root of @code{X}:
 @example
-mysql> select SQRT(4);
+mysql> SELECT SQRT(4);
         -> 2.000000
-mysql> select SQRT(20);
+mysql> SELECT SQRT(20);
         -> 4.472136
 @end example
 
@@ -31457,7 +31457,7 @@ mysql> select SQRT(20);
 Returns the value of PI. The default shown number of decimals is 5, but
 MySQL internally uses the full double precession for PI.
 @example
-mysql> select PI();
+mysql> SELECT PI();
         -> 3.141593
 mysql> SELECT PI()+0.000000000000000000;
         -> 3.141592653589793116
@@ -31467,7 +31467,7 @@ mysql> SELECT PI()+0.000000000000000000;
 @item COS(X)
 Returns the cosine of @code{X}, where @code{X} is given in radians:
 @example
-mysql> select COS(PI());
+mysql> SELECT COS(PI());
         -> -1.000000
 @end example
 
@@ -31475,7 +31475,7 @@ mysql> select COS(PI());
 @item SIN(X)
 Returns the sine of @code{X}, where @code{X} is given in radians:
 @example
-mysql> select SIN(PI());
+mysql> SELECT SIN(PI());
         -> 0.000000
 @end example
 
@@ -31483,7 +31483,7 @@ mysql> select SIN(PI());
 @item TAN(X)
 Returns the tangent of @code{X}, where @code{X} is given in radians:
 @example
-mysql> select TAN(PI()+1);
+mysql> SELECT TAN(PI()+1);
         -> 1.557408
 @end example
 
@@ -31493,11 +31493,11 @@ Returns the arc cosine of @code{X}, that is, the value whose cosine is
 @code{X}. Returns @code{NULL} if @code{X} is not in the range @code{-1} to
 @code{1}:
 @example
-mysql> select ACOS(1);
+mysql> SELECT ACOS(1);
         -> 0.000000
-mysql> select ACOS(1.0001);
+mysql> SELECT ACOS(1.0001);
         -> NULL
-mysql> select ACOS(0);
+mysql> SELECT ACOS(0);
         -> 1.570796
 @end example
 
@@ -31507,9 +31507,9 @@ Returns the arc sine of @code{X}, that is, the value whose sine is
 @code{X}. Returns @code{NULL} if @code{X} is not in the range @code{-1} to
 @code{1}:
 @example
-mysql> select ASIN(0.2);
+mysql> SELECT ASIN(0.2);
         -> 0.201358
-mysql> select ASIN('foo');
+mysql> SELECT ASIN('foo');
         -> 0.000000
 @end example
 
@@ -31518,9 +31518,9 @@ mysql> select ASIN('foo');
 Returns the arc tangent of @code{X}, that is, the value whose tangent is
 @code{X}:
 @example
-mysql> select ATAN(2);
+mysql> SELECT ATAN(2);
         -> 1.107149
-mysql> select ATAN(-2);
+mysql> SELECT ATAN(-2);
         -> -1.107149
 @end example
 
@@ -31532,9 +31532,9 @@ similar to calculating the arc tangent of @code{Y / X}, except that the
 signs of both arguments are used to determine the quadrant of the
 result:
 @example
-mysql> select ATAN(-2,2);
+mysql> SELECT ATAN(-2,2);
         -> -0.785398
-mysql> select ATAN2(PI(),0);
+mysql> SELECT ATAN2(PI(),0);
         -> 1.570796
 @end example
 
@@ -31542,9 +31542,9 @@ mysql> select ATAN2(PI(),0);
 @item COT(X)
 Returns the cotangent of @code{X}:
 @example
-mysql> select COT(12);
+mysql> SELECT COT(12);
         -> -1.57267341
-mysql> select COT(0);
+mysql> SELECT COT(0);
         -> NULL
 @end example
 
@@ -31554,15 +31554,15 @@ mysql> select COT(0);
 Returns a random floating-point value in the range @code{0} to @code{1.0}.
 If an integer argument @code{N} is specified, it is used as the seed value:
 @example
-mysql> select RAND();
+mysql> SELECT RAND();
         -> 0.9233482386203
-mysql> select RAND(20);
+mysql> SELECT RAND(20);
         -> 0.15888261251047
-mysql> select RAND(20);
+mysql> SELECT RAND(20);
         -> 0.15888261251047
-mysql> select RAND();
+mysql> SELECT RAND();
         -> 0.63553050033332
-mysql> select RAND();
+mysql> SELECT RAND();
         -> 0.70100469486881
 @end example
 
@@ -31604,11 +31604,11 @@ In other cases, the arguments are compared as case-insensitive strings:
 @end itemize
 
 @example
-mysql> select LEAST(2,0);
+mysql> SELECT LEAST(2,0);
         -> 0
-mysql> select LEAST(34.0,3.0,5.0,767.0);
+mysql> SELECT LEAST(34.0,3.0,5.0,767.0);
         -> 3.0
-mysql> select LEAST("B","A","C");
+mysql> SELECT LEAST("B","A","C");
         -> "A"
 @end example
 In MySQL versions prior to Version 3.22.5, you can use @code{MIN()}
@@ -31619,11 +31619,11 @@ instead of @code{LEAST}.
 Returns the largest (maximum-valued) argument.
 The arguments are compared using the same rules as for @code{LEAST}:
 @example
-mysql> select GREATEST(2,0);
+mysql> SELECT GREATEST(2,0);
         -> 2
-mysql> select GREATEST(34.0,3.0,5.0,767.0);
+mysql> SELECT GREATEST(34.0,3.0,5.0,767.0);
         -> 767.0
-mysql> select GREATEST("B","A","C");
+mysql> SELECT GREATEST("B","A","C");
         -> "C"
 @end example
 In MySQL versions prior to Version 3.22.5, you can use @code{MAX()}
@@ -31633,7 +31633,7 @@ instead of @code{GREATEST}.
 @item DEGREES(X)
 Returns the argument @code{X}, converted from radians to degrees:
 @example
-mysql> select DEGREES(PI());
+mysql> SELECT DEGREES(PI());
         -> 180.000000
 @end example
 
@@ -31641,7 +31641,7 @@ mysql> select DEGREES(PI());
 @item RADIANS(X)
 Returns the argument @code{X}, converted from degrees to radians:
 @example
-mysql> select RADIANS(90);
+mysql> SELECT RADIANS(90);
         -> 1.570796
 @end example
 
@@ -31650,11 +31650,11 @@ mysql> select RADIANS(90);
 Returns the number @code{X}, truncated to @code{D} decimals.  If @code{D}
 is @code{0}, the result will have no decimal point or fractional part:
 @example
-mysql> select TRUNCATE(1.223,1);
+mysql> SELECT TRUNCATE(1.223,1);
         -> 1.2
-mysql> select TRUNCATE(1.999,1);
+mysql> SELECT TRUNCATE(1.999,1);
         -> 1.9
-mysql> select TRUNCATE(1.999,0);
+mysql> SELECT TRUNCATE(1.999,0);
         -> 1
 @end example
 
@@ -31664,7 +31664,7 @@ result:
 
 @cindex rounding errors
 @example
-mysql> select TRUNCATE(10.28*100,0);
+mysql> SELECT TRUNCATE(10.28*100,0);
        -> 1027
 @end example
 
@@ -31686,7 +31686,7 @@ Here is an example that uses date functions.  The query below selects
 all records with a @code{date_col} value from within the last 30 days:
 
 @example
-mysql> SELECT something FROM table
+mysql> SELECT something FROM tbl_name
            WHERE TO_DAYS(NOW()) - TO_DAYS(date_col) <= 30;
 @end example
 
@@ -31699,7 +31699,7 @@ for @code{date} (@code{1} = Sunday, @code{2} = Monday, ... @code{7} =
 Saturday).  These index values correspond to the ODBC standard:
 
 @example
-mysql> select DAYOFWEEK('1998-02-03');
+mysql> SELECT DAYOFWEEK('1998-02-03');
         -> 3
 @end example
 
@@ -31709,9 +31709,9 @@ Returns the weekday index for
 @code{date} (@code{0} = Monday, @code{1} = Tuesday, ... @code{6} = Sunday):
 
 @example
-mysql> select WEEKDAY('1997-10-04 22:23:00');
+mysql> SELECT WEEKDAY('1997-10-04 22:23:00');
         -> 5
-mysql> select WEEKDAY('1997-11-05');
+mysql> SELECT WEEKDAY('1997-11-05');
         -> 2
 @end example
 
@@ -31721,7 +31721,7 @@ Returns the day of the month for @code{date}, in the range @code{1} to
 @code{31}:
 
 @example
-mysql> select DAYOFMONTH('1998-02-03');
+mysql> SELECT DAYOFMONTH('1998-02-03');
         -> 3
 @end example
 
@@ -31731,7 +31731,7 @@ Returns the day of the year for @code{date}, in the range @code{1} to
 @code{366}:
 
 @example
-mysql> select DAYOFYEAR('1998-02-03');
+mysql> SELECT DAYOFYEAR('1998-02-03');
         -> 34
 @end example
 
@@ -31740,7 +31740,7 @@ mysql> select DAYOFYEAR('1998-02-03');
 Returns the month for @code{date}, in the range @code{1} to @code{12}:
 
 @example
-mysql> select MONTH('1998-02-03');
+mysql> SELECT MONTH('1998-02-03');
         -> 2
 @end example
 
@@ -31749,7 +31749,7 @@ mysql> select MONTH('1998-02-03');
 Returns the name of the weekday for @code{date}:
 
 @example
-mysql> select DAYNAME("1998-02-05");
+mysql> SELECT DAYNAME("1998-02-05");
         -> 'Thursday'
 @end example
 
@@ -31758,7 +31758,7 @@ mysql> select DAYNAME("1998-02-05");
 Returns the name of the month for @code{date}:
 
 @example
-mysql> select MONTHNAME("1998-02-05");
+mysql> SELECT MONTHNAME("1998-02-05");
         -> 'February'
 @end example
 
@@ -31768,7 +31768,7 @@ Returns the quarter of the year for @code{date}, in the range @code{1}
 to @code{4}:
 
 @example
-mysql> select QUARTER('98-04-01');
+mysql> SELECT QUARTER('98-04-01');
         -> 2
 @end example
 
@@ -31784,13 +31784,13 @@ second argument is @code{0}, on Monday if the second argument is
 @code{1}:
 
 @example
-mysql> select WEEK('1998-02-20');
+mysql> SELECT WEEK('1998-02-20');
         -> 7
-mysql> select WEEK('1998-02-20',0);
+mysql> SELECT WEEK('1998-02-20',0);
         -> 7
-mysql> select WEEK('1998-02-20',1);
+mysql> SELECT WEEK('1998-02-20',1);
         -> 8
-mysql> select WEEK('1998-12-31',1);
+mysql> SELECT WEEK('1998-12-31',1);
         -> 53
 @end example
 
@@ -31802,7 +31802,7 @@ calendar in the USA.
 Returns the year for @code{date}, in the range @code{1000} to @code{9999}:
 
 @example
-mysql> select YEAR('98-02-03');
+mysql> SELECT YEAR('98-02-03');
         -> 1998
 @end example
 
@@ -31814,7 +31814,7 @@ different from the year in the date argument for the first and the last
 week of the year:
 
 @example
-mysql> select YEARWEEK('1987-01-01');
+mysql> SELECT YEARWEEK('1987-01-01');
         -> 198653
 @end example
 
@@ -31823,7 +31823,7 @@ mysql> select YEARWEEK('1987-01-01');
 Returns the hour for @code{time}, in the range @code{0} to @code{23}:
 
 @example
-mysql> select HOUR('10:05:03');
+mysql> SELECT HOUR('10:05:03');
         -> 10
 @end example
 
@@ -31832,7 +31832,7 @@ mysql> select HOUR('10:05:03');
 Returns the minute for @code{time}, in the range @code{0} to @code{59}:
 
 @example
-mysql> select MINUTE('98-02-03 10:05:03');
+mysql> SELECT MINUTE('98-02-03 10:05:03');
         -> 5
 @end example
 
@@ -31841,7 +31841,7 @@ mysql> select MINUTE('98-02-03 10:05:03');
 Returns the second for @code{time}, in the range @code{0} to @code{59}:
 
 @example
-mysql> select SECOND('10:05:03');
+mysql> SELECT SECOND('10:05:03');
         -> 3
 @end example
 
@@ -31853,7 +31853,7 @@ Adds @code{N} months to period @code{P} (in the format @code{YYMM} or
 Note that the period argument @code{P} is @emph{not} a date value:
 
 @example
-mysql> select PERIOD_ADD(9801,2);
+mysql> SELECT PERIOD_ADD(9801,2);
         -> 199803
 @end example
 
@@ -31866,7 +31866,7 @@ Note that the period arguments @code{P1} and @code{P2} are @emph{not}
 date values:
 
 @example
-mysql> select PERIOD_DIFF(9802,199703);
+mysql> SELECT PERIOD_DIFF(9802,199703);
         -> 11
 @end example
 
@@ -31967,9 +31967,9 @@ contains a time part, the date value will be automatically converted to a
 datetime value:
 
 @example
-mysql> select date_add("1999-01-01", interval 1 day);
+mysql> SELECT DATE_ADD("1999-01-01", INTERVAL 1 DAY);
        -> 1999-01-02
-mysql> select date_add("1999-01-01", interval 1 hour);
+mysql> SELECT DATE_ADD("1999-01-01", INTERVAL 1 HOUR);
        -> 1999-01-01 01:00:00
 @end example
 
@@ -31979,7 +31979,7 @@ has a day that is larger than the maximum day for the new month, the day is
 adjusted to the maximum days in the new month:
 
 @example
-mysql> select DATE_ADD('1998-01-30', Interval 1 month);
+mysql> SELECT DATE_ADD('1998-01-30', INTERVAL 1 MONTH);
         -> 1998-02-28
 @end example
 
@@ -32008,9 +32008,9 @@ Given a date @code{date}, returns a daynumber (the number of days since year
 0):
 
 @example
-mysql> select TO_DAYS(950501);
+mysql> SELECT TO_DAYS(950501);
         -> 728779
-mysql> select TO_DAYS('1997-10-07');
+mysql> SELECT TO_DAYS('1997-10-07');
         -> 729669
 @end example
 
@@ -32023,7 +32023,7 @@ days that were lost when the calendar was changed.
 Given a daynumber @code{N}, returns a @code{DATE} value:
 
 @example
-mysql> select FROM_DAYS(729669);
+mysql> SELECT FROM_DAYS(729669);
         -> '1997-10-07'
 @end example
 
@@ -32073,17 +32073,17 @@ following specifiers may be used in the @code{format} string:
 All other characters are just copied to the result without interpretation:
 
 @example
-mysql> select DATE_FORMAT('1997-10-04 22:23:00', '%W %M %Y');
+mysql> SELECT DATE_FORMAT('1997-10-04 22:23:00', '%W %M %Y');
         -> 'Saturday October 1997'
-mysql> select DATE_FORMAT('1997-10-04 22:23:00', '%H:%i:%s');
+mysql> SELECT DATE_FORMAT('1997-10-04 22:23:00', '%H:%i:%s');
         -> '22:23:00'
-mysql> select DATE_FORMAT('1997-10-04 22:23:00',
+mysql> SELECT DATE_FORMAT('1997-10-04 22:23:00',
                           '%D %y %a %d %m %b %j');
         -> '4th 97 Sat 04 10 Oct 277'
-mysql> select DATE_FORMAT('1997-10-04 22:23:00',
+mysql> SELECT DATE_FORMAT('1997-10-04 22:23:00',
                           '%H %k %I %r %T %S %w');
         -> '22 22 10 10:23:00 PM 22:23:00 00 6'
-mysql> select DATE_FORMAT('1999-01-01', '%X %V');
+mysql> SELECT DATE_FORMAT('1999-01-01', '%X %V');
         -> '1998 52'
 @end example
 
@@ -32107,9 +32107,9 @@ format, depending on whether the function is used in a string or numeric
 context:
 
 @example
-mysql> select CURDATE();
+mysql> SELECT CURDATE();
         -> '1997-12-15'
-mysql> select CURDATE() + 0;
+mysql> SELECT CURDATE() + 0;
         -> 19971215
 @end example
 
@@ -32122,9 +32122,9 @@ format, depending on whether the function is used in a string or numeric
 context:
 
 @example
-mysql> select CURTIME();
+mysql> SELECT CURTIME();
         -> '23:50:26'
-mysql> select CURTIME() + 0;
+mysql> SELECT CURTIME() + 0;
         -> 235026
 @end example
 
@@ -32139,9 +32139,9 @@ or @code{YYYYMMDDHHMMSS} format, depending on whether the function is used in
 a string or numeric context:
 
 @example
-mysql> select NOW();
+mysql> SELECT NOW();
         -> '1997-12-15 23:50:26'
-mysql> select NOW() + 0;
+mysql> SELECT NOW() + 0;
         -> 19971215235026
 @end example
 
@@ -32157,9 +32157,9 @@ returns the value of the argument as seconds since @code{'1970-01-01
 @code{YYMMDD} or @code{YYYYMMDD} in local time:
 
 @example
-mysql> select UNIX_TIMESTAMP();
+mysql> SELECT UNIX_TIMESTAMP();
         -> 882226357
-mysql> select UNIX_TIMESTAMP('1997-10-04 22:23:00');
+mysql> SELECT UNIX_TIMESTAMP('1997-10-04 22:23:00');
         -> 875996580
 @end example
 
@@ -32179,9 +32179,9 @@ Returns a representation of the @code{unix_timestamp} argument as a value in
 whether the function is used in a string or numeric context:
 
 @example
-mysql> select FROM_UNIXTIME(875996580);
+mysql> SELECT FROM_UNIXTIME(875996580);
         -> '1997-10-04 22:23:00'
-mysql> select FROM_UNIXTIME(875996580) + 0;
+mysql> SELECT FROM_UNIXTIME(875996580) + 0;
         -> 19971004222300
 @end example
 
@@ -32192,7 +32192,7 @@ the @code{format} string. @code{format} may contain the same specifiers as
 those listed in the entry for the @code{DATE_FORMAT()} function:
 
 @example
-mysql> select FROM_UNIXTIME(UNIX_TIMESTAMP(),
+mysql> SELECT FROM_UNIXTIME(UNIX_TIMESTAMP(),
                             '%Y %D %M %h:%i:%s %x');
         -> '1997 23rd December 03:43:30 1997'
 @end example
@@ -32204,9 +32204,9 @@ as a value in @code{'HH:MM:SS'} or @code{HHMMSS} format, depending on whether
 the function is used in a string or numeric context:
 
 @example
-mysql> select SEC_TO_TIME(2378);
+mysql> SELECT SEC_TO_TIME(2378);
         -> '00:39:38'
-mysql> select SEC_TO_TIME(2378) + 0;
+mysql> SELECT SEC_TO_TIME(2378) + 0;
         -> 3938
 @end example
 
@@ -32215,9 +32215,9 @@ mysql> select SEC_TO_TIME(2378) + 0;
 Returns the @code{time} argument, converted to seconds:
 
 @example
-mysql> select TIME_TO_SEC('22:23:00');
+mysql> SELECT TIME_TO_SEC('22:23:00');
         -> 80580
-mysql> select TIME_TO_SEC('00:39:38');
+mysql> SELECT TIME_TO_SEC('00:39:38');
         -> 2378
 @end example
 @end table
@@ -32269,7 +32269,7 @@ To cast a string to a numeric value, you don't normally have to do
 anything; Just use the string value as it would be a number:
 
 @example
-mysql> select 1+'1';
+mysql> SELECT 1+'1';
         -> 2
 @end example
 
@@ -32281,9 +32281,9 @@ cast operators, which will cast the operation to signed respective
 unsigned 64 bit integer.
 
 @example
-mysql> select CAST(1-2 AS UNSIGNED)
+mysql> SELECT CAST(1-2 AS UNSIGNED)
         -> 18446744073709551615
-mysql  select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED);
+mysql> SELECT CAST(CAST(1-2 AS UNSIGNED) AS SIGNED);
         -> -1
 @end example
 
@@ -32292,7 +32292,7 @@ Note that if either operation is a floating point value (In this context
 be a floating point value and is not affected by the above rule.
 
 @example
-mysql> select CAST(1 AS UNSIGNED) -2.0
+mysql> SELECT CAST(1 AS UNSIGNED) -2.0
         -> -1.0
 @end example
 
@@ -32346,7 +32346,7 @@ these operators have a maximum range of 64 bits.
 @item |
 Bitwise OR
 @example
-mysql> select 29 | 15;
+mysql> SELECT 29 | 15;
         -> 31
 @end example
 
@@ -32357,7 +32357,7 @@ The result is an unsigned 64 bit integer.
 @item &
 Bitwise AND:
 @example
-mysql> select 29 & 15;
+mysql> SELECT 29 & 15;
         -> 13
 @end example
 
@@ -32367,7 +32367,7 @@ The result is an unsigned 64 bit integer.
 @item <<
 Shifts a longlong (@code{BIGINT}) number to the left:
 @example
-mysql> select 1 << 2;
+mysql> SELECT 1 << 2;
         -> 4
 @end example
 
@@ -32377,7 +32377,7 @@ The result is an unsigned 64 bit integer.
 @item >>
 Shifts a longlong (@code{BIGINT}) number to the right:
 @example
-mysql> select 4 >> 2;
+mysql> SELECT 4 >> 2;
         -> 1
 @end example
 
@@ -32387,7 +32387,7 @@ The result is an unsigned 64 bit integer.
 @item ~
 Invert all bits:
 @example
-mysql> select 5 & ~1;
+mysql> SELECT 5 & ~1;
         -> 4
 @end example
 
@@ -32397,7 +32397,7 @@ The result is an unsigned 64 bit integer.
 @item BIT_COUNT(N)
 Returns the number of bits that are set in the argument @code{N}:
 @example
-mysql> select BIT_COUNT(29);
+mysql> SELECT BIT_COUNT(29);
         -> 4
 @end example
 @end table
