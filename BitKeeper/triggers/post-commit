@@ -18,13 +18,15 @@ BK_STATUS=$BK_STATUS$BK_COMMIT
 
 if [ "$BK_STATUS" = OK ]
 then 
+ CHANGESET=`bk -R prs -r+ -h -d':I:' ChangeSet`
+
  echo "Commit successful, notifying developers at $TO"
  (
    cat <<EOF
 List-ID: <bk.mysql>
 From: $FROM
 To: $TO
-Subject: bk commit into 3.23 tree
+Subject: bk commit into 3.23 tree ($CHANGESET)
 
 EOF
   bk changes -v -r+
@@ -36,7 +38,7 @@ EOF
 List-ID: <bk.mysql>
 From: $FROM
 To: $INTERNALS
-Subject: bk commit into 3.23 tree
+Subject: bk commit into 3.23 tree ($CHANGESET)
 
 Below is the list of changes that have just been committed into a local
 3.23 repository of $USER. When $USER does a push these changes will
@@ -63,7 +65,7 @@ EOF
 List-ID: <bk.mysql-3.23>
 From: $FROM
 To: $DOCS
-Subject: bk commit - 3.23 tree (Manual)
+Subject: bk commit - 3.23 tree (Manual) ($CHANGESET)
 
 EOF
   bk changes -v -r+
