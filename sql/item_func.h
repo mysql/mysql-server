@@ -233,7 +233,9 @@ public:
   const char *func_name() const { return "-"; }
   double val();
   longlong val_int();
+  void fix_length_and_dec();
 };
+
 
 class Item_func_mul :public Item_num_op
 {
