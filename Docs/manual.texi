@@ -44721,7 +44721,7 @@ You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker-1.0.zip,MySQL-Maker 1.0}.
-Shareware @strong{MySQL} client for Windows. It's WYSIWYG tool which allows
+Shareware @strong{MySQL} client for Windows. It's a WYSIWYG tool which allows
 you to create, change and delete databases and tables.
 You can change field - structure and add, change and delete data in
 these tables directly without ODBC-driver.
@@ -44732,13 +44732,13 @@ Windows GUI (binary only) to administrate a database, by David B. Mansel,
 @email{david@@zhadum.org}.
 
 @item @uref{http://home.online.no/~runeberg/myqa, MyQA}
-is an Linux based query client for the MySQL database server. MyQA lets
-you enter SQL queries, execute them, and view the results, all in a
+is a Linux-based query client for the @strong{MySQL} database server. MyQA
+lets you enter SQL queries, execute them, and view the results, all in a
 graphical user interface. The GUI is roughly similar to that of the
 'Query Analyzer' client that comes with MS SQL Server.
 
 @item @uref{http://members.xoom.com/_opex_/mysqlmanager/index.html, MySQL Manager}
-a graphical MySQL server manager for MySQL server written in Java, for Windows
+a graphical @strong{MySQL} server manager for @strong{MySQL} server written in Java, for Windows
 
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
