@@ -251,6 +251,18 @@ n
 6
 rollback;
 drop table t1;
+create table t1 (n int not null primary key) type=innodb;
+start transaction;
+insert into t1 values (4);
+flush tables with read lock;
+commit;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+commit;
+select * from t1;
+n
+4
+drop table t1;
 create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) type=innodb;
 begin;
 insert into t1 values(1,'hamdouni');

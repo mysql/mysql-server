@@ -47,7 +47,7 @@ ERROR HY000: Can't drop database 'mysqltest'; database doesn't exist
 drop table t1;
 flush tables with read lock;
 create table t1(n int);
-ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the query because you have a conflicting read lock
 unlock tables;
 create table t1(n int);
 show tables;

@@ -899,33 +899,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
     DBUG_RETURN(-1);
   }
+  if (wait_if_global_read_lock(thd, 0))
+    DBUG_RETURN(error);
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (global_read_lock)
-  {
-    thd->mysys_var->current_mutex= &LOCK_open;
-    thd->mysys_var->current_cond= &COND_refresh;
-    if (thd->global_read_lock)
-      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
-	       table_name);
-    else
-      while (global_read_lock && ! thd->killed)
-	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-    pthread_mutex_lock(&thd->mysys_var->mutex);
-    thd->mysys_var->current_mutex= 0;
-    thd->mysys_var->current_cond= 0;
-    pthread_mutex_unlock(&thd->mysys_var->mutex);
-    if (error)
-      goto end;
-  }
   if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
     {
-      VOID(pthread_mutex_unlock(&LOCK_open));
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-	DBUG_RETURN(0);
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      DBUG_RETURN(-1);
+	error= 0;
+      else
+	my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+      goto end;
     }
   }
 
@@ -963,6 +948,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   error=0;
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
   thd->proc_info="After create";
   DBUG_RETURN(error);
 }
