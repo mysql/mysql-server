@@ -433,6 +433,11 @@ NdbDictionary::Table::getRowSizeInBytes() const {
 }
 
 int
+NdbDictionary::Table::getReplicaCount() const {  
+  return m_impl.m_replicaCount;
+}
+
+int
 NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {  
   const NdbDictionary::Table * pTab = 
     pNdb->getDictionary()->getTable(getName());

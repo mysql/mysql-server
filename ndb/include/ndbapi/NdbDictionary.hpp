@@ -715,6 +715,8 @@ public:
 
     int getRowSizeInBytes() const ;
     int createTableInDb(Ndb*, bool existingEqualIsOk = true) const ;
+
+    int getReplicaCount() const ;
 #endif
 
   private:

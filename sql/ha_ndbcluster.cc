@@ -105,6 +105,33 @@ struct Ndb_statistics {
   Uint64 fragment_memory;
 };
 
+/* Status variables shown with 'show status like 'Ndb%' */
+
+static long ndb_cluster_node_id= 0;
+static const char * ndb_connected_host= 0;
+static long ndb_connected_port= 0;
+static long ndb_number_of_replicas= 0;
+static long ndb_number_of_storage_nodes= 0;
+
+static int update_status_variables(Ndb_cluster_connection *c)
+{
+  ndb_cluster_node_id=         c->node_id();
+  ndb_connected_port=          c->get_connected_port();
+  ndb_connected_host=          c->get_connected_host();
+  ndb_number_of_replicas=      0;
+  ndb_number_of_storage_nodes= c->no_db_nodes();
+  return 0;
+}
+
+struct show_var_st ndb_status_variables[]= {
+  {"cluster_node_id",        (char*) &ndb_cluster_node_id,         SHOW_LONG},
+  {"connected_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
+  {"connected_port",         (char*) &ndb_connected_port,          SHOW_LONG},
+//  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
+  {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
 /*
   Error handling functions
 */
@@ -4056,6 +4083,8 @@ Thd_ndb* ha_ndbcluster::seize_thd_ndb()
 
   thd_ndb= new Thd_ndb();
   thd_ndb->ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
+
+
   if (thd_ndb->ndb->init(max_transactions) != 0)
   {
     ERR_PRINT(thd_ndb->ndb->getNdbError());
@@ -4381,6 +4410,13 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   a NDB Cluster table handler
  */
 
+/* Call back after cluster connect */
+static int connect_callback()
+{
+  update_status_variables(g_ndb_cluster_connection);
+  return 0;
+}
+
 bool ndbcluster_init()
 {
   int res;
@@ -4410,6 +4446,7 @@ bool ndbcluster_init()
 
   if ((res= g_ndb_cluster_connection->connect(0,0,0)) == 0)
   {
+    connect_callback();
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
 		       g_ndb_cluster_connection->get_connected_host(),
 		       g_ndb_cluster_connection->get_connected_port()));
@@ -4417,7 +4454,7 @@ bool ndbcluster_init()
   } 
   else if(res == 1)
   {
-    if (g_ndb_cluster_connection->start_connect_thread()) 
+    if (g_ndb_cluster_connection->start_connect_thread(connect_callback)) 
     {
       DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
       goto ndbcluster_init_error;
@@ -5285,25 +5322,38 @@ ha_ndbcluster::update_table_comment(
 			        /* out: table comment + additional */
         const char*	comment)/* in:  table comment defined by user */
 {
-  return (char*)comment;
-#if 0 // for the future
   uint length= strlen(comment);
   if(length > 64000 - 3) 
   {
     return((char*)comment); /* string too long */
   }
 
+  Ndb* ndb;
+  if (!(ndb= get_ndb()))
+  {
+    return((char*)comment);
+  }
+
+  ndb->setDatabaseName(m_dbname);
+  NDBDICT* dict= ndb->getDictionary();
+  const NDBTAB* tab;
+  if (!(tab= dict->getTable(m_tabname)))
+  {
+    return((char*)comment);
+  }
+
   char *str;
-  const char *fmt="%s%sRow size: %d";
-  const unsigned fmt_len_plus_extra= length + strlen(fmt) + 3;
+  const char *fmt="%s%snumber_of_replicas: %d";
+  const unsigned fmt_len_plus_extra= length + strlen(fmt);
   if ((str= my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
   {
     return (char*)comment;
   }
 
-  snprintf(str,fmt_len_plus_extra,fmt,comment,10);
+  snprintf(str,fmt_len_plus_extra,fmt,comment,
+	   length > 0 ? " ":"",
+	   tab->getReplicaCount());
   return str;
-#endif
 }
 
 #endif /* HAVE_NDBCLUSTER_DB */
