@@ -186,7 +186,7 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
@@ -267,7 +267,7 @@ new_VioSSLAcceptorFd(const char*	key_file,
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
