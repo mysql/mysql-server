@@ -24,7 +24,7 @@
 #include "mysql_priv.h"
 
 Item_sum::Item_sum(List<Item> &list)
-  :args_copy(0), arg_count(list.elements)
+  :arg_count(list.elements)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
@@ -56,39 +56,6 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
     if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
       return;
   memcpy(args, item->args, sizeof(Item*)*arg_count);
-  if (item->args_copy != 0)
-    save_args(thd);
-  else
-    args_copy= 0;
-}
-
-
-/*
-  Save copy of arguments if we prepare prepared statement
-  (arguments can be rewritten in get_tmp_table_item())
-
-  SYNOPSIS
-    Item_sum::save_args_for_prepared_statement()
-    thd		- thread handler
-
-  RETURN
-    0 - OK
-    1 - Error
-*/
-bool Item_sum::save_args_for_prepared_statement(THD *thd)
-{
-  if (thd->current_arena->is_stmt_prepare())
-    return save_args(thd->current_arena);
-  return 0;
-}
-
-
-bool Item_sum::save_args(Item_arena* arena)
-{
-  if (!(args_copy= (Item**) arena->alloc(sizeof(Item*)*arg_count)))
-    return 1;
-  memcpy(args_copy, args, sizeof(Item*)*arg_count);
-  return 0;
 }
 
 
@@ -96,17 +63,6 @@ void Item_sum::mark_as_sum_func()
 {
   current_thd->lex->current_select->with_sum_func= 1;
   with_sum_func= 1;
-}
-
-
-void Item_sum::cleanup()
-{
-  DBUG_ENTER("Item_sum::cleanup");
-  Item_result_field::cleanup();
-  if (args_copy != 0)
-    memcpy(args, args_copy, sizeof(Item*)*arg_count);
-  result_field=0;
-  DBUG_VOID_RETURN;
 }
 
 
@@ -214,9 +170,6 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statement(thd))
-    return 1;
-  
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
@@ -247,9 +200,6 @@ bool
 Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-
-  if (save_args_for_prepared_statement(thd))
-    return 1;
 
   Item *item= args[0];
   if (!thd->allow_sum_func)
@@ -1947,9 +1897,6 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   uint i;			/* for loop variable */ 
   DBUG_ASSERT(fixed == 0);
-
-  if (save_args_for_prepared_statement(thd))
-    return 1;
 
   if (!thd->allow_sum_func)
   {
