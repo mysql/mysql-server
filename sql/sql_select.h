@@ -266,7 +266,7 @@ class JOIN :public Sql_alloc
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit, bool tables_and_fields_initied);
+	      SELECT_LEX_UNIT *unit);
   int optimize();
   int reinit();
   void exec();
