@@ -18,7 +18,7 @@ INCLUDES=		-I$(srcdir)/../include -I../include $(openssl_includes)
 LDADD=			@CLIENT_EXTRA_LDFLAGS@ $(openssl_libs) 
 pkglib_LIBRARIES=	libvio.a
 noinst_PROGRAMS	=	test-ssl test-sslserver test-sslclient
-noinst_HEADERS=	
+noinst_HEADERS=	vio_priv.h
 test_ssl_SOURCES=	test-ssl.c
 test_ssl_LDADD=   	@CLIENT_EXTRA_LDFLAGS@ ../dbug/libdbug.a libvio.a \
 			../mysys/libmysys.a ../strings/libmystrings.a \
