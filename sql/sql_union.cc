@@ -249,11 +249,11 @@ int st_select_lex_unit::exec()
   ulonglong add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
-  if (executed && !(dependent || uncacheable))
+  if (executed && !uncacheable)
     DBUG_RETURN(0);
   executed= 1;
   
-  if ((dependent || uncacheable) || !item || !item->assigned())
+  if (uncacheable || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
     {
