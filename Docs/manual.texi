@@ -29907,6 +29907,9 @@ have any of the values shown here.  The index of each value is also shown:
 
 An enumeration can have a maximum of 65535 elements.
 
+Starting from 3.23.51 end space are automaticly deleted from enum values
+when the table is created.
+
 Lettercase is irrelevant when you assign values to an @code{ENUM} column.
 However, values retrieved from the column later have lettercase matching the
 values that were used to specify the allowable values at table creation time.
@@ -29922,7 +29925,9 @@ mysql> SELECT enum_col+0 FROM tbl_name;
 If you store a number into an @code{ENUM}, the number is treated as an
 index, and the value stored is the enumeration member with that index.
 (However, this will not work with @code{LOAD DATA}, which treats all
-input as strings.)
+input as strings.).  Becasue of this, it's not advisable to store
+numbers in an enum string (You will be confused sooner or later if you
+do this).
 
 @code{ENUM} values are sorted according to the order in which the enumeration
 members were listed in the column specification.  (In other words,
@@ -29960,6 +29965,9 @@ any of these values:
 
 
 A @code{SET} can have a maximum of 64 different members.
+
+Starting from 3.23.51 end space are automaticly deleted from @code{SET}
+values when the table is created.
 
 MySQL stores @code{SET} values numerically, with the low-order bit
 of the stored value corresponding to the first set member.  If you retrieve a
