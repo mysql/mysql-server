@@ -77,11 +77,11 @@ typedef struct st_relay_log_info
     cur_log_fd - file descriptor of the current read  relay log
   */
   File info_fd,cur_log_fd;
-  // name of current read relay log
+  /* name of current read relay log */
   char relay_log_name[FN_REFLEN];
-  // master log name corresponding to current read position
+  /* master log name corresponding to current read position */
   char master_log_name[FN_REFLEN];
-  // original log position of last processed event
+  /* original log position of last processed event */
   volatile my_off_t master_log_pos;
 
   /*
@@ -92,9 +92,9 @@ typedef struct st_relay_log_info
   LOG_INFO linfo;
   IO_CACHE cache_buf,*cur_log;
 
-  /*** The following variables are safe to read any time ***/
+  /* The following variables are safe to read any time */
 
-  // IO_CACHE of the info file - set only during init or end
+  /* IO_CACHE of the info file - set only during init or end */
   IO_CACHE info_file;
 
   /*
@@ -117,7 +117,7 @@ typedef struct st_relay_log_info
   */
   pthread_cond_t start_cond, stop_cond, data_cond;
 
-  // parent master info structure
+  /* parent master info structure */
   struct st_master_info *mi;
 
   /*
@@ -153,7 +153,7 @@ typedef struct st_relay_log_info
 #endif  
   char last_slave_error[MAX_SLAVE_ERRMSG];
 
-  // if not set, the value of other members of the structure are undefined
+  /* if not set, the value of other members of the structure are undefined */
   bool inited;
   volatile bool abort_slave, slave_running;
   bool log_pos_current;
@@ -189,7 +189,7 @@ typedef struct st_relay_log_info
   {
     pending += val;
   }
-  // TODO: this probably needs to be fixed
+  /* TODO: this probably needs to be fixed */
   inline void inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
   {
     if (!skip_lock)
@@ -254,7 +254,7 @@ typedef struct st_master_info
   File fd; 
   IO_CACHE file;
   
-  // the variables below are needed because we can change masters on the fly
+  /* the variables below are needed because we can change masters on the fly */
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
   char password[HASH_PASSWORD_LENGTH+1];
@@ -262,7 +262,7 @@ typedef struct st_master_info
   pthread_cond_t data_cond,start_cond,stop_cond;
   THD *io_thd;
   MYSQL* mysql;
-  uint32 file_id; // for 3.23 load data infile
+  uint32 file_id; /* for 3.23 load data infile */
   RELAY_LOG_INFO rli;
   uint port;
   uint connect_retry;
@@ -270,7 +270,7 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   bool inited;
-  bool old_format;			// master binlog is in 3.23 format
+  bool old_format;			/* master binlog is in 3.23 format */
   volatile bool abort_slave, slave_running;
   bool ignore_stop_event;
   
@@ -352,18 +352,18 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       volatile bool* slave_running,
 		       MASTER_INFO* mi);
 
-// If fd is -1, dump to NET
+/* If fd is -1, dump to NET */
 int mysql_table_dump(THD* thd, const char* db,
 		     const char* tbl_name, int fd = -1);
 
-// retrieve non-exitent table from master
+/* retrieve non-exitent table from master */
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 		       MASTER_INFO* mi, MYSQL* mysql);
 
 int show_master_info(THD* thd, MASTER_INFO* mi);
 int show_binlog_info(THD* thd);
 
-// See if the query uses any tables that should not be replicated
+/* See if the query uses any tables that should not be replicated */
 int tables_ok(THD* thd, TABLE_LIST* tables);
 
 /*
@@ -382,7 +382,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
 void slave_print_error(RELAY_LOG_INFO* rli,int err_code, const char* msg, ...);
 
-void end_slave(); // clean up
+void end_slave(); /* clean up */
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname);
 void end_master_info(MASTER_INFO* mi);
@@ -400,7 +400,7 @@ extern bool opt_log_slave_updates ;
 pthread_handler_decl(handle_slave_io,arg);
 pthread_handler_decl(handle_slave_sql,arg);
 extern bool volatile abort_loop;
-extern MASTER_INFO main_mi, *active_mi; // active_mi for multi-master
+extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
 extern volatile int active_mi_in_use;
 extern LIST master_list;
 extern HASH replicate_do_table, replicate_ignore_table;
@@ -411,7 +411,7 @@ extern bool table_rules_on;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 
-// the master variables are defaults read from my.cnf or command line
+/* the master variables are defaults read from my.cnf or command line */
 extern uint master_port, master_connect_retry, report_port;
 extern my_string master_user, master_password, master_host,
        master_info_file, relay_log_info_file, report_user, report_host,
