@@ -1427,6 +1427,21 @@ call bug4726()|
 call bug4726()|
 drop procedure bug4726|
 drop table t3|
+drop table if exists t3|
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+create procedure bug4318()
+handler t3 read next|
+handler t3 open|
+call bug4318()|
+s1
+3
+call bug4318()|
+s1
+4
+handler t3 close|
+drop procedure bug4318|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
