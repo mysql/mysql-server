@@ -2037,6 +2037,8 @@ simple_expr:
 	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
+	| DEFAULT '(' simple_ident ')'
+	  { $$= new Item_default_value($3); }
 	| FUNC_ARG1 '(' expr ')'
 	  { $$= ((Item*(*)(Item*))($1.symbol->create_func))($3);}
 	| FUNC_ARG2 '(' expr ',' expr ')'
@@ -3136,12 +3138,12 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr
+	update_list ',' simple_ident equal expr_or_default
 	{
 	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
 	    YYABORT;
 	}
-	| simple_ident equal expr
+	| simple_ident equal expr_or_default
 	  {
 	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	      YYABORT;

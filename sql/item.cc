@@ -1120,6 +1120,37 @@ bool Item_ref::check_loop(uint id)
   DBUG_RETURN((*ref)->check_loop(id));
 }
 
+bool Item_default_value::eq(const Item *item, bool binary_cmp) const
+{
+  return item->type() == DEFAULT_VALUE_ITEM && 
+    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+}
+
+bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, Item **items)
+{
+  bool res= arg->fix_fields(thd, table_list, items);
+  if (res)
+    return res;
+  if (arg->type() == REF_ITEM)
+  {
+    Item_ref *ref= (Item_ref *)arg;
+    if (ref->ref[0]->type() != FIELD_ITEM)
+    {
+      return 1;
+    }
+    arg= ref->ref[0];
+  }
+  Item_field *field_arg= (Item_field *)arg;
+  Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
+  if (!def_field)
+    return 1;
+  memcpy(def_field, field_arg->field, field_arg->field->size_of());
+  def_field->move_field(def_field->table->default_values - 
+			def_field->table->record[0]);
+  set_field(def_field);
+  return 0;
+}
+
 
 /*
   If item is a const function, calculate it and return a const item
