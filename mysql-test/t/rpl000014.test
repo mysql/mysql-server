@@ -1,5 +1,4 @@
 source include/master-slave.inc;
-source include/have_default_master.inc;
 connection master;
 show master status;
 save_master_pos;
