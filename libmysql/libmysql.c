@@ -1333,6 +1333,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!net->vio || my_net_init(net, net->vio))
   {
     vio_delete(net->vio);
+    net->vio = 0;
     net->last_errno=CR_OUT_OF_MEMORY;
     strmov(net->last_error,ER(net->last_errno));
     goto error;

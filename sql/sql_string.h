@@ -125,7 +125,7 @@ public:
       char *new_ptr;
       if (!(new_ptr=(char*) my_realloc(Ptr,arg_length,MYF(0))))
       {
-	(void) my_free(Ptr,MYF(0));
+	Alloced_length = 0;
 	real_alloc(arg_length);
       }
       else

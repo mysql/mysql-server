@@ -163,3 +163,4 @@ include/.my_sys.h.swp
 PENDING/2000-10-25.01
 PENDING/2000-10-25.02
 support-files/mysql-3.23.27-beta.spec
+.gdb_history

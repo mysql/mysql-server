@@ -273,7 +273,10 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
   error = 0;
  err:
   if(mysql)
-    mc_mysql_close(mysql);
+    {
+     mc_mysql_close(mysql);
+     mysql = 0;
+    }
   if(nx_errno && thd->net.vio)
     send_error(&thd->net, nx_errno, "Error in fetch_nx_table");
   
@@ -942,7 +945,10 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
  err:
   thd->query = thd->db = 0; // extra safety
   if(mysql)
-    mc_mysql_close(mysql);
+    {
+      mc_mysql_close(mysql);
+      mysql = 0;
+    }
   thd->proc_info = "waiting for slave mutex on exit";
   pthread_mutex_lock(&LOCK_slave);
   slave_running = 0;
