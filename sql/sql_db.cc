@@ -912,7 +912,7 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
   if (rmdir(path) < 0 && send_error)
   {
     my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
