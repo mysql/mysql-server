@@ -926,8 +926,11 @@ int ha_myisam::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d, retrying",
                         my_errno);
+      thd->clear_error();
       param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd,param,0) != HA_ADMIN_OK);
+      if (!error && thd->net.report_error)
+        error= HA_ERR_CRASHED;
     }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;
@@ -1471,11 +1474,10 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       break;
 
     if (found->flags & BLOB_FLAG)
-    {
       recinfo_pos->type= (int) FIELD_BLOB;
-    }
-    else if (!(options & HA_OPTION_PACK_RECORD) ||
-             found->type() == MYSQL_TYPE_VARCHAR)
+    else if (found->type() == MYSQL_TYPE_VARCHAR)
+      recinfo_pos->type= FIELD_VARCHAR;
+    else if (!(options & HA_OPTION_PACK_RECORD))
       recinfo_pos->type= (int) FIELD_NORMAL;
     else if (found->zero_pack())
       recinfo_pos->type= (int) FIELD_SKIP_ZERO;

@@ -978,7 +978,7 @@ uint length)
     {
       fprintf(_db_fp_, "%s: ", state->func);
     }
-    sprintf(dbuff,"%s: Memory: %lx  Bytes: (%d)\n",
+    sprintf(dbuff,"%s: Memory: 0x%lx  Bytes: (%d)\n",
 	    keyword,(ulong) memory, length);
     (void) fputs(dbuff,_db_fp_);
 

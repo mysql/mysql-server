@@ -79,24 +79,24 @@ static int run_test(const char *filename)
   recinfo[0].length= (extra_field == FIELD_BLOB ? 4 + mi_portable_sizeof_char_ptr :
 	      extra_length);
   if (extra_field == FIELD_VARCHAR)
-    recinfo[0].length+=2;
+    recinfo[0].length+= HA_VARCHAR_PACKLENGTH(extra_length);
   recinfo[1].type=key_field;
   recinfo[1].length= (key_field == FIELD_BLOB ? 4+mi_portable_sizeof_char_ptr :
 		      key_length);
   if (key_field == FIELD_VARCHAR)
-    recinfo[1].length+=2;
+    recinfo[1].length+= HA_VARCHAR_PACKLENGTH(key_length);
 
   /* Define a key over the first column */
   keyinfo[0].seg=keyseg;
   keyinfo[0].keysegs=1;
   keyinfo[0].seg[0].type= key_type;
-  keyinfo[0].seg[0].flag= (key_field == FIELD_BLOB)?HA_BLOB_PART:
-			  (key_field == FIELD_VARCHAR)?HA_VAR_LENGTH_PART:0;
+  keyinfo[0].seg[0].flag= (key_field == FIELD_BLOB) ? HA_BLOB_PART:
+			  (key_field == FIELD_VARCHAR) ? HA_VAR_LENGTH_PART:0;
   keyinfo[0].seg[0].start=recinfo[0].length;
   keyinfo[0].seg[0].length=key_length;
   keyinfo[0].seg[0].null_bit= 0;
   keyinfo[0].seg[0].null_pos=0;
-  keyinfo[0].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[0].seg[0].language= default_charset_info->number;
   keyinfo[0].flag = (no_fulltext?HA_PACK_KEY:HA_FULLTEXT);
 
   if (!silent)
@@ -155,33 +155,42 @@ static int run_test(const char *filename)
   if (!silent)
     printf("- Reading rows with key\n");
   for (i=0 ; i < NQUERIES ; i++)
-  { FT_DOCLIST *result;
+  {
+    FT_DOCLIST *result;
     result=ft_nlq_init_search(file,0,(char*) query[i],strlen(query[i]),1);
-    if(!result) {
+    if(!result)
+    {
       printf("Query %d: `%s' failed with errno %3d\n",i,query[i],my_errno);
       continue;
     }
     printf("Query %d: `%s'. Found: %d. Top five documents:\n",
-	    i,query[i],result->ndocs);
-    for(j=0;j<5;j++) { double w; int err;
-	err=ft_nlq_read_next(result, read_record);
-	if(err==HA_ERR_END_OF_FILE) {
-	    printf("No more matches!\n");
-	    break;
-	} else if (err) {
-	    printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
-	    break;
-	}
-        w=ft_nlq_get_relevance(result);
-	if(key_field == FIELD_VARCHAR) {
-	    uint l;
-	    char *p;
-	    p=recinfo[0].length+read_record;
-	    l=uint2korr(p);
-	    printf("%10.7f: %.*s\n",w,(int) l,p+2);
-	} else
-	    printf("%10.7f: %.*s\n",w,recinfo[1].length,
-			  recinfo[0].length+read_record);
+           i,query[i],result->ndocs);
+    for (j=0;j<5;j++)
+    {
+      double w; int err;
+      err= ft_nlq_read_next(result, read_record);
+      if (err==HA_ERR_END_OF_FILE)
+      {
+        printf("No more matches!\n");
+        break;
+      }
+      else if (err)
+      {
+        printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
+        break;
+      }
+      w=ft_nlq_get_relevance(result);
+      if (key_field == FIELD_VARCHAR)
+      {
+        uint l;
+        char *p;
+        p=recinfo[0].length+read_record;
+        l=uint2korr(p);
+        printf("%10.7f: %.*s\n",w,(int) l,p+2);
+      }
+      else
+        printf("%10.7f: %.*s\n",w,recinfo[1].length,
+               recinfo[0].length+read_record);
     }
     ft_nlq_close_search(result);
   }
@@ -215,9 +224,14 @@ void create_record(char *pos, int n)
   else if (recinfo[0].type == FIELD_VARCHAR)
   {
     uint tmp;
-    strnmov(pos+2,data[n].f0,keyinfo[0].seg[0].length);
-    tmp=strlen(pos+2);
-    int2store(pos,tmp);
+    /* -1 is here because pack_length is stored in seg->length */
+    uint pack_length= HA_VARCHAR_PACKLENGTH(keyinfo[0].seg[0].length-1);
+    strnmov(pos+pack_length,data[n].f0,keyinfo[0].seg[0].length);
+    tmp=strlen(pos+pack_length);
+    if (pack_length == 1)
+      *pos= (char) tmp;
+    else
+      int2store(pos,tmp);
     pos+=recinfo[0].length;
   }
   else
@@ -239,9 +253,14 @@ void create_record(char *pos, int n)
   else if (recinfo[1].type == FIELD_VARCHAR)
   {
     uint tmp;
-    strnmov(pos+2,data[n].f2,keyinfo[0].seg[0].length);
-    tmp=strlen(pos+2);
-    int2store(pos,tmp);
+    /* -1 is here because pack_length is stored in seg->length */
+    uint pack_length= HA_VARCHAR_PACKLENGTH(keyinfo[0].seg[0].length-1);
+    strnmov(pos+pack_length,data[n].f2,keyinfo[0].seg[0].length);
+    tmp=strlen(pos+1);
+    if (pack_length == 1)
+      *pos= (char) tmp;
+    else
+      int2store(pos,tmp);
     pos+=recinfo[1].length;
   }
   else
