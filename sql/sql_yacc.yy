@@ -3221,16 +3221,20 @@ simple_ident:
 	| ident '.' ident
 	{
 	  SELECT_LEX *sel=Select;
+	  table_case_convert($1.str, $1.length);
 	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field(NullS,$1.str,$3.str) : (Item*) new Item_ref(NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
 	  SELECT_LEX *sel=Select;
+          table_case_convert($2.str,$2.length);
 	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field(NullS,$2.str,$4.str) : (Item*) new Item_ref(NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
 	  SELECT_LEX *sel=Select;
+	  table_case_convert($1.str,$1.length);
+	  table_case_convert($3.str,$3.length);
 	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
 	};
 

@@ -33,7 +33,7 @@ enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE };
 enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-
+extern inline void  table_case_convert(char * name, uint length);
 /* log info errors */
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO  -2
@@ -758,7 +758,6 @@ typedef struct st_sort_buffer {
   SORT_FIELD *sortorder;
 } SORT_BUFFER;
 
-
 /* Structure for db & table in sql_yacc */
 
 class Table_ident :public Sql_alloc {
@@ -772,8 +771,15 @@ class Table_ident :public Sql_alloc {
       db.str=0;
     else
       db= db_arg;
+    if (db.str)
+      table_case_convert(db.str,db.length);
+    table_case_convert(table.str,table.length);
   }
-  inline Table_ident(LEX_STRING table_arg) :table(table_arg) {db.str=0;}
+  inline Table_ident(LEX_STRING table_arg) :table(table_arg) 
+  {
+    db.str=0;
+    table_case_convert(table.str,table.length);
+  }
   inline void change_db(char *db_name)
   { db.str= db_name; db.length=(uint) strlen(db_name); }
 };
