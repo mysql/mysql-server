@@ -2715,7 +2715,7 @@ static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;				/* Skipp escape */
+      ptr++;				/* Skip escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }

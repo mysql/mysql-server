@@ -131,3 +131,4 @@ EXPORTS
 	mysql_stmt_insert_id
         mysql_stmt_attr_get
         mysql_stmt_attr_set
+	mysql_stmt_field_count

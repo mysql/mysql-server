@@ -14,70 +14,71 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* 
-  Please read ha_exmple.cc before reading this file.
-  Please keep in mind that the example storage engine implements all methods
-  that are required to be implemented. handler.h has a full list of methods
-  that you can implement.
-*/
-
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <zlib.h>
+
 /*
-  EXAMPLE_SHARE is a structure that will be shared amoung all open handlers
-  The example implements the minimum of what you will probably need.
+  Please read ha_archive.cc first. If you are looking for more general
+  answers on how storage engines work, look at ha_example.cc and 
+  ha_example.h.
 */
-typedef struct st_example_share {
+
+typedef struct st_archive_share {
   char *table_name;
+  char data_file_name[FN_REFLEN];
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
-} EXAMPLE_SHARE;
+  gzFile archive_write;             /* Archive file we are working with */
+  bool dirty;                       /* Flag for if a flush should occur */
+} ARCHIVE_SHARE;
 
-/*
-  Class definition for the storage engine
+/* 
+  Version for file format.
+  1 - Initial Version
 */
-class ha_example: public handler
+#define ARCHIVE_VERSION 1
+
+class ha_archive: public handler
 {
-  THR_LOCK_DATA lock;      /* MySQL lock */
-  EXAMPLE_SHARE *share;    /* Shared lock info */
+  THR_LOCK_DATA lock;        /* MySQL lock */
+  ARCHIVE_SHARE *share;      /* Shared lock info */
+  gzFile archive;            /* Archive file we are working with */
+  z_off_t current_position;  /* The position of the row we just read */
+  byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
+  String buffer;             /* Buffer used for blob storage */
+  unsigned int version;      /* Used for recording version */
 
 public:
-  ha_example(TABLE *table): handler(table)
+  ha_archive(TABLE *table): handler(table)
+  {
+    /* Set our original buffer from pre-allocated memory */
+    buffer.set(byte_buffer, IO_SIZE, system_charset_info);
+
+    /* The size of the offset value we will use for position() */
+    ref_length = sizeof(z_off_t);
+  }
+  ~ha_archive() 
   {
   }
-  ~ha_example() 
-  {
-  }
-  /* The name that will be used for display purposes */
-  const char *table_type() const { return "EXAMPLE"; } 
-  /* The name of the index type that will be used for display */
+  const char *table_type() const { return "ARCHIVE"; }
   const char *index_type(uint inx) { return "NONE"; }
   const char **bas_ext() const;
-  /* 
-    This is a list of flags that says what the storage engine 
-    implements. The current table flags are documented in
-    table_flags.
-  */
   ulong table_flags() const
   {
-    return 0;
+    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_WRITE_DELAYED |
+            HA_NO_AUTO_INCREMENT);
   }
-  /* 
-    This is a list of flags that says how the storage engine 
-    implements indexes. The current index flags are documented in
-    handler.h. If you do not implement indexes, just return zero 
-    here.
-  */
   ulong index_flags(uint inx) const
   {
     return 0;
   }
   /* 
-    unireg.cc will call the following to make sure that the storage engine can
-    handle the data it is about to send.
+    This is just a default, there is no real limit as far as
+    archive is concerned.
   */
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return 0; }
@@ -86,15 +87,9 @@ public:
   /*
     Called in test_quick_select to determine if indexes should be used.
   */
-  virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
-  /* 
-    The next method will never be called if you do not implement indexes.
-  */
+  virtual double scan_time() { return (double) (records) / 20.0+10; }
+  /* The next method will never be called */
   virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
-
-  /* 
-    Everything below are methods that we implment in ha_example.cc.
-  */
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
@@ -111,16 +106,16 @@ public:
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
+  int get_row(byte *buf);
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
-  int delete_all_rows(void);
-  ha_rows records_in_range(uint inx, key_range *min_key,
-                           key_range *max_key);
-  int delete_table(const char *from);
-  int rename_table(const char * from, const char * to);
+  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
+                           enum ha_rkey_function start_search_flag,
+                           const byte *end_key,uint end_key_len,
+                           enum ha_rkey_function end_search_flag);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

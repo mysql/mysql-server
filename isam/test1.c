@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 err:
   printf("got error: %3d when using nisam-database\n",my_errno);
   exit(1);
-  return 0;			/* skipp warning */
+  return 0;			/* skip warning */
 } /* main */
 
 

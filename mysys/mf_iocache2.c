@@ -266,7 +266,7 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
       fmt++;
       /* Found one '%' */
     }
-    /* Skipp if max size is used (to be compatible with printf) */
+    /* Skip if max size is used (to be compatible with printf) */
     while (my_isdigit(&my_charset_latin1, *fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
     if (*fmt == 's')				/* String parameter */

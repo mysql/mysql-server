@@ -43,7 +43,7 @@ void pack_dirname(my_string to, const char *from)
   (void) intern_filename(to,from);		/* Change to intern name */
 
 #ifdef FN_DEVCHAR
-  if ((start=strrchr(to,FN_DEVCHAR)) != 0)	/* Skipp device part */
+  if ((start=strrchr(to,FN_DEVCHAR)) != 0)	/* Skip device part */
     start++;
   else
 #endif
@@ -131,7 +131,7 @@ uint cleanup_dirname(register my_string to, const char *from)
   from_ptr=(my_string) from;
 #ifdef FN_DEVCHAR
   if ((pos=strrchr(from_ptr,FN_DEVCHAR)) != 0)
-  {						/* Skipp device part */
+  {						/* Skip device part */
     length=(uint) (pos-from_ptr)+1;
     start=strnmov(buff,from_ptr,length); from_ptr+=length;
   }
@@ -195,7 +195,7 @@ uint cleanup_dirname(register my_string to, const char *from)
 	  pos--;			/* Remove dupplicate '/' */
       }
       else if (pos-start > 1 && pos[-1] == FN_CURLIB && pos[-2] == FN_LIBCHAR)
-	pos-=2;					/* Skipp /./ */
+	pos-=2;					/* Skip /./ */
       else if (pos > buff+1 && pos[-1] == FN_HOMELIB && pos[-2] == FN_LIBCHAR)
       {					/* Found ..../~/  */
 	buff[0]=FN_HOMELIB;
@@ -409,7 +409,7 @@ uint system_filename(my_string to, const char *from)
   libchar_found=0;
   (void) strmov(buff,from);			 /* If to == from */
   from_pos= buff;
-  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skipp device part */
+  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skip device part */
   {
     pos++;
     to_pos=strnmov(to,from_pos,(size_s) (pos-from_pos));
@@ -419,7 +419,7 @@ uint system_filename(my_string to, const char *from)
     to_pos=to;
 
   if (from_pos[0] == FN_CURLIB && from_pos[1] == FN_LIBCHAR)
-    from_pos+=2;				/* Skipp './' */
+    from_pos+=2;				/* Skip './' */
   if (strchr(from_pos,FN_LIBCHAR))
   {
     *(to_pos++) = FN_C_BEFORE_DIR;
@@ -487,7 +487,7 @@ my_string intern_filename(my_string to, const char *from)
 
   convert_dirname(buff,from,NullS);		/* change '<>' to '[]' */
   from_pos=buff;
-  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skipp device part */
+  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skip device part */
   {
     pos++;
     to_pos=strnmov(to,from_pos,(size_s) (pos-from_pos));
