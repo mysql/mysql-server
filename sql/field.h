@@ -950,6 +950,8 @@ public:
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
                  table_arg, binary_arg, default_charset_info) {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
+  enum_field_types type() const { return FIELD_TYPE_GEOMETRY;}
+  void sql_type(String &str) const;
 
   void get_key_image(char *buff,uint length, imagetype type);
   void set_key_image(char *buff,uint length);

@@ -108,6 +108,9 @@ typedef struct st_mysql_data {
   unsigned int fields;
   MYSQL_ROWS *data;
   MEM_ROOT alloc;
+#ifdef EMBEDDED_LIBRARY
+  MYSQL_ROWS **prev_ptr;
+#endif
 } MYSQL_DATA;
 
 struct st_mysql_options {
@@ -137,13 +140,20 @@ struct st_mysql_options {
    a read that is replication-aware
  */
   my_bool no_master_reads;
+#ifdef EMBEDDED_LIBRARY
+  my_bool separate_thread;
+#endif
 };
 
 enum mysql_option { MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS,
 		    MYSQL_OPT_NAMED_PIPE, MYSQL_INIT_COMMAND,
 		    MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
 		    MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME,
-		    MYSQL_OPT_LOCAL_INFILE};
+		    MYSQL_OPT_LOCAL_INFILE,
+#ifdef EMBEDDED_LIBRARY
+                    MYSQL_OPT_USE_RESULT
+#endif
+};
 
 enum mysql_status { MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,
 		    MYSQL_STATUS_USE_RESULT};
@@ -156,13 +166,19 @@ enum mysql_status { MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,
 enum mysql_rpl_type { MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE,
 		      MYSQL_RPL_ADMIN };
 
+struct st_mysql_res;
 
 typedef struct st_mysql
 {
   NET		net;			/* Communication parameters */
   gptr		connector_fd;		/* ConnectorFd for SSL */
-  char		*host,*user,*passwd,*unix_socket,*server_version,*host_info,
-		*info,*db;
+#ifndef _0EMBEDDED_LIBRARY
+  char		*host,*user,*passwd,*unix_socket,*server_version,*host_info,*info;
+#endif
+#ifdef EMBEDDED_LIBRARY
+  struct st_mysql_res *result;
+#endif
+  char          *db;
   struct charset_info_st *charset;
   MYSQL_FIELD	*fields;
   MEM_ROOT	field_alloc;
@@ -201,6 +217,9 @@ typedef struct st_mysql
 
 
 typedef struct st_mysql_res {
+#ifdef EMBEDDED_LIBRARY
+  const char    *query_str;
+#endif
   my_ulonglong row_count;
   MYSQL_FIELD	*fields;
   MYSQL_DATA	*data;
