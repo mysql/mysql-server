@@ -128,7 +128,7 @@ int my_net_init(NET *net, Vio* vio)
     if (!(test_flags & TEST_BLOCKING))
       vio_blocking(vio, FALSE);
 #endif
-    vio_fastsend(vio,TRUE);
+    vio_fastsend(vio);
   }
   return 0;
 }
@@ -271,7 +271,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if (!defined(__WIN__) && !defined(__EMX__))
+#if !defined(__WIN__) && !defined(__EMX__)
   ALARM alarm_buff;
 #endif
   uint retry_count=0;

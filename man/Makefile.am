@@ -17,6 +17,8 @@
 
 ## Process this file with automake to create Makefile.in
 
-man_MANS =		mysql.1
+man_MANS =	mysql.1 isamchk.1 isamlog.1 mysql_zap.1 mysqlaccess.1 \
+		mysqladmin.1 mysqld.1 mysqld_multi.1 mysqldump.1 mysqlshow.1 \
+		perror.1 replace.1 safe_mysqld.1
 
-EXTRA_DIST =		$(man_MANS)
+EXTRA_DIST =	$(man_MANS)

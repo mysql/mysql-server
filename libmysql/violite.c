@@ -265,11 +265,10 @@ vio_is_blocking(Vio * vio)
 }
 
 
-int vio_fastsend(Vio * vio __attribute__((unused)), my_bool onoff)
+int vio_fastsend(Vio * vio __attribute__((unused)))
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");
-  DBUG_PRINT("enter", ("onoff:%d", (int) onoff));
 
 #ifdef IPTOS_THROUGHPUT
   {
