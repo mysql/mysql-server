@@ -991,7 +991,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex->master_unit()->uncacheable || thd->lex->describe)
+    if (select_lex->master_unit()->uncacheable)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
