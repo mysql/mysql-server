@@ -873,7 +873,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     error=E_DEC_TRUNCATED;
   }
 
-  if (scale+from->intg <0)
+  if (scale+from->intg <= 0)
   {
     decimal_make_zero(to);
     return E_DEC_OK;
