@@ -25,6 +25,10 @@
 
 #ifdef HAVE_CHARSET_ucs2
 
+#ifndef EILSEQ
+#define EILSEQ ENOENT
+#endif
+
 extern MY_UNICASE_INFO *uni_plane[256];
 
 static uchar ctype_ucs2[] = {
