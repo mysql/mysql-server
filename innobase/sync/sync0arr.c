@@ -61,10 +61,7 @@ struct sync_cell_struct {
 					thread */
 	ibool		waiting;	/* TRUE if the thread has already
 					called sync_array_event_wait
-					on this cell but not yet
-					sync_array_free_cell (which
-					actually resets wait_object and thus
-					whole cell) */
+					on this cell */
 	ibool		event_set;	/* TRUE if the event is set */
         os_event_t 	event;   	/* operating system event
                                         semaphore handle */
