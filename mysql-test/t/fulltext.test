@@ -69,10 +69,10 @@ select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN B
 select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
-# bug#2708 crash
+# bug#2708, bug#3870 crash
 
 select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
-
+ 
 # boolean w/o index:
 
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
