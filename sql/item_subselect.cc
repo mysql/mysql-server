@@ -773,7 +773,7 @@ int subselect_union_engine::prepare()
   return unit->prepare(thd, result, 0);
 }
 
-int subselect_simplein_engine::prepare()
+int subselect_uniquesubquery_engine::prepare()
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -860,7 +860,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   }
 }
 
-void subselect_simplein_engine::fix_length_and_dec(Item_cache **row)
+void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
 {
   //this never should be called
   DBUG_ASSERT(0);
@@ -919,9 +919,9 @@ int subselect_union_engine::exec()
   return res;
 }
 
-int subselect_simplein_engine::exec()
+int subselect_uniquesubquery_engine::exec()
 {
-  DBUG_ENTER("subselect_simplein_engine::exec");
+  DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
   TABLE *table= tab->table;
   if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
@@ -949,9 +949,9 @@ int subselect_simplein_engine::exec()
   DBUG_RETURN(end_exec(table) || (error != 0));
 }
 
-int subselect_simplein_engine::end_exec(TABLE *table)
+int subselect_uniquesubquery_engine::end_exec(TABLE *table)
 {
-  DBUG_ENTER("subselect_simplein_engine::end_exec");
+  DBUG_ENTER("subselect_uniquesubquery_engine::end_exec");
   int error=0, tmp;
   if ((tmp= table->file->extra(HA_EXTRA_NO_CACHE)))
   {
@@ -968,9 +968,9 @@ int subselect_simplein_engine::end_exec(TABLE *table)
   DBUG_RETURN(error != 0);
 }
 
-int subselect_indexin_engine::exec()
+int subselect_indexsubquery_engine::exec()
 {
-  DBUG_ENTER("subselect_indexin_engine::exec");
+  DBUG_ENTER("subselect_indexsubselect_engine::exec");
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
@@ -1075,7 +1075,7 @@ void subselect_union_engine::exclude()
   unit->exclude_level();
 }
 
-void subselect_simplein_engine::exclude()
+void subselect_uniquesubquery_engine::exclude()
 {
   //this never should be called
   DBUG_ASSERT(0);
