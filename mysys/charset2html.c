@@ -64,7 +64,7 @@ static void print_cs(CHARSET_INFO *cs)
   for (i=0; i<256; i++)
   {
     ch[i].cod=i;
-    ch[i].srt=cs->sort_order[i];
+    ch[i].srt=cs->sort_order ? cs->sort_order[i] : i;
     ch[i].uni=cs->tab_to_uni[i];
     ch[i].low=cs->tab_to_uni[cs->to_lower[i]];
     ch[i].upp=cs->tab_to_uni[cs->to_upper[i]];
@@ -104,12 +104,41 @@ static void print_cs(CHARSET_INFO *cs)
   printf("</HTML>\n");
 }
 
+static void print_index()
+{
+  CHARSET_INFO **cs;
+  int clr=0; 
+  
+  get_charset_by_name("",MYF(0));	/* To execute init_available_charsets */
+  
+  printf("All charsets\n");
+  printf("<table border=1>\n");
+  printf("<tr bgcolor=EEEE99><th>ID<th>Charset<th>Collation<th>Def<th>Bin<th>Com<th>Comment\n");
+  for (cs=all_charsets ; cs < all_charsets+256; cs++)
+  {
+    if (!cs[0])
+      continue;
+    printf("<tr bgcolor=#%s><td><a href=\"?%s\">%d</a><td>%s<td>%s<td>%s<td>%s<td>%s<td>%s\n",
+    	   (clr= !clr) ? "DDDDDD" : "EEEE99",
+    	   cs[0]->name,cs[0]->number,cs[0]->csname,
+    	   cs[0]->name,
+    	   (cs[0]->state & MY_CS_PRIMARY)  ? "def " : "&nbsp;",
+    	   (cs[0]->state & MY_CS_BINSORT)  ? "bin " : "&nbsp;",
+    	   (cs[0]->state & MY_CS_COMPILED) ? "com " : "&nbsp;",
+    	   cs[0]->comment);
+  }
+  printf("</table>\n");
+}
 
 int main(int argc, char **argv) {
-  const char *the_set = MYSQL_CHARSET;
+  const char *the_set = NULL;
   int argcnt = 1;
   CHARSET_INFO *cs;
 
+  if (getenv("SCRIPT_NAME"))
+  {
+    printf("Content-Type: text/html\r\n\r\n");
+  }
   my_init();
 
   if (argc > argcnt && argv[argcnt][0] == '-' && argv[argcnt][1] == '#')
@@ -121,6 +150,12 @@ int main(int argc, char **argv) {
   if (argc > argcnt)
     charsets_dir = argv[argcnt++];
 
+  if (!the_set)
+  {
+    print_index();
+    return 0;
+  }
+  
   if (!(cs= get_charset_by_name(the_set, MYF(MY_WME))))
     return 1;
 
