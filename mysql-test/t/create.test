@@ -219,6 +219,44 @@ drop table t1;
 #
 # Bug # 801
 #
-
 create table t1 select x'4132';
 drop table t1;
+
+#
+# Test types of data for create select with functions
+#
+
+create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
+insert into t1(a)values(1);
+insert into t1(a,b,c,d,e,f,g,h)
+values(2,-2,2,'1825-12-14','a','2003-1-1 3:2:1','4:3:2','binary data');
+select * from t1;
+select a, 
+    ifnull(b,cast(-7 as signed)) as b, 
+    ifnull(c,cast(7 as unsigned)) as c, 
+    ifnull(d,cast('2000-01-01' as date)) as d, 
+    ifnull(e,cast('b' as char)) as e,
+    ifnull(f,cast('2000-01-01' as datetime)) as f, 
+    ifnull(g,cast('5:4:3' as time)) as g,
+    ifnull(h,cast('yet another binary data' as binary)) as h,
+    addtime(cast('1:0:0' as time),cast('1:0:0' as time)) as dd 
+from t1;
+
+create table t2
+select
+    a, 
+    ifnull(b,cast(-7                        as signed))   as b,
+    ifnull(c,cast(7                         as unsigned)) as c,
+    ifnull(d,cast('2000-01-01'              as date))     as d,
+    ifnull(e,cast('b'                       as char))     as e,
+    ifnull(f,cast('2000-01-01'              as datetime)) as f,
+    ifnull(g,cast('5:4:3'                   as time))     as g,
+    ifnull(h,cast('yet another binary data' as binary))   as h,
+    addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
+from t1;
+explain t2;
+			
+select * from t2;
+
+drop table t1, t2;
+

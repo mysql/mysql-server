@@ -205,6 +205,8 @@ public:
   virtual bool null_inside() { return 0; }
   // used in row subselects to get value of elements
   virtual void bring_value() {}
+
+  Field *tmp_table_field_from_field_type(TABLE *table);
 };
 
 
