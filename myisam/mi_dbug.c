@@ -162,7 +162,7 @@ my_bool check_table_is_closed(const char *name, const char *where)
   {
     MI_INFO *info=(MI_INFO*) pos->data;
     MYISAM_SHARE *share=info->s;
-    if (!strcmp(share->filename,filename))
+    if (!strcmp(share->unique_file_name,filename))
     {
       if (share->last_version)
       {

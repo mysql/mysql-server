@@ -49,7 +49,7 @@ static MI_INFO *test_if_reopen(char *filename)
   {
     MI_INFO *info=(MI_INFO*) pos->data;
     MYISAM_SHARE *share=info->s;
-    if (!strcmp(share->filename,filename) && share->last_version)
+    if (!strcmp(share->unique_file_name,filename) && share->last_version)
       return info;
   }
   return 0;
@@ -69,7 +69,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   int lock_error,kfile,open_mode,save_errno;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,extra,keys,
     key_parts,unique_key_parts,tmp_length,uniques;
-  char name_buff[FN_REFLEN],*disk_cache,*disk_pos;
+  char name_buff[FN_REFLEN], org_name [FN_REFLEN], index_name[FN_REFLEN],
+       data_name[FN_REFLEN];
+  char *disk_cache,*disk_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
   ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
@@ -84,7 +86,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   head_length=sizeof(share_buff.state.header);
   bzero((byte*) &info,sizeof(info));
 
-  VOID(fn_format(name_buff,name,"",MI_NAME_IEXT,4+16+32));
+  my_realpath(name_buff, fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
   pthread_mutex_lock(&THR_LOCK_myisam);
   if (!(old_info=test_if_reopen(name_buff)))
   {
@@ -128,6 +130,13 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       my_errno=HA_ERR_OLD_FILE;
       goto err;
     }
+    /* Don't call realpath() if the name can't be a link */
+    if (strcmp(name_buff, org_name))
+      my_readlink(index_name, org_name, MYF(0));
+    else
+      strmov(index_name, org_name);
+    fn_format(data_name,org_name,"",MI_NAME_DEXT,4+16);
+
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos=mi_uint2korr(share->state.header.base_pos);
     if (!(disk_cache=(char*) my_alloca(info_length)))
@@ -250,7 +259,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			 &share->rec,
 			 (share->base.fields+1)*sizeof(MI_COLUMNDEF),
 			 &share->blobs,sizeof(MI_BLOB)*share->base.blobs,
-			 &share->filename,strlen(name_buff)+1,
+			 &share->unique_file_name,strlen(name_buff)+1,
+			 &share->index_file_name,strlen(index_name)+1,
+			 &share->data_file_name,strlen(data_name)+1,
 			 &share->state.key_root,keys*sizeof(my_off_t),
 			 &share->state.key_del,
 			 (share->state.header.max_block_size*sizeof(my_off_t)),
@@ -268,7 +279,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     memcpy((char*) share->state.key_del,
 	   (char*) key_del, (sizeof(my_off_t) *
 			     share->state.header.max_block_size));
-    strmov(share->filename,name_buff);
+    strmov(share->unique_file_name, name_buff);
+    strmov(share->index_file_name,  index_name);
+    strmov(share->data_file_name,   data_name);
 
     share->blocksize=min(IO_SIZE,myisam_block_size);
     {
@@ -438,12 +451,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
 		       &info.lastkey,share->base.max_key_length*3+1,
-		       &info.filename,strlen(name)+1,
+		       &info.filename,strlen(org_name)+1,
 		       NullS))
     goto err;
   errpos=6;
 
-  strmov(info.filename,name);
+  strmov(info.filename,org_name);
   memcpy(info.blobs,share->blobs,sizeof(MI_BLOB)*share->base.blobs);
   info.lastkey2=info.lastkey+share->base.max_key_length;
 
@@ -514,7 +527,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   pthread_mutex_unlock(&THR_LOCK_myisam);
   if (myisam_log_file >= 0)
   {
-    intern_filename(name_buff,share->filename);
+    intern_filename(name_buff,share->index_file_name);
     _myisam_log(MI_LOG_OPEN,m_info,name_buff,(uint) strlen(name_buff));
   }
   DBUG_RETURN(m_info);
@@ -1000,13 +1013,10 @@ char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
 
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share)
 {
-  char name_buff[FN_REFLEN];
-  (void) fn_format(name_buff, share->filename,"",MI_NAME_DEXT, 2+4);
-
 #ifdef USE_RAID
   if (share->base.raid_type)
   {
-    if ((info->dfile=my_raid_open(name_buff,
+    if ((info->dfile=my_raid_open(share->data_file_name,
 				  share->mode | O_SHARE,
 				  share->base.raid_type,
 				  share->base.raid_chunks,
@@ -1016,7 +1026,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share)
   }
   else
 #endif
-    if ((info->dfile=my_open(name_buff, share->mode | O_SHARE,
+    if ((info->dfile=my_open(share->data_file_name, share->mode | O_SHARE,
 			     MYF(MY_WME))) < 0)
       return 1;
   return 0;
@@ -1025,7 +1035,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share)
 
 int mi_open_keyfile(MYISAM_SHARE *share)
 {
-  if ((share->kfile=my_open(share->filename, share->mode | O_SHARE,
+  if ((share->kfile=my_open(share->unique_file_name, share->mode | O_SHARE,
 			    MYF(MY_WME))) < 0)
     return 1;
   return 0;

@@ -103,6 +103,7 @@ void myisamchk_init(MI_CHECK *param)
 int chk_status(MI_CHECK *param, register MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
+  
   if (mi_is_crashed_on_repair(info))
     mi_check_print_warning(param,
 			   "Table is marked as crashed and last repair failed");
@@ -111,9 +112,12 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 			   "Table is marked as crashed");
   if (share->state.open_count != (uint) (info->s->global_changed ? 1 : 0))
   {
+    /* Don't count this as a real warning, as check can correct this ! */
+    uint save=param->warning_printed;
     mi_check_print_warning(param,
 			   "%d clients is using or hasn't closed the table properly",
 			   share->state.open_count);
+    param->warning_printed=save;
   }
   return 0;
 }
@@ -1288,7 +1292,7 @@ err:
     {
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
-      if (change_to_newfile(share->filename,MI_NAME_DEXT,
+      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
@@ -1514,7 +1518,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   VOID(my_close(share->kfile,MYF(MY_WME)));
   share->kfile = -1;
   VOID(my_close(new_file,MYF(MY_WME)));
-  if (change_to_newfile(share->filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+  if (change_to_newfile(share->index_file_name,MI_NAME_IEXT,INDEX_TMP_EXT,0,
 			MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
@@ -1994,7 +1998,7 @@ err:
     {
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
-      if (change_to_newfile(share->filename,MI_NAME_DEXT,
+      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
@@ -2846,7 +2850,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   MI_STATUS_INFO status_info;
   uint unpack,key_parts;
   ha_rows max_records;
-  char name[FN_REFLEN];
   ulonglong file_length,tmp_length;
   MI_CREATE_INFO create_info;
 
@@ -2955,8 +2958,9 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   create_info.language = (param->language ? param->language :
 			  share.state.header.language);
 
-  if (mi_create(fn_format(name,filename,"",MI_NAME_IEXT,
-			  4+ (param->opt_follow_links ? 16 : 0)),
+  /* We don't have to handle symlinks here because we are using
+     HA_DONT_TOUCH_DATA */
+  if (mi_create(filename,
 		share.base.keys - share.state.header.uniques,
 		keyinfo, share.base.fields, recdef,
 		share.state.header.uniques, uniquedef,
@@ -2966,7 +2970,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     mi_check_print_error(param,"Got error %d when trying to recreate indexfile",my_errno);
     goto end;
   }
-  *org_info=mi_open(name,O_RDWR,
+  *org_info=mi_open(filename,O_RDWR,
 		    (param->testflag & T_WAIT_FOREVER) ? HA_OPEN_WAIT_IF_LOCKED :
 		    (param->testflag & T_DESCRIPT) ? HA_OPEN_IGNORE_IF_LOCKED :
 		    HA_OPEN_ABORT_IF_LOCKED);

@@ -355,3 +355,6 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+libmysqld/sql_command
+libmysqld/backup_dir
+libmysqld/simple-test
