@@ -281,8 +281,8 @@ void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);
 double rnd(struct rand_struct *);
 void make_scrambled_password(char *to,const char *password,my_bool force_old_scramble,struct rand_struct *rand_st);
-uint get_password_length(my_bool force_old_scramble);
-uint8 get_password_version(const char* password);
+int get_password_length(my_bool force_old_scramble);
+char get_password_version(const char* password);
 void create_random_string(int length,struct rand_struct *rand_st,char* target);
 my_bool validate_password(const char* password, const char* message, ulong* salt);
 void password_hash_stage1(char *to, const char *password);

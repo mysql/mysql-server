@@ -732,8 +732,11 @@ static void acl_update_user(const char *user, const char *host,
 	}
 	if (password)
 	{
-	  if (!password[0])
+	  if (!password[0]) /* If password is empty set it to null */
+          {
 	    acl_user->password=0;
+            acl_user->pversion=0; // just initialize 
+          }    
 	  else
 	  {
 	    acl_user->password=(char*) "";	// Just point at something
@@ -774,7 +777,7 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.password=(char*) "";		// Just point at something
     get_salt_from_password(acl_user.salt,password);
-    acl_user.pversion=get_password_version(acl_user.password);
+    acl_user.pversion=get_password_version(password);
   }
 
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
@@ -1337,14 +1340,15 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   if (combo.password.str && combo.password.str[0])
   {
-    if (combo.password.length != HASH_PASSWORD_LENGTH)
+    if ((combo.password.length != HASH_PASSWORD_LENGTH) 
+         && combo.password.length != HASH_OLD_PASSWORD_LENGTH)
     {
       my_error(ER_PASSWORD_NO_MATCH,MYF(0));
       DBUG_RETURN(-1);
     }
     password=combo.password.str;
   }
-
+  
   table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
   table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
   table->file->index_init(0);
