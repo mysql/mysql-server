@@ -20,6 +20,9 @@
 ** Some of the tables are hidden behind IFDEF to reduce some space.
 ** One can enable them by removing the // characters from the next comment
 ** One must also give a name to each mapping that one wants to use...
+**
+** All tables are activated if --with-extra-charsets=all or
+** --with-extra-charsets=complex was given to configure.
 */
 
 /* #define DEFINE_ALL_CHARACTER_SETS */
