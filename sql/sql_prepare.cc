@@ -1740,7 +1740,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(TRUE);
   }
 
-  mysql_log.write(thd, COM_PREPARE, "%s", packet);
+  mysql_log.write(thd, COM_PREPARE, "[%lu] %s", stmt->id, packet);
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
@@ -1989,6 +1989,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     my_error(ER_OUTOFMEMORY, 0, expanded_query.length());
     goto err;
   }
+
+  mysql_log.write(thd, COM_EXECUTE, "[%lu] %s", stmt->id,
+                  expanded_query.length() ? expanded_query.c_ptr() :
+                                            stmt->query);
 
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
