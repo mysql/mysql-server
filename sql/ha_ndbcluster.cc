@@ -59,7 +59,9 @@ static handlerton ndbcluster_hton = {
   ndbcluster_commit,
   ndbcluster_rollback,
   NULL, /* prepare */
-  NULL  /* recover */
+  NULL, /* recover */
+  NULL, /* commit_by_xid */
+  NULL  /* rollback_by_xid */
 };
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
@@ -298,7 +300,7 @@ set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton.slot]= th
 inline
 Ndb *ha_ndbcluster::get_ndb()
 {
-  return get_thd_ndb(table->in_use)->ndb;
+  return get_thd_ndb(current_thd)->ndb;
 }
 
 /*
@@ -354,7 +356,7 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
-  get_thd_ndb(table->in_use)->error= 1;
+  get_thd_ndb(current_thd)->error= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -793,7 +795,7 @@ bool ha_ndbcluster::uses_blob_value(bool all_fields)
   {
     uint no_fields= table->s->fields;
     int i;
-    THD *thd= table->in_use;
+    THD *thd= current_thd;
     // They always put blobs at the end..
     for (i= no_fields - 1; i >= 0; i--)
     {
