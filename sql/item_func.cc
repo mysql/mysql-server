@@ -2743,7 +2743,7 @@ bool Item_func_match::fix_index()
 {
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
-  uint max_cnt=0, mkeys=0;
+  uint max_cnt=0, mkeys=0, i;
 
   if (key == NO_SUCH_KEY)
     return 0;
@@ -2762,7 +2762,7 @@ bool Item_func_match::fix_index()
   if (!fts)
     goto err;
 
-  for (uint i=1; i < arg_count; i++)
+  for (i=1; i < arg_count; i++)
   {
     item=(Item_field*)args[i];
     for (keynr=0 ; keynr < fts ; keynr++)

@@ -19,7 +19,7 @@
 #include <m_string.h>
 
 #define ULONGLONG_MAX		(~(ulonglong) 0)
-#define MAX_NEGATIVE_NUMBER	((ulonglong) 0x8000000000000000LL)
+#define MAX_NEGATIVE_NUMBER	((ulonglong) LL(0x8000000000000000))
 #define INIT_CNT  9
 #define LFACTOR   LL(1000000000)
 #define LFACTOR1  LL(10000000000)
