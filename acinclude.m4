@@ -1678,6 +1678,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   have_ndbcluster=no
   ndbcluster_includes=
   ndbcluster_libs=
+  ndb_mgmclient_libs=
   case "$ndbcluster" in
     yes )
       AC_MSG_RESULT([Using NDB Cluster])
@@ -1686,6 +1687,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
       ndbcluster_system_libs=""
+      ndb_mgmclient_libs="\$(top_builddir)/ndb/src/mgmclient/libndbmgmclient.la"
       MYSQL_CHECK_NDB_OPTIONS
       ;;
     * )
@@ -1697,6 +1699,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
+  AC_SUBST(ndb_mgmclient_libs)
 ])
                                                                                 
 dnl ---------------------------------------------------------------------------
