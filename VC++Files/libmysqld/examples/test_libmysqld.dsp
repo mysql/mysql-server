@@ -7,18 +7,18 @@
 CFG=test_libmysqld - Win32 Release
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE
+!MESSAGE 
 !MESSAGE NMAKE /f "test_libmysqld.mak".
-!MESSAGE
+!MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE
+!MESSAGE 
 !MESSAGE NMAKE /f "test_libmysqld.mak" CFG="test_libmysqld - Win32 Release"
-!MESSAGE
+!MESSAGE 
 !MESSAGE Possible choices for configuration are:
-!MESSAGE
+!MESSAGE 
 !MESSAGE "test_libmysqld - Win32 Release" (based on "Win32 (x86) Console Application")
-!MESSAGE
+!MESSAGE 
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
@@ -55,7 +55,19 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\..\client\completion_hash.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\client\mysql.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\client\readline.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\client\sql_string.cpp
 # End Source File
 # End Group
 # Begin Source File
