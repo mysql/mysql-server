@@ -2918,3 +2918,91 @@ String *Item_func_spatial_collection::val_str(String *str)
 ret:
   return null_value ? 0 : str;
 }
+
+#ifdef HAVE_COMPRESS
+#include <zlib.h>
+
+String *Item_func_compress::val_str(String *str)
+{
+  String *res= args[0]->val_str(str);
+  int err= Z_OK;
+  int code;
+
+  /*
+   citation from zlib.h (comment for compress function):
+
+    Compresses the source buffer into the destination buffer.  sourceLen is
+   the byte length of the source buffer. Upon entry, destLen is the total
+   size of the destination buffer, which must be at least 0.1% larger than
+   sourceLen plus 12 bytes.
+
+   Proportion 120/100 founded by Sinica with help of procedure
+   compress(compress(compress(...)))
+   I.e. zlib give number 'at least'..
+  */
+  uLongf new_size= (uLongf)((res->length()*120)/100)+12;
+
+  buffer.realloc((uint32)new_size+sizeof(int32)+sizeof(char));
+
+  Byte *body= ((Byte*)buffer.c_ptr())+sizeof(int32);
+  err= compress(body, &new_size,(const Bytef*)res->c_ptr(), res->length());
+  
+  if (err != Z_OK)
+  {
+    code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
+    push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+    null_value= 1;
+    return 0;
+  }
+  
+  int4store(buffer.c_ptr(),res->length());
+  buffer.length((uint32)new_size+sizeof(int32));
+  
+  /* This is for the stupid char fields which trimm ' ': */
+  char *last_char= ((char*)body)+new_size-1;
+  if (*last_char == ' ')
+  {
+    *++last_char= '.';
+    new_size++;
+  }
+  
+  buffer.length((uint32)new_size+sizeof(int32));
+  
+  return &buffer;
+}
+
+String *Item_func_uncompress::val_str(String *str)
+{
+  String *res= args[0]->val_str(str);
+  uLongf new_size= uint4korr(res->c_ptr());
+  int err= Z_OK;
+  uint code;
+  
+  if (new_size > MAX_BLOB_WIDTH)
+  {
+    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+			ER_TOO_BIG_FOR_UNCOMPRESS,
+			ER(ER_TOO_BIG_FOR_UNCOMPRESS),MAX_BLOB_WIDTH);
+    null_value= 1;
+    return 0;
+  }
+  
+  buffer.realloc((uint32)new_size);
+  
+  err= uncompress((Byte*)buffer.c_ptr(), &new_size, 
+		  ((const Bytef*)res->c_ptr())+sizeof(int32),res->length());
+  
+  if (err == Z_OK)
+  {
+    buffer.length((uint32)new_size);
+    return &buffer;
+  }
+  
+  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR : 
+    err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR;
+  push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+  null_value= 1;
+  return 0;
+}
+
+#endif
