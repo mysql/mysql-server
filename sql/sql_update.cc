@@ -80,9 +80,8 @@ static bool check_fields(THD *thd, List<Item> &items)
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
-    field= new Item_field(thd, field);
-    it.replace(field);
-    ((Item_field *)item)->register_item_tree_changing(it.ref());
+    it.replace(new Item_field(thd, field));
+    field->register_item_tree_changing(it.ref());
   }
   return FALSE;
 }
