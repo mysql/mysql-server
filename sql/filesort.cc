@@ -76,7 +76,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   ulong memavl, min_sort_memory;
   uint maxbuffer;
   BUFFPEK *buffpek;
-  ha_rows records;
+  ha_rows records= HA_POS_ERROR;
   uchar **sort_keys;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
@@ -494,6 +494,7 @@ static void make_sortkey(register SORTPARAM *param,
        sort_field != param->end ;
        sort_field++)
   {
+    bool maybe_null=0;
     if ((field=sort_field->field))
     {						// Field
       if (field->maybe_null())
@@ -519,7 +520,7 @@ static void make_sortkey(register SORTPARAM *param,
       case STRING_RESULT:
 	{
           CHARSET_INFO *cs=item->charset();
-	  if (item->maybe_null)
+	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
 	  String tmp((char*) to,sort_field->length+4,cs);
@@ -567,7 +568,7 @@ static void make_sortkey(register SORTPARAM *param,
       case INT_RESULT:
 	{
 	  longlong value=item->val_int();
-	  if (item->maybe_null)
+	  if ((maybe_null=item->maybe_null))
 	    *to++=1;				/* purecov: inspected */
 	  if (item->null_value)
 	  {
@@ -601,13 +602,13 @@ static void make_sortkey(register SORTPARAM *param,
       case REAL_RESULT:
 	{
 	  double value=item->val();
-	  if (item->null_value)
+	  if ((maybe_null=item->null_value))
 	  {
 	    bzero((char*) to,sort_field->length+1);
 	    to++;
 	    break;
 	  }
-	  if (item->maybe_null)
+	  if ((maybe_null=item->maybe_null))
 	    *to++=1;
 	  change_double_for_sort(value,(byte*) to);
 	  break;
@@ -621,6 +622,8 @@ static void make_sortkey(register SORTPARAM *param,
     }
     if (sort_field->reverse)
     {							/* Revers key */
+      if (maybe_null)
+        to[-1]= ~to[-1];
       length=sort_field->length;
       while (length--)
       {

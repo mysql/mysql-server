@@ -162,6 +162,13 @@ char*   srv_file_flush_method_str = NULL;
 ulint   srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 ulint   srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 
+/* The InnoDB main thread tries to keep the ratio of modified pages
+in the buffer pool to all database pages in the buffer pool smaller than
+the following number. But it is not guaranteed that the value stays below
+that during a time of heavy update/insert activity. */
+
+ulint	srv_max_buf_pool_modified_pct	= 90;
+
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
 
@@ -1881,11 +1888,11 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
-	trx->op_info = "waiting in InnoDB queue";
+	trx->op_info = (char*)"waiting in InnoDB queue";
 
 	os_event_wait(slot->event);
 
-	trx->op_info = "";
+	trx->op_info = (char*)"";
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -2368,12 +2375,35 @@ srv_sprintf_innodb_monitor(
 	buf = buf + strlen(buf);
 	ut_a(buf < buf_end + 1500);
 
-	buf += sprintf(buf, "------------\n"
-		       "TRANSACTIONS\n"
-		       "------------\n");
+	if (*dict_foreign_err_buf != '\0') {
+		buf += sprintf(buf,
+			"------------------------\n"
+		       	"LATEST FOREIGN KEY ERROR\n"
+		       	"------------------------\n");
+
+		if (buf_end - buf > 6000) {
+			buf+= sprintf(buf, "%.4000s", dict_foreign_err_buf);
+		}
+	}	
+
+	ut_a(buf < buf_end + 1500);
+
+	if (*dict_unique_err_buf != '\0') {
+		buf += sprintf(buf,
+"---------------------------------------------------------------\n"
+"LATEST UNIQUE KEY ERROR (is masked in REPLACE or INSERT IGNORE)\n"
+"---------------------------------------------------------------\n");
+
+		if (buf_end - buf > 6000) {
+			buf+= sprintf(buf, "%.4000s", dict_unique_err_buf);
+		}
+	}	
+
+	ut_a(buf < buf_end + 1500);
+
 	lock_print_info(buf, buf_end);
 	buf = buf + strlen(buf);
-
+	
 	buf += sprintf(buf, "--------\n"
 		       "FILE I/O\n"
 		       "--------\n");
@@ -2777,6 +2807,7 @@ srv_master_thread(
 	ulint		n_ios_old;
 	ulint		n_ios_very_old;
 	ulint		n_pend_ios;
+	ibool		skip_sleep	= FALSE;
 	ulint		i;
 	
 	UT_NOT_USED(arg);
@@ -2794,24 +2825,42 @@ srv_master_thread(
 
 	os_event_set(srv_sys->operational);
 loop:
+	/*****************************************************************/
+	/* ---- When there is database activity by users, we cycle in this
+	loop */
+
 	srv_main_thread_op_info = (char*) "reserving kernel mutex";
 
 	n_ios_very_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
 	mutex_enter(&kernel_mutex);
 
+	/* Store the user activity counter at the start of this loop */
 	old_activity_count = srv_activity_count;
 
 	mutex_exit(&kernel_mutex);
 
-	/* We run purge and a batch of ibuf_contract every 10 seconds, even
-	if the server were active: */
+	if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
+
+		goto suspend_thread;
+	}
+
+	/* ---- We run the following loop approximately once per second
+	when there is database activity */
+
+	skip_sleep = FALSE;
 
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
 		srv_main_thread_op_info = (char*)"sleeping";
-		os_thread_sleep(1000000);
+		
+		if (!skip_sleep) {
+
+		        os_thread_sleep(1000000);
+		}
+
+		skip_sleep = FALSE;
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT
@@ -2824,9 +2873,9 @@ loop:
 
 		srv_main_thread_op_info = (char*)"";
 
-		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
 
-			goto suspend_thread;
+			goto background_loop;
 		}
 
 		/* We flush the log once in a second even if no commit
@@ -2834,10 +2883,9 @@ loop:
 		at transaction commit */
 
 		srv_main_thread_op_info = (char*)"flushing log";
-		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-		log_flush_to_disk();
+		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
-		/* If there were less than 10 i/os during the
+		/* If there were less than 5 i/os during the
 		one second sleep, we assume that there is free
 		disk i/o capacity available, and it makes sense to
 		do an insert buffer merge. */
@@ -2846,35 +2894,45 @@ loop:
 						+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
-		if (n_pend_ios < 3 && (n_ios - n_ios_old < 10)) {
+		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
 			srv_main_thread_op_info =
 					(char*)"doing insert buffer merge";
 			ibuf_contract_for_n_pages(TRUE, 5);
 
 			srv_main_thread_op_info =
 						(char*)"flushing log";
-			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-			log_flush_to_disk();
+			log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
+									TRUE);
 		}
-		
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
 
-			goto background_loop;
+		if (buf_get_modified_ratio_pct() >
+				             srv_max_buf_pool_modified_pct) {
+
+			/* Try to keep the number of modified pages in the
+			buffer pool under the limit wished by the user */
+			
+			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+							  ut_dulint_max);
+
+		        /* If we had to do the flush, it may have taken
+			even more than 1 second, and also, there may be more
+			to flush. Do not sleep 1 second during the next
+			iteration of this loop. */
+			     
+			skip_sleep = TRUE;
 		}
 
 		if (srv_activity_count == old_activity_count) {
 
-			if (srv_print_thread_releases) {
-				printf("Master thread wakes up!\n");
-			}
+			/* There is no user activity at the moment, go to
+			the background loop */
 
 			goto background_loop;
 		}
 	}
 
-	if (srv_print_thread_releases) {
-		printf("Master thread wakes up!\n");
-	}
+	/* ---- We perform the following code approximately once per
+	10 seconds when there is database activity */
 
 #ifdef MEM_PERIODIC_CHECK
 	/* Check magic numbers of every allocated mem block once in 10
@@ -2883,7 +2941,7 @@ loop:
 #endif	
 	/* If there were less than 200 i/os during the 10 second period,
 	we assume that there is free disk i/o capacity available, and it
-	makes sense to do a buffer pool flush. */
+	makes sense to flush 100 pages. */
 
 	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
 	n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
@@ -2891,11 +2949,10 @@ loop:
 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
 
 		srv_main_thread_op_info = (char*) "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, 50, ut_dulint_max);
+		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
 		srv_main_thread_op_info = (char*) "flushing log";
-		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-		log_flush_to_disk();
+		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
@@ -2905,8 +2962,7 @@ loop:
 	ibuf_contract_for_n_pages(TRUE, 5);
 
 	srv_main_thread_op_info = (char*)"flushing log";
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-	log_flush_to_disk();
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
@@ -2930,27 +2986,32 @@ loop:
 		if (difftime(current_time, last_flush_time) > 1) {
 			srv_main_thread_op_info = (char*) "flushing log";
 
-		        log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-			log_flush_to_disk();
+		        log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
+									TRUE);
 			last_flush_time = current_time;
 		}
 	}
-
-background_loop:
-	/* In this loop we run background operations when the server
-	is quiet and we also come here about once in 10 seconds */
-
-	srv_main_thread_op_info = (char*)"doing background drop tables";
-
-	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
-
-	srv_main_thread_op_info = (char*)"";
 	
 	srv_main_thread_op_info = (char*)"flushing buffer pool pages";
 
-	/* Flush a few oldest pages to make the checkpoint younger */
+	/* Flush a few oldest pages to make a new checkpoint younger */
 
-	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10, ut_dulint_max);
+	if (buf_get_modified_ratio_pct() > 70) {
+
+		/* If there are lots of modified pages in the buffer pool
+		(> 70 %), we assume we can afford reserving the disk(s) for
+		the time it requires to flush 100 pages */
+
+	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+							ut_dulint_max);
+	} else {
+	        /* Otherwise, we only flush a small number of pages so that
+		we do not unnecessarily use much disk i/o capacity from
+		other work */
+
+	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10,
+							ut_dulint_max);
+	}
 
 	srv_main_thread_op_info = (char*)"making checkpoint";
 
@@ -2961,16 +3022,31 @@ background_loop:
 	srv_main_thread_op_info = (char*)"reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
+	
+	/* ---- When there is database activity, we jump from here back to
+	the start of loop */
+
 	if (srv_activity_count != old_activity_count) {
 		mutex_exit(&kernel_mutex);
 		goto loop;
 	}
-	old_activity_count = srv_activity_count;
+	
 	mutex_exit(&kernel_mutex);
+
+	/* If the database is quiet, we enter the background loop */
+
+	/*****************************************************************/
+background_loop:
+	/* ---- In this loop we run background operations when the server
+	is quiet from user activity */
 
 	/* The server has been quiet for a while: start running background
 	operations */
 		
+	srv_main_thread_op_info = (char*)"doing background drop tables";
+
+	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
+
 	srv_main_thread_op_info = (char*)"purging";
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
@@ -3005,6 +3081,7 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
+flush_loop:
 	srv_main_thread_op_info = (char*)"flushing buffer pool pages";
 	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
@@ -3017,12 +3094,21 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
-	srv_main_thread_op_info = (char*) "waiting for buffer pool flush to end";
+	srv_main_thread_op_info =
+			(char*) "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
 
 	srv_main_thread_op_info = (char*)"making checkpoint";
 
 	log_checkpoint(TRUE, FALSE);
+
+	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
+
+		/* Try to keep the number of modified pages in the
+		buffer pool under the limit wished by the user */
+			
+		goto flush_loop;
+	}
 
 	srv_main_thread_op_info = (char*)"reserving kernel mutex";
 
@@ -3038,15 +3124,24 @@ background_loop:
 	
 	log_archive_do(FALSE, &n_bytes_archived);
 
+	/* Keep looping in the background loop if still work to do */
+
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
 		if (n_tables_to_drop + n_pages_flushed
 				+ n_bytes_archived != 0) {
 
+			/* If we are doing a fast shutdown (= the default)
+			we do not do purge or insert buffer merge. But we
+			flush the buffer pool completely to disk. */
+
 			goto background_loop;
 		}
 	} else if (n_tables_to_drop +
-		n_pages_purged + n_bytes_merged + n_pages_flushed
+		   n_pages_purged + n_bytes_merged + n_pages_flushed
 						+ n_bytes_archived != 0) {
+		/* In a 'slow' shutdown we run purge and the insert buffer
+		merge to completion */
+
 		goto background_loop;
 	}
 		
@@ -3077,6 +3172,9 @@ suspend_thread:
 	srv_main_thread_op_info = (char*)"waiting for server activity";
 
 	os_event_wait(event);
+
+	/* When there is user activity, InnoDB will set the event and the main
+	thread goes back to loop: */
 
 	goto loop;
 

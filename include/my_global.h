@@ -287,6 +287,10 @@ C_MODE_END
 #include <asm/atomic.h>
 #endif
 #include <errno.h>				/* Recommended by debian */
+/* We need the following to go around a problem with openssl on solaris */
+#if defined(HAVE_CRYPT_H)
+#include <crypt.h>
+#endif
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
@@ -306,9 +310,7 @@ C_MODE_END
 /* This has to be after include limits.h */
 #define HAVE_ERRNO_AS_DEFINE
 #define HAVE_FCNTL_LOCK
-#undef  HAVE_SYS_UN_H
 #undef  HAVE_FINITE
-#undef  HAVE_RINT
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
 #undef  LONGLONG_MAX            /* standard system library 'limits.h' */
 #endif
@@ -377,7 +379,7 @@ typedef unsigned short ushort;
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 #ifndef HAVE_RINT
-#define rint(A) floor((A)+0.5)
+#define rint(A) floor((A)+(((A) < 0)? -0.5 : 0.5))
 #endif
 
 /* Define some general constants */

@@ -25,7 +25,7 @@ CFG=libmysql - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 MTL=midl.exe
 RSC=rc.exe
 
@@ -52,7 +52,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386
 # ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386 /def:"libmysql.def" /out:"..\lib_release\libmysql.dll" /libpath:"." /libpath:"..\lib_release"
 # SUBTRACT LINK32 /pdb:none
@@ -85,7 +85,7 @@ PostBuild_Cmds=xcopy release\libmysql.lib ..\lib_release /y
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 zlib.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /incremental:no /map /debug /machine:I386 /def:"libmysql.def" /out:"..\lib_debug\libmysql.dll" /pdbtype:sept /libpath:"." /libpath:"..\lib_debug"
 # SUBTRACT LINK32 /pdb:none
@@ -252,6 +252,10 @@ SOURCE=..\mysys\mf_loadpath.c
 # Begin Source File
 
 SOURCE=..\mysys\mf_pack.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\mf_path.c
 # End Source File
 # Begin Source File
 

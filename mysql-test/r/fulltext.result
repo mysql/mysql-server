@@ -216,3 +216,13 @@ test.t1	repair	status	OK
 select * from t1 where match (a) against ('aaaa');
 a
 drop table t1;
+create table t1 ( ref_mag text not null, fulltext (ref_mag));
+insert into t1 values ('test');
+select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
+ref_mag
+test
+alter table t1 change ref_mag ref_mag char (255) not null;
+select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
+ref_mag
+test
+drop table t1;

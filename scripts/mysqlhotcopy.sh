@@ -55,7 +55,8 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   -P, --port=#         port to use when connecting to local server with TCP/IP
   -S, --socket=#       socket to use when connecting to local server
 
-  --allowold           don\'t abort if target already exists (rename it _old)
+  --allowold           don\'t abort if target dir already exists (rename it _old)
+  --addtodest          don\'t rename target dir if it exists, just add files to it
   --keepold            don\'t delete previous (now renamed) target when done
   --noindices          don\'t include full index files in copy
   --method=#           method for copy (only "cp" currently supported)
@@ -98,6 +99,7 @@ GetOptions( \%opt,
     "socket|S=s",
     "allowold!",
     "keepold!",
+    "addtodest!",
     "noindices!",
     "method=s",
     "debug",
@@ -380,14 +382,14 @@ if ($opt{method} =~ /^cp\b/)
     push @existing, $rdb->{target} if ( -d  $rdb->{target} );
   }
 
-  if ( @existing && !$opt{allowold} )
+  if ( @existing && !($opt{allowold} || $opt{addtodest}) )
   {
     $dbh->disconnect();
-    die "Can't hotcopy to '", join( "','", @existing ), "' because directory\nalready exist and the --allowold option was not given.\n"
+    die "Can't hotcopy to '", join( "','", @existing ), "' because directory\nalready exist and the --allowold or --addtodest options were not given.\n"
   }
 }
 
-retire_directory( @existing ) if ( @existing );
+retire_directory( @existing ) if @existing && !$opt{addtodest};
 
 foreach my $rdb ( @db_desc ) {
     foreach my $td ( '', @{$rdb->{raid_dirs}} ) {
@@ -403,8 +405,8 @@ foreach my $rdb ( @db_desc ) {
 	    ## ...
 	}
 	else {
-	    mkdir($tgt_dirpath, 0750)
-		or die "Can't create '$tgt_dirpath': $!\n";
+	    mkdir($tgt_dirpath, 0750) or die "Can't create '$tgt_dirpath': $!\n"
+		unless -d $tgt_dirpath;
 	}
     }
 }
@@ -861,6 +863,22 @@ Any existing versions of the backup directory are deleted.
 Behaves as for the --allowold, with the additional feature 
 of keeping the backup directory after the copy successfully completes.
 
+=item --addtodest
+
+Don't rename target directory if it already exists, just add the
+copied files into it.
+
+This is most useful when backing up a database with many large
+tables and you don't want to have all the tables locked for the
+whole duration.
+
+In this situation, I<if> you are happy for groups of tables to be
+backed up separately (and thus possibly not be logically consistant
+with one another) then you can run mysqlhotcopy several times on
+the same database each with different db_name./table_regex/.
+All but the first should use the --addtodest option so the tables
+all end up in the same directory.
+
 =item --flushlog
 
 Rotate the log files by executing "FLUSH LOGS" after all tables are
@@ -869,13 +887,13 @@ locked, and before they are copied.
 =item --resetmaster
 
 Reset the bin-log by executing "RESET MASTER" after all tables are
-locked, and before they are copied. Usefull if you are recovering a
+locked, and before they are copied. Useful if you are recovering a
 slave in a replication setup.
 
 =item --resetslave
 
 Reset the master.info by executing "RESET SLAVE" after all tables are
-locked, and before they are copied. Usefull if you are recovering a
+locked, and before they are copied. Useful if you are recovering a
 server in a mutual replication setup.
 
 =item --regexp pattern
@@ -941,7 +959,7 @@ will vary with your ability to understand how scp works. 'man scp'
 and 'man ssh' are your friends.
 
 The destination directory _must exist_ on the target machine using the
-scp method. --keepold and --allowold are meeningless with scp.
+scp method. --keepold and --allowold are meaningless with scp.
 Liberal use of the --debug option will help you figure out what\'s
 really going on when you do an scp.
 

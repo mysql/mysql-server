@@ -108,7 +108,7 @@
 "BLOB feltet '%-.64s' kan ikke have en standard værdi",
 "Ugyldigt database navn '%-.64s'",
 "Ugyldigt tabel navn '%-.64s'",
-"SELECT ville undersøge for mange poster og ville sandsynligvis tage meget lang tid. Undersøg WHERE delen og brug SET OPTION SQL_BIG_SELECTS=1 hvis udtrykket er korrekt",
+"SELECT ville undersøge for mange poster og ville sandsynligvis tage meget lang tid. Undersøg WHERE delen og brug SET SQL_BIG_SELECTS=1 hvis udtrykket er korrekt",
 "Ukendt fejl",
 "Ukendt procedure %s",
 "Forkert antal  parametre til proceduren %s",

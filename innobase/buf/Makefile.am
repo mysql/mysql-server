@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libbuf.a
+noinst_LIBRARIES =	libbuf.a
 
 libbuf_a_SOURCES =	buf0buf.c buf0flu.c buf0lru.c buf0rea.c
 

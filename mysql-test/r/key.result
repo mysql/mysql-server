@@ -47,7 +47,6 @@ price	area	type	transityes	shopsyes	schoolsyes	petsyes
 drop table t1;
 CREATE TABLE t1 (program enum('signup','unique','sliding') not null,  type enum('basic','sliding','signup'),  sites set('mt'),  PRIMARY KEY (program));
 ALTER TABLE t1 modify program enum('signup','unique','sliding');
-All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
 drop table t1;
 CREATE TABLE t1 (
 name varchar(50) DEFAULT '' NOT NULL,

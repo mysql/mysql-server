@@ -340,7 +340,6 @@ trx_sys_doublewrite_restore_corrupt_pages(void)
 
 			/* It is an unwritten doublewrite buffer page:
 			do nothing */
-
 		} else {
 			/* Read in the actual page from the data files */
 			
@@ -357,9 +356,19 @@ trx_sys_doublewrite_restore_corrupt_pages(void)
 		"InnoDB: Trying to recover it from the doublewrite buffer.\n");
 				
 				if (buf_page_is_corrupted(page)) {
+					fprintf(stderr,
+		"InnoDB: Dump of the page:\n");
+					buf_page_print(read_buf);
+					fprintf(stderr,
+		"InnoDB: Dump of corresponding page in doublewrite buffer:\n");
+					buf_page_print(page);
+
 		  			fprintf(stderr,
 		"InnoDB: Also the page in the doublewrite buffer is corrupt.\n"
-		"InnoDB: Cannot continue operation.\n");
+		"InnoDB: Cannot continue operation.\n"
+		"InnoDB: You can try to recover the database with the my.cnf\n"
+		"InnoDB: option:\n"
+		"InnoDB: set-variable=innodb_force_recovery=6\n");
 					exit(1);
 				}
 

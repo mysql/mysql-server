@@ -1,5 +1,8 @@
 #! /bin/sh
 
+# stop on errors
+set -e
+
 args=" $*"
 
 wine --debugmsg -all -- mwldnlm $args

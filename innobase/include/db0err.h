@@ -44,6 +44,8 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_CORRUPTION		39	/* data structure corruption noticed */
 #define DB_COL_APPEARS_TWICE_IN_INDEX 40 /* InnoDB cannot handle an index
 					    where same column appears twice */
+#define DB_CANNOT_DROP_CONSTRAINT 40	/* dropping a foreign key constraint
+					from a table failed */
 					
 /* The following are partial failure codes */
 #define DB_FAIL 		1000

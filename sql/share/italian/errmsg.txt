@@ -105,7 +105,7 @@
 "Il campo BLOB '%-.64s' non puo` avere un valore di default",
 "Nome database errato '%-.100s'",
 "Nome tabella errato '%-.100s'",
-"La SELECT dovrebbe esaminare troppi record e usare troppo tempo. Controllare la WHERE e usa SET OPTION SQL_BIG_SELECTS=1 se e` tutto a posto.",
+"La SELECT dovrebbe esaminare troppi record e usare troppo tempo. Controllare la WHERE e usa SET SQL_BIG_SELECTS=1 se e` tutto a posto.",
 "Errore sconosciuto",
 "Procedura '%-.64s' sconosciuta",
 "Numero di parametri errato per la procedura '%-.64s'",

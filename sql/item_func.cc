@@ -40,8 +40,8 @@ eval_const_cond(COND *cond)
 }
 
 
-Item_func::Item_func(List<Item> &list):
-  allowed_arg_cols(1)
+Item_func::Item_func(List<Item> &list)
+  :allowed_arg_cols(1)
 {
   arg_count=list.elements;
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -109,15 +109,18 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
+      Item *item;
+      /* We can't yet set item to *arg as fix_fields may change *arg */
       if ((*arg)->fix_fields(thd, tables, arg) ||
 	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
-      if ((*arg)->maybe_null)
+      item= *arg;
+      if (item->maybe_null)
 	maybe_null=1;
       
-      with_sum_func= with_sum_func || (*arg)->with_sum_func;
-      used_tables_cache|=(*arg)->used_tables();
-      const_item_cache&= (*arg)->const_item();
+      with_sum_func= with_sum_func || item->with_sum_func;
+      used_tables_cache|=item->used_tables();
+      const_item_cache&= item->const_item();
     }
   }
   fix_length_and_dec();
@@ -140,14 +143,15 @@ void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
-      (*arg)->split_sum_func(ref_pointer_array, fields);
-    else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
+    Item *item=* arg;
+    if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+      item->split_sum_func(ref_pointer_array, fields);
+    else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
-      fields.push_front(*arg);
-      ref_pointer_array[el]= *arg;
-      *arg= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
+      fields.push_front(item);
+      ref_pointer_array[el]= item;
+      *arg= new Item_ref(ref_pointer_array + el, 0, item->name);
     }
   }
 }
@@ -1250,47 +1254,6 @@ longlong Item_func_find_in_set::val_int()
   return 0;
 }
 
-static char nbits[256] = {
-  0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
-};
-
-uint count_bits(ulonglong v)
-{
-#if SIZEOF_LONG_LONG > 4
-  /* The following code is a bit faster on 16 bit machines than if we would
-     only shift v */
-  ulong v2=(ulong) (v >> 32);
-  return (uint) (uchar) (nbits[(uchar)  v] +
-                         nbits[(uchar) (v >> 8)] +
-                         nbits[(uchar) (v >> 16)] +
-                         nbits[(uchar) (v >> 24)] +
-                         nbits[(uchar) (v2)] +
-                         nbits[(uchar) (v2 >> 8)] +
-                         nbits[(uchar) (v2 >> 16)] +
-                         nbits[(uchar) (v2 >> 24)]);
-#else
-  return (uint) (uchar) (nbits[(uchar)  v] +
-                         nbits[(uchar) (v >> 8)] +
-                         nbits[(uchar) (v >> 16)] +
-                         nbits[(uchar) (v >> 24)]);
-#endif
-}
-
 longlong Item_func_bit_count::val_int()
 {
   ulonglong value= (ulonglong) args[0]->val_int();
@@ -1299,7 +1262,7 @@ longlong Item_func_bit_count::val_int()
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
-  return (longlong) count_bits(value);
+  return (longlong) my_count_bits(value);
 }
 
 
@@ -1373,16 +1336,17 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg) || (*arg)->check_cols(1))
+      Item *item= *arg;
+      if (item->fix_fields(thd, tables, arg) || item->check_cols(1))
 	return 1;
-      if ((*arg)->binary())
+      if (item->binary())
 	func->set_charset(&my_charset_bin);
-      if ((*arg)->maybe_null)
+      if (item->maybe_null)
 	func->maybe_null=1;
-      func->with_sum_func= func->with_sum_func || (*arg)->with_sum_func;
-      used_tables_cache|=(*arg)->used_tables();
-      const_item_cache&=(*arg)->const_item();
-      f_args.arg_type[i]=(*arg)->result_type();
+      func->with_sum_func= func->with_sum_func || item->with_sum_func;
+      used_tables_cache|=item->used_tables();
+      const_item_cache&=item->const_item();
+      f_args.arg_type[i]=item->result_type();
     }
     if (!(buffers=new String[arg_count]) ||
 	!(f_args.args= (char**) sql_alloc(arg_count * sizeof(char *))) ||
@@ -2452,7 +2416,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     used_tables_cache|=item->used_tables();
   }
   /* check that all columns come from the same table */
-  if (count_bits(used_tables_cache) != 1)
+  if (my_count_bits(used_tables_cache) != 1)
     key=NO_SUCH_KEY;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
@@ -2626,10 +2590,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   char buff[MAX_SYS_VAR_LENGTH+3+8], *pos;
 
   if (!(var= find_sys_var(name.str, name.length)))
-  {
-    net_printf(thd, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
     return 0;
-  }
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
   thd->lex.uncacheable();

@@ -70,7 +70,7 @@ static ACL_USER *find_acl_user(const char *host, const char *user);
 static bool update_user_table(THD *thd, const char *host, const char *user,
 			      const char *new_password);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
-static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
+static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 
 /*
@@ -496,8 +496,9 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
 
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *message,char **priv_user,
-		  bool old_ver, USER_RESOURCES  *mqh, char *prepared_scramble,
-                  uint *cur_priv_version, ACL_USER **cached_user)
+		  char *priv_host, bool old_ver, USER_RESOURCES  *mqh,
+		  char *prepared_scramble, uint *cur_priv_version,
+		  ACL_USER **cached_user)
 {
   ulong user_access=NO_ACCESS;
   *priv_user= (char*) user;
@@ -593,7 +594,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
   {
     Vio *vio=thd->net.vio;
     /*
-      In this point we know that user is allowed to connect
+      At this point we know that user is allowed to connect
       from given host by given username/password pair. Now
       we check if SSL is required, if user is using SSL and
       if X509 certificate attributes are OK
@@ -611,8 +612,11 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
       /*
 	Connections with non-valid certificates are dropped already
 	in sslaccept() anyway, so we do not check validity here.
+	
+	We need to check for absence of SSL because without SSL
+	we should reject connection.
       */
-      if (SSL_get_peer_certificate(vio->ssl_))
+      if (vio_type(vio) == VIO_TYPE_SSL && SSL_get_peer_certificate(vio->ssl_))
 	user_access=acl_user->access;
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
@@ -622,6 +626,8 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	If cipher name is specified, we compare it to actual cipher in
 	use.
       */
+      if (vio_type(vio) != VIO_TYPE_SSL)
+	break;
       if (acl_user->ssl_cipher)
       {
 	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
@@ -630,6 +636,10 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	  user_access=acl_user->access;
 	else
 	{
+	  if (global_system_variables.log_warnings)
+	    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
+			    acl_user->ssl_cipher,
+			    SSL_get_cipher(vio->ssl_));
 	  user_access=NO_ACCESS;
 	  break;
 	}
@@ -647,6 +657,9 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 			   acl_user->x509_issuer, ptr));
 	if (strcmp(acl_user->x509_issuer, ptr))
 	{
+	  if (global_system_variables.log_warnings)
+	    sql_print_error("X509 issuer mismatch: should be '%s' but is '%s'",
+			    acl_user->x509_issuer, ptr);
 	  user_access=NO_ACCESS;
 	  free(ptr);
 	  break;
@@ -662,7 +675,12 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
 			   acl_user->x509_subject, ptr));
 	if (strcmp(acl_user->x509_subject,ptr))
+	{
+	  if (global_system_variables.log_warnings)
+	    sql_print_error("X509 subject mismatch: '%s' vs '%s'",
+			    acl_user->x509_subject, ptr);
 	  user_access=NO_ACCESS;
+	}
 	else
 	  user_access=acl_user->access;
 	free(ptr);
@@ -676,6 +694,11 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
   *mqh=acl_user->user_resource;
   if (!acl_user->user)
     *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
+
+  if (acl_user->host.hostname)
+    strmake(priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+  else
+    *priv_host= 0;
 
 unlock_and_exit:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -780,7 +803,7 @@ static void acl_insert_user(const char *user, const char *host,
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
   if (!acl_user.host.hostname || acl_user.host.hostname[0] == wild_many
       && !acl_user.host.hostname[1])
-    allow_all_hosts=1;			// Anyone can connect /* purecov: tested */
+    allow_all_hosts=1;		// Anyone can connect /* purecov: tested */
   qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
 
@@ -1126,8 +1149,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     Simple hack to avoid cracking
   */
   length=(uint) strlen(new_password);
-
-  if (length!=45)
+  if (length != 45)
     new_password[length & 16]=0;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -2060,10 +2082,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 }
 
 
-int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
-		       List <LEX_USER> &user_list,
-		       List <LEX_COLUMN> &columns, ulong rights,
-		       bool revoke_grant)
+int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
+		      List <LEX_USER> &user_list,
+		      List <LEX_COLUMN> &columns, ulong rights,
+		      bool revoke_grant)
 {
   ulong column_priv = 0;
   List_iterator <LEX_USER> str_list (user_list);
@@ -2437,7 +2459,7 @@ my_bool grant_init(THD *org_thd)
 	mem_check->ok() && hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
-      grant_option = FALSE;			/* purecov: deadcode */
+      grant_option= FALSE;			/* purecov: deadcode */
       goto end_unlock;
     }
   }
@@ -2477,16 +2499,16 @@ void grant_reload(THD *thd)
   rw_wrlock(&LOCK_grant);
   grant_version++;
   old_column_priv_hash= column_priv_hash;
-  old_grant_option = grant_option;
-  old_mem = memex;
+  old_grant_option= grant_option;
+  old_mem= memex;
 
   if (grant_init(thd))
   {						// Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
     grant_free();				/* purecov: deadcode */
     column_priv_hash= old_column_priv_hash;	/* purecov: deadcode */
-    grant_option = old_grant_option;		/* purecov: deadcode */
-    memex = old_mem;				/* purecov: deadcode */
+    grant_option= old_grant_option;		/* purecov: deadcode */
+    memex= old_mem;				/* purecov: deadcode */
   }
   else
   {
@@ -2583,8 +2605,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 }
 
 
-bool check_grant_column (THD *thd,TABLE *table, const char *name,
-			 uint length, uint show_tables)
+bool check_grant_column(THD *thd,TABLE *table, const char *name,
+			uint length, uint show_tables)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
@@ -2650,7 +2672,12 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
 
   want_access &= ~table->grant.privilege;
   if (!want_access)
-    return 0;					// Already checked
+    return 0;				// Already checked
+  if (!grant_option)
+  {
+    field= table->field[0];		// To give a meaningful error message
+    goto err2;
+  }
 
   rw_rdlock(&LOCK_grant);
 
@@ -2679,9 +2706,9 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
   return 0;
 
   /* We must use my_printf_error() here! */
- err:
+err:
   rw_unlock(&LOCK_grant);
-
+err2:
   const char *command="";
   if (want_access & SELECT_ACL)
     command ="select";
@@ -3108,11 +3135,11 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	global.append(" ON ",4);
+	global.append(" ON `",5);
 	global.append(grant_table->db);
-	global.append(".",1);
+	global.append("`.`",3);
 	global.append(grant_table->tname);
-	global.append(" TO '",5);
+	global.append("` TO '",6);
 	global.append(lex_user->user.str,lex_user->user.length);
 	global.append("'@'",3);
 	global.append(lex_user->host.str,lex_user->host.length);

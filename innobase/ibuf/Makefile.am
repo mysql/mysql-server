@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libibuf.a
+noinst_LIBRARIES =	libibuf.a
 
 libibuf_a_SOURCES =	ibuf0ibuf.c
 

@@ -1,0 +1,8 @@
+drop table if exists t1;
+create table t1 (c text);
+insert into t1 values (0xa4a2),(0xa4a3);
+select hex(left(c,1)) from t1 group by c;
+hex(left(c,1))
+A4A2
+A4A3
+drop table t1;

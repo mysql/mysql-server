@@ -45,6 +45,7 @@ static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 void sql_print_error(const char *format, ...);
 
 static bool one_database = 0;
+static bool force_opt= 0;
 static const char* database;
 static bool short_form = 0;
 static ulonglong offset = 0;
@@ -201,6 +202,9 @@ static struct my_option my_long_options[] =
   {"database", 'd', "List entries for just this database (local log only)",
    (gptr*) &database, (gptr*) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"force-read", 'f', "Force reading unknown binlog events",
+   (gptr*) &force_opt, (gptr*) &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"help", '?', "Display this help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server", (gptr*) &host, (gptr*) &host,

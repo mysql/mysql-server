@@ -27,9 +27,6 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include <m_ctype.h>
-#ifdef HAVE_CRYPT_H
-#include <crypt.h>
-#endif
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #endif /* HAVE_OPENSSL */
@@ -931,7 +928,7 @@ void Item_str_func::left_right_max_length()
   max_length=args[0]->max_length;
   if (args[1]->const_item())
   {
-    int length=(int) args[1]->val_int();
+    int length=(int) args[1]->val_int()*default_charset_info->mbmaxlen;
     if (length <= 0)
       max_length=0;
     else
@@ -1012,7 +1009,7 @@ void Item_func_substr::fix_length_and_dec()
   }
   if (arg_count == 3 && args[2]->const_item())
   {
-    int32 length= (int32) args[2]->val_int();
+    int32 length= (int32) args[2]->val_int() * default_charset_info->mbmaxlen;
     if (length <= 0)
       max_length=0; /* purecov: inspected */
     else
@@ -1591,15 +1588,17 @@ String *Item_func_format::val_str(String *str)
   str_length=str->length();
   if (nr < 0)
     str_length--;				// Don't count sign
-  length=str->length()+(diff=(str_length- dec-1)/3);
-  if (diff)
+
+  /* We need this test to handle 'nan' values */
+  if (str_length >= dec+4)
   {
     char *tmp,*pos;
-    str=copy_if_not_alloced(&tmp_str,str,length);
+    length= str->length()+(diff=(str_length- dec-1)/3);
+    str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
-    tmp=(char*) str->ptr()+length - dec-1;
-    for (pos=(char*) str->ptr()+length ; pos != tmp; pos--)
-      pos[0]=pos[- (int) diff];
+    tmp= (char*) str->ptr()+length - dec-1;
+    for (pos= (char*) str->ptr()+length ; pos != tmp; pos--)
+      pos[0]= pos[-(int) diff];
     while (diff)
     {
       pos[0]=pos[-(int) diff]; pos--;
@@ -2184,7 +2183,7 @@ void Item_func_set_collation::fix_length_and_dec()
   const char *colname;
   String tmp, *str= args[1]->val_str(&tmp);
   colname= str->c_ptr();
-  if (!strncmp(colname,"BINARY",6))
+  if (colname == binary_keyword)
     set_collation= get_charset_by_csname(args[0]->charset()->csname,
 					 MY_CS_BINSORT,MYF(0));
   else

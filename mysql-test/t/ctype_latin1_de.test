@@ -47,3 +47,26 @@ select * from t1 where a like "test%";
 select * from t1 where a like "te_t"; 
 select * from t1 where match a against ("te*" in boolean mode)+0;
 drop table t1;
+
+#
+# Test bug report #152 (problem with index on latin1_de)
+#
+
+create table t1 (word varchar(255) not null, word2 varchar(255) not null, index(word));
+insert into t1 (word) values ('ss'),(0xDF),(0xE4),('ae');
+update t1 set word2=word;
+select word, word=0xdf as t from t1 having t > 0;
+select word, word=cast(0xdf AS CHAR) as t from t1 having t > 0;
+select * from t1 where word=0xDF;
+select * from t1 where word=CAST(0xDF as CHAR);
+select * from t1 where word2=0xDF;
+select * from t1 where word2=CAST(0xDF as CHAR);
+select * from t1 where word='ae';
+select * from t1 where word= 0xe4 or word=CAST(0xe4 as CHAR);
+select * from t1 where word between 0xDF and 0xDF;
+select * from t1 where word between CAST(0xDF AS CHAR) and CAST(0xDF AS CHAR);
+select * from t1 where word like 'ae';
+select * from t1 where word like 'AE';
+select * from t1 where word like 0xDF;
+select * from t1 where word like CAST(0xDF as CHAR);
+drop table t1;

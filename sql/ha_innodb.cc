@@ -100,7 +100,7 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-uint	innobase_flush_log_at_trx_commit	= 0;
+uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
@@ -241,6 +241,10 @@ convert_error_code_to_mysql(
         } else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
 
     		return(HA_ERR_CANNOT_ADD_FOREIGN);
+
+        } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
+
+		return(HA_WRONG_CREATE_OPTION);
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
@@ -597,7 +601,7 @@ innobase_invalidate_query_cache(
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
 over a transaction commit! Then you should call this before every operation,
-fecth next etc. This function inits the necessary things even after a
+fetch next etc. This function inits the necessary things even after a
 transaction commit. */
 
 void
@@ -644,6 +648,8 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	we???? */
 
         prebuilt->read_just_key = FALSE;
+
+	prebuilt->used_in_HANDLER = TRUE;
 }
 
 /*************************************************************************
@@ -883,7 +889,7 @@ innobase_flush_logs(void)
 
   	DBUG_ENTER("innobase_flush_logs");
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
   	DBUG_RETURN(result);
 }
@@ -932,7 +938,7 @@ Commits a transaction in an InnoDB database. */
 int
 innobase_commit(
 /*============*/
-			/* out: 0 or error number */
+			/* out: 0 */
 	THD*	thd,	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	void*	trx_handle)/* in: InnoDB trx handle or
@@ -940,7 +946,6 @@ innobase_commit(
 			that the current SQL statement ended, and we should
 			mark the start of a new statement with a savepoint */
 {
-	int	error	= 0;
 	trx_t*	trx;
 
   	DBUG_ENTER("innobase_commit");
@@ -967,29 +972,27 @@ innobase_commit(
 	innobase_release_stat_resources(trx);
 	trx_mark_sql_stat_end(trx);
 
-#ifndef DBUG_OFF
-	if (error) {
-    		DBUG_PRINT("error", ("error: %d", error));
-    	}
-#endif
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(0);
 }
 
 /*********************************************************************
 This is called when MySQL writes the binlog entry for the current
 transaction. Writes to the InnoDB tablespace info which tells where the
 MySQL binlog entry for the current transaction ended. Also commits the
-transaction inside InnoDB. */
+transaction inside InnoDB but does NOT flush InnoDB log files to disk.
+To flush you have to call innobase_flush_log_to_disk. We have separated
+flushing to eliminate the bottleneck of LOCK_log in log.cc which disabled
+InnoDB's group commit capability. */
 
 int
 innobase_report_binlog_offset_and_commit(
 /*=====================================*/
-                                /* out: 0 or error code */
+                                /* out: 0 */
         THD*    thd,            /* in: user thread */
         void*   trx_handle,     /* in: InnoDB trx handle */
         char*   log_file_name,  /* in: latest binlog file name */
@@ -1005,7 +1008,39 @@ innobase_report_binlog_offset_and_commit(
 	trx->mysql_log_file_name = log_file_name;  	
 	trx->mysql_log_offset = (ib_longlong)end_offset;
 	
-  	return(innobase_commit(thd, trx_handle));
+	trx->flush_log_later = TRUE;
+
+  	innobase_commit(thd, trx_handle);
+
+	trx->flush_log_later = FALSE;
+
+	return(0);
+}
+
+/*********************************************************************
+This is called after MySQL has written the binlog entry for the current
+transaction. Flushes the InnoDB log files to disk if required. */
+
+int
+innobase_commit_complete(
+/*=====================*/
+                                /* out: 0 */
+        void*   trx_handle)     /* in: InnoDB trx handle */
+{
+	trx_t*	trx;
+
+	if (srv_flush_log_at_trx_commit == 0) {
+
+	        return(0);
+	}
+
+	trx = (trx_t*)trx_handle;
+
+	ut_a(trx != NULL);
+
+  	trx_commit_complete_for_mysql(trx);
+
+	return(0);
 }
 
 /*********************************************************************
@@ -1194,6 +1229,9 @@ ha_innobase::open(
 	user_thd = NULL;
 
 	last_query_id = (ulong)-1;
+
+	active_index = 0;
+	active_index_before_scan = (uint)-1; /* undefined value */
 
 	if (!(share=get_share(name)))
 	  DBUG_RETURN(1);
@@ -1938,13 +1976,6 @@ ha_innobase::write_row(
 		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
 	}
 
-	if (user_thd->lex.sql_command == SQLCOM_INSERT
-	    && user_thd->lex.duplicates == DUP_IGNORE) {
-	        prebuilt->trx->ignore_duplicates_in_insert = TRUE;
-        } else {
-	        prebuilt->trx->ignore_duplicates_in_insert = FALSE;
-	}
-
 	srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
@@ -1984,8 +2015,6 @@ ha_innobase::write_row(
 		        auto_inc_counter_for_this_stat--;
 		}
 	}
-
-	prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
@@ -2057,7 +2086,8 @@ calc_row_difference(
 	upd_t*		uvect,		/* in/out: update vector */
 	mysql_byte* 	old_row,	/* in: old row in MySQL format */
 	mysql_byte* 	new_row,	/* in: new row in MySQL format */
-	struct st_table* table,		/* in: table in MySQL data dictionary */
+	struct st_table* table,		/* in: table in MySQL data
+					dictionary */
 	mysql_byte*	upd_buff,	/* in: buffer to use */
 	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
 	THD*		thd)		/* in: user thread */
@@ -2107,8 +2137,10 @@ calc_row_difference(
 		case DATA_VARCHAR:
 		case DATA_BINARY:
 		case DATA_VARMYSQL:
-			o_ptr = row_mysql_read_var_ref_noninline(&o_len, o_ptr);
-			n_ptr = row_mysql_read_var_ref_noninline(&n_len, n_ptr);
+			o_ptr = row_mysql_read_var_ref_noninline(&o_len,
+								o_ptr);
+			n_ptr = row_mysql_read_var_ref_noninline(&n_len,
+								n_ptr);
 		default:
 			;
 		}
@@ -2556,7 +2588,7 @@ ha_innobase::change_active_index(
 
   /* MySQL changes the active index for a handle also during some
   queries, for example SELECT MAX(a), SUM(a) first retrieves the MAX()
-  and then calculates te sum. Previously we played safe and used
+  and then calculates the sum. Previously we played safe and used
   the flag ROW_MYSQL_WHOLE_ROW below, but that caused unnecessary
   copying. Starting from MySQL-4.1 we use a more efficient flag here. */
 
@@ -2755,6 +2787,11 @@ ha_innobase::rnd_init(
 
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
+	/* Store the active index value so that we can restore the original
+	value after a scan */
+
+	active_index_before_scan = active_index;
+
 	if (prebuilt->clust_index_was_generated) {
 		err = change_active_index(MAX_KEY);
 	} else {
@@ -2767,13 +2804,25 @@ ha_innobase::rnd_init(
 }
 
 /*********************************************************************
-Ends a table scan ???????????????? */
+Ends a table scan. */
 
 int
 ha_innobase::rnd_end(void)
 /*======================*/
 				/* out: 0 or error number */
 {
+	/* Restore the old active_index back; MySQL may assume that a table
+	scan does not change active_index. We only restore the value if
+	MySQL has called rnd_init before: sometimes MySQL seems to call
+	rnd_end WITHOUT calling rnd_init. */
+
+	if (active_index_before_scan != (uint)-1) {
+
+		change_active_index(active_index_before_scan);
+
+		active_index_before_scan = (uint)-1;
+	}
+
   	return(index_end());
 }
 
@@ -3088,6 +3137,9 @@ ha_innobase::create(
 	trx_search_latch_release_if_reserved(parent_trx);	
 	
 	trx = trx_allocate_for_mysql();
+		
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &((*thd).query);
 
 	if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
 		trx->check_foreigns = FALSE;
@@ -3216,7 +3268,7 @@ ha_innobase::create(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	innobase_table = dict_table_get(norm_name, NULL);
 
@@ -3271,6 +3323,9 @@ ha_innobase::delete_table(
 
 	trx = trx_allocate_for_mysql();
 
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
+
 	name_len = strlen(name);
 
 	assert(name_len < 1000);
@@ -3288,7 +3343,7 @@ ha_innobase::delete_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3349,6 +3404,8 @@ innobase_drop_database(
 	my_casedn_str(system_charset_info, namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
 
   	error = row_drop_database_for_mysql(namebuf, trx);
 
@@ -3356,7 +3413,7 @@ innobase_drop_database(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3408,6 +3465,8 @@ ha_innobase::rename_table(
 	}
 
 	trx = trx_allocate_for_mysql();
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
 
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
@@ -3426,7 +3485,7 @@ ha_innobase::rename_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3541,10 +3600,8 @@ ha_innobase::records_in_range(
 
 /*************************************************************************
 Gives an UPPER BOUND to the number of rows in a table. This is used in
-filesort.cc and the upper bound must hold. TODO: Since the number of
-rows in a table may change after this function is called, we still may
-get a 'Sort aborted' error in filesort.cc of MySQL. The ultimate fix is to
-improve the algorithm of filesort.cc. */
+filesort.cc and its better if the upper bound hold.
+*/
 
 ha_rows
 ha_innobase::estimate_number_of_rows(void)
@@ -3608,6 +3665,29 @@ ha_innobase::scan_time()
 	by 10, which would be physically realistic. */
 	
 	return((double) (prebuilt->table->stat_clustered_index_size));
+}
+
+/*
+  Calculate the time it takes to read a set of ranges through and index
+  This enables us to optimise reads for clustered indexes.
+*/
+
+double ha_innobase::read_time(uint index, uint ranges, ha_rows rows)
+{
+  ha_rows total_rows;
+  double time_for_scan;
+  if (index != table->primary_key)
+    return handler::read_time(index, ranges, rows); // Not clustered
+  if (rows <= 2)
+    return (double) rows;
+  /*
+    Assume that the read is proportional to scan time for all rows + one
+    seek per range.
+  */
+  time_for_scan= scan_time();
+  if ((total_rows= estimate_number_of_rows()) < rows)
+    return time_for_scan;
+  return (ranges + (double) rows / (double) total_rows * time_for_scan);
 }
 
 /*************************************************************************
@@ -3732,6 +3812,23 @@ ha_innobase::info(
 	prebuilt->trx->op_info = (char*)"";
 
   	DBUG_VOID_RETURN;
+}
+
+/**************************************************************************
+Updates index cardinalities of the table, based on 10 random dives into
+each index tree. This does NOT calculate exact statistics of the table. */
+
+int
+ha_innobase::analyze(
+/*=================*/			 
+					/* out: returns always 0 (success) */
+	THD*		thd,		/* in: connection thread handle */
+	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
+{
+	/* Simply call ::info() with all the flags */
+	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+
+	return(0);
 }
 
 /***********************************************************************
@@ -3915,7 +4012,7 @@ ha_innobase::extra(
 	        	break;
  		case HA_EXTRA_RESET_STATE:
 	        	prebuilt->read_just_key = 0;
-	        	break;
+    	        	break;
 		case HA_EXTRA_NO_KEYREAD:
     			prebuilt->read_just_key = 0;
     			break;
@@ -4083,6 +4180,8 @@ ha_innobase::external_lock(
 		if (trx->n_mysql_tables_in_use == 0) {
 
 		  	trx->mysql_n_tables_locked = 0;
+
+			prebuilt->used_in_HANDLER = FALSE;
 
 			/* Here we release the search latch and InnoDB
 			thread FIFO ticket if they were reserved. */

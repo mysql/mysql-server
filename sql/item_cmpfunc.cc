@@ -90,7 +90,7 @@ static bool convert_constant_item(Field *field, Item **item)
 bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
 				      CHARSET_INFO *cs2, enum coercion co2)
 {
-  if((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
+  if ((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
   {
     cmp_charset= &my_charset_bin;
     return 0;
@@ -114,21 +114,37 @@ bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
     {
       if (co1 == COER_COERCIBLE)
       {
-        CHARSET_INFO *c= get_charset_by_csname(cs1->csname,MY_CS_PRIMARY,MYF(0));
-	if (c)
+        CHARSET_INFO *c;
+	if ((c= get_charset_by_csname(cs1->csname, MY_CS_PRIMARY, MYF(0))))
 	{
 	  cmp_charset= c;
 	  return 0;
 	}
-	else
-	  return 1;
       }
-       else
-	return 1;
+      return 1;
     }
   }
   return 0;
 }
+
+
+bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
+				 Item ** ref)
+{
+  if (Item_int_func::fix_fields(thd, tables, ref))
+    return 1;
+  if (!cmp_charset)
+  {
+    /* set_cmp_charset() failed */
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
+	     func_name());
+    return 1;
+  }
+  return 0;
+}
+
 
 void Item_bool_func2::fix_length_and_dec()
 {
@@ -136,7 +152,7 @@ void Item_bool_func2::fix_length_and_dec()
 
   /*
     As some compare functions are generated after sql_yacc,
-    we have to check for out of memory conditons here
+    we have to check for out of memory conditions here
   */
   if (!args[0] || !args[1])
     return;
@@ -149,7 +165,8 @@ void Item_bool_func2::fix_length_and_dec()
       if (convert_constant_item(field,&args[1]))
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-			 INT_RESULT); // Works for all types.
+			 INT_RESULT);		// Works for all types.
+	cmp_charset= &my_charset_bin;		// For test in fix_fields
 	return;
       }
     }
@@ -163,20 +180,19 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT); // Works for all types.
+	cmp_charset= &my_charset_bin;		// For test in fix_fields
 	return;
       }
     }
   }
-  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
-		      args[1]->charset(), args[1]->coercibility))
-  {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
-    return;
-  }
   set_cmp_func();
+  /*
+    We must set cmp_charset here as we may be called from for an automatic
+    generated item, like in natural join
+  */
+end:
+  set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		  args[1]->charset(), args[1]->coercibility);
 }
 
 
@@ -194,21 +210,21 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       comparators= 0;
       return 1;
     }
-    if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
-      for (uint i=0; i < n; i++)
-      {
-	if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
-	{
-	  my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
-	  return 1;
-	}
-	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
-      }
-    else
+    if (!(comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
       return 1;
+    for (uint i=0; i < n; i++)
+    {
+      if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
+      {
+	my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
+	return 1;
+      }
+      comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
+    }
   }
   return 0;
 }
+
 
 int Arg_comparator::compare_string()
 {
@@ -1883,16 +1899,6 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
-
-  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
-		      args[1]->charset(), args[1]->coercibility))
-  {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
-    return 1;
-  }
 
   /*
     We could also do boyer-more for non-const items, but as we would have to

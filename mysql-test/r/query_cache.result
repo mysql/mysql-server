@@ -238,13 +238,18 @@ a
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-select sql_cache * from t1;
+select sql_cache * from t1 union select * from t1;
 a
 1
 2
 3
 set query_cache_type=2;
-select sql_cache * from t1;
+select sql_cache * from t1 union select * from t1;
+a
+1
+2
+3
+select * from t1 union select sql_cache * from t1;
 a
 1
 2
@@ -254,7 +259,7 @@ Variable_name	Value
 Qcache_hits	4
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	2
 set query_cache_type=on;
 reset query cache;
 show status like "Qcache_queries_in_cache";
@@ -377,14 +382,14 @@ a
 set CHARACTER SET cp1251_koi8;
 select * from t1;
 a
-?
+á
 set CHARACTER SET DEFAULT;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	4
+Qcache_hits	5
 drop table t1;
 create database if not exists mysqltest;
 create table mysqltest.t1 (i int not null);
@@ -410,7 +415,7 @@ Variable_name	Value
 Qcache_queries_in_cache	2
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 drop database mysqltest;
 drop table t1;
 create table t1 (i int not null);
@@ -424,7 +429,7 @@ FOUND_ROWS()
 4
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -436,7 +441,7 @@ FOUND_ROWS()
 1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	6
+Qcache_hits	7
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -449,7 +454,7 @@ FOUND_ROWS()
 4
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	7
+Qcache_hits	8
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -461,7 +466,7 @@ FOUND_ROWS()
 1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	8
+Qcache_hits	9
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -530,7 +535,7 @@ a
 3
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	11
+Qcache_hits	12
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -547,7 +552,7 @@ a
 3
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	13
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -635,4 +640,22 @@ select * from t1 limit 1 into dumpfile "query_cache.dump.file";
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t1;
+a
+1
+2
+SET OPTION SQL_SELECT_LIMIT=1;
+select * from t1;
+a
+1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+SET OPTION SQL_SELECT_LIMIT=DEFAULT;
 drop table t1;

@@ -90,27 +90,31 @@ bool Item::check_cols(uint c)
   return 0;
 }
 
-void Item::set_name(const char *str,uint length, CHARSET_INFO *cs)
+
+void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
 {
   if (!length)
-    name= (char*) str;				// Empty string, used by AS
-  else
   {
-    while (length && !my_isgraph(cs,*str))
-    {						// Fix problem with yacc
-      length--;
-      str++;
-    }
-    if (length && !my_charset_same(cs, system_charset_info))
-    {
-      String tmp;
-      tmp.copy(str, length, cs, system_charset_info);
-      name=sql_strmake(tmp.ptr(),min(tmp.length(),MAX_FIELD_WIDTH));
-    }
-    else
-      name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
+    /* Empty string, used by AS or internal function like last_insert_id() */
+    name= (char*) str;
+    return;
   }
+  while (length && !my_isgraph(cs,*str))
+  {						// Fix problem with yacc
+    length--;
+    str++;
+  }
+  if (!my_charset_same(cs, system_charset_info))
+  {
+    uint32 res_length;
+    name= sql_strmake_with_convert(str, length, cs,
+				   MAX_ALIAS_NAME, system_charset_info,
+				   &res_length);
+  }
+  else
+    name=sql_strmake(str, min(length,MAX_ALIAS_NAME));
 }
+
 
 /*
   This function is only called when comparing items in the WHERE clause
@@ -1047,6 +1051,7 @@ inline uint char_val(char X)
 		 X >= 'A' && X <= 'Z' ? X-'A'+10 :
 		 X-'a'+10);
 }
+
 
 Item_varbinary::Item_varbinary(const char *str, uint str_length)
 {

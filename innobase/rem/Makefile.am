@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	librem.a
+noinst_LIBRARIES =	librem.a
 
 librem_a_SOURCES =	rem0rec.c rem0cmp.c
 

@@ -116,7 +116,8 @@ protected:
 
 public:
   Item_bool_func2(Item *a,Item *b):
-    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
+    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), cmp_charset(0) {}
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref);
   void fix_length_and_dec();
   void set_cmp_func()
   {

@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libbtr.a
+noinst_LIBRARIES =	libbtr.a
 
 libbtr_a_SOURCES =	btr0btr.c btr0cur.c btr0pcur.c btr0sea.c
 

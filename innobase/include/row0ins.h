@@ -35,7 +35,6 @@ row_ins_check_foreign_constraint(
 				dictionary cache if they exist at all */
 	dict_table_t*	table,	/* in: if check_ref is TRUE, then the foreign
 				table, else the referenced table */
-	dict_index_t*	index,	/* in: index in table */
 	dtuple_t*	entry,	/* in: index entry for index */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
