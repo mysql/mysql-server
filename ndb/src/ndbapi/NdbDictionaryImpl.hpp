@@ -52,7 +52,7 @@ public:
   NdbColumnImpl(NdbDictionary::Column &); // This is not a copy constructor
   ~NdbColumnImpl();
   NdbColumnImpl& operator=(const NdbColumnImpl&);
-  void init();
+  void init(Type t = Unsigned);
   
   int m_attrId;
   BaseString m_name;
@@ -60,6 +60,7 @@ public:
   int m_precision;
   int m_scale;
   int m_length;
+  CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
   bool m_tupleKey;
@@ -82,17 +83,19 @@ public:
   Uint32 m_keyInfoPos;
   Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
+  bool getCharType() const;
   bool getBlobType() const;
 
   /**
    * Equality/assign
    */
   bool equal(const NdbColumnImpl&) const;
-  void assign(const NdbColumnImpl&);
 
   static NdbColumnImpl & getImpl(NdbDictionary::Column & t);
   static const NdbColumnImpl & getImpl(const NdbDictionary::Column & t);
   NdbDictionary::Column * m_facade;
+
+  static NdbDictionary::Column * create_psuedo(const char *);
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
@@ -240,7 +243,6 @@ public:
   NdbDictInterface(NdbError& err) : m_error(err) {
     m_reference = 0;
     m_masterNodeId = 0;
-    m_blockNumber = -1;
     m_transporter= NULL;
   }
   ~NdbDictInterface();
@@ -304,11 +306,14 @@ public:
 			    const Uint32 * data, Uint32 len,
 			    bool fullyQualifiedNames);
   
+  static int create_index_obj_from_table(NdbIndexImpl ** dst, 
+					 const NdbTableImpl*,
+					 const NdbTableImpl*);
+  
   NdbError & m_error;
 private:
   Uint32 m_reference;
   Uint32 m_masterNodeId;
-  int m_blockNumber;
   
   NdbWaiter m_waiter;
   class TransporterFacade * m_transporter;
@@ -318,7 +323,7 @@ private:
 			 class NdbApiSignal* signal, 
 			 class LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* dictImpl, NodeId, 
+  static void execNodeStatus(void* dictImpl, Uint32, 
 			     bool alive, bool nfCompleted);  
   
   void execGET_TABINFO_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
@@ -385,10 +390,11 @@ public:
   int stopSubscribeEvent(NdbEventImpl &);
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
-  int listIndexes(List& list, const char * tableName);
+  int listIndexes(List& list, Uint32 indexId);
   
-  NdbTableImpl * getTable(const char * tableName);
-  NdbTableImpl * getTableImpl(const char * internalName);
+  NdbTableImpl * getTable(const char * tableName, void **data= 0);
+  Ndb_local_table_info * get_local_table_info(const char * internalName,
+					      bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
   NdbIndexImpl * getIndexImpl(const char * name, const char * internalName);
@@ -397,6 +403,7 @@ public:
   
   const NdbError & getNdbError() const;
   NdbError m_error;
+  Uint32 m_local_table_data_size;
 
   LocalDictCache m_localHash;
   GlobalDictCache * m_globalHash;
@@ -407,6 +414,8 @@ public:
 
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
+private:
+  Ndb_local_table_info * fetchGlobalTableImpl(const char * internalName);
 };
 
 inline
@@ -440,6 +449,14 @@ NdbColumnImpl::getInterpretableType() const {
 	  m_type == NdbDictionary::Column::Bigunsigned);
 }
 
+inline
+bool 
+NdbColumnImpl::getCharType() const {
+  return (m_type == NdbDictionary::Column::Char ||
+          m_type == NdbDictionary::Column::Varchar ||
+          m_type == NdbDictionary::Column::Text);
+}
+   
 inline
 bool 
 NdbColumnImpl::getBlobType() const {
@@ -595,45 +612,37 @@ NdbDictionaryImpl::getImpl(const NdbDictionary::Dictionary & t){
 
 inline
 NdbTableImpl * 
-NdbDictionaryImpl::getTable(const char * tableName)
+NdbDictionaryImpl::getTable(const char * tableName, void **data)
 {
-  const char * internalTableName = m_ndb.internalizeTableName(tableName);
-
-  return getTableImpl(internalTableName);
+  Ndb_local_table_info *info=
+    get_local_table_info(m_ndb.internalizeTableName(tableName), true);
+  if (info == 0) {
+    return 0;
+  }
+  if (data) {
+    *data= info->m_local_data;
+  }
+  return info->m_table_impl;
 }
 
 inline
-NdbTableImpl * 
-NdbDictionaryImpl::getTableImpl(const char * internalTableName)
+Ndb_local_table_info * 
+NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
+					bool do_add_blob_tables)
 {
-  NdbTableImpl *ret = m_localHash.get(internalTableName);
-
-  if (ret != 0) {
-    return ret; // autoincrement already initialized
-  }
-
-  m_globalHash->lock();
-  ret = m_globalHash->get(internalTableName);
-  m_globalHash->unlock();
-
-  if (ret == 0){
-    ret = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
-    m_globalHash->lock();
-    m_globalHash->put(internalTableName, ret);
-    m_globalHash->unlock();
-    
-    if(ret == 0){
+  Ndb_local_table_info *info= m_localHash.get(internalTableName);
+  if (info == 0) {
+    info= fetchGlobalTableImpl(internalTableName);
+    if (info == 0) {
       return 0;
     }
   }
-  m_localHash.put(internalTableName, ret);
-
-  m_ndb.theFirstTupleId[ret->getTableId()] = ~0;
-  m_ndb.theLastTupleId[ret->getTableId()]  = ~0;
-  
-  addBlobTables(*ret);
-
-  return ret;
+  if (do_add_blob_tables &&
+      info->m_table_impl->m_noOfBlobs &&
+      addBlobTables(*(info->m_table_impl))) {
+    return 0;
+  }
+  return info; // autoincrement already initialized
 }
 
 inline
@@ -648,12 +657,14 @@ NdbDictionaryImpl::getIndex(const char * indexName,
       if (t != 0)
         internalIndexName = m_ndb.internalizeIndexName(t, indexName);
     } else {
-      internalIndexName = m_ndb.internalizeTableName(indexName); // Index is also a table
+      internalIndexName =
+	m_ndb.internalizeTableName(indexName); // Index is also a table
     }
     if (internalIndexName) {
-      NdbTableImpl * tab = getTableImpl(internalIndexName);
-      
-      if (tab) {
+      Ndb_local_table_info * info = get_local_table_info(internalIndexName,
+							 false);
+      if (info) {
+	NdbTableImpl * tab = info->m_table_impl;
         if (tab->m_index == 0)
           tab->m_index = getIndexImpl(indexName, internalIndexName);
         if (tab->m_index != 0)

@@ -27,6 +27,7 @@
 #include <NDBT.hpp>
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _hostName = NULL;
   int _initial = 0;

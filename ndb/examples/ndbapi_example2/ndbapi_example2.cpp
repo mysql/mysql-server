@@ -39,6 +39,7 @@ static void callback(int result, NdbConnection* NdbObject, void* aObject);
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB_2" );  // Object representing the database
 
   NdbConnection*  myNdbConnection[2];   // For transactions

@@ -506,6 +506,7 @@ char *		STDCALL mysql_odbc_escape_string(MYSQL *mysql,
 						  unsigned long *length));
 void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int	STDCALL mysql_thread_safe(void);
+my_bool		STDCALL mysql_embedded(void);
 MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con);  
 MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
 					      const char* host,

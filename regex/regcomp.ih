@@ -27,7 +27,9 @@ static void freeset(register struct parse *p, register cset *cs);
 static int freezeset(register struct parse *p, register cset *cs);
 static int firstch(register struct parse *p, register cset *cs);
 static int nch(register struct parse *p, register cset *cs);
+#ifdef USE_ORIG_REGEX_CODE
 static void mcadd(register struct parse *p, register cset *cs, register char *cp);
+#endif
 #ifdef NOT_USED
 static void mcsub(register cset *cs, register char *cp);
 static int mcin(register cset *cs, register char *cp);

@@ -134,6 +134,10 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
                              const Operationrec * const regOperPtr)
 {
   const BlockReference recBlockref = regOperPtr->recBlockref;
+  const Uint32 sig0 = regOperPtr->tcOperationPtr;
+  const Uint32 sig1 = regOperPtr->transid1;
+  const Uint32 sig2 = regOperPtr->transid2;
+
   const Uint32 block = refToBlock(recBlockref);
   const Uint32 nodeId = refToNode(recBlockref);
 
@@ -141,6 +145,8 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   const Uint32 type = getNodeInfo(nodeId).m_type;
   bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
   bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
+  const Uint32 TpacketTA = hostBuffer[nodeId].noOfPacketsTA;
+  const Uint32 TpacketLen = hostBuffer[nodeId].packetLenTA;
   
   if (ERROR_INSERTED(4006) && (nodeId != getOwnNodeId())){
     // Use error insert to turn routing on
@@ -148,15 +154,11 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     connectedToNode = false;    
   }
 
-  Uint32 sig0 = regOperPtr->tcOperationPtr;
-  Uint32 sig1 = regOperPtr->transid1;
-  Uint32 sig2 = regOperPtr->transid2;
-  
   TransIdAI * transIdAI =  (TransIdAI *)signal->getDataPtrSend();
   transIdAI->connectPtr = sig0;
   transIdAI->transId[0] = sig1;
   transIdAI->transId[1] = sig2;
-  
+
   if (connectedToNode){
     /**
      * Own node -> execute direct
@@ -169,6 +171,22 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
        */
       if(ToutBufIndex >= 22 && is_api && !old_dest) {
 	ljam();
+	/**
+	 * Flush buffer so that order is maintained
+	 */
+	if (TpacketTA != 0) {
+	  ljam();
+	  BlockReference TBref = numberToRef(API_PACKED, nodeId);
+	  MEMCOPY_NO_WORDS(&signal->theData[0],
+			   &hostBuffer[nodeId].packetBufferTA[0],
+			   TpacketLen);
+	  sendSignal(TBref, GSN_TRANSID_AI, signal, TpacketLen, JBB);
+	  hostBuffer[nodeId].noOfPacketsTA = 0;
+	  hostBuffer[nodeId].packetLenTA = 0;
+	  transIdAI->connectPtr = sig0;
+	  transIdAI->transId[0] = sig1;
+	  transIdAI->transId[1] = sig2;
+	}//if
 	LinearSectionPtr ptr[3];
 	ptr[0].p = &signal->theData[25];
 	ptr[0].sz = ToutBufIndex;

@@ -49,7 +49,7 @@ ut_strcmp(const void* str1, const void* str2)
 }
 
 /**************************************************************************
-Determine the length of a string when it is quoted with ut_strcpyq(). */
+Compute strlen(ut_strcpyq(str, q)). */
 UNIV_INLINE
 ulint
 ut_strlenq(

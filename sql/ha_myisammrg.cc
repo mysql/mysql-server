@@ -82,8 +82,8 @@ int ha_myisammrg::close(void)
 int ha_myisammrg::write_row(byte * buf)
 {
   statistic_increment(current_thd->status_var.ha_write_count,&LOCK_status);
-  if (table->timestamp_default_now)
-    update_timestamp(buf+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
       update_auto_increment();
   return myrg_write(file,buf);
@@ -92,8 +92,8 @@ int ha_myisammrg::write_row(byte * buf)
 int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(current_thd->status_var.ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_data+table->timestamp_on_update_now);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
   return myrg_update(file,old_data,new_data);
 }
 

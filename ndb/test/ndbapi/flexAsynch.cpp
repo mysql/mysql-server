@@ -145,6 +145,7 @@ tellThreads(StartType what)
 
 NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
+  ndb_init();
   ThreadNdb*            pThreadData;
   int                   tLoops=0, i;
   int                   returnValue = NDBT_OK;
@@ -709,7 +710,7 @@ static void setAttrNames()
   int i;
 
   for (i = 0; i < MAXATTR ; i++){
-    snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
+    BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 }
 
@@ -721,10 +722,10 @@ static void setTableNames()
   int i;
   for (i = 0; i < MAXTABLES ; i++){
     if (theStdTableNameFlag==0){
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
                (int)(NdbTick_CurrentMillisecond()/1000));
     } else {
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     }
   }
 }

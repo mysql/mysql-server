@@ -156,17 +156,26 @@ void end_read_record(READ_RECORD *info)
 
 static int rr_quick(READ_RECORD *info)
 {
-  int tmp=info->select->quick->get_next();
-  if (tmp)
+  int tmp;
+  while ((tmp= info->select->quick->get_next()))
   {
-    if (tmp == HA_ERR_END_OF_FILE)
-      tmp= -1;
-    else
+    if (info->thd->killed)
     {
-      if (info->print_error)
-	info->file->print_error(tmp,MYF(0));
-      if (tmp < 0)				// Fix negative BDB errno
-	tmp=1;
+      my_error(ER_SERVER_SHUTDOWN, MYF(0));
+      return 1;
+    }
+    if (tmp != HA_ERR_RECORD_DELETED)
+    {
+      if (tmp == HA_ERR_END_OF_FILE)
+        tmp= -1;
+      else
+      {
+        if (info->print_error)
+          info->file->print_error(tmp,MYF(0));
+        if (tmp < 0)				// Fix negative BDB errno
+          tmp=1;
+      }
+      break;
     }
   }
   return tmp;
@@ -330,9 +339,10 @@ static int init_rr_cache(READ_RECORD *info)
   rec_cache_size=info->cache_records*info->reclength;
   info->rec_cache_size=info->cache_records*info->ref_length;
 
+  // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
       !(info->cache=(byte*) my_malloc_lock(rec_cache_size+info->cache_records*
-					   info->struct_length,
+					   info->struct_length+1,
 					   MYF(0))))
     DBUG_RETURN(1);
 #ifdef HAVE_purify

@@ -79,6 +79,7 @@ const int arg_count = 10;
 
 int
 main(int argc, const char ** argv){
+  ndb_init();
   
   bool restart = true;
   int lineno = 1;
@@ -451,13 +452,14 @@ setup_config(atrt_config& config){
       proc.m_proc.m_stderr = "2>&1";
       proc.m_proc.m_runas = proc.m_host->m_user;
       proc.m_proc.m_ulimit = "c:unlimited";
+      proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", dir.c_str());
       proc.m_hostname = proc.m_host->m_hostname;
       proc.m_ndb_mgm_port = g_default_base_port;
       if(split1[0] == "mgm"){
 	proc.m_type = atrt_process::NDB_MGM;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_mgmd");
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndb_mgmd");
-	proc.m_proc.m_args = "-n -c initconfig.txt";
+	proc.m_proc.m_args = "--nodaemon -c initconfig.txt";
 	proc.m_proc.m_cwd.appfmt("%d.ndb_mgmd", index);
 	connect_string.appfmt("host=%s:%d;", 
 			      proc.m_hostname.c_str(), proc.m_ndb_mgm_port);
@@ -465,7 +467,7 @@ setup_config(atrt_config& config){
 	proc.m_type = atrt_process::NDB_DB;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndbd");
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndbd");
-	proc.m_proc.m_args = "-i -n";
+	proc.m_proc.m_args = "--initial --nodaemon -n";
 	proc.m_proc.m_cwd.appfmt("%d.ndbd", index);
       } else if(split1[0] == "mysqld"){
 	proc.m_type = atrt_process::MYSQL_SERVER;
@@ -501,8 +503,8 @@ setup_config(atrt_config& config){
 
   // Setup connect string
   for(size_t i = 0; i<config.m_processes.size(); i++){
-    config.m_processes[i].m_proc.m_env.assfmt("NDB_CONNECTSTRING=%s", 
-                                              connect_string.c_str());
+    config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=%s", 
+					      connect_string.c_str());
   }
   
  end:

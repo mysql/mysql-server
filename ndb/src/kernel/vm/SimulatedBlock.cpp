@@ -68,25 +68,25 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   char buf[255];
 
   count = 10;
-  snprintf(buf, 255, "%s.FragmentSendPool", getBlockName(blockNumber));
+  BaseString::snprintf(buf, 255, "%s.FragmentSendPool", getBlockName(blockNumber));
   if(!p->get(buf, &count))
     p->get("FragmentSendPool", &count);
   c_fragmentSendPool.setSize(count);
 
   count = 10;
-  snprintf(buf, 255, "%s.FragmentInfoPool", getBlockName(blockNumber));
+  BaseString::snprintf(buf, 255, "%s.FragmentInfoPool", getBlockName(blockNumber));
   if(!p->get(buf, &count))
     p->get("FragmentInfoPool", &count);
   c_fragmentInfoPool.setSize(count);
 
   count = 10;
-  snprintf(buf, 255, "%s.FragmentInfoHash", getBlockName(blockNumber));
+  BaseString::snprintf(buf, 255, "%s.FragmentInfoHash", getBlockName(blockNumber));
   if(!p->get(buf, &count))
     p->get("FragmentInfoHash", &count);
   c_fragmentInfoHash.setSize(count);
 
   count = 5;
-  snprintf(buf, 255, "%s.ActiveMutexes", getBlockName(blockNumber));
+  BaseString::snprintf(buf, 255, "%s.ActiveMutexes", getBlockName(blockNumber));
   if(!p->get(buf, &count))
     p->get("ActiveMutexes", &count);
   c_mutexMgr.setSize(count);
@@ -147,7 +147,7 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
 				 ExecFunction f, bool force){
   if(gsn > MAX_GSN || (!force &&  theExecArray[gsn] != 0)){
     char errorMsg[255];
-    snprintf(errorMsg, 255, 
+    BaseString::snprintf(errorMsg, 255, 
  	     "Illeagal signal (%d %d)", gsn, MAX_GSN); 
     ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
   }
@@ -159,9 +159,9 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 			     const char* filename, int lineno) const 
 {
   char objRef[255];
-  snprintf(objRef, 255, "%s:%d", filename, lineno);
+  BaseString::snprintf(objRef, 255, "%s:%d", filename, lineno);
   char probData[255];
-  snprintf(probData, 255, 
+  BaseString::snprintf(probData, 255, 
 	   "Signal (GSN: %d, Length: %d, Rec Block No: %d)", 
 	   gsn, len, recBlockNo);
   
@@ -664,9 +664,9 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
     if (p == NULL){
       char buf1[255];
       char buf2[255];
-      snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
+      BaseString::snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
 	       getBlockName(number()), type);
-      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
+      BaseString::snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
 	       (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
@@ -722,7 +722,7 @@ SimulatedBlock::progError(int line, int err_code, const char* extra) const {
 
   /* Add line number to block name */
   char buf[100];
-  snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x", 
+  BaseString::snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x", 
 	   aBlockName, line, magicStatus);
 
   ErrorReporter::handleError(ecError, err_code, extra, buf);
@@ -740,7 +740,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   
   va_list ap;
   va_start(ap, msg);
-  vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
+  BaseString::vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
   va_end(ap);
   
   int len = strlen(buf) + 1;
@@ -781,7 +781,7 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   
   va_list ap;
   va_start(ap, msg);
-  vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
+  BaseString::vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
   va_end(ap);
   
   int len = strlen(buf) + 1;

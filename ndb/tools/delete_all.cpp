@@ -26,6 +26,7 @@
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism=240);
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";

@@ -18,12 +18,13 @@ col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
 col6 int not null, to_be_deleted int)  ENGINE=ndbcluster;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	9	Dynamic	100	0	0	NULL	0	0	0	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ndbcluster	9	Dynamic	0	0	0	NULL	0	0	1	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
 insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	9	Dynamic	100	0	0	NULL	0	0	102	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ndbcluster	9	Dynamic	9	0	0	NULL	0	0	101	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 select * from t1 order by col1;
 col1	col2	col3	col4	col5	col6	to_be_deleted
 0	4	3	5	PENDING	1	7
@@ -43,7 +44,7 @@ change column col2 fourth varchar(30) not null after col3,
 modify column col6 int not null first;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	9	Dynamic	100	0	0	NULL	0	0	102	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ndbcluster	9	Dynamic	9	0	0	NULL	0	0	102	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 select * from t1 order by col1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	0	3	4	5		PENDING		0000-00-00 00:00:00
@@ -58,7 +59,7 @@ col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 insert into t1 values (2, NULL,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	9	Dynamic	100	0	0	NULL	0	0	103	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ndbcluster	9	Dynamic	10	0	0	NULL	0	0	103	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 select * from t1 order by col1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	0	3	4	5		PENDING		0000-00-00 00:00:00
@@ -71,4 +72,85 @@ col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	100	3	4	5		PENDING		0000-00-00 00:00:00
 1	101	3	4	5		PENDING		0000-00-00 00:00:00
 2	102	4	3	5	99	PENDING	EXTRA	2004-01-01 00:00:00
+delete from t1;
+insert into t1 values (0,0,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+SET SQL_MODE='';
+insert into t1 values (1,0,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+select * from t1 order by col1;
+col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
+0	0	4	3	5	99	PENDING	EXTRA	2004-01-01 00:00:00
+1	103	4	3	5	99	PENDING	EXTRA	2004-01-01 00:00:00
+alter table t1 drop column col4_5;
+insert into t1 values (2,0,4,3,5,"PENDING","EXTRA",'2004-01-01 00:00:00');
+select * from t1 order by col1;
+col6	col1	col3	fourth	col4	col5	col7	col8
+0	0	4	3	5	PENDING	EXTRA	2004-01-01 00:00:00
+1	103	4	3	5	PENDING	EXTRA	2004-01-01 00:00:00
+2	104	4	3	5	PENDING	EXTRA	2004-01-01 00:00:00
+drop table t1;
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (9410,9412);
+ALTER TABLE t1 ADD COLUMN c int not null;
+select * from t1 order by a;
+a	b	c
+9410	9412	0
+select * from t1 order by a;
+a	b	c
+9410	9412	0
+alter table t1 drop c;
+select * from t1 order by a;
+a	b
+9410	9412
+drop table t1;
+select * from t1 order by a;
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (
+a INT NOT NULL PRIMARY KEY,
+b INT NOT NULL
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (0,1),(17,18);
+select * from t1 order by a;
+a	b
+0	1
+17	18
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+alter table  t1 modify column a int not null auto_increment;
+SET SQL_MODE='';
+select * from t1 order by a;
+a	b
+0	1
+17	18
+INSERT INTO t1 VALUES (0,19),(20,21);
+select * from t1 order by a;
+a	b
+0	1
+17	18
+18	19
+20	21
+drop table t1;
+CREATE TABLE t1 (
+a INT NOT NULL PRIMARY KEY,
+b INT NOT NULL
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (0,1),(17,18);
+select * from t1 order by a;
+a	b
+0	1
+17	18
+alter table  t1 add c int not null unique auto_increment;
+select c from t1 order by c;
+c
+1
+2
+INSERT INTO t1 VALUES (1,2,0),(18,19,4),(20,21,0);
+select c from t1 order by c;
+c
+1
+2
+3
+4
+5
 drop table t1;

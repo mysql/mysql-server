@@ -76,7 +76,7 @@ public:
    *  then  close the socket
    * Returns true if succeding in binding
    */
-  bool tryBind(unsigned short port, const char * intface = 0) const;
+  static bool tryBind(unsigned short port, const char * intface = 0);
 
   /**
    * Setup socket

@@ -66,6 +66,7 @@ static int ThreadReady[MAXTHREADS];
 static int ThreadStart[MAXTHREADS];
 
 NDB_COMMAND(benchronja, "benchronja", "benchronja", "benchronja", 65535){
+  ndb_init();
 
   ThreadNdb		tabThread[MAXTHREADS];
   int			i = 0 ;
