@@ -365,6 +365,8 @@ sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 fix_tx_isolation);
 sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
+sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
+                                    &timed_mutexes);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
@@ -636,6 +638,7 @@ sys_var *sys_variables[]=
   &sys_table_type,
   &sys_thread_cache_size,
   &sys_time_format,
+  &sys_timed_mutexes,
   &sys_timestamp,
   &sys_time_zone,
   &sys_tmp_table_size,
@@ -903,6 +906,7 @@ struct show_var_st init_vars[]= {
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
+  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,       SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
