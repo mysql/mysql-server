@@ -138,8 +138,8 @@ int vio_close_shared_memory(Vio * vio);
 #if defined(HAVE_VIO) && !defined(DONT_MAP_VIO)
 #define vio_delete(vio) 			(vio)->viodelete(vio)
 #define vio_errno(vio)	 			(vio)->vioerrno(vio)
-#define vio_read(vio, buf, size) 		(vio)->read(vio,buf,size)
-#define vio_write(vio, buf, size) 		(vio)->write(vio, buf, size)
+#define vio_read(vio, buf, size)                ((vio)->read)(vio,buf,size)
+#define vio_write(vio, buf, size)               ((vio)->write)(vio, buf, size)
 #define vio_blocking(vio, set_blocking_mode, old_mode)\
  	(vio)->vioblocking(vio, set_blocking_mode, old_mode)
 #define vio_is_blocking(vio) 			(vio)->is_blocking(vio)
