@@ -3514,7 +3514,7 @@ require_list_element: SUBJECT_SYM TEXT_STRING
    LEX *lex=Lex;
    if (lex->ssl_cipher)
    {
-     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CHIPER");
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CIPHER");
      YYABORT;
    }
    lex->ssl_cipher=$2.str;
