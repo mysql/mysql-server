@@ -790,7 +790,7 @@ EOF
     i?86:DYNIX/ptx:4*:*)
 	echo i386-sequent-sysv4
 	exit 0 ;;
-    i?86:UNIX_SV:4.2MP:2.*)
+    i*86:UNIX_SV:4.2MP:2.*)
         # Unixware is an offshoot of SVR4, but it has its own version
         # number series starting with 2...
         # I am not positive that other SVR4 systems won't match this,
@@ -798,64 +798,24 @@ EOF
         # Use sysv4.2uw... so that sysv4* matches it.
 	echo ${UNAME_MACHINE}-pc-sysv4.2uw${UNAME_VERSION}
 	exit 0 ;;
-    i?86:UnixWare:5:7)  # Unixware 7.0.0t (uname -v reports 7) has native threads
-        # uname -m incorrectly reports CPU type (uname -m reports i386 always)
-        # compiler supports following optimization flags:i386,i486,pentium,pentium_pro and blended
-        # compiler does NOT support: i586,i686,Pentium,Pentium Pro,pentiumpro,pentium_II or Pentium II
-	if /bin/uname machine 2>/dev/null >/dev/null ; then
-	  (/bin/uname machine|egrep i80486 >/dev/null) && UNAME_MACHINE=i486
-	  (/bin/uname machine|egrep 'Pentium' >/dev/null) && UNAME_MACHINE=pentium
-	  (/bin/uname machine|egrep 'Pentium Pro' >/dev/null) && UNAME_MACHINE=pentium_pro
-	  (/bin/uname machine|egrep 'Pentium II' >/dev/null) && UNAME_MACHINE=pentium_II
-	  echo ${UNAME_MACHINE}-pc-unixware7.0.0
-	else
-	  echo ${UNAME_MACHINE}-pc-unixware7.0.0
-	fi
-        exit 0 ;;
-    i?86:UnixWare:5:7.0.1)  # Unixware 7.0.1 (uname -v reports 7.0.1) has POSIX threads
-        # uname -m incorrectly reports CPU type (uname -m reports i386 always)
-        # compiler supports following optimization flags:i386,i486,pentium,pentium_pro and blended
-        # compiler does NOT support: i586,i686,Pentium,Pentium Pro,pentiumpro,pentium_II or Pentium II
-	if /bin/uname machine 2>/dev/null >/dev/null ; then
-	  (/bin/uname machine|egrep i80486 >/dev/null) && UNAME_MACHINE=i486
-	  (/bin/uname machine|egrep 'Pentium' >/dev/null) && UNAME_MACHINE=pentium
-	  (/bin/uname machine|egrep 'Pentium Pro' >/dev/null) && UNAME_MACHINE=pentium_pro
-	  (/bin/uname machine|egrep 'Pentium II' >/dev/null) && UNAME_MACHINE=pentium_II
-	  echo ${UNAME_MACHINE}-pc-unixware7.0.1
-	else
-	  echo ${UNAME_MACHINE}-pc-unixware7.0.1
-	fi
-        exit 0 ;;
-     # SysVr5/Unixware7
-     i?86:*:5*:* | i?86:SYSTEM_V:5*:*)
-        if uname -a | grep SCO >/dev/null 2>/dev/null ; then
-          (/bin/uname -s|egrep UnixWare >/dev/null) && UNAME_VER=uw${UNAME_VERSION}
-          if /bin/uname -X 2>/dev/null >/dev/null ; then
-            (/bin/uname -X|egrep i80486 >/dev/null) && UNAME_MACHINE=i486
-            (/bin/uname -X|egrep '^Machine.*Pentium' >/dev/null) && UNAME_MACHINE=i586
-          fi
-          echo ${UNAME_MACHINE}-sco-sysv${UNAME_RELEASE}${UNAME_VER}
-        else
-          echo ${UNAME_MACHINE}-unknown-sysv${UNAME_RELEASE}
-        fi
-        exit 0 ;;
-
-    i?86:*:4.*:* | i?86:SYSTEM_V:4.*:*)
+    i*86:*:4.*:* | i*86:SYSTEM_V:4.*:*)
+        UNAME_REL=`echo ${UNAME_RELEASE} | sed 's/\/MP$//'`
 	if grep Novell /usr/include/link.h >/dev/null 2>/dev/null; then
-		echo ${UNAME_MACHINE}-univel-sysv${UNAME_RELEASE}
+		echo ${UNAME_MACHINE}-univel-sysv${UNAME_REL}
 	else
-		echo ${UNAME_MACHINE}-pc-sysv${UNAME_RELEASE}
+		echo ${UNAME_MACHINE}-pc-sysv${UNAME_REL}
 	fi
 	exit 0 ;;
-    i?86:*:5:7*)
-	UNAME_REL=`(/bin/uname -X|egrep Release|sed -e 's/.*= //')`
-	(/bin/uname -X|egrep i80486 >/dev/null) && UNAME_MACHINE=i486
-	(/bin/uname -X|egrep '^Machine.*Pentium' >/dev/null) && UNAME_MACHINE=i586
-	(/bin/uname -X|egrep '^Machine.*Pent.*II' >/dev/null) && UNAME_MACHINE=i686
-	(/bin/uname -X|egrep '^Machine.*Pentium Pro' >/dev/null) && UNAME_MACHINE=i585
-	echo ${UNAME_MACHINE}-${UNAME_SYSTEM}${UNAME_VERSION}-sysv${UNAME_RELEASE}
+    i*86:*:5:[78]*)
+       case `/bin/uname -X | grep "^Machine"` in
+           *486*)           UNAME_MACHINE=i486 ;;
+           *Pentium)        UNAME_MACHINE=i586 ;;
+           *Pent*|*Celeron) UNAME_MACHINE=i686 ;;
+       esac
+       echo ${UNAME_MACHINE}-unknown-sysv${UNAME_RELEASE}${UNAME_SYSTEM}${UNAME_VERSION}
+
 	exit 0 ;;
-    i?86:*:3.2:*)
+    i*86:*:3.2:*)
 	if test -f /usr/options/cb.name; then
 		UNAME_REL=`sed -n 's/.*Version //p' </usr/options/cb.name`
 		echo ${UNAME_MACHINE}-pc-isc$UNAME_REL

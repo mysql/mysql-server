@@ -742,6 +742,12 @@ else
     wl='-Qoption ld '
     ;;
 
+   sysv5UnixWare* | sysv5OpenUNIX*)
+    pic_flag='-KPIC'
+    link_static_flag='-Bstatic'
+    wl='-Wl,'
+    ;;
+
   sysv4 | sysv4.2uw2* | sysv4.3* | sysv5*)
     pic_flag='-KPIC'
     link_static_flag='-Bstatic'
@@ -1496,6 +1502,18 @@ else
     export_dynamic_flag_spec='-Bexport'
     ;;
 
+  sysv5UnixWare* | sysv5OpenUNIX*)
+    no_undefined_flag=' -z text'
+    # $CC -shared without GNU ld will not create a library from C++
+    # object files and a static libstdc++, better avoid it by now
+    archive_cmds='$UW7_compile_command -G${allow_undefined_flag} -h $soname -o $lib $libobjs $deplibs $linkopts'
+    archive_expsym_cmds='$echo "{ global:" > $lib.exp~cat $export_symbols | sed -e "s/\(.*\)/\1;/" >> $lib.exp~$echo "local: *; };" >> $lib.exp~
+		$LD -G${allow_undefined_flag} -M $lib.exp -h $soname -o $lib $libobjs $deplibs $linkopts~$rm $lib.exp'
+    hardcode_libdir_flag_spec=
+    hardcode_shlibpath_var=no
+    runpath_var='LD_RUN_PATH'
+    ;;
+
   sysv5*)
     no_undefined_flag=' -z text'
     # $CC -shared without GNU ld will not create a library from C++
@@ -2095,6 +2113,13 @@ sunos4*)
     need_lib_prefix=no
   fi
   need_version=yes
+  ;;
+
+sysv5UnixWare* | sysv5OpenUNIX*)
+  version_type=linux
+  soname_spec='${libname}${release}.so$major'
+  library_names_spec='${libname}${release}.so$versuffix ${libname}${release}.so$major $libname.so'
+  shlibpath_var=LD_LIBRARY_PATH
   ;;
 
 sysv4 | sysv4.2uw2* | sysv4.3* | sysv5*)
