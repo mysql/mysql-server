@@ -49579,13 +49579,9 @@ The @code{MD5()} and @code{COALESCE()} functions.
 @item Sasha Pachev
 @itemize @bullet
 @item
-Initial implementation of replication.
+Initial implementation of replication (upto version 4.0).
 @item
 @code{SHOW CREATE TABLE}.
-@item
-mod_mysql_include
-@item
-cgi++
 @item
 @code{mysql-bench}
 @end itemize
@@ -49645,7 +49641,7 @@ Proofreading and editing this fine manual.
 @item
 Designing/programming of our web interface.
 @item
-Author of the mailarchive and newsletter management system.
+Author of our newsletter management system.
 @end itemize
 
 @item Jorge del Conde
@@ -49669,16 +49665,9 @@ New client/server protocol for 4.1
 @item Arjen Lentz
 @itemize @bullet
 @item
-Lead technical writer for the MySQL documentation.
+Maintainer of the MySQL Reference Manual.
 @item
 Preparing the O'Reilly printed edition of the manual.
-@item
-Keeping the Dutch error messages upto-date.
-@item
-Improved authentication procedure for new client/server protocol (4.1).
-@item
-Extended @code{LOG()} function for arbitrary base,
-added @code{LOG2()} and @code{LN()} functions.
 @end itemize
 
 @item Alexander (Bar) Barkov, Alexey (Holyfoot) Botchkov, and Ramil Kallimullin
@@ -49727,8 +49716,6 @@ Build and release engineering.
 @itemize @bullet
 @item
 @code{SHA1()}, @code{AES_ENCRYPT()} and @code{AES_DECRYPT()} functions.
-@item
-Improved authentication procedure for new client/server protocol (4.1).
 @item
 Debugging, cleaning up various features.
 @end itemize
