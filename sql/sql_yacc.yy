@@ -965,7 +965,7 @@ create_select:
 	      lex->sql_command= SQLCOM_INSERT_SELECT;
 	    else if (lex->sql_command == SQLCOM_REPLACE)
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
-	    lex->current_select->select_lex()->table_list.save_and_clear(&lex->save_list);
+	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
 	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
           }
@@ -974,7 +974,7 @@ create_select:
 	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
 	  }
 	  opt_select_from
-	  { Lex->current_select->select_lex()->table_list.push_front(&Lex->save_list); }
+	  { Lex->current_select->table_list.push_front(&Lex->save_list); }
         ;
 
 opt_as:

@@ -385,7 +385,7 @@ bool Item_in_optimizer::fix_left(THD *thd,
   cache->store(args[0]);
   if (cache->cols() == 1)
   {
-    if (args[0]->used_tables())
+    if ((used_tables_cache= args[0]->used_tables()))
       cache->set_used_tables(OUTER_REF_TABLE_BIT);
     else
       cache->set_used_tables(0);
@@ -400,7 +400,11 @@ bool Item_in_optimizer::fix_left(THD *thd,
       else
 	((Item_cache *)cache->el(i))->set_used_tables(0);
     }
+    used_tables_cache= args[0]->used_tables();
   }
+  not_null_tables_cache= args[0]->not_null_tables();
+  with_sum_func= args[0]->with_sum_func;
+  const_item_cache= args[0]->const_item();
   return 0;
 }
 
@@ -414,9 +418,6 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   if (args[0]->maybe_null)
     maybe_null=1;
 
-  with_sum_func= args[0]->with_sum_func;
-  used_tables_cache= args[0]->used_tables();
-  const_item_cache= args[0]->const_item();
   if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args))
     return 1;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
@@ -429,6 +430,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     maybe_null=1;
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   used_tables_cache|= args[1]->used_tables();
+  not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
   return 0;
 }

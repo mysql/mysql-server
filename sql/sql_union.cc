@@ -349,6 +349,11 @@ int st_select_lex_unit::exec()
 	  mysql_select automatic allocation)
 	*/
 	fake_select_lex->join= new JOIN(thd, item_list, thd->options, result);
+	/*
+	  Fake st_select_lex should have item list for correctref_array
+	  allocation.
+	*/
+	fake_select_lex->item_list= item_list;
       }
       else
       {

@@ -983,7 +983,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;
   table->const_table= 0;
-  table->outer_join= table->null_row= 0;
+  table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->maybe_null= test(table->outer_join= table_list->outer_join);
