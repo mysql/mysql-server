@@ -22747,6 +22747,10 @@ that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
 @code{MERGE} table, you are only dropping the @code{MERGE}
 specification.
 
+Note that @code{DELETE FROM merge_table} used without a @code{WHERE}
+will only clear the mapping for the table, not delete everything in the
+mapped tables. (We plan to fix this in 4.0).
+
 With identical tables we mean that all tables are created with identical
 column information.  You can't put a MERGE over tables where the columns
 are packed differently or doesn't have exactly the same columns.
@@ -35114,6 +35118,17 @@ to the log file (by default named 'hostname.log').  This log can
 be very useful when you suspect an error in a client and want to know
 exactly what @code{mysqld} thought the client send to it.
 
+By default, the @code{mysql.server} script starts the @strong{MySQL}
+server with the @code{-l} option.  If you need better performance when
+you start using @strong{MySQL} in a production environment, you can
+remove the @code{-l} option from @code{mysql.server} or change it to
+@code{--log-binary}.
+
+The entries in this log are written as @code{mysqld} receives the questions.
+This may be different than the order in which the statements is executed.
+This is in contrast to the update log and the binary log which is written
+after the query is executed, but before any locks are released.
+
 @cindex update log
 @cindex files, update log
 @node Update log, Binary log, Query log, Log files
@@ -35149,16 +35164,14 @@ cp hostname-old.log to-backup-directory
 rm hostname-old.log
 @end example
 
-By default, the @code{mysql.server} script starts the @strong{MySQL}
-server with the @code{-l} option.  If you need better performance when
-you start using @strong{MySQL} in a production environment, you can
-remove the @code{-l} option from @code{mysql.server} or change it to
-@code{--log-update}.
-
 Update logging is smart because it logs only statements that really update
 data. So an @code{UPDATE} or a @code{DELETE} with a @code{WHERE} that finds no
 rows is not written to the log. It even skips @code{UPDATE} statements that
 set a column to the value it already has.
+
+The update logging is done immediately after a query completes but before
+any locks are released or any commit is done. This ensures that the log
+will be logged in the execution order.
 
 If you want to update a database from update log files, you could do the
 following (assuming your update logs have names of the form
@@ -35229,6 +35242,10 @@ this program!
 If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you must use
 the @strong{MySQL} binary log for backups instead of the old update log.
 
+The binary logging is done immediately after a query completes but before
+any locks are released or any commit is done. This ensures that the log
+will be logged in the execution order.
+
 All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
 a transactional table (like BDB tables) is cached until a @code{COMMIT}.
 Any updates to a not transactional table is stored in the binary log at
@@ -35249,6 +35266,10 @@ When started with the @code{--log-slow-queries[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that took
 more than @code{long_query_time} to execute. The time to get the initial
 table locks are not counted as execution time.
+
+The slow query log is logged after the query is executed and after all
+locks has been released. This may be different than the order in which
+the statements is executed.
 
 If no file name is given, it defaults to the name of the host machine
 suffixed with @code{-slow.log}. If a filename is given, but doesn't
@@ -41421,6 +41442,12 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+@code{SHOW CREATE TABLE} now dumps the @code{UNION()} for @code{MERGE} tables.
+@item
+Fixed bug when replicating timestamps.
+@item
+Fixed bug in bi-directonal replication.
+@item
 Added the @code{INNOBASE} table handler and the @code{BDB} table handler
 to the @strong{MySQL} source distribution.
 @item
@@ -46204,6 +46231,10 @@ For the moment @code{MATCH} only works with @code{SELECT} statements.
 @item
 When using @code{SET CHARACTER SET}, one can't use translated
 characters in database, table and column names.
+@item
+@code{DELETE FROM merge_table} used without a @code{WHERE}
+will only clear the mapping for the table, not delete everything in the
+mapped tables
 @item
 You cannot build in another directory when using
 MIT-pthreads. Because this requires changes to MIT-pthreads, we are not

@@ -59,6 +59,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   READ_RECORD	info;
   DBUG_ENTER("mysql_update");
   LINT_INIT(used_index);
+  LINT_INIT(timestamp_query_id);
 
   if (!(table = open_ltable(thd,table_list,lock_type)))
     DBUG_RETURN(-1);
