@@ -2700,8 +2700,10 @@ rec_loop:
 
 			goto next_rec;
 		}
-
-		rec = clust_rec;
+		
+		if (prebuilt->need_to_access_clustered) {
+		        rec = clust_rec;
+		}
 	}
 
 	/* We found a qualifying row */
