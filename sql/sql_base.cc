@@ -195,7 +195,6 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
   DBUG_RETURN(open_list);
 }
 
-
 /*
   Send name and type of result to client converted to a given char set
 
@@ -215,6 +214,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     0	ok
     1	Error  (Note that in this case the error is not sent to the client)
 */
+
+#ifndef EMBEDDED_LIBRARY
 
 bool
 send_convert_fields(THD *thd,List<Item> &list,CONVERT *convert,uint flag)
@@ -439,6 +440,7 @@ err:
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
  *	 Functions to free open table cache
