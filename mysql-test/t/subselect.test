@@ -1,6 +1,10 @@
 select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
+-- error 1243
+SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
+-- error 1243
+SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVING a=1) as b;
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -18,7 +22,7 @@ insert into t3 values (6),(7),(3);
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
 union (select * from t4 order by a limit 2) limit 3;
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)
 union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
 union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
@@ -135,9 +139,30 @@ CREATE TABLE `searchconthardwarefr7` (
     ) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
 
 INSERT INTO searchconthardwarefr7 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
-
+select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
 SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FROM searchconthardwarefr7 WHERE (mot='joce') AND date >= '2002-10-21' AND forumconthardwarefr7.numeropost = searchconthardwarefr7.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
-
 drop table forumconthardwarefr7, searchconthardwarefr7;
+
+drop table if exists forumconthardwarefr7;
+CREATE TABLE `forumconthardwarefr7` (
+  `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+  `maxnumrep` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`numeropost`),
+  UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+
+INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (1,0),(2,1);
+-- error 1240
+select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+-- error 1240
+select numeropost as a FROM forumconthardwarefr7 ORDER BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+drop table if exists forumconthardwarefr7;
+
+drop table if exists iftest;
+CREATE TABLE iftest (field char(1) NOT NULL DEFAULT 'b');
+INSERT INTO iftest VALUES ();
+-- error 1240
+SELECT field FROM iftest WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
+drop table iftest;

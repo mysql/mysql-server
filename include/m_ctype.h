@@ -118,6 +118,12 @@ typedef struct charset_info_st
   /* Charset dependant snprintf() */
   int (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
   
+  long        (*strtol)(struct charset_info_st *, const char *s, char **e, int base);
+  ulong      (*strtoul)(struct charset_info_st *, const char *s, char **e, int base);
+  longlong   (*strtoll)(struct charset_info_st *, const char *s, char **e, int base);
+  ulonglong (*strtoull)(struct charset_info_st *, const char *s, char **e, int base);
+  double      (*strtod)(struct charset_info_st *, const char *s, char **e);
+  
 } CHARSET_INFO;
 
 
@@ -155,6 +161,13 @@ int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
+
+long        my_strtol_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+ulong      my_strtoul_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+longlong   my_strtoll_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+ulonglong my_strtoull_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+double      my_strtod_8bit(CHARSET_INFO *, const char *s, char **e);
+  
 
 
 #ifdef USE_MB
@@ -219,6 +232,12 @@ extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t, uint
 #define my_casedn_str(s, a)           ((s)->casedn_str((s), (a)))
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
 #define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
+
+#define my_strtol(s, a, b, c)         ((s)->strtol((s),(a),(b),(c)))
+#define my_strtoul(s, a, b, c)        ((s)->strtoul((s),(a),(b),(c)))
+#define my_strtoll(s, a, b, c)        ((s)->strtoll((s),(a),(b),(c)))
+#define my_strtoull(s, a, b, c)       ((s)->strtoull((s),(a),(b),(c)))
+#define my_strtod(s, a, b)            ((s)->strtod((s),(a),(b)))
 
 
 /* XXX: still need to take care of this one */

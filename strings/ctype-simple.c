@@ -123,6 +123,7 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
 }
 
 
+#ifdef NOT_USED
 static int my_vsnprintf_8bit(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
@@ -173,14 +174,22 @@ static int my_vsnprintf_8bit(char *to, size_t n, const char* fmt, va_list ap)
   *to='\0';				/* End of errmessage */
   return (uint) (to - start);
 }
-
+#endif
 
 int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
-		     char* to, uint n, const char* fmt, ...)
+		     char* to, uint n  __attribute__((unused)),
+		     const char* fmt, ...)
 {
   va_list args;
   va_start(args,fmt);
+#ifdef NOT_USED
   return my_vsnprintf_8bit(to, n, fmt, args);
+#endif
+  /* 
+     FIXME: generally not safe, but it is OK for now
+     FIXME: as far as it's not called unsafely in the current code
+  */
+  return vsprintf(to,fmt,args); /* FIXME */
 }
 
 
@@ -234,4 +243,34 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 	     ((uint) sort_order[(uint) *pos])) + (nr1[0] << 8);
     nr2[0]+=3;
   }
+}
+
+long        my_strtol_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtol(s,e,base);
+}
+
+ulong      my_strtoul_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+longlong   my_strtoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoll(s,e,base);
+}
+
+ulonglong my_strtoull_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+double      my_strtod_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e)
+{
+  return strtod(s,e);
 }

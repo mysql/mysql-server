@@ -660,7 +660,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -736,7 +736,7 @@ pthread_handler_decl(handle_bootstrap,arg)
 
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -1297,7 +1297,7 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables)
+  if (tables || lex->select_lex.next_select_in_list())
     mysql_reset_errors(thd);
   /*
     Save old warning count to be able to send to client how many warnings we
@@ -1334,17 +1334,20 @@ mysql_execute_command(THD *thd)
   */
   if (lex->derived_tables)
   {
-    for (TABLE_LIST *cursor= tables;
-	 cursor;
-	 cursor= cursor->next)
-      if (cursor->derived && (res=mysql_derived(thd, lex,
-						(SELECT_LEX_UNIT *)cursor->derived,
-						cursor)))
-      {  
-	if (res < 0)
-	  send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	DBUG_VOID_RETURN;
-      }
+    for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select_in_list())
+      if (sl->linkage != DERIVED_TABLE_TYPE)
+	for (TABLE_LIST *cursor= sl->get_table_list();
+	     cursor;
+	     cursor= cursor->next)
+	  if (cursor->derived && (res=mysql_derived(thd, lex,
+						    (SELECT_LEX_UNIT *)
+						    cursor->derived,
+						    cursor)))
+	  {  
+	    if (res < 0)
+	      send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	    DBUG_VOID_RETURN;
+	  }
   } 
   if ((lex->select_lex.next_select_in_list() && 
        lex->unit.create_total_list(thd, lex, &tables)) ||
@@ -1373,10 +1376,11 @@ mysql_execute_command(THD *thd)
       break;					// Error message is given
     }
 
-    unit->offset_limit_cnt= unit->global_parameters->offset_limit;
-    unit->select_limit_cnt= unit->global_parameters->select_limit+
-      unit->global_parameters->offset_limit;
-    if (unit->select_limit_cnt < unit->global_parameters->select_limit)
+    unit->offset_limit_cnt= (ha_rows) unit->global_parameters->offset_limit;
+    unit->select_limit_cnt= (ha_rows) (unit->global_parameters->select_limit+
+      unit->global_parameters->offset_limit);
+    if (unit->select_limit_cnt < 
+	(ha_rows) unit->global_parameters->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// no limit
     if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
@@ -2717,7 +2721,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables ; tables=tables->next)
   {
-    if (tables->derived)
+    if (tables->derived || (tables->table && (int)tables->table->tmp_table))
       continue;
     if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
 	thd->db)
@@ -2735,7 +2739,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 	found=1;
       }
     }
-    else if (tables->db && check_access(thd,want_access,tables->db,&tables->grant.privilege,
+    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors))
       return TRUE;
   }
@@ -2858,18 +2862,21 @@ mysql_init_query(THD *thd)
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->param_list.empty();
-  lex->unit.global_parameters= lex->unit.slave= lex->current_select= &lex->select_lex;
+  lex->unit.global_parameters= lex->unit.slave= lex->current_select= 
+    &lex->select_lex;
   lex->select_lex.master= &lex->unit;
   lex->select_lex.prev= &lex->unit.slave;
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
-  thd->select_number= lex->select_lex.select_number= 1;
+  thd->check_loops_counter= thd->select_number= 
+    lex->select_lex.select_number= 1;
   thd->free_list= 0;
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used=0;
   thd->safe_to_cache_query= 1;
+  thd->possible_loops= 0;
   DBUG_VOID_RETURN;
 }
 

@@ -336,7 +336,7 @@ public:
   }
   st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
-  st_select_lex*  next_select_in_list() 
+  st_select_lex* next_select_in_list() 
   {
     return (st_select_lex*) link_next;
   }
