@@ -3746,7 +3746,8 @@ make_join_readinfo(JOIN *join, uint options)
 	    table->key_read=1;
 	    table->file->extra(HA_EXTRA_KEYREAD);
 	  }
-	  else if (!table->used_keys.is_clear_all() && ! (tab->select && tab->select->quick))
+	  else if (!table->used_keys.is_clear_all() &&
+		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    tab->index=find_shortest_key(table, & table->used_keys);
 	    tab->table->file->index_init(tab->index);
@@ -6907,6 +6908,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   key_part_end=key_part+table->key_info[idx].key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
+  DBUG_ENTER("test_if_order_by_key");
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
@@ -6917,24 +6919,23 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       Skip key parts that are constants in the WHERE clause.
       These are already skipped in the ORDER BY by const_expression_in_where()
     */
-    while (const_key_parts & 1)
-    {
-      key_part++; const_key_parts>>=1;
-    }
+    for (; const_key_parts & 1 ; const_key_parts>>= 1)
+      key_part++; 
+
     if (key_part == key_part_end || key_part->field != field)
-      return 0;
+      DBUG_RETURN(0);
 
     /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag=(order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT))
-      ? 1 : -1;
+    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ? 1 : -1);
     if (reverse && flag != reverse)
-      return 0;
+      DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
     key_part++;
   }
   *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
-  return reverse;
+  DBUG_RETURN(reverse);
 }
+
 
 static uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
@@ -6958,18 +6959,20 @@ static uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 }
 
 /*
+  Test if a second key is the subkey of the first one.
+
   SYNOPSIS
     is_subkey()
-    key_part		- first key parts
-    ref_key_part	- second key parts
-    ref_key_part_end	- last+1 part of the second key
-  DESCRIPTION
-    Test if a second key is the subkey of the first one.
+    key_part		First key parts
+    ref_key_part	Second key parts
+    ref_key_part_end	Last+1 part of the second key
+
   NOTE
     Second key MUST be shorter than the first one.
+
   RETURN
-    1	- is the subkey
-    0	- otherwise
+    1	is a subkey
+    0	no sub key
 */
 
 inline bool 
@@ -6983,20 +6986,21 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 }
 
 /*
+  Test if we can use one of the 'usable_keys' instead of 'ref' key for sorting
+
   SYNOPSIS
     test_if_subkey()
-    ref		- number of key, used for WHERE clause
-    usable_keys - keys for testing
-  DESCRIPTION
-    Test if we can use one of the 'usable_keys' instead of 'ref' key.
+    ref			Number of key, used for WHERE clause
+    usable_keys		Keys for testing
+
   RETURN
-    MAX_KEY			- if we can't use other key
-    the number of found key	- otherwise
+    MAX_KEY			If we can't use other key
+    the number of found key	Otherwise
 */
 
 static uint
 test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
-	       const key_map& usable_keys)
+	       const key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
@@ -7007,7 +7011,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 
   for (nr= 0 ; nr < table->keys ; nr++)
   {
-    if (usable_keys.is_set(nr) &&
+    if (usable_keys->is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
@@ -7051,12 +7055,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
     {
       usable_keys.clear_all();
-      break;
+      DBUG_RETURN(0);
     }
-    usable_keys.intersect(
-        ((Item_field*) (*tmp_order->item))->field->part_of_sortkey);
+    usable_keys.intersect(((Item_field*) (*tmp_order->item))->
+			  field->part_of_sortkey);
     if (usable_keys.is_clear_all())
-      break;					// No usable keys
+      DBUG_RETURN(0);					// No usable keys
   }
 
   ref_key= -1;
@@ -7092,9 +7096,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	keys
       */
       if (table->used_keys.is_set(ref_key))
-	usable_keys.merge(table->used_keys);
+	usable_keys.intersect(table->used_keys);
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
-				       usable_keys)) < MAX_KEY)
+				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
@@ -7154,6 +7158,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  /* fall through */
 	}
       }
+      else if (select && select->quick)
+	  select->quick->sorted= 1;
       DBUG_RETURN(1);			/* No need to sort */
     }
   }
@@ -7292,9 +7298,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick= tab->type == JT_FT ?
-			   new FT_SELECT(thd, table, tab->ref.key) :
-			   get_quick_select_for_ref(thd, table, &tab->ref)))
+      if (!(select->quick= (tab->type == JT_FT ?
+			    new FT_SELECT(thd, table, tab->ref.key) :
+			    get_quick_select_for_ref(thd, table, &tab->ref))))
 	goto err;
     }
   }

@@ -553,7 +553,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
-	      field->type() == FIELD_TYPE_GEOMETRY ||
 	      field->real_type() == FIELD_TYPE_VAR_STRING)
 	  {
 	    if (field->type() == FIELD_TYPE_BLOB)
