@@ -275,7 +275,7 @@ int handle_options(int *argc, char ***argv,
 	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
-	if (must_be_var && !optp->value)
+	if (must_be_var && optp->var_type == GET_NO_ARG)
 	{
 	  if (my_getopt_print_errors)
 	    fprintf(stderr, "%s: option '%s' cannot take an argument\n",
