@@ -71,6 +71,7 @@ public:
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
+  virtual bool is_null_result() { return is_null(); }
   virtual table_map used_tables() const { return (table_map) 0L; }
   virtual bool basic_const_item() const { return 0; }
   virtual Item *new_item() { return 0; }	/* Only for const items */
@@ -124,6 +125,7 @@ public:
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
+  bool is_null_result() { return result_field->is_null(); }
   bool send(THD *thd, String *str_arg)
   {
     return result_field->send(thd,str_arg);
@@ -398,25 +400,25 @@ public:
   double val()
   {
     double tmp=(*ref)->val_result();
-    null_value=(*ref)->null_value;
+    null_value=(*ref)->is_null_result();
     return tmp;
   }
   longlong val_int()
   {
     longlong tmp=(*ref)->val_int_result();
-    null_value=(*ref)->null_value;
+    null_value=(*ref)->is_null_result();
     return tmp;
   }
   String *val_str(String* tmp)
   {
     tmp=(*ref)->str_result(tmp);
-    null_value=(*ref)->null_value;
+    null_value=(*ref)->is_null_result();
     return tmp;
   }
   bool is_null()
   {
     (void) (*ref)->val_int_result();
-    return (*ref)->null_value;
+    return (*ref)->is_null_result();
   }
   bool get_date(TIME *ltime,bool fuzzydate)
   {  
