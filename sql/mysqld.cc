@@ -242,6 +242,8 @@ static char glob_hostname[FN_REFLEN];
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
+static char * des_key_file = 0;
+struct st_des_keyschedule des_keyschedule[10];
 struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 
@@ -1746,9 +1748,13 @@ int main(int argc, char **argv)
 			   opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
-      opt_use_ssl=0;
-    /* having ssl_acceptor_fd!=0 signals the use of SSL */
+      opt_use_ssl = 0;
+    /* having ssl_acceptor_fd != 0 signals the use of SSL */
   }
+  bzero(des_keyschedule,sizeof(struct st_des_keyschedule) * 10);
+  DBUG_PRINT("des",("initializing %d bytes of %x",sizeof(struct st_des_keyschedule) * 10, des_keyschedule));
+  if (des_key_file)
+    load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_LIBWRAP
@@ -2669,7 +2675,8 @@ enum options {
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
-	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE
+	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
+	       OPT_DES_KEY_FILE
 };
 
 static struct option long_options[] = {
@@ -2697,6 +2704,7 @@ static struct option long_options[] = {
   {"character-sets-dir",    required_argument, 0, (int) OPT_CHARSETS_DIR},
   {"datadir",               required_argument, 0, 'h'},
   {"debug",                 optional_argument, 0, '#'},
+  {"des-key-file",          required_argument, 0, (int) OPT_DES_KEY_FILE},
   {"default-character-set", required_argument, 0, 'C'},
   {"default-table-type",    required_argument, 0, (int) OPT_TABLE_TYPE},
   {"delay-key-write-for-all-tables",
@@ -3265,7 +3273,13 @@ static void usage(void)
 			Set the default table type for tables\n\
   --delay-key-write-for-all-tables\n\
 			Don't flush key buffers between writes for any MyISAM\n\
-			table\n\
+			table\n");
+#ifdef HAVE_OPENSSL
+  puts("\
+  --des-key-file        Load keys for des_encrypt() and des_encrypt\n\
+                        from given file");
+#endif /* HAVE_OPENSSL */
+  puts("\
   --enable-locking	Enable system locking\n\
   --enable-pstack	Print a symbolic stack trace on failure\n\
   -T, --exit-info	Used for debugging;  Use at your own risk!\n\
@@ -3892,6 +3906,11 @@ static void get_options(int argc,char **argv)
       charsets_dir = mysql_charsets_dir;
       break;
 #include "sslopt-case.h"
+#ifdef HAVE_OPENSSL
+    case OPT_DES_KEY_FILE:
+      des_key_file=optarg;
+      break;
+#endif
     case OPT_TX_ISOLATION:
     {
       int type;
