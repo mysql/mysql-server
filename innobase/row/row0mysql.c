@@ -756,7 +756,7 @@ run_again:
 
 		trx->op_info = "";
 
-		return(err);
+		return((int) err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
@@ -856,7 +856,7 @@ run_again:
 
 		trx->op_info = "";
 
-		return(err);
+		return((int) err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
@@ -972,7 +972,7 @@ run_again:
 
 		trx->op_info = "";
 
-		return(err);
+		return((int) err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
@@ -1222,7 +1222,7 @@ run_again:
 
 		trx->op_info = "";
 
-		return(err);
+		return((int) err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
@@ -1438,7 +1438,7 @@ row_mysql_recover_tmp_table(
 	}
 	else {
 		int	status;
-		int	namelen = strlen(table->name);
+		int	namelen = (int) strlen(table->name);
 		char*	old_name = mem_strdupl(table->name, namelen);
 		/* replace "rsql" with "#sql" */
 		old_name[ptr - table->name + 1] = '#';
@@ -1928,7 +1928,7 @@ row_drop_table_for_mysql_in_background(
 
   	trx_free_for_background(trx);
 
-	return(error);
+	return((int) error);
 }
 
 /*************************************************************************

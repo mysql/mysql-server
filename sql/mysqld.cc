@@ -1462,6 +1462,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
 		      errcode ? ER(errcode) : ""));
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
+  thd->killed=1;
   if ((vio=thd->net.vio) != 0)
   {
     if (errcode)
@@ -3148,9 +3149,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_maintenance_thread();
 
   sql_print_information(ER(ER_READY),my_progname,server_version,
-	                ((unix_sock == INVALID_SOCKET) ? (char*) ""
+                        ((unix_sock == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
-	                 mysqld_port,
+                         mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
 
 #if defined(__NT__) || defined(HAVE_SMEM)

@@ -108,7 +108,7 @@ init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,ulong max_buffer)
 */
 static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str)
 {
-  uint old_length=buffer->end - buffer->buffer;
+  uint old_length=(uint)(buffer->end - buffer->buffer);
   uint length= (uint) strlen(str);
   if (!(buffer->buffer= buffer->start_of_line= buffer->end_of_line=
 	(char*)my_realloc(buffer->buffer, old_length+length+2,
