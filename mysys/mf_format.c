@@ -57,7 +57,7 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
   name+=(length=dirname_part(dev,(startpos=(my_string) name)));
   if (length == 0 || flag & 1)
   {
-    (void) strnmov(dev,dsk, sizeof(dev) - 2);
+    (void) strmake(dev,dsk, sizeof(dev) - 2);
       /* Use given directory */
     convert_dirname(dev);			/* Fix to this OS */
   }
@@ -100,7 +100,7 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
       bmove(buff,(char*) name,length);		/* Save name for last copy */
       name=buff;
     }
-    pos=strnmov(strmov(to,dev),name,length);
+    pos=strmake(strmov(to,dev),name,length);
 #ifdef FN_UPPER_CASE
     caseup_str(to);
 #endif
@@ -117,7 +117,7 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
     if (flag & 32 || (!lstat(to,&stat_buff) && S_ISLNK(stat_buff.st_mode)))
     {
       if (realpath(to,buff))
-	strnmov(to,buff,FN_REFLEN-1);
+	strmake(to,buff,FN_REFLEN-1);
     }
   }
 #endif

@@ -26,7 +26,7 @@ debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DSAFE_MUTEX -O2"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 
-base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-mysqld-ldflags=-all-static --disable-shared"
+base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-mysqld-ldflags=-all-static"
 alpha_configs=""	# not used yet
 pentium_configs=""
 sparc_configs=""

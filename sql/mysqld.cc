@@ -275,7 +275,7 @@ char mysql_real_data_home[FN_REFLEN],
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
-char server_version[50]=MYSQL_SERVER_VERSION;
+char server_version[60]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
@@ -1471,14 +1471,10 @@ int main(int argc, char **argv)
     strmov(glob_hostname,"mysql");
   strmov(pidfile_name,glob_hostname);
   strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
-#ifdef DEMO_VERSION
-  strcat(server_version,"-demo");
-#endif
-#ifdef SHAREWARE_VERSION
-  strcat(server_version,"-shareware");
-#endif
 #ifndef DBUG_OFF
-  strcat(server_version,"-debug");
+  strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
+#else
+  strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 #endif
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())

@@ -32,6 +32,8 @@ concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':
 :my:sql:
 concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*'),':')
 :my:sql:
+TRIM("foo" FROM "foo")	TRIM("foo" FROM "foook")	TRIM("foo" FROM "okfoo")
+	ok	ok
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
 this	is a	test
 replace('aaaa','a','b')	replace('aaaa','aa','b')	replace('aaaa','a','bb')	replace('aaaa','','b')	replace('bbbb','a','c')
