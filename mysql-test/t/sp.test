@@ -502,7 +502,6 @@ drop procedure sel2|
 delete from t1|
 delete from t2|
 
-
 # SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
@@ -1106,6 +1105,20 @@ drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
 drop procedure bug2267_4|
+
+#
+# BUG#2227
+#
+create procedure bug2227(x int)
+begin
+  declare y float default 2.6;
+  declare z char(16) default "zzz";
+
+  select 1.3, x, y, 42, z;
+end|
+
+call bug2227(9)|
+drop procedure bug2227|
 
 
 #
