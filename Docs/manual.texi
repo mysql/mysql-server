@@ -20838,50 +20838,15 @@ table with @code{myisamchk -dvv table_name}.
 @cindex environment variables
 @cindex programs, list of
 
-All MySQL clients that communicate with the server using the
-@code{mysqlclient} library use the following environment variables:
-
-@tindex @code{MYSQL_UNIX_PORT} environment variable
-@tindex environment variable, @code{MYSQL_UNIX_PORT}
-@tindex @code{MYSQL_TCP_PORT} environment variable
-@tindex environment variable, @code{MYSQL_TCP_PORT}
-@tindex @code{MYSQL_PWD} environment variable
-@tindex environment variable, @code{MYSQL_PWD}
-@tindex @code{MYSQL_DEBUG} environment variable
-@tindex environment variable, @code{MYSQL_DEBUG}
-@multitable @columnfractions .25 .60
-@item @strong{Name} @tab @strong{Description}
-@item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
-@item @code{MYSQL_TCP_PORT}  @tab The default TCP/IP port
-@item @code{MYSQL_PWD} @tab The default password
-@item @code{MYSQL_DEBUG} @tab Debug-trace options when debugging
-@item @code{TMPDIR} @tab The directory where temporary tables/files are created
-@end multitable
-
-Use of @code{MYSQL_PWD} is insecure.
-@xref{Connecting}.
-
-@tindex @code{MYSQL_HISTFILE} environment variable
-@tindex environment variable, @code{MYSQL_HISTFILE}
-@tindex @code{HOME} environment variable
-@tindex environment variable, @code{HOME}
-@cindex history file
-@cindex command-line history
-@tindex .mysql_history file
-The @file{mysql} client uses the file named in the @code{MYSQL_HISTFILE}
-environment variable to save the command-line history. The default value for
-the history file is @file{$HOME/.mysql_history}, where @code{$HOME} is the
-value of the @code{HOME} environment variable. @xref{Environment variables}.
-
 All MySQL programs take many different options. However, every
 MySQL program provides a @code{--help} option that you can use
 to get a full description of the program's different options. For example, try
 @code{mysql --help}.
 
-You can override default options for all standard client programs with an
+You can override default options for all standard programs with an
 option file. @ref{Option files}.
 
-The following list briefly describes the MySQL programs:
+The following list briefly describes the server-side MySQL programs:
 
 @table @code
 
@@ -20897,24 +20862,6 @@ Makes a binary release of a compiled MySQL. This could be sent
 by FTP to @file{/pub/mysql/Incoming} on @code{support.mysql.com} for the
 convenience of other MySQL users.
 
-@cindex @code{msql2mysql}
-@item msql2mysql
-A shell script that converts @code{mSQL} programs to MySQL. It doesn't
-handle all cases, but it gives a good start when converting.
-
-@cindex @code{mysqlaccess}
-@item mysqlaccess
-A script that checks the access privileges for a host, user, and database
-combination.
-
-@cindex @code{mysqladmin}
-@item mysqladmin
-Utility for performing administrative operations, such as creating or
-dropping databases, reloading the grant tables, flushing tables to disk, and
-reopening log files.  @code{mysqladmin} can also be used to retrieve version,
-process, and status information from the server.
-@xref{mysqladmin, , @code{mysqladmin}}.
-
 @cindex @code{mysqlbug}
 @item mysqlbug
 The MySQL bug report script.  This script should always be used when
@@ -20924,38 +20871,12 @@ filing a bug report to the MySQL list.
 @item mysqld
 The SQL daemon. This should always be running.
 
-@cindex @code{mysqldump}
-@item mysqldump
-Dumps a MySQL database into a file as SQL statements or
-as tab-separated text files. Enhanced freeware originally by Igor Romanenko.
-@xref{mysqldump, , @code{mysqldump}}.
-
-@cindex @code{mysqlimport}
-@item mysqlimport
-Imports text files into their respective tables using @code{LOAD DATA
-INFILE}. @xref{mysqlimport, , @code{mysqlimport}}.
-
-@cindex @code{mysqlshow}
-@item mysqlshow
-Displays information about databases, tables, columns, and indexes.
-
 @cindex @code{mysql_install_db}
 @item mysql_install_db
 Creates the MySQL grant tables with default privileges. This is
 usually executed only once, when first installing MySQL
 on a system.
 
-@cindex @code{replace}
-@item replace
-A utility program that is used by @code{msql2mysql}, but that has more
-general applicability as well.  @code{replace} changes strings in place in
-files or on the standard input. Uses a finite state machine to match longer
-strings first. Can be used to swap strings. For example, this command
-swaps @code{a} and @code{b} in the given files:
-
-@example
-shell> replace a b b a -- file1 file2 ...
-@end example
 @end table
 
 
@@ -21826,21 +21747,9 @@ to get a full description of the program's different options. For example, try
 You can override default options for all standard client programs with an
 option file. @ref{Option files}.
 
-The following list briefly describes the MySQL programs:
+The following list briefly describes the client-side MySQL programs:
 
 @table @code
-
-@cindex @code{myisamchk}
-@item myisamchk
-Utility to describe, check, optimise, and repair MySQL tables.
-Because @code{myisamchk} has many functions, it is described in its own
-chapter. @xref{MySQL Database Administration}.
-
-@cindex @code{make_binary_distribution}
-@item make_binary_distribution
-Makes a binary release of a compiled MySQL. This could be sent
-by FTP to @file{/pub/mysql/Incoming} on @code{support.mysql.com} for the
-convenience of other MySQL users.
 
 @cindex @code{msql2mysql}
 @item msql2mysql
@@ -21860,15 +21769,6 @@ reopening log files.  @code{mysqladmin} can also be used to retrieve version,
 process, and status information from the server.
 @xref{mysqladmin, , @code{mysqladmin}}.
 
-@cindex @code{mysqlbug}
-@item mysqlbug
-The MySQL bug report script.  This script should always be used when
-filing a bug report to the MySQL list.
-
-@cindex @code{mysqld}
-@item mysqld
-The SQL daemon. This should always be running.
-
 @cindex @code{mysqldump}
 @item mysqldump
 Dumps a MySQL database into a file as SQL statements or
@@ -21883,12 +21783,6 @@ INFILE}. @xref{mysqlimport, , @code{mysqlimport}}.
 @cindex @code{mysqlshow}
 @item mysqlshow
 Displays information about databases, tables, columns, and indexes.
-
-@cindex @code{mysql_install_db}
-@item mysql_install_db
-Creates the MySQL grant tables with default privileges. This is
-usually executed only once, when first installing MySQL
-on a system.
 
 @cindex @code{replace}
 @item replace
