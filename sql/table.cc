@@ -531,7 +531,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   {
     int err;
     if ((err=(outparam->file->
-	      ha_open(index_file,
+	      ha_open(unpack_filename(index_file,index_file),
 		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
 		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
 		       ((db_stat & HA_WAIT_IF_LOCKED) ||

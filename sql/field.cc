@@ -3599,7 +3599,7 @@ void Field_varstring::sql_type(String &res) const
 
 char *Field_varstring::pack(char *to, const char *from, uint max_length)
 {
-  uint length=uint2korr(to);
+  uint length=uint2korr(from);
   if (length > max_length)
     length=max_length;
   *to++= (length & 255);
@@ -4037,6 +4037,43 @@ void Field_blob::sql_type(String &res) const
 }
 
 
+char *Field_blob::pack(char *to, const char *from, uint max_length)
+{
+  char *save=ptr;
+  ptr=(char*) from;
+  ulong length=get_length();			// Length of from string
+  if (length > max_length)
+  {
+    ptr=to;
+    length=max_length;
+    store_length(length);			// Store max length
+    ptr=(char*) from;
+  }
+  else
+    memcpy(to,from,packlength);			// Copy length
+  if (length)
+  {
+    get_ptr((char**) &from);
+    memcpy(to+packlength, from,length);
+  }
+  ptr=save;					// Restore org row pointer
+  return to+packlength+length;
+}
+
+
+const char *Field_blob::unpack(char *to, const char *from)
+{
+  memcpy(to,from,packlength);
+  from+=packlength;
+  ulong length=get_length();
+  if (length)
+    memcpy_fixed(to+packlength, &from, sizeof(from));
+  else
+    bzero(to+packlength,sizeof(from));
+  return from+length;
+}
+
+
 /* Keys for blobs are like keys on varchars */
 
 int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
@@ -4087,10 +4124,33 @@ int Field_blob::pack_cmp(const char *b, uint key_length)
   return my_sortncmp(a,a_length, b,b_length);
 }
 
+/* Create a packed key that will be used for storage from a MySQL row */
 
 char *Field_blob::pack_key(char *to, const char *from, uint max_length)
 {
-  uint length=uint2korr(to);
+  char *save=ptr;
+  ptr=(char*) from;
+  ulong length=get_length();			// Length of from string
+  if (length > max_length)
+    length=max_length;
+  *to++= (uchar) length;
+  if (max_length > 255)				// 2 byte length
+    *to++= (uchar) (length >> 8);
+  if (length)
+  {
+    get_ptr((char**) &from);
+    memcpy(to, from, length);
+  }
+  ptr=save;					// Restore org row pointer
+  return to+length;
+}
+
+/* Create a packed key that will be used for storage from a MySQL key */
+
+char *Field_blob::pack_key_from_key_image(char *to, const char *from,
+					  uint max_length)
+{
+  uint length=uint2korr(from);
   if (length > max_length)
     length=max_length;
   *to++= (length & 255);
@@ -4100,6 +4160,7 @@ char *Field_blob::pack_key(char *to, const char *from, uint max_length)
     memcpy(to, from+2, length);
   return to+length;
 }
+
 
 /****************************************************************************
 ** enum type.

@@ -100,10 +100,12 @@ DO_GCOV=""
 DO_GDB=""
 DO_DDD=""
 SLEEP_TIME=2
+DBUSER=""
 
 while test $# -gt 0; do
   case "$1" in
-    --force )  FORCE=1 ;;
+    --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
+    --force)  FORCE=1 ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
@@ -209,9 +211,9 @@ fi
 if [ -n "$USE_RUNNING_SERVER" ]
 then
    MASTER_MYSOCK="/tmp/mysql.sock"
-   DBUSER=test
+   DBUSER=${DBUSER:-test}
 else
-   DBUSER=root		# We want to do FLUSH xxx commands
+   DBUSER=${DBUSER:-root}		# We want to do FLUSH xxx commands
 fi
 
 if [ -w / ]

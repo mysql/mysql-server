@@ -314,7 +314,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {					/* Impossible cond */
     error=return_zero_rows(result, tables, fields,
 			   join.tmp_table_param.sum_func_count != 0 && !group,
-			   select_options,"Impossible WHERE",join.having,
+			   select_options,"Impossible WHERE",having,
 			   procedure);
     delete procedure;
     DBUG_RETURN(error);
@@ -330,7 +330,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       {
 	error=return_zero_rows(result, tables, fields, !group,
 			       select_options,"No matching min/max row",
-			       join.having,procedure);
+			       having,procedure);
 	delete procedure;
 	DBUG_RETURN(error);
       }
@@ -383,7 +383,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {
     error=return_zero_rows(result,tables,fields,
 			   join.tmp_table_param.sum_func_count != 0 &&
-			   !group,0,"",join.having,procedure);
+			   !group,0,"",having,procedure);
     goto err;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
@@ -414,7 +414,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			   join.tmp_table_param.sum_func_count != 0 && !group,
 			   select_options,
 			   "Impossible WHERE noticed after reading const tables",
-			   join.having,procedure);
+			   having,procedure);
     goto err;
   }
 

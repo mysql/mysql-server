@@ -70,7 +70,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   }
   mem_per_row += MY_ALIGN(table->reclength+1, sizeof(char*));
   max_rows = (ulong) (max_heap_table_size / mem_per_row);
-  file=heap_open(table->path,mode,
+  file=heap_open(name,mode,
 		 table->keys,keydef,
 		 table->reclength,
 		 ((table->max_rows < max_rows && table->max_rows) ? 
@@ -278,5 +278,5 @@ int ha_heap::create(const char *name, TABLE *form, HA_CREATE_INFO *create_info)
 
 {
   char buff[FN_REFLEN];
-  return heap_create(fn_format(buff,name,"","",2));
+  return heap_create(fn_format(buff,name,"","",4+2));
 }
