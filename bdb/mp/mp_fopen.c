@@ -345,6 +345,23 @@ __memp_fopen_int(dbmfp, mfp, path, flags, mode, pagesize)
 	}
 
 	/*
+	 * Figure out the file's size.
+	 *
+	 * !!!
+	 * We can't use off_t's here, or in any code in the mainline library
+	 * for that matter.  (We have to use them in the os stubs, of course,
+	 * as there are system calls that take them as arguments.)  The reason
+	 * is some customers build in environments where an off_t is 32-bits,
+	 * but still run where offsets are 64-bits, and they pay us a lot of
+	 * money.
+	 */
+	if ((ret = __os_ioinfo(
+	    dbenv, rpath, dbmfp->fhp, &mbytes, &bytes, NULL)) != 0) {
+		__db_err(dbenv, "%s: %s", rpath, db_strerror(ret));
+		goto err;
+	}
+
+	/*
 	 * Get the file id if we weren't given one.  Generated file id's
 	 * don't use timestamps, otherwise there'd be no chance of any
 	 * other process joining the party.
@@ -470,6 +487,7 @@ alloc:	/* Allocate and initialize a new MPOOLFILE. */
 		F_SET(mfp, MP_DIRECT);
 	if (LF_ISSET(DB_EXTENT))
 		F_SET(mfp, MP_EXTENT);
+	F_SET(mfp, MP_CAN_MMAP);
 
 	if (path == NULL)
 		F_SET(mfp, MP_TEMP);
@@ -479,21 +497,6 @@ alloc:	/* Allocate and initialize a new MPOOLFILE. */
 		 * and find the number of the last page in the file, all the
 		 * time being careful not to overflow 32 bits.
 		 *
-		 * !!!
-		 * We can't use off_t's here, or in any code in the mainline
-		 * library for that matter.  (We have to use them in the os
-		 * stubs, of course, as there are system calls that take them
-		 * as arguments.)  The reason is that some customers build in
-		 * environments where an off_t is 32-bits, but still run where
-		 * offsets are 64-bits, and they pay us a lot of money.
-		 */
-		if ((ret = __os_ioinfo(
-		    dbenv, rpath, dbmfp->fhp, &mbytes, &bytes, NULL)) != 0) {
-			__db_err(dbenv, "%s: %s", rpath, db_strerror(ret));
-			goto err;
-		}
-
-		/*
 		 * During verify or recovery, we might have to cope with a
 		 * truncated file; if the file size is not a multiple of the
 		 * page size, round down to a page, we'll take care of the
@@ -582,7 +585,7 @@ check_map:
 	 * compiler will perpetrate, doing the comparison in a portable way is
 	 * flatly impossible.  Hope that mmap fails if the file is too large.
 	 */
-#define	DB_MAXMMAPSIZE	(10 * 1024 * 1024)	/* 10 Mb. */
+#define	DB_MAXMMAPSIZE	(10 * 1024 * 1024)	/* 10 MB. */
 	if (F_ISSET(mfp, MP_CAN_MMAP)) {
 		if (path == NULL)
 			F_CLR(mfp, MP_CAN_MMAP);
