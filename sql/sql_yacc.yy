@@ -216,6 +216,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NULL_SYM
 %token	NUM
 %token	ON
+%token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
 %token	OR
@@ -2151,6 +2152,11 @@ show_param:
 	    Lex->options|= SELECT_DESCRIBE;
 	    Lex->db= $3;
 	  }
+	| OPEN_SYM TABLES opt_db wild
+	  { Lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
+	    Lex->db= $3;
+	    Lex->options=0;
+	  }
 	| COLUMNS FROM table_ident opt_db wild
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -2513,6 +2519,7 @@ keyword:
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
 	| NO_SYM		{}
+	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PASSWORD		{}
 	| PROCESS		{}

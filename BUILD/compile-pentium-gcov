@@ -1,18 +1,9 @@
-AM_MAKEFLAGS="-j 2"
-make -k clean
-/bin/rm -f */.deps/*.P config.cache
+#! /bin/sh
 
-aclocal; autoheader; aclocal; automake; autoconf
+path=`dirname $0`
+. "$path/SETUP.sh"
 
-# If you are not using codefusion add "-Wpointer-arith" to WARNINGS
-# The following warning flag will give too many warnings:
-# -Wshadow -Wunused  (The later isn't usable in C++ as
-# __attribute()__ doesn't work with gnu C++)
+extra_flags="$pentium_cflags -O2 -fprofile-arcs -ftest-coverage"
+extra_configs="$pentium_configs $debug_configs"
 
-GLOBAL_WARNINGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts  -Wuninitialized -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings"
-C_WARNINGS="$GLOBAL_WARNINGS -Wunused"
-CC_WARNINGS="$GLOBAL_WARNINGS -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
-
-CFLAGS="-O2 -mpentiumpro -fprofile-arcs -ftest-coverage $C_WARNINGS" CXX=gcc CXXFLAGS="-O2 -mpentiumpro -fprofile-arcs -ftest-coverage -felide-constructors -fno-exceptions -fno-rtti $CC_WARNINGS" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex --with-debug=full
-make -j 2
-
+. "$path/FINISH.sh"

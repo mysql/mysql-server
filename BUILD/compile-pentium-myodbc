@@ -1,6 +1,12 @@
-make -k clean
-/bin/rm -f */.deps/*.P config.cache
+#! /bin/sh
 
-aclocal; autoheader; aclocal; automake; autoconf
+path=`dirname $0`
+. "$path/SETUP.sh"
 
-CFLAGS="-O6 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex --without-server
+extra_flags="$pentium_cflags $fast_cflags"
+extra_configs="$pentium_configs --without-server"
+
+make=no
+strip=yes
+
+. "$path/FINISH.sh"
