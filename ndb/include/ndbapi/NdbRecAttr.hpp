@@ -281,6 +281,8 @@ private:
   const NdbDictionary::Column* m_column;
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+
 inline
 NdbDictionary::Column::Type
 NdbRecAttr::getType() const {
@@ -456,6 +458,8 @@ NdbRecAttr::isNULL() const
 }
 
 class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
+
+#endif // ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
 #endif
 

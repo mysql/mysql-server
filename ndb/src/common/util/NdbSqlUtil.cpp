@@ -545,6 +545,15 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
   assert(! full);
   return CmpUnknown;
 #else
+  char t1[4], t2[4];
+  if (n1 == 3 && n2 == 3)
+  {
+    memcpy(t1, p1, 3);
+    memcpy(t2, p2, 3);
+    p1 = t1;
+    p2 = t2;
+    n1 = n2 = 4;
+  }
   if (n2 >= 4) {        // may access 4-th byte
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
