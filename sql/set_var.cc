@@ -90,6 +90,7 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
+static void fix_server_id(THD *thd, enum_var_type type);
 
 /*
   Variable definition list
@@ -235,7 +236,7 @@ sys_var_thd_bool
 sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
-sys_var_long_ptr	sys_server_id("server_id",&server_id);
+sys_var_long_ptr	sys_server_id("server_id", &server_id, fix_server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
@@ -811,6 +812,10 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type)
                         thd->variables.trans_prealloc_size);
 }
 
+static void fix_server_id(THD *thd, enum_var_type type)
+{
+  server_id_supplied = 1;
+}
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
