@@ -818,7 +818,7 @@ MySQL internals
 
 Credits
 
-* developers::                  
+* Developers::                  
 * Contributors::                
 
 MySQL change history
@@ -18275,8 +18275,7 @@ operations reuse old record positions. To reclaim unused space and reduce
 file sizes, use the @code{OPTIMIZE TABLE} statement or the @code{myisamchk}
 utility to reorganize tables.  @code{OPTIMIZE TABLE} is easier, but
 @code{myisamchk} is faster.
-@xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and
-@ref{Optimization}.
+See @ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimization}.
 
 The @strong{MySQL}-specific @code{LIMIT rows} option to @code{DELETE} tells
 the server the maximum number of rows to be deleted before control is
@@ -18308,7 +18307,7 @@ Doesn't return the number of deleted rows.
 @item
 As long as the table definition file @file{table_name.frm} is
 valid, the table can be re-created this way, even if the data or index
-files have become corrupted..
+files have become corrupted.
 @end table
 
 @findex SELECT
@@ -38345,15 +38344,15 @@ The following persons have helped us make MySQL what it's today
 
 @cindex developers, list of
 @menu
-* developers::                  
+* Developers::                  
 * Contributors::                
 @end menu
 
-@node developers, Contributors, Credits, Credits
-@appendixsubsec Delevopers at MySQL AB
+@node Developers, Contributors, Credits, Credits
+@appendixsubsec Developers at MySQL AB
 
-Developers that are or has been employed by MySQL AB to work on MySQL.
-(In about the order they started to work with us)
+Developers that are or have been employed by MySQL AB to work on MySQL.
+(In roughly the order they started to work with us)
 
 @table @asis
 @item Michael (Monty) Widenius
@@ -38501,29 +38500,29 @@ Proofreading and editing this fine manual.
 The new @strong{MySQL} GUI client.
 @end itemize
 
-@item Indrek Sitan
+@item Indrek Siitan
 @itemize @bullet
-Desinger/programmer of our web interface.
+Designer/programmer of our web interface.
 @end itemize
 @end table
 
-The following non developers are also working in/with MySQL AB
+The following non-developers are also working in/with MySQL AB
 
 @table @asis
 @item
-Hans Kierkegaard ; Resonsible for MySQL license handling.
+Hans Kierkegaard - Responsible for MySQL license handling.
 @item
-Antti Halonen ; Sales manager
+Antti Halonen - Sales manager.
 @item
-Jonas Norrman ; Handles licensing questions sent to @email{info@@mysql.com}.
+Jonas Norrman - Handles licensing questions sent to @email{info@@mysql.com}.
 @item
-Erik Granberg ; Handles MySQL partners (and a lot of other stuff)
+Erik Granberg - Handles MySQL partners (and a lot of other stuff).
 @item
 Allan Larsson (The BOSS for TCX DataKonsult AB).
 @end table
 
 @cindex contributors, list of
-@node Contributors,  , developers, Credits
+@node Contributors,  , Developers, Credits
 @appendixsubsec Contributors to MySQL
 
 Contributors to the @strong{MySQL} distribution are listed below, in
