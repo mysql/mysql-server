@@ -245,16 +245,17 @@ int main(int argc,char *argv[])
 	msg = strerror(code);
 
       /*
-        Don't print message for not existing error messages or for
-        unknown errors.  We test for 'Uknown Errors' just as an
-        extra safety for Netware
+        We don't print the OS error message if it is the same as the
+        unknown_error message we retrieved above, or it starts with
+        'Unknown Error' (without regard to case).
       */
-      if (msg && strcmp(msg, "Unknown Error") &&
+      if (msg &&
+          my_strnncoll(&my_charset_latin1, msg, 13, "Unknown Error", 13) &&
           (!unknown_error || strcmp(msg, unknown_error)))
       {
 	found=1;
 	if (verbose)
-	  printf("Error code %3d:  %s\n",code,msg);
+	  printf("OS error code %3d:  %s\n",code,msg);
 	else
 	  puts(msg);
       }
@@ -269,7 +270,7 @@ int main(int argc,char *argv[])
       else
       {
 	if (verbose)
-	  printf("MySQL error:  %3d = %s\n",code,msg);
+	  printf("MySQL error code %3d: %s\n",code,msg);
 	else
 	  puts(msg);
       }
