@@ -112,6 +112,7 @@ const char*  ResultSetContainer::getAttrName(int i) const  {return m_names[i];}
 
 int main(int argc, const char** argv) 
 {
+  ndb_init();
   Ndb* myNdb = new Ndb("ndbapi_example4"); // Object representing the database
   NdbConnection* myNdbConnection;          // For transactions
   NdbOperation* myNdbOperation;            // For operations

@@ -1528,6 +1528,7 @@ TESTCASE("UniqueNull",
 NDBT_TESTSUITE_END(testIndex);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testIndex.execute(argc, argv);
 }
 

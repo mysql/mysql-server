@@ -105,7 +105,6 @@ Configuration::init(int argc, const char** argv){
   }
   // check for depricated flag '-i'
 
-  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);

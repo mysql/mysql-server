@@ -1576,6 +1576,7 @@ TESTCASE("DictionaryPerf",
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){
+  ndb_init();
   // Tables should not be auto created
   testDict.setCreateTable(false);
   myRandom48Init(NdbTick_CurrentMillisecond());
