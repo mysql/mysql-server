@@ -3147,13 +3147,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   create_maintenance_thread();
 
-  printf(ER(ER_READY),my_progname,server_version,
-	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysqld_unix_port),
-	 mysqld_port);
-  if (MYSQL_COMPILATION_COMMENT[0] != '\0')
-    fputs("  " MYSQL_COMPILATION_COMMENT, stdout);
-  putchar('\n');
-  fflush(stdout);
+  sql_print_information(ER(ER_READY),my_progname,server_version,
+	                ((unix_sock == INVALID_SOCKET) ? (char*) ""
+                                                       : mysqld_unix_port),
+	                 mysqld_port,
+                         MYSQL_COMPILATION_COMMENT);
 
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
@@ -4566,7 +4564,7 @@ Disable with --skip-isam.",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc-size", OPT_LOG_TC_SIZE, "Size of transaction coordinator log.",
    (gptr*) &opt_tc_log_size, (gptr*) &opt_tc_log_size, 0, GET_ULONG,
-   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0, 0, TC_LOG_PAGE_SIZE, 0},
+   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0L, 0, TC_LOG_PAGE_SIZE, 0},
   {"log-update", OPT_UPDATE_LOG,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option justs turns on --log-bin instead.",
