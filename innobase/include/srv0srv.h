@@ -80,6 +80,8 @@ extern ulint	srv_max_dirty_pages_pct;
 extern ulint	srv_force_recovery;
 extern ulint	srv_thread_concurrency;
 
+extern ulint    srv_max_n_threads;
+
 extern lint	srv_conc_n_threads;
 
 extern ibool	srv_fast_shutdown;

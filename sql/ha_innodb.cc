@@ -17,11 +17,6 @@
 /* This file defines the InnoDB handler: the interface between MySQL and
 InnoDB */
 
-/* TODO list for the InnoDB handler:
-  - Ask Monty if strings of different languages can exist in the same
-    database. Answer: in 4.1 yes.
-*/
-
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
