@@ -172,6 +172,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     }
   }
   thd->user_connect=uc;
+  uc->connections++;
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   return return_val;
@@ -314,14 +315,15 @@ int check_user(THD *thd, enum enum_server_command command,
       thd->db_access=0;
 
       /* Don't allow user to connect if he has done too many queries */
-      if ((ur.questions || ur.updates ||
-           ur.connections || max_user_connections) &&
-          get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
-        DBUG_RETURN(-1);
-      if (thd->user_connect && (thd->user_connect->user_resources.connections ||
-            max_user_connections) &&
-          check_for_max_user_connections(thd, thd->user_connect))
-        DBUG_RETURN(-1);
+      if ((ur.questions || ur.updates || ur.connections ||
+	   max_user_connections) &&
+	  get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
+	DBUG_RETURN(-1);
+      if (thd->user_connect &&
+	  (thd->user_connect->user_resources.connections ||
+	   max_user_connections) &&
+	  check_for_max_user_connections(thd, thd->user_connect))
+	DBUG_RETURN(-1);
 
       /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
       if (db && db[0])
@@ -386,42 +388,84 @@ void init_max_user_conn(void)
 }
 
 
+/*
+  check if user has already too many connections
+  
+  SYNOPSIS
+  check_for_max_user_connections()
+  thd			Thread handle
+  uc			User connect object
+
+  NOTES
+    If check fails, we decrease user connection count, which means one
+    shouldn't call decrease_user_connections() after this function.
+
+  RETURN
+    0	ok
+    1	error
+*/
+
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
 
+  (void) pthread_mutex_lock(&LOCK_user_conn);
   if (max_user_connections &&
-      (max_user_connections <  (uint) uc->connections))
+      max_user_connections < (uint) uc->connections)
   {
     net_printf(thd,ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
-  uc->connections++;
   if (uc->user_resources.connections &&
-      uc->conn_per_hour++ >= uc->user_resources.connections)
+      uc->user_resources.connections <= uc->conn_per_hour)
   {
     net_printf(thd, ER_USER_LIMIT_REACHED, uc->user,
 	       "max_connections",
 	       (long) uc->user_resources.connections);
     error=1;
+    goto end;
   }
-end:
+  uc->conn_per_hour++;
+
+  end:
+  if (error)
+    uc->connections--; // no need for decrease_user_connections() here
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
 
+/*
+  Decrease user connection count
+
+  SYNOPSIS
+    decrease_user_connections()
+    uc			User connection object
+
+  NOTES
+    If there is a n user connection object for a connection
+    (which only happens if 'max_user_connections' is defined or
+    if someone has created a resource grant for a user), then
+    the connection count is always incremented on connect.
+
+    The user connect object is not freed if some users has
+    'max connections per hour' defined as we need to be able to hold
+    count over the lifetime of the connection.
+*/
+
 static void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
-  if ((uc->connections && !--uc->connections) && !mqh_used)
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+  DBUG_ASSERT(uc->connections);
+  if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) pthread_mutex_lock(&LOCK_user_conn);
     (void) hash_delete(&hash_user_connections,(byte*) uc);
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
 }
 
@@ -1041,7 +1085,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 
   if (!db || check_db_name(db))
   {
-    net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
+    net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), db ? db : "NULL");
     goto err;
   }
   if (lower_case_table_names)
@@ -1227,15 +1271,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_user= thd->user;
     char *save_priv_user= thd->priv_user;
     char *save_db= thd->db;
-    USER_CONN *save_uc= thd->user_connect;
-    thd->user= my_strdup(user, MYF(0));
-    if (!thd->user)
+    USER_CONN *save_user_connect= thd->user_connect;
+    
+    if (!(thd->user= my_strdup(user, MYF(0))))
     {
       thd->user= save_user;
       send_error(thd, ER_OUT_OF_RESOURCES);
       break;
     }
 
+    /* Clear variables that are allocated */
+    thd->user_connect= 0;
     int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, false);
 
     if (res)
@@ -1246,6 +1292,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       x_free(thd->user);
       thd->user= save_user;
       thd->priv_user= save_priv_user;
+      thd->user_connect= save_user_connect;
       thd->master_access= save_master_access;
       thd->db_access= save_db_access;
       thd->db= save_db;
@@ -1254,8 +1301,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
     {
       /* we've authenticated new user */
-      if (max_connections && save_uc)
-        decrease_user_connections(save_uc);
+      if (save_user_connect)
+	decrease_user_connections(save_user_connect);
       x_free((gptr) save_db);
       x_free((gptr) save_user);
     }
@@ -1382,7 +1429,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
       {
-	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
+	net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), db ? db : "NULL");
 	break;
       }
       if (check_access(thd,CREATE_ACL,db,0,1,0))
@@ -1398,7 +1445,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
       {
-	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
+	net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), db ? db : "NULL");
 	break;
       }
       if (check_access(thd,DROP_ACL,db,0,1,0))
@@ -1777,6 +1824,16 @@ mysql_execute_command(THD *thd)
 	res= mysql_explain_union(thd, &thd->lex.unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
+	if (lex->describe & DESCRIBE_EXTENDED)
+	{
+	  char buff[1024];
+	  String str(buff,(uint32) sizeof(buff), system_charset_info);
+	  str.length(0);
+	  thd->lex.unit.print(&str);
+	  str.append('\0');
+	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		       ER_YES, str.ptr());
+	}
 	result->send_eof();
 	thd->lock= save_lock;
       }
@@ -1989,7 +2046,7 @@ mysql_execute_command(THD *thd)
 #endif
     if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(thd,ER_WRONG_TABLE_NAME,tables->real_name);
+      net_printf(thd,ER_WRONG_NAME, ER(ER_TABLE), tables->real_name);
       break;
     }
     LOCK_ACTIVE_MI;
@@ -2034,7 +2091,7 @@ mysql_execute_command(THD *thd)
 #endif
     if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(thd, ER_WRONG_TABLE_NAME, tables->alias);
+      net_printf(thd, ER_WRONG_NAME, ER(ER_TABLE), tables->alias);
       res=0;
       break;
     }
@@ -2166,7 +2223,7 @@ mysql_execute_command(THD *thd)
       ulong priv=0;
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
-	net_printf(thd,ER_WRONG_TABLE_NAME,lex->name);
+	net_printf(thd, ER_WRONG_NAME, ER(ER_TABLE), lex->name);
 	res=0;
 	break;
       }
@@ -2740,7 +2797,7 @@ mysql_execute_command(THD *thd)
       remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
-        net_printf(thd,ER_WRONG_DB_NAME, db);
+        net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), db);
         goto error;
       }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -2905,7 +2962,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd,ER_WRONG_DB_NAME, lex->name);
+      net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), lex->name);
       break;
     }
     /*
@@ -2933,7 +2990,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd,ER_WRONG_DB_NAME, lex->name);
+      net_printf(thd, ER_WRONG_NAME, ER(ER_DATABASE), lex->name);
       break;
     }
     /*
@@ -2966,7 +3023,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd,ER_WRONG_DB_NAME, lex->name);
+      net_printf(thd, ER_WRONG_NAME, ER(ER_DATABASE), lex->name);
       break;
     }
     if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
@@ -2983,7 +3040,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd,ER_WRONG_DB_NAME, lex->name);
+      net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), lex->name);
       break;
     }
     if (check_access(thd,DROP_ACL,lex->name,0,1,0))
@@ -4049,7 +4106,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       {
 	char *not_used;
 	uint not_used2;
-  bool not_used3;
+	bool not_used3;
 
 	thd->cuted_fields=0;
 	String str,*res;
@@ -4079,7 +4136,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       {
 	String str,*res;
 	res=default_value->val_str(&str);
-	if (!find_enum(interval,res->ptr(),res->length()))
+	res->strip_sp();
+	if (!find_type(interval, res->ptr(), res->length(), 0))
 	{
 	  net_printf(thd,ER_INVALID_DEFAULT,field_name);
 	  DBUG_RETURN(1);
@@ -4232,7 +4290,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
-    net_printf(thd,ER_WRONG_TABLE_NAME,table->table.str);
+    net_printf(thd, ER_WRONG_NAME, ER(ER_TABLE), table->table.str);
     DBUG_RETURN(0);
   }
 
@@ -4586,7 +4644,7 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
   if (strlen(*filename_ptr)+strlen(table_name) >= FN_REFLEN-1 ||
       !test_if_hard_path(*filename_ptr))
   {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), *filename_ptr);
+    my_error(ER_WRONG_NAME, MYF(0), ER(ER_TABLE), *filename_ptr);
     return 1;
   }
   /* Fix is using unix filename format on dos */
@@ -4626,39 +4684,39 @@ bool check_simple_select()
 }
 
 
-compare_func_creator comp_eq_creator(bool invert)
+Comp_creator *comp_eq_creator(bool invert)
 {
-  return invert?&Item_bool_func2::ne_creator:&Item_bool_func2::eq_creator;
+  return invert?(Comp_creator *)&ne_creator:(Comp_creator *)&eq_creator;
 }
 
 
-compare_func_creator comp_ge_creator(bool invert)
+Comp_creator *comp_ge_creator(bool invert)
 {
-  return invert?&Item_bool_func2::lt_creator:&Item_bool_func2::ge_creator;
+  return invert?(Comp_creator *)&lt_creator:(Comp_creator *)&ge_creator;
 }
 
 
-compare_func_creator comp_gt_creator(bool invert)
+Comp_creator *comp_gt_creator(bool invert)
 {
-  return invert?&Item_bool_func2::le_creator:&Item_bool_func2::gt_creator;
+  return invert?(Comp_creator *)&le_creator:(Comp_creator *)&gt_creator;
 }
 
 
-compare_func_creator comp_le_creator(bool invert)
+Comp_creator *comp_le_creator(bool invert)
 {
-  return invert?&Item_bool_func2::gt_creator:&Item_bool_func2::le_creator;
+  return invert?(Comp_creator *)&gt_creator:(Comp_creator *)&le_creator;
 }
 
 
-compare_func_creator comp_lt_creator(bool invert)
+Comp_creator *comp_lt_creator(bool invert)
 {
-  return invert?&Item_bool_func2::ge_creator:&Item_bool_func2::lt_creator;
+  return invert?(Comp_creator *)&ge_creator:(Comp_creator *)&lt_creator;
 }
 
 
-compare_func_creator comp_ne_creator(bool invert)
+Comp_creator *comp_ne_creator(bool invert)
 {
-  return invert?&Item_bool_func2::eq_creator:&Item_bool_func2::ne_creator;
+  return invert?(Comp_creator *)&eq_creator:(Comp_creator *)&ne_creator;
 }
 
 
@@ -4687,7 +4745,7 @@ Item * all_any_subquery_creator(Item *left_expr,
     return new Item_func_not(new Item_in_subselect(left_expr, select_lex));
 
   Item_allany_subselect *it=
-    new Item_allany_subselect(left_expr, (*cmp)(all), select_lex);
+    new Item_allany_subselect(left_expr, (*cmp)(all), select_lex, all);
   if (all)
     return it->upper_not= new Item_func_not_all(it);	/* ALL */
 

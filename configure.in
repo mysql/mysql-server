@@ -731,7 +731,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h)
+ sys/ioctl.h malloc.h sys/malloc.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
@@ -1832,7 +1832,7 @@ AC_CHECK_FUNCS(alarm bmove \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
  pthread_attr_getstacksize \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- fchmod getpass getpassphrase initgroups mlockall)
+ fsync fdatasync fchmod getpass getpassphrase initgroups mlockall)
 
 CFLAGS="$ORG_CFLAGS"
 

@@ -105,8 +105,71 @@ public:
     Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
   */
   longlong val_int();
-  const char *func_name() const { return "IN_OPTIMIZER"; }
+  const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
+};
+
+class Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const = 0;
+  virtual const char* symbol(bool invert) const = 0;
+  virtual bool eqne_op() const = 0;
+  virtual bool l_op() const = 0;
+};
+
+class Eq_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "<>" : "="; }
+  virtual bool eqne_op() const { return 1; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Ne_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "=" : "<>"; }
+  virtual bool eqne_op() const { return 1; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Gt_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "<=" : ">"; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Lt_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? ">=" : "<"; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 1; }
+};
+
+class Ge_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "<" : ">="; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Le_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? ">" : "<="; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 1; }
 };
 
 class Item_bool_func2 :public Item_int_func
@@ -128,13 +191,6 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-
-  static Item_bool_func2* eq_creator(Item *a, Item *b);
-  static Item_bool_func2* ne_creator(Item *a, Item *b);
-  static Item_bool_func2* gt_creator(Item *a, Item *b);
-  static Item_bool_func2* lt_creator(Item *a, Item *b);
-  static Item_bool_func2* ge_creator(Item *a, Item *b);
-  static Item_bool_func2* le_creator(Item *a, Item *b);
 
   friend class  Arg_comparator;
 };
@@ -162,12 +218,15 @@ class Item_func_not_all :public Item_func_not
 {
   bool abort_on_null;
 public:
-  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0) {}
+  bool show;
+
+  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0), show(0) {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
-  const char *func_name() const { return "not_all"; }
+  const char *func_name() const { return "<not>"; }
+  void print(String *str);
 };
 
 class Item_func_eq :public Item_bool_rowready_func2
@@ -272,6 +331,7 @@ public:
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
   void fix_length_and_dec();
+  void print(String *str);
 };
 
 
@@ -354,6 +414,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
+  void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
 };
 
@@ -714,7 +775,7 @@ public:
   {}
   enum Functype functype() const { return ISNOTNULLTEST_FUNC; }
   longlong val_int();
-  const char *func_name() const { return "is_not_null_test"; }
+  const char *func_name() const { return "<is_not_null_test>"; }
   void update_used_tables();
 };
 
@@ -733,6 +794,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   table_map not_null_tables() const { return 0; }
   Item *neg_transformer();
+  void print(String *str);
 };
 
 
@@ -785,7 +847,8 @@ public:
   ~Item_func_regex();
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
-  const char *func_name() const { return "regex"; }
+  const char *func_name() const { return "regexp"; }
+  void print(String *str) { print_op(str); }
 };
 
 #else
@@ -796,6 +859,7 @@ public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b) {}
   longlong val_int() { return 0;}
   const char *func_name() const { return "regex"; }
+  void print(String *str) { print_op(str); }
 };
 
 #endif /* USE_REGEX */

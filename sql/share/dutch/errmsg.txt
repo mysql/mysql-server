@@ -278,21 +278,26 @@ character-set=latin1
 "Record count is more than the column count at row %ld";
 "Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
 "Data truncated, out of range for column '%s' at row %ld";
-"Data truncated for column '%s' at row %ld"
+"Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-"Can't drop one or more of the requested users"
-"Can't revoke all privileges, grant for one or more of the requested users"
+"Can't drop one or more of the requested users",
+"Can't revoke all privileges, grant for one or more of the requested users",
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
-"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format"
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
+"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
-"Wrong parameter or combination of parameters for START SLAVE UNTIL"
-"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
-"SQL thread is not to be started so UNTIL options are ignored"
-"Incorrect index name '%-.100s'",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL",
+"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart",
+"SQL thread is not to be started so UNTIL options are ignored",
+"Incorrect %s name '%-.100s'",
+"table",
+"database",
+"column",
+"index",
+"catalog",
 "Query cache failed to set size %lu, new query cache size is %lu",
-"Column '%-.64s' cannot be part of FULLTEXT index"
+"Column '%-.64s' cannot be part of FULLTEXT index",

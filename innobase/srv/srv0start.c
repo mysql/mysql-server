@@ -553,7 +553,6 @@ open_or_create_log_file(
 	ulint	i)			/* in: log file number in group */
 {
 	ibool	ret;
-	ulint	arch_space_id;
 	ulint	size;
 	ulint	size_high;
 	char	name[10000];
@@ -649,9 +648,10 @@ open_or_create_log_file(
 
 	fil_node_create(name, srv_log_file_size,
 				2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
-
+#ifdef notdefined
 	/* If this is the first log group, create the file space object
-	for archived logs */
+	for archived logs.
+	Under MySQL, no archiving ever done. */
 
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
@@ -661,12 +661,13 @@ open_or_create_log_file(
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}
-
+#endif
 	if (i == 0) {
 		log_group_init(k, srv_n_log_files,
 				srv_log_file_size * UNIV_PAGE_SIZE,
 				2 * k + SRV_LOG_SPACE_FIRST_ID,
-				arch_space_id);
+				SRV_LOG_SPACE_FIRST_ID + 1); /* dummy arch
+								space id */
 	}
 
 	return(DB_SUCCESS);
@@ -1000,7 +1001,6 @@ innobase_start_or_create_for_mysql(void)
 	dulint	max_flushed_lsn;
 	ulint	min_arch_log_no;
 	ulint	max_arch_log_no;
-	ibool	start_archive;
 	ulint   sum_of_new_sizes;
 	ulint	sum_of_data_file_sizes;
 	ulint	tablespace_size_in_header;
@@ -1156,7 +1156,7 @@ NetWare. */
 				  assume fewer threads. */
 		srv_max_n_threads = 10000;
 	} else {
-	srv_max_n_threads = 1000;	/* saves several MB of memory,
+	        srv_max_n_threads = 1000;	/* saves several MB of memory,
 						especially in 64-bit
 						computers */
 	}
@@ -1164,6 +1164,28 @@ NetWare. */
 	/* Note that the call srv_boot() also changes the values of
 	srv_pool_size etc. to the units used by InnoDB internally */
 
+        /* Set the maximum number of threads which can wait for a semaphore
+        inside InnoDB */
+#if defined(__WIN__) || defined(__NETWARE__)
+
+/* Create less event semaphores because Win 98/ME had difficulty creating
+40000 event semaphores.
+Comment from Novell, Inc.: also, these just take a lot of memory on
+NetWare. */
+        srv_max_n_threads = 1000;
+#else
+        if (srv_pool_size >= 8 * 1024 * 1024) {
+                                  /* Here we still have srv_pool_size counted
+                                  in bytes, srv_boot converts the value to
+                                  pages; if buffer pool is less than 8 MB,
+                                  assume fewer threads. */
+                srv_max_n_threads = 10000;
+        } else {
+		srv_max_n_threads = 1000;       /* saves several MB of memory,
+                                                especially in 64-bit
+                                                computers */
+        }
+#endif
 	err = srv_boot();
 
 	if (err != DB_SUCCESS) {
@@ -1341,7 +1363,9 @@ NetWare. */
 
 		mutex_enter(&(log_sys->mutex));
 
-		recv_reset_logs(max_flushed_lsn, max_arch_log_no + 1, TRUE);
+		/* Do not + 1 arch_log_no because we do not use log
+		archiving */
+		recv_reset_logs(max_flushed_lsn, max_arch_log_no, TRUE);
 		
 		mutex_exit(&(log_sys->mutex));
 	}
@@ -1430,6 +1454,8 @@ NetWare. */
 
 	log_make_checkpoint_at(ut_dulint_max, TRUE);
 
+#ifdef notdefined
+	/* Archiving is always off under MySQL */
 	if (!srv_log_archive_on) {
 		ut_a(DB_SUCCESS == log_archive_noarchivelog());
 	} else {
@@ -1447,7 +1473,7 @@ NetWare. */
 			ut_a(DB_SUCCESS == log_archive_archivelog());
 		}
 	}
-
+#endif
 	if (!create_new_db && srv_force_recovery == 0) {
 		/* After a crash recovery we only check that the info in data
 		dictionary is consistent with what we already know about space

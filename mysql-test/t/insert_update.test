@@ -23,4 +23,6 @@ INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0;
 SELECT * FROM t1;
 INSERT t1 VALUES (2,1,11), (7,4,40) ON DUPLICATE KEY UPDATE c=c+VALUES(a);
 SELECT *, VALUES(a) FROM t1;
+explain extended SELECT *, VALUES(a) FROM t1;
+explain extended select * from t1 where values(a);
 DROP TABLE t1;

@@ -74,3 +74,4 @@ f
 5
 7
 drop table t1,t2;
+create temporary table t3 (f int);

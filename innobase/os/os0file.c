@@ -595,6 +595,51 @@ next_file:
 #endif
 }
 
+/*********************************************************************
+This function attempts to create a directory named pathname. The new directory
+gets default permissions. On Unix the permissions are (0770 & ~umask). If the
+directory exists already, nothing is done and the call succeeds, unless the
+fail_if_exists arguments is true. */
+
+ibool
+os_file_create_directory(
+/*=====================*/
+				/* out: TRUE if call succeeds, FALSE on
+				error */
+	char*	pathname,	/* in: directory name as null-terminated
+				string */
+	ibool	fail_if_exists)	/* in: if TRUE, pre-existing directory is
+				treated as an error. */
+{
+#ifdef __WIN__
+	BOOL	rcode;
+    
+	rcode = CreateDirectory(pathname, NULL);
+	if (!(rcode != 0 ||
+		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
+		/* failure */
+		os_file_handle_error(NULL, pathname, "CreateDirectory");
+
+		return(FALSE);
+	}
+        
+	return (TRUE);
+#else
+	int	rcode;
+
+	rcode = mkdir(pathname, 0770);
+
+	if (!(rcode == 0 || (errno == EEXIST && !fail_if_exists))) {
+		/* failure */
+		os_file_handle_error(0, pathname, "mkdir");
+
+		return(FALSE);
+	}
+        
+	return (TRUE);
+#endif    
+}
+
 /********************************************************************
 A simple function to open or create a file. */
 
@@ -602,7 +647,8 @@ os_file_t
 os_file_create_simple(
 /*==================*/
 			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with os_get_last_error */
+			error number can be retrieved with
+			os_file_get_last_error */
 	char*	name,	/* in: name of the file or path as a null-terminated
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
@@ -714,13 +760,16 @@ os_file_t
 os_file_create_simple_no_error_handling(
 /*====================================*/
 			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with os_get_last_error */
+			error number can be retrieved with
+			os_file_get_last_error */
 	char*	name,	/* in: name of the file or path as a null-terminated
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
 			(if does not exist, error), or OS_FILE_CREATE if a new
 			file is created (if exists, error) */
-	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
+	ulint	access_type,/* in: OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
+			OS_FILE_READ_ALLOW_DELETE; the last option is used by
+			a backup program reading the file */
 	ibool*	success)/* out: TRUE if succeed, FALSE if error */
 {
 #ifdef __WIN__
@@ -728,6 +777,7 @@ os_file_create_simple_no_error_handling(
 	DWORD		create_flag;
 	DWORD		access;
 	DWORD		attributes	= 0;
+	DWORD		share_mode	= FILE_SHARE_READ;
 	
 	ut_a(name);
 
@@ -744,6 +794,13 @@ os_file_create_simple_no_error_handling(
 		access = GENERIC_READ;
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
+	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
+		access = GENERIC_READ;
+		share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ
+			   | FILE_SHARE_WRITE;  /* A backup program has to give
+						mysqld the maximum freedom to
+						do what it likes with the
+						file */
 	} else {
 		access = 0;
 		ut_error;
@@ -751,8 +808,7 @@ os_file_create_simple_no_error_handling(
 
 	file = CreateFile(name,
 			access,
-			FILE_SHARE_READ,/* file can be read also by other
-					processes */
+			share_mode,
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -808,7 +864,8 @@ os_file_t
 os_file_create(
 /*===========*/
 			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with os_get_last_error */
+			error number can be retrieved with
+			os_file_get_last_error */
 	char*	name,	/* in: name of the file or path as a null-terminated
 			string */
 	ulint	create_mode, /* in: OS_FILE_OPEN if an existing file is opened
@@ -896,7 +953,7 @@ try_again:
 					start 2 instances of mysqld on the
 					SAME files, that could cause severe
 					database corruption! When opening
-					raw disk partitions Microsoft manuals
+					raw disk partitions, Microsoft manuals
 					say that we must give also the write
 					permission. */
 			NULL,	/* default security attributes */
@@ -1017,6 +1074,10 @@ os_file_delete(
 {
 #ifdef __WIN__
 	BOOL	ret;
+	ulint	count	= 0;
+loop:
+	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
+	it */
 
 	ret = DeleteFile((LPCTSTR)name);
 
@@ -1024,9 +1085,31 @@ os_file_delete(
 		return(TRUE);
 	}
 
-	os_file_handle_error(NULL, name, "delete");
+	if (GetLastError() == ERROR_PATH_NOT_FOUND) {
+		/* If the file does not exist, we classify this as a 'mild'
+		error and return */
 
-	return(FALSE);
+		return(FALSE);
+	}
+
+	count++;
+
+	if (count > 100 && 0 == (count % 10)) {
+		fprintf(stderr,
+"InnoDB: Warning: cannot delete file %s\n"
+"InnoDB: Are you running ibbackup to back up the file?\n", name);
+		
+		os_file_get_last_error(TRUE); /* print error information */
+	}
+
+	os_thread_sleep(1000000);	/* sleep for a second */
+
+	if (count > 2000) {
+
+		return(FALSE);
+	}
+
+	goto loop;
 #else
 	int	ret;
 
@@ -1103,6 +1186,7 @@ os_file_close(
 	}
 
 	os_file_handle_error(file, NULL, "close");
+
 	return(FALSE);
 #else
 	int	ret;
@@ -1111,6 +1195,7 @@ os_file_close(
 
 	if (ret == -1) {
 		os_file_handle_error(file, NULL, "close");
+
 		return(FALSE);
 	}
 
@@ -3010,7 +3095,15 @@ consecutive_loop:
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
 		if (array == os_aio_write_array) {
-
+			if ((total_len % UNIV_PAGE_SIZE != 0)
+			    || (slot->offset % UNIV_PAGE_SIZE != 0)) {
+				fprintf(stderr,
+"InnoDB: Error: trying a displaced write to %s %lu %lu, len %lu\n",
+					slot->name, slot->offset_high,
+					slot->offset, total_len);
+				ut_a(0);
+			}
+			  
 			/* Do a 'last millisecond' check that the page end
 			is sensible; reported page checksum errors from
 			Linux seem to wipe over the page end */

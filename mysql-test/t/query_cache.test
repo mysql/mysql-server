@@ -3,6 +3,7 @@
 #
 # Tests with query cache
 #
+set GLOBAL query_cache_size=1355776;
 
 # Reset query cache variables.
 
@@ -11,7 +12,7 @@ flush query cache; # This crashed in some versions
 reset query cache;
 flush status;
 --disable_warnings
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,t11,t21;
 drop database if exists mysqltest;
 --enable_warnings
 
@@ -184,6 +185,7 @@ select RAND() from t1;
 select UNIX_TIMESTAMP() from t1;
 select USER() from t1;
 select benchmark(1,1) from t1;
+explain extended select benchmark(1,1) from t1;
 show status like "Qcache_queries_in_cache";
 #
 # Tests when the cache is filled
@@ -489,6 +491,55 @@ SET OPTION SQL_SELECT_LIMIT=DEFAULT;
 drop table t1;
 
 #
+# query cache crash on using same table twice in one query test
+#
+flush query cache;
+reset query cache;
+flush status;
+set GLOBAL query_cache_size=1048576;
+
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a text not null);
+create table t3 (a text not null);
+insert into t3 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+drop table t2;
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+create table t4 (a int not null);
+insert into t4 values (1),(2),(3);
+
+disable_result_log;
+select * from t4;
+select * from t2;
+select * from t1 as tt, t1 as ttt  where tt.a=1 and ttt.a=2;
+select * from t2;
+select * from t4;
+select * from t1 as tt, t1 as ttt  where tt.a=1 and ttt.a=2;
+select * from t2;
+select * from t4;
+select * from t1 as tt, t1 as ttt  where tt.a=1 and ttt.a=2;
+
+delete from t2 where a=1;
+flush query cache;
+select * from t3;
+enable_result_log;
+delete from t4 where a=1;
+flush query cache;
+
+drop table t1,t2,t3,t4;
+
+#
 # Test character set related variables:
 #   character_set_result
 #   character_set_client
@@ -534,3 +585,4 @@ show status like "Qcache_queries_in_cache";
 # Keep things tidy
 #
 DROP TABLE t1;
+SET GLOBAL query_cache_size=0;

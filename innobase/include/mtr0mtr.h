@@ -96,7 +96,13 @@ flag value must give the length also! */
 						sequence of these records */
 #define MLOG_DUMMY_RECORD	((byte)32)	/* dummy log record used to
 						pad a log block full */
-#define MLOG_BIGGEST_TYPE	((byte)32) 	/* biggest value (used in
+#define MLOG_FILE_CREATE	((byte)33)	/* log record about an .ibd
+						file creation */
+#define MLOG_FILE_RENAME	((byte)34)	/* log record about an .ibd
+						file rename */
+#define MLOG_FILE_DELETE	((byte)35)	/* log record about an .ibd
+						file deletion */
+#define MLOG_BIGGEST_TYPE	((byte)35) 	/* biggest value (used in
 						asserts) */
 					
 /*******************************************************************

@@ -20,81 +20,34 @@ extern ibool	ut_dbg_stop_threads;
 
 extern ulint*	ut_dbg_null_ptr;
 
+extern const char*	ut_dbg_msg_assert_fail;
+extern const char*	ut_dbg_msg_trap;
+extern const char*	ut_dbg_msg_stop;
+
 #define ut_a(EXPR)\
-{\
-	ulint	dbg_i;\
-\
 	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
                 ut_print_timestamp(stderr);\
-	   	fprintf(stderr,\
-       "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
+	   	fprintf(stderr, ut_dbg_msg_assert_fail,\
 		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
                 (ulint)__LINE__);\
-		fprintf(stderr,\
-       "InnoDB: Failing assertion: " #EXPR);\
-	   	fprintf(stderr,\
-       "\nInnoDB: We intentionally generate a memory trap.\n");\
-                fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
+		fputs("InnoDB: Failing assertion: " #EXPR "\n", stderr);\
+		fputs(ut_dbg_msg_trap, stderr);\
 		ut_dbg_stop_threads = TRUE;\
-		dbg_i = *(ut_dbg_null_ptr);\
-	   	if (dbg_i) {\
-			ut_dbg_null_ptr = NULL;\
-		}\
+		(*ut_dbg_null_ptr)++;\
 	}\
 	if (ut_dbg_stop_threads) {\
-	        fprintf(stderr,\
-                     "InnoDB: Thread %lu stopped in file %s line %lu\n",\
+	        fprintf(stderr, ut_dbg_msg_stop,\
      os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
 		os_thread_sleep(1000000000);\
-	}\
-}
+	}
 
-/* This can be used if there are % characters in the assertion formula:
-if we try to printf the formula gcc would complain of illegal print
-format characters */
-#define ut_anp(EXPR)\
-{\
-	ulint	dbg_i;\
-\
-	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
-                ut_print_timestamp(stderr);\
-	   	fprintf(stderr,\
-       "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
-		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
-                (ulint)__LINE__);\
-	   	fprintf(stderr,\
-       "\nInnoDB: We intentionally generate a memory trap.\n");\
-                fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
-		ut_dbg_stop_threads = TRUE;\
-		dbg_i = *(ut_dbg_null_ptr);\
-	   	if (dbg_i) {\
-			ut_dbg_null_ptr = NULL;\
-		}\
-	}\
-	if (ut_dbg_stop_threads) {\
-	        fprintf(stderr,\
-                     "InnoDB: Thread %lu stopped in file %s line %lu\n",\
-     os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
-		os_thread_sleep(1000000000);\
-	}\
-}
-
-#define ut_error {\
-	ulint	dbg_i;\
-           ut_print_timestamp(stderr);\
-	   fprintf(stderr,\
-	  "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
- os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
-	   fprintf(stderr,\
-		   "InnoDB: We intentionally generate a memory trap.\n");\
-           fprintf(stderr,\
-            "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
-	   ut_dbg_stop_threads = TRUE;\
-	   dbg_i = *(ut_dbg_null_ptr);\
-	   printf("%lu", dbg_i);\
-}
+#define ut_error\
+        ut_print_timestamp(stderr);\
+	fprintf(stderr, ut_dbg_msg_assert_fail,\
+	os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
+	fprintf(stderr, ut_dbg_msg_trap);\
+	ut_dbg_stop_threads = TRUE;\
+	(*ut_dbg_null_ptr)++;
 
 #ifdef UNIV_DEBUG
 #define ut_ad(EXPR)  	ut_a(EXPR)

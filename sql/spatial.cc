@@ -1258,6 +1258,7 @@ int GMultiPolygon::geometry_n(uint32 num, String *result) const
   uint32 n_polygons;
   const char *data= m_data, *polygon_n;
   LINT_INIT(polygon_n);
+
   if (no_data(data, 4))
     return 1;
   n_polygons= uint4korr(data);

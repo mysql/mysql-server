@@ -1419,7 +1419,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
   my_socket	sock;
-  uint32	ip_addr;
+  in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;

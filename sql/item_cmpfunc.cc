@@ -59,27 +59,38 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
-Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
+
+Item_bool_func2* Eq_creator::create(Item *a, Item *b) const
 {
   return new Item_func_eq(a, b);
 }
-Item_bool_func2* Item_bool_func2::ne_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Ne_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ne(a, b);
 }
-Item_bool_func2* Item_bool_func2::gt_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Gt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_gt(a, b);
 }
-Item_bool_func2* Item_bool_func2::lt_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Lt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_lt(a, b);
 }
-Item_bool_func2* Item_bool_func2::ge_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Ge_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ge(a, b);
 }
-Item_bool_func2* Item_bool_func2::le_creator(Item *a, Item *b)
+
+
+Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 {
   return new Item_func_le(a, b);
 }
@@ -111,6 +122,14 @@ longlong Item_func_not_all::val_int()
   }
   null_value= args[0]->null_value;
   return (!null_value && value == 0) ? 1 : 0;
+}
+
+void Item_func_not_all::print(String *str)
+{
+  if (show)
+    Item_func::print(str);
+  else
+    args[0]->print(str);
 }
 
 /*
@@ -707,6 +726,18 @@ longlong Item_func_between::val_int()
   return 0;
 }
 
+
+void Item_func_between::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(" between ", 9);
+  args[1]->print(str);
+  str->append(" and ", 5);
+  args[2]->print(str);
+  str->append(')');
+}
+
 void
 Item_func_ifnull::fix_length_and_dec()
 {
@@ -863,7 +894,7 @@ Item_func_nullif::fix_length_and_dec()
 }
 
 /*
-  nullif () returns NULL if arguments are different, else it returns the
+  nullif () returns NULL if arguments are equal, else it returns the
   first argument.
   Note that we have to evaluate the first argument twice as the compare
   may have been done with a different type than return value
@@ -1100,7 +1131,27 @@ void Item_func_case::fix_length_and_dec()
 
 void Item_func_case::print(String *str)
 {
-  str->append("case ");				// Not yet complete
+  str->append("(case ", 6);
+  if (first_expr_num != -1)
+  {
+    args[first_expr_num]->print(str);
+    str->append(' ');
+  }
+  for (uint i=0 ; i < ncases ; i+=2)
+  {
+    str->append("when ", 5);
+    args[i]->print(str);
+    str->append(" then ", 6);
+    args[i+1]->print(str);
+    str->append(' ');
+  }
+  if (else_expr_num != -1)
+  {
+    str->append("else ", 5);
+    args[else_expr_num]->print(str);
+    str->append(' ');
+  }
+  str->append("end)", 4);
 }
 
 /*
@@ -1507,8 +1558,10 @@ void Item_func_in::fix_length_and_dec()
 void Item_func_in::print(String *str)
 {
   str->append('(');
-  Item_func::print(str);
-  str->append(')');
+  args[0]->print(str);
+  str->append(" in (", 5);
+  print_args(str, 1);
+  str->append("))", 2);
 }
 
 
@@ -1614,7 +1667,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   */
   and_tables_cache= ~(table_map) 0;
 
-  if (thd && check_stack_overrun(thd,buff))
+  if (check_stack_overrun(thd, buff))
     return 1;					// Fatal error flag is set!
   while ((item=li++))
   {
@@ -1643,8 +1696,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (item->maybe_null)
       maybe_null=1;
   }
-  if (thd)
-    thd->lex.current_select->cond_count+=list.elements;
+  thd->lex.current_select->cond_count+=list.elements;
   fix_length_and_dec();
   fixed= 1;
   return 0;
@@ -1882,9 +1934,18 @@ void Item_is_not_null_test::update_used_tables()
   }
 }
 
+
 longlong Item_func_isnotnull::val_int()
 {
   return args[0]->is_null() ? 0 : 1;
+}
+
+
+void Item_func_isnotnull::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(" is not null)", 13);
 }
 
 

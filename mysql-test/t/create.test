@@ -40,9 +40,9 @@ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null
 
 -- error 1044,1
 create table not_existing_database.test (a int);
---error 1103
+--error 1279
 create table `a/a` (a int);
---error 1103
+--error 1279
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
 --error 1059
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
@@ -66,11 +66,11 @@ create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
 
---error 1103
+--error 1279
 create table `` (a int);
---error 1103
+--error 1279
 drop table if exists ``;
---error 1166
+--error 1279
 create table t1 (`` int);
 --error 1279
 create table t1 (i int, index `` (i)); 
@@ -254,12 +254,16 @@ create table t2 like t3;
 show create table t2;
 select * from t2;
 create table t3 like t1;
-!$1050 create table t3 like test_$1.t3;
+--error 1050
+create table t3 like test_$1.t3;
 --error 1044,1
 create table non_existing_database.t1 like t1;
-!$1051 create table t3 like non_existing_table;
-!$1050 create temporary table t3 like t1;
-!$1103 create table t3 like `a/a`;
+--error 1051
+create table t3 like non_existing_table;
+--error 1050
+create temporary table t3 like t1;
+--error 1279
+create table t3 like `a/a`;
 drop table t1, t2, t3;
 drop table t3;
 drop database test_$1;

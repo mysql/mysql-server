@@ -654,6 +654,17 @@ void Item_func_concat_ws::update_used_tables()
   const_item_cache&=separator->const_item();
 }
 
+void Item_func_concat_ws::print(String *str)
+{
+  str->append("concat_ws(", 10);
+  separator->print(str);
+  if (arg_count)
+  {
+    str->append(',');
+    print_args(str, 0);
+  }
+  str->append(')');
+}
 
 String *Item_func_reverse::val_str(String *str)
 {
@@ -1613,6 +1624,19 @@ String *Item_func_format::val_str(String *str)
 }
 
 
+void Item_func_format::print(String *str)
+{
+  str->append("format(", 7);
+  args[0]->print(str);
+  str->append(',');  
+  // my_charset_bin is good enough for numbers
+  char buffer[20];
+  String st(buffer, sizeof(buffer), &my_charset_bin);
+  st.set((ulonglong)decimals, &my_charset_bin);
+  str->append(st);
+  str->append(')');
+}
+
 void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
@@ -1761,6 +1785,19 @@ String *Item_func_make_set::val_str(String *str)
     }
   }
   return result;
+}
+
+
+void Item_func_make_set::print(String *str)
+{
+  str->append("make_set(", 9);
+  item->print(str);
+  if (arg_count)
+  {
+    str->append(',');
+    print_args(str, 0);
+  }
+  str->append(')');
 }
 
 
@@ -2077,7 +2114,14 @@ void Item_func_conv_charset::fix_length_and_dec()
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
 }
 
-
+void Item_func_conv_charset::print(String *str)
+{
+  str->append("convert(", 8);
+  args[0]->print(str);
+  str->append(" using ", 7);
+  str->append(conv_charset->csname);
+  str->append(')');
+}
 
 String *Item_func_conv_charset3::val_str(String *str)
 {
@@ -2268,6 +2312,14 @@ String *Item_func_hex::val_str(String *str)
     to[1]=_dig_vec[tmp & 15];
   }
   return &tmp_value;
+}
+
+
+void Item_func_binary::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as binary)", 11);
 }
 
 
@@ -2524,7 +2576,15 @@ longlong Item_func_uncompressed_length::val_int()
   }
   null_value=0;
   if (res->is_empty()) return 0;
-  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
+
+  /*
+    res->ptr() using is safe because we have tested that string is not empty,
+    res->c_ptr() is not used because:
+      - we do not need \0 terminated string to get first 4 bytes
+      - c_ptr() tests simbol after string end (uninitialiozed memory) which
+        confuse valgrind
+  */
+  return uint4korr(res->ptr()) & 0x3FFFFFFF;
 }
 
 longlong Item_func_crc32::val_int()
@@ -2570,10 +2630,12 @@ String *Item_func_compress::val_str(String *str)
   ulong new_size= (ulong)((res->length()*120)/100)+12;
 
   buffer.realloc((uint32)new_size + 4 + 1);
-  Byte *body= ((Byte*)buffer.c_ptr()) + 4;
+  Byte *body= ((Byte*)buffer.ptr()) + 4;
 
+
+  // As far as we have checked res->is_empty() we can use ptr()
   if ((err= compress(body, &new_size,
-		     (const Bytef*)res->c_ptr(), res->length())) != Z_OK)
+		     (const Bytef*)res->ptr(), res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
     push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
@@ -2581,7 +2643,7 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
 
-  char *tmp= buffer.c_ptr();	// int4store is a macro; avoid side effects
+  char *tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
   int4store(tmp, res->length() & 0x3FFFFFFF);
 
   /* This is for the stupid char fields which trim ' ': */
@@ -2593,46 +2655,46 @@ String *Item_func_compress::val_str(String *str)
   }
 
   buffer.length((uint32)new_size + 4);
-
   return &buffer;
 }
+
 
 String *Item_func_uncompress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
-  if (!res)
-  {
-    null_value= 1;
-    return 0;
-  }
-  if (res->is_empty()) return res;
-
-  ulong new_size= uint4korr(res->c_ptr()) & 0x3FFFFFFF;
-  int err= Z_OK;
+  ulong new_size;
+  int err;
   uint code;
 
+  if (!res)
+    goto err;
+  if (res->is_empty())
+    return res;
+
+  new_size= uint4korr(res->ptr()) & 0x3FFFFFFF;
   if (new_size > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
                         current_thd->variables.max_allowed_packet);
-    null_value= 0;
-    return 0;
+    goto err;
   }
+  if (buffer.realloc((uint32)new_size))
+    goto err;
 
-  buffer.realloc((uint32)new_size);
-
-  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size,
-		       ((const Bytef*)res->c_ptr())+4,res->length())) == Z_OK)
+  if ((err= uncompress((Byte*)buffer.ptr(), &new_size,
+		       ((const Bytef*)res->ptr())+4,res->length())) == Z_OK)
   {
-    buffer.length((uint32)new_size);
+    buffer.length((uint32) new_size);
     return &buffer;
   }
 
-  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR :
-    err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR;
+  code= ((err == Z_BUF_ERROR) ? ER_ZLIB_Z_BUF_ERROR :
+	 ((err == Z_MEM_ERROR) ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR));
   push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+
+err:
   null_value= 1;
   return 0;
 }

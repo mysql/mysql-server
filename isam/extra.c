@@ -250,17 +250,15 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
     pthread_mutex_unlock(&THR_LOCK_isam);
     break;
   case HA_EXTRA_FLUSH:
-#ifdef __WIN__
     if (info->s->not_flushed)
     {
       info->s->not_flushed=0;
-      if (_commit(info->s->kfile))
-	error=errno;
-      if (_commit(info->dfile))
-	error=errno;
+      if (my_sync(info->s->kfile, MYF(0)))
+	error= my_errno;
+      if (my_sync(info->dfile, MYF(0)))
+	error= my_errno;
     }
     break;
-#endif
   case HA_EXTRA_NORMAL:				/* Theese isn't in use */
   case HA_EXTRA_QUICK:
   case HA_EXTRA_KEY_CACHE:

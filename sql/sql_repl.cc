@@ -625,7 +625,7 @@ Increase max_allowed_packet on master";
 	goto err;
       }
       packet->length(0);
-      packet->append("\0",1);
+      packet->append('\0');
     }
   }
 

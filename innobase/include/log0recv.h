@@ -175,17 +175,14 @@ recv_apply_hashed_log_recs(
 				disk and invalidated in buffer pool: this
 				alternative means that no new log records
 				can be generated during the application */
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Applies log records in the hash table to a backup. */
 
 void
-recv_apply_log_recs_for_backup(
-/*===========================*/
-	ulint	n_data_files,	/* in: number of data files */
-	char**	data_files,	/* in: array containing the paths to the
-				data files */
-	ulint*	file_sizes);	/* in: sizes of the data files in database
-				pages */
+recv_apply_log_recs_for_backup(void);
+/*================================*/
+#endif
 /************************************************************
 Recovers from archived log files, and also from log files, if they exist. */
 

@@ -48,6 +48,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't read value for symlink '%s' (Error %d)",
   "Can't create symlink '%s' pointing at '%s' (Error %d)",
   "Error on realpath() on '%s' (Error %d)",
+  "Can't sync file '%s' to disk (Errcode: %d)",
 };
 
 void init_glob_errs(void)
@@ -84,8 +85,9 @@ void init_glob_errs()
   EE(EE_CANT_MKDIR)	="Can't create directory '%s' (Errcode: %d)";
   EE(EE_UNKNOWN_CHARSET)= "Character set '%s' is not a compiled character set and is not specified in the %s file";
   EE(EE_OUT_OF_FILERESOURCES)="Out of resources when opening file '%s' (Errcode: %d)";
-  EE(EE_CANT_READLINK)="Can't read value for symlink '%s' (Error %d)";
-  EE(EE_CANT_SYMLINK)="Can't create symlink '%s' pointing at '%s' (Error %d)";
-  EE(EE_REALPATH)="Error on realpath() on '%s' (Error %d)";
+  EE(EE_CANT_READLINK)=	"Can't read value for symlink '%s' (Error %d)";
+  EE(EE_CANT_SYMLINK)=	"Can't create symlink '%s' pointing at '%s' (Error %d)";
+  EE(EE_REALPATH)=	"Error on realpath() on '%s' (Error %d)";
+  EE(EE_SYNC)=		"Can't sync file '%s' to disk (Errcode: %d)";
 }
 #endif

@@ -289,4 +289,5 @@ public:
     str_length+= arg_length;
     return FALSE;
   }
+  void print(String *print);
 };

@@ -260,7 +260,7 @@ explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by null;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
-explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
 select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result score,count(*) from t1 group by score desc;

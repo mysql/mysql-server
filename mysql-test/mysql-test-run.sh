@@ -337,13 +337,23 @@ while test $# -gt 0; do
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
-    --valgrind)
-      VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
+    --valgrind | --valgrind-all)
+      VALGRIND=`which valgrind` # this will print an error if not found
+      # Give good warning to the user and stop
+      if [ -z "$VALGRIND" ] ; then
+        $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://developer.kde.org/~sewardj ."
+        exit 1
+      fi
+      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=60
       USE_RUNNING_SERVER=""
+      if test "$1" = "--valgrind-all"
+      then
+        VALGRIND="$VALGRIND -v --show-reachable=yes"
+      fi
       ;;
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
@@ -394,7 +404,7 @@ SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
-SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
+SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
 export MASTER_MYPORT
 export SLAVE_MYPORT
@@ -795,13 +805,13 @@ manager_launch()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-    $@  >> $CUR_MYERR 2>&1  &
+    $@  >> $CUR_MYERR 2>&1 &
     sleep 2 #hack
     return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
-def_exec $ident $@
+def_exec $ident "$@"
 set_exec_stdout $ident $CUR_MYERR
 set_exec_stderr $ident $CUR_MYERR
 set_exec_con $ident root localhost $CUR_MYSOCK
@@ -1163,7 +1173,7 @@ run_testcase ()
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
-  many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
+  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
 
  if [ -n "$SKIP_TEST" ] ; then

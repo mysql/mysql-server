@@ -27,8 +27,6 @@ class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
 
-typedef Item_bool_func2* (*compare_func_creator)(Item*, Item*);
-
 /* base class for subselects */
 
 class Item_subselect :public Item_result_field
@@ -92,13 +90,7 @@ public:
   inline table_map get_used_tables_cache() { return used_tables_cache; }
   inline bool get_const_item_cache() { return const_item_cache; }
   void update_used_tables();
-  void print(String *str)
-  {
-    if (name)
-      str->append(name);
-    else
-      str->append("-subselect-");
-  }
+  void print(String *str);
   bool change_engine(subselect_engine *eng)
   {
     engine= eng;
@@ -147,9 +139,11 @@ public:
 /* used in static ALL/ANY optimisation */
 class Item_maxmin_subselect :public Item_singlerow_subselect
 {
+  bool max;
 public:
   Item_maxmin_subselect(Item_subselect *parent,
 			st_select_lex *select_lex, bool max);
+  void print(String *str);
 };
 
 /* exists subselect */
@@ -174,6 +168,7 @@ public:
   double val();
   String *val_str(String*);
   void fix_length_and_dec();
+  void print(String *str);
 
   friend class select_exists_subselect;
   friend class subselect_uniquesubquery_engine;
@@ -194,12 +189,15 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
+  bool transformed;
 public:
   Item_func_not_all *upper_not; // point on NOT before ALL subquery
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
+    :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_not(0)
+     
+  {}
 
   subs_type substype() { return IN_SUBS; }
   void reset() 
@@ -210,13 +208,14 @@ public:
   }
   trans_res select_transformer(JOIN *join);
   trans_res single_value_transformer(JOIN *join,
-				     compare_func_creator func);
+				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
   longlong val_int();
   double val();
   String *val_str(String*);
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
+  void print(String *str);
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
@@ -228,15 +227,18 @@ public:
 class Item_allany_subselect :public Item_in_subselect
 {
 protected:
-  compare_func_creator func;
+  Comp_creator *func;
 
 public:
-  Item_allany_subselect(Item * left_expr, compare_func_creator f,
-		     st_select_lex *select_lex);
+  bool all;
+
+  Item_allany_subselect(Item * left_expr, Comp_creator *f,
+		     st_select_lex *select_lex, bool all);
 
   // only ALL subquery has upper not
   subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
+  void print(String *str);
 };
 
 
@@ -274,6 +276,7 @@ public:
   bool may_be_null() { return maybe_null; };
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
+  virtual void print(String *str)= 0;
 };
 
 
@@ -296,6 +299,7 @@ public:
   bool uncacheable();
   void exclude();
   table_map upper_select_const_tables();
+  void print (String *str);
 };
 
 
@@ -314,6 +318,7 @@ public:
   bool uncacheable();
   void exclude();
   table_map upper_select_const_tables();
+  void print (String *str);
 };
 
 
@@ -341,6 +346,7 @@ public:
   bool uncacheable() { return 1; }
   void exclude();
   table_map upper_select_const_tables() { return 0; }
+  void print (String *str);
 };
 
 
@@ -357,4 +363,5 @@ public:
      check_null(chk_null)
   {}
   int exec();
+  void print (String *str);
 };
