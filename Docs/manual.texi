@@ -29905,7 +29905,7 @@ unless otherwise indicated in the documentation for the operators and
 functions involved in the expression.
 
 @strong{Note:} There must be no whitespace between a function name and the
-parenthesis following it. This helps the MySQL parser distinguish
+parentheses following it. This helps the MySQL parser distinguish
 between function calls and references to tables or columns that happen to
 have the same name as a function.  Spaces around arguments are permitted,
 though.
@@ -29952,14 +29952,14 @@ mysql> SELECT MOD(29,9);
 @subsection Non-Type-Specific Operators and Functions
 
 @menu
-* Parenthesis::                 Parentheses
+* Parentheses::                 Parentheses
 * Comparison Operators::        Comparison Operators
 * Logical Operators::           Logical Operators
 * Control flow functions::      Control Flow Functions
 @end menu
 
 
-@node Parenthesis, Comparison Operators, Non-typed Operators, Non-typed Operators
+@node Parentheses, Comparison Operators, Non-typed Operators, Non-typed Operators
 @subsubsection Parentheses
 
 @findex () (parentheses)
@@ -29984,7 +29984,7 @@ mysql> SELECT (1+2)*3;
 
 
 
-@node Comparison Operators, Logical Operators, Parenthesis, Non-typed Operators
+@node Comparison Operators, Logical Operators, Parentheses, Non-typed Operators
 @subsubsection Comparison Operators
 
 @findex comparison operators

@@ -30852,13 +30852,13 @@ mysql> select MOD(29,9);
 
 
 @menu
-* Parenthesis::                 
+* Parentheses::                 
 * Comparison Operators::        
 * Logical Operators::           
 * Control flow functions::      
 @end menu
 
-@node Parenthesis, Comparison Operators, Non-typed Operators, Non-typed Operators
+@node Parentheses, Comparison Operators, Non-typed Operators, Non-typed Operators
 @c German node Klammer
 @subsubsection Klammer
 
@@ -30884,7 +30884,7 @@ mysql> select (1+2)*3;
 
 
 
-@node Comparison Operators, Logical Operators, Parenthesis, Non-typed Operators
+@node Comparison Operators, Logical Operators, Parentheses, Non-typed Operators
 @c German node Vergleichsoperatoren
 @subsubsection Vergleichsoperatoren
 
