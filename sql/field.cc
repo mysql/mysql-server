@@ -4425,23 +4425,7 @@ void Field_string::sql_type(String &res) const
   res.length(length);
 }
 
-
 char *Field_string::pack(char *to, const char *from, uint max_length)
-{
-  const char *end=from+min(field_length,max_length);
-  uint length;
-  while (end > from && end[-1] == ' ')
-    end--;
-  length= (end-from);
-  *to++= (char) (uchar) length;
-  if (field_length > 255)
-    *to++= (char) (uchar) (length >> 8);
-  memcpy(to, from, (int) length);
-  return to+length;
-}
-
-
-char *Field_string::pack_key(char *to, const char *from, uint max_length)
 {
   uint length=      min(field_length,max_length);
   uint char_length= max_length/field_charset->mbmaxlen;

@@ -796,6 +796,11 @@ insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 a	b
 2	foobar
+alter table t1 engine=bdb;
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
+drop table t1;
 drop table t1;
 create table t1 (
 a enum('петя','вася','анюта') character set utf8 not null default 'анюта',
