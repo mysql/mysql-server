@@ -168,6 +168,14 @@ explain select * from t1 where a='aaab';
 explain select * from t1 where a='aaac';
 explain select * from t1 where a='aaad';
 insert into t1 select * from t1;
+
+explain select * from t1 where a='aaaa';
+explain select * from t1 where a='aaab';
+explain select * from t1 where a='aaac';
+explain select * from t1 where a='aaad';
+
+# a known effect: table reload causes statistics to be updated:
+flush tables;
 explain select * from t1 where a='aaaa';
 explain select * from t1 where a='aaab';
 explain select * from t1 where a='aaac';
@@ -203,7 +211,6 @@ insert into t1 (name) values ('Matt'), ('Lilu'), ('Corbin'), ('Carly'),
   ('Suzy'), ('Hoppy'), ('Burrito'), ('Mimi'), ('Sherry'), ('Ben'), ('Phil'), 
   ('Emily'), ('Mike');
 insert into t2 select * from t1;
-
 explain select * from t1 where name='matt';
 explain select * from t2 where name='matt';
 
@@ -222,12 +229,11 @@ insert into t1 (name) select name from t2;
 insert into t1 (name) select name from t2;
 insert into t1 (name) select name from t2;
 insert into t1 (name) select name from t2;
-
+flush tables;
 select count(*) from t1 where name='Matt';
 explain select * from t1 ignore index (btree_idx) where name='matt';
 show index from t1;
 
-flush tables;
 show index from t1;
 
 create table t3
@@ -238,8 +244,10 @@ create table t3
 ) engine=heap;
 insert into t3 select name, name from t1;
 show index from t3;
-flush tables;
 show index from t3;
 
-drop table t1,t2;
+# test rec_per_key use for joins.
+explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a = concat('',t1.name) and t3.b=t1.name;
+
+drop table t1, t2, t3;
 
