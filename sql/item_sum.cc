@@ -1232,6 +1232,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       }
     }
 
+    if (use_tree)
+      delete_tree(tree);
     init_tree(tree, min(thd->variables.max_heap_table_size,
 			thd->variables.sortbuff_size/16), 0,
 	      key_length, compare_key, 0, NULL, cmp_arg);
@@ -1850,6 +1852,9 @@ bool Item_func_group_concat::setup(THD *thd)
   } 
   rec_offset = table->reclength - key_length;
 
+
+  if (tree_mode)
+    delete_tree(tree);
   /*
     choise function of sort
   */  
