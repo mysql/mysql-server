@@ -465,23 +465,27 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if ((view->updatable_view= (can_be_merged &&
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
-    if (thd->lex->select_lex.table_list.elements > 1)
-      view->updatable_view= 0;
-    else
+    // TODO: change here when we will support UNIONs
+    for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
+	 tbl;
+	 tbl= tbl->next_local)
     {
-      // TODO: change here when we will support UNIONs
-      for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
-           tbl;
-           tbl= tbl->next_local)
+      if (tbl->view && !tbl->updatable_view)
       {
-        if (tbl->view && !tbl->updatable_view)
-        {
-          view->updatable_view= 0;
-          break;
-        }
+	view->updatable_view= 0;
+	break;
+      }
+      for (TABLE_LIST *up= tbl; up; up= up->embedding)
+      {
+	if (up->outer_join)
+	{
+	  view->updatable_view= 0;
+	  goto loop_out;
+	}
       }
     }
   }
+loop_out:
   if (sql_create_definition_file(&dir, &file, view_file_type,
 				 (gptr)view, view_parameters, 3))
   {
@@ -701,9 +705,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
          old_lex->can_use_merged()) &&
         !old_lex->can_not_use_merged())
     {
-      /*
-        TODO: support multi tables substitutions
-      */
       /* lex should contain at least one table */
       DBUG_ASSERT(view_tables != 0);
 
@@ -736,7 +737,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       /* multi table view */
       if (view_tables->next_local)
       {
-        table->updatable= 0;
         /* make nested join structure for view tables */
         NESTED_JOIN *nested_join;
         if (!(nested_join= table->nested_join=
@@ -919,14 +919,16 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   uint i, elements_in_view;
   DBUG_ENTER("check_key_in_view");
 
-  if (!view->view)
+  if (!view->view && !view->belong_to_view)
     DBUG_RETURN(FALSE); /* it is normal table */
   table= view->table;
+  if (view->belong_to_view)
+    view= view->belong_to_view;
   trans= view->field_translation;
   key_info_end= (key_info= table->key_info)+ table->keys;
 
   elements_in_view= view->view->select_lex.item_list.elements;
-  DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
+  DBUG_ASSERT(table != 0 && view->field_translation != 0);
 
   /* Loop over all keys to see if a unique-not-null key is used */
   for (;key_info != key_info_end ; key_info++)
@@ -1002,21 +1004,30 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     insert_view_fields()
     list      list for insertion
     view      view for processing
+
+  RETURN
+    0  - OK
+    -1 - error (is not sent to cliet)
 */
 
-void insert_view_fields(List<Item> *list, TABLE_LIST *view)
+int insert_view_fields(List<Item> *list, TABLE_LIST *view)
 {
   uint elements_in_view= view->view->select_lex.item_list.elements;
   Field_translator *trans;
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
 
   for (uint i= 0; i < elements_in_view; i++)
   {
     if (trans[i].item->type() == Item::FIELD_ITEM)
       list->push_back(trans[i].item);
+    else
+    {
+      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), view->alias, "INSERT");
+      DBUG_RETURN(-1);
+    }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }

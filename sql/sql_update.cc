@@ -87,6 +87,28 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
+/*
+  Process usual UPDATE
+
+  SYNOPSIS
+    mysql_update()
+    thd			thread handler
+    fields		fields for update
+    values		values of fields for update
+    conds		WHERE clause expression
+    order_num		number of elemen in ORDER BY clause
+    order		ORDER BY clause list
+    limit		limit clause
+    handle_duplicates	how to handle duplicates
+
+  RETURN
+    0  - OK
+    2  - privilege check and openning table passed, but we need to convert to
+         multi-update because of view substitution
+    1  - error and error sent to client
+    -1 - error and error is not sent to client
+*/
+
 int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
@@ -96,7 +118,7 @@ int mysql_update(THD *thd,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates)
 {
-  bool 		using_limit=limit != HA_POS_ERROR;
+  bool		using_limit=limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
@@ -117,6 +139,15 @@ int mysql_update(THD *thd,
 
   if ((error= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(error);
+
+  if (table_list->table == 0)
+  {
+    DBUG_ASSERT(table_list->view &&
+		table_list->ancestor && table_list->ancestor->next_local);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* convert to multiupdate */
+    return 2;
+  }
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -626,12 +657,30 @@ int mysql_multi_update_prepare(THD *thd)
   if (tables_for_update & readonly_tables)
   {
     // find readonly table/view which cause error
-    for (tl= leaves; tl; tl= tl->next_local)
+    for (tl= leaves; tl; tl= tl->next_leaf)
     {
       if ((readonly_tables & tl->table->map) &&
           (tables_for_update & tl->table->map))
       {
-	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
+	TABLE_LIST *table= tl->belong_to_view ? tl->belong_to_view : tl;
+	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table->alias, "UPDATE");
+	DBUG_RETURN(-1);
+      }
+    }
+  }
+
+  /* check single table update for view compound from several tables */
+  for (tl= table_list; tl; tl= tl->next_local)
+  {
+    if (tl->table == 0)
+    {
+      DBUG_ASSERT(tl->view &&
+		  tl->ancestor && tl->ancestor->next_local);
+      TABLE_LIST *for_update= 0;
+      if (tl->check_single_table(&for_update, tables_for_update))
+      {
+	my_error(ER_VIEW_MULTIUPDATE, MYF(0),
+		 tl->view_db.str, tl->view_name.str);
 	DBUG_RETURN(-1);
       }
     }
@@ -647,19 +696,22 @@ int mysql_multi_update(THD *thd,
 		       COND *conds,
 		       ulong options,
 		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+		       bool converted)
 {
-  int res;
+  int res= 0;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res= open_and_lock_tables(thd, table_list)))
+  if (!converted && (res= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(res);
 
   if ((res= mysql_multi_update_prepare(thd)))
     DBUG_RETURN(res);
 
-  if (!(result= new multi_update(thd, table_list, fields, values,
+  if (!(result= new multi_update(thd, table_list,
+				 thd->lex->select_lex.leaf_tables,
+				 fields, values,
 				 handle_duplicates)))
     DBUG_RETURN(-1);
 
@@ -677,12 +729,14 @@ int mysql_multi_update(THD *thd,
 
 
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
+			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
 			   enum enum_duplicates handle_duplicates_arg)
-  :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
-   updated(0), found(0), fields(field_list), values(value_list),
-   table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0), transactional_tables(1)
+  :all_tables(table_list), leaves(leaves_list), update_tables(0),
+   thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
+   values(value_list), table_count(0), copy_field(0),
+   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
+   transactional_tables(1)
 {}
 
 
@@ -730,7 +784,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
 
   update.empty();
-  for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
+  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
     /* TODO: add support of view of join support */
     TABLE *table=table_ref->table;
@@ -800,7 +854,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     which will cause an error when reading a row.
     (This issue is mostly relevent for MyISAM tables)
   */
-  for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
+  for (table_ref= leaves;  table_ref; table_ref= table_ref->next_leaf)
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) &&

@@ -1744,6 +1744,95 @@ err:
 }
 
 
+/*
+  Find table in underlaying tables by mask and check that only this
+  table sbelong to given mask
+
+  SYNOPSIS
+    st_table_list::check_single_table()
+    table	reference on variable where to store found table
+		(should be 0 on call, to find table, or point to table for
+		unique test)
+    map         bit mask of tables
+
+  RETURN
+    0 table not found or found only one
+    1 found several tables
+*/
+
+bool st_table_list::check_single_table(st_table_list **table, table_map map)
+{
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->table)
+    {
+      if (tbl->table->map & map)
+      {
+	if (*table)
+	  return 1;
+	else
+	  *table= tbl;
+      }
+    }
+    else
+      if (tbl->check_single_table(table, map))
+	return 1;
+  }
+}
+
+
+/*
+  Set insert_values buffer
+
+  SYNOPSIS
+    set_insert_values()
+    mem_root   memory pool for allocating
+
+  RETURN
+    FALSE - OK
+    TRUE  - out of memory
+*/
+
+bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
+{
+  if (table)
+  {
+    if (!table->insert_values &&
+        !(table->insert_values= (byte *)alloc_root(mem_root,
+                                                   table->rec_buff_length)))
+      return TRUE;
+  }
+  else
+  {
+    DBUG_ASSERT(view && ancestor && ancestor->next_local);
+    for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+      if (tbl->set_insert_values(mem_root))
+        return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  clear insert_values reference
+
+    SYNOPSIS
+    clear_insert_values()
+*/
+
+void st_table_list::clear_insert_values()
+{
+  if (table)
+    table->insert_values= 0;
+  else
+  {
+    DBUG_ASSERT(view && ancestor && ancestor->next_local);
+    for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+      tbl->clear_insert_values();
+  }
+}
+
+
 void Field_iterator_view::set(TABLE_LIST *table)
 {
   ptr= table->field_translation;

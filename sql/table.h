@@ -277,6 +277,9 @@ typedef struct st_table_list
   void print(THD *thd, String *str);
   void save_and_clear_want_privilege();
   void restore_want_privilege();
+  bool check_single_table(st_table_list **table, table_map map);
+  bool set_insert_values(MEM_ROOT *mem_root);
+  void clear_insert_values();
   inline st_table_list *next_independent()
   {
     if (view)
