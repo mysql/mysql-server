@@ -818,6 +818,12 @@ a
 1
 2
 4
+alter table t1 add b int;
+select * from t1;
+a	b
+1	NULL
+2	NULL
+4	NULL
 drop table t1;
 create table t1
 (
