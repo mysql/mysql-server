@@ -1078,8 +1078,30 @@ static void init_signals(void)
 
 #ifdef HAVE_LINUXTHREADS
 static sig_handler write_core(int sig);
+
 #ifdef __i386__
 #define SIGRETURN_FRAME_COUNT  1
+#define PTR_SANE(p) ((char*)p >= heap_start && (char*)p <= heap_end)
+
+extern char* __bss_start;
+static char* heap_start, *heap_end;
+
+inline static __volatile__ void print_str(const char* name,
+					  const char* val, int max_len)
+{
+  fprintf(stderr, "%s at %p ", name, val);
+  if(!PTR_SANE(val))
+    {
+      fprintf(stderr, " is invalid pointer\n");
+      return;
+    }
+
+  fprintf(stderr, "= ");
+  for(; max_len && PTR_SANE(val) && *val; --max_len)
+    fputc(*val++, stderr);
+  fputc('\n', stderr);
+}
+
 inline static __volatile__ void  trace_stack()
 {
   uchar **stack_bottom;
@@ -1136,7 +1158,18 @@ New value of ebp failed sanity check terminating backtrace\n");
     ++frame_count;
   }
 
-  fprintf(stderr, "stack trace successful\n"); 
+  fprintf(stderr, "stack trace successful, now will try to get some\n\
+variables. Some pointers may be invalid and cause dump abort\n");
+  heap_start = __bss_start; 
+  heap_end = (char*)sbrk(0);
+  print_str("thd->query", thd->query, 1024);
+  fprintf(stderr, "thd->thread_id = %ld\n", thd->thread_id);
+  fprintf(stderr, "successfully dumped variables, if you ran with --log\n \
+take a look at the details of what thread %ld did to cause the crash.\n\
+In some cases of really bad corruption, this value can be invalid \n",
+	  thd->thread_id);
+  fprintf(stderr, "Please use the information above to create a repeatable\n\
+test case for the crash, and send it to bugs@lists.mysql.com\n");
 }
 #endif
 #endif
@@ -1195,6 +1228,8 @@ static void init_signals(void)
    sa.sa_handler=handle_segfault;
 #endif
   sigaction(SIGSEGV, &sa, NULL);
+  sigaction(SIGBUS, &sa, NULL);
+  sigaction(SIGILL, &sa, NULL);
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
   sigset(SIGPIPE,abort_thread);
