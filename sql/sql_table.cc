@@ -939,8 +939,7 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
   net_store_data(packet, "error");
   net_store_data(packet, errmsg);
   thd->net.last_error[0]=0;
-  if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		   packet->length()))
+  if (SEND_ROW(thd, &thd->net, 4, (char*) thd->packet.ptr(), packet->length()))
     return -1;
   return 1;
 }
@@ -1150,6 +1149,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
     packet->length(0);
     net_store_data(packet, table_name);
     net_store_data(packet, operator_name);

@@ -793,6 +793,7 @@ net_field_length(uchar **packet)
   return (ulong) uint4korr(pos+1);
 }
 
+
 bool select_send::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
@@ -956,7 +957,7 @@ int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
   result->prev_ptr= &cur->next;
   to= (char*) (cur->data+n_fields+1);
   cp= (uchar *)data;
-  end_field= cur->data + n_fields + 1;
+  end_field= cur->data + n_fields;
   
   for (cur_field=cur->data; cur_field<end_field; ++cur_field, ++mysql_fields)
   {
@@ -975,6 +976,9 @@ int embedded_send_row(THD *thd, int n_fields, char *data, int data_len)
 	mysql_fields->max_length=len;
     }
   }
+
+  *cur_field= to;
+
   DBUG_RETURN(0);
 }
 
