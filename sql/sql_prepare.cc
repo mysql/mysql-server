@@ -1043,6 +1043,7 @@ static int mysql_test_delete(Prepared_statement *stmt,
 
   if (!open_and_lock_tables(thd, table_list))
   {
+    bool res;
     if (!table_list->table)
     {
       DBUG_ASSERT(table_list->view &&
@@ -1052,9 +1053,9 @@ static int mysql_test_delete(Prepared_statement *stmt,
       DBUG_RETURN(-1);
     }
 
-    mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
+    res= mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
     lex->unit.cleanup();
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(res);
   }
   /* TODO: here we should send types of placeholders to the client. */ 
   DBUG_RETURN(TRUE);
