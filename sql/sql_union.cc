@@ -111,6 +111,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   DBUG_ENTER("st_select_lex_unit::prepare");
   this->thd= thd;
   this->result= result;
+  SELECT_LEX *lex_select_save= thd->lex.select;
 
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
@@ -148,9 +149,9 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
     /* Create a list of items that will be in the result set */
     while ((item= it++))
       if (item_list.push_back(item))
-	DBUG_RETURN(-1);
+	goto err;
     if (setup_fields(thd,first_table,item_list,0,0,1))
-      DBUG_RETURN(-1);
+      goto err;
   }
 
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
@@ -162,7 +163,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
 				(first_select()->options | thd->options |
 				 TMP_TABLE_ALL_COLUMNS),
 				this)))
-    DBUG_RETURN(-1);
+    goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   bzero((char*) &result_table_list,sizeof(result_table_list));
@@ -171,7 +172,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   result_table_list.table=table;
 
   if (!(union_result=new select_union(table)))
-    DBUG_RETURN(-1);
+    goto err;
 
   union_result->save_time_stamp=!describe;
   union_result->tmp_table_param=&tmp_table_param;
@@ -202,9 +203,13 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
 		       (ORDER*) NULL,
 		       sl, this, 0);
     if (res | thd->fatal_error)
-      DBUG_RETURN(res | thd->fatal_error);
+      goto err;
   }
+  thd->lex.select= lex_select_save;
   DBUG_RETURN(res | thd->fatal_error);
+err:
+  thd->lex.select= lex_select_save;
+  DBUG_RETURN(-1);
 }
 
 int st_select_lex_unit::exec()
@@ -214,7 +219,7 @@ int st_select_lex_unit::exec()
   {
     if (optimized && item && item->assigned())
       item->assigned(0); // We will reinit & rexecute unit
-      
+    SELECT_LEX *lex_select_save= thd->lex.select;
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       thd->lex.select=sl;
@@ -234,8 +239,12 @@ int st_select_lex_unit::exec()
       res= sl->join->error;
 
       if (res)
+      {
+	thd->lex.select= lex_select_save;
 	DBUG_RETURN(res);
+      }
     }
+    thd->lex.select= lex_select_save;
     optimized= 1;
   }
 
@@ -283,7 +292,7 @@ int st_select_lex_unit::exec()
 			0: 
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, 1);
+			thd->options, result, this, first_select(), 1);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
     }

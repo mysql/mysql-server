@@ -315,6 +315,7 @@ public:
 };
 
 class delayed_insert;
+class select_result;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
@@ -442,6 +443,7 @@ public:
   uint	     server_status,open_options;
   uint32     query_length;
   uint32     db_length;
+  uint       select_number;             //number of select (used for EXPLAIN)
   enum_tx_isolation tx_isolation, session_tx_isolation;
   char	     scramble[9];
   uint8	     query_cache_type;		// type of query cache processing
@@ -576,6 +578,7 @@ public:
   }
   void add_changed_table(TABLE *table);
   CHANGED_TABLE_LIST * changed_table_dup(TABLE *table);
+  int send_explain_fields(select_result *result);
 };
 
 /*

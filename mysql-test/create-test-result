@@ -27,14 +27,13 @@ test_name=$1
 [ -z $test_name ] && usage
 
 result_file=$RESULT_DIR/$test_name.result
+reject_file=$RESULT_DIR/$test_name.reject
 
 [ -f $result_file ] && die "result file $result_file  has already been created"
 
 touch $result_file
 echo "Running the test case against empty file, will fail, but don't worry"
 ./mysql-test-run --local $test_name
-
-reject_file=$result_file.reject
 
 if [ -f $reject_file ] ; then
   echo "Below are the contents of the reject file:"
