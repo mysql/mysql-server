@@ -158,7 +158,7 @@ struct sync_thread_struct{
 };
 
 /* Number of slots reserved for each OS thread in the sync level array */
-#define SYNC_THREAD_N_LEVELS	256
+#define SYNC_THREAD_N_LEVELS	10000
 
 struct sync_level_struct{
 	void*	latch;	/* pointer to a mutex or an rw-lock; NULL means that
@@ -768,6 +768,9 @@ sync_thread_levels_g(
 				thread */
 	ulint		limit)	/* in: level limit */
 {
+	char*		file_name;
+	ulint		line;
+	ulint		thread_id;
 	sync_level_t*	slot;
 	rw_lock_t*	lock;
 	mutex_t*	mutex;
@@ -783,8 +786,29 @@ sync_thread_levels_g(
 				lock = slot->latch;
 				mutex = slot->latch;
 
-				ut_error;
+				printf(
+	"InnoDB error: sync levels should be > %lu but a level is %lu\n",
+				limit, slot->level);
 
+				if (mutex->magic_n == MUTEX_MAGIC_N) {
+	printf("Mutex created at %s %lu\n", &(mutex->cfile_name),
+						mutex->cline);
+
+					if (mutex_get_lock_word(mutex) != 0) {
+
+		    				mutex_get_debug_info(mutex,
+						&file_name, &line, &thread_id);
+
+	printf("InnoDB: Locked mutex: addr %lx thread %ld file %s line %ld\n",
+		    				(ulint)mutex, thread_id,
+						file_name, line);
+					} else {
+						printf("Not locked\n");
+					}	
+				} else {
+					rw_lock_print(lock);
+				}
+								
 				return(FALSE);
 			}
 		}
@@ -973,6 +997,8 @@ sync_thread_add_level(
 		ut_a(sync_thread_levels_g(array, SYNC_ANY_LATCH));
 	} else if (level == SYNC_TRX_SYS_HEADER) {
 		ut_a(sync_thread_levels_contain(array, SYNC_KERNEL));
+	} else if (level == SYNC_DOUBLEWRITE) {
+		ut_a(sync_thread_levels_g(array, SYNC_DOUBLEWRITE));
 	} else if (level == SYNC_BUF_BLOCK) {
 		ut_a((sync_thread_levels_contain(array, SYNC_BUF_POOL)
 			&& sync_thread_levels_g(array, SYNC_BUF_BLOCK - 1))
@@ -1000,6 +1026,8 @@ sync_thread_add_level(
 	} else if (level == SYNC_FSP) {
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP)
 		     || sync_thread_levels_g(array, SYNC_FSP));
+	} else if (level == SYNC_EXTERN_STORAGE) {
+		ut_a(TRUE);
 	} else if (level == SYNC_TRX_UNDO_PAGE) {
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
 		     || sync_thread_levels_contain(array, SYNC_RSEG)
@@ -1221,10 +1249,10 @@ void
 sync_print(void)
 /*============*/
 {
-	printf("SYNC INFO:------------------------------------------\n");
+	printf("SYNC INFO:\n");
 	mutex_list_print_info();
 	rw_lock_list_print_info();
 	sync_array_print_info(sync_primary_wait_array);
 	sync_print_wait_info();
-	printf("----------------------------------------------------\n");
+	printf("-----------------------------------------------------\n");
 }

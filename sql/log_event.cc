@@ -404,15 +404,26 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
 #endif // MYSQL_CLIENT
 
-// allocates memory - the caller is responsible for clean-up
+#ifndef MYSQL_CLIENT
+#define UNLOCK_MUTEX if(log_lock) pthread_mutex_unlock(log_lock);
+#else
+#define UNLOCK_MUTEX
+#endif
 
+// allocates memory - the caller is responsible for clean-up
+#ifndef MYSQL_CLIENT
 Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
+#else
+Log_event* Log_event::read_log_event(IO_CACHE* file)
+#endif  
 {
   char head[LOG_EVENT_HEADER_LEN];
-  if(log_lock) pthread_mutex_lock(log_lock);
+#ifndef MYSQL_CLIENT 
+ if(log_lock) pthread_mutex_lock(log_lock);
+#endif
   if (my_b_read(file, (byte *) head, sizeof(head)))
   {
-    if (log_lock) pthread_mutex_unlock(log_lock);
+    UNLOCK_MUTEX;
     return 0;
   }
 
@@ -449,7 +460,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   if((res = read_log_event(buf, data_len)))
     res->register_temp_buf(buf);
 err:
-  if (log_lock) pthread_mutex_unlock(log_lock);
+  UNLOCK_MUTEX;
   if(error)
   {
     sql_print_error(error);

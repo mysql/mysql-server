@@ -417,6 +417,8 @@ check_connections(THD *thd)
     return(ER_OUT_OF_RESOURCES);
 
   thd->client_capabilities=uint2korr(net->read_pos);
+  if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
+    thd->sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
   DBUG_PRINT("info",
 	     ("pkt_len:%d, client capabilities: %d",
@@ -541,8 +543,6 @@ pthread_handler_decl(handle_one_connection,arg)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
-    if (thd->options & OPTION_ANSI_MODE)
-      thd->client_capabilities|=CLIENT_IGNORE_SPACE;
 
     thd->proc_info=0;				// Remove 'login'
     thd->command=COM_SLEEP;

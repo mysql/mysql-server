@@ -254,3 +254,41 @@ select * from t1 where a between 0 and 1 order by a desc, b desc;
 drop table t1;
 
 
+CREATE TABLE t1 (
+  gid int(10) unsigned NOT NULL auto_increment,
+  cid smallint(5) unsigned NOT NULL default '0',
+  PRIMARY KEY  (gid),
+  KEY component_id (cid)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (103853,108),(103867,108),(103962,108),(104505,108),(104619,108),(104620,108);
+ALTER TABLE t1 add skr int(10) not null;
+
+CREATE TABLE t2 (
+  gid int(10) unsigned NOT NULL default '0',
+  uid smallint(5) unsigned NOT NULL default '1',
+  sid tinyint(3) unsigned NOT NULL default '1',
+  PRIMARY KEY  (gid),
+  KEY uid (uid),
+  KEY status_id (sid)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES (103853,250,5),(103867,27,5),(103962,27,5),(104505,117,5),(104619,75,5),(104620,15,5);
+
+CREATE TABLE t3 (
+  uid smallint(6) NOT NULL auto_increment,
+  PRIMARY KEY  (uid)
+) TYPE=MyISAM;
+INSERT INTO t3 VALUES (1),(15),(27),(75),(117),(250);
+ALTER TABLE t3 add skr int(10) not null;
+
+select t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
+select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
+
+# The following ORDER BY can be optimimized
+EXPLAIN select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t1.gid, t3.uid;
+EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t1.gid,t3.skr;
+
+# The following ORDER BY can't be optimimized
+EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
+EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;
+EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.skr = t3.uid order by t1.gid,t3.skr;
+drop table t1,t2,t3;

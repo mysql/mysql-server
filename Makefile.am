@@ -40,6 +40,7 @@ linked_include_sources:
 	echo timestamp > linked_include_sources
 
 linked_client_sources:  @linked_client_targets@
+	cd client; $(MAKE) link_sources
 	echo timestamp > linked_client_sources
 
 linked_libmysql_sources:

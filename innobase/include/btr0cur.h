@@ -151,11 +151,14 @@ btr_cur_optimistic_insert(
 	ulint		flags,	/* in: undo logging and locking flags: if not
 				zero, the parameters index and thr should be
 				specified */
-	btr_cur_t*	cursor,	/* in: cursor on page after which
-				to insert; cursor stays valid */
+	btr_cur_t*	cursor,	/* in: cursor on page after which to insert;
+				cursor stays valid */
 	dtuple_t*	entry,	/* in: entry to insert */
 	rec_t**		rec,	/* out: pointer to inserted record if
 				succeed */
+	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
+				be stored externally by the caller, or
+				NULL */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
@@ -169,13 +172,19 @@ btr_cur_pessimistic_insert(
 /*=======================*/
 				/* out: DB_SUCCESS or error number */
 	ulint		flags,	/* in: undo logging and locking flags: if not
-				zero, the parameters index and thr should be
-				specified */
+				zero, the parameter thr should be
+				specified; if no undo logging is specified,
+				then the caller must have reserved enough
+				free extents in the file space so that the
+				insertion will certainly succeed */
 	btr_cur_t*	cursor,	/* in: cursor after which to insert;
-				cursor does not stay valid */
+				cursor stays valid */
 	dtuple_t*	entry,	/* in: entry to insert */
 	rec_t**		rec,	/* out: pointer to inserted record if
 				succeed */
+	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
+				be stored externally by the caller, or
+				NULL */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
@@ -228,8 +237,9 @@ btr_cur_pessimistic_update(
 				/* out: DB_SUCCESS or error code */
 	ulint		flags,	/* in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update;
-				cursor does not stay valid */
+	btr_cur_t*	cursor,	/* in: cursor on the record to update */
+	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
+				be stored externally by the caller, or NULL */
 	upd_t*		update,	/* in: update vector; this is allowed also
 				contain trx id and roll ptr fields, but
 				the values in update vector have no effect */
@@ -407,6 +417,92 @@ btr_estimate_number_of_different_key_vals(
 /*======================================*/
 				/* out: estimated number of key values */
 	dict_index_t*	index);	/* in: index */
+/***********************************************************************
+Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec. The fields are stored on pages allocated from leaf node
+file segment of the index tree. */
+
+ulint
+btr_store_big_rec_extern_fields(
+/*============================*/
+					/* out: DB_SUCCESS or error */
+	dict_index_t*	index,		/* in: index of rec; the index tree
+					MUST be X-latched */
+	rec_t*		rec,		/* in: record */
+	big_rec_t*	big_rec_vec,	/* in: vector containing fields
+					to be stored externally */
+	mtr_t*		local_mtr);	/* in: mtr containing the latch to
+					rec and to the tree */
+/***********************************************************************
+Frees the space in an externally stored field to the file space
+management. */
+
+void
+btr_free_externally_stored_field(
+/*=============================*/
+	dict_index_t*	index,		/* in: index of the data, the index
+					tree MUST be X-latched */
+	byte*		data,		/* in: internally stored data
+					+ reference to the externally
+					stored part */
+	ulint		local_len,	/* in: length of data */
+	mtr_t*		local_mtr);	/* in: mtr containing the latch to
+					data an an X-latch to the index
+					tree */
+/***************************************************************
+Frees the externally stored fields for a record. */
+
+void
+btr_rec_free_externally_stored_fields(
+/*==================================*/
+	dict_index_t*	index,	/* in: index of the data, the index
+				tree MUST be X-latched */
+	rec_t*		rec,	/* in: record */
+	mtr_t*		mtr);	/* in: mini-transaction handle which contains
+				an X-latch to record page and to the index
+				tree */
+/***********************************************************************
+Copies an externally stored field of a record to mem heap. */
+
+byte*
+btr_rec_copy_externally_stored_field(
+/*=================================*/
+				/* out: the field copied to heap */
+	rec_t*		rec,	/* in: record */
+	ulint		no,	/* in: field number */
+	ulint*		len,	/* out: length of the field */
+	mem_heap_t*	heap);	/* in: mem heap */
+/***********************************************************************
+Copies an externally stored field of a record to mem heap. Parameter
+data contains a pointer to 'internally' stored part of the field:
+possibly some data, and the reference to the externally stored part in
+the last 20 bytes of data. */
+
+byte*
+btr_copy_externally_stored_field(
+/*=============================*/
+				/* out: the whole field copied to heap */
+	ulint*		len,	/* out: length of the whole field */
+	byte*		data,	/* in: 'internally' stored part of the
+				field containing also the reference to
+				the external part */
+	ulint		local_len,/* in: length of data */
+	mem_heap_t*	heap);	/* in: mem heap */
+/***********************************************************************
+Stores the positions of the fields marked as extern storage in the update
+vector, and also those fields who are marked as extern storage in rec
+and not mentioned in updated fields. We use this function to remember
+which fields we must mark as extern storage in a record inserted for an
+update. */
+
+ulint
+btr_push_update_extern_fields(
+/*==========================*/
+				/* out: number of values stored in ext_vect */
+	ulint*	ext_vect,	/* in: array of ulints, must be preallocated
+				to have place for all fields in rec */
+	rec_t*	rec,		/* in: record */
+	upd_t*	update);	/* in: update vector */
 	
 
 /*######################################################################*/
@@ -515,6 +611,19 @@ there is still a good change of success a little later: try this many times,
 and sleep this many microseconds in between */
 #define BTR_CUR_RETRY_DELETE_N_TIMES	100
 #define BTR_CUR_RETRY_SLEEP_TIME	50000
+
+/* The reference in a field of which data is stored on a different page */
+/*--------------------------------------*/
+#define BTR_EXTERN_SPACE_ID		0	/* space id where stored */
+#define BTR_EXTERN_PAGE_NO		4	/* page no where stored */
+#define BTR_EXTERN_OFFSET		8	/* offset of BLOB header
+						on that page */
+#define BTR_EXTERN_LEN			12	/* 8 bytes containing the
+						length of the externally
+						stored part of the BLOB */
+/*--------------------------------------*/
+#define BTR_EXTERN_FIELD_REF_SIZE	20
+
 
 extern ulint	btr_cur_n_non_sea;
 

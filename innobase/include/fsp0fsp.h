@@ -70,7 +70,7 @@ page_t*
 fseg_create(
 /*========*/
 			/* out: the page where the segment header is placed,
-			x-latched, FIL_NULL if could not create segment
+			x-latched, NULL if could not create segment
 			because of lack of space */
 	ulint	space,	/* in: space id */
 	ulint	page,	/* in: page where the segment header is placed: if

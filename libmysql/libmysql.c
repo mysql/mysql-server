@@ -293,7 +293,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 ** or packet is an error message
 *****************************************************************************/
 
-static uint
+uint
 net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
@@ -415,7 +415,7 @@ static void free_rows(MYSQL_DATA *cur)
 }
 
 
-static int
+int
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 	       uint length, my_bool skipp_check)
 {

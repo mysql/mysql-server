@@ -177,6 +177,13 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
 #define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
 
+#define MODE_REAL_AS_FLOAT      1
+#define MODE_PIPES_AS_CONCAT    2
+#define MODE_ANSI_QUOTES        4
+#define MODE_IGNORE_SPACE	8
+#define MODE_SERIALIZABLE	16
+#define MODE_ONLY_FULL_GROUP_BY	32
+
 #define RAID_BLOCK_SIZE 1024
 
 /* BINLOG_DUMP options */

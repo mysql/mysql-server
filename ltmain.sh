@@ -1798,6 +1798,9 @@ compiler."
 	*-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos*)
 	  # these systems don't actually have a c library (as such)!
 	  ;;
+        *-*-freebsd*)
+	  #FreeBSD needs to handle -lc and -lc_r itself
+	  ;;
         *-*-rhapsody*)
 	  # rhapsody is a little odd...
 	  deplibs="$deplibs -framework System"

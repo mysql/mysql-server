@@ -220,7 +220,7 @@ static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-	    opt_ansi_mode=0,opt_myisam_log=0,
+	    opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
   opt_show_slave_auth_info = 0, opt_old_rpl_compat = 0;
@@ -320,6 +320,7 @@ char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
+const char *sql_mode_str="OFF";
 const char *default_tx_isolation_name;
 enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 
@@ -333,6 +334,12 @@ double log_10[32];			/* 10 potences */
 I_List<THD> threads,thread_cache;
 time_t start_time;
 
+ulong opt_sql_mode = 0L;
+const char *sql_mode_names[] =
+{ "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
+  "SERIALIZE","ONLY_FULL_GROUP_BY", NullS };
+TYPELIB sql_mode_typelib= {array_elements(sql_mode_names),"",
+			   sql_mode_names};
 
 MY_BITMAP temp_pool;
 bool use_temp_pool=0;
@@ -1525,7 +1532,7 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
   // get rid of extention if the log is binary to avoid problems
   if (type == LOG_BIN)
   {
-    char* p = strrchr(opt_name, FN_EXTCHAR);
+    char* p = strrchr((char*) opt_name, FN_EXTCHAR);
     if (p)
       *p = 0;
   }
@@ -2520,6 +2527,7 @@ enum options {
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
+               OPT_SQL_MODE,
                OPT_SLAVE_LOAD_TMPDIR};
 
 static struct option long_options[] = {
@@ -2664,6 +2672,7 @@ static struct option long_options[] = {
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
+  {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
 #include "sslopt-longopts.h"
 #ifdef __WIN__
   {"standalone",            no_argument,       0, (int) OPT_STANDALONE},
@@ -2832,7 +2841,6 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 
 struct show_var_st init_vars[]= {
-  {"ansi_mode",               (char*) &opt_ansi_mode,               SHOW_BOOL},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
 #ifdef HAVE_BERKELEY_DB
@@ -2939,6 +2947,7 @@ struct show_var_st init_vars[]= {
   {"slow_launch_time",        (char*) &slow_launch_time,            SHOW_LONG},
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
   {"sort_buffer",             (char*) &sortbuff_size,               SHOW_LONG},
+  {"sql_mode",                (char*) &sql_mode_str,                SHOW_CHAR_PTR},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {"table_type",              (char*) &default_table_type_name,     SHOW_CHAR_PTR},
   {"thread_cache_size",       (char*) &thread_cache_size,           SHOW_LONG},
@@ -3122,6 +3131,9 @@ static void usage(void)
 			Don't give threads different priorities.\n\
   --socket=...		Socket file to use for connection\n\
   -t, --tmpdir=path	Path for temporary files\n\
+  --sql-mode=option[,option[,option...]] where option can be one of:\n\
+                        REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES,\n\
+                        IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY.\n\
   --transaction-isolation\n\
 		        Default transaction isolation level\n\
   --temp-pool           Use a pool of temporary files\n\
@@ -3277,8 +3289,9 @@ static void get_options(int argc,char **argv)
       opt_warnings=1;
       break;
     case 'a':
-      opt_ansi_mode=1;
-      thd_startup_options|=OPTION_ANSI_MODE;
+      opt_sql_mode = (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
+		      MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE
+		      | MODE_ONLY_FULL_GROUP_BY);
       default_tx_isolation= ISO_SERIALIZABLE;
       break;
     case 'b':

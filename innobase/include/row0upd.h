@@ -147,6 +147,9 @@ row_upd_build_difference(
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t*	entry,	/* in: entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	rec_t*		rec,	/* in: clustered index record */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 /***************************************************************
@@ -262,6 +265,9 @@ struct upd_field_struct{
 					constants in the symbol table of the
 					query graph */
 	dfield_t	new_val;	/* new value for the column */
+	ibool		extern_storage;	/* this is set to TRUE if dfield
+					actually contains a reference to
+					an externally stored field */
 };
 
 /* Update vector structure */
@@ -318,6 +324,10 @@ struct upd_node_struct{
 	dtuple_t*	row;	/* NULL, or a copy (also fields copied to
 				heap) of the row to update; this must be reset
 				to NULL after a successful update */
+	ulint*		ext_vec;/* array describing which fields are stored
+				externally in the clustered index record of
+				row */
+	ulint		n_ext_vec;/* number of fields in ext_vec */
 	mem_heap_t*	heap;	/* memory heap used as auxiliary storage for
 				row; this must be emptied after a successful
 				update if node->row != NULL */
@@ -349,7 +359,7 @@ struct upd_node_struct{
 					looked at and updated if an ordering
 					field changed */
 
-/* Compilation info flags: these must fit within one byte */
+/* Compilation info flags: these must fit within 3 bits; see trx0rec.h */
 #define UPD_NODE_NO_ORD_CHANGE	1	/* no secondary index record will be
 					changed in the update and no ordering
 					field of the clustered index */

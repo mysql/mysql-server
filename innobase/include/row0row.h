@@ -250,6 +250,7 @@ row_search_index_entry(
 	
 #define ROW_COPY_DATA		1
 #define ROW_COPY_POINTERS	2
+#define ROW_COPY_ALSO_EXTERNALS	3
 
 /* The allowed latching order of index records is the following:
 (1) a secondary index record ->
