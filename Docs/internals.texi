@@ -54,6 +54,7 @@ This is a manual about @strong{MySQL} internals.
 * flush tables::                How MySQL Handles @code{FLUSH TABLES}
 * filesort::                    How MySQL Does Sorting (@code{filesort})
 * selects::			How MySQL performs different selects
+* transformations::		How MySQL transforms subqueries
 * coding guidelines::           Coding Guidelines
 * mysys functions::             Functions In The @code{mysys} Library
 * DBUG::                        DBUG Tags To Use
@@ -261,7 +262,7 @@ and then we read the rows in the sorted order into a row buffer
 
 @end itemize
 
-@node selects, coding guidelines, flush tables, Top
+@node selects, transformations, flush tables, Top
 @chapter How MySQL performs different selects
 
 @node select steps,,,
@@ -604,7 +605,241 @@ mysql_explain_union for every inner UNION
 
 PROBLEM: how it will work with global query optimization?
 
-@node coding guidelines, mysys functions, selects, Top
+@node transformations, coding guidelines, selects, Top
+@chapter How MySQL transforms subqueries
+
+Item_subselect virtual method select_transformer is used to rewrite
+subqueries. It is called from Item_subselect::init (which called in
+Item_subselect constructor)
+
+@node transformation IN
+@section Item_in_subselect::select_transformer
+
+Item_in_subselect::select_transformer is divided on two parts for
+scalar left part and row left part:
+
+@node transformation scalar IN
+@subsection Scalar IN Subselect
+
+To rewrite scalar IN subselect used method
+Item_in_subselect::single_value_transformer, Scalar IN subselect will
+be replaced with Item_in_optimizer.
+
+Item_in_optimizer item is special boolean function. On value request
+(one of val, val_int or val_str methods) it evaluate left expression of
+IN by storing it value in cache item (one of Item_cache* items), then it
+test cache is it NULL. If left expression (cache) is NULL then
+Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
+
+Example queries.
+@example
+a) SELECT * from t1 where t1.a in (SELECT t2.a FROM t2);
+b) SELECT * from t1 where t1.a in (SELECT t2.a FROM t2 GROUP BY t2.a);
+@end example
+
+@itemize
+@item
+Item_in_subselect inherit mechanism of getting value from
+  Item_exists_subselect.
+@item
+Select_transformer stores reference to left expression in its
+  conditions:  (in WHERE in case 'a' and in a HAVING in case 'b')
+@item
+Item from item list of this select (t2.a) can be referred with special
+  reference (Item_ref_null_helper or Item_asterisk_remover).
+  This reference informs Item_in_optimizer if item (t2.a) is NULL by
+  setting the 'was_null' flag.
+@item
+The return value from Item_in_subselect will be evaluated as following:
+@itemize @bullet
+@item
+  If TRUE return true
+@item
+  If NULL return null
+@item
+  If FALSE and 'was_null' is set, return null
+@item
+  return FALSE
+@end itemize
+@end itemize
+
+<left_expression> IN (SELECT <item> ...) will be represented like
+following:
+@example
+                        +-----------------+
+                        |Item_in_optimizer|
+                        +-----------------+
+                                 |
+           +---------------------+------------+
+           |                                  |
++-----------------------+             +-----------------+
+|   <left_expression>   |             |Item_in_subselect|
+|                       |             +-----------------+
++-----------------------+                      |
+|<left_expression cache>|          +-----------+-----------+
+|                       |          |                       |
++-----------------------+          |                       |
+           ^                 +----------+        +--------------------+
+           +<<<<<<<<<<<<<<<<<| Item_ref |    +<<<|Item_ref_null_helper|
+                             +----------+    V   +--------------------+
+                                             V   +--------------------+
+                                             +>>>|       <item>       |
+                                                 +--------------------+  
+@end example
+where '<<<<<<<<<' is reference in meaning of Item_ref.
+
+Item_ref used for point to <left_expression cache>, because in time of
+transformation we know only address of variable where pointer on cache
+will be stored.
+
+If select have ORDER BY clause it will be wiped out, because no sense in
+ORDER BY without LIMIT here.
+
+If IN subselect union condition of every select in UNION will be changed
+personally.
+
+Following is examples of IN transformations:
+@example
+a) <left_expression> IN (SELECT <item> FROM t
+                           WHERE <where_exp>)
+
+will be represented as
+
+ (SELECT 1 FROM t
+   WHERE <where_exp> and
+    Item_ref(<cached_left_expression>)=<Item_asterisk_remover(<Item>)>)
+
+
+b) <left_expression> IN (SELECT <item> FROM t
+                           HAVING <having_expr>
+                           ORDER BY 1)
+
+will be represented as
+
+ (SELECT <item> as ref_null_helper FROM t
+    HAVING <having_exp> AND
+      Item_ref(<cached_left_expression>) = ref_null_helper)
+
+
+c) <left_expression> IN (SELECT <item> UNION ...)
+
+will be represented as
+
+ (SELECT 1 
+    HAVING Item_ref(<cached_left_expression>)=
+           <Item_asterisk_remover(<Item>)>
+  UNION ...)
+
+(having without FROM is syntax error, but having condition is checked
+even for subselect without FROM)
+
+d) <left_expression> IN (select <item>)
+
+will be completely replaced with <left_expression> = <item>
+@end example
+
+Now conditions (WHERE (a) or HAVING (b)) will be changed depends of
+select in following way:
+
+If subselect have HAVING , sum function  or GROUP BY (case a) then item
+list will be unchanged and  Item_ref_null_helper reference will be
+created on item list element. Condition will be added to HAVING condition.
+
+If subselect have not HAVING, sum function or GROUP BY (case b) then:
+@itemize @bullet
+@item
+ @strong{item list} will be replaced with 1.
+@item
+ @strong{<item>} from item list will be stored in Item_asterisk_remover, which
+   inherit from Item_ref_null_helper, but store item on which refer by
+   itself, and also it can resolve '*' item.
+@item
+ @strong{<left_expression cache> = <Item_ref_null_helper>} will be added to
+   WHERE clause this item or to HAVING clause if this subselect have
+   no FROM clause and subselect is union (case c).
+@end itemize
+
+Single select without FROM will be reduced to just
+<left_expression> = <item> without using Item_in_optimizer.
+
+@node transformations row IN
+@subsection Row IN Subselect
+
+To rewrite row IN subselect used method
+Item_in_subselect::row_value_transformer. It work in almost same way as
+scalar analog, but work with Item_cache_row for caching left expression
+and use references on elements of Item_cache_row.
+To refer on item list it use Item_ref_on_list_position.
+
+Item_ref_on_list_position::fix_fields will find item in item list of
+subselect by number and create Item_ref_null_helper to refer on it. It
+used to find reference when all '*' items will be translated in item
+list. Subselect with have HAVING, sum functions or GROUP BY will
+transformed in following way:
+
+@example
+ROW(l1, l2, ... lN) IN (SELECT i1, i2, ... iM FROM t HAVING <having_expr>)
+
+will be following:
+
+(SELECT i1, i2, ... iM FROM t
+   HAVING <having_expr> and
+     <cache_l1> = <ref_on_list_position(1)> AND
+     <cache_l2> = <ref_on_list_position(2)> AND
+     ...
+     <cache_lN> = <ref_on_list_position(N)>)
+@end example
+
+In this way will be transformed select without FROM, too.
+
+For other subselect it will be same but for WHERE clause.
+
+@node transformations all any
+@section Item_allany_subselect
+
+Item_allany_subselect is inherited from Item_in_subselect.
+ALL/ANY/SOME use same algorithm (and same method of Item_in_subselect)
+as scalar IN, but use different function instead of '='.
+
+ANY/SOME use same function that was listed after left expression.
+
+ALL use inverted function, and all subselect passed as argument to
+Item_func_not.
+
+@node transformations singlerow
+@section Item_singlerow_subselect
+
+Item_singlerow_subselect will be rewritten only if it have not FROM
+clause, it is not part of UNION and it is scalar subselect. For now will
+not be converted subselects with field or reference on top of item list
+(we can't change name of such items from one hand, but from other hand
+we should assign to it name of whole subselect which will be reduced);
+
+Following will not be reduced:
+@example
+SELECT a;
+SELECT 1 UNION SELECT 2;
+SELECT 1 FROM t1;
+@end example
+
+Following select will be reduced:
+@example
+SELECT 1;
+SELECT a+2;
+@end example
+
+Such subselect will be completely replaced by its expression from item
+list and its SELECT_LEX and SELECT_LEX_UNIT will be removed from
+SELECT_LEX's tree.
+
+But all Item_fields and Item_ref of that expression will be marked for
+special fix_fields() procedure. fix_fields() for such Item will be
+performed is same way as for items of inner subselect. Also if this
+expression is Item_fields or Item_ref then name of this new item will
+be same as name of this item (but not '(SELECT ...)'). It is done to
+prevent broke references on such items from more inner subselects.
+
+@node coding guidelines, mysys functions, transformations, Top
 @chapter Coding Guidelines
 
 @itemize @bullet
