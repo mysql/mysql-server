@@ -30,15 +30,11 @@ Adjust:  971206  UABRONM First version
 #include <NdbOut.hpp>
 #include <NdbRecAttr.hpp>
 #include "NdbDictionaryImpl.hpp"
+#include <NdbTCP.h>
 
-NdbRecAttr::NdbRecAttr() :
-  theStorageX(NULL),
-  theValue(NULL),
-  theRef(NULL),
-  theNext(NULL),
-  theAttrId(0xFFFF),
-  theNULLind(-1)
-{ 
+NdbRecAttr::NdbRecAttr()
+{
+  init();
 }
 
 NdbRecAttr::~NdbRecAttr()
@@ -47,6 +43,11 @@ NdbRecAttr::~NdbRecAttr()
 }
 
 int
+NdbRecAttr::setup(const class NdbDictionary::Column* col, char* aValue)
+{
+  return setup(&(col->m_impl), aValue);
+}
+int
 NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
 {
   Uint32 tAttrSize = anAttrInfo->m_attrSize;
@@ -54,6 +55,7 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
   Uint32 tAttrByteSize = tAttrSize * tArraySize;
   
   m_column = anAttrInfo;
+
   theAttrId = anAttrInfo->m_attrId;
   theAttrSize = tAttrSize;
   theArraySize = tArraySize;
@@ -126,7 +128,7 @@ NdbRecAttr::clone() const {
   return ret;
 }
 
-NdbOut& operator <<(NdbOut& ndbout, const NdbRecAttr &r)
+NdbOut& operator<<(NdbOut& ndbout, const NdbRecAttr &r)
 {
   if (r.isNULL())
   {
@@ -134,78 +136,69 @@ NdbOut& operator <<(NdbOut& ndbout, const NdbRecAttr &r)
     return ndbout;
   }
 
-  switch(r.getType()){
+  if (r.arraySize() > 1)
+    ndbout << "[";
 
-  case NdbDictionary::Column::Bigunsigned:
-    ndbout << r.u_64_value();
-    break;
-  case NdbDictionary::Column::Unsigned:
-    ndbout << r.u_32_value();
-    break;
-  case NdbDictionary::Column::Smallunsigned:
-    ndbout << r.u_short_value();
-    break;
-  case NdbDictionary::Column::Tinyunsigned:
-    ndbout << (unsigned) r.u_char_value();
-    break;
-  case NdbDictionary::Column::Bigint:
-    ndbout << r.int64_value();
-    break;
-  case NdbDictionary::Column::Int:
-    ndbout << r.int32_value();
-    break;
-  case NdbDictionary::Column::Smallint:
-    ndbout << r.short_value();
-    break;
-  case NdbDictionary::Column::Tinyint:
-    ndbout << (int) r.char_value();
-    break;
-    
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-    {
-      int aSize = r.arraySize();
-      char* buf = new char[aSize+1];
-      memcpy(buf, r.aRef(), aSize);
-      buf[aSize] = 0;
-      ndbout << buf;
-      delete [] buf;
-    }
-    break;
-    
-  case NdbDictionary::Column::Float:
-    ndbout << r.float_value();
-    break;
-  case NdbDictionary::Column::Double:
-    ndbout << r.double_value();
-    break;
-  case NdbDictionary::Column::Mediumint:
-    ndbout << "[Mediumint]";
-    break;
-  case NdbDictionary::Column::Mediumunsigned:
-    ndbout << "[Mediumunsigend]";
-    break;
-  case NdbDictionary::Column::Binary:
-    ndbout << "[Binary]";
-    break;
-  case NdbDictionary::Column::Varbinary:
-    ndbout << "[Varbinary]";
-    break;
-  case NdbDictionary::Column::Decimal:
-    ndbout << "[Decimal]";
-    break;
-  case NdbDictionary::Column::Timespec:
-    ndbout << "[Timespec]";
-    break;
-  case NdbDictionary::Column::Blob:
-    ndbout << "[Blob]";
-    break;
-  case NdbDictionary::Column::Undefined:
-    ndbout << "[Undefined]";
-    break;
-  default:
-    ndbout << "[unknown]";
-    break;
+  for (Uint32 j = 0; j < r.arraySize(); j++) 
+  {
+    if (j > 0)
+      ndbout << " ";
+
+    switch(r.getType())
+      {
+      case NdbDictionary::Column::Bigunsigned:
+	ndbout << r.u_64_value();
+	break;
+      case NdbDictionary::Column::Unsigned:
+	ndbout << r.u_32_value();
+	break;
+      case NdbDictionary::Column::Smallunsigned:
+	ndbout << r.u_short_value();
+	break;
+      case NdbDictionary::Column::Tinyunsigned:
+	ndbout << (unsigned) r.u_char_value();
+	break;
+      case NdbDictionary::Column::Bigint:
+	ndbout << r.int64_value();
+	break;
+      case NdbDictionary::Column::Int:
+	ndbout << r.int32_value();
+	break;
+      case NdbDictionary::Column::Smallint:
+	ndbout << r.short_value();
+	break;
+      case NdbDictionary::Column::Tinyint:
+	ndbout << (int) r.char_value();
+	break;
+      case NdbDictionary::Column::Char:
+	ndbout.print("%.*s", r.arraySize(), r.aRef());
+	j = r.arraySize();
+	break;
+      case NdbDictionary::Column::Varchar:
+	{
+	  short len = ntohs(r.u_short_value());
+	  ndbout.print("%.*s", len, r.aRef()+2);
+	}
+	j = r.arraySize();
+      break;
+      case NdbDictionary::Column::Float:
+	ndbout << r.float_value();
+	break;
+      case NdbDictionary::Column::Double:
+	ndbout << r.double_value();
+	break;
+      default: /* no print functions for the rest, just print type */
+	ndbout << r.getType();
+	j = r.arraySize();
+	if (j > 1)
+	  ndbout << " %u times" << j;
+	break;
+      }
+  }
+
+  if (r.arraySize() > 1)
+  {
+    ndbout << "]";
   }
 
   return ndbout;
