@@ -18,4 +18,5 @@ select * from t1;
 n
 1
 1
+stop slave;
 drop table t1;

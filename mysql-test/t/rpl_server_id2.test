@@ -18,4 +18,8 @@ insert into t1 values (1);
 save_master_pos;
 sync_with_master;
 select * from t1; # check that indeed 2 were inserted
+# We stop the slave before cleaning up otherwise we'll get
+# 'drop table t1' executed twice, so an error in the slave.err
+# (not critical).
+stop slave;
 drop table t1;
