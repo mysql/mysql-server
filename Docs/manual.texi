@@ -20166,8 +20166,9 @@ is a new thread created.  This variable can be increased to improve
 performance if you have a lot of new connections. (Normally this doesn't
 give a notable performance improvement if you have a good
 thread implementation.)  By examing the difference between
-the @code{Connections} and @code{Threads_created} you can see how efficient
-the current thread cache is for you.
+the @code{Connections} and @code{Threads_created} status variables 
+(See @ref{SHOW STATUS} for details) you can see how efficient  
+thread cache is.
 
 @item @code{thread_concurrency}
 On Solaris, @code{mysqld} will call @code{thr_setconcurrency()} with
@@ -34043,6 +34044,10 @@ SELECT ...
 
 @code{UNION} is used to combine the result from many @code{SELECT}
 statements into one result set.
+
+The columns listed in the select_expression portion of the @code{SELECT} should
+have the same type. The column names used in the first @code{SELECT} query will be 
+used as the column names for the results returned.
 
 The @code{SELECT} commands are normal select commands, but with the following
 restrictions:
