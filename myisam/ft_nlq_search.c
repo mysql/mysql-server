@@ -79,6 +79,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 #error
 #endif
 
+  DBUG_ENTER("walk_and_match");
+
   word->weight=LWS_FOR_QUERY;
 
   keylen=_ft_make_key(aio->info,aio->keynr,(char*) aio->keybuff,word,0);
@@ -111,7 +113,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 #else
 #error
 #endif
-    if(tmp_weight==0) return doc_cnt; /* stopword, doc_cnt should be 0 */
+    if(tmp_weight==0) DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
 
 #ifdef EVAL_RUN
     cnt=*(byte *)(aio->info->lastkey+keylen);
@@ -121,7 +123,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
     /* saving document matched into dtree */
     if (!(selem=tree_insert(&aio->dtree, &sdoc, 0)))
-      return 1;
+      DBUG_RETURN(1);
 
     sptr=(FT_SUPERDOC *)ELEMENT_KEY((&aio->dtree), selem);
 
@@ -152,21 +154,22 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   if (doc_cnt)
   {
     word->weight*=GWS_IN_USE;
-    if (word->weight < 0)
-      word->weight=0;
+    if (word->weight < 0) word->weight=0;
+
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 static int walk_and_copy(FT_SUPERDOC *from,
 			 uint32 count __attribute__((unused)), FT_DOC **to)
 {
+  DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
   (*to)->dpos=from->doc.dpos;
   (*to)->weight=from->doc.weight;
   (*to)++;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -184,12 +187,13 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   FT_DOC     *dptr;
   FT_INFO    *dlist=NULL;
   my_off_t    saved_lastpos=info->lastpos;
+  DBUG_ENTER("ft_init_nlq_search");
 
 /* black magic ON */
   if ((int) (keynr = _mi_check_index(info,keynr)) < 0)
-    return NULL;
+    DBUG_RETURN(NULL);
   if (_mi_readinfo(info,F_RDLCK,1))
-    return NULL;
+    DBUG_RETURN(NULL);
 /* black magic OFF */
 
   aio.info=info;
@@ -236,7 +240,7 @@ err2:
 
 err:
   info->lastpos=saved_lastpos;
-  return dlist;
+  DBUG_RETURN(dlist);
 }
 
 
