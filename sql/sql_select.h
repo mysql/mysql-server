@@ -27,8 +27,10 @@
 typedef struct keyuse_t {
   TABLE *table;
   Item	*val;				/* or value if no field */
-  uint	key,keypart;
   table_map used_tables;
+  uint	key, keypart, optimize;
+  key_map   keypart_map;
+  ha_rows   ref_table_rows;
 } KEYUSE;
 
 class store_key;
@@ -73,7 +75,7 @@ typedef struct st_join_cache {
 */
 
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
-		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT};
+		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL};
 
 class JOIN;
 
@@ -85,6 +87,7 @@ typedef struct st_join_table {
   QUICK_SELECT	*quick;
   Item		*on_expr;
   const char	*info;
+  byte		*null_ref_key;
   int		(*read_first_record)(struct st_join_table *tab);
   int		(*next_select)(JOIN *,struct st_join_table *,bool);
   READ_RECORD	read_record;

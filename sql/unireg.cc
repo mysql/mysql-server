@@ -460,8 +460,10 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     buff[13]= (uchar) field->sql_type; 
     if (field->sql_type == FIELD_TYPE_GEOMETRY)
       buff[14]= (uchar) field->geom_type;
-    else
+    else if (field->charset) 
       buff[14]= (uchar) field->charset->number;
+    else
+      buff[14]= 0;				// Numerical
     int2store(buff+15, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
