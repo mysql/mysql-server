@@ -798,3 +798,9 @@ INSERT INTO t1 (name, kind, line) VALUES
 ALTER TABLE t1 ENABLE KEYS;
 INSERT INTO t1 (name, kind, line) VALUES ("austria", "pp", GeomFromText('LINESTRING(14.9906 48.9887,14.9946 48.9904,14.9947 48.9916)'));
 drop table t1;
+CREATE TABLE t1 (st varchar(100));
+INSERT INTO t1 VALUES ("Fake string");
+CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
+INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
+ERROR HY000: Unknown error
+drop table t1, t2;
