@@ -612,8 +612,8 @@ parts of queries.  For example:
 
 @example
 mysql> SELECT CONCAT(first_name, " ", last_name)
-       FROM tbl_name
-       WHERE income/dependents > 10000 AND age > 30;
+    -> FROM tbl_name
+    -> WHERE income/dependents > 10000 AND age > 30;
 @end example
 
 @item
@@ -904,8 +904,8 @@ mysql> DROP TABLE IF EXISTS y2k;
 Query OK, 0 rows affected (0.01 sec)
 
 mysql> CREATE TABLE y2k (date date,
-                         date_time datetime,
-                         time_stamp timestamp);
+    ->                   date_time datetime,
+    ->                   time_stamp timestamp);
 Query OK, 0 rows affected (0.00 sec)
 
 mysql> INSERT INTO y2k VALUES 
@@ -6473,7 +6473,9 @@ with @code{-fno-exceptions}. When in doubt, do the following:
 
 @example
 
-CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions \
+       -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler \
+       --with-mysqld-ldflags=-all-static
 
 @end example
 
@@ -6847,9 +6849,12 @@ CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors"
 @item egcs 1.0.3a @tab
 CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti"
 @item gcc 2.95.2 @tab
-CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
+CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro \
+-felide-constructors -fno-exceptions -fno-rtti"
 @item pgcc 2.90.29 or newer @tab
-CFLAGS="-O3 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
+CFLAGS="-O3 -mpentiumpro -mstack-align-double" CXX=gcc \
+CXXFLAGS="-O3 -mpentiumpro -mstack-align-double -felide-constructors \
+-fno-exceptions -fno-rtti"
 @end multitable
 
 In most cases you can get a reasonably optimal MySQL binary by
@@ -6857,14 +6862,18 @@ using the options from the above and adding the following options to the
 configure line: 
 
 @example
---prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+--prefix=/usr/local/mysql --enable-assembler \
+--with-mysqld-ldflags=-all-static
 @end example
 
 The full configure line would in other words be something like the
 following for all recent gcc versions:
 
 @example
-CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro \
+-felide-constructors -fno-exceptions -fno-rtti" ./configure \
+--prefix=/usr/local/mysql --enable-assembler \
+--with-mysqld-ldflags=-all-static
 @end example
 
 The binaries we provide on the MySQL web site at
@@ -7628,7 +7637,10 @@ TCP port                3306
 UNIX socket             /tmp/mysql.sock
 Uptime:                 16 sec
 
-Threads: 1  Questions: 9  Slow queries: 0  Opens: 7  Flush tables: 2  Open tables: 0 Queries per second avg: 0.000  Memory in use: 132K  Max memory used: 16773K
+Threads: 1  Questions: 9  Slow queries: 0
+Opens: 7  Flush tables: 2  Open tables: 0
+Queries per second avg: 0.000
+Memory in use: 132K  Max memory used: 16773K
 @end example
 
 To get a feeling for what else you can do with @code{BINDIR/mysqladmin},
@@ -8776,7 +8788,8 @@ that you also probably need to raise the @code{core file size} by adding
 If you are linking your own MySQL client and get the error:
 
 @example
-ld.so.1: ./my: fatal: libmysqlclient.so.4: open failed: No such file or directory
+ld.so.1: ./my: fatal: libmysqlclient.so.4:
+open failed: No such file or directory
 @end example
 
 When executing them, the problem can be avoided by one of the following
@@ -8804,7 +8817,13 @@ some problems compiling MySQL because the Linux header files are very
 The following @code{configure} line should work with @code{fcc/FCC}:
 
 @example
-CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -DNO_STRTOLL_PROTO" CXX=FCC CXXFLAGS="-O -K fast -K lib  -K omitfp -K preex --no_exceptions --no_rtti -D_GNU_SOURCE -DCONST=const -Dalloca=__builtin_alloca -DNO_STRTOLL_PROTO '-D_EXTERN_INLINE=static __inline'" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-low-memory
+CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE \
+-DCONST=const -DNO_STRTOLL_PROTO" CXX=FCC CXXFLAGS="-O -K fast -K lib \
+-K omitfp -K preex --no_exceptions --no_rtti -D_GNU_SOURCE -DCONST=const \
+-Dalloca=__builtin_alloca -DNO_STRTOLL_PROTO \
+'-D_EXTERN_INLINE=static __inline'" ./configure --prefix=/usr/local/mysql \
+--enable-assembler --with-mysqld-ldflags=-all-static --disable-shared \
+--with-low-memory
 @end example
 
 
@@ -8925,9 +8944,11 @@ You may get some warnings when compiling; those shown below can be ignored:
 @example
 mysqld.cc -o objs-thread/mysqld.o
 mysqld.cc: In function `void init_signals()':
-mysqld.cc:315: warning: assignment of negative value `-1' to `long unsigned int'
+mysqld.cc:315: warning: assignment of negative value `-1' to
+`long unsigned int'
 mysqld.cc: In function `void * signal_hand(void *)':
-mysqld.cc:346: warning: assignment of negative value `-1' to `long unsigned int'
+mysqld.cc:346: warning: assignment of negative value `-1' to
+`long unsigned int'
 @end example
 
 In Debian GNU/Linux, if you want MySQL to start automatically when
@@ -9005,13 +9026,19 @@ means you can only use our binary if you have an Alpha EV6 processor. We also
 compile statically to avoid library problems.
 
 @example
-CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client --with-mysqld-ldflags=-non_shared --with-client-ldflags=-non_shared
+CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" \
+./configure --prefix=/usr/local/mysql --disable-shared \
+--with-extra-charsets=complex --enable-thread-safe-client \
+--with-mysqld-ldflags=-non_shared --with-client-ldflags=-non_shared
 @end example
 
 If you want to use egcs the following configure line worked for us:
 
 @example
-CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc \
+CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors \
+-fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql \
+--disable-shared
 @end example
 
 Some known problems when running MySQL on Linux-Alpha:
@@ -9051,7 +9078,10 @@ To get MySQL to compile on Linux Ia64, we use the following compile line:
 Using @code{gcc-2.96}:
 
 @example
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex
+CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc \
+CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors \
+-fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql \
+"--with-comment=Official MySQL binary" --with-extra-charsets=complex
 @end example
 
 On Ia64 the MySQL client binaries are using shared libraries. This means
@@ -9637,7 +9667,8 @@ distribution unpacked!  Solaris @code{tar} can't handle long file names, so
 you may see an error like this when you unpack MySQL:
 
 @example
-x mysql-3.22.12-beta/bench/Results/ATIS-mysql_odbc-NT_4.0-cmp-db2,informix,ms-sql,mysql,oracle,solid,sybase, 0 bytes, 0 tape blocks
+x mysql-3.22.12-beta/bench/Results/ATIS-mysql_odbc-NT_4.0-cmp-db2,\
+informix,ms-sql,mysql,oracle,solid,sybase, 0 bytes, 0 tape blocks
 tar: directory checksum error
 @end example
 
@@ -9778,7 +9809,8 @@ If you are linking your own MySQL client, you might get the
 following error when you try to execute it:
 
 @example
-ld.so.1: ./my: fatal: libmysqlclient.so.#: open failed: No such file or directory
+ld.so.1: ./my: fatal: libmysqlclient.so.#:
+open failed: No such file or directory
 @end example
 
 The problem can be avoided by one of the following methods:
@@ -9918,7 +9950,8 @@ following @code{configure} command:
 @example
 CC=gcc CFLAGS="-O3 -fomit-frame-pointer -DHAVE_CURSES_H" \
 CXX=gcc \
-CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
+CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions \
+-fno-rtti -DHAVE_CURSES_H" \
 ./configure --prefix=/usr/local/mysql
 @end example
 
@@ -9997,7 +10030,8 @@ gcc (2.95.2 and up) is:
 
 @example
 CC=gcc CFLAGS="-O2 -fno-strength-reduce" \
-CXX=gcc CXXFLAGS="-O2 -fno-rtti -fno-exceptions -felide-constructors -fno-strength-reduce" \
+CXX=gcc CXXFLAGS="-O2 -fno-rtti -fno-exceptions -felide-constructors \
+-fno-strength-reduce" \
 ./configure --prefix=/usr/local/mysql --enable-assembler
 gmake
 gmake install
@@ -10193,7 +10227,10 @@ Our binary for Mac OS X is compiled on Rhapsody 5.5 with the following
 configure line:
 
 @example
-CC=gcc CFLAGS="-O2 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O2 -fomit-frame-pointer" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex  --disable-shared
+CC=gcc CFLAGS="-O2 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O2 \
+-fomit-frame-pointer" ./configure --prefix=/usr/local/mysql \
+"--with-comment=Official MySQL binary" --with-extra-charsets=complex \
+--disable-shared
 @end example
 
 You might want to also add aliases to your shell's resource file to
@@ -10314,7 +10351,10 @@ because it can't compile @code{.S} (assembler) files.
 The following configure line should work:
 
 @example
-CFLAGS="-DHPUX -I/opt/dce/include -fpic" CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions -fno-rtti" CXX=gcc ./configure --with-pthread --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-DHPUX -I/opt/dce/include -fpic" \
+CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions \
+-fno-rtti" CXX=gcc ./configure --with-pthread \
+--with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
 @end example
 
 If you are compiling @code{gcc} 2.95 yourself, you should NOT link it with
@@ -10376,7 +10416,9 @@ the definition in @file{pthread.h}.  Here's the diff:
 After this, the following configure line should work:
 
 @example
-CFLAGS="-fomit-frame-pointer -O3 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O3" ./configure --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-fomit-frame-pointer -O3 -fpic" CXX=gcc \
+CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O3" \
+./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
 Here is some information that a HP-UX Version 11.x user sent us about compiling
@@ -10430,7 +10472,8 @@ If you get the following error from @code{configure}
 
 @example
 checking for cc option to accept ANSI C... no
-configure: error: MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.
+configure: error: MySQL requires a ANSI C compiler (and a C++ compiler).
+Try gcc. See the Installation chapter in the Reference Manual.
 @end example
 
 Check that you don't have the path to the K&R compiler before the path
@@ -10515,7 +10558,8 @@ configuring with:
 
 @example
 shell> CFLAGS=-DDONT_USE_THR_ALARM CXX=gcc \
-       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -DDONT_USE_THR_ALARM" \
+       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti \
+       -DDONT_USE_THR_ALARM" \
        ./configure --prefix=/usr/local/mysql --with-debug --with-low-memory
 @end example
 
@@ -10622,7 +10666,8 @@ work:
 CC="cc -pthread"
 CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host"
 CXX="cxx -pthread"
-CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host -noexceptions -nortti"
+CXXFLAGS="-O4 -ansi_alias -ansi_args -fast -inline speed all -arch host \
+-noexceptions -nortti"
 export CC CFLAGS CXX CXXFLAGS
 ./configure \
 --prefix=/usr/local/mysql \
@@ -10692,11 +10737,14 @@ With the Digital compiler "C++ V6.1-029", the following should work:
 
 @example
 CC=cc -pthread
-CFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host
+CFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all \
+       -arch host
 CXX=cxx -pthread
-CXXFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all -arch host -noexceptions -nortti
+CXXFLAGS=-O4 -ansi_alias -ansi_args -fast -inline speed -speculate all \
+          -arch host -noexceptions -nortti
 export CC CFLAGS CXX CXXFLAGS
-./configure --prefix=/usr/mysql/mysql --with-mysqld-ldflags=-all-static --disable-shared --with-named-thread-libs="-lmach -lexc -lc"
+./configure --prefix=/usr/mysql/mysql --with-mysqld-ldflags=-all-static \
+            --disable-shared --with-named-thread-libs="-lmach -lexc -lc"
 @end example
 
 In some versions of OSF1, the @code{alloca()} function is broken. Fix
@@ -10788,7 +10836,8 @@ Type the following in the top-level directory of your MySQL source
 tree:
 
 @example
-shell> extra/replace bool curses_bool < /usr/include/curses.h > include/curses.h
+shell> extra/replace bool curses_bool < /usr/include/curses.h \
+> include/curses.h
 shell> make
 @end example
 
@@ -10803,7 +10852,8 @@ If you are compiling with @code{gcc}, you can use the following
 
 @example
 CC=gcc CXX=gcc CXXFLAGS=-O3 \
-./configure --prefix=/usr/local/mysql --enable-thread-safe-client --with-named-thread-libs=-lpthread
+./configure --prefix=/usr/local/mysql --enable-thread-safe-client \
+--with-named-thread-libs=-lpthread
 @end example
 
 On Irix 6.5.11 with native Irix C and C++ compilers ver. 7.3.1.2, the
@@ -10812,9 +10862,10 @@ following is reported to work
 @example
 CC=cc CXX=CC CFLAGS='-O3 -n32 -TARG:platform=IP22 -I/usr/local/include \
 -L/usr/local/lib' CXXFLAGS='-O3 -n32 -TARG:platform=IP22 \
--I/usr/local/include -L/usr/local/lib' ./configure --prefix=/usr/local/mysql \
---with-innodb --with-berkeley-db \
---with-libwrap=/usr/local --with-named-curses-libs=/usr/local/lib/libncurses.a
+-I/usr/local/include -L/usr/local/lib' ./configure \
+--prefix=/usr/local/mysql --with-innodb --with-berkeley-db \
+--with-libwrap=/usr/local \
+--with-named-curses-libs=/usr/local/lib/libncurses.a
 @end example
 
 
@@ -10841,7 +10892,8 @@ GNU @code{as}.  You can also use @code{egcs} 1.1.2 or newer
 to execute the following command:
 
 @example
-shell> cp -p /usr/include/pthread/stdtypes.h /usr/local/lib/gcc-lib/i386-pc-sco3.2v5.0.5/egcs-2.91.66/include/pthread/
+shell> cp -p /usr/include/pthread/stdtypes.h \
+/usr/local/lib/gcc-lib/i386-pc-sco3.2v5.0.5/egcs-2.91.66/include/pthread/
 @end example
 
 @item
@@ -11206,7 +11258,8 @@ ppm> install DBI
 If this succeeds, run the following command:
 
 @example
-install ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd
+install \
+ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd
 @end example
 @end itemize
 
@@ -11304,7 +11357,10 @@ If you get the following error from @code{Msql-Mysql-modules}
 when you run the tests:
 
 @example
-t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
+t/00base............install_driver(mysql) failed:
+Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql:
+../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol:
+uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
 @end example
 
 it means that you need to include the compression library, -lz, to the
@@ -11334,9 +11390,12 @@ On SCO, you must have the following environment variables set:
 @example
 shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
 or
-shell> LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
-shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/usr/skunk/lib
-shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:/usr/skunk/man:
+shell> LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:\
+/usr/progressive/lib:/usr/skunk/lib
+shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:\
+/usr/progressive/lib:/usr/skunk/lib
+shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:\
+/usr/skunk/man:
 @end example
 
 First, create a Perl that includes a statically linked @code{DBI} by running
@@ -13010,7 +13069,9 @@ calculate the age of the mother, you need her birth date.  Because that is
 stored in the @code{pet} table, you need both tables for the query:
 
 @example
-mysql> SELECT pet.name, (TO_DAYS(date) - TO_DAYS(birth))/365 AS age, remark
+mysql> SELECT pet.name,
+    -> (TO_DAYS(date) - TO_DAYS(birth))/365 AS age,
+    -> remark
     -> FROM pet, event
     -> WHERE pet.name = event.name AND type = "litter";
 +--------+------+-----------------------------+
@@ -13510,10 +13571,12 @@ The following shows an idea of how you can use the bit group functions
 to calculate the number of days per month a user has visited a web page.
 
 @example
-CREATE TABLE t1 (year YEAR(4), month INT(2) UNSIGNED ZEROFILL, day INT(2) UNSIGNED ZEROFILL);                                                            
-INSERT INTO t1 VALUES(2000,1,1),(2000,1,20),(2000,1,30),(2000,2,2),(2000,2,23),(2000,2,23);
-
-SELECT year,month,BIT_COUNT(BIT_OR(1<<day)) AS days FROM t1 GROUP BY year,month;
+CREATE TABLE t1 (year YEAR(4), month INT(2) UNSIGNED ZEROFILL,
+             day INT(2) UNSIGNED ZEROFILL);
+INSERT INTO t1 VALUES(2000,1,1),(2000,1,20),(2000,1,30),(2000,2,2),
+            (2000,2,23),(2000,2,23);
+SELECT year,month,BIT_COUNT(BIT_OR(1<<day)) AS days FROM t1
+       GROUP BY year,month;
 
 Which returns:
 
@@ -13537,10 +13600,10 @@ The @code{AUTO_INCREMENT} attribute can be used to generate an unique
 identity for new rows:
 
 @example
-CREATE TABLE animals (id mediumint not null auto_increment,
-name char(30) not null,
-primary key (id));
-INSERT INTO animals (name) values ("dog"),("cat"),("penguin"),("lax"),("whale");
+CREATE TABLE animals (id MEDIUMINT NOT NULL AUTO_INCREMENT,
+name CHAR(30) NOT NULL, PRIMARY KEY (id));
+INSERT INTO animals (name) VALUES ("dog"),("cat"),("penguin"),
+("lax"),("whale");
 SELECT * FROM animals;
 
 Which returns:
@@ -13563,12 +13626,12 @@ value for the autoincrement column is calculated as
 useful when you want to put data into ordered groups.
 
 @example
-CREATE TABLE animals (grp enum ('fish','mammal','bird') not null,
-id mediumint not null auto_increment,
-name char(30) not null,
-primary key (grp,id));
-INSERT INTO animals (grp,name) values ("mammal","dog"),("mammal","cat"),("bird","penguin"),("fish","lax"),("mammal","whale");
-SELECT * FROM animals order by grp,id;
+CREATE TABLE animals (grp ENUM('fish','mammal','bird') NOT NULL,
+             id MEDIUMINT NOT NULL AUTO_INCREMENT
+             PRIMARY KEY (grp,id));
+INSERT INTO animals (grp,name) VALUES("mammal","dog"),("mammal","cat"),
+            ("bird","penguin"),("fish","lax"),("mammal","whale");
+SELECT * FROM animals ORDER BY grp,id;
 
 Which returns:
 
@@ -13761,15 +13824,23 @@ select
 from
         twin_project as tp
         /* For Twin 1 */
-        left join twin_data as td on tp.id = td.id and tp.tvab = td.tvab
-        left join informant_data as id on tp.id = id.id and tp.tvab = id.tvab
-        left join harmony as h on tp.id = h.id and tp.tvab = h.tvab
-        left join lentus as l on tp.id = l.id and tp.tvab = l.tvab
+        left join twin_data as td on tp.id = td.id
+                  and tp.tvab = td.tvab
+        left join informant_data as id on tp.id = id.id
+                  and tp.tvab = id.tvab
+        left join harmony as h on tp.id = h.id
+                  and tp.tvab = h.tvab
+        left join lentus as l on tp.id = l.id
+                  and tp.tvab = l.tvab
         /* For Twin 2 */
-        left join twin_data as td2 on p2.id = td2.id and p2.tvab = td2.tvab
-        left join informant_data as id2 on p2.id = id2.id and p2.tvab = id2.tvab
-        left join harmony as h2 on p2.id = h2.id and p2.tvab = h2.tvab
-        left join lentus as l2 on p2.id = l2.id and p2.tvab = l2.tvab,
+        left join twin_data as td2 on p2.id = td2.id
+                  and p2.tvab = td2.tvab
+        left join informant_data as id2 on p2.id = id2.id
+                  and p2.tvab = id2.tvab
+        left join harmony as h2 on p2.id = h2.id
+                  and p2.tvab = h2.tvab
+        left join lentus as l2 on p2.id = l2.id
+                  and p2.tvab = l2.tvab,
         person_data as p1,
         person_data as p2,
         postal_groups as pg
@@ -13791,14 +13862,17 @@ where
         /* Twin is suspect */
         (td.future_contact = 'Yes' and td.suspect = 2) or
         /* Twin is suspect - Informant is Blessed */
-        (td.future_contact = 'Yes' and td.suspect = 1 and id.suspect = 1) or
+        (td.future_contact = 'Yes' and td.suspect = 1
+                                   and id.suspect = 1) or
         /* No twin - Informant is Blessed */
-        (ISNULL(td.suspect) and id.suspect = 1 and id.future_contact = 'Yes') or
+        (ISNULL(td.suspect) and id.suspect = 1
+                            and id.future_contact = 'Yes') or
         /* Twin broken off - Informant is Blessed */
         (td.participation = 'Aborted'
          and id.suspect = 1 and id.future_contact = 'Yes') or
         /* Twin broken off - No inform - Have partner */
-        (td.participation = 'Aborted' and ISNULL(id.suspect) and p2.dead = 0))
+        (td.participation = 'Aborted' and ISNULL(id.suspect)
+                                      and p2.dead = 0))
         and
         l.event = 'Finished'
         /* Get at area code */
@@ -14584,7 +14658,8 @@ If your are using the Perl @code{DBD::mysql} module you can read the options
 from the MySQL option files.  @xref{Option files}.
 
 @example
-$dsn = "DBI:mysql:test;mysql_read_default_group=client;mysql_read_default_file=/usr/local/mysql/data/my.cnf"
+$dsn = "DBI:mysql:test;mysql_read_default_group=client;
+        mysql_read_default_file=/usr/local/mysql/data/my.cnf"
 $dbh = DBI->connect($dsn, $user, $password);
 @end example
 
@@ -14862,7 +14937,8 @@ this:
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password') WHERE user='root';
+mysql> UPDATE user SET Password=PASSWORD('new_password')
+    ->             WHERE user='root';
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -16667,7 +16743,7 @@ privilege tables:
 @example
 shell> mysql -u root mysql
 mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
+    ->     WHERE user='root';
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -16748,9 +16824,9 @@ You can add new users by issuing @code{GRANT} statements:
 @example
 shell> mysql --user=root mysql
 mysql> GRANT ALL PRIVILEGES ON *.* TO monty@@localhost
-           IDENTIFIED BY 'some_pass' WITH GRANT OPTION;
+    ->     IDENTIFIED BY 'some_pass' WITH GRANT OPTION;
 mysql> GRANT ALL PRIVILEGES ON *.* TO monty@@"%"
-           IDENTIFIED BY 'some_pass' WITH GRANT OPTION;
+    ->     IDENTIFIED BY 'some_pass' WITH GRANT OPTION;
 mysql> GRANT RELOAD,PROCESS ON *.* TO admin@@localhost;
 mysql> GRANT USAGE ON *.* TO dummy@@localhost;
 @end example
@@ -16792,13 +16868,13 @@ tables:
 @example
 shell> mysql --user=root mysql
 mysql> INSERT INTO user VALUES('localhost','monty',PASSWORD('some_pass'),
-                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+    ->          'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 mysql> INSERT INTO user VALUES('%','monty',PASSWORD('some_pass'),
-                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+    ->          'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 mysql> INSERT INTO user SET Host='localhost',User='admin',
-                 Reload_priv='Y', Process_priv='Y';
+    ->           Reload_priv='Y', Process_priv='Y';
 mysql> INSERT INTO user (Host,User,Password)
-                        VALUES('localhost','dummy','');
+    ->                  VALUES('localhost','dummy','');
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -16829,17 +16905,17 @@ commands:
 @example
 shell> mysql --user=root mysql
 mysql> GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
-           ON bankaccount.*
-           TO custom@@localhost
-           IDENTIFIED BY 'stupid';
+    ->     ON bankaccount.*
+    ->     TO custom@@localhost
+    ->     IDENTIFIED BY 'stupid';
 mysql> GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
-           ON expenses.*
-           TO custom@@whitehouse.gov
-           IDENTIFIED BY 'stupid';
+    ->     ON expenses.*
+    ->     TO custom@@whitehouse.gov
+    ->     IDENTIFIED BY 'stupid';
 mysql> GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
-           ON customer.*
-           TO custom@@'%'
-           IDENTIFIED BY 'stupid';
+    ->     ON customer.*
+    ->     TO custom@@'%'
+    ->     IDENTIFIED BY 'stupid';
 @end example
 
 The reason that we do to grant statements for the user 'custom' is that
@@ -16853,25 +16929,25 @@ run these commands (note the @code{FLUSH PRIVILEGES} at the end):
 @example
 shell> mysql --user=root mysql
 mysql> INSERT INTO user (Host,User,Password)
-       VALUES('localhost','custom',PASSWORD('stupid'));
+    -> VALUES('localhost','custom',PASSWORD('stupid'));
 mysql> INSERT INTO user (Host,User,Password)
-       VALUES('server.domain','custom',PASSWORD('stupid'));
+    -> VALUES('server.domain','custom',PASSWORD('stupid'));
 mysql> INSERT INTO user (Host,User,Password)
-       VALUES('whitehouse.gov','custom',PASSWORD('stupid'));
+    -> VALUES('whitehouse.gov','custom',PASSWORD('stupid'));
 mysql> INSERT INTO db
-       (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
-        Create_priv,Drop_priv)
-       VALUES
-       ('localhost','bankaccount','custom','Y','Y','Y','Y','Y','Y');
+    -> (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
+    ->  Create_priv,Drop_priv)
+    -> VALUES
+    -> ('localhost','bankaccount','custom','Y','Y','Y','Y','Y','Y');
 mysql> INSERT INTO db
-       (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
-        Create_priv,Drop_priv)
-       VALUES
-       ('whitehouse.gov','expenses','custom','Y','Y','Y','Y','Y','Y');
+    -> (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
+    ->  Create_priv,Drop_priv)
+    -> VALUES
+    -> ('whitehouse.gov','expenses','custom','Y','Y','Y','Y','Y','Y');
 mysql> INSERT INTO db
-       (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
-        Create_priv,Drop_priv)
-       VALUES('%','customer','custom','Y','Y','Y','Y','Y','Y');
+    -> (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
+    ->  Create_priv,Drop_priv)
+    -> VALUES('%','customer','custom','Y','Y','Y','Y','Y','Y');
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -16890,16 +16966,16 @@ domain, you can issue a @code{GRANT} statement like the following:
 
 @example
 mysql> GRANT ...
-           ON *.*
-           TO myusername@@"%.mydomainname.com"
-           IDENTIFIED BY 'mypassword';
+    ->     ON *.*
+    ->     TO myusername@@"%.mydomainname.com"
+    ->     IDENTIFIED BY 'mypassword';
 @end example
 
 To do the same thing by modifying the grant tables directly, do this:
 
 @example
 mysql> INSERT INTO user VALUES ('%.mydomainname.com', 'myusername',
-           PASSWORD('mypassword'),...);
+    ->             PASSWORD('mypassword'),...);
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -16931,7 +17007,7 @@ passwords like this:
 @example
 shell> mysql -u root mysql
 mysql> INSERT INTO user (Host,User,Password)
-       VALUES('%','jeffrey','biscuit');
+    -> VALUES('%','jeffrey','biscuit');
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -16958,7 +17034,7 @@ instead:
 
 @example
 mysql> INSERT INTO user (Host,User,Password)
-       VALUES('%','jeffrey',PASSWORD('biscuit'));
+    -> VALUES('%','jeffrey',PASSWORD('biscuit'));
 @end example
 
 You must also use the @code{PASSWORD()} function when you use @code{SET
@@ -17684,8 +17760,11 @@ If you want to check all tables and repair all tables that are corrupted,
 you can use the following line:
 
 @example
-myisamchk --silent --force --fast --update-state -O key_buffer=64M -O sort_buffer=64M -O read_buffer=1M -O write_buffer=1M /path/to/datadir/*/*.MYI
-isamchk --silent --force -O key_buffer=64M -O sort_buffer=64M -O read_buffer=1M -O write_buffer=1M /path/to/datadir/*/*.ISM
+myisamchk --silent --force --fast --update-state -O key_buffer=64M \
+          -O sort_buffer=64M -O read_buffer=1M -O write_buffer=1M \
+          /path/to/datadir/*/*.MYI
+isamchk --silent --force -O key_buffer=64M -O sort_buffer=64M \
+        -O read_buffer=1M -O write_buffer=1M /path/to/datadir/*/*.ISM
 @end example
 
 The above assumes that you have more than 64 M free.
@@ -18456,8 +18535,10 @@ Key:  8:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
 Key:  9:  Keyblocks used:  98%  Packed:    0%  Max levels:  4
 Total:    Keyblocks used:  98%  Packed:   17%
 
-Records:          1403698    M.recordlength:     226   Packed:             0%
-Recordspace used:     100%   Empty space:          0%  Blocks/Record:   1.00
+Records:          1403698    M.recordlength:     226
+Packed:             0%
+Recordspace used:     100%   Empty space:          0%
+Blocks/Record:   1.00
 Record blocks:    1403698    Delete blocks:        0
 Recorddata:     317235748    Deleted data:         0
 Lost space:             0    Linkdata:             0
@@ -21764,21 +21845,27 @@ MySQL commands:
 help    (\h)    Display this text.
 ?       (\h)    Synonym for `help'.
 clear   (\c)    Clear command.
-connect (\r)    Reconnect to the server. Optional arguments are db and host.
+connect (\r)    Reconnect to the server.
+                Optional arguments are db and host.
 edit    (\e)    Edit command with $EDITOR.
-ego     (\G)    Send command to mysql server, display result vertically.
+ego     (\G)    Send command to mysql server,
+                display result vertically.
 exit    (\q)    Exit mysql. Same as quit.
 go      (\g)    Send command to mysql server.
 nopager (\n)    Disable pager, print to stdout.
 notee   (\t)    Don't write into outfile.
-pager   (\P)    Set PAGER [to_pager]. Print the query results via PAGER.
+pager   (\P)    Set PAGER [to_pager].
+                Print the query results via PAGER.
 print   (\p)    Print current command.
 quit    (\q)    Quit mysql.
 rehash  (\#)    Rebuild completion hash.
-source  (\.)    Execute a SQL script file. Takes a file name as an argument.
+source  (\.)    Execute a SQL script file.
+                Takes a file name as an argument.
 status  (\s)    Get status information from the server.
-tee     (\T)    Set outfile [to_outfile]. Append everything into given outfile.
-use     (\u)    Use another database. Takes database name as argument.
+tee     (\T)    Set outfile [to_outfile].
+                Append everything into given outfile.
+use     (\u)    Use another database.
+                Takes database name as argument.
 @end example
 
 From the above, pager only works in Unix.
@@ -21909,7 +21996,8 @@ following would send the results to two files in two different
 directories, on two different hard-disks mounted on /dr1 and /dr2, yet
 let the results still be seen on the screen via less:
 @example
-mysql> pager cat | tee /dr1/tmp/res.txt | tee /dr2/tmp/res2.txt | less -n -i -S
+mysql> pager cat | tee /dr1/tmp/res.txt | \
+tee /dr2/tmp/res2.txt | less -n -i -S
 @end example
 
 @item
@@ -22013,7 +22101,9 @@ shell> mysqladmin proc stat
 +----+-------+-----------+----+-------------+------+-------+------+
 | 6  | monty | localhost |    | Processlist | 0    |       |      |
 +----+-------+-----------+----+-------------+------+-------+------+
-Uptime: 10077  Threads: 1  Questions: 9  Slow queries: 0  Opens: 6  Flush tables: 1  Open tables: 2  Memory in use: 1092K  Max memory used: 1116K
+Uptime: 10077  Threads: 1  Questions: 9  Slow queries: 0
+Opens: 6 Flush tables: 1  Open tables: 2 
+Memory in use: 1092K  Max memory used: 1116K
 @end example
 
 @cindex status command, results
@@ -22363,7 +22453,7 @@ mysqldump --opt database | mysql ---host=remote-host -C database
 It is possible to dump several databases with one command:
 
 @example
-mysqldump --databases database1 [database2 database3...] > my_databases.sql
+mysqldump --databases database1 [database2 ...] > my_databases.sql
 @end example
 
 If all the databases are wanted, one can use:
@@ -24046,13 +24136,13 @@ able to take advantage of one-master/many slaves solution.  The
 code will be a lot easier to maintain, and adding troubleshooting
 options will be trivial. You will just need to modify one or two
 functions, for example, to log how long each query took, or which
-query, among your many thousands, gave you an error. If you have written a lot of code already,
-you may want to automate the conversion task by using Monty's
-@code{replace} utility, which comes with the standard distribution of
-MySQL, or just write your own Perl script. Hopefully, your
-code follows some recognisable pattern. If not, then you are probably
-better off re-writing it anyway, or at least going through and manually
-beating it into a pattern.
+query, among your many thousands, gave you an error. If you have
+written a lot of code already, you may want to automate the conversion
+task by using Monty's @code{replace} utility, which comes with the
+standard distribution of MySQL, or just write your own Perl script.
+Hopefully, your code follows some recognisable pattern. If not, then
+you are probably better off re-writing it anyway, or at least going
+through and manually beating it into a pattern.
 
 Note that, of course, you can use different names for the
 functions. What is important is having unified interface for connecting
@@ -25034,17 +25124,19 @@ do.CUSTNMBR} comparisons:
 
 @example
 mysql> ALTER TABLE tt MODIFY AssignedPC VARCHAR(15),
-                      MODIFY ClientID   VARCHAR(15);
+    ->                MODIFY ClientID   VARCHAR(15);
 @end example
 
 Now @code{EXPLAIN} produces the output shown below:
 
 @example
-table type   possible_keys   key     key_len ref            rows     Extra
-et    ALL    PRIMARY         NULL    NULL    NULL           74
-tt    ref    AssignedPC,ClientID,ActualPC ActualPC 15 et.EMPLOYID 52 where used
-et_1  eq_ref PRIMARY         PRIMARY 15      tt.AssignedPC  1
-do    eq_ref PRIMARY         PRIMARY 15      tt.ClientID    1
+table type   possible_keys   key      key_len ref           rows Extra
+et    ALL    PRIMARY         NULL     NULL    NULL          74
+tt    ref    AssignedPC,     ActualPC 15      et.EMPLOYID   52   where used
+             ClientID,
+             ActualPC
+et_1  eq_ref PRIMARY         PRIMARY  15      tt.AssignedPC 1
+do    eq_ref PRIMARY         PRIMARY  15      tt.ClientID   1
 @end example
 
 This is almost as good as it can get.
@@ -25062,11 +25154,13 @@ shell> mysqladmin refresh
 Now the join is perfect, and @code{EXPLAIN} produces this result:
 
 @example
-table type   possible_keys   key     key_len ref            rows    Extra
-tt    ALL    AssignedPC,ClientID,ActualPC NULL NULL NULL    3872    where used
-et    eq_ref PRIMARY         PRIMARY 15      tt.ActualPC    1
-et_1  eq_ref PRIMARY         PRIMARY 15      tt.AssignedPC  1
-do    eq_ref PRIMARY         PRIMARY 15      tt.ClientID    1
+table type   possible_keys key     key_len ref           rows Extra
+tt    ALL    AssignedPC    NULL    NULL    NULL          3872 where used
+             ClientID,
+             ActualPC
+et    eq_ref PRIMARY       PRIMARY 15      tt.ActualPC   1
+et_1  eq_ref PRIMARY       PRIMARY 15      tt.AssignedPC 1
+do    eq_ref PRIMARY       PRIMARY 15      tt.ClientID   1
 @end example
 
 Note that the @code{rows} column in the output from @code{EXPLAIN} is an
@@ -25219,7 +25313,7 @@ All the following tables are used as constant tables:
 @example
 mysql> SELECT * FROM t WHERE primary_key=1;
 mysql> SELECT * FROM t1,t2
-           WHERE t1.primary_key=1 AND t2.primary_key=t1.id;
+    ->          WHERE t1.primary_key=1 AND t2.primary_key=t1.id;
 @end example
 
 @item
@@ -25253,11 +25347,11 @@ Some examples of queries that are very fast:
 mysql> SELECT COUNT(*) FROM tbl_name;
 mysql> SELECT MIN(key_part1),MAX(key_part1) FROM tbl_name;
 mysql> SELECT MAX(key_part2) FROM tbl_name
-           WHERE key_part_1=constant;
+    ->        WHERE key_part_1=constant;
 mysql> SELECT ... FROM tbl_name
-           ORDER BY key_part1,key_part2,... LIMIT 10;
+    ->        ORDER BY key_part1,key_part2,... LIMIT 10;
 mysql> SELECT ... FROM tbl_name
-           ORDER BY key_part1 DESC,key_part2 DESC,... LIMIT 10;
+    ->        ORDER BY key_part1 DESC,key_part2 DESC,... LIMIT 10;
 @end example
 
 The following queries are resolved using only the index tree (assuming
@@ -25266,7 +25360,7 @@ the indexed columns are numeric):
 @example
 mysql> SELECT key_part1,key_part2 FROM tbl_name WHERE key_part1=val;
 mysql> SELECT COUNT(*) FROM tbl_name
-           WHERE key_part1=val1 AND key_part2=val2;
+    ->        WHERE key_part1=val1 AND key_part2=val2;
 mysql> SELECT key_part2 FROM tbl_name GROUP BY key_part1;
 @end example
 
@@ -25274,8 +25368,10 @@ The following queries use indexing to retrieve the rows in sorted
 order without a separate sorting pass:
 
 @example
-mysql> SELECT ... FROM tbl_name ORDER BY key_part1,key_part2,... ;
-mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,... ;
+mysql> SELECT ... FROM tbl_name
+    ->            ORDER BY key_part1,key_part2,... ;
+mysql> SELECT ... FROM tbl_name
+    ->            ORDER BY key_part1 DESC,key_part2 DESC,... ;
 @end example
 
 
@@ -25358,7 +25454,8 @@ table permutations to check.
 Note that the above means that if you do a query of type:
 
 @example
-SELECT * FROM a,b LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key) WHERE b.key=d.key
+SELECT * FROM a,b LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key)
+         WHERE b.key=d.key
 @end example
 
 MySQL will do a full scan on @code{b} as the @code{LEFT JOIN} will force 
@@ -25367,7 +25464,8 @@ it to be read before @code{d}.
 The fix in this case is to change the query to:
 
 @example
-SELECT * FROM b,a LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key) WHERE b.key=d.key
+SELECT * FROM b,a LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key)
+         WHERE b.key=d.key
 @end example
 
 
@@ -26346,8 +26444,9 @@ The following @code{WHERE} clauses use indexes:
 These @code{WHERE} clauses do @strong{NOT} use indexes:
 @example
 ... WHERE index_part2=1 AND index_part3=2  /* index_part_1 is not used */
-... WHERE index=1 OR A=10                  /* Index is not used in both AND parts */
-... WHERE index_part1=1 OR index_part2=10  /* No index spans all rows */
+... WHERE index=1 OR A=10                  /* Index is not used in
+                                                        both AND parts */
+... WHERE index_part1=1 OR index_part2=10  /* No index spans all rows  */
 @end example
 
 Note that in some cases MySQL will not use an index, even if one
@@ -26392,8 +26491,8 @@ The example below creates an index for the first 10 characters of the
 
 @example
 mysql> CREATE TABLE test (
-           name CHAR(200) NOT NULL,
-           KEY index_name (name(10)));
+    ->        name CHAR(200) NOT NULL,
+    ->        KEY index_name (name(10)));
 @end example
 
 For @code{BLOB} and @code{TEXT} columns, you must index a prefix of the
@@ -26428,11 +26527,11 @@ Suppose a table is created using the following specification:
 
 @example
 mysql> CREATE TABLE test (
-           id INT NOT NULL,
-           last_name CHAR(30) NOT NULL,
-           first_name CHAR(30) NOT NULL,
-           PRIMARY KEY (id),
-           INDEX name (last_name,first_name));
+    ->       id INT NOT NULL,
+    ->       last_name CHAR(30) NOT NULL,
+    ->       first_name CHAR(30) NOT NULL,
+    ->       PRIMARY KEY (id),
+    ->       INDEX name (last_name,first_name));
 @end example
 
 Then the index @code{name} is an index over @code{last_name} and
@@ -26445,13 +26544,13 @@ Therefore, the @code{name} index will be used in the following queries:
 mysql> SELECT * FROM test WHERE last_name="Widenius";
 
 mysql> SELECT * FROM test WHERE last_name="Widenius"
-                          AND first_name="Michael";
+    ->                    AND first_name="Michael";
 
 mysql> SELECT * FROM test WHERE last_name="Widenius"
-                          AND (first_name="Michael" OR first_name="Monty");
+    ->                    AND (first_name="Michael" OR first_name="Monty");
 
 mysql> SELECT * FROM test WHERE last_name="Widenius"
-                          AND first_name >="M" AND first_name < "N";
+    ->                    AND first_name >="M" AND first_name < "N";
 @end example
 
 However, the @code{name} index will NOT be used in the following queries:
@@ -26460,7 +26559,7 @@ However, the @code{name} index will NOT be used in the following queries:
 mysql> SELECT * FROM test WHERE first_name="Michael";
 
 mysql> SELECT * FROM test WHERE last_name="Widenius"
-                          OR first_name="Michael";
+    ->                    OR first_name="Michael";
 @end example
 
 For more information on the manner in which MySQL uses indexes to
@@ -27099,7 +27198,8 @@ mysql> SET PASSWORD FOR bob@@"%.loc.gov" = PASSWORD("newpass");
 
 or
 
-mysql> UPDATE mysql.user SET password=PASSWORD("newpass") where user="bob' and host="%.loc.gov";
+mysql> UPDATE mysql.user SET password=PASSWORD("newpass")
+    ->                   WHERE user="bob' AND host="%.loc.gov";
 @end example
 
 @item SQL_AUTO_IS_NULL = 0 | 1
@@ -27714,11 +27814,11 @@ string where each pair of hex digits is converted to a character:
 
 @example
 mysql> SELECT x'FF'
-       -> 255
+         -> 255
 mysql> SELECT 0xa+0;
-       -> 10
+         -> 10
 mysql> select 0x5061756c;
-       -> Paul
+         -> Paul
 @end example
 
 The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
@@ -27871,7 +27971,7 @@ because it refers to the alias both as @code{a} and as @code{A}:
 
 @example
 mysql> SELECT col_name FROM tbl_name AS a
-           WHERE a.col_name = 1 OR A.col_name = 2;
+    ->                 WHERE a.col_name = 1 OR A.col_name = 2;
 @end example
 
 Aliases on columns are case insensitive.
@@ -29274,8 +29374,8 @@ object. The standard way to do this is with the @code{SUBSTRING}
 function.  For example:
 
 @example
-mysql> select comment from tbl_name,substring(comment,20) as substr
-       ORDER BY substr;
+mysql> SELECT comment FROM tbl_name,substring(comment,20) AS substr
+    ->                 ORDER BY substr;
 @end example
 
 If you don't do this, only the first @code{max_sort_length} bytes of the
@@ -29285,10 +29385,8 @@ column are used when sorting.  The default value of @code{max_sort_length} is
 @code{TEXT} values by specifying the column position or by using an alias:
 
 @example
-mysql> select id,substring(blob_col,1,100) from tbl_name
-           GROUP BY 2;
-mysql> select id,substring(blob_col,1,100) as b from tbl_name
-           GROUP BY b;
+mysql> SELECT id,substring(blob_col,1,100) FROM tbl_name GROUP BY 2;
+mysql> SELECT id,substring(blob_col,1,100) AS b FROM tbl_name GROUP BY b;
 @end example
 
 @item
@@ -29672,7 +29770,7 @@ For the sake of brevity, examples display the output from the @code{mysql}
 program in abbreviated form.  So this:
 
 @example
-mysql> select MOD(29,9);
+mysql> SELECT MOD(29,9);
 1 rows in set (0.00 sec)
 
 +-----------+
@@ -29685,7 +29783,7 @@ mysql> select MOD(29,9);
 is displayed like this:
 
 @example
-mysql> select MOD(29,9);
+mysql> SELECT MOD(29,9);
         -> 2
 @end example
 
@@ -29728,9 +29826,9 @@ Use parenthesis to force the order of evaluation in an expression.  For
 example:
 
 @example
-mysql> select 1+2*3;
+mysql> SELECT 1+2*3;
         -> 7
-mysql> select (1+2)*3;
+mysql> SELECT (1+2)*3;
         -> 9
 @end example
 
@@ -31713,19 +31811,19 @@ mysql> SELECT INTERVAL 1 DAY + "1997-12-31";
 mysql> SELECT "1998-01-01" - INTERVAL 1 SECOND;
        -> 1997-12-31 23:59:59
 mysql> SELECT DATE_ADD("1997-12-31 23:59:59",
-                       INTERVAL 1 SECOND);
+    ->                 INTERVAL 1 SECOND);
         -> 1998-01-01 00:00:00
 mysql> SELECT DATE_ADD("1997-12-31 23:59:59",
-                       INTERVAL 1 DAY);
+    ->                 INTERVAL 1 DAY);
         -> 1998-01-01 23:59:59
 mysql> SELECT DATE_ADD("1997-12-31 23:59:59",
-                       INTERVAL "1:1" MINUTE_SECOND);
+    ->                 INTERVAL "1:1" MINUTE_SECOND);
         -> 1998-01-01 00:01:00
 mysql> SELECT DATE_SUB("1998-01-01 00:00:00",
-                       INTERVAL "1 1:1:1" DAY_SECOND);
+    ->                 INTERVAL "1 1:1:1" DAY_SECOND);
         -> 1997-12-30 22:58:59
 mysql> SELECT DATE_ADD("1998-01-01 00:00:00",
-                       INTERVAL "-1 10" DAY_HOUR);
+    ->                 INTERVAL "-1 10" DAY_HOUR);
         -> 1997-12-30 14:00:00
 mysql> SELECT DATE_SUB("1998-01-02", INTERVAL 31 DAY);
         -> 1997-12-02
@@ -32590,10 +32688,10 @@ Returns a count of the number of non-@code{NULL} values in the rows
 retrieved by a @code{SELECT} statement:
 
 @example
-mysql> select student.student_name,COUNT(*)
-           from student,course
-           where student.student_id=course.student_id
-           GROUP BY student_name;
+mysql> SELECT student.student_name,COUNT(*)
+    ->        FROM student,course
+    ->        WHERE student.student_id=course.student_id
+    ->        GROUP BY student_name;
 
 @end example
 
@@ -32630,8 +32728,8 @@ Returns the average value of @code{expr}:
 
 @example
 mysql> select student_name, AVG(test_score)
-           from student
-           GROUP BY student_name;
+    ->        from student
+    ->        GROUP BY student_name;
 @end example
 
 @findex MIN()
@@ -32644,8 +32742,8 @@ minimum or maximum string value. @xref{MySQL indexes}.
 
 @example
 mysql> select student_name, MIN(test_score), MAX(test_score)
-           from student
-           GROUP BY student_name;
+    ->        from student
+    ->        GROUP BY student_name;
 @end example
 
 @findex SUM()
@@ -32684,9 +32782,9 @@ grouping on unnecessary items.  For example, you don't need to group on
 
 @example
 mysql> select order.custid,customer.name,max(payments)
-       from order,customer
-       where order.custid = customer.custid
-       GROUP BY order.custid;
+    ->        from order,customer
+    ->        where order.custid = customer.custid
+    ->        GROUP BY order.custid;
 @end example
 
 In ANSI SQL, you would have to add @code{customer.name} to the @code{GROUP
@@ -32721,7 +32819,7 @@ using an alias for the expression:
 
 @example
 mysql> SELECT id,FLOOR(value/100) AS val FROM tbl_name
-           GROUP BY id,val ORDER BY val;
+    ->        GROUP BY id,val ORDER BY val;
 @end example
 
 In MySQL Version 3.23 you can do:
@@ -32756,19 +32854,20 @@ mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
 
 @c help SELECT
 @example
-SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
+SELECT [STRAIGHT_JOIN]
+       [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
        [SQL_CACHE | SQL_NO_CACHE] [SQL_CALC_FOUND_ROWS] [HIGH_PRIORITY]
        [DISTINCT | DISTINCTROW | ALL]
     select_expression,...
     [INTO @{OUTFILE | DUMPFILE@} 'file_name' export_options]
     [FROM table_references
-        [WHERE where_definition]
-        [GROUP BY @{unsigned_integer | col_name | formula@} [ASC | DESC], ...]
-        [HAVING where_definition]
-        [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
-        [LIMIT [offset,] rows]
-        [PROCEDURE procedure_name]
-        [FOR UPDATE | LOCK IN SHARE MODE]]
+      [WHERE where_definition]
+      [GROUP BY @{unsigned_integer | col_name | formula@} [ASC | DESC], ...]
+      [HAVING where_definition]
+      [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
+      [LIMIT [offset,] rows]
+      [PROCEDURE procedure_name]
+      [FOR UPDATE | LOCK IN SHARE MODE]]
 @end example
 @c help end
 
@@ -32844,9 +32943,9 @@ A table reference may be aliased using @code{tbl_name [AS] alias_name}:
 
 @example
 mysql> select t1.name, t2.salary from employee AS t1, info AS t2
-           where t1.name = t2.name;
+    ->        where t1.name = t2.name;
 mysql> select t1.name, t2.salary from employee t1, info t2
-           where t1.name = t2.name;
+    ->        where t1.name = t2.name;
 @end example
 
 @item
@@ -32856,11 +32955,11 @@ positions.  Column positions begin with 1:
 
 @example
 mysql> select college, region, seed from tournament
-           ORDER BY region, seed;
+    ->        ORDER BY region, seed;
 mysql> select college, region AS r, seed AS s from tournament
-           ORDER BY r, s;
+    ->        ORDER BY r, s;
 mysql> select college, region, seed from tournament
-           ORDER BY 2, 3;
+    ->        ORDER BY 2, 3;
 @end example
 
 To sort in reverse order, add the @code{DESC} (descending) keyword to the
@@ -32892,14 +32991,14 @@ In MySQL Version 3.22.5 or later, you can also write queries like this:
 
 @example
 mysql> select user,max(salary) from users
-           group by user HAVING max(salary)>10;
+    ->        group by user HAVING max(salary)>10;
 @end example
 
 In older MySQL versions, you can write this instead:
 
 @example
 mysql> select user,max(salary) AS sum from users
-           group by user HAVING sum>10;
+    ->        group by user HAVING sum>10;
 @end example
 
 @item
@@ -33149,7 +33248,7 @@ A table reference may be aliased using @code{tbl_name AS alias_name} or
 
 @example
 mysql> select t1.name, t2.salary from employee AS t1, info AS t2
-           where t1.name = t2.name;
+    ->        where t1.name = t2.name;
 @end example
 
 @item
@@ -33164,8 +33263,8 @@ records in a table that have no counterpart in another table:
 
 @example
 mysql> select table1.* from table1
-           LEFT JOIN table2 ON table1.id=table2.id
-           where table2.id is NULL;
+    ->        LEFT JOIN table2 ON table1.id=table2.id
+    ->        where table2.id is NULL;
 @end example
 
 This example finds all rows in @code{table1} with an @code{id} value that is
@@ -33231,15 +33330,15 @@ particular index.
 Some examples:
 
 @example
-mysql> select * from table1,table2 where table1.id=table2.id;
-mysql> select * from table1 LEFT JOIN table2 ON table1.id=table2.id;
-mysql> select * from table1 LEFT JOIN table2 USING (id);
-mysql> select * from table1 LEFT JOIN table2 ON table1.id=table2.id
-           LEFT JOIN table3 ON table2.id=table3.id;
-mysql> select * from table1 USE INDEX (key1,key2) WHERE key1=1 and key2=2 AND
-       key3=3;
-mysql> select * from table1 IGNORE INDEX (key3) WHERE key1=1 and key2=2 AND
-       key3=3;
+mysql> SELECT * FROM table1,table2 WHERE table1.id=table2.id;
+mysql> SELECT * FROM table1 LEFT JOIN table2 ON table1.id=table2.id;
+mysql> SELECT * FROM table1 LEFT JOIN table2 USING (id);
+mysql> SELECT * FROM table1 LEFT JOIN table2 ON table1.id=table2.id
+    ->          LEFT JOIN table3 ON table2.id=table3.id;
+mysql> SELECT * FROM table1 USE INDEX (key1,key2)
+    ->          WHERE key1=1 AND key2=2 AND key3=3;
+mysql> SELECT * FROM table1 IGNORE INDEX (key3)
+    ->          WHERE key1=1 AND key2=2 AND key3=3;
 @end example
 
 @xref{LEFT JOIN optimisation, , @code{LEFT JOIN} optimisation}.
@@ -33703,19 +33802,22 @@ only a given number of rows are changed.
 
 @example
 DELETE [LOW_PRIORITY | QUICK] FROM table_name
-    [WHERE where_definition]
-    [ORDER BY ...]
-    [LIMIT rows]
+       [WHERE where_definition]
+       [ORDER BY ...]
+       [LIMIT rows]
 
 or
 
-DELETE [LOW_PRIORITY | QUICK] table_name[.*] [,table_name[.*] ...] FROM
-table-references [WHERE where_definition]
+DELETE [LOW_PRIORITY | QUICK] table_name[.*] [,table_name[.*] ...]
+       FROM table-references
+       [WHERE where_definition]
 
 or
 
-DELETE [LOW_PRIORITY | QUICK] FROM table_name[.*], [table_name[.*] ...] USING
-table-references [WHERE where_definition]
+DELETE [LOW_PRIORITY | QUICK]
+       FROM table_name[.*], [table_name[.*] ...]
+       USING table-references
+       [WHERE where_definition]
 @end example
 
 @code{DELETE} deletes rows from @code{table_name} that satisfy the condition
@@ -34055,15 +34157,15 @@ fields delimited by commas:
 
 @example
 mysql> SELECT * INTO OUTFILE 'data.txt'
-           FIELDS TERMINATED BY ','
-           FROM ...;
+    ->          FIELDS TERMINATED BY ','
+    ->          FROM ...;
 @end example
 
 To read the comma-delimited file back in, the correct statement would be:
 
 @example
 mysql> LOAD DATA INFILE 'data.txt' INTO TABLE table2
-           FIELDS TERMINATED BY ',';
+    ->           FIELDS TERMINATED BY ',';
 @end example
 
 If instead you tried to read in the file with the statement shown below, it
@@ -34072,7 +34174,7 @@ tabs between fields:
 
 @example
 mysql> LOAD DATA INFILE 'data.txt' INTO TABLE table2
-           FIELDS TERMINATED BY '\t';
+    ->           FIELDS TERMINATED BY '\t';
 @end example
 
 The likely result is that each input line would be interpreted as
@@ -34087,8 +34189,8 @@ the file:
 
 @example
 mysql> LOAD DATA INFILE 'data.txt' INTO TABLE tbl_name
-           FIELDS TERMINATED BY ',' ENCLOSED BY '"'
-           LINES TERMINATED BY '\n';
+    ->           FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    ->           LINES TERMINATED BY '\n';
 @end example
 
 Any of the field or line handling options may specify an empty string
@@ -34283,7 +34385,7 @@ If you wish to load only some of a table's columns, specify a field list:
 
 @example
 mysql> LOAD DATA INFILE 'persondata.txt'
-           INTO TABLE persondata (col1,col2,...);
+    ->           INTO TABLE persondata (col1,col2,...);
 @end example
 
 You must also specify a field list if the order of the fields in the input
@@ -34839,8 +34941,8 @@ MySQL will create new fields for all elements in the
 
 @example
 mysql> CREATE TABLE test (a int not null auto_increment,
-           primary key (a), key(b))
-           TYPE=MyISAM SELECT b,c from test2;
+    ->        primary key (a), key(b))
+    ->        TYPE=MyISAM SELECT b,c from test2;
 @end example
 
 This will create a @code{MyISAM} table with three columns, a, b, and c.
@@ -35007,7 +35109,8 @@ alter_specification:
   or	ADD [CONSTRAINT symbol] FOREIGN KEY index_name (index_col_name,...)
             [reference_definition]
   or    ALTER [COLUMN] col_name @{SET DEFAULT literal | DROP DEFAULT@}
-  or    CHANGE [COLUMN] old_col_name create_definition [FIRST | AFTER column_name]
+  or    CHANGE [COLUMN] old_col_name create_definition
+               [FIRST | AFTER column_name]
   or    MODIFY [COLUMN] create_definition [FIRST | AFTER column_name]
   or    DROP [COLUMN] col_name
   or    DROP PRIMARY KEY
@@ -35348,7 +35451,8 @@ automatically commit current active transaction.
 @cindex multi-part index
 
 @example
-CREATE [UNIQUE|FULLTEXT] INDEX index_name ON tbl_name (col_name[(length)],... )
+CREATE [UNIQUE|FULLTEXT] INDEX index_name
+       ON tbl_name (col_name[(length)],... )
 @end example
 
 The @code{CREATE INDEX} statement doesn't do anything in MySQL prior
@@ -35449,7 +35553,7 @@ below accesses the @code{author} table from the @code{db1} database and the
 @example
 mysql> USE db1;
 mysql> SELECT author_name,editor_name FROM author,db2.editor
-           WHERE author.editor_id = db2.editor.editor_id;
+    ->        WHERE author.editor_id = db2.editor.editor_id;
 @end example
 
 @cindex Sybase compatibility
@@ -35664,7 +35768,7 @@ example shown below requires @code{LOCK TABLES} in order to execute safely:
 mysql> LOCK TABLES trans READ, customer WRITE;
 mysql> select sum(value) from trans where customer_id= some_id;
 mysql> update customer set total_value=sum_from_previous_statement
-           where customer_id=some_id;
+    ->        where customer_id=some_id;
 mysql> UNLOCK TABLES;
 @end example
 
@@ -35748,22 +35852,23 @@ mysql> CREATE TABLE articles (
 Query OK, 0 rows affected (0.00 sec)
 
 mysql> INSERT INTO articles VALUES
-    -> (0,'MySQL Tutorial', 'DBMS stands for DataBase Management ...'),
+    -> (0,'MySQL Tutorial', 'DBMS stands for DataBase ...'),
     -> (0,'How To Use MySQL Efficiently', 'After you went through a ...'),
-    -> (0,'Optimising MySQL','In this tutorial we will show how to ...'),
-    -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. Normalise ...'),
-    -> (0,'MySQL vs. YourSQL', 'In the following database comparison we ...'),
-    -> (0,'MySQL Security', 'When configured properly, MySQL could be ...');
+    -> (0,'Optimising MySQL','In this tutorial we will show ...'),
+    -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. ...'),
+    -> (0,'MySQL vs. YourSQL', 'In the following database comparison ...'),
+    -> (0,'MySQL Security', 'When configured properly, MySQL ...');
 Query OK, 5 rows affected (0.00 sec)
 Records: 5  Duplicates: 0  Warnings: 0
 
-mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('database');
-+----+-------------------+---------------------------------------------+
-| id | title             | body                                        |
-+----+-------------------+---------------------------------------------+
-|  5 | MySQL vs. YourSQL | In the following database comparison we ... |
-|  1 | MySQL Tutorial    | DBMS stands for DataBase Management ...     |
-+----+-------------------+---------------------------------------------+
+mysql> SELECT * FROM articles
+    ->          WHERE MATCH (title,body) AGAINST ('database');
++----+-------------------+------------------------------------------+
+| id | title             | body                                     |
++----+-------------------+------------------------------------------+
+|  5 | MySQL vs. YourSQL | In the following database comparison ... |
+|  1 | MySQL Tutorial    | DBMS stands for DataBase ...             |
++----+-------------------+------------------------------------------+
 2 rows in set (0.00 sec)
 @end example
 
@@ -35806,12 +35911,12 @@ mysql> SELECT id, body, MATCH title,body AGAINST (
     -> 'Security implications of running MySQL as root') AS score
     -> FROM articles WHERE MATCH (title,body) AGAINST
     -> ('Security implications of running MySQL as root');
-+----+-----------------------------------------------+-----------------+
-| id | body                                          | score           |
-+----+-----------------------------------------------+-----------------+
-|  4 | 1. Never run mysqld as root. 2. Normalise ... | 1.5055546709332 |
-|  6 | When configured properly, MySQL could be ...  |   1.31140957288 |
-+----+-----------------------------------------------+-----------------+
++----+-------------------------------------+-----------------+
+| id | body                                | score           |
++----+-------------------------------------+-----------------+
+|  4 | 1. Never run mysqld as root. 2. ... | 1.5055546709332 |
+|  6 | When configured properly, MySQL ... |   1.31140957288 |
++----+-------------------------------------+-----------------+
 2 rows in set (0.00 sec)
 @end example
 
@@ -35860,17 +35965,17 @@ Since version 4.0.1 MySQL can also perform boolean fulltext searches using
 @code{IN BOOLEAN MODE} modifier.
 
 @example
-mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST (
-    ->    '+MySQL -YourSQL' IN BOOLEAN MODE);
-+----+------------------------------+-----------------------------------------------+
-| id | title                        | body                                          |
-+----+------------------------------+-----------------------------------------------+
-|  1 | MySQL Tutorial               | DBMS stands for DataBase Management ...       |
-|  2 | How To Use MySQL Efficiently | After you went through a ...                  |
-|  3 | Optimising MySQL             | In this tutorial we will show how to ...      |
-|  4 | 1001 MySQL Trick             | 1. Never run mysqld as root. 2. Normalise ... |
-|  6 | MySQL Security               | When configured properly, MySQL could be ...  |
-+----+------------------------------+-----------------------------------------------+
+mysql> SELECT * FROM articles WHERE MATCH (title,body)
+    ->     AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
++----+------------------------------+-------------------------------------+
+| id | title                        | body                                |
++----+------------------------------+-------------------------------------+
+|  1 | MySQL Tutorial               | DBMS stands for DataBase ...        |
+|  2 | How To Use MySQL Efficiently | After you went through a ...        |
+|  3 | Optimising MySQL             | In this tutorial we will show ...   |
+|  4 | 1001 MySQL Trick             | 1. Never run mysqld as root. 2. ... |
+|  6 | MySQL Security               | When configured properly, MySQL ... |
++----+------------------------------+-------------------------------------+
 @end example
 
 This query retrieved all the rows that contain the word @code{MySQL}
@@ -36951,7 +37056,8 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
-CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a))
+             TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 @end example
 
 Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
@@ -37104,7 +37210,7 @@ normally is common with hashed tables:
 
 @example
 mysql> CREATE TABLE test TYPE=HEAP SELECT ip,SUM(downloads) as down
-        FROM log_table GROUP BY ip;
+    ->                   FROM log_table GROUP BY ip;
 mysql> SELECT COUNT(ip),AVG(down) FROM test;
 mysql> DROP TABLE test;
 @end example
@@ -37304,26 +37410,26 @@ hard disk. Below is an example of possible configuration parameters in
 # ...
 #
 innodb_data_home_dir = c:\ibdata
-#                                            Data files must be able to
-#                                            hold your data and indexes
+#                                  Data files must be able to
+#                                  hold your data and indexes
 innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
-#                                            Set buffer pool size to 50 - 80 %
-#                                            of your computer's memory
+#                                  Set buffer pool size to 50 - 80 %
+#                                  of your computer's memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
 innodb_log_group_home_dir = c:\iblogs
-#                                            .._log_arch_dir must be the same
-#                                            as .._log_group_home_dir
+#                                  .._log_arch_dir must be the same
+#                                  as .._log_group_home_dir
 innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                            Set the log file size to about
-#                                            15 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  15 % of the buffer pool size
 set-variable = innodb_log_file_size=10M
 set-variable = innodb_log_buffer_size=8M
-#                                            Set ..flush_log_at_trx_commit to
-#                                            0 if you can afford losing
-#                                            a few last transactions 
+#                                  Set ..flush_log_at_trx_commit to
+#                                  0 if you can afford losing
+#                                  a few last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37403,28 +37509,28 @@ InnoDB:
 # ...
 #
 innodb_data_home_dir = /
-#                                            Data files must be able to
-#                                            hold your data and indexes
+#                                  Data files must be able to
+#                                  hold your data and indexes
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
-#                                            Set buffer pool size to 50 - 80 %
-#                                            of your computer's memory, but
-#                                            make sure on Linux x86 the total
-#                                            memory usage is < 2 GB
+#                                  Set buffer pool size to 50 - 80 %
+#                                  of your computer's memory, but
+#                                  make sure on Linux x86 the total
+#                                  memory usage is < 2 GB
 set-variable = innodb_buffer_pool_size=350M
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
-#                                            .._log_arch_dir must be the same
-#                                            as .._log_group_home_dir
+#                                  .._log_arch_dir must be the same
+#                                  as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
-#                                            Set the log file size to about
-#                                            15 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  15 % of the buffer pool size
 set-variable = innodb_log_file_size=50M
 set-variable = innodb_log_buffer_size=8M
-#                                            Set ..flush_log_at_trx_commit to
-#                                            0 if you can afford losing
-#                                            a few last transactions 
+#                                  Set ..flush_log_at_trx_commit to
+#                                  0 if you can afford losing
+#                                  a few last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37560,21 +37666,23 @@ and log files. InnoDB will print something like the following:
 
 @example
 ~/mysqlm/sql > mysqld
-InnoDB: The first specified data file /home/heikki/data/ibdata1 did not exist:
+InnoDB: The first specified data file /home/heikki/data/ibdata1
+did not exist:
 InnoDB: a new database to be created!
 InnoDB: Setting file /home/heikki/data/ibdata1 size to 134217728
 InnoDB: Database physically writes the file full: wait...
-InnoDB: Data file /home/heikki/data/ibdata2 did not exist: new to be created
+InnoDB: Data file /home/heikki/data/ibdata2 did not exist:
+new to be created
 InnoDB: Setting file /home/heikki/data/ibdata2 size to 262144000
 InnoDB: Database physically writes the file full: wait...
-InnoDB: Log file /home/heikki/data/logs/ib_logfile0 did not exist: new to be c
-reated
+InnoDB: Log file /home/heikki/data/logs/ib_logfile0 did not exist:
+new to be created
 InnoDB: Setting log file /home/heikki/data/logs/ib_logfile0 size to 5242880
-InnoDB: Log file /home/heikki/data/logs/ib_logfile1 did not exist: new to be c
-reated
+InnoDB: Log file /home/heikki/data/logs/ib_logfile1 did not exist:
+new to be created
 InnoDB: Setting log file /home/heikki/data/logs/ib_logfile1 size to 5242880
-InnoDB: Log file /home/heikki/data/logs/ib_logfile2 did not exist: new to be c
-reated
+InnoDB: Log file /home/heikki/data/logs/ib_logfile2 did not exist:
+new to be created
 InnoDB: Setting log file /home/heikki/data/logs/ib_logfile2 size to 5242880
 InnoDB: Started
 mysqld: ready for connections
@@ -37720,7 +37828,8 @@ constraints to guard the integrity of your data.
 
 The syntax of a foreign key constraint definition in InnoDB:
 @example
-FOREIGN KEY (index_col_name, ...) REFERENCES table_name (index_col_name, ...)
+FOREIGN KEY (index_col_name, ...)
+            REFERENCES table_name (index_col_name, ...)
 @end example
 
 An example:
@@ -38395,8 +38504,8 @@ RECORD LOCKS space id 0 page no 12758 n bits 104 table test/mytable index
 PRIMARY trx id 0 582333343 lock_mode X
 Record lock, heap no 2 PHYSICAL RECORD: n_fields 74; 1-byte offs FALSE;
 info bits 0
- 0: len 4; hex 0001a801; asc ;; 1: len 6; hex 000022b5b39f; asc ";; 2: len 7;
-hex 000002001e03ec; asc ;; 3: len 4; hex 00000001;
+ 0: len 4; hex 0001a801; asc ;; 1: len 6; hex 000022b5b39f; asc ";;
+ 2: len 7; hex 000002001e03ec; asc ;; 3: len 4; hex 00000001;
 ...
 -----------------------------------------------
 CURRENT SEMAPHORES RESERVED AND SEMAPHORE WAITS
@@ -38407,7 +38516,8 @@ Sorry, cannot give rw-lock list info in non-debug version!
 -----------------------------------------------------
 SYNC ARRAY INFO: reservation count 6041054, signal count 2913432
 4a239430 waited for by thread 49627477 op. S-LOCK file NOT KNOWN line 0 
-Mut ex 0 sp 5530989 r 62038708 sys 2155035; rws 0 8257574 8025336; rwx 0 1121090 1848344
+Mut ex 0 sp 5530989 r 62038708 sys 2155035;
+rws 0 8257574 8025336; rwx 0 1121090 1848344
 -----------------------------------------------------
 CURRENT PENDING FILE I/O'S
 --------------------------
@@ -39271,7 +39381,8 @@ the MySQL error file:
 
 @example
 001119 23:43:56  bdb:  Missing log fileid entry
-001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid
+001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN:
+                       1 3644744: Invalid
 @end example
 
 This is not fatal but we don't recommend that you delete tables if you are
@@ -42663,9 +42774,9 @@ An unknown error occurred.
 @findex @code{mysql_real_connect()}
 
 @code{MYSQL *mysql_real_connect(MYSQL *mysql, const char *host,
-                          const char *user, const char *passwd, const char *db,
-                          unsigned int port, const char *unix_socket,
-                          unsigned int client_flag)}
+                 const char *user, const char *passwd, const char *db,
+                 unsigned int port, const char *unix_socket,
+                 unsigned int client_flag)}
 
 @subsubheading Description
 
@@ -45024,8 +45135,10 @@ mysql> CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
 mysql> CREATE FUNCTION myfunc_double RETURNS REAL SONAME "udf_example.so";
 mysql> CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "udf_example.so";
 mysql> CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
-mysql> CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
-mysql> CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so";
+mysql> CREATE FUNCTION reverse_lookup
+    ->        RETURNS STRING SONAME "udf_example.so";
+mysql> CREATE AGGREGATE FUNCTION avgcost
+    ->        RETURNS REAL SONAME "udf_example.so";
 @end example
 
 Functions can be deleted using @code{DROP FUNCTION}:
@@ -45856,7 +45969,7 @@ function:
 
 @example
 mysql> update user set password=PASSWORD('your password')
-           where user='XXX';
+    ->             where user='XXX';
 @end example
 @end itemize
 
@@ -46887,13 +47000,15 @@ Field types @code{FLOAT}, @code{DOUBLE} and @code{DECIMAL} are such.
 
 @example
 CREATE TABLE t1 (i int, d1 decimal(9,2), d2 decimal(9,2));
-INSERT INTO t1 values (1, 101.40, 21.40), (1, -80.00, 0.00), (2, 0.00, 0.00),
-(2, -13.20, 0.00), (2, 59.60, 46.40), (2, 30.40, 30.40), (3, 37.00, 7.40),
-(3, -29.60, 0.00), (4, 60.00, 15.40), (4, -10.60, 0.00), (4, -34.00, 0.00),
-(5, 33.00, 0.00), (5, -25.80, 0.00), (5, 0.00, 7.20), (6, 0.00, 0.00),
-(6, -51.40, 0.00);
+INSERT INTO t1 values (1, 101.40, 21.40), (1, -80.00, 0.00),
+(2, 0.00, 0.00), (2, -13.20, 0.00), (2, 59.60, 46.40),
+(2, 30.40, 30.40), (3, 37.00, 7.40), (3, -29.60, 0.00),
+(4, 60.00, 15.40), (4, -10.60, 0.00), (4, -34.00, 0.00),
+(5, 33.00, 0.00), (5, -25.80, 0.00), (5, 0.00, 7.20),
+(6, 0.00, 0.00), (6, -51.40, 0.00);
 
-mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING a <> b;
+mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b
+    -> FROM t1 GROUP BY i HAVING a <> b;
 +------+--------+-------+
 | i    | a      | b     |
 +------+--------+-------+
@@ -46915,7 +47030,8 @@ The problem cannot be solved by using ROUND() (or similar function),
 because the result is still a floating point number. Example:
 
 @example
-mysql> SELECT i, ROUND(SUM(d1), 2) AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i HAVING a <> b;
+mysql> SELECT i, ROUND(SUM(d1), 2) AS a, ROUND(SUM(d2), 2) AS b
+    -> FROM t1 GROUP BY i HAVING a <> b;
 +------+--------+-------+
 | i    | a      | b     |
 +------+--------+-------+
@@ -46930,7 +47046,8 @@ mysql> SELECT i, ROUND(SUM(d1), 2) AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY
 
 This is what the numbers in row 'a' look like:
 @example
-mysql> SELECT i, ROUND(SUM(d1), 2)*1.0000000000000000 AS a, ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i HAVING a <> b;
+mysql> SELECT i, ROUND(SUM(d1), 2)*1.0000000000000000 AS a,
+    -> ROUND(SUM(d2), 2) AS b FROM t1 GROUP BY i HAVING a <> b;
 +------+----------------------+-------+
 | i    | a                    | b     |
 +------+----------------------+-------+
@@ -46952,8 +47069,8 @@ with 1, an example follows.
 AN EXAMPLE OF A WRONG METHOD!!!}
 
 @example
-mysql> SELECT i, ROUND(SUM(d1), 2)*1 AS a, ROUND(SUM(d2), 2)*1 AS b FROM t1 GROUP
-BY i HAVING a <> b;
+mysql> SELECT i, ROUND(SUM(d1), 2)*1 AS a, ROUND(SUM(d2), 2)*1 AS b
+    -> FROM t1 GROUP BY i HAVING a <> b;
 +------+--------+------+
 | i    | a      | b    |
 +------+--------+------+
@@ -46974,7 +47091,8 @@ same with precision of one of ten thousand (0.0001), the comparsion
 should be done like this:
 
 @example
-mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING ABS(a - b) > 0.0001;
+mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1
+    -> GROUP BY i HAVING ABS(a - b) > 0.0001;
 +------+--------+------+
 | i    | a      | b    |
 +------+--------+------+
@@ -46987,7 +47105,8 @@ And vice versa, if we wanted to get rows where the numbers are the same,
 the test would be:
 
 @example
-mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1 GROUP BY i HAVING ABS(a - b) < 0.0001;
+mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1
+    -> GROUP BY i HAVING ABS(a - b) < 0.0001;
 +------+-------+-------+
 | i    | a     | b     |
 +------+-------+-------+
@@ -53766,7 +53885,7 @@ Fixed bug that you couldn't use @code{tbl_name.field_name} in @code{UPDATE}.
 Fixed @code{SELECT DISTINCT} when using 'hidden group'. For example:
 @example
 mysql> SELECT DISTINCT MOD(some_field,10) FROM test
-           GROUP BY some_field;
+    ->        GROUP BY some_field;
 @end example
 Note: @code{some_field} is normally in the @code{SELECT} part. ANSI SQL should
 require it.
@@ -53840,8 +53959,8 @@ New range optimiser that can resolve ranges when some keypart prefix is
 constant. Example:
 @example
 mysql> SELECT * FROM tbl_name
-           WHERE key_part_1="customer"
-           AND key_part_2>=10 AND key_part_2<=10;
+    ->          WHERE key_part_1="customer"
+    ->          AND key_part_2>=10 AND key_part_2<=10;
 @end example
 @end itemize
 
@@ -54299,7 +54418,7 @@ lookups.  The column that is used should be a constant for each group because
 the value is calculated only once for the first row that is found for a group.
 @example
 mysql> SELECT id,lookup.text,sum(*) FROM test,lookup
-         WHERE test.id=lookup.id GROUP BY id;
+    ->        WHERE test.id=lookup.id GROUP BY id;
 @end example
 @item
 Fixed bug in @code{SUM(function)} (could cause a core dump).
@@ -54664,7 +54783,9 @@ lists the @code{mysqld} version as @code{mysql ... --debug} in this case.
 If you are using gcc or egcs, the recommended configure line is:
 
 @example
-CC=gcc CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex
+CC=gcc CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors \
+   -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql \
+   --with-debug --with-extra-charsets=complex
 @end example
 
 This will avoid problems with the @code{libstdc++} library and with C++
