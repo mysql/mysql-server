@@ -374,7 +374,7 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
-int insert_precheck(THD *thd, TABLE_LIST *tables, bool update);
+int insert_precheck(THD *thd, TABLE_LIST *tables);
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
