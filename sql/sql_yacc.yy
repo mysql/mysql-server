@@ -1441,22 +1441,22 @@ select_option_list:
 
 select_option:
 	STRAIGHT_JOIN { Select->options|= SELECT_STRAIGHT_JOIN; }
-	| HIGH_PRIORITY { Lex->lock_option= TL_READ_HIGH_PRIORITY; }
+	| HIGH_PRIORITY { if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_READ_HIGH_PRIORITY; }
 	| DISTINCT	{ Select->options|= SELECT_DISTINCT; }
 	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
-	| SQL_BUFFER_RESULT { Select->options|= OPTION_BUFFER_RESULT; }
-	| SQL_CALC_FOUND_ROWS { Select->options|= OPTION_FOUND_ROWS; }
-	| SQL_NO_CACHE_SYM { current_thd->safe_to_cache_query=0; }
-	| SQL_CACHE_SYM { Select->options |= OPTION_TO_QUERY_CACHE; }
+	| SQL_BUFFER_RESULT { if (Select != &Lex->select_lex) YYABORT; Select->options|= OPTION_BUFFER_RESULT; }
+	| SQL_CALC_FOUND_ROWS {  if (Select != &Lex->select_lex) YYABORT; Select->options|= OPTION_FOUND_ROWS; }
+	| SQL_NO_CACHE_SYM {  if (Select != &Lex->select_lex) YYABORT; current_thd->safe_to_cache_query=0; }
+	| SQL_CACHE_SYM {  if (Select != &Lex->select_lex) YYABORT; Select->options |= OPTION_TO_QUERY_CACHE; }
 	| ALL		{}
 
 select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
-	  { Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
+	  {  if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_WRITE; current_thd->safe_to_cache_query=0; }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
-	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; }
+	  {  if (Select != &Lex->select_lex) YYABORT;  Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; current_thd->safe_to_cache_query=0; }
 
 select_item_list:
 	  select_item_list ',' select_item
