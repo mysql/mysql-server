@@ -7288,6 +7288,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
   {
     while (1)
     {
+      my_bool escaped= 0;
       if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
 		       (const uchar*)wildend)) <= 0)
 	return 1;
@@ -7305,6 +7306,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
 			(const uchar*)wildend)) <= 0)
           return 1;
         wildstr+= scan;
+        escaped= 1;
       }
       
       if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
@@ -7312,7 +7314,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
         return 1;
       str+= scan;
       
-      if (w_wc == (my_wc_t)w_one)
+      if (!escaped && w_wc == (my_wc_t)w_one)
       {
         result= 1;				/* Found an anchor char */
       }
