@@ -765,7 +765,14 @@ returns TRUE for all tables in the query.
 
 If thd is not in the autocommit state, this function also starts a new
 transaction for thd if there is no active trx yet, and assigns a consistent
-read view to it if there is no read view yet. */
+read view to it if there is no read view yet.
+
+Why a deadlock of threads is not possible: the query cache calls this function
+at the start of a SELECT processing. Then the calling thread cannot be
+holding any InnoDB semaphores. The calling thread is holding the
+query cache mutex, and this function will reserver the InnoDB kernel mutex.
+Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
+the InnoDB kernel mutex. */
 
 my_bool
 innobase_query_caching_of_table_permitted(
@@ -800,6 +807,13 @@ innobase_query_caching_of_table_permitted(
 
 	if (trx == NULL) {
 		trx = check_trx_exists(thd);
+	}
+
+	if (trx->has_search_latch) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: the calling thread is holding the adaptive search\n"
+"InnoDB: latch though calling innobase_query_caching_of_table_permitted\n");
 	}
 
 	innobase_release_stat_resources(trx);
@@ -877,6 +891,10 @@ innobase_invalidate_query_cache(
 	ulint	full_name_len)	/* in: full name length where also the null
 				chars count */
 {
+	/* Note that the sync0sync.h rank of the query cache mutex is just
+	above the InnoDB kernel mutex. The caller of this function must not
+	have latches of a lower rank. */
+
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
 	query_cache.invalidate((THD*)(trx->mysql_thd),
