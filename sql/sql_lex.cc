@@ -24,6 +24,12 @@
 #include "sp.h"
 #include "sp_head.h"
 
+/*
+  We are using pointer to this variable for distinguishing between assignment
+  to NEW row field (when parsing trigger definition) and structured variable.
+*/
+sys_var_long_ptr trg_new_row_fake_var(0, 0);
+
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -130,6 +136,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->trg_table= NULL;
 
   extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
   hash_free(&lex->spfuns);

@@ -23,6 +23,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
@@ -341,6 +343,10 @@ int mysql_update(THD *thd,
       if (fill_record(fields,values, 0) || thd->net.report_error)
 	break; /* purecov: inspected */
       found++;
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
+
       if (compare_record(table, query_id))
       {
 	if (!(error=table->file->update_row((byte*) table->record[1],
@@ -356,6 +362,10 @@ int mysql_update(THD *thd,
 	  break;
 	}
       }
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
+
       if (!--limit && using_limit)
       {
 	error= -1;				// Simulate end of file

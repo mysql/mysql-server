@@ -359,3 +359,8 @@ character-set=koi8r
 "View SELECT и список полей view имеют разное количество столбцов"
 "Алгоритм слияния view не может быть использован сейчас (алгоритм будет неопеределенным)"
 "Обновляемый view не содержит ключа использованной в нем таблиц(ы)"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"

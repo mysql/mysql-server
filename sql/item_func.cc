@@ -2563,6 +2563,16 @@ void Item_func_set_user_var::print(String *str)
 }
 
 
+void Item_func_set_user_var::print_as_stmt(String *str)
+{
+  str->append("set @", 5);
+  str->append(name.str, name.length);
+  str->append(":=", 2);
+  args[0]->print(str);
+  str->append(')');
+}
+
+
 String *
 Item_func_get_user_var::val_str(String *str)
 {
@@ -3296,6 +3306,11 @@ Item_func_sp::execute(Item **itp)
   sp_change_security_context(thd, m_sp, &save_ctx);
 #endif
 
+  /*
+    We don't need to surpress senfing of ok packet here (by setting
+    thd->net.no_send_ok to true), because we are not allowing statements
+    in functions now.
+  */
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
