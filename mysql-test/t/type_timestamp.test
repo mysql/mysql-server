@@ -29,6 +29,8 @@ INSERT INTO t1 VALUES ("my value", "myKey","1999-04-02 00:00:00");
 SELECT stamp FROM t1 WHERE id="myKey";
 UPDATE t1 SET value="my value" WHERE id="myKey";
 SELECT stamp FROM t1 WHERE id="myKey";
+UPDATE t1 SET id="myKey" WHERE value="my value";
+SELECT stamp FROM t1 WHERE id="myKey";
 drop table t1;
 
 create table t1 (a timestamp);
