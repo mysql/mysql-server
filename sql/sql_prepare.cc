@@ -1613,8 +1613,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   mysql_log.write(thd, COM_PREPARE, "%s", packet);
 
   thd->current_statement= stmt;
-  lex= lex_start(thd, (uchar *) thd->query, thd->query_length);
-  mysql_init_query(thd);
+  mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
+  lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
