@@ -1815,7 +1815,10 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
     return 1;
   thd->query[packet_length]=0;
   thd->query_length= packet_length;
-  thd->packet.shrink(thd->variables.net_buffer_length);// Reclaim some memory
+
+  /* Reclaim some memory */
+  thd->packet.shrink(thd->variables.net_buffer_length);
+  thd->convert_buffer.shrink(thd->variables.net_buffer_length);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
