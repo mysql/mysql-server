@@ -33,7 +33,7 @@ static unsigned long lfactor[9]=
   Convert a string to an to unsigned long long integer value
   
   SYNOPSYS
-    str2ull10(char *nptr, char **enptr, *long error)
+    my_strtoll10()
       nptr     in       pointer to the string to be converted
       endptr   in/out   pointer to the end of the string/
                         pointer to the stop character
