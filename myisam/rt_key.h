@@ -26,6 +26,4 @@ int rtree_delete_key(MI_INFO *info, uchar *page, uchar *key,
                     uint key_length, uint nod_flag);
 int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
                     uint key_length, my_off_t child_page);
-uchar *rtree_choose_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-                       uint key_length, uchar *page_buf, uint nod_flag);
 #endif /* _rt_key_h */
