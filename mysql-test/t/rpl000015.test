@@ -1,5 +1,5 @@
-connect (master,localhost,root,,test,0,mysql-master.sock);
-connect (slave,localhost,root,,test,0, mysql-slave.sock);
+connect (master,localhost,root,,test,0,master.sock);
+connect (slave,localhost,root,,test,0, slave.sock);
 connection master;
 reset master;
 show master status;

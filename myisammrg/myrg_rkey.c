@@ -27,7 +27,7 @@
  */
 
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 /* todo: we could store some additional info to speedup lookups:
          column (key, keyseg) can be constant per table

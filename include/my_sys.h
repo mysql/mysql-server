@@ -90,6 +90,16 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
 #define ME_COLOUR3	((3 << ME_HIGHBYTE))
 
+	/* Bits in last argument to fn_format */
+#define MY_REPLACE_DIR		1	/* replace dir in name with 'dir' */
+#define MY_REPLACE_EXT		2	/* replace extension with 'ext' */
+#define MY_UNPACK_FILENAME	4	/* Unpack name (~ -> home) */
+#define MY_PACK_FILENAME	8	/* Pack name (home -> ~) */
+#define MY_RESOLVE_SYMLINKS	16	/* Resolve all symbolic links */
+#define MY_RETURN_REAL_PATH	32	/* return full path for file */
+#define MY_SAFE_PATH		64	/* Return NULL if too long path */
+#define MY_RELATIVE_PATH	128	/* name is relative to 'dir' */
+
 	/* My seek flags */
 #define MY_SEEK_SET	0
 #define MY_SEEK_CUR	1
@@ -469,12 +479,12 @@ extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
-extern char *convert_dirname(my_string name);
+extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(my_string name);
 extern my_string fn_ext(const char *name);
 extern my_string fn_same(my_string toname,const char *name,int flag);
-extern my_string fn_format(my_string to,const char *name,const char *dsk,
-			   const char *form,int flag);
+extern my_string fn_format(my_string to,const char *name,const char *dir,
+			   const char *form, uint flag);
 extern size_s strlength(const char *str);
 extern void pack_dirname(my_string to,const char *from);
 extern uint unpack_dirname(my_string to,const char *from);

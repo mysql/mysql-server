@@ -789,10 +789,10 @@ run_testcase ()
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
-     if [ -z "$DO_CLIENT_GDB" ] ; then
-     mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+    if [ -z "$DO_CLIENT_GDB" ] ; then
+      mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
     else
-     do_gdb_test "$mysql_test_args" "$tf"
+      do_gdb_test "$mysql_test_args" "$tf"
     fi
      
     res=$?

@@ -15,12 +15,32 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  Static variables for pisam library. All definied here for easy making of
-  a shared library
+  Extra functions we want to do with a database
+  - All flags, exept record-cache-flags, are set in all used databases
+    record-cache-flags are set in mrg_rrnd when we are changing database.
 */
 
-#ifndef stdin
-#include "mrgdef.h"
-#endif
+#include "mrg_def.h"
 
-LIST	*mrg_open_list=0;
+int mrg_extra(
+MRG_INFO *info,
+enum ha_extra_function function)
+{
+  MRG_TABLE *file;
+
+  if (function == HA_EXTRA_CACHE)
+    info->cache_in_use=1;
+  else
+  {
+    if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET)
+      info->cache_in_use=0;
+    if (function == HA_EXTRA_RESET || function == HA_EXTRA_RESET_STATE)
+    {
+      info->current_table=0;
+      info->last_used_table=info->open_tables;
+    }
+    for (file=info->open_tables ; file != info->end_table ; file++)
+      nisam_extra(file->table,function);
+  }
+  return 0;
+}

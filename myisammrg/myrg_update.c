@@ -16,7 +16,7 @@
 
 /* Update last read record */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 int myrg_update(register MYRG_INFO *info,const byte *oldrec, byte *newrec)
 {

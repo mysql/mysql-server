@@ -120,6 +120,12 @@ ibool	srv_print_innodb_monitor	= FALSE;
 ibool   srv_print_innodb_lock_monitor   = FALSE;
 ibool   srv_print_innodb_tablespace_monitor = FALSE;
 
+/*
+  Set the following to 0 if you want InnoDB to write messages on
+  stderr on startup/shutdown
+*/
+ibool	srv_print_verbose_log		= TRUE;
+
 /* The parameters below are obsolete: */
 
 ibool	srv_print_parsed_sql		= FALSE;

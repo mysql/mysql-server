@@ -83,7 +83,7 @@
 
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
-const char* user = 0, *host = 0, *unix_sock = 0;
+const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0, opt_big_test=0, opt_compress=0;
 static uint start_lineno, *lineno;
 
@@ -122,6 +122,8 @@ typedef struct
 {
   int read_lines,current_line;
 } PARSER;
+
+MYSQL_RES *last_result=0;
 
 PARSER parser;
 MASTER_POS master_pos;
@@ -218,6 +220,7 @@ void reject_dump(const char* record_file, char* buf, int size);
 int close_connection(struct st_query* q);
 VAR* var_get(const char* var_name, const char** var_name_end, int raw);
 int eval_expr(VAR* v, const char* p, const char** p_end);
+static int read_server_arguments(const char* name);
 
 /* Definitions for replace */
 
@@ -252,6 +255,19 @@ void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 int mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
+
+#define MAX_SERVER_ARGS 20
+
+static int embedded_server_arg_count=0;
+static char *embedded_server_args[MAX_SERVER_ARGS];
+
+static const char *embedded_server_groups[] = {
+  "server",
+  "embedded",
+  "mysqltest_SERVER",
+  NullS
+};
+
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -296,6 +312,8 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 static void close_cons()
 {
   DBUG_ENTER("close_cons");
+  if (last_result)
+    mysql_free_result(last_result);
   for (--next_con; next_con >= cons; --next_con)
   {
     mysql_close(&next_con->mysql);
@@ -333,6 +351,8 @@ static void free_used_memory()
       if(var_reg[i].alloced_len)
 	my_free(var_reg[i].str_val, MYF(MY_WME));
     }
+  while (embedded_server_arg_count > 1)
+    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
@@ -357,6 +377,8 @@ static void die(const char* fmt, ...)
   free_used_memory();
   exit(1);
 }
+
+/* Note that we will get some memory leaks when calling this! */
 
 static void abort_not_supported_test()
 {
@@ -412,13 +434,22 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
   DYNAMIC_STRING res_ds;
   DBUG_ENTER("dyn_string_cmp");
 
-  if (!my_stat(fname, &stat_info, MYF(MY_WME)))
+  if (!test_if_hard_path(fname))
+  {
+    strxmov(eval_file, opt_basedir, fname, NullS);
+    fn_format(eval_file, eval_file,"","",4);
+  }
+  else
+    fn_format(eval_file, fname,"","",4);
+
+  if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
     die(NullS);
   if (!eval_result && stat_info.st_size != ds->length)
     DBUG_RETURN(2);
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
-  if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
+
+  if ((fd = my_open(eval_file, O_RDONLY, MYF(MY_WME))) < 0)
     die(NullS);
   if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die(NullS);
@@ -567,9 +598,17 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 
 int open_file(const char* name)
 {
+  char buff[FN_REFLEN];
+  if (!test_if_hard_path(name))
+  {
+    strxmov(buff, opt_basedir, name, NullS);
+    name=buff;
+  }
+  fn_format(buff,name,"","",4);
+
   if (*cur_file && cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  if (!(*(cur_file+1) = my_fopen(name, O_RDONLY, MYF(MY_WME))))
+  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
     die(NullS);
   cur_file++;
   *++lineno=1;
@@ -740,14 +779,13 @@ int do_sync_with_master(struct st_query* q)
     die("At line %u: failed in %s: %d: %s", start_lineno, query_buf,
 	mysql_errno(mysql), mysql_error(mysql));
 
-  if(!(res = mysql_store_result(mysql)))
+  if(!(last_result = res = mysql_store_result(mysql)))
     die("line %u: mysql_store_result() retuned NULL", start_lineno);
   if(!(row = mysql_fetch_row(res)))
     die("line %u: empty result in %s", start_lineno, query_buf);
   if(!row[0])
     die("Error on slave while syncing with master");
-  mysql_free_result(res);
-
+  mysql_free_result(res);   last_result=0;
   if(rpl_parse)
     mysql_enable_rpl_parse(mysql);
   
@@ -768,13 +806,13 @@ int do_save_master_pos()
     die("At line %u: failed in show master status: %d: %s", start_lineno,
 	mysql_errno(mysql), mysql_error(mysql));
 
-  if(!(res = mysql_store_result(mysql)))
+  if(!(last_result =res = mysql_store_result(mysql)))
     die("line %u: mysql_store_result() retuned NULL", start_lineno);
   if(!(row = mysql_fetch_row(res)))
     die("line %u: empty result in show master status", start_lineno);
   strncpy(master_pos.file, row[0], sizeof(master_pos.file));
   master_pos.pos = strtoul(row[1], (char**) 0, 10); 
-  mysql_free_result(res);
+  mysql_free_result(res); last_result=0;
   
   if(rpl_parse)
     mysql_enable_rpl_parse(mysql);
@@ -1504,16 +1542,19 @@ struct option long_options[] =
 {
   {"debug",       optional_argument, 0, '#'},
   {"database",    required_argument, 0, 'D'},
+  {"basedir",	  required_argument, 0, 'b'},
   {"big-test",	  no_argument,	     0, 'B'},
   {"compress",	  no_argument,	     0, 'C'},
   {"help",        no_argument,       0, '?'},
   {"host",        required_argument, 0, 'h'},
   {"password",    optional_argument, 0, 'p'},
   {"port",        required_argument, 0, 'P'},
-  {"quiet",       no_argument,       0, 'q'},
+  {"quiet",       no_argument,       0, 's'},
   {"record",      no_argument,       0, 'r'},
   {"result-file", required_argument, 0, 'R'},
-  {"silent",      no_argument,       0, 'q'},
+  {"server-arg",  required_argument, 0, 'A'},
+  {"server-file", required_argument, 0, 'F'},
+  {"silent",      no_argument,       0, 's'},
   {"sleep",       required_argument, 0, 'T'},
   {"socket",      required_argument, 0, 'S'},
   {"test-file",   required_argument, 0, 'x'},
@@ -1549,10 +1590,14 @@ void usage()
   -u, --user=...           User for login.\n\
   -p[password], --password[=...]\n\
                            Password to use when connecting to server.\n\
+  -b, --basedir=...	   Basedir for tests\n\
   -B, --big-test	   Define BIG_TEST to 1\n\
   -C, --compress	   Use the compressed server/client protocol\n\
   -D, --database=...       Database to use.\n\
   -P, --port=...           Port number to use for connection.\n\
+  --server-arg=...	   Send enbedded server this as a paramenter\n\
+  --server-file=...	   Read embedded server arguments from file\n\
+  -s, --silent, --quiet    Suppress all normal output.\n\
   -S, --socket=...         Socket file to use for connection.\n\
   -t, --tmpdir=...	   Temporary directory where sockets are put\n\
   -T, --sleep=#		   Sleep always this many seconds on sleep commands\n\
@@ -1560,7 +1605,6 @@ void usage()
   -R, --result-file=...    Read/Store result from/in this file.\n\
   -x, --test-file=...      Read test from/in this file (default stdin).\n\
   -v, --verbose            Write more.\n\
-  -q, --quiet, --silent    Suppress all normal output.\n\
   -V, --version            Output version information and exit.\n\
   --no-defaults            Don't read default options from any options file.\n\n");
 }
@@ -1573,12 +1617,12 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  while ((c = getopt_long(argc, argv, "h:p::u:BCP:D:S:R:x:t:T:#:?rvVq",
+  while ((c = getopt_long(argc, argv, "A:h:p::u:b:BCF:P:D:S:R:x:t:T:#:?rvVs",
 			  long_options, &option_index)) != EOF)
     {
       switch(c)	{
       case '#':
-	DBUG_PUSH(optarg ? optarg : "d:t:O,/tmp/mysqltest.trace");
+	DBUG_PUSH(optarg ? optarg : "d:t:i:O,/tmp/mysqltest.trace");
 	break;
       case 'v':
 	verbose = 1;
@@ -1593,9 +1637,18 @@ int parse_args(int argc, char **argv)
 	result_file = optarg;
 	break;
       case 'x':
-      if (!(*++cur_file = my_fopen(optarg, O_RDONLY, MYF(MY_WME))))
+      {
+	char buff[FN_REFLEN];
+	if (!test_if_hard_path(optarg))
+	{
+	  strxmov(buff, opt_basedir, optarg, NullS);
+	  optarg=buff;
+	}
+	fn_format(buff,optarg,"","",4);
+	if (!(*++cur_file = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
 	  die("Could not open %s: errno = %d", optarg, errno);
 	break;
+      }
       case 'p':
 	if (optarg)
 	{
@@ -1605,6 +1658,9 @@ int parse_args(int argc, char **argv)
 	}
 	else
 	  tty_password=1;
+	break;
+      case 'b':
+	opt_basedir= optarg;
 	break;
       case 'B':
         opt_big_test=1;
@@ -1624,7 +1680,7 @@ int parse_args(int argc, char **argv)
       case 'h':
 	host = optarg;
 	break;
-      case 'q':
+      case 's':
 	silent = 1;
 	break;
       case 't':
@@ -1633,6 +1689,24 @@ int parse_args(int argc, char **argv)
       case 'T':
 	opt_sleep=atoi(optarg);
 	break;
+      case 'A':
+	if (!embedded_server_arg_count)
+	{
+	  embedded_server_arg_count=1;
+	  embedded_server_args[0]= (char*) "";
+	}
+	embedded_server_args[embedded_server_arg_count++]=
+	  my_strdup(optarg,MYF(MY_FAE));
+	if (embedded_server_arg_count == MAX_SERVER_ARGS ||
+	    !embedded_server_args[embedded_server_arg_count-1])
+	{
+	  die("Can't use server argument");
+	}
+	break;
+      case 'F':
+	if (read_server_arguments(optarg))
+	  die(NullS);
+	break;
       case 'V':
 	print_version();
 	exit(0);
@@ -1640,6 +1714,7 @@ int parse_args(int argc, char **argv)
 	usage();
 	exit(1);				/* Unknown option */
       default:
+	fprintf(stderr,"Unknown option '%c'\n",c);
 	usage();
 	exit(1);
       }
@@ -1672,9 +1747,17 @@ char* safe_str_append(char* buf, const char* str, int size)
 void str_to_file(const char* fname, char* str, int size)
 {
   int fd;
-  if ((fd = my_open(fname, O_WRONLY | O_CREAT | O_TRUNC,
+  char buff[FN_REFLEN];
+  if (!test_if_hard_path(fname))
+  {
+    strxmov(buff, opt_basedir, fname, NullS);
+    fname=buff;
+  }
+  fn_format(buff,fname,"","",4);
+  
+  if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
-    die("Could not open %s: errno = %d", fname, errno);
+    die("Could not open %s: errno = %d", buff, errno);
   if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
     die("write failed");
   my_close(fd, MYF(0));
@@ -1731,14 +1814,18 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   
   if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
     die("At line %u: unable to send query '%s'", start_lineno, query);
-  if(!(flags & QUERY_REAP))
-    return 0;
+  if (!(flags & QUERY_REAP))
+    DBUG_RETURN(0);
+
   
   if (mysql_read_query_result(mysql) ||
-      (!(res = mysql_store_result(mysql)) && mysql_field_count(mysql)))
+      (!(last_result = res = mysql_store_result(mysql)) &&
+       mysql_field_count(mysql)))
   {
     if (q->require_file)
+    {
       abort_not_supported_test();
+    }
     if (q->abort_on_error)
       die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
 	  mysql_errno(mysql), mysql_error(mysql));
@@ -1839,6 +1926,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 
 end:
   if (res) mysql_free_result(res);
+  last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
   if(q->type == Q_EVAL)
@@ -1935,17 +2023,6 @@ static void init_var_hash()
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
 }
 
-static const char *embedded_server_args[] = {
-  "",	/* XXX: argv[0] is program name - we should fix the API */
-  "--datadir=.",
-  "--language=/usr/local/mysql/share/mysql/english",
-  "--skip-innodb",
-  NullS
-};
-static const char *embedded_server_groups[] = {
-  "mysql-test-server",
-  NullS
-};
 
 int main(int argc, char** argv)
 {
@@ -1981,8 +2058,9 @@ int main(int argc, char** argv)
   *block_ok = 1;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
-  if (mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
-			embedded_server_args, embedded_server_groups))
+  if (mysql_server_init(embedded_server_arg_count,
+			embedded_server_args,
+			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
   init_var_hash();
   if (cur_file == file_stack)
@@ -2130,6 +2208,51 @@ int main(int argc, char** argv)
   }
 }
 
+/*
+  Read arguments for embedded server and put them into
+  embedded_server_args_count and embedded_server_args[]
+*/
+
+
+static int read_server_arguments(const char* name)
+{
+  char argument[1024],buff[FN_REFLEN], *str=0;
+  FILE *file;
+
+  if (!test_if_hard_path(name))
+  {
+    strxmov(buff, opt_basedir, name, NullS);
+    name=buff;
+  }
+  fn_format(buff,name,"","",4);
+
+  if (!embedded_server_arg_count)
+  {
+    embedded_server_arg_count=1;
+    embedded_server_args[0]= (char*) "";		/* Progname */
+  }
+  if (!(file=my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
+    return 1;
+  while (embedded_server_arg_count < MAX_SERVER_ARGS &&
+	 (str=fgets(argument,sizeof(argument), file)))
+  {
+    *(strend(str)-1)=0;				/* Remove end newline */
+    if (!(embedded_server_args[embedded_server_arg_count]=
+	  (char*) my_strdup(str,MYF(MY_WME))))
+    {
+      my_fclose(file,MYF(0));
+      return 1;
+    }
+    embedded_server_arg_count++;
+  }
+  my_fclose(file,MYF(0));
+  if (str)
+  {
+    fprintf(stderr,"Too many arguments in option file: %s\n",name);
+    return 1;
+  }
+  return 0;
+}
 
 /****************************************************************************
 * Handle replacement of strings

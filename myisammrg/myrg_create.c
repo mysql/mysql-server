@@ -16,7 +16,7 @@
 
 /* Create a MYMERGE_-file */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 	/* create file named 'name' and save filenames in it
 	   table_names should be NULL or a vector of string-pointers with

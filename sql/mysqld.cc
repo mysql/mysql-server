@@ -193,7 +193,7 @@ SHOW_COMP_OPTION have_innodb=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_innodb=SHOW_OPTION_NO;
 #endif
-#ifndef NO_ISAM
+#ifdef HAVE_ISAM
 SHOW_COMP_OPTION have_isam=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_isam=SHOW_OPTION_NO;
@@ -317,8 +317,10 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file;
 #ifndef EMBEDDED_LIBRARY
 char mysql_data_home_buff[2], *mysql_data_home=mysql_data_home_buff;
+bool mysql_embedded=0;
 #else
 char *mysql_data_home=mysql_real_data_home;
+bool mysql_embedded=1;
 #endif
 
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
@@ -333,7 +335,7 @@ enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 #ifdef HAVE_GEMINI_DB
 const char *gemini_recovery_options_str="FULL";
 #endif
-my_string mysql_unix_port=NULL,mysql_tmpdir=NULL;
+my_string mysql_unix_port=NULL, mysql_tmpdir=NULL, allocated_mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
 DATE_FORMAT dayord;
 double log_10[32];			/* 10 potences */
@@ -730,8 +732,8 @@ void clean_up(bool print_message)
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql_tmpdir,MYF(0));
-  my_free(slave_load_tmpdir,MYF(0));
+  my_free(allocated_mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
@@ -3770,7 +3772,10 @@ static void get_options(int argc,char **argv)
       break;
 #endif
     case (int) OPT_FLUSH:
-      nisam_flush=myisam_flush=1;
+#ifdef HAVE_ISAM
+      nisam_flush=1;
+#endif
+      myisam_flush=1;
       flush_time=0;			// No auto flush
       break;
     case OPT_LOW_PRIORITY_UPDATES:
@@ -4295,7 +4300,10 @@ static int get_service_parameters()
     else if ( lstrcmp(szKeyValueName, TEXT("FlushTables")) == 0 )
     {
       CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      nisam_flush = myisam_flush= *lpdwValue ? 1 : 0;
+#ifdef HAVE_NISAM
+      nisam_flush = 1;
+#endif
+      myisam_flush= *lpdwValue ? 1 : 0;
     }
     else if ( lstrcmp(szKeyValueName, TEXT("BackLog")) == 0 )
     {
@@ -4529,12 +4537,34 @@ static char *get_relative_path(const char *path)
 }
 
 
+/*
+  Fix filename and replace extension where 'dir' is relative to
+  mysql_real_data_home.
+  Return 1 if len(path) > FN_REFLEN
+*/
+
+bool
+fn_format_relative_to_data_home(my_string to, const char *name,
+				const char *dir, const char *extension)
+{
+  char tmp_path[FN_REFLEN];
+  if (!test_if_hard_path(dir))
+  {
+    strxnmov(tmp_path,sizeof(tmp_path)-1, mysql_real_data_home,
+	     dir, NullS);
+    dir=tmp_path;
+  }
+  return !fn_format(to, name, dir, extension,
+		    MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH);
+}
+
+
 static void fix_paths(void)
 {
   (void) fn_format(mysql_home,mysql_home,"","",16); // Remove symlinks
-  convert_dirname(mysql_home);
-  convert_dirname(mysql_real_data_home);
-  convert_dirname(language);
+  convert_dirname(mysql_home,mysql_home,NullS);
+  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
@@ -4544,7 +4574,7 @@ static void fix_paths(void)
     strmov(buff,sharedir);			/* purecov: tested */
   else
     strxmov(buff,mysql_home,sharedir,NullS);
-  convert_dirname(buff);
+  convert_dirname(buff,buff,NullS);
   (void) my_load_path(language,language,buff);
 
   /* If --character-sets-dir isn't given, use shared library dir */
@@ -4558,19 +4588,16 @@ static void fix_paths(void)
   char *tmp= (char*) my_malloc(FN_REFLEN,MYF(MY_FAE));
   if (tmp)
   {
-    strmov(tmp,mysql_tmpdir);
-    mysql_tmpdir=tmp;
-    convert_dirname(mysql_tmpdir);
-    mysql_tmpdir=(char*) my_realloc(mysql_tmpdir,(uint) strlen(mysql_tmpdir)+1,
+    char *end=convert_dirname(tmp, mysql_tmpdir, NullS);
+
+    mysql_tmpdir=(char*) my_realloc(tmp,(uint) (end-tmp)+1,
 				    MYF(MY_HOLD_ON_ERROR));
+    allocated_mysql_tmpdir=mysql_tmpdir;
   }
   if (!slave_load_tmpdir)
   {
-    int copy_len;
-    slave_load_tmpdir = (char*) my_malloc((copy_len=strlen(mysql_tmpdir) + 1)
-					  ,  MYF(MY_FAE));
     // no need to check return value, if we fail, my_malloc() never returns
-    memcpy(slave_load_tmpdir, mysql_tmpdir, copy_len);
+    slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE));
   }
 }
 

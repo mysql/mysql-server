@@ -25,7 +25,7 @@
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
-#ifndef NO_ISAM
+#ifdef HAVE_ISAM
 #include "ha_isam.h"
 #include "ha_isammrg.h"
 #endif
@@ -88,11 +88,9 @@ enum db_type ha_checktype(enum db_type database_type)
 #ifndef NO_HASH
   case DB_TYPE_HASH:
 #endif
-#ifndef NO_MERGE
-  case DB_TYPE_MRG_ISAM:
-#endif
-#ifndef NO_ISAM
+#ifdef HAVE_ISAM
   case DB_TYPE_ISAM:
+  case DB_TYPE_MRG_ISAM:
 #endif
   case DB_TYPE_HEAP:
   case DB_TYPE_MYISAM:
@@ -111,11 +109,9 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifndef NO_HASH
   return new ha_hash(table);
 #endif
-#ifndef NO_MERGE
+#ifdef HAVE_ISAM
   case DB_TYPE_MRG_ISAM:
     return new ha_isammrg(table);
-#endif
-#ifndef NO_ISAM
   case DB_TYPE_ISAM:
     return new ha_isam(table);
 #endif
@@ -186,14 +182,14 @@ int ha_init()
 int ha_panic(enum ha_panic_function flag)
 {
   int error=0;
-#ifndef NO_MERGE
-  error|=mrg_panic(flag);
-#endif
 #ifndef NO_HASH
   error|=h_panic(flag);			/* fix hash */
 #endif
-  error|=heap_panic(flag);
+#ifdef HAVE_ISAM
+  error|=mrg_panic(flag);
   error|=nisam_panic(flag);
+#endif
+  error|=heap_panic(flag);
   error|=mi_panic(flag);
   error|=myrg_panic(flag);
 #ifdef HAVE_BERKELEY_DB

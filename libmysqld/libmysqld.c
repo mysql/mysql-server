@@ -79,11 +79,6 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 
-static MYSQL* spawn_init(MYSQL* parent, const char* host,
-			 unsigned int port,
-			 const char* user,
-			 const char* passwd);
-
 /*****************************************************************************
 ** read a packet from server. Give error message if socket was down
 ** or packet is an error message

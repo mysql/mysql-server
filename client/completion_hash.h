@@ -22,26 +22,29 @@
 #define FAILURE 1
 
 #include <sys/types.h>
+#include <my_sys.h>
 
 typedef struct _entry {
 	char *str;
 	struct _entry *pNext;
 } entry;
 
-typedef struct bucket {
-	uint h;						/* Used for numeric indexing */
-	char *arKey;
-	uint nKeyLength;
-	uint count;
-	entry *pData;
-	struct bucket *pNext;
+typedef struct bucket
+{
+  uint h;					/* Used for numeric indexing */
+  char *arKey;
+  uint nKeyLength;
+  uint count;
+  entry *pData;
+  struct bucket *pNext;
 } Bucket;
 
 typedef struct hashtable {
-	uint nTableSize;
-	uint initialized;
-	uint(*pHashFunction) (char *arKey, uint nKeyLength);
-	Bucket **arBuckets;
+  uint nTableSize;
+  uint initialized;
+  MEM_ROOT mem_root;
+  uint(*pHashFunction) (char *arKey, uint nKeyLength);
+  Bucket **arBuckets;
 } HashTable;
 
 extern int completion_hash_init(HashTable *ht, uint nSize);
@@ -54,4 +57,4 @@ extern void completion_hash_clean(HashTable *ht);
 extern int completion_hash_exists(HashTable *ht, char *arKey, uint nKeyLength);
 extern void completion_hash_free(HashTable *ht);
 
-#endif							/* _HASH_ */
+#endif /* _HASH_ */

@@ -2645,7 +2645,8 @@ join_free(JOIN *join)
   }
   join->group_fields.delete_elements();
   join->tmp_table_param.copy_funcs.delete_elements();
-  delete [] join->tmp_table_param.copy_field;
+  if (join->tmp_table_param.copy_field)		// Because of bug in ecc
+    delete [] join->tmp_table_param.copy_field;
   join->tmp_table_param.copy_field=0;
   DBUG_VOID_RETURN;
 }
@@ -6395,7 +6396,7 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
   DBUG_ENTER("setup_copy_fields");
 
   if (!(copy=param->copy_field= new Copy_field[param->field_count]))
-    goto err;
+    goto err2;
 
   param->copy_funcs.empty();
   while ((pos=li++))
@@ -6444,8 +6445,9 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;
+  delete [] param->copy_field;			// This is never 0
   param->copy_field=0;
+err2:
   DBUG_RETURN(TRUE);
 }
 

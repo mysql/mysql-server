@@ -19,7 +19,7 @@
   get by mrg_info(). The next record can be read with pos= -1 */
 
 
-#include "mrgdef.h"
+#include "mrg_def.h"
 
 static MRG_TABLE *find_table(MRG_TABLE *start,MRG_TABLE *end,mrg_off_t pos);
 

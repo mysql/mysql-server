@@ -8,3 +8,41 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+a	b
+1	1
+5	5
+3	3
+4	4
+6	6
+a	b	c
+1	1	NULL
+5	5	NULL
+3	3	NULL
+4	4	NULL
+6	6	6
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	error	The handler for the table doesn't support check/repair
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	error	The handler for the table doesn't support check/repair
+Table	Op	Msg_type	Msg_text
+test.t2	check	error	The handler for the table doesn't support check/repair
+test.t1	check	status	OK
+Table	Op	Msg_type	Msg_text
+test.t2	check	error	Table 't2' was not locked with LOCK TABLES
+test.t1	check	status	OK
+Field	Type	Null	Key	Default	Extra
+a	int(11)		PRI	0	
+b	int(11)		MUL	0	
+c	int(11)			0	
+Field	Type	Null	Key	Default	Extra	Privileges
+a	int(11)		PRI	0		select,insert,update,references
+b	int(11)		MUL	0		select,insert,update,references
+c	int(11)			0		select,insert,update,references
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	a	A	4	NULL	NULL	
+t1	1	b	1	b	A	1	NULL	NULL	
+t1	1	b	2	c	A	4	NULL	NULL	
