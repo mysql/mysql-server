@@ -3810,11 +3810,19 @@ Canada [Tryc] @
 @c @uref{ftp://mysql.cyberus.ca/, FTP}
 
 @item
-@c EMAIL:  mleber@he.net (Mike Leber)
+@c EMAIL: mleber@he.net (Mike Leber)
 @c Added 980312
 @c @image{Flags/usa}
 USA [Hurricane Electric/San Jose] @
-@uref{http://mysql.he.net, WWW}
+@uref{http://mysql.he.net/, WWW}
+
+@item
+@c EMAIL: ask@valueclick.com (Ask Bjoern Hansen)
+@c Added 20000925
+@c @image{Flags/usa}
+USA [ValueClick, Los Angeles CA] @
+@uref{http://mysql.valueclick.com/, WWW}
+@uref{ftp://mysql.valueclick.com/mysql/, FTP}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
