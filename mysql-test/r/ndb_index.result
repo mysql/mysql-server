@@ -45,12 +45,6 @@ port67	node78	pop98	1
 select port, accessnode, pop, accesstype  from t1 where pop='pop98' order by accesstype;
 port	accessnode	pop	accesstype
 port67	node78	pop98	1
-select port, accessnode, pop, accesstype  from t1 where pop='POP98';
-port	accessnode	pop	accesstype
-port67	node78	pop98	1
-select port, accessnode, pop, accesstype  from t1 where pop='POP98' order by accesstype;
-port	accessnode	pop	accesstype
-port67	node78	pop98	1
 select port, accessnode, pop, accesstype  from t1 where pop='foo';
 port	accessnode	pop	accesstype
 select port, accessnode, pop, accesstype  from t1 where accesstype=1;

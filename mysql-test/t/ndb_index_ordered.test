@@ -79,7 +79,7 @@ drop table t1;
 CREATE TABLE t1 (
   a int unsigned NOT NULL PRIMARY KEY,
   b int unsigned not null,
-  c int unsigned not null,
+  c int unsigned not null
 ) engine = ndb;
 
 create index a1 on t1 (b, c);
