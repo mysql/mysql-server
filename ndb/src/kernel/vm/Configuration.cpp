@@ -403,7 +403,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noBatchSize = 0;
   m_logLevel = new LogLevel();
   
-  struct AttribStorage { int paramId; Uint32 * storage; bool computable };
+  struct AttribStorage { int paramId; Uint32 * storage; bool computable; };
   AttribStorage tmp[] = {
     { CFG_DB_NO_SCANS, &noOfScanRecords, false },
     { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords, true },
