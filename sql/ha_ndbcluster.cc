@@ -2156,11 +2156,11 @@ void ha_ndbcluster::unpack_record(byte* buf)
   NdbValue *value= m_value;
   DBUG_ENTER("unpack_record");
 
-  end= table->field + table->fields;
+  end= table->field + table->s->fields;
   
   // Set null flag(s)
   bzero(buf, table->s->null_bytes);
-  for (field= table->field, end= field+table->s->fields;
+  for (field= table->field;
        field < end;
        field++, value++)
   {
@@ -4942,7 +4942,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   int res;
   KEY* key_info= table->key_info + active_index;
   NDB_INDEX_TYPE index_type= get_index_type(active_index);
-  ulong reclength= table->reclength;
+  ulong reclength= table->s->reclength;
   NdbOperation* op;
 
   if (uses_blob_value(m_retrieve_all_fields))
@@ -5122,7 +5122,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
   
   int res;
   int range_no;
-  ulong reclength= table->reclength;
+  ulong reclength= table->s->reclength;
   const NdbOperation* op= m_current_multi_operation;
   for(;multi_range_curr < m_multi_range_defined; multi_range_curr++)
   {
@@ -5259,7 +5259,7 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   Field **field, **end;
   NdbValue *value= m_value;
   
-  end= table->field + table->fields;
+  end= table->field + table->s->fields;
   
   for (field= table->field; field < end; field++, value++)
   {
