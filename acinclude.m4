@@ -726,7 +726,7 @@ AC_MSG_CHECKING(for OpenSSL)
       openssl_includes="-I/usr/local/ssl/include"
       AC_DEFINE(HAVE_OPENSSL)
     else
-      AC_MSG_RESULT(disabled because --with-vio wasn not used)
+      AC_MSG_RESULT(disabled because --with-vio was not used)
     fi
   else
     AC_MSG_RESULT(no)

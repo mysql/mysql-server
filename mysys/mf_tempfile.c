@@ -90,9 +90,10 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     uint pfx_len;
     File org_file;
 
-    pfx_len=(strmov(strnmov(prefix_buff,
-			    prefix ? prefix : "tmp.",
-			    sizeof(prefix_buff)-7),"XXXXXX") - prefix_buff);
+    pfx_len= (uint) (strmov(strnmov(prefix_buff,
+				    prefix ? prefix : "tmp.",
+				    sizeof(prefix_buff)-7),"XXXXXX") -
+		     prefix_buff);
     if (!dir && ! (dir =getenv("TMPDIR")))
       dir=P_tmpdir;
     if (strlen(dir)+ pfx_len > FN_REFLEN-2)

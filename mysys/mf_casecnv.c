@@ -35,7 +35,7 @@ void caseup_str(my_string str)
   if (use_mb(default_charset_info))
   {
     register uint32 l;
-    register char *end=str+(uint) strlen(str);
+    register char *end=str+strlen(str);
     while (*str)
     {
       if ((l=my_ismbchar(default_charset_info, str,end))) str+=l;
@@ -56,7 +56,7 @@ void casedn_str(my_string str)
   if (use_mb(default_charset_info))
   {
     register uint32 l;
-    register char *end=str+(uint) strlen(str);
+    register char *end=str+strlen(str);
     while (*str)
     {
       if ((l=my_ismbchar(default_charset_info, str,end))) str+=l;
@@ -155,7 +155,7 @@ int my_strcasecmp(const char *s, const char *t)
   if (use_mb(default_charset_info))
   {
     register uint32 l;
-    register const char *end=s+(uint) strlen(s);
+    register const char *end=s+strlen(s);
     while (s<end)
     {
       if ((l=my_ismbchar(default_charset_info, s,end)))
