@@ -105,7 +105,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   int res;
-  bool transactional_table, log_delayed;
+  bool transactional_table;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -133,7 +133,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   table= table_list->table;
   transactional_table= table->file->has_transactions();
-  log_delayed= (transactional_table || table->s->tmp_table);
 
   if (!fields.elements)
   {
@@ -263,7 +262,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.handle_dup = handle_duplicates;
     lf_info.wrote_create_file = 0;
     lf_info.last_pos_in_file = HA_POS_ERROR;
-    lf_info.log_delayed= log_delayed;
+    lf_info.log_delayed= transactional_table;
     read_info.set_io_cache_arg((void*) &lf_info);
   }
 #endif /*!EMBEDDED_LIBRARY*/
@@ -365,7 +364,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       /* If the file was not empty, wrote_create_file is true */
       if (lf_info.wrote_create_file)
       {
-        Delete_file_log_event d(thd, db, log_delayed);
+        Delete_file_log_event d(thd, db, transactional_table);
         mysql_bin_log.write(&d);
       }
     }
@@ -377,7 +376,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   send_ok(thd,info.copied+info.deleted,0L,name);
 
-  if (!log_delayed)
+  if (!transactional_table)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
@@ -387,16 +386,16 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       block will be logged only after Execute_load_log_event (which is wrong),
       when read_info is destroyed.
     */
-    read_info.end_io_cache(); 
+    read_info.end_io_cache();
     if (lf_info.wrote_create_file)
     {
-      Execute_load_log_event e(thd, db, log_delayed);
+      Execute_load_log_event e(thd, db, transactional_table);
       mysql_bin_log.write(&e);
     }
   }
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
-    error=ha_autocommit_or_rollback(thd,error); 
+    error=ha_autocommit_or_rollback(thd,error);
 
 err:
   if (thd->lock)
@@ -404,7 +403,7 @@ err:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  thd->abort_on_warning= 0;  
+  thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
 
@@ -732,12 +731,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
       my_free((gptr) buffer,MYF(0)); /* purecov: inspected */
       error=1;
     }
-    else 
+    else
     {
       /*
 	init_io_cache() will not initialize read_function member
-	if the cache is READ_NET. The reason is explained in
-	mysys/mf_iocache.c. So we work around the problem with a
+	if the cache is READ_NET. So we work around the problem with a
 	manual assignment
       */
       need_end_io_cache = 1;

@@ -106,6 +106,6 @@ public:
                              enum thr_lock_type lock_type);
 };
 
-bool archive_db_init(void);
+handlerton *archive_db_init(void);
 bool archive_db_end(void);
 
