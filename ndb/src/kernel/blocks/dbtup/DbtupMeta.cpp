@@ -39,11 +39,18 @@
 /* ---------------------------------------------------------------- */
 void Dbtup::execTUPFRAGREQ(Signal* signal)
 {
+  ljamEntry();
+
+  if (signal->theData[0] == (Uint32)-1) {
+    ljam();
+    abortAddFragOp(signal);
+    return;
+  }
+
   FragoperrecPtr fragOperPtr;
   FragrecordPtr regFragPtr;
   TablerecPtr regTabPtr;
 
-  ljamEntry();
   Uint32 userptr = signal->theData[0];
   Uint32 userblockref = signal->theData[1];
   Uint32 reqinfo = signal->theData[2];
@@ -61,6 +68,17 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 checksumIndicator = signal->theData[11];
   Uint32 noOfAttributeGroups = signal->theData[12];
   Uint32 globalCheckpointIdIndicator = signal->theData[13];
+
+#ifndef VM_TRACE
+  // config mismatch - do not crash if release compiled
+  if (regTabPtr.i >= cnoOfTablerec) {
+    ljam();
+    signal->theData[0] = userptr;
+    signal->theData[1] = 800;
+    sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
+    return;
+  }
+#endif
 
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
   if (cfirstfreeFragopr == RNIL) {
@@ -131,6 +149,15 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     fragrefuse3Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
     return;
   }//if
+
+  if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
+      ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
+    ljam();
+    terrorCode = 1;
+    fragrefuse4Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
 
   if (regTabPtr.p->tableStatus == NOT_DEFINED) {
     ljam();
@@ -243,6 +270,7 @@ void Dbtup::seizeFragoperrec(FragoperrecPtr& fragOperPtr)
   ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
   cfirstfreeFragopr = fragOperPtr.p->nextFragoprec;
   fragOperPtr.p->nextFragoprec = RNIL;
+  fragOperPtr.p->inUse = true;
 }//Dbtup::seizeFragoperrec()
 
 /* **************************************************************** */
@@ -273,6 +301,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 
   ndbrequire(fragOperPtr.p->attributeCount > 0);
   fragOperPtr.p->attributeCount--;
+  const bool lastAttr = (fragOperPtr.p->attributeCount == 0);
 
   if ((regTabPtr.p->tableStatus == DEFINING) &&
       (fragOperPtr.p->definingFragment)) {
@@ -346,20 +375,30 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
       return;
     }//if
-    if ((fragOperPtr.p->attributeCount == 0) &&
-        (fragOperPtr.p->freeNullBit != 0)) {
+    if (lastAttr && (fragOperPtr.p->freeNullBit != 0)) {
       ljam();
       terrorCode = ZINCONSISTENT_NULL_ATTRIBUTE_COUNT;
       addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
       return;
     }//if
   }//if
+  if (ERROR_INSERTED(4009) && regTabPtr.p->fragid[0] == fragId && attrId == 0 ||
+      ERROR_INSERTED(4010) && regTabPtr.p->fragid[0] == fragId && lastAttr ||
+      ERROR_INSERTED(4011) && regTabPtr.p->fragid[1] == fragId && attrId == 0 ||
+      ERROR_INSERTED(4012) && regTabPtr.p->fragid[1] == fragId && lastAttr) {
+    ljam();
+    terrorCode = 1;
+    addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
 /* **************************************************************** */
 /* **************          TUP_ADD_ATTCONF       ****************** */
 /* **************************************************************** */
   signal->theData[0] = fragOperPtr.p->lqhPtrFrag;
-  sendSignal(fragOperPtr.p->lqhBlockrefFrag, GSN_TUP_ADD_ATTCONF, signal, 1, JBB);
-  if (fragOperPtr.p->attributeCount > 0) {
+  signal->theData[1] = lastAttr;
+  sendSignal(fragOperPtr.p->lqhBlockrefFrag, GSN_TUP_ADD_ATTCONF, signal, 2, JBB);
+  if (! lastAttr) {
     ljam();
     return;	/* EXIT AND WAIT FOR MORE */
   }//if
@@ -491,10 +530,10 @@ void Dbtup::fragrefuseLab(Signal* signal, FragoperrecPtr fragOperPtr)
 
 void Dbtup::releaseFragoperrec(FragoperrecPtr fragOperPtr) 
 {
+  fragOperPtr.p->inUse = false;
   fragOperPtr.p->nextFragoprec = cfirstfreeFragopr;
   cfirstfreeFragopr = fragOperPtr.i;
 }//Dbtup::releaseFragoperrec()
-
 
 void Dbtup::deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId) 
 {
@@ -509,6 +548,20 @@ void Dbtup::deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId)
   }//for
   ndbrequire(false);
 }//Dbtup::deleteFragTab()
+
+/*
+ * LQH aborts on-going create table operation.  The table is later
+ * dropped by DICT.
+ */
+void Dbtup::abortAddFragOp(Signal* signal)
+{
+  FragoperrecPtr fragOperPtr;
+
+  fragOperPtr.i = signal->theData[1];
+  ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
+  ndbrequire(fragOperPtr.p->inUse);
+  releaseFragoperrec(fragOperPtr);
+}
 
 void
 Dbtup::execDROP_TAB_REQ(Signal* signal)

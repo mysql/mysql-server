@@ -1677,11 +1677,13 @@ loop:
 		srv_printf_innodb_monitor(stderr);
 	    }
 
-	    mutex_enter(&srv_monitor_file_mutex);
-	    rewind(srv_monitor_file);
-	    srv_printf_innodb_monitor(srv_monitor_file);
-	    os_file_set_eof(srv_monitor_file);
-	    mutex_exit(&srv_monitor_file_mutex);
+	    if (srv_innodb_status) {
+		mutex_enter(&srv_monitor_file_mutex);
+		rewind(srv_monitor_file);
+		srv_printf_innodb_monitor(srv_monitor_file);
+		os_file_set_eof(srv_monitor_file);
+		mutex_exit(&srv_monitor_file_mutex);
+	    }
 
 	    if (srv_print_innodb_tablespace_monitor
 		&& difftime(current_time, last_table_monitor_time) > 60) {

@@ -169,10 +169,13 @@ Logger::addHandler(const BaseString &logstring) {
   size_t i;
   Vector<BaseString> logdest;
   Vector<LogHandler *>loghandlers;
+  DBUG_ENTER("Logger::addHandler");
 
   logstring.split(logdest, ";");
 
   for(i = 0; i < logdest.size(); i++) {
+    DBUG_PRINT("info",("adding: %s",logdest[i].c_str()));
+
     Vector<BaseString> v_type_args;
     logdest[i].split(v_type_args, ":", 2);
 
@@ -191,16 +194,16 @@ Logger::addHandler(const BaseString &logstring) {
       handler = new ConsoleLogHandler();
 
     if(handler == NULL)
-      return false;
+      DBUG_RETURN(false);
     if(!handler->parseParams(params))
-      return false;
+      DBUG_RETURN(false);
     loghandlers.push_back(handler);
   }
   
   for(i = 0; i < loghandlers.size(); i++)
     addHandler(loghandlers[i]);
   
-  return true; /* @todo handle errors */
+  DBUG_RETURN(true); /* @todo handle errors */
 }
 
 bool

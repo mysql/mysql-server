@@ -637,8 +637,22 @@ create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
 select coercibility(max(a)) from t1;
 coercibility(max(a))
-3
+2
 drop table t1;
+create table t1 (a char character set latin2);
+insert into t1 values ('a'),('b');
+select charset(max(a)), coercibility(max(a)),
+charset(min(a)), coercibility(min(a)) from t1;
+charset(max(a))	coercibility(max(a))	charset(min(a))	coercibility(min(a))
+latin2	2	latin2	2
+create table t2 select max(a),min(a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `max(a)` char(1) character set latin2 default NULL,
+  `min(a)` char(1) character set latin2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t2,t1;
 create table t1 (a int);
 insert into t1 values (1);
 select max(a) as b from t1 having b=1;

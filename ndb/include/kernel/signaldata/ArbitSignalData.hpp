@@ -94,13 +94,14 @@ public:
 
     // arbitration result
     LoseNodes = 41,             // lose on ndb node count
-    WinGroups = 42,             // we win, no need for arbitration
-    LoseGroups = 43,            // we lose, missing node group
-    Partitioning = 44,          // possible network partitioning
-    WinChoose = 45,             // positive reply
-    LoseChoose = 46,            // negative reply
-    LoseNorun = 47,             // arbitrator required but not running
-    LoseNocfg = 48,             // arbitrator required but none configured
+    WinNodes = 42,              // win on ndb node count
+    WinGroups = 43,             // we win, no need for arbitration
+    LoseGroups = 44,            // we lose, missing node group
+    Partitioning = 45,          // possible network partitioning
+    WinChoose = 46,             // positive reply
+    LoseChoose = 47,            // negative reply
+    LoseNorun = 48,             // arbitrator required but not running
+    LoseNocfg = 49,             // arbitrator required but none configured
 
     // general error codes
     ErrTicket = 91,             // invalid arbitrator-ticket

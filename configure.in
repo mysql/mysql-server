@@ -399,7 +399,6 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
-      CFLAGS="$CFLAGS -DDEFINE_CXA_PURE_VIRTUAL"
       CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
     fi
   fi
@@ -1932,9 +1931,11 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
 #
 #
 case "$target" in
- *-*-aix4*)
+ *-*-aix4* | *-*-sco*)
 	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
 	# and using AC_TRY_RUN is hard when cross-compiling
+	# We also disable for SCO for the time being, the headers for the
+	# thread library we use conflicts with other headers.
     ;;
  *) AC_CHECK_FUNCS(clock_gettime)
     ;;

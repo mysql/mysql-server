@@ -190,6 +190,14 @@ a
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
 a
 aaa10 bbb20
+select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
+select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
 drop table t1;
 CREATE TABLE t1 (
 id int(11),
@@ -382,3 +390,18 @@ s
 pära para para
 para para para
 DROP TABLE t1;
+CREATE TABLE t1 (h text, FULLTEXT (h));
+INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+create table t1 (a int primary key, b text, fulltext(b));
+create table t2 (a int, b text);
+insert t1 values (1, "aaaa"), (2, "bbbb");
+insert t2 values (10, "aaaa"), (2, "cccc");
+replace t1 select * from t2;
+drop table t1, t2;

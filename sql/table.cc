@@ -463,7 +463,26 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
       /* old frm file */
       field_type= (enum_field_types) f_packtype(pack_flag);
-      charset=f_is_binary(pack_flag) ? &my_charset_bin : outparam->table_charset;
+      if (f_is_binary(pack_flag))
+      {
+        /*
+          Try to choose the best 4.1 type:
+          - for 4.0 "CHAR(N) BINARY" or "VARCHAR(N) BINARY" 
+            try to find a binary collation for character set.
+          - for other types (e.g. BLOB) just use my_charset_bin. 
+        */
+        if (!f_is_blob(pack_flag))
+        {
+          // 3.23 or 4.0 string
+          if (!(charset= get_charset_by_csname(outparam->table_charset->csname,
+                                               MY_CS_BINSORT, MYF(0))))
+            charset= &my_charset_bin;
+        }
+        else
+          charset= &my_charset_bin;
+      }
+      else
+        charset= outparam->table_charset;
       bzero((char*) &comment, sizeof(comment));
     }
     *field_ptr=reg_field=

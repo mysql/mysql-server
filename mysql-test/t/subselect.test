@@ -1284,6 +1284,25 @@ SELECT b.ac FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.s
 drop tables t1,t2;
 
 #
+# Test for bug #6462. "Same request on same data returns different
+# results." a.k.a. "Proper cleanup of subqueries is missing for 
+# SET and DO statements".
+#
+create table t1 (a int not null, b int not null, c int, primary key (a,b));
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+set @b:= 0;
+# Let us check that subquery will use covering index
+explain select sum(a) from t1 where b > @b;
+# This should not crash -debug server due to failing assertion
+set @a:= (select sum(a) from t1 where b > @b);
+# And this should not falsely report index usage
+explain select a from t1 where c=2;
+# Same for DO statement
+do @a:= (select sum(a) from t1 where b > @b);
+explain select a from t1 where c=2;
+drop table t1;
+
+#
 # Subselect in non-select command just after connection
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);

@@ -19,7 +19,6 @@
 #define CLUSTER_CONNECTION_HPP
 
 class TransporterFacade;
-class LocalConfig;
 class ConfigRetriever;
 class NdbThread;
 
@@ -31,14 +30,15 @@ class Ndb_cluster_connection {
 public:
   Ndb_cluster_connection(const char * connect_string = 0);
   ~Ndb_cluster_connection();
-  int connect(int reconnect= 0);
+  int connect(int no_retries, int retry_delay_in_seconds, int verbose);
   int start_connect_thread(int (*connect_callback)(void)= 0);
+  const char *get_connectstring(char *buf, int buf_sz) const;
+  int get_connected_port() const;
+  const char *get_connected_host() const;
 private:
   friend void* run_ndb_cluster_connection_connect_thread(void*);
   void connect_thread();
-  char *m_connect_string;
   TransporterFacade *m_facade;
-  LocalConfig *m_local_config;
   ConfigRetriever *m_config_retriever;
   NdbThread *m_connect_thread;
   int (*m_connect_callback)(void);

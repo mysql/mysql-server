@@ -350,6 +350,7 @@ void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
     {
       uint el= fields.elements;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
+      new_item->collation.set(item->collation);
       fields.push_front(item);
       ref_pointer_array[el]= item;
       thd->change_item_tree(arg, new_item);
@@ -1601,18 +1602,21 @@ longlong Item_func_bit_count::val_int()
 
 udf_handler::~udf_handler()
 {
-  if (initialized)
+  if (!not_original)
   {
-    if (u_d->func_deinit != NULL)
+    if (initialized)
     {
-      void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-	u_d->func_deinit;
-      (*deinit)(&initid);
+      if (u_d->func_deinit != NULL)
+      {
+        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
+        u_d->func_deinit;
+        (*deinit)(&initid);
+      }
+      free_udf(u_d);
     }
-    free_udf(u_d);
+    if (buffers)				// Because of bug in ecc
+      delete [] buffers;
   }
-  if (buffers)					// Because of bug in ecc
-    delete [] buffers;
 }
 
 

@@ -90,11 +90,11 @@ protected:
   NdbScanOperation(Ndb* aNdb);
   virtual ~NdbScanOperation();
 
-  int nextResult(bool fetchAllowed = true);
+  int nextResult(bool fetchAllowed = true, bool forceSend = false);
   virtual void release();
   
-  void closeScan();
-  int close_impl(class TransporterFacade*);
+  void closeScan(bool forceSend = false);
+  int close_impl(class TransporterFacade*, bool forceSend = false);
 
   // Overloaded methods from NdbCursorOperation
   int executeCursor(int ProcessorId);
@@ -103,6 +103,7 @@ protected:
   int init(const NdbTableImpl* tab, NdbConnection* myConnection);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
   int doSend(int ProcessorId);
+  void checkForceSend(bool forceSend);
 
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
@@ -127,18 +128,27 @@ protected:
   NdbReceiver** m_receivers;      // All receivers
 
   Uint32* m_prepared_receivers;   // These are to be sent
-  
+
+  /**
+   * owned by API/user thread
+   */
   Uint32 m_current_api_receiver;
   Uint32 m_api_receivers_count;
   NdbReceiver** m_api_receivers;  // These are currently used by api
   
+  /**
+   * owned by receiver thread
+   */
   Uint32 m_conf_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_conf_receivers; // receive thread puts them here
   
+  /**
+   * owned by receiver thread
+   */
   Uint32 m_sent_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_sent_receivers; // receive thread puts them here
   
-  int send_next_scan(Uint32 cnt, bool close);
+  int send_next_scan(Uint32 cnt, bool close, bool forceSend = false);
   void receiver_delivered(NdbReceiver*);
   void receiver_completed(NdbReceiver*);
   void execCLOSE_SCAN_REP();
@@ -148,7 +158,7 @@ protected:
   
   Uint32 m_ordered;
 
-  int restart();
+  int restart(bool forceSend = false);
 };
 
 inline

@@ -56,13 +56,19 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
   if(checkState_TransId(&ref->transId1)){
-    theScanningOp->theError.code = ref->errorCode;
+    theScanningOp->setErrorCode(ref->errorCode);
+    theScanningOp->execCLOSE_SCAN_REP();
     if(!ref->closeNeeded){
-      theScanningOp->execCLOSE_SCAN_REP();
       return 0;
     }
-    assert(theScanningOp->m_sent_receivers_count);
+
+    /**
+     * Setup so that close_impl will actually perform a close
+     *   and not "close scan"-optimze it away
+     */
     theScanningOp->m_conf_receivers_count++;
+    theScanningOp->m_conf_receivers[0] = theScanningOp->m_receivers[0];
+    theScanningOp->m_conf_receivers[0]->m_tcPtrI = ~0;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -97,7 +103,7 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       theScanningOp->execCLOSE_SCAN_REP();
       return 0;
     }
-    
+
     for(Uint32 i = 0; i<len; i += 3){
       Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
@@ -109,24 +115,12 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
-      if (tOp && tOp->checkMagicNumber()){
-	if(tOp->execSCANOPCONF(tcPtrI, totalLen, opCount)){
-	  /**
-	   *
-	   */
-	  theScanningOp->receiver_delivered(tOp);
-	} else if(info == ScanTabConf::EndOfData){
+      if (tOp && tOp->checkMagicNumber())
+      {
+	if (tcPtrI == RNIL && opCount == 0)
 	  theScanningOp->receiver_completed(tOp);
-	}
-      }
-    }
-    if (conf->requestInfo & ScanTabConf::EndOfData) {
-      if(theScanningOp->m_ordered)
-	theScanningOp->m_api_receivers_count = 0;
-      if(theScanningOp->m_api_receivers_count + 
-	 theScanningOp->m_conf_receivers_count +
-	 theScanningOp->m_sent_receivers_count){
-	abort();
+	else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
+	  theScanningOp->receiver_delivered(tOp);
       }
     }
     return 0;

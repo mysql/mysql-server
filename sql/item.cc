@@ -837,12 +837,38 @@ void Item_param::set_double(double d)
 }
 
 
+/*
+  Set parameter value from TIME value.
+
+  SYNOPSIS
+    set_time()
+      tm             - datetime value to set (time_type is ignored)
+      type           - type of datetime value
+      max_length_arg - max length of datetime value as string
+
+  NOTE
+    If we value to be stored is not normalized, zero value will be stored
+    instead and proper warning will be produced. This function relies on
+    the fact that even wrong value sent over binary protocol fits into
+    MAX_DATE_STRING_REP_LENGTH buffer.
+*/
 void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
 
   value.time= *tm;
   value.time.time_type= type;
+
+  if (value.time.year > 9999 || value.time.month > 12 ||
+      value.time.day > 31 ||
+      type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
+      value.time.minute > 59 || value.time.second > 59)
+  {
+    char buff[MAX_DATE_STRING_REP_LENGTH];
+    uint length= my_TIME_to_str(&value.time, buff);
+    make_truncated_value_warning(current_thd, buff, length, type);
+    set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
+  }
 
   state= TIME_VALUE;
   maybe_null= 0;
