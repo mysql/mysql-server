@@ -1,0 +1,19 @@
+drop table if exists t1,t2;
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  `id3` int(11) NOT NULL default '0',
+  `dummy1` char(30) default NULL,
+  PRIMARY KEY  (`id`,`id2`),
+  KEY `index_id3` (`id3`));
+let $1=4000;
+while ($1)
+ {
+   eval insert into t1 (id,id2,id3,dummy1) values ($1,$1,$1,'foobar');
+   dec $1;
+ }
+
+create table t2 (n int);
+insert into t2 select id2 from t1 order by id3;
+select count(*) from t2;
+drop table t1,t2;
