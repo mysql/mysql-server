@@ -939,3 +939,4 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+server-tools/instance-manager/thr_alarm.c
