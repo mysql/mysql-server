@@ -47,3 +47,16 @@ select hex(a) from t1;
 hex(a)
 878A
 drop table t1;
+create table t1(c enum(0x9353,0x9373) character set sjis);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` enum('“S','“s') character set sjis default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (0x9353);
+insert into t1 values (0x9373);
+select hex(c) from t1;
+hex(c)
+9353
+9373
+drop table t1;
