@@ -304,7 +304,7 @@ safe_query("revoke GRANT OPTION on $opt_database.test from $user",1);
 #
 
 safe_query("grant select(a) on $opt_database.test to $user");
-user_query("show columns from test");
+user_query("show full columns from test");
 safe_query("grant insert (b), update (b) on $opt_database.test to $user");
 
 user_query("select count(a) from test");

@@ -141,7 +141,7 @@ void udf_init()
   new_thd->db_length=5;
 
   bzero((gptr) &tables,sizeof(tables));
-  tables.alias= tables.real_name = (char*) "func";
+  tables.alias= tables.real_name= (char*) "func";
   tables.lock_type = TL_READ;
   tables.db=new_thd->db;
 
