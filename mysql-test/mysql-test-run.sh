@@ -1161,7 +1161,7 @@ run_testcase ()
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
-  many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
+  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
 
  if [ -n "$SKIP_TEST" ] ; then

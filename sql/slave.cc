@@ -2719,8 +2719,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 		  RPL_LOG_NAME, llstr(rli->master_log_pos,llbuff));
 
  err:
-  /* Free temporary tables etc */
-  thd->cleanup();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
