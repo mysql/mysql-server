@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.5";
+const char *VER= "14.6";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -792,6 +792,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
 	start[1]=0 ;
+      tty_password= 0;
     }
     else
       tty_password= 1;
