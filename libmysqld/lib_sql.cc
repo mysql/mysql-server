@@ -72,6 +72,12 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->field_count= 0;
 
   thd->store_globals();				// Fix if more than one connect
+  /* 
+     We have to call free_old_query before we start to fill mysql->fields 
+     for new query. In the case of embedded server we collect field data
+     during query execution (not during data retrieval as it is in remote
+     client). So we have to call free_old_query here
+  */
   free_old_query(mysql);
   result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
 
