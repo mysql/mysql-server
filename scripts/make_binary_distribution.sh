@@ -127,6 +127,8 @@ else
     client/.libs/mysqltest client/.libs/mysqlcheck \
     client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
     client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
+    tests/.libs/mysql_client_test libmysqld/examples/mysql_client_test_embedded \
+    libmysqld/examples/mysqltest_embedded \
   ";
 fi
 
@@ -187,7 +189,7 @@ fi
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   if [ -d tests ] ; then
-    $CP tests/client_test tests/*.res tests/*.tst tests/*.pl $BASE/tests
+    $CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
   fi
   if [ -d man ] ; then
     $CP man/*.1 $BASE/man/man1

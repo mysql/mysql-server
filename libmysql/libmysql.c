@@ -2978,7 +2978,7 @@ static my_bool int_is_null_false= 0;
     values and mysql_stmt_execute() the statement.
 
     See also: mysql_stmt_send_long_data() for sending long text/blob
-    data in pieces, examples in tests/client_test.c.
+    data in pieces, examples in tests/mysql_client_test.c.
     Next steps you might want to make:
     - execute statement with mysql_stmt_execute(),
     - reset statement using mysql_stmt_reset() or reprepare it with
