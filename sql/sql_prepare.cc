@@ -1609,7 +1609,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex->safe_to_cache_query= 0;
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
-         init_param_array(stmt);
+         thd->net.report_error || init_param_array(stmt);
   /*
     While doing context analysis of the query (in send_prepare_results) we
     allocate a lot of additional memory: for open tables, JOINs, derived
@@ -1640,7 +1640,9 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     stmt= NULL;
-    /* error is sent inside yyparse/send_prepare_results */
+    if (thd->net.report_error)
+      send_error(thd);
+    /* otherwise the error is sent inside yyparse/send_prepare_results */
   }
   else
   {
