@@ -388,6 +388,7 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd)
     ignore_errors=0;	  /* NO RETURN FROM db_error */
     db_error(&mysql_connection);
   }
+  mysql_connection.reconnect= 0;
   if (verbose)
     fprintf(stdout, "Selecting database %s\n", database);
   if (mysql_select_db(sock, database))

@@ -424,7 +424,7 @@ lock_check_trx_id_sanity(
 					/* out: TRUE if ok */
 	dulint		trx_id,		/* in: trx id */
 	rec_t*		rec,		/* in: user record */
-	dict_index_t*	index,		/* in: clustered index */
+	dict_index_t*	index,		/* in: index */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	ibool		has_kernel_mutex)/* in: TRUE if the caller owns the
 					kernel mutex */
@@ -445,7 +445,7 @@ lock_check_trx_id_sanity(
 		fputs("  InnoDB: Error: transaction id associated"
 			" with record\n",
 			stderr);
-		rec_print(stderr, rec, offsets);
+		rec_print_new(stderr, rec, offsets);
 		fputs("InnoDB: in ", stderr);
 		dict_index_name_print(stderr, NULL, index);
 		fprintf(stderr, "\n"
@@ -4093,10 +4093,9 @@ lock_rec_print(
 	ulint		page_no;
 	ulint		i;
 	mtr_t		mtr;
-	mem_heap_t*	heap;
-	ulint*		offsets		= NULL;
-
-	heap = mem_heap_create(100);
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -4177,9 +4176,9 @@ lock_rec_print(
 			if (page) {
 				rec_t*	rec
 					= page_find_rec_with_heap_no(page, i);
-				offsets = rec_reget_offsets(rec, lock->index,
-					offsets, ULINT_UNDEFINED, heap);
-				rec_print(file, rec, offsets);
+				offsets = rec_get_offsets(rec, lock->index,
+					offsets, ULINT_UNDEFINED, &heap);
+				rec_print_new(file, rec, offsets);
 			}
 
 			putc('\n', file);
@@ -4187,9 +4186,11 @@ lock_rec_print(
 	}
 
 	mtr_commit(&mtr);
-	mem_heap_free(heap);
-}						
-				
+	if (heap) {
+		mem_heap_free(heap);
+	}
+}
+
 /*************************************************************************
 Calculates the number of record lock structs in the record lock hash table. */
 static
@@ -4582,12 +4583,13 @@ lock_rec_validate_page(
 	page_t*	page;
 	lock_t*	lock;
 	rec_t*	rec;
-	ulint	nth_lock	= 0;
-	ulint	nth_bit		= 0;
+	ulint	nth_lock		= 0;
+	ulint	nth_bit			= 0;
 	ulint	i;
 	mtr_t	mtr;
-	mem_heap_t*	heap	= mem_heap_create(100);
-	ulint*	offsets		= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
@@ -4627,8 +4629,8 @@ loop:
 
 			index = lock->index;
 			rec = page_find_rec_with_heap_no(page, i);
-			offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 			fprintf(stderr,
 				"Validating %lu %lu\n", (ulong) space, (ulong) page_no);
@@ -4655,7 +4657,9 @@ function_exit:
 
 	mtr_commit(&mtr);
 
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(TRUE);
 }						
 				
@@ -4831,11 +4835,15 @@ lock_rec_insert_check_and_lock(
 
 #ifdef UNIV_DEBUG
 	{
-		mem_heap_t*	heap	= mem_heap_create(100);
-		const ulint*	offsets	= rec_get_offsets(next_rec, index,
-						ULINT_UNDEFINED, heap);
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
+		const ulint*	offsets		= rec_get_offsets(
+						next_rec, index, offsets_,
+						ULINT_UNDEFINED, &heap);
 		ut_ad(lock_rec_queue_validate(next_rec, index, offsets));
-		mem_heap_free(heap);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 #endif /* UNIV_DEBUG */
 
@@ -4974,11 +4982,14 @@ lock_sec_rec_modify_check_and_lock(
 
 #ifdef UNIV_DEBUG
 	{
-		mem_heap_t*	heap	= mem_heap_create(100);
-		const ulint*	offsets	= rec_get_offsets(rec, index,
-						ULINT_UNDEFINED, heap);
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
+		const ulint*	offsets		= rec_get_offsets(
+			rec, index, offsets_, ULINT_UNDEFINED, &heap);
 		ut_ad(lock_rec_queue_validate(rec, index, offsets));
-		mem_heap_free(heap);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 #endif /* UNIV_DEBUG */
 
@@ -5087,7 +5098,6 @@ lock_clust_rec_read_check_and_lock(
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
 					|| gap_mode == LOCK_REC_NOT_GAP);
-	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
