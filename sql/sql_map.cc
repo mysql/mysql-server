@@ -20,7 +20,7 @@
 #endif
 
 #include "mysql_priv.h"
-#ifdef HAVE_MMAP
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #include <sys/stat.h>
 #endif
@@ -42,7 +42,7 @@ mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_lengt
     struct stat stat_buf;
     if (!fstat(file,&stat_buf))
     {
-      if (!(map=(byte*) mmap(0,(size=(ulong) stat_buf.st_size),PROT_READ,
+      if (!(map=(byte*) my_mmap(0,(size=(ulong) stat_buf.st_size),PROT_READ,
 			     MAP_SHARED | MAP_NORESERVE,file,
 			     0L)))
       {
@@ -53,7 +53,7 @@ mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_lengt
     if (map && memcmp(map,magic,magic_length))
     {
       my_error(ER_WRONG_MAGIC, MYF(0), name);
-      VOID(munmap(map,size));
+      VOID(my_munmap(map,size));
       map=0;
     }
     if (!map)
@@ -71,7 +71,7 @@ mapped_files::~mapped_files()
 #ifdef HAVE_MMAP
   if (file >= 0)
   {
-    VOID(munmap((caddr_t) map,size));
+    VOID(my_munmap((caddr_t) map,size));
     VOID(my_close(file,MYF(0)));
     file= -1; map=0;
   }
