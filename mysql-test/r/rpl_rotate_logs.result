@@ -74,7 +74,7 @@ Log_name
 master-bin.000003
 master-bin.000004
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000004	2886		
 select * from t4;
 a

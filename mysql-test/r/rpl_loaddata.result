@@ -21,7 +21,7 @@ day	id	category	name
 2003-03-22	2161	c	asdf
 2003-03-22	2416	a	bbbbb
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 slave-bin.000001	964		
 drop table t1;
 drop table t2;
@@ -63,6 +63,6 @@ terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 1
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	491		
 drop table t2;

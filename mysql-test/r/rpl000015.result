@@ -1,6 +1,6 @@
 reset master;
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	79		
 reset slave;
 show slave status;
