@@ -1504,7 +1504,7 @@ void Field_long::store(const char *from,uint len)
   {
     len--; from++;
   }
-  long tmp;
+  long tmp, cuted_fields=0;
   String tmp_str(from,len);
   from= tmp_str.c_ptr();			// Add end null if needed
   errno=0;
@@ -1520,9 +1520,34 @@ void Field_long::store(const char *from,uint len)
   }
   else
     tmp=strtol(from, &end, 10);
-  if (errno || 
+  if (errno ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len)))
+    cuted_fields=1;
+#if SIZEOF_LONG > 4
+  if (unsigned_flag)
+  {
+    if (tmp > UINT_MAX32)
+    {
+      tmp= UINT_MAX32;
+      cuted_fields=1;
+    }
+  }
+  else
+  {
+    if (tmp > INT_MAX32)
+    {
+      tmp= INT_MAX32;
+      cuted_fields=1;
+    }
+    else if (tmp < INT_MIN32)
+    {
+      tmp= INT_MIN32;
+      cuted_fields=1;
+    }
+  }
+#endif
+  if (cuted_fields)
     current_thd->cuted_fields++;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
