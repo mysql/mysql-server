@@ -72,10 +72,23 @@ set x = x-1;
 insert into test.t1 values ("a", x);
 end while;
 create procedure b(x int)
-sprepeat
-insert into test.t1 values ("b", x);
+repeat
+insert into test.t1 values (repeat("b",3), x);
 set x = x-1;
-until x = 0 end sprepeat;
+until x = 0 end repeat;
+create procedure b2(x int)
+repeat(select 1 into outfile 'b2');
+insert into test.t1 values (repeat("b2",3), x);
+set x = x-1;
+until x = 0 end repeat;
+drop procedure b2;
+create procedure b3(x int)
+repeat
+select * from test.t1;	# No INTO!
+insert into test.t1 values (repeat("b3",3), x);
+set x = x-1;
+until x = 0 end repeat;
+SELECT in a stored procedure must have INTO
 create procedure c(x int)
 hmm: while x > 0 do
 insert into test.t1 values ("c", x);
@@ -196,9 +209,9 @@ delete from t1;
 call b(3);
 select * from t1;
 id	data
-b	3
-b	2
-b	1
+bbb	3
+bbb	2
+bbb	1
 delete from t1;
 call c(3);
 select * from t1;

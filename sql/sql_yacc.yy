@@ -535,8 +535,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  ITERATE_SYM
 %token  LEAVE_SYM
 %token  LOOP_SYM
-/* QQ This is temporary, until the REPEAT conflict is solved. */
-%token  SPREPEAT_SYM
+%token  REPEAT_SYM
 %token  UNTIL_SYM
 %token  WHILE_SYM
 %token  ASENSITIVE_SYM
@@ -1042,11 +1041,20 @@ sp_proc_stmt:
 	  statement
 	  {
 	    LEX *lex= Lex;
-	    sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
 
-	    i->set_lex(lex);
-	    lex->sphead->add_instr(i);
-	    lex->sphead->restore_lex(YYTHD);
+	    if (lex->sql_command == SQLCOM_SELECT && !lex->result)
+	    {
+	      send_error(YYTHD, ER_SP_BADSELECT);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
+
+	      i->set_lex(lex);
+	      lex->sphead->add_instr(i);
+	      lex->sphead->restore_lex(YYTHD);
+	    }
           }
 	| IF sp_if END IF {}
 	| CASE_SYM WHEN_SYM
@@ -1097,7 +1105,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      send_error(YYTHD, ER_SP_LEAVE_MISMATCH);
+	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "LEAVE");
 	      YYABORT;
 	    }
 	    else
@@ -1115,7 +1123,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      send_error(YYTHD, ER_SP_ITERATE_MISMATCH);
+	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE");
 	      YYABORT;
 	    }
 	    else
@@ -1284,8 +1292,8 @@ sp_unlabeled_control:
 
 	    lex->sphead->add_instr(i);
 	  }
-	| SPREPEAT_SYM sp_proc_stmts UNTIL_SYM expr END SPREPEAT_SYM
-	  { /* ^^ QQ temp. until conflict solved        ^^ */
+	| REPEAT_SYM sp_proc_stmts UNTIL_SYM expr END REPEAT_SYM
+	  {
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
@@ -2517,6 +2525,8 @@ simple_expr:
 	  { $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);}
 	| FUNC_ARG3 '(' expr ',' expr ',' expr ')'
 	  { $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);}
+	| REPEAT_SYM '(' expr ',' expr ')'
+	  { $$= new Item_func_repeat($3,$5); }
 	| ATAN	'(' expr ')'
 	  { $$= new Item_func_atan($3); }
 	| ATAN	'(' expr ',' expr ')'
