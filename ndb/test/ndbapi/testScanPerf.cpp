@@ -270,7 +270,7 @@ run_scan(){
 	{
 	  int row = rand() % tot;
 	  pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
-	  pIOp->set_new_bound();
+	  pIOp->end_of_bound();
 	}
 	if(g_paramters[P_RESET].value == 2)
 	  goto execute;

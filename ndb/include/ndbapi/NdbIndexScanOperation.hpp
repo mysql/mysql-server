@@ -116,10 +116,10 @@ public:
   int reset_bounds(bool forceSend = false);
 
   /**
-   * Set new bound on operation,
-   *  used when batching index reads
+   * Marks end of a bound, 
+   *  used when batching index reads (multiple ranges)
    */
-  int set_new_bound();
+  int end_of_bound();
   
   bool getSorted() const { return m_ordered; }
 private:

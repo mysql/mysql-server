@@ -1399,6 +1399,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
           DBUG_ASSERT(false);
           // Stop setting bounds but continue with what we have
+	  op->end_of_bound();
           DBUG_RETURN(0);
         }
       }
@@ -1446,6 +1447,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     tot_len+= part_store_len;
   }
+  op->end_of_bound();
   DBUG_RETURN(0);
 }
 
@@ -1463,7 +1465,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-	((field->flags & PRI_KEY_FLAG) && m_retrieve_primary_key) || 
+	((field->flags & PRI_KEY_FLAG)) || 
 	m_retrieve_all_fields)
     {      
       if (get_ndb_value(op, field, i, buf))
@@ -4729,18 +4731,36 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   }
 
   m_disable_multi_read= false;
-  
+
+  /**
+   * Copy arguments into member variables
+   */
   multi_ranges= ranges;
   multi_range_count= range_count;
   multi_range_sorted= sorted;
-  const NDBINDEX *idx= (NDBINDEX *) m_index[active_index].index; 
   multi_range_buffer= buffer;
 
+  /**
+   * read multi range will read ranges as follows (if not ordered)
+   *
+   * input    read order
+   * ======   ==========
+   * pk-op 1  pk-op 1
+   * pk-op 2  pk-op 2
+   * range 3  range (3,5) NOTE result rows will be intermixed
+   * pk-op 4  pk-op 4
+   * range 5
+   * pk-op 6  pk-ok 6
+   
+   /**
+   * Variables for loop
+   */
   byte* curr= (byte*)buffer->buffer;
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   const NDBTAB *tab= (const NDBTAB *) m_table;
   const NDBINDEX *unique_idx= (NDBINDEX *) m_index[active_index].unique_index;
+  const NDBINDEX *idx= (NDBINDEX *) m_index[active_index].index; 
   const NdbOperation* lastOp= m_active_trans->getLastDefinedOperation();
   NdbIndexScanOperation* scanOp= 0;
   for(i= 0; i<range_count && curr+reclength <= buffer->buffer_end; i++)
@@ -4808,10 +4828,6 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 		     scanOp->getNdbError() : 
 		     m_active_trans->getNdbError());
       }
-      else
-      {
-	scanOp->set_new_bound();
-      }
       const key_range *keys[2]= { &ranges[i].start_key, &ranges[i].end_key };
       if ((res= set_bounds(scanOp, keys)))
 	DBUG_RETURN(res);
@@ -4821,6 +4837,12 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   
   if (i != range_count)
   {
+    /**
+     * Mark that we're using entire buffer (even if might not) as
+     *   we haven't read all ranges for some reason
+     * This as we don't want mysqld to reuse the buffer when we read
+     *   the remaining ranges
+     */
     buffer->end_of_used_area= (byte*)buffer->buffer_end;
   }
   else
@@ -4848,12 +4870,14 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
 {
   DBUG_ENTER("ha_ndbcluster::read_multi_range_next");
   if (m_disable_multi_read)
+  {
     DBUG_RETURN(handler::read_multi_range_next(multi_range_found_p));
-  
+  }
+
   int res;
   ulong reclength= table->reclength;
   const NdbOperation* op= m_current_multi_operation;
-  while(multi_range_curr < m_multi_range_defined_count)
+  for(;multi_range_curr < m_multi_range_defined_count; multi_range_curr++)
   {
     if(multi_ranges[multi_range_curr].range_flag & UNIQUE_RANGE)
     {
@@ -4861,7 +4885,6 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
 	goto found_next;
       
       op= m_active_trans->getNextCompletedOperation(op);
-      multi_range_curr++;
       m_multi_range_result_ptr += reclength;
     } 
     else if(m_active_cursor)
@@ -4904,15 +4927,17 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
 	}
       } while (check == 2);
       
-      multi_range_curr++;
       m_multi_range_result_ptr += reclength;
       
       m_active_cursor->close();
       m_active_cursor= 0;
     }
-    else
+    else /** m_active_cursor == 0 */
     {
-      multi_range_curr++;      
+      /**
+       * Corresponds to range 5 in example in read_multi_range_first
+       */
+      (void)1;
     }
   }  
   
@@ -4930,6 +4955,9 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
 				     multi_range_buffer));
   
 found:
+  /**
+   * Found a record belonging to a scan
+   */
   * multi_range_found_p= multi_ranges + multi_range_curr;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
   unpack_record(table->record[0]);
@@ -4937,6 +4965,10 @@ found:
   DBUG_RETURN(0);
 
 found_next:
+  /**
+   * Found a record belonging to a pk/index op,
+   *   copy result and move to next to prepare for next call
+   */
   * multi_range_found_p= multi_ranges + multi_range_curr;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
   unpack_record(table->record[0]);
