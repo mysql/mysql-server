@@ -19815,7 +19815,7 @@ MyISAM uses special tree-like cache to make bulk inserts (that is,
 @code{INSERT ... SELECT}, @code{INSERT ... VALUES (...), (...), ...}, and
 @code{LOAD DATA INFILE}) faster. This variable limits
 the size of the cache tree in bytes per thread. Setting it to 0
-will disable this optimization.
+will disable this optimisation.
 @strong{Note}: this cache is only used when adding data to non-empty table.
 Default value is 8 MB.
 
@@ -20324,7 +20324,7 @@ example an @code{ALTER TABLE} or a @code{LOCK TABLE} can prevent opening
 a table until the command is finished.
 @item @code{Removing duplicates}
 The query was using @code{SELECT DISTINCT} in such a way that MySQL
-couldn't optimize that distinct away at an early stage. Because of this
+couldn't optimise that distinct away at an early stage. Because of this
 MySQL has to do an extra stage to remove all duplicated rows before
 sending the result to the client.
 @item @code{Reopen table}
@@ -26013,7 +26013,7 @@ the sort-key) is written to a result file.
 @item
 Now the code in @file{sql/records.cc} will be used to read through them
 in sorted order by using the row pointers in the result file.  To
-optimize this, we read in a big block of row pointers, sort these and
+optimise this, we read in a big block of row pointers, sort these and
 then we read the rows in the sorted order into a row buffer
 (@code{record_rnd_buffer}) .
 @end itemize
@@ -26163,7 +26163,7 @@ Execute a @code{FLUSH TABLES} statement or the shell command @code{mysqladmin
 flush-tables}.
 @end enumerate
 
-Note that @code{LOAD DATA INFILE} also does the above optimization if
+Note that @code{LOAD DATA INFILE} also does the above optimisation if
 you insert into an empty table; the main difference with the above
 procedure is that you can let myisamchk allocate much more temporary
 memory for the index creation that you may want MySQL to allocate for
@@ -26872,7 +26872,7 @@ In the first statement, the @code{LIKE} value begins with a wildcard
 character.  In the second statement, the @code{LIKE} value is not a
 constant.
 
-MySQL 4.0 does another optimization on @code{LIKE}.  If you use
+MySQL 4.0 does another optimisation on @code{LIKE}.  If you use
 @code{... LIKE "%string%"} and @code{string} is longer than 3 characters,
 MySQL will use the @code{Turbo Boyer-Moore} algorithm to initialise the
 pattern for the string and then use this pattern to perform the search
@@ -34475,13 +34475,13 @@ A designated table handler is allocated for the thread in @code{HANDLER open}.
 @item
 There is less parsing involved.
 @item
-No optimizer and no query checking overhead.
+No optimiser and no query checking overhead.
 @item
 The used table doesn't have to be locked between two handler requests.
 @item
 The handler interface doesn't have to provide a consistent look of the
 data (for example dirty-reads are allow), which allows the table handler
-to do optimizations that SQL doesn't normally allow.
+to do optimisations that SQL doesn't normally allow.
 @end itemize
 @item
 It makes it much easier to port applications that uses an ISAM like
@@ -50064,6 +50064,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.3
 
 @itemize @bullet
+@item
+Fixed bug in query cache initialisation with very small query cache size.
 @item
 Allow @code{DEFAULT} with @code{INSERT} statement.
 @item
