@@ -277,7 +277,8 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (res->alloced_length() >= res->length()+res2->length())
+      if (!args[0]->const_item() && 
+          res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }
@@ -1906,6 +1907,7 @@ b1:        str->append((char)(num>>8));
 #endif
       str->append((char)num);
   }
+  str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
   return str;
 }
