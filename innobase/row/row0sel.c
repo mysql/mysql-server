@@ -2560,6 +2560,7 @@ row_search_for_mysql(
 					then this is set to FALSE */
 	ibool		success;
 	ulint		cnt				= 0;
+	ulint		next_offs;
 	mtr_t		mtr;
 	
 	ut_ad(index && pcur && search_tuple);
@@ -2916,7 +2917,59 @@ rec_loop:
 		goto next_rec;
 	}
 
-	ut_ad(page_rec_is_user_rec(rec));
+	/*-------------------------------------------------------------*/
+	/* Do sanity checks in case our cursor has bumped into page
+	corruption */
+	
+	next_offs = rec_get_next_offs(rec);
+
+	if (next_offs >= UNIV_PAGE_SIZE || next_offs < PAGE_SUPREMUM) {
+
+		if (srv_force_recovery == 0 || moves_up == FALSE) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
+"InnoDB: index %s, table %s. Run CHECK TABLE to table. You may need to\n"
+"InnoDB: restore from a backup, or dump + drop + reimport the table.\n",
+			   (ulint)(rec - buf_frame_align(rec)), next_offs,
+			   buf_frame_get_page_no(rec), index->name,
+			   index->table_name);
+		
+			err = DB_CORRUPTION;
+
+			goto lock_wait_or_error;
+		} else {
+			/* The user may be dumping a corrupt table. Jump
+			over the corruption to recover as much as possible. */
+
+			fprintf(stderr,
+"InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
+"InnoDB: index %s, table %s. We try to skip the rest of the page.\n",
+			   (ulint)(rec - buf_frame_align(rec)), next_offs,
+			   buf_frame_get_page_no(rec), index->name,
+			   index->table_name);
+
+			btr_pcur_move_to_last_on_page(pcur, &mtr);
+
+			goto next_rec;
+		}
+	}
+
+	if (srv_force_recovery > 0) {
+		if (!rec_validate(rec) || !btr_index_rec_validate(rec, index,
+								FALSE)) {
+			fprintf(stderr,
+"InnoDB: Index record corruption: rec offs %lu next offs %lu, page no %lu,\n"
+"InnoDB: index %s, table %s. We try to skip the record.\n",
+			   (ulint)(rec - buf_frame_align(rec)), next_offs,
+			   buf_frame_get_page_no(rec), index->name,
+			   index->table_name);
+
+			goto next_rec;
+		}
+	}
+
+	/*-------------------------------------------------------------*/
 
 	if (unique_search_from_clust_index && btr_pcur_get_up_match(pcur)
 					== dtuple_get_n_fields(search_tuple)) {
