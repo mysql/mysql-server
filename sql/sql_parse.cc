@@ -4347,6 +4347,7 @@ unsent_create_error:
       if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
           mysql_bin_log.is_open())
       {
+        thd->clear_error();
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
@@ -4360,6 +4361,7 @@ unsent_create_error:
       if (!(res= mysql_drop_view(thd, first_table, thd->lex->drop_mode)) &&
           mysql_bin_log.is_open())
       {
+        thd->clear_error();
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
