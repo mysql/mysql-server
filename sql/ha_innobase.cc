@@ -2961,7 +2961,8 @@ ha_innobase::records_in_range(
 	KEY*		key;
 	dict_index_t*	index;
 	mysql_byte*	key_val_buff2 	= (mysql_byte*) my_malloc(
-							table->reclength,
+						  table->reclength
+      						+ table->max_key_length + 100,
 								MYF(MY_WME));
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
