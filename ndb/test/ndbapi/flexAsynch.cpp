@@ -16,6 +16,7 @@
 
 
 
+#include <ndb_global.h>
 #include "NdbApi.hpp"
 #include <NdbSchemaCon.hpp>
 #include <NdbMain.h>
