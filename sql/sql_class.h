@@ -1054,14 +1054,15 @@ public:
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
-  void register_item_tree_change(Item **place, Item *old_value,
-                                 MEM_ROOT *runtime_memroot)
+  void change_item_tree(Item **place, Item *new_value)
   {
+    /* TODO: check for OOM condition here */
     if (!current_arena->is_conventional_execution())
-      nocheck_register_item_tree_change(place, old_value, runtime_memroot);
+      nocheck_register_item_tree_change(place, *place, &mem_root);
+    *place= new_value;
   }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
-                                             MEM_ROOT *runtime_memroot);
+                                         MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();
 };
 

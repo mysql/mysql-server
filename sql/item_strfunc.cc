@@ -643,10 +643,10 @@ void Item_func_concat_ws::split_sum_func(THD *thd, Item **ref_pointer_array,
   else if (separator->used_tables() || separator->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    Item *new_item= new Item_ref(ref_pointer_array + el, 0, separator->name);
     fields.push_front(separator);
     ref_pointer_array[el]= separator;
-    thd->register_item_tree_change(&separator, separator, &thd->mem_root);
-    separator= new Item_ref(ref_pointer_array + el, 0, separator->name);
+    thd->change_item_tree(&separator, new_item);
   }
   Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
@@ -1779,10 +1779,10 @@ void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
     ref_pointer_array[el]= item;
-    thd->register_item_tree_change(&item, item, &thd->mem_root);
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
+    thd->change_item_tree(&item, new_item);
   }
   Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
