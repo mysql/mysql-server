@@ -967,11 +967,12 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return 1;
   }
+  unit=u;
   while ((item=li++))
   {
     ls= gl++;
     Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    xx->fix_fields(current_thd,(TABLE_LIST*) current_thd->lex.select_lex.table_list.first,&item);
+    xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
     xx->fix_length_and_dec();
     vars.push_back(xx);
   }
@@ -983,6 +984,11 @@ bool select_dumpvar::send_data(List<Item> &items)
   Item_func_set_user_var *xx;
   DBUG_ENTER("send_data");
 
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
   if (row_count++) 
   {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
