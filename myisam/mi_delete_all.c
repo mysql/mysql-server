@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Remove all rows from a MyISAM table */
-/* This only clears the status information;  The files are not truncated */
+/* This only clears the status information and truncates the data file */
 
 #include "myisamdef.h"
 
@@ -50,6 +50,8 @@ int mi_delete_all_rows(MI_INFO *info)
 
   myisam_log_command(MI_LOG_DELETE_ALL,info,(byte*) 0,0,0);
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  if (my_chsize(info->dfile, 0, MYF(MY_WME)))
+    goto err;
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 

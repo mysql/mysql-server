@@ -99,12 +99,10 @@ uchar to_upper_latin1_de[] = {
  * This is a simple latin1 mapping table, which maps all accented
  * characters to their non-accented equivalents.  Note: in this
  * table, 'ä' is mapped to 'A', 'ÿ' is mapped to 'Y', etc. - all
- * accented characters are treated the same way.
- *
- * SPECIAL NOTE: 'ß' (the sz ligature), which isn't really an
- * accented 's', is mapped to 'S', to simplify the sorting
- * functions.
+ * accented characters except the following are treated the same way.
+ * Ü, ü, É, é, Ö, ö, Ä, ä
  */
+
 uchar sort_order_latin1_de[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -118,10 +116,10 @@ uchar sort_order_latin1_de[] = {
   144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
   160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
   176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
-   65, 65, 65, 65, 65, 65, 92, 67, 69, 69, 69, 69, 73, 73, 73, 73,
-   68, 78, 79, 79, 79, 79, 79,215,216, 85, 85, 85, 85, 89,222, 83,
-   65, 65, 65, 65, 65, 65, 92, 67, 69, 69, 69, 69, 73, 73, 73, 73,
-   68, 78, 79, 79, 79, 79, 79,247,216, 85, 85, 85, 85, 89,222, 89
+   65, 65, 65, 65,196, 65, 92, 67, 69,201, 69, 69, 73, 73, 73, 73,
+   68, 78, 79, 79, 79, 79,214,215,216, 85, 85, 85,220, 89,222,223,
+   65, 65, 65, 65,196, 65, 92, 67, 69,201, 69, 69, 73, 73, 73, 73,
+   68, 78, 79, 79, 79, 79,214,247,216, 85, 85, 85,220, 89,222, 89
 };
 
 #define L1_AE 196
@@ -132,6 +130,39 @@ uchar sort_order_latin1_de[] = {
 #define L1_ue 252
 #define L1_ss 223
 
+
+/*
+  Some notes about the following comparison rules:
+  By definition, my_strnncoll_latin_de must works exactly as if had called
+  my_strnxfrm_latin_de() on both strings and compared the result strings.
+
+  This means that:
+  Ä must also matches ÁE and Aè, because my_strxn_frm_latin_de() will convert
+  both to AE.
+
+  The other option would be to not do any accent removal in
+  sort_order_latin_de[] at all
+*/
+
+
+#define CHECK_S1_COMBO(ch1, ch2, str1, str1_end, res_if_str1_smaller, str2, fst, snd, accent)   \
+  /* Invariant: ch1 == fst == sort_order_latin1_de[accent] && ch1 != ch2 */ \
+  if (ch2 != accent)							\
+  {									\
+    ch1= fst;								\
+    goto normal;							\
+  }									\
+  if (str1 == str1_end)							\
+    return res_if_str1_smaller;						\
+  {									\
+     int diff = (int) sort_order_latin1_de[*str1] - snd;		\
+     if (diff)								\
+        return diff*(-(res_if_str1_smaller));				\
+      /* They are equal (e.g., "Ae" == 'ä') */				\
+     str1++;								\
+  }
+
+
 int my_strnncoll_latin1_de(const uchar * s1, int len1,
                            const uchar * s2, int len2)
 {
@@ -140,171 +171,70 @@ int my_strnncoll_latin1_de(const uchar * s1, int len1,
 
   while (s1 < e1 && s2 < e2)
   {
-    /* to_upper is used instead of sort_order, because we don't want
-     * 'Ä' to match "ÁE", only "AE".  This couples the to_upper and
-     * sort_order tables together, but that is acceptable. */
-    uchar c1 = to_upper_latin1_de[*s1];
-    uchar c2 = to_upper_latin1_de[*s2];
+    /*
+      Because sort_order_latin1_de doesn't convert 'Ä', Ü or ß we
+      can use it here.
+    */
+    uchar c1 = sort_order_latin1_de[*s1++];
+    uchar c2 = sort_order_latin1_de[*s2++];
     if (c1 != c2)
     {
-      switch (c1)
-      {
-
-#define CHECK_S1_COMBO(fst, snd, accent)                                  \
-  /* Invariant: c1 == fst == sort_order_latin1_de[accent] && c1 != c2 */  \
-  if (c2 == accent)                                                       \
-  {                                                                       \
-    if (s1 + 1 < e1)                                                      \
-    {                                                                     \
-      if (to_upper_latin1_de[*(s1 + 1)] == snd)                           \
-      {                                                                   \
-	/* They are equal (e.g., "Ae" == 'ä') */                          \
-	s1 += 2;                                                          \
-	s2 += 1;                                                          \
-      }                                                                   \
-      else                                                                \
-      {                                                                   \
-	int diff = sort_order_latin1_de[*(s1 + 1)] - snd;                 \
-	if (diff)                                                         \
-	  return diff;                                                    \
-	else                                                              \
-	  /* Comparison between, e.g., "AÉ" and 'Ä' */                    \
-	  return 1;                                                       \
-      }                                                                   \
-    }                                                                     \
-    else                                                                  \
-      return -1;                                                          \
-  }                                                                       \
-  else                                                                    \
-    /* The following should work even if c2 is [ÄÖÜß] */                  \
-    return fst - sort_order_latin1_de[c2]
-
+      switch (c1) {
       case 'A':
-	CHECK_S1_COMBO('A', 'E', L1_AE);
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'A', 'E', L1_AE);
 	break;
       case 'O':
-	CHECK_S1_COMBO('O', 'E', L1_OE);
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'O', 'E', L1_OE);
 	break;
       case 'U':
-	CHECK_S1_COMBO('U', 'E', L1_UE);
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'U', 'E', L1_UE);
 	break;
       case 'S':
-	CHECK_S1_COMBO('S', 'S', L1_ss);
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'S', 'S', L1_ss);
 	break;
-
-#define CHECK_S2_COMBO(fst, snd)                                          \
-  /* Invariant: sort_order_latin1_de[c1] == fst && c1 != c2 */            \
-  if (c2 == fst)                                                          \
-  {                                                                       \
-    if (s2 + 1 < e2)                                                      \
-    {                                                                     \
-      if (to_upper_latin1_de[*(s2 + 1)] == snd)                           \
-      {                                                                   \
-	/* They are equal (e.g., 'ä' == "Ae") */                          \
-	s1 += 1;                                                          \
-	s2 += 2;                                                          \
-      }                                                                   \
-      else                                                                \
-      {                                                                   \
-	int diff = sort_order_latin1_de[*(s1 + 1)] - snd;                 \
-	if (diff)                                                         \
-	  return diff;                                                    \
-	else                                                              \
-	  /* Comparison between, e.g., 'Ä' and "AÉ" */                    \
-	  return -1;                                                      \
-      }                                                                   \
-    }                                                                     \
-    else                                                                  \
-      return 1;                                                           \
-  }                                                                       \
-  else                                                                    \
-    /* The following should work even if c2 is [ÄÖÜß] */                  \
-    return fst - sort_order_latin1_de[c2]
-
       case L1_AE:
-	CHECK_S2_COMBO('A', 'E');
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'A', 'E', 'A');
 	break;
       case L1_OE:
-	CHECK_S2_COMBO('O', 'E');
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'O', 'E', 'O');
 	break;
       case L1_UE:
-	CHECK_S2_COMBO('U', 'E');
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'U', 'E', 'U');
 	break;
       case L1_ss:
-	CHECK_S2_COMBO('S', 'S');
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'S', 'S', 'S');
 	break;
       default:
+	/*
+	  Handle the case where 'c2' is a special character
+	  If this is true, we know that c1 can't match this character.
+	*/
+    normal:
 	switch (c2) {
 	case L1_AE:
+	  return  (int) c1 - (int) 'A';
 	case L1_OE:
+	  return  (int) c1 - (int) 'O';
 	case L1_UE:
+	  return  (int) c1 - (int) 'U';
 	case L1_ss:
-	  /* Make sure these do not match (e.g., "Ä" != "Á") */
-	  return sort_order_latin1_de[c1] - sort_order_latin1_de[c2];
-	  break;
+	  return  (int) c1 - (int) 'S';
 	default:
-	  if (sort_order_latin1_de[*s1] != sort_order_latin1_de[*s2])
-	    return sort_order_latin1_de[*s1] - sort_order_latin1_de[*s2];
-	  ++s1;
-	  ++s2;
-	  break;
+	{
+	  int diff= (int) c1 - (int) c2;
+	  if (diff)
+	    return diff;
 	}
 	break;
-
-#undef CHECK_S1_COMBO
-#undef CHECK_S2_COMBO
-
-      }
-    }
-    else
-    {
-      /* In order to consistently treat "ae" == 'ä', but to NOT allow
-       * "aé" == 'ä', we must look ahead here to ensure that the second
-       * letter in a combo really is the unaccented 'e' (or 's' for
-       * "ss") and is not an accented character with the same sort_order. */
-      ++s1;
-      ++s2;
-      if (s1 < e1 && s2 < e2)
-      {
-	switch (c1)
-	{
-	case 'A':
-	case 'O':
-	case 'U':
-	  if (sort_order_latin1_de[*s1] == 'E' &&
-	      to_upper_latin1_de[*s1] != 'E' &&
-	      to_upper_latin1_de[*s2] == 'E')
-	    /* Comparison between, e.g., "AÉ" and "AE" */
-	    return 1;
-	  if (sort_order_latin1_de[*s2] == 'E' &&
-	      to_upper_latin1_de[*s2] != 'E' &&
-	      to_upper_latin1_de[*s1] == 'E')
-	    /* Comparison between, e.g., "AE" and "AÉ" */
-	    return -1;
-	  break;
-	case 'S':
-	  if (sort_order_latin1_de[*s1] == 'S' &&
-	      to_upper_latin1_de[*s1] != 'S' &&
-	      to_upper_latin1_de[*s2] == 'S')
-	    /* Comparison between, e.g., "Sß" and "SS" */
-	    return 1;
-	  if (sort_order_latin1_de[*s2] == 'S' &&
-	      to_upper_latin1_de[*s2] != 'S' &&
-	      to_upper_latin1_de[*s1] == 'S')
-	    /* Comparison between, e.g., "SS" and "Sß" */
-	    return -1;
-	  break;
-	default:
-	  break;
 	}
       }
     }
   }
-
   /* A simple test of string lengths won't work -- we test to see
    * which string ran out first */
   return s1 < e1 ? 1 : s2 < e2 ? -1 : 0;
 }
+
 
 int my_strnxfrm_latin1_de(uchar * dest, const uchar * src, int len, int srclen)
 {
@@ -313,22 +243,19 @@ int my_strnxfrm_latin1_de(uchar * dest, const uchar * src, int len, int srclen)
   const uchar *se = src + srclen;
   while (src < se && dest < de)
   {
-    switch (*src)
-    {
+    uchar chr=sort_order_latin1_de[*src];
+    switch (chr) {
     case L1_AE:
-    case L1_ae:
       *dest++ = 'A';
       if (dest < de)
 	*dest++ = 'E';
       break;
     case L1_OE:
-    case L1_oe:
       *dest++ = 'O';
       if (dest < de)
 	*dest++ = 'E';
       break;
     case L1_UE:
-    case L1_ue:
       *dest++ = 'U';
       if (dest < de)
 	*dest++ = 'E';
@@ -339,13 +266,14 @@ int my_strnxfrm_latin1_de(uchar * dest, const uchar * src, int len, int srclen)
 	*dest++ = 'S';
       break;
     default:
-      *dest++ = sort_order_latin1_de[*src];
+      *dest++= chr;
       break;
     }
     ++src;
   }
   return dest - dest_orig;
 }
+
 
 int my_strcoll_latin1_de(const uchar * s1, const uchar * s2)
 {

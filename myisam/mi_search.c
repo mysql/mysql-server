@@ -657,19 +657,19 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos)
 int _mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
                      uchar *b, uint b_length, my_bool part_key)
 {
-  uint length= min(a_length,b_length);
-  uchar *end= a+ length;
   int flag;
 
 #ifdef USE_STRCOLL
   if (use_strcoll(charset_info))
   {
-    if ((flag = my_strnncoll(charset_info, a, a_length, b, b_length)))
-      return flag;
+    /* QQ: This needs to work with part keys at some point */
+    return my_strnncoll(charset_info, a, a_length, b, b_length);
   }
   else
 #endif
   {
+    uint length= min(a_length,b_length);
+    uchar *end= a+ length;
     uchar *sort_order=charset_info->sort_order;
     while (a < end)
       if ((flag= (int) sort_order[*a++] - (int) sort_order[*b++]))
@@ -768,8 +768,15 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
       }
       else
       {
-        uint length=(uint) (end-a);
-        if ((flag=_mi_compare_text(keyseg->charset,a,length,b,length,
+	uint length=(uint) (end-a), a_length=length, b_length=length;
+	if (!(nextflag & SEARCH_PREFIX))
+	{
+	  while (a_length && a[a_length-1] == ' ')
+	    a_length--;
+	  while (b_length && b[b_length-1] == ' ')
+	    b_length--;
+	}
+        if ((flag=_mi_compare_text(keyseg->charset,a,a_length,b,b_length,
                                    (my_bool) ((nextflag & SEARCH_PREFIX) &&
                                               next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);

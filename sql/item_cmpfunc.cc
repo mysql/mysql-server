@@ -254,7 +254,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value=stringcmp(a,b);
+  int value= binary ? stringcmp(a,b) : sortcmp(a,b);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
