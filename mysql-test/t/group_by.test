@@ -38,7 +38,6 @@ INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
-
 drop table test.t1,test.t2;
 
 #
@@ -219,4 +218,28 @@ insert into t1 values (1);
 select 1+1, "a",count(*) from t1 where foo in (2);
 insert into t1 values (1);
 select 1+1,"a",count(*) from t1 where foo in (2);
+drop table t1;
+
+#
+# Test GROUP BY DESC
+
+CREATE TABLE t1 (
+  spID int(10) unsigned,
+  userID int(10) unsigned,
+  score smallint(5) unsigned,
+  key (spid),
+  key (score)
+);
+
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3);
+explain select userid,count(*) from t1 group by userid desc;
+select userid,count(*) from t1 group by userid desc;
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
+select spid,count(*) from t1 where spid between 1 and 2 group by spid;
+select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
+select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain select sql_big_result score,count(*) from t1 group by score desc;
+select sql_big_result score,count(*) from t1 group by score desc;
 drop table t1;

@@ -480,7 +480,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	   (thd->select_limit == HA_POS_ERROR ||
 	    (join.select_options & OPTION_FOUND_ROWS) ||
 	    order &&
-	    !(skip_sort_order=test_if_skip_sort_order(&join.join_tab[join.const_tables], order, thd->select_limit,1))))
+	    !(skip_sort_order=
+	      test_if_skip_sort_order(&join.join_tab[join.const_tables],
+				      order, thd->select_limit,1))))
   {
     if ((group=create_distinct_group(order,fields)))
     {
@@ -5272,13 +5274,6 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys)
 }
 
 
-/*****************************************************************************
-** If not selecting by given key, create an index how records should be read
-** return: 0  ok
-**	  -1 some fatal error
-**	   1  no records
-*****************************************************************************/
-
 /* Return 1 if we don't have to do file sorting */
 
 static bool
@@ -5390,6 +5385,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   }
   DBUG_RETURN(0);				// Can't use index.
 }
+
+
+/*****************************************************************************
+  If not selecting by given key, create an index how records should be read
+  return: 0  ok
+	  -1 some fatal error
+	   1  no records
+*****************************************************************************/
 
 static int
 create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)

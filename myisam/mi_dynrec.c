@@ -64,11 +64,13 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
     MI_DYN_DELETE_BLOCK_HEADER+1;
   reclength=info->s->base.pack_reclength+
     _my_calc_total_blob_length(info,record)+ extra;
+#ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
     my_errno=HA_ERR_TO_BIG_ROW;
     return -1;
   }
+#endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
     my_errno=ENOMEM;
@@ -93,11 +95,13 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const byte *record)
     MI_DYN_DELETE_BLOCK_HEADER;
   reclength=info->s->base.pack_reclength+
     _my_calc_total_blob_length(info,record)+ extra;
+#ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
     my_errno=HA_ERR_TO_BIG_ROW;
     return -1;
   }
+#endif
   if (!(rec_buff=(byte*) my_alloca(reclength)))
   {
     my_errno=ENOMEM;
@@ -130,14 +134,14 @@ static int write_dynamic_record(MI_INFO *info, const byte *record,
   DBUG_ENTER("write_dynamic_record");
 
   flag=0;
-  while (reclength)
+  do
   {
     if (_mi_find_writepos(info,reclength,&filepos,&length))
       goto err;
     if (_mi_write_part_record(info,filepos,length,info->s->state.dellink,
 			      (byte**) &record,&reclength,&flag))
       goto err;
-  }
+  } while (reclength);
 
   DBUG_RETURN(0);
  err:
@@ -377,7 +381,7 @@ int _mi_write_part_record(MI_INFO *info,
 	head_length= 16;
 	temp[0]=13;
 	mi_int4store(temp+1,*reclength);
-	mi_int3store(temp+4,length-head_length);
+	mi_int3store(temp+5,length-head_length);
 	mi_sizestore((byte*) temp+8,next_filepos);
       }
       else
@@ -1441,7 +1445,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
   DBUG_DUMP("header",(byte*) header,MI_BLOCK_INFO_HEADER_LENGTH);
   if (info->second_read)
   {
-    if (info->header[0] <= 6)
+    if (info->header[0] <= 6 || info->header[0] == 13)
       return_val=BLOCK_SYNC_ERROR;
   }
   else
