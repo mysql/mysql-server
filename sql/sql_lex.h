@@ -650,7 +650,6 @@ typedef struct st_lex
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
-  time_t purge_time;                            /* For PURGE MASTER LOGS BEFORE */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   char* found_colon;                            /* For multi queries - next query */
   String *wild;
@@ -694,7 +693,7 @@ typedef struct st_lex
   HA_CREATE_INFO create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   USER_RESOURCES mqh;
-  ulong thread_id,type;
+  ulong type;
   enum_sql_command sql_command, orig_sql_command;
   thr_lock_type lock_option, multi_lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
