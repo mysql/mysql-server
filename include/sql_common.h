@@ -31,7 +31,6 @@ void free_rows(MYSQL_DATA *cur);
 MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 		       uint field_count);
 my_bool mysql_autenticate(MYSQL *mysql, const char *passwd);
-void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
 my_bool mysql_reconnect(MYSQL *mysql);

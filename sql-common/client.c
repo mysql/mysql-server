@@ -965,11 +965,25 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
+  ulong *prev_length;
+  byte *start=0;
   MYSQL_ROW end;
-  for (end=column + field_count; column != end ; column++, to++)
-    *to= *column ? strlen(*column) : 0;
+
+  prev_length=0;				/* Keep gcc happy */
+  for (end=column + field_count + 1 ; column != end ; column++, to++)
+  {
+    if (!*column)
+    {
+      *to= 0;					/* Null */
+      continue;
+    }
+    if (start)					/* Found end of prev string */
+      *prev_length= (ulong) (*column-start-1);
+    start= *column;
+    prev_length= to;
+  }
 }
 
 /***************************************************************************
@@ -999,7 +1013,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     for (row=data->data; row ; row = row->next,field++)
     {
       uchar *pos;
-      fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
+      cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
       field->catalog  = strdup_root(alloc,(char*) row->data[0]);
       field->db       = strdup_root(alloc,(char*) row->data[1]);
       field->table    = strdup_root(alloc,(char*) row->data[2]);
@@ -1040,7 +1054,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     /* old protocol, for backward compatibility */
     for (row=data->data; row ; row = row->next,field++)
     {
-      fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
+      cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
       field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
       field->name=   strdup_root(alloc,(char*) row->data[1]);
       field->length= (uint) uint3korr(row->data[2]);
@@ -1418,7 +1432,8 @@ static MYSQL_METHODS client_methods=
   cli_mysql_read_query_result,
   cli_advanced_command,
   cli_mysql_store_result,
-  cli_mysql_use_result
+  cli_mysql_use_result,
+  cli_fetch_lengths
 };
 
 MYSQL * STDCALL 
@@ -2320,6 +2335,7 @@ static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
     strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(0);
   }
+  result->methods= mysql->methods;
   result->eof=1;				/* Marker for buffered */
   result->lengths=(ulong*) (result+1);
   if (!(result->data=read_rows(mysql,mysql->fields,mysql->field_count)))
@@ -2370,6 +2386,7 @@ static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 				      MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(0);
   result->lengths=(ulong*) (result+1);
+  result->methods= mysql->methods;
   if (!(result->row=(MYSQL_ROW)
 	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
   {					/* Ptrs: to one row */

@@ -250,9 +250,6 @@ typedef struct st_mysql
   const struct st_mysql_methods *methods;
   struct st_mysql_res *result;
   void *thd;
-  unsigned int last_errno;
-  char *last_error;
-  char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
 } MYSQL;
 
 typedef struct st_mysql_res {
@@ -267,6 +264,7 @@ typedef struct st_mysql_res {
   MYSQL_ROW	row;			/* If unbuffered read */
   MYSQL_ROW	current_row;		/* buffer to current row */
   my_bool	eof;			/* Used by mysql_fetch_row */
+  const struct st_mysql_methods *methods;
 } MYSQL_RES;
 
 #define MAX_MYSQL_MANAGER_ERR 256  
@@ -552,6 +550,7 @@ typedef struct st_mysql_methods
 				      ulong arg_length, my_bool skip_check);
   MYSQL_RES *	STDCALL (*store_result)(MYSQL *mysql);
   MYSQL_RES *	STDCALL (*use_result)(MYSQL *mysql);
+  void STDCALL (*fetch_lengths)(ulong *to, MYSQL_ROW column, uint field_count);
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
