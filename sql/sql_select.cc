@@ -5576,7 +5576,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-	  if (table->file->table_flags() & HA_NOT_READ_PREFIX_LAST)
+	  if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST)
 	    DBUG_RETURN(0);			// Use filesort
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
