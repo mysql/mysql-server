@@ -393,8 +393,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() 
   {
-    return new Item_string(name, str_value.ptr(), max_length,
-			   default_charset_info);
+    return new Item_string(name, str_value.ptr(), max_length, &my_charset_bin);
   }
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
@@ -406,7 +405,8 @@ public:
 class Item_datetime :public Item_string
 {
 public:
-  Item_datetime(const char *item_name): Item_string(item_name,"",0,default_charset_info)
+  Item_datetime(const char *item_name): Item_string(item_name,"",0,
+  						    &my_charset_bin)
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
 };
@@ -414,7 +414,8 @@ public:
 class Item_empty_string :public Item_string
 {
 public:
-  Item_empty_string(const char *header,uint length) :Item_string("",0,default_charset_info)
+  Item_empty_string(const char *header,uint length) :Item_string("",0,
+  							&my_charset_bin)
     { name=(char*) header; max_length=length;}
 };
 
