@@ -361,7 +361,7 @@ typedef unsigned short ushort;
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 #ifndef HAVE_RINT
-#define rint(A) floor((A)+0.5)
+#define rint(A) floor((A)+((A) < 0) -0.5 : 0.5)
 #endif
 
 /* Define some general constants */

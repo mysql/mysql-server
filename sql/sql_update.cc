@@ -277,7 +277,7 @@ int mysql_update(THD *thd,
     if (!(select && select->skipp_record()))
     {
       store_record(table,1);
-      if (fill_record(fields,values))
+      if (fill_record(fields, values, 0))
 	break; /* purecov: inspected */
       found++;
       if (compare_record(table, query_id))
@@ -726,7 +726,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,1);
-      if (fill_record(*fields_for_table[offset], *values_for_table[offset]))
+      if (fill_record(*fields_for_table[offset], *values_for_table[offset],0 ))
 	DBUG_RETURN(1);
       found++;
       if (compare_record(table, thd->query_id))
@@ -754,7 +754,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       int error;
       TABLE *tmp_table= tmp_tables[offset];
-      fill_record(tmp_table->field+1, *values_for_table[offset]);
+      fill_record(tmp_table->field+1, *values_for_table[offset], 1);
       found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,

@@ -560,8 +560,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table,
 			     bool return_if_owned_by_thd=0);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
-int fill_record(List<Item> &fields,List<Item> &values);
-int fill_record(Field **field,List<Item> &values);
+int fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors);
+int fill_record(Field **field,List<Item> &values, bool ignore_errors);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
 
 /* sql_calc.cc */
