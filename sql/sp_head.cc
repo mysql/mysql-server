@@ -503,6 +503,7 @@ sp_head::execute(THD *thd)
     if (i == NULL)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
+    thd->set_time();		// Make current_time() et al work
     ret= i->execute(thd, &ip);
     thd->rollback_item_tree_changes();
     if (i->free_list)
