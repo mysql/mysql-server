@@ -696,7 +696,10 @@ class Item_func_uuid: public Item_str_func
 {
 public:
   Item_func_uuid(): Item_str_func() {}
-  void fix_length_and_dec() {max_length= UUID_LENGTH; }
+  void fix_length_and_dec() {
+    collation.set(system_charset_info);
+    max_length= UUID_LENGTH;
+  }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
 };
