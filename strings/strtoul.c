@@ -17,7 +17,7 @@
 
 /* This is defines strtoul() if neaded */
 
-#include <global.h>
+#include <my_global.h>
 #if !defined(MSDOS) && !defined(HAVE_STRTOUL)
 #define USE_UNSIGNED
 #include "strto.c"

@@ -16,7 +16,7 @@
    MA 02111-1307, USA */
 
 
-#include <global.h>
+#include <my_global.h>
 
 #ifdef HAVE_OPENSSL
 

@@ -17,7 +17,7 @@
 
 /* Saves all errmesg in a header file, updated by me, in a compact file  */
 
-#include <global.h>
+#include <my_global.h>
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <m_string.h>

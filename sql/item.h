@@ -181,6 +181,19 @@ public:
 };
 
 
+class Item_uint :public Item_int
+{
+public:
+  Item_uint(const char *str_arg, uint length) :
+    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) {}
+  double val() { return ulonglong2double(value); }
+  String *val_str(String*);
+  void make_field(Send_field *field);
+  Item *new_item() { return new Item_uint(name,max_length); }
+  void print(String *str);
+};
+
+
 class Item_real :public Item
 {
 public:

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "my_global.h"
+#include "my_my_global.h"
 
 static void spawn_stern_thread(pthread_t *t);
 static int act_goofy(void);

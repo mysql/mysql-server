@@ -103,7 +103,7 @@
 #include <stdio.h>
 #include <string.h>
 #else
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #endif
 #include <mysql.h>

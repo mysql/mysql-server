@@ -2,7 +2,7 @@
 #undef DBUG_OFF
 #endif
 
-#include <global.h>
+#include <my_global.h>
 
 int factorial (
 register int value)

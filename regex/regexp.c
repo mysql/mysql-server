@@ -58,7 +58,7 @@
  */
 
 /* Headers */
-#include "global.h"
+#include "my_global.h"
 #include <ctype.h>
 #include "regexp.h"
 #ifdef	__WIN__

@@ -39,7 +39,7 @@
 	itoa assumes that 10 -base numbers are allways signed and other arn't.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 char NEAR _dig_vec[] =

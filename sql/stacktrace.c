@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <global.h>
+#include <my_global.h>
 #include "stacktrace.h"
 #include <signal.h>
 #include <my_pthread.h>

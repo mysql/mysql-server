@@ -9958,6 +9958,13 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 
 MySQL needs at least Linux Version 2.0.
 
+@strong{WARNING}:
+We have have reports from some MySQL users that they have got serious
+stability problems with MySQL with Linux kernel 2.2.14.  If you are
+using this kernel you should upgrade to 2.2.19 (or newer) or to a 2.4
+kernel.  If you have a multi-cpu box, then you should seriously consider
+using 2.4 as this will give you a significant speed boost.
+
 The binary release is linked with @code{-static}, which means you do not
 normally need to worry about which version of the system libraries you
 have. You need not install LinuxThreads, either.  A program linked with
@@ -28091,6 +28098,9 @@ You can always store an exact integer value in a @code{BIGINT} column by
 storing it as a string, as there is in this case there will be no
 intermediate double representation.
 @item
+In MySQL 4.0 you can use integers to store big unsigned values in a
+@code{BIGINT} string.
+@item
 @samp{-}, @samp{+}, and @samp{*} will use @code{BIGINT} arithmetic when
 both arguments are @code{INTEGER} values!  This means that if you
 multiply two big integers (or results from functions that return
@@ -29151,7 +29161,9 @@ certain circumstances:
 @item
 If you insert an invalid value into an @code{ENUM} (that is, a string not
 present in the list of allowed values), the empty string is inserted
-instead as a special error value.
+instead as a special error value. This string can be distinguished from a
+'normal' empty string by the fact that this string has the numerical value
+0. More about this later.
 
 @item
 If an @code{ENUM} is declared @code{NULL}, @code{NULL} is also a legal value
@@ -46932,6 +46944,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @cindex changes, version 4.0
 
 @itemize @bullet
+@item
+Fixed handling of big unsigned bigint constants.
 @item
 New character set @code{latin_de} which provides correct German sorting.
 @item

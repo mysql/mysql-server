@@ -24,7 +24,7 @@
 #ifndef stdin				/* Included first in handler */
 #define USES_TYPES			/* my_dir with sys/types is included */
 #define CHSIZE_USED
-#include <global.h>
+#include <my_global.h>
 #include <my_dir.h>			/* This includes types */
 #include <my_sys.h>
 #include <m_string.h>

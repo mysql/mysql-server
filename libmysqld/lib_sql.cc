@@ -12,7 +12,7 @@
  * modified is included with the above copyright notice.
  *
  */
-#include "global.h"
+#include "my_global.h"
 #include "my_pthread.h"
 #include "sys/types.h"
 #include "../regex/regex.h"

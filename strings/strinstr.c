@@ -27,7 +27,7 @@
     char is 1.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 uint strinstr(reg1 const char *str,reg4 const char *search)

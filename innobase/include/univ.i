@@ -36,7 +36,7 @@ be defined:
 /* Include two header files from MySQL to make the Unix flavor used
 in compiling more Posix-compatible. We assume that 'innobase' is a
 subdirectory of 'mysql'. */
-#include <global.h>
+#include <my_global.h>
 #include <my_pthread.h>
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */

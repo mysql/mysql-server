@@ -23,7 +23,7 @@
   Must be inited with init_my_atof to handle possibly overflows.
 */
 
-#include <global.h>
+#include <my_global.h>
 #ifdef USE_MY_ATOF				/* Skipp if we don't want it */
 #include <m_ctype.h>
 #include <floatingpoint.h>

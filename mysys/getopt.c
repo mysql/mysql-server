@@ -46,7 +46,7 @@ Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
-#include <global.h>				/* Changes for mysys */
+#include <my_global.h>				/* Changes for mysys */
 #include <m_string.h>
 
 /* Comment out all this code if we are using the GNU C Library, and are not

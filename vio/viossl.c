@@ -22,7 +22,7 @@
   the file descriptior.
 */
 
-#include <global.h>
+#include <my_global.h>
 
 #ifdef HAVE_OPENSSL
 

@@ -17,7 +17,7 @@
 #ifndef _MYSQL_PRIV_H
 #define _MYSQL_PRIV_H
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include "mysql_version.h"

@@ -25,7 +25,7 @@
     src in a buffer with tot_length bytes.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 void bchange(register char *dst, uint old_length, register const char *src, uint new_length, uint tot_length)

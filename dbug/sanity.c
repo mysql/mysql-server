@@ -1,6 +1,6 @@
 /* Declarate _sanity() if not declared in main program */
 
-#include <global.h>
+#include <my_global.h>
 
 extern int _sanity(const char *file,uint line);
 

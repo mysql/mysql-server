@@ -19,7 +19,7 @@
 #else
 
 #undef MAP_TO_USE_RAID			/* Avoid RAID mappings */
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <my_pthread.h>

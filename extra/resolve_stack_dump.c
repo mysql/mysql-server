@@ -20,7 +20,7 @@
  */
 
 #define DONT_USE_RAID
-#include <global.h>
+#include <my_global.h>
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <m_string.h>

@@ -19,7 +19,7 @@
 
 #define RESOLVE_VERSION "2.0"
  
-#include <global.h>
+#include <my_global.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifndef HAVE_BROKEN_NETINET_INCLUDES

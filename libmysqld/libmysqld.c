@@ -16,7 +16,7 @@
    MA 02111-1307, USA */
 
 #define DONT_USE_RAID
-#include <global.h>
+#include <my_global.h>
 #if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
 #include <winsock.h>
 #include <odbcinst.h>

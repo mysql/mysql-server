@@ -1,4 +1,4 @@
-#include <global.h>
+#include <my_global.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>

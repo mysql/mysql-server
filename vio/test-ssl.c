@@ -1,4 +1,4 @@
-#include <global.h>
+#include <my_global.h>
 #ifdef HAVE_OPENSSL
 #include <my_sys.h>
 #include <m_string.h>

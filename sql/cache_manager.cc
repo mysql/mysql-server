@@ -18,7 +18,7 @@
 #pragma implementation		       /* gcc: Class implementation */
 #endif
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include "cache_manager.h"
 

@@ -1,5 +1,5 @@
 
-#include <global.h>
+#include <my_global.h>
 
 int debug = 0;
 

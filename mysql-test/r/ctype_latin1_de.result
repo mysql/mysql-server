@@ -9,6 +9,8 @@ aeae	33
 ääa	32
 aeb	6
 Äc	5
+é	38
+É	39
 eä	28
 o	37
 oc	15
@@ -36,8 +38,6 @@ ueb	12
 üc	7
 uf	13
 uü	29
-é	38
-É	39
 a	b
 a	35
 ac	2
@@ -49,6 +49,8 @@ aeae	33
 ääa	32
 aeb	6
 Äc	5
+é	38
+É	39
 eä	28
 o	37
 oc	15
@@ -76,11 +78,7 @@ ueb	12
 üc	7
 uf	13
 uü	29
-é	38
-É	39
 a
-É
-é
 uü
 uf
 üc
@@ -108,6 +106,8 @@ od
 oc
 o
 eä
+É
+é
 Äc
 aeb
 ääa
@@ -121,11 +121,11 @@ a
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 a	b
+ö	14
 Öa	16
 Öc	19
 öo	30
 a	b
-é	38
 É	39
 a	b
 a	35
@@ -166,3 +166,10 @@ strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
 1	1	1	1
 strcmp('u','öa')	strcmp('u','ö')
 1	1
+a
+abc
+abcd
+a
+test
+a
+test

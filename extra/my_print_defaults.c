@@ -22,7 +22,7 @@
 **  Written by Monty
 */
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <getopt.h>
 

@@ -16,7 +16,7 @@
  */
 #include "CorbaFS.h"
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>

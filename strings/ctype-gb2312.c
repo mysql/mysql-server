@@ -25,7 +25,7 @@
  * .configure. mbmaxlen_gb2312=2
  */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 uchar NEAR ctype_gb2312[257] =

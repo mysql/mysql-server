@@ -15,7 +15,7 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include <global.h>
+#include <my_global.h>
 #if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
 #include <winsock.h>
 #include <odbcinst.h>
@@ -70,7 +70,7 @@ my_string	mysql_unix_port=0;
 #endif
 
 #if defined(MSDOS) || defined(__WIN__)
-// socket_errno is defined in global.h for all platforms
+// socket_errno is defined in my_global.h for all platforms
 #define perror(A)
 #else
 #include <errno.h>

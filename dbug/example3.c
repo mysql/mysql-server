@@ -1,5 +1,5 @@
 
-#include <global.h>
+#include <my_global.h>
 
 main (argc, argv)
 int argc;

@@ -35,7 +35,7 @@
   This saves a hashed number as a string in the password field.
 *****************************************************************************/
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include "mysql.h"

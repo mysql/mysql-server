@@ -23,7 +23,7 @@
   into dst, which seems useful.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 #ifdef BAD_STRING_COMPILER

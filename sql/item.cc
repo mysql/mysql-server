@@ -231,6 +231,22 @@ void Item_int::print(String *str)
   str->append(name);
 }
 
+String *Item_uint::val_str(String *str)
+{
+  str->set((ulonglong) value);
+  return str;
+}
+
+void Item_uint::print(String *str)
+{
+  if (!name)
+  {
+    str_value.set((ulonglong) value);
+    name=str_value.c_ptr();
+  }
+  str->append(name);
+}
+
 
 String *Item_real::val_str(String *str)
 {
@@ -315,6 +331,12 @@ void Item_field::make_field(Send_field *tmp_field)
 void Item_int::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_LONGLONG);
+}
+
+void Item_uint::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_LONGLONG);
+  tmp_field->flags|= UNSIGNED_FLAG;
 }
 
 void Item_real::make_field(Send_field *tmp_field)

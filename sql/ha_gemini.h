@@ -19,7 +19,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#include "gem_global.h"
+#include "gem_my_global.h"
 #include "dstd.h"
 #include "dsmpub.h"
 

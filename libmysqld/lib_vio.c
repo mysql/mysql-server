@@ -22,7 +22,7 @@
   the file descriptior.
 */
 
-#include <global.h>
+#include <my_global.h>
 
 #ifndef HAVE_VIO			/* is Vio suppored by the Vio lib ? */
 

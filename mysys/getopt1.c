@@ -24,7 +24,7 @@ Cambridge, MA 02139, USA.  */
 #include <config.h>
 #endif
 
-#include <global.h>
+#include <my_global.h>
 #include "getopt.h"
 
 #if (!defined (__STDC__) || !__STDC__) && !defined(MSDOS) && !defined(OS2)

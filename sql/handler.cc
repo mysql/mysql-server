@@ -839,14 +839,16 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   }
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
-  if (error) {
-    if (table.db_type == DB_TYPE_INNOBASE) {
+  if (error)
+  {
+    if (table.db_type == DB_TYPE_INNODB)
+    {
       /* Creation of InnoDB table cannot fail because of an OS error:
 	 put error as the number */
       my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
-    } else {
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
     }
+    else
+      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
   }
   DBUG_RETURN(error != 0);
 }
