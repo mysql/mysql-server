@@ -1491,7 +1491,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 static void init_pager()
 {
-#if !defined( __WIN__) && !defined( OS2)
+#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) && defined(THREAD))
   if (!opt_nopager)
   {
     if (!(PAGER= popen(pager, "w")))
@@ -1507,7 +1507,7 @@ static void init_pager()
 
 static void end_pager()
 {
-#if !defined( __WIN__) && !defined( OS2)
+#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) && defined(THREAD))
   if (!opt_nopager)
     pclose(PAGER);
 #endif
@@ -2498,8 +2498,10 @@ void tee_putc(int c, FILE *file)
 #include <time.h>
 #else
 #include <sys/times.h>
+#ifdef _SC_CLK_TCK				// For mit-pthreads
 #undef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC (sysconf(_SC_CLK_TCK))
+#endif
 #endif
 
 static ulong start_timer(void)
