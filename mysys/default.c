@@ -387,6 +387,8 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       *ptr++= '=';
       for ( ; value != value_end; value++)
       {
+	if (*value == '\"' || *value == '\'')
+	  continue;
 	if (*value == '\\' && value != value_end-1)
 	{
 	  switch(*++value) {
@@ -404,6 +406,12 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 	    break;
 	  case 's':
 	    *ptr++= ' ';			/* space */
+	    break;
+	  case '\"':
+	    *ptr++= '\"';
+	    break;
+	  case '\'':
+	    *ptr++= '\'';
 	    break;
 	  case '\\':
 	    *ptr++= '\\';
