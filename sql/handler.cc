@@ -476,6 +476,9 @@ void ha_close_connection(THD* thd)
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 {
   THD_TRANS *trans;
+  DBUG_ENTER("trans_register_ha");
+  DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
+
   if (all)
   {
     trans= &thd->transaction.all;
@@ -496,6 +499,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   trans->no_2pc|=(ht_arg->prepare==0);
   if (thd->transaction.xid.is_null())
     thd->transaction.xid.set(thd->query_id);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -514,7 +518,7 @@ int ha_prepare(THD *thd)
   if (trans->nht)
   {
     if (trans->no_2pc)
-      return -1;
+      DBUG_RETURN(-1);
     for (; *ht; ht++)
     {
       int err;
