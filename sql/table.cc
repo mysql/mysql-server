@@ -21,7 +21,6 @@
 #include <errno.h>
 #include <m_ctype.h>
 #include "md5.h"
-#include "sql_acl.h"
 
 	/* Functions defined in this file */
 

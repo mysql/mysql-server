@@ -8,6 +8,7 @@ Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
 #include "dict0load.h"
+#include "mysql_version.h"
 
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
@@ -766,7 +767,7 @@ dict_load_table(
 		return(NULL);
 	}
 
-#if MYSQL_VERSION_ID < 50300
+#if MYSQL_VERSION_ID < 50003
 	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
 	"compact format" flag. */
 	field = rec_get_nth_field(rec, 7, &len);

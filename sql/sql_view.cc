@@ -16,7 +16,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 #include "parse_file.h"
 #include "sp.h"

@@ -2983,13 +2983,8 @@ create_error:
     select_result *result;
     unit->set_limit(select_lex, select_lex);
 
-    if (!(res= open_and_lock_tables(thd, all_tables)) &&
-        !(res= mysql_prepare_insert(thd, tables, first_local_table, 
-				    tables->table, lex->field_list, 0,
-				    lex->update_list, lex->value_list,
-				    lex->duplicates)))
+    if (!(res= open_and_lock_tables(thd, all_tables)))
     {
-       TABLE *table= tables->table;
       /* Skip first table, which is the table we are inserting in */
       lex->select_lex.table_list.first= (byte*)first_table->next_local;
 
@@ -3008,8 +3003,10 @@ create_error:
 	res= handle_select(thd, lex, result);
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
-        table->insert_values= 0;
       }
+      /* in case of error first_table->table can be 0 */
+      if (first_table->table)
+        first_table->table->insert_values= 0;
       /* revert changes for SP */
       lex->select_lex.table_list.first= (byte*) first_table;
     }
@@ -3819,8 +3816,8 @@ create_error:
 	st_sp_security_context save_ctx;
 #endif
 	ha_rows select_limit;
-	uint smrx;
-	LINT_INIT(smrx);
+        /* bits that should be cleared in thd->server_status */
+	uint bits_to_be_cleared= 0;
 
 	/* In case the arguments are subselects... */
 	if (all_tables &&
@@ -3842,8 +3839,13 @@ create_error:
 #endif
 	    goto error;
 	  }
-	  smrx= thd->server_status & SERVER_MORE_RESULTS_EXISTS;
-	  thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          /*
+            If SERVER_MORE_RESULTS_EXISTS is not set,
+            then remember that it should be cleared
+          */
+	  bits_to_be_cleared= (~thd->server_status &
+                               SERVER_MORE_RESULTS_EXISTS);
+	  thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
 	}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3863,14 +3865,11 @@ create_error:
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
 #endif
-	if (sp->m_multi_results)
-	{
-	  if (! smrx)
-	    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
-	}
+        thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
-	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 : thd->row_count_func));
+	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
+                                thd->row_count_func));
 	else
 	  goto error;		// Substatement should already have sent error
       }
@@ -6102,10 +6101,9 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)
     {
-      if (my_tz_check_n_skip_implicit_tables(&table,
-                                             lex->time_zone_tables_used))
-        continue;
-      if (!table->table_in_first_from_clause && table->derived)
+      if (!my_tz_check_n_skip_implicit_tables(&table,
+                                              lex->time_zone_tables_used) &&
+          !table->table_in_first_from_clause)
       {
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0) ||

@@ -952,13 +952,12 @@ int yylex(void *arg, void *yythd)
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
             (thd->command != COM_PREPARE))
         {
-          lex->found_colon=(char*)lex->ptr;
-          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
-          lex->next_state=MY_LEX_END;
-          return(END_OF_INPUT);
+          lex->found_colon=    (char*) lex->ptr;
+          thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
+          lex->next_state=     MY_LEX_END;
+          return (END_OF_INPUT);
         }
-        else
- 	  state=MY_LEX_CHAR;		// Return ';'
+        state= MY_LEX_CHAR;		// Return ';'
 	break;
       }
       /* fall true */

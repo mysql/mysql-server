@@ -408,6 +408,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BIT:
     break;
   }
   return FALSE;

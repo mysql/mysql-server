@@ -342,9 +342,10 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag)
   longlong value= val_int();
   if (val_buffer->alloc(length))
     return 0;
-  length= (uint) cs->cset->longlong10_to_str(cs, (char*) val_buffer->ptr(),
-                                             length, unsigned_flag ? 10 : -10,
-                                             value);
+  length= (uint) (*cs->cset->longlong10_to_str)(cs, (char*) val_buffer->ptr(),
+                                                length,
+                                                unsigned_flag ? 10 : -10,
+                                                value);
   val_buffer->length(length);
   return val_buffer;
 }

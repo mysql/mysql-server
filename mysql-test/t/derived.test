@@ -140,7 +140,6 @@ select * from ( select * from t1 union select * from t1) a,(select * from t1 uni
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 drop table t1;
 
-
 #
 # multi-update & multi-delete with derived tables
 #

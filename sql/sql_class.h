@@ -1401,7 +1401,7 @@ public:
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
 		 List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, NULL, &select_fields, duplic, 0), create_table(table),
+    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, 0), create_table(table),
     extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
     lock(0)
     {}

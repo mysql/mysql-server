@@ -1,5 +1,6 @@
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
+drop view if exists v1;
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';

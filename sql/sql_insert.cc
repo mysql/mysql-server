@@ -180,6 +180,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   char *query= thd->query;
 #endif
   thr_lock_type lock_type = table_list->lock_type;
+  Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -244,7 +245,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   values= its++;
 
   if (mysql_prepare_insert(thd, table_list, table, fields, values,
-			   update_fields, update_values, duplic))
+			   update_fields, update_values, duplic, &unused_conds,
+                           FALSE))
     goto abort;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
@@ -651,6 +653,10 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     mysql_prepare_insert()
     thd			Thread handler
     table_list	        Global/local table list
+    table		Table to insert into (can be NULL if table should be taken from
+			table_list->table)    
+    where		Where clause (for insert ... select)
+    select_insert	TRUE if INSERT ... SELECT statement
 
   RETURN VALUE
     FALSE OK
@@ -660,11 +666,11 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
-                          enum_duplicates duplic)
+                          enum_duplicates duplic,
+                          COND **where, bool select_insert)
 {
   bool insert_into_view= (table_list->view != 0);
   /* TODO: use this condition for 'WITH CHECK OPTION' */
-  Item *unused_conds= 0;
   bool res;
   DBUG_ENTER("mysql_prepare_insert");
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
@@ -675,11 +681,11 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   {
     /* it should be allocated before Item::fix_fields() */
     if (table_list->set_insert_values(thd->mem_root))
-      goto abort;
+      DBUG_RETURN(TRUE);
   }
 
-  if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds,
-                                       FALSE))
+  if (mysql_prepare_insert_check_table(thd, table_list, fields, where,
+                                       select_insert))
     DBUG_RETURN(TRUE);
 
   if ((values && check_insert_fields(thd, table_list, fields, *values, 1,
@@ -799,7 +805,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
         restore_record(table,record[1]);
-        DBUG_ASSERT(info->update_fields->elements == info->update_values->elements);
+        DBUG_ASSERT(info->update_fields->elements ==
+                    info->update_values->elements);
         if (fill_record(thd, *info->update_fields, *info->update_values, 0))
           goto err;
 
@@ -808,7 +815,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             (res= info->view->view_check_option(current_thd, info->ignore)) ==
             VIEW_CHECK_SKIP)
           break;
-        else if (res == VIEW_CHECK_ERROR)
+        if (res == VIEW_CHECK_ERROR)
           goto err;
 
         if ((error=table->file->update_row(table->record[1],table->record[0])))
@@ -1715,23 +1722,25 @@ bool delayed_insert::handle_inserts(void)
 bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST* first_select_table=
-    (TABLE_LIST*)lex->select_lex.table_list.first;
-  TABLE_LIST* first_select_leaf_table;
+  TABLE_LIST *first_select_table=
+    (TABLE_LIST*) lex->select_lex.table_list.first;
+  TABLE_LIST *first_select_leaf_table;
   int res;
   DBUG_ENTER("mysql_insert_select_prepare");
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
-    clasue if table is VIEW
+    clause if table is VIEW
   */
   lex->query_tables->no_where_clause= 1;
-  if (mysql_prepare_insert_check_table(thd, lex->query_tables,
-                                       lex->field_list,
-                                       &lex->select_lex.where,
-                                       TRUE))
+  if (mysql_prepare_insert(thd, lex->query_tables,
+                           lex->query_tables->table, lex->field_list, 0,
+                           lex->update_list, lex->value_list,
+                           lex->duplicates,
+                           &lex->select_lex.where, TRUE))
     DBUG_RETURN(TRUE);
+
   /*
-    setup was done in mysql_insert_select_prepare, but we have to mark
+    setup was done in mysql_prepare_insert_check_table, but we have to mark
     first local table
   */
   if (first_select_table)
