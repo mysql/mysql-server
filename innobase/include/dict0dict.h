@@ -206,6 +206,15 @@ dict_foreign_add_to_cache(
 					/* out: DB_SUCCESS or error code */
 	dict_foreign_t*	foreign);	/* in, own: foreign key constraint */
 /*************************************************************************
+Checks if a table is referenced by foreign keys. */
+
+ibool
+dict_table_referenced_by_foreign_key(
+/*=================================*/
+				/* out: TRUE if table is referenced by a
+				foreign key */
+	dict_table_t*	table);	/* in: InnoDB table */
+/*************************************************************************
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.

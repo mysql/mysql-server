@@ -4289,7 +4289,28 @@ ha_innobase::get_foreign_key_create_info(void)
         prebuilt->trx->op_info = (char*)"";
 
   	return(str);
-}			
+}
+
+/***********************************************************************
+Checks if a table is referenced by a foreign key. The MySQL manual states that
+a REPLACE is either equivalent to an INSERT, or DELETE(s) + INSERT. Only a
+delete is then allowed internally to resolve a duplicate key conflict in
+REPLACE, not an update. */
+
+uint
+ha_innobase::referenced_by_foreign_key(void)
+/*========================================*/
+			/* out: > 0 if referenced by a FOREIGN KEY */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
+
+	if (dict_table_referenced_by_foreign_key(prebuilt->table)) {
+
+		return(1);
+	}
+
+	return(0);
+}
 
 /***********************************************************************
 Frees the foreign key create info for a table stored in InnoDB, if it is
