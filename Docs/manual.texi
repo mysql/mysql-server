@@ -52,9 +52,6 @@
 @smallbook
 @end ifset
 
-@c We want the contents at the beginning, where it's supposed to be.
-@c @setshortcontentsaftertitlepage
-
 @c %**end of header
 
 @ifinfo
@@ -76,9 +73,10 @@ END-INFO-DIR-ENTRY
 @end titlepage
 
 @c Short contents, blank page, long contents.
-@shortcontents
-@page
-@page
+@c until i can figure out the blank page, no short contents.
+@c @shortcontents
+@c @page
+@c @page
 @contents
 
 @c This should be added. The HTML conversion also needs a MySQL version
@@ -4716,10 +4714,11 @@ Some incompatibilities exist as a result of @strong{MySQL} supporting
 multiple connections to the server from the same process.
 @end itemize
 
+@node Protocol differences, Compare PostgreSQL, Compare mSQL, Comparisons
+@subsubsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
+
 @cindex communications protocols
 @cindex mSQL vs. MySQL
-@node Protocol differences, Compare PostgreSQL, Compare mSQL, Comparisons
-@subsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
 
 There are enough differences that it is impossible (or at least not easy)
 to support both.
@@ -4941,6 +4940,7 @@ users.
 @item
 @end table
 
+
 @node Compare PostgreSQL, MySQL-PostgreSQL features, Protocol differences, Comparisons
 @subsection How MySQL Compares to PostgreSQL
 
@@ -5013,9 +5013,11 @@ reusable code and, in our opinion, fewer bugs. Because we are the
 authors of the @strong{MySQL} server code we are better able to
 coordinate new features and releases.
 
-@cindex PostgreSQL/MySQL, features
+
 @node MySQL-PostgreSQL features,  , Compare PostgreSQL, Comparisons
-@subsection Featurevise Comparison of MySQL and PostgreSQL
+@subsubsection Featurewise Comparison of MySQL and PostgreSQL
+
+@cindex PostgreSQL/MySQL, features
 
 On the @uref{http://www.mysql.com/information/crash-me.php, crash-me}
 page you can find a list of those database constructs and limits that
