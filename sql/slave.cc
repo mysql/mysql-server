@@ -1186,6 +1186,26 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     strmov(strcend(tmp,'.'),"-relay-bin");
     opt_relay_logname=my_strdup(tmp,MYF(MY_WME));
   }
+
+  /*
+    The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE. It is
+    notable that the last kilobytes of it (8 kB for example) may live in memory,
+    not on disk (depending on what the thread using it does). While this is
+    efficient, it has a side-effect one must know: 
+    the size of the relay log on disk (displayed by 'ls -l' on Unix) can be a
+    few kilobytes less than one would expect by doing SHOW SLAVE STATUS; this
+    happens when only the IO thread is started (not the SQL thread). The
+    "missing" kilobytes are in memory, are preserved during 'STOP SLAVE; START
+    SLAVE IO_THREAD', and are flushed to disk when the slave's mysqld stops. So
+    this does not cause any bug. Example of how disk size grows by leaps:
+
+     Read_Master_Log_Pos: 7811 -rw-rw----    1 guilhem  qq              4 Jun  5 16:19 gbichot2-relay-bin.002
+     ...later...
+     Read_Master_Log_Pos: 9744 -rw-rw----    1 guilhem  qq           8192 Jun  5 16:27 gbichot2-relay-bin.002
+
+    See how 4 is less than 7811 and 8192 is less than 9744.
+  */
+
   if (open_log(&rli->relay_log, glob_hostname, opt_relay_logname,
 	       "-relay-bin", opt_relaylog_index_name,
 	       LOG_BIN, 1 /* read_append cache */,
