@@ -22,27 +22,27 @@
  * is the common case given slack in nodes.
  */
 void
-Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
+Dbtux::treeAdd(Frag& frag, TreePos treePos, TreeEnt ent)
 {
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
   if (treePos.m_loc != NullTupLoc) {
     // non-empty tree
     jam();
-    selectNode(signal, node, treePos.m_loc);
+    selectNode(node, treePos.m_loc);
     unsigned pos = treePos.m_pos;
     if (node.getOccup() < tree.m_maxOccup) {
       // node has room
       jam();
-      nodePushUp(signal, node, pos, ent, RNIL);
+      nodePushUp(node, pos, ent, RNIL);
       return;
     }
-    treeAddFull(signal, frag, node, pos, ent);
+    treeAddFull(frag, node, pos, ent);
     return;
   }
   jam();
-  insertNode(signal, node);
-  nodePushUp(signal, node, 0, ent, RNIL);
+  insertNode(node);
+  nodePushUp(node, 0, ent, RNIL);
   node.setSide(2);
   tree.m_root = node.m_loc;
 }
@@ -53,7 +53,7 @@ Dbtux::treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent)
  * entry of this node.  The min entry could be the entry to add.
  */
 void
-Dbtux::treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent)
+Dbtux::treeAddFull(Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent)
 {
   TreeHead& tree = frag.m_tree;
   TupLoc loc = lubNode.getLink(0);
@@ -62,7 +62,7 @@ Dbtux::treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
     NodeHandle glbNode(frag);
     do {
       jam();
-      selectNode(signal, glbNode, loc);
+      selectNode(glbNode, loc);
       loc = glbNode.getLink(1);
     } while (loc != NullTupLoc);
     if (glbNode.getOccup() < tree.m_maxOccup) {
@@ -72,16 +72,16 @@ Dbtux::treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
       if (pos != 0) {
         jam();
         // add the new entry and return min entry
-        nodePushDown(signal, lubNode, pos - 1, ent, scanList);
+        nodePushDown(lubNode, pos - 1, ent, scanList);
       }
       // g.l.b node receives min entry from l.u.b node
-      nodePushUp(signal, glbNode, glbNode.getOccup(), ent, scanList);
+      nodePushUp(glbNode, glbNode.getOccup(), ent, scanList);
       return;
     }
-    treeAddNode(signal, frag, lubNode, pos, ent, glbNode, 1);
+    treeAddNode(frag, lubNode, pos, ent, glbNode, 1);
     return;
   }
-  treeAddNode(signal, frag, lubNode, pos, ent, lubNode, 0);
+  treeAddNode(frag, lubNode, pos, ent, lubNode, 0);
 }
 
 /*
@@ -90,10 +90,10 @@ Dbtux::treeAddFull(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
  * becomes the new g.l.b node.
  */
 void
-Dbtux::treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i)
+Dbtux::treeAddNode(Frag& frag, NodeHandle lubNode, unsigned pos, TreeEnt ent, NodeHandle parentNode, unsigned i)
 {
   NodeHandle glbNode(frag);
-  insertNode(signal, glbNode);
+  insertNode(glbNode);
   // connect parent and child
   parentNode.setLink(i, glbNode.m_loc);
   glbNode.setLink(2, parentNode.m_loc);
@@ -102,12 +102,12 @@ Dbtux::treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
   if (pos != 0) {
     jam();
     // add the new entry and return min entry
-    nodePushDown(signal, lubNode, pos - 1, ent, scanList);
+    nodePushDown(lubNode, pos - 1, ent, scanList);
   }
   // g.l.b node receives min entry from l.u.b node
-  nodePushUp(signal, glbNode, 0, ent, scanList);
+  nodePushUp(glbNode, 0, ent, scanList);
   // re-balance the tree
-  treeAddRebalance(signal, frag, parentNode, i);
+  treeAddRebalance(frag, parentNode, i);
 }
 
 /*
@@ -115,7 +115,7 @@ Dbtux::treeAddNode(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos,
  * parent of the added node.
  */
 void
-Dbtux::treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
+Dbtux::treeAddRebalance(Frag& frag, NodeHandle node, unsigned i)
 {
   while (true) {
     // height of subtree i has increased by 1
@@ -136,14 +136,14 @@ Dbtux::treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
       // height of longer subtree increased
       jam();
       NodeHandle childNode(frag);
-      selectNode(signal, childNode, node.getLink(i));
+      selectNode(childNode, node.getLink(i));
       int b2 = childNode.getBalance();
       if (b2 == b) {
         jam();
-        treeRotateSingle(signal, frag, node, i);
+        treeRotateSingle(frag, node, i);
       } else if (b2 == -b) {
         jam();
-        treeRotateDouble(signal, frag, node, i);
+        treeRotateDouble(frag, node, i);
       } else {
         // height of subtree increased so it cannot be perfectly balanced
         ndbrequire(false);
@@ -160,7 +160,7 @@ Dbtux::treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
       break;
     }
     i = node.getSide();
-    selectNode(signal, node, parentLoc);
+    selectNode(node, parentLoc);
   }
 }
 
@@ -171,38 +171,38 @@ Dbtux::treeAddRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
  * not need to consider merge of semi-leaf and leaf.
  */
 void
-Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
+Dbtux::treeRemove(Frag& frag, TreePos treePos)
 {
   TreeHead& tree = frag.m_tree;
   unsigned pos = treePos.m_pos;
   NodeHandle node(frag);
-  selectNode(signal, node, treePos.m_loc);
+  selectNode(node, treePos.m_loc);
   TreeEnt ent;
   if (node.getOccup() > tree.m_minOccup) {
     // no underflow in any node type
     jam();
-    nodePopDown(signal, node, pos, ent, 0);
+    nodePopDown(node, pos, ent, 0);
     return;
   }
   if (node.getChilds() == 2) {
     // underflow in interior node
     jam();
-    treeRemoveInner(signal, frag, node, pos);
+    treeRemoveInner(frag, node, pos);
     return;
   }
   // remove entry in semi/leaf
-  nodePopDown(signal, node, pos, ent, 0);
+  nodePopDown(node, pos, ent, 0);
   if (node.getLink(0) != NullTupLoc) {
     jam();
-    treeRemoveSemi(signal, frag, node, 0);
+    treeRemoveSemi(frag, node, 0);
     return;
   }
   if (node.getLink(1) != NullTupLoc) {
     jam();
-    treeRemoveSemi(signal, frag, node, 1);
+    treeRemoveSemi(frag, node, 1);
     return;
   }
-  treeRemoveLeaf(signal, frag, node);
+  treeRemoveLeaf(frag, node);
 }
 
 /*
@@ -211,7 +211,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
  * node becomes the min entry of this node.
  */
 void
-Dbtux::treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned pos)
+Dbtux::treeRemoveInner(Frag& frag, NodeHandle lubNode, unsigned pos)
 {
   TreeHead& tree = frag.m_tree;
   TreeEnt ent;
@@ -220,19 +220,19 @@ Dbtux::treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned 
   TupLoc loc = lubNode.getLink(0);
   do {
     jam();
-    selectNode(signal, glbNode, loc);
+    selectNode(glbNode, loc);
     loc = glbNode.getLink(1);
   } while (loc != NullTupLoc);
   // borrow max entry from semi/leaf
   Uint32 scanList = RNIL;
-  nodePopDown(signal, glbNode, glbNode.getOccup() - 1, ent, &scanList);
-  nodePopUp(signal, lubNode, pos, ent, scanList);
+  nodePopDown(glbNode, glbNode.getOccup() - 1, ent, &scanList);
+  nodePopUp(lubNode, pos, ent, scanList);
   if (glbNode.getLink(0) != NullTupLoc) {
     jam();
-    treeRemoveSemi(signal, frag, glbNode, 0);
+    treeRemoveSemi(frag, glbNode, 0);
     return;
   }
-  treeRemoveLeaf(signal, frag, glbNode);
+  treeRemoveLeaf(frag, glbNode);
 }
 
 /*
@@ -241,21 +241,21 @@ Dbtux::treeRemoveInner(Signal* signal, Frag& frag, NodeHandle lubNode, unsigned 
  * The leaf may become empty.
  */
 void
-Dbtux::treeRemoveSemi(Signal* signal, Frag& frag, NodeHandle semiNode, unsigned i)
+Dbtux::treeRemoveSemi(Frag& frag, NodeHandle semiNode, unsigned i)
 {
   TreeHead& tree = frag.m_tree;
   ndbrequire(semiNode.getChilds() < 2);
   TupLoc leafLoc = semiNode.getLink(i);
   NodeHandle leafNode(frag);
-  selectNode(signal, leafNode, leafLoc);
+  selectNode(leafNode, leafLoc);
   if (semiNode.getOccup() < tree.m_minOccup) {
     jam();
     unsigned cnt = min(leafNode.getOccup(), tree.m_minOccup - semiNode.getOccup());
-    nodeSlide(signal, semiNode, leafNode, cnt, i);
+    nodeSlide(semiNode, leafNode, cnt, i);
     if (leafNode.getOccup() == 0) {
       // remove empty leaf
       jam();
-      treeRemoveNode(signal, frag, leafNode);
+      treeRemoveNode(frag, leafNode);
     }
   }
 }
@@ -266,14 +266,14 @@ Dbtux::treeRemoveSemi(Signal* signal, Frag& frag, NodeHandle semiNode, unsigned 
  * do nothing.
  */
 void
-Dbtux::treeRemoveLeaf(Signal* signal, Frag& frag, NodeHandle leafNode)
+Dbtux::treeRemoveLeaf(Frag& frag, NodeHandle leafNode)
 {
   TreeHead& tree = frag.m_tree;
   TupLoc parentLoc = leafNode.getLink(2);
   if (parentLoc != NullTupLoc) {
     jam();
     NodeHandle parentNode(frag);
-    selectNode(signal, parentNode, parentLoc);
+    selectNode(parentNode, parentLoc);
     unsigned i = leafNode.getSide();
     if (parentNode.getLink(1 - i) == NullTupLoc) {
       // parent is semi-leaf
@@ -281,14 +281,14 @@ Dbtux::treeRemoveLeaf(Signal* signal, Frag& frag, NodeHandle leafNode)
       if (parentNode.getOccup() < tree.m_minOccup) {
         jam();
         unsigned cnt = min(leafNode.getOccup(), tree.m_minOccup - parentNode.getOccup());
-        nodeSlide(signal, parentNode, leafNode, cnt, i);
+        nodeSlide(parentNode, leafNode, cnt, i);
       }
     }
   }
   if (leafNode.getOccup() == 0) {
     jam();
     // remove empty leaf
-    treeRemoveNode(signal, frag, leafNode);
+    treeRemoveNode(frag, leafNode);
   }
 }
 
@@ -296,20 +296,20 @@ Dbtux::treeRemoveLeaf(Signal* signal, Frag& frag, NodeHandle leafNode)
  * Remove empty leaf.
  */
 void
-Dbtux::treeRemoveNode(Signal* signal, Frag& frag, NodeHandle leafNode)
+Dbtux::treeRemoveNode(Frag& frag, NodeHandle leafNode)
 {
   TreeHead& tree = frag.m_tree;
   ndbrequire(leafNode.getChilds() == 0);
   TupLoc parentLoc = leafNode.getLink(2);
   unsigned i = leafNode.getSide();
-  deleteNode(signal, leafNode);
+  deleteNode(leafNode);
   if (parentLoc != NullTupLoc) {
     jam();
     NodeHandle parentNode(frag);
-    selectNode(signal, parentNode, parentLoc);
+    selectNode(parentNode, parentLoc);
     parentNode.setLink(i, NullTupLoc);
     // re-balance the tree
-    treeRemoveRebalance(signal, frag, parentNode, i);
+    treeRemoveRebalance(frag, parentNode, i);
     return;
   }
   // tree is now empty
@@ -321,7 +321,7 @@ Dbtux::treeRemoveNode(Signal* signal, Frag& frag, NodeHandle leafNode)
  * parent of the removed node.
  */
 void
-Dbtux::treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned i)
+Dbtux::treeRemoveRebalance(Frag& frag, NodeHandle node, unsigned i)
 {
   while (true) {
     // height of subtree i has decreased by 1
@@ -343,19 +343,19 @@ Dbtux::treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned
       jam();
       // child on the other side
       NodeHandle childNode(frag);
-      selectNode(signal, childNode, node.getLink(1 - i));
+      selectNode(childNode, node.getLink(1 - i));
       int b2 = childNode.getBalance();
       if (b2 == b) {
         jam();
-        treeRotateSingle(signal, frag, node, 1 - i);
+        treeRotateSingle(frag, node, 1 - i);
         // height of tree decreased and propagates up
       } else if (b2 == -b) {
         jam();
-        treeRotateDouble(signal, frag, node, 1 - i);
+        treeRotateDouble(frag, node, 1 - i);
         // height of tree decreased and propagates up
       } else {
         jam();
-        treeRotateSingle(signal, frag, node, 1 - i);
+        treeRotateSingle(frag, node, 1 - i);
         // height of tree did not change - done
         return;
       }
@@ -369,7 +369,7 @@ Dbtux::treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned
       return;
     }
     i = node.getSide();
-    selectNode(signal, node, parentLoc);
+    selectNode(node, parentLoc);
   }
 }
 
@@ -390,10 +390,7 @@ Dbtux::treeRemoveRebalance(Signal* signal, Frag& frag, NodeHandle node, unsigned
  * all optional. If 4 are there it changes side.
 */
 void
-Dbtux::treeRotateSingle(Signal* signal,
-                        Frag& frag,
-                        NodeHandle& node,
-                        unsigned i)
+Dbtux::treeRotateSingle(Frag& frag, NodeHandle& node, unsigned i)
 {
   ndbrequire(i <= 1);
   /*
@@ -413,7 +410,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   */
   TupLoc loc3 = node5.getLink(i);
   NodeHandle node3(frag);
-  selectNode(signal, node3, loc3);
+  selectNode(node3, loc3);
   const int bal3 = node3.getBalance();
   /*
   2 must always be there but is not changed. Thus we mereley check that it
@@ -430,7 +427,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   NodeHandle node4(frag);
   if (loc4 != NullTupLoc) {
     jam();
-    selectNode(signal, node4, loc4);
+    selectNode(node4, loc4);
     ndbrequire(node4.getSide() == (1 - i) &&
                node4.getLink(2) == loc3);
     node4.setSide(i);
@@ -465,7 +462,7 @@ Dbtux::treeRotateSingle(Signal* signal,
   if (loc0 != NullTupLoc) {
     jam();
     NodeHandle node0(frag);
-    selectNode(signal, node0, loc0);
+    selectNode(node0, loc0);
     node0.setLink(side5, loc3);
   } else {
     jam();
@@ -602,7 +599,7 @@ Dbtux::treeRotateSingle(Signal* signal,
  *
  */
 void
-Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i)
+Dbtux::treeRotateDouble(Frag& frag, NodeHandle& node, unsigned i)
 {
   TreeHead& tree = frag.m_tree;
 
@@ -616,13 +613,13 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
   // level 1
   TupLoc loc2 = node6.getLink(i);
   NodeHandle node2(frag);
-  selectNode(signal, node2, loc2);
+  selectNode(node2, loc2);
   const int bal2 = node2.getBalance();
 
   // level 2
   TupLoc loc4 = node2.getLink(1 - i);
   NodeHandle node4(frag);
-  selectNode(signal, node4, loc4);
+  selectNode(node4, loc4);
   const int bal4 = node4.getBalance();
 
   ndbrequire(i <= 1);
@@ -643,7 +640,7 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
       jam();
       unsigned cnt = tree.m_minOccup - node4.getOccup();
       ndbrequire(cnt < node2.getOccup());
-      nodeSlide(signal, node4, node2, cnt, i);
+      nodeSlide(node4, node2, cnt, i);
       ndbrequire(node4.getOccup() >= tree.m_minOccup);
       ndbrequire(node2.getOccup() != 0);
     }
@@ -651,14 +648,14 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
     if (loc3 != NullTupLoc) {
       jam();
       NodeHandle node3(frag);
-      selectNode(signal, node3, loc3);
+      selectNode(node3, loc3);
       node3.setLink(2, loc2);
       node3.setSide(1 - i);
     }
     if (loc5 != NullTupLoc) {
       jam();
       NodeHandle node5(frag);
-      selectNode(signal, node5, loc5);
+      selectNode(node5, loc5);
       node5.setLink(2, node6.m_loc);
       node5.setSide(i);
     }
@@ -681,7 +678,7 @@ Dbtux::treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i
 
   if (loc0 != NullTupLoc) {
     jam();
-    selectNode(signal, node0, loc0);
+    selectNode(node0, loc0);
     node0.setLink(side6, loc4);
   } else {
     jam();
