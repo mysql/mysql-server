@@ -235,7 +235,6 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_VOID_RETURN;
 }
 
-
 /*
   Return ok to the client.
 
@@ -349,40 +348,6 @@ send_eof(THD *thd, bool no_flush)
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
-
-
-/****************************************************************************
-  Store a field length in logical packet
-  This is used to code the string length for normal protocol
-****************************************************************************/
-
-char *
-net_store_length(char *pkg, ulonglong length)
-{
-  uchar *packet=(uchar*) pkg;
-  if (length < LL(251))
-  {
-    *packet=(uchar) length;
-    return (char*) packet+1;
-  }
-  /* 251 is reserved for NULL */
-  if (length < LL(65536))
-  {
-    *packet++=252;
-    int2store(packet,(uint) length);
-    return (char*) packet+2;
-  }
-  if (length < LL(16777216))
-  {
-    *packet++=253;
-    int3store(packet,(ulong) length);
-    return (char*) packet+3;
-  }
-  *packet++=254;
-  int8store(packet,length);
-  return (char*) packet+8;
-}
-
 
 /*
   Faster net_store_length when we know length is a 32 bit integer
