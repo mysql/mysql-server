@@ -1173,7 +1173,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
 
-  if (check_one_table_access(thd, SELECT_ACL, table_list, 0))
+  if (check_one_table_access(thd, SELECT_ACL, table_list))
     goto err;
   thd->free_list = 0;
   thd->query_length=(uint) strlen(tbl_name);
@@ -1530,7 +1530,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
 		     0, 0))
       break;
-    if (grant_option && check_grant(thd,SELECT_ACL,&table_list,2,0))
+    if (grant_option &&
+	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
     mysqld_list_fields(thd,&table_list,fields);
     free_items(thd->free_list);
@@ -2135,10 +2136,7 @@ mysql_execute_command(THD *thd)
     if (grant_option)
     {
       /* Check that the first table has CREATE privilege */
-      TABLE_LIST *tmp_table_list=tables->next;
-      tables->next=0;
-      bool error=check_grant(thd,CREATE_ACL,tables,0,0);
-      tables->next=tmp_table_list;
+      bool error= check_grant(thd, CREATE_ACL, tables, 0, 1, 0);
       if (error)
 	goto error;
     }
@@ -2169,18 +2167,9 @@ mysql_execute_command(THD *thd)
     tables= lex->unlink_first_table(tables, &create_table,
 				    &create_table_local);
 
-    ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-		      CREATE_TMP_ACL : CREATE_ACL);
-    lex->create_info.alias= create_table->alias;
-    if (check_access(thd, want_priv, create_table->db,
-		     &create_table->grant.privilege, 0, 0) ||
-	check_merge_table_access(thd, create_table->db,
-				 (TABLE_LIST *)
-				 lex->create_info.merge_list.first))
-      goto create_error;			/* purecov: inspected */
-    if (grant_option && want_priv != CREATE_TMP_ACL &&
-	check_grant(thd, want_priv, create_table,0,0))
-	goto create_error;
+    if ((res= create_table_precheck(thd, tables, create_table)))
+      goto unsent_create_error;
+
 #ifndef HAVE_READLINK
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
 #else
@@ -2272,7 +2261,7 @@ unsent_create_error:
     break;
   }
   case SQLCOM_CREATE_INDEX:
-    if (check_one_table_access(thd, INDEX_ACL, tables, 0))
+    if (check_one_table_access(thd, INDEX_ACL, tables))
       goto error; /* purecov: inspected */
     thd->slow_command=TRUE;
     if (end_active_trans(thd))
@@ -2339,7 +2328,7 @@ unsent_create_error:
 	goto error;				/* purecov: inspected */
       if (grant_option)
       {
-	if (check_grant(thd,ALTER_ACL,tables,0,0))
+	if (check_grant(thd, ALTER_ACL, tables, 0, UINT_MAX, 0))
 	  goto error;
 	if (lex->name && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
 	{					// Rename of table
@@ -2348,7 +2337,8 @@ unsent_create_error:
 	  tmp_table.real_name=lex->name;
 	  tmp_table.db=select_lex->db;
 	  tmp_table.grant.privilege=priv;
-	  if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0, 0))
+	  if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0,
+			  UINT_MAX, 0))
 	    goto error;
 	}
       }
@@ -2397,10 +2387,11 @@ unsent_create_error:
 	old_list=table[0];
 	new_list=table->next[0];
 	old_list.next=new_list.next=0;
-	if (check_grant(thd,ALTER_ACL,&old_list,0,0) ||
+	if (check_grant(thd, ALTER_ACL, &old_list, 0, UINT_MAX, 0) ||
 	    (!test_all_bits(table->next->grant.privilege,
 			    INSERT_ACL | CREATE_ACL) &&
-	     check_grant(thd,INSERT_ACL | CREATE_ACL, &new_list,0,0)))
+	     check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0,
+			 UINT_MAX, 0)))
 	  goto error;
       }
     }
@@ -2535,15 +2526,8 @@ unsent_create_error:
     break;
   }
   case SQLCOM_UPDATE:
-    if (select_lex->item_list.elements != lex->value_list.elements)
-    {
-      send_error(thd,ER_WRONG_VALUE_COUNT);
-      DBUG_VOID_RETURN;
-    }
-    if (check_db_used(thd,tables))
-      goto error;
-    if (check_one_table_access(thd, UPDATE_ACL, tables, 0))
-      goto error;
+    if (update_precheck(thd, tables))
+      break;
     res= mysql_update(thd,tables,
                       select_lex->item_list,
                       lex->value_list,
@@ -2570,17 +2554,9 @@ unsent_create_error:
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
   {
-    my_bool update=(lex->value_list.elements ? UPDATE_ACL : 0);
-    ulong privilege= (lex->duplicates == DUP_REPLACE ?
-                      INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
-
-    if (check_one_table_access(thd, privilege, tables, 0))
-	goto error;
-    if (select_lex->item_list.elements != lex->value_list.elements)
-    {
-      send_error(thd,ER_WRONG_VALUE_COUNT);
-      DBUG_VOID_RETURN;
-    }
+    my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
+    if ((res= insert_precheck(thd, tables, update)))
+      break;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
                        select_lex->item_list, lex->value_list,
                        (update ? DUP_UPDATE : lex->duplicates));
@@ -2634,7 +2610,7 @@ unsent_create_error:
     break;
   }
   case SQLCOM_TRUNCATE:
-    if (check_one_table_access(thd, DELETE_ACL, tables, 0))
+    if (check_one_table_access(thd, DELETE_ACL, tables))
       goto error;
     /*
       Don't allow this within a transaction because we want to use
@@ -2649,10 +2625,8 @@ unsent_create_error:
     break;
   case SQLCOM_DELETE:
   {
-    if (check_one_table_access(thd, DELETE_ACL, tables, 0))
-      goto error;
-    // Set privilege for the WHERE clause
-    tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
+    if ((res= delete_precheck(thd, tables)))
+      break;
     res = mysql_delete(thd,tables, select_lex->where,
                        &select_lex->order_list,
                        select_lex->select_limit, select_lex->options);
@@ -2664,10 +2638,9 @@ unsent_create_error:
   {
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-    TABLE_LIST *delete_tables= (TABLE_LIST*)select_lex->table_list.first;
-      
-    TABLE_LIST *auxi;
-    uint table_count= 0;
+
+    TABLE_LIST *target_tbl;
+    uint table_count;
     multi_delete *result;
     if ((res= multi_delete_precheck(thd, tables, &table_count)))
       break;
@@ -2685,9 +2658,11 @@ unsent_create_error:
     if ((res=open_and_lock_tables(thd,tables)))
       break;
     /* Fix tables-to-be-deleted-from list to point at opened tables */
-    for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
+    for (target_tbl= (TABLE_LIST*) aux_tables;
+	 target_tbl;
+	 target_tbl= target_tbl->next)
     {
-      auxi->table= auxi->table_list->table;
+      target_tbl->table= target_tbl->table_list->table;
       /* 
 	 Multi-delete can't be constructed over-union => we always have
 	 single SELECT on top and have to check underlaying SELECTs of it
@@ -2697,10 +2672,11 @@ unsent_create_error:
 	   un= un->next_unit())
       {
 	if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
-	    un->check_updateable(auxi->table_list->db,
-				 auxi->table_list->real_name))
+	    un->check_updateable(target_tbl->table_list->db,
+				 target_tbl->table_list->real_name))
 	{
-	  my_error(ER_UPDATE_TABLE_USED, MYF(0), auxi->table_list->real_name);
+	  my_error(ER_UPDATE_TABLE_USED, MYF(0),
+		   target_tbl->table_list->real_name);
 	  res= -1;
 	  break;
 	}
@@ -2758,7 +2734,7 @@ unsent_create_error:
   }
   break;
   case SQLCOM_DROP_INDEX:
-    if (check_one_table_access(thd, INDEX_ACL, tables, 0))
+    if (check_one_table_access(thd, INDEX_ACL, tables))
       goto error;				/* purecov: inspected */
     if (end_active_trans(thd))
       res= -1;
@@ -2873,7 +2849,7 @@ unsent_create_error:
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
 		       &tables->grant.privilege, 0, 0))
 	goto error;				/* purecov: inspected */
-      if (grant_option && check_grant(thd,SELECT_ACL,tables,2,0))
+      if (grant_option && check_grant(thd, SELECT_ACL, tables, 2, UINT_MAX, 0))
 	goto error;
       res= mysqld_show_fields(thd,tables,
 			      (lex->wild ? lex->wild->ptr() : NullS),
@@ -2893,7 +2869,7 @@ unsent_create_error:
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
 		       &tables->grant.privilege, 0, 0))
 	goto error;				/* purecov: inspected */
-      if (grant_option && check_grant(thd,SELECT_ACL,tables,2,0))
+      if (grant_option && check_grant(thd, SELECT_ACL, tables, 2, UINT_MAX, 0))
 	goto error;
       res= mysqld_show_keys(thd,tables);
       break;
@@ -2921,7 +2897,7 @@ unsent_create_error:
 	send_error(thd,ER_NOT_ALLOWED_COMMAND);
 	goto error;
       }
-      if (check_one_table_access(thd, privilege, tables, 0))
+      if (check_one_table_access(thd, privilege, tables))
 	goto error;
     }
     res=mysql_load(thd, lex->exchange, tables, lex->field_list,
@@ -3189,7 +3165,7 @@ unsent_create_error:
       if (grant_option && check_grant(thd,
 				      (lex->grant | lex->grant_tot_col |
 				       GRANT_ACL),
-				      tables,0,0))
+				      tables, 0, UINT_MAX, 0))
 	goto error;
       if (!(res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
 				    lex->grant,
@@ -3406,32 +3382,26 @@ error:
     thd			Thread handler
     privilege		requested privelage
     tables		table list of command
-    no_errors		Don't send error to client
 
   RETURN
     0 - OK
     1 - access denied, error is sent to client
 */
 int check_one_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors)
+			   TABLE_LIST *tables)
 					 
 {
   if (check_access(thd, privilege, tables->db, &tables->grant.privilege,0,0))
     return 1;
 
   // Show only 1 table for check_grant
-  TABLE_LIST *subselects_tables= tables->next;
-  tables->next= 0;
-  if (grant_option && check_grant(thd,  privilege, tables, 0, 0))
-  {
-    tables->next= subselects_tables;
+  if (grant_option && check_grant(thd, privilege, tables, 0, 1, 0))
     return 1;
-  }
 
   // check rights on tables of subselect (if exists)
-  if (subselects_tables)
+  TABLE_LIST *subselects_tables;
+  if ((subselects_tables= tables->next))
   {
-    tables->next= subselects_tables;
     if ((check_table_access(thd, SELECT_ACL, subselects_tables,0)))
       return 1;
   }
@@ -3610,7 +3580,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
-		       test(want_access & EXTRA_ACL), no_errors);
+		       test(want_access & EXTRA_ACL), UINT_MAX, no_errors);
   return FALSE;
 }
 
@@ -4961,7 +4931,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
     thd		- thread handler
     tables	- global table list
 
-  RETURN
+  RETURN VALUE
     0  - OK
     1  - error (message is sent to user)
     -1 - error (message is not sent to user)
@@ -4986,27 +4956,30 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   */
   for (table= update_list; table; table= table->next)
   {
-    TABLE_LIST *save= table->next;
-    table->next= 0;
     if ((check_access(thd, UPDATE_ACL, table->db,
 		      &table->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, UPDATE_ACL, table, 0, 1)) &&
+	 grant_option && check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
 	(check_access(thd, SELECT_ACL, table->db,
 		      &table->grant.privilege, 0, 0) ||
-	 grant_option && check_grant(thd, SELECT_ACL, table, 0, 0)))
+	 grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
       DBUG_RETURN(1);
-    table->next= save;
+
+    /*
+      We assign following flag only to copy of table, because it will
+      be checked only if query contains subqueries i.e. only if copy exists
+    */
     if (table->table_list)
-      table->table_list->checked= 1;
+      table->table_list->table_in_update_from_clause= 1;
   }
-  // tables of subqueries
+  /*
+    Is there tables of subqueries?
+  */
   if (&lex->select_lex != lex->all_selects_list)
   {
     for (table= tables; table; table= table->next)
     {
-      if (table->checked)
+      if (table->table_in_update_from_clause)
       {
-	table->checked= 0;
 	/*
 	  If we check table by local TABLE_LIST copy then we should copy
 	  grants to global table list, because it will be used for table
@@ -5017,13 +4990,10 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
       }
       else
       {
-	TABLE_LIST *save= table->next;
-	table->next= 0;
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0) ||
-	    grant_option && check_grant(thd, SELECT_ACL, table, 0, 0))
+	    grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0))
 	  DBUG_RETURN(1);
-	table->next= save;
       }
     }
   }
@@ -5050,7 +5020,7 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
     tables	- global table list
     table_count	- pointer to table counter
 
-  RETURN
+  RETURN VALUE
     0  - OK
     1  - error (message is sent to user)
     -1 - error (message is not sent to user)
@@ -5062,7 +5032,9 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
   TABLE_LIST *delete_tables= (TABLE_LIST *)select_lex->table_list.first;
-  TABLE_LIST *auxi;
+  TABLE_LIST *target_tbl;
+
+  *table_count= 0;
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
@@ -5075,29 +5047,32 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
     DBUG_RETURN(-1);
   }
-  for (auxi= aux_tables; auxi; auxi= auxi->next)
+  for (target_tbl= aux_tables; target_tbl; target_tbl= target_tbl->next)
   {
     (*table_count)++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk;
     for (walk= delete_tables; walk; walk= walk->next)
     {
-      if (!my_strcasecmp(table_alias_charset, auxi->alias, walk->alias) &&
-	  !strcmp(walk->db, auxi->db))
+      if (!my_strcasecmp(table_alias_charset,
+			 target_tbl->alias, walk->alias) &&
+	  !strcmp(walk->db, target_tbl->db))
 	break;
     }
     if (!walk)
     {
-      my_error(ER_UNKNOWN_TABLE, MYF(0), auxi->real_name, "MULTI DELETE");
+      my_error(ER_UNKNOWN_TABLE, MYF(0), target_tbl->real_name,
+	       "MULTI DELETE");
       DBUG_RETURN(-1);
     }
     if (walk->derived)
     {
-      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), auxi->real_name, "DELETE");
+      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), target_tbl->real_name,
+	       "DELETE");
       DBUG_RETURN(-1);
     }
-    walk->lock_type= auxi->lock_type;
-    auxi->table_list= walk;		// Remember corresponding table
+    walk->lock_type= target_tbl->lock_type;
+    target_tbl->table_list= walk;	// Remember corresponding table
   }
   DBUG_RETURN(0);
 }
@@ -5111,7 +5086,7 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     thd		- thread handler
     tables	- global table list
 
-  RETURN
+  RETURN VALUE
     0  - OK
     1  - error (message is sent to user)
     -1 - error (message is not sent to user)
@@ -5125,7 +5100,122 @@ int insert_select_precheck(THD *thd, TABLE_LIST *tables)
   */
   ulong privilege= (thd->lex->duplicates == DUP_REPLACE ?
 		    INSERT_ACL | DELETE_ACL : INSERT_ACL);
-  if (check_one_table_access(thd, privilege, tables, 0))
+  DBUG_RETURN(check_one_table_access(thd, privilege, tables) ? 1 : 0);
+}
+
+
+/*
+  simple UPDATE query pre-check
+
+  SYNOPSIS
+    update_precheck()
+    thd		- thread handler
+    tables	- global table list
+
+  RETURN VALUE
+    0  - OK
+    1  - error (message is sent to user)
+    -1 - error (message is not sent to user)
+*/
+int update_precheck(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("update_precheck");
+  if (thd->lex->select_lex.item_list.elements != thd->lex->value_list.elements)
+  {
+    my_error(ER_WRONG_VALUE_COUNT, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN((check_db_used(thd, tables) ||
+	       check_one_table_access(thd, UPDATE_ACL, tables)) ? 1 : 0);
+}
+
+
+/*
+  simple DELETE query pre-check
+
+  SYNOPSIS
+    delete_precheck()
+    thd		- thread handler
+    tables	- global table list
+
+  RETURN VALUE
+    0  - OK
+    1  - error (message is sent to user)
+    -1 - error (message is not sent to user)
+*/
+int delete_precheck(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("delete_precheck");
+  if (check_one_table_access(thd, DELETE_ACL, tables))
     DBUG_RETURN(1);
+  // Set privilege for the WHERE clause
+  tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
   DBUG_RETURN(0);
+}
+
+
+/*
+  simple INSERT query pre-check
+
+  SYNOPSIS
+    insert_precheck()
+    thd		- thread handler
+    tables	- global table list
+
+  RETURN VALUE
+    0  - OK
+    1  - error (message is sent to user)
+    -1 - error (message is not sent to user)
+*/
+int insert_precheck(THD *thd, TABLE_LIST *tables, bool update)
+{
+  LEX *lex= thd->lex;
+  DBUG_ENTER("insert_precheck");
+
+  ulong privilege= (lex->duplicates == DUP_REPLACE ?
+		    INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
+
+  if (check_one_table_access(thd, privilege, tables))
+    DBUG_RETURN(1);
+
+  if (lex->select_lex.item_list.elements != lex->value_list.elements)
+  {
+    my_error(ER_WRONG_VALUE_COUNT, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
+  CREATE TABLE query pre-check
+
+  SYNOPSIS
+    create_table_precheck()
+    thd			- thread handler
+    tables		- global table list
+    create_table	- table which will be created
+
+  RETURN VALUE
+    0  - OK
+    1  - error (message is sent to user)
+    -1 - error (message is not sent to user)
+*/
+int create_table_precheck(THD *thd, TABLE_LIST *tables,
+			  TABLE_LIST *create_table)
+{
+  LEX *lex= thd->lex;
+  DBUG_ENTER("create_table_precheck");
+  ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+		    CREATE_TMP_ACL : CREATE_ACL);
+  lex->create_info.alias= create_table->alias;
+  if (check_access(thd, want_priv, create_table->db,
+		   &create_table->grant.privilege, 0, 0) ||
+      check_merge_table_access(thd, create_table->db,
+			       (TABLE_LIST *)
+			       lex->create_info.merge_list.first))
+    DBUG_RETURN(1);
+  DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
+	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
+	      1 : 0)
 }

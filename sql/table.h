@@ -194,7 +194,8 @@ typedef struct st_table_list
   bool		force_index;		/* Prefer index over table scan */
   bool          ignore_leaves;          /* Preload only non-leaf nodes */
   bool		cacheable_table;	/* stop PS caching */
-  bool		checked;		/* used in multi-upd privelege check */
+  /* used in multi-upd privelege check */
+  bool		table_in_update_from_clause;
 } TABLE_LIST;
 
 typedef struct st_changed_table_list

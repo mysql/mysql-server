@@ -207,19 +207,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       goto abort;
   }
 
-  if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(insert_table_list) ||
-      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
-      (duplic == DUP_UPDATE &&
-       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
-        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+  if (mysql_prepare_insert(thd, table_list, insert_table_list, table,
+			   fields, values, update_fields,
+			   update_values, duplic))
     goto abort;
-  if (find_real_table_in_list(table_list->next, 
-			      table_list->db, table_list->real_name))
-  {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    goto abort;
-  }
 
   value_count= values->elements;
   while ((values= its++))
@@ -435,6 +426,43 @@ abort:
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
   DBUG_RETURN(-1);
+}
+
+
+/*
+  Prepare items in INSERT statement
+
+  SYNOPSIS
+    mysql_prepare_update()
+    thd			- thread handler
+    table_list		- global table list
+    insert_table_list	- local table list of INSERT SELECT_LEX
+
+  RETURN VALUE
+    0  - OK
+    -1 - error (message is not sent to user)
+*/
+int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+			 TABLE_LIST *insert_table_list, TABLE *table,
+			 List<Item> &fields, List_item *values,
+			 List<Item> &update_fields, List<Item> &update_values,
+			 enum_duplicates duplic)
+{
+  DBUG_ENTER("mysql_prepare_insert");
+  if (check_insert_fields(thd, table, fields, *values, 1) ||
+      setup_tables(insert_table_list) ||
+      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
+      (duplic == DUP_UPDATE &&
+       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
+        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+    DBUG_RETURN(-1);
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }
 
 
