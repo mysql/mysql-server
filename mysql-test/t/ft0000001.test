@@ -8,12 +8,16 @@ CREATE TABLE test (
 INSERT INTO test (message) VALUES ("Testing"),("table"),("testbug"),
         ("steve"),("is"),("cool"),("steve is cool");
 # basic MATCH
-@r/ft0000001.a.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve');
+SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve');
+
 # MATCH + ORDER BY (with ft-ranges)
-@r/ft0000001.b.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve') ORDER BY a;
+SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve') ORDER BY a;
+
 # MATCH + ORDER BY (with normal ranges) + UNIQUE
-@r/ft0000001.c.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve') ORDER BY a DESC;
+SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve') ORDER BY a DESC;
+
 # MATCH + ORDER BY + UNIQUE (const_table)
-@r/ft0000001.d.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a=7 and MATCH (message) AGAINST ('steve') ORDER BY 1;
+SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a=7 and MATCH (message) AGAINST ('steve') ORDER BY 1;
+
 # ORDER BY MATCH
-@r/ft0000001.e.result SELECT a, MATCH (message) AGAINST ('steve') as rel FROM test ORDER BY rel;
+SELECT a, MATCH (message) AGAINST ('steve') as rel FROM test ORDER BY rel;

@@ -15,6 +15,6 @@ INSERT INTO test VALUES (1,'lala lolo lili','oooo aaaa pppp');
 INSERT INTO test VALUES (2,'asdf fdsa','lkjh fghj');
 INSERT INTO test VALUES (3,'qpwoei','zmxnvb');
 
-@r/ft0000002.a.result SELECT a, MATCH  b  AGAINST ('lala lkjh') FROM test;
-@r/ft0000002.b.result SELECT a, MATCH  c  AGAINST ('lala lkjh') FROM test;
-@r/ft0000002.c.result SELECT a, MATCH b,c AGAINST ('lala lkjh') FROM test;
+SELECT a, MATCH  b  AGAINST ('lala lkjh') FROM test;
+SELECT a, MATCH  c  AGAINST ('lala lkjh') FROM test;
+SELECT a, MATCH b,c AGAINST ('lala lkjh') FROM test;
