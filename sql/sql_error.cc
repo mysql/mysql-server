@@ -43,6 +43,7 @@ This file contains the implementation of error and warnings related
 ***********************************************************************/
 
 #include "mysql_priv.h"
+#include "sp_rcontext.h"
 
 /*
   Store a new message in an error object
@@ -110,6 +111,25 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
 
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
+  thd->got_warning= 1;
+  if (thd->spcont &&
+      thd->spcont->find_handler(code,
+                                ((int) level >=
+                                 (int) MYSQL_ERROR::WARN_LEVEL_WARN &&
+                                 thd->really_abort_on_warning()) ?
+                                MYSQL_ERROR::WARN_LEVEL_ERROR : level))
+  {
+    DBUG_RETURN(NULL);
+  }
+
+  /* Abort if we are using strict mode and we are not using IGNORE */
+  if ((int) level >= (int) MYSQL_ERROR::WARN_LEVEL_WARN &&
+      thd->really_abort_on_warning())
+  {
+    thd->killed= THD::KILL_BAD_DATA;
+    my_message(code, msg, MYF(0));
+    DBUG_RETURN(NULL);
+  }
 
   if (thd->warn_list.elements < thd->variables.max_error_count)
   {
@@ -119,8 +139,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     */
     MEM_ROOT *old_root= thd->mem_root;
     thd->mem_root= &thd->warn_root;
-    err= new MYSQL_ERROR(thd, code, level, msg);
-    if (err)
+    if ((err= new MYSQL_ERROR(thd, code, level, msg)))
       thd->warn_list.push_back(err);
     thd->mem_root= old_root;
   }
@@ -168,14 +187,14 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     Takes into account the current LIMIT
 
   RETURN VALUES
-    0	ok
-    1	Error sending data to client
+    FALSE ok
+    TRUE  Error sending data to client
 */
 
 static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
 static int warning_level_length[]= { 4, 7, 5, 1 };
 
-my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
+bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  
   List<Item> field_list;
   DBUG_ENTER("mysqld_show_warnings");
@@ -184,8 +203,9 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Message",MYSQL_ERRMSG_SIZE));
 
-  if (thd->protocol->send_fields(&field_list,1))
-    DBUG_RETURN(1);
+  if (thd->protocol->send_fields(&field_list,
+                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
 
   MYSQL_ERROR *err;
   SELECT_LEX *sel= &thd->lex->select_lex;
@@ -209,10 +229,10 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     protocol->store((uint32) err->code);
     protocol->store(err->msg, strlen(err->msg), system_charset_info);
     if (protocol->write())
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     if (!--limit)
       break;
   }
-  send_eof(thd);  
-  DBUG_RETURN(0);
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
 }
