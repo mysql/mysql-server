@@ -2717,7 +2717,7 @@ unsent_create_error:
     if ((res= insert_precheck(thd, tables)))
       break;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-                       select_lex->item_list, lex->value_list,
+                       lex->update_list, lex->value_list,
                        lex->duplicates);
     if (thd->net.report_error)
       res= -1;
@@ -2727,7 +2727,7 @@ unsent_create_error:
   case SQLCOM_INSERT_SELECT:
   {
     TABLE_LIST *first_local_table= (TABLE_LIST *) select_lex->table_list.first;
-    if ((res= insert_select_precheck(thd, tables)))
+    if ((res= insert_precheck(thd, tables)))
       break;
 
     /* Fix lock for first table */
@@ -2749,11 +2749,16 @@ unsent_create_error:
       select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
-
     if (!(res= open_and_lock_tables(thd, tables)) &&
+        !(res= mysql_prepare_insert(thd, tables, first_local_table, 
+				    tables->table, lex->field_list, 0,
+				    lex->update_list, lex->value_list,
+				    lex->duplicates)) &&
         (result= new select_insert(tables->table, &lex->field_list,
+				   &lex->update_list, &lex->value_list,
                                    lex->duplicates)))
     {
+      TABLE *table= tables->table;
       /* Skip first table, which is the table we are inserting in */
       lex->select_lex.table_list.first= (byte*) first_local_table->next;
       /*
@@ -2766,6 +2771,7 @@ unsent_create_error:
       lex->select_lex.table_list.first= (byte*) first_local_table;
       lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       delete result;
+      table->insert_values= 0;
       if (thd->net.report_error)
         res= -1;
     }
@@ -5305,33 +5311,6 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
 
 
 /*
-  INSERT ... SELECT query pre-check
-
-  SYNOPSIS
-    insert_delete_precheck()
-    thd		Thread handler
-    tables	Global table list
-
-  RETURN VALUE
-    0   OK
-    1   Error (message is sent to user)
-    -1  Error (message is not sent to user)
-*/
-
-int insert_select_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("insert_select_precheck");
-  /*
-    Check that we have modify privileges for the first table and
-    select privileges for the rest
-  */
-  ulong privilege= (thd->lex->duplicates == DUP_REPLACE ?
-		    INSERT_ACL | DELETE_ACL : INSERT_ACL);
-  DBUG_RETURN(check_one_table_access(thd, privilege, tables) ? 1 : 0);
-}
-
-
-/*
   simple UPDATE query pre-check
 
   SYNOPSIS
@@ -5402,6 +5381,10 @@ int insert_precheck(THD *thd, TABLE_LIST *tables)
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
 
+  /*
+    Check that we have modify privileges for the first table and
+    select privileges for the rest
+  */
   ulong privilege= INSERT_ACL |
                    (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
                    (lex->duplicates == DUP_UPDATE ? UPDATE_ACL : 0);
@@ -5409,7 +5392,7 @@ int insert_precheck(THD *thd, TABLE_LIST *tables)
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(1);
 
-  if (lex->select_lex.item_list.elements != lex->value_list.elements)
+  if (lex->update_list.elements != lex->value_list.elements)
   {
     my_error(ER_WRONG_VALUE_COUNT, MYF(0));
     DBUG_RETURN(-1);
