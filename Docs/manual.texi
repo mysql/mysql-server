@@ -14874,8 +14874,8 @@ command.
 @item
 Do not keep any plain-text passwords in your database. When your
 computer becomes compromised, the intruder can take the full list of
-passwords and use them. Instead use @code{MD5()} or another one-way
-hashing function.
+passwords and use them. Instead use @code{MD5()}, @code{SHA1()} or
+another one-way hashing function.
 @item
 Do not choose passwords from dictionaries. There are special programs to
 break them. Even passwords like ``xfish98'' are very bad.  Much better is
@@ -22689,6 +22689,12 @@ is @code{localhost}.
 Lock all tables before starting the dump.  The tables are locked with
 @code{READ LOCAL} to allow concurrent inserts in the case of @code{MyISAM}
 tables.
+
+Please note that when dumping multiple databases, @code{--lock-tables}
+will lock tables for each database separately. So using this option will
+not guarantee your tables will be logically consistent between databases.
+Tables in different databases may be dumped in completely different
+states.
 @item -K, --disable-keys
 @code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
 @code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
@@ -22724,6 +22730,21 @@ Quote table and column names within @samp{`} characters.
 Direct output to a given file. This option should be used in MSDOS,
 because it prevents new line '\n' from being converted to '\n\r' (new
 line + carriage return).
+@item --single-transaction
+This option issues a @code{BEGIN} SQL command before dumping data from
+server. It is mostly useful with @code{InnoDB} tables and
+@code{READ_COMMITTED} transaction isolation level, as in this mode it
+will dump the consistent state of the database at the time then
+@code{BEGIN} was issued without blocking any applications.
+
+When using this option you should keep in mind that only transactional
+tables will be dumped in a consistent state, e.g., any @code{MyISAM} or
+@code{HEAP} tables dumped while using this option may still change
+state.
+
+The @code{--single-transaction} option was added in version 4.0.2.
+This option is mutually exclusive with the @code{--lock-tables} option
+as @code{LOCK TABLES} cancels a previous transaction.
 @item -S /path/to/socket, --socket=/path/to/socket
 The socket file to use when connecting to @code{localhost} (which is the
 default host).
@@ -32936,21 +32957,80 @@ password.  @code{crypt_str} should be a string returned from
 
 @findex MD5()
 @item MD5(string)
-Calculates a MD5 checksum for the string. Value is returned as a 32 long
-hex number that may, for example, be used as a hash key:
+Calculates an MD5 128 bit checksum for the string. The value is returned
+as a 32 digit hex number that may, for example, be used as a hash key:
 
 @example
 mysql> SELECT MD5("testing");
         -> 'ae2b1fca515949e5d54fb22b8ed95575'
 @end example
 
-This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
+This is the "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
+
+@findex SHA1()
+@findex SHA()
+@item SHA1(string)
+@itemx SHA(string)
+Calculates an SHA1 160 bit checksum for the string, as described in
+RFC 3174 (Secure Hash Algorithm). The value is returned as a 40 digit
+hex number, or @code{NULL} in case the input argument was @code{NULL}.
+One of the possible uses for this function is as a hash key. You can
+also use it as cryptographically safe function for storing passwords.
+
+@example
+mysql> SELECT SHA1("abc");
+        -> 'a9993e364706816aba3e25717850c26c9cd0d89d'
+@end example
+
+@code{SHA1()} was added in version 4.0.2, and can be considered
+a cryptographically more secure equivalent of @code{MD5()}.
+@code{SHA()} is synonym for @code{SHA1()}.
+
+@findex AES_ENCRYPT()
+@findex AES_DECRYPT()
+@item AES_ENCRYPT(string,key_string)
+@itemx AES_DECRYPT(string,key_string)
+These functions allow encryption/decryption of data using the official
+AES (Advanced Encryption Standard) algorithm, previously known as Rijndael.
+Encoding with 128 bit key length is used, but you can extend it up to
+256 bit by patching the source. We chose 128 bits because it is much
+faster and it is usually secure enough.
+
+The input arguments may be any length. If either argument is @code{NULL},
+the result of this function is also @code{NULL}.
+
+As AES is a block level algorithm, padding is used to encode uneven length
+strings and so the result string length may be calculated as
+16*(trunc(string_length/16)+1).
+
+@c FIX arjen 2002-06-21  Peter: this sentence makes no sense at all!
+If the string has an incorrect length or contains invalid data for this
+key, @code{AES_DECRYPT()} will return @code{NULL}, therefore you can't
+rely on this to much, @code{AES_DECRYPT()} has some change to return
+a non-@code{NULL} value even for an invalid key.
+
+You can use the AES functions to store data in an encrypted form by
+modifying your queries:
+@example
+INSERT INTO t VALUES (1,AES_ENCRYPT("text","password"));
+@end example
+
+You can get even more security by avoiding transferring the key over the
+connection for each query, which can be accomplished by storing it in a
+server side variable at connection time:
+@example
+SELECT @@password:="my password";
+INSERT INTO t VALUES (1,AES_ENCRYPT("text",@@password));
+@end example
+
+@code{AES_ENCRYPT()} and @code{AES_DECRYPT()} were added in version 4.0.2,
+and can be considered the most cryptographically secure encryption
+functions currently available in MySQL.
 
 @findex DES_ENCRYPT()
 @item DES_ENCRYPT(string_to_encrypt [, (key_number | key_string) ] )
 
-Encrypts the string with the given key using the DES algorithm, which
-provides strong encryption.
+Encrypts the string with the given key using the DES algorithm.
 
 Note that this function only works if you have configured MySQL with
 SSL support. @xref{Secure connections}.
@@ -33049,9 +33129,9 @@ the same @code{INSERT} statement against some other server.
 
 @cindex sequence emulation
 If @code{expr} is given as an argument to @code{LAST_INSERT_ID()}, then
-the value of the argument is returned by the function, is set as the
-next value to be returned by @code{LAST_INSERT_ID()} and used as the next
-@code{AUTO_INCREMENT} value.  This can be used to simulate sequences:
+the value of the argument is returned by the function, and is set as the
+next value to be returned by @code{LAST_INSERT_ID()}.  This can be used
+to simulate sequences:
 
 First create the table:
 
@@ -33068,16 +33148,16 @@ mysql> UPDATE sequence SET id=LAST_INSERT_ID(id+1);
 
 You can generate sequences without calling @code{LAST_INSERT_ID()}, but the
 utility of using the function this way is that the ID value is maintained in
-the server as the last automatically generated value.  You can retrieve the
-new ID as you would read any normal @code{AUTO_INCREMENT} value in
-MySQL.  For example, @code{LAST_INSERT_ID()} (without an argument)
-will return the new ID.  The C API function @code{mysql_insert_id()}
-can also be used to get the value.
+the server as the last automatically generated value (multi-user safe).
+You can retrieve the new ID as you would read any normal
+@code{AUTO_INCREMENT} value in MySQL. For example, @code{LAST_INSERT_ID()}
+(without an argument) will return the new ID.  The C API function
+@code{mysql_insert_id()} can also be used to get the value.
 
-Note that as @code{mysql_insert_id()} is only updated after
-@code{INSERT} and @code{UPDATE} statements, you can't use this function
-to retrieve the value for @code{LAST_INSERT_ID(expr)} after executing
-other SQL statements like @code{SELECT} or @code{SET}.
+Note that as @code{mysql_insert_id()} is only updated after @code{INSERT}
+and @code{UPDATE} statements, so you can't use the C API function to
+retrieve the value for @code{LAST_INSERT_ID(expr)} after executing other
+SQL statements like @code{SELECT} or @code{SET}.
 
 
 @findex FORMAT()
@@ -40769,10 +40849,7 @@ You can also use the @code{pod2man}, @code{pod2html}, etc., tools to
 translate to other formats.
 
 You can find the latest @code{DBI} information at
-the @code{DBI} web page:
-@example
-@uref{http://www.symbolstone.org/technology/perl/DBI/}
-@end example
+the @code{DBI} web page: @uref{http://dbi.perl.org/}.
 
 
 @node ODBC, C, Perl, Clients
@@ -49495,6 +49572,19 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Added @code{SHA1()} function to calculate 160 bit hash value as described
+in RFC 3174 (Secure Hash Algorithm). This function can be considered a
+cryptographically more secure equivalent of @code{MD5()}.
+@xref{Miscellaneous functions}.
+@item
+Added @code{AES_ENCRYPT()} and @code{AES_DECRYPT()} functions to perform
+encryption according to AES standard (Rijndael).
+@xref{Miscellaneous functions}.
+@item
+Added @code{--single-transaction} option to @code{mysqldump}, allowing a
+consistent dump of @code{InnoDB} tables.
+@xref{mysqldump}.
 @item
 Fixed bug in @code{innodb_log_group_home_dir} in @code{SHOW VARIABLES}.
 @item
