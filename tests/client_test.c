@@ -9453,7 +9453,6 @@ select col1 FROM t1 where col1=2");
   myquery(rc);
 }
 
-
 /*
   This tests for various mysql_send_long_data bugs described in #1664
 */
@@ -9594,6 +9593,51 @@ static void test_bug1664()
     rc= mysql_query(mysql, "DROP TABLE test_long_data");
     myquery(rc);
 }
+
+
+static void test_order_param()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+
+  myheader("test_order_param");
+ 
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"CREATE TABLE t1(a INT, b char(10))");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql,
+			     "select sum(a) + 200, 1 from t1 \
+union distinct \
+select sum(a) + 200, 1 from t1 \
+group by b ");
+  check_stmt(stmt);
+
+  mysql_stmt_close(stmt);
+
+ stmt= mysql_simple_prepare(mysql,
+			     "select sum(a) + 200, ? from t1 \
+group by b \
+union distinct \
+select sum(a) + 200, 1 from t1 \
+group by b ");
+  check_stmt(stmt);
+
+ stmt= mysql_simple_prepare(mysql,
+			     "select sum(a) + 200, ? from t1 \
+union distinct \
+select sum(a) + 200, 1 from t1 \
+group by b ");
+  check_stmt(stmt);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -9877,6 +9921,8 @@ int main(int argc, char **argv)
     test_union2();	    /* repeatable execution of union (Bug #3577) */
     test_bug1664();         /* test for bugs in mysql_stmt_send_long_data() 
                                call (Bug #1664) */
+    test_order_param();	    /* ORDER BY with parameters in select list
+			       (Bug #3686 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
