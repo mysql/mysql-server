@@ -324,11 +324,14 @@ typedef struct st_prep_stmt
   Item_param **param;
   Item *free_list;
   MEM_ROOT mem_root;
+  String *query;
   ulong stmt_id;
   uint param_count;
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
   bool error_in_prepare, long_data_used;
+  bool log_full_query;
+  bool (*setup_params)(st_prep_stmt *stmt, uchar *pos, uchar *read_pos);
 } PREP_STMT;
 
 

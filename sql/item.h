@@ -239,15 +239,17 @@ public:
   enum Type item_type;
   enum enum_field_types buffer_type;
   bool item_is_time;
-  my_bool long_data_supplied;
+  bool long_data_supplied;
+  uint pos_in_query;
 
-  Item_param(char *name_par=0)
+  Item_param::Item_param(uint position)
   { 
-    name= name_par ? name_par : (char*) "?";
-    long_data_supplied= false;
+    name= (char*) "?";
+    pos_in_query= position;
     item_type= STRING_ITEM;
     item_result_type = STRING_RESULT;
     item_is_time= false;
+    long_data_supplied= false;
   }
   enum Type type() const { return item_type; }
   double val();
@@ -268,8 +270,9 @@ public:
   void (*setup_param_func)(Item_param *param, uchar **pos);
   enum Item_result result_type () const
   { return item_result_type; }
+  String *query_val_str(String *str);
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
-  Item *new_item() { return new Item_param(name); }
+  Item *new_item() { return new Item_param(pos_in_query); }
 };
 
 class Item_int :public Item

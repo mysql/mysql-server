@@ -542,6 +542,79 @@ String *Item_param::val_str(String* str)
     return (String*) &str_value;
   }
 }
+
+/*
+  Return Param item values in string format, for generating the dynamic 
+  query used in update/binary logs
+*/
+
+String *Item_param::query_val_str(String* str) 
+{ 
+  switch (item_result_type) {
+  case INT_RESULT:
+    str->set(int_value, default_charset());
+    break;
+  case REAL_RESULT:
+    set->set(real_value, 2, default_charset());
+    break;
+  default:
+    str->set("'", 1, default_charset());
+    
+    if (!item_is_time)
+    {
+      str->append(str_value);
+      const char *from= str->ptr(); 
+      uint32 length= 1;
+      
+      // Escape misc cases
+      char *to= (char *)from, *end= (char *)to+str->length(); 
+      for (to++; to != end ; length++, to++)
+      {
+        switch(*to) {
+          case '\'':
+          case '"':  
+          case '\r':
+          case '\n':
+          case '\\': // TODO: Add remaining ..
+            str->replace(length,0,"\\",1); 
+            to++; end++; length++;
+            break;
+          default:     
+            break;
+        }
+      }
+    }
+    else
+    {
+      char buff[25];
+      
+      switch (ltime.time_type)  {
+        case TIMESTAMP_NONE:
+          break;
+        case TIMESTAMP_DATE:
+          sprintf(buff, "%04d-%02d-%02d", 
+                        ltime.year,ltime.month,ltime.day);
+          str->append(buff, 10);
+          break;
+        case TIMESTAMP_FULL:
+          sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
+ 	                ltime.year,ltime.month,ltime.day,
+	                ltime.hour,ltime.minute,ltime.second));
+          str->append(buff, 19);
+          break;
+        case TIMESTAMP_TIME:
+        {
+          sprintf(buff, "%02d:%02d:%02d",
+	  	        ltime.hour,ltime.minute,ltime.second));
+          str->append(buff, 8);
+          break;
+        }
+      }
+    }
+    str->append("'");
+  }
+  return str;
+}
 /* End of Item_param related */
 
 
