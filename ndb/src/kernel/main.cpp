@@ -38,10 +38,6 @@
 #include <sys/processor.h> // For system informatio
 #endif
 
-#if !defined NDB_SOFTOSE && !defined NDB_OSE
-#include <signal.h>        // For process signals
-#endif
-
 extern EventLogger g_eventLogger;
 
 void catchsigs(bool ignore); // for process signal handling
