@@ -242,8 +242,6 @@ public:
   enum enum_server_command command;
   uint32 server_id;
   const char *where;
-  char* last_nx_table; // last non-existent table, we need this for replication
-  char* last_nx_db; // database of the last nx table
   time_t  start_time,time_after_lock,user_time;
   time_t  connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;

@@ -223,7 +223,7 @@ inline THD *_current_thd(void)
 #include "opt_range.h"
 
 
-void mysql_create_db(THD *thd, char *db, uint create_info);
+int mysql_create_db(THD *thd, char *db, uint create_info);
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
 int quick_rm_table(enum db_type base,const char *db,
@@ -245,7 +245,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 bool check_stack_overrun(THD *thd,char *dummy);
 bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables);
-void mysql_rm_db(THD *thd,char *db,bool if_exists);
+int mysql_rm_db(THD *thd,char *db,bool if_exists);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);

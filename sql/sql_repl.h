@@ -14,6 +14,8 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 
 int start_slave(THD* thd = 0, bool net_report = 1);
 int stop_slave(THD* thd = 0, bool net_report = 1);
+int load_master_data(THD* thd);
+int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi);
 int change_master(THD* thd);
 void reset_slave();
 void reset_master();
