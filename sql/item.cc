@@ -4349,7 +4349,7 @@ my_decimal *Item_cache_real::val_decimal(my_decimal *decimal_val)
 void Item_cache_decimal::store(Item *item)
 {
   my_decimal *val= item->val_decimal_result(&decimal_value);
-  if (val != &decimal_value)
+  if (val != &decimal_value && !item->null_value)
     my_decimal2decimal(val, &decimal_value);
   null_value= item->null_value;
 }
