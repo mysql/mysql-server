@@ -131,6 +131,21 @@ BackupRestore::get_table(const NdbDictionary::Table* tab){
 }
 
 bool
+BackupRestore::finalize_table(const TableS & table){
+  bool ret= true;
+  if (!m_restore && !m_restore_meta)
+    return ret;
+  if (table.have_auto_inc())
+  {
+    Uint64 max_val= table.get_max_auto_val();
+    Uint64 auto_val= m_ndb->readAutoIncrementValue(get_table(table.m_dictTable));
+    if (max_val+1 > auto_val || auto_val == ~(Uint64)0)
+      ret= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable), max_val+1, false);
+  }
+  return ret;
+}
+
+bool
 BackupRestore::table(const TableS & table){
   if (!m_restore && !m_restore_meta)
     return true;
@@ -178,6 +193,9 @@ BackupRestore::table(const TableS & table){
   if(tab == 0){
     err << "Unable to find table: " << split[2].c_str() << endl;
     return false;
+  }
+  if(m_restore_meta){
+    m_ndb->setAutoIncrementValue(tab, ~(Uint64)0, false);
   }
   const NdbDictionary::Table* null = 0;
   m_new_tables.fill(table.m_dictTable->getTableId(), null);
@@ -316,6 +334,10 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	int arraySize = attr_desc->arraySize;
 	char * dataPtr = attr_data->string_value;
 	Uint32 length = (size * arraySize) / 8;
+
+	if (j == 0 && tup.getTable()->have_auto_inc(i))
+	  tup.getTable()->update_max_auto_val(dataPtr,size);
+
 	if (attr_desc->m_column->getPrimaryKey())
 	{
 	  if (j == 1) continue;
@@ -510,8 +532,11 @@ BackupRestore::logEntry(const LogEntry & tup)
     int arraySize = attr->Desc->arraySize;
     const char * dataPtr = attr->Data.string_value;
     
+    if (tup.m_table->have_auto_inc(attr->Desc->attrId))
+      tup.m_table->update_max_auto_val(dataPtr,size);
+
     const Uint32 length = (size / 8) * arraySize;
-    if (attr->Desc->m_column->getPrimaryKey()) 
+    if (attr->Desc->m_column->getPrimaryKey())
       op->equal(attr->Desc->attrId, dataPtr, length);
     else
       op->setValue(attr->Desc->attrId, dataPtr, length);

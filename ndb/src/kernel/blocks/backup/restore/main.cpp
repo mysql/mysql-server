@@ -355,6 +355,20 @@ main(int argc, const char** argv)
       logIter.validateFooter(); //not implemented
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfLogEntrys();
+      for(i = 0; i<metaData.getNoOfTables(); i++)
+      {
+	if (checkSysTable(metaData[i]->getTableName()))
+	{
+	  for(Uint32 j= 0; j < g_consumers.size(); j++)
+	    if (!g_consumers[j]->finalize_table(* metaData[i]))
+	    {
+	      ndbout_c("Restore: Failed to finalize restore table: %s. "
+		       "Exiting...", 
+		       metaData[i]->getTableName());
+	      return -11;
+	    } 
+	}
+      }
     }
   }
   clearConsumers();
