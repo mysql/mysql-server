@@ -595,3 +595,5 @@ character-set=latin1
 "Invalid ON UPDATE clause for '%-.64s' field",
 #define ER_UNSUPPORTED_PS 1295
 "This command is not supported in the prepared statement protocol yet",
+#define ER_CANT_CREATE_USER_WITH_GRANT 1296
+"You are not allowed to create a user with GRANT"
