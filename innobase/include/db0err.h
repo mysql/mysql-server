@@ -42,7 +42,8 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_CANNOT_ADD_CONSTRAINT 38	/* adding a foreign key constraint
 					to a table failed */
 #define DB_CORRUPTION		39	/* data structure corruption noticed */
-					
+#define DB_COL_APPEARS_TWICE_IN_INDEX 40
+
 /* The following are partial failure codes */
 #define DB_FAIL 		1000
 #define DB_OVERFLOW 		1001

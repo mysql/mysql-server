@@ -208,9 +208,13 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
 {
   if (rli)					// QQ When is this not true ?
   {
-    rli->inc_pos(get_event_len(),log_pos);
-    DBUG_ASSERT(rli->sql_thd != 0);
-    flush_relay_log_info(rli);
+    if (rli->inside_transaction)
+      rli->inc_pending(get_event_len());
+    else
+    {
+      rli->inc_pos(get_event_len(),log_pos);
+      flush_relay_log_info(rli);
+    }
   }
   return 0;
 }
@@ -1707,6 +1711,19 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_log.write(thd,COM_QUERY,"%s",thd->query);
       DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
+
+      /*
+	Set a flag if we are inside an transaction so that we can restart
+	the transaction from the start if we are killed
+
+	This will only be done if we are supporting transactional tables
+	in the slave.
+      */
+      if (!strcmp(thd->query,"BEGIN"))
+	rli->inside_transaction= opt_using_transactions;
+      else if (!strcmp(thd->query,"COMMIT"))
+	rli->inside_transaction=0;
+
       if ((expected_error != (actual_error = thd->net.last_errno)) &&
 	  expected_error &&
 	  !ignored_error_code(actual_error) &&
