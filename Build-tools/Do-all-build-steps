@@ -11,6 +11,8 @@ EXTRA_CONFIG="--without-perl"
 
 echo "Building on $to_host"
 
+mkdir -p $WD/Logs
+
 cat > $TMP_SCRIPT <<END
 # Show executed commands
 set -x
@@ -55,7 +57,6 @@ $WD/Build-tools/Do-rpm
 rm -f $TMP_SCRIPT
 END
 
-mkdir -p $WD/Logs
 log=$WD/Logs/Log-distcheck-`date +%y%m%d-%H%M`
 
 if test $to_host = "mysql-work"
