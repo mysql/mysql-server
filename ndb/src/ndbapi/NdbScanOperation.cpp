@@ -1091,7 +1091,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     Uint32 xfrmData[2000];
     if (cs != NULL && aValue != NULL) {
       // current limitation: strxfrm does not increase length
-      assert(cs->strxfrm_multiply == 1);
+      assert(cs->strxfrm_multiply <= 1);
       unsigned n =
       (*cs->coll->strnxfrm)(cs,
                             (uchar*)xfrmData, sizeof(xfrmData),
