@@ -17,9 +17,10 @@
 /**
    @mainpage                            NDB API Programmers' Guide
 
-   This guide assumes a basic familiarity with MySQL Cluster concepts.
-   Some of the fundamental ones are described in section @ref secConcepts.
-   
+   This guide assumes a basic familiarity with MySQL Cluster concepts found
+   on http://dev.mysql.com/doc/mysql/en/NDBCluster.html .
+   Some of the fundamental ones are also described in section @ref secConcepts.
+
    The <em>NDB API</em> is a MySQL Cluster application interface 
    that implements transactions.
    The NDB API consists of the following fundamental classes:
@@ -34,6 +35,10 @@
    - NdbRecAttr represents an attribute value
    - NdbDictionary represents meta information about tables and attributes.
    - NdbError contains the specification for an error.
+
+   It is also possible to receive "events" on changed data in the database.
+   This is done through the NdbEventOperation class.
+
    There are also some auxiliary classes.
      
    The main structure of an application program is as follows:
@@ -515,7 +520,7 @@
 /**
    @page secConcepts  NDB Cluster Concepts
 
-   The <em>NDB Kernel</em> is the collection of database (DB) nodes
+   The <em>NDB Kernel</em> is the collection of storage nodes
    belonging to an NDB Cluster.
    The application programmer can for most purposes view the
    set of all DB nodes as one entity.
@@ -1160,7 +1165,7 @@ public:
    * @param eventName
    *        unique identifier of the event
    * @param bufferLength
-   *        buffer size for storing event data
+   *        circular buffer size for storing event data
    *
    * @return Object representing an event, NULL on failure
    */
