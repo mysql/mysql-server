@@ -750,6 +750,7 @@ protected:
   NdbOperation*	    next();	        // Get next pointer		       
 public:
   const NdbOperation* next() const;
+  const NdbRecAttr* getFirstRecAttr() const;
 protected:
 
   enum OperationStatus
@@ -1005,6 +1006,14 @@ NdbOperation::next() const
 {
   return theNext;
 }
+
+inline
+const NdbRecAttr*
+NdbOperation::getFirstRecAttr() const 
+{
+  return theReceiver.theFirstRecAttr;
+}
+
 /******************************************************************************
 OperationStatus  Status();
 
