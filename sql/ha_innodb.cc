@@ -323,9 +323,10 @@ innobase_mysql_print_thd(
 	FILE*   f,	/* in: output stream */
         void*   input_thd)/* in: pointer to a MySQL THD object */
 {
-  	THD*    thd;
+	const THD*	thd;
+	const char*	s;
 
-        thd = (THD*) input_thd;
+        thd = (const THD*) input_thd;
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, thd->query_id);
@@ -344,14 +345,14 @@ innobase_mysql_print_thd(
 		fputs(thd->user, f);
   	}
 
-	if (thd->proc_info) {
+	if ((s = thd->proc_info)) {
 		putc(' ', f);
-		fputs(thd->proc_info, f);
+		fputs(s, f);
 	}
 
-	if (thd->query) {
+	if ((s = thd->query)) {
 		putc(' ', f);
-		fputs(thd->query, f);
+		fputs(s, f);
 	}
 
 	putc('\n', f);
