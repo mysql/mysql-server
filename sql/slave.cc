@@ -2696,7 +2696,6 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
   pthread_mutex_t *log_lock = rli->relay_log.get_log_lock();
   const char* errmsg=0;
   THD* thd = rli->sql_thd;
-  bool was_killed;
   DBUG_ENTER("next_event");
   DBUG_ASSERT(thd != 0);
 
