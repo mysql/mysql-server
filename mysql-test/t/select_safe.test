@@ -4,7 +4,7 @@
 
 drop table if exists t1;
 SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, SQL_MAX_JOIN_SIZE=9;
-create table t1 (a int auto_increment primary key, b char(20));
+create table t1 (a int auto_increment primary key, b char(20), key(b));
 insert into t1 values(1,"test");
 SELECT SQL_BUFFER_RESULT * from t1;
 update t1 set b="a" where a=1;
@@ -12,7 +12,7 @@ delete from t1 where a=1;
 insert into t1 values(1,"test"),(2,"test2");
 SELECT SQL_BUFFER_RESULT * from t1;
 update t1 set b="a" where a=1;
-select 1 from t1,t1 as t2,t1 as t3,t1 as t4;
+select 1 from t1,t1 as t2,t1 as t3;
 
 # The following should give errors:
 --error 1175
@@ -48,6 +48,17 @@ SET MAX_JOIN_SIZE=2;
 SELECT * from t1;
 SET MAX_JOIN_SIZE=DEFAULT;
 SELECT * from t1;
+
+#
+# Test MAX_SEEKS_FOR_KEY
+#
+SELECT @@MAX_SEEKS_FOR_KEY;
+analyze table t1;
+insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
+explain select * from t1,t1 as t2 where t1.b=t2.b;
+set MAX_SEEKS_FOR_KEY=1;
+explain select * from t1,t1 as t2 where t1.b=t2.b;
+SET MAX_SEEKS_FOR_KEY=DEFAULT;
 
 drop table t1;
 

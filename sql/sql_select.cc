@@ -1271,14 +1271,14 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
     /*
       Set a max range of how many seeks we can expect when using keys
-      This was (s->read_time*5), but this was too low with small rows
+      This is can't be to high as otherwise we are likely to use
+      table scan.
     */
-    s->worst_seeks= (double) s->found_records / 5;
+    s->worst_seeks= min((double) s->found_records / 10,
+			(double) s->read_time*3);
     if (s->worst_seeks < 2.0)			// Fix for small tables
       s->worst_seeks=2.0;
 
-    /* if (s->type == JT_EQ_REF)
-      continue; */
     if (s->const_keys)
     {
       ha_rows records;
@@ -1884,6 +1884,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       best=best_time=records=DBL_MAX;
       KEYUSE *best_key=0;
       uint best_max_key_part=0;
+      my_bool found_constrain= 0;
 
       if (s->keyuse)
       {						/* Use key if possible */
@@ -1964,6 +1965,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           }
           else
           {
+	  found_constrain= 1;
 	  /*
 	    Check if we found full key
 	  */
@@ -2000,16 +2002,18 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    records=2.0;		// Can't be as good as a unique
 		}
 	      }
+	      /* Limit the number of matched rows */
+	      tmp= records;
+	      set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
 	      if (table->used_keys & ((key_map) 1 << key))
 	      {
 		/* we can use only index tree */
 		uint keys_per_block= table->file->block_size/2/
 		  (keyinfo->key_length+table->file->ref_length)+1;
-		tmp=(record_count*(records+keys_per_block-1)/
-		     keys_per_block);
+		tmp=record_count*(tmp+keys_per_block-1)/keys_per_block;
 	      }
 	      else
-		tmp=record_count*min(records,s->worst_seeks);
+		tmp=record_count*min(tmp,s->worst_seeks);
 	    }
 	  }
 	  else
@@ -2039,7 +2043,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		{
 		  /*
 		    Assume that the first key part matches 1% of the file
-		    and that the hole key matches 10 (dupplicates) or 1
+		    and that the hole key matches 10 (duplicates) or 1
 		    (unique) records.
 		    Assume also that more key matches proportionally more
 		    records
@@ -2071,6 +2075,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  records=(ulong) tmp;
 		}
 	      }
+	      /* Limit the number of matched rows */
+	      set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
 	      if (table->used_keys & ((key_map) 1 << key))
 	      {
 		/* we can use only index tree */
@@ -2113,20 +2119,31 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    s->table->used_keys && best_key) &&
 	  !(s->table->force_index && best_key))
       {						// Check full join
+	ha_rows rnd_records= s->found_records;
 	if (s->on_expr)
 	{
-	  tmp=rows2double(s->found_records);	// Can't use read cache
+	  tmp=rows2double(rnd_records);		// Can't use read cache
 	}
 	else
 	{
 	  tmp=(double) s->read_time;
-	  /* Calculate time to read through cache */
+	  /* Calculate time to read previous rows through cache */
 	  tmp*=(1.0+floor((double) cache_record_length(join,idx)*
 			  record_count /
 			  (double) thd->variables.join_buff_size));
 	}
+
+	/*
+	  If there is a restriction on the table, assume that 25% of the
+	  rows can be skipped on next part.
+	  This is to force tables that this table depends on before this
+	  table
+	*/
+	if (found_constrain)
+	  rnd_records-= rnd_records/4;
+
 	if (best == DBL_MAX ||
-	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->found_records <
+	    (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
 	{
 	  /*
@@ -2134,7 +2151,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    will ensure that this will be used
 	  */
 	  best=tmp;
-	  records= rows2double(s->found_records);
+	  records= rows2double(rnd_records);
 	  best_key=0;
 	}
       }
