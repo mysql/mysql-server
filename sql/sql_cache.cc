@@ -795,6 +795,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     if (ask_handler_allowance(thd, tables_used))
     {
+      refused++;
       STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
     }
