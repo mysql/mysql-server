@@ -21,7 +21,7 @@ drop table t1;
 #
 --error 1064
 select x'hello';
---error 1064
+--error 1054
 select 0xfg;
 
 #

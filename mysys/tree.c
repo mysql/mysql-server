@@ -97,7 +97,8 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   DBUG_ENTER("init_tree");
   DBUG_PRINT("enter",("tree: %lx  size: %d",tree,size));
 
-  default_alloc_size=DEFAULT_ALLOC_SIZE;
+ if (!default_alloc_size)
+   default_alloc_size= DEFAULT_ALLOC_SIZE;
   bzero((gptr) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;

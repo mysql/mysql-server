@@ -214,5 +214,4 @@
 "CREATE DATABASE not allowed while thread is holding global read lock",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
-"Error in SHOW BINLOG EVENTS: %-.128s",
-"Error in SHOW NEW MASTER: %-.128s",
+"Error when executing command %s: %-.128s",

@@ -421,7 +421,7 @@ public:
   virtual int prepare(List<Item> &list) { return 0; }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
-  virtual void initialize_tables (JOIN *join=0) {};
+  virtual void initialize_tables (JOIN *join=0) {}
   virtual void send_error(uint errcode,const char *err)=0;
   virtual bool send_eof()=0;
   virtual void abort() {}
