@@ -221,25 +221,32 @@ String *Item_func_des_encrypt::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
 #ifdef HAVE_OPENSSL
-  des_key_schedule ks1, ks2, ks3;
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-  struct {
-	  des_cblock key1, key2, key3; // 8 bytes each
-  } keyblock;
+  struct st_des_keyblock keyblock;
+  struct st_des_keyschedule keyschedule;
+  struct st_des_keyschedule *keyschedule_ptr=&keyschedule;
 
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  if(res->c_ptr()[0]!='1') { // Skip encryption if already encrypted
-    String *keystr=args[1]->val_str(&tmp_value);
-    /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
+  if(res->c_ptr()[0]!='1') // Skip encryption if already encrypted
+  {
+    if (args[1]->val_int())
+    {
+      keyschedule_ptr=des_key(args[1]->val_int());
+    } 
+    else
+    {
+      String *keystr=args[1]->val_str(&tmp_value);
+      /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
+      EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 	(uchar *)keystr->c_ptr(),
 	(int)keystr->length(),1,(uchar *)&keyblock,ivec);
-    des_set_key_unchecked(&keyblock.key1,ks1); // Here we set all 64-bit keys 
-    des_set_key_unchecked(&keyblock.key2,ks2); // (56 effective) one by one
-    des_set_key_unchecked(&keyblock.key3,ks3);
+      des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
+      des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
+      des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3);
+    }
     /* 
       The problem: DES algorithm requires original data to be in 8-bytes
       chunks. Missing bytes get filled with zeros and result of encryption 
@@ -252,10 +259,21 @@ String *Item_func_des_encrypt::val_str(String *str)
     for(int i=0 ; i < tail ; ++i) res->append('*');  
     res->append(tail);  		// Write tail length 0..7 to last pos
     str->length(res->length());
+    for (uint j=0; j < res->length() ; ++j)
+    {
+	    DBUG_PRINT("info",("## res->c_ptr()[%d]='%c'",j,res->c_ptr()[j]));
+    }
     des_ede3_cbc_encrypt(		// Real encryption
  	(const uchar*)(res->c_ptr()), 
 	(uchar*)(str->c_ptr()), 
-	res->length(), ks1, ks2, ks3, &ivec, TRUE);
+	res->length(), 
+	keyschedule_ptr->ks1, keyschedule_ptr->ks2, keyschedule_ptr->ks3, 
+	&ivec, TRUE);
+    for (uint j=0; j < res->length() ; ++j)
+    {
+	    DBUG_PRINT("info",("## str->c_ptr()[%d]='%c'",j,str->c_ptr()[j]));
+    }
+
     res->set((const char*)"1",(uint)1); 
     for(uint i=0 ; i < str->length() ; ++i) 
     {
@@ -276,10 +294,9 @@ String *Item_func_des_decrypt::val_str(String *str)
 #ifdef HAVE_OPENSSL
   des_key_schedule ks1, ks2, ks3;
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-  struct {
-	  des_cblock key1, key2, key3; // 8 bytes each
-  } keyblock;
-
+  struct st_des_keyblock keyblock;
+  struct st_des_keyschedule keyschedule;
+  struct st_des_keyschedule *keyschedule_ptr=&keyschedule;
 
   if ((null_value=args[0]->null_value))
     return 0;
@@ -295,26 +312,38 @@ String *Item_func_des_decrypt::val_str(String *str)
 		      | (ascii_to_bin(res->c_ptr()[i+1]) << 5 ));
     }
 
-    String *keystr=args[1]->val_str(&tmp_value);
-    int32 mode=0; 
-    if(arg_count == 3 && !args[2]->null_value) 
-      mode=args[2]->val_int();
-    /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
+    if (args[1]->val_int())
+    {
+      keyschedule_ptr=des_key(args[1]->val_int());
+    } 
+    else
+    {
+      /* 
+       We make good 24-byte (168 bit) key 
+       from given plaintext key with MD5 
+      */
+      String *keystr=args[1]->val_str(&tmp_value);
+      EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 	(uchar *)keystr->c_ptr(),
 	(int)keystr->length(),1,(uchar *)&keyblock,ivec);
-    des_set_key_unchecked(&keyblock.key1,ks1);	// Here we set all 64-bit keys 
-    des_set_key_unchecked(&keyblock.key2,ks2);	// (56 effective) one by one
-    des_set_key_unchecked(&keyblock.key3,ks3);
-    res->length(str->length());
+      /*
+       Here we set all 64-bit keys (56 effective) one by one
+      */
+      des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
+      des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
+      des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3); 
+    }
+    res->length(str->length()); 
+
     des_ede3_cbc_encrypt(			// Real decryption
 	(const uchar*)(str->c_ptr()), 
 	(uchar*)(res->c_ptr()), 
 	str->length(),                 
-	ks1, ks2, ks3, &ivec, FALSE);
+	keyschedule_ptr->ks1, keyschedule_ptr->ks2, keyschedule_ptr->ks3, 
+	&ivec, FALSE);
     uchar tail=(res->c_ptr()[res->length()-1]) & 0x7;
-    if((res->length() > ((uint)1+tail)))   	// We should avoid negative length 
-	res->length(res->length()-1-tail); 	// (can happen with wrong key)
+    if ((res->length() > ((uint)1+tail)))   	// We should avoid negative length 
+      res->length(res->length()-1-tail); 	// (can happen with wrong key)
   }
   return res;
 #else

@@ -396,6 +396,19 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
+#ifdef HAVE_OPENSSL
+struct st_des_keyblock 
+{ 
+  des_cblock key1, key2, key3; 
+};
+struct st_des_keyschedule
+{
+  des_key_schedule ks1, ks2, ks3;
+};
+extern struct st_des_keyschedule des_keyschedule[10];
+void load_des_key_file(const char *file_name);
+struct st_des_keyschedule * des_key(int);
+#endif /* HAVE_OPENSSL */
 
 /* sql_list.c */
 int mysqld_show_dbs(THD *thd,const char *wild);
