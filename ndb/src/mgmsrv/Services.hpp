@@ -91,6 +91,7 @@ public:
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
 
   void purge_stale_sessions(Parser_t::Context &ctx, const class Properties &args);
+  void check_connection(Parser_t::Context &ctx, const class Properties &args);
   
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };
