@@ -1,6 +1,7 @@
  MySQL Client - Server Protocol Ducumentation
 
 
+
 Introduction
 ------------
 
