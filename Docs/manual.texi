@@ -18506,9 +18506,12 @@ If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
-0 (OFF, don't cache or retrieve results),
-1 (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries) or
-2 (DEMAND, cache only @code{SELECT SQL_CACHE ...} queries).
+@multitable @columnfractions .1 .2 .7
+@item @strong{Value} @tab @strong{Alias} @tab @strong{Comment}
+@item 0 @tab OFF @tab Don't cache or retrieve results.
+@item 1 @tab ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
+@item 2 @tab DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
+@end multitable
 
 @item @code{safe_show_databases}
 Don't show databases for which the user doesn't have any database or

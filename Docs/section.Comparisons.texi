@@ -34,6 +34,7 @@ see the @code{crash-me} web page at
 @node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
 @subsection How MySQL Compares to @code{mSQL}
 
+@cindex mSQL, MySQL vs mSQL, overview
 @table @strong
 @item Performance
 
@@ -301,7 +302,7 @@ multiple connections to the server from the same process.
 @subsubsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
 
 @cindex communications protocols
-@cindex mSQL vs. MySQL
+@cindex mSQL vs. MySQL, protocol
 
 There are enough differences that it is impossible (or at least not easy)
 to support both.
@@ -557,7 +558,6 @@ satisfies your application.  If you need raw speed, MySQL is probably your
 best choice.  If you need some of the extra features that only PostgreSQL
 can offer, you should use @code{PostgreSQL}.
 
-@cindex PostgreSQL/MySQL, strategies
 @menu
 * MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
 * MySQL-PostgreSQL features::   Featurewise Comparison of MySQL and PostgreSQL
@@ -568,6 +568,7 @@ can offer, you should use @code{PostgreSQL}.
 @node MySQL-PostgreSQL goals, MySQL-PostgreSQL features, Compare PostgreSQL, Compare PostgreSQL
 @subsubsection MySQL and PostgreSQL development strategies
 
+@cindex PostgreSQL vs. MySQL, strategies
 When adding things to MySQL we take pride to do an optimal, definite
 solution.  The code should be so good that we shouldn't have any need to
 change it in the foreseeable future.  We also do not like to sacrifice
@@ -609,7 +610,7 @@ code, we are better able to coordinate new features and releases.
 @node MySQL-PostgreSQL features, MySQL-PostgreSQL benchmarks, MySQL-PostgreSQL goals, Compare PostgreSQL
 @subsubsection Featurewise Comparison of MySQL and PostgreSQL
 
-@cindex PostgreSQL/MySQL, features
+@cindex PostgreSQL vs. MySQL, features
 
 On the crash-me page
 (@uref{http://www.mysql.com/information/crash-me.php})

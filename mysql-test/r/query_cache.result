@@ -1,6 +1,6 @@
 reset query cache;
 flush status;
-drop table if exists t1;
+drop table if exists t1,t2,t3;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 select * from t1;
@@ -36,3 +36,265 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (4),(5),(6);
+create table t3 (a int not null) type=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+select * from t3;
+a
+1
+2
+3
+4
+5
+6
+select * from t3;
+a
+1
+2
+3
+4
+5
+6
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+insert into t2  values (7);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t1;
+a
+1
+2
+3
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+insert into t3 values (8);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t3;
+a
+1
+2
+3
+8
+4
+5
+6
+7
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+update t2 set a=9 where a=7;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t1;
+a
+1
+2
+3
+8
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+update t3 set a=10 where a=1;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t3;
+a
+10
+2
+3
+8
+4
+5
+6
+9
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+delete from t2 where a=9;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t1;
+a
+10
+2
+3
+8
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+delete from t3 where a=10;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1, t2, t3;
+set autocommit=0;
+create table t1 (a int not null) type=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+commit;
+set autocommit=1;
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+select * from t2;
+a
+1
+2
+3
+insert into t1 values (4);
+show status like "Qcache_free_blocks";
+Variable_name	Value
+Qcache_free_blocks	2
+flush query cache;
+show status like "Qcache_free_blocks";
+Variable_name	Value
+Qcache_free_blocks	1
+drop table t1, t2;
+set sql_query_cache_type=demand;
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select sql_cache * from t1;
+a
+1
+2
+3
+set sql_query_cache_type=2;
+select sql_cache * from t1;
+a
+1
+2
+3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	4
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+set sql_query_cache_type=on;
+reset query cache;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select sql_no_cache * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+create table t1 (a text not null);
+select CONNECTION_ID() from t1;
+CONNECTION_ID()
+select FOUND_ROWS();
+FOUND_ROWS()
+0
+select NOW() from t1;
+NOW()
+select CURDATE() from t1;
+CURDATE()
+select CURTIME() from t1;
+CURTIME()
+select DATABASE() from t1;
+DATABASE()
+select ENCRYPT("test") from t1;
+ENCRYPT("test")
+select LAST_INSERT_ID() from t1;
+last_insert_id()
+select RAND() from t1;
+RAND()
+select UNIX_TIMESTAMP() from t1;
+UNIX_TIMESTAMP()
+select USER() from t1;
+USER()
+select benchmark(1,1) from t1;
+benchmark(1,1)
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+create table t2 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+drop table t2;
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	4
+select a as a1, a as a2 from t1;
+select a as a2, a as a3 from t1;
+select a as a3, a as a4 from t1;
+select a as a1, a as a2 from t1;
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	4
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+reset query cache;
+show variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	1039700
+show status like "Qcache_free_memory";
+Variable_name	Value
+Qcache_free_memory	1039700
+drop table t1;

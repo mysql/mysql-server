@@ -19,6 +19,7 @@
 /* functions to work with full-text indices */
 
 #include "ftdefs.h"
+#include <math.h>
 
 /**************************************************************
    This is to make ft-code to ignore keyseg.length at all     *
@@ -186,7 +187,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
     cmp=_mi_compare_text(default_charset_info,
 	                 (uchar*) old_word->pos,old_word->len,
 			 (uchar*) new_word->pos,new_word->len,0);
-    cmp2= cmp ? 0 : (abs(old_word->weight - new_word->weight) > 1.e-5);
+    cmp2= cmp ? 0 : (fabs(old_word->weight - new_word->weight) > 1.e-5);
 
     if (cmp < 0 || cmp2)
     {

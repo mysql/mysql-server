@@ -248,7 +248,8 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
 }
 
 float ft_nlq_find_relevance(FT_INFO *handler,
-    byte *record __attribute__((unused)), uint length __attribute__((unused)))
+			    byte *record __attribute__((unused)),
+			    uint length __attribute__((unused)))
 {
   int a,b,c;
   FT_DOC  *docs=handler->doc;
@@ -267,7 +268,7 @@ float ft_nlq_find_relevance(FT_INFO *handler,
       a=c;
   }
   if (docs[a].dpos == docid)
-    return docs[a].weight;
+    return (float) docs[a].weight;
   else
     return 0.0;
 }
@@ -279,7 +280,7 @@ void ft_nlq_close_search(FT_INFO *handler)
 
 float ft_nlq_get_relevance(FT_INFO *handler)
 {
-  return handler->doc[handler->curdoc].weight;
+  return (float) handler->doc[handler->curdoc].weight;
 }
 
 void ft_nlq_reinit_search(FT_INFO *handler)
