@@ -61,3 +61,4 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_PROBE_SLAVE_HOSTS    2023
 #define CR_PROBE_SLAVE_CONNECT  2024
 #define CR_PROBE_MASTER_CONNECT 2025
+#define CR_SSL_CONNECTION_ERROR 2026

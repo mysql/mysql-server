@@ -74,7 +74,7 @@ extern HASH open_cache;
 
 static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
 				 bool unlock, TABLE **write_locked);
-static int lock_external(TABLE **table,uint count);
+static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error);
 
@@ -110,7 +110,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
     }
 
     thd->proc_info="System lock";
-    if (lock_external(tables,count))
+    if (lock_external(thd, tables, count))
     {
       my_free((gptr) sql_lock,MYF(0));
       sql_lock=0;
@@ -159,11 +159,10 @@ retry:
 }
 
 
-static int lock_external(TABLE **tables,uint count)
+static int lock_external(THD *thd, TABLE **tables, uint count)
 {
   reg1 uint i;
   int lock_type,error;
-  THD *thd=current_thd;
   DBUG_ENTER("lock_external");
 
   for (i=1 ; i <= count ; i++, tables++)

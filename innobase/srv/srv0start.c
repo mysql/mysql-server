@@ -1380,7 +1380,7 @@ innobase_start_or_create_for_mysql(void)
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
 	        fprintf(stderr,
 "InnoDB: Error: pthread_mutex_trylock returns an unexpected value on\n"
-		  "InnoDB: success! Cannot continue.\n");
+"InnoDB: success! Cannot continue.\n");
 	        exit(1);
 	}
 
@@ -1390,11 +1390,17 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
-	if (srv_print_verbose_log)
-	{
-	  ut_print_timestamp(stderr);
-	  fprintf(stderr, "  InnoDB: Started\n");
+	if (srv_print_verbose_log) {
+	  	ut_print_timestamp(stderr);
+	  	fprintf(stderr, "  InnoDB: Started\n");
 	}
+
+	if (srv_force_recovery > 0) {
+		fprintf(stderr,
+		"InnoDB: !!! innodb_force_recovery is set to %lu !!!\n",
+			srv_force_recovery);
+	}	
+
 	return((int) DB_SUCCESS);
 }
 
