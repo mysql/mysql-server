@@ -200,6 +200,14 @@ static int find_keyword(LEX *lex, uint len, bool function)
     lex->yylval->symbol.symbol=symbol;
     lex->yylval->symbol.str= (char*) tok;
     lex->yylval->symbol.length=len;
+    
+    if ((symbol->tok == NOT_SYM) &&
+        (lex->thd->variables.sql_mode & MODE_BROKEN_NOT))
+      return NOT2_SYM;
+    if ((symbol->tok == OR_OR_SYM) &&
+	!(lex->thd->variables.sql_mode & MODE_PIPES_AS_CONCAT))
+      return OR2_SYM;
+    
     return symbol->tok;
   }
   return 0;
