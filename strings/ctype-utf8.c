@@ -1955,7 +1955,7 @@ CHARSET_INFO my_charset_utf8 =
     33,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "utf8",		/* cs name      */
-    "utf8",		/* name         */
+    "utf8_general_ci",	/* name         */
     "",			/* comment      */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
@@ -3030,7 +3030,7 @@ CHARSET_INFO my_charset_ucs2 =
     35,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
     "ucs2",		/* cs name    */
-    "ucs2",		/* name         */
+    "ucs2_general_ci",	/* name         */
     "",			/* comment      */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */

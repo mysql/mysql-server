@@ -8430,7 +8430,7 @@ CHARSET_INFO my_charset_ujis =
     12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
     "ujis",		/* cs name    */
-    "ujis",		/* name         */
+    "ujis_japanese_ci",	/* name         */
     "",			/* comment      */
     ctype_ujis,
     to_lower_ujis,

@@ -257,6 +257,11 @@ SHOW_COMP_OPTION have_crypt=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_crypt=SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_COMPRESS
+SHOW_COMP_OPTION have_compress= SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_compress= SHOW_OPTION_NO;
+#endif
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
@@ -2087,6 +2092,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   if (!(default_charset_info= get_charset_by_name(sys_charset.value, MYF(MY_WME))))
     return 1;
+  global_system_variables.result_collation= default_charset_info;
+  global_system_variables.client_collation= default_charset_info;
+  global_system_variables.literal_collation= default_charset_info;
+
   charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
@@ -4566,7 +4575,9 @@ static void set_options(void)
 		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
-  global_system_variables.convert_result_charset= TRUE;
+  global_system_variables.result_collation= default_charset_info;
+  global_system_variables.client_collation= default_charset_info;
+  global_system_variables.literal_collation= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
