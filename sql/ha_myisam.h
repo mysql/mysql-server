@@ -63,7 +63,7 @@ class ha_myisam: public handler
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
   int open(const char *name, int mode, uint test_if_locked);
@@ -81,7 +81,7 @@ class ha_myisam: public handler
   int index_first(byte * buf);
   int index_last(byte * buf);
   int index_next_same(byte *buf, const byte *key, uint keylen);
-  int index_end() { ft_handler=NULL; return handler::index_end(); }
+  int index_end() { ft_handler=NULL; return 0; }
   int ft_init()
   {
     if (!ft_handler)
