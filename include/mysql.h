@@ -439,17 +439,17 @@ enum PREP_STMT_STATE { MY_ST_UNKNOWN, MY_ST_PREPARE, MY_ST_EXECUTE };
 /* bind structure */
 typedef struct st_mysql_bind
 {
-  long		*length;		/* output length pointer */
-  gptr		buffer;			/* buffer */
+  unsigned long	*length;		/* output length pointer */
+  my_bool       *is_null;		/* Pointer to null indicators */
+  char		*buffer;		/* buffer to get/put data */
   enum enum_field_types buffer_type;	/* buffer type */
-  my_bool	is_null;		/* NULL indicator */
-  my_bool	is_long_data;		/* long data indicator */
+  /* Must be set for string/blob data */
+  unsigned long buffer_length;		/* buffer length */  
 
   /* The following are for internal use. Set by mysql_bind_param */
-  unsigned long buffer_length;		/* buffer length */  
-  long		bind_length;		/* Default length of data */
-  my_bool	long_ended;		/* All data supplied for long */
+  unsigned long bind_length;		/* Default length of data */
   unsigned int	param_number;		/* For null count and error messages */
+  my_bool	long_data_used;		/* If used with mysql_send_long_data */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
   void (*fetch_result)(struct st_mysql_bind *, unsigned char **row);
 } MYSQL_BIND;
@@ -465,20 +465,21 @@ typedef struct st_mysql_stmt
   MYSQL_FIELD	*fields;		/* prepare meta info */
   LIST          list;                   /* list to keep track of all stmts */
   char		*query;			/* query buffer */
+  char		*buffer;		/* buffer to hold results */
   MEM_ROOT	mem_root;		/* root allocations */
   MYSQL_RES	tmp_result;		/* Used by mysql_prepare_result */
   unsigned long param_count;		/* parameters count */
   unsigned long field_count;		/* fields count */
-  unsigned long long_length;		/* long buffer alloced length */
+  unsigned long buffer_length;		/* long buffer alloced length */
   unsigned long	stmt_id;		/* Id for prepared statement */
   unsigned int	last_errno;		/* error code */
   enum PREP_STMT_STATE state;		/* statement state */
   char		last_error[MYSQL_ERRMSG_SIZE]; /* error message */
   my_bool	long_alloced;		/* flag to indicate long alloced */
-  my_bool	send_types_to_server;	/* to indicate types supply to server */
-  my_bool       param_buffers;          /* to indicate the param bound buffers */
-  my_bool       res_buffers;            /* to indicate the output bound buffers */
-  my_bool       result_buffered;        /* to indicate the results buffered */
+  my_bool	send_types_to_server;	/* Types sent to server */
+  my_bool       param_buffers;          /* param bound buffers */
+  my_bool       res_buffers;            /* output bound buffers */
+  my_bool       result_buffered;        /* Results buffered */
 } MYSQL_STMT;
 
 
@@ -498,10 +499,7 @@ int	STDCALL mysql_fetch(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt, 
 				     unsigned int param_number,
 				     const char *data, 
-				     unsigned long length,
-				     my_bool last_data);
-int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
-			      unsigned long len);
+				     unsigned long length);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
@@ -515,8 +513,6 @@ my_bool STDCALL mysql_next_result(MYSQL *mysql);
 #define MYSQL_STATUS_ERROR 1
 #define MYSQL_NO_DATA      100
 #define MYSQL_NEED_DATA    99 
-#define MYSQL_NULL_DATA    (-1)
-#define MYSQL_LONG_DATA    (-2)
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 

@@ -55,7 +55,6 @@
 #ifdef HAVE_BERKELEY_DB
 #include <m_ctype.h>
 #include <myisampack.h>
-#include <assert.h>
 #include <hash.h>
 #include "ha_berkeley.h"
 #include "sql_manager.h"

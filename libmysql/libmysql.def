@@ -107,7 +107,6 @@ EXPORTS
 	getopt_ull_limit_value
 	getopt_compare_strings
 	mysql_warning_count
-	mysql_warnings
 	mysql_prepare
         mysql_execute
 	mysql_param_count
@@ -119,7 +118,6 @@ EXPORTS
         mysql_stmt_errno
         mysql_fetch
         mysql_send_long_data
-        mysql_multi_query
         mysql_next_result
         mysql_commit
         mysql_rollback

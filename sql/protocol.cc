@@ -25,7 +25,6 @@
 
 #include "mysql_priv.h"
 #include <stdarg.h>
-#include <assert.h>
 
 	/* Send a error string to client */
 

@@ -456,7 +456,7 @@ dict_load_indexes(
 		ut_ad(len == 8);
 		id = mach_read_from_8(field);
 
-		ut_a(0 == ut_strcmp("NAME",
+		ut_a(0 == ut_strcmp((void*) "NAME",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_indexes), 4))->name));
@@ -515,7 +515,7 @@ dict_load_indexes(
 		    && ((type & DICT_CLUSTERED)
 		        || ((table == dict_sys->sys_tables)
 		            && (name_len == ut_strlen("ID_IND"))
-			    && (0 == ut_memcmp(name_buf, "ID_IND",
+			    && (0 == ut_memcmp(name_buf, (void*) "ID_IND",
 							name_len))))) {
 
 			/* The index was created in memory already in

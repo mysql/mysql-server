@@ -23,6 +23,7 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "mysys_err.h"
+#include <m_string.h>
 
 /*
   Alloc for things we don't nead to free

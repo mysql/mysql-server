@@ -4018,7 +4018,7 @@ static int fill_uchar(uchar *a,uint size,const char *str, uint len)
     for ( ; (s < e) && !strchr(" \t\r\n",s[0]); s++) ;
     if (s == b || i > size)
       break;
-    a[i]= my_strntoul(my_charset_latin1,b,s-b,16,NULL,&err);
+    a[i]= (uchar) my_strntoul(my_charset_latin1,b,s-b,16,NULL,&err);
   }
   return 0;
 }
@@ -4036,7 +4036,7 @@ static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
     for ( ; (s < e) && !strchr(" \t\r\n",s[0]); s++) ;
     if (s == b || i > size)
       break;
-    a[i]= my_strntol(my_charset_latin1,b,s-b,16,NULL,&err);
+    a[i]= (uint16) my_strntol(my_charset_latin1,b,s-b,16,NULL,&err);
   }
   return 0;
 }

@@ -24,8 +24,6 @@
 #include <my_dir.h>
 #endif /* MYSQL_CLIENT */
 
-#include <assert.h>
-
 #define log_cs	my_charset_latin1
 
 /*****************************************************************************
@@ -1652,7 +1650,7 @@ void Rotate_log_event::pack_info(Protocol *protocol)
   memcpy(buf, new_log_ident, ident_len);
   b_pos+= ident_len;
   b_pos= strmov(b_pos, ";pos=");
-  b_pos=int10_to_str(pos, b_pos, 10);
+  b_pos=longlong10_to_str(pos, b_pos, 10);
   if (flags & LOG_EVENT_FORCED_ROTATE_F)
     b_pos= strmov(b_pos ,"; forced by master");
   protocol->store(buf, b_pos-buf);
@@ -1789,7 +1787,7 @@ void Intvar_log_event::pack_info(Protocol *protocol)
   char buf[64], *pos;
   pos= strmov(buf, get_var_type_name());
   *(pos++)='=';
-  pos=int10_to_str(val, pos, -10);
+  pos= longlong10_to_str(val, pos, -10);
   protocol->store(buf, pos-buf);
 }
 #endif // !MYSQL_CLIENT
@@ -2000,7 +1998,7 @@ void Slave_log_event::pack_info(Protocol *protocol)
   pos= strmov(pos, ",log=");
   pos= strmov(pos, master_log);
   pos= strmov(pos, ",pos=");
-  pos= int10_to_str(master_pos, pos, 10);
+  pos= longlong10_to_str(master_pos, pos, 10);
   protocol->store(buf, pos-buf);
 }
 #endif // !MYSQL_CLIENT

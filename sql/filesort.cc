@@ -23,7 +23,6 @@
 #endif
 #include <m_ctype.h>
 #include "sql_sort.h"
-#include "assert.h"
 
 #ifndef THREAD
 #define SKIP_DBUG_IN_FILESORT

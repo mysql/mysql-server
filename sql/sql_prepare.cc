@@ -67,7 +67,6 @@ Long data handling:
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h" // for JOIN
-#include <assert.h> // for DEBUG_ASSERT()
 #include <m_ctype.h>  // for isspace()
 
 #define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)

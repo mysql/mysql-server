@@ -2181,6 +2181,7 @@ dict_skip_word(
 /*************************************************************************
 Returns the number of opening brackets '(' subtracted by the number
 of closing brackets ')' between string and ptr. */
+#ifdef NOT_USED
 static
 int
 dict_bracket_count(
@@ -2204,7 +2205,7 @@ dict_bracket_count(
 
 	return(count);
 }
-
+#endif
 /*************************************************************************
 Scans a table create SQL string and adds to the data dictionary the foreign
 key constraints declared in the string. This function should be called after

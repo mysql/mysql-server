@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,8 +80,6 @@ extern "C" {
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #else
-// readline 4.2 has own __P
-#undef __P
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
@@ -1443,7 +1441,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 
   if (result)
   {
-    int num_rows= mysql_num_rows(result);
+    ulonglong num_rows= mysql_num_rows(result);
     if (num_rows == 1)
     {
       if (!(cur= mysql_fetch_row(result)))

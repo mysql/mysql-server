@@ -24,7 +24,6 @@
 #include <my_dir.h>
 #include <hash.h>
 #include <nisam.h>
-#include <assert.h>
 #ifdef	__WIN__
 #include <io.h>
 #endif

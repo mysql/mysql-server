@@ -67,7 +67,8 @@ static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
 
-class Load_log_processor {
+class Load_log_processor
+{
   char target_dir_name[MY_NFILE];
   int target_dir_name_len;
   DYNAMIC_ARRAY file_names;
@@ -103,12 +104,10 @@ class Load_log_processor {
   void append_to_file(const char* fname, int flags, 
 		      gptr data, uint size)
     {
-      FILE *file;
-      if(!(file= my_fopen(fname,flags,MYF(MY_WME))))	
-	exit(1);
-      if (my_fwrite(file,data,size,MYF(MY_WME|MY_NABP)))
-	exit(1);
-      if (my_fclose(file,MYF(MY_WME)))
+      File file;
+      if ((file= my_open(fname,flags,MYF(MY_WME)) < 0) ||
+	  my_write(file,(byte*) data,size,MYF(MY_WME|MY_NABP)) ||
+	  my_close(file,MYF(MY_WME)))
 	exit(1);
     }
 
@@ -176,7 +175,7 @@ public:
   void process(Create_file_log_event *ce)
     {
       const char *fname= create_file(ce);
-      append_to_file (fname,O_CREAT|O_BINARY,ce->block,ce->block_len);
+      append_to_file(fname,O_CREAT|O_BINARY,ce->block,ce->block_len);
     }
   void process(Append_block_log_event *ae)
     {

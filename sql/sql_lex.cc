@@ -21,7 +21,6 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
-#include <assert.h>
 
 LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
 
@@ -235,7 +234,9 @@ static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
   yyUnget();			// ptr points now after last token char
   tmp.length=lex->yytoklen=length;
   tmp.str=(char*) lex->thd->alloc(tmp.length+1);
-  for (from= (byte*) lex->tok_start, to= tmp.str, end= to+length ; to != end ;)
+  for (from= (byte*) lex->tok_start, to= (byte*) tmp.str, end= to+length ;
+       to != end ;
+       )
   {
     if ((*to++= *from++) == quote)
       from++;					// Skip double quotes

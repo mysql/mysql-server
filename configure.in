@@ -2039,14 +2039,18 @@ mkdir include/readline
 
 if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
 then
-    readline_dir="cmd-line-utils/libedit"
+    readline_topdir="cmd-line-utils"
+    readline_basedir="libedit"
+    readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
     readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/libedit/readline/*.h readline/"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
 elif test "$with_readline" = "yes"
 then
-    readline_dir="cmd-line-utils/readline"
+    readline_topdir="cmd-line-utils"
+    readline_basedir="readline"
+    readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
     readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/readline/*.h readline/"
     compile_readline=yes
@@ -2056,16 +2060,19 @@ else
     MYSQL_CHECK_NEW_RL_INTERFACE
     if ["$mysql_cv_new_rl_interface"="yes"] || [test "$mysql_cv_libedit_interface"="no"]
     then
-        readline_dir=""
         readline_link="-lreadline"
     else
-        readline_dir=""
         readline_link="-ledit"
     fi
+    readline_topdir=""
+    readline_basedir=""
+    readline_dir=""
     readline_h_ln_cmd=""
 fi
 
 AC_SUBST(readline_dir)
+AC_SUBST(readline_topdir)
+AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
@@ -2077,10 +2084,10 @@ dnl you must also create strings/ctype-$charset_name.c
 
 AC_DIVERT_PUSH(0)
 CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
-                          croat czech danish dec8 dos estonia euc_kr gb2312 gbk
-                          german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                          latin1 latin1_de latin2 latin5 sjis swe7 tis620 ucs2 ujis
-                          usa7 utf8 win1250 win1250ch win1251ukr"
+                    croat czech danish dec8 dos estonia euc_kr gb2312 gbk
+                    german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
+                    latin1 latin1_de latin2 latin5 sjis swe7 tis620 ucs2 ujis
+                    usa7 utf8 win1250 win1250ch win1251ukr"
 CHARSETS_DEPRECATED="win1251"
 CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ucs2 ujis utf8 win1250ch"
 DEFAULT_CHARSET=latin1
@@ -2454,11 +2461,13 @@ AC_SUBST(GXX)
 
 if test "$compile_readline" = "yes"
 then
+    AC_OUTPUT(cmd-line-utils/Makefile)
     AC_OUTPUT(cmd-line-utils/readline/Makefile)
 fi
 
 if test "$compile_libedit" = "yes"
 then
+    AC_OUTPUT(cmd-line-utils/Makefile)
     AC_OUTPUT(cmd-line-utils/libedit/Makefile)
 fi
 

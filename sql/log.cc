@@ -29,7 +29,6 @@
 #include <my_dir.h>
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
-#include <assert.h>
 
 #define files_charset_info my_charset_latin1
 

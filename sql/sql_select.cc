@@ -29,7 +29,6 @@
 #include <m_ctype.h>
 #include <hash.h>
 #include <ft_global.h>
-#include <assert.h>
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext" };

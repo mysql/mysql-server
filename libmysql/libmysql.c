@@ -452,14 +452,16 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     unique_part is uniquel value for each object (events and file-mapping)
     number_of_connection is number of connection between server and client
 */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
+  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
+		       "_",NullS);
   strmov(suffix_pos, "DATA");
   if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
     goto err2;
   }
-  if ((handle_map = MapViewOfFile(handle_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == NULL)
+  if ((handle_map = MapViewOfFile(handle_file_map,FILE_MAP_WRITE,0,0,
+				  smem_buffer_length)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_MAP_ERROR;
     goto err2;
@@ -2330,8 +2332,8 @@ Try also with PIPE or TCP/IP
        /* Create password to decode scramble */
        create_key_from_old_password(passwd,password_hash);
        /* Decypt and store scramble 4 = hash for stage2 */
-       password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
-                      SCRAMBLE41_LENGTH);
+       password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		      password_hash, SCRAMBLE41_LENGTH);
        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
        /* Finally scramble decoded scramble with password */
        scramble(buff, mysql->scramble_buff, passwd,0);
@@ -4088,36 +4090,32 @@ static void store_param_null(NET *net, MYSQL_BIND *param)
   client application
 */
 
+
 static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 {
   MYSQL *mysql= stmt->mysql;
   NET	*net  = &mysql->net;
   DBUG_ENTER("store_param");
-  DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %d", param->buffer_type,
-    param->buffer ? param->buffer : "0", *param->length));
-  
-  if (param->buffer_type == MYSQL_TYPE_NULL || 
-      *param->length == MYSQL_NULL_DATA)
+  DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %lu  is_null: %d",
+		      param->buffer_type,
+		      param->buffer ? param->buffer : "0", *param->length,
+		      *param->is_null));
+
+  if (*param->is_null)
     store_param_null(net, param);
   else
   {
-    unsigned int length;
-    
-    /* 
-       Allocate for worst case (long string), ignore the length 
-       buffer for numeric/double types by assigning the default 
-       length using get_binary_length
-     */      
-    
-    if (!(length= get_binary_length(param->buffer_type)))
-      length= *param->length;
-    
-    if ((my_realloc_str(net, 9 + length)))
+    /*
+      Param->length should ALWAYS point to the correct length for the type
+      Either to the length pointer given by the user or param->bind_length
+    */
+    if ((my_realloc_str(net, 9 + *param->length)))
       DBUG_RETURN(1);
     (*param->store_param_func)(net, param);
   }
   DBUG_RETURN(0);
 }
+
 
 /*
   Send the prepare query to server for execution
@@ -4200,14 +4198,11 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
 
     for (param= stmt->params; param < param_end; param++)
     {
-      /* Check for long data which has not been propery given/terminated */
-      if (*param->length == MYSQL_LONG_DATA)
-      {
-        if (!param->long_ended)
-          DBUG_RETURN(MYSQL_NEED_DATA);
-      }
+      /* check if mysql_long_data() was used */
+      if (param->long_data_used)
+	param->long_data_used= 0;	/* Clear for next execute call */
       else if (store_param(stmt, param))
-	      DBUG_RETURN(1);
+	DBUG_RETURN(1);
     }
     length= (ulong) (net->write_pos - net->buff);
     /* TODO: Look into avoding the following memdup */
@@ -4245,6 +4240,11 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
   return stmt->mysql->last_used_con->affected_rows;
 }
 
+
+static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
+static my_bool int_is_null_false= 0;
+static my_bool int_is_null_dummy;
+
 /*
   Setup the parameter data buffers from application
 */
@@ -4277,19 +4277,6 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
        param++)
   {
     param->param_number= count++;
-    if (param->length && *param->length == MYSQL_LONG_DATA &&
-	(param->buffer_type < MYSQL_TYPE_TINY_BLOB ||
-	 param->buffer_type > MYSQL_TYPE_STRING))
-    {
-      /*
-	Long data handling should be used only for string/binary
-	types only
-      */
-      sprintf(stmt->last_error, ER(stmt->last_errno= CR_INVALID_BUFFER_USE),
-	      param->param_number);
-      DBUG_RETURN(1);
-    }
-
     /*
       If param->length is not given, change it to point to bind_length.
       This way we can always use *param->length to get the length of data
@@ -4297,33 +4284,44 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     if (!param->length)
       param->length= &param->bind_length;
 
+    /* If param->is_null is not set, then the value can never be NULL */
+    if (!param->is_null)
+      param->is_null= &int_is_null_false;
+
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_NULL:
-      param->bind_length= MYSQL_NULL_DATA;
+      param->is_null= &int_is_null_true;
       break;
     case MYSQL_TYPE_TINY:
-      param->bind_length= 1;
+      /* Force param->length as this is fixed for this type */
+      param->length= &param->bind_length;
+      param->bind_length= param->buffer_length= 1;
       param->store_param_func= store_param_tinyint;
       break;
     case MYSQL_TYPE_SHORT:
-      param->bind_length= 2;
+      param->length= &param->bind_length;
+      param->bind_length= param->buffer_length= 2;
       param->store_param_func= store_param_short;
       break;
     case MYSQL_TYPE_LONG:
-      param->bind_length= 4;
+      param->length= &param->bind_length;
+      param->bind_length= param->buffer_length= 4;
       param->store_param_func= store_param_int32;
       break;
     case MYSQL_TYPE_LONGLONG:
-      param->bind_length= 8;
+      param->length= &param->bind_length;
+      param->bind_length= param->buffer_length= 8;
       param->store_param_func= store_param_int64;
       break;
     case MYSQL_TYPE_FLOAT:
-      param->bind_length= 4;
+      param->length= &param->bind_length;
+      param->bind_length= param->buffer_length= 4;
       param->store_param_func= store_param_float;
       break;
     case MYSQL_TYPE_DOUBLE:
-      param->bind_length= 8;
+      param->length= &param->bind_length;
+      param->bind_length= param->buffer_length= 8;
       param->store_param_func= store_param_double;
       break;
     case MYSQL_TYPE_TINY_BLOB:
@@ -4336,7 +4334,8 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
       param->store_param_func= store_param_str;
       break;
     default:
-      sprintf(stmt->last_error, ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+      sprintf(stmt->last_error,
+	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
 	      param->buffer_type, param->param_number);
       DBUG_RETURN(1);
     }
@@ -4361,18 +4360,16 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     param_number		Parameter number (0 - N-1)
     data			Data to send to server
     length			Length of data to send (may be 0)
-    last_data			If != 0 then this is the last data to the
-				server.
+
   RETURN VALUES
-  0	ok
-  1	error
+    0	ok
+    1	error
 */
 
 
 my_bool STDCALL
 mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
-		     const char *data, ulong length,
-		     my_bool last_data)
+		     const char *data, ulong length)
 {
   MYSQL_BIND *param;
   DBUG_ENTER("mysql_send_long_data");
@@ -4386,6 +4383,19 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
     DBUG_RETURN(1);
   }
   param= stmt->params+param_number;
+  if (param->buffer_type < MYSQL_TYPE_TINY_BLOB ||
+      param->buffer_type > MYSQL_TYPE_STRING)
+  {
+    /*
+      Long data handling should be used only for string/binary
+      types only
+    */
+    sprintf(stmt->last_error, ER(stmt->last_errno= CR_INVALID_BUFFER_USE),
+	    param->param_number);
+    DBUG_RETURN(1);
+  }
+  /* Mark for execute that the result is already sent */
+  param->long_data_used= 1;
   if (length)
   {
     MYSQL *mysql= stmt->mysql;
@@ -4407,7 +4417,6 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
       DBUG_RETURN(1);
     }
   }
-  param->long_ended= last_data;
   DBUG_RETURN(0);
 }
 
@@ -4582,6 +4591,7 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   } 
 }
 
+
 /* Fetch data to buffers */
 static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
                              uint field_type, uchar **row)
@@ -4645,7 +4655,7 @@ static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
       break;
     }
     if (param->buffer_type < MYSQL_TYPE_VAR_STRING ||
-	      param->buffer_type > MYSQL_TYPE_STRING)
+	param->buffer_type > MYSQL_TYPE_STRING)
     {
       /*
         Don't allow fetching of date/time/ts to non-string types 
@@ -4829,6 +4839,13 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 
   for (param= stmt->bind, end= param+bind_count; param < end ; param++)
   {
+    /*
+      Set param->is_null to point to a dummy variable if it's not set.
+      This is to make the excute code easier
+    */
+    if (!param->is_null)
+      param->is_null= &int_is_null_dummy;
+
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_TINY:
@@ -4855,10 +4872,12 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
+      DBUG_ASSERT(param->buffer_length != 0);
       param->fetch_result= fetch_result_str;
       break;
     default:
-      sprintf(stmt->last_error, ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+      sprintf(stmt->last_error,
+	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
 	      param->buffer_type, param->param_number);
       DBUG_RETURN(1);
     }
@@ -4884,8 +4903,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
     return 0;
   
   null_ptr= row; 
-  row+= (stmt->field_count+9)/8; /* skip null bits */
-  bit= 4; /* first 2 bits are reserved */
+  row+= (stmt->field_count+9)/8;		/* skip null bits */
+  bit= 4;					/* first 2 bits are reserved */
   
   /* Copy complete row to application buffers */
   for (bind= stmt->bind, end= (MYSQL_BIND *) bind + stmt->field_count, 
@@ -4895,15 +4914,16 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
        bind++, field++)
   {         
     if (*null_ptr & bit)
-      *bind->length= MYSQL_NULL_DATA;
+      *bind->is_null= 1;
     else
     { 
+      *bind->is_null= 0;
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else if (fetch_results(stmt, bind, field->type, &row))
         return 1;
     }
-    if (! (bit<<=1) & 255)
+    if (! ((bit<<=1) & 255))
     {
       bit= 1;					/* To next byte */
       null_ptr++;
