@@ -1251,11 +1251,6 @@ a	b
 2	NULL
 3	1
 drop table t1, t2;
-create table t1(City VARCHAR(30),Location geometry);
-insert into t1 values("Paris",GeomFromText('POINT(2.33 48.87)'));
-select City from t1 where (select intersects(GeomFromText(AsText(Location)),GeomFromText('Polygon((2 50, 2.5 50, 2.5 47, 2 47, 2 50))'))=0);
-City
-drop table t1;
 CREATE TABLE `t1` (
 `id` mediumint(8) unsigned NOT NULL auto_increment,
 `pseudo` varchar(35) NOT NULL default '',
