@@ -1085,7 +1085,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
         out=line;
       }
     }
-    else if (*ml_comment && !*in_string && inchar == '*' && *(pos+1) == '/')
+    else if (*ml_comment && inchar == '*' && *(pos + 1) == '/')
     {
       pos++;
       *ml_comment= 0;
@@ -1093,11 +1093,13 @@ static bool add_line(String &buffer,char *line,char *in_string,
     else
     {						// Add found char to buffer
       if (inchar == *in_string)
-	*in_string=0;
-      else if (!*in_string && (inchar == '\'' || inchar == '"' || inchar == '`'))
-	*in_string=(char) inchar;
-      if (!(*ml_comment))
-        *out++ = (char) inchar;
+	*in_string= 0;
+      else if (!*ml_comment)
+      {
+	if (!*in_string && (inchar == '\'' || inchar == '"' || inchar == '`'))
+	  *in_string= (char) inchar;
+	*out++= (char) inchar;
+      }
     }
   }
   if (out != line || !buffer.is_empty())
