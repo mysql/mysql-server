@@ -450,6 +450,7 @@ while test $# -gt 0; do
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqldump.trace"
       EXTRA_MYSQLBINLOG_OPT="$EXTRA_MYSQLBINLOG_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlbinlog.trace"
+      EXTRA_MYSQL_CLIENT_TEST_OPT="--debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysql_client_test.trace"
       ;;
     --fast)
       FAST_START=1
@@ -689,7 +690,7 @@ then
   EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
 fi
 
-MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent"
+MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent $EXTRA_MYSQL_CLIENT_TEST_OPT"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"

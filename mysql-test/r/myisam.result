@@ -1156,9 +1156,9 @@ Warnings:
 Error	2	Can't find file: 't1' (errno: 2)
 create table t1 (a int) engine=myisam;
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+Got one of the listed errors
 create table t1 (a int) engine=myisam;
 drop table t1;
-ERROR HY000: File './test/t1.MYD' not found (Errcode: 2)
+Got one of the listed errors
 drop table t1;
 ERROR 42S02: Unknown table 't1'

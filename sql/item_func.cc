@@ -3169,7 +3169,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
-    entry->collation.set(NULL, DERIVATION_NONE);
+    entry->collation.set(NULL, DERIVATION_IMPLICIT);
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -3227,8 +3227,8 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
     and the variable has previously been initialized.
   */
   if (!entry->collation.collation || !args[0]->null_value)
-    entry->collation.set(args[0]->collation);
-  collation.set(entry->collation);
+    entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
+  collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
   return FALSE;
 }
@@ -3240,7 +3240,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
-  collation.set(args[0]->collation);
+  collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
 }
 
 
@@ -3516,7 +3516,7 @@ Item_func_set_user_var::update()
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       args[0]->collation.derivation);
+		       DERIVATION_IMPLICIT);
     break;
   }
   case DECIMAL_RESULT:
