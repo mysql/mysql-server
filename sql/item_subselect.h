@@ -130,6 +130,7 @@ public:
     max_length= item->max_length;
     decimals= item->decimals;
   }
+  Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
 
   subs_type substype() { return SINGLEROW_SUBS; }
 
@@ -151,6 +152,15 @@ public:
   void bring_value();
 
   friend class select_singlerow_subselect;
+};
+
+/* used in static ALL/ANY optimisation */
+class Item_maxmin_subselect: public Item_singlerow_subselect
+{
+public:
+  Item_maxmin_subselect(THD *thd, st_select_lex *select_lex, bool max);
+  Item_maxmin_subselect(Item_maxmin_subselect *item)
+    :Item_singlerow_subselect(item) {}
 };
 
 /* exists subselect */
