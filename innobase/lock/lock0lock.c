@@ -5105,3 +5105,45 @@ lock_clust_rec_read_check_and_lock(
 
 	return(err);
 }
+/*************************************************************************
+Checks if locks of other transactions prevent an immediate read, or passing
+over by a read cursor, of a clustered index record. If they do, first tests
+if the query thread should anyway be suspended for some reason; if not, then
+puts the transaction and the query thread to the lock wait state and inserts a
+waiting request for a record lock to the lock queue. Sets the requested mode
+lock on the record. This is an alternative version of
+lock_clust_rec_read_check_and_lock() that does not require the parameter
+"offsets". */
+
+ulint
+lock_clust_rec_read_check_and_lock_alt(
+/*===================================*/
+				/* out: DB_SUCCESS, DB_LOCK_WAIT,
+				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
+				does nothing */
+	rec_t*		rec,	/* in: user record or page supremum record
+				which should be read or passed over by a read
+				cursor */
+	dict_index_t*	index,	/* in: clustered index */
+	ulint		mode,	/* in: mode of the lock which the read cursor
+				should set on records: LOCK_S or LOCK_X; the
+				latter is possible in SELECT FOR UPDATE */
+	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	mem_heap_t*	tmp_heap	= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
+	ulint		ret;
+
+	offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &tmp_heap);
+	ret = lock_clust_rec_read_check_and_lock(flags, rec, index,
+						offsets, mode, gap_mode, thr);
+	if (tmp_heap) {
+		mem_heap_free(tmp_heap);
+	}
+	return(ret);
+}
