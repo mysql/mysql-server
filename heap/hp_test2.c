@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=6;
   keyinfo[0].seg[0].null_bit=0;
+  keyinfo[0].seg[0].charset=default_charset_info;
   keyinfo[1].seg=keyseg+1;
   keyinfo[1].keysegs=2;
   keyinfo[1].flag=0;
@@ -88,10 +89,12 @@ int main(int argc, char *argv[])
   keyinfo[1].seg[0].start=7;
   keyinfo[1].seg[0].length=6;
   keyinfo[1].seg[0].null_bit=0;
+  keyinfo[1].seg[0].charset=default_charset_info;
   keyinfo[1].seg[1].type=HA_KEYTYPE_TEXT;
   keyinfo[1].seg[1].start=0;			/* key in two parts */
   keyinfo[1].seg[1].length=6;
   keyinfo[1].seg[1].null_bit=0;
+  keyinfo[1].seg[1].charset=default_charset_info;
   keyinfo[2].seg=keyseg+3;
   keyinfo[2].keysegs=1;
   keyinfo[2].flag=HA_NOSAME;
@@ -99,6 +102,7 @@ int main(int argc, char *argv[])
   keyinfo[2].seg[0].start=12;
   keyinfo[2].seg[0].length=8;
   keyinfo[2].seg[0].null_bit=0;
+  keyinfo[2].seg[0].charset=default_charset_info;
   keyinfo[3].keysegs=1;
   keyinfo[3].flag=HA_NOSAME;
   keyinfo[3].seg=keyseg+4;
@@ -107,15 +111,15 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].length=1;
   keyinfo[3].seg[0].null_bit=1;
   keyinfo[3].seg[0].null_pos=38;
+  keyinfo[3].seg[0].charset=default_charset_info;
 
   bzero((char*) key1,sizeof(key1));
   bzero((char*) key3,sizeof(key3));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename))
-    goto err;
-  if (!(file=heap_open(filename,2,keys,keyinfo,reclength,(ulong) flag*100000L,
-		       (ulong) recant/2)))
+  if (heap_create(filename,keys,keyinfo,reclength,(ulong) flag*100000L, 
+		(ulong) recant/2) ||
+      !(file= heap_open(filename, 2)))
     goto err;
   signal(SIGINT,endprog);
 
@@ -530,7 +534,7 @@ int main(int argc, char *argv[])
   if (testflag == 4) goto end;
 
   printf("- Reading through all rows through keys\n");
-  if (!(file2=heap_open(filename,2,0,0,0,0,0)))
+  if (!(file2=heap_open(filename, 2)))
     goto err;
   if (heap_scan_init(file))
     goto err;
@@ -549,7 +553,7 @@ int main(int argc, char *argv[])
   heap_close(file2);
 
   printf("- Creating output heap-file 2\n");
-  if (!(file2=heap_open(filename2,2,1,keyinfo,reclength,0L,0L)))
+  if (!(file2=heap_open(filename2, 2)))
     goto err;
 
   printf("- Copying and removing records\n");

@@ -142,9 +142,7 @@ typedef struct st_heap_info
 
 	/* Prototypes for heap-functions */
 
-extern HP_INFO* heap_open(const char *name,int mode,uint keys,
-			  HP_KEYDEF *keydef,uint reclength,
-			  ulong max_records,ulong min_reloc);
+extern HP_INFO *heap_open(const char *name, int mode);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const byte *buff);
 extern int heap_update(HP_INFO *info,const byte *old,const byte *newdata);
@@ -153,7 +151,8 @@ extern int heap_scan_init(HP_INFO *info);
 extern int heap_scan(register HP_INFO *info, byte *record);
 extern int heap_delete(HP_INFO *info,const byte *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
-extern int heap_create(const char *name);
+extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
+		       uint reclength, ulong max_records, ulong min_records);
 extern int heap_delete_table(const char *name);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
 extern int heap_rename(const char *old_name,const char *new_name);
