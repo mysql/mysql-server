@@ -49350,7 +49350,7 @@ Fixed mutex bug in replication when reading from master fails.
 Added missing mutex in @code{TRUNCATE TABLE};  This fixes some core
 dump/hangup problems when using @code{TRUNCATE TABLE}.
 @item
-Fixed bug in multi-table @code{DELETE} when optimiser uses only indices
+Fixed bug in multi-table @code{DELETE} when optimiser uses only indices.
 @item
 Fixed that @code{ALTER TABLE table_name RENAME new_table_name} is as fast
 as @code{RENAME TABLE}.
