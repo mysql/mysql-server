@@ -173,15 +173,19 @@ NDB_MAIN(mgmsrv){
   /****************************
    * Read configuration files *
    ****************************/
-  if (!readLocalConfig())
+  LocalConfig local_config;
+  if(!local_config.init(0,glob.local_config_filename)){
+    local_config.printError();
     goto error_end;
+  }
+  glob.localNodeId = local_config._ownNodeId;
+
   if (!readGlobalConfig())
     goto error_end;
 
   glob.mgmObject = new MgmtSrvr(glob.localNodeId,
 				BaseString(glob.config_filename),
-				BaseString(glob.local_config_filename == 0 ?
-					   "" : glob.local_config_filename),
+				local_config,
 				glob.cluster_config);
 
   chdir(NdbConfig_get_path(0));
@@ -319,25 +323,6 @@ MgmGlobals::~MgmGlobals(){
   if (interface_name)
     free(interface_name);
 }
-
-/**
- * @fn      readLocalConfig
- * @param   glob : Global variables
- * @return  true if success, false otherwise.
- */
-static bool
-readLocalConfig(){
-  // Read local config file
-  LocalConfig lc;
-  if(!lc.init(0,glob.local_config_filename)){
-    lc.printError();
-    return false;
-  }
-  
-  glob.localNodeId = lc._ownNodeId;
-  return true;
-}
-
 
 /**
  * @fn      readGlobalConfig

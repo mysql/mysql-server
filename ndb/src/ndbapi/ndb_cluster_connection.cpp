@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 #include <my_pthread.h>
+#include <my_sys.h>
 
 #include <ndb_cluster_connection.hpp>
 #include <TransporterFacade.hpp>
@@ -30,14 +31,18 @@ static int g_run_connect_thread= 0;
 
 Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
 {
+  DBUG_ENTER("Ndb_cluster_connection");
+  DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
   m_facade= TransporterFacade::theFacadeInstance= new TransporterFacade();
   if (connect_string)
-    m_connect_string= strdup(connect_string);
+    m_connect_string= my_strdup(connect_string,MYF(MY_WME));
   else
     m_connect_string= 0;
   m_config_retriever= 0;
+  m_local_config= 0;
   m_connect_thread= 0;
   m_connect_callback= 0;
+  DBUG_VOID_RETURN;
 }
 
 extern "C" pthread_handler_decl(run_ndb_cluster_connection_connect_thread, me)
@@ -102,8 +107,16 @@ int Ndb_cluster_connection::connect(int reconnect)
   do {
     if (m_config_retriever == 0)
     {
-      m_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_API);
-      m_config_retriever->setConnectString(m_connect_string);
+      if (m_local_config == 0) {
+	m_local_config= new LocalConfig();
+	if (!m_local_config->init(m_connect_string,0)) {
+	  ndbout << "Configuration error: Unable to retrieve local config" << endl;
+	  m_local_config->printError();
+	  m_local_config->printUsage();
+	  DBUG_RETURN(-1);
+	}
+      }
+      m_config_retriever= new ConfigRetriever(*m_local_config, NDB_VERSION, NODE_TYPE_API);
       if(m_config_retriever->init() == -1)
 	break;
     }
@@ -148,6 +161,8 @@ int Ndb_cluster_connection::connect(int reconnect)
 
 Ndb_cluster_connection::~Ndb_cluster_connection()
 {
+  DBUG_ENTER("~Ndb_cluster_connection");
+  DBUG_PRINT("enter",("~Ndb_cluster_connection this=0x%x", this));
   TransporterFacade::stop_instance();
   if (m_connect_thread)
   {
@@ -164,10 +179,12 @@ Ndb_cluster_connection::~Ndb_cluster_connection()
       abort();
     TransporterFacade::theFacadeInstance= 0;
   }
-  if (m_connect_string)
-    free(m_connect_string);
+  my_free(m_connect_string,MYF(MY_ALLOW_ZERO_PTR));
   if (m_config_retriever)
     delete m_config_retriever;
+  if (m_local_config)
+    delete m_local_config;
+  DBUG_VOID_RETURN;
 }
 
 

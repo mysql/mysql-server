@@ -125,10 +125,8 @@
 #define CFG_SCI_HOST1_ID_1            551
 #define CFG_SCI_HOST2_ID_0            552
 #define CFG_SCI_HOST2_ID_1            553
-#define CFG_SCI_HOSTNAME_1            554
-#define CFG_SCI_HOSTNAME_2            555
-#define CFG_SCI_SEND_LIMIT            556
-#define CFG_SCI_BUFFER_MEM            557
+#define CFG_SCI_SEND_LIMIT            554
+#define CFG_SCI_BUFFER_MEM            555
 
 #define CFG_OSE_PRIO_A_SIZE           602
 #define CFG_OSE_PRIO_B_SIZE           603

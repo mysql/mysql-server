@@ -56,6 +56,8 @@ Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
 Ndb::Ndb( const char* aDataBase , const char* aSchema) {
+  DBUG_ENTER("Ndb::Ndb()");
+  DBUG_PRINT("enter",("(old)Ndb::Ndb this=0x%x", this));
   NdbMutex_Lock(&createNdbMutex);
   if (theNoOfNdbObjects < 0)
     abort(); // old and new Ndb constructor used mixed
@@ -66,16 +68,20 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) {
   }
   NdbMutex_Unlock(&createNdbMutex);
   setup(global_ndb_cluster_connection, aDataBase, aSchema);
+  DBUG_VOID_RETURN;
 }
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
 {
+  DBUG_ENTER("Ndb::Ndb()");
+  DBUG_PRINT("enter",("Ndb::Ndb this=0x%x", this));
   if (global_ndb_cluster_connection != 0 &&
       global_ndb_cluster_connection != ndb_cluster_connection)
     abort(); // old and new Ndb constructor used mixed
   theNoOfNdbObjects= -1;
   setup(ndb_cluster_connection, aDataBase, aSchema);
+  DBUG_VOID_RETURN;
 }
 
 void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
@@ -213,6 +219,7 @@ void Ndb::setConnectString(const char * connectString)
 Ndb::~Ndb()
 { 
   DBUG_ENTER("Ndb::~Ndb()");
+  DBUG_PRINT("enter",("Ndb::~Ndb this=0x%x",this));
   doDisconnect();
 
   delete theDictionary;  
@@ -240,10 +247,6 @@ Ndb::~Ndb()
 //    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
     freeNdbCon();
-  while ( theSignalIdleList != NULL )
-    freeSignal();
-  while (theRecAttrIdleList != NULL)
-    freeRecAttr(); 
   while (theOpIdleList != NULL)
     freeOperation();
   while (theScanOpIdleList != NULL)
@@ -262,6 +265,10 @@ Ndb::~Ndb()
     freeNdbScanRec();
   while (theNdbBlobIdleList != NULL)
     freeNdbBlob();
+  while (theRecAttrIdleList != NULL)
+    freeRecAttr(); 
+  while ( theSignalIdleList != NULL )
+    freeSignal();
   
   releaseTransactionArrays();
   startTransactionNodeSelectionData.release();

@@ -1269,6 +1269,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
       type.set(tmp, sizeof(tmp), system_charset_info);
+    else
+      type.set_charset(system_charset_info);
 
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);

@@ -45,8 +45,10 @@
 //****************************************************************************
 //****************************************************************************
 
-ConfigRetriever::ConfigRetriever(Uint32 version, Uint32 node_type) {
-  
+ConfigRetriever::ConfigRetriever(LocalConfig &local_config,
+				 Uint32 version, Uint32 node_type)
+  : _localConfig(local_config)
+{
   m_handle= 0;
   m_version = version;
   m_node_type = node_type;
@@ -66,20 +68,14 @@ ConfigRetriever::~ConfigRetriever(){
  
 int 
 ConfigRetriever::init() {
-  if (!_localConfig.init(m_connectString.c_str(), 
-			 _localConfigFileName.c_str())){
-    
-    setError(CR_ERROR, "error in retrieving contact info for mgmtsrvr");
-    _localConfig.printError();
-    _localConfig.printUsage();
-    return -1;
-  }
-  
   return _ownNodeId = _localConfig._ownNodeId;
 }
 
 int
 ConfigRetriever::do_connect(int exit_on_connect_failure){
+
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
 
   if(!m_handle)
     m_handle= ndb_mgm_create_handle();
@@ -101,6 +97,8 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
       case MgmId_TCP:
 	tmp.assfmt("%s:%d", m->name.c_str(), m->port);
 	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
+	  m_mgmd_port= m->port;
+	  m_mgmd_host= m->name.c_str();
 	  return 0;
 	}
 	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
@@ -125,6 +123,8 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
   
   ndb_mgm_destroy_handle(&m_handle);
   m_handle= 0;
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
   return -1;
 }
 
@@ -228,16 +228,6 @@ ConfigRetriever::setError(ErrorType et, const char * s){
 const char * 
 ConfigRetriever::getErrorString(){
   return errorString.c_str();
-}
-
-void 
-ConfigRetriever::setLocalConfigFileName(const char * localConfigFileName) {
-  _localConfigFileName.assign(localConfigFileName ? localConfigFileName : "");
-}
-
-void 
-ConfigRetriever::setConnectString(const char * connectString) {
-  m_connectString.assign(connectString ? connectString : "");
 }
 
 bool

@@ -198,4 +198,12 @@ CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
+stop slave;
+delete from t1;
+change master to master_log_pos=5801;
+start slave until master_log_file='master-bin.000001', master_log_pos=5937;
+start slave;
+select hex(c1), hex(c2) from t1;
+hex(c1)	hex(c2)
+CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 drop table t1;

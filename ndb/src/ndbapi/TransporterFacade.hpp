@@ -236,7 +236,6 @@ public:
   NdbMutex* theMutexPtr;
 private:
   static TransporterFacade* theFacadeInstance;
-  static ConfigRetriever *s_config_retriever;
 
 public:
   GlobalDictCache m_globalDictCache;
