@@ -67,3 +67,12 @@ SELECT * FROM t1;
 id	id2
 3	0
 DROP TABLE t1;
+create table t1 (a integer);
+insert into t1 values (1);
+select 1 as a from t1 union all select 1 from dual limit 1;
+a
+1
+(select 1 as a from t1) union all (select 1 from dual) limit 1;
+a
+1
+drop table t1;
