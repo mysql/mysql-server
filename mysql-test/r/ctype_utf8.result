@@ -470,6 +470,42 @@ ERROR 23000: Duplicate entry 'ꪪꪪ' for key 1
 drop table t1;
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
+unique key a using hash (c(1))
+) engine=heap;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) character set utf8 collate utf8_bin default NULL,
+  UNIQUE KEY `a` (`c`(1))
+) ENGINE=HEAP DEFAULT CHARSET=latin1
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'aa' for key 1
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 1
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б�' for key 1
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б�' for key 1
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
+c char(10) character set utf8 collate utf8_bin,
 unique key a using btree (c(1))
 ) engine=heap;
 show create table t1;
