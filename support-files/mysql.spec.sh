@@ -85,7 +85,7 @@ Este pacote contém os clientes padrão para o MySQL.
 %package bench
 Release: %{release}
 Requires: MySQL-client MySQL-DBI-perl-bin perl
-Summary: MySQL - Benchmarks
+Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
@@ -168,7 +168,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	    "
 
  # benchdir does not fit in above model. Maybe a separate bench distribution
- make benchdir=$RPM_BUILD_ROOT/usr/share/sql-bench
+ make benchdir_root=$RPM_BUILD_ROOT/usr/share/
 }
 
 # Use the build root for temporary storage of the shared libraries.
@@ -208,11 +208,12 @@ MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 install -d $RBR/etc/{logrotate.d,rc.d/init.d}
 install -d $RBR/var/lib/mysql/mysql
 install -d $RBR/usr/share/sql-bench
+install -d $RBR/usr/share/mysql-test
 install -d $RBR/usr/{sbin,share,man,include}
 install -d $RBR/usr/doc/MySQL-%{mysql_version}
 install -d $RBR/usr/lib
 # Make install
-make install DESTDIR=$RBR benchdir=/usr/share/sql-bench
+make install DESTDIR=$RBR benchdir_root=/usr/share/
 
 # Install shared libraries (Disable for architectures that don't support it)
 (cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
@@ -366,8 +367,13 @@ fi
 
 %files bench
 %attr(-, root, root) /usr/share/sql-bench
+%attr(-, root, root) /usr/share/mysql-test
 
 %changelog 
+
+* Tue Jan 2  2001  Monty
+
+- Added mysql-test to the bench package
 
 * Fri Aug 18 2000 Tim Smith <tim@mysql.com>
 

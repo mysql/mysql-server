@@ -75,7 +75,7 @@ cp -p mysql-test/include/*.inc $BASE/mysql-test/include
 cp -p mysql-test/std_data/*.dat  mysql-test/std_data/*.frm \
       mysql-test/std_data/*.MRG  $BASE/mysql-test/std_data
 cp -p mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
-cp -p mysql-test/r/*.result  $BASE/mysql-test/r
+cp -p mysql-test/r/*.result mysql-test/r/*.require $BASE/mysql-test/r
 
 cp -p scripts/* $BASE/bin
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh

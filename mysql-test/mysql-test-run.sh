@@ -15,31 +15,56 @@ DBPASSWD=
 VERBOSE=""
 TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 
-# Are we on source or binary distribution?
+#++
+# Program Definitions
+#--
 
-if [ $0 = scripts/mysql-test-run ] ;
-then
- BINARY_DIST=1
+PATH=/bin:/usr/bin:/usr/local/bin
+
+# No paths below as we can't be sure where the program is!
+
+BASENAME=`which basename | head -1`
+CAT=cat
+CUT=cut
+TAIL=tail
+ECHO=echo # use internal echo if possible
+EXPR=expr # use internal if possible
+FIND=find
+GCOV=`which gcov | head -1`
+PRINTF=printf
+RM=rm
+TIME=time
+TR=tr
+XARGS=`which xargs | head -1`
+
+# Are we using a source or a binary distribution?
+
+testdir=@testdir@
+if [ -d bin/mysqld ] && [ -d mysql-test ] ; then
  cd mysql-test
 else
- if [ -d mysql-test ] ; then
-  cd mysql-test
+ if [ -d $testdir/mysql-test ] ; then
+   cd $testdir
  fi
-  
- if [ -f ./mysql-test-run ] && [ -d ../sql ] ; then
- SOURCE_DIST=1
- else
-  $ECHO "If you are using binary distribution, run from install root as"
-  $ECHO "scripts/mysql-test-run. On source distribution run from source root"
-  $ECHO "as mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
+fi
+
+if [ ! -f ./mysql-test-run ] ; then
+  $ECHO "Can't find the location for the mysql-test-run script"
+
+  $ECHO "Go to to the mysql-test directory and execute the script as follows:"
+  $ECHO "./mysql-test-run."
   exit 1
- fi
 fi
 
 #++
 # Misc. Definitions
 #--
 
+if [ -d ../sql ] ; then
+   SOURCE_DIST=1
+else
+   BINARY_DIST=1
+fi
 #BASEDIR is always one above mysql-test directory 
 CWD=`pwd`
 cd ..
@@ -100,22 +125,6 @@ fi
 [ -d $MYSQL_TEST_DIR/var ] || mkdir $MYSQL_TEST_DIR/var
 [ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
 [ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
-
-#++
-# Program Definitions
-#--
-BASENAME=`which basename | head -1`
-CAT=/bin/cat
-CUT=/usr/bin/cut
-ECHO=echo # use internal echo if possible
-EXPR=expr # use internal if possible
-FIND=/usr/bin/find
-GCOV=`which gcov | head -1`
-PRINTF=/usr/bin/printf
-RM=/bin/rm
-TIME=/usr/bin/time
-TR=/usr/bin/tr
-XARGS=`which xargs | head -1`
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
@@ -361,17 +370,18 @@ stop_slave ()
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root shutdown
     if [ $? != 0 ] ; then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
-     kill `cat $SLAVE_MYPID`
+     kill `$CAT $SLAVE_MYPID`
      sleep 2
      if [ -f $SLAVE_MYPID ] ; then
        $ECHO "slave refused to die, resorting to SIGKILL murder"
-       kill -9 `cat $SLAVE_MYPID`
+       kill -9 `$CAT $SLAVE_MYPID`
        $RM -f $SLAVE_MYPID
      else
       $ECHO "slave responded to SIGTERM " 
      fi
     fi
     SLAVE_RUNNING=0
+    sleep 2	# Give mysqld time to go down properly
   fi  
 }
 
@@ -382,17 +392,18 @@ stop_master ()
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root shutdown
     if [ $? != 0 ] ; then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
-     kill `cat $MASTER_MYPID`
+     kill `$CAT $MASTER_MYPID`
      sleep 2
      if [ -f $MASTER_MYPID ] ; then
        $ECHO "master refused to die, resorting to SIGKILL murder"
-       kill -9 `cat $MASTER_MYPID`
+       kill -9 `$CAT $MASTER_MYPID`
        $RM -f $MASTER_MYPID
      else
       $ECHO "master responded to SIGTERM " 
      fi
     fi
     MASTER_RUNNING=0
+    sleep 2	# Give mysqld time to go down properly
   fi
 }
 
@@ -400,7 +411,7 @@ mysql_stop ()
 {
  $ECHO  "Ending Tests"
  $ECHO  "Shutting-down MySQL daemon"
- $ECHO
+ $ECHO  ""
  stop_master
  stop_slave
  return 1
@@ -436,7 +447,7 @@ run_testcase ()
   
  if [ -f $master_opt_file ] ;
  then
-  EXTRA_MASTER_OPT=`cat $master_opt_file`
+  EXTRA_MASTER_OPT=`$CAT $master_opt_file`
   stop_master
   start_master
  else
@@ -451,7 +462,7 @@ run_testcase ()
  
  if [ -f $slave_opt_file ] ;
  then
-  EXTRA_SLAVE_OPT=`cat $slave_opt_file`
+  EXTRA_SLAVE_OPT=`$CAT $slave_opt_file`
   do_slave_restart=1
  else
   if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
@@ -462,7 +473,7 @@ run_testcase ()
  fi
 
  if [ -f $slave_master_info_file ] ; then
-   SLAVE_MASTER_INFO=`cat $slave_master_info_file`
+   SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
    do_slave_restart=1
  else
   if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
@@ -486,7 +497,7 @@ run_testcase ()
     res=$?
 
     if [ $res = 0 ]; then
-	mytime=`$CAT $TIMEFILE | $TR '\n' '-'`
+	mytime=`$CAT $TIMEFILE | $TAIL -3 | $TR '\n' '-'`
 
 	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
         USERT=`prefix_to_8 $USERT`
@@ -527,7 +538,7 @@ run_testcase ()
 	 
 	mysql_restart
 	$ECHO "Resuming Tests"
-	$ECHO
+	$ECHO ""
       else
         pass_inc
 	$ECHO "$RES_SPACE [ skipped ]"

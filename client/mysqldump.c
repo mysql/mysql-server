@@ -863,14 +863,16 @@ static char *add_load_option(char *ptr,const char *object,
 {
   if (object)
   {
-	if (!strncasecmp(object,"0x",2))	/* hex constant; don't escape */
-		ptr= strxmov(ptr," ",statement," ",object,NullS);
-	else								/* char constant; escape */
-	{
-		ptr= strxmov(ptr," ",statement," '",NullS);
-		ptr= field_escape(ptr,object,(uint) strlen(object));
-		*ptr++= '\'';
-	}
+    /* Don't escape hex constants */
+    if (object[0] == '0' && (object[1] == 'x' || object[1] == 'X'))
+      ptr= strxmov(ptr," ",statement," ",object,NullS);
+    else
+    {
+      /* char constant; escape */
+      ptr= strxmov(ptr," ",statement," '",NullS);
+      ptr= field_escape(ptr,object,(uint) strlen(object));
+      *ptr++= '\'';
+    }
   }
   return ptr;
 } /* add_load_option */
