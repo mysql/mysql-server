@@ -89,7 +89,7 @@ static void append_wild(char *to,char *end,const char *wild);
 sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free);
 
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
@@ -1666,14 +1666,14 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   }
   if (simple_command(mysql, COM_PREPARE, query, length, 1))
   {
-    stmt_close(stmt, 1);
+    stmt_close(stmt, 1, 0);
     DBUG_RETURN(0);
   }
 
   init_alloc_root(&stmt->mem_root,8192,0);
   if ((*mysql->methods->read_prepare_result)(mysql, stmt))
   {
-    stmt_close(stmt, 1);
+    stmt_close(stmt, 1, 0);
     DBUG_RETURN(0);
   }
 
@@ -3312,7 +3312,7 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
 }
 
 
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free)
 {
   MYSQL *mysql;
   DBUG_ENTER("mysql_stmt_close");
@@ -3321,7 +3321,8 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
   
   if (!(mysql= stmt->mysql))
   {
-    my_free((gptr) stmt, MYF(MY_WME));
+    if (!skip_free)
+      my_free((gptr) stmt, MYF(MY_WME));
     DBUG_RETURN(0);
   }
   mysql_stmt_free_result(stmt);
@@ -3329,7 +3330,7 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
   {
     char buff[4];
     int4store(buff, stmt->stmt_id);
-    if (simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1))
+    if (skip_free || simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
 		      mysql->net.sqlstate);
@@ -3350,7 +3351,7 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 {
-  return stmt_close(stmt, 0);
+  return stmt_close(stmt, 0, 0);
 }
 
 /*
