@@ -44,20 +44,17 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
-{
-  return ndb_std_get_one_option(optid, opt, argument ? argument :
-				"d:t:O,/tmp/ndb_desc.trace");
-}
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
+			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   Ndb_cluster_connection con(opt_connect_str);
