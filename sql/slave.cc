@@ -797,11 +797,17 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   THD *thd;; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
 
+  if(!server_id)
+    {
+     sql_print_error("Server id not set, will not start slave");
+     pthread_exit(1);
+    }
+  
   pthread_mutex_lock(&LOCK_slave);
   if(slave_running)
     {
       pthread_mutex_unlock(&LOCK_slave);
-      return 0;  // safety just in case
+      pthread_exit(1);  // safety just in case
     }
   slave_running = 1;
   abort_slave = 0;
@@ -938,7 +944,7 @@ static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   while(!slave_killed(thd) && mc_mysql_reconnect(mysql))
   {
     sql_print_error(
-		    "Slave thread: error connecting to slave:%s, retry in %d sec",
+		    "Slave thread: error connecting to master:%s, retry in %d sec",
 		    mc_mysql_error(mysql), mi->connect_retry);
     safe_sleep(thd, mi->connect_retry);
   }

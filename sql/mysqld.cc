@@ -142,6 +142,7 @@ static uint handler_count;
 static bool opt_console=0;
 #endif
 
+static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
@@ -180,6 +181,7 @@ I_List<i_string> replicate_do_db, replicate_ignore_db;
 // allow the user to tell us which db to replicate and which to ignore
 I_List<i_string> binlog_do_db, binlog_ignore_db;
 
+uint32 server_id = 0; // server id for replication
 uint mysql_port;
 uint test_flags, select_errors=0, dropping_tables=0,ha_open_options=0;
 uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
@@ -1482,17 +1484,23 @@ int main(int argc, char **argv)
 	     LOG_NEW);
   if (opt_bin_log)
   {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      strnmov(tmp,hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-    open_log(&mysql_bin_log, hostname, opt_bin_logname, "-bin",
-	     LOG_BIN);
+    if(server_id)
+      {
+	if (!opt_bin_logname)
+	  {
+	    char tmp[FN_REFLEN];
+	    strnmov(tmp,hostname,FN_REFLEN-5);
+	    strmov(strcend(tmp,'.'),"-bin");
+	    opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+	  }
+	mysql_bin_log.set_index_file_name(opt_binlog_index_name);
+	open_log(&mysql_bin_log, hostname, opt_bin_logname, "-bin",
+		 LOG_BIN);
+      }
+    else
+      sql_print_error("Server id is not set - binary logging disabled");
   }
+  
   if (opt_slow_log)
     open_log(&mysql_slow_log, hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
@@ -1596,10 +1604,15 @@ int main(int argc, char **argv)
   // slave thread
   if(master_host)
   {
-    pthread_t hThread;
-    if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-      sql_print_error("Warning: Can't create thread to handle slave");
-
+    if(server_id)
+      {
+	pthread_t hThread;
+	if(!opt_skip_slave_start &&
+	   pthread_create(&hThread, &connection_attrib, handle_slave, 0))
+	  sql_print_error("Warning: Can't create thread to handle slave");
+      }
+    else
+      sql_print_error("Server id is not set, slave thread will not be started");
   }
 
   printf(ER(ER_READY),my_progname,server_version,"");
@@ -2201,7 +2214,8 @@ enum options {
                OPT_REPLICATE_DO_DB,      OPT_REPLICATE_IGNORE_DB, 
                OPT_LOG_SLAVE_UPDATES,    OPT_BINLOG_DO_DB, 
                OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
-	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER
+	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
+	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START
 };
 
 static struct option long_options[] = {
@@ -2266,8 +2280,11 @@ static struct option long_options[] = {
   {"port",                  required_argument, 0, 'P'},
   {"replicate-do-db",       required_argument, 0, (int) OPT_REPLICATE_DO_DB},
   {"replicate-ignore-db",   required_argument, 0, (int) OPT_REPLICATE_IGNORE_DB},
+  {"replicate-rewrite-db",   required_argument, 0,
+     (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
+  {"server-id",          required_argument, 0, (int)OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
 #ifdef HAVE_BERKELEY_DB
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
@@ -2280,6 +2297,7 @@ static struct option long_options[] = {
   {"skip-name-resolve",     no_argument,       0, (int) OPT_SKIP_RESOLVE},
   {"skip-new",              no_argument,       0, (int) OPT_SKIP_NEW},
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
+  {"skip-slave-start",    no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
@@ -2428,6 +2446,7 @@ struct show_var_st init_vars[]= {
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
+  {"server_id",           (char*) &server_id, SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
@@ -2851,6 +2870,9 @@ static void get_options(int argc,char **argv)
       opt_slow_log=1;
       opt_slow_logname=optarg;
       break;
+    case (int)OPT_SKIP_SLAVE_START:
+      opt_skip_slave_start = 1;
+      break;
     case (int) OPT_SKIP_NEW:
       opt_specialflag|= SPECIAL_NO_NEW_FUNC;
       default_table_type=DB_TYPE_ISAM;
@@ -2972,6 +2994,9 @@ static void get_options(int argc,char **argv)
       default_table_type= (enum db_type) type;
       break;
     }
+    case OPT_SERVER_ID:
+      server_id = atoi(optarg);
+      break;
     case OPT_DELAY_KEY_WRITE:
       ha_open_options|=HA_OPEN_DELAY_KEY_WRITE;
       myisam_delay_key_write=1;
