@@ -1863,7 +1863,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	{
 	  res = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
 	}
-	else
+        else if (cond != Interpreter::LIKE &&
+                 cond != Interpreter::NOT_LIKE)
 	{
 	  /* --------------------------------------------------------- */
 	  // If length of argument rounded to nearest word is
@@ -1872,7 +1873,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  if ((((argLen + 3) >> 2) << 2) == attrLen) argLen= attrLen;
 	  res = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
 	}
-	
+        else
+        {
+          res = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
+        }
+
         switch ((Interpreter::BinaryCondition)cond) {
         case Interpreter::EQ:
           res = (res == 0);
@@ -1894,10 +1899,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
           res = (res <= 0);
           break;
         case Interpreter::LIKE:
-          res = NdbSqlUtil::char_like(s1, attrLen, s2, argLen, false);
+          res = (res > 0);
           break;
         case Interpreter::NOT_LIKE:
-          res = ! NdbSqlUtil::char_like(s1, attrLen, s2, argLen, false);
+          res = (res == 0);
           break;
 	  // XXX handle invalid value
         }
