@@ -88,7 +88,7 @@ client_libs='@CLIENT_LIBS@'
 
 libs="$ldflags -L$pkglibdir -lmysqlclient $client_libs"
 libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
-libs_r="$ldflags -L$pkglibdir -lmysqlclient_r @LIBS@ @openssl_libs@"
+libs_r="$ldflags -L$pkglibdir -lmysqlclient_r @LIBS@ @ZLIB_LIBS@ @openssl_libs@"
 libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
