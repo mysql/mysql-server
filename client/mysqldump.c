@@ -251,7 +251,7 @@ static struct my_option my_long_options[] =
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
-   "Same as --add-drop-table --add-locks --all --quick --extended-insert --lock-tables --disable-keys. Enabled by default, disable with --skip-opt.",
+   "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
@@ -279,7 +279,7 @@ static struct my_option my_long_options[] =
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
-   "Disable --opt. Disables --add-locks, --all, --quick, --extended-insert, --lock-tables and --disable-keys.",
+   "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
@@ -662,8 +662,7 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (opt_set_charset)
-    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
