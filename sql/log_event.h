@@ -100,7 +100,7 @@ public:
   virtual ~Log_event() {}
 
   virtual int get_data_size() { return 0;}
-  virtual void print(FILE* file, bool short_form = 0) = 0;
+  virtual void print(FILE* file, bool short_form = 0, char* last_db = 0) = 0;
 
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
@@ -169,7 +169,7 @@ public:
       ;
   }
 
-  void print(FILE* file, bool short_form = 0);
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
 #define DUMPFILE_FLAG 0x1
@@ -312,7 +312,7 @@ public:
       ;
   }
 
-  void print(FILE* file, bool short_form = 0);
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
 extern char server_version[SERVER_VERSION_LENGTH];
@@ -350,7 +350,7 @@ public:
     // sizeof(binlog_version) + sizeof(server_version) sizeof(created)
     return 2 + sizeof(server_version) + 4;
   }
-  void print(FILE* file, bool short_form = 0);
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
 class Intvar_log_event: public Log_event
@@ -369,7 +369,7 @@ public:
   int write_data(IO_CACHE* file);
   
   
-  void print(FILE* file, bool short_form = 0);
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
 class Stop_log_event: public Log_event
@@ -388,7 +388,7 @@ public:
   }
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
-  void print(FILE* file, bool short_form = 0);
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
 class Rotate_log_event: public Log_event
@@ -416,7 +416,7 @@ public:
   int get_data_size() { return  ident_len;}
   int write_data(IO_CACHE* file);
   
-  void print(FILE* file, bool short_form = 0);
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
 #endif

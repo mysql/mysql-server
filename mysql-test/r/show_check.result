@@ -67,3 +67,16 @@ t1	0	PRIMARY	1	f1	A	1	NULL	NULL
 t1	0	PRIMARY	2	f2	A	3	NULL	NULL	
 t1	0	PRIMARY	3	f3	A	9	NULL	NULL	
 t1	0	PRIMARY	4	f4	A	18	NULL	NULL	
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test_set` set('val1','val2','val3') NOT NULL default '',
+  `name` char(20) default 'O''Brien'
+) TYPE=MyISAM COMMENT='it''s a table'

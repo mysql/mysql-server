@@ -66,7 +66,7 @@ int my_error(int nr,myf MyFlags, ...)
       while (isdigit(*tpos) || *tpos == '.' || *tpos == '-')
 	tpos++;
       if (*tpos == 'l')				/* Skipp 'l' argument */
-	*tpos++;
+	tpos++;
       if (*tpos == 's')				/* String parameter */
       {
 	par = va_arg(ap, char *);

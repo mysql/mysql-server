@@ -232,7 +232,7 @@ static inline void link_file_to_changed(SEC_LINK *next)
 }
 
 
-#ifndef DBUG_OFF
+#if !defined(DBUG_OFF) && !defined(EXTRA_DEBUG)
 #define DBUG_OFF				/* This should work */
 #endif
 
@@ -327,7 +327,7 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
   }
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("exec",test_key_cache("start of key_cache_write",1););
+  DBUG_EXECUTE("check_keycache",test_key_cache("start of key_cache_write",1););
 #endif
   if (_my_disk_blocks > 0)
   {						/* We have key_cacheing */
@@ -367,7 +367,7 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
   }
 end:
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("exec",test_key_cache("end of key_cache_write",1););
+  DBUG_EXECUTE("check_keycache",test_key_cache("end of key_cache_write",1););
 #endif
   return(error);
 } /* key_cache_write */
@@ -381,7 +381,7 @@ static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
   reg1 SEC_LINK *next,**start;
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("exec",test_key_cache("start of find_key_block",0););
+  DBUG_EXECUTE("check_keycache",test_key_cache("start of find_key_block",0););
 #endif
 
   *error=0;
@@ -459,7 +459,7 @@ static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
   }
   _my_used_last=next;
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("exec",test_key_cache("end of find_key_block",0););
+  DBUG_EXECUTE("check_keycache",test_key_cache("end of find_key_block",0););
 #endif
   return next;
 } /* find_key_block */
@@ -529,7 +529,7 @@ int flush_key_blocks(File file, enum flush_type type)
   pthread_mutex_lock(&THR_LOCK_keycache);
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("exec",test_key_cache("start of flush_key_blocks",0););
+  DBUG_EXECUTE("check_keycache",test_key_cache("start of flush_key_blocks",0););
 #endif
   cache=cache_buff;				/* If no key cache */
   if (_my_disk_blocks > 0 &&
@@ -607,7 +607,7 @@ int flush_key_blocks(File file, enum flush_type type)
     }
   }
 #ifndef DBUG_OFF
-  DBUG_EXECUTE("exec",test_key_cache("end of flush_key_blocks",0););
+  DBUG_EXECUTE("check_keycache",test_key_cache("end of flush_key_blocks",0););
 #endif
   pthread_mutex_unlock(&THR_LOCK_keycache);
   if (cache != cache_buff)

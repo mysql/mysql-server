@@ -247,6 +247,7 @@ os_event_wait_time(
 		return(OS_SYNC_TIME_EXCEEDED);
 	} else {
 		ut_error;
+		return(1000000); /* dummy value to eliminate compiler warn. */
 	}
 #else
 	UT_NOT_USED(time);

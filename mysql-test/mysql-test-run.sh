@@ -188,7 +188,7 @@ done
 #--
 
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
-MASTER_MYDDIR="$MYSQL_TEST_DIR/var/lib"
+MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql-master.sock"
 MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
@@ -288,6 +288,8 @@ prompt_user ()
  read unused
 }
 
+# We can't use diff -u as this isn't portable
+
 show_failed_diff ()
 {
   reject_file=r/$1.reject
@@ -296,7 +298,7 @@ show_failed_diff ()
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -u $result_file $reject_file
+    $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please e-mail the above, along with the output of mysqlbug"
     echo "and any other relevant info to bugs@lists.mysql.com"
@@ -367,6 +369,8 @@ mysql_install_db () {
 	error "Could not install slave test DBs"
 	exit 1
     fi
+    # Give mysqld some time to die.
+    sleep $SLEEP_TIME
     return 0
 }
 
@@ -488,7 +492,7 @@ start_slave()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english \
-	    --skip-innodb \
+	    --skip-innodb --skip-slave-start \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]

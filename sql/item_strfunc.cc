@@ -393,12 +393,14 @@ void Item_func_reverse::fix_length_and_dec()
 String *Item_func_replace::val_str(String *str)
 {
   String *res,*res2,*res3;
-  int offset=0;
+  int offset;
   uint from_length,to_length;
   bool alloced=0;
 #ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   register uint32 l;
+  bool binary_str = (args[0]->binary || args[1]->binary ||
+		     !use_mb(default_charset_info));
 #endif
 
   null_value=0;
@@ -415,7 +417,8 @@ String *Item_func_replace::val_str(String *str)
   if ((offset=res->strstr(*res2)) < 0)
     return res;
 #else
-  if (!use_mb(default_charset_info) && (offset=res->strstr(*res2)) < 0)
+  offset=0;
+  if (binary_str && (offset=res->strstr(*res2)) < 0)
     return res;
 #endif
   if (!(res3=args[2]->val_str(&tmp_value2)))
@@ -424,7 +427,7 @@ String *Item_func_replace::val_str(String *str)
   to_length=   res3->length();
 
 #ifdef USE_MB
-  if (use_mb(default_charset_info))
+  if (!binary_str)
   {
     search=res2->ptr();
     search_end=search+from_length;
@@ -449,6 +452,7 @@ redo:
             res=copy_if_not_alloced(str,res,res->length()+to_length);
           }
           res->replace((uint) offset,from_length,*res3);
+	  offset+=(int) to_length;
           goto redo;
         }
 skipp:

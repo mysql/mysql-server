@@ -20,6 +20,14 @@
 #ifndef _mysql_h
 #define _mysql_h
 
+#ifdef __CYGWIN__     /* CYGWIN implements a UNIX API */
+#undef WIN
+#undef _WIN
+#undef _WIN32
+#undef _WIN64
+#undef __WIN__
+#endif
+
 #ifndef MYSQL_SERVER
 #ifdef	__cplusplus
 extern "C" {

@@ -15,9 +15,6 @@ Created 10/21/1995 Heikki Tuuri
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
 
-#undef __USE_FILE_OFFSET64
-
-#include <aio.h>
 #endif
 
 /* We use these mutexes to protect lseek + file i/o operation, if the
@@ -163,7 +160,6 @@ os_file_handle_error(
 	os_file_t	file,	/* in: file pointer */
 	char*		name)	/* in: name of a file or NULL */
 {
-	int	input_char;
 	ulint	err;
 
 	UT_NOT_USED(file);
@@ -171,33 +167,19 @@ os_file_handle_error(
 	err = os_file_get_last_error();
 	
 	if (err == OS_FILE_DISK_FULL) {
-ask_again:
-		printf("\n");
+		fprintf(stderr, "\n");
 		if (name) {
-			printf(
-			"Innobase encountered a problem with file %s.\n",
+		  fprintf(stderr,
+			"InnoDB: Encountered a problem with file %s.\n",
 									name);
 		}
-		printf("Disk is full. Try to clean the disk to free space\n");
-		printf("before answering the following: How to continue?\n");
-		printf("(Y == freed some space: try again)\n");
-		printf("(N == crash the database: will restart it)?\n");
-ask_with_no_question:
-		input_char = getchar();
+		fprintf(stderr,
+	   "InnoDB: Cannot continue operation.\n"
+	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
+	   "InnoDB: Delete possible created file and restart.\n");
 
-		if (input_char == (int) 'N') {
-			ut_error;
-		
-			return(FALSE);
-		} else if (input_char == (int) 'Y') {
+		exit(1);
 
-			return(TRUE);
-		} else if (input_char == (int) '\n') {
-
-			goto ask_with_no_question;
-		} else {
-			goto ask_again;
-		}
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
 
 		return(TRUE);
@@ -317,6 +299,13 @@ try_again:
 
 	UT_NOT_USED(purpose);
 
+	/* On Linux opening a file in the O_SYNC mode seems to be much
+        more efficient than calling an explicit fsync or fdatasync after
+        each write */
+
+#ifdef O_SYNC
+	create_flag = create_flag | O_SYNC;
+#endif
 	if (create_mode == OS_FILE_CREATE) {
 	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
 			                     | S_IWGRP | S_IROTH | S_IWOTH);
@@ -510,8 +499,18 @@ os_file_flush(
 #else
 	int	ret;
 	
-	ret = fsync(file);
+#ifdef O_SYNC
+	/* We open all files with the O_SYNC option, which means there
+        should be no need for fsync or fdatasync. In practice such a need
+	may be because on a Linux Xeon computer "donna" the OS seemed to be
+	fooled to believe that 500 disk writes/second are possible. */
 
+	ret = 0;
+#elif defined(HAVE_FDATASYNC)
+	ret = fdatasync(file);
+#else
+	ret = fsync(file);
+#endif
 	if (ret == 0) {
 		return(TRUE);
 	}
@@ -534,8 +533,10 @@ os_file_pread(
 	ulint		n,	/* in: number of bytes to read */	
 	ulint		offset)	/* in: offset from where to read */
 {
+        off_t     offs = (off_t)offset;
+
 #ifdef HAVE_PREAD
-	return(pread(file, buf, n, (off_t) offset));
+	return(pread(file, buf, n, offs));
 #else
 	ssize_t	ret;
 	ulint	i;
@@ -545,7 +546,7 @@ os_file_pread(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, (off_t) offset, 0);
+	ret = lseek(file, offs, 0);
 
 	if (ret < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -573,10 +574,19 @@ os_file_pwrite(
 	ulint		n,	/* in: number of bytes to write */	
 	ulint		offset)	/* in: offset where to write */
 {
-#ifdef HAVE_PWRITE
-	return(pwrite(file, buf, n, (off_t) offset));
-#else
 	ssize_t	ret;
+	off_t   offs    = (off_t)offset;
+
+#ifdef HAVE_PWRITE
+	ret = pwrite(file, buf, n, offs);
+
+	/* Always do fsync to reduce the probability that when the OS crashes,
+	a database page is only partially physically written to disk. */
+
+	ut_a(TRUE == os_file_flush(file));
+
+        return(ret);
+#else
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -584,7 +594,7 @@ os_file_pwrite(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, (off_t) offset, 0);
+	ret = lseek(file, offs, 0);
 
 	if (ret < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -593,6 +603,11 @@ os_file_pwrite(
 	}
 	
 	ret = write(file, buf, n);
+
+	/* Always do fsync to reduce the probability that when the OS crashes,
+	a database page is only partially physically written to disk. */
+
+	ut_a(TRUE == os_file_flush(file));
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -662,7 +677,6 @@ try_again:
 #else
 	ibool	retry;
 	ssize_t	ret;
-	ulint   i;
 	
 #if (UNIV_WORD_SIZE == 8)
 	offset = offset + (offset_high << 32);
@@ -670,15 +684,9 @@ try_again:
 	UT_NOT_USED(offset_high);
 #endif	
 try_again:
-	/* Protect the seek / read operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-	
-	os_mutex_enter(os_file_seek_mutexes[i]);
-
-	ret = os_file_pread(file, buf, n, (off_t) offset);
+	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint)ret == n) {
-		os_mutex_exit(os_file_seek_mutexes[i]);
 
 		return(TRUE);
 	}
@@ -747,9 +755,14 @@ try_again:
 	} 
 
 	ret = WriteFile(file, buf, n, &len, NULL);
+	
+	/* Always do fsync to reduce the probability that when the OS crashes,
+	a database page is only partially physically written to disk. */
+
+	ut_a(TRUE == os_file_flush(file));
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
-	
+
 	if (ret && len == n) {
 		return(TRUE);
 	}
@@ -763,7 +776,7 @@ try_again:
 	UT_NOT_USED(offset_high);
 #endif	
 try_again:
-	ret = os_file_pwrite(file, buf, n, (off_t) offset);
+	ret = os_file_pwrite(file, buf, n, offset);
 
 	if ((ulint)ret == n) {
 		return(TRUE);
@@ -1344,6 +1357,10 @@ try_again:
 		}
 	} else if (mode == OS_AIO_IBUF) {
 		ut_ad(type == OS_FILE_READ);
+		/* Reduce probability of deadlock bugs in connection with ibuf:
+		do not let the ibuf i/o handler sleep */
+
+		wake_later = FALSE;
 
 		array = os_aio_ibuf_array;
 	} else if (mode == OS_AIO_LOG) {
@@ -1413,7 +1430,7 @@ try_again:
 			return(TRUE);
 		}
 
-		goto error_handling;
+		err = 1; /* Fall through the next if */
 	}
 #endif
 	if (err == 0) {
@@ -1511,6 +1528,10 @@ os_aio_windows_handle(
 
 	if (ret && len == slot->len) {
 		ret_val = TRUE;
+
+		if (slot->type == OS_FILE_WRITE) {
+		         ut_a(TRUE == os_file_flush(slot->file));
+		}
 	} else {
 		err = GetLastError();
 		ut_error;
@@ -1591,6 +1612,10 @@ os_aio_posix_handle(
 
 	*message1 = slot->message1;
 	*message2 = slot->message2;
+
+	if (slot->type == OS_FILE_WRITE) {
+		ut_a(TRUE == os_file_flush(slot->file));
+	}
 
 	os_mutex_exit(array->mutex);
 

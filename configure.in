@@ -119,6 +119,17 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
+
+# Fix for sgi gcc / sgiCC which tries to emulate gcc
+if test "$CC" = "sgicc"
+then
+  ac_cv_prog_gcc="no"
+fi
+if test "$CXX" = "sgi++"
+then
+  GXX="no"
+fi
+
 if test "$ac_cv_prog_gcc" = "yes"
 then
   AS="$CC -c"
@@ -390,7 +401,7 @@ AM_PROG_CC_STDC
 
 if test "$am_cv_prog_cc_stdc" = "no"
 then
-  AC_MSG_ERROR([MySQL requiers a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
+  AC_MSG_ERROR([MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
 NOINST_LDFLAGS=
@@ -1215,7 +1226,7 @@ fi
 AC_SUBST(COMPILATION_COMMENT)
 
 AC_MSG_CHECKING("need of special linking flags")
-if test "$IS_LINUX" = "true" -a "$all_is_static" != "yes"
+if test "$IS_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
 then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")

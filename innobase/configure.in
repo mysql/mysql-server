@@ -4,13 +4,41 @@ AC_CANONICAL_SYSTEM
 AM_MAINTAINER_MODE
 AM_CONFIG_HEADER(ib_config.h)
 AM_INIT_AUTOMAKE(ib, 0.90)
+
+# This is need before AC_PROG_CC
+#
+
+if test "x${CFLAGS-}" = x ; then
+  cflags_is_set=no
+else
+  cflags_is_set=yes
+fi
+
+if test "x${CPPFLAGS-}" = x ; then
+  cppflags_is_set=no
+else
+  cppflags_is_set=yes
+fi
+
+if test "x${LDFLAGS-}" = x ; then
+  ldflags_is_set=no
+else
+  ldflags_is_set=yes
+fi
+
+# The following hack should ensure that configure doesn't add optimizing
+# or debugging flags to CFLAGS or CXXFLAGS
+CFLAGS="$CFLAGS "
+CXXFLAGS="$CXXFLAGS "
+
 AC_PROG_CC
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_FUNCS(sched_yield)
-AC_C_INLINE
+AC_CHECK_FUNCS(fdatasync)
+#AC_C_INLINE  Already checked in MySQL
 AC_C_BIGENDIAN
 
 # Build optimized or debug version ?
@@ -56,10 +84,15 @@ else
 fi
 
 case "$target_os" in
-       hp*) AC_DEFINE(UNIV_MUST_NOT_INLINE, 1,
-	                     No inlining because gcc broken on HP-UX);;
-       *sgi-irix*) AC_DEFINE(UNIV_MUST_NOT_INLINE, 1,
-	                     No inlining because cc broken on irix);;
+       hp*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       irix*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       osf*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+       sysv5uw7*)
+	 # Problem when linking on SCO
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile

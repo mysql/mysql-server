@@ -456,3 +456,23 @@ commit;
 select id,id3 from t1;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+#
+# Test prefix key
+#
+--error 1089
+create table t1 (a char(20), unique (a(5))) type=innodb;
+create table t1 (a char(20), index (a(5))) type=innodb;
+show create table t1;
+drop table t1;
+
+#
+# Test using temporary table and auto_increment
+#
+
+create temporary table t1 (a int not null auto_increment, primary key(a)) type=innodb;
+insert into t1 values (NULL),(NULL),(NULL);
+delete from t1 where a=3;
+insert into t1 values (NULL);
+select * from t1;
+drop table t1;

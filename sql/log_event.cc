@@ -280,7 +280,7 @@ void Log_event::print_timestamp(FILE* file, time_t* ts)
 }
 
 
-void Start_log_event::print(FILE* file, bool short_form)
+void Start_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   if (short_form)
     return;
@@ -293,7 +293,7 @@ void Start_log_event::print(FILE* file, bool short_form)
   fflush(file);
 }
 
-void Stop_log_event::print(FILE* file, bool short_form)
+void Stop_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   if (short_form)
     return;
@@ -303,7 +303,7 @@ void Stop_log_event::print(FILE* file, bool short_form)
   fflush(file);
 }
 
-void Rotate_log_event::print(FILE* file, bool short_form)
+void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   if (short_form)
     return;
@@ -441,7 +441,7 @@ Query_log_event::Query_log_event(const char* buf, int event_len):
   *((char*)query+q_len) = 0;
 }
 
-void Query_log_event::print(FILE* file, bool short_form)
+void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   char buff[40],*end;				// Enough for SET TIMESTAMP
   if (!short_form)
@@ -451,7 +451,15 @@ void Query_log_event::print(FILE* file, bool short_form)
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  if (db && db[0])
+  bool same_db = 0;
+
+  if(db && last_db)
+    {
+      if(!(same_db = !memcmp(last_db, db, db_len + 1)))
+        memcpy(last_db, db, db_len + 1);
+    }
+  
+  if (db && db[0] && !same_db)
     fprintf(file, "use %s;\n", db);
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
@@ -507,7 +515,7 @@ int Intvar_log_event::write_data(IO_CACHE* file)
   return my_b_write(file, (byte*) buf, sizeof(buf));
 }
 
-void Intvar_log_event::print(FILE* file, bool short_form)
+void Intvar_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   char llbuff[22];
   if(!short_form)
@@ -625,7 +633,7 @@ void Load_log_event::copy_log_event(const char *buf, ulong data_len)
 }
 
 
-void Load_log_event::print(FILE* file, bool short_form)
+void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   if (!short_form)
   {
@@ -634,7 +642,15 @@ void Load_log_event::print(FILE* file, bool short_form)
 	    thread_id, exec_time);
   }
 
-  if(db && db[0])
+  bool same_db = 0;
+
+  if(db && last_db)
+    {
+      if(!(same_db = !memcmp(last_db, db, db_len + 1)))
+        memcpy(last_db, db, db_len + 1);
+    }
+  
+  if(db && db[0] && !same_db)
     fprintf(file, "use %s;\n", db);
 
   fprintf(file, "LOAD DATA INFILE '%s' ", fname);
@@ -678,7 +694,7 @@ void Load_log_event::print(FILE* file, bool short_form)
   }
      
   if((int)skip_lines > 0)
-    fprintf(file, " IGNORE %d LINES ", skip_lines);
+    fprintf(file, " IGNORE %ld LINES ", (long) skip_lines);
 
   if (num_fields)
   {
