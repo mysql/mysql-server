@@ -1313,6 +1313,7 @@ void Dbdict::initTableRecords()
   TableRecordPtr tablePtr;
   while (1) {
     jam();
+    refresh_watch_dog();
     c_tableRecordPool.seize(tablePtr);
     if (tablePtr.i == RNIL) {
       jam();
@@ -1373,6 +1374,7 @@ void Dbdict::initTriggerRecords()
   TriggerRecordPtr triggerPtr;
   while (1) {
     jam();
+    refresh_watch_dog();
     c_triggerRecordPool.seize(triggerPtr);
     if (triggerPtr.i == RNIL) {
       jam();
