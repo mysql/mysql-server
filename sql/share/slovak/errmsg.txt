@@ -113,7 +113,7 @@
 "Pole BLOB '%-.64s' nemô¾e ma» implicitnú hodnotu",
 "Neprípustné meno databázy '%-.100s'",
 "Neprípustné meno tabuµky '%-.100s'",
-"Zadaná po¾iadavka SELECT by prechádzala príli¹ mnoho záznamov a trvala by príli¹ dlho. Skontrolujte tvar WHERE a ak je v poriadku, pou¾ite SET OPTION SQL_BIG_SELECTS=1",
+"Zadaná po¾iadavka SELECT by prechádzala príli¹ mnoho záznamov a trvala by príli¹ dlho. Skontrolujte tvar WHERE a ak je v poriadku, pou¾ite SET SQL_BIG_SELECTS=1",
 "Neznámá chyba",
 "Neznámá procedúra '%-.64s'",
 "Chybný poèet parametrov procedúry '%-.64s'",

@@ -105,7 +105,7 @@
 "Coluna BLOB '%-.64s' não pode ter um valor padrão (default)",
 "Nome de banco de dados '%-.100s' incorreto",
 "Nome de tabela '%-.100s' incorreto",
-"O SELECT examinaria registros demais e provavelmente levaria muito tempo. Cheque sua cláusula WHERE e use SET OPTION SQL_BIG_SELECTS=1, se o SELECT estiver correto",
+"O SELECT examinaria registros demais e provavelmente levaria muito tempo. Cheque sua cláusula WHERE e use SET SQL_BIG_SELECTS=1, se o SELECT estiver correto",
 "Erro desconhecido",
 "'Procedure' '%-.64s' desconhecida",
 "Número de parâmetros incorreto para a 'procedure' '%-.64s'",
