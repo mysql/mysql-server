@@ -82,7 +82,7 @@ public:
   Item_bool_func() :Item_int_func() {}
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
-  Item_bool_func(THD *thd, Item_bool_func &item) :Item_int_func(thd, item) {}
+  Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
@@ -889,7 +889,7 @@ public:
     list.push_back(i1);
     list.push_back(i2);
   }
-  Item_cond(THD *thd, Item_cond &item);
+  Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
   bool add(Item *item) { return list.push_back(item); }
@@ -914,7 +914,7 @@ class Item_cond_and :public Item_cond
 public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  Item_cond_and(THD *thd, Item_cond_and &item) :Item_cond(thd, item) {}
+  Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
   Item_cond_and(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
@@ -922,7 +922,7 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
-    if((item= new Item_cond_and(thd, *this)))
+    if((item= new Item_cond_and(thd, this)))
        item->copy_andor_arguments(thd, this);
     return item;
   }
@@ -934,7 +934,7 @@ class Item_cond_or :public Item_cond
 public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  Item_cond_or(THD *thd, Item_cond_or &item) :Item_cond(thd, item) {}
+  Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
   Item_cond_or(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
@@ -943,7 +943,7 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_or *item;
-    if((item= new Item_cond_or(thd, *this)))
+    if((item= new Item_cond_or(thd, this)))
       item->copy_andor_arguments(thd, this);
     return item;
   }

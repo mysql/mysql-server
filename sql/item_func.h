@@ -106,7 +106,7 @@ public:
   }
   Item_func(List<Item> &list);
   // Constructor used for Item_cond_and/or (see Item comment)
-  Item_func(THD *thd, Item_func &item);
+  Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *,struct st_table_list *, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
@@ -199,7 +199,7 @@ public:
   Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length=21; }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) { max_length=21; }
   Item_int_func(List<Item> &list) :Item_func(list) { max_length=21; }
-  Item_int_func(THD *thd, Item_int_func &item) :Item_func(thd, item) {}
+  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
   double val() { return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }

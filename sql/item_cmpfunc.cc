@@ -1651,10 +1651,10 @@ longlong Item_func_bit_and::val_int()
   return (longlong) (arg1 & arg2);
 }
 
-Item_cond::Item_cond(THD *thd, Item_cond &item)
+Item_cond::Item_cond(THD *thd, Item_cond *item)
   :Item_bool_func(thd, item),
-   abort_on_null(item.abort_on_null),
-   and_tables_cache(item.and_tables_cache)
+   abort_on_null(item->abort_on_null),
+   and_tables_cache(item->and_tables_cache)
 {
   /*
     here should be following text:

@@ -130,13 +130,13 @@ Item_func::Item_func(List<Item> &list)
   set_arguments(list);
 }
 
-Item_func::Item_func(THD *thd, Item_func &item)
+Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
-   allowed_arg_cols(item.allowed_arg_cols),
-   arg_count(item.arg_count),
-   used_tables_cache(item.used_tables_cache),
-   not_null_tables_cache(item.not_null_tables_cache),
-   const_item_cache(item.const_item_cache)
+   allowed_arg_cols(item->allowed_arg_cols),
+   arg_count(item->arg_count),
+   used_tables_cache(item->used_tables_cache),
+   not_null_tables_cache(item->not_null_tables_cache),
+   const_item_cache(item->const_item_cache)
 {
   if (arg_count)
   {
@@ -147,7 +147,7 @@ Item_func::Item_func(THD *thd, Item_func &item)
       if (!(args=(Item**) thd->alloc(sizeof(Item*)*arg_count)))
 	return;
     }
-    memcpy((char*) args, (char*) item.args, sizeof(Item*)*arg_count);
+    memcpy((char*) args, (char*) item->args, sizeof(Item*)*arg_count);
   }
 }
 

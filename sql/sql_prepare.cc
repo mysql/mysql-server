@@ -756,9 +756,8 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
     JOIN *join= new JOIN(thd, fields, select_options, result);
     thd->used_tables= 0;	// Updated by setup_fields  
 
-//    if (join->prepare(&select_lex->ref_pointer_array, tables, 
     if (join->prepare(&select_lex->ref_pointer_array,
-		      (TABLE_LIST*)select_lex->table_list.first,
+		      (TABLE_LIST*)select_lex->get_table_list(),
                       wild_num, conds, og_num, order, group, having, proc, 
                       select_lex, unit))
       DBUG_RETURN(1);
@@ -1106,6 +1105,7 @@ void mysql_stmt_free(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "close")))
     DBUG_VOID_RETURN;
 
+  free_items(stmt->free_list);
   /* Statement map deletes statement on erase */
   thd->stmt_map.erase(stmt);
   DBUG_VOID_RETURN;
