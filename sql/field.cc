@@ -223,7 +223,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
   :ptr(ptr_arg),null_ptr(null_ptr_arg),null_bit(null_bit_arg),
-   table(table_arg),query_id(0),key_start(0),part_of_key(0),
+   table(table_arg),query_id(0),key_start(0),part_of_key(0),part_of_sortkey(0),
    table_name(table_arg ? table_arg->table_name : 0),
    field_name(field_name_arg), unireg_check(unireg_check_arg),
    field_length(length_arg)
