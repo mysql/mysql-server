@@ -492,6 +492,8 @@ static void write_header(FILE *sql_file, char *db_name)
 	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='%s%s%s' */;\n",
 	    path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
 	    compatible_mode_normal_str);
+    fprintf(sql_file,
+	    "/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\n");
     check_io(sql_file);
   }
 } /* write_header */
@@ -518,6 +520,8 @@ static void write_footer(FILE *sql_file)
 "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
 "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
 "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+    fprintf(sql_file,
+	    "/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;");
     fputs("\n", sql_file);
     check_io(sql_file);
   }

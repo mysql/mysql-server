@@ -423,6 +423,9 @@ static sys_var_thd_bit	sys_log_binlog("sql_log_bin",
 static sys_var_thd_bit	sys_sql_warnings("sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
+static sys_var_thd_bit	sys_sql_notes("sql_notes", 0,
+					 set_option_bit,
+					 OPTION_NOTES);
 static sys_var_thd_bit	sys_auto_is_null("sql_auto_is_null", 0,
 					 set_option_bit,
 					 OPTION_AUTO_IS_NULL);
@@ -610,6 +613,7 @@ sys_var *sys_variables[]=
   &sys_sql_max_join_size,
   &sys_sql_mode,
   &sys_sql_warnings,
+  &sys_sql_notes,
   &sys_storage_engine,
 #ifdef HAVE_REPLICATION
   &sys_sync_binlog_period,
