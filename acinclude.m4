@@ -1319,11 +1319,11 @@ AC_DEFUN([MYSQL_CHECK_EXAMPLEDB], [
     yes )
       AC_DEFINE(HAVE_EXAMPLE_DB)
       AC_MSG_RESULT([yes])
-      [exampledb=yes])
+      [exampledb=yes]
       ;;
     * )
       AC_MSG_RESULT([no])
-      [exampledb=no])
+      [exampledb=no]
       ;;
   esac
 
