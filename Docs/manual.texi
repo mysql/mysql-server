@@ -126,7 +126,6 @@ distribution for that version.
 * Porting::                     Comments on porting to other systems
 * Environment variables::       MySQL environment variables
 * Regexp::                      Description of MySQL regular expression syntax
-* Unireg::                      What is Unireg?
 * GPL license::                 GNU General Public License
 * LGPL license::                GNU Library General Public License
 * Placeholder::                 Pieces of the manual in transit
@@ -857,12 +856,14 @@ some issues and to answer some of the more important questions that seem to
 concern many people.  This section has been put together from information 
 gathered from the mailing list (which is very active in reporting bugs).
 
-At TcX, MySQL has worked without any problems in our projects since
-mid-1996.  When MySQL was released to a wider public, we noticed that
-there were some pieces of ``untested code'' that were quickly found by the
-new users who made queries in a manner different than our own.  Each new
-release has had fewer portability problems than the previous one (even though
-each has had many new features).
+At TcX, the predecessor of MySQL AB, MySQL has worked without any problems in
+projects since mid-1996. Original code stems back from the early 80s,
+providing a table code base, and the ISAM table format remains backwards
+compatible.  When MySQL was released to a wider public, we noticed that there
+were some pieces of ``untested code'' that were quickly found by the new users
+who made queries in a manner different than our own.  Each new release has had
+fewer portability problems than the previous one (even though each has had
+many new features).
 
 Each release of MySQL has been usable, and there have been problems
 only when users start to use code from the ``gray zones.''  Naturally, outside
@@ -53921,7 +53922,7 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 
 
 
-@node Regexp, Unireg, Environment variables, Top
+@node Regexp, GPL license, Environment variables, Top
 @appendix Description of MySQL regular expression syntax
 
 @cindex regex
@@ -54108,77 +54109,7 @@ mysql> select "weeknights" REGEXP "^(wee|week)(knights|nights)$"; -> 1
 
 
 
-@node Unireg, GPL license, Regexp, Top
-@appendix What is Unireg?
-
-@cindex Unireg, described
-@cindex interface builder
-
-Unireg is our tty interface builder, but it uses a low-level connection
-to our ISAM (which is used by MySQL) and because of this it is
-very quick. It has existed since 1979 (on Unix in C since ~1986).
-
-Unireg has the following components:
-
-@itemize @bullet
-@item
-One table viewer with updates/browsing.
-@item
-Multi table viewer (with one scrolling region).
-@item
-Table creator. (With lots of column tags you can't create with MySQL)
-This is WYSIWYG (for a tty). You design a screen and Unireg prompts for
-the column specification.
-@item
-Report generator.
-@item
-A lot of utilities (quick import/export of tables to/from text files,
-analysis of table contents...).
-@item
-Powerful multi-table updates (which we use a lot) with a BASIC-like
-language with LOTS of functions.
-@item
-Dynamic languages (at present in Swedish and Finnish). If somebody wants
-an English version there are a few files that would have to be translated.
-@item
-The ability to run updates interactively or in a batch.
-@item
-Emacs-like key definitions with keyboard macros.
-@item
-All this in a binary of 800K.
-@item
-The @code{convform} utility. Converts @file{.frm} and text files between
-different character sets.
-@item
-The @code{myisampack} utility. Packs an ISAM table (makes it 50-80%
-smaller). The table can be read by MySQL like an ordinary
-table. Only one record has to be decompressed per access. Cannot handle
-@code{BLOB} or @code{TEXT} columns or updates (yet).
-@end itemize
-
-We update most of our production databases with the Unireg interface and
-serve web pages through MySQL (and in some extreme cases the Unireg
-report generator).
-
-Unireg takes about 3M of disk space and works on at least the following
-platforms: SunOS 4.x, Solaris, Linux, HP-UX, ICL Unix, DNIX, SCO and
-MS-DOS.
-
-Unireg is currently only available in Swedish and Finnish.
-
-The price tag for Unireg is 10,000 Swedish kr (about $1500 US), but this
-includes support. Unireg is distributed as a binary. (But all the ISAM
-sources can be found in MySQL.) Usually we compile the binary for the
-customer at their site.
-
-All new development is concentrated to MySQL.
-
-@page
-@c This node name is special
-
-
-
-@node GPL license, LGPL license, Unireg, Top
+@node GPL license, LGPL license, Regexp, Top
 @appendix GNU GENERAL PUBLIC LICENSE
 
 @cindex GPL, General Public License
