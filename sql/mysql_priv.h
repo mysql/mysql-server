@@ -66,7 +66,8 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 ****************************************************************************/
 
 #define ACL_CACHE_SIZE		256
-#define HASH_PASSWORD_LENGTH	16
+/* Password lengh for 4.1 version previous versions had 16 bytes password hash */
+#define HASH_PASSWORD_LENGTH	45
 #define HOST_CACHE_SIZE		128
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
