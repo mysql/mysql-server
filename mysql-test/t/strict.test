@@ -866,12 +866,12 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
 INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
---error 1400
+--error 1406
 INSERT INTO t1 (col1) VALUES ('hellobob');
 --error 1265
 INSERT INTO t1 (col2) VALUES ('hellobob');
 INSERT INTO t1 (col2) VALUES ('hello  ');
---error 1400
+--error 1406
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
 --error 1265
 UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';

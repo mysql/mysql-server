@@ -1,15 +1,15 @@
 /* Copyright (C) 2000-2003 MySQL AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -392,11 +392,11 @@ typedef struct st_master_info
   my_bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
-  
+
   my_off_t master_log_pos;
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
-  
+
   pthread_mutex_t data_lock,run_lock;
   pthread_cond_t data_cond,start_cond,stop_cond;
   THD *io_thd;
@@ -412,7 +412,7 @@ typedef struct st_master_info
   volatile bool abort_slave;
   volatile uint slave_running;
   volatile ulong slave_run_id;
-  /* 
+  /*
      The difference in seconds between the clock of the master and the clock of
      the slave (second - first). It must be signed as it may be <0 or >0.
      clock_diff_with_master is computed when the I/O thread starts; for this the
@@ -421,8 +421,8 @@ typedef struct st_master_info
      clock_of_slave - last_timestamp_executed_by_SQL_thread - clock_diff_with_master
 
   */
-  long clock_diff_with_master; 
-  
+  long clock_diff_with_master;
+
   st_master_info()
     :ssl(0), fd(-1),  io_thd(0), inited(0),
      abort_slave(0),slave_running(0), slave_run_id(0)
@@ -430,7 +430,7 @@ typedef struct st_master_info
     host[0] = 0; user[0] = 0; password[0] = 0;
     ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
     ssl_cipher[0]= 0; ssl_key[0]= 0;
-    
+
     bzero((char*) &file, sizeof(file));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
@@ -550,7 +550,6 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
 void end_master_info(MASTER_INFO* mi);
-int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
 void end_relay_log_info(RELAY_LOG_INFO* rli);
 void lock_slave_threads(MASTER_INFO* mi);
 void unlock_slave_threads(MASTER_INFO* mi);

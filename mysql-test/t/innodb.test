@@ -139,7 +139,7 @@ select n from t1;
 rollback to savepoint `savept2`;
 release savepoint `my_savepoint`;
 select n from t1;
--- error 1181
+-- error 1305
 rollback to savepoint `my_savepoint`;
 set autocommit=1;
 # nop
