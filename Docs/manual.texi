@@ -693,76 +693,85 @@ options to obtain online assistance.
 
 @cindex stability
 
-This section addresses the questions ``How stable is MySQL?'' and 
-``Can I depend on MySQL in this project?''  We will try to clarify
-some issues and to answer some of the more important questions that seem to 
-concern many people.  This section has been put together from information 
-gathered from the mailing list (which is very active in reporting bugs).
+This section addresses the questions ``@emph{How stable is MySQL?}''
+and ``@emph{Can I depend on MySQL in this project?}''
+We will try to clarify these issues and answer some important
+questions that concern many potential users. The information in this
+section is based on data gathered from the mailing list, which is
+very active in identifying problems as well as reporting types of use.
 
-At TcX, the predecessor of MySQL AB, MySQL has worked without any problems in
-projects since mid-1996. Original code stems back from the early 80s,
-providing a table code base, and the ISAM table format remains backwards
-compatible.  When MySQL was released to a wider public, we noticed that there
-were some pieces of ``untested code'' that were quickly found by the new users
-who made queries in a manner different than our own.  Each new release has had
-fewer portability problems than the previous one (even though each has had
-many new features).
+Original code stems back from the early 80s, providing a stable code
+base, and the ISAM table format remains backwards compatible.
+At TcX, the predecessor of MySQL AB, MySQL has worked in projects
+since mid-1996, without any problems.
+When MySQL was released to a wider public, we noticed that there were
+some pieces of ``untested code'' that were quickly found by the new
+users who made different types of queries from us. Each new release
+has had fewer portability problems (even though each new release has
+had many new features).
 
-Each release of MySQL has been usable, and there have been problems
-only when users start to use code from the ``gray zones.''  Naturally, outside
-users don't know what the gray zones are; this section attempts to indicate
-those that are currently known.  The descriptions deal with Version 3.23
-of MySQL.  All known and reported bugs are fixed in the latest 
-version, with the exception of the bugs listed in the bugs section, which 
-are things that are design-related.  @xref{Bugs}.
+Each release of MySQL has been usable. There have only been problems
+when users try code from the ``gray zones.''  Naturally, new users
+don't know what the gray zones are; this section attempts to indicate
+those that are currently known.
+The descriptions mostly deal with Version 3.23 of MySQL.
+All known and reported bugs are fixed in the latest version, with the
+exception of those listed in the bugs section, which are things that
+are design-related.  @xref{Bugs}.
 
-MySQL is written in multiple layers and different independent modules.
-Some of the new modules are listed below with an indication of how
-well-tested each of them is:
+MySQL design is multi-layered with independent modules. Some of the
+newer modules are listed below with an indication of how well-tested
+each of them is:
 
 @cindex modules, list of
 
 @table @strong
-@item Locking --- Gamma
-This is very system-dependent.  On some systems there are big problems
-using standard OS locking (@code{fcntl()}).  In these cases, you should run the
-MySQL daemon with the @code{--skip-locking} flag.  Problems are known
-to occur on some Linux systems, and on SunOS when using NFS-mounted file
-systems.
-
-@item @strong{MyODBC 2.50} (uses ODBC SDK 2.5) --- Gamma
-It seems to work well with some programs.
-
 @item Replication -- Gamma
-We are still working on replication, so don't expect this to be rock
-solid yet.  On the other hand, some MySQL users are already
-using this with good results.
+Large server clusters using replication are in production use, with
+good results. Work on enhanced replication features is continuing
+in MySQL 4.0.
 
-@item BDB Tables -- Gamma
-The Berkeley DB code is very stable, but we are still improving the interface
-between MySQL and BDB tables, so it will take some time before this
-is tested as well as the other table types.
+@item @code{InnoDB} tables -- Gamma
+While the @code{InnoDB} transactional table handler is a fairly recent
+addition to @code{MySQL}, it appears to work well and is already being
+used in some large, heavy load production systems.
 
-@item InnoDB Tables -- Gamma
-This is a recent addition to @code{MySQL}. They appear to work well and
-can be used after some initial testing.
+@item @code{BDB} tables -- Gamma
+The @code{Berkeley DB} code is very stable, but we are still improving
+the @code{BDB} transactional table handler interface in MySQL, so it
+will take some time before this is as well tested as the other table
+types.
 
-@item Automatic recovery of MyISAM tables - Gamma
-This only affects the new code that checks if the table was closed properly
-on open and executes an automatic check/repair of the table if it wasn't.
+@item @code{FULLTEXT} -- Beta
+Full text search works but is not yet widely used.
+Important enhancements are being implemented for MySQL 4.0.
 
-@item FULLTEXT -- Beta
-Text search seems to work, but is still not widely used.
+@item @code{MyODBC 2.50} (uses ODBC SDK 2.5) -- Gamma
+Increasingly in wide use. Some issues brought up appear to be
+application related and independent of the ODBC driver or underlying
+database server.
 
-@item Bulk-insert - Alpha
+@item Automatic recovery of @code{MyISAM} tables -- Gamma
+This status only regards the new code in the @code{MyISAM} table
+handler that checks if the table was closed properly on open and
+executes an automatic check/repair of the table if it wasn't.
+
+@item Bulk-insert -- Alpha
 New feature in MyISAM in MySQL 4.0 for faster insert of many rows.
+
+@item Locking -- Gamma
+This is very system-dependent.  On some systems there are big problems
+using standard OS locking (@code{fcntl()}).  In these cases, you should
+run @code{mysqld} with the @code{--skip-locking} flag.
+Problems are known to occur on some Linux systems, and on SunOS when
+using NFS-mounted file systems.
 
 @end table
 
 MySQL AB provides high-quality support for paying customers, but the 
 MySQL mailing list usually provides answers to common questions.
-Bugs are usually fixed right away with a patch; for serious bugs, there is
-almost always a new release.
+Bugs are usually fixed right away with a patch; for serious bugs,
+there is almost always a new release.
 
 
 @node Table size, Year 2000 compliance, Stability, What-is
