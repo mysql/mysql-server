@@ -26,6 +26,9 @@
 #include <errno.h>
 #endif
 
+static int mi_unlock_open_count(MI_INFO *info, my_bool write_info);
+
+
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 
 int mi_lock_database(MI_INFO *info, int lock_type)
@@ -35,7 +38,12 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   MYISAM_SHARE *share=info->s;
   uint flag;
   DBUG_ENTER("mi_lock_database");
-  DBUG_PRINT("info",("lock_type: %d", lock_type));
+  DBUG_PRINT("enter",("mi_lock_database: lock_type %d, old lock %d"
+                      ", r_locks %u, w_locks %u", lock_type,
+                      info->lock_type, share->r_locks, share->w_locks));
+  DBUG_PRINT("enter",("mi_lock_database: gl._changed %d, open_count %u '%s'",
+                      share->global_changed, share->state.open_count,
+                      share->index_file_name));
 
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
@@ -54,7 +62,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   {
     switch (lock_type) {
     case F_UNLCK:
-      DBUG_PRINT("info", ("old lock: %d", info->lock_type));
       if (info->lock_type == F_RDLCK)
 	count= --share->r_locks;
       else
@@ -83,7 +90,8 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
-	  if (mi_state_info_write(share->kfile, &share->state, 1))
+          if (mi_unlock_open_count(info, FALSE) ||
+              mi_state_info_write(share->kfile, &share->state, 1))
 	    error=my_errno;
 	  share->changed=0;
 	  if (myisam_flush)
@@ -98,6 +106,19 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  if (error)
 	    mi_mark_crashed(info);
 	}
+        else
+        {
+          /*
+            There are chances that _mi_mark_file_changed() has been called,
+            while share->changed remained FALSE. Consequently, we need to
+            clear the open_count even when share->changed is FALSE. Note,
+            that mi_unlock_open_count() will only clear the open_count when
+            it is set and only write the status to file, if it changes it
+            and we are running --with-external-locking.
+          */
+          if (mi_unlock_open_count(info, ! my_disable_locking))
+            error= my_errno;
+        }
 	if (info->lock_type != F_EXTRA_LCK)
 	{
 	  if (share->r_locks)
@@ -122,10 +143,15 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     case F_RDLCK:
       if (info->lock_type == F_WRLCK)
       {						/* Change RW to READONLY */
+        /*
+          mysqld does not turn write locks to read locks,
+          so we're never here in mysqld.
+        */
 	if (share->w_locks == 1)
 	{
 	  flag=1;
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+          if (mi_unlock_open_count(info, ! my_disable_locking) ||
+              my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		      MYF(MY_SEEK_NOT_DONE)))
 	  {
 	    error=my_errno;
@@ -153,6 +179,14 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  my_errno=error;
 	  break;
 	}
+        if (share->state.open_count)
+        {
+          DBUG_PRINT("error",("RD: Table has not been correctly unlocked"
+                              ": open_count %d '%s'",
+                              share->state.open_count,
+                              share->index_file_name));
+          mi_mark_crashed(info);
+        }
       }
       VOID(_mi_test_if_changed(info));
       share->r_locks++;
@@ -198,6 +232,14 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	      my_errno=error;
 	      break;
 	    }
+            if (share->state.open_count)
+            {
+              DBUG_PRINT("error",("WR: Table has not been correctly unlocked"
+                                  ": open_count %d '%s'",
+                                  share->state.open_count,
+                                  share->index_file_name));
+              mi_mark_crashed(info);
+            }
 	  }
 	}
       }
@@ -459,3 +501,36 @@ int _mi_decrement_open_count(MI_INFO *info)
   }
   return test(lock_error || write_error);
 }
+
+/*
+  Decrement open_count in preparation for unlock.
+
+  SYNOPSIS
+    mi_unlock_open_count()
+    info                        Pointer to the MI_INFO structure.
+    write_info                  If info must be written when changed.
+
+  RETURN
+    0     OK
+*/
+
+static int mi_unlock_open_count(MI_INFO *info, my_bool write_info)
+{
+  int rc= 0;
+  MYISAM_SHARE *share=info->s;
+
+  DBUG_ENTER("mi_unlock_open_count");
+  DBUG_PRINT("enter",("mi_unlock_open_count: gl._changed %d open_count %d '%s'",
+                      share->global_changed, share->state.open_count,
+                      share->index_file_name));
+  if (share->global_changed)
+  {
+    share->global_changed= 0;
+    if (share->state.open_count)
+      share->state.open_count--;
+    if (write_info)
+      rc= _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
+  }
+  DBUG_RETURN(rc);
+}
+

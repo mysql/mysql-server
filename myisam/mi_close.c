@@ -70,7 +70,8 @@ int mi_close(register MI_INFO *info)
       error=my_errno;
     if (share->kfile >= 0)
     {
-      if (share->mode != O_RDONLY && mi_is_crashed(info))
+      /* We must always flush the state with the current open_count. */
+      if (share->mode != O_RDONLY)
 	mi_state_info_write(share->kfile, &share->state, 1);
       if (my_close(share->kfile,MYF(0)))
         error = my_errno;
