@@ -163,8 +163,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     if (access(path,F_OK))
     {
-      if (!if_exists)
-	error=1;
+      if (if_exists)
+        store_warning(thd, ER_BAD_TABLE_ERROR, table->real_name);
+      else
+        error= 1;
     }
     else
     {

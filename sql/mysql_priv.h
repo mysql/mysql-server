@@ -321,7 +321,6 @@ void free_items(Item *item);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_init_query(THD *thd);
-void mysql_reset_errors(THD *thd);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -526,6 +525,8 @@ int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 /* sql_error.cc */
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
 		  const char *msg);
+void store_warning(THD *thd, uint errcode, ...);
+void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
