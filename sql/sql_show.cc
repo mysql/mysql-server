@@ -978,7 +978,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(buff, (uint) (end- buff));
     }
 
-    if (share->max_rows)
+    if (share->max_rows && !table_list->schema_table)
     {
       packet->append(" MAX_ROWS=", 10);
       end= longlong10_to_str(share->max_rows, buff, 10);
