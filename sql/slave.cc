@@ -42,6 +42,8 @@ bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
 static TABLE* save_temporary_tables = 0;
+ulong relay_log_space_limit = 0; /* TODO: fix variables to access ulonglong
+				    values and make it ulonglong */
 // when slave thread exits, we need to remember the temporary tables so we
 // can re-use them on slave start
 
@@ -60,8 +62,10 @@ static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev);
 static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev);
 static int queue_old_event(MASTER_INFO* mi, const char* buf,
 			   uint event_len);
+static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli);
 static inline bool io_slave_killed(THD* thd,MASTER_INFO* mi);
 static inline bool sql_slave_killed(THD* thd,RELAY_LOG_INFO* rli);
+static int count_relay_log_space(RELAY_LOG_INFO* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
@@ -264,8 +268,9 @@ void init_slave_skip_errors(char* arg)
 // are not running
 int purge_relay_logs(RELAY_LOG_INFO* rli, bool just_reset, const char** errmsg)
 {
+  DBUG_ENTER("purge_relay_logs");
   if (!rli->inited)
-    return 0; /* successfully do nothing */
+    DBUG_RETURN(0); /* successfully do nothing */
   DBUG_ASSERT(rli->slave_running == 0);
   DBUG_ASSERT(rli->mi->slave_running == 0);
   int error=0;
@@ -282,14 +287,20 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, bool just_reset, const char** errmsg)
     goto err;
   }
   strnmov(rli->relay_log_name,rli->linfo.log_file_name,
-	  sizeof(rli->relay_log_name));
+	  sizeof(rli->relay_log_name)-1);
+  rli->log_space_total=4; //just first log with magic number and nothing else
   rli->relay_log_pos=4;
+  rli->relay_log.reset_bytes_written();
   rli->log_pos_current=0;
   if (!just_reset)
     error =  init_relay_log_pos(rli,0,0,0/*do not need data lock*/,errmsg);
-err:  
+err:
+#ifndef DBUG_OFF
+  char buf[22];
+#endif  
+  DBUG_PRINT("info",("log_space_total=%s",llstr(rli->log_space_total,buf)));
   pthread_mutex_unlock(&rli->data_lock);
-  return error;
+  DBUG_RETURN(error);
 }
 
 int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
@@ -953,8 +964,9 @@ void end_master_info(MASTER_INFO* mi)
 
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 {
+  DBUG_ENTER("init_relay_log_info");
   if (rli->inited)
-    return 0;
+    DBUG_RETURN(0);
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
   int info_fd;
@@ -970,6 +982,8 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   rli->log_pos_current=0;
   rli->abort_pos_wait=0;
   rli->skip_log_purge=0;
+  rli->log_space_limit = relay_log_space_limit;
+  rli->log_space_total = 0;
   // TODO: make this work with multi-master
   if (!opt_relay_logname)
   {
@@ -1001,7 +1015,7 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 	my_close(info_fd, MYF(0));
       rli->info_fd=-1;
       pthread_mutex_unlock(&rli->data_lock);
-      return 1;
+      DBUG_RETURN(1);
     }
     if (init_relay_log_pos(rli,"",4,0/*no data mutex*/,&msg))
       goto err;
@@ -1021,7 +1035,7 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 	my_close(info_fd, MYF(0));
       rli->info_fd=-1;
       pthread_mutex_unlock(&rli->data_lock);
-      return 1;
+      DBUG_RETURN(1);
     }
       
     rli->info_fd = info_fd;
@@ -1052,8 +1066,13 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   // before flush_relay_log_info
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
   error=test(flush_relay_log_info(rli));
+  if (count_relay_log_space(rli))
+  {
+    msg="Error counting relay log space";
+    goto err;
+  }
   pthread_mutex_unlock(&rli->data_lock);
-  return error;
+  DBUG_RETURN(error);
 
 err:
   sql_print_error(msg);
@@ -1061,9 +1080,66 @@ err:
   my_close(info_fd, MYF(0));
   rli->info_fd=-1;
   pthread_mutex_unlock(&rli->data_lock);
-  return 1;
+  DBUG_RETURN(1);
 }
 
+static inline int add_relay_log(RELAY_LOG_INFO* rli,LOG_INFO* linfo)
+{
+  MY_STAT s;
+  DBUG_ENTER("add_relay_log");
+  if (!my_stat(linfo->log_file_name,&s,MYF(0)))
+  {
+    sql_print_error("log %s listed in the index, but failed to stat",
+		    linfo->log_file_name);
+    DBUG_RETURN(1);
+  }
+  rli->log_space_total += s.st_size;
+#ifndef DBUG_OFF
+  char buf[22];
+#endif  
+  DBUG_PRINT("info",("log_space_total: %s", llstr(rli->log_space_total,buf)));
+  DBUG_RETURN(0);
+}
+
+static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
+{
+  bool slave_killed;
+  MASTER_INFO* mi = rli->mi;
+  const char* save_proc_info;
+  THD* thd = mi->io_thd;
+  DBUG_ENTER("wait_for_relay_log_space");
+  pthread_mutex_lock(&rli->log_space_lock);
+  save_proc_info = thd->proc_info;
+  thd->proc_info = "Waiting for relay log space to free";
+  while (rli->log_space_limit < rli->log_space_total &&
+	 !(slave_killed=io_slave_killed(thd,mi)))
+  {
+    pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+  }
+  thd->proc_info = save_proc_info;
+  pthread_mutex_unlock(&rli->log_space_lock);
+  DBUG_RETURN(slave_killed);
+}
+
+static int count_relay_log_space(RELAY_LOG_INFO* rli)
+{
+  LOG_INFO linfo;
+  DBUG_ENTER("count_relay_log_space");
+  rli->log_space_total = 0;
+  if (rli->relay_log.find_first_log(&linfo,""))
+  {
+    sql_print_error("Could not find first log while counting relay log space");
+    DBUG_RETURN(1);
+  }
+  if (add_relay_log(rli,&linfo))
+    DBUG_RETURN(1);
+  while (!rli->relay_log.find_next_log(&linfo))
+  {
+    if (add_relay_log(rli,&linfo))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname)
@@ -1242,6 +1318,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   field_list.push_back(new Item_empty_string("Last_error", 20));
   field_list.push_back(new Item_empty_string("Skip_counter", 12));
   field_list.push_back(new Item_empty_string("Exec_master_log_pos", 12));
+  field_list.push_back(new Item_empty_string("Relay_log_space", 12));
   if(send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
@@ -1268,6 +1345,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   net_store_data(packet, mi->rli.last_slave_error);
   net_store_data(packet, mi->rli.slave_skip_counter);
   net_store_data(packet, (longlong) mi->rli.master_log_pos);
+  net_store_data(packet, (longlong) mi->rli.log_space_total);
   pthread_mutex_unlock(&mi->rli.data_lock);
   pthread_mutex_unlock(&mi->data_lock);
   
@@ -1783,6 +1861,14 @@ from master");
 	goto err;
       }
       flush_master_info(mi);
+      if (mi->rli.log_space_limit && mi->rli.log_space_limit <
+	  mi->rli.log_space_total)
+	if (wait_for_relay_log_space(&mi->rli))
+	{
+	  sql_print_error("Slave I/O thread aborted while waiting for relay \
+log space");
+	  goto err;
+	}
       // TODO: check debugging abort code
 #ifndef DBUG_OFF
       if (abort_slave_event_count && !--events_till_abort)
@@ -1986,7 +2072,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     goto err;
   }
 
-  /* this dummy block is so we could insantiate Append_block_log_event
+  /* this dummy block is so we could instantiate Append_block_log_event
      once and then modify it slightly instead of doing it multiple times
      in the loop
   */
@@ -2012,6 +2098,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
 relay log");
 	  goto err;
 	}
+	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
 	break;
       }
       if (unlikely(cev_not_written))
@@ -2026,6 +2113,7 @@ relay log");
 	  goto err;
 	}
 	cev_not_written=0;
+	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
       }
       else
       {
@@ -2038,6 +2126,7 @@ relay log");
 relay log");
 	  goto err;
 	}
+	mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total) ;
       }
     }
   }
@@ -2145,6 +2234,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       DBUG_ASSERT(!tmp_buf);
       return 1;
     }
+    mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
   }
   delete ev;
   if (likely(inc_pos))
@@ -2198,6 +2288,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   {
     if (likely(inc_pos))
       mi->master_log_pos += event_len;
+    mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
   }
   if (unlikely(processed_stop_event))
     mi->ignore_stop_event=1;
