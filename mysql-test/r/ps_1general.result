@@ -272,11 +272,11 @@ t2	1	t2_idx	1	b	A	NULL	NULL	NULL	YES	BTREE
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t2	MyISAM	9	Fixed	0	0	0	64424509439	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+t2	MyISAM	9	Fixed	0	0	#	#	#	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 prepare stmt4 from ' show table status from test like ''t9%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t9	MyISAM	9	Dynamic	2	220	440	4294967295	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+t9	MyISAM	9	Dynamic	2	220	#	#	#	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 Variable_name	Value
