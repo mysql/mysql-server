@@ -25,19 +25,19 @@ test2	CREATE DATABASE `test2` /*!40100 DEFAULT CHARACTER SET latin2 */
 show create database test3;
 Database	Create Database
 test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET latin5 */
-set @@collation_server=armscii_bin;
+set @@collation_server=armscii8_bin;
 drop database test3;
 create database test3;
 
 --- --master--
 show create database test3;
 Database	Create Database
-test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii_bin */
+test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
 
 --- --slave--
 show create database test3;
 Database	Create Database
-test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii_bin */
+test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
 use test2;
 create table t1 (a int auto_increment primary key, b varchar(100));
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;
@@ -51,7 +51,7 @@ insert into t1 (b) values(@@collation_connection);
 select * from t1 order by a;
 a	b
 1	armscii8
-2	armscii_bin
+2	armscii8_bin
 3	cp850
 4	latin2
 5	latin2_croatian_ci
@@ -60,7 +60,7 @@ a	b
 select * from test2.t1 order by a;
 a	b
 1	armscii8
-2	armscii_bin
+2	armscii8_bin
 3	cp850
 4	latin2
 5	latin2_croatian_ci

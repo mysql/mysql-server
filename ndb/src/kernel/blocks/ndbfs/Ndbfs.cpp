@@ -63,7 +63,7 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  m_maxOpenedFiles = 40;
+  m_maxFiles = 40;
   //ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
 
   // Create idle AsyncFiles

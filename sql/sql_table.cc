@@ -1158,6 +1158,23 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   }
 #endif
 
+  /*
+    If the table character set was not given explicitely,
+    let's fetch the database default character set and
+    apply it to the table.
+  */
+  if (!create_info->default_table_charset)
+  {
+    HA_CREATE_INFO db_info;
+    uint length;
+    char  path[FN_REFLEN];
+    (void) sprintf(path,"%s/%s", mysql_data_home, db);
+    length= unpack_dirname(path,path);             // Convert if not unix
+    strmov(path+length, MY_DB_OPT_FILE);
+    load_db_opt(thd, path, &db_info);
+    create_info->default_table_charset= db_info.default_table_charset;
+  }
+
   if (mysql_prepare_table(thd, create_info, fields,
 			  keys, tmp_table, db_options, file,
 			  key_info_buffer, &key_count,
