@@ -39,8 +39,9 @@ LDADD =			../isam/libnisam.a \
 			../mysys/libmysys.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
-			../vio/libvio.a \
 			../strings/libmystrings.a
+			#../vio/libvio.a
+
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
                         @gemini_libs@ \
@@ -63,7 +64,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
-			net_serv.cc net_pkg.cc lock.cc my_lock.c \
+			net_serv.cc violite.c net_pkg.cc lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			convert.cc sql_parse.cc sql_yacc.yy \
@@ -85,7 +86,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			md5.c stacktrace.c
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
-mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
+mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc violite.c \
 			mini_client_errors.c password.c
 mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) $(mysqld_LDADD)
 
