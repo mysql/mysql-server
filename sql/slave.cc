@@ -2060,10 +2060,16 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->ssl_key, &my_charset_bin);
 
     if (mi->rli.last_master_timestamp)
-      protocol->store((ulonglong) 
-                      (long)((time_t)time((time_t*) 0)
-                             - mi->rli.last_master_timestamp)
-                      - mi->clock_diff_with_master);
+    {
+      long tmp= (long)((time_t)time((time_t*) 0)
+                               - mi->rli.last_master_timestamp)
+        - mi->clock_diff_with_master;
+      /*
+        Apparently on some systems tmp can be <0 (which is still a
+        mistery). This confuses users, so we don't go below 0.
+      */
+      protocol->store((longlong)(max(0, tmp)));
+    }
     else
       protocol->store_null();
 
