@@ -1,0 +1,63 @@
+Testing server 'Adabas 10.01.00' at 1998-09-24 12:13:15
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 10000 rows.
+
+Generating random keys
+Creating tables
+Inserting 10000 rows in order
+Inserting 10000 rows in reverse order
+Inserting 10000 rows in random order
+Time for insert (30000): 733 secs (22.19 usr  6.46 sys = 28.65 cpu)
+
+Testing insert of duplicates
+Time for insert_duplicates (30000):  9 secs ( 3.57 usr  3.81 sys =  7.38 cpu)
+
+Retrieving data from the table
+Time for select_big (10:300000): 41 secs (14.31 usr 10.02 sys = 24.33 cpu)
+Time for order_by_key (10:300000): 48 secs (13.45 usr 11.16 sys = 24.61 cpu)
+Time for order_by (10:300000): 54 secs (12.73 usr 11.78 sys = 24.51 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1740 queries in 1740 loops of 5000 loops took 602 seconds
+Estimated time for select_range_prefix (5000:14616): 1729 secs ( 7.39 usr 12.30 sys = 19.68 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+690 queries in 690 loops of 5000 loops took 612 seconds
+Estimated time for select_range (5000:5796): 4434 secs ( 7.54 usr 13.55 sys = 21.09 cpu)
+Time for select_key_prefix (20000): 79 secs (11.74 usr 21.54 sys = 33.28 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+7302 queries in 3651 loops of 10000 loops took 601 seconds
+Estimated time for select_key (20000): 1646 secs (16.74 usr 27.42 sys = 44.15 cpu)
+
+Test of compares with simple ranges
+Time for select_range_prefix (20000:43500): 53 secs ( 7.34 usr 14.13 sys = 21.47 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+5280 queries in 132 loops of 500 loops took 603 seconds
+Estimated time for select_range (20000:11484): 603 secs ( 2.41 usr  4.34 sys =  6.75 cpu)
+Time for select_group (101): 91 secs ( 0.12 usr  0.17 sys =  0.29 cpu)
+Time for min_max_on_key (3000): 12 secs ( 1.31 usr  3.39 sys =  4.70 cpu)
+Time for min_max (60): 40 secs ( 0.09 usr  0.09 sys =  0.18 cpu)
+Time for count_on_key (100): 102 secs ( 0.10 usr  0.12 sys =  0.22 cpu)
+Time for count (100): 107 secs ( 0.11 usr  0.12 sys =  0.23 cpu)
+
+Testing update with functions
+Time for update_key (500):  51 secs ( 0.32 usr  0.40 sys =  0.72 cpu)
+Time for update_key_big (480): 77 secs ( 0.29 usr  0.33 sys =  0.62 cpu)
+
+Testing delete
+Time for delete_key (500): 48 secs ( 0.39 usr  0.35 sys =  0.74 cpu)
+Time for delete_big (12):  8 secs ( 0.02 usr  0.01 sys =  0.03 cpu)
+
+Insert into table with 16 keys and with a primary key with 16 parts
+Time for insert_key (10000): 241 secs ( 8.58 usr  2.07 sys = 10.65 cpu)
+
+Testing update of keys
+Time for update_of_key (256): 17 secs ( 0.10 usr  0.16 sys =  0.26 cpu)
+
+Deleting everything from table
+Time for delete_big (2):  4 secs ( 0.00 usr  0.00 sys =  0.00 cpu)
+
+Estimated total time: 11695 secs ( 249.00 463.00 713.00)

@@ -1,0 +1,17 @@
+source ../include/master-slave.inc;
+connection master;
+use test;
+drop table if exists words;
+create table words (word char(20) not null, index(word));
+load data infile '/usr/dict/words' into table words;
+drop table if exists words1;
+create table words1 (word char(20) not null);
+load data infile '/usr/dict/words' into table words1;
+connection slave;
+use test;
+drop table if exists words;
+load table words from master;
+drop table if exists words1;
+load table words1 from master;
+@table-dump-check.master check table words;
+@table-dump-select.master select count(*) from words1;

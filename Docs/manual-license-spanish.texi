@@ -1,0 +1,709 @@
+@cindex Licensing terms
+@cindex Support terms
+@node Licensing and Support, Installing, Questions, Top
+@chapter MySQL licensing and support
+
+@menu
+* Licensing policy::            Política de licenciamento do @strong{MySQL}
+* Copyright::                   Direitos autorais usados por @strong{MySQL}
+* Commercial use::              Distribuindo comercialmente @strong{MySQL}
+* Licensing examples::          Exemplos de situações de licenciamento
+* Cost::                        Preços de licenciamento e suporte @strong{MySQL}
+* Support::                     Tipos de suporte comercial
+@end menu
+
+Este capítulo descreve os tipos de licenciamento e suporte do @strong{MySQL}, incluindo:
+
+@itemize @bullet
+@item
+Nossa política de licenciamento para sistemas operacionais não Microsoft e Microsoft
+
+@item
+Os direitos autorais sob os quais o @strong{MySQL} é distribuído
+(@pxref{Copyright})
+
+@item
+Exemplo de situações quando uma licença é necessária
+(@pxref{Licensing examples})
+
+@item
+Preços de licenciamento e suporte (@pxref{Cost}), e
+benefícios do suporte (@pxref{Support})
+@end itemize
+
+@cindex Licensing policy
+@node Licensing policy, Copyright, Licensing and Support, Licensing and Support
+@section MySQL licensing policy
+
+Os termos formais do licenciamento para sistemas operacionais não Microsoft tais como
+Unix ou OS/2 são especificados em @ref{Public license}. Basicamente, nossa política de
+licenciamento é como segue:
+
+@itemize @bullet
+@item
+Para uso interno normal, o @strong{MySQL} geralmente não custa nada. Você não precisa
+nos pagar se não o quiser.
+
+@item
+Uma licença é requerida se:
+
+@itemize @minus
+@item
+Você vende o servidor @strong{MySQL} diretamente ou como parte de outro produto ou serviço.
+
+@item
+Você cobra para instalar e manter um servidor @strong{MySQL} no local do cliente
+
+@item
+Você incluie o @strong{MySQL} numa distribuição que não é redistribuída
+e você cobra por alguma parte dessa distribuição
+@end itemize
+
+@item
+Para circunstâncias sob as quais uma licença do @strong{MySQL} é requerida,
+você necessita uma licença por mâquina que roda o servidor @code{mysqld}.
+Entretanto, uma mâquina com múltiplos processadores conta como uma mâquina
+simples e não há restrição no número de servidores que rodam numa só mâquina
+ou no número de clientes concurrentes conectados ao servidor em essa mâquina. 
+
+@item
+Você não necessita uma licença para incluir código de programas clientes
+comerciais. O acesso de parte de clientes para o @strong{MySQL} é de 
+domínio público. O código do cliente @code{mysql} de linha de comando
+incluie código da livraria @code{readline} que está sob a licença pública
+GNU.
+
+@item
+@cindex @code{myisampack}
+Para clientes que tem comprado 1 licença ou suporte MySQL, nós fornecemos
+funcionalidade adicional. Atualmente, isso significa o fornecimento do
+utilitário @code{myisampack} para banco de dados somente de leitura,
+rápidos e compactados. (O servidor incluie suporte para ler tais bancos
+de dados mas não a ferramenta de compactar usada para criar os mesmos).
+Quando os acordos de suporte gerem suficientes recursos, nós liberaremos
+esta ferramenta sob a mesma licença do servidor @strong{MySQL}.
+
+@item
+Se seu uso do @strong{MySQL} não requer uma licença, porém você gosta
+do @strong{MySQL} e deseja encorajar um maior desenvolvimento, você é
+certamente bem-vindo a adquirir uma licença de qualquer forma.
+
+@item
+Se usa o @strong{MySQL} num contexto comercial de tal forma
+que obtêm benefícios no seu uso, nós lhe solicitamos que apoie
+o desenvolvimento do @strong{MySQL} através da compra de algum
+nível de suporte. Nós achamos que se o @strong{MySQL} o ajuda
+em seu negócio, é razoável que solicitemos sua ajuda para o @strong{MySQL}.
+Por outro lado, se você nós faz perguntas de suporte, não somente está
+usando de graça algo no qual nós colocamos um enorme trabalho, você
+também está pedindo suporte de graça.
+@end itemize
+
+Para uso em sistemas operacionais Microsoft (Win95/Win98/WinNT),
+você precisa de uma licença @strong{MySQL} depois de 30 dias
+de experiência, com a exceção que licenças podem ser requeridas
+sem nenhum custo para uso educacional ou para suportar pesquisas
+de governo ou universidades. @xref{Winlicense}.
+Uma versão shareware do @strong{MySQL}-Win32 que você pode experimentar
+antes de comprar está disponível em @uref{http://www.mysql.com/mysql_w32.htmy}.
+Depois que você tenha pago, você terá uma senha que permite seu acesso a uma
+nova versão @strong{MySQL}-Win32.
+
+Se você tem uma pergunta se for o caso ou não de requerer uma licença para
+seu caso em particular do @strong{MySQL}, favor entrar em contato com nós.
+@xref{Contact information}.
+
+Se você requer uma licença @strong{MySQL}, a forma mais fácil para pagar
+a mesma é usar o formulário no seguro servidor TcX em @url{https://www.mysql.com/license.htmy}. 
+Outras formas de pagamento são mencionadas em @ref{Payment information}.
+
+@cindex Copyright
+@node Copyright, Commercial use, Licensing policy, Licensing and Support
+@section Copyrights used by MySQL
+
+@menu
+* Copyright changes::           Possível futura mudança no direito autoral
+@end menu
+
+Existem vários direitos autorais diferentes na distribuição @strong{MySQL}:
+
+@enumerate
+@item
+
+O fonte específico @strong{MySQL}necessário para construir o @code{mysqlclient}
+livrarias e programas no diretório @file{client} está em domínio público.
+Cada arquivo que está em domínio público tem um cabeçalho que claramente notifica
+este estado. Isto incluie tudo no diretório @file{client}e algumas partes
+do @code{mysys}, @code{mystring} e @code{dbug} livrarias.
+
+@item
+Algumas pequenas partes do fonte (GNU @code{getopt}) estão cobertas pela
+``GNU LIBRARY LIBRARY GENERAL PUBLIC LICENSE''. Ver o arquivo
+@file{mysys/COPYING.LIB}.
+
+@item
+Algumas pequenas partes do fonte ( (GNU @code{readline})  estão cobertas pela
+``GNU GENERAL PUBLIC LICENSE''. Ver o arquivo @file{readline/COPYING}.
+
+@item
+Algumas partes do fonte (a @code{regexp} livraria) está coberta pelo estilo de
+direito autoral Berkeley.
+
+@item
+O outro fonte necessário para o servidor @strong{MySQL} em plataformas não Microsoft
+está coberta pela ``MySQL FREE PUBLIC LICENSE'', a qual é baseada na
+``Aladdin FREE PUBLIC LICENSE.'' @xref{Public license}. Quando o @strong{MySQL}
+está rodando em qualquer sistema operacional Microsoft, outro licenciamento é aplicado.
+@end enumerate
+
+Os seguintes pontos direcionam a filosofia sob nossa política de direito autoral:
+
+@itemize @bullet
+@item
+A livraria cliente SQL deve ser totalmente livre tal que a mesma pode ser incluída
+em produtos comerciais sem nenhuma limitação.
+
+@item
+Pessoas que querem livre acesso ao programa no qual nós temos colocado uma grande
+quantidade de trabalho, podem tê-lo, tal que não procurem ganhar dinheiro diretamente
+pela distribuição e para benefício.
+
+@item
+Pessoas que querem manter o direito da propriedade de seu programa, porém também
+querem o valor de nosso trabalho, podem pagar pelo previlégio.
+
+@item
+O uso normal em casa é de GRAÇA. Mas se você usa o @strong{MySQL} para algo
+importante para você, você pode ajudar o desenvolvimento futuro pela
+compra de uma licença ou contrato de suporte.@xref{Support}.
+@end itemize
+
+@node Copyright changes,  , Copyright, Copyright
+@subsection Possible future copyright changes
+
+Nós poderemos optar para distribuir versões antigas do @strong{MySQL}
+com a GPL no futuro. Entretanto, essas versões devem ser identificadas
+como @strong{GNU MySQL}. Também, todas notas de direitos autorais dos
+arquivos relativos devem ser mudados para a GPL.
+
+@node Commercial use, Licensing examples, Copyright, Licensing and Support
+@section Distributing MySQL commercially
+
+Esta seção é um esclarecimento dos termos de licença que são a base na
+``MySQL FREE PUBLIC LICENSE'' (FPL).  @xref{Public license}.
+
+O @strong{MySQL} pode ser @strong{usado} livremente , incluindo
+entidades comerciais para avaliação ou uso interno sem suporte.
+Entretanto, @strong{distribuição} para propósitos comerciais
+do @strong{MySQL}, ou qualquer coisa contendo ou derivando do @strong{MySQL}
+no seu todo ou parte, requer uma licença comercial escrita da TcX AB,
+a única entidade autorizada para garantir tais licenças.
+
+Você não pode incluir o @strong{MySQL} ``de graça'' num pacote contendo
+qualquer coisa pela qual um pagamento está sendo feito, exceto como
+notado abaixo:
+
+A intenção da exceção providenciada na segunda claúsula da licença é
+para permitir que organizações comerciais operando um servidor FTP ou
+uma agência de notícias possam distribuir livremente o @strong{MySQL},
+desde que:
+
+@enumerate
+@item
+A organização complace com as outras provisões da FPL, a qual
+incluie entre outras coisas um requerimento para distribuir o
+código fonte inteiro do @strong{MySQL} e qualquer outro trabalho
+derivado, e para distribuir a FPL em si junto com @strong{MySQL};
+
+@item
+A única cobrança para abaixar o @strong{MySQL} é a cobrança baseada
+na distribuição do serviço e não numa baseada no contexto da
+informação sendo recebida (ex: a cobrança deverá ser a mesma para
+o recebimento de uma coleção qualquer de bits do mesmo tamanho);
+
+@item
+O servidor ou BBS é acessível para o público em geral, ex. o número de
+telefone ou enedereço IP não é guardado em secreto, e qualquer um pode
+obter acesso para a informação (possivelmente pagando uma inscrição ou
+acesso cobrado que não é dependente ou relacionado para comprar qualquer
+outra coisa).
+@end enumerate
+
+Se você quer para distribuir programas em um contexto comercial que 
+incorpora @strong{MySQL} e você @strong{não} quer encontrar essas
+condições, você deve contatar TcX AB para encontrar um licenciamento
+comercial, o qual envolve um pagamento. O único meio legal que
+você pode distribuir @strong{MySQL} ou qualquer coisa contendo @strong{MySQL}
+são pela distribuição do @strong{MySQL} sob os requerimentos da FPL, ou pela
+obtenção de uma licença comercial da TcX AB.
+
+@node Licensing examples, Cost, Commercial use, Licensing and Support
+@section Example licensing situations
+
+@menu
+* Products that use MySQL::     Vendendo produtos que usam @strong{MySQL}
+* MySQL services::              Vendendo serviços relacionados ao @strong{MySQL}
+* ISP::                         Serviços de ISP com @strong{MySQL}
+* Web server::                  Rodando um servidor web usando o @strong{MySQL}.
+@end menu
+
+Esta seção descreve algumas situações ilustrando se é o caso ou não que
+você deve licençar o servidor @strong{MySQL}. Geralmente esses exemplos
+envolvem o fornecimento do @strong{MySQL} como parte de um produto ou
+serviço que você está vendendo para um cliente, ou requer que o @strong{MySQL}
+seja usado em conjunto com seu produto. Em tais casos, é sua responsabilidade
+para obter uma licença para o cliente se uma é necessária (Este requerimento
+pode ser deixado de lado se seu cliente já tem uma licença @strong{MySQL}.
+Porém, o vendedor deve enviar informação do cliente e o número da licença
+para TcX, e a licença deverá ser completa, não uma licença OEM).
+
+Note que uma simples licença do @strong{MySQL} cobre qualquer número de
+CPUs/usuários/clientes/servidores @code{mysqld} numa só mâquina!
+
+@node Products that use MySQL, MySQL services, Licensing examples, Licensing examples
+@subsection Selling products that use MySQL
+
+Para determinar caso seja necessário ou não uma licença @strong{MySQL}
+quando vendendo a sua aplicação, você deve perguntar caso seja necessário
+para o funcionamento adequado de sua aplicação a contingência no uso do
+@strong{MySQL} e seja necessário você incluir o @strong{MySQL} com seu
+produto. Existem vários casos a considerar:
+
+@itemize @bullet
+@item
+Sua aplicação precisa do @strong{MySQL} para funcionar adequadamente ?
+
+Se o seu produto precisa do @strong{MySQL}, você necessita uma licença
+para cada mâquina que roda o servidor @code{mysqld}. Por exemplo,
+se você projeta uma aplicação sobre o @strong{MySQL}, então você tem
+feito realmente um produto comercial que necessita do servidor, tal que
+necessita de uma licença.
+
+Se sua aplicação não requer o @strong{MySQL}, você não necessita obter uma
+licença. Por exemplo, se o @strong{MySQL} apenas adiciona uma nova característica
+a seu produto (tal como adicionando loggin a um banco de dados e se o @strong{MySQL}
+é usado no lugar de um arquivo texto), o mesmo entra como um uso normal, e uma 
+licença não precisa ser requerida.
+
+Em outras palavras, você necessita de uma licença se você vende um produto
+projetado para uso com o @strong{MySQL} ou que precisa do servidor @strong{MySQL}
+para um funcionamento completo. Isto é verdadeiro caso haja necessidade ou não de fornecer
+o @strong{MySQL} para seu cliente como parte da distribuição de seu produto.
+
+Isso também depende no que você está fazendo para o cliente. Você planeja fornecer
+a seu cliente com instruções e detalhes na instalação do @strong{MySQL} com seu
+programa ?. Então seu produto contencialmente precisa do @strong{MySQL};
+Sim é tal, você necessita comprar uma licença. Se você simplesmente usa um banco de
+dados que espera já estiver instalado no instante en seu programa é comprado, então
+provavelmente não necessita de uma licença.
+
+@item
+Você incluie o @strong{MySQL} numa distribuição e cobra pela mesma ?
+
+Se você incluie @strong{MySQL} com a distribuição que vende para os clientes,
+você necessita uma licença para cada mâquina que roda o servidor @code{mysqld},
+porque neste caso você está vendendo um sistema que incluie @strong{MySQL}.
+
+Isto é verdadeiro no caso que o @strong{MySQL} com seu produto seja requerido
+ou opcional.
+
+@item
+Você não requer nem incluie o @strong{MySQL} com seu produto ?
+
+Suponha que quer vender um produto projetado de uma maneira geral para usar
+com "qualquer banco de dados" e que pode ser configurado para usar qualquer
+uma das várias alternativas de sistemas de banco de dados (@strong{MySQL}, 
+PostgreSQL, ou qualquer outro. Isto é, seu produto não requer @strong{MySQL},
+mas pode suportar qualquer banco de dados com o nível base de funcionalidade
+e você não depende de qualquer coisa que somente @strong{MySQL} suporta.
+Nenhum de vocês paga para nós se o seu cliente realmente seleciona para
+usar @strong{MySQL}?
+
+Neste caso, se você não fornece, obtêm ou configura o @strong{MySQL} para
+o cliente e decide o cliente para usá-lo, nenhum de vocês precisa de uma
+licença. Se você faz um serviço, vide @ref{MySQL services, ,
+@strong{MySQL} serviços}.
+@end itemize
+
+@node MySQL services, ISP, Products that use MySQL, Licensing examples
+@subsection Selling MySQL-related services
+
+Se você faz uma instalação numa mâquina de um cliente do @strong{MySQL}
+e há cobrança pelo serviço (direta ou indiretamente), então você comprar
+uma licença @strong{MySQL}.
+
+Se você vende uma aplicação para a qual o @strong{MySQL} não é estritamente
+requerido, porém pode ser usado, uma licença deve indicada, dependendo
+como o @strong{MySQL} é configurado. Suponha que seu produto não requera e
+não incluia o @strong{MySQL} na sua distribuição, porém pode ser configurado
+para usar o @strong{MySQL} para os clientes que assim o desejar. (Este pode ser
+o caso, por exemplo, se seu produto pode usar qualquer um de servidores de
+banco de dados).
+
+Se o cliente obtêm e instala o @strong{MySQL}, nenhuma licença é necessária.
+Entretanto, se você faz o serviço para seu cliente, então é necessário uma
+licença, porque você está vendendo um serviço que incluie o @strong{MySQL}.
+
+@node ISP, Web server, MySQL services, Licensing examples
+@subsection ISP MySQL services
+
+Provedores de Serviço Internet (ISPs) às vezes hospedam servidores @strong{MySQL}
+para seus cliente.
+
+Se você é um ISP que permite a seus clientes instalar e administrar o
+@strong{MySQL} por si próprios na sua mâquina sem nenhuma assistência
+de sua parte, nem você nem o cliente precisa de uma licença @strong{MySQL}.
+
+Se você cobra para instalar e administrar o @strong{MySQL} como parte de seu
+serviço para o cliente, então você precisa de uma licença, porque está vendendo
+um serviço que incluie o @strong{MySQL}.
+
+@node Web server,  , ISP, Licensing examples
+@subsection Running a web server using MySQL
+
+Se você usa o @strong{MySQL} em conjunto com um servidor web, você não tem
+que pagar uma licença.
+
+Isto é verdadeiro se você roda um servidor web comercial que usa @strong{MySQL},
+desde que você não esteja vendendo o @strong{MySQL}. Entretanto, neste caso
+nós gostariamos que você compre suporte @strong{MySQL}, porque @strong{MySQL}
+está ajudando a sua empresa.
+
+@cindex Costs, licensing and support
+@cindex Licensing costs
+@cindex Support costs
+@node Cost, Support, Licensing examples, Licensing and Support
+@section MySQL licensing and support costs
+
+@menu
+* Payment information::         Informação de Pagamento
+* Contact information::         Informação de contato
+@end menu
+
+Nossos preços atuais de licença são mostrados abaixo. Todos os preços são
+em US Dólar. Se você paga com cartão de crédito, a moeda é o EURO (European Union Euro),
+tais preços diferem levemente.
+
+@multitable @columnfractions .25 .2 .3
+@item @strong{Número de licenças} @tab @strong{Preço por cópia} @tab @strong{Total}
+@item 1                  @tab US $200 @tab US $200
+@item 10 pacotes            @tab US $150 @tab US $1500
+@item 50 pacotes            @tab US $120 @tab US $6000
+@end multitable
+
+Para compras em alto volume (OEM), os seguintes preços são aplicados:
+
+@multitable @columnfractions .25 .2 .3 .25
+@item @strong{Número de licenças}  @tab @strong{Preço por cópia} @tab @strong{Mínimo de uma vez} @tab @strong{Pagamento mínimo}
+@item 100-999   @tab US $40        @tab 100                     @tab US $4000
+@item 1000-2499 @tab US $25        @tab 200                     @tab US $5000
+@item 2500-4999 @tab US $20        @tab 400                     @tab US $8000
+@end multitable
+
+Para compras OEM, você deve atuar como o intermediário para eventuais
+problemas ou solicitações de seus usuários. Nós também requeremos que
+clientes OEM tenham ao menos um contrato de suporte extended email.
+
+Se você tem uma margem baixa em alto volume de produtos, você pode falar
+com nós sobre outros termos (por exemplo, a porcentagem dos preços de
+venda). Se você faz, por favor seja informativo sobre seu produto, preço,
+mercado e qualquer outra informação que seja relevante.
+
+@cindex @code{myisampack}
+Depois de comprar 1 licença @strong{MySQL}, você terá uma cópia pessoal
+do utilitário @code{myisampack}. Você não está permitido em distribuir
+esse utilitário porém você pode distribuir tabelas compactadas com ele.
+
+Um preço completo de uma licença não é um acordo de suporte e incluie um
+mínimo suporte. Isto significa que nós tentamos responder qualquer pergunta
+relevante. Se a resposta está na documentação, nós direcionamos você à 
+apropriada seção. Se você não tem comprado uma licença ou suporte, nós
+provavelmente não responderemos ao tudo. 
+
+Se você descobre o que consideramos um real bug, nós estamos prontificados
+a solucionar o erro em qualquer caso. Porém se você paga por suporte nós
+o notificaremos sobre o andamento da solução ao invés de soluncioná-lo
+nos próximos lançamentos.
+
+Suporte mais amplo é vendido separadamente. Descrições do que incluie cada
+nível de suporte são dadas em @ref{Support}. Custos para os vários tipos
+comerciais de suporte são mostrados abaixo. O nível de preços de suporte
+estão em EURO (European Union Euro). Um EURO é aproximadamente 1.17 USD.
+
+@multitable @columnfractions .3 .3
+@item @strong{Tipo de suporte} @tab @strong{Custo por ano}
+@item Basic email support      @tab EURO 170
+@item Extended email support   @tab EURO 1000
+@item Login support            @tab EURO 2000
+@item Extended login support   @tab EURO 5000
+@end multitable
+
+Você pode atualizar um nível mais baixo sw suporte para um de maior
+nível, pela diferença entre os preços dos dois níveis.
+
+@cindex Payment information
+@node Payment information, Contact information, Cost, Cost
+@subsection Payment information
+
+Correntemente nós podemos tomar pagamentos SWIFT, cheques ou cartões de crédito.
+
+O pagamento poderá ser feito a:
+@example
+Postgirot Bank AB
+105 06 STOCKHOLM, SWEDEN
+
+TCX DataKonsult AB
+BOX 6434
+11382 STOCKHOLM, SWEDEN
+
+SWIFT address: PGSI SESS
+Número da Conta: 96 77 06 - 3
+@end example
+
+Especificar: licença e/ou suporte, seu nome e endereço de e-mail.
+
+Em europa e Japão você pode usar EuroGiro (que pode ser menos caro) para a mesma
+conta.
+
+Se você quer pagar através de cheque, faça-o nominal a ``Monty Program KB'' e mande
+um e-mail para o endereço abaixo:
+
+@example
+TCX DataKonsult AB
+BOX 6434, Torsgatan 21
+11382 STOCKHOLM, SWEDEN
+@end example
+
+Se você quer pagar com cartão de crédito usando a Internet, você pode
+usar o seguro formulário de licença da TcX:
+@uref{https://www.mysql.com/license.htmy.
+
+Você pode também imprimir uma cópia do formulário de licença, prenché-lo e mandá-lo
+via fax para:
+
+
++46-8-729 69 05
+
+Se você quer que nós uma cobrança para você, você pode usar o formulário de
+licença e escrever ``bill us'' no campo de comentários. Você pode também
+mandar uma mensagem via e-mail para @email{sales@@mysql.com} (@strong{not}
+@email{mysql@@lists.mysql.com}!) com a informação de sua companhia e pedir
+para nós para efetuar a cobrança.
+
+@cindex Contact information
+@node Contact information,  , Payment information, Cost
+@subsection Contact information
+
+Para licenciamento comercial, ou se você têm qualquer pergunta sobre
+informação desta seção, por favor contatar a equipe de licenciamento 
+do @strong{MySQL}. O mais preferido método é o e-mail para
+@email{mysql-licensing@@mysql.com}. Fax é também possível porém sua
+manipulação pode demorar muito (Fax +46-8-729 69 05).
+
+@example
+David Axmark
+Detron HB
+Kungsgatan 65 B
+753 21 UPPSALA
+SWEDEN
+Fone Voz +46-18-10 22 80     (Timezone GMT+1. Fala Sueco e Inglés)
+@end example
+
+@cindex Support, types
+@cindex Types of support
+@node Support,  , Cost, Licensing and Support
+@section Types of commercial support
+
+@menu
+* Basic email support::         Basic email support
+* Extended email support::      Extended email support
+* Login support::               Login support
+* Extended login support::      Extended login support
+@end menu
+
+@node Basic email support, Extended email support, Support, Support
+@subsection Basic email support
+
+Basic email support é a opção mais barata de suporte e deverá ser vista
+como uma forma de suportar nosso desenvolvimento do @strong{MySQL} que 
+uma real opção de suporte.
+
+Neste nível de suporte, a lista de e-mail do @strong{MySQL} é o preferido
+meio de comunicação. Perguntas normalmente podem ser enviadas para a
+principal lista de e-mail (@email{mysql@@lists.mysql.com}) ou uma das outras
+listas regulares (por exemplo, @email{mysql-win32@@lists.mysql.com} relacionada
+às perguntas para o @strong{MySQL} Windows, tal que qualquer pessoa pode já ter
+experimentado e resolvido o problema que você tem.  @xref{Asking questions}.
+
+Entretanto, comprando o suporte basic email support, você também tem acesso
+ao e-mail @email{mysql-support@@mysql.com}, o qual não é disponível
+como parte do suporte mínimo que se tem quando se adquire uma licença @strong{MySQL}.
+Isto significa que para perguntas críticas, você pode mandar sua mensagem para
+@email{mysql-support@@mysql.com}.  (Se a mensagem tem dados privados, você só
+deve mandar para o @email{mysql-support@@mysql.com}.)
+
+@emph{LEMBRE-SE!} para SEMPRE incluir o número de registro e data de
+término quando mandar uma mensagem para
+@email{mysql-support@@mysql.com}.
+
+Basic email support incluie os seguintes tipos de serviços:
+
+@itemize @bullet
+@item
+Se sua pergunta já está respondida no manual, nós o informamos da correta
+seção na qual pode encontrar a resposta. Se a resposta não está no manual,
+nós o colocamos na direção certa para resolver seu problema.
+
+@item
+Nós garantimos em tempo apropriado a resposta das mensagem de seu e-mail.
+Nós não podemos garantir que podemos resolver qualquer problema, porém ao
+menos você receve uma resposta se podemos contatá-lo por e-mail.
+
+@item
+Nós podemos ajudá-lo com problemas inesperados quando instala @strong{MySQL}
+a partir de uma distribuição binária em plataformas suportadas. Este nível de
+suporte não cobre instalação do @strong{MySQL} a partir de uma distribuição
+fonte. Plataformas ``Suportadas'' são aquelas plataformas nas quais o @strong{MySQL}
+é conhecido que funciona.
+@xref{Which OS}.
+
+@item
+Nós ajudaremos você com bugs e problemas de características. Qualquer
+bug que for encontrado nós o solucionamos no próximo lançamento do @strong{MySQL}.
+Se o bug é crítico para você, nós enviamos um e-mail com o patch 
+tão logo como o bug é resolvido. Bugs críticos têm sempre para nós a maior
+prioridade, para assegurar que sejam solucionados tão pronto como possível.
+
+@item
+Suas sugestões para desenvolvimento posterior do @strong{MySQL} são tomadas
+em consideração. Obtendo o email support, você já ajuda o desenvolvimento
+posterior do @strong{MySQL}. Se você quer pôr mais, faça a atualização
+para um nível mais alto de suporte.
+
+@item
+Se você quer nós ajudar a otimizar seu sistema, você deve atualizar
+para um nível maior de suporte.
+
+@item
+@cindex @code{myisampack}
+Nós incluimos uma versão binária da ferramenta de compactação @code{myisampack}
+para criar rápidos bancos de dados compactados, somente de leitura. O atual
+servidor incluie suporte para ler esses bancos de dados mas não a ferramenta
+para criar os mesmos.
+@end itemize
+
+@node Extended email support, Login support, Basic email support, Support
+@subsection Extended email support
+
+Extended email support incluie tudo o do basic email support com estas 
+adições:
+
+@itemize @bullet
+@item
+Seu e-mail será tratado antes dos e-amil dos usuários do basic email support
+e dos usuários não registrados.
+
+@item
+Suas sugestões para o próximo desenvolvimento do @strong{MySQL} receberá
+uma forte consideração. Simples extensões que fazem os gols do @strong{MySQL}
+são a implementação em questão de dias. adquirindo o extended email support 
+você auxilia daqui para frente o desenvolvimento do @strong{MySQL}.
+
+@item
+Perguntas típicas que são cobertas pelo extended email support são:
+
+@itemize @minus
+@item
+Nós respondemos e (dentro do razoável) resolvemos as perguntas relacionadas
+a possíveis bugs no @strong{MySQL}. Tão pronto como os bugs são encontrados 
+e corregidoa, nós mandamos por e-mail o pacth para ele.
+
+@item
+Nós auxiliamos com inesperados problemas quando você instala o @strong{MySQL}
+a partir do fonte ou distribuição binária nas plataformas suportadas.
+
+@item
+Nós responderemos perguntas sobre características perdidad e ofereceremos
+dicas como trabalhar e contornar elas.
+
+@item
+Nós forneceremos dicas na otimização do @code{mysqld}para sua situação.
+@end itemize
+
+@item
+Você está permitido a influenciar a prioridade de itens do TODO do @strong{MySQL}.
+Isso assegura que as características que você realmente precisa sejam implementadas
+rapidamente que as mesmas poderia ser de outra forma.
+@end itemize
+
+@node Login support, Extended login support, Extended email support, Support
+@subsection Login support
+
+O Login support incluie tudo do extended email support com estas adições:
+
+@itemize @bullet
+@item
+Seu e-mail terá prioridade sobre os usuários do suporte extended email.
+
+@item
+Suas sugestões para o próximo desenvolvimento do @strong{MySQL} será tomado
+com uma alta consideração. Extensões reais que podem ser implementadas num
+par de horas e que fazem os gols do @strong{MySQL} serão implementadas
+tão logo como possível.
+
+@item
+Se você tem um problema muito específico, nós tentaremos logar no seu
+sistema para resolver o problema ''no local''.
+
+@item
+Tal como qualquer outro vendedor de banco de dados, não podemos garantir que
+podemos recuperar qualquer dado de tabelas corrompidas, porém se o pior acontece
+nós poderemos a recuperar tanto quanto seja possível. O @strong{MySQL}tem provado
+ser muito seguro, porém qualquer é possível devido a circuntâncias fora de nosso
+controle (por exemplo, se seu sistema crash ou alguém kill o servidor executando
+um comando @code{kill -9}).
+
+@item
+Nós providenciaremos dicas na otimização de seu sistema e consultas.
+
+@item
+Você está permitido para chamar um desenvolvedor @strong{MySQL} (moderadamente) e
+discutir seu problemas relacionados com o @strong{MySQL}.
+@end itemize
+
+@node Extended login support,  , Login support, Support
+@subsection Extended login support
+
+O Extended login support incluie tudo do login support com estas adições:
+
+@itemize @bullet
+@item
+Seu e-mail tem a mais alta prioridade possível.
+
+@item
+Nós ativamente examinamos seu sistema e ajudamos a otimizá-lo assim como suas
+consultas. Nós também podemos otimizar e/ou extender o @strong{MySQL}
+para suprir melhor suas necessidades.
+
+@item
+Você também pode solicitar extensões es peciais apenas para você. Por exemplo:
+@example
+mysql> select MY_CALCULATION(col_name1,col_name2) from tbl_name;
+@end example
+
+@item
+Nós podemos fornecer uma distribuição binária para todas as atualizações
+mais importantes do @strong{MySQL} para seu sistema, tão logo como podemos
+obter uma conta em um sistema similar. No pior dos casos, nós podemos requerer
+acesso para seu sistema para ser capaz de criar uma distribuição binária.
+
+@item
+Se você pode providenciar acomodações e pagar os custos de viagem para um
+desenvolvedor @strong{MySQL} para vistá-lo e oferecer ajuda com seus problemas.
+O suporte Extended login support entitula você para um encontro pessoal por
+ano, porém nós sempre somos muito flexíveis para levar para frente nossos
+clientes!.
+@end itemize
+
+@node Installing, Compatibility, Licensing and Support, Top
+

@@ -1,0 +1,13 @@
+Makefile
+Makefile.in
+binary-configure
+my-example.cnf
+my-huge.cnf
+my-large.cnf
+my-medium.cnf
+my-small.cnf
+mysql-3.*-alpha.spec
+mysql-3.23.21-beta.spec
+mysql-log-rotate
+mysql.server
+mysql.spec

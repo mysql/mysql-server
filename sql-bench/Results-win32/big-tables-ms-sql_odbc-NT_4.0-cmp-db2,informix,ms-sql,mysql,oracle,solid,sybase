@@ -1,0 +1,19 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07  2:19:13
+
+Testing of some unusual tables
+All tests are done 10000 times with 16 fields
+
+Testing table with 16 fields
+Testing select * from table with 1 record
+Time to select_many_fields(10000): 39 secs (39.20 usr  0.00 sys = 39.20 cpu)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(10000): 39 secs (39.41 usr  0.00 sys = 39.41 cpu)
+
+Testing insert VALUES()
+Time to insert_many_fields(10000): 39 secs (38.70 usr  0.00 sys = 38.70 cpu)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(10000): 37 secs (37.06 usr  0.00 sys = 37.06 cpu)
+
+Total time: 155 secs (154.44 usr  0.00 sys = 154.44 cpu)

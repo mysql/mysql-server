@@ -1,0 +1,14 @@
+Testing server 'MySQL 3.22.16 gamma' at 1999-02-07 14:02:02
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 secs ( 0.05 usr  0.00 sys =  0.05 cpu)
+
+Inserting data
+Time to insert (31000): 50 secs (50.09 usr  0.00 sys = 50.09 cpu)
+Time to delete_big (1):  1 secs ( 0.45 usr  0.00 sys =  0.45 cpu)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 23 secs (23.44 usr  0.00 sys = 23.44 cpu)
+
+Total time: 74 secs (74.07 usr  0.00 sys = 74.07 cpu)

@@ -1,0 +1,55 @@
+Benchmark DBD suite: 2.4
+Date of test:        1999-09-24  9:48:18
+Running tests on:    Linux 2.2.10 i686
+Arguments:           --force
+Comments:            
+Limits from:         msql,mysql
+Server version:      MySQL 3.23.3 alpha
+
+ATIS: Total time: 45 wallclock secs (16.16 usr  2.81 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+alter-table: Total time:  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+big-tables: Total time: 63 wallclock secs (32.36 usr  5.77 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+connect: Total time: 83 wallclock secs (43.74 usr  9.45 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+create: Total time: 14 wallclock secs ( 1.89 usr  0.16 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+insert: Estimated total time: 3485 wallclock secs (788.07 usr 99.92 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+select: Total time: 18 wallclock secs ( 5.78 usr  0.91 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+wisconsin: Total time: 20 wallclock secs ( 6.95 usr  1.15 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+All 8 test executed successfully
+Tests with estimated time have a + at end of line
+
+Totals per operation:
+Operation             seconds     usr     sys     cpu   tests
+connect                    23   13.79    3.43    0.00   10000 
+connect+select_1_row       27   14.93    4.05    0.00   10000 
+create+drop                 3    0.46    0.03    0.00    1000 
+create_key+drop             3    0.54    0.02    0.00    1000 
+create_table                4    0.47    0.05    0.00    1031 
+delete_big                 20    0.00    0.00    0.00      13 
+delete_big_many_keys       35    0.00    0.00    0.00       2 
+delete_key                  1    0.16    0.01    0.00     500 
+drop_table                  2    0.16    0.03    0.00    1028 
+insert                    171   53.22    8.79    0.00  350768 
+insert_duplicates          18    6.67    2.24    0.00  300000 
+insert_key                 80   15.22    2.82    0.00  100000 
+insert_many_fields         19    7.17    0.61    0.00   20000 
+order_by                   90   46.72    8.08    0.00      10 
+order_by_key               69   47.13    7.95    0.00      10 
+select                      2    0.27    0.03    0.00    1000 
+select_1_row                3    1.07    0.37    0.00   10000 
+select_2_rows               4    1.16    0.50    0.00   10000 
+select_big                 95   59.90    9.19    0.00   10080 
+select_diff_key           305    0.59    0.01    0.00     500 
+select_distinct            15    3.62    0.44    0.00     700 
+select_join                23    9.83    1.84    0.00     200 
+select_key                402  154.50   10.45    0.00  200000 
+select_key_prefix         404  172.53   12.29    0.00  200000 
+select_many_fields         44   25.18    5.15    0.00   20000 
+select_range               50   18.23    1.91    0.00   25400 
+select_range_prefix        41   14.77    1.16    0.00   25000 
+select_simple_join          3    1.30    0.25    0.00     500 
+update_big                 50    0.00    0.01    0.00     500 
+update_of_key            1336  160.83   25.83    0.00  600256 +
+update_with_key           381   62.03   12.20    0.00  100000 
+wisc_benchmark              4    2.40    0.42    0.00      74 
+TOTALS                   3727  894.85  120.16    0.00 1999572 +

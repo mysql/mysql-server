@@ -1,0 +1,60 @@
+Benchmark DBD suit:  2.0
+Date of test:        1998-10-23  9:11:16
+Running tests on:    Windows NT Version 4.0
+Arguments:           --force
+Comments:
+Limits from:         db2,informix,ms-sql,mysql,oracle,solid,sybase
+Server version:      Solid version ???
+
+alter-table: Total time:  7 secs ( 6.71 usr  0.00 sys =  6.71 cpu)
+ATIS: Estimated total time: 1248 secs (1248.81 usr  0.00 sys = 1248.81 cpu)
+big-tables: Total time: 107 secs (107.11 usr  0.00 sys = 107.11 cpu)
+connect: Total time: 871 secs (871.19 usr  0.00 sys = 871.19 cpu)
+create: Total time: 161 secs (160.95 usr  0.00 sys = 160.95 cpu)
+insert: Estimated total time: 192155 secs (192149.60 usr  0.00 sys = 192149.60 cpu)
+select: Estimated total time: 28523 secs (28507.76 usr  0.00 sys = 28507.76 cpu)
+wisconsin: Total time: 338 secs (338.33 usr  0.00 sys = 338.33 cpu)
+
+All 8 test executed successfully
+Tests with estimated time have a + at end of line
+
+Totals per operation:
+Operation             seconds     usr     sys     cpu   tests
+alter_table_add             0    0.07    0.00    0.07       8
+connect                   385  385.29    0.00  385.29   10000
+connect+select            414  413.81    0.00  413.81   10000
+count                    2221 2220.87    0.00 2220.87     100
+count_key               16862 16847.20    0.00 16847.20   50000 +
+count_on_key             2139 2139.16    0.00 2139.16     100
+create+drop                41   41.20    0.00   41.20    1000
+create_index                1    1.06    0.00    1.06       8
+create_key+drop            72   72.18    0.00   72.18    1000
+create_table               24   23.35    0.00   23.35    1031
+delete_big               2236 2235.76    0.00 2235.76      15
+delete_key                 65   65.34    0.00   65.34     500
+drop_index                  1    0.97    0.00    0.97       8
+drop_table                 20   19.66    0.00   19.66    1028
+insert                   1801 1801.89    0.00 1801.89  350768
+insert_duplicates         172  172.25    0.00  172.25  300000
+insert_key               9758 9757.93    0.00 9757.93  100000
+insert_many_fields         49   48.44    0.00   48.44   20000
+min_max                 36388 36350.61    0.00 36350.61    3000 +
+min_max_on_key          11504 11503.86    0.00 11503.86   73000 +
+order_by                  648  647.94    0.00  647.94      10
+order_by_key              653  653.06    0.00  653.06      10
+select                     47   47.32    0.00   47.32   20000
+select_big                619  618.61    0.00  618.61   10080
+select_distinct           327  327.14    0.00  327.14     800
+select_group             2608 2608.20    0.00 2608.20    3191
+select_join               698  698.11    0.00  698.11     200 +
+select_key                877  877.85    0.00  877.85  200000 +
+select_key_prefix         843  842.99    0.00  842.99  200000 +
+select_many_fields         56   56.39    0.00   56.39   20000
+select_range            22763 22774.06    0.00 22774.06   25400 ++
+select_range_prefix     22548 22532.98    0.00 22532.98   25000 ++
+select_simple_join         69   69.48    0.00   69.48     500
+update_key                  2    2.71    0.00    2.71     500
+update_key_big            994  993.63    0.00  993.63     501
+update_of_key           16656 16655.63    0.00 16655.63     256
+wisc_benchmark             84   83.66    0.00   83.66     114
+TOTALS                 154645 154590.66    0.00 154590.66 1428128 ++++++++++

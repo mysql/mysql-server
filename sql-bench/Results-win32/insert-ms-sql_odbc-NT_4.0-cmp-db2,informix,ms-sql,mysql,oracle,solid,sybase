@@ -1,0 +1,57 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-27 10:54:53
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 3592 secs (3591.82 usr  0.00 sys = 3591.82 cpu)
+
+Testing insert of duplicates
+Time for insert_duplicates (300000): 286 secs (285.70 usr  0.00 sys = 285.70 cpu)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 202 secs (202.02 usr  0.00 sys = 202.02 cpu)
+Time for order_by_key (10:3000000): 201 secs (200.90 usr  0.00 sys = 200.90 cpu)
+Time for order_by (10:3000000): 250 secs (250.66 usr  0.00 sys = 250.66 cpu)
+Time for select_range_prefix (5000:20000): 25 secs (25.49 usr  0.00 sys = 25.49 cpu)
+Time for select_range (5000:20000): 24 secs (24.02 usr  0.00 sys = 24.02 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+70770 queries in 35385 loops of 100000 loops took 601 seconds
+Estimated time for select_key_prefix (200000): 1698 secs (1696.55 usr  0.00 sys = 1696.55 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+73534 queries in 36767 loops of 100000 loops took 601 seconds
+Estimated time for select_key (200000): 1634 secs (1634.55 usr  0.00 sys = 1634.55 cpu)
+
+Test of compares with simple ranges
+Time for select_range_prefix (20000:43500): 43 secs (43.59 usr  0.00 sys = 43.59 cpu)
+Time for select_range (20000:43500): 44 secs (43.58 usr  0.00 sys = 43.58 cpu)
+Time for select_group (91): 75 secs (75.48 usr  0.00 sys = 75.48 cpu)
+Time for min_max_on_key (3000): 25 secs (24.60 usr  0.00 sys = 24.60 cpu)
+Time for min_max (60): 115 secs (115.58 usr  0.00 sys = 115.58 cpu)
+Time for count_on_key (100): 18 secs (17.22 usr  0.00 sys = 17.22 cpu)
+Time for count (100): 49 secs (49.15 usr  0.00 sys = 49.15 cpu)
+
+Testing update with functions
+Time for update_key (500):   8 secs ( 8.00 usr  0.00 sys =  8.00 cpu)
+Time for update_key_big (501): 403 secs (402.89 usr  0.00 sys = 402.89 cpu)
+
+Testing delete
+Time for delete_key (500): 21 secs (21.33 usr  0.00 sys = 21.33 cpu)
+Time for delete_big (12): 186 secs (186.21 usr  0.00 sys = 186.21 cpu)
+
+Insert into table with 16 keys and with a primary key with 15 parts
+Time for insert_key (100000): 5181 secs (5181.56 usr  0.00 sys = 5181.56 cpu)
+
+Testing update of keys
+Time for update_of_key (256): 674 secs (674.29 usr  0.00 sys = 674.29 cpu)
+
+Deleting everything from table
+Time for delete_big (2): 687 secs (686.86 usr  0.00 sys = 686.86 cpu)
+
+Estimated total time: 15454 secs (15453.34 usr  0.00 sys = 15453.34 cpu)

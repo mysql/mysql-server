@@ -1,0 +1,60 @@
+Benchmark DBD suite: 2.0b
+Date of test:        1999-02-27 21:10:25
+Running tests on:    Linux 2.2.1 i686
+Arguments:           --small-tables
+Comments:            pentiumpro 400mz x2, 256M, SCSI, gcc 2.9 compiled, key_buffer=16M
+Limits from:         adabas,mysql
+Server version:      MySQL 3.22.18
+
+ATIS: Total time: 60 wallclock secs (12.57 usr  5.44 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+alter-table: Total time: 52 wallclock secs ( 0.24 usr  0.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+big-tables: Total time: 14 wallclock secs ( 4.45 usr  2.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+connect: Total time: 82 wallclock secs (37.13 usr 26.79 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+create: Total time:  8 wallclock secs ( 1.54 usr  0.17 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+insert: Total time: 190 wallclock secs (58.47 usr 13.42 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+select: Estimated total time: 870 wallclock secs (63.67 usr  9.06 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+wisconsin: Total time: 20 wallclock secs ( 4.66 usr  1.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+All 8 test executed successfully
+Tests with estimated time have a + at end of line
+
+Totals per operation:
+Operation             seconds     usr     sys     cpu   tests
+alter_table_add            28    0.08    0.01    0.00     246
+alter_table_drop           20    0.06    0.00    0.00     123
+connect                    31   15.46   11.47    0.00   10000
+connect+select             35   15.54   13.17    0.00   10000
+count                       6    0.07    0.00    0.00     100
+count_on_key              666   26.25    3.49    0.00   50100 +
+create+drop                 1    0.34    0.08    0.00    1000
+create_index                1    0.00    0.00    0.00       8
+create_key+drop             2    0.66    0.04    0.00    1000
+create_table                3    0.27    0.04    0.00    1031
+delete_big                  9    0.00    0.01    0.00      15
+delete_key                  0    0.05    0.01    0.00     500
+drop_index                  3    0.00    0.00    0.00       8
+drop_table                  1    0.11    0.01    0.00    1028
+insert                     34    7.31    2.56    0.00   80768
+insert_duplicates           2    0.66    0.33    0.00   30000
+insert_key                 12    1.48    0.37    0.00   10000
+insert_many_fields          4    0.48    0.08    0.00    2000
+min_max                     3    0.03    0.00    0.00      60
+min_max_on_key            198   35.49    4.72    0.00   73000
+order_by                    6    2.90    2.06    0.00      10
+order_by_key                5    2.85    1.53    0.00      10
+select                      7    1.75    1.39    0.00   20000
+select_big                 16    7.44    2.22    0.00   10080
+select_distinct            17    2.78    0.90    0.00     800
+select_group               15    2.30    0.51    0.00    3401
+select_join                27    5.95    3.49    0.00     200
+select_key                 21   10.95    1.39    0.00   20000
+select_key_prefix          23   11.28    1.58    0.00   20000
+select_many_fields         10    3.96    2.45    0.00    2000
+select_range               36   12.14    2.53    0.00   25420
+select_range_prefix        35   10.36    1.69    0.00   25010
+select_simple_join          2    0.96    0.24    0.00     500
+update_key                  1    0.04    0.02    0.00     500
+update_key_big              3    0.08    0.00    0.00     480
+update_of_key               6    0.03    0.01    0.00     256
+wisc_benchmark              7    2.45    0.96    0.00     114
+TOTALS                   1296  182.56   59.36    0.00  399768 +

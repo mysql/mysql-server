@@ -1,0 +1,155 @@
+Speciella användbara nya string-rutiner:
+
+  bcmp(s1, s2, len) returns 0 if the "len" bytes starting at "s1" are
+  identical to the "len" bytes starting at "s2", non-zero if they are
+  different.
+
+  bfill(dst, len, fill) moves "len" fill characters to "dst".
+  Thus to set a buffer to 80 spaces, do bfill(buff, 80, ' ').
+
+  bmove(dst, src, len) moves exactly "len" bytes from the source "src"
+  to the destination "dst".  It does not check for NUL characters as
+  strncpy() and strnmov() do.
+
+  bmove_upp(dst, src, len) moves exactly "len" bytes from the source
+ "src-len" to the destination "dst-len" counting downwards.
+
+  bzero(dst, len) moves "len" 0 bytes to "dst".
+  Thus to clear a disc buffer to 0s do bzero(buffer, BUFSIZ).
+
+  int2str(dst, radix, val)
+  converts the (long) integer "val" to character form and moves it to
+  the destination string "dst" followed by a terminating NUL.  The
+  result is normally a pointer to this NUL character, but if the radix
+  is dud the result will be NullS and nothing will be changed.
+  If radix is -2..-36, val is taken to be SIGNED.
+  If radix is  2.. 36, val is taken to be UNSIGNED.
+  That is, val is signed if and only if radix is.  You will normally
+  use radix -10 only through itoa and ltoa, for radix 2, 8, or 16
+  unsigned is what you generally want.
+
+  m_ctype.h
+  A better inplementation of the UNIX ctype(3) library.
+  Notes:   global.h should be included before ctype.h
+    - Se efter i filen \c\local\include\m_ctype.h
+    - Används istället för ctype.h för att klara internationella karakterer.
+
+  m_string.h
+  Använd instället för string.h för att supporta snabbare strängfunktioner.
+
+  strintstr(src, from, pat) looks for an instance of pat in src
+  backwards from pos from.  pat is not a regex(3) pattern, it is a literal
+  string which must be matched exactly.
+  The result 0 if the pattern was not found else it is the start char of
+  the pattern counted from the begining of the string.
+
+  strappend(dest, len, fill) appends fill-characters to a string so that
+  the result length == len. If the string is longer than len it's
+  trunked. The des+len character is allways set to NULL.
+
+  strcat(s, t) concatenates t on the end of s.  There  had  better  be
+  enough  room  in  the  space s points to; strcat has no way to tell.
+  Note that strcat has to search for the end of s, so if you are doing
+  a lot of concatenating it may be better to use strmov, e.g.
+	strmov(strmov(strmov(strmov(s,a),b),c),d)
+    rather than
+	strcat(strcat(strcat(strcpy(s,a),b),c),d).
+    strcat returns the old value of s.
+	- Använd inte strcat, använd strmov (se ovan).
+
+  strcend(s, c) returns a pointer to the  first  place  in  s	where  c
+  occurs,  or a pointer to the end-null of s if c does not occur in s.
+
+  strcont(str, set) if str contanies any character in the string set.
+  The result is the position of the first found character in str, or NullS
+  if there isn't anything found.
+
+  strend(s) returns a character pointer to the NUL which ends s.  That
+  is,  strend(s)-s  ==  strlen(s). This is useful for adding things at
+  the end of strings.  It is redundant, because  strchr(s,'\0')  could
+
+  strfill(dest, len, fill) makes a string of fill-characters. The result
+  string is of length == len. The des+len character is allways set to NULL.
+  strfill() returns pointer to dest+len;
+
+  strfind(src, pat) looks for an instance of pat in src.  pat is not a
+  regex(3) pattern, it is a literal string which must be matched exactly.
+  The result is a pointer to the first character of the located instance,
+  or NullS if pat does not occur in src.
+
+  strinstr(src, pat) looks for an instance of pat in src.  pat is not a
+  regex(3) pattern, it is a literal string which must be matched exactly.
+  The result 0 if the pattern was not found else it is the start char of
+  the pattern counted from the begining of the string.
+
+  strmake(dst,src,length) moves length characters, or until end, of src to
+  dst and appends a closing NUL to dst.
+  strmake() returns pointer to closing null;
+
+  strmov(dst, src) moves all the  characters  of  src  (including  the
+  closing NUL) to dst, and returns a pointer to the new closing NUL in
+  dst.	 The similar UNIX routine strcpy returns the old value of dst,
+  which I have never found useful.  strmov(strmov(dst,a),b) moves a//b
+  into dst, which seems useful.
+
+  strnmov(dst,src,length) moves length characters, or until end, of src to
+  dst and appends a closing NUL to dst if src is shorter than length.
+  The result is a pointer to the first NUL in dst, or is dst+n if dst was
+  truncated.
+
+ strrchr(s, c) returns a pointer to the  last  place  in  s	where  c
+ occurs,  or  NullS if c does not occur in s. This function is called
+ rindex in V7 and 4.?bsd systems.
+ strrchr  looks  for single characters, not for sets or strings.
+
+ strxmov(dst, src1, ..., srcn, NullS)
+ moves the concatenation of src1,...,srcn to dst, terminates it
+ with a NUL character, and returns a pointer to the terminating NUL.
+ It is just like strmov except that it concatenates multiple sources.
+ Beware: the last argument should be the null character pointer.
+ Take VERY great care not to omit it!  Also be careful to use NullS
+ and NOT to use 0, as on some machines 0 is not the same size as a
+ character pointer, or not the same bit pattern as NullS.
+
+ strxnmov(dst, len, src1, ..., srcn, NullS)
+ moves the first len characters of the concatenation of src1,...,srcn
+ to dst.  If there aren't that many characters, a NUL character will
+ be added to the end of dst to terminate it properly.  This gives the
+ same effect as calling strxcpy(buff, src1, ..., srcn, NullS) with a
+ large enough buffer, and then calling strnmov(dst, buff, len).
+ It is just like strnmov except that it concatenates multiple sources.
+ Beware: the last argument should be the null character pointer.
+ Take VERY great care not to omit it!  Also be careful to use NullS
+ and NOT to use 0, as on some machines 0 is not the same size as a
+ character pointer, or not the same bit pattern as NullS.
+
+ Note: strxnmov is like strnmov in that it always moves EXACTLY len
+ characters; dst will be padded on the right with NUL characters as
+ needed.  strxncpy does the same.  strxncat, like strncat, does NOT.
+
+
+I mysys:
+
+ stripp_sp(string str)
+ Strips end-space from string and returns new length.
+
+ strlength(const string str)
+ Return length of string with end-space:s not counted.
+
+ void caseup _A((string str,uint length));
+ void casedn _A((string str,uint length));
+ void caseup_str _A((string str));
+ void casedn_str _A((string str));
+ Converts strings or part of string to upper or lower-case.
+
+ void case_sort _A((string str,uint length));
+ Converts string to a string with can be compared with strcmp() to
+ get strings in rigth order.
+
+ string strcfind(str,search)
+ find string in another with no case_sensivity
+
+ my_strcasecmp(s,t)
+ Compare strings without regarding to case
+ - For many strings it quicker to forst use case_sort on all strings and
+   then compare them with strcmp().

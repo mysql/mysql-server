@@ -1,0 +1,19 @@
+Testing server 'SOLID Server - v.02.30.0026 (Linux ix86)' at 1999-03-06 12:47:44
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  0 wallclock secs ( 0.04 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting data
+Time to insert (9768): 27 wallclock secs ( 8.34 usr  0.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Retrieving data
+Time for select_simple_join (500): 37 wallclock secs ( 3.65 usr  0.22 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_join (200): 408 wallclock secs (28.07 usr  1.80 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_distinct (800): 169 wallclock secs (11.26 usr  0.54 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_group (2000): 59 wallclock secs ( 3.54 usr  0.18 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Removing tables
+Time to drop_table (28):  1 wallclock secs ( 0.02 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Total time: 701 wallclock secs (54.93 usr  3.47 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

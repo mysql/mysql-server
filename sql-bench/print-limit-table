@@ -1,0 +1,360 @@
+#!/usr/bin/perl
+# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this library; if not, write to the Free
+# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA
+#
+# Output a html table with a compare of all servers
+#
+$cmp_server="mysql";		# Get limit names from here
+$full_html=1;
+$opt_txt=0;
+
+if ($#ARGV < 0)
+{
+  @ARGV=glob("limits/*.cfg");
+  $skip_header=0;
+}
+else
+{
+  $skip_header=1;
+}
+
+foreach (@ARGV)
+{
+  /([^\/\.]*)\.cfg$/;
+  $server=$1;
+  if ($server eq $cmp_server)
+  {
+    unshift(@limits,read_config_data($server,$_));
+  }
+  else
+  {
+    push(@limits,read_config_data($server,$_));
+  }
+}
+
+@global_limits= sort keys(%all_limits);
+find_match('group_functions|functions');	# Don't report these
+
+if ($full_html)
+{
+  if (!$skip_header)
+  {
+    print "<!doctype HTML public \"-//W3O//DTD W3 HTML3.0//EN\"><HTML>";
+  }
+  print <<EOF;
+<!doctype HTML public \"-//W3O//DTD W3 HTML3.0//EN\"><HTML>
+<HEAD><TITLE>Database comparison table</TITLE></HEAD>
+<BODY>
+<center><h3>Database comparison table generated with <B>crash-me</B></h3></center>
+<table><tr><td><IMG SRC="icons/mysql-03.gif" ALT=logo></td>
+<td>You can get a copy of <B>crash-me</B> from the MySQL 3.23 distribution at
+<A HREF="http://www.mysql.com">http://www.mysql.com</A>.
+</td></tr></table>
+<br>
+<strong>crash-me</strong> is a program that automatically detects
+limits and capabilities in a SQL server. We at TCX have worked very
+hard to make crash-me as fair and accurate as possible, but there is
+always a small possibility that some particular tests fails for some
+database, even if the database has the capability. We are always
+willing to correct this as soon as this comes to our attention.  Some
+tests may fail because the database in questions does not follow
+<B>ANSI SQL 99</B> or <B>ODBC 3.0</B> but in this case we regard this
+as a failure in the database.
+<br><br>
+Note that crash-me test the <B>ODBC</B> functionality by executing
+SQL commands through the perl DBD driver.  As some SQL servers implements
+the <B>ODBC</B> functionality in the <B>ODBC</B> driver, crash-me may
+tell you that the SQL server doesn\'t support some functionality, even
+if this is supported when you are using the SQL server through <B>ODBC</B>.
+<br><br>
+Note that even if crash-me reports that some feature is missing, not
+supported, or doesn\'t work it doesn\'t mean that the SQL server
+doesn\'t follow the SQL standard or that you can\'t do the operation
+in some other way.  crash-me just tells you how the SQL server works
+if you send it some specific query.  The result is however often useful
+for applications writers that tries to write portable code and needs to be
+aware of the differences between different SQL servers.
+<br><br>
+TCX is trying to add as much tests to the crash-me program as they can
+but it\'s always possible that some database vendor specific functions
+/ queries aren\'t tested. If you find some entries not tested on a
+database please let us know and try to patch the crash-me program your
+self or give us some example queries so we can add those entries. We
+are always open for suggestions for adding things to the crash-me
+program.  The crash-me program is also our input reference for the
+MySQL benchmark program.<br>
+
+<B>Note:</B>
+The crash-me table is generated from databases started with default
+parameters.  If this is not the case, this is noted in the comment row.
+Some detected limits may also be configurable, OS dependent, depend of the
+Perl DBI driver or depending on the license of the used database version.
+<BR><BR>
+The following markers are used in the comparison table
+<table border=1>
+<tr><th>Marker</th><th>Description</th></tr>
+<tr><td><IMG SRC=\"images/ok.gif\" WIDTH=20 HEIGHT=16 ALT=\"yes\"></td>
+<td>Function is supported</td></tr>
+<tr><td><IMG SRC=\"images/no.gif\" WIDTH=14 HEIGHT=14 ALT=\"no\"></td>
+<td>Function is not supported</td></tr>
+<tr><td><IMG SRC=\"images/error.gif\" WIDTH=20 HEIGHT=16 ALT=\"error\"></td>
+<td>Function exists but didn\'t return expected result. This usually means that
+the database is using some non standard extension for the option in question</td></tr>
+<tr><td>ignored</td><td>Function doesn\'t give an error from the server but it
+doesn\'t do anything.  One can probably do the same action with some other
+command</td></tr>
+<tr><td>nonstandard</td><td>Function exists but doesn\'t work according to
+<B>ANSI SQL 92</B> or <B>ODBC 3.0</B></td></tr>
+<tr><td>&nbsp;</td><td>Not relevant or not tested with the database</td></tr>
+<tr><td>+number</td><td>At least <b>number</b> operations is supported</td></tr>
+<tr><td><IMG SRC=\"images/warning.gif\" WIDTH=28 HEIGHT=28 ALT=\"warning\"></td>
+<td><B>Anyone with normal access to the database server can take it down, possible
+forever!</B></td> </table>
+
+<center><h3>The <B>crash-me</B> comparisons</h3></center>
+EOF
+}
+
+print "<TABLE BORDER=2><TR ALIGN=left>\n";
+#
+# printer server names
+#
+
+$columns=$#limits+2;
+print "<th>Function</th>\n";
+foreach $server (@limits)
+{
+  print "<td>$server->[1]->{'server_version'}</td>";
+  $server->[1]->{'server_version'} =~ /^(\S*)/;
+  push(@server_names,$1);
+}
+find_match("server_version");		# Mark used
+print "</tr>\n";
+
+print_match("Crash-me information",'crash_me|operating_system|user_comment',undef(),1);
+print_match("ANSI SQL 92 types","type_sql");
+print_match("ODBC 3.0 types","type_odbc");
+print_match("Other types","type_extra");
+print_match("Constraints and type modifiers","constraint|foreign|primary|unique|default","alter|max_unique");
+print_match("ANSI SQL 92 functions","func_sql","group");
+print_match("ODBC 3.0 functions","func_odbc","group");
+print_match("Other functions","func_extra","group");
+print_match("Functions in WHERE","func_where","group");
+print_match("ANSI SQL 92 group functions","group_func_sql");
+print_match("Other group functions","group_func");
+print_match("Function use","NEG|minus_neg|like|null.*expr");
+print_match("Order by and group by","order|having|group");
+print_match("Join methods",'join|subqueries|multi_table|select_table_update');
+print_match("String handling","string|select_constant|quote_with|double_quotes|end_space");
+print_match("Quoting","quote");
+print_match("Name limits","name");
+print_match("Index limits",'index|primary|unique');
+print_match("Type limits",'char|float|binary|text_size|date|end_space');
+print_match("Expression limits",'expression|conditions|select_limit');
+print_match("Comments",'comment');
+print_match("ALTER TABLE",'alter');
+print_options("Other features");
+print_match("Other limits",'\S');
+
+print "</table>\n";
+
+if ($full_html)
+{
+  print <<EOF;
+<BR>
+This information is provided by TCX so one can get the real limitations from
+the database server (not the information from sales managers!). Hopefully the
+above information will make it easier for you to find a database server that
+has the functionality you need and that you can rely on!
+<BR><BR>
+TCX will continue to extend <b>crash-me</b> and add more database servers
+to the above chart. We are also very interested in new tests so if you have
+any suggestions, please mail us (or even better, send us code).
+<BR>
+We are also working on the <B>MySQL</B> <A HREF ="/benchmark.html">benchmark</A>
+to help users see how fast a database is when doing different typical things.
+<br> 
+<IMG SRC="images/eyesleft.gif" HEIGHT=9 WIDTH=582 ALT="=============================================="> 
+<ADDRESS> You can direct questions about crash-me and the benchmark to the
+<A HREF=\"http://www.tcx.se/mail.html\">MySQL mailing list</A>. 
+</ADDRESS> 
+</BODY></HTML> 
+EOF
+} exit 0;
+
+
+sub read_config_data
+{
+  my ($server,$file)=@_;
+  my (%limits,%prompts);
+  open(CONFIG_FILE,"<$file") ||
+      die "Can't open configure file $file\n";
+  while (<CONFIG_FILE>)
+  {
+    chomp;
+    if (/^(\S+)=([^\#]*[^\#\s])\s*(\# .*)*$/)
+    {
+      $all_limits{$1}=1;
+      $limits{$1}=$2;
+      $prompts{$1}=length($3) ? substr($3,2) : "";
+    }
+    elsif (!/^\s*$/ && !/^\#/)
+    {
+      die "Wrong config row: $_\n";
+    }
+  }
+  close CONFIG_FILE;
+  return ([$server,\%limits,\%prompts]);
+}
+
+
+sub find_match
+{
+  my ($find,$find_not)=@_;
+  my ($key,@res);
+
+  foreach $key (@global_limits)
+  {
+    if ($key =~ /$find/ && (!defined($find_not) || !($key =~ /$find_not/)))
+    {
+      push(@res,$key);
+      $key="";
+    }
+  }
+  return @res;
+}
+
+
+sub print_match
+{
+  my ($header,$match,$not_match,$no_server_names)=@_;
+  my ($key);
+  if ($opt_txt)
+  {
+    print "\n$header\n";
+  }
+  else
+  {
+    print "<tr><th colspan=$columns ALIGN=center>$header</th></tr>\n";
+  }
+  print_server_names() if (!$no_server_names);
+  foreach $key (find_match($match,$not_match))
+  {
+    print_key($key,$key eq "crash_me_safe" ? 1: 0);
+  }
+}
+
+
+sub print_options
+{
+  my ($header)=@_;
+  if ($opt_txt)
+  {
+    print "\n$header\n";
+  }
+  else
+  {
+    print "<tr><th colspan=$columns ALIGN=center>$header</th></tr>\n";
+  }
+  print_server_names();
+  foreach $key (@global_limits)
+  {
+    if ($key && !($limits[0]->[1]{$key} =~ /^\d+$/))
+    {
+      print_key($key,0);
+      $key="";
+    }
+  }
+}
+
+
+sub print_key
+{
+  my ($key,$fatal)=@_;
+  my ($i,$server,$option,$tmp);
+  $option=$key;
+  for ($i=0 ; $i < $columns ; $i++)
+  {
+    if ($limits[$i]->[2]{$key})
+    {
+      $option=$limits[$i]->[2]{$key};
+      last;
+    }
+  }
+  $option =~ s/>/&gt\;/g; 
+  $option =~ s/</&lt\;/g; 
+
+  if ($opt_txt)
+  {
+    print "\n$option\t";
+    foreach $server (@limits)
+    {
+      $tmp=$server->[1]->{$key};
+      $tmp="yes"  if ($tmp eq "yes");
+      $tmp="no"   if ($tmp eq "no" && !$fatal);
+      $tmp="warning" if ($tmp eq "no" && $fatal);
+      $tmp="error" if ($tmp eq "error");
+      $tmp="" if (!defined($tmp) || $tmp eq "");
+      print "\t$tmp";
+    }
+  }
+  else
+  {
+    $option =~ s/ /&nbsp;/g;
+    print "<tr><td>$option</td>";
+    foreach $server (@limits)
+    {
+      $tmp=$server->[1]->{$key};
+      $tmp="<IMG SRC=\"images/ok.gif\" WIDTH=20 HEIGHT=16 ALT=\"yes\">" if ($tmp eq "yes" && !$fatal);
+      $tmp="<IMG SRC=\"images/thumbs_up.gif\" ALT=\"yes\">" if ($tmp eq "yes" && $fatal);
+      $tmp="<IMG SRC=\"images/no.gif\" WIDTH=14 HEIGHT=14 ALT=\"no\">" if ($tmp eq "no" && !$fatal);
+      $tmp="<IMG SRC=\"images/warning.gif\" WIDTH=28 HEIGHT=28 ALT=\"warning\">" if ($tmp eq "no" && $fatal);
+      $tmp="<IMG SRC=\"images/error.gif\" WIDTH=20 HEIGHT=16 ALT=\"error\">" if ($tmp eq "error");
+      $tmp="&nbsp;" if (!defined($tmp) || $tmp eq "");
+      print "<td>$tmp</td>";
+    }
+    print"</tr>\n";
+  }
+}
+
+
+sub print_server_names
+{
+  my ($server);
+
+  if ($opt_txt)
+  {
+    my $tab;
+    $tab="";
+    foreach $server (@server_names)
+    {
+      print "$tab$server";
+      $tab="\t";
+    }
+    print "\n";
+  }
+  else
+  {
+    print "<tr><th></th>";
+    foreach $server (@server_names)
+    {
+      print "<th>$server</th>";
+    }
+    print "</tr>\n";
+  }
+}
+

@@ -1,0 +1,7 @@
+TODO:
+
+- Let packisam find the optimal way to store keys.
+- kill when using 'myisamchk' should remove all temporary files.
+- Text search index
+  (Sergei A. Golub is working on this)
+- Add '%' packed to myisamchk for compressed tables with blobs.

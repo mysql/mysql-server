@@ -1,0 +1,8 @@
+.deps
+.libs
+Makefile
+Makefile.in
+ctype_autoconf.c
+ctype_extra_sources.c
+conf_to_src
+old

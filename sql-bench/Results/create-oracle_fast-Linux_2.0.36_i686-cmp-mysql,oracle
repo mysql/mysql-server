@@ -1,0 +1,30 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-23  8:13:28
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing create of tables
+Time for create_table (1000): 103 wallclock secs ( 1.89 usr  0.18 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 37 wallclock secs ( 1.55 usr  0.23 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Accessing tables
+Time to select_group (1000): 12 wallclock secs ( 0.89 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing drop
+Time for drop_table (1000): 85 wallclock secs ( 0.70 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  0 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing create+drop
+Time for create+drop (1000): 198 wallclock secs ( 2.72 usr  0.37 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1):  0 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for create_key+drop (1000): 174 wallclock secs ( 3.64 usr  0.28 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 611 wallclock secs (11.43 usr  1.28 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

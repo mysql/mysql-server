@@ -1,0 +1,20 @@
+Testing server 'Solid version ???' at 1998-10-06 18:19:13
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Testing create of tables
+Time for create_table (1000): 22 secs (21.35 usr  0.00 sys = 21.35 cpu)
+
+Accessing tables
+Time to select_group (1000):  8 secs ( 8.23 usr  0.00 sys =  8.23 cpu)
+
+Testing drop
+Time for drop_table (1000): 18 secs (17.98 usr  0.00 sys = 17.98 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 41 secs (41.20 usr  0.00 sys = 41.20 cpu)
+Time for create_key+drop (1000): 72 secs (72.18 usr  0.00 sys = 72.18 cpu)
+Total time: 161 secs (160.95 usr  0.00 sys = 160.95 cpu)

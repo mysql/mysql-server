@@ -1,0 +1,41 @@
+#!/bin/sh
+# make a patch file of a mysql distribution
+# takes as argument the previous version
+
+case $# in
+0) echo Usage: $0 previous_version; exit 1;;
+esac
+
+PVER=$1;
+VER=`grep SERVER_VERSION include/mysql_version.h  | cut -d'"' -f2`
+NEW="mysql-$VER.tar.gz"
+OLD="mysql-$PVER.tar.gz"
+RESULT="mysql-$PVER-$VER.patch.gz"
+PATCH_DIR=/my/web/Site/html/Downloads/Patches
+RESULT_DIR=/my/web/Site/html/Downloads/MySQL-3.23
+
+if test ! -f $NEW
+then
+  echo "$NEW doesn't exist";
+  exit 1;
+fi
+
+if test ! -f $RESULT_DIR/$OLD
+then
+  echo "$RESULT_DIR/$OLD doesn't exist";
+  exit 1;
+fi
+
+mkdir patch
+cd patch
+gtar xfz ../$NEW
+gtar xfz $RESULT_DIR/$OLD
+cd mysql-$PVER
+diff --context --new-file --recursive . ../mysql-$VER | gzip -9 > ../../$RESULT
+cd ../..
+/bin/rm -rf patch
+#chown mysql $RESULT $NEW binary/*
+chmod a+r,o-w $RESULT $NEW binary/*
+mv $RESULT $PATCH_DIR
+mv $NEW $RESULT_DIR
+cp binary/* NEW-RPMS/* $RESULT_DIR

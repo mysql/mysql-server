@@ -1,0 +1,92 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-11  7:45:22
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 901 wallclock secs (169.33 usr 18.66 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 47 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing insert of duplicates
+Time for insert_duplicates (300000): 169 wallclock secs (48.44 usr  5.24 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 15 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 82 wallclock secs (26.48 usr  1.45 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for order_by_key (10:3000000): 208 wallclock secs (26.76 usr  1.38 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1): 33 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for order_by (10:3000000): 209 wallclock secs (26.70 usr  1.83 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1): 32 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for select_range_prefix (5010:42084): 88 wallclock secs ( 4.67 usr  0.54 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_range (5010:42084): 89 wallclock secs ( 4.78 usr  0.65 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_key_prefix (200000): 550 wallclock secs (123.88 usr 13.39 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_key (200000): 547 wallclock secs (123.81 usr 13.35 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1):  2 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+
+Test of compares with simple ranges
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+600 queries in 15 loops of 500 loops took 632 seconds
+Estimated time for select_range_prefix (20000:1305): 632 wallclock secs ( 0.28 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+600 queries in 15 loops of 500 loops took 633 seconds
+Estimated time for select_range (20000:1305): 633 wallclock secs ( 0.19 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for select_group (101): 7704 wallclock secs ( 0.07 usr  0.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1110 queries in 185 loops of 500 loops took 601 seconds
+Estimated time for min_max_on_key (3000): 1624 wallclock secs ( 1.35 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for min_max (60): 48 wallclock secs ( 0.03 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for count_on_key (100): 161 wallclock secs ( 0.10 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for count (100): 153 wallclock secs ( 0.10 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing update with functions
+Time for update_key (500):  11 wallclock secs ( 0.33 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1): 28 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for update_key_big (501): 343 wallclock secs ( 0.34 usr  0.05 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 1818 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing delete
+Time for delete_key (500): 11 wallclock secs ( 0.20 usr  0.15 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1): 89 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for delete_big (12): 39 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Insert into table with 7 keys and with a primary key with 7 parts
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for insert_key (100000): 956 wallclock secs (57.05 usr  7.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 17 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing update of keys
+Time for update_of_key (256): 2292 wallclock secs ( 0.21 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 1829 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Deleting everything from table
+Time for delete_big (2): 19 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  5 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 62302 wallclock secs (630.39 usr 65.36 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

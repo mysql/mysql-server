@@ -1,0 +1,19 @@
+Testing server 'IBM DB2 5' at 1998-11-21 23:18:02
+
+Testing of some unusual tables
+All tests are done 10000 times with 16 fields
+
+Testing table with 16 fields
+Testing select * from table with 1 record
+Time to select_many_fields(10000): 56 secs (56.08 usr  0.00 sys = 56.08 cpu)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(10000): 57 secs (56.82 usr  0.00 sys = 56.82 cpu)
+
+Testing insert VALUES()
+Time to insert_many_fields(10000): 67 secs (67.80 usr  0.00 sys = 67.80 cpu)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(10000): 68 secs (67.82 usr  0.00 sys = 67.82 cpu)
+
+Total time: 250 secs (249.43 usr  0.00 sys = 249.43 cpu)

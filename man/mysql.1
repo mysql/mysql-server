@@ -1,0 +1,143 @@
+.TH MYSQL 1 "13 June 1997"
+.SH NAME
+mysql \- text-based client for mysqld, a SQL-based relational database daemon
+.SH SYNOPSIS
+.B mysql
+.RB [ \-B | \-\-batch ]
+.RB [ \-# | \-\-debug=
+.IR logfile ]
+.RB [ \-T | \-\-debug-info ]
+.RB [ \-e | \-\-exec=
+.IR command ]
+.RB [ \-f | \-\-force ]
+.RB [ \-? | \-\-help ]
+.RB [ \-h | \-\-host=
+.IR hostname ]
+.RB [ \-n | \-\-unbuffered ]
+.RB [ \-p[pwd] ]
+.RI [ \-\-password=[pwd] ]
+.RB [ \-P | \-\-port=
+.IR pnum ]
+.RB [ \-q | \-\-quick ]
+.RB [ \-r | \-\-raw ]
+.RB [ \-s | \-\-silent ]
+.RB [ \-S | \-\-socket=
+.IR snum ]
+.RB [ \-u | \-\-user=
+.IR uname ]
+.RB [ \-v | \-\-verbose ]
+.RB [ \-V | \-\-version ]
+.RB [ \-w | \-\-wait ]
+.SH DESCRIPTION
+The
+.IR mysql
+program provides a curses-based interface to the SQL-based database
+server daemon,
+.IR mysqld (1).
+Full fuller documentation, refer to the HTML documents installed with
+the package.
+.SH OPTIONS
+.TP
+.BR \-B | \-\-batch
+Print results with a tab as separator,
+each row on a new line.
+.TP
+\fB\-#\fP|\fB\-\-debug=\fP\fIlogfile\fP
+Employ the specified debug log.
+.TP
+.BR \-T | \-\-debug-info
+Print debug information upon exiting.
+.TP
+\fB\-e | \-\-exec=\fP\fPcommand\fP
+Execute the specified command and quit
+.BR ( \-\-batch
+is implicit).
+.TP
+.BR \-f | \-\-force
+Continue even if the face of a SQL error.
+.TP
+.BR \-? | \-\-help
+Display a help message and exit.
+.TP
+\fB\-h\fP|\fP\-\-host=\fP\fIhostname\fP
+Connect to the specified host.
+.TP
+.BR \-n | \-\-unbuffered
+Flush the buffer after each query.
+.TP
+\fB\-p\fP|\fB\-\-password\fP[\fB=\fP\fIpwd\fP]
+Employ the specified password when connecting to the database server.
+If a password is not supplied, it will be requested interactively.
+.TP
+\fB\-P\fR|\fB\-\-port=\fP\fIpnum\fP
+Employ the specified port number for connecting to the database server.
+.TP
+.BR \-q | \-\-quick
+Do not cache the result; print it row by row.
+This may slow down the server if the output is suspended.
+.TP
+.BR \-r | \-\-raw
+Write fields without conversion.
+(used with
+.BR \-\-batch ).
+.TP
+.BR \-s | \-\-silent
+Silent mode: reduce the amount of output.
+.TP
+\fB\-S\fP|\fB\-\-socket=\fP\fIsnum\fP
+Employ the specified socket file for connecting to the database server.
+.TP
+\fB\-u\fP|\fB\-\-user=\fP\fIuname\fP
+Employ the specified user name for logging in to the server.
+.TP
+.BR \-v | \-\-verbose
+Verbose mode: write more
+Specifying this option
+.I twice
+produces a tabular output format.
+.TP
+.BR \-V | \-\-version
+Print the
+.I mysql
+version number and exit.
+.TP
+.BR \-w | \-\-wait
+Wait and retry if the database server connection is down.
+.SH FILES
+.TP 2.2i
+.I /depot/bin/mysql
+executable
+.TP
+.I /depot/bin/mysqld
+executable
+.TP
+.I /depot/bin/safe_mysqld
+executable shell script for starting mysqld safely
+.TP
+.I /site/var/mysql/data
+location of database files
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 6.3, distribution 3.20.20
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by R. P. C. Rodgers,
+Lister Hill National Center for Biomedical Communication,
+U.S. National Library of Medicine
+(rodgers@nlm.nih.gov).
+.\" end of man page

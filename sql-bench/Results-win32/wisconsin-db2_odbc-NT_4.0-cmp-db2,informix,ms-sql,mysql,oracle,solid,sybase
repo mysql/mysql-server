@@ -1,0 +1,14 @@
+Testing server 'IBM DB2 5' at 1999-02-02  4:09:47
+
+Wisconsin benchmark test
+
+Time for create_table (3):  3 secs ( 3.03 usr  0.00 sys =  3.03 cpu)
+
+Inserting data
+Time to insert (31000): 330 secs (329.62 usr  0.00 sys = 329.62 cpu)
+Time to delete_big (1):  2 secs ( 1.86 usr  0.00 sys =  1.86 cpu)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 32 secs (32.10 usr  0.00 sys = 32.10 cpu)
+
+Total time: 368 secs (367.48 usr  0.00 sys = 367.48 cpu)

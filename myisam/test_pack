@@ -1,0 +1,9 @@
+silent="-s"
+suffix=$MACH
+mi_test1$MACH -s ; myisampack$MACH --force -s test1 ; myisamchk$MACH -es test1 ; myisamchk$MACH -rqs test1 ; myisamchk$MACH -es test1 ; myisamchk$MACH -us test1 ; myisamchk$MACH -es test1
+mi_test1$MACH -s -S ; myisampack$MACH --force -s test1 ; myisamchk$MACH -es test1 ; myisamchk$MACH -rqs test1 ; myisamchk$MACH -es test1 ;myisamchk$MACH -us test1 ; myisamchk$MACH -es test1
+mi_test1$MACH -s -b ; myisampack$MACH --force -s test1 ; myisamchk$MACH -es test1 ; myisamchk$MACH -rqs test1 ; myisamchk$MACH -es test1
+mi_test1$MACH -s -w ; myisampack$MACH --force -s test1 ; myisamchk$MACH -es test1 ; myisamchk$MACH -ros test1 ; myisamchk$MACH -es test1
+
+mi_test2$MACH -s -t4 ; myisampack$MACH --force -s test2 ; myisamchk$MACH -es test2 ; myisamchk$MACH -ros test2 ; myisamchk$MACH -es test2 ; myisamchk$MACH -s -u test2 ; myisamchk$MACH -sm test2
+mi_test2$MACH -s -t4 -b -N ; myisampack$MACH --force -s test2 ; myisamchk$MACH -es test2 ; myisamchk$MACH -ros test2 ; myisamchk$MACH -es test2 ; myisamchk$MACH -s -u test2 ; myisamchk$MACH -sm test2

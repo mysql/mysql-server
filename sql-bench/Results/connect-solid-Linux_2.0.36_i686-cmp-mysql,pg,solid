@@ -1,0 +1,21 @@
+Testing server 'SOLID Server - v.02.30.0026 (Linux ix86)' at 1999-03-06 12:59:54
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 84 wallclock secs (58.46 usr 10.25 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 105 wallclock secs (66.76 usr 11.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing select 1 row from table
+Time to select (10000): 13 wallclock secs ( 7.03 usr  0.35 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing select 2 rows from table
+Time to select (10000): 14 wallclock secs ( 7.08 usr  0.40 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing retrieval of big records (7000 bytes)
+Time to select_big (10000): 20 wallclock secs (10.57 usr  1.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 236 wallclock secs (149.92 usr 23.13 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

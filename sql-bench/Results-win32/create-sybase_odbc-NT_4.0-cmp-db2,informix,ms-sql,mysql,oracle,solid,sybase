@@ -1,0 +1,20 @@
+Testing server 'Sybase enterprise 11.5 NT' at 1998-08-27  3:05:28
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Testing create of tables
+Time for create_table (1000): 80 secs (80.37 usr  0.00 sys = 80.37 cpu)
+
+Accessing tables
+Time to select_group (1000): 14 secs (14.25 usr  0.00 sys = 14.25 cpu)
+
+Testing drop
+Time for drop_table (1000): 19 secs (18.63 usr  0.00 sys = 18.63 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 63 secs (63.53 usr  0.00 sys = 63.53 cpu)
+Time for create_key+drop (1000): 52 secs (51.41 usr  0.00 sys = 51.41 cpu)
+Total time: 228 secs (228.22 usr  0.00 sys = 228.22 cpu)

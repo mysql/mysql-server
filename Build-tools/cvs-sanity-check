@@ -1,0 +1,15 @@
+#! /bin/sh
+
+CVSROOT=my@work.mysql.com:/home/cvs
+CVS_RSH=ssh
+TMPDIR=/tmp
+cd $TMPDIR
+[ -d mysql ] && rm -rf mysql
+CVSROOT=$CVSROOT CVS_RSH=$CVS_RSH cvs -z 9 co mysql && cd mysql && \
+  chmod u+w -R * && BUILD/compile-pentium
+if test $? = 0
+then
+cd $TMPDIR && rm -rf mysql
+fi
+
+

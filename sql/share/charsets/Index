@@ -1,0 +1,37 @@
+# sql/share/charsets/Index
+#
+# This file lists all of the available character sets.
+
+# THE ORDER IN WHICH CHARACTER SETS ARE LISTED IS IMPORTANT.  See the
+# README file in this directory for details.
+
+
+big5 		  #  1
+czech 		  #  2
+dec8 		  #  3
+dos 		  #  4
+german1 	  #  5
+hp8 		  #  6
+koi8_ru 	  #  7
+latin1		  #  8
+latin2		  #  9
+swe7 		  # 10
+usa7 		  # 11
+ujis 		  # 12
+sjis 		  # 13
+cp1251		  # 14
+danish		  # 15
+hebrew		  # 16
+win1251 	  # 17
+tis620		  # 18
+euc_kr		  # 19
+estonia 	  # 20
+hungarian 	  # 21
+koi8_ukr 	  # 22
+win1251ukr 	  # 23
+gb2312		  # 24
+greek 		  # 25
+win1250 	  # 26
+croat 		  # 27
+gbk 		  # 28
+cp1257		  # 29

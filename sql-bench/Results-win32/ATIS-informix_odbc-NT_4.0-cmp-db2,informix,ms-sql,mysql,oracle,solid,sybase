@@ -1,0 +1,19 @@
+Testing server 'Informix 7.30C1  ' at 1998-09-01  2:00:37
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  3 secs ( 2.81 usr  0.00 sys =  2.81 cpu)
+
+Inserting data
+Time to insert (9768): 53 secs (52.98 usr  0.00 sys = 52.98 cpu)
+
+Retrieving data
+Time for select_simple_join (500): 22 secs (21.83 usr  0.00 sys = 21.83 cpu)
+Time for select_join (200): 99 secs (98.99 usr  0.00 sys = 98.99 cpu)
+Time for select_distinct (800): 97 secs (97.37 usr  0.00 sys = 97.37 cpu)
+Time for select_group (2100): 59 secs (58.55 usr  0.00 sys = 58.55 cpu)
+
+Removing tables
+Time to drop_table (28):  0 secs ( 0.78 usr  0.00 sys =  0.78 cpu)
+Total time: 333 secs (333.33 usr  0.00 sys = 333.33 cpu)

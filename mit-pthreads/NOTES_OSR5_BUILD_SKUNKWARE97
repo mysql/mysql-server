@@ -1,0 +1,45 @@
+This port to Osr5 was donated by 
+    ARTURO MONTES    mitosys@colomsat.net.co
+Its a snapshot of the 1.60 Beta 5 version 
+
+It passes all the tests except test_fork (this seems to be  a problem 
+with  the MIT source)
+and  I suspect there may also  to be problems with 
+the floating point initialisation and perhaps the netdb access as well
+
+
+Regarding the networking API's mind the following (ARTURO):
+
+- Always we are searching host address in /etc/hosts by default, if you
+want other behaviour let me to know.
+
+- If you haven't an entry in /etc/hosts, please create it and after test
+with DNS service.
+
+regarding floating point initialisation (ARTURO)
+
+...mit-pthreads/pthreads/tests> ./test_preemption_float
+test_preemption_float INDETERMINATE
+
+I inhibit the pthread float code, but they are a minor changes in machdep.c.
+
+> What did you do/needs to be done here ??
+
+Look into machdep.c machdep_save_float_state() and
+machdep_restore_float_state() routine. I think the initialization float
+code can have problems with pthread initialization code.
+
+----------------
+
+
+If you wish to rebuild from source you'll need the gnus devsys
+(gmake and gcc) and don't use configure to reconfigure the makefiles, etc
+    ( I don't know why this is but it doesn't work)
+
+If Arturo keeps me updated with buildable snapshots I'll endeavour to keep
+the skunkware Website updated with them.
+
+
+Best of luck
+
+hops 01-Aug-97

@@ -1,0 +1,60 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-11  7:38:51
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing create of tables
+Time for create_table (1000): 67 wallclock secs ( 1.40 usr  0.14 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 14 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Accessing tables
+Time to select_group (1000):  5 wallclock secs ( 0.53 usr  0.14 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing drop
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+NOTICE:  trying to delete a reldesc that does not exist.
+Time for drop_table (1000): 16 wallclock secs ( 0.57 usr  0.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1): 28 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing create+drop
+Time for create+drop (1000): 36 wallclock secs ( 2.08 usr  0.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1): 75 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for create_key+drop (1000): 16 wallclock secs ( 1.32 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1): 131 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 388 wallclock secs ( 5.92 usr  0.76 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

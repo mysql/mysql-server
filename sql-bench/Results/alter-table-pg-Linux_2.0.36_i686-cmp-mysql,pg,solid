@@ -1,0 +1,14 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-09 19:14:16
+
+Testing of ALTER TABLE
+Testing with 300 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 2 wallclock secs ( 0.65 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for alter_table_add (293):  1 wallclock secs ( 0.15 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for create_index (7):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for drop_index (7):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time:  4 wallclock secs ( 0.80 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

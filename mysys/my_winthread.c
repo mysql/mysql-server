@@ -1,0 +1,111 @@
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+   
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2 of the License, or (at your option) any later version.
+   
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
+   
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA */
+
+/*****************************************************************************
+** Simulation of posix threads calls for WIN95 and NT
+*****************************************************************************/
+
+#include "mysys_priv.h"
+#if defined(THREAD) && defined(__WIN__)
+#include <m_string.h>
+#undef getpid
+#include <process.h>
+
+extern pthread_mutex_t THR_LOCK_thread;
+
+struct pthread_map
+{
+  HANDLE pthreadself;
+  pthread_handler func;
+  void *param;
+};
+
+/*
+** We have tried to use '_beginthreadex' instead of '_beginthread' here
+** but in this case the program leaks about 512 characters for each
+** created thread !
+** As we want to save the created thread handler for other threads to
+** use and to be returned by pthread_self() (instead of the Win32 pseudo
+** handler), we have to go trough pthread_start() to catch the returned handler
+** in the new thread.
+*/
+
+static pthread_handler_decl(pthread_start,param)
+{
+  pthread_handler func=((struct pthread_map *) param)->func;
+  void *func_param=((struct pthread_map *) param)->param;
+  my_thread_init();
+  pthread_mutex_lock(&THR_LOCK_thread);	  /* Wait for beingthread to return */
+  win_pthread_self=((struct pthread_map *) param)->pthreadself;
+  pthread_mutex_unlock(&THR_LOCK_thread);
+  free((char*) param);
+  pthread_exit((*func)(func_param));
+  return 0;
+}
+
+
+int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
+		   pthread_handler func, void *param)
+{
+  HANDLE hThread;
+  struct pthread_map *map;
+  DBUG_ENTER("pthread_create");
+
+  if (!(map=malloc(sizeof(*map))))
+    DBUG_RETURN(-1);
+  map->func=func;
+  map->param=param;
+  pthread_mutex_lock(&THR_LOCK_thread);
+#ifdef __BORLANDC__
+  hThread=(HANDLE)_beginthread((void(_USERENTRY *)(void *)) pthread_start,
+			       attr->dwStackSize ? attr->dwStackSize :
+			       65535, (void*) map);
+#else
+  hThread=(HANDLE)_beginthread(pthread_start,
+			       attr->dwStackSize ? attr->dwStackSize :
+			       65535, (void*) map);
+#endif
+  DBUG_PRINT("info", ("hThread=%lu",(long) hThread));
+  *thread_id=map->pthreadself=hThread;
+  pthread_mutex_unlock(&THR_LOCK_thread);
+
+  if ((long) hThread == -1L)
+  {
+    long error=errno;
+    DBUG_PRINT("error",
+	       ("Can't create thread to handle request (error %ld)",error));
+    DBUG_RETURN(error ? error : -1);
+  }
+  VOID(SetThreadPriority(hThread, attr->priority)) ;
+  DBUG_RETURN(0);
+}
+
+
+void pthread_exit(unsigned A)
+{
+  _endthread();
+}
+
+/* This is neaded to get the macro pthread_setspecific to work */
+
+int win_pthread_setspecific(void *a,void *b,uint length)
+{
+  memcpy(a,b,length);
+  return 0;
+}
+
+#endif

@@ -1,0 +1,19 @@
+Testing server 'Sybase enterprise 11.5 NT' at 1998-08-27  2:08:30
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  2 secs ( 1.41 usr  0.00 sys =  1.41 cpu)
+
+Inserting data
+Time to insert (9768): 120 secs (120.34 usr  0.00 sys = 120.34 cpu)
+
+Retrieving data
+Time for select_simple_join (500): 17 secs (16.86 usr  0.00 sys = 16.86 cpu)
+Time for select_join (200): 114 secs (114.63 usr  0.00 sys = 114.63 cpu)
+Time for select_distinct (800): 64 secs (63.34 usr  0.00 sys = 63.34 cpu)
+Time for select_group (2100): 21 secs (21.00 usr  0.00 sys = 21.00 cpu)
+
+Removing tables
+Time to drop_table (28):  0 secs ( 0.31 usr  0.00 sys =  0.31 cpu)
+Total time: 338 secs (337.94 usr  0.00 sys = 337.94 cpu)

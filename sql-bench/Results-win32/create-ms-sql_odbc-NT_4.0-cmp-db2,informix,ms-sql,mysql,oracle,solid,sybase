@@ -1,0 +1,20 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07 10:22:16
+
+Testing the speed of creating and droping tables
+All tests are done 1000 times
+
+Okay..Let's make sure that our tables don't exist yet.
+
+Testing create of tables
+Time for create_table (1000): 55 secs (55.35 usr  0.00 sys = 55.35 cpu)
+
+Accessing tables
+Time to select_group (1000): 20 secs (20.25 usr  0.00 sys = 20.25 cpu)
+
+Testing drop
+Time for drop_table (1000):  6 secs ( 5.80 usr  0.00 sys =  5.80 cpu)
+
+Testing create+drop
+Time for create+drop (1000): 35 secs (34.23 usr  0.00 sys = 34.23 cpu)
+Time for create_key+drop (1000): 36 secs (36.10 usr  0.00 sys = 36.10 cpu)
+Total time: 152 secs (151.76 usr  0.00 sys = 151.76 cpu)

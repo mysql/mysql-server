@@ -1,0 +1,9 @@
+gmake -k clean
+/bin/rm -f */.deps/*.P */*.o
+/bin/rm -f config.cache
+aclocal; autoheader; aclocal; automake; autoconf
+
+CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -f
+elide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/m
+ysql --with-extra-charsets=complex
+gmake

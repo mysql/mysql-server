@@ -1,0 +1,14 @@
+Testing server 'SOLID Server - v.02.30.0026 (Linux ix86)' at 1999-03-06 17:41:55
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 wallclock secs ( 0.02 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting data
+Time to insert (31000): 154 wallclock secs (26.27 usr  2.34 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time to delete_big (1):  4 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 55 wallclock secs (10.89 usr  0.42 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 226 wallclock secs (37.18 usr  2.77 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

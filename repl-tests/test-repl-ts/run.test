@@ -1,0 +1,17 @@
+#! ../client/mysql-test
+# tests if the replicaion preserves timestamp properly
+
+source ../include/master-slave.inc;
+connection master;
+set timestamp=200006;
+drop table if exists foo;
+create table foo(t timestamp not null,a char(1));
+insert into foo ( a) values ('F');
+@repl-timestamp.master select unix_timestamp(t) from foo;
+sleep 3;
+connection slave;
+drop table if exists foo;
+load table foo from master;
+@repl-timestamp.master select unix_timestamp(t) from foo;
+
+

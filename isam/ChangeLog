@@ -1,0 +1,186 @@
+2000-04-26  Michael Widenius  <monty@mysql.com>
+
+* Fixed bug when doing read_next after a delete/insert which balanced key
+  pages (In this case one internal buffer was wrongly reused)
+
+1999-11-23  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Changed prefix from ni_ to nisam_ to avoid problems on MacOS X.
+
+1999-08-17  Michael Widenius  <monty@tik.pp.sci.fi>
+
+* Changed last parameter to mi_open() to be a bit flag instead of an int.
+
+1998-10-01  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed bug in key packing when using some USE_STRCOLL character sets.
+
+Thu Aug 20 23:17:41 1998  Michael Widenius  <monty@bitch.pp.sci.fi>
+
+* isamchk.c:  Sometimes isamchk --sort-table caused isamchk to die.
+
+1998-06-28  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Fixed some possible race conditions when using with MySQL and
+  many reopen/close of the same tables under heavy load!	
+* Changed isamchk to re-pack records when doing a repair to make it more safer.
+
+Thu Mar 12 21:44:08 1998  Michael Widenius  <monty@monty.pp.sci.fi>
+
+* Added a safty test to _ni_rec_unpack.
+
+Wed Nov 26 01:52:55 1997    <monty@monty.pp.sci.fi>
+
+* Fixed small problem when reading delete-marked records with rkey, rnext and
+  rprev. In normal applications this should never happen.
+
+Thu Nov 20 14:01:21 1997    <monty@monty.pp.sci.fi>
+
+* Fixed range key bug when using compressed key where the first part wasn't
+  compressed.
+* Converted everything to use prototypes.
+
+Mon Sep 29 13:16:27 1997    <monty@monty.pp.sci.fi>
+
+* Fixed problem with isamchk and compressed records files with record_reflength
+  < 4 (Gave wrong key when using isamchk -rq).
+
+Fri Sep 26 16:06:37 1997    <monty@monty.pp.sci.fi>
+
+* Fixed bug in range calculation.
+
+Thu Aug 14 14:44:33 1997    <monty@monty.pp.sci.fi>
+
+* Removed a couple of unnecessary seeks from 'delete static record'
+
+Tue Jul  1 22:04:16 1997    <monty@monty.pp.sci.fi>
+
+* Added checking of 'wrong packed records' when using 'isamchk -e' or 
+  isamchk -ro.
+
+Fri Feb  7 22:22:28 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Fixed use of packed tables with threads (One static variable left)
+
+Thu Jan 23 09:05:22 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* Changed create to detect keys > 127 and not pack them. Now one can
+  define keys with a length of up to (nisam_block_size-18)/2
+  by changeing N_MAX_KEY_LENGTH.
+
+Fri Jan 10 21:01:44 1997  Michael Widenius  <monty@bitch.sci.fi>
+
+* added signed chars as key type.
+
+Fri Apr 26 14:31:05 1996  Michael Widenius  <monty@bitch.clinet.fi (Michael Widenius)>
+
+* create.c:  All keyfile blocks are now IO_SIZE big (for better keycashing).
+
+Tue Mar 12 22:42:52 1996  Michael Widenius  <monty@bitch.clinet.fi (Michael Widenius)>
+
+* isamchk.c: Changed to print info if system table
+* write.c:   Don't allow more than 1 record in system table.
+
+Fri Feb  2 16:40:32 1996  Michael Widenius  <monty@bitch.clinet.fi (Michael Widenius)>
+
+* isamchk.c; Check that delete-link-chain is ok before trying to delete with 'q'.
+
+Thu Jan 11 13:21:23 1996  Michael Widenius  <monty@bitch.clinet.fi (Michael Widenius)>
+
+* All same isam files now shares a structure to allow many opens off the same
+  file
+
+Sat Nov 25 12:33:53 1995  Michael Widenius  <monty@bitch.clinet.fi (Michael Widenius)>
+
+* All functions now used my_errno instead of errno
+
+Mon Oct 23 12:32:02 1995  Michael Widenius  <monty@bitch.clinet.fi (Michael Widenius)>
+
+* isamchk.c: Don't print that database should be fixed on automatic rep.
+
+Sun Aug 27 20:13:56 1995  Michael Widenius  <monty@bitch.analytikerna.se (Michael Widenius)>
+
+* _dynrec.c added flush_io_cash() if someone did a read when using
+	  WRITE CASHING.
+
+Thu Apr 20 01:41:24 1995  Michael Widenius  (monty@bitch)
+
+* fixed errno when got error of 'key-not-found' when updateing or
+	  deleting record.
+
+Tue Jan 17 19:37:48 1995  Michael Widenius  (monty@bitch)
+
+* isamchk can now unpack databases.
+* prolinted all files.
+
+Fri May 27 15:01:06 1994  Michael Widenius  (monty@bitch)
+
+* Don't lock packed databases.
+
+Sat Apr 16 22:41:23 1994  Michael Widenius  (monty@bitch)
+
+* Added new function read_rsame_with_pos.
+
+Wed Mar 30 15:52:19 1994  Michael Widenius  (monty@bitch)
+
+* Added creation and recover date to indexfile and isamchk.
+
+Sat Mar 26 15:03:37 1994  Michael Widenius  (monty@bitch)
+
+* change is_panic() to close all files on ha_panic(write) on systems
+	  (VMS) with can't open one file twice.
+
+Fri Feb  4 21:09:56 1994  Michael Widenius  (monty@bitch)
+
+* READ_CASH on packed files now makes them mem-mapped if possibly
+
+Sat Sep 18 14:56:32 1993  Michael Widenius  (monty at bitch)
+
+* changed _search to use pointer to buffer when reading keys.
+
+Mon Aug 16 19:45:29 1993  Michael Widenius  (monty at bitch)
+
+* isamchk and packisam resolves symbolic links before file is used.
+	  This forces temp-files on same disk as orginal file and rename
+	  of temp-files dosen't destroy symbolic links.
+
+Mon May 31 18:26:08 1993  Michael Widenius  (monty at bitch)
+
+* Added crc-check of records when packing for safe test if pack ok.
+
+Tue Mar  2 19:16:00 1993  Michael Widenius  (monty@bitch)
+
+* Added logging of records with ni_log().
+
+Fri Jan 29 00:56:58 1993  Michael Widenius  (monty@bitch)
+
+* Fixed bug in _read_rnd_static_record ; A lock was made for
+	  each record even if it was in cash.
+
+Sun Nov 15 12:51:36 1992  Michael Widenius  (monty@bitch)
+
+* last change breaked _dynrec, when not compileing with dbug.
+
+Fri Nov  6 03:46:38 1992  Michael Widenius  (monty@bitch)
+
+* Fixed bugg when using packed records and reclength < 8 byte.
+
+Wed Oct 28 22:23:32 1992  Michael Widenius  (monty@bitch)
+
+* Changed _cash.c to use io_cash to allow use of aioread.
+
+Fri Oct 23 00:45:53 1992  Michael Widenius  (monty@bitch)
+
+* Added MY_WAIT_IF_FULL to pack_isam.
+
+Sat Oct 17 14:51:15 1992  Michael Widenius  (monty@bitch)
+
+* Added use of subset of keys (isamchk -k#)
+
+Mon Oct  5 21:53:18 1992  Michael Widenius  (monty@bitch)
+
+* Remove reloc of database ; Gives only problems with isamchk.
+
+Mon Aug 17 03:17:09 1992  Michael Widenius  (monty@bitch)
+
+* Changed isam to use io_cash instead of rec_cash

@@ -1,0 +1,66 @@
+New features compared to NISAM:
+
+- All file positions have type my_off_t;  This enables one to use big
+  files (2^63 byte) by defining my_off_t to be longlong on OS that supports
+  big files.
+- When creating a table, one can now specify the maximum data file length.
+  This will be used to calculate the length of row pointers.
+- All key segments have their own language definition.
+- Some changes to support more types:
+  The biggest change is that the interface allows MY_ISAM will support
+  variable length integer types. (Only the interface is implemented)
+- All data is stored with low byte first;  This makes the data machine
+  independent.
+- All number keys are stored with high byte first to give better packing.
+- Support for a true VARCHAR type;  A VARCHAR column starts with a length
+  stored on 2 bytes.
+- Tables with VARCHAR may have fixed or dynamic record length.
+- There are now 2 different ways to pack keys:
+  - If the first key part is a space stripped CHAR, a VARCHAR or a BLOB the
+    'packed' method is used.  This only prefix-compresses the first
+    key part.
+  - In other cases prefix packing is used (This also includes the record
+    pointer into the prefix packing).  A key may in the best case be
+    packed on 2 bytes.
+- VARCHAR and CHAR may be up to 65K
+- Index on BLOB and VARCHAR.
+- One can now have NULL in an index.  This takes 0-1 bytes / key.
+- MYISAM will allow one to specify one AUTO_INCREMENT column;  MYISAM will
+  automaticly update this on INSERT/UPDATE. The AUTO_INCREMENT value can be
+  reset with myisamchk.
+- Max key length will be 500 by default;  In cases of longer keys than 250,
+  a bigger key block size than the default of 1024 byes is used for this key.
+- Max number of keys enlarged to 32 as default. This can be enlarged to 64
+  without having to recompile myisamchk.
+- There is a flag in the MYISAM header that tells if the index file (.MYI)
+  was closed correctly.
+- myisamchk will now mark tables as checked. 'myisamchk --fast' will only
+  check those tables that doesn't have this mark.
+- 'myisamchk -a' stores statistic for key parts (and not only for whole keys
+   as in NISAM).
+- Dynamic size rows will now be much less fragmented when mixing deletes with
+  update and insert.  This is done by automaticly combine adjacent deleted
+  blocks and by extending blocks if the next block is deleted.
+- For dynamic size rows, the delete link contains a pointer to itself
+  (to make repairs easier).
+- myisampack (called pack_isam in NISAM) can pack BLOB and VARCHAR
+  columns.
+- One can now disable any key from update;  In NISAM one could only disable
+  the last x keys.
+- One can have a UNIQUE constraint on anything (including BLOBS).
+  This is implemented by a key that contains a hashed number of the whole
+  record and before inserting a new record, MyISAM will check all records
+  with the same hash for dupplicates.
+- When creating the table, one can define that MyISAM should maintain
+  a CRC for the whole table (to make isamchk even better). In the case of
+  dynamic size rows, one will in this case get 1 byte checksum for each row.
+  (This is a great help for debugging, but it can also be used to keep
+  MyISAM table 'extra' safe.
+- Temporary tables will not write not flushed keys to file on close and
+  not wait on 'disk full' conditions.
+
+Interface changes compared to NISAM:
+
+- mi_create()
+  - keyinfo->seg must be allocated explicitely.
+  - One must put number of key segments in keyinfo

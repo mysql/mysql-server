@@ -1,0 +1,74 @@
+#!/bin/bash
+
+WD=`pwd`
+TMP_SCRIPT=$WD/Logs/00-temp-for-do-all-build-steps.$$
+
+# We build on work
+to_host=`hostname`
+cc=gcc
+ccc=gcc
+EXTRA_CONFIG="--without-perl"
+
+echo "Building on $to_host"
+
+cat > $TMP_SCRIPT <<END
+# Show executed commands
+set -x
+# Move to the right place
+cd "$WD"
+
+CC=$cc CXX=$ccc 
+export CC CXX
+
+gmake -k distclean
+rm -f NEW-RPMS/*
+
+# Stop on error
+set -e
+
+# Make everything readable for user and group
+# chmod -R u+rw,g+rw .
+
+/bin/rm -f */.deps/*.P
+/bin/rm -f config.cache
+
+aclocal; autoheader; aclocal; automake; autoconf
+
+# Since we have moved the configure.in stuff from readline to the
+# toplevel why do this? David 990630
+# (cd readline; aclocal; autoheader; aclocal; automake; autoconf)
+
+# A normal user starts here. We must use mit-threads. Otherwise it
+# does not end up in the distribution.
+./configure \
+ --with-unix-socket-path=/var/tmp/mysql.sock \
+ --with-low-memory \
+ --with-mit-threads=yes $EXTRA_CONFIG
+
+gmake # --jobs=4 does not work.
+
+time gmake distcheck \
+ EXTRA_CONF_ARGS="--with-unix-socket-path=/var/tmp/mysql.sock --with-low-memory $EXTRA_CONFIG"
+
+$WD/Build-tools/Do-rpm
+
+rm -f $TMP_SCRIPT
+END
+
+mkdir -p $WD/Logs
+log=$WD/Logs/Log-distcheck-`date +%y%m%d-%H%M`
+
+if test $to_host = "mysql-work"
+then
+  # Try to get the right user for MySQL builds on work so that all
+  # files is owned by the same user (mysql)
+  ssh -n $to_host -l my "time bash $TMP_SCRIPT" > $log 2>&1
+else
+  time bash $TMP_SCRIPT > $log 2>&1
+fi
+
+# Create a commercial MySQL distribution (mysqlcom-VER.tar.gz) from
+# the newly made source distribution
+
+DIST=`ls -t mysql-*.tar.gz | head -1`
+$WD/Build-tools/mysql-copyright --target=. $DIST

@@ -1,0 +1,19 @@
+Testing server 'SOLID Server - v.02.30.0026 (Linux ix86)' at 1999-03-06 17:27:17
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 1.5 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 139 wallclock secs ( 9.23 usr  0.67 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Testing big selects on the table
+Time for select_big (70:17207):  3 wallclock secs ( 0.78 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for select_range (410:24731): 23 wallclock secs ( 1.84 usr  0.11 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for min_max_on_key (70000): 108 wallclock secs (31.16 usr  2.25 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+3350 queries in 670 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 8970 wallclock secs (48.66 usr  4.18 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Estimated total time: 9245 wallclock secs (91.67 usr  7.28 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

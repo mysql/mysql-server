@@ -1,0 +1,271 @@
+===============================================================================
+installing/mysql/binary		Fri Jul 17 13:03:03 1998		has
+===============================================================================
+
+	             MySQL for dummies - Part 1
+    How to get the binary distribution running on a UNIX system
+
+               MySQL is a trademark of TcX, Sweden.
+
+===============================================================================
+
+Introduction:
+
+This is a simple cookbook for the helpless newbie taking his very first steps
+with MySQL, when he needs a few hints about the options and access rights
+installing the system and starting the basic modules, before he has "aha"ed
+on how simple and clean the basic structure of MySQL is.  It will not help
+you with the intricacies and subtle possibilities of SQL as implemented in
+MySQL.
+
+The information in this document is all contained in the MySQL manual in a
+more or less obvious form, but for the newbie that document is a bit over-
+whelming in size, and it contains some new concepts that take some getting
+used to.  Sorry if it is pitched too low for some readers.  It is only
+intended to get the binary distribution up and running.
+
+I successfully got MySQL going on both a Sun SparcStation 1 running SunOS 4.1.2
+and 2 Linux systems running SuSE release 5.0, one with kernel version 2.0.30,
+one with 2.0.33 by doing exactly what is given here.  If it doesn't work
+for you, I suggest the problem is with your system and not with the 
+MySQL binary distribution.
+
+-- Howard Schultens     hs@neuro-physiol.med.uni-goettingen.de
+
+-------------------------------------------------------------------------------
+
+Nomenclature:
+
+In the following, 'MySQL' refers to the entire database system distributed
+and licensed by TcX. 'mysql' means a specific program in this system.
+
+-------------------------------------------------------------------------------
+
+MySQL user administration and access rights ("privileges"):
+
+It is obvious that MySQL needs its own user management because it is a system
+that is implemented on a number of architectures -- you should be able to use
+it in an identical way on different operating systems.  The MySQL user names
+and passwords have basically nothing at all to do with user names and
+passwords on whatever operating system you install it on.  You will,
+unfortunately, have to install your users again on MySQL.  But this system has
+some big advantages: it is a secure system that allows you to finely
+differentiate access rights based on WHO is using a database from WHERE.  It
+does this by the use of its own database containing 3 tables "user" for the
+user names, "db" for the databases, and "host" for the machines that access
+databases. "user" and "db" are the most important for the newbie.
+
+Section 6 of the manual describes all this in detail.
+
+-------------------------------------------------------------------------------
+
+Doing it:
+
+In the following, "foo>" denotes the prompt from your system in user mode,
+"foo#" as root/superuser.
+
+
+1) Get the appropriate binary distribution from a mirror site or directly
+   from TcX at URL http://www.tcx.se. The file name has the form
+	mysql-VERSION-SYSTEM.tgz
+
+	VERSION = Version number, e.g. 3.21.33
+	SYSTEM  = OS and architecture, e.g. sunos4.1.4-sparc
+
+   i.e., you would download a file mysql-3.21.33-sunos4.1.4-sparc.tgz.
+
+   This example is for SunOS, but it works exactly analogously on Linux.
+
+2) cd to /usr/local and unpack this with, e.g. the command
+
+	foo#gzip -c -d mysql-VERSION-SYSTEM.tgz|tar xvf -
+
+3) The files are stored in a directory /usr/local/mysql-VERSION-SYSTEM
+   Make a symbolic link to this directory:
+
+	foo#ln -s mysql-VERSION-SYSTEM mysql
+
+   At this point, you might want to create a special user for all your
+   MySQL stuff.  I use "mysql".  Then you could do
+
+	foo#chown -R mysql mysql-VERSION-SYSTEM
+
+4) FIRST, take care of all the PERL stuff:
+ 
+  o)  You need PERL 5.004 or later already installed on your system.  Take
+      care of this first if necessary.
+
+  a)  cd to /usr/local/mysql/perl/DBI and do
+	foo#perl Makefile.PL
+        foo#make
+        foo#make test
+        foo#make install		(if "make test" is successful)
+
+  b)  cd to /usr/local/mysql/perl/Mysql/modules and do
+	foo#perl Makefile.PL
+        foo#make
+        foo#make test
+        foo#make install		(if "make test" is successful)
+
+  c)  As an option, you can install Data::ShowTable, but this is not absolutely
+      necessary for mysql.  Get the PERL module Data-ShowTable-VER.tar.gz
+      (VER = version, eg. 3.3) from a CPAN mirror: I got mine at
+   
+      ftp://ftp.gwdg.de/pub/languages/perl/CPAN/modules/by-category/06_Data_Type_Utilities/Data/Data-ShowTable-3.3.tar.gz
+
+      (You should be able to replace "ftp.gwdg.de" by the name of another
+       FTP mirror)
+
+ Put this into /usr/local/mysql/perl and unpack it.
+      You get a directory 'Data-ShowTable-VER'.  cd into there and 
+      (as root/superuser)
+	foo#perl Makefile.PL
+        foo#make
+        foo#make test
+        foo#make install		(if "make test" is successful)
+
+5) cd to /usr/local/mysql and do
+	foo#scripts/mysql_install_db
+
+   you should be in /usr/local/mysql when you start the script.
+
+==>*NOTE* you might want to edit this script before you run it the first
+   time.  See method 9b) below.
+
+   If this is successful, one or more copies of the mysql daemon, mysqld,
+   will be running.  On SunOS 4.1.x, you get one.  On Linux, 3 are running.
+
+-------------------------------------------------------------------------------
+In the rest of this, I will always suppose you are starting in the directory
+/usr/local/mysql, even if it seems mildly inconvenient
+-------------------------------------------------------------------------------
+
+6) You can now select the database 'test' and mess around with it using
+   the client program bin/mysql:  start it with
+
+	foo>bin/mysql -u root test
+
+   This says, "start up the MySQL command-line client with the user name
+   'root' and use the database named 'test', which is a subdirectory in
+   '/usr/local/mysql/data". (n.b. this is NOT the root user of your UNIX
+   system, it is a MySQL user with the same name. You will notice that you
+   don't need a password for this user to use mysql).
+
+   Actually, the way the system is set up by bin/mysql_install_db, you
+   don't even need a user name to access the database 'test'.  You can start
+   the client simply with
+
+	foo>bin/mysql test
+
+   'mysql' should start up with a greeting and a line telling you what your
+   connection id and server version is.  At this point, the database 'test'
+   is empty, no tables or anything are defined.
+   
+   When you issue SQL commands, DON'T FORGET THE FINAL SEMICOLON, or mysql acts
+   dumb:
+
+	mysql>select * from user
+            ->
+            ->
+
+   and you wonder what's going on. 'mysql' reminds you of this on startup.
+
+7) When you want to close down the server, do
+	foo>bin/mysqladmin shutdown
+
+8) I recommend editing the script bin/safe_mysqld for the binary release
+   so that it always starts up with the correct directories.  I replaced
+   the entire header up to but not including
+
+   pidfile=$DATADIR/`/bin/hostname`.pid
+   log=$DATADIR/`/bin/hostname`.log
+   err=$DATADIR/`/bin/hostname`.err
+
+   with
+
+   MY_BASEDIR_VERSION=/usr/local/mysql
+   DATADIR=$MY_BASEDIR_VERSION/data
+   ledir=$MY_BASEDIR_VERSION/bin
+   cd $MY_BASEDIR_VERSION
+
+   This lets you start the mysql daemon from wherever you like.
+
+9) Now let's say you want to put some of your own databases and users into
+   the system.  The simplest, most powerful, and dangerous way to do this is
+   to start up the mysql daemon again with:
+
+	foo>bin/mysqld --basedir=/usr/local/mysql --datadir=/usr/local/mysql/data -Sg
+
+   This skips loading the grant tables.  The system is open to every kind of
+   mistake now, so be careful.  Any user can muck up the grant tables, ie.
+   the lists of users, hosts, and databases themselves, so only use this
+   mode to do these first, very basic things.
+
+   Start the client again now, with
+	foo>bin/mysql mysql
+
+   This tells the client to use the database 'mysql', which is the directory
+   that contains the lists (ie. the tables) of all the users, hosts, and 
+   databases in the system, so be careful!!!!!!!!!!!!
+
+   All of what follows is taken essentially from section 6 of the manual.
+
+   a) For the start, just define a couple of users for the MySQL system:
+      i) an administrator, such as 'mysql', with its own password, that
+         can do everything with the system:
+
+	 mysql> insert into user values('localhost','mysql',password('xyzzy'),
+		'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+
+	 * For some reason, on my Linux system with a German keyboard, I have *
+         * to use the acute accent instead of the apostrophe, otherwise I get *
+	 * parse errors.                                                      *
+
+	 This defines the user name 'mysql' with password 'xyzzy' that can
+	 do everything. To look at what you just did, type in
+
+         mysql> select * from user;
+
+	 mysql types out a table with all the known users and their privileges.
+
+       ii) a privileged user for playing around:
+
+	 mysql> insert into user values('localhost','john',password('blah0x1'),
+		'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+
+       iii) create your own database for a todo list, phone numbers, whatever:
+
+	 mysql> create database johns_DB;
+	 mysql> insert into db values('localhost','johns_DB','john','Y','Y','Y','Y','Y','Y');
+
+	 The first line creates the databse "johns_DB", but that doesn't
+	 make it visible to mysql.  The second line does that.
+
+	iv) When you are done installing users and databases, quit mysql and
+            issue the command
+
+		foo>bin/mysqladmin reload
+
+    b) Another method to do this was suggested by Sinisa Milivojevic, and that
+       is to edit the script /usr/local/mysql/scripts/mysql_install_db to
+       define the databases and install the more important users when you
+       start the system the very first time.  This would have the advantage
+       that you can save the script and re-install the system with it if you
+       have to, automatically defining the important structures.  It requires
+       a little more knowledge of the MySQL system to do this.
+
+       You might want to use this method anyway since it saves editing
+       mysql_install_db to have it install a superuser with a name other
+       than "root".  The places to change are easy to find. You can, of
+       course, use the first method above and remove the user named 'root'
+       when you are done.
+
+
+===============================================================================
+
+If anyone is interested enough in this document to make suggestions on how
+to improve it, I would be glad to get emails on it.  I hope it helps
+someone get going with MySQL a little easier.
+
+--Howard
+  hs@neuro-physiol.med.uni-goettingen.de

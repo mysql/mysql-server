@@ -1,0 +1,272 @@
+@chapter MySQL ODBC Suporte
+
+@menu
+* Quais ODBC OS::               Sistemas Operacionais são suportados por @strong{MyODBC}
+* Problemas ODBC::              Como informar problemas com @strong{MySQL} ODBC
+* Clientes MyODBC::             Programas que já foram testados com @strong{MyODBC}
+* Administrador ODBC::          Como preencher os diversos campos com o programa Administrador
+* ODBC e last_insert_id::       Como obter o valor de uma coluna @code{AUTO_INCREMENT} em ODBC
+* Informando bug do MyODBC::    Informando problemas com MyODBC
+@end menu
+
+@strong{MySQL} fornece suporte para ODBC através do programa @strong{MyODBC}.
+
+
+@node Quais ODBC OS, ODBC Problemas, ODBC, ODBC
+@section Sistemas Operacionais suportados por MyODBC
+
+@strong{MyODBC} é um driver 32-bit ODBC (2.50) nível 0 para Windows95
+e Windows NT. Nós esperamos que alguém porte o mesmo para o Windows 3.x.
+
+@node Problemas ODBC, clientes MyODBC, Quais ODBC OS, ODBC
+@section Como informar problemas com MyODBC
+
+@strong{MyODBC} tem sido testado com Access, Admndemo.exe, C++-Builder,
+Centura Team Developer (formalmente Gupta SQL/Windows), ColdFusion (no
+Solaris e NT com svc pack 5), Crystal Reports, DataJunction, Delphi,
+ERwin, Excel, iHTML, FileMaker Pro, FoxPro, Notes 4.5/4.6, SBSS, Perl
+DBD-ODBC, Paradox, Powerbuilder, Powerdesigner 32 bit, VC++ e Visual
+Basic.
+
+Se você souber de algum outro aplicativo que funcione com @strong{MyODBC}, por favor
+nos escreva sobre isso através do email @email{myodbc@@lists.mysql.com}.
+
+@node Clientes MyODBC, Administrador ODBC, Problemas com ODBC, ODBC
+@section Programas testados que funcionam com MyODBC
+
+A maioria dos programas que têm suporte para ODBC, funcionam com o @strong{MyODBC},
+mas cada um dos listados abaixo, têm sido testados por nós ou por informações de
+usuários que confirmaram o seu funcionamento.
+
+@table @asis
+@item @strong{Program}
+@strong{Comment}
+@item Access
+Como fazer Accces funcionar:
+@itemize @bullet
+@item
+Você deverá ter uma chave primária na tabela.
+@item
+Você deve ter um campo timestamp em todas as tabelas em que você quer controlar a
+atualização.
+
+@item
+Somente use campos doubles float. Access falha quando faz comparações com campos float
+simples.
+@item
+Configure a opção `Return matching rows' quando conectar com o @strong{MySQL}.
+@item
+O Access no NT acusará colunas @code{BLOB} como @code{OLE OBJECTS}.
+Se ao invés disso você quer colunas @code{MEMO}, deve trocar a coluna para
+@code{TEXT} usando @code{ALTER TABLE}.
+@item
+Access às vezes não lida adequadamente com colunas do tipo @code{DATE}.
+Se você tiver problemas com essas colunas, mude as colunas para @code{DATETIME}.
+@item
+Em certas situações, o Access cria consultas SQL ilegais que o
+@strong{MySQL} não pode processar. Você pode resolver isso selecionando o tipo de
+consulta @code{"Query|SQLSpecific|Pass-Through"} no menu do Access.
+@end itemize
+@item DataJunction
+Você tem que trocar para mandar @code{VARCHAR} ao invés de @code{ENUM}, porque
+o mesmo exporta o último de uma maneira que causa fadiga ao @strong{MySQL}.
+@item Excel
+Funciona. Algumas dicas:
+@itemize @bullet
+@item
+Se você tem problemas com datas, tente selecioná-las como strings usando a
+função @code{CONCAT()}. Por exemplo:
+@example
+select CONCAT(rise_time), CONCAT(set_time)
+    from sunrise_sunset;
+@end example
+Os dados de datas enviadas como string são corretamente reconhecidas pelo
+Excel97 como dados do tipo time.
+
+Neste exemplo o propósito de @code{CONCAT()} é enganar o ODBC, fazendo-o pensar
+que a coluna é do 'tipo string'. Sem o @code{CONCAT()}, ODBC sabe que a coluna
+é do tipo time e o Excel não entenderá isso.
+
+Note que isso é um bug no Excel, porque o mesmo converte automaticamente a
+string para time. Isto é muito bom quando o fonte é um arquivo
+texto, mas não se pode dizer o mesmo quando o fonte é uma conexão
+ODBC que informa o tipo exato para cada coluna.
+@end itemize
+@item odbcadmin
+Programa Teste para ODBC.
+@item Delphi
+Você deverá usar DBE 3.2 ou mais atualizado. Configure o campo de opção
+`Don't optimize column width' quando conectando com @strong{MySQL}.
+
+Também, há aqui um código muito útil que configura tanto a
+inserção ODBC e a inserção BDE para MyODBC (a inserção BDE requer um BDE
+Alias Editor que pode ser obtido de graça numa Delphi Super Page
+perto de você.):  (Obrigado a Bryan Brunton @email{bryan@@flesherfab.com} por isto)
+
+@example
+fReg:= TRegistry.Create;
+  fReg.OpenKey('\Software\ODBC\ODBC.INI\DocumentsFab', True);
+  fReg.WriteString('Database', 'Documents');
+  fReg.WriteString('Description', ' ');
+  fReg.WriteString('Driver', 'C:\WINNT\System32\myodbc.dll');
+  fReg.WriteString('Flag', '1');
+  fReg.WriteString('Password', '');
+  fReg.WriteString('Port', ' ');
+  fReg.WriteString('Server', 'xmark');
+  fReg.WriteString('User', 'winuser');
+  fReg.OpenKey('\Software\ODBC\ODBC.INI\ODBC Data Sources', True);
+  fReg.WriteString('DocumentsFab', 'MySQL');
+  fReg.CloseKey;
+  fReg.Free;
+
+  Memo1.Lines.Add('DATABASE NAME=');
+  Memo1.Lines.Add('USER NAME=');
+  Memo1.Lines.Add('ODBC DSN=DocumentsFab');
+  Memo1.Lines.Add('OPEN MODE=READ/WRITE');
+  Memo1.Lines.Add('BATCH COUNT=200');
+  Memo1.Lines.Add('LANGDRIVER=');
+  Memo1.Lines.Add('MAX ROWS=-1');
+  Memo1.Lines.Add('SCHEMA CACHE DIR=');
+  Memo1.Lines.Add('SCHEMA CACHE SIZE=8');
+  Memo1.Lines.Add('SCHEMA CACHE TIME=-1');
+  Memo1.Lines.Add('SQLPASSTHRU MODE=SHARED AUTOCOMMIT');
+  Memo1.Lines.Add('SQLQRYMODE=');
+  Memo1.Lines.Add('ENABLE SCHEMA CACHE=FALSE');
+  Memo1.Lines.Add('ENABLE BCD=FALSE');
+  Memo1.Lines.Add('ROWSET SIZE=20');
+  Memo1.Lines.Add('BLOBS TO CACHE=64');
+  Memo1.Lines.Add('BLOB SIZE=32');
+
+  AliasEditor.Add('DocumentsFab','MySQL',Memo1.Lines);
+@end example
+
+@item C++Builder
+Testado com BDE 3.0. O único problema conhecido é que quando o esquema da tabela
+muda, os campos da consulta não são atualizados. BDE entretanto, parece não
+reconhecer chaves primárias, somente Índice PRIMARY, não entanto isto não
+tem sido um problema.
+
+@item Visual basic
+Para atualizar uma tabela, você deverá definir uma chave primária para a tabela.
+@end table
+
+@node Administrador ODBC, ODBC e last_insert_id, Clientes MyODBC, ODBC
+@section Como preencher os diversos campos com o programa Administrador
+
+Existem três possibilidades para especificar o nome do servidor em
+Windows95:
+
+@itemize @bullet
+@item
+Usando o endereço IP do servidor.
+@item
+Adicionar um arquivo @file{lmhosts} com a seguinte informação:
+
+@example
+ip nomeservidor
+@end example
+
+Por exemplo:
+
+@example
+194.216.84.21 my
+@end example
+
+@item
+Configurar o PC para usar DNS.
+@end itemize
+
+Exemplo de como preencher o ``ODBC setup'':
+@example
+Windows DSN name:   teste
+Description:        Este é o meu banco de dados teste
+MySql Database:     teste
+Server:             194.216.84.21
+User:               monty
+Password:           minha_senha
+Port:
+@end example
+
+O valor para o campo @code{Windows DSN name} é qualquer nome que seja único
+em seu Windows ODBC setup.
+
+Você não precisa especificar os valores para os seguintes campos: @code{Server},
+@code{User}, @code{Password} ou @code{Port} na hora de configurar o ODBC.
+Entretanto, se você o faz, esses valores devem ser usados como padrão para fazer
+uma conexão.  Você tem a opção de trocar os valores nesse instante.
+
+Se o número da porta não for especificado, o valor padrão da porta (@value{default_port})
+é usado.
+
+Se você especificar a opção @code{Read options from C:\my.cnf}, os
+grupos @code{client} e @code{odbc} devem ser lidos do arquivo @file{C:\my.cnf}.
+Você pode usar todas as opções que são usadas por @code{mysql_options()}.
+@xref{mysql_options, , @code{mysql_options}}.
+
+@node ODBC e last_insert_id, Informando bug do MyODBC, Administrador ODBC, ODBC
+@section Como obter o valor de uma coluna @code{AUTO_INCREMENT} no ODBC
+
+Um problema muito usual consiste em como saber o valor de uma coluna do tipo
+@code{INSERT} quando a mesma é gerada automaticamente. Com ODBC, você pode
+fazer uma coisa como esta (assumindo que @code{auto} é um campo @code{AUTO_INCREMENT}):
+
+@example
+INSERT INTO foo (auto,text) VALUES(NULL,'text');
+SELECT LAST_INSERT_ID();
+@end example
+
+Ou se você somente quer adicionar o valor noutra tabela, faça o
+seguinte:
+
+@example
+INSERT INTO foo (auto,text) VALUES(NULL,'text');
+INSERT INTO foo2 (id,text) VALUES(LAST_INSERT_ID(),'text');
+@end example
+
+Para o benefício de algumas aplicações ODBC (pelo menos Delphi e Access),
+a seguinte consulta pode ser usada para encontrar o valor do novo registro
+adicionado:
+
+@example
+SELECT * FROM tbl_name WHERE auto IS NULL;
+@end example
+
+@node Informando bug do MyODBC,  , ODBC e last_insert_id, ODBC
+@section Informando problemas com MyODBC
+
+Se você encontra dificuldades com MyODBC, deve começar por fazer
+um arquivo log no Administrador ODBC (o log você tem quando
+solicita logs do ODBCADMIN) e um log @strong{MyODBC}. Para gerar um log @strong{MyODBC},
+clique a opção `Trace MyODBC' na tela de configuração da conexão
+@strong{MyODBC}.
+O log será escrito no arquivo @file{C:\myodbc.log}.
+Note que você deve usar a @code{MYSQL.DLL} e não a
+@code{MYSQL2.DLL} para que esta opção funcione!
+
+Verifique as consultas que MyODBC envia para o servidor @strong{MySQL};
+Você deverá ser capaz de encontrar isto através da pesquisa da
+string @code{>mysql_real_query} no arquivo @file{myodbc.log}.
+
+Você deve também tentar duplicar as consultas no monitor @code{mysql}
+ou @code{admndemo} para encontrar se o erro é do MyODBC ou do @strong{MySQL}.
+
+Se você encontrar algo errado, por favor envie somente as linhas
+relevantes (máximo 40 linhas) para o @email{myodbc@@lists.mysql.com}.  Favor nunca
+enviar os arquivos log completos do MyODBC ou do ODBC !
+
+Se você não encontra o quê está errado, a última opção
+é fazer um arquivo (tar ou zip) que contenha um arquivo log do MyODBC,
+o arquivo log ODBC e um arquivo README que explique o problema.
+Você o manda para @uref{ftp://www.mysql.com/pub/mysql/secret}. Somente nós da TCX
+devemos ter acesso a esses arquivos que você manda e nós seremos muito discretos com
+os dados !
+
+Se você pode fazer um programa que também mostre o mesmo problema, favor mandá-lo
+também!
+
+Se o programa funciona com outro servidor SQL, você pode fazer um
+arquivo log que faça exatamente a mesma coisa com o outro servidor
+SQL.
+
+Lembre que quanto mais informação você nos fornece, o resultado é
+que nós podemos resolver o problema!

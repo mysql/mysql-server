@@ -1,0 +1,5 @@
+rm -f .deps/*.P
+ccc -DMAP_TO_USE_RAID -I./../include -I../include -DDBUG_OFF -fast -O3 -c mi_cache.c mi_changed.c mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c mi_delete_all.c mi_delete_table.c mi_dynrec.c mi_extra.c mi_info.c mi_key.c mi_locking.c mi_log.c mi_open.c mi_packrec.c mi_page.c mi_panic.c mi_range.c mi_rename.c mi_rfirst.c mi_rkey.c mi_rlast.c mi_rnext.c mi_rnext_same.c mi_rprev.c mi_rrnd.c mi_rsame.c mi_rsamepos.c mi_scan.c mi_search.c mi_static.c mi_statrec.c mi_unique.c mi_update.c mi_write.c ft_update.c ft_search.o ft_stem.o ft_stopwords.c ft_parser.c
+make sort.o mi_check.o
+rm libmyisam.a
+ar -cr libmyisam.a mi_cache.o sort.o mi_check.o

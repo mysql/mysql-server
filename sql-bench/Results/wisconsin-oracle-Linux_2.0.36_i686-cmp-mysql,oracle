@@ -1,0 +1,14 @@
+Testing server 'Oracle 8.0.5.0.0' at 1999-03-25  4:21:44
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting data
+Time to insert (31000): 108 wallclock secs (21.83 usr  2.52 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time to delete_big (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 70 wallclock secs (30.55 usr  4.78 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 179 wallclock secs (52.39 usr  7.30 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

@@ -1,0 +1,19 @@
+Testing server 'Adabas 10.01.00' at 1998-08-18 21:09:46
+
+Testing of some unusual tables
+All tests are done 1000 times with 254 fields
+
+Testing table with 254 fields
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 15 secs ( 4.52 usr  4.36 sys =  8.88 cpu)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 20 secs ( 3.56 usr  5.09 sys =  8.65 cpu)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000): 26 secs ( 0.43 usr  0.65 sys =  1.08 cpu)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000): 28 secs ( 0.30 usr  0.87 sys =  1.17 cpu)
+
+Total time: 89 secs ( 8.81 usr 10.98 sys = 19.79 cpu)

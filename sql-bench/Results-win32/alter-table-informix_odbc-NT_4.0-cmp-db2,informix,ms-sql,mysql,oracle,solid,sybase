@@ -1,0 +1,14 @@
+Testing server 'Informix 7.30C1  ' at 1998-09-01  2:00:29
+
+Testing of ALTER TABLE
+Testing with 16 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 6 secs ( 5.53 usr  0.00 sys =  5.53 cpu)
+
+Time for alter_table_add (8):  0 secs ( 0.39 usr  0.00 sys =  0.39 cpu)
+
+Time for create_index (8):  1 secs ( 0.44 usr  0.00 sys =  0.44 cpu)
+
+Time for drop_index (8):  0 secs ( 0.10 usr  0.00 sys =  0.10 cpu)
+
+Total time:  7 secs ( 6.60 usr  0.00 sys =  6.60 cpu)

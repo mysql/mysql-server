@@ -1,0 +1,64 @@
+#!/bin/bash
+
+
+PM_FILES='Data-Dumper Data-ShowTable DBI Msql-Mysql-modules'
+FILE_EXT='tar.gz'
+ARCH=`uname -m | perl -p -e 's/^i[0-9]86$/i386/'`
+
+# directories
+[ -d /usr/src/redhat ] && RPM_SRC=/usr/src/redhat
+[ -d /usr/src/packages ] && RPM_SRC=/usr/src/packages
+SRC_DIR=/home/matt/work/pm_rpm/tarballs          # pristine tarballs
+DEST_DIR=${RPM_SRC}/SOURCES                      # RPM SOURCES (building area)
+RPM_DEPOSIT=/var/tmp/ftp/RPMS                    # RPM production deposit
+SRPM_DEPOSIT=/var/tmp/ftp/SRPMS                  # SRPM production deposit
+
+# keyword replacement for SPEC templates
+REPLACE_KEY='REPLACE_VERSION'
+
+# paths to beloved programs
+NEWEST=/home/matt/work/build_pm_rpms/newest
+REPLACE=/usr/local/bin/replace
+
+
+#++
+# Copy the source tarballs up to staging area for RPM building.
+#--
+cd $SRC_DIR
+for i in $PM_FILES
+do
+    echo Copying $i...
+    cp ${SRC_DIR}/`$NEWEST -s $SRC_DIR -b $i -t $FILE_EXT` $DEST_DIR
+done
+
+
+#++
+# Do keyword replacements on the SPEC templates, and build RPMS
+#--
+cd ${RPM_SRC}/SPECS
+for i in $PM_FILES
+do
+    cat ${i}.spec.template | $REPLACE $REPLACE_KEY `$NEWEST -s $DEST_DIR -b $i -t $FILE_EXT -v` > ${i}.spec
+    rpm -ba ${i}.spec
+    rm ${i}.spec
+done
+
+
+#++
+# Copy new RPMS and SRPMS to production deposit
+#--
+cd $RPM_SRC
+
+# kludge code
+PM_FILES=`echo $PM_FILES | $REPLACE Msql-Mysql-modules DBD-Mysql`
+tmpv=`$NEWEST -s $DEST_DIR -b Msql-Mysql-modules -t $FILE_EXT -v`
+mv SOURCES/Msql-Mysql-modules-${tmpv}.${FILE_EXT} SOURCES/DBD-Mysql-${tmpv}.${FILE_EXT}
+
+
+for i in $PM_FILES
+do
+    cp RPMS/${ARCH}/${i}-`$NEWEST -s $DEST_DIR -b $i -t $FILE_EXT -v`-1.${ARCH}.rpm $RPM_DEPOSIT
+    cp SRPMS/${i}-`$NEWEST -s $DEST_DIR -b $i -t $FILE_EXT -v`-1.src.rpm $SRPM_DEPOSIT
+    rm SOURCES/`$NEWEST -s $DEST_DIR -b $i -t $FILE_EXT`
+done
+

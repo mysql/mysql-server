@@ -1,0 +1,21 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07  2:21:49
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 202 secs (201.91 usr  0.00 sys = 201.91 cpu)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 234 secs (234.54 usr  0.00 sys = 234.54 cpu)
+
+Testing select 1 row from table
+Time to select (10000): 33 secs (32.33 usr  0.00 sys = 32.33 cpu)
+
+Testing select 2 rows from table
+Time to select (10000): 32 secs (32.45 usr  0.00 sys = 32.45 cpu)
+
+Testing retrieval of big records (224 bytes)
+Time to select_big (10000): 34 secs (33.44 usr  0.00 sys = 33.44 cpu)
+
+Total time: 535 secs (534.85 usr  0.00 sys = 534.85 cpu)

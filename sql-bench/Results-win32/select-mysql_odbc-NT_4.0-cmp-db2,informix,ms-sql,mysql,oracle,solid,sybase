@@ -1,0 +1,19 @@
+Testing server 'MySQL 3.22.16 gamma' at 1999-02-07 13:47:07
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 8.5 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 18 secs (17.89 usr  0.00 sys = 17.89 cpu)
+
+Testing big selects on the table
+Time for select_big (70:17207):  3 secs ( 2.81 usr  0.00 sys =  2.81 cpu)
+Time for select_range (400:61130): 12 secs (11.82 usr  0.00 sys = 11.82 cpu)
+Time for min_max_on_key (70000): 261 secs (261.04 usr  0.00 sys = 261.04 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+42345 queries in 8469 loops of 10000 loops took 601 seconds
+Estimated time for count_key (50000): 709 secs (709.52 usr  0.00 sys = 709.52 cpu)
+
+Estimated total time: 1003 secs (1003.10 usr  0.00 sys = 1003.10 cpu)

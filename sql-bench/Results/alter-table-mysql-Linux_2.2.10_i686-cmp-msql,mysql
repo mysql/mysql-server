@@ -1,0 +1,6 @@
+Testing server 'MySQL 3.23.3 alpha' at 1999-09-24  9:49:04
+
+Some of the servers given with --cmp or --server doesn't support ALTER TABLE
+Test aborted
+
+Total time:  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

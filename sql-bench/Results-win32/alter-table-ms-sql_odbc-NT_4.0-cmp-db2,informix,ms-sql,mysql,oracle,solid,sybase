@@ -1,0 +1,14 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07  2:15:14
+
+Testing of ALTER TABLE
+Testing with 16 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 6 secs ( 6.49 usr  0.00 sys =  6.49 cpu)
+
+Time for alter_table_add (8):  0 secs ( 0.04 usr  0.00 sys =  0.04 cpu)
+
+Time for create_index (8):  1 secs ( 0.64 usr  0.00 sys =  0.64 cpu)
+
+Time for drop_index (8):  0 secs ( 0.07 usr  0.00 sys =  0.07 cpu)
+
+Total time:  7 secs ( 7.50 usr  0.00 sys =  7.50 cpu)

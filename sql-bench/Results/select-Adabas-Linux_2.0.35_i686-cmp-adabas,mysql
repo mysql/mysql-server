@@ -1,0 +1,22 @@
+Testing server 'Adabas 10.01.00' at 1998-08-19  5:18:19
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 22 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 179 secs ( 7.14 usr  1.96 sys =  9.10 cpu)
+
+Testing big selects on the table
+Time for select_big (70:17207):  4 secs ( 0.39 usr  1.12 sys =  1.51 cpu)
+Time for select_range (410:127625): 86 secs ( 6.46 usr  8.41 sys = 14.87 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+17458 queries in 2494 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 2409 secs (44.95 usr 73.42 sys = 118.36 cpu)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+45645 queries in 9129 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 658 secs (28.37 usr 56.40 sys = 84.77 cpu)
+
+Estimated total time: 3338 secs (87.31 usr 141.31 sys = 228.62 cpu)

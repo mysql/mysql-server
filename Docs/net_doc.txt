@@ -1,0 +1,944 @@
+ MySQL Client - Server Protocol Ducumentation
+
+
+Introduction
+------------
+
+
+This paper has an objective of a through description of the
+client - server protocol which is embodied in MySQL. Particularly,
+this paper aims to document and describe:
+
+- manner in which MySQL server detects client connection requests and
+  creates connection
+- manner in which MySQL client C API call connects to server - the
+  entire protocol of sending / receiving data by MySQL server and C API
+  code
+- manner in which queries are sent by client C API calls to server
+- manner in which query results are sent by server
+- manner in which query results are resolved by server
+- sending and receiving of error messages
+
+
+This paper does not have the goal or describing nor documenting other
+related MySQL issues, like usage of thread libraries, MySQL standard
+library set, MySQL strings library and other MySQL specific libraries,
+type definitions and utilities.
+				
+Issues that are covered by this paper are contained in the following
+source code files:
+
+- client/net.c and sql/net_serv.c, the two being identical
+- client/libmysql.c (not entire file is covered)
+- include/mysql_com.h
+- include/mysql.h 
+- sql/mysqld.cc (not entire file is covered)
+- sql/net_pkg.cc
+- sql/sql_base.cc (not entire file is covered)	
+- sql/sql_select.cc (not entire file is covered)
+- sql/sql_parse.cc  (not entire file is covered)
+
+Beside this introduction this paper presents basic definitions,
+constants, structures and global variables, all related functions in
+server and in C API. Textual description of the entire protocol
+functioning is described in the last chapter of this paper.
+
+
+Constants, structures and global variables
+------------------------------------------
+
+This chapter will  describe all constants, structures and
+global variables relevant to client - server protocol. 
+
+Constants
+
+They are important as they contain default values, the ones
+that are valied if options are not set in any other way. Beside that
+MySQL source code does not contain a single non-defined constant in
+it's code. This description of constants does not include
+configuration and conditional compilation #defines.
+				
+NAME_LEN	  - field and table name length, current value 64
+HOSTNAME_LENGTH   - length of the host name, current value 64
+USERNAME_LENGTH   - user name length, current vluae 16
+MYSQL_PORT        - default TCP/IP port number, current value 	3306
+MYSQL_UNIX_ADDR   - full path of the default Unix socket file, current value
+		    "/tmp/mysql.sock"
+MYSQL_NAMEDPIPE   - full path of the default NT pipe file, current value
+		    "MySQL"
+MYSQL_SERVICENAME - name of the MySQL Service on NT, current value  "MySql"
+NET_HEADER_SIZE   - size of the network header, when no
+                    compression is used, current value  4
+COMP_HEADER_SIZE - additional size of network header when
+		    compression is used, current value 3
+
+What follows are set of constants, defined in source only, which
+define capabilities of the client built with that version of C
+API. Simply, when some new feature is added in client, that client
+feature is defined, so that server can detect what capabilities a
+client program has.
+
+CLIENT_LONG_PASSWORD	- client supports new more secure passwords
+CLIENT_LONG_FLAG	- client uses longer flags
+CLIENT_CONNECT_WITH_DB	- client can specify db on connect 
+CLIENT_COMPRESS		- client can use compression protocol 
+CLIENT_ODBC		- ODBC client 
+CLIENT_LOCAL_FILES	- client can use LOAD DATA INFILE LOCAL 
+CLIENT_IGNORE_SPACE	- client can  Ignore spaces before '('
+CLIENT_CHANGE_USER	- client supports the mysql_change_user() 
+
+What follows are other constants, pertaining to timeouts and sizes
+
+MYSQL_ERRMSG_SIZE	- maximum size of error message string, current value 200
+NET_READ_TIMEOUT	- read timeout, current value  30 sec.
+NET_WRITE_TIMEOUT       - write timeout, current value 60 sec.
+NET_WAIT_TIMEOUT	- wait for new query timeout, current value 8*60*60
+			  sec. i.e. 8 hours
+packet_error		- value returned in case of socket errors, current
+			  value -1
+TES_BLOCKING		- used in debug mode for setting up blocking testing 
+RETRY COUNT		 - number of times network read and write will be
+                           retried, current value 1 
+
+There are also error messages for last_errno, which depict system
+errors, and are used on the server only.
+
+ER_NET_PACKAGE_TOO_LARGE  - packet is larger then max_allowed_packet
+ER_OUT_OF_RESOURCES	  - practically no more memory
+ER_NET_ERROR_ON_WRITE     - error in writing to NT Named Pipe
+ER_NET_WRITE_INTERRUPTED  - some signal or interrupt happened
+                            during write
+ER_NET_READ_ERROR_FROM_PIPE - error in reading from  NT Named Pipe
+ER_NET_FCNTL_ERROR	  - error in trying to set fcntl on socket
+                            descriptor
+ER_NET_PACKETS_OUT_OF_ORDER - packet numbers on client and
+                              server side differ
+ER_NET_UNCOMPRESS_ERROR   - error in uncompress of compressed packet
+
+				
+		Structs and eunms
+
+
+struct NET
+
+this is MySQL's network handle structure, used in all client / server
+read/write functions. On the server it is initialized and preserved in
+each thread. On the client, it is a part of MYSQL struct, which is
+MySQL handle used in all C API functions. This structure uniquely
+identifies a connection, either on the server or client side. 
+This structure consists of the following
+fields:
+
+			  Vio* vio; - explained above
+				HANDLE hPipe - Handle for NT Named Pipe file
+				my_socket fd - file descriptor used for both tcp socket and Unix socket file 
+			  int fcntl - contains info on fcntl options used on fd. Mostly
+                    used for saving info if  blocking is used or not
+				unsigned char *buff - network buffer used for storing data for
+                              reading from  / writing to socket
+				unsigned char,*buff_end - points to the end of buff
+				unsigned char *write_pos - present writing position in buff
+				unsigned char *read_pos - present reading postiion in
+                                  buff. This pointer is used for
+                                  reading data after calling
+                                  my_net_read function  and function
+                                  that are just it's  wrappers
+				char last_error[MYSQL_ERRMSG_SIZE] - holds last error message
+				unsigned int last_errno - holds last error code of the network 
+                                  protocol. It's ossible values are
+                                  listed in above constants. It is
+																	used only  on the server side
+				unsigned int max_packet - holds current value of buff size 
+				unsigned int timeout - stores read timeout value for that connection 
+				unsigned int pkt_nr - stores a value of the current packet
+                              number in a batch of packets. Used
+                              primarily for detection of protocol
+                              errors resulting in a mismatch
+				my_bool error - holds either 1 or 0 depending on the error condition
+				my_bool return_errno - if it's value != 0 then there is an
+															 error in protocol mismatch between
+															 client and server
+				my_bool compress -  if true compression is used in the protocol
+				unsigned long remain_in_buf - used only in reading compressed
+                                      packets. Explained in my_net_read
+				unsigned long length - used only for storing a length of the
+															 read packet. Explained in my_net_read
+				unsigned long buf_length -  used only in reading compressed
+                                    packets. Explained in my_net_read
+				unsigned long where_b - used only in reading compressed
+                                packets. Explained in my_net_read
+				short int  more - used for reporting in mysql_list_processes
+				char save_char - used in reading compressed packets for saving 
+												 chars in order to make zero-delimited
+                         strings. Explained in my_net_read
+
+Few typedefs will be defined for easier understanding of the text that 
+follows.
+
+				typedef char **MYSQL_ROW - data containing one row of values
+				typedef unsigned int MYSQL_FIELD_OFFSET - offset in bytes of
+																								  the current field
+				typedef MYSQL_ROWS *MYSQL_ROW_OFFSET - offset in bytes of
+																							 the current row
+
+
+				struct MYSQL_FIELD - contains all info on the attributes of a
+specific column in a result set, plus info on lengths of the column in
+a result set. This struct is tagged as st_mysql_field. This structure
+consists of the following fields:
+
+				char *name - name of column 
+				char *table -	table of column if column was a field  and not
+											expression or constant 
+				char *def - default value (set by mysql_list_fields) 
+				enum enum_field_types type -  see above
+				unsigned int length -  width of column  in a current row
+				unsigned int max_length - maximum width of that column in
+																  entire result set
+				unsigned int flags - corresponding to Extra in DESCRIBE
+				unsigned int decimals - number of decimals in field 
+
+
+				struct MYSQL_ROWS - a node for each row in the single linked
+list forming entire result set. This struct is tagged as
+st_mysql_rows, and has two fields:
+
+				struct st_mysql_rows *next - pointer to a next one
+				MYSQL_ROW data - see above
+
+
+				struct MYSQL_DATA - contains all rows from result set. It is
+tagged as st_mysql_data and has following fields:
+
+			  my_ulonglong rows - how many rows
+			  unsigned int fields - how many columns
+				MYSQL_ROWS *data - see above. This is a first node of the
+                           linked list 
+				MEM_ROOT alloc -  MEM_ROOT is MySQL memory allocation
+												  structure, and this field is used to store
+												  all fields and rows.   
+
+				
+				struct st_mysql_options - holds various client options, and
+contains following fields:
+
+				unsigned int connect_timeout - time in sec. for cennection 
+				unsigned int client_flag - used to cold client capabilities
+				my_bool compress - boolean for  compression 
+				my_bool named_pipe - is Named Pipe used on NT 
+				unsigned int port - what TCP port is used
+				char *host - host to connect to
+				char *init_command - command to be executed upon connection 
+				char *user - account name on MySQL server
+				char *password - password for the above
+				char *unix_socket - full path for Unix socket file
+				char *db - default database
+				char *my_cnf_file - optional configuration file
+				char *my_cnf_group - optional header for options
+
+
+				struct MYSQL - MySQL client's handle. Required for any
+operation issed from client to server. Tagged as st_mysql and having
+following fields:
+
+				NET	 net - see above
+				char *host - host on which MySQL server is running
+				char *user - MySQL user name
+				char *passwd - password for above 
+				char *unix_socket- full path of Unix socket file
+				char *server_version - version of the server
+				char *host_info - contains info on how has connection been
+                          established, TCP port, socket or Named Pipe
+				char *info - used to store information on the query results,
+										 like number of rows affected etc.
+				char *db - current database
+				unsigned int	port -= TCP port in use
+				unsigned int client_flag - client capabilities
+				unsigned int server_capabilities - server capabilities
+				unsigned int	protocol_version - version of the protocl
+				unsigned int	field_count - used for storing number of fields
+                                    immidiately upon execution of a
+                                    query, but before fetching rows
+				unsigned long thread_id - server thread to which this connection is attached
+				my_ulonglong affected_rows - used for storing number of rows
+                                    immidiately upon execution of a
+                                    query, but before fetching rows
+				my_ulonglong insert_id - fetching LAST_INSERT_ID() through
+																 client C API
+				my_ulonglong extra_info - used by mysqlshow 
+				unsigned long packet_length - saving size of the first packet
+																			upon execution of a query
+				enum mysql_status status - see above
+				MYSQL_FIELD	*fields - see above
+				MEM_ROOT	field_alloc - memory used for storing previous field 
+                                (fields)
+				my_bool	free_me - boolean that flags if MYSQL was allocated in 
+												  mysql_init
+				my_bool	reconnect -  used to automatically reconnect
+				struct st_mysql_options options - see above
+				char	 scramble_buff[9] - key for scrambling password before
+																  sending it to server
+
+				
+				struct MYSQL_RES - tagged as st_mysql_res and used to store
+entire result set from a single query. Contains following fields:
+
+				my_ulonglong row_count - number of rows
+				unsigned int	field_count - number of columns  
+				unsigned int current_field - cursor for fetching fields
+				MYSQL_FIELD	*fields - see above
+				MYSQL_DATA	*data - see above, and used in buffered reads,
+                            i.e.  mysql_store_result only
+				MYSQL_ROWS	*data_cursor - pointing to the field  of above "data"
+				MEM_ROOT	field_alloc - memory allocation for above "fields"
+				MYSQL_ROW	row - used for storing row by row in unbuffered
+												reads, i.e. in  mysql_use_result
+				MYSQL_ROW	current_row - cursor to the current row for buffered 
+                                reads
+				unsigned long *lengths -  column lengths of current row 
+				MYSQL		*handle - see above, used in unbuffered reads, i.e. in 
+												  mysql_use_resultq
+				my_bool	eof - used my mysql_fetch_row as a marker for end of data
+
+
+
+
+				Global variables
+
+
+			  unsigned long max_allowed_packet - maximum allowable value of
+                                           network buffer. Default
+                                           value - 1 Mb
+
+				unsigned long net_buffer_length - default, starting  value of
+																					network buffer - 8 Kb
+
+				unsigned long bytes_sent - total number of bytes written since 
+                                   startup of the server
+
+				unsigned long bytes_received - total number of bytes read
+                                       since startup of the server
+
+
+				Synopsis of the basic client - server protocol 
+				----------------------------------------------
+
+				Purpose of this chapter is to provide a complete picture of
+the basic client - server protocol implemented in MySQL. It was felt
+it is necessary after writting descriptions for all of the functions
+involved in basic protocol. There are at present 11 functions
+involved, with several structures, many constants etc, which are all
+described in detail. But as a forest could not be seen from the trees, 
+so a concept of the protocol could not be deciphered easily from a
+thourough documentation on minutae.
+
+				Althouch concept of the protocol was not changed with the
+introduction of vio system, embodied in violate.cc source file and VIO
+system, the introduction of these has changed a code substantially. Before
+VIO was introduced, functions for reading from / writing to network
+connection had to deal with various network standards. So, these functions
+depended on whether TCP port or Unix socket file or NT Named Pipe file is
+used. This is all changed now and single vio_ functions are called, while
+all this diversity is covered by vio_ functions.
+
+				In MySQL a specific buffered network input / output transport
+model has been implemented. Although each operating system mah have
+it's own buffering for network connections, MySQL has added it's own
+buffering model. This same for each of the three transport protocol
+types that are used in MySQL client - server communications, which are 
+tcp sockets (on all systems), Unix socket files on Unix and Unix-like
+operating systems and  Named Pipe files on NT. Alghouth tcp sockets
+are omnipresent, the later two types have been added for local
+connections. Those two connection types can be used in local modes
+only, i.e. when both client and server reside on the same host, and
+are introduced because they enable better speeds for local
+connections. This is especially usefull for WWW type of
+applications. Startup options of MySQl server allow that either tcp
+sockets or local connection (OS dependent) can be disallowed. 
+
+				In order to be able to implement buffered input / output MySQL 
+allocates a buffer. A starting size of this buffer is determined by a
+value of the global variable net_buffer_length, which can be changed
+at MySQL server startup. This is, as explained only a startup length
+of MySQL network buffer. As  a signle  item that has to be read /
+written can be larger then that value, MySQL will increase buffer size 
+as long as that size reaches value of global variable
+max_aallowed_packet, which is also settable at server startup. Maximum 
+value of this variable is limited by the way MySQL stores / reads
+sizes of packets to be sent / read, which means by the way MySQL
+formats packages.
+
+				Basically each packet consists of two parts, a header and
+data. In the case when compression is not used, header consists of 4
+bytes of which 3 contain a length of the packet to be sent and one
+holds a packet number. When  compression is used there are
+onother 3 bytes which store a size of uncompressed data. Because of
+the way MySQL packs length into 3 bytes, plus due to the usage of some 
+special values in the most significant byte, maximum size of
+max_allowed_packet is limited to 24 Mb at present. So, if compression
+is not used, at first 4 bytes are written to the buffer and then data
+itself. As MySQL buffers I/O logical packets are packet together until 
+packets fill up entire  size of the buffer. That size  no less then
+net_buffer_size, but no greater  then max_allowed_packet. So, actuall
+writting to the network is done when this buffer is filled up. As
+frequently sequence of buffers make a logicall unit, like a result
+set, then at the end of sending data, even if buffer is not full, data 
+is written, i.e. flushed  to the connection with a call of the
+net_flush function. In order to maintain that no single packet can be
+larger then this value, checks are made throughout a code, so that not 
+signle field or command could exceed that value. 
+
+				In order to maintain coherency in consicutive packets, each
+packet is numbered and their number stored as a part of a header, as
+explained above. Packets start with 0, so whenever a logical packet is 
+written, that number is incremented. On the other side when packets
+are read, value that is fetched is compared with a value stored and if 
+there is no mismatch that value is incremented too. Packet number is
+reset on the client side when unwanted connections are removed from
+the connection and on the server side when a new command hsa been
+started. 
+
+
+				So, before writting, a buffer contains a sequence of logical
+packets, consisting of header plus data consequtively. In the case
+that compression is used, packet numbers are not stored in each header
+of the logical packets, but a whole buffer, or a part of it if
+flushing is done, containing one or more logical packets are
+compressed. In that case a new larger header, is formed, and all
+logical packets contained in the buffer are compressed together. This
+way only one packet is formed which makes several logical packets,
+which improves both speed and compression ratio. On the other side,
+when this large compressed packet is read, it is furst uncompressed,
+and then logical packets are sent, one by one, to the calling
+functions. 
+
+				
+				All this functionality is described in detail in the following 
+chapter. It does not contain functions that form logical packets, or
+that read and write to connections but also functions that are used
+for  initialisation, clearing of connections. There are functions at
+higher level dealing with sending fields, rows, establishing
+connections, sending commands, but those are not explained in the
+following chapter.
+				
+
+				Functions utilized in client - server protocol 
+				----------------------------------------------
+
+				First of all, functions are described that are involved in
+praparing/ reading / writing data over TCP port , socket or named pipe
+file, and functions directly related to those. All of these functions
+are used both in server and client. Server and client specific code
+segments will be documented in each function description. Each MySQl
+function checks for errors in memory allocation / freeing, as well as
+in every OS call, like the one dealing with files and sockets, and for
+errors in indeginous MySQL function calls. This is expected, but has
+to be said, as not to repeat it in every function description.
+
+				Older versions of MySQL have utilized the following macros for 
+reading from  / writing to socket. 
+
+				raw_net_read  - calls OS function  recv function that reads N
+												 bytes from a socket into a buffer. Number of
+												 bytes read is returned. 
+
+        raw_net_write - calls OS funciton  send to write N bytes from 
+												 a buffer to socket. Number of bytes written
+												 is  returned.
+
+				These macros are replaced with VIO (Virtual I/O) functions.
+
+
+				Function name: my_net_init
+				
+				Parameters: struct NET *, enum_net_type, struct Vio
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: To initialize properly all NET fields,
+                          allocate memory and set socket options
+
+				Function description
+
+				First of all, buff field of NET struct is allocated to the
+size of net_buffer_lenght, and on failure function exits with 0. All
+fields in NET are set to their default or starting values. As
+net_buffer_length and max_allowed_packet are configurable,
+max_allowed_packet is set equal to net_buffer_length it the later one
+is greater. max_packet if set for that NET to net_buffer_lenght, and
+buff_end points to buff end. vio feild is set to the second parameter.
+If it is a real connection, which is a case when second parameter is
+not null, then fd field is set by calling vio_fd function.read_pos and
+write_pos to buff, while remaining integers are set to 0. If function
+is run on the MySQL server on  Unix  and server is started in a test
+mode that would require testing of blocking, then vio_blocking
+function is called. Last, fast throughput mode is set by a call to
+vio_fastsend function.
+
+				
+
+				Function name: net_end
+				
+				Parameters: struct NET *
+
+				Return value : void
+
+				Function purpose: To release memory alloceted to buff
+
+				
+
+				Function name: net_realloc (private, static function)
+				
+				Parameters: struct NET, unlong (unsigned long)
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: To change memory allocated to buff
+
+				Function description
+
+				New length of buff field of NET struct is passed as second
+parameter. It is first checked versus max_allowd_packet and if greater 
+error is returned. New length is aligned to 4096 boundary.  Then , buff
+is reallocated,  buff_end, max_packet and write_pas reset to the same
+values as in my_net_init.
+
+
+
+				Function name: net_clear (used on client side only)
+				
+				Parameters: struct NET *
+
+				Return value : void
+
+				Function purpose: To read unread packets
+
+				Function description
+
+				This function is used on client side only, and is executed
+only if a program is not started in test mode. This function reads
+unread packets without processing them. First, non-blocking mode is
+set on systems that have not non-blocking mode defined.  This is
+performed by checking a mode with vio_is_blocking function. and
+setting non-blocking mode by vio_blocking function. If this operation
+was successfull, then packets are read by vio_read function, to which
+vio field of NET is passed together with buff and max_packet field
+values.  field of the same struct at a length of max_packet. If
+blocking was active before reading is performed, blocking is set with
+vio_blocking function.  AFter reading has been performed, pkt_nr is
+reset to 0 and write_pos reset to buff. In order to clarify some
+matters non-blocking mode enables executing program to dissociate from 
+a connection, so that error in connection would not hang entire
+program or it's thread. 
+
+				Function name: net_flush 
+				
+				Parameters: struct NET *
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: To write remaining bytes in buff to socket
+
+				Function description
+
+				net_real_write (described below) is performed is write_pos
+differs from buff, both being fields of the only parameter. write_pos
+is reset to buff. This function has to be used, as MySQL uses buffered 
+writes, as it will be more explained in a function net_write_buff.
+
+
+				Function name: my_net_write
+				
+				Parameters: struct NET *, const char *, ulong
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: Write a logical packet in a first parameter
+                          of second parameter length
+
+				Function description
+
+				The purpose of this function is to prepare a logical packet
+such that entire content of data, pointed to by second parametar and
+in length of third parameter is sent to the other side. In case of
+server, it is used for sending result sets, and in case of client it
+is used for sending local data. This function foremost prepares a
+header for the packet. Normal, header consists of 4 bytes, of which
+first 3 bytes contain a length of the packet, thereby limiting a
+maximum allowable length of a packet to 16 Mb, while a fourth byte
+contains a packet number, which is used when one large packet has to
+be divided into sequence of packets. This way each sub-packet gets
+it's number which should be matched on the other side. When
+compression is used another three bytes are added to packet header,
+thus packet header is in that case increased to 7 bytes. Additional
+three bytes are used to save a length of compressed data. As in
+connection that uses compression option, code packs packets together,,
+a header prepared by this function is later not used in writting to /
+reading from network, but only to distinguish logical packets within a
+buffered read operation.
+
+
+				This function, first stores a value for third parameter into a
+first 3 bytes of local char variable of NET_HEADER_SIZE size by usage
+of function int3store. Then, at this point, if compression is not
+used, pkt_nr is increased, and it's value stored in the last byte of
+the said local char[] variable. If compression is used 0 is stored in
+both values. Then those four bytes are sent to other side by the usage 
+of the function net_write_buff(to be explained later on), and
+successfull, entire packet in second parameter of the length described 
+in third parameter is sent by the usage of the same function.
+
+
+				Function name: net_write_command
+				
+				Parameters: struct NET *, char, const char *, ulong
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: Send a command with a  packet as in previous 
+                          function 
+
+				Function description
+
+				This function is very similar to the previous one. The only
+difference is that first packet is enlarged by one byte, so that a
+command precedes a packet to be sent. This is implemented by
+increasing fist packet by one byte, which contains a command code. As
+command codes do not use a range of values that are used by chararcter 
+sets, so when the other side receives a packet, first byte after
+header contains a command code. This function is used by client for
+sending all commands and queries, and by server in connection process
+and for sending errors.
+				
+
+				Function name: net_write_buff (private, static function)
+				
+				Parameters: struct NET *, const char *, uint
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: To write a packet of vany size by cutting it 
+                          and using next function for writing it
+
+				Function description
+
+			  This function was created  after compression feature has been
+added to MySQL. This function supposes that packets have already been
+properly formatted, regarding packet header etc. Principal reason for
+this function existst because a packet that is sent by client or
+server does not have to be less then max_packet. So this function
+first calculeates how much data has been left in a buff, by getting a
+difference between buff_end and write_pos and storing it to local
+variable left_length. Then a loop is run as long as a length to be
+sent is greater then length of left bytes (left_length). In a loop
+data from second parameter is copied to buff at write_pos, as much as
+it can be, i.e. by left_length. Then net_real_write function is called 
+(see below) with NET, buff, and max_packet parameters. This function
+is the lowest level fucntion that writes data over established
+connection. In a loop, write_pos is reset to buff, a pointer to data
+(second parameter) is moved by teh amount of data sent (left_length),
+length of data to be sent (third parameter) is decreased by the amount 
+sent (left_length) and left_length is reset to max_packet value, which 
+ends a loop. This logic was necessary, as there could have been some
+data yet unsent (write_pos != buf), while data to be sent could be as
+large as necessary, thus requiring many loops. At the end of function, 
+remaining data in second parameter are copied to buff at write_pos, by 
+the remaining length of data to be sent (third parameter). So, in the
+next call of this function remaining data will be sent, as buff is
+used in a call to net_real_write. It is very important to note that if 
+a packet to be sent is less then a number of bytes that are still
+available in buff, then there will be no writing over network, but
+only logical packets will be added one after another. This will
+accelerate network traffic, plus if a compression is used,  the
+expected compression rate would be higher. That is why server or
+client functions that sends data uses at the end of data net_flush
+function described above. 
+
+
+				Function name: net_real_write 
+				
+				Parameters: struct NET *, const char *, ulong
+
+				Return value : 1 for error, 0 for success
+
+				Function purpose: To write data to a socket or pipe, with
+                          compression if used
+
+				Function description
+
+				First, more field is set to 2, to enable reporting in
+mysql_list_processes. Then if compression is enabled on that
+connection, a new local buffer (variable b) is initialized to the
+length of total header (normal header + compression header) and if no
+memory is available error is returned. This buffer (b) is used for
+holding a fineal, compressed packet to be written ove
+connection. Furthermore in compressiion initialization, Second
+parameter at length of third parameter is copied to the local buffer
+b, and MySQL's wrapped zlib's compression function is run at total
+header offset of the local buffer. Please, do note that this function
+does not test effectiveness of compression. If compression is turned
+on in some connection, it is used all of the time. Also, it is very
+important to be cognizant of the fact that this algorithm makes
+possible that a single compressed packet contains several logical
+packets. In this way compression rate is increased and network
+throughput is increased as well. However, this algorithm has
+consequences on the other sided, that reads compressed packet, which
+is covered in my_net_read function. After compression is done, a full
+compression header is properly formed with a packet number,
+compressed and uncompressed lengths. At the end of compression code,
+third parameter is increased by total header length, as the original
+header is not used (see above), and second parameter, pointer to data,
+is set to point to local buffer b, in order that a further flow of
+function is independent of compression.  . If a function is executed
+on server side, a thread alarm initialized and if non-blocking is
+active set at NET_WRITE_TIMEOUT. Two local (char *) pointers are
+initialized, pos at beginning of second parameter, and end at end of
+data. Then a loop is run as long as all data is written, which means
+as long as pos != end.  First vio_write function is called, with
+parameters of vio field, pos and size of data (end - pos). Number of
+bytes written over connection is saved in local variable (length). If
+error is returned local bool variable (interrupted) is set according
+to the return value of the vio_should_retry called with vio field as
+parameter. This bool variable indicates whether writing was
+interrupted in some way or not.  Firther, error from vio_write is
+differently treated on Unix versus other OS's (Win32 or OS/2). On Unix
+an alarm is set if one is not in use, no bytes have been written and
+there has been no interruption. Also, in that case, if connection is
+not in blocking mode, a sub - loop is run as long as blocking is not
+set with vio_blocking function. Withing a loop another run of above
+vio_write is run based on return value of vio_is_retry function,
+-provided number of repeated writes is less then RETRY_COUNT. If that
+is not a case, error field of struct NET. is set to 1 and function
+exits. At the exit of sub-llop number of reruns already executed is
+reset to zero and another run of above vio_write function is
+attempted. If a function is run on Win32 and OS/2, and in the case
+that function flow was not interrupted and thread alarm is not in use,
+again a main loop is continued until pos != end. In the case that this
+function is executed on thread safe client program, a communication
+flow is tested on EINTR, caused by context switching, by use of
+vio_errno function, in which case a loop is continued. At the end of
+processing of the error from vio_write, error field of struct NET is
+set, and if on server last_errno field is set to
+ER_NET_WRITE_INTERRUPTED in the case thatb local bool variable
+(interrupted) is true or to ER_NET_ERROR_ON_WRITE. Before the end of
+loop, in order to make possible evaluation of the loop condition, pos
+is increased by a value writen in last iteration (length). Also global
+variable bytes_sent is increased by the same value, for status
+purposes.  At the end of the functions more fields is reset, in case
+of compression, combression buffer (b) memory is released and if
+thread is still in use, it is ended and blocking state is reset to
+it's original state, and function returns error is all bytes are not
+written.
+
+
+
+				Function name: my_real_read (private, static function)
+				
+				Parameters: struct NET *,  ulong *
+
+				Return value :  length of bytes read
+
+				Function purpose: low level network connection read function
+
+				Function description
+
+				This function has made as a separate one when compression was
+introduced in MySQL client - server protocol . It contains basic, low
+level network reading functionality, while all dealings with
+compressed packets are handled in next function. Compression in this
+function is only handled in as much to unfold a length of uncompressed
+data. First blocking state of connection is saved in local bool
+variable net_blocking, and field more is set 1 for deteiled reporting
+in mysqld_list_processes. A new thread alarm is initialized, in order
+to enable read timout handling, and if on server and a connection can
+block a program, the alarm is set at a value of timeout field. Local
+pointer is set to the position of the next logical packet, with it's
+header skipped, which is at field where_b offset from buff. Next, a
+two time run code is entered. A loop is run exactly two times becase
+first time number of bytes to be fetched (remain) are set to the
+header size, which is different when compression is used or not used
+on the connection. After first fetch has been done, number of packets
+that will be received in second iteration is well known, as fetched
+header contains a size of packet, packet number ,and in a case of
+compression a size of uncompressed packet.  Then as long, as there are
+bytes to read a loop is entered with ffirst reading data from network
+connection with vio_read function, called with parameters of field
+vio, current position and remaining number of bytes, which value is
+hold by local variable (remain) initialized at a value of header size,
+which differs if compression is used. Number of bytes read are
+returned in local length variable.  If error is returned local bool
+variable (interrupted) is set according to the return value of the
+vio_should_retry called with vio field as parameter. This bool
+variable indicates whether reading was interrupted in some way or not.
+Firther, error from vio_read is differently treated on Unix versus
+other OS's (Win32 or OS/2). On Unix an alarm is set if one is not in
+use, no bytes have been read and there has been no interruption. Also,
+in that case, if connection is not in blocking mode, a sub - loop is
+run as long as blocking is not set with vio_blocking function. Withing
+a loop another run of above vio_read is run based on return value of
+vio_is_retry function, -provided number of repeated writes is less
+then RETRY_COUNT. If that is not a case, error field of struct NET. is
+set to 1 and function exits. At the exit of sub-llop number of reruns
+already executed is reset to zero and another run of above vio_read
+function is attempted. If a function is run on Win32 and OS/2, and in
+the case that function flow was not interrupted and thread alarm is
+not in use, again a main loop is continued as long as there are bytes
+remaining. In the case that this function is executed on thread safe
+client program, then if a another run should be made, which is decided
+by the output of vio_should_retry function, in which case a loop is
+continued. At the end of processing of the error from vio_read, error
+field of struct NET is set, and if on server last_errno field is set
+to ER_NET_READ_INTERRUPTED in the case thatb local bool variable
+(interrupted) is true or to ER_NET_ERROR_ON_READ. In case of such an
+error this function exits and returns error. In a case when there is
+no error, number of remaining bytes (remain) is decreased by a number
+of bytes read, which should be zero, but in case it is not the entire
+code is still in while (remain > 0) loop, which will be exited
+immediately if it is. This has been done to accomodate errors in the
+traffic level and for the very slow connections. Current position in
+field buff is also moved by the amount of bytes read by vio_read
+funciton, and global variable bytes_received is increased by the same
+value in a thread safe manner. When a loop that is run until necessary 
+bytes are read (remain) is finished, then if external loop is in it's
+first run, of the two, packet sequencing is tested on consistency by
+comparing a number contained at 4th byte in header with pkt_nre
+field. Header location is found at where_b offset to field_b. Usage of 
+where_b is obligatory due to the possible compression usage. If there
+is no compression on a connection, then where_b is always 0. If there
+is a discrepancy, then first byte of the header is checked whether it
+is equal to 255, because when error is sent by a server, or by a
+client if it is sending data (like in LOAD DATA INFILE LOCAL...), then 
+first byte in header is set to 255. If it is not 255, then an error on 
+packets being out of order is printed. In any case, on server,
+last_errno field is set to ER_NET_PACKETS_OUT_OF_ORDER and a function
+returns with the error, i.e. value returned is packet_error. If a
+check on serial number of packet is successful, pkt_nr field is
+incremented in order to enable checking packet order with next packet
+and if compression is used, uncompressed length is extracted from a
+proper position in header and returned in the second parameter of this 
+function. Length of the packet is saved, for the purpose of a proper
+return value from this function. Still in the first iteration of the
+main loop, a check must be made if field buff could accomodate entire
+package that comes, in it's compressed or uncompressed form. This is
+done in such a way, because zlib's compress and uncompress functions
+use a same memory area for compression / uncompression. Necessary
+field buff length is equal to current offset where data are (where_b
+which is zero for non-compression), plus the larger value of
+compressed or uncompressed package to be read in a second run. If this 
+value is larger then a current length of field buff, which is read
+from field max_packet, then feild buff has to be reallocated. IF
+reallocation with net_realloc function fails, function is returned
+with error. Before a second loop is started, length to be read is set
+to the length of expected data and current position (pos) is set at
+where_b offset from field buff. At the end of function, if alarm is
+set, which is a case if it is run on server or on a client  if a
+function is interrupted and another run of vio_read is attempted,
+alarm is ended and blocking state is resotred from the saved local bool
+variable net_blocking. Function returns number of bytes read or the
+error (packet_error). 
+				
+				
+
+
+				Function name: my_net_read 
+				
+				Parameters: struct NET *
+
+				Return value : length of bytes read
+
+				Function purpose: Highest level general purpose reading function 
+
+				Function description
+					
+				First, if compression is not used, my_real_read is called,
+with struct NET * a first parameter, and pointer to local ulong
+complen as a second parameter, but it's value is not used here.
+Number of bytes read is returned in local ulong variable len. read_pos
+field is set to an offset of value of where_b field from field
+buff. where_b field actually denotes where in field buff is a current
+packet. If returned number of bytes read (local variable len) does not
+signal that an error in packet trnasmission occured, i.e. it is not
+set to packet_error, then a string contained in read_pos is zero
+terminated. Simply, the end of a string starting at read_pos, and
+ending at read_pos + len, is set to zero. This is done in that way,
+because mysql_use_result expects a zero terminated string, and
+function returns with a value local variable len. This ends this
+function in the case that compression is not used and a remaining code
+is executed only if compression is enabled on the connection.  In
+order to explain how is compressed packet logically cut into
+meningfull packets, a full meaning of several NET feilds should be
+explained. First of all, fields in NET are used and not local
+variables, as all values should be saved between consecutive calls of
+this function. Simply, this function is called in order to return
+logical packets, but this function does not need to call my_real_read
+function everytime, because when a large packet is uncompressed, it
+may, but not necessarily so, contain several logical
+packets. Therefore, in oreder to preserve data on logical packets
+local variables are not used. Instead fields in NET struct are
+used. Field remain_in_buf denotes how many bytes of entire
+uncompressed packets is still contained withing buff. field buf_length
+saves a value of the length of entire uncompressed packet. field
+save_char is used to save a character at a position where a packet
+ends, which character has to be replaced with a zero, '\0', in order
+to make a logical packet zero delimited, for mysql_use_result. Field
+length stores a value of the length of compressed packet. Field
+read_pos as usual, points to the current reading position. This char *
+pointer is used by all fucntion calling this function in order to
+fetch their data. Field buff is not used for that purpose, but
+read_pos is used instead. This change was introduced with compression,
+when algorihtm accomodated grouping of several packets together.  Now,
+that meanings of all relevant NET fields is complained, we can proceed
+with a flow of this functinn in case when compression is
+active. First, if there are remaining portions of compressed packet in
+a field buff, saved character value is set at a position where zero
+char '\0' was inserted to enable a string do be zero delimited for
+mysql_use_result. Then a loop is started. In the first part of the
+loop, if there are remaining bytes, local uchar *pos variable is set
+at a current position in field buff where a new packet starts. This
+position is an (buf_length - remain_in_buf) offset in field buff. As
+it is possible that next logical packet is not read to the full length
+in the remaining of the field buf, several things had to be
+inspected. It should be noted that data that is read from
+net_rweal_read contains only logical packets containing 4 byte headers
+only, being 4 byte headers prepared by my_net_write or
+net_write_command. But, when written, logical packet could be so
+divided that only a part of header is read in. Therefore after pointer
+to the start of the next packet has been saved, a check is made
+whether number of remaining bytes in buffer is less then 4, being 3
+bytes for length and one byte for packet number. If it is greater,
+then a length of the logical packet is extracted and saved a length
+field. Then a check is made whether entire packet is contained withing
+a buf, i.e. a check is made that a logical packet is fully contained
+in a buffer. In that case, number of bytes remaining in buffer is
+decreased by a full length of logical packet ( 4 + length field),
+read_pos is moved forward by 4 bytes to skip header and be set at a
+beginning of data in logical packet, length field is saved for a value
+to be returned in function and a loop is exited.  In a case that
+entire logical packet is not contained within a buffer, then if length
+of the entire buffer differs from remaining length of logical packet,
+it (logical packet) is moved to the beginning of the field buff. If
+length of the entire buffer equals the remaining length of logical
+packet, where_b and buf_length fields are set to 0. This is done so
+that in both cases buffer is ready to accept next part of packet. In
+order to get a next part of a packet, still within a loop,
+my_real_read function is called and length of compressed packet is
+returned to a local len variable, and length of compressed data is
+returned in complen variable. In a case of non-compression value of
+complen is zero.  If packet_error is from my_real_read function, this
+function returns also with packet_error. If it is not a packet_error
+my_uncompress function is called to uncompress data. It is called with
+offset of where_b data from field buff, as it is a postion where
+compressed packet starts, and with len and complen values, being
+lengths of compressed and uncompressed data.  If there is no
+compression, 0 is returned for uncompressed size from my_real_read
+function, and my_uncompress wrapper function is made to skip zlib
+uncompress in that case.  If error is returned fom my_uncompress,
+error field is set to 1, if on server last_errno is set to
+ER_NET_UNCOMPRESS_ERROR and loop is exited and function returns with
+packet_error. If not, buf_length and reamin_in_buf fields are set to
+the uncompressed size of buffer and a loop is continued. When a loop
+is exited save_char field is used to save a char at end of a logical
+packet, which is an offset of field len from position in field buff
+pointed by field read_os, in order that zero char is set at the same
+position, for mysql_use_result. Function returns a length of the
+logical packet without it's header. 

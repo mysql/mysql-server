@@ -1,0 +1,21 @@
+Testing server 'Solid version ???' at 1998-10-06 18:04:41
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 385 secs (385.29 usr  0.00 sys = 385.29 cpu)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select (10000): 414 secs (413.81 usr  0.00 sys = 413.81 cpu)
+
+Testing select 1 row from table
+Time to select (10000): 23 secs (23.32 usr  0.00 sys = 23.32 cpu)
+
+Testing select 2 rows from table
+Time to select (10000): 24 secs (24.00 usr  0.00 sys = 24.00 cpu)
+
+Testing retrieval of big records (224 bytes)
+Time to select_big (10000): 25 secs (24.64 usr  0.00 sys = 24.64 cpu)
+
+Total time: 871 secs (871.19 usr  0.00 sys = 871.19 cpu)

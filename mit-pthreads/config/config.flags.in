@@ -1,0 +1,80 @@
+# Since the real configure script runs from the config subdirectory,
+# compensate here...
+srctop= @srctop@
+srcfoo= $(srctop)
+
+prefix= @prefix@
+exec_prefix= @exec_prefix@
+
+cpu = @target_cpu@
+os = @target_os@
+
+MISSING_SYSCALLS = @missing_syscalls@
+AVAILABLE_SYSCALLS = @available_syscalls@
+SYSCALL_EXCEPTIONS = @SYSCALL_EXCEPTIONS@
+HAVE_SYSCALL_TEMPLATE = @HAVE_SYSCALL_TEMPLATE@
+
+CC = @CC@
+CXX = @CXX@
+CPP = @CPP@
+SHELL = /bin/sh
+RANLIB = @RANLIB@
+# Should use autoconf to find these.  Currently our makefiles are inconsistent.
+#AR = ar
+#AS = gas
+#LD = gld
+
+install-dirs:
+	for d in $(INSTALL_PATH) $(BINDIR) $(LIBDIR) $(INCDIR) ; do \
+	  test -d $(DESTDIR)$$d || mkdir $(DESTDIR)$$d || exit 1 ; \
+	done
+
+config.status: @srcdir@/configure
+	cd ${.CURDIR} && $(SHELL) config.status --recheck
+config.flags: config.status @srcdir@/config.flags.in
+	cd ${.CURDIR} && $(SHELL) config.status
+
+realclean: clean
+	cd tests && $(MAKE) realclean && cd ..
+	rm -f $(LINKS) config.status config.flags config.cache \
+		Makefile GNUmakefile
+
+types=$(.CURDIR)/include/pthread/ac-types.h
+$(types) : config.h
+	echo '#ifndef pthread_size_t'			>  $(types).new
+	egrep '^#define pthread_' $(.CURDIR)/config.h	>> $(types).new
+	echo '#endif'					>> $(types).new
+	mv -f $(types).new $(types)
+
+config=$(.CURDIR)/include/pthread/config.h
+$(config) : config.h
+	echo '#ifndef _SYS___CONFIG_H_'              >  $(config).new
+	echo '#define _SYS___CONFIG_H_'              >>  $(config).new
+	-egrep '^#define _OS_HAS' $(.CURDIR)/config.h >> $(config).new
+	echo '#endif'  	                             >>  $(config).new
+	mv -f $(config).new $(config)
+
+paths=$(.CURDIR)/include/pthread/paths.h
+$(paths) : config.h
+	echo '#ifndef _SYS___PATHS_H_'			>  $(paths).new
+	echo '#define _SYS___PATHS_H_'			>>  $(paths).new
+	egrep '^#define _PATH' $(.CURDIR)/config.h	>> $(paths).new
+	echo '#endif'					>> $(paths).new
+	mv -f $(paths).new $(paths)
+
+all-tests: all-lib
+	cd ${.CURDIR}/tests && $(MAKE) all
+check: all-lib
+	cd ${.CURDIR}/tests && $(MAKE) check
+all : all-lib all-bin
+
+install-bin: all-bin install-dirs
+	for x in $(SCRIPTS) ; do \
+	  install $$x $(DESTDIR)$(BINDIR); \
+	done
+
+install-include: install-dirs
+	(cd ${srcdir}/include && tar chf - .)|(cd $(DESTDIR)$(INCDIR) && tar xf -)
+	if [ -d config ]; then true; else \
+	(cd ${.CURDIR}/include && tar chf - .)|(cd $(DESTDIR)$(INCDIR) && tar xf -); fi
+	(cd $(DESTDIR)$(INCDIR) && find . \( -name CVS -o -name \*~ \) -print | xargs rm -rf)

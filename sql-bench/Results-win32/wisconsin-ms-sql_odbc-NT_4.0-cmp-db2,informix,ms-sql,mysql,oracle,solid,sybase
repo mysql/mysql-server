@@ -1,0 +1,14 @@
+Testing server 'Microsoft SQL Server  7.00 - 7.00.517 (Intel X86) ' at 1998-09-07 14:39:20
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 secs ( 0.61 usr  0.00 sys =  0.61 cpu)
+
+Inserting data
+Time to insert (31000): 262 secs (261.70 usr  0.00 sys = 261.70 cpu)
+Time to delete_big (1):  4 secs ( 3.98 usr  0.00 sys =  3.98 cpu)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 24 secs (23.97 usr  0.00 sys = 23.97 cpu)
+
+Total time: 290 secs (290.80 usr  0.00 sys = 290.80 cpu)

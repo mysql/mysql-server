@@ -1,0 +1,16 @@
+Testing server 'MySQL 3.23.13a alpha' at 2000-03-15  5:20:12
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 500 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 16 wallclock secs (15.32 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing big selects on the table
+Time for select_big (70:17207):  1 wallclock secs ( 1.81 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (410:1057904): 356 wallclock secs (356.09 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max_on_key (70000): 332 wallclock secs (332.69 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_on_key (50000): 588 wallclock secs (587.48 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 1294 wallclock secs (1293.83 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

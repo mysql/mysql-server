@@ -1,0 +1,14 @@
+Testing server 'Solid version ???' at 1998-10-08 16:44:23
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 secs ( 0.20 usr  0.00 sys =  0.20 cpu)
+
+Inserting data
+Time to insert (31000): 233 secs (232.63 usr  0.00 sys = 232.63 cpu)
+Time to delete_big (1):  8 secs ( 8.24 usr  0.00 sys =  8.24 cpu)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 84 secs (83.66 usr  0.00 sys = 83.66 cpu)
+
+Total time: 338 secs (338.33 usr  0.00 sys = 338.33 cpu)

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+if test $# -ne 1
+then
+  echo "Copies # error messages from share/english/errmsg.txt to other message files"
+  echo "Usage: $0 number_of_messages_to_copy"
+  exit 1;
+fi
+
+FILE=/tmp/add.$$
+tail -$1 share/english/errmsg.txt > $FILE
+for i in `ls share/*/errmsg.txt | grep -v english`
+do
+  cat $FILE >> $i
+done
+rm $FILE
+

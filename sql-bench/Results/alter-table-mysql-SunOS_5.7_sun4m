@@ -1,0 +1,16 @@
+Testing server 'MySQL 3.22.20' at 1999-03-19 11:17:01
+
+Testing of ALTER TABLE
+Testing with 1000 columns and 1000 rows in 20 steps
+Insert data into the table
+Time for insert (1000) 4 secs ( 0.69 usr  0.64 sys +  0.00 cusr  0.00 csys =  1.33 cpu)
+
+Time for alter_table_add (992): 3419 secs ( 1.97 usr  0.98 sys +  0.00 cusr  0.00 csys =  2.95 cpu)
+
+Time for create_index (8): 47 secs ( 0.02 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.03 cpu)
+
+Time for drop_index (8): 47 secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.01 cpu)
+
+Time for alter_table_drop (496): 2509 secs ( 0.68 usr  0.48 sys +  0.00 cusr  0.00 csys =  1.16 cpu)
+
+Total time: 6026 secs ( 3.39 usr  2.11 sys +  0.00 cusr  0.00 csys =  5.50 cpu)

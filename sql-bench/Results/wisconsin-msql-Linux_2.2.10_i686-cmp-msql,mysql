@@ -1,0 +1,14 @@
+Testing server 'mSQL server version 2.0.10' at 1999-09-24  2:39:09
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Inserting data
+Time to insert (31000): 13 wallclock secs ( 4.03 usr  0.50 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to delete_big (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Running actual benchmark
+Time for wisc_benchmark (74):  9 wallclock secs ( 4.81 usr  0.92 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 23 wallclock secs ( 8.84 usr  1.42 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -1,0 +1,22 @@
+Testing server 'PostgreSQL 6.4' at 1999-03-11 13:43:36
+
+Wisconsin benchmark test
+
+Time for create_table (3):  0 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Inserting data
+Time to insert (31000): 130 wallclock secs (17.21 usr  1.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time to delete_big (1):  1 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  4 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Running actual benchmark
+Time for wisc_benchmark (114): 29 wallclock secs ( 5.00 usr  0.27 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)
+
+Total time: 166 wallclock secs (22.23 usr  2.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU secs)

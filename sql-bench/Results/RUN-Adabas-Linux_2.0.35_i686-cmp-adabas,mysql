@@ -1,0 +1,60 @@
+Benchmark DBD suit:  2.0
+Date of test:        1998-09-24 15:16:40
+Running tests on:    Linux 2.0.35 i686
+Arguments:           --small-tables
+Comments:
+Limits from:         adabas,mysql
+Server version:      Adabas 10.01.00
+
+ATIS: Total time: 445 secs (41.77 usr 50.26 sys = 92.03 cpu)
+alter-table: Total time: 40 secs ( 0.76 usr  0.47 sys =  1.23 cpu)
+big-tables: Total time: 89 secs ( 8.81 usr 10.98 sys = 19.79 cpu)
+connect: Total time: 570 secs (65.81 usr 250.86 sys = 316.67 cpu)
+create: Total time: 348 secs ( 2.35 usr  7.46 sys =  9.81 cpu)
+insert: Estimated total time: 11695 secs ( 249.00 463.00 713.00)
+select: Estimated total time: 3338 secs (87.31 usr 141.31 sys = 228.62 cpu)
+wisconsin: Total time: 654 secs (34.14 usr 21.26 sys = 55.40 cpu)
+
+All 8 test executed successfully
+Tests with estimated time have a + at end of line
+
+Totals per operation:
+Operation             seconds     usr     sys     cpu   tests
+alter_table_add            11    0.07    0.10    0.17     246
+alter_table_drop            8    0.01    0.08    0.09     123
+connect                   164   29.40  100.88  130.28   10000
+connect+select            295   22.17  121.92  144.09   10000
+count                     107    0.11    0.12    0.23     100
+count_on_key              760   28.47   56.52   84.99   50100 +
+create+drop               126    0.25    2.57    2.82    1000
+create_index                1    0.00    0.00    0.00       8
+create_key+drop            97    0.27    2.86    3.13    1000
+create_table               48    1.48    0.63    2.11    1031
+delete_big                 17    0.02    0.01    0.03      15
+delete_key                 48    0.39    0.35    0.74     500
+drop_index                  1    0.00    0.00    0.00       8
+drop_table                 78    0.12    0.64    0.76    1028
+insert                   1669   55.14   18.59   73.73   80768
+insert_duplicates           9    3.57    3.81    7.38   30000
+insert_key                241    8.58    2.07   10.65   10000
+insert_many_fields         54    0.73    1.52    2.25    2000
+min_max                    40    0.09    0.09    0.18      60
+min_max_on_key           2421   46.26   76.81  123.06   73000 +
+order_by                   54   12.73   11.78   24.51      10
+order_by_key               48   13.45   11.16   24.61      10
+select                     63    7.83   16.02   23.85   20000
+select_big                 89   21.11   23.12   44.23   10080
+select_distinct            95    6.59   14.43   21.02     800
+select_group              180    4.37    8.47   12.84    3401
+select_join                74   22.10   21.09   43.19     200
+select_key               1646   16.74   27.42   44.15   20000 +
+select_key_prefix          79   11.74   21.54   33.28   20000
+select_many_fields         35    8.08    9.45   17.53    2000
+select_range             5123   16.41   26.30   42.71   25410 ++
+select_range_prefix      1782   14.73   26.43   41.15   25000 +
+select_simple_join         14    2.35    4.08    6.43     500
+update_key                 51    0.32    0.40    0.72     500
+update_key_big             77    0.29    0.33    0.62     480
+update_of_key              17    0.10    0.16    0.26     256
+wisc_benchmark             64   15.03   14.19   29.22     114
+TOTALS                  15686  371.10  625.94  997.01  399748 ++++++

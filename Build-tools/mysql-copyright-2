@@ -1,0 +1,162 @@
+#!/usr/bin/perl -i
+
+# Add the header to all given files
+# This program asumes that after the copyright there is a empty line
+#
+
+$opt_v= 0;
+require "getopts.pl";
+Getopts("v") || die "Aborted";
+
+@copyright=
+(
+ "Copyright (C) 2000 MySQL AB & MySQL Finland AB",
+ "",
+ "This software is distributed with NO WARRANTY OF ANY KIND.  No author or",
+ "distributor accepts any responsibility for the consequences of using it, or",
+ "for whether it serves any particular purpose or works at all, unless he or",
+ "she says so in writing.  Refer to the LICENSE file for details.",
+ "",
+ "Every copy of this file must include a copy of the License, normally in a",
+ "plain ASCII text file named LICENSE.  The License grants you the right to",
+ "copy, modify and redistribute this file, but only under certain conditions",
+ "described in the License.  Among other things, the License requires that",
+ "the copyright notice and this notice be preserved on all copies"
+);
+
+while (<>)
+{
+  if (!$first++)
+  {
+    add_copyright($_);
+  }
+  if ($in_copyright)
+  {
+    $in_copyright=check_in_copyright($_);
+  }
+  print $_ if (!$in_copyright);
+  if (eof)
+  {
+    $first=0; $in_copyright=1;
+  }
+}
+
+exit 0;
+
+sub add_copyright
+{
+  my ($line)=@_;
+  my ($row);
+
+  $in_copyright= $line =~ /copyright/i;
+  $found_end_copyright=$skip_this_line=0;
+	
+  if (!($line =~ /Monty/ || $line =~ /MySQL AB/))
+  {
+    $in_copyright=0;
+    print STDERR "File with unknown copyright ", $ARGV,"\n" if ($opt_v);
+    return;
+  }
+  else
+  {
+    print STDERR "To be Changed: ", $ARGV, "\n" if ($opt_v);
+  }
+  if ($ARGV =~ /Makefile/ ||
+      $ARGV =~ /makefile/)
+  {				# Makefile
+    $start_copyright="# ";
+    $line_copyright= "# ";
+    $end_copyright=  "";
+  }
+  elsif ($line =~ "^#!")
+  {				# Shell script
+    $start_copyright="# ";
+    $line_copyright= "# ";
+    $end_copyright=  "";
+    $skip_this_line=1;
+    print $line;
+    while ($line=<>)		# Copy all until new line or copyright
+    {
+      if ($line =~ /copyright/i)
+      {
+	last;
+      }
+      print $line;
+      last if ($line =~ /^(\s|\n)*$/);
+    }
+    $in_copyright=1;
+  }
+  elsif ($ARGV =~ /\.c$/ ||
+	 $ARGV =~ /\.cc$/ ||
+	 $ARGV =~ /\.h$/ ||
+	 $ARGV =~ /\.yy$/ ||
+	 $ARGV =~ /-x86\.s$/)
+  {
+    $start_copyright="/* ";
+    $line_copyright= "   ";
+    $end_copyright=  " */";
+  }
+  elsif ($ARGV =~ /\.s$/)
+  {
+    $start_copyright="! ";
+    $line_copyright= "! ";
+    $end_copyright=  "";
+  }
+  elsif ($ARGV =~ /\.asm$/)
+  {
+    $start_copyright="; ";
+    $line_copyright= "; ";
+    $end_copyright=  "";
+  }
+  else				# Unknown file
+  {
+    $in_copyright=0;
+    print STDERR "Unknown file type ", $ARGV,"\n" if ($opt_v);
+    return;
+  }
+  $data=\@copyright;
+
+  for ($row=0 ; $row <= $#$data ; $row++)
+  {
+    print $row == 0 ? $start_copyright : $line_copyright;
+    print $data->[$row];
+    print $row != $#$data ? "\n" : $end_copyright . "\n";
+  }
+  print "\n";
+  $end_copyright =~ /\s*([^\s]+)\s*(([^\s].*)|)$/; # Remove pre and post spaces
+}
+
+#
+# Return 1 if in copyright
+#
+
+sub check_in_copyright
+{
+  my ($line)=@_;
+  $line =~ /^(.*[^\s])(\s|\n|\r)*$/; # Remove end space and newline
+  $line=$1;
+  if (!$line)
+  {
+    $found_end_copyright=1 if (!length($end_copyright));
+    return 1;			# Skip empty lines
+  }
+  return 0 if ($found_end_copyright);
+  if ($end_copyright)
+  {
+    if (index($line,$end_copyright) != -1)
+    {
+      $found_end_copyright=1;
+    }
+    return 1;
+  }
+  if ($line =~ /copyright/i || index($line . " ",$line_copyright) == 0)
+  {
+    return 1;
+  }
+  if ($skip_this_line)
+  {
+    $skip_this_line=0;
+    return 1;
+  }
+  return 0;			# Can't trust the empty copyright line yet 
+}

@@ -1,0 +1,20 @@
+#include <global.h>
+#include <m_ctype.h>
+
+@CHARSET_DECLARATIONS@
+
+static CHARSET_INFO comp_cs[] = {
+@CHARSET_COMP_CS_INIT@
+};
+
+CHARSET_INFO *default_charset_info = &comp_cs[0];
+
+CHARSET_INFO *find_compiled_charset(uint8 cs_number)
+{
+  uint i;
+  for (i = 0; i < array_elements(comp_cs); ++i)
+    if (comp_cs[i].number == cs_number)
+      return &comp_cs[i];
+
+  return NULL;
+}

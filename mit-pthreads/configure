@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# This silliness is because Chris wants the autoconf-related files
+# and makefiles not to appear in the top-level directory.  Fine by
+# me, I don't much care.  This script just needs to invoke the real
+# configure script...
+
+config=`echo $0 | sed -e 's,configure$,config/configure,'`
+
+if test ! -d obj ; then
+	mkdir obj
+fi
+
+if test -n "$1" ; then
+  exec $config "$@"
+else
+  exec $config
+fi
+

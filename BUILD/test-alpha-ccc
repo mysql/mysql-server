@@ -1,0 +1,11 @@
+cd /usr/local/mysql
+bin/mysqladmin shutdown
+libexec/mysqld --basedir . &
+cd sql-bench
+rm output/*
+perl run-all-tests --comment "Alpha DS20 2x500 MHz, 2G memory, key_buffer=16M; egcs 1.1.2 + ccc" --user=monty --password="ds20-gryta"
+perl run-all-tests --comment "Alpha DS20 2x500 MHz, 2G memory, key_buffer=16M; egcs 1.1.2 + ccc" --user=monty --password="ds20-gryta" --log --use-old
+mv output/* output-ccc
+perl run-all-tests --comment "Alpha DS20 2x500 MHz, 2G memory, key_buffer=16M; egcs 1.1.2 + ccc" --user=monty --password="ds20-gryta" --fast
+perl run-all-tests --comment "Alpha DS20 2x500 MHz, 2G memory, key_buffer=16M; egcs 1.1.2 + ccc" --user=monty --password="ds20-gryta" --log --use-old --fast
+mv output/* output-ccc

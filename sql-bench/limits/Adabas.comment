@@ -1,0 +1,36 @@
+
+I did not spend much time for tuning crash-me or the limits file. In short,
+here's what I did:
+
+  - Put engine into ANSI SQL mode by using the following odbc.ini:
+
+	[ODBC Data Sources]
+	test
+
+	[test]
+	ServerDB=test
+	ServerNode=
+	SQLMode=3
+
+  - Grabbed the db_Oracle package and copied it to db_Adabas
+  - Implemented a 'version' method.
+  - Ran crash-me with the --restart option; it failed when guessing the
+    query_size.
+  - Reran crash-me 3 or 4 times until it succeeded. At some point it
+    justified its name; I had to restart the Adabas server in the
+    table name length test ...
+  - Finally crash-me succeeded.
+
+That's it, folks. The benchmarks have been running on my P90 machine,
+32 MB RAM, with Red Hat Linux 5.0 (Kernel 2.0.33, glibc-2.0.7-6).
+Mysql was version 3.21.30, Adabas was version 6.1.15.42 (the one from
+the promotion CD of 1997). I was using X11 and Emacs while benchmarking.
+
+An interesting note: The mysql server had 4 processes, the three usual
+ones and a process for serving me, each about 2 MB RAM, including a
+shared memory segment of about 900K. Adabas had 10 processes running from
+the start, each about 16-20 MB, including a shared segment of 1-5 MB. You
+guess which one I prefer ... :-)
+
+
+Jochen Wiedmann, joe@ispsoft.de

@@ -1,0 +1,116 @@
+#!/usr/bin/perl
+
+package NEWEST;
+
+use Getopt::Long;
+use File::Basename;
+
+my $src_dir;
+my $basename;
+my $type = "tar.gz";
+my $versions;
+my $help;
+my %KEEPER;
+
+
+GetOptions(
+           "src_dir=s" => \$src_dir,
+           "basename=s" => \$basename,
+	   "type=s" => \$type,
+	   "versions!" => \$versions,
+           "help!" => \$help
+           );
+
+if (!defined $src_dir || !defined $basename) {
+  $help = 1;
+}
+
+if ($help) {
+  &help();
+  exit;
+}
+
+
+&extract_version(\$src_dir, \$basename, \$type, \%KEEPER);
+&print_max(\%KEEPER, \$type, \$versions, &find_max(\%KEEPER));
+
+
+
+sub extract_version {
+  my $src_dir = shift;
+  my $basename = shift;
+  my $type = shift;
+  my $KEEPER = shift;
+
+  while (glob("$${src_dir}/$${basename}*")) {
+    my $base = basename("$_",".$${type}");
+    my @ver = split /-/, $base;
+    my @nums = split /\./, $ver[$#ver];
+
+    my $new;
+    for (my $i=0; $i<$#nums+1; $i++) {
+      $new =~ s/^([0-9]*)([a-zA-Z]*)$/$1/;
+      $new .= 10000+$nums[$i];
+      $new .= $2;
+    }
+    $KEEPER->{"$new"} = [$base,$ver[$#ver]];
+  }
+
+  return;
+}
+
+
+
+sub find_max {
+  my $KEEPER = shift;
+
+  return reverse sort (keys %$KEEPER);
+}
+
+
+
+sub print_max {
+  my $KEEPER = shift;
+  my $type = shift;
+  my $versions = shift;
+  my $max_key = shift;
+
+  if ($${versions}) {
+    print "$KEEPER->{$max_key}->[1]\n";
+  }
+  else {
+    print "$KEEPER->{$max_key}->[0]" . ".$${type}\n";
+  }
+
+  return;
+}
+
+
+
+sub help {
+
+  print qq("newest" finds the tarball in a given directory with the newest version number
+and returns it's filename. "newest" is meant to be embedded in UNIX shell
+scripts.
+
+Usage:
+
+newest  -(src_dir | s)      /path/to/dir/with/tarballs
+        -(basename | b)     BaseName (ex. BaseName-2.10.tar.gz)
+        -(type | t)         Type of file (default: tar.gz)
+        -(versions | v)     Print only version information
+	-(help | h)         Prints usage help
+
+Ex: \$ /opt/bin/newest -s /opt/incoming/pm_modules -b Data-Dumper
+    Data-Dumper-2.101.tar.gz
+
+Both arguments, '-s' and '-b' are required; '-t' and '-v' are optional.
+
+);
+
+  return;
+}
+  
+
+
+

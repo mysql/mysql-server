@@ -1,0 +1,93 @@
+<html>
+<head>
+  <title>Diffs on diffs :-) by Larry V. Streepy, Jr.</title>
+  <base target=_top>
+  <meta name="GENERATOR" content="FindMail Communications">
+  <meta name="Date" content="Monday, October 07, 1996 02:03 PM PST">
+  <meta name="Author" content="Larry V. Streepy, Jr.">
+</head>
+<body  background="/gifs/betafm.gif" bgcolor="#ffffff" text="#000000" link="#0000ee" vlink="#ff0000" alink="#000099">
+<h3>Diffs on diffs :-)</h3>
+Larry V. Streepy, Jr. (<a href="mailto.html?mid=2079859748&num=398" target="_top">@healthcare.com</a>)<br>Monday, October 07, 1996 02:03 PM PST<br>
+<p>
+This is a multi-part message in MIME format.<p>
+--------------65BE18E23639BCDD7BE55F7F  <br>
+Content-Type: text/plain; charset=us-ascii  <br>
+Content-Transfer-Encoding: 7bit<p>
+Unfortunately, there are a couple of bugs in my pthread_cancel support  (no, say it isn't so :-)<p>
+Oh well, I cam across a couple of cases that I missed in my testing last  week.  Here are the bugs:<p>
+1. If a thread calls pthread_testcancel during it's cleanup processing  after being cancelled, the pthread kernel would hang.<p>
+2. I didn't realize that threads in PS_SLEEP_WAIT state are *NOT* on any  queue, they are handled using a linked list.  So, when cancelling a  thread that was sleeping, a PANIC() I put in possiblymakeRunnable would  go off.<p>
+Both of these are fixed.  The diffs are attached.<br>
+--   <br>
+Larry V. Streepy, Jr.  <br>
+Chief Technical Officer,  Healthcare Communications, Inc.  mailto:<a href="mailto.html?mid=2079859748&num=398" target="_top">@healthcare.com</a>  <br>
+(214) 851-7033 (Dallas Main #)  <br>
+(970) 626-5028 (My office #)			(970) 626-4425  (Fax)<p>
+--------------65BE18E23639BCDD7BE55F7F  <br>
+Content-Type: text/plain; charset=us-ascii; name=&#34;cancel.diffs&#34;  Content-Transfer-Encoding: 7bit  <br>
+Content-Disposition: inline; filename=&#34;cancel.diffs&#34;<p>
+Index: pthread_cancel.c<br>
+===================================================================  RCS file: /usr/cvssrc/pthreads-1_60_beta5/pthreads/pthread_cancel.c,v  retrieving revision 1.1  <br>
+diff -c -r1.1 pthread_cancel.c<br>
+*** pthread_cancel.c	1996/10/06 00:31:27	1.1<br>
+--- pthread_cancel.c	1996/10/07 18:33:27<br>
+***************<br>
+*** 187,192 ****<br>
+--- 187,197 ----<br>
+  		return;							/* Can't be cancelled */<br>
+      }<br>
+  <br>
++ 	/* Ensure that we aren't in the process of exiting already */<br>
++ 	if( TEST_PF_RUNNING_TO_CANCEL(pthread_run) ) {<br>
++ 		return;<br>
++ 	}<br>
++ <br>
+      /* See if we have been cancelled */<br>
+      if( TEST_PF_CANCELLED(pthread_run) ) {<br>
+  		/* Set this flag to avoid recursively calling pthread_exit */<br>
+***************<br>
+*** 266,277 ****<br>
+      if( pthread-&gt;state == PS_RUNNING )<br>
+  		return;							/* will happen at context switch */<br>
+  <br>
+!     /* Otherwise, we need to take it off the queue and make it runnable */<br>
+!     if( pthread-&gt;queue == NULL ) {<br>
+! 		PANIC();						/* Must be on a queue */<br>
+!     }<br>
+  <br>
+-     pthread_queue_remove(pthread-&gt;queue, pthread);<br>
+      pthread_prio_queue_enq(pthread_current_prio_queue, pthread);<br>
+      pthread-&gt;old_state = pthread-&gt;state;<br>
+      pthread-&gt;state = PS_RUNNING;<br>
+--- 271,291 ----<br>
+      if( pthread-&gt;state == PS_RUNNING )<br>
+  		return;							/* will happen at context switch */<br>
+  <br>
+! 	/* If the thread is sleeping, the it isn't on a queue. */<br>
+! 	if( pthread-&gt;state == PS_SLEEP_WAIT ) {<br>
+! 		sleep_cancel( pthread );		/* Remove from sleep list */<br>
+! 	} else {<br>
+! 		/* Otherwise, we need to take it off the queue and make it runnable */<br>
+! <br>
+! 		if( pthread-&gt;queue == NULL ) {<br>
+! 			PANIC();					/* Must be on a queue */<br>
+! 		}<br>
+! <br>
+! 		pthread_queue_remove(pthread-&gt;queue, pthread);<br>
+! 	}<br>
+! <br>
+! 	/* And make it runnable */<br>
+  <br>
+      pthread_prio_queue_enq(pthread_current_prio_queue, pthread);<br>
+      pthread-&gt;old_state = pthread-&gt;state;<br>
+      pthread-&gt;state = PS_RUNNING;<p>
+<pre><font size=-1>
+--------------65BE18E23639BCDD7BE55F7F--
+
+</pre><p></pre>
+<hr>
+<a href="http://www.findmail.com/" target="_top"><font size=-1>Powered by FindMail Communications</font><br></a>
+<br>Please email comments and suggestions to:<a href="/cgi-bin/comments.py" target="_top">comments@findmail.com</a>
+<br><font size=-3 color="#ffffff">xmlarchive</font>
+</body></html>

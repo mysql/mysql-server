@@ -1,0 +1,4 @@
+Makefile
+Makefile.in
+my_config.h
+mysql_version.h

@@ -1,0 +1,19 @@
+Testing server 'IBM DB2 5' at 1998-11-21 23:09:24
+
+ATIS table test
+
+Creating tables
+Time for create_table (28): 47 secs (46.89 usr  0.00 sys = 46.89 cpu)
+
+Inserting data
+Time to insert (9768): 101 secs (101.33 usr  0.00 sys = 101.33 cpu)
+
+Retrieving data
+Time for select_simple_join (500): 26 secs (26.36 usr  0.00 sys = 26.36 cpu)
+Time for select_join (200): 225 secs (224.28 usr  0.00 sys = 224.28 cpu)
+Time for select_distinct (800): 82 secs (82.50 usr  0.00 sys = 82.50 cpu)
+Time for select_group (2100): 32 secs (31.38 usr  0.00 sys = 31.38 cpu)
+
+Removing tables
+Time to drop_table (28):  1 secs ( 1.23 usr  0.00 sys =  1.23 cpu)
+Total time: 515 secs (514.66 usr  0.00 sys = 514.66 cpu)

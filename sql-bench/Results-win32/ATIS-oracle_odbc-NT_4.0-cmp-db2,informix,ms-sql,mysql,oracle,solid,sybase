@@ -1,0 +1,19 @@
+Testing server 'Oracle 8.0.4.0.0' at 1999-04-03 22:29:55
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  3 wallclock secs ( 0.11 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Inserting data
+Time to insert (9768): 87 wallclock secs (13.15 usr  1.56 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data
+Time for select_simple_join (500): 28 wallclock secs (13.20 usr  2.31 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_join (200): 255 wallclock secs (112.16 usr 20.68 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_distinct (800): 79 wallclock secs (37.62 usr  6.46 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_group (2100): 30 wallclock secs ( 9.51 usr  2.02 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Removing tables
+Time to drop_table (28):  4 wallclock secs ( 0.03 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 486 wallclock secs (185.81 usr 33.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

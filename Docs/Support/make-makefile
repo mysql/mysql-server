@@ -1,0 +1,7 @@
+#!/bin/sh
+# Use this when you have deleted Makefile and do not want to do a full
+# build to get it back
+
+cd ..
+automake --gnu Docs/Makefile
+CONFIG_FILES=Docs/Makefile CONFIG_HEADERS= sh ./config.status

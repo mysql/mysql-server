@@ -1,0 +1,198 @@
+For patches made to this release, check the file Changes-mysql
+
+For the 96/11/11 release version 1_60_beta6
+
+	Ports
+		Alpha running NetBSD-1.1 by Chris G Demetriou <cgd+@cs.cmu.edu>
+		i386 running BSDi-2.1 by David J MacKenzie <djm@va.pubnix.com>
+
+	Bug Fixes
+		Test for struct timespec under linux and DTRT.
+		include/unistd.h : #define SEEK_SET, SEEK_CUR, and SEEK_END.
+        	Bug reported by Stephen Tether <tether@MITLNS.MIT.EDU>
+		stdlib/system.c : Uses the POSIX signal systemcalls. 
+        	Bug reported by Matthew Newhook <matthew@thor.udc.neweast.ca>.
+		net/gethostbyname.c: #include <string.h> and fix dereference problem.
+        	Bug reported by Chris G Demetriou <cgd+@cs.cmu.edu>
+		pthreads/fd.c: Fix bug in close() reported by 
+			Bug reported by "William S. Lear" <rael@dejanews.com>
+		tests/p_bench_pthread_create.c : Only try and create 10000 threads.
+    	include/pthread/sleep.h : No need to prototype machdep_gettimeofday()
+       		since it is declared here. 
+			Bug reported by Stewart Gebbie <stewart@global.co.za>
+		stdio/fwrite.c: Fixed bug where if total bytes written = 0 then a divid
+        	by 0 occurs. Thanks to CTLarsen@lbl.gov for finding is and to
+        	Jin Guojun <jin@george.lbl.gov> for submitting a patch for it.
+		stdio/refill.c (__swalk_lflush()): Second pass of flush should call
+	        flockfile() not ftrylockfile(). Just like in __swalk_sflush()
+		net/res_internal.c (_res_parse_answer()): It looks like if
+        	iquery is true and type == T_PTR then the result->h_name
+        	will be over written because the bp isn't incrementd
+        	appropriately. Thanks to David Halls <David.Halls@cl.cam.ac.uk>
+        	for finding it.
+		net/serv_internal.c (_serv_buf()) : Allocate more than four bytes
+        	of buffer space.  Reported by drh@@tobit.vnet.net. 
+		pthreads/fd_kern.c: Make sure exception fds are included in
+       		 machdep_sys_select() for support of select(). Thanks to
+        		Larry V. Streepy, Jr. <streepy@healthcare.com> for the patches.
+		pthreads/fd_kern.c: Fix more I/O routines to report NOTOK on error
+       		instead of the old -error number. Hopefully this is the last of
+        	them. Thanks to Larry V. Streepy, Jr. <streepy@healthcare.com> for
+        	the patches.
+		machdep/engine-i386-linux-1.0.c: Remove unneeded machdep_sys_readv()
+        	and machdep_sys_writev() routines. Reported by
+		pthreads/process.c : Fix execl() and execle() to work on sparc systems.
+		pthreads/fd_sysv.c : Fix accept() to work under Solaris 2.4
+
+
+For the 96/03/09 release version 1_60_beta5
+
+	Ports
+		Sparc running NetBSD-1.1
+
+	Additions
+		New reentrant netdb similar to Solaris API (ghudson)
+
+	Bug Fixes
+		Make default signal handlers work.
+		Deadlock scheduling bug reported by Cathy Abbott <cabbot@cs.utk.edu>
+			See pthreads-bugs transaction 31
+		pthread/queue.c (pthread_queue_remove()): Don't set thread->queue and
+        	thread->next to NULL unless the thread is removed from the queue.
+		pthreads/fd.c (setsockopt(), getsockopt(), getsockname(),
+			getpeername()) : Call fd_lock() with appropriate paramaters.
+		pthreads/fd_kern.c (sendmsg_timedwait()): Call fd_unlock() with
+			FD_WRITE instead of FD_READ paramater.
+		machdep/*/timers.h net/res_send.c, pthreads/cond.c, pthreads/select.c
+			pthreads/sleep.c, tests/test_pthread_cond_timedwait.c:
+			Change timespec to be POSIX compliant.
+		include/unistd.h : Change u_int to unsigned [int] in prototypes.
+		pthreads/fd.c : Use FD_SETSIZE instead of 1024 for a limit on fds.
+
+
+For the 95/09/xx release version 1_60_beta4
+
+	Ports
+		SGI running IRIX-5.3
+
+	Additions
+		Added pthread_sigprocmask().
+		Added CV attributes
+
+		strtok() and strtok_r() (Greg Hudson)
+		getsockname() (Sean Levy)
+
+	Bug Fixes
+		stdio/fwalk.c, stdio/refill.c : Use flockfile() instead of
+			ftrylockfile()/pthread_yield(), for traversing FILE list.
+		pthreads/sig.c : Remove enum pthread_sig_flags and just use the vector.
+ 		   Added pthread_sigprocmask().
+		pthreads/signal.c : Protect calls to pthread_sig_process().
+		configure : Create the obj directory.
+		tests/test_preemption_float.c : Rewritten to actually work.
+		machdep/engine-i386-linux-1.0.c : Added __strtol_internal()
+		tests/test_stdio_1.c : Don't use base_name or dir_name as variables.
+		gen/getcwd.c : fstat => machdep_sys_fstat, since kernel fd's are 
+			used in the DIR data structure
+		gen/isatty.c : Fixed call to fd_lock() to pass the right # args.
+		pthreads/pthread_init.c : Fixed uninitialized members of 
+			pthread_initial. 
+		
+
+
+For the 95/06/xx release version 1_60_beta3
+
+	Additions
+		Add exec variants execl, execlp, execv, execvp (Ken Raeburn)
+		pthreads/fd_sysv.c : Added routines setsockopt() and getsockname().
+		Added include/endian.h : For machine dependent endian junk. (YUCK)
+		Added socketpair()
+		Added ttyname_r()
+
+	Bug Fixes
+		config/Makefile.in : Need $$ to reference shell variables in make.
+		config/configure, config/configure.in : Redo freebsd2.* machine.
+		machdep/sunos-4.1.3/__stdlib.h : typedef pthread_size_t size_t
+		pthreads/fd.c : Fix bug with fd_free(), dup(), dup2(), and close()
+			where a fd gets lost after a dup() then close().
+		pthreads/fd_kern.c : The fd_table[fd]->flags of the fd that accept()
+        	returns should be the same as those of the fd passed to accept().
+		stdio/fclose.c : Don't call funlockfile(fp) after fp->_file has been 
+			closed.
+		pthreads/select.c : Move pthread_sched_prevent() inside the statement.
+        	if (machdep_sys_select(...) == OK)
+		pthreads/machdep/linux-1.0/cdefs.h : moved the include_next outside 
+			of the ifdef so that it would eventually find the system cdefs.h
+		pthreads/signal.c : Check sig_to_process before and after fd_kern_wait()
+			. It is possible for sig_handler_fake() to registered one.
+		pthreads/signal.c : Unset pthread_run temporarily around the call to 
+			sig_handler(0). places where this causes core dumps should check 
+			pthread_run.
+		include/stdlib.h : Fix prototype for bsearch().
+		machdep/syscall-i386-freebsd-2.0.S syscall-template-i386-freebsd2.0.S:
+			Fix macro expansion problems for FreeBSD-2.0
+		machdep/engine-sparc-sunos-5.3.c : Fix machdep_sys_select() to return
+	        machdep_sys_poll() errors and not the number of entries found.
+		gen/getcwd.c : Use strlen(dp->d_name) not dp->d_namlen because there 
+			may be extra data associated with dp->d_namelen.
+		machdep/freebsd-2.0/__unistd.h: Change #define _POSIX_VDISABLE to 0xff
+		include/pthread.h : Added prototypes pthread_kill(), pthread_signal()
+		machdep/linux-1.0/__signal.h : Added #define __sigmask() and 
+			#define sigmask, and fixed other SIG macros to use __sigmask.
+		machdep/linux-1.0/dirent.h : #include <sys/types.h>
+		machdep/linux-1.0/wait.h : Fix #define WIFSTOPPED(x) to use __WSTATUS(x)
+		machdep/syscall-i386-linux-1.0.S : Added elf support. (NOT TESTED)
+		pthreads/stat.c : Added to separate linux stat calls. 
+			(SGI will need this too) 
+		pthreads/signal.c : Whereever #ifdef (SA_RESETHAND) is used then
+        	#ifdef (SA_RESTART) also
+		gen/isatty.c : isatty_basic() is called with the KFD not UFD.
+		machdep/sunos-4.1.3/__stdlib.h : #include <sys/stdtypes.h>
+		config/sun4os4.mk : Added pipe to SYSCALL_EXCEPTIONS
+		machdep/syscall-sparc-sunos-4.1.3.S : Add machdep_sys_pipe().
+		include/stdio.h : Remove __getc() and __putc(), because they really
+			shouldn't be inlined.
+		machdep/sunos-4.1.3/stat.h : Added __BEGIN_DECLS and __END_DECLS.
+		machdep/alpha-osf1/cdefs.h, machdep/hpux-9.03/cdefs.h
+    	machdep/linux-1.0/cdefs.h, machdep/sunos-4.1.3/cdefs.h
+    	machdep/sunos-5.3/cdefs.h, machdep/ultrix-4.2/cdefs.h :
+        	#define __INLINE static inline and don't #define 
+			__CAN_DO_EXTERN_INLINE if __cplusplus and __GCC__ is defined.
+		pthreads/fd_sysv.c : Fix so that only systems without socket systemcalls
+        	compile this file.
+		machdep/engine-i386-linux-1.0.c : Fix linux machdep_sys_getdirentries()
+		pthreads/gen : Nuke the signal-blocking code in pclose(). It doesn't do
+			any good in a threaded program; some other thread would just get 
+			the signal.
+
+
+For the 94/11/xx release version 1_60
+
+	Additions
+		Added recvfrom_timedwait(), and similar calls
+		Added thread safe time routines: ctime(), localtime(), ...
+		Added thread safe rand routines: rand(), random(), ...
+		Added priorities and releated routines: pthread_attr_getschedparam(), 
+		Added signals and releated routines:pthread_kill(), sigwait(), ...
+		Added mutex attribues and releated routines: pthread_mutexattr_init(), .
+		Added abort
+
+		Added counting (recursive) mutexes.
+		Added debugging mutexes.
+		Added some more tests
+
+		Redid entire thread kernel because of priorities, and signals.
+		Test and set instructions no longer necessary for versions
+		that don't support kernel threads.
+
+		More debugging by Greg Hudson along with the network lookup routines
+		An Alpha port from Ken Raeburn and Sean Levy
+		A solaris port from me.
+		select() implementations from Sean Levy and Peter Hofmann
+		configure from Ken Raeburn
+		pthread_init() no longer necessary for systems with G++ from Ken Raeburn
+		net code from Greg Hudson including: gethostbyname(), ...
+
+	Bug fixes:
+		honor _POSIX_THREAD_DESTRUCTOR_ITERATIONS
+		pthread_key_destroy() is really pthread_key_delete()

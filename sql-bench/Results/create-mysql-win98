@@ -1,0 +1,18 @@
+Testing server 'MySQL 3.23.13a alpha' at 2000-03-15  2:33:13
+
+Testing the speed of creating and droping tables
+Testing with 5000 tables and 10000 loop count
+
+Testing create of tables
+Time for create_MANY_tables (5000): 1510 wallclock secs (1510.83 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Accessing tables
+Time to select_group_when_MANY_tables (5000): 581 wallclock secs (580.46 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing drop
+Time for drop_table_when_MANY_tables (5000): 160 wallclock secs (159.83 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing create+drop
+Time for create+drop (10000): 1433 wallclock secs (1433.28 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create_key+drop (10000): 1457 wallclock secs (1456.57 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 5141 wallclock secs (5140.97 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

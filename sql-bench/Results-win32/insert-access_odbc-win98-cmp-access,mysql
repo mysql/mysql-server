@@ -1,0 +1,67 @@
+Testing server 'Access 2000' at 2000-01-03 15:01:30
+
+Testing the speed of inserting data into 1 table and do some selects on it.
+The tests are done with a table that has 100000 rows.
+
+Generating random keys
+Creating tables
+Inserting 100000 rows in order
+Inserting 100000 rows in reverse order
+Inserting 100000 rows in random order
+Time for insert (300000): 1974 wallclock secs (1973.91 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert of duplicates
+Time for insert_duplicates (300000): 209 wallclock secs (208.61 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Retrieving data from the table
+Time for select_big (10:3000000): 311 wallclock secs (310.93 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by_key (10:3000000): 396 wallclock secs (395.80 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for order_by (10:3000000): 388 wallclock secs (388.10 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_diff_key (500:1000):  3 wallclock secs ( 3.63 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range_prefix (5010:42084): 68 wallclock secs (67.77 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (5010:42084): 65 wallclock secs (64.65 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+71768 queries in 35884 loops of 100000 loops took 601 seconds
+Estimated time for select_key_prefix (200000): 1674 wallclock secs (1673.75 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+58230 queries in 29115 loops of 100000 loops took 601 seconds
+Estimated time for select_key (200000): 2064 wallclock secs (2064.23 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Test of compares with simple ranges
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+5960 queries in 149 loops of 500 loops took 603 seconds
+Estimated time for select_range_prefix (20000:12963): 2023 wallclock secs (2024.87 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (20000:43500): 475 wallclock secs (474.78 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_group (91): 341 wallclock secs (341.20 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max_on_key (3000): 19 wallclock secs (18.56 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max (60): 186 wallclock secs (186.25 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_on_key (100): 15 wallclock secs (15.44 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count (100): 328 wallclock secs (327.46 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of keys with functions
+Time for update_of_key (500):  14 wallclock secs (14.12 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for update_of_key_big (501): 548 wallclock secs (548.43 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update with key
+Time for update_with_key (100000):  2081 wallclock secs (2080.30 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of all rows
+Time for update_big (500):  1550 wallclock secs (1550.11 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing delete
+Time for delete_key (500): 79 wallclock secs (79.31 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for delete_big (12): 274 wallclock secs (274.25 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Insert into table with 16 keys and with a primary key with 10 parts
+Time for insert_key (100000): 10591 wallclock secs (10591.45 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing update of keys
+Time for update_of_key (256): 873 wallclock secs (872.99 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Deleting everything from table
+Time for delete_big_many_keys (2): 12569 wallclock secs (12568.66 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Estimated total time: 39293 wallclock secs (39294.15 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

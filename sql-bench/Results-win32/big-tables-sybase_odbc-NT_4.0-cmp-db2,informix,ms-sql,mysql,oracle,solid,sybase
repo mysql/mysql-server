@@ -1,0 +1,19 @@
+Testing server 'Sybase enterprise 11.5 NT' at 1998-08-27  2:14:09
+
+Testing of some unusual tables
+All tests are done 10000 times with 16 fields
+
+Testing table with 16 fields
+Testing select * from table with 1 record
+Time to select_many_fields(10000): 54 secs (54.47 usr  0.00 sys = 54.47 cpu)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(10000): 68 secs (67.58 usr  0.00 sys = 67.58 cpu)
+
+Testing insert VALUES()
+Time to insert_many_fields(10000): 115 secs (115.28 usr  0.00 sys = 115.28 cpu)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(10000): 116 secs (115.28 usr  0.00 sys = 115.28 cpu)
+
+Total time: 353 secs (352.68 usr  0.00 sys = 352.68 cpu)

@@ -1,0 +1,19 @@
+Testing server 'MySQL 3.22.20' at 1999-03-19 12:57:30
+
+ATIS table test
+
+Creating tables
+Time for create_table (28):  2 secs ( 0.05 usr  0.05 sys +  0.00 cusr  0.00 csys =  0.10 cpu)
+
+Inserting data
+Time to insert (9768): 40 secs ( 7.14 usr  7.21 sys +  0.00 cusr  0.00 csys = 14.35 cpu)
+
+Retrieving data
+Time for select_simple_join (500): 37 secs ( 9.62 usr  7.92 sys +  0.00 cusr  0.00 csys = 17.54 cpu)
+Time for select_join (200): 572 secs (81.23 usr 73.44 sys +  0.00 cusr  0.00 csys = 154.67 cpu)
+Time for select_distinct (800): 292 secs (28.26 usr 22.92 sys +  0.00 cusr  0.00 csys = 51.18 cpu)
+Time for select_group (2700): 209 secs (20.70 usr 12.94 sys +  0.00 cusr  0.00 csys = 33.64 cpu)
+
+Removing tables
+Time to drop_table (28):  1 secs ( 0.02 usr  0.02 sys +  0.00 cusr  0.00 csys =  0.04 cpu)
+Total time: 1153 secs (147.11 usr 124.50 sys +  0.00 cusr  0.00 csys = 271.61 cpu)
