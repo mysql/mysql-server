@@ -215,7 +215,7 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --sleep=10", "tests were successful");
+  check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
 }
 
 # Start the server if we are going to run any of the benchmarks

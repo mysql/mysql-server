@@ -33,4 +33,11 @@ const char* rpl_status_type[] = {"AUTH_MASTER","ACTIVE_SLAVE","IDLE_SLAVE",
 TYPELIB rpl_status_typelib= {array_elements(rpl_status_type)-1,"",
 			     rpl_status_type};
 
+void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
+{
+  pthread_mutex_lock(&LOCK_rpl_status);
+  if (rpl_status == from_status || rpl_status == RPL_ANY)
+    rpl_status = to_status;
+  pthread_mutex_unlock(&LOCK_rpl_status);
+}
 
