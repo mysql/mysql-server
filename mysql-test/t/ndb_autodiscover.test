@@ -209,7 +209,29 @@ select * from t4;
 select * from t4;
 
 show status like 'handler_discover%';
+--error 1051
 drop table t4;
+
+create table t4(
+  id int not null primary key,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+
+# Remove the table from NDB
+system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
+
+--error 1146
+select * from t4;
+
+drop table if exists t4;
+
+# Test that dropping a table that does not exists
+# on  disk or in NDB gives same result as above
+--error 1051
+drop table t5;
+drop table if exists t5;
 
 
 #######################################################
