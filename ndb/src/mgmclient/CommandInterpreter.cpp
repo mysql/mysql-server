@@ -499,7 +499,8 @@ CommandInterpreter::execute_impl(const char *_line)
   line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
   
-  if (emptyString(line)) {
+  if (emptyString(line) ||
+      line[0] == '#') {
     DBUG_RETURN(true);
   }
   
@@ -514,6 +515,11 @@ CommandInterpreter::execute_impl(const char *_line)
   }
   else if (strcasecmp(firstToken, "CONNECT") == 0) {
     executeConnect(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if (strcasecmp(firstToken, "SLEEP") == 0) {
+    if (allAfterFirstToken)
+      sleep(atoi(allAfterFirstToken));
     DBUG_RETURN(true);
   }
   else if((strcasecmp(firstToken, "QUIT") == 0 ||
