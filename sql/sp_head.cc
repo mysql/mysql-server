@@ -406,6 +406,8 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     ret= i->execute(thd, &ip);
+    if (i->free_list)
+      cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found
     // Note: We havo to check even if ret==0, since warnings (and some
     //       errors don't return a non-zero value.
@@ -434,9 +436,11 @@ sp_head::execute(THD *thd)
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
+
   if (thd->current_arena)
     cleanup_items(thd->current_arena->free_list);
   thd->current_arena= 0;
+
   if (thd->killed || thd->query_error || thd->net.report_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
@@ -859,6 +863,23 @@ sp_head::show_create_procedure(THD *thd)
   send_eof(thd);
   DBUG_RETURN(res);
 }
+
+
+/*
+  Add instruction to SP
+
+  SYNOPSIS
+    sp_head::add_instr()
+    instr   Instruction
+*/
+
+void sp_head::add_instr(sp_instr *instr)
+{
+  instr->free_list= m_thd->free_list;
+  m_thd->free_list= 0;
+  insert_dynamic(&m_instr, (gptr)&instr);
+}
+
 
 int
 sp_head::show_create_function(THD *thd)
