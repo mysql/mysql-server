@@ -1841,9 +1841,9 @@ group_clause:
 
 group_list:
 	group_list ',' group_ident
-		{ if (add_group_to_list($3,(bool) 1)) YYABORT; }
-	| group_ident order_dir
-		{ if (add_group_to_list($1,(bool) 1)) YYABORT; }
+	  { if (add_group_to_list($3,(bool) 1)) YYABORT; }
+	| group_ident
+	  { if (add_group_to_list($1,(bool) 1)) YYABORT; }
 
 /*
 ** Order by statement in select
@@ -2410,7 +2410,7 @@ table_wild:
 	{ $$ = new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); }
 
 group_ident:
-	order_ident
+	order_ident order_dir
 
 order_ident:
 	expr { $$=$1; }

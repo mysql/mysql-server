@@ -38,7 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.55";
+$version="1.56";
 
 use DBI;
 use Getopt::Long;
@@ -1333,7 +1333,7 @@ report("index in create table",'index_in_create',
 
 # The following must be executed as we need the value of end_drop_keyword
 # later
-if (defined($limits{'create_index'}) && defined($limits{'drop_index'}))
+if (!(defined($limits{'create_index'}) && defined($limits{'drop_index'})))
 {
   if ($res=safe_query("create index crash_q on crash_me (a)"))
   {

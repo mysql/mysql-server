@@ -4,6 +4,7 @@ connection con1;
 set SQL_LOG_BIN=0;
 drop table if exists t1;
 create table t1(n int);
+--replace "errno = 2" "errno = X" "errno = 22" "errno = X"
 backup table t1 to '../bogus';
 backup table t1 to '../tmp';
 drop table t1;
