@@ -270,3 +270,22 @@ execute stmt using @var;
 a
 deallocate prepare stmt;
 drop table t1;
+create table t1 (a bigint(20) not null primary key auto_increment);
+insert into t1 (a) values (null);
+select * from t1;
+a
+1
+prepare stmt from "insert into t1 (a) values (?)";
+set @var=null;
+execute stmt using @var;
+select * from t1;
+a
+1
+2
+drop table t1;
+create table t1 (a timestamp not null);
+prepare stmt from "insert into t1 (a) values (?)";
+execute stmt using @var;
+select * from t1;
+deallocate prepare stmt;
+drop table t1;
