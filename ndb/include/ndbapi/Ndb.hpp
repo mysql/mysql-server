@@ -1087,8 +1087,6 @@ public:
 
   int waitUntilReady(int timeout = 60);
 
-  void connected(Uint32 block_reference);
-  
   /** @} *********************************************************************/
 
   /** 
@@ -1446,6 +1444,9 @@ private:
   
   void setup(Ndb_cluster_connection *ndb_cluster_connection,
 	     const char* aCatalogName, const char* aSchemaName);
+
+  void connected(Uint32 block_reference);
+ 
 
   NdbConnection*  startTransactionLocal(Uint32 aPrio, Uint32 aFragmentId); 
 

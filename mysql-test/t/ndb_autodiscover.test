@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t9;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t9;
 --enable_warnings
 
 ################################################
@@ -122,7 +122,6 @@ create table t3(
 # IF NOT EXISTS wasn't specified
 
 show status like 'handler_discover%';
-SHOW TABLES FROM test;
 
 # now it should be discovered
 create table IF NOT EXISTS t3(
@@ -145,38 +144,76 @@ show status like 'handler_discover%';
 
 drop table t3;
 
-#######################################################
-# Test that a table that already exists as frm file
-# but not in NDB can be deleted from disk.
+##################################################
+# Test that a table that already exists in NDB 
+# is discovered when SHOW TABLES
+# is used
 #
 
-# Manual test
-#flush status;
+flush status;
+
+create table t7(
+  id int not null primary key,
+  name char(255)
+) engine=ndb;
+create table t6(
+  id int not null primary key,
+  name char(255)
+) engine=MyISAM;
+insert into t7 values (1, "Explorer");
+insert into t6 values (2, "MyISAM table");
+select * from t7;
+show status like 'handler_discover%';
+
+# Remove the frm file from disk
+flush tables;
+system rm var/master-data/test/t7.frm ;
+
+show tables from test;
+show status like 'handler_discover%';
+
+# Remove the frm file from disk again
+flush tables;
+system rm var/master-data/test/t7.frm ;
+
+--replace_column 7 # 8 # 9 # 12 # 13 # 15 #
+show table status;
+show status like 'handler_discover%';
+
+drop table t6, t7;
+
+
+#######################################################
+# Test that a table that has been dropped from NDB
+# but still exists on disk, get a consistent error message
+# saying "No such table existed"
 #
-#create table t4(
-#  id int not null primary key,
-#  name char(27)
-#) engine=ndb;
-#insert into t4 values (1, "Automatic");
-#select * from t4;
-#
+
+flush status;
+
+create table t4(
+  id int not null primary key,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+
 # Remove the table from NDB
-#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t4 > /dev/null ;
-#system drop_tab -c "host=localhost:2200;nodeid=5" -d test t4 > /dev/null ;
-#
-#--error 1296
-#select * from t4;
-#
-#flush table t4;
-#--error 1016
-#select * from t4;
-#
-#show status like 'handler_discover%';
-#drop table t4;
-#flush tables;
-#show tables;
-#--error 1146
-#select * from t4;
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t4; 
+
+system exec ../ndb/tools/ndb_show_tables > show_tables.log; 
+
+# Test that correct error is returned
+--error 1146
+select * from t4;
+--error 1146
+select * from t4;
+
+show status like 'handler_discover%';
+drop table t4;
+
+show tables;
+
 
 
 #########################################################
@@ -241,7 +278,6 @@ show status like 'handler_discover%';
 drop table t6;
 
 ######################################################
-# Simple test to show use of discover on startup
 # Note! This should always be the last step in this 
 # file, the table t9 will be used and dropped 
 # by ndb_autodiscover2
@@ -259,8 +295,7 @@ system rm var/master-data/test/t9.frm ;
 
 # Now leave test case, when ndb_autodiscover2 will  run, this 
 # MySQL Server will have been restarted because it has a 
-# ndb_autodiscover2-master.opt file. And thus the table should 
-# have been discovered by the "discover on startup" function.
+# ndb_autodiscover2-master.opt file.
 
 #TODO
 #SLECT * FROM t1, t2, t4;
