@@ -109,20 +109,20 @@
 
 /*
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
-  So one "decimal_digit" is
+  So one variable of type decimal_digit_t is limited:
 
       0 < decimal_digit <= DIG_MAX < DIG_BASE
 
-  in the struct st_decimal:
+  in the struct st_decimal_t:
 
-    intg is the number of *decimal* digits (NOT number of decimal_digit's !)
+    intg is the number of *decimal* digits (NOT number of decimal_digit_t's !)
          before the point
     frac - number of decimal digits after the point
-    buf is an array of decimal_digit's
-    len is the length of buf (length of allocated space) in decimal_digit's,
+    buf is an array of decimal_digit_t's
+    len is the length of buf (length of allocated space) in decimal_digit_t's,
         not in bytes
 */
-typedef decimal_digit dec1;
+typedef decimal_digit_t dec1;
 typedef longlong      dec2;
 
 #define DIG_PER_DEC1 9
@@ -139,8 +139,12 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   999900000, 999990000, 999999000,
   999999900, 999999990 };
 
+#ifdef HAVE_purify
+#define sanity(d) DBUG_ASSERT((d)->len > 0)
+#else
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
                               (d)->buf[(d)->len-1] | 1))
+#endif
 
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
         do                                                              \
@@ -219,7 +223,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
                       to->buf and to->len must be set.
 */
 
-void max_decimal(int precision, int frac, decimal *to)
+void max_decimal(int precision, int frac, decimal_t *to)
 {
   int intpart;
   dec1 *buf= to->buf;
@@ -246,7 +250,7 @@ void max_decimal(int precision, int frac, decimal *to)
 }
 
 
-static dec1 *remove_leading_zeroes(decimal *from, int *intg_result)
+static dec1 *remove_leading_zeroes(decimal_t *from, int *intg_result)
 {
   int intg= from->intg, i;
   dec1 *buf0= from->buf;
@@ -277,7 +281,7 @@ static dec1 *remove_leading_zeroes(decimal *from, int *intg_result)
     from    number for processing
 */
 
-void decimal_optimize_fraction(decimal *from)
+void decimal_optimize_fraction(decimal_t *from)
 {
   int frac= from->frac, i;
   dec1 *buf0= from->buf + ROUND_UP(from->intg) + ROUND_UP(frac) - 1;
@@ -324,7 +328,7 @@ void decimal_optimize_fraction(decimal *from)
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int decimal2string(decimal *from, char *to, int *to_len,
+int decimal2string(decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
@@ -449,7 +453,7 @@ int decimal2string(decimal *from, char *to, int *to_len,
                      be written by this address
 */
 
-static void digits_bounds(decimal *from, int *start_result, int *end_result)
+static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
 {
   int start, stop, i;
   dec1 *buf_beg= from->buf;
@@ -516,7 +520,7 @@ static void digits_bounds(decimal *from, int *start_result, int *end_result)
     'shift' have to be from 1 to DIG_PER_DEC1-1 (inclusive)
 */
 
-void do_mini_left_shift(decimal *dec, int shift, int beg, int last)
+void do_mini_left_shift(decimal_t *dec, int shift, int beg, int last)
 {
   dec1 *from= dec->buf + ROUND_UP(beg + 1) - 1;
   dec1 *end= dec->buf + ROUND_UP(last) - 1;
@@ -546,7 +550,7 @@ void do_mini_left_shift(decimal *dec, int shift, int beg, int last)
     'shift' have to be from 1 to DIG_PER_DEC1-1 (inclusive)
 */
 
-void do_mini_right_shift(decimal *dec, int shift, int beg, int last)
+void do_mini_right_shift(decimal_t *dec, int shift, int beg, int last)
 {
   dec1 *from= dec->buf + ROUND_UP(last) - 1;
   dec1 *end= dec->buf + ROUND_UP(beg + 1) - 1;
@@ -579,7 +583,7 @@ void do_mini_right_shift(decimal *dec, int shift, int beg, int last)
     E_DEC_TRUNCATED   number was rounded to fit into buffer
 */
 
-int decimal_shift(decimal *dec, int shift)
+int decimal_shift(decimal_t *dec, int shift)
 {
   /* index of first non zero digit (all indexes from 0) */
   int beg;
@@ -776,7 +780,8 @@ int decimal_shift(decimal *dec, int shift)
     (to make error handling easier)
 */
 
-int internal_str2dec(const char *from, decimal *to, char **end, my_bool fixed)
+int
+internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
 {
   const char *s= from, *s1, *endp, *end_of_string= *end;
   int i, intg, frac, error, intg1, frac1;
@@ -933,7 +938,7 @@ fatal_error:
     E_DEC_OK
 */
 
-int decimal2double(decimal *from, double *to)
+int decimal2double(decimal_t *from, double *to)
 {
   double x=0, t=DIG_BASE;
   int intg, frac;
@@ -959,7 +964,7 @@ int decimal2double(decimal *from, double *to)
     E_DEC_OK/E_DEC_OVERFLOW/E_DEC_TRUNCATED
 */
 
-int double2decimal(double from, decimal *to)
+int double2decimal(double from, decimal_t *to)
 {
   /* TODO: fix it, when we'll have dtoa */
   char s[400], *end;
@@ -968,7 +973,7 @@ int double2decimal(double from, decimal *to)
   return string2decimal(s, to, &end);
 }
 
-static int ull2dec(ulonglong from, decimal *to)
+static int ull2dec(ulonglong from, decimal_t *to)
 {
   int intg1, error=E_DEC_OK;
   ulonglong x=from;
@@ -994,20 +999,20 @@ static int ull2dec(ulonglong from, decimal *to)
   return error;
 }
 
-int ulonglong2decimal(ulonglong from, decimal *to)
+int ulonglong2decimal(ulonglong from, decimal_t *to)
 {
   to->sign=0;
   return ull2dec(from, to);
 }
 
-int longlong2decimal(longlong from, decimal *to)
+int longlong2decimal(longlong from, decimal_t *to)
 {
   if ((to->sign= from < 0))
     return ull2dec(-from, to);
   return ull2dec(from, to);
 }
 
-int decimal2ulonglong(decimal *from, ulonglong *to)
+int decimal2ulonglong(decimal_t *from, ulonglong *to)
 {
   dec1 *buf=from->buf;
   ulonglong x=0;
@@ -1036,7 +1041,7 @@ int decimal2ulonglong(decimal *from, ulonglong *to)
   return E_DEC_OK;
 }
 
-int decimal2longlong(decimal *from, longlong *to)
+int decimal2longlong(decimal_t *from, longlong *to)
 {
   dec1 *buf=from->buf;
   longlong x=0;
@@ -1108,7 +1113,7 @@ int decimal2longlong(decimal *from, longlong *to)
       3. The first intg % DIG_PER_DEC1 digits are stored in the reduced
          number of bytes (enough bytes to store this number of digits -
          see dig2bytes)
-      4. same for frac - full decimal_digit's are stored as is,
+      4. same for frac - full decimal_digit_t's are stored as is,
          the last frac % DIG_PER_DEC1 digits - in the reduced number of bytes.
       5. If the number is negative - every byte is inversed.
       5. The very first bit of the resulting byte array is inverted (because
@@ -1118,7 +1123,7 @@ int decimal2longlong(decimal *from, longlong *to)
 
       1234567890.1234
 
-    internally is represented as 3 decimal_digit's
+    internally is represented as 3 decimal_digit_t's
 
       1 234567890 123400000
 
@@ -1127,13 +1132,13 @@ int decimal2longlong(decimal *from, longlong *to)
 
       00-00-00-01  0D-FB-38-D2  07-5A-EF-40
 
-    now, middle decimal_digit is full - it stores 9 decimal digits. It goes
+    now, middle decimal_digit_t is full - it stores 9 decimal digits. It goes
     into binary representation as is:
 
 
       ...........  0D-FB-38-D2 ............
 
-    First decimal_digit has only one decimal digit. We can store one digit in
+    First decimal_digit_t has only one decimal digit. We can store one digit in
     one byte, no need to waste four:
 
                 01 0D-FB-38-D2 ............
@@ -1151,7 +1156,7 @@ int decimal2longlong(decimal *from, longlong *to)
 
                 7E F2 04 37 2D FB 2D
 */
-int decimal2bin(decimal *from, char *to, int precision, int frac)
+int decimal2bin(decimal_t *from, char *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
@@ -1279,7 +1284,7 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int bin2decimal(char *from, decimal *to, int precision, int scale)
+int bin2decimal(char *from, decimal_t *to, int precision, int scale)
 {
   int error=E_DEC_OK, intg=precision-scale,
       intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
@@ -1420,7 +1425,9 @@ int decimal_bin_size(int precision, int scale)
     E_DEC_OK/E_DEC_TRUNCATED
 */
 
-int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode)
+int
+decimal_round(decimal_t *from, decimal_t *to, int scale,
+              decimal_round_mode mode)
 {
   int frac0=scale>0 ? ROUND_UP(scale) : scale/DIG_PER_DEC1,
       frac1=ROUND_UP(from->frac), round_digit,
@@ -1581,7 +1588,7 @@ done:
     multiply by sizeof(dec1)
 */
 
-int decimal_result_size(decimal *from1, decimal *from2, char op, int param)
+int decimal_result_size(decimal_t *from1, decimal_t *from2, char op, int param)
 {
   switch (op) {
   case '-':
@@ -1600,7 +1607,7 @@ int decimal_result_size(decimal *from1, decimal *from2, char op, int param)
   return -1; /* shut up the warning */
 }
 
-static int do_add(decimal *from1, decimal *from2, decimal *to)
+static int do_add(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
@@ -1676,7 +1683,7 @@ static int do_add(decimal *from1, decimal *from2, decimal *to)
 
 /* to=from1-from2.
    if to==0, return -1/0/+1 - the result of the comparison */
-static int do_sub(decimal *from1, decimal *from2, decimal *to)
+static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
@@ -1737,7 +1744,7 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
   /* ensure that always from1 > from2 (and intg1 >= intg2) */
   if (carry)
   {
-    swap_variables(decimal *,from1,from1);
+    swap_variables(decimal_t *,from1,from1);
     swap_variables(dec1 *,start1, start2);
     swap_variables(int,intg1,intg2);
     swap_variables(int,frac1,frac2);
@@ -1803,28 +1810,28 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
   return error;
 }
 
-int decimal_add(decimal *from1, decimal *from2, decimal *to)
+int decimal_add(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   if (likely(from1->sign == from2->sign))
     return do_add(from1, from2, to);
   return do_sub(from1, from2, to);
 }
 
-int decimal_sub(decimal *from1, decimal *from2, decimal *to)
+int decimal_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   if (likely(from1->sign == from2->sign))
     return do_sub(from1, from2, to);
   return do_add(from1, from2, to);
 }
 
-int decimal_cmp(decimal *from1, decimal *from2)
+int decimal_cmp(decimal_t *from1, decimal_t *from2)
 {
   if (likely(from1->sign == from2->sign))
     return do_sub(from1, from2, 0);
   return from1->sign > from2->sign ? -1 : 1;
 }
 
-int decimal_is_zero(decimal *from)
+int decimal_is_zero(decimal_t *from)
 {
   dec1 *buf1=from->buf,
        *end=buf1+ROUND_UP(from->intg)+ROUND_UP(from->frac);
@@ -1855,7 +1862,7 @@ int decimal_is_zero(decimal *from)
     XXX if this library is to be used with huge numbers of thousands of
     digits, fast multiplication must be implemented.
 */
-int decimal_mul(decimal *from1, decimal *from2, decimal *to)
+int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
@@ -1928,8 +1935,8 @@ int decimal_mul(decimal *from1, decimal *from2, decimal *to)
   changed to malloc (or at least fallback to malloc if alloca() fails)
   but then, decimal_mod() should be rewritten too :(
 */
-static int do_div_mod(decimal *from1, decimal *from2,
-                       decimal *to, decimal *mod, int scale_incr)
+static int do_div_mod(decimal_t *from1, decimal_t *from2,
+                       decimal_t *to, decimal_t *mod, int scale_incr)
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
@@ -2204,7 +2211,8 @@ done:
     see do_div_mod()
 */
 
-int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr)
+int
+decimal_div(decimal_t *from1, decimal_t *from2, decimal_t *to, int scale_incr)
 {
   return do_div_mod(from1, from2, to, 0, scale_incr);
 }
@@ -2236,7 +2244,7 @@ int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr)
    thus, there's no requirement for M or N to be integers
 */
 
-int decimal_mod(decimal *from1, decimal *from2, decimal *to)
+int decimal_mod(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   return do_div_mod(from1, from2, 0, to, 0);
 }
@@ -2244,10 +2252,10 @@ int decimal_mod(decimal *from1, decimal *from2, decimal *to)
 #ifdef MAIN
 
 int full= 0;
-decimal a, b, c;
+decimal_t a, b, c;
 char buf1[100], buf2[100], buf3[100];
 
-void dump_decimal(decimal *d)
+void dump_decimal(decimal_t *d)
 {
   int i;
   printf("/* intg=%d, frac=%d, sign=%d, buf[]={", d->intg, d->frac, d->sign);
@@ -2267,7 +2275,7 @@ void check_result_code(int actual, int want)
 }
 
 
-void print_decimal(decimal *d, const char *orig, int actual, int want)
+void print_decimal(decimal_t *d, const char *orig, int actual, int want)
 {
   char s[100];
   int slen=sizeof(s);

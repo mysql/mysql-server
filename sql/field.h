@@ -49,7 +49,7 @@ public:
   struct st_table *orig_table;		// Pointer to original table
   const char	**table_name, *field_name;
   LEX_STRING	comment;
-  ulong		query_id;		// For quick test of used fields
+  query_id_t	query_id;		// For quick test of used fields
   /* Field is part of the following keys */
   key_map	key_start,part_of_key,part_of_sortkey;
   /* 

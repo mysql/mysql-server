@@ -13,7 +13,7 @@ args=""
 port=""
 socket=""
 database="mysql"
-bindir="."
+bindir=""
 pkgdatadir="@pkgdatadir@"
 print_defaults_bindir="."
 

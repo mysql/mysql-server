@@ -1090,10 +1090,10 @@ char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg)
    keyseg->null_pos	= mi_uint4korr(ptr);  ptr +=4;
    keyseg->charset=0;				/* Will be filled in later */
    if (keyseg->null_bit)
-     keyseg->bit_pos= keyseg->null_pos + (keyseg->null_bit == 7);
+     keyseg->bit_pos= (uint16)(keyseg->null_pos + (keyseg->null_bit == 7));
    else
    {
-     keyseg->bit_pos= keyseg->null_pos;
+     keyseg->bit_pos= (uint16)keyseg->null_pos;
      keyseg->null_pos= 0;
    }
    return ptr;
