@@ -2476,8 +2476,10 @@ mysql_execute_command(void)
     res = mysql_ha_close(thd, tables);
     break;
   case SQLCOM_HA_READ:
-    if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables))
+    /* there is no need to check for table permissions here, because
+       if a user has no permissions to read a table, he won't be
+       able to open it (with SQLCOM_HA_OPEN) in the first place. */
+    if (check_db_used(thd,tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
 			lex->insert_list, lex->ha_rkey_mode, select_lex->where,
