@@ -1236,6 +1236,12 @@ not always make sense; please check the manual before using it).";
   /*
     Check that the master's global character_set_server and ours are the same.
     Not fatal if query fails (old master?).
+    Note that we don't check for equality of global character_set_client and
+    collation_connection (neither do we prevent their setting in
+    set_var.cc). That's because from what I (Guilhem) have tested, the global
+    values of these 2 are never used (new connections don't use them).
+    We don't test equality of global collation_database either as it's is
+    going to be deprecated (made read-only) in 4.1 very soon.
   */
   if (!mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
       (master_res= mysql_store_result(mysql)))

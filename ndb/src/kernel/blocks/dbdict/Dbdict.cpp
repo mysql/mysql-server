@@ -6255,16 +6255,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       jam();
       found = true;
       const Uint32 a = aRec->attributeDescriptor;
-      bool isNullable = AttributeDescriptor::getNullable(a);
-      // We do not allow more than one NULLable attribute for hash index
-      if (isNullable && 
-	  indexPtr.p->isHashIndex() && 
-	  (opPtr.p->m_attrList.sz > 1)) {
-        jam();
-        opPtr.p->m_errorCode = CreateIndxRef::AttributeNullable;
-        opPtr.p->m_errorLine = __LINE__;
-        return;
-      }
       if (indexPtr.p->isHashIndex()) {
         const Uint32 s1 = AttributeDescriptor::getSize(a);
         const Uint32 s2 = AttributeDescriptor::getArraySize(a);

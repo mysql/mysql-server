@@ -122,7 +122,8 @@ void Dblqh::initRecords()
 
   logPageRecord = (LogPageRecord*)allocRecord("LogPageRecord",
 					      sizeof(LogPageRecord),
-					      clogPageFileSize);
+					      clogPageFileSize,
+					      false);
 
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),
@@ -324,6 +325,31 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
 
   initData();
+
+#ifdef VM_TRACE
+  {
+    void* tmp[] = { 
+      &addfragptr,
+      &attrinbufptr,
+      &databufptr,
+      &fragptr,
+      &gcpPtr,
+      &lcpPtr,
+      &lcpLocptr,
+      &logPartPtr,
+      &logFilePtr,
+      &lfoPtr,
+      &logPagePtr,
+      &pageRefPtr,
+      &scanptr,
+      &tabptr,
+      &tcConnectptr,
+      &tcNodeFailptr,
+    }; 
+    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
+  
 }//Dblqh::Dblqh()
 
 Dblqh::~Dblqh() 

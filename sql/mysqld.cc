@@ -237,10 +237,10 @@ bool opt_help= 0;
 bool opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
-{{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
- {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
- {&Arg_comparator::compare_int, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
+{{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
+ {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
+ {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
 
 
 /* Global variables */
@@ -366,7 +366,7 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
-  have_example_db, have_archive_db;
+  have_example_db, have_archive_db, have_csv_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -2535,7 +2535,8 @@ server.");
   if (opt_error_log)
   {
     if (!log_error_file_ptr[0])
-      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err", 0);
+      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
+                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
     else
       fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
 		MY_UNPACK_FILENAME | MY_SAFE_PATH);
@@ -5470,6 +5471,11 @@ static void mysql_init_variables(void)
   have_archive_db= SHOW_OPTION_YES;
 #else
   have_archive_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_CSV_DB
+  have_csv_db= SHOW_OPTION_YES;
+#else
+  have_csv_db= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   have_ndbcluster=SHOW_OPTION_DISABLED;

@@ -1613,6 +1613,7 @@ void Ndbcntr::startInsertTransactions(Signal* signal)
 
   ckey = 1;
   ctransidPhase = ZTRUE;
+  signal->theData[0] = 0;
   signal->theData[1] = reference();
   sendSignal(DBTC_REF, GSN_TCSEIZEREQ, signal, 2, JBB);
   return;
@@ -1740,6 +1741,7 @@ void Ndbcntr::crSystab8Lab(Signal* signal)
   }//if
   signal->theData[0] = ctcConnectionP;
   signal->theData[1] = reference();
+  signal->theData[2] = 0;
   sendSignal(DBTC_REF, GSN_TCRELEASEREQ, signal, 2, JBB);
   return;
 }//Ndbcntr::crSystab8Lab()
