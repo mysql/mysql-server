@@ -49,6 +49,9 @@ typedef struct unicase_info_st {
 #define MY_CS_TOOSMALL	-1
 #define MY_CS_TOOFEW(n)	(-1-(n))
 
+#define MY_SEQ_INTTAIL	1
+#define MY_SEQ_SPACES	2
+
         /* My charsets_list flags */
 #define MY_NO_SETS       0
 #define MY_CS_COMPILED  1      /* compiled-in sets               */
@@ -144,6 +147,8 @@ typedef struct charset_info_st
   ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, int base, char **e, int *err);
   double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e, int *err);
   
+  ulong        (*scan)(struct charset_info_st *, const char *b, const char *e, int sq);
+  
 } CHARSET_INFO;
 
 
@@ -180,6 +185,8 @@ extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, ui
 
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
+
+ulong my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
 

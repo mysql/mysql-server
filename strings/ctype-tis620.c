@@ -726,7 +726,8 @@ CHARSET_INFO my_charset_tis620 =
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
 };
 
 
