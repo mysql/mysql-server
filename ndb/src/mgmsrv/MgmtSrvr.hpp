@@ -49,6 +49,7 @@ class Ndb_mgmd_event_service : public EventLoggerBase
 public:
   struct Event_listener : public EventLoggerBase {
     NDB_SOCKET_TYPE m_socket;
+    Uint32 m_parsable;
   };
   
 private:  
