@@ -44261,13 +44261,301 @@ contains an Eiffel wrapper written by Michael Ravits.
 @chapter Extending MySQL
 
 @menu
+* MySQL internals::             MySQL Internals
 * Adding functions::            Adding New Functions to MySQL
 * Adding procedures::           Adding New Procedures to MySQL
-* MySQL internals::             MySQL Internals
 @end menu
 
 
-@node Adding functions, Adding procedures, Extending MySQL, Extending MySQL
+@node MySQL internals, Adding functions, Extending MySQL, Extending MySQL
+@section MySQL Internals
+
+@cindex internals
+@cindex threads
+
+This chapter describes a lot of things that you need to know when
+working on the MySQL code. If you plan to contribute to MySQL
+development, want to have access to the bleeding-edge in-between
+versions code, or just want to keep track of development, follow the
+instructions in @xref{Installing source tree}.
+If you are interested in MySQL internals, you should also subscribe
+to our @code{internals} mailing list. This list is relatively low
+traffic. For details on how to subscribe, please see
+@ref{Mailing-list}.
+All developers at MySQL AB are on the @code{internals} list and we
+help other people who are working on the MySQL code. Feel free to
+use this list both to ask questions about the code and to send
+patches that you would like to contribute to the MySQL project!
+
+@menu
+* MySQL threads::               MySQL threads
+* MySQL test suite::            MySQL test suite
+@end menu
+
+
+@node MySQL threads, MySQL test suite, MySQL internals, MySQL internals
+@subsection MySQL Threads
+
+The MySQL server creates the following threads:
+
+@itemize @bullet
+
+@item
+The TCP/IP connection thread handles all connection requests and
+creates a new dedicated thread to handle the authentication and
+and SQL query processing for each connection.
+
+@item
+On Windows NT there is a named pipe handler thread that does the same work as
+the TCP/IP connection thread on named pipe connect requests.
+
+@item
+The signal thread handles all signals.  This thread also normally handles
+alarms and calls @code{process_alarm()} to force timeouts on connections
+that have been idle too long.
+
+@item
+If @code{mysqld} is compiled with @code{-DUSE_ALARM_THREAD}, a dedicated 
+thread that handles alarms is created.  This is only used on some systems where
+there are problems with @code{sigwait()} or if one wants to use the
+@code{thr_alarm()} code in ones application without a dedicated signal
+handling thread.
+
+@item
+If one uses the @code{--flush_time=#} option, a dedicated thread is created
+to flush all tables at the given interval.
+
+@item
+Every connection has its own thread.
+
+@item
+Every different table on which one uses @code{INSERT DELAYED} gets its
+own thread.
+
+@item
+If you use @code{--master-host}, a slave replication thread will be
+started to read and apply updates from the master.
+@end itemize
+
+@code{mysqladmin processlist} only shows the connection, @code{INSERT DELAYED},
+and replication threads.
+
+
+@node MySQL test suite,  , MySQL threads, MySQL internals
+@subsection MySQL Test Suite
+
+@cindex mysqltest, MySQL Test Suite
+@cindex testing mysqld, mysqltest
+
+Until recently, our main full-coverage test suite was based on proprietary 
+customer data and for that reason has not been publicly available. The only 
+publicly available part of our testing process consisted of the @code{crash-me}
+test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
+miscellaneous tests located in @code{tests} directory. The lack of a 
+standardised publicly available test suite has made it difficult for our users,
+as well developers, to do regression tests on the MySQL code. To 
+address this problem, we have created a new test system that is included in
+the source and binary distributions starting in Version 3.23.29.
+
+The current set of test cases doesn't test everything in MySQL, but it
+should catch most obvious bugs in the SQL processing code, OS/library
+issues, and is quite thorough in testing replication.  Our eventual goal
+is to have the tests cover 100% of the code.  We welcome contributions
+to our test suite.  You may especially want to contribute tests that
+examine the functionality critical to your system, as this will ensure
+that all future MySQL releases will work well with your
+applications.
+
+@menu
+* running mysqltest::           Running the MySQL Test Suite
+* extending mysqltest::         Extending the MySQL Test Suite
+* Reporting mysqltest bugs::    Reporting Bugs in the MySQL Test Suite
+@end menu
+
+
+@node running mysqltest, extending mysqltest, MySQL test suite, MySQL test suite
+@subsubsection Running the MySQL Test Suite
+
+The test system consist of a test language interpreter
+(@code{mysqltest}), a shell script to run all
+tests(@code{mysql-test-run}), the actual test cases written in a special
+test language, and their expected results.  To run the test suite on
+your system after a build, type @code{make test} or
+@code{mysql-test/mysql-test-run} from the source root.  If you have
+installed a binary distribution, @code{cd} to the install root
+(eg. @code{/usr/local/mysql}), and do @code{scripts/mysql-test-run}.
+All tests should succeed.  If not, you should try to find out why and
+report the problem if this is a bug in MySQL.
+@xref{Reporting mysqltest bugs}.
+
+If you have a copy of @code{mysqld} running on the machine where you want to
+run the test suite you do not have to stop it, as long as it is not using
+ports @code{9306} and @code{9307}.  If one of those ports is taken, you should
+edit @code{mysql-test-run} and change the values of the master and/or slave
+port to one that is available.
+
+You can run one individual test case with
+@code{mysql-test/mysql-test-run test_name}.
+
+If one test fails, you should test running @code{mysql-test-run} with
+the @code{--force} option to check if any other tests fails.
+
+
+@node extending mysqltest, Reporting mysqltest bugs, running mysqltest, MySQL test suite
+@subsubsection Extending the MySQL Test Suite
+
+You can use the @code{mysqltest} language to write your own test cases.
+Unfortunately, we have not yet written full documentation for it - we plan to
+do this shortly.  You can, however, look at our current test cases and use 
+them as an example.  The following points should help you get started:
+
+@itemize @bullet
+@item
+The tests are located in @code{mysql-test/t/*.test}
+
+@item
+A test case consists of @code{;} terminated statements and is similar to the
+input of @code{mysql} command line client.  A statement by default is a query
+to be sent to MySQL server, unless it is recognised as internal
+command (eg. @code{sleep}).
+
+@item
+All queries that produce results, e.g. @code{SELECT}, @code{SHOW},
+@code{EXPLAIN}, etc., must be preceded with @code{@@/path/to/result/file}.  The
+file must contain the expected results.  An easy way to generate the result 
+file is to run @code{mysqltest -r < t/test-case-name.test} from 
+@code{mysql-test} directory, and then edit the generated result files, if 
+needed, to adjust them to the expected output.  In that case, be very careful 
+about not adding or deleting any invisible characters - make sure to only 
+change the text and/or delete lines.  If you have to insert a line, make sure
+the fields are separated with a hard tab, and there is a hard tab at the end.  
+You may want to use @code{od -c} to make sure your text editor has not messed 
+anything up during edit.  We, of course, hope that you will never have to edit
+the output of @code{mysqltest -r} as you only have to do it when you find a 
+bug.
+
+@item
+To be consistent with our setup, you should put your result files in
+@code{mysql-test/r} directory and name them @code{test_name.result}.  If the
+test produces more than one result, you should use @code{test_name.a.result},
+@code{test_name.b.result}, etc.
+
+@item
+If a statement returns an error, you should on the line before the statement
+specify with the @code{--error error-number}.  The error number can be
+a list of possible error numbers separated with @code{','}.
+
+@item
+If you are writing a replication test case, you should on the first line of
+the test file, put @code{source include/master-slave.inc;}.  To switch between
+master and slave, use @code{connection master;} and @code{connection slave;}. 
+If you need to do something on an alternate connection, you can do 
+@code{connection master1;} for the master, and @code{connection slave1;} for
+the slave.
+
+@item
+If you need to do something in a loop, you can use something like this:
+@example
+let $1=1000;
+while ($1)
+@{
+ # do your queries here
+ dec $1;
+@}
+@end example
+
+@item
+To sleep between queries, use the @code{sleep} command. It supports fractions
+of a second, so you can do @code{sleep 1.3;}, for example, to sleep 1.3 
+seconds.
+
+@item
+To run the slave with additional options for your test case, put them
+in the command-line format in @code{mysql-test/t/test_name-slave.opt}. For
+the master, put them in @code{mysql-test/t/test_name-master.opt}.
+
+@item
+If you have a question about the test suite, or have a test case to contribute,
+e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
+attachments, you should ftp all the relevant files to:
+@uref{ftp://support.mysql.com/pub/mysql/Incoming}
+
+@end itemize
+
+
+@node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
+@subsubsection Reporting Bugs in the MySQL Test Suite
+
+If your MySQL version doesn't pass the test suite you should
+do the following:
+
+@itemize @bullet
+@item
+Don't send a bug report before you have found out as much as possible of
+what when wrong!  When you do it, please use the @code{mysqlbug} script
+so that we can get information about your system and @code{MySQL}
+version. @xref{Bug reports}.
+@item
+Make sure to include the output of @code{mysql-test-run}, as well as
+contents of all @code{.reject} files in @code{mysql-test/r} directory.
+@item
+If a test in the test suite fails, check if the test fails also when run
+by its own:
+
+@example
+cd mysql-test
+mysql-test-run --local test-name
+@end example
+
+If this fails, then you should configure MySQL with
+@code{--with-debug} and run @code{mysql-test-run} with the
+@code{--debug} option. If this also fails send the trace file
+@file{var/tmp/master.trace} to ftp://support.mysql.com/pub/mysql/secret
+so that we can examine it. Please remember to also include a full
+description of your system, the version of the mysqld binary and how you
+compiled it.
+
+@item
+Try also to run @code{mysql-test-run} with the @code{--force} option to
+see if there is any other test that fails.
+
+@item
+If you have compiled MySQL yourself, check our manual for how
+to compile MySQL on your platform or, preferable, use one of
+the binaries we have compiled for you at
+@uref{http://www.mysql.com/downloads/}.  All our standard binaries should
+pass the test suite !
+
+@item
+If you get an error, like @code{Result length mismatch} or @code{Result
+content mismatch} it means that the output of the test didn't match
+exactly the expected output. This could be a bug in MySQL or
+that your mysqld version produces slight different results under some
+circumstances.
+
+Failed test results are put in a file with the same base name as the
+result file with the @code{.reject} extension.  If your test case is
+failing, you should do a diff on the two files.  If you cannot see how
+they are different, examine both with @code{od -c} and also check their
+lengths.
+
+@item
+If a test fails totally, you should check the logs file in the
+@code{mysql-test/var/log} directory for hints of what went wrong.
+
+@item
+If you have compiled MySQL with debugging you can try to debug this
+by running @code{mysql-test-run} with the @code{--gdb} and/or @code{--debug}
+options.
+@xref{Making trace files}.
+
+If you have not compiled MySQL for debugging you should probably
+do that.  Just specify the @code{--with-debug} options to @code{configure}!
+@xref{Installing source}.
+@end itemize
+
+
+@node Adding functions, Adding procedures, MySQL internals, Extending MySQL
 @section Adding New Functions to MySQL
 
 @cindex functions, new
@@ -44913,7 +45201,7 @@ absolutely necessary!
 @end itemize
 
 
-@node Adding procedures, MySQL internals, Adding functions, Extending MySQL
+@node Adding procedures,  , Adding functions, Extending MySQL
 @section Adding New Procedures to MySQL
 
 @cindex procedures, adding
@@ -44973,291 +45261,6 @@ You can find all information about procedures by examining the following files:
 @item @file{sql/procedure.cc}
 @item @file{sql/sql_select.cc}
 @end itemize
-
-
-@node MySQL internals,  , Adding procedures, Extending MySQL
-@section MySQL Internals
-
-@cindex internals
-@cindex threads
-
-This chapter describes a lot of things that you need to know when
-working on the MySQL code. If you plan to contribute to MySQL
-development, want to have access to the bleeding-edge in-between
-versions code, or just want to keep track of development, follow the
-instructions in @xref{Installing source tree}.  If you are interested
-in MySQL internals, you should also subscribe to our @code{internals}
-mailing list. This list is relatively low traffic. For details on how
-to subscribe, please see @ref{Mailing-list}.
-
-@menu
-* MySQL threads::               MySQL threads
-* MySQL test suite::            MySQL test suite
-@end menu
-
-
-@node MySQL threads, MySQL test suite, MySQL internals, MySQL internals
-@subsection MySQL Threads
-
-The MySQL server creates the following threads:
-
-@itemize @bullet
-
-@item
-The TCP/IP connection thread handles all connection requests and
-creates a new dedicated thread to handle the authentication and
-and SQL query processing for each connection.
-
-@item
-On Windows NT there is a named pipe handler thread that does the same work as
-the TCP/IP connection thread on named pipe connect requests.
-
-@item
-The signal thread handles all signals.  This thread also normally handles
-alarms and calls @code{process_alarm()} to force timeouts on connections
-that have been idle too long.
-
-@item
-If @code{mysqld} is compiled with @code{-DUSE_ALARM_THREAD}, a dedicated 
-thread that handles alarms is created.  This is only used on some systems where
-there are problems with @code{sigwait()} or if one wants to use the
-@code{thr_alarm()} code in ones application without a dedicated signal
-handling thread.
-
-@item
-If one uses the @code{--flush_time=#} option, a dedicated thread is created
-to flush all tables at the given interval.
-
-@item
-Every connection has its own thread.
-
-@item
-Every different table on which one uses @code{INSERT DELAYED} gets its
-own thread.
-
-@item
-If you use @code{--master-host}, a slave replication thread will be
-started to read and apply updates from the master.
-@end itemize
-
-@code{mysqladmin processlist} only shows the connection, @code{INSERT DELAYED},
-and replication threads.
-
-
-@node MySQL test suite,  , MySQL threads, MySQL internals
-@subsection MySQL Test Suite
-
-@cindex mysqltest, MySQL Test Suite
-@cindex testing mysqld, mysqltest
-
-Until recently, our main full-coverage test suite was based on proprietary 
-customer data and for that reason has not been publicly available. The only 
-publicly available part of our testing process consisted of the @code{crash-me}
-test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
-miscellaneous tests located in @code{tests} directory. The lack of a 
-standardised publicly available test suite has made it difficult for our users,
-as well developers, to do regression tests on the MySQL code. To 
-address this problem, we have created a new test system that is included in
-the source and binary distributions starting in Version 3.23.29.
-
-The current set of test cases doesn't test everything in MySQL, but it
-should catch most obvious bugs in the SQL processing code, OS/library
-issues, and is quite thorough in testing replication.  Our eventual goal
-is to have the tests cover 100% of the code.  We welcome contributions
-to our test suite.  You may especially want to contribute tests that
-examine the functionality critical to your system, as this will ensure
-that all future MySQL releases will work well with your
-applications.
-
-@menu
-* running mysqltest::           Running the MySQL Test Suite
-* extending mysqltest::         Extending the MySQL Test Suite
-* Reporting mysqltest bugs::    Reporting Bugs in the MySQL Test Suite
-@end menu
-
-
-@node running mysqltest, extending mysqltest, MySQL test suite, MySQL test suite
-@subsubsection Running the MySQL Test Suite
-
-The test system consist of a test language interpreter
-(@code{mysqltest}), a shell script to run all
-tests(@code{mysql-test-run}), the actual test cases written in a special
-test language, and their expected results.  To run the test suite on
-your system after a build, type @code{make test} or
-@code{mysql-test/mysql-test-run} from the source root.  If you have
-installed a binary distribution, @code{cd} to the install root
-(eg. @code{/usr/local/mysql}), and do @code{scripts/mysql-test-run}.
-All tests should succeed.  If not, you should try to find out why and
-report the problem if this is a bug in MySQL.
-@xref{Reporting mysqltest bugs}.
-
-If you have a copy of @code{mysqld} running on the machine where you want to
-run the test suite you do not have to stop it, as long as it is not using
-ports @code{9306} and @code{9307}.  If one of those ports is taken, you should
-edit @code{mysql-test-run} and change the values of the master and/or slave
-port to one that is available.
-
-You can run one individual test case with
-@code{mysql-test/mysql-test-run test_name}.
-
-If one test fails, you should test running @code{mysql-test-run} with
-the @code{--force} option to check if any other tests fails.
-
-
-@node extending mysqltest, Reporting mysqltest bugs, running mysqltest, MySQL test suite
-@subsubsection Extending the MySQL Test Suite
-
-You can use the @code{mysqltest} language to write your own test cases.
-Unfortunately, we have not yet written full documentation for it - we plan to
-do this shortly.  You can, however, look at our current test cases and use 
-them as an example.  The following points should help you get started:
-
-@itemize @bullet
-@item
-The tests are located in @code{mysql-test/t/*.test}
-
-@item
-A test case consists of @code{;} terminated statements and is similar to the
-input of @code{mysql} command line client.  A statement by default is a query
-to be sent to MySQL server, unless it is recognised as internal
-command (eg. @code{sleep}).
-
-@item
-All queries that produce results, e.g. @code{SELECT}, @code{SHOW},
-@code{EXPLAIN}, etc., must be preceded with @code{@@/path/to/result/file}.  The
-file must contain the expected results.  An easy way to generate the result 
-file is to run @code{mysqltest -r < t/test-case-name.test} from 
-@code{mysql-test} directory, and then edit the generated result files, if 
-needed, to adjust them to the expected output.  In that case, be very careful 
-about not adding or deleting any invisible characters - make sure to only 
-change the text and/or delete lines.  If you have to insert a line, make sure
-the fields are separated with a hard tab, and there is a hard tab at the end.  
-You may want to use @code{od -c} to make sure your text editor has not messed 
-anything up during edit.  We, of course, hope that you will never have to edit
-the output of @code{mysqltest -r} as you only have to do it when you find a 
-bug.
-
-@item
-To be consistent with our setup, you should put your result files in
-@code{mysql-test/r} directory and name them @code{test_name.result}.  If the
-test produces more than one result, you should use @code{test_name.a.result},
-@code{test_name.b.result}, etc.
-
-@item
-If a statement returns an error, you should on the line before the statement
-specify with the @code{--error error-number}.  The error number can be
-a list of possible error numbers separated with @code{','}.
-
-@item
-If you are writing a replication test case, you should on the first line of
-the test file, put @code{source include/master-slave.inc;}.  To switch between
-master and slave, use @code{connection master;} and @code{connection slave;}. 
-If you need to do something on an alternate connection, you can do 
-@code{connection master1;} for the master, and @code{connection slave1;} for
-the slave.
-
-@item
-If you need to do something in a loop, you can use something like this:
-@example
-let $1=1000;
-while ($1)
-@{
- # do your queries here
- dec $1;
-@}
-@end example
-
-@item
-To sleep between queries, use the @code{sleep} command. It supports fractions
-of a second, so you can do @code{sleep 1.3;}, for example, to sleep 1.3 
-seconds.
-
-@item
-To run the slave with additional options for your test case, put them
-in the command-line format in @code{mysql-test/t/test_name-slave.opt}. For
-the master, put them in @code{mysql-test/t/test_name-master.opt}.
-
-@item
-If you have a question about the test suite, or have a test case to contribute,
-e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
-attachments, you should ftp all the relevant files to:
-@uref{ftp://support.mysql.com/pub/mysql/Incoming}
-
-@end itemize
-
-
-@node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
-@subsubsection Reporting Bugs in the MySQL Test Suite
-
-If your MySQL version doesn't pass the test suite you should
-do the following:
-
-@itemize @bullet
-@item
-Don't send a bug report before you have found out as much as possible of
-what when wrong!  When you do it, please use the @code{mysqlbug} script
-so that we can get information about your system and @code{MySQL}
-version. @xref{Bug reports}.
-@item
-Make sure to include the output of @code{mysql-test-run}, as well as
-contents of all @code{.reject} files in @code{mysql-test/r} directory.
-@item
-If a test in the test suite fails, check if the test fails also when run
-by its own:
-
-@example
-cd mysql-test
-mysql-test-run --local test-name
-@end example
-
-If this fails, then you should configure MySQL with
-@code{--with-debug} and run @code{mysql-test-run} with the
-@code{--debug} option. If this also fails send the trace file
-@file{var/tmp/master.trace} to ftp://support.mysql.com/pub/mysql/secret
-so that we can examine it. Please remember to also include a full
-description of your system, the version of the mysqld binary and how you
-compiled it.
-
-@item
-Try also to run @code{mysql-test-run} with the @code{--force} option to
-see if there is any other test that fails.
-
-@item
-If you have compiled MySQL yourself, check our manual for how
-to compile MySQL on your platform or, preferable, use one of
-the binaries we have compiled for you at
-@uref{http://www.mysql.com/downloads/}.  All our standard binaries should
-pass the test suite !
-
-@item
-If you get an error, like @code{Result length mismatch} or @code{Result
-content mismatch} it means that the output of the test didn't match
-exactly the expected output. This could be a bug in MySQL or
-that your mysqld version produces slight different results under some
-circumstances.
-
-Failed test results are put in a file with the same base name as the
-result file with the @code{.reject} extension.  If your test case is
-failing, you should do a diff on the two files.  If you cannot see how
-they are different, examine both with @code{od -c} and also check their
-lengths.
-
-@item
-If a test fails totally, you should check the logs file in the
-@code{mysql-test/var/log} directory for hints of what went wrong.
-
-@item
-If you have compiled MySQL with debugging you can try to debug this
-by running @code{mysql-test-run} with the @code{--gdb} and/or @code{--debug}
-options.
-@xref{Making trace files}.
-
-If you have not compiled MySQL for debugging you should probably
-do that.  Just specify the @code{--with-debug} options to @code{configure}!
-@xref{Installing source}.
-@end itemize
-
-
 
 
 @node Problems, Users, Extending MySQL, Top
