@@ -3605,6 +3605,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
   case Item::FIELD_STD_ITEM:
+  case Item::SUBSELECT_ITEM:
     /* The following can only happen with 'CREATE TABLE ... SELECT' */
   case Item::INT_ITEM:
   case Item::REAL_ITEM:

@@ -1,6 +1,10 @@
 select (select 2);
 (select 2)
 2
+SELECT (SELECT 1) UNION SELECT (SELECT 2);
+(SELECT 1)
+1
+2
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
