@@ -1362,8 +1362,15 @@ innobase_shutdown_for_mysql(void)
 		"InnoDB: inside InnoDB at shutdown\n",
 		srv_conc_n_threads);
 	}
-	
-	ut_free_all_mem();
-	
+
+	/*
+	TODO: We should exit the i/o-handler and other utility threads
+	before freeing all memory. Now this can potentially cause a seg
+	fault!
+	*/
+#ifdef NOT_WORKING_YET
+        ut_free_all_mem();
+#endif 
+
 	return((int) DB_SUCCESS);
 }
