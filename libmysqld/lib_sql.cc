@@ -95,7 +95,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
   }
   else
+  {
     net->last_error[0]= 0;
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
