@@ -9,6 +9,7 @@ ndb_version.h
 
 ndbapiinclude_HEADERS = \
 ndbapi/ndbapi_limits.h \
+ndbapi/ndb_opt_defaults.h \
 ndbapi/Ndb.hpp \
 ndbapi/NdbApi.hpp \
 ndbapi/NdbTransaction.hpp \

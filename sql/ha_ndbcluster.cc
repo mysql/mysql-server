@@ -1055,6 +1055,42 @@ int ha_ndbcluster::get_metadata(const char *path)
   DBUG_RETURN(build_index_list(table, ILBP_OPEN));  
 }
 
+static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
+				       const NDBINDEX *index,
+				       KEY *key_info)
+{
+  DBUG_ENTER("fix_unique_index_attr_order");
+  unsigned sz= index->getNoOfIndexColumns();
+
+  if (data.unique_index_attrid_map)
+    my_free((char*)data.unique_index_attrid_map, MYF(0));
+  data.unique_index_attrid_map= (unsigned char*)my_malloc(sz,MYF(MY_WME));
+
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  DBUG_ASSERT(key_info->key_parts == sz);
+  for (unsigned i= 0; key_part != end; key_part++, i++) 
+  {
+    const char *field_name= key_part->field->field_name;
+    unsigned name_sz= strlen(field_name);
+    if (name_sz >= NDB_MAX_ATTR_NAME_SIZE)
+      name_sz= NDB_MAX_ATTR_NAME_SIZE-1;
+#ifndef DBUG_OFF
+   data.unique_index_attrid_map[i]= 255;
+#endif
+    for (unsigned j= 0; j < sz; j++)
+    {
+      const NdbDictionary::Column *c= index->getColumn(j);
+      if (strncmp(field_name, c->getName(), name_sz) == 0)
+      {
+	data.unique_index_attrid_map[i]= j;
+	break;
+      }
+    }
+    DBUG_ASSERT(data.unique_index_attrid_map[i] != 255);
+  }
+  DBUG_RETURN(0);
+}
 
 int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 {
@@ -1129,7 +1165,8 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
       const NDBINDEX *index= dict->getIndex(unique_index_name, m_tabname);
       if (!index) DBUG_RETURN(1);
       m_index[i].unique_index= (void *) index;
-    }      
+      error= fix_unique_index_attr_order(m_index[i], index, key_info);
+    }
   }
   
   DBUG_RETURN(error);
@@ -1187,6 +1224,11 @@ void ha_ndbcluster::release_metadata()
   {
     m_index[i].unique_index= NULL;      
     m_index[i].index= NULL;      
+    if (m_index[i].unique_index_attrid_map)
+    {
+      my_free((char *)m_index[i].unique_index_attrid_map, MYF(0));
+      m_index[i].unique_index_attrid_map= NULL;
+    }
   }
 
   DBUG_VOID_RETURN;
@@ -1355,7 +1397,7 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
     const byte* ptr= key_part->null_bit ? key_ptr + 1 : key_ptr;
     char buf[256];
     shrink_varchar(field, ptr, buf);
-    if (set_ndb_key(op, field, i, ptr))
+    if (set_ndb_key(op, field, m_index[active_index].unique_index_attrid_map[i], ptr))
       ERR_RETURN(m_active_trans->getNdbError());
     key_ptr+= key_part->store_length;
   }
@@ -1858,13 +1900,10 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
         // Set bound if not cancelled via type -1
         if (p.bound_type != -1)
 	{
-	  char truncated_field_name[NDB_MAX_ATTR_NAME_SIZE];
-	  strnmov(truncated_field_name,field->field_name,sizeof(truncated_field_name));
-	  truncated_field_name[sizeof(truncated_field_name)-1]= '\0';
           const char* ptr= p.bound_ptr;
           char buf[256];
           shrink_varchar(field, ptr, buf);
-          if (op->setBound(truncated_field_name, p.bound_type, ptr))
+          if (op->setBound(i, p.bound_type, ptr))
             ERR_RETURN(op->getNdbError());
 	}
       }
@@ -3634,13 +3673,13 @@ static int create_ndb_column(NDBCOL &col,
     col.setLength(1);
     break;
   // Date types
-  case MYSQL_TYPE_TIMESTAMP:
-    col.setType(NDBCOL::Unsigned);
-    col.setLength(1);
-    break;
   case MYSQL_TYPE_DATETIME:    
     col.setType(NDBCOL::Datetime);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_DATE: // ?
+    col.setType(NDBCOL::Char);
+    col.setLength(field->pack_length());
     break;
   case MYSQL_TYPE_NEWDATE:
     col.setType(NDBCOL::Date);
@@ -3650,10 +3689,13 @@ static int create_ndb_column(NDBCOL &col,
     col.setType(NDBCOL::Time);
     col.setLength(1);
     break;
-  case MYSQL_TYPE_DATE: // ?
-  case MYSQL_TYPE_YEAR:        
-    col.setType(NDBCOL::Char);
-    col.setLength(field->pack_length());
+  case MYSQL_TYPE_YEAR:
+    col.setType(NDBCOL::Year);
+    col.setLength(1);
+    break;
+  case MYSQL_TYPE_TIMESTAMP:
+    col.setType(NDBCOL::Timestamp);
+    col.setLength(1);
     break;
   // Char types
   case MYSQL_TYPE_STRING:      
@@ -4192,9 +4234,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 
   for (i= 0; i < MAX_KEY; i++)
   {
-    m_index[i].type= UNDEFINED_INDEX;   
-    m_index[i].unique_index= NULL;      
-    m_index[i].index= NULL;      
+    m_index[i].type= UNDEFINED_INDEX;
+    m_index[i].unique_index= NULL;
+    m_index[i].index= NULL;
+    m_index[i].unique_index_attrid_map= NULL;
   }
 
   DBUG_VOID_RETURN;

@@ -6301,6 +6301,7 @@ Dbdict::createIndex_slavePrepare(Signal* signal, OpCreateIndexPtr opPtr)
 void
 Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
 {
+  Uint32 attrid_map[MAX_ATTRIBUTES_IN_INDEX];
   Uint32 k;
   jam();
   const CreateIndxReq* const req = &opPtr.p->m_request;
@@ -6369,39 +6370,49 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     // tree node size in words (make configurable later)
     indexPtr.p->tupKeyLength = MAX_TTREE_NODE_SIZE;
   }
-  // hash index attributes must currently be in table order
-  Uint32 prevAttrId = RNIL;
+
+  AttributeMask mask;
+  mask.clear();
   for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     jam();
-    bool found = false;
-    for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
-      AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);
-      tAttr = aRec->nextAttrInTable;
-      if (aRec->attributeId != opPtr.p->m_attrList.id[k])
+    unsigned current_id= opPtr.p->m_attrList.id[k];
+    AttributeRecord* aRec= NULL;
+    Uint32 tAttr= tablePtr.p->firstAttribute;
+    for (; tAttr != RNIL; tAttr= aRec->nextAttrInTable)
+    {
+      aRec = c_attributeRecordPool.getPtr(tAttr);
+      if (aRec->attributeId != current_id)
         continue;
       jam();
-      found = true;
-      const Uint32 a = aRec->attributeDescriptor;
-      if (indexPtr.p->isHashIndex()) {
-        const Uint32 s1 = AttributeDescriptor::getSize(a);
-        const Uint32 s2 = AttributeDescriptor::getArraySize(a);
-        indexPtr.p->tupKeyLength += ((1 << s1) * s2 + 31) >> 5;
-      }
+      break;
     }
-    if (! found) {
+    if (tAttr == RNIL) {
       jam();
       opPtr.p->m_errorCode = CreateIndxRef::BadRequestType;
       opPtr.p->m_errorLine = __LINE__;
       return;
     }
-    if (indexPtr.p->isHashIndex() && 
-        k > 0 && prevAttrId >= opPtr.p->m_attrList.id[k]) {
+    if (mask.get(current_id))
+    {
       jam();
-      opPtr.p->m_errorCode = CreateIndxRef::InvalidAttributeOrder;
+      opPtr.p->m_errorCode = CreateIndxRef::DuplicateAttributes;
       opPtr.p->m_errorLine = __LINE__;
       return;
     }
-    prevAttrId = opPtr.p->m_attrList.id[k];
+    mask.set(current_id);
+
+    const Uint32 a = aRec->attributeDescriptor;
+    unsigned kk= k;
+    if (indexPtr.p->isHashIndex()) {
+      const Uint32 s1 = AttributeDescriptor::getSize(a);
+      const Uint32 s2 = AttributeDescriptor::getArraySize(a);
+      indexPtr.p->tupKeyLength += ((1 << s1) * s2 + 31) >> 5;
+      // reorder the attributes according to the tableid order
+      // for unque indexes
+      for (; kk > 0 && current_id < attrid_map[kk-1]>>16; kk--)
+	attrid_map[kk]= attrid_map[kk-1];
+    }
+    attrid_map[kk]= k | (current_id << 16);
   }
   indexPtr.p->noOfPrimkey = indexPtr.p->noOfAttributes;
   // plus concatenated primary table key attribute
@@ -6421,12 +6432,17 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   // write index key attributes
   AttributeRecordPtr aRecPtr;
   c_attributeRecordPool.getPtr(aRecPtr, tablePtr.p->firstAttribute);
-  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (unsigned k = 0; k < opPtr.p->m_attrList.sz; k++) {
+    // insert the attributes in the order decided above in attrid_map
+    // k is new order, current_id is in previous order
+    // ToDo: make sure "current_id" is stored with the table and
+    // passed up to NdbDictionary
+    unsigned current_id= opPtr.p->m_attrList.id[attrid_map[k] & 0xffff];
     jam();
     for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
       AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);
       tAttr = aRec->nextAttrInTable;
-      if (aRec->attributeId != opPtr.p->m_attrList.id[k])
+      if (aRec->attributeId != current_id)
         continue;
       jam();
       const Uint32 a = aRec->attributeDescriptor;

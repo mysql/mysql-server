@@ -52,6 +52,7 @@ typedef struct ndb_index_data {
   NDB_INDEX_TYPE type;
   void *index;
   void *unique_index;
+  unsigned char *unique_index_attrid_map;
 } NDB_INDEX_DATA;
 
 typedef struct st_ndbcluster_share {

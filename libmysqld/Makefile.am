@@ -28,7 +28,7 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
-			-I$(top_srcdir)/extra \
+			-I$(top_builddir)/include \
 			$(openssl_includes) @ZLIB_INCLUDES@
 
 noinst_LIBRARIES =	libmysqld_int.a

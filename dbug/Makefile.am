@@ -26,6 +26,7 @@ EXTRA_DIST =            example1.c example2.c example3.c \
 NROFF_INC =             example1.r example2.r example3.r main.r \
                         factorial.r output1.r output2.r output3.r \
                         output4.r output5.r
+CLEANFILES =            $(NROFF_INC) user.t user.ps
 
 
 # Must be linked with libs that are not compiled yet
@@ -58,9 +59,6 @@ output5.r:      factorial
 .c.r:
 		@RM@ -f $@
 		@SED@ -e 's!\\!\\\\!g' $< > $@
-
-clean:
-		@RM@ -f $(NROFF_INC) user.t user.ps
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
