@@ -24,7 +24,8 @@ extern os_event_t	srv_lock_timeout_thread_event;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
-#define SRV_AUTO_EXTEND_INCREMENT   (8 * ((1024 * 1024) / UNIV_PAGE_SIZE))
+#define SRV_AUTO_EXTEND_INCREMENT	\
+	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
 /* This is set to TRUE if the MySQL user has set it in MySQL */
 extern ibool	srv_lower_case_table_names;
@@ -51,6 +52,7 @@ extern ulint*   srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
+extern ulint	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
 
