@@ -1075,11 +1075,13 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 			      const key_range *key,
 			      int bound)
 {
-  uint i, tot_len;
+  uint key_len, key_store_len, tot_len, key_tot_len;
   byte *key_ptr;
   KEY* key_info= table->key_info + active_index;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
+  Field* field;
+  bool key_nullable, key_null;
 
   DBUG_ENTER("set_bounds");
   DBUG_PRINT("enter", ("bound: %d", bound));
@@ -1089,29 +1091,37 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
   // Set bounds using key data
   tot_len= 0;
-  key_ptr= (byte *) key->key;    
+  key_ptr= (byte *) key->key;
+  key_tot_len= key->length;
   for (; key_part != end; key_part++)
   {
-    Field* field= key_part->field;
-    uint32 field_len=  field->pack_length();
-    tot_len+= field_len;
+    field= key_part->field;
+    key_len=  key_part->length;
+    key_store_len=  key_part->store_length;
+    key_nullable= (bool) key_part->null_bit;
+    key_null= (field->maybe_null() && *key_ptr);
+    tot_len+= key_store_len;
 
     const char* bounds[]= {"LE", "LT", "GE", "GT", "EQ"};
     DBUG_ASSERT(bound >= 0 && bound <= 4);    
-    DBUG_PRINT("info", ("Set Bound%s on %s", 
+    DBUG_PRINT("info", ("Set Bound%s on %s %s %s %s", 
 			bounds[bound],
-			field->field_name));
-    DBUG_DUMP("key", (char*)key_ptr, field_len);
+			field->field_name,
+			key_nullable ? "NULLABLE" : "",
+			key_null ? "NULL":""));
+    DBUG_PRINT("info", ("Total length %ds", tot_len));
+    
+    DBUG_DUMP("key", (char*) key_ptr, key_store_len);
     
     if (op->setBound(field->field_name,
 		     bound, 
-		     field->is_null() ? 0 : key_ptr,
-		     field->is_null() ? 0 : field_len) != 0)
+		     key_null ? 0 : (key_nullable ? key_ptr + 1 : key_ptr),
+		     key_null ? 0 : key_len) != 0)
       ERR_RETURN(op->getNdbError());
     
-    key_ptr+= field_len;
-    
-    if (tot_len >= key->length)
+    key_ptr+= key_store_len;
+
+    if (tot_len >= key_tot_len)
       break;
 
     /*
@@ -3104,7 +3114,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ndb(NULL),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
-		//HA_NULL_IN_KEY |
+		HA_NULL_IN_KEY |
                 HA_NOT_EXACT_COUNT |
                 HA_NO_PREFIX_CHAR_KEYS),
   m_use_write(false),
