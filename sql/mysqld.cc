@@ -284,12 +284,12 @@ my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
+my_bool opt_allow_suspicious_udfs;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 #endif
-my_bool opt_allow_suspicious_udfs;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
@@ -4143,7 +4143,7 @@ struct my_option my_long_options[] =
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"allow-suspicious-udfs", OPT_ALLOW_SUSPICIOUS_UDFS,
-   "Allows use of UDFs consisting of only one symbol xxx() "
+   "Allows to use UDFs consisting of only one symbol xxx() "
    "without corresponding xxx_init() or xxx_deinit(). That also means "
    "that one can load any function from any library, for example exit() "
    "from libc.so",
