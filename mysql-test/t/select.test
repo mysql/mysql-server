@@ -1754,13 +1754,46 @@ drop table t1;
 
 #
 # Test of removing redundant braces in the FROM part
-# (The second case used to cause a syntax error)
+# (We test each construct with the braced join to the left and right;
+#  the latter case used to cause a syntax errors.)
 #
 
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values ();
 insert into t1 values ();
 insert into t1 values ();
+# ,
 select * from (t1 as t2 left join t1 as t3 using (a)), t1;
 select * from t1, (t1 as t2 left join t1 as t3 using (a));
+# stright_join
+select * from (t1 as t2 left join t1 as t3 using (a)) straight_join t1;
+select * from t1 straight_join (t1 as t2 left join t1 as t3 using (a));
+# inner join on
+select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
+select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+# inner join using
+select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
+select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
+# left [outer] join on
+select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
+select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+# left join using
+select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
+select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
+# natural left join
+select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
+select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
+# right join on
+select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
+select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+# right [outer] joing using
+select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
+select * from t1 right outer join (t1 as t2 left join t1 as t3 using (a)) using ( a );
+# natural right join
+select * from (t1 as t2 left join t1 as t3 using (a)) natural right join t1;
+select * from t1 natural right join (t1 as t2 left join t1 as t3 using (a));
+# natural join
+select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
+select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
+
 drop table t1;
