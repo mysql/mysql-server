@@ -332,10 +332,10 @@ char **		copy_arguments_ptr= 0;
 
 int init_embedded_server(int argc, char **argv, char **groups)
 {
-  char glob_hostname[FN_REFLEN];
-
-  /* This mess is to allow people to call the init function without
-   * having to mess with a fake argv */
+  /*
+    This mess is to allow people to call the init function without
+    having to mess with a fake argv
+   */
   int *argcp;
   char ***argvp;
   int fake_argc = 1;

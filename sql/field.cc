@@ -161,13 +161,6 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 }
 #endif
 
-static inline uint field_length_without_space(const char *ptr, uint length)
-{
-  const char *end= ptr+length;
-  while (end > ptr && end[-1] == ' ')
-    end--;
-  return (uint) (end-ptr);
-}
 
 /*
  Tables of filed type compatibility.
@@ -306,7 +299,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
-   field_length(length_arg),null_bit(null_bit_arg),abs_offset(0)
+   field_length(length_arg),null_bit(null_bit_arg)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -5536,7 +5529,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
   default: return 0;
   }
-  return 0;					// This shouldn't happen
+  return 0;					// Keep compiler happy
 }
 
 
