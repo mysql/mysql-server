@@ -1381,8 +1381,8 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
     {
       mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
 		  mi->user, mi->host, mi->port);
-#ifdef STOP_IO_WITH_FD_CLOSE
-      thd->set_active_fd(vio_fd(mysql->net.vio));
+#ifdef SIGNAL_WITH_VIO_CLOSE
+      thd->set_active_vio(mysql->net.vio);
 #endif      
     }
   
@@ -1417,8 +1417,8 @@ replication resumed in log '%s' at position %s", glob_mi.user,
 		    glob_mi.host, glob_mi.port,
 		    RPL_LOG_NAME,
 		    llstr(glob_mi.pos,llbuff));
-#ifdef STOP_IO_WITH_FD_CLOSE
-      thd->set_active_fd(vio_fd(mysql->net.vio));
+#ifdef SIGNAL_WITH_VIO_CLOSE
+      thd->set_active_vio(mysql->net.vio);
 #endif      
     }
 

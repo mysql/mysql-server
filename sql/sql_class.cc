@@ -30,6 +30,7 @@
 #include "sql_acl.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
+#include <thr_alarm.h>
 #ifdef	__WIN__
 #include <io.h>
 #endif
@@ -79,14 +80,15 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   global_read_lock(0),bootstrap(0)
 {
   proc_info="login";
+  where="field list";
   host=user=priv_user=db=query=ip=0;
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=0;
   query_length=col_access=0;
   query_error=0;
-#ifdef STOP_IO_WITH_FD_CLOSE
-  active_fd = -1;
-  pthread_mutex_init(&active_fd_lock, NULL);
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  active_vio = 0;
+  pthread_mutex_init(&active_vio_lock, NULL);
 #endif  
   server_id = ::server_id;
   server_status=SERVER_STATUS_AUTOCOMMIT;
@@ -186,10 +188,32 @@ THD::~THD()
   safeFree(ip);
   free_root(&mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
-#ifdef STOP_IO_WITH_FD_CLOSE
-  pthread_mutex_destroy(&active_fd_lock);
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  pthread_mutex_destroy(&active_vio_lock);
 #endif  
   DBUG_VOID_RETURN;
+}
+
+void THD::prepare_to_die()
+{
+  thr_alarm_kill(real_id);
+  killed = 1;
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  close_active_vio();
+#endif    
+  if (mysys_var)
+    {
+      pthread_mutex_lock(&mysys_var->mutex);
+      if (!system_thread)		// Don't abort locks
+	mysys_var->abort=1;
+      if (mysys_var->current_mutex)
+	{
+	  pthread_mutex_lock(mysys_var->current_mutex);
+	  pthread_cond_broadcast(mysys_var->current_cond);
+	  pthread_mutex_unlock(mysys_var->current_mutex);
+	}
+      pthread_mutex_unlock(&mysys_var->mutex);
+    }
 }
 
 // remember the location of thread info, the structure needed for
