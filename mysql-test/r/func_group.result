@@ -183,12 +183,12 @@ insert into t2 values('BBB', 20, 1.0);
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 a1	a2	a1	a2
 10	aaa	AAA	10
-10	NULL	AAA	10
-10	bbb	AAA	10
-20	zzz	AAA	10
 10	aaa	BBB	20
+10	NULL	AAA	10
 10	NULL	BBB	20
+10	bbb	AAA	10
 10	bbb	BBB	20
+20	zzz	AAA	10
 20	zzz	BBB	20
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)

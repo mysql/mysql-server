@@ -769,6 +769,8 @@ extern "C" pthread_handler_decl(handle_manager, arg);
 void print_where(COND *cond,const char *info);
 void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
+void print_plan(JOIN* join, double read_time, double record_count,
+                uint idx, const char *info);
 #endif
 void mysql_print_status(THD *thd);
 /* key.cc */
