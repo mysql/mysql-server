@@ -762,7 +762,7 @@ BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 template <unsigned size>
 class Bitmask : public BitmaskPOD<size> {
 public:
-  Bitmask() { clear();}
+  Bitmask() { this->clear();}
 };
 
 #endif

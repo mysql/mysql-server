@@ -589,13 +589,14 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
 #if defined VM_TRACE
   // Check that signal is not null
   assert(aSignal != NULL);
-
+#if 0
   // Check that signal is not already in list
   NdbApiSignal* tmp = theSignalIdleList;
   while (tmp != NULL){
     assert(tmp != aSignal);
     tmp = tmp->next();
   }
+#endif
 #endif
   creleaseSignals++;
   aSignal->next(theSignalIdleList);

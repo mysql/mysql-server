@@ -29,9 +29,18 @@
  *  delete should be visible to same transaction
  *  
  */
+int runLoadTable2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), records, 512, false, 0, true) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
 
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
-
+int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
+{
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
@@ -1253,6 +1262,11 @@ TESTCASE("MassiveRollback2",
 	 "Test rollback of 4096 operations"){
   INITIALIZER(runClearTable2);
   INITIALIZER(runMassiveRollback2);
+  FINALIZER(runClearTable2);
+}
+TESTCASE("MassiveTransaction",
+         "Test very large insert transaction"){
+  INITIALIZER(runLoadTable2);
   FINALIZER(runClearTable2);
 }
 NDBT_TESTSUITE_END(testBasic);
