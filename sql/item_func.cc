@@ -1988,7 +1988,7 @@ bool Item_func_match::fix_index()
       ft_to_key[mkeys]=ft_to_key[key];
       continue;
     }
-    if (ft_cnt[key] == max_cnt)
+    if (max_cnt && ft_cnt[key] == max_cnt)
     {
       mkeys++;
       ft_cnt[mkeys]=ft_cnt[key];
