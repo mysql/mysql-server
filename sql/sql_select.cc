@@ -941,6 +941,7 @@ JOIN::exec()
   DBUG_ENTER("JOIN::exec");
   
   error= 0;
+  thd->limit_found_rows= thd->examined_row_count= 0;
   if (procedure)
   {
     if (procedure->change_columns(fields_list) ||
@@ -1323,6 +1324,8 @@ JOIN::exec()
   thd->proc_info="Sending data";
   error= thd->net.report_error ||
     do_select(curr_join, curr_fields_list, NULL, procedure);
+  thd->limit_found_rows= curr_join->send_records;
+  thd->examined_row_count= curr_join->examined_rows;
   DBUG_VOID_RETURN;
 }
 
@@ -1434,8 +1437,6 @@ err:
 		      (join->tmp_join->error=join->error,join->tmp_join):
 		      join);
     
-    thd->limit_found_rows= curr_join->send_records;
-    thd->examined_row_count= curr_join->examined_rows;
     thd->proc_info="end";
     err= join->cleanup();
     if (thd->net.report_error)
