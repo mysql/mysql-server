@@ -123,7 +123,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
-  found_rows_for_union= first_select_in_union()->options & OPTION_FOUND_ROWS;
+  found_rows_for_union= test(first_select_in_union()->options
+			     & OPTION_FOUND_ROWS);
   TMP_TABLE_PARAM tmp_table_param;
   result= sel_result;
   t_and_f= tables_and_fields_initied;
@@ -238,7 +239,7 @@ int st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
-  unsigned int add_rows=0;
+  ha_rows add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !(dependent || uncacheable))
@@ -255,7 +256,7 @@ int st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
-      unsigned int rows;
+      ha_rows rows= 0;
       thd->lex.current_select= sl;
 
       if (optimized)
@@ -270,7 +271,7 @@ int st_select_lex_unit::exec()
 	  sl->options&= ~OPTION_FOUND_ROWS;
 	else if (found_rows_for_union)
 	{
-	  rows= thd->select_limit;
+	  rows= sl->select_limit;
 	  sl->options|= OPTION_FOUND_ROWS;
 	}
 	
@@ -313,8 +314,10 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
-      if (found_rows_for_union  && !sl->braces && sl->options & OPTION_FOUND_ROWS)
-	add_rows+= (thd->limit_found_rows > rows) ?  thd->limit_found_rows - rows : 0;
+      if (found_rows_for_union  && !sl->braces &&
+	  (sl->options & OPTION_FOUND_ROWS))
+	add_rows+= (sl->join->send_records > rows) ?
+	  sl->join->send_records - rows : 0;
     }
   }
   optimized= 1;
@@ -329,18 +332,20 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
+      ulong options= thd->options;
       thd->lex.current_select= fake_select_lex;
       if (select_cursor->braces)
       {
 	offset_limit_cnt= global_parameters->offset_limit;
-	select_limit_cnt= global_parameters->select_limit +  global_parameters->offset_limit;
+	select_limit_cnt= global_parameters->select_limit +
+	  global_parameters->offset_limit;
 	if (select_limit_cnt < global_parameters->select_limit)
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
       }
       if (select_limit_cnt == HA_POS_ERROR)
-	thd->options&= ~OPTION_FOUND_ROWS;
+	options&= ~OPTION_FOUND_ROWS;
       else if (found_rows_for_union && !describe)
-	thd->options|= OPTION_FOUND_ROWS;
+	options|= OPTION_FOUND_ROWS;
       fake_select_lex->ftfunc_list= &empty_list;
       fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					       (byte **)
@@ -375,7 +380,7 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options | SELECT_NO_UNLOCK,
+			options | SELECT_NO_UNLOCK,
 			result, this, fake_select_lex, 0);
       if (found_rows_for_union && !res)
       {
