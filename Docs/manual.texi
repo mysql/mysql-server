@@ -40594,12 +40594,17 @@ for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.c
 @item @uref{http://www.fastflow.it/mylua/, MyLUA home page}
 How to use the LUA language to write @strong{MySQL} @code{PROCEDURE} that can
 be loaded runtime.
+
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/lua-4.0.tar.gz, Lua 4.0}
 LUA 4.0
 @item @uref{http://www.mysql.com/Downloads/Contrib/mylua-3.23.32.1.tar.gz, mylua-3.23.32.1.tar.gz}
 Patch for MySQL 3.23.32 to use LUA 4.0.  By Cristian Giussani.
 @end itemize
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/patched_myodbc.zip, patched_myodbc.zip}
+Patch (for Omniform 4.0 support) to the MyODBC driver.
+By Thomas Thaele @email{tthaele@@papenmeier.de}
 
 @end itemize
 
