@@ -542,3 +542,7 @@ a	b
 1	2
 5	NULL
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+SET @id=0;
+UPDATE t1 SET a=0 ORDER BY (a=@id), b;
+DROP TABLE t1;
