@@ -399,7 +399,7 @@ row_create_prebuilt(
 	prebuilt->sel_graph = NULL;
 
 	prebuilt->search_tuple = dtuple_create(heap,
-						dict_table_get_n_cols(table));
+					2 * dict_table_get_n_cols(table));
 	
 	clust_index = dict_table_get_first_index(table);
 
