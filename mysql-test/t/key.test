@@ -1,10 +1,11 @@
-#
-# This failed for Elizabeth Mattijsen
-#
-
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
+SET SQL_WARNINGS=1;
+
+#
+# This failed for Elizabeth Mattijsen
+#
 
 CREATE TABLE t1 (
   ID CHAR(32) NOT NULL,

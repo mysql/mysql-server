@@ -293,11 +293,13 @@ ha_print_info(
 	hash_table_t*	table)	/* in: hash table */
 {
 	hash_cell_t*	cell;
-/*	ha_node_t*	node; */
-/*	ulint		nodes	= 0; */
+/*
+	ha_node_t*	node;
+	ulint		len	= 0;
+	ulint		max_len	= 0;
+	ulint		nodes	= 0;
+*/
 	ulint		cells	= 0;
-/*	ulint		len	= 0; */
-/*	ulint		max_len	= 0; */
 	ulint		n_bufs;
 	ulint		i;
 	

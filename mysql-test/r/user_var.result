@@ -30,3 +30,15 @@ explain select * from t1 where i=@vv1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	i	i	4	const	1	Using where
 drop table t1,t2;
+select @a:=10,   @b:=1,   @a > @b, @a < @b;
+@a:=10	@b:=1	@a > @b	@a < @b
+10	1	1	0
+select @a:="10", @b:="1", @a > @b, @a < @b;
+@a:="10"	@b:="1"	@a > @b	@a < @b
+10	1	1	0
+select @a:=10,   @b:=2,   @a > @b, @a < @b;
+@a:=10	@b:=2	@a > @b	@a < @b
+10	2	1	0
+select @a:="10", @b:="2", @a > @b, @a < @b;
+@a:="10"	@b:="2"	@a > @b	@a < @b
+10	2	0	1

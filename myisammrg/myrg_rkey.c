@@ -36,7 +36,7 @@
                                                                    SerG
 */
 
-int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
+int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
             uint key_len, enum ha_rkey_function search_flag)
 {
   byte *key_buff;
@@ -83,5 +83,5 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
 
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
   mi->once_flags|= RRND_PRESERVE_LASTINX;
-  return mi_rrnd(mi,record,mi->lastpos);
+  return _myrg_mi_read_record(mi,buf);
 }

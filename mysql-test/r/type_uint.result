@@ -1,9 +1,10 @@
 drop table if exists t1;
+SET SQL_WARNINGS=1;
 create table t1 (this int unsigned);
 insert into t1 values (1);
 insert into t1 values (-1);
 Warnings:
-Warning	1262	Data truncated, out of range for column 'this' at row 1
+Warning	1263	Data truncated, out of range for column 'this' at row 1
 select * from t1;
 this
 1

@@ -250,3 +250,16 @@ EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 DROP TABLE t2, t1;
 
+#
+# Test of ORDER BY DESC on key (Bug #515)
+#
+
+create table t1 (x int, y int, index xy(x, y));
+create table t2 (x int, y int, index xy(x, y));
+create table t3 (x int, y int, index xy(x, y)) type=merge union=(t1,t2);
+insert into t1 values(1, 2);
+insert into t2 values(1, 3);
+select * from t3 where x = 1 and y < 5 order by y;
+# Bug is that followng query returns empty set while it must be same as above
+select * from t3 where x = 1 and y < 5 order by y desc;
+drop table t1,t2,t3;

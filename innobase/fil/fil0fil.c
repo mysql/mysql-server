@@ -632,7 +632,7 @@ fil_space_create(
 	/* Spaces with an odd id number are reserved to replicate spaces
 	used in log debugging */
 	
-	ut_a((purpose == FIL_LOG) || (id % 2 == 0));
+	ut_anp((purpose == FIL_LOG) || (id % 2 == 0));
 #endif
 	mutex_enter(&(system->mutex));
 
@@ -829,6 +829,34 @@ fil_space_release_free_extents(
 	space->n_reserved_extents -= n_reserved;
 	
 	mutex_exit(&(system->mutex));
+}
+
+/***********************************************************************
+Gets the number of reserved extents. If the database is silent, this number
+should be zero. */
+
+ulint
+fil_space_get_n_reserved_extents(
+/*=============================*/
+	ulint	id)		/* in: space id */
+{
+	fil_space_t*	space;
+	fil_system_t*	system		= fil_system;
+	ulint		n;
+
+	ut_ad(system);
+
+	mutex_enter(&(system->mutex));
+
+	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	
+	ut_a(space);
+
+	n = space->n_reserved_extents;
+	
+	mutex_exit(&(system->mutex));
+
+	return(n);
 }
 
 /************************************************************************
@@ -1202,8 +1230,8 @@ loop:
 
 	/* Do aio */
 
-	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_anp(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_anp((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,

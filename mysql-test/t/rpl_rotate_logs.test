@@ -20,14 +20,23 @@ connection slave;
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
+
+# START SLAVE will fail because it can't read the file (mode 000)
+# (system error 13)
 --error 1201
 start slave;
 system chmod 600 var/slave-data/master.info;
+# It will fail again because the file is empty so the slave cannot get valuable
+# info about how to connect to the master from it (failure in
+# init_strvar_from_file() in init_master_info()).
 --error 1201
 start slave;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
-# Will get error 13 on Unix systems becasue file is not readable
-!eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
+
+# CHANGE MASTER will fail because it first parses master.info before changing
+# it (so when master.info is bad, people have to use RESET SLAVE first).
+--error 1201
+eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 reset slave;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
@@ -72,12 +81,9 @@ insert into t2 values(1234);
 
 #same value on the master
 connection master;
-save_master_pos;
 set insert_id=1234;
 insert into t2 values(NULL);
 connection slave;
-sync_with_master;
-
 wait_for_slave_to_stop;
 
 #restart slave skipping one event
@@ -126,8 +132,6 @@ show binary logs;
 show master status;
 save_master_pos;
 connection slave;
-#stop slave;
-#start slave;
 sync_with_master;
 select * from t4;
 

@@ -45,6 +45,6 @@ int myrg_rlast(MYRG_INFO *info, byte *buf, int inx)
     return HA_ERR_END_OF_FILE;
 
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
-  return mi_rrnd(mi,buf,mi->lastpos);
+  return _myrg_mi_read_record(mi,buf);
 }
 

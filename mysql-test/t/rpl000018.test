@@ -6,6 +6,8 @@
 require_manager;
 connect (master,localhost,root,,test,0,master.sock);
 connect (slave,localhost,root,,test,0,slave.sock);
+connection master;
+reset master;
 server_stop master;
 server_start master;
 connection slave;

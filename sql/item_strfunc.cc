@@ -637,9 +637,10 @@ void Item_func_concat_ws::fix_length_and_dec()
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  used_tables_cache|=separator->used_tables();
-  const_item_cache&=separator->const_item();
-  with_sum_func= with_sum_func || separator->with_sum_func;
+  used_tables_cache|=     separator->used_tables();
+  not_null_tables_cache&= separator->not_null_tables();
+  const_item_cache&=	  separator->const_item();
+  with_sum_func=	  with_sum_func || separator->with_sum_func;
 }
 
 void Item_func_concat_ws::update_used_tables()
@@ -1627,6 +1628,10 @@ String *Item_func_format::val_str(String *str)
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
   str->set(nr,decimals,default_charset());
+#ifdef HAVE_ISNAN
+  if (isnan(nr))
+    return str;
+#endif
   str_length=str->length();
   if (nr < 0)
     str_length--;				// Don't count sign
@@ -1639,7 +1644,7 @@ String *Item_func_format::val_str(String *str)
     str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
     tmp= (char*) str->ptr()+length - dec-1;
-    for (pos= (char*) str->ptr()+length ; pos != tmp; pos--)
+    for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
       pos[0]= pos[-(int) diff];
     while (diff)
     {
@@ -1675,40 +1680,40 @@ void Item_func_elt::fix_length_and_dec()
 double Item_func_elt::val()
 {
   uint tmp;
+  null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
-  {
-    null_value=1;
     return 0.0;
-  }
-  null_value=0;
-  return args[tmp]->val();
+  double result= args[tmp]->val();
+  null_value= args[tmp]->null_value;
+  return result;
 }
+
 
 longlong Item_func_elt::val_int()
 {
   uint tmp;
+  null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
-  {
-    null_value=1;
     return 0;
-  }
-  null_value=0;
-  return args[tmp]->val_int();
+
+  longlong result= args[tmp]->val_int();
+  null_value= args[tmp]->null_value;
+  return result;
 }
+
 
 String *Item_func_elt::val_str(String *str)
 {
   uint tmp;
-  String *res;
+  null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
-  {
-    null_value=1;
     return NULL;
-  }
-  null_value=0;
-  res= args[tmp]->val_str(str);
-  res->set_charset(collation.collation);
-  return res;
+
+  String *result= args[tmp]->val_str(str);
+  if (result)
+    result->set_charset(collation.collation);
+  null_value= args[tmp]->null_value;
+  return result;
 }
 
 
@@ -1738,8 +1743,9 @@ void Item_func_make_set::fix_length_and_dec()
   for (uint i=0 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
   
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
+  used_tables_cache|=	  item->used_tables();
+  not_null_tables_cache&= item->not_null_tables();
+  const_item_cache&=	  item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
 }
 
@@ -1953,7 +1959,7 @@ String *Item_func_rpad::val_str(String *str)
   String *res =args[0]->val_str(str);
   String *rpad = args[2]->val_str(str);
 
-  if (!res || args[1]->null_value || !rpad)
+  if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
   null_value=0;
   if (count <= (int32) (res_length=res->length()))

@@ -26,8 +26,8 @@
 #include <mysql_com.h>
 
 #include <errno.h>
-#include <violite.h>
 #include <my_sys.h>
+#include <violite.h>
 #include <my_net.h>
 #include <m_string.h>
 

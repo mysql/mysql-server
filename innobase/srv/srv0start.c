@@ -415,8 +415,8 @@ io_handler_thread(
 	segment = *((ulint*)arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Io handler thread %lu starts\n", segment);
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Io handler thread %lu starts, id %lu\n", segment,
+			  os_thread_pf(os_thread_get_curr_id()));
 #endif
 	for (i = 0;; i++) {
 		fil_aio_wait(segment);
@@ -1073,6 +1073,10 @@ innobase_start_or_create_for_mysql(void)
 	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							(char*)"O_DIRECT")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
+
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 							(char*)"littlesync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
@@ -1531,7 +1535,9 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	/* 1. Flush buffer pool to disk, write the current lsn to
-	the tablespace header(s), and copy all log data to archive */
+	the tablespace header(s), and copy all log data to archive.
+	The step 1 is the real InnoDB shutdown. The remaining steps
+	just free data structures after the shutdown. */
 
 	logs_empty_and_mark_files_at_shutdown();
 	

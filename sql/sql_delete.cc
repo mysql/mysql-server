@@ -126,8 +126,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
-      if (setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
-			all_fields.elements)||
+      if (thd->lex.select_lex.setup_ref_array(thd, 0) ||
 	  setup_order(thd, thd->lex.select_lex.ref_pointer_array, &tables, 
 		      fields, all_fields, order) ||
 	  !(sortorder=make_unireg_sortorder(order, &length)) ||
@@ -164,7 +163,15 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
       else
       {
 	table->file->print_error(error,MYF(0));
-	error=0;
+	/*
+	  In < 4.0.14 we set the error number to 0 here, but that
+	  was not sensible, because then MySQL would not roll back the
+	  failed DELETE, and also wrote it to the binlog. For MyISAM
+	  tables a DELETE probably never should fail (?), but for
+	  InnoDB it can fail in a FOREIGN KEY error or an
+	  out-of-tablespace error.
+	*/
+ 	error= 1;
 	break;
       }
     }

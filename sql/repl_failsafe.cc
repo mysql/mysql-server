@@ -72,6 +72,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   if (init_thr_lock() || thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1); // is this needed?
+    statistic_increment(aborted_connects,&LOCK_status);
     end_thread(thd,0);
     DBUG_RETURN(-1);
   }
@@ -867,7 +868,7 @@ int load_master_data(THD* thd)
 	of LOAD DATA FROM MASTER - no reason to forbid it, really,
 	although it does not make much sense for the user to do it
       */
-      if (row[0] && row[1])
+      if (row && row[0] && row[1])
       {
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));

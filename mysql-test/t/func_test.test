@@ -20,40 +20,10 @@ select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
 select 10 % 7, 10 mod 7, 10 div 3;
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 
-#
-# Coercibility
-#
-select _koi8r'a' = _koi8r'A';
-select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
-select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
-select _koi8r'a' COLLATE koi8r_general_ci = _koi8r'A';
-select _koi8r'a' COLLATE koi8r_bin = _koi8r'A';
---error 1265
-select _koi8r'a' COLLATE koi8r_bin = _koi8r'A' COLLATE koi8r_general_ci;
---error 1265
-select _koi8r'a' = _latin1'A';
-
-select strcmp(_koi8r'a', _koi8r'A');
-select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_general_ci);
-select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_bin);
-select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A');
-select strcmp(_koi8r'a' COLLATE koi8r_bin, _koi8r'A');
---error 1265
-select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A' COLLATE koi8r_bin);
---error 1265
-select strcmp(_koi8r'a', _latin1'A');
-
-select _koi8r'a' LIKE _koi8r'A';
-select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_general_ci;
-select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_bin;
-select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A';
-select _koi8r'a' COLLATE koi8r_bin LIKE _koi8r'A';
---error 1265
-select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
---error 1265
-select _koi8r'a' LIKE _latin1'A';
-
-
+create table t1 (a int);
+insert t1 values (1);
+select * from t1 where 1 xor 1;
+drop table t1;
 
 #
 # Wrong usage of functions
@@ -62,3 +32,36 @@ select _koi8r'a' LIKE _latin1'A';
 select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
 select 1 and 2 between 2 and 10, 2 between 2 and 10 and 1;
 select 1 and 0 or 2, 2 or 1 and 0;
+
+#
+# Coercibility
+#
+select _koi8r'a' = _koi8r'A';
+select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
+select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
+select _koi8r'a' COLLATE koi8r_general_ci = _koi8r'A';
+select _koi8r'a' COLLATE koi8r_bin = _koi8r'A';
+--error 1266
+select _koi8r'a' COLLATE koi8r_bin = _koi8r'A' COLLATE koi8r_general_ci;
+--error 1266
+select _koi8r'a' = _latin1'A';
+
+select strcmp(_koi8r'a', _koi8r'A');
+select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_general_ci);
+select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_bin);
+select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A');
+select strcmp(_koi8r'a' COLLATE koi8r_bin, _koi8r'A');
+--error 1266
+select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A' COLLATE koi8r_bin);
+--error 1266
+select strcmp(_koi8r'a', _latin1'A');
+
+select _koi8r'a' LIKE _koi8r'A';
+select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_general_ci;
+select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_bin;
+select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A';
+select _koi8r'a' COLLATE koi8r_bin LIKE _koi8r'A';
+--error 1266
+select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
+--error 1266
+select _koi8r'a' LIKE _latin1'A';

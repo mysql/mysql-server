@@ -17,6 +17,7 @@
 ## Process this file with automake to create Makefile.in
 
 bin_SCRIPTS =		@server_scripts@ \
+			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \

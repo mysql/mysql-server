@@ -133,7 +133,8 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-               tty_password= 0, opt_nobeep=0, opt_reconnect=1;
+	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
+	       default_charset_used= 0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -650,6 +651,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_CHARSETS_DIR:
     strmov(mysql_charsets_dir, argument);
     charsets_dir = mysql_charsets_dir;
+    break;
+  case  OPT_DEFAULT_CHARSET:
+    default_charset_used= 1;
     break;
   case OPT_DELIMITER:
     if (argument == disabled_my_option)
@@ -2563,7 +2567,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  if (default_charset_used)
+    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag | CLIENT_MULTI_QUERIES))
@@ -2645,7 +2650,8 @@ com_status(String *buffer __attribute__((unused)),
       (void) mysql_fetch_row(result);		// Read eof
     }
 #ifdef HAVE_OPENSSL
-    if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+    if (mysql.net.vio && mysql.net.vio->ssl_ &&
+	SSL_get_cipher(mysql.net.vio->ssl_))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
 		  SSL_get_cipher(mysql.net.vio->ssl_));
     else
@@ -2924,12 +2930,11 @@ static void mysql_end_timer(ulong start_time,char *buff)
 
 static const char* construct_prompt()
 {
-  //erase the old prompt
-  processed_prompt.free();
-  //get the date struct
-  time_t  lclock = time(NULL);
+  processed_prompt.free();			// Erase the old prompt
+  time_t  lclock = time(NULL);			// Get the date struct
   struct tm *t = localtime(&lclock);
-  //parse thru the settings for the prompt
+
+  /* parse thru the settings for the prompt */
   for (char *c = current_prompt; *c ; *c++)
   {
     if (*c != PROMPT_CHAR)
@@ -2938,8 +2943,7 @@ static const char* construct_prompt()
     {
       switch (*++c) {
       case '\0':
-	//stop it from going beyond if ends with %
-	c--;
+	c--;			// stop it from going beyond if ends with %
 	break;
       case 'c':
 	add_int_to_prompt(++prompt_counter);

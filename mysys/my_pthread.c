@@ -133,10 +133,13 @@ int my_sigwait(const sigset_t *set,int *sig)
 
 /* localtime_r for SCO 3.2V4.2 */
 
-#ifndef HAVE_LOCALTIME_R
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
 
 extern pthread_mutex_t LOCK_localtime_r;
 
+#endif
+
+#if !defined(HAVE_LOCALTIME_R)
 struct tm *localtime_r(const time_t *clock, struct tm *res)
 {
   struct tm *tmp;
@@ -148,6 +151,22 @@ struct tm *localtime_r(const time_t *clock, struct tm *res)
 }
 #endif
 
+#if !defined(HAVE_GMTIME_R)
+/* 
+  Reentrant version of standard gmtime() function. 
+  Needed on some systems which don't implement it.
+*/
+
+struct tm *gmtime_r(const time_t *clock, struct tm *res)
+{
+  struct tm *tmp;
+  pthread_mutex_lock(&LOCK_localtime_r);
+  tmp= gmtime(clock);
+  *res= *tmp;
+  pthread_mutex_unlock(&LOCK_localtime_r);
+  return res;
+}
+#endif
 
 /****************************************************************************
 ** Replacement of sigwait if the system doesn't have one (like BSDI 3.0)

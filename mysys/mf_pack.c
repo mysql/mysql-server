@@ -253,15 +253,27 @@ void symdirget(char *dir)
 }
 #endif /* USE_SYMDIR */
 
-	/* Unpacks dirname to name that can be used by open... */
-	/* Make that last char of to is '/' if from not empty and
-	   from doesn't end in FN_DEVCHAR */
-	/* Uses cleanup_dirname and changes ~/.. to home_dir/.. */
-	/* Returns length of new directory */
+
+/*
+  Fixes a directroy name so that can be used by open()
+
+  SYNOPSIS
+    unpack_dirname()
+    to			Store result here.  May be = from
+    from		'Packed' directory name (may contain ~)
+
+ IMPLEMENTATION
+  Make that last char of to is '/' if from not empty and
+  from doesn't end in FN_DEVCHAR
+  Uses cleanup_dirname and changes ~/.. to home_dir/..
+
+  Changes a UNIX filename to system filename (replaces / with \ on windows)
+
+  RETURN
+   Length of new directory name (= length of to)
+*/
 
 uint unpack_dirname(my_string to, const char *from)
-
-						  /* to may be == from */
 {
   uint length,h_length;
   char buff[FN_REFLEN+1+4],*suffix,*tilde_expansion;

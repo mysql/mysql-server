@@ -69,4 +69,3 @@ connection con2;
 insert into t1 values (345);
 select * from t1;
 drop table t1;
-
