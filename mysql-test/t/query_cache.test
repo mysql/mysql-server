@@ -343,6 +343,31 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 
 #
+# Test of min result data unit size changing
+#
+show global variables like "query_cache_min_res_unit";
+set GLOBAL query_cache_min_res_unit=1001;
+show global variables like "query_cache_min_res_unit";
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+select * from t1;
+select * from t1;
+select * from t2;
+select * from t2;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t1;
+select a from t2;
+select a from t2;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t2;
+set GLOBAL query_cache_min_res_unit=default;
+show global variables like "query_cache_min_res_unit";
+
+#
 # Test of query cache resizing
 #
 set GLOBAL query_cache_size=1000;

@@ -345,7 +345,10 @@ protected:
 
   /* resize query cache (return real query size, 0 if disabled) */
   ulong resize(ulong query_cache_size);
+  /* set limit on result size */
   inline void result_size_limit(ulong limit){query_cache_limit=limit;}
+  /* set minimal result data allocation unit size */
+  ulong set_min_res_unit(ulong size);
 
   /* register query in cache */
   void store_query(THD *thd, TABLE_LIST *used_tables);

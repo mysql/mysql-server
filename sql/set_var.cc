@@ -85,6 +85,7 @@ static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
+static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
@@ -204,6 +205,9 @@ sys_var_long_ptr	sys_query_cache_size("query_cache_size",
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
 					      &query_cache.query_cache_limit);
+sys_var_long_ptr        sys_query_cache_min_res_unit("query_cache_min_res_unit",
+						     &query_cache_min_res_unit,
+						     fix_query_cache_min_res_unit);
 sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
@@ -384,6 +388,7 @@ sys_var *sys_variables[]=
   &sys_query_cache_size,
 #ifdef HAVE_QUERY_CACHE
   &sys_query_cache_limit,
+  &sys_query_cache_min_res_unit,
   &sys_query_cache_type,
 #endif /* HAVE_QUERY_CACHE */
   &sys_quote_show_create,
@@ -546,6 +551,8 @@ struct show_var_st init_vars[]= {
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
   {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
+  {sys_query_cache_min_res_unit.name, (char*) &sys_query_cache_min_res_unit,
+   SHOW_SYS},
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
@@ -694,6 +701,15 @@ static void fix_query_cache_size(THD *thd, enum_var_type type)
   query_cache.resize(query_cache_size);
 #endif
 }
+
+
+#ifdef HAVE_QUERY_CACHE
+static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
+{
+  query_cache_min_res_unit= 
+    query_cache.set_min_res_unit(query_cache_min_res_unit);
+}
+#endif
 
 
 static void fix_key_buffer_size(THD *thd, enum_var_type type)
