@@ -283,6 +283,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     while((name = iter.next()) != NULL) {
       PropertiesType t;
       Uint32 val_i;
+      Uint64 val_64;
       BaseString val_s;
 
       cmd_args->getTypeOf(name, &t);
@@ -291,11 +292,15 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	cmd_args->get(name, &val_i);
 	out.println("%s: %d", name, val_i);
 	break;
+      case PropertiesType_Uint64:
+	cmd_args->get(name, &val_64);
+	out.println("%s: %Ld", name, val_64);
+	break;
       case PropertiesType_char:
 	cmd_args->get(name, val_s);
 	out.println("%s: %s", name, val_s.c_str());
 	break;
-      default:
+      case PropertiesType_Properties:
 	/* Ignore */
 	break;
       }
@@ -1591,6 +1596,135 @@ ndb_mgm_rep_command(NdbMgmHandle handle, unsigned int request,
 
   delete reply;
   return 0;
+}
+
+extern "C"
+int
+ndb_mgm_set_int_parameter(NdbMgmHandle handle,
+			  int node, 
+			  int param,
+			  unsigned value,
+			  struct ndb_mgm_reply*){
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+  args.put("node: ", node);
+  args.put("param: ", param);
+  args.put("value: ", value);
+  
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("set parameter reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop= ndb_mgm_call(handle, reply, "set parameter", &args);
+  
+  if(prop == NULL) {
+    SET_ERROR(handle, EIO, "Unable set parameter");
+    return -1;
+  }
+
+  int res= -1;
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+    res= 0;
+  } while(0);
+  
+  delete prop;
+  return res;
+}
+
+extern "C"
+int 
+ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
+			    int node, 
+			    int param,
+			    unsigned long long value,
+			    struct ndb_mgm_reply*){
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+  args.put("node: ", node);
+  args.put("param: ", param);
+  args.put("value: ", value);
+  
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("set parameter reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop= ndb_mgm_call(handle, reply, "set parameter", &args);
+  
+  if(prop == NULL) {
+    SET_ERROR(handle, EIO, "Unable set parameter");
+    return -1;
+  }
+
+  int res= -1;
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+    res= 0;
+  } while(0);
+  
+  delete prop;
+  return res;
+}
+
+extern "C"
+int
+ndb_mgm_set_string_parameter(NdbMgmHandle handle,
+			     int node, 
+			     int param,
+			     const char * value,
+			     struct ndb_mgm_reply*){
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+  args.put("node: ", node);
+  args.put("parameter: ", param);
+  args.put("value: ", value);
+  
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("set parameter reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop= ndb_mgm_call(handle, reply, "set parameter", &args);
+  
+  if(prop == NULL) {
+    SET_ERROR(handle, EIO, "Unable set parameter");
+    return -1;
+  }
+
+  int res= -1;
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+    res= 0;
+  } while(0);
+  
+  delete prop;
+  return res;
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;
