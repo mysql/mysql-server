@@ -505,10 +505,11 @@ SEL_ARG *SEL_ARG::last()
   return next_arg;
 }
 
+
 /*
   Check if a compare is ok, when one takes ranges in account
   Returns -2 or 2 if the ranges where 'joined' like  < 2 and >= 2
- */
+*/
 
 static int sel_cmp(Field *field, char *a,char *b,uint8 a_flag,uint8 b_flag)
 {
@@ -1032,17 +1033,6 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   if (value->save_in_field(field, 1))
   {
     /* This happens when we try to insert a NULL field in a not null column */
-    // TODO; Check if we can we remove the following block.
-    if (type == Item_func::EQUAL_FUNC)
-    {
-      /* convert column_name <=> NULL -> column_name IS NULL */
-      // Get local copy of key
-      char *str= (char*) alloc_root(param->mem_root,1);
-      if (!str)
-	DBUG_RETURN(0);
-      *str= 1;
-      DBUG_RETURN(new SEL_ARG(field,str,str));
-    }
     DBUG_RETURN(&null_element);			// cmp with NULL is never true
   }
   // Get local copy of key
