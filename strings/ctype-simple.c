@@ -46,16 +46,19 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
 }
 
 int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+                        const uchar *t, uint tlen,
+                        my_bool t_is_prefix)
 {
   int len = ( slen > tlen ) ? tlen : slen;
   uchar *map= cs->sort_order;
+  if (t_is_prefix && slen > tlen)
+    slen=tlen;
   while (len--)
   {
     if (map[*s++] != map[*t++])
       return ((int) map[s[-1]] - (int) map[t[-1]]);
   }
-  return (int) (slen-tlen);
+  return (int) (slen - tlen);
 }
 
 
