@@ -472,7 +472,7 @@ GRANT LOCK TABLES ON *.* TO 'grant_user'@'localhost'
 GRANT SELECT, INSERT ON grant_test.test3 TO 'grant_user'@'localhost'
 
 select * from mysql.user where user='grant_user'
-127.0.0.1	grant_user	7f70e8b858ee6782	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
+127.0.0.1	grant_user	*042a99b3d247ae587783f647f2d69496d390aa71eab3	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
 localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	Y	N	N	N					0	0	0
 
 Connecting grant_user
