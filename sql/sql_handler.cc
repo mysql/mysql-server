@@ -195,6 +195,11 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       {
 	if (item->fix_fields(thd, tables))
 	  goto err;
+	if (item->used_tables() & ~RAND_TABLE_BIT)
+        {
+          my_error(ER_WRONG_ARGUMENTS,MYF(0),"HANDLER ... READ");
+	  goto err;
+        }
 	item->save_in_field(key_part->field, 1);
 	key_len+=key_part->store_length;
       }
