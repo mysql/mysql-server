@@ -39,6 +39,7 @@ call stamp(5);
 ERROR 42000: Access denied for user: 'dummy'@'localhost' to database 'db1_secret'
 call stamp(6);
 ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
+drop procedure stamp;
 use test;
 drop database db1_secret;
 delete from mysql.user where user='dummy';

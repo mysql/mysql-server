@@ -94,6 +94,7 @@ call stamp(6);
 
 # Clean up
 connection con1root;
+drop procedure stamp;
 use test;
 drop database db1_secret;
 delete from mysql.user where user='dummy';

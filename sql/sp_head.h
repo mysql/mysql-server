@@ -649,10 +649,11 @@ struct st_sp_security_context
   char *ip;
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 void
 sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
-
 void
 sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 #endif /* _SP_HEAD_H_ */

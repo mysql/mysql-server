@@ -3501,7 +3501,9 @@ mysql_execute_command(THD *thd)
       }
       else
       {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	st_sp_security_context save_ctx;
+#endif
 	uint smrx;
 	LINT_INIT(smrx);
 
@@ -3533,11 +3535,15 @@ mysql_execute_command(THD *thd)
 	  thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
 	}
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	sp_change_security_context(thd, sp, &save_ctx);
+#endif
 
 	res= sp->execute_procedure(thd, &lex->value_list);
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	sp_restore_security_context(thd, sp, &save_ctx);
+#endif
 
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
