@@ -1924,6 +1924,35 @@ call bug5251()|
 call bug5251()|
 drop procedure bug5251|
 
+#
+# BUG#5287: Stored procedure crash if leave outside loop
+#
+create procedure bug5287(param1 int)
+label1:
+  begin
+    declare c cursor for select 5;
+
+    loop
+      if param1 >= 0 then
+        leave label1;
+      end if;
+    end loop;
+end|
+call bug5287(1)|
+drop procedure bug5287|
+
+
+#
+# BUG#5307: Stored procedure allows statement after BEGIN ... END
+#
+create procedure bug5307()
+begin
+end; set @x = 3|
+
+call bug5307()|
+select @x|
+drop procedure bug5307|
+
 
 #
 # Some "real" examples
