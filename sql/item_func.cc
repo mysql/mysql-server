@@ -1010,21 +1010,38 @@ double Item_func_round::val()
 }
 
 
-void Item_func_rand::fix_length_and_dec()
+bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
+                                Item **ref)
 {
-  decimals=NOT_FIXED_DEC; 
-  max_length=float_length(decimals);
+  Item_real_func::fix_fields(thd, tables, ref);
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
-    uint32 tmp= (uint32) (args[0]->val_int());
-    if ((rand= (struct rand_struct*) sql_alloc(sizeof(*rand))))
-      randominit(rand,(uint32) (tmp*0x10001L+55555555L),
-		 (uint32) (tmp*0x10000001L));
+    /*
+      Allocate rand structure once: we must use thd->current_arena
+      to create rand in proper mem_root if it's a prepared statement or
+      stored procedure.
+    */
+    if (!rand && !(rand= (struct rand_struct*)
+                   thd->current_arena->alloc(sizeof(*rand))))
+      return TRUE;
+    /*
+      PARAM_ITEM is returned if we're in statement prepare and consequently
+      no placeholder value is set yet.
+    */
+    if (args[0]->type() != PARAM_ITEM)
+    {
+      /*
+        TODO: do not do reinit 'rand' for every execute of PS/SP if
+        args[0] is a constant.
+      */
+      uint32 tmp= (uint32) args[0]->val_int();
+      randominit(rand, (uint32) (tmp*0x10001L+55555555L),
+                 (uint32) (tmp*0x10000001L));
+    }
   }
   else
   {
-    THD *thd= current_thd;
     /*
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
@@ -1038,6 +1055,7 @@ void Item_func_rand::fix_length_and_dec()
     thd->rand_saved_seed2=thd->rand.seed2;
     rand= &thd->rand;
   }
+  return FALSE;
 }
 
 void Item_func_rand::update_used_tables()

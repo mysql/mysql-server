@@ -3196,24 +3196,20 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
     read_binary_{date,time,datetime}()
     tm    MYSQL_TIME structure to fill
     pos   pointer to current position in network buffer.
-          These functions increase pos to point to the beginning of this
-          field (this is just due to implementation of net_field_length
-          which is used to get length of binary representation of
-          time value).
+          These functions increase pos to point to the beginning of the
+          next column.
 
   Auxiliary functions to read time (date, datetime) values from network
   buffer and store in MYSQL_TIME structure. Jointly used by conversion
   and no-conversion fetching.
 */
 
-static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
+static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
 {
-  uint  length;
-
   /* net_field_length will set pos to the first byte of data */
-  if (!(length= net_field_length(pos)))
-    set_zero_time(tm);
-  else
+  uint length= net_field_length(pos);
+
+  if (length)
   {
     uchar *to= *pos;
     tm->neg= (bool) to[0];
@@ -3226,17 +3222,18 @@ static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
 
     tm->year= tm->month= 0;
     tm->time_type= MYSQL_TIMESTAMP_TIME;
+
+    *pos+= length;
   }
-  return length;
+  else
+    set_zero_time(tm);
 }
 
-static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
+static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
 {
-  uint  length;
+  uint length= net_field_length(pos);
 
-  if (!(length= net_field_length(pos)))
-    set_zero_time(tm);
-  else
+  if (length)
   {
     uchar *to= *pos;
 
@@ -3255,17 +3252,18 @@ static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
       tm->hour= tm->minute= tm->second= 0;
     tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
     tm->time_type= MYSQL_TIMESTAMP_DATETIME;
+
+    *pos+= length;
   }
-  return length;
+  else
+    set_zero_time(tm);
 }
 
-static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
+static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 {
-  uint  length;
+  uint length= net_field_length(pos);
 
-  if (!(length= net_field_length(pos)))
-    set_zero_time(tm);
-  else
+  if (length)
   {
     uchar *to= *pos;
     tm->year =  (uint) sint2korr(to);
@@ -3276,8 +3274,11 @@ static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
     tm->second_part= 0;
     tm->neg= 0;
     tm->time_type= MYSQL_TIMESTAMP_DATE;
+
+    *pos+= length;
   }
-  return length;
+  else
+    set_zero_time(tm);
 }
 
 
@@ -3604,18 +3605,18 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
 static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                          uchar **row)
 {
-  ulong length;
   enum enum_field_types field_type= field->type;
   uint field_is_unsigned= field->flags & UNSIGNED_FLAG;
 
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
-    char value= (char) **row;
-    longlong data= field_is_unsigned ? (longlong) (unsigned char) value :
-                                       (longlong) value;
+    uchar value= **row;
+    /* sic: we need to cast to 'signed char' as 'char' may be unsigned */
+    longlong data= field_is_unsigned ? (longlong) value :
+                                       (longlong) (signed char) value;
     fetch_long_with_conversion(param, field, data);
-    length= 1;
+    *row+= 1;
     break;
   }
   case MYSQL_TYPE_SHORT:
@@ -3625,7 +3626,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     longlong data= field_is_unsigned ? (longlong) (unsigned short) value :
                                        (longlong) value;
     fetch_long_with_conversion(param, field, data);
-    length= 2;
+    *row+= 2;
     break;
   }
   case MYSQL_TYPE_INT24: /* mediumint is sent as 4 bytes int */
@@ -3635,14 +3636,14 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     longlong data= field_is_unsigned ? (longlong) (unsigned long) value :
                                        (longlong) value;
     fetch_long_with_conversion(param, field, data);
-    length= 4;
+    *row+= 4;
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong)sint8korr(*row);
     fetch_long_with_conversion(param, field, value);
-    length= 8;
+    *row+= 8;
     break;
   }
   case MYSQL_TYPE_FLOAT:
@@ -3650,7 +3651,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     float value;
     float4get(value,*row);
     fetch_float_with_conversion(param, field, value, FLT_DIG);
-    length= 4;
+    *row+= 4;
     break;
   }
   case MYSQL_TYPE_DOUBLE:
@@ -3658,14 +3659,14 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     double value;
     float8get(value,*row);
     fetch_float_with_conversion(param, field, value, DBL_DIG);
-    length= 8;
+    *row+= 8;
     break;
   }
   case MYSQL_TYPE_DATE:
   {
     MYSQL_TIME tm;
 
-    length= read_binary_date(&tm, row);
+    read_binary_date(&tm, row);
     fetch_datetime_with_conversion(param, &tm);
     break;
   }
@@ -3673,7 +3674,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   {
     MYSQL_TIME tm;
 
-    length= read_binary_time(&tm, row);
+    read_binary_time(&tm, row);
     fetch_datetime_with_conversion(param, &tm);
     break;
   }
@@ -3682,16 +3683,18 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   {
     MYSQL_TIME tm;
 
-    length= read_binary_datetime(&tm, row);
+    read_binary_datetime(&tm, row);
     fetch_datetime_with_conversion(param, &tm);
     break;
   }
   default:
-    length= net_field_length(row);
+  {
+    ulong length= net_field_length(row);
     fetch_string_with_conversion(param, (char*) *row, length);
+    *row+= length;
     break;
   }
-  *row+= length;
+  }
 }
 
 
@@ -3760,19 +3763,19 @@ static void fetch_result_double(MYSQL_BIND *param, uchar **row)
 static void fetch_result_time(MYSQL_BIND *param, uchar **row)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
-  *row+= read_binary_time(tm, row);
+  read_binary_time(tm, row);
 }
 
 static void fetch_result_date(MYSQL_BIND *param, uchar **row)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
-  *row+= read_binary_date(tm, row);
+  read_binary_date(tm, row);
 }
 
 static void fetch_result_datetime(MYSQL_BIND *param, uchar **row)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
-  *row+= read_binary_datetime(tm, row);
+  read_binary_datetime(tm, row);
 }
 
 static void fetch_result_bin(MYSQL_BIND *param, uchar **row)
