@@ -1254,7 +1254,7 @@ type:
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP
 	  {
-	    if (YYTHD->variables.sql_mode & MODE_SAPDB)
+	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
 	      $$=FIELD_TYPE_TIMESTAMP;

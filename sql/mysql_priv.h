@@ -214,7 +214,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_ORACLE			512
 #define MODE_MSSQL			1024
 #define MODE_DB2			2048
-#define MODE_SAPDB			4096
+#define MODE_MAXDB			4096
 #define MODE_NO_KEY_OPTIONS             8192
 #define MODE_NO_TABLE_OPTIONS          16384 
 #define MODE_NO_FIELD_OPTIONS          32768
