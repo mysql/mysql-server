@@ -2539,11 +2539,8 @@ server.");
   if (opt_innodb_safe_binlog)
   {
     if (have_innodb != SHOW_OPTION_YES)
-    {
-      sql_print_error("Error: --innodb-safe-binlog is meaningful only if "
+      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
                       "the InnoDB storage engine is enabled in the server.");
-      unireg_abort(1);
-    }
     if (innobase_flush_log_at_trx_commit != 1)
     {
       sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
@@ -4639,7 +4636,7 @@ replicating a LOAD DATA INFILE command.",
     enough, as then user can't set it to 1 so it will always be ignored in the
     rest of code.
   */
-#if MYSQL_VERSION_ID > 40103
+#if MYSQL_VERSION_ID >= 40103
   /*
     innodb_safe_binlog is not a variable, just an option. Does not make
     sense to make it a variable, as it is only used at startup (and so the
