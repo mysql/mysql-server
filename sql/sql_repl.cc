@@ -408,6 +408,7 @@ sweepstakes if you report the bug";
 	  // slave
 	  break;
 	case LOG_READ_EOF:
+	  DBUG_PRINT("wait",("waiting for data on binary log"));
 	  pthread_cond_wait(&COND_binlog_update, log_lock);
 	  break;
 

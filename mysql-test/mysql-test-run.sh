@@ -35,6 +35,7 @@ RM=rm
 TIME=time
 TR=tr
 XARGS=`which xargs | head -1`
+SED=sed
 
 # Are we using a source or a binary distribution?
 
@@ -72,7 +73,7 @@ BASEDIR=`pwd`
 cd $CWD
 MYSQL_TEST_DIR=$BASEDIR/mysql-test
 STD_DATA=$MYSQL_TEST_DIR/std_data
-SED=sed
+hostname=`hostname`		# Installed in the mysql privilege table
   
 TESTDIR="$MYSQL_TEST_DIR/t/"
 TESTSUFFIX=test
@@ -238,10 +239,9 @@ SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 # Function Definitions
 #--
 wait_for_server_start ()
- {
-   $MYSQL --no-defaults -u $DBUSER -e "select 1" --silent -w1 --host=127.0.0.1 --port=$1 \
-    >/dev/null
- }
+{
+   $MYSQLADMIN --no-defaults -u $DBUSER --silent -w2 --host=$hostname --port=$1  ping >/dev/null
+}
 
 prompt_user ()
 {

@@ -799,74 +799,76 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
 static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 {
   String *packet = &thd->packet;
+  DBUG_ENTER("prepare_for_restore");
 
-  if(table->table) // do not overwrite existing tables on restore
-    {
-      return send_check_errmsg(thd, table, "restore",
-			       "table exists, will not overwrite on restore"
-			       );
-    }
+  if (table->table) // do not overwrite existing tables on restore
+  {
+    DBUG_RETURN(send_check_errmsg(thd, table, "restore",
+				  "table exists, will not overwrite on restore"
+				  ));
+  }
   else
+  {
+    char* backup_dir = thd->lex.backup_dir;
+    char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+    char* table_name = table->name;
+    char* db = thd->db ? thd->db : table->db;
+
+    if (!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
+      DBUG_RETURN(-1); // protect buffer overflow
+
+    sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
+
+    int lock_retcode;
+    pthread_mutex_lock(&LOCK_open);
+    if((lock_retcode = lock_table_name(thd, table)) < 0)
     {
-      char* backup_dir = thd->lex.backup_dir;
-      char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-      char* table_name = table->name;
-      char* db = thd->db ? thd->db : table->db;
-
-      if(!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
-	return -1; // protect buffer overflow
-
-      sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
-
-      int lock_retcode;
-      pthread_mutex_lock(&LOCK_open);
-      if((lock_retcode = lock_table_name(thd, table)) < 0)
-	{
-	  pthread_mutex_unlock(&LOCK_open);
-	  return -1;
-	}
-
-      if(lock_retcode && wait_for_locked_table_names(thd, table))
-	{
-	  unlock_table_name(thd, table);
-          pthread_mutex_unlock(&LOCK_open);
-	  return -1;
-	}
       pthread_mutex_unlock(&LOCK_open);
-
-      if(my_copy(src_path,
-		 fn_format(dst_path, dst_path,"",
-			   reg_ext, 4),
-		 MYF(MY_WME)))
-	{
- 	   unlock_table_name(thd, table);
-           return send_check_errmsg(thd, table, "restore",
-				    "Failed copying .frm file");
-	}
-      bool save_no_send_ok = thd->net.no_send_ok;
-      thd->net.no_send_ok = 1;
-      // generate table will try to send OK which messes up the output
-      // for the client
-
-      if(generate_table(thd, table, 0))
-	{
-	  unlock_table_name(thd, table);
-          thd->net.no_send_ok = save_no_send_ok;
-          return send_check_errmsg(thd, table, "restore",
-				    "Failed generating table from .frm file");
-	}
-
-      thd->net.no_send_ok = save_no_send_ok;
+      DBUG_RETURN(-1);
     }
 
-  return 0;
+    if(lock_retcode && wait_for_locked_table_names(thd, table))
+    {
+      unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
+      DBUG_RETURN(-1);
+    }
+    pthread_mutex_unlock(&LOCK_open);
+
+    if(my_copy(src_path,
+	       fn_format(dst_path, dst_path,"",
+			 reg_ext, 4),
+	       MYF(MY_WME)))
+    {
+      unlock_table_name(thd, table);
+      DBUG_RETURN(send_check_errmsg(thd, table, "restore",
+				    "Failed copying .frm file"));
+    }
+    bool save_no_send_ok = thd->net.no_send_ok;
+    thd->net.no_send_ok = 1;
+    // generate table will try to send OK which messes up the output
+    // for the client
+
+    if(generate_table(thd, table, 0))
+    {
+      unlock_table_name(thd, table);
+      thd->net.no_send_ok = save_no_send_ok;
+      DBUG_RETURN(send_check_errmsg(thd, table, "restore",
+				    "Failed generating table from .frm file"));
+    }
+
+    thd->net.no_send_ok = save_no_send_ok;
+  }
+
+  DBUG_RETURN(0);
 }
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
-			     thr_lock_type lock_type,
-			     bool open_for_modify,
 			     const char *operator_name,
+			     thr_lock_type lock_type,
+			     bool open_for_modify, bool restore,
+			     uint extra_open_options,
 			     int (handler::*operator_func)
 			     (THD *, HA_CHECK_OPT *))
 {
@@ -894,12 +896,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     bool fatal_error=0;
     strxmov(table_name,db ? db : "",".",table->name,NullS);
 
-    if (operator_func == &handler::repair || operator_func == &handler::check)
-      thd->open_options|= HA_OPEN_FOR_REPAIR;
+    thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
-    thd->open_options&= ~HA_OPEN_FOR_REPAIR;
+    thd->open_options&= ~extra_open_options;
     packet->length(0);
-    if (operator_func == &handler::restore)
+    if (restore)
     {
       switch (prepare_for_restore(thd, table)) {
       case 1: continue; // error, message written to net
@@ -1023,16 +1024,14 @@ int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				TL_READ, 1,
-				"backup",
+				"backup", TL_READ, 1, 0, 0,
 				&handler::backup));
 }
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				TL_WRITE, 1,
-				"restore",
+				"restore", TL_WRITE, 1, 1,0,
 				&handler::restore));
 }
 
@@ -1040,8 +1039,7 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				TL_WRITE, 1,
-				"repair",
+				"repair", TL_WRITE, 1, 0, HA_OPEN_FOR_REPAIR,
 				&handler::repair));
 }
 
@@ -1049,8 +1047,7 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_optimize_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				TL_WRITE, 1,
-				"optimize",
+				"optimize", TL_WRITE, 1,0,0,
 				&handler::optimize));
 }
 
@@ -1059,8 +1056,7 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				TL_READ_NO_INSERT, 1,
-				"analyze",
+				"analyze",TL_READ_NO_INSERT, 1,0,0,
 				&handler::analyze));
 }
 
@@ -1069,8 +1065,8 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				TL_READ_NO_INSERT, 0,
 				"check",
+				TL_READ_NO_INSERT, 0, 0, HA_OPEN_FOR_REPAIR,
 				&handler::check));
 }
 

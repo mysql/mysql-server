@@ -40713,6 +40713,9 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
+Changed code to get around compiler bug in Compaq C++ on OSF1, that broke
+@code{BACKUP, RESTORE, CHECK, REPAIR, and ANALYZE TABLE}.
+@item
 Added option @code{FULL} to @code{SHOW COLUMNS}. Now we only show the
 privilege list for the columns if this option is given.
 @item
