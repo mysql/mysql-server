@@ -25,6 +25,9 @@ class st_select_lex_unit;
 class JOIN;
 class select_subselect;
 class subselect_engine;
+class Item_bool_func2;
+
+typedef Item_bool_func2* (*compare_func_creator)(Item*, Item*);
 
 /* base class for subselects */
 
@@ -33,6 +36,8 @@ class Item_subselect :public Item_result_field
   my_bool engine_owner; /* Is this item owner of engine */
   my_bool value_assigned; /* value already assigned to subselect */
 protected:
+  /* substitution instead of subselect in case of optimization */
+  Item *substitution;
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine; 
   /* allowed number of columns (1 for single value subqueries) */
@@ -42,6 +47,7 @@ public:
   Item_subselect();
   Item_subselect(Item_subselect *item)
   {
+    substitution= item->substitution;
     null_value= item->null_value;
     decimals= item->decimals;
     max_columns= item->max_columns;
@@ -55,13 +61,15 @@ public:
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  void init (THD *thd, st_select_lex *select_lex, select_subselect *result);
+  virtual void init (THD *thd, st_select_lex *select_lex, 
+		     select_subselect *result);
 
   ~Item_subselect();
   virtual void assign_null() 
   {
     null_value= 1;
   }
+  virtual void select_transformer(st_select_lex *select_lex);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -74,7 +82,6 @@ public:
 
   friend class select_subselect;
 };
-
 
 /* single value subselect */
 
@@ -135,6 +142,8 @@ public:
   {
     value= item->value;
   }
+  Item_exists_subselect(): Item_subselect() {}
+
   virtual void assign_null() 
   {
     value= 0;
@@ -147,6 +156,35 @@ public:
   String *val_str(String*);
   void fix_length_and_dec();
   friend class select_exists_subselect;
+};
+
+/* IN subselect */
+
+class Item_in_subselect :public Item_exists_subselect
+{
+protected:
+  Item * left_expr;
+
+public:
+  Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
+  Item_in_subselect(Item_in_subselect *item);
+  Item_in_subselect(): Item_exists_subselect() {}
+  virtual void select_transformer(st_select_lex *select_lex);
+  void single_value_transformer(st_select_lex *select_lex,
+				Item *left_expr, compare_func_creator func);
+};
+
+/* ALL/ANY/SOME subselect */
+class Item_allany_subselect :public Item_in_subselect
+{
+protected:
+  compare_func_creator func;
+
+public:
+  Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
+		     st_select_lex *select_lex);
+  Item_allany_subselect(Item_allany_subselect *item);
+  virtual void select_transformer(st_select_lex *select_lex);
 };
 
 class subselect_engine
@@ -178,6 +216,7 @@ public:
   virtual bool depended()= 0; /* depended from outer select */
   enum Item_result type() { return res_type; }
   virtual bool check_loop(uint id)= 0;
+  virtual void exclude()= 0;
 };
 
 class subselect_single_select_engine: public subselect_engine
@@ -197,6 +236,7 @@ public:
   uint cols();
   bool depended();
   bool check_loop(uint id);
+  void exclude();
 };
 
 class subselect_union_engine: public subselect_engine
@@ -213,4 +253,5 @@ public:
   uint cols();
   bool depended();
   bool check_loop(uint id);
+  void exclude();
 };

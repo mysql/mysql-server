@@ -25,9 +25,8 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
-INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include \
-			-I../include -I$(srcdir)/.. -I$(top_srcdir) -I.. \
-			-I../sql -I../regex
+INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
+			-I$(top_srcdir)/sql -I$(top_srcdir)/regex
 
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
@@ -43,7 +42,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	hostname.cc init.cc \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
-	item_uniq.cc item_subselect.cc \
+	item_uniq.cc item_subselect.cc item_row.cc\
 	key.cc lock.cc log.cc log_event.cc mf_iocache.cc\
 	mini_client.cc net_pkg.cc net_serv.cc opt_ft.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \

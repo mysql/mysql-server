@@ -1,0 +1,22 @@
+#
+# Test of cast function
+#
+
+select CAST(1-2 AS UNSIGNED);
+select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
+select CONVERT('-1',UNSIGNED);
+select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
+select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
+select ~5, cast(~5 as signed);
+select cast(5 as unsigned) -6.0;
+select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
+select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
+select cast("1:2:3" as TIME);
+
+#
+# The following should be fixed in 4.1
+#
+
+select cast("2001-1-1" as date) = "2001-01-01";
+select cast("2001-1-1" as datetime) = "2001-01-01 00:00:00";
+select cast("1:2:3" as TIME) = "1:02:03";

@@ -59,6 +59,16 @@ bool Item::check_loop(uint id)
   DBUG_RETURN(0);
 }
 
+bool Item::check_cols(uint c)
+{
+  if (c != 1)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
+    return 1;
+  }
+  return 0;
+}
+
 void Item::set_name(const char *str,uint length)
 {
   if (!length)
@@ -439,6 +449,73 @@ bool Item::fix_fields(THD *thd,
   return 0;
 }
 
+bool Item_outer_select_context_saver::fix_fields(THD *thd,
+						 struct st_table_list *list,
+						 Item ** ref)
+{
+  DBUG_ENTER("Item_outer_select_context_saver::fix_fields");
+  bool res= item->fix_fields(thd,
+			     0, // do not show current subselect fields
+			     &item);
+  *ref= item;
+  DBUG_RETURN(res);
+}
+
+bool Item_asterisk_remover::fix_fields(THD *thd,
+				       struct st_table_list *list,
+				       Item ** ref)
+{
+  DBUG_ENTER("Item_asterisk_remover::fix_fields");
+  
+  bool res= 1;
+  if (item)
+    if (item->type() == Item::FIELD_ITEM &&
+	((Item_field*) item)->field_name[0] == '*')
+    {
+      Item_field *fitem=  (Item_field*) item;
+      if (list)
+	if (!list->next || fitem->db_name || fitem->table_name)
+	{
+	  TABLE_LIST *table= find_table_in_list(list,
+						fitem->db_name,
+						fitem->table_name);
+	  if (table)
+	  {
+	    TABLE * tb= table->table;
+	    if (find_table_in_list(table->next, fitem->db_name,
+				   fitem->table_name) != 0 ||
+		tb->fields == 1)
+	    {
+	      if ((item= new Item_field(tb->field[0])))
+	      {
+		res= 0;
+		tb->field[0]->query_id= thd->query_id;
+		tb->used_keys&= tb->field[0]->part_of_key;
+		tb->used_fields= tb->fields;
+	      }
+	      else
+		thd->fatal_error= 1; // can't create Item => out of memory
+	    }
+	    else
+	      my_error(ER_CARDINALITY_COL, MYF(0), 1);
+	  }
+	  else
+	    my_error(ER_BAD_TABLE_ERROR, MYF(0), fitem->table_name);
+	}
+	else
+	  my_error(ER_CARDINALITY_COL, MYF(0), 1);
+      else
+	my_error(ER_NO_TABLES_USED, MYF(0));
+    }   
+    else
+      res= item->fix_fields(thd, list, &item);
+  else
+    thd->fatal_error= 1; // no item given => out of memory
+  *ref= item;
+  DBUG_RETURN(res);
+}
+
+
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
@@ -493,8 +570,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (!r)
 	  return 1;
 	int res;
-	if ((res= r->fix_fields(thd, tables, ref)))
-	  return res;
+	if (r->check_cols(1) || r->fix_fields(thd, tables, ref))
+	  return 1;
 	r->depended_from= last;
 	thd->lex.current_select->mark_as_dependent(last);
 	thd->add_possible_loop(r);
@@ -529,7 +606,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		       (char *)field_name);
     if (!*ref)
       return 1;
-    return (*ref)->fix_fields(thd, tables, ref);
+    return (*ref)->check_cols(1) || (*ref)->fix_fields(thd, tables, ref);
   }
   fixed= 1;
   return 0;
@@ -698,7 +775,7 @@ int Item::save_in_field(Field *field)
       field->result_type() == STRING_RESULT)
   {
     String *result;
-    CHARSET_INFO *cs=field->charset();
+    CHARSET_INFO *cs=charset();
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
@@ -730,12 +807,11 @@ int Item::save_in_field(Field *field)
 int Item_string::save_in_field(Field *field)
 {
   String *result;
-  CHARSET_INFO *cs=field->charset();
   result=val_str(&str_value);
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
+  return (field->store(result->ptr(),result->length(),charset())) ? -1 : 0;
 }
 
 int Item_int::save_in_field(Field *field)
@@ -803,11 +879,10 @@ longlong Item_varbinary::val_int()
 int Item_varbinary::save_in_field(Field *field)
 {
   int error;
-  CHARSET_INFO *cs=field->charset();
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
-    error=field->store(str_value.ptr(),str_value.length(),cs);
+    error=field->store(str_value.ptr(),str_value.length(),charset());
   }
   else
   {
@@ -941,6 +1016,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     return 1;
   }
   fixed= 1;
+  if (ref && (*ref)->check_cols(1))
+    return 1;
   return 0;
 }
 
@@ -963,6 +1040,8 @@ Item_result item_cmp_type(Item_result a,Item_result b)
     return STRING_RESULT;
   else if (a == INT_RESULT && b == INT_RESULT)
     return INT_RESULT;
+  else if (a == ROW_RESULT || b == ROW_RESULT)
+    return ROW_RESULT;
   else
     return REAL_RESULT;
 }

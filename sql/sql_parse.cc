@@ -52,8 +52,7 @@
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
-
-extern int yyparse(void);
+extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -76,7 +75,7 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data"
+  "Prepare", "Prepare Execute", "Long Data", "Close stmt"
 };
 
 static char empty_c_string[1]= {0};		// Used for not defined 'db'
@@ -375,7 +374,7 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
   uc_update_queries[SQLCOM_DELETE_MULTI]=1;
   uc_update_queries[SQLCOM_DROP_INDEX]=1;
-  uc_update_queries[SQLCOM_MULTI_UPDATE]=1;
+  uc_update_queries[SQLCOM_UPDATE_MULTI]=1;
 }
 
 
@@ -1087,6 +1086,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_stmt_prepare(thd, packet, packet_length);
     break;
   }
+  case COM_CLOSE_STMT:
+  {
+    mysql_stmt_free(thd, packet);
+    break;
+  }
   case COM_QUERY:
   {
     if (alloc_query(thd, packet, packet_length))
@@ -1399,7 +1403,7 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables || lex->select_lex.next_select_in_list())
+  if (tables || &lex->select_lex != lex->all_selects_list)
     mysql_reset_errors(thd);
   /*
     Save old warning count to be able to send to client how many warnings we
@@ -1407,7 +1411,6 @@ mysql_execute_command(THD *thd)
   */
   thd->old_total_warn_count= thd->total_warn_count;
 
-  thd->net.report_error= 0;
   if (thd->slave_thread)
   {
     /* 
@@ -1436,22 +1439,23 @@ mysql_execute_command(THD *thd)
   */
   if (lex->derived_tables)
   {
-    for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select_in_list())
-      if (sl->linkage != DERIVED_TABLE_TYPE)
-	for (TABLE_LIST *cursor= sl->get_table_list();
-	     cursor;
-	     cursor= cursor->next)
-	  if (cursor->derived && (res=mysql_derived(thd, lex,
-						    (SELECT_LEX_UNIT *)
-						    cursor->derived,
-						    cursor)))
-	  {  
-	    if (res < 0 || thd->net.report_error)
-	      send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	    DBUG_VOID_RETURN;
-	  }
-  } 
-  if ((lex->select_lex.next_select_in_list() && 
+    for (SELECT_LEX *sl= lex->all_selects_list;
+	 sl;
+	 sl= sl->next_select_in_list())
+      for (TABLE_LIST *cursor= sl->get_table_list();
+	   cursor;
+	   cursor= cursor->next)
+	if (cursor->derived && (res=mysql_derived(thd, lex,
+						  (SELECT_LEX_UNIT *)
+						  cursor->derived,
+						  cursor)))
+	{  
+	  if (res < 0 || thd->net.report_error)
+	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	  DBUG_VOID_RETURN;
+	}
+  }
+  if ((&lex->select_lex != lex->all_selects_list && 
        lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
@@ -1498,7 +1502,7 @@ mysql_execute_command(THD *thd)
 	}
 	else
 	  thd->send_explain_fields(result);
-	fix_tables_pointers(select_lex);
+	fix_tables_pointers(lex->all_selects_list);
 	res= mysql_explain_union(thd, &thd->lex.unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
@@ -1509,20 +1513,7 @@ mysql_execute_command(THD *thd)
       {
 	if (!result)
 	{
-	  if ((result=new select_send()))
-	  {
-	    /*
-	      Normal select:
-	      Change lock if we are using SELECT HIGH PRIORITY,
-	      FOR UPDATE or IN SHARE MODE
-
-	      TODO: Delete the following loop when locks is set by sql_yacc
-	    */
-	    TABLE_LIST *table;
-	    for (table = tables ; table ; table=table->next)
-	      table->lock_type= lex->lock_option;
-	  }
-	  else
+	  if (!(result=new select_send()))
 	  {
 	    res= -1;
 #ifdef DELETE_ITEMS
@@ -1746,9 +1737,6 @@ mysql_execute_command(THD *thd)
 	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
-	/* TODO: Delete the following loop when locks is set by sql_yacc */
-	for (table = tables->next ; table ; table=table->next)
-	  table->lock_type= lex->lock_option;
       }
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
@@ -1988,24 +1976,30 @@ mysql_execute_command(THD *thd)
       send_error(thd,ER_WRONG_VALUE_COUNT);
       DBUG_VOID_RETURN;
     }
-    if (select_lex->table_list.elements == 1)
+    res= mysql_update(thd,tables,
+                      select_lex->item_list,
+                      lex->value_list,
+                      select_lex->where,
+                      (ORDER *) select_lex->order_list.first,
+                      select_lex->select_limit,
+                      lex->duplicates);
+    break;
+  case SQLCOM_UPDATE_MULTI:
+    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+      goto error;
+    if (grant_option && check_grant(thd,UPDATE_ACL,tables))
+      goto error;
+    if (select_lex->item_list.elements != lex->value_list.elements)
     {
-      res= mysql_update(thd,tables,
-			select_lex->item_list,
-			lex->value_list,
-			select_lex->where,
-			(ORDER *) select_lex->order_list.first,
-			select_lex->select_limit,
-			lex->duplicates);
+      send_error(thd,ER_WRONG_VALUE_COUNT);
+      DBUG_VOID_RETURN;
     }
-    else 
     {
       multi_update  *result;
       uint table_count;
       TABLE_LIST *auxi;
       const char *msg=0;
 
-      lex->sql_command=SQLCOM_MULTI_UPDATE;
       for (auxi= (TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
 	table_count++;
 
@@ -2025,8 +2019,8 @@ mysql_execute_command(THD *thd)
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
       unit->select_limit_cnt= HA_POS_ERROR;
-      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
-	  !setup_fields(thd,tables,lex->value_list,0,0,0) && 
+      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) &&
+	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&
 	  !thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,
 				   lex->duplicates, table_count)))
@@ -2039,7 +2033,7 @@ mysql_execute_command(THD *thd)
 	  total_list.push_back(item);
 	while ((item=value_list++))
 	  total_list.push_back(item);
-	
+
 	res= mysql_select(thd, tables, total_list,
 			  select_lex->where,
 			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
@@ -2053,26 +2047,20 @@ mysql_execute_command(THD *thd)
 	res= -1;					// Error is not sent
       close_thread_tables(thd);
     }
-    break; 
+    break;
+  case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
-    if (check_access(thd,INSERT_ACL,tables->db,&tables->grant.privilege))
+  {
+    ulong privilege= (lex->duplicates == DUP_REPLACE ?
+                      INSERT_ACL | DELETE_ACL : INSERT_ACL);
+    if (check_access(thd,privilege,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL,tables))
+    if (grant_option && check_grant(thd,privilege,tables))
       goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
 		       lex->duplicates);
     break;
-  case SQLCOM_REPLACE:
-    if (check_access(thd,INSERT_ACL | DELETE_ACL,
-		     tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL | DELETE_ACL,
-				    tables))
-
-      goto error;
-    res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-		       DUP_REPLACE);
-    break;
+  }
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
@@ -2082,8 +2070,8 @@ mysql_execute_command(THD *thd)
       select privileges for the rest
     */
     {
-      ulong privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
-			INSERT_ACL : INSERT_ACL | DELETE_ACL);
+      ulong privilege= (lex->duplicates == DUP_REPLACE ?
+                        INSERT_ACL | DELETE_ACL : INSERT_ACL);
       TABLE_LIST *save_next=tables->next;
       tables->next=0;
       if (check_access(thd, privilege,
@@ -2105,12 +2093,6 @@ mysql_execute_command(THD *thd)
     {
       net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
       DBUG_VOID_RETURN;
-    }
-    {
-      /* TODO: Delete the following loop when locks is set by sql_yacc */
-      TABLE_LIST *table;
-      for (table = tables->next ; table ; table=table->next)
-	table->lock_type= lex->lock_option;
     }
 
     /* Skip first table, which is the table we are inserting in */
@@ -2162,11 +2144,11 @@ mysql_execute_command(THD *thd)
 
     /* sql_yacc guarantees that tables and aux_tables are not zero */
     if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-	check_table_access(thd,SELECT_ACL, tables) || 
+	check_table_access(thd,SELECT_ACL, tables) ||
 	check_table_access(thd,DELETE_ACL, aux_tables))
       goto error;
     if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
-    {		
+    {
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       goto error;
     }
@@ -2200,10 +2182,12 @@ mysql_execute_command(THD *thd)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
+    fix_tables_pointers(lex->all_selects_list);
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
     {
-      res= mysql_select(thd,tables,select_lex->item_list,
+      res= mysql_select(thd,select_lex->get_table_list(),
+			select_lex->item_list,
 			select_lex->where,
 			(ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
 			(ORDER *)NULL,
@@ -2946,9 +2930,11 @@ mysql_init_query(THD *thd)
   lex->value_list.empty();
   lex->param_list.empty();
   lex->unit.global_parameters= lex->unit.slave= lex->current_select= 
-    &lex->select_lex;
+    lex->all_selects_list= &lex->select_lex;
   lex->select_lex.master= &lex->unit;
   lex->select_lex.prev= &lex->unit.slave;
+  lex->select_lex.link_next= 0;
+  lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
   thd->check_loops_counter= thd->select_number= 
@@ -2958,7 +2944,6 @@ mysql_init_query(THD *thd)
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used= 0;
-  thd->safe_to_cache_query= 1;
   thd->possible_loops= 0;
   DBUG_VOID_RETURN;
 }
@@ -3002,8 +2987,7 @@ mysql_new_select(LEX *lex, bool move_down)
     
   select_lex->master_unit()->global_parameters= select_lex;
   DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
-  select_lex->include_global(lex->current_select->select_lex()->
-			     next_select_in_list_addr());
+  select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
   return 0;
 }
@@ -3054,10 +3038,12 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
+  thd->net.report_error= 0;
+
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-    if (!yyparse() && ! thd->fatal_error)
+    if (!yyparse((void *)thd) && ! thd->fatal_error)
     {
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))
@@ -3066,8 +3052,13 @@ mysql_parse(THD *thd, char *inBuf, uint length)
       }
       else
       {
-	mysql_execute_command(thd);
-	query_cache_end_of_result(&thd->net);
+	if (thd->net.report_error)
+	  send_error(thd, 0, NullS);
+	else
+	{
+	  mysql_execute_command(thd);
+	  query_cache_end_of_result(&thd->net);
+	}
       }
     }
     else
@@ -3802,4 +3793,34 @@ bool check_simple_select()
     return 1;
   }
   return 0;
+}
+
+compare_func_creator comp_eq_creator(bool invert)
+{
+  return invert?&Item_bool_func2::ne_creator:&Item_bool_func2::eq_creator;
+}
+
+compare_func_creator comp_ge_creator(bool invert)
+{
+  return invert?&Item_bool_func2::lt_creator:&Item_bool_func2::ge_creator;
+}
+
+compare_func_creator comp_gt_creator(bool invert)
+{
+  return invert?&Item_bool_func2::le_creator:&Item_bool_func2::gt_creator;
+}
+
+compare_func_creator comp_le_creator(bool invert)
+{
+  return invert?&Item_bool_func2::gt_creator:&Item_bool_func2::le_creator;
+}
+
+compare_func_creator comp_lt_creator(bool invert)
+{
+  return invert?&Item_bool_func2::ge_creator:&Item_bool_func2::lt_creator;
+}
+
+compare_func_creator comp_ne_creator(bool invert)
+{
+  return invert?&Item_bool_func2::eq_creator:&Item_bool_func2::ne_creator;
 }

@@ -242,7 +242,7 @@ struct rand_struct {
 
   /* The following is for user defined functions */
 
-enum Item_result {STRING_RESULT,REAL_RESULT,INT_RESULT};
+enum Item_result {STRING_RESULT, REAL_RESULT, INT_RESULT, ROW_RESULT};
 
 typedef struct st_udf_args
 {

@@ -513,6 +513,7 @@ public:
   bool get_date(TIME *res,bool fuzzy_date);
 };
 
+
 class Item_extract :public Item_int_func
 {
   const interval_type int_type;
@@ -526,14 +527,37 @@ class Item_extract :public Item_int_func
   void fix_length_and_dec();
 };
 
+
 class Item_typecast :public Item_str_func
 {
 public:
   Item_typecast(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "char"; }
   String *val_str(String *a)
-  { a=args[0]->val_str(a); null_value=args[0]->null_value; return a; }
-  void fix_length_and_dec() { max_length=args[0]->max_length; }
+  {
+    String *tmp=args[0]->val_str(a);
+    null_value=args[0]->null_value;
+    tmp->set_charset(charset());
+    return tmp;
+  }
+  void fix_length_and_dec()
+  {
+    set_charset(thd_charset());
+    max_length=args[0]->max_length;
+  }
   void print(String *str);
+};
+
+
+class Item_char_typecast :public Item_typecast
+{
+public:
+  Item_char_typecast(Item *a) :Item_typecast(a) {}
+  void fix_length_and_dec()
+  {
+    set_charset(thd_charset());
+    max_length=args[0]->max_length;
+  }
 };
 
 
@@ -553,6 +577,7 @@ public:
   }  
 };
 
+
 class Item_time_typecast :public Item_typecast
 {
 public:
@@ -568,6 +593,7 @@ public:
     		      new Field_time(maybe_null, name, t_arg, thd_charset());
   }
 };
+
 
 class Item_datetime_typecast :public Item_typecast
 {

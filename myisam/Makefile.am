@@ -17,7 +17,7 @@
 EXTRA_DIST =		mi_test_all.sh mi_test_all.res
 pkgdata_DATA =		mi_test_all mi_test_all.res
 
-INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include
+INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 pkglib_LIBRARIES =	libmyisam.a

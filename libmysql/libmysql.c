@@ -114,6 +114,7 @@ static my_bool send_file_to_server(MYSQL *mysql,const char *filename);
 static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
+static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 
 static my_bool org_my_init_done=0;
 
@@ -2510,6 +2511,16 @@ mysql_close(MYSQL *mysql)
       }
       mysql->rpl_pivot=0;
     }
+    if (mysql->stmts)
+    {
+      /* Free any open prepared statements */
+      LIST *element, *next_element;
+      for (element= mysql->stmts; element; element= next_element)
+      {
+        next_element= element->next;
+        stmt_close((MYSQL_STMT *)element->data, 0);
+      }      
+    }
     if (mysql != mysql->master)
       mysql_close(mysql->master);
     if (mysql->free_me)
@@ -3749,18 +3760,20 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   }
   if (simple_command(mysql, COM_PREPARE, query, length, 1))
   {
-    mysql_stmt_close(stmt);
+    stmt_close(stmt, 1);
     DBUG_RETURN(0);
   }
 
   init_alloc_root(&stmt->mem_root,8192,0);
   if (read_prepare_result(mysql, stmt))
   {
-    mysql_stmt_close(stmt);
+    stmt_close(stmt, 1);
     DBUG_RETURN(0);
   }
   stmt->state= MY_ST_PREPARE;
   stmt->mysql= mysql;
+  mysql->stmts= list_add(mysql->stmts, &stmt->list);
+  stmt->list.data= stmt;
   DBUG_PRINT("info", ("Parameter count: %ld", stmt->param_count));
   DBUG_RETURN(stmt);
 }
@@ -4260,7 +4273,7 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 {
   *param->buffer= (uchar) **row;
-  *row++;
+  (*row)++;
 }
 
 static void fetch_result_short(MYSQL_BIND *param, uchar **row)
@@ -4378,7 +4391,6 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   DBUG_RETURN(0);
 }
 
-
 /*
   Fetch row data to bind buffers
 */
@@ -4461,25 +4473,40 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
 *********************************************************************/
 
 /*
-  Close the statement handle by freeing all resources
-*/
+  Close the statement handle by freeing all alloced resources
 
-my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
+  SYNOPSIS
+    mysql_stmt_close()
+    stmt	       Statement handle
+    skip_list    Flag to indicate delete from list or not
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 {
   my_bool error=0;
   DBUG_ENTER("mysql_stmt_close");
 
-  if (stmt->state != MY_ST_UNKNOWN)
+  DBUG_ASSERT(stmt != 0);
+  if (stmt->state == MY_ST_PREPARE || stmt->state == MY_ST_EXECUTE)
   {
     char buff[4];
     int4store(buff, stmt->stmt_id);
-    error= simple_command(stmt->mysql, COM_CLOSE_STMT, buff, 4, 0);
+    error= simple_command(stmt->mysql, COM_CLOSE_STMT, buff, 4, 1);
   }
   mysql_free_result(stmt->result);
   free_root(&stmt->mem_root, MYF(0));
   my_free((gptr) stmt->query, MYF(MY_WME | MY_ALLOW_ZERO_PTR));
+  if (!skip_list)
+    stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
   my_free((gptr) stmt, MYF(MY_WME));
   DBUG_RETURN(error);
+}
+
+my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
+{
+  return stmt_close(stmt, 0);
 }
 
 /*

@@ -1,4 +1,4 @@
-/*
+v/*
    Modifikoval Petr -B©najdr, snajdr@pvt.net, snajdr@cpress.cz v.0.01 -A
 	ISO LATIN-8852-2
    Dal-B¹í verze Jan Pazdziora, adelton@fi.muni.cz-A
@@ -249,10 +249,11 @@
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
-"Subselect returns more than 1 field",
+"Cardinality error (more/less than %d columns)",
 "Subselect returns more than 1 record",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
 "Cyclic reference on subqueries",
 "Converting column '%s' from %s to %s",
 "Reference '%-.64s' not supported (%s)",
+"Select %u was reduced during optimisation",

@@ -271,6 +271,7 @@ inline THD *_current_thd(void)
 #include "field.h"				/* Field definitions */
 #include "sql_udf.h"
 #include "item.h"
+typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -518,7 +519,7 @@ int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key);
 void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used);
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
-void mysql_stm_close(THD *thd, char *packet);
+void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 			List<Item> &values, ulong counter);
@@ -579,6 +580,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_thread_tables(THD *thd,bool locked=0);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
+TABLE_LIST * find_table_in_list(TABLE_LIST *table,
+				const char *db_name, const char *table_name);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);
@@ -869,3 +872,11 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->null_bytes,255);
 }
+
+compare_func_creator comp_eq_creator(bool invert);
+compare_func_creator comp_ge_creator(bool invert);
+compare_func_creator comp_gt_creator(bool invert);
+compare_func_creator comp_le_creator(bool invert);
+compare_func_creator comp_lt_creator(bool invert);
+compare_func_creator comp_ne_creator(bool invert);
+

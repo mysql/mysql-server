@@ -29,9 +29,7 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 #
 # C Test for 4.1 protocol
 #
-INCLUDES =		-I$(srcdir)/../include $(openssl_includes) \
-			-I../include -I$(srcdir)/.. -I$(top_srcdir) \
-			-I..
+INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 noinst_PROGRAMS =	client_test

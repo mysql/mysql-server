@@ -104,8 +104,9 @@ public:
   void update_used_tables();
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (separator->fix_fields(thd, tlist, &separator)
-	    || Item_func::fix_fields(thd, tlist, ref));
+    return (separator->check_cols(1) ||
+	    separator->fix_fields(thd, tlist, &separator) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
  const char *func_name() const { return "concat_ws"; }
  bool check_loop(uint id)
@@ -378,7 +379,8 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->fix_fields(thd, tlist, &item) ||
+    return (item->check_cols(1) ||
+	    item->fix_fields(thd, tlist, &item) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
@@ -405,7 +407,8 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->fix_fields(thd, tlist, &item) ||
+    return (item->check_cols(1) ||
+	    item->fix_fields(thd, tlist, &item) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
@@ -510,8 +513,9 @@ public:
   {
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
+    tmp->set_charset(my_charset_bin);
     return tmp;
-   }
+  }
   void fix_length_and_dec() 
   { 
     set_charset(my_charset_bin); 

@@ -37,6 +37,11 @@ class LEX_COLUMN;
 #define LEX_YYSTYPE YYSTYPE *
 #endif
 
+/*
+  When a command is added here, be sure it's also added in mysqld.cc
+  in "struct show_var_st status_vars[]= {" ...
+*/
+
 enum enum_sql_command {
   SQLCOM_SELECT, SQLCOM_CREATE_TABLE, SQLCOM_CREATE_INDEX, SQLCOM_ALTER_TABLE,
   SQLCOM_UPDATE, SQLCOM_INSERT, SQLCOM_INSERT_SELECT,
@@ -50,9 +55,9 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_DB,
 
   SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
-  SQLCOM_GRANT, 
+  SQLCOM_GRANT,
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
-  SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT, 
+  SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
   SQLCOM_FLUSH, SQLCOM_KILL,  SQLCOM_ANALYZE,
@@ -62,11 +67,14 @@ enum enum_sql_command {
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS,
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
-  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_MULTI_UPDATE,
+  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_END, SQLCOM_HELP
+  SQLCOM_HELP,
+
+  /* This should be the last !!! */
+  SQLCOM_END
 };
 
 enum lex_states
@@ -78,7 +86,7 @@ enum lex_states
   STATE_REAL_OR_POINT, STATE_BOOL, STATE_EOL, STATE_ESCAPE, STATE_LONG_COMMENT,
   STATE_END_LONG_COMMENT, STATE_COLON, STATE_SET_VAR, STATE_USER_END,
   STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER, STATE_SYSTEM_VAR,
-  STATE_IDENT_OR_KEYWORD
+  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN
 };
 
 
@@ -200,6 +208,7 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  bool with_sum_func;
   bool	create_refs;
   bool dependent;	/* dependent from outer select subselect */
 
@@ -241,6 +250,8 @@ public:
 					List<String> *ignore_index= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
   void mark_as_dependent(st_select_lex *last);
+
+  friend class st_select_lex_unit;
 private:
   void fast_exclude();
 };
@@ -287,6 +298,7 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+  void st_select_lex_unit::exclude_level();
 
   /* UNION methods */
   int prepare(THD *thd, select_result *result);
@@ -388,6 +400,8 @@ typedef struct st_lex
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
   /* current SELECT_LEX in parsing */
   SELECT_LEX_NODE *current_select;
+  /* list of all SELECT_LEX */
+  SELECT_LEX *all_selects_list;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
@@ -441,6 +455,7 @@ typedef struct st_lex
   bool drop_primary, drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter;
   bool derived_tables, describe, olap;
+  bool safe_to_cache_query;
   uint slave_thd_opt;
   CHARSET_INFO *charset;
   char *help_arg;

@@ -50,17 +50,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   if (res)
     DBUG_RETURN(-1);
 
-  for (TABLE_LIST *cursor= (TABLE_LIST *)tables;
-       cursor;
-       cursor=cursor->next)
-  {
-    if (cursor->derived)
-    {
-      res= mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
-			 cursor);
-      if (res) DBUG_RETURN(res);
-    }
-  }
   Item *item;
   List_iterator<Item> it(sl->item_list);
 

@@ -111,7 +111,7 @@ FT_WORD * ft_linearize(TREE *wtree)
 #else
 #define misc_word_char(X)	((X)=='\'' || (X)=='-')
 #endif
-#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(s,X))
+#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
 
 
 /* returns:
@@ -132,8 +132,8 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   {
     for (;doc<end;doc++)
     {
-      /* 
-        BAR TODO: discuss with Serge how to remove 
+      /*
+        BAR TODO: discuss with Serge how to remove
         default_charset_info correctly
       */
       if (true_word_char(default_charset_info,*doc)) break;

@@ -15,16 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*
-  NOTES:
-  Some of the number class uses the system functions strtol(), strtoll()...
-  To avoid patching the end \0 or copying the buffer unnecessary, all calls
-  to system functions are wrapped to a String object that adds the end null
-  if it only if it isn't there.
-  This adds some overhead when assigning numbers from strings but makes
-  everything simpler.
-  */
-
 /*****************************************************************************
 ** This file implements classes defined in field.h
 *****************************************************************************/
@@ -921,8 +911,7 @@ void Field_decimal::sql_type(String &res) const
 
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  long tmp= my_strntol(cs,from,len,(char **)NULL,10);
   int error= 0;
 
   if (unsigned_flag)
@@ -1116,8 +1105,7 @@ void Field_tiny::sql_type(String &res) const
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  long tmp= my_strntol(cs,from,len,NULL,10);
   int error= 0;
   if (unsigned_flag)
   {
@@ -1380,8 +1368,7 @@ void Field_short::sql_type(String &res) const
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  long tmp= my_strntol(cs,from,len,NULL,10);
   int error= 0;
 
   if (unsigned_flag)
@@ -1595,7 +1582,6 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   long tmp;
   int error= 0;
-  String tmp_str(from,len,default_charset_info);
   errno=0;
   if (unsigned_flag)
   {
@@ -1606,10 +1592,10 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(long) strtoul(tmp_str.c_ptr(),NULL,10);
+      tmp=(long) my_strntoul(cs,from,len,NULL,10);
   }
   else
-    tmp=strtol(tmp_str.c_ptr(),NULL,10);
+    tmp=my_strntol(cs,from,len,NULL,10);
   if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
   {
     current_thd->cuted_fields++;
@@ -1840,7 +1826,6 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
     len--; from++;
   }
   longlong tmp;
-  String tmp_str(from,len,default_charset_info);
   int error= 0;
   errno=0;
   if (unsigned_flag)
@@ -1852,10 +1837,10 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(longlong) strtoull(tmp_str.c_ptr(),NULL,10);
+      tmp=(longlong) my_strntoull(cs,from,len,NULL,10);
   }
   else
-    tmp=strtoll(tmp_str.c_ptr(),NULL,10);
+    tmp=my_strntoll(cs,from,len,NULL,10);
   if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
   {
     current_thd->cuted_fields++;
@@ -2055,9 +2040,8 @@ void Field_longlong::sql_type(String &res) const
 
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
   errno=0;
-  Field_float::store(atof(tmp_str.c_ptr()));
+  Field_float::store(my_strntod(cs,from,len,(char**)NULL));
   if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
   {
     current_thd->cuted_fields++;
@@ -2317,10 +2301,9 @@ void Field_float::sql_type(String &res) const
 
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
   errno=0;
   int error= 0;
-  double j= atof(tmp_str.c_ptr());
+  double j= my_strntod(cs,from,len,(char**)0);
   if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
   {
     current_thd->cuted_fields++;
@@ -3097,8 +3080,7 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long nr= strtol(tmp_str.c_ptr(),NULL,10);
+  long nr= my_strntol(cs,from,len,NULL,10);
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
