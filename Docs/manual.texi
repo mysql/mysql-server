@@ -706,6 +706,7 @@ MySQL ODBC Support
 
 * Installing MyODBC::           How to install MyODBC
 * ODBC administrator::          How to fill in the various fields in the ODBC administrator program
+* MyODBC connect parameters::   
 * ODBC Problems::               How to report problems with @strong{MySQL} ODBC
 * MyODBC clients::              Programs known to work with @strong{MyODBC}
 * ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
@@ -2804,6 +2805,10 @@ Tcl interface based on tcl-sql with many bugfixes.
 
 @item @uref{http://www.binevolve.com/~tdarugar/tcl-sql/}
 Tcl interface.
+
+@item @uref{http://www.contrib.andrew.cmu.edu/~shadow/sql.html}
+SQL Reference Page with a lot of interesting links.
+
 @end table
 
 @subheading Examples of MySQL Use
@@ -33742,6 +33747,7 @@ You can find all information about procedures by examining the following files:
 @menu
 * Installing MyODBC::           How to install MyODBC
 * ODBC administrator::          How to fill in the various fields in the ODBC administrator program
+* MyODBC connect parameters::   
 * ODBC Problems::               How to report problems with @strong{MySQL} ODBC
 * MyODBC clients::              Programs known to work with @strong{MyODBC}
 * ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
@@ -33842,7 +33848,7 @@ Notice that there are other configuration options on the screen of
 you run into problems.
 
 @cindex ODBC, administrator
-@node ODBC administrator, ODBC Problems, Installing MyODBC, ODBC
+@node ODBC administrator, MyODBC connect parameters, Installing MyODBC, ODBC
 @section How to Fill in the Various Fields in the ODBC Administrator Program
 
 There are three possibilities for specifying the server name on
@@ -33896,7 +33902,64 @@ If you specify the option @code{Read options from C:\my.cnf}, the groups
 You can use all options that are usable by @code{mysql_options()}.
 @xref{mysql_options, , @code{mysql_options}}.
 
-@node ODBC Problems, MyODBC clients, ODBC administrator, ODBC
+@node MyODBC connect parameters, ODBC Problems, ODBC administrator, ODBC
+@section Connect parameters for MyODBC
+
+One can specify the following parameters for @strong{MyODBC} on
+the @code{[Servername]} section of an @code{ODBC.INI} file or
+through  the @code{InConnectionString} argument in the
+@code{SQLDriverConnect()} call.
+
+@multitable @columnfractions .2 .2 .6
+@item @strong{Parameter} @tab @strong{Default value} @tab @strong{Comment}
+@item user @tab ODBC (on windows) @tab The username used to connect to @strong{MySQL}.
+@item server @tab localhost @tab The hostname of the @strong{MySQL} server.
+@item database @tab @tab The default database
+@item option @tab 0 @tab A integer by which you can specify how @strong{MyODBC} should work. See below.
+@item port @tab 3306 @tab The TCP/IP port to use if @code{server} is not @code{localhost}.
+@item stmt @tab @tab A statement that will be executed when connection to @code{MySQL}.
+@item password @tab @tab The password for the @code{server} @code{user} combination.
+@item socket @tab @tab The socket or windows pipe to connect to.
+@end multitable
+
+The option argument is used to tell @strong{MyODBC} that the client isn't 100%
+ODBC compliant. On windows, one normally sets the option flag by
+toggling the different options on the connection screen but one can also
+set this in the opton argument. The following options are listed in the
+same order as they appear in the @strong{MyODBC} connect screen:
+
+@multitable @columnfractions .1 .9
+@item @strong{Bit} @tab @strong{Meaning}
+@item 1 @tab The client can't handle that @strong{MyODBC} returns the real width of a column.
+@item 2 @tab  The client can't handle that MySQL returns the true value of affected rows.  If this flag is set then MySQL returns 'found rows' instead.  One must have MySQL 3.21.14 or newer to get this to work.
+@item 4 @tab Make a debug log in c:\myodbc.log.  This is the same as putting @code{MYSQL_DEBUG=d:t:O,c::\myodbc.log} in @file{AUTOEXEC.BAT}
+@item 8  @tab Don't set any packet limit for results and parameters.
+@item 16 @tab Don't prompt for questions even if driver would like to prompt
+@item 32 @tab Simulate a ODBC 1.0 driver in some context.
+@item 64 @tab Ignore use of database name in 'database.table.column'.
+@item 128 @tab Force use of ODBC manager cursors (experimental).
+@item 256 @tab Disable the use of extended fetch (experimental)
+@item 512 @tab Pad CHAR fields to full column length.
+@item 1024 @tab SQLDescribeCol() will return fully qualifed column names
+@item 2048 @tab Use the compressed server/client protocol
+@item 4096 @tab Tell server to ignore space after function name and before @code{'('} (needed by PowerBuilder).  This will make all function names keywords!
+@item 8192 @tab Connect with named pipes to a mysqld server running on NT.
+@item 16384 @tab Change LONGLONG columns to INT columns (Some applications can't handle LONGLONG).
+@item 32768 @tab Return 'user' as Table_qualifier and Table_owner from SQLTables (experimental)
+@item 65536 @tab Read parameters from the @code{client} and @code{odbc} groups from @code{my.cnf} 
+@item 131072 @tab Add some extra safety checks (should not bee needed but...)
+@end multitable
+
+If you want to have many options, you should add the above flags!  For
+example setting option to 12 (4+8) gives you debugging without package
+limits!
+
+The default @file{MYODBC.DLL} is compiled for optimal performance.  If
+you want to to debug @strong{MyODBC} (for example to enable tracing),
+you should instead use @code{MYODBCD.DLL}.  To install this file, copy
+@file{MYODBCD.DLL} over the installed @code{MYODBC.DLL} file.
+
+@node ODBC Problems, MyODBC clients, MyODBC connect parameters, ODBC
 @section How to Report Problems with MyODBC
 
 @strong{MyODBC} has been tested with Access, Admndemo.exe, C++-Builder,
@@ -33937,6 +34000,7 @@ some user that it works:
 @item @strong{Program}
 @strong{Comment}
 @cindex Access program
+
 @item Access
 To make Access work:
 @itemize @bullet
@@ -33990,6 +34054,12 @@ In some cases, Access may generate illegal SQL queries that
 If you have in Access a column defined as BYTE, Access will try to export this
 as @code{TINYINT} instead of @code{TINYINT UNSIGNED}.  This will give you
 problems if you have values > 127 in the column!
+@item
+If you are using Access 7.0, You should use the option flag @code{Return
+matching rows}.
+@item
+If you are using Access 2.0, You should use the option flags @code{Return
+matching rows} and @code{Simulate ODBC 1.0}.
 @end itemize
 
 @cindex ADO program
@@ -34021,6 +34091,13 @@ myconn.Close
 
 Another workaround is to use a @code{SELECT COUNT(*)} statement
 for a similar query to get the correct row count.
+
+@item Active server pages (ASP)
+You should use the option flag @code{Return matching rows}.
+
+@item BDE applications
+To get these to work, you should set the option flags
+@code{Don't optimize column widths} and @code{Return matching rows}.
 
 @cindex Borland Buidler 4 program
 @item Borland Builder 4
@@ -34125,7 +34202,7 @@ Click OK and you see the rows in your Word document.
 Test program for ODBC.
 @cindex Delphi program
 @item Delphi
-You must use DBE Version 3.2 or newer.  Set the `Don't optimize column width'
+You must use BDE Version 3.2 or newer.  Set the `Don't optimize column width'
 option field when connecting to @strong{MySQL}.
 
 Also, here is some potentially useful Delphi code that sets up both an
@@ -34176,6 +34253,10 @@ Tested with BDE Version 3.0. The only known problem is that when the table
 schema changes, query fields are not updated. BDE, however, does not seem
 to recognize primary keys, only the index PRIMARY, though this has not
 been a problem.
+
+@item Vision
+You should use the option flag @code{Return matching rows}.
+
 @cindex Visual Basic
 @item Visual Basic
 To be able to update a table, you must define a primary key for the table.
@@ -34184,11 +34265,16 @@ Visual Basic with ADO can't handle big integers. This means that some queries
 like @code{SHOW PROCESSLIST} will not work properly.  The fix is to set
 add the option @code{OPTION=16834} in the ODBC connect string or set
 the @code{Change BIGINT columns to INT} option in the MyODBC connect screen.
+You may also want to set the @code{Return matching rows} option.
+
 @item VisualInterDev
 If you get the error @code{[Microsoft][ODBC Driver Manager] Driver does
 not support this parameter} the reason may be that you have a
 @code{BIGINT} in your result.  Try setting the @code{Change BIGINT
 columns to INT} option in the MyODBC connect screen.
+
+@item Visual Objects
+You should use the option flag @code{Don't optimize column widths}.
 @end table
 
 @cindex AUTO-INCREMENT, ODBC
@@ -42758,6 +42844,8 @@ not yet 100% confident in this code.
 @node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+Fixed a bug in @code{REGEXP()} on 64-bit machines.
 @item
 @code{UPDATE} and @code{DELETE} with @code{WHERE unique_key_part IS NULL}
 didn't update/delete all rows.
