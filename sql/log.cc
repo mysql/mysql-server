@@ -1089,7 +1089,14 @@ bool MYSQL_LOG::write(Log_event* event_info)
 #endif    
     if ((thd && !(thd->options & OPTION_BIN_LOG) &&
 	 (thd->master_access & SUPER_ACL)) ||
-	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
+	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db))
+        /* 
+           This is the place for future tests like "do the involved tables match
+           (to be implemented) binlog_[wild_]{do|ignore}_table?" (WL#1049):
+           we will add a
+           && ... to the if().
+        */
+        )
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_PRINT("error",("!db_ok"));
