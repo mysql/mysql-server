@@ -791,6 +791,16 @@ JOIN::exec()
 			   HA_POS_ERROR)))
       DBUG_VOID_RETURN;
 
+    /*
+      We don't have to store rows in temp table that doesn't match HAVING if:
+      - we are sorting the table and writing complete group rows to the
+        temp table.
+      - We are using DISTINCT without resolving the distinct as a GROUP BY
+        on all columns.
+      
+      If having is not handled here, it will be checked before the row
+      is sent to the client.
+    */
     if (having_list && 
 	(sort_and_group || (exec_tmp_table->distinct && !group_list)))
       having=having_list;
