@@ -4997,6 +4997,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    blob_count++;
 	  }
 	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+          if (((Item_sum*) item)->arg_count == 1)
+            ((Item_sum*) item)->result_field= new_field;
 	}
       }
     }
