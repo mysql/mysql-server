@@ -818,7 +818,7 @@ BitmaskImpl::getField(unsigned size, const Uint32 src[],
   
   src += (pos >> 5);
   Uint32 offset = pos & 31;
-  dst[0] = (* src >> offset) & (len >= 32 ? ~0 : (1 << len) - 1);
+  * dst = (* src >> offset) & (len >= 32 ? ~0 : (1 << len) - 1);
   
   if(offset + len <= 32)
   {
