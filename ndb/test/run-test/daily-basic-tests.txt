@@ -465,9 +465,73 @@ max-time: 150000
 cmd: testOperations
 args:
 
-max-time: 150000
+max-time: 1500
 cmd: testTransactions
-args:
+args: T1
+
+max-time: 1500
+cmd: testTransactions
+args: T2
+
+max-time: 1500
+cmd: testTransactions
+args: T3
+
+max-time: 1500
+cmd: testTransactions
+args: T4
+
+max-time: 1500
+cmd: testTransactions
+args: T5
+
+max-time: 1500
+cmd: testTransactions
+args: T6
+
+max-time: 1500
+cmd: testTransactions
+args: T7
+
+max-time: 1500
+cmd: testTransactions
+args: T8
+
+max-time: 1500
+cmd: testTransactions
+args: T9
+
+max-time: 1500
+cmd: testTransactions
+args: T10
+
+max-time: 1500
+cmd: testTransactions
+args: T11
+
+max-time: 1500
+cmd: testTransactions
+args: T12
+
+max-time: 1500
+cmd: testTransactions
+args: T13
+
+max-time: 1500
+cmd: testTransactions
+args: T14
+
+max-time: 1500
+cmd: testTransactions
+args: I1
+
+max-time: 1500
+cmd: testTransactions
+args: I2
+
+max-time: 1500
+cmd: testTransactions
+args: I3
 
 max-time: 1500
 cmd: testRestartGci
@@ -477,7 +541,7 @@ max-time: 600
 cmd: testBlobs
 args:
 
-max-time: 2500
+max-time: 5000
 cmd: testOIBasic
 args: 
 
