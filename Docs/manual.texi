@@ -28800,7 +28800,9 @@ Monty
 1 row in set (0.09 sec)
 @end example
 
-For logging, one can use the @code{tee} option. The @code{tee} can be
+@itemize @bullet
+@item
+For logging, you can use the @code{tee} option. The @code{tee} can be
 started with option @code{--tee=...}, or from the command line
 interactively with command @code{tee}. All the data displayed on the
 screen will also be appended into a given file. This can be very useful
@@ -28810,7 +28812,7 @@ starts logging again. Without a parameter the previous file will be
 used. Note that @code{tee} will flush the results into the file after
 each command, just before the command line appears again waiting for the
 next command.
-
+@item
 Browsing, or searching the results in the interactive mode in UNIX less,
 more, or any other similar program, is now possible with option
 @code{--pager[=...]}. Without argument, @code{mysql} client will look
@@ -28824,11 +28826,48 @@ will default to stdout. @code{pager} works only in UNIX, since it uses
 the popen() function, which doesn't exist in Windows. In Windows, the
 @code{tee} option can be used instead, although it may not be as handy
 as @code{pager} can be in some situations.
-
-You can even combine the two functions above; have the @code{tee}
+@item
+A few tips about @code{pager}: You can use it to write to a file:
+@example
+mysql> pager cat > /tmp/log.txt
+@end example
+and the results will only go to a file. You can also pass any options
+for the programs that you want to use with the @code{pager}:
+@example
+mysql> pager less -n -i -S
+@end example
+From the above do note the option '-S'. You may find it very useful when
+browsing the results; try the option with horizontal output (end
+commands with '\g', or ';') and with vertical output (end commands with
+'\G'). Sometimes a very wide result set is hard to be read from the screen,
+with option -S to less you can browse the results within the interactive
+less from left to right, preventing lines longer than your screen from
+being continued to the next line. This can make the result set much more
+readable. You can swith the mode between on and off within the interactive
+less with '-S'. See the 'h' for more help about less.
+@item
+Last (unless you already understood this from the above examples ;) you
+can combine very complex ways to handle the results, for example the
+following would send the results to two files in two different
+directories, on two different hard-disks mounted on /dr1 and /dr2, yet
+let the results still be seen on the screen via less:
+@example
+mysql> pager cat | tee /dr1/tmp/res.txt | tee /dr2/tmp/res2.txt | less -n -i -S
+@end example
+@item
+You can also combine the two functions above; have the @code{tee}
 enabled, @code{pager} set to 'less' and you will be able to browse the
 results in unix 'less' and still have everything appended into a file
-the same time.
+the same time. The difference between @code{UNIX tee} used with the
+@code{pager} and the @code{mysql} client in-built @code{tee}, is that
+the in-built @code{tee} works even if you don't have the @code{UNIX tee}
+available. The in-built @code{tee} also logs everything that is printed
+on the screen, where the @code{UNIX tee} used with @code{pager} doesn't
+log quite that much. Last, but not least, the interactive @code{tee} is
+more handy to switch on and off, when you want to log something into a
+file, but want to be able to turn the feature off sometimes.
+@end itemize
+
 
 @cindex administration, server
 @cindex server administration
