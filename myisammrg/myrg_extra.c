@@ -40,19 +40,9 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function)
       info->current_table=0;
       info->last_used_table=info->open_tables;
     }
-
-    info->records=info->del=info->data_file_length=0;
     for (file=info->open_tables ; file != info->end_table ; file++)
-    {
       if ((error=mi_extra(file->table,function)))
 	save_error=error;
-      file->file_offset=info->data_file_length;
-      info->data_file_length+=file->table->s->state.state.data_file_length;
-      info->records+=file->table->s->state.state.records;
-      info->del+=file->table->s->state.state.del;
-      DBUG_PRINT("info2",("table: %s, offset: 0x%08lx",
-                  file->table->filename,(ulong)file->file_offset));
-    }
   }
   DBUG_RETURN(save_error);
 }
