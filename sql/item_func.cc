@@ -2724,7 +2724,19 @@ void Item_func_get_user_var::fix_length_and_dec()
   error= get_var_with_binlog(thd, name, &var_entry);
 
   if (var_entry)
+  {
     collation.set(var_entry->collation);
+    switch (var_entry->type) {
+    case REAL_RESULT:
+      max_length= DBL_DIG + 8;
+    case INT_RESULT:
+      max_length= MAX_BIGINT_WIDTH;
+      break;
+    case STRING_RESULT:
+      max_length= MAX_BLOB_WIDTH;
+      break;
+    }
+  }
   else
     null_value= 1;
 
