@@ -1356,6 +1356,7 @@ opt_unique_or_fulltext:
 key_alg:
 	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
 	| USING opt_btree_or_rtree { $$= $2; };
+	| TYPE opt_btree_or_rtree  { $$= $2; };
 
 opt_btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
