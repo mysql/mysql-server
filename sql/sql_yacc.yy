@@ -5003,7 +5003,9 @@ subselect_start:
 	{
 	  LEX *lex=Lex;
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) || lex->sql_command == (int)SQLCOM_KILL)	  {	
+	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
+	       lex->sql_command == (int)SQLCOM_KILL)
+	  {	
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
 	  }

@@ -150,7 +150,8 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
   {
     if (cursor->do_redirect)
     {
-      cursor->table= ((TABLE_LIST*) cursor->table)->table;
+      //Sinisa TODO: there are function for this purpose: fix_tables_pointers
+      cursor->table= cursor->table_list->table;
       cursor->do_redirect= 0;
     }
   }
