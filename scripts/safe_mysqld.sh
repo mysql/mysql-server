@@ -269,7 +269,7 @@ do
     done
   fi
 
-  echo "`date +'%y%m%d %H:%M:%S'  mysqld restarted" | tee -a $err_log
+  echo "`date +'%y%m%d %H:%M:%S'`  mysqld restarted" | tee -a $err_log
 done
 
 echo "`date +'%y%m%d %H:%M:%S'`  mysqld ended" | tee -a $err_log
