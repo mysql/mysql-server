@@ -179,7 +179,7 @@ show grants for 'mysqltest_1';
 drop user 'mysqltest_1', 'mysqltest_3';
 #
 # Grant must not create user
---error 1211
+--error 1410
 grant all on test.t1 to 'mysqltest_1';
 --error 1396
 drop user 'mysqltest_1';
