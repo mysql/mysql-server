@@ -4642,7 +4642,7 @@ static void mysql_init_variables(void)
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
   language_ptr= language;
-  default_collation_name= 0;
+  default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
   mysql_data_home= mysql_real_data_home;
   thd_startup_options= (OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE);
@@ -4681,7 +4681,7 @@ static void mysql_init_variables(void)
 
   /* Variables in libraries */
   charsets_dir= 0;
-  sys_charset.value= (char*) MYSQL_CHARSET;
+  sys_charset.value= (char*) MYSQL_DEFAULT_CHARSET_NAME;
   sys_charset_system.value= (char*) system_charset_info->csname;
 
   /* Set default values for some option variables */

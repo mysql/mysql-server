@@ -139,7 +139,7 @@ static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
-            *default_charset= (char*) MYSQL_CHARSET;
+            *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static char *histfile;
 static String glob_buffer,old_buffer;
 static String processed_prompt;
