@@ -36,26 +36,45 @@ class String
   char *Ptr;
   uint32 str_length,Alloced_length;
   bool alloced;
+  CHARSET_INFO *str_charset;
 public:
   String()
-  { Ptr=0; str_length=Alloced_length=0; alloced=0; }
+  { 
+    Ptr=0; str_length=Alloced_length=0; alloced=0; 
+    str_charset=default_charset_info; 
+  }
   String(uint32 length_arg)
-  { alloced=0; Alloced_length=0; (void) real_alloc(length_arg); }
+  { 
+    alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
+    str_charset=default_charset_info;  
+  }
   String(const char *str)
-  { Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;}
+  { 
+    Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
+    str_charset=default_charset_info;
+  }
   String(const char *str,uint32 len)
-  { Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;}
+  { 
+    Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
+    str_charset=default_charset_info;  
+  }
   String(char *str,uint32 len)
-  { Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;}
+  { 
+    Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;
+    str_charset=default_charset_info;
+  }
   String(const String &str)
-  { Ptr=str.Ptr ; str_length=str.str_length ;
-    Alloced_length=str.Alloced_length; alloced=0; }
-
+  { 
+    Ptr=str.Ptr ; str_length=str.str_length ;
+    Alloced_length=str.Alloced_length; alloced=0; 
+    str_charset=str.str_charset;
+  }
   static void *operator new(size_t size) { return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg,size_t size) /*lint -e715 */
     { sql_element_free(ptr_arg); }
   ~String() { free(); }
 
+  inline CHARSET_INFO *charset() const { return str_charset; }
   inline uint32 length() const { return str_length;}
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
