@@ -161,6 +161,7 @@ static void client_connect()
   char buff[255];
   myheader_r("client_connect");  
 
+  fprintf(stdout, "\n Establishig a connection ...");
   if (!(mysql = mysql_init(NULL)))
   { 
 	  myerror("mysql_init() failed");
@@ -174,15 +175,19 @@ static void client_connect()
     mysql_close(mysql);
     exit(0);
   }    
+  fprintf(stdout," OK");
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(mysql, TRUE);
+  fprintf(stdout, "\n Creating a test database '%s' ...", current_db);
   sprintf(buff,"CREATE DATABASE IF NOT EXISTS %s", current_db);
   rc = mysql_query(mysql, buff);
   myquery(rc);
   sprintf(buff,"USE %s", current_db);
   rc = mysql_query(mysql, buff);
   myquery(rc);
+  
+  fprintf(stdout," OK");
 }
 
 /********************************************************
@@ -195,11 +200,13 @@ static void client_disconnect()
   if (mysql)
   {
     char buff[255];
-    fprintf(stdout, "\n droping the test database '%s'", current_db);
+    fprintf(stdout, "\n droping the test database '%s' ...", current_db);
     sprintf(buff,"DROP DATABASE IF EXISTS %s", current_db);
     mysql_query(mysql, buff);
-    fprintf(stdout, "\n closing the connection\n");
+    fprintf(stdout, " OK");
+    fprintf(stdout, "\n closing the connection ...");
     mysql_close(mysql);
+    fprintf(stdout, " OK\n");
   }
 }
 
@@ -3548,63 +3555,68 @@ static void test_stmt_close()
   
   myheader("test_stmt_close");  
 
+  fprintf(stdout, "\n Establishing a test connection ...");
   if (!(lmysql = mysql_init(NULL)))
   { 
 	  myerror("mysql_init() failed");
     exit(0);
   }
   if (!(mysql_real_connect(lmysql,opt_host,opt_user,
-			   opt_password, opt_db ? opt_db:"inter_client_test_db", opt_port,
+			   opt_password, current_db, opt_port,
 			   opt_unix_socket, 0)))
   {
     myerror("connection failed");
     exit(0);
   }   
-  if (opt_db)
-    strmov(current_db,opt_db);
+  fprintf(stdout," OK");
+  
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(lmysql, TRUE);
-  mysql_query(lmysql,"DROP TABLE IF EXISTS test_stmt_close");
-  mysql_query(lmysql,"CREATE TABLE test_stmt_close(id int)");
+  
+  rc = mysql_query(lmysql,"DROP TABLE IF EXISTS test_stmt_close");
+  myquery(rc);
+  
+  rc = mysql_query(lmysql,"CREATE TABLE test_stmt_close(id int)");
+  myquery(rc);
 
   strmov(query,"ALTER TABLE test_stmt_close ADD name varchar(20)");
   stmt1= PREPARE(lmysql, query);
   mystmt_init(stmt1);
-  count= mysql_param_count(stmt1);
-  fprintf(stdout,"\n total params in alter: %d", count);
-  myassert(count == 0);
+  
+  verify_param_count(stmt1, 0);
+  
   strmov(query,"INSERT INTO test_stmt_close(id) VALUES(?)");
   stmt_x= PREPARE(mysql, query);
   mystmt_init(stmt_x);
-  count= mysql_param_count(stmt_x);
-  fprintf(stdout,"\n total params in insert: %d", count);
-  myassert(count == 1);
+
+  verify_param_count(stmt_x, 1);
+  
   strmov(query,"UPDATE test_stmt_close SET id=? WHERE id=?");
   stmt3= PREPARE(lmysql, query);
   mystmt_init(stmt3);
-  count= mysql_param_count(stmt3);
-  fprintf(stdout,"\n total params in update: %d", count);
-  myassert(count == 2);
+  
+  verify_param_count(stmt3, 2);
+  
   strmov(query,"SELECT * FROM test_stmt_close WHERE id=?");
   stmt2= PREPARE(lmysql, query);
   mystmt_init(stmt2);
-  count= mysql_param_count(stmt2);
-  fprintf(stdout,"\n total params in select: %d", count);
-  myassert(count == 1);
+
+  verify_param_count(stmt2, 1);
 
   rc= mysql_stmt_close(stmt1);
   fprintf(stdout,"\n mysql_close_stmt(1) returned: %d", rc);
   myassert(rc == 0);
-  mysql_close(lmysql); /* it should free all stmts */
-#if NOT_VALID 
+  
+  mysql_close(lmysql); /* it should free all open stmts(stmt3, stmt2) */
+  
   rc= mysql_stmt_close(stmt3);
   fprintf(stdout,"\n mysql_close_stmt(3) returned: %d", rc);
   myassert( rc == 1);
+  
   rc= mysql_stmt_close(stmt2);
   fprintf(stdout,"\n mysql_close_stmt(2) returned: %d", rc);
   myassert( rc == 1);
-#endif
 
   count= 100;
   bind[0].buffer=(char *)&count;
@@ -3616,7 +3628,7 @@ static void test_stmt_close()
   rc = mysql_execute(stmt_x);
   mystmt(stmt_x, rc);
 
-  rc= (ulong)mysql_affected_rows(stmt_x->mysql);
+  rc= (ulong)mysql_stmt_affected_rows(stmt_x);
   fprintf(stdout,"\n total rows affected: %d", rc);
   myassert (rc == 1);
 
@@ -3624,7 +3636,6 @@ static void test_stmt_close()
   fprintf(stdout,"\n mysql_close_stmt(x) returned: %d", rc);
   myassert( rc == 0);
 
-  /*verify_col_data("test_stmt_close", "id", "100");*/
   rc = mysql_query(mysql,"SELECT id FROM test_stmt_close");
   myquery(rc);
 
@@ -5291,7 +5302,7 @@ int main(int argc, char **argv)
     test_warnings();        /* show warnings test */
     test_errors();          /* show errors test */
     test_prepare_resultset();/* prepare meta info test */
-    /*test_stmt_close(); */    /* mysql_stmt_close() test -- hangs */
+    test_stmt_close();      /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test -TODO*/
     test_multi_query();     /* test multi query execution */
@@ -5312,7 +5323,10 @@ int main(int argc, char **argv)
   }
   
   client_disconnect();    /* disconnect from server */
-  fprintf(stdout,"\n\nSUCCESS !!!\n");
+  fprintf(stdout,"\n\nAll '%d' tests were successful (in '%d' iterations)", 
+                 test_count-1, opt_count);
+  
+  fprintf(stdout,"\nSUCCESS !!!\n");
   return(0);
 }
 

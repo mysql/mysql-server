@@ -5289,7 +5289,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 */
 static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 {
-  my_bool error=0;
+  my_bool error= 0;
   DBUG_ENTER("mysql_stmt_close");
 
   DBUG_ASSERT(stmt != 0);
@@ -5299,12 +5299,14 @@ static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
     int4store(buff, stmt->stmt_id);
     error= simple_command(stmt->mysql, COM_CLOSE_STMT, buff, 4, 1);
   }
-  mysql_free_result(stmt->result);
-  free_root(&stmt->mem_root, MYF(0));
-  my_free((gptr) stmt->query, MYF(MY_WME | MY_ALLOW_ZERO_PTR));
-  if (!skip_list)
-    stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
-  my_free((gptr) stmt, MYF(MY_WME));
+  if (!error)
+  {
+    mysql_free_result(stmt->result);
+    free_root(&stmt->mem_root, MYF(0));
+    if (!skip_list)
+      stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
+    my_free((gptr) stmt, MYF(MY_WME));
+  }
   DBUG_RETURN(error);
 }
 
