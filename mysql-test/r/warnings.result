@@ -142,6 +142,25 @@ Warning	1265	Data truncated for column 'b' at row 10
 select @@warning_count;
 @@warning_count
 50
+set max_error_count=0;
+show variables like 'max_error_count';
+Variable_name	Value
+max_error_count	0
+update t1 set b='hi';
+Warnings:
+select @@warning_count;
+@@warning_count
+50
+show warnings;
+Level	Code	Message
+set max_error_count=65535;
+show variables like 'max_error_count';
+Variable_name	Value
+max_error_count	65535
+set max_error_count=10;
+show variables like 'max_error_count';
+Variable_name	Value
+max_error_count	10
 drop table t1;
 create table t1 (id int) engine=isam;
 Warnings:
