@@ -1177,7 +1177,6 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  SELECT_LEX_UNIT *units= 0;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     // unlink current level from global SELECTs list

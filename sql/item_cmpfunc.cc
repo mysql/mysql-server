@@ -2197,11 +2197,11 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
   int            f = 0;
   int            g = plm1;
   int *const splm1 = suff + plm1;
-  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   *splm1 = pattern_len;
 
-  if (cmp.cmp_collation.collation == &my_charset_bin)
+  if (cs == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2299,12 +2299,12 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   int *end = bmBc + alphabet_size;
   int j;
   const int plm1 = pattern_len - 1;
-  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cmp.cmp_collation.collation == &my_charset_bin)
+  if (cs == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2329,13 +2329,13 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
-  CHARSET_INFO	*cs= cmp.cmp_collation.collation;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   const int plm1=  pattern_len - 1;
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cmp.cmp_collation.collation == &my_charset_bin)
+  if (cs == &my_charset_bin)
   {
     while (j <= tlmpl)
     {

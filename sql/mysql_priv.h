@@ -509,7 +509,6 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
                       uint order_num, ORDER *order,
-		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
 		      enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
@@ -764,6 +763,8 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 void free_items(Item *item);
 void cleanup_items(Item *item);
 
+#define MY_DB_OPT_FILE "db.opt"
+bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 
 /*
   External variables

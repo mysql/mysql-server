@@ -1615,11 +1615,6 @@ opt_key_or_index:
 	| key_or_index
 	;
 
-opt_keys_or_index:
-	/* empty */ {}
-	| keys_or_index
-	;
-
 keys_or_index:
 	KEYS {}
 	| INDEX {}
@@ -1689,7 +1684,6 @@ alter:
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    YYABORT;
-	  lex->drop_primary=0;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
 	  lex->col_list.empty();
@@ -1761,12 +1755,14 @@ alter_list_item:
 	    lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
 					    $3.str)); lex->simple_alter=0;
 	  }
+	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_primary=1; lex->simple_alter=0;
+	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+						    primary_key_name));
+	    lex->simple_alter=0;
 	  }
-	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP key_or_index field_ident
 	  {
 	    LEX *lex=Lex;
@@ -2119,7 +2115,7 @@ cache_keys_spec:
 
 cache_key_list_or_empty:
 	/* empty */	{ Lex->select_lex.use_index_ptr= 0; }
-	| opt_keys_or_index '(' key_usage_list2 ')'
+	| opt_key_or_index '(' key_usage_list2 ')'
 	  {
             SELECT_LEX *sel= &Lex->select_lex;
 	    sel->use_index_ptr= &sel->use_index;

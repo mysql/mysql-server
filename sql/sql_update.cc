@@ -245,7 +245,7 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
-	if (!(select && select->skipp_record()))
+	if (!(select && select->skip_record()))
 	{
 	  table->file->position(table->record[0]);
 	  if (my_b_write(&tempfile,table->file->ref,
@@ -302,7 +302,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    if (!(select && select->skipp_record()))
+    if (!(select && select->skip_record()))
     {
       store_record(table,record[1]);
       if (fill_record(fields,values, 0) || thd->net.report_error)

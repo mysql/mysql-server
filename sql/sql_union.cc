@@ -445,6 +445,7 @@ int st_select_lex_unit::cleanup()
   if (union_result)
   {
     delete union_result;
+    union_result=0; // Safety
     if (table)
       free_tmp_table(thd, table);
     table= 0; // Safety
