@@ -137,3 +137,17 @@ execute stmt1;
 FOUND_ROWS()
 0
 deallocate prepare stmt1;
+drop table t1;
+set @arg00=1;
+prepare stmt1 from ' create table t1 (m int) as select 1 as m ' ;
+execute stmt1 ;
+select m from t1;
+m
+1
+drop table t1;
+prepare stmt1 from ' create table t1 (m int) as select ? as m ' ;
+execute stmt1 using @arg00;
+select m from t1;
+m
+1
+drop table t1;
