@@ -106,7 +106,7 @@ static HASH acl_check_hosts, hash_tables;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
 static uint grant_version=0;
-static ulong get_access(TABLE *form,uint fieldnr);
+static ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
 static void init_check_host(void);
@@ -191,7 +191,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     ACL_HOST host;
     update_hostname(&host.host,get_field(&mem, table,0));
     host.db=	 get_field(&mem, table,1);
-    host.access= get_access(table,2);
+    host.access= get_access(table,2,0);
     host.access= fix_rights_for_db(host.access);
     host.sort=	 get_sort(2,host.host.hostname,host.db);
 #ifndef TO_BE_REMOVED
@@ -241,14 +241,15 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 		      user.host.hostname ? user.host.hostname : ""); /* purecov: tested */
       continue;					/* purecov: tested */
     }
+    uint next_field;
     get_salt_from_password(user.salt,user.password);
-    user.access=get_access(table,3) & GLOBAL_ACLS;
+    user.access=get_access(table,3,&next_field) & GLOBAL_ACLS;
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length= (user.host.hostname ?
 			   (uint) strlen(user.host.hostname) : 0);
     if (table->fields >= 31)	 /* Starting from 4.0.2 we have more fields */
     {
-      char *ssl_type=get_field(&mem, table, 24);
+      char *ssl_type=get_field(&mem, table, next_field++);
       if (!ssl_type)
 	user.ssl_type=SSL_TYPE_NONE;
       else if (!strcmp(ssl_type, "ANY"))
@@ -258,16 +259,16 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       else  /* !strcmp(ssl_type, "SPECIFIED") */
 	user.ssl_type=SSL_TYPE_SPECIFIED;
 
-      user.ssl_cipher=	 get_field(&mem, table, 25);
-      user.x509_issuer=  get_field(&mem, table, 26);
-      user.x509_subject= get_field(&mem, table, 27);
+      user.ssl_cipher=   get_field(&mem, table, next_field++);
+      user.x509_issuer=  get_field(&mem, table, next_field++);
+      user.x509_subject= get_field(&mem, table, next_field++);
 
-      char *ptr = get_field(&mem, table, 28);
-      user.user_resource.questions=atoi(ptr);
-      ptr = get_field(&mem, table, 29);
-      user.user_resource.updates=atoi(ptr);
-      ptr = get_field(&mem, table, 30);
-      user.user_resource.connections=atoi(ptr);
+      char *ptr = get_field(&mem, table, next_field++);
+      user.user_resource.questions= ptr ? atoi(ptr) : 0;
+      ptr = get_field(&mem, table, next_field++);
+      user.user_resource.updates= ptr ? atoi(ptr): 0;
+      ptr = get_field(&mem, table, next_field++);
+      user.user_resource.connections=ptr ? atoi(ptr) : 0;
       if (user.user_resource.questions || user.user_resource.updates ||
 	  user.user_resource.connections)
 	mqh_used=1;
@@ -313,7 +314,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       continue;
     }
     db.user=get_field(&mem, table,2);
-    db.access=get_access(table,3);
+    db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);
 #ifndef TO_BE_REMOVED
@@ -423,11 +424,24 @@ void acl_reload(THD *thd)
 
 /*
   Get all access bits from table after fieldnr
-  We know that the access privileges ends when there is no more fields
-  or the field is not an enum with two elements.
+
+  IMPLEMENTATION
+    We know that the access privileges ends when there is no more fields
+    or the field is not an enum with two elements.
+
+  SYNOPSIS
+    get_access()
+    form        an open table to read privileges from.
+                The record should be already read in table->record[0]
+    fieldnr     number of the first privilege (that is ENUM('N','Y') field
+    next_field  on return - number of the field next to the last ENUM
+                (unless next_field == 0)
+
+  RETURN VALUE
+    privilege mask
 */
 
-static ulong get_access(TABLE *form, uint fieldnr)
+static ulong get_access(TABLE *form, uint fieldnr, uint *next_field)
 {
   ulong access_bits=0,bit;
   char buff[2];
@@ -437,12 +451,14 @@ static ulong get_access(TABLE *form, uint fieldnr)
   for (pos=form->field+fieldnr, bit=1;
        *pos && (*pos)->real_type() == FIELD_TYPE_ENUM &&
 	 ((Field_enum*) (*pos))->typelib->count == 2 ;
-       pos++ , bit<<=1)
+       pos++, fieldnr++, bit<<=1)
   {
     (*pos)->val_str(&res,&res);
     if (toupper(res[0]) == 'Y')
       access_bits|= bit;
   }
+  if (next_field)
+    *next_field=fieldnr;
   return access_bits;
 }
 
@@ -1395,7 +1411,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (priv & rights)				 // set requested privileges
       (*tmp_field)->store(&what,1);
   }
-  rights=get_access(table,3);
+  rights=get_access(table,3,0);
   DBUG_PRINT("info",("table->fields: %d",table->fields));
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
@@ -1554,7 +1570,7 @@ static int replace_db_table(TABLE *table, const char *db,
     if (priv & store_rights)			// do it if priv is chosen
       table->field [i]->store(&what,1);		// set requested privileges
   }
-  rights=get_access(table,3);
+  rights=get_access(table,3,0);
   rights=fix_rights_for_db(rights);
 
   if (old_row_exists)
