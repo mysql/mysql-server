@@ -86,7 +86,7 @@ static MgmGlobals glob;
  * Global variables
  */
 bool g_StopServer;
-extern EventLogger g_EventLogger;
+extern EventLogger g_eventLogger;
 
 extern int global_mgmt_server_check;
 
@@ -303,12 +303,12 @@ int main(int argc, char** argv)
   BaseString::snprintf(msg, sizeof(msg),
 	   "NDB Cluster Management Server. %s", NDB_VERSION_STRING);
   ndbout_c(msg);
-  g_EventLogger.info(msg);
+  g_eventLogger.info(msg);
 
   BaseString::snprintf(msg, 256, "Id: %d, Command port: %d",
 	   glob.localNodeId, glob.port);
   ndbout_c(msg);
-  g_EventLogger.info(msg);
+  g_eventLogger.info(msg);
   
   g_StopServer = false;
   glob.socketServer->startServer();
@@ -324,10 +324,10 @@ int main(int argc, char** argv)
 	NdbSleep_MilliSleep(500);
     }
   
-  g_EventLogger.info("Shutting down server...");
+  g_eventLogger.info("Shutting down server...");
   glob.socketServer->stopServer();
   glob.socketServer->stopSessions();
-  g_EventLogger.info("Shutdown complete");
+  g_eventLogger.info("Shutdown complete");
   return 0;
  error_end:
   return 1;
