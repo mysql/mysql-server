@@ -1835,7 +1835,6 @@ class multi_update :public select_result_interceptor
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables;
   bool do_update, trans_safe, transactional_tables, ignore;
 
 public:

@@ -133,6 +133,23 @@ static HASH archive_open_tables;
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
+/* dummy handlerton - only to have something to return from archive_db_init */
+static handlerton archive_hton = {
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* releas savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0        /* rollback_by_xid */
+};
+
+
 /*
   Used for hash table that tracks open tables.
 */
@@ -152,17 +169,18 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
     void
 
   RETURN
-    FALSE       OK
-    TRUE        Error
+    &archive_hton OK
+    0             Error
 */
 
-bool archive_db_init()
+handlerton *archive_db_init()
 {
   VOID(pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST));
-  return (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
-                    (hash_get_key) archive_get_key, 0, 0));
+  if (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
+                (hash_get_key) archive_get_key, 0, 0))
+    return 0;
+  return &archive_hton;
 }
-
 
 /*
   Release the archive handler.

@@ -1530,6 +1530,8 @@ int ha_enable_transaction(THD *thd, bool on)
 
   DBUG_ENTER("ha_enable_transaction");
   thd->transaction.on= on;
+  if (on)
+    ha_commit(thd);
   DBUG_RETURN(error);
 }
 

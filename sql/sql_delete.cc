@@ -732,7 +732,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       If we return here we will not have logged the truncation to the bin log
       and we will not send_ok() to the client.
     */
-    goto end; 
+    goto end;
   }
 
   (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
