@@ -3574,11 +3574,14 @@ A license is required if:
 
 @itemize @minus
 @item
-You link a part of the of @strong{MySQL} that has a GPL Copyright to a
-program that is not free software (embedded usage of the @strong{MySQL}
-server).  In this case your application would also become GPL through the
-clause in the GPL license that acts as a virus.  By licensing @strong{MySQL} 
-from us under a commercial license you will avoid this problem.
+You link a program, that is not free software, with code from the
+@strong{MySQL} server or clients that has the GPL copyright. This
+happens for example when you use @strong{MySQL} as an embedded server
+in your applications or when you add not free extensions to the
+@strong{MySQL} server.  In this case your application/code would also
+become GPL through the GPL license that acts as a virus.  By licensing
+@strong{MySQL} server from @strong{MySQL AB} under a commercial
+license you will avoid this problem.
 
 @item
 You have a commercial application that ONLY works with @strong{MySQL}

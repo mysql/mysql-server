@@ -2056,7 +2056,7 @@ EOF
     then 
       MT_LD_ADD="$OVERRIDE_MT_LD_ADD"
     else
-      MT_LD_ADD="-L \$(top_srcdir)/mit-pthreads/obj/ -lpthread.a"
+      MT_LD_ADD="-L \$(top_srcdir)/mit-pthreads/obj/ -lpthread"
     fi
     AC_SUBST(MT_LD_ADD)
     echo ""
