@@ -122,3 +122,120 @@ from t1 a left join t3 b on a.id=b.order_id
 group by a.id, a.description 
 having (a.description is not null) and (c=0);
 drop table t1,t2,t3;
+
+
+#
+# Tests for WL#1972 CORRECT EVALUATION OF COLUMN REFERENCES IN THE HAVING CLAUSE
+# Per the SAP VERI tests and WL#1972, MySQL must ensure that HAVING can
+# correctly evaluate column references from the GROUP BY clause, even if the
+# same references are not also found in the select list.
+#
+
+# set global sql_mode='ansi';
+# set session sql_mode='ansi';
+
+--disable_warnings
+drop table if exists wl1972;
+--enable_warnings
+
+create table wl1972 (
+   col1 int, 
+   col2 varchar(5) character set latin1 collate latin1_bin) 
+engine=innodb;
+
+insert into wl1972 values(10,'hello');
+insert into wl1972 values(20,'hello');
+insert into wl1972 values(30,'hello');
+insert into wl1972 values(10,'bye');
+insert into wl1972 values(10,'sam');
+insert into wl1972 values(10,'bob');
+
+select count(*) from wl1972 group by col1 having col1 = 10;
+
+select count(*) as count_col1 from wl1972 group by col1 having col1 = 10;
+
+select count(*) as count_col1 from wl1972 as t1 group by col1 having col1 = 10;
+
+select count(*) from wl1972 group by col2 having col2 = 'hello';
+
+--error 1054
+select count(*) from wl1972 group by col2 having col1 = 10;
+
+select col1 as count_col1 from wl1972 as t1 group by col1 having col1 = 10;
+
+select col1 as count_col1 from wl1972 as t1 group by col1 having count_col1 = 10;
+
+select col1 as count_col1 from wl1972 as t1 group by count_col1 having col1 = 10;
+# ANSI: should return SQLSTATE 42000 Syntax error or access violation 
+# MySQL: returns 10 - because of GROUP BY name resolution
+
+select col1 as count_col1 from wl1972 as t1 group by count_col1 having count_col1 = 10;
+# ANSI: should return SQLSTATE 42000 Syntax error or access violation 
+# MySQL: returns 10 - because of GROUP BY name resolution
+
+select col1 as count_col1,col2 from wl1972 as t1 group by col1,col2 having col1 = 10;
+
+select col1 as count_col1,col2 from wl1972 as t1 group by col1,col2 having count_col1 = 10;
+
+select col1 as count_col1,col2 from wl1972 as t1 group by col1,col2 having col2 = 'hello';
+
+select col1 as count_col1,col2 as group_col2 from wl1972 as t1 
+group by col1,col2 having group_col2 = 'hello';
+
+--error 1064
+select sum(col1) as co12 from wl1972 group by col2 having col2 10; 
+
+select sum(col1) as co2, count(col2) as cc from wl1972 group by col1 having col1 =10; 
+
+select t1.col1 from wl1972 as t1 where t1.col2 in 
+   (select t2.col2 from wl1972 as t2 
+     group by t2.col1,t2.col2 having t2.col1<=10);
+
+select t1.col1 from wl1972 as t1 where t1.col2 in 
+   (select t2.col2 from wl1972 as t2 
+     group by t2.col1,t2.col2 having t2.col1<=
+        (select min(t3.col1) from wl1972 as t3));
+
+drop table wl1972;
+
+# More queries to test ANSI compatibility
+create table wl1972 (s1 int);
+insert into wl1972 values (1),(2),(3);
+
+select count(*) from wl1972 group by s1 having s1 is null;
+
+select s1*0 as s1 from wl1972 group by s1 having s1 <> 0;
+# ANSI requires: 3 rows
+# MySQL returns: 0 rows - because of GROUP BY name resolution
+
+select s1*0 from wl1972 group by s1 having s1 = 0;
+
+select s1 from wl1972 group by 1 having 1 = 0;
+
+select count(s1) from wl1972 group by s1 having count(1+1)=2;
+# ANSI requires: 3 rows
+# MySQL returns: 0 rows - because of GROUP BY name resolution
+
+select count(s1) from wl1972 group by s1 having s1*0=0;
+
+-- error 1052
+select * from wl1972 a, wl1972 b group by a.s1 having s1 is null;
+# ANSI requires: 0 rows
+# MySQL returns:
+# "ERROR 1052 (23000): Column 's1' in having clause is ambiguous"
+# I think the column is ambiguous in ANSI too.
+# It is the same as:
+#   select a.s1, b.s1 from wl1972 a, wl1972 b group by a.s1 having s1 is null;
+# currently we first check SELECT, thus s1 is ambiguous.
+
+drop table wl1972;
+
+create table wl1972 (s1 char character set latin1 collate latin1_german1_ci);
+insert into wl1972 values ('ü'),('y');
+
+select s1,count(s1) from wl1972
+group by s1 collate latin1_swedish_ci having s1 = 'y';
+# ANSI requires: 1 row, with count(s1) = 2
+# MySQL returns: 1 row, with count(s1) = 1
+
+drop table wl1972;

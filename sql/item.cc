@@ -26,6 +26,7 @@
 #include "sql_acl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_select.h"
 
 static void mark_as_dependent(THD *thd,
 			      SELECT_LEX *last, SELECT_LEX *current,
@@ -2261,55 +2262,207 @@ bool Item_field::send(Protocol *protocol, String *buffer)
   return protocol->store(result_field);
 }
 
+
 /*
-  This is used for HAVING clause
-  Find field in select list having the same name
- */
+  Search a GROUP BY clause for a field with a certain name.
+
+  SYNOPSIS
+    find_field_in_group_list()
+    find_item  the item being searched for
+    group_list GROUP BY clause
+
+  DESCRIPTION
+    Search the GROUP BY list for a column named as find_item. When searching
+    preference is given to columns that are qualified with the same table (and
+    database) name as the one being searched for.
+
+  RETURN
+    - the found item on success
+    - NULL if find_item is not in group_list
+*/
+
+static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
+{
+  const char *db_name;
+  const char *table_name;
+  const char *field_name;
+  ORDER      *found_group= NULL;
+  int         found_match_degree= 0;
+  Item_field *cur_field;
+  int         cur_match_degree= 0;
+
+  if (find_item->type() == Item::FIELD_ITEM ||
+      find_item->type() == Item::REF_ITEM)
+  {
+    db_name=    ((Item_ident*) find_item)->db_name;
+    table_name= ((Item_ident*) find_item)->table_name;
+    field_name= ((Item_ident*) find_item)->field_name;
+  }
+  else
+    return NULL;
+
+  DBUG_ASSERT(field_name);
+
+  for (ORDER *cur_group= group_list ; cur_group ; cur_group= cur_group->next)
+  {
+    if ((*(cur_group->item))->type() == Item::FIELD_ITEM)
+    {
+      cur_field= (Item_field*) *cur_group->item;
+      cur_match_degree= 0;
+      
+      DBUG_ASSERT(cur_field->field_name);
+
+      if (!my_strcasecmp(system_charset_info,
+                         cur_field->field_name, field_name))
+        ++cur_match_degree;
+      else
+        continue;
+
+      if (cur_field->table_name && table_name &&
+          !strcmp(cur_field->table_name, table_name))
+      { /* If field_name is qualified by a table name. */
+        ++cur_match_degree;
+        if (cur_field->db_name && db_name &&
+            !strcmp(cur_field->db_name, db_name))
+          /* If field_name is also qualified by a database name. */
+          ++cur_match_degree;
+      }
+
+      if (cur_match_degree > found_match_degree)
+      {
+        found_match_degree= cur_match_degree;
+        found_group= cur_group;
+      }
+    }
+  }
+  if (found_group)
+    return found_group->item;
+  else
+    return NULL;
+}
+
+
+/*
+  Resolve the name of a column reference.
+
+  SYNOPSIS
+    Item_ref::fix_fields()
+    thd       [in]      Current thread
+    tables    [in]      The tables in the FROM clause
+    reference [in/out]  View column if this item was resolved to a view column
+
+  DESCRIPTION
+    The method resolves the column reference represented by this as an Item
+    present in either of: GROUP BY clause, SELECT clause, outer queries. It is
+    used for columns in the HAVING clause which are not under aggregate
+    functions.
+
+  NOTES
+    The name resolution algorithm used is:
+      resolve_extended([T_j].col_ref_i)
+      {
+        Search for a column named col_ref_i [in table T_j]
+        in the GROUP BY clause of Q.
+
+        Search for a column or derived column named col_ref_i [in table T_j]
+        in the SELECT list of Q.
+
+        if found different columns with the same name in GROUP BY and SELECT
+        issue an error.
+
+        // Lookup in outer queries.
+        if such a column is NOT found AND there are outer queries
+        {
+          for each outer query Q_k beginning from the inner-most one
+         {
+            search for a column or derived column named col_ref_i
+            [in table T_j] in the SELECT list of Q_k;
+            if such a column is not found
+            {
+              search for a column or derived column named col_ref_i
+              [in table T_j] in the FROM clause of Q_k;
+            }
+          }
+        }
+      }
+    This procedure treats GROUP BY and SELECT as one namespace for column
+    references in HAVING.
+
+  RETURN
+    TRUE  if error
+    FALSE on success
+*/
 
 bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
+  SELECT_LEX *current_sel= thd->lex->current_select;
+  List<Item> *search_namespace= current_sel->get_item_list();
+  bool is_having_field= current_sel->having_fix_field;
+  Item **group_by_ref= NULL;
+
   if (!ref)
   {
     TABLE_LIST *table_list;
     bool upward_lookup= 0;
-    SELECT_LEX_UNIT *prev_unit= thd->lex->current_select->master_unit();
-    SELECT_LEX *sl= prev_unit->outer_select();
+    SELECT_LEX_UNIT *prev_unit= current_sel->master_unit();
+    SELECT_LEX *outer_sel= prev_unit->outer_select();
+
     /*
-      Finding only in current select will be performed for selects that have 
-      not outer one and for derived tables (which not support using outer 
-      fields for now)
+      Search for a column or derived column named as 'this' in the SELECT
+      clause of current_select.
     */
-    if ((ref= find_item_in_list(this, 
-				*(thd->lex->current_select->get_item_list()),
-				&counter,
-				((sl && 
-				  thd->lex->current_select->master_unit()->
-				  first_select()->linkage !=
-				  DERIVED_TABLE_TYPE) ? 
-				  REPORT_EXCEPT_NOT_FOUND :
-				  REPORT_ALL_ERRORS))) ==
-	(Item **)not_found_item)
+    if (!(ref= find_item_in_list(this, *search_namespace, &counter,
+                                 REPORT_EXCEPT_NOT_FOUND)))
+      return TRUE; /* Some error occurred. */
+
+    /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
+    if (is_having_field && !this->with_sum_func)
     {
+      group_by_ref= find_field_in_group_list(this, (ORDER*)
+                                             current_sel->group_list.first);
+      /* Check if the fields found in SELECT and GROUP BY are the same field. */
+      if (group_by_ref && ref != (Item **) not_found_item &&
+          !((*group_by_ref)->eq(*ref, 0)))
+      {
+        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                        MYF(0), this->full_name(), current_thd->where);
+        return TRUE;
+      }
+    }
+
+
+    /*
+      If we didn't find such a column in the current query, and if there is an
+      outer select, and this is not a derived table (which do not support the
+      use of outer fields for now), search the outer select(s) for a column
+      named as 'this'.
+    */
+    if (!group_by_ref && (ref == (Item **) not_found_item) && outer_sel && 
+        (current_sel->master_unit()->first_select()->linkage !=
+         DERIVED_TABLE_TYPE))
+    {
+      /*
+	We can't join the columns of the outer & current selects, because of
+	scope of view rules. For example if both tables (outer & current) have
+	field 'field' it is not a mistake to refer to this field without
+	qualifying it with a table name, but if we join tables in one list it
+	will cause error ER_NON_UNIQ_ERROR in find_item_in_list.
+      */
       upward_lookup= 1;
       Field *tmp= (Field*) not_found_field;
-      /*
-	We can't find table field in table list of current select,
-	consequently we have to find it in outer subselect(s).
-	We can't join lists of outer & current select, because of scope
-	of view rules. For example if both tables (outer & current) have
-	field 'field' it is not mistake to refer to this field without
-	mention of table name, but if we join tables in one list it will
-	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
-      */
       SELECT_LEX *last=0;
-      for ( ; sl ; sl= (prev_unit= sl->master_unit())->outer_select())
+
+      for ( ; outer_sel ;
+            outer_sel= (prev_unit= outer_sel->master_unit())->outer_select())
       {
-	last= sl;
+	last= outer_sel;
 	Item_subselect *prev_subselect_item= prev_unit->item;
-	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
-	    (ref= find_item_in_list(this, sl->item_list,
+
+        /* Search in the SELECT list of the current outer sub-select. */
+	if (outer_sel->resolve_mode == SELECT_LEX::SELECT_MODE &&
+	    (ref= find_item_in_list(this, outer_sel->item_list,
 				    &counter,
 				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
@@ -2321,21 +2474,24 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  }
 	  break;
 	}
-	table_list= sl->get_table_list();
-	if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
+
+        /* Search in the tables in the FROM clause of the outer select. */
+	table_list= outer_sel->get_table_list();
+	if (outer_sel->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	{
-	  // it is primary INSERT st_select_lex => skip first table resolving
+	  /* It is primary INSERT st_select_lex => skip the first table. */
 	  table_list= table_list->next_local;
 	}
         enum_parsing_place place= prev_subselect_item->parsing_place;
         /*
-          Check table fields only if subquery used somewhere out of HAVING
-          or SELECT list or outer SELECT do not use groupping (i.e. tables
-          are accessable)
+          Check table fields only if the subquery is used somewhere out of
+          HAVING or SELECT list, or outer SELECT does not use grouping
+          (i.e. tables are accessible)
         */
         if (((place != IN_HAVING &&
               place != SELECT_LIST) ||
-             (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+             (outer_sel->with_sum_func == 0 &&
+              outer_sel->group_list.elements == 0)) &&
             (tmp= find_field_in_tables(thd, this,
 				       table_list, reference,
 				       0, 1)) != not_found_field)
@@ -2362,53 +2518,50 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
 	prev_subselect_item->const_item_cache= 0;
 
-	if (sl->master_unit()->first_select()->linkage ==
+	if (outer_sel->master_unit()->first_select()->linkage ==
 	    DERIVED_TABLE_TYPE)
-	  break; // do not look over derived table
+	  break; /* Do not consider derived tables. */
       }
 
       if (!ref)
-	return 1;
+	return TRUE;
       else if (!tmp)
-	return -1;
+	return TRUE;
       else if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
 	if (upward_lookup)
 	{
-	  // We can't say exactly what absend (table or field)
+	  /* We can't say exactly what was absent (a table or a field). */
 	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
 			  full_name(), thd->where);
 	}
 	else
 	{
 	  // Call to report error
-	  find_item_in_list(this,
-			    *(thd->lex->current_select->get_item_list()),
-			    &counter,
+	  find_item_in_list(this, *search_namespace, &counter,
 			    REPORT_ALL_ERRORS);
 	}
         ref= 0;
-	return 1;
+	return TRUE;
       }
       else if (tmp != not_found_field)
       {
-	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
+	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
 	if (tmp != view_ref_found)
 	{
 	  Item_field* fld;
 	  if (!((*reference)= fld= new Item_field(tmp)))
-	    return 1;
-	  mark_as_dependent(thd, last, thd->lex->current_select, fld);
+	    return TRUE;
+	  mark_as_dependent(thd, last, current_sel, fld);
 	  register_item_tree_changing(reference);
-	  return 0;
+	  return FALSE;
 	}
         /*
 	  We can leave expression substituted from view for next PS/SP
-	  rexecution (i.e. do not register this substitution for reverting
-	  on cleupup() (register_item_tree_changing())), because this
-	  subtree will be fix_field'ed during
-	  setup_tables()->setup_ancestor() (i.e. before all other
-	  expressions of query, and references on tables which do not
+	  re-execution (i.e. do not register this substitution for reverting on
+	  cleanup() (register_item_tree_changing())), because this subtree will
+	  be fix_field'ed during setup_tables()->setup_ancestor() (i.e. before
+	  all other expressions of query, and references on tables which do not
 	  present in query will not make problems.
 
 	  Also we suppose that view can't be changed during PS/SP life.
@@ -2420,24 +2573,34 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	{
 	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		   "forward reference in item list");
-	  return -1;
+	  return TRUE;
 	}
-	mark_as_dependent(thd, last, thd->lex->current_select,
+	mark_as_dependent(thd, last, current_sel,
 			  this);
 	ref= last->ref_pointer_array + counter;
       }
     }
-    else if (!ref)
-      return 1;
+    else if (!group_by_ref && ref == (Item **) not_found_item)
+    {
+      my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+		      this->full_name(), current_thd->where);
+      return TRUE;
+    }
     else
     {
+      if (ref != (Item **) not_found_item)
+        ref= current_sel->ref_pointer_array + counter;
+      else if (group_by_ref)
+        ref= group_by_ref;
+      else
+        DBUG_ASSERT(FALSE);
+
       if (!(*ref)->fixed)
       {
 	my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		 "forward reference in item list");
-	return -1;
+	return TRUE;
       }
-      ref= thd->lex->current_select->ref_pointer_array + counter;
     }
   }
 
@@ -2450,15 +2613,14 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   */
   if (((*ref)->with_sum_func && name &&
        (depended_from ||
-	!(thd->lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	  thd->lex->current_select->having_fix_field))) ||
+	!(current_sel->linkage != GLOBAL_OPTIONS_TYPE && is_having_field))) ||
       !(*ref)->fixed)
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 
 	     ((*ref)->with_sum_func?
 	      "reference on group function":
 	      "forward reference in item list"));
-    return 1;
+    return TRUE;
   }
   max_length= (*ref)->max_length;
   maybe_null= (*ref)->maybe_null;
@@ -2468,8 +2630,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   fixed= 1;
 
   if (ref && (*ref)->check_cols(1))
-    return 1;
-  return 0;
+    return TRUE;
+  return FALSE;
 }
 
 
