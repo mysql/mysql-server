@@ -31150,6 +31150,17 @@ mysql> select TRUNCATE(1.999,1);
         -> 1.9
 mysql> select TRUNCATE(1.999,0);
         -> 1
+mysql> select TRUNCATE(-1,999,1);
+        -> -1.9
+@end example
+
+Starting from MySQL 3.23.51 all numbers are rounded towards zero.
+
+If @code{D} is negative, then the whole part of the number is zeroed out:
+
+@example
+mysql> select truncate(122,-2);
+       -> 100
 @end example
 
 Note that as decimal numbers are normally not stored as exact numbers in
@@ -46915,6 +46926,11 @@ not yet 100% confident in this code.
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
+@item
+Cleaned up @code{NULL} handling for default values in @code{DESCRIBE
+table_name}.
+@item
+Fixed @code{truncate()} to round up negative values to the nearest integer.
 @item
 Remove end space from @code{enum} values. (This fixed a problem with
 @code{SHOW CREATE TABLE}).
