@@ -2519,7 +2519,7 @@ longlong Item_func_regex::val_int()
 	regfree(&preg);
 	regex_compiled=0;
       }
-      if (regcomp(&preg,res2->c_ptr(),
+      if (regcomp(&preg,res2->c_ptr_safe(),
                   ((cmp_collation.collation->state &
                     (MY_CS_BINSORT | MY_CS_CSSORT)) ?
                    REG_EXTENDED | REG_NOSUB :
