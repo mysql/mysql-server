@@ -2725,24 +2725,23 @@ sys_var *find_sys_var(const char *str, uint length)
 
 int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
-  int error= 0;
+  int error;
   List_iterator_fast<set_var_base> it(*var_list);
   DBUG_ENTER("sql_set_variables");
 
   set_var_base *var;
   while ((var=it++))
   {
-    if ((error=var->check(thd)))
+    if ((error= var->check(thd)))
       goto err;
   }
-  if (!thd->net.report_error)
+  if (!(error= test(thd->net.report_error)))
   {
     it.rewind();
     while ((var= it++))
       error|= var->update(thd);         // Returns 0, -1 or 1
   }
-  else
-    error= 1;
+
 err:
   free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(error);
