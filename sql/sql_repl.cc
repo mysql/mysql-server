@@ -309,6 +309,9 @@ sweepstakes if you report the bug";
       case LOG_READ_TRUNC:
 	errmsg = "binlog truncated in the middle of event";
 	break;
+      default:
+	errmsg = "unknown error reading log event on the master";
+	break;
       }
       goto err;
     }

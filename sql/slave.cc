@@ -30,7 +30,11 @@ DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
-
+#ifndef DBUG_OFF
+int disconnect_slave_event_count = 0;
+static int events_till_disconnect = -1;
+static int stuck_count = 0;
+#endif
 
 
 static inline void skip_load_data_infile(NET* net);
@@ -668,6 +672,11 @@ static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
   // being in the interrupted state :-)
   // my_real_read() will time us out
   // we check if we were told to die, and if not, try reading again
+#ifndef DBUG_OFF
+  if(disconnect_slave_event_count && !(events_till_disconnect--))
+    return packet_error;      
+#endif
+  
   while (!abort_loop && !abort_slave && len == packet_error && read_errno == EINTR )
   {
     len = mc_net_safe_read(mysql);
@@ -970,6 +979,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   pthread_mutex_unlock(&LOCK_slave);
   
   int error = 1;
+  bool retried_once = 0;
+  ulonglong last_failed_pos = 0;
   
   my_thread_init(); // needs to be up here, otherwise we get a coredump
   // trying to use DBUG_ stuff
@@ -1008,13 +1019,21 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	  
 	  thd->proc_info = "waiting to reconnect after a failed dump request";
 	  if(mysql->net.vio)
-	    vio_close(mysql->net.vio); 
-	  safe_sleep(thd, glob_mi.connect_retry);
+	    vio_close(mysql->net.vio);
+	  // first time retry immediately, assuming that we can recover
+	  // right away - if first time fails, sleep between re-tries
+	  // hopefuly the admin can fix the problem sometime
+	  if(retried_once)
+	    safe_sleep(thd, glob_mi.connect_retry);
+	  else
+	    retried_once = 1;
+	  
 	  if(slave_killed(thd))
 	      goto err;
 
 	  thd->proc_info = "reconnecting after a failed dump request";
-
+          sql_print_error("Slave: failed dump request, reconnecting to \
+try again, master_log_pos=%ld", last_failed_pos = glob_mi.pos );
 	  safe_reconnect(thd, mysql, &glob_mi);
 	  if(slave_killed(thd))
 	      goto err;
@@ -1025,7 +1044,6 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 
       while(!slave_killed(thd))
 	{
-          bool reset = 0;
 	  thd->proc_info = "reading master update";
 	  uint event_len = read_event(mysql, &glob_mi);
 	  if(slave_killed(thd))
@@ -1035,19 +1053,22 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	  {
 	    thd->proc_info = "waiting to reconnect after a failed read";
 	    if(mysql->net.vio)
- 	      vio_close(mysql->net.vio); 
-	    safe_sleep(thd, glob_mi.connect_retry);
+ 	      vio_close(mysql->net.vio);
+	    if(retried_once) // punish repeat offender with sleep
+	      safe_sleep(thd, glob_mi.connect_retry);
+	    else
+	      retried_once = 1; 
+	    
 	    if(slave_killed(thd))
 	      goto err;
 	    thd->proc_info = "reconnecting after a failed read";
+	    sql_print_error("Slave: Failed reading log event, \
+reconnecting to retry, master_log_pos=%ld", last_failed_pos = glob_mi.pos);
 	    safe_reconnect(thd, mysql, &glob_mi);
 	    if(slave_killed(thd))
 	      goto err;
-	    reset = 1;
-	  }
-	  
-	  if(reset)
 	    break;
+	  }
 	  
 	  thd->proc_info = "processing master log event"; 
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
@@ -1059,6 +1080,28 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	      // abort the slave thread, when the problem is fixed, the user
 	      // should restart the slave with mysqladmin start-slave
 	    }
+	  
+	  // successful exec with offset advance,
+	  // the slave repents and his sins are forgiven!
+	  if(glob_mi.pos > last_failed_pos)
+	    {
+	     retried_once = 0;
+#ifndef DBUG_OFF
+	     stuck_count = 0;
+#endif
+	    }
+#ifndef DBUG_OFF
+	  else
+	    {
+	      stuck_count++;
+	    // show a little mercy, allow slave to read one more event
+	       // before cutting him off - otherwise he gets stuck
+	       // on Invar events, since they do not advance the offset
+	       // immediately
+	      if(stuck_count > 2)
+	        events_till_disconnect++;
+	    }
+#endif	  
 
 	}
     }
@@ -1086,6 +1129,9 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   // will try to connect until successful
 {
+#ifndef DBUG_OFF
+  events_till_disconnect = disconnect_slave_event_count;
+#endif  
   while(!slave_killed(thd) &&
 	!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 			  mi->port, 0, 0))
@@ -1107,12 +1153,15 @@ static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
   mi->pending = 0; // if we lost connection after reading a state set event
   // we will be re-reading it, so pending needs to be cleared
+#ifndef DBUG_OFF
+  events_till_disconnect = disconnect_slave_event_count;
+#endif
   while(!slave_killed(thd) && mc_mysql_reconnect(mysql))
   {
-    sql_print_error(
-		    "Slave thread: error connecting to master:%s, retry in %d sec",
+    sql_print_error("Slave thread: error connecting to master:\
+%s, retry in %d sec",
 		    mc_mysql_error(mysql), mi->connect_retry);
-    safe_sleep(thd, mi->connect_retry);
+     safe_sleep(thd, mi->connect_retry);
   }
   
 }

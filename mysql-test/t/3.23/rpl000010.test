@@ -1,0 +1,13 @@
+#this tests the offset off by 22 mystery bug
+#must run slave with --disconnect-slave-event-count=1 --master-connect-retry=1
+source t/include/master-slave.inc;
+connection slave;
+drop table if exists foo;
+connection master;
+drop table if exists foo;
+create table foo (n int not null auto_increment primary key);
+insert into foo values(NULL);
+insert into foo values(2);
+connection slave;
+sleep 5;
+@r/3.23/rpl000010.result select n from foo;

@@ -278,6 +278,7 @@ start_master()
 
 start_slave()
 {
+    [ x$SKIP_SLAVE = x1 ] && return
     [ -d $GCOV_SLAVE_SRC ] && cd $GCOV_SLAVE_SRC
     slave_args="--no-defaults --server-id=2 \
 	    --master-user=root \
@@ -362,7 +363,7 @@ run_testcase ()
  tname=`$ECHO $tname | $CUT -d . -f 1`
  master_opt_file=$TESTDIR/$tname-master.opt
  slave_opt_file=$TESTDIR/$tname-slave.opt
-
+ SKIP_SLAVE=`$EXPR \( match $tname rpl \) = 0`
  
  if [ -f $master_opt_file ] ;
  then
@@ -443,7 +444,9 @@ run_testcase ()
 
 mysql_install_db
 
-if [ -z $DO_GDB ]
+#do not automagically start deamons if we are in gdb or running only one test
+#case
+if [ -z $DO_GDB ] && [ -z $1 ]
 then
  $SETCOLOR_NORMAL && $ECHO -n "Starting mysqld for Testing" 
  mysql_start
