@@ -81,7 +81,7 @@
 #define HA_READ_PREV		4	/* Read prev. record with same key */
 #define HA_READ_ORDER		8	/* Read through record-keys in order */
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
-#define HA_NOT_READ_PREFIX_LAST	32
+#define HA_NOT_READ_PREFIX_LAST	32	/* No support for index_read_last() */
 #define HA_KEY_READ_ONLY	64	/* Support HA_EXTRA_KEYREAD */
 
 /*

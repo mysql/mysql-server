@@ -519,7 +519,7 @@ fi
   take care of this
 - reorganized the file list: actually install man pages along
   with the binaries of the respective subpackage
-- don´t include libmysqld.a in the devel subpackage as well, if we
+- do not include libmysqld.a in the devel subpackage as well, if we
   have a special "embedded" subpackage
 - reworked the package descriptions
 
