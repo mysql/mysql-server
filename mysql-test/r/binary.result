@@ -65,6 +65,7 @@ a	b
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
 select * from t1 where b="hello ";
 a	b
+hello	hello
 select * from t1 ignore index (b) where b="hello ";
 a	b
 hello	hello

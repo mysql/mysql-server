@@ -101,7 +101,7 @@ struct st_table {
   my_bool fulltext_searched;
   my_bool crashed;
   my_bool is_view;
-  my_bool no_keyread;
+  my_bool no_keyread, no_cache;
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;

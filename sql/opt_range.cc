@@ -942,9 +942,10 @@ static SEL_ARG *
 get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
-  uint maybe_null=(uint) field->real_maybe_null();
+  uint maybe_null=(uint) field->real_maybe_null(), copies;
   uint field_length=field->pack_length()+maybe_null;
   SEL_ARG *tree;
+  char *str, *str2;
   DBUG_ENTER("get_mm_leaf");
 
   if (type == Item_func::LIKE_FUNC)
@@ -1056,15 +1057,39 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     /* This happens when we try to insert a NULL field in a not null column */
     DBUG_RETURN(&null_element);			// cmp with NULL is never true
   }
-  // Get local copy of key
-  char *str= (char*) alloc_root(param->mem_root,
-				key_part->part_length+maybe_null);
+  /* Get local copy of key */
+  copies= 1;
+  if (field->key_type() == HA_KEYTYPE_VARTEXT)
+    copies= 2;
+  str= str2= (char*) alloc_root(param->mem_root,
+				(key_part->part_length+maybe_null)*copies);
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length);
-  if (!(tree=new SEL_ARG(field,str,str)))
+  if (copies == 2)
+  {
+    /*
+      The key is stored as 2 byte length + key
+      key doesn't match end space. In other words, a key 'X ' should match
+      all rows between 'X' and 'X           ...'
+    */
+    uint length= uint2korr(str+maybe_null);
+    char *end;
+    str2= str+ key_part->part_length + maybe_null;
+    /* remove end space.  The 2 is for the packed length */
+    while (length > 0 && str[length+2+maybe_null-1] == ' ')
+      length--;
+    int2store(str+maybe_null, length);
+    /* Create key that is space filled */
+    memcpy(str2, str, length+2+maybe_null);
+    end= str2+ maybe_null + key_part->part_length;
+    for (char *pos= str2+ 2+ length + maybe_null; pos < end ; pos++)
+      *pos++= ' ';
+    int2store(str2+maybe_null, key_part->part_length);
+  }
+  if (!(tree=new SEL_ARG(field,str,str2)))
     DBUG_RETURN(0);		// out of memory
 
   switch (type) {
@@ -2233,7 +2258,8 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
       (uint) key_tree->part+1 == param->table->key_info[keynr].key_parts &&
-      (param->table->key_info[keynr].flags & HA_NOSAME) &&
+      (param->table->key_info[keynr].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+      HA_NOSAME &&
       min_key_length == max_key_length &&
       !memcmp(param->min_key,param->max_key,min_key_length))
     tmp=1;					// Max one record
@@ -2367,7 +2393,8 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
     {
       KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
-      if (table_key->flags & HA_NOSAME && key->part == table_key->key_parts-1)
+      if ((table_key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME &&
+	  key->part == table_key->key_parts-1)
       {
 	if (!(table_key->flags & HA_NULL_PART_KEY) ||
 	    !null_part_in_key(key,
@@ -2412,7 +2439,7 @@ bool QUICK_SELECT::unique_key_range()
     if (((tmp=ranges.head())->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
-      return ((key->flags & HA_NOSAME) &&
+      return ((key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME &&
 	      key->key_length == tmp->min_length);
     }
   }
@@ -2465,7 +2492,8 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
   range->flag= ((ref->key_length == key_info->key_length &&
-		 (key_info->flags & HA_NOSAME)) ? EQ_RANGE : 0);
+		 (key_info->flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+		 HA_NOSAME) ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))

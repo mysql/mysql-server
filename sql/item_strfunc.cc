@@ -2169,7 +2169,7 @@ String *Item_func_quote::val_str(String *str)
   new_length= arg_length+2; /* for beginning and ending ' signs */
 
   for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, *from);
+    new_length+= get_esc_bit(escmask, (uchar) *from);
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the

@@ -56,7 +56,6 @@ static int check_for_max_user_connections(USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
-static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
@@ -3600,7 +3599,7 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
 
 	/* Check if name is used in table list */
 
-static bool check_dup(const char *db, const char *name, TABLE_LIST *tables)
+bool check_dup(const char *db, const char *name, TABLE_LIST *tables)
 {
   for (; tables ; tables=tables->next)
     if (!strcmp(name,tables->real_name) && !strcmp(db,tables->db))

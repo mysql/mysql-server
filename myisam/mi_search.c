@@ -783,7 +783,8 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
 
         if (piks &&
             (flag=_mi_compare_text(keyseg->charset,a,a_length,b,b_length,
-             (my_bool) ((nextflag & SEARCH_PREFIX) && next_key_length <= 0))))
+				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
+					      next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -801,7 +802,8 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
 	}
         if (piks &&
             (flag=_mi_compare_text(keyseg->charset,a,a_length,b,b_length,
-             (my_bool) ((nextflag & SEARCH_PREFIX) && next_key_length <= 0))))
+				   (my_bool) ((nextflag & SEARCH_PREFIX)
+					      && next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a=end;
         b+=length;
@@ -817,7 +819,8 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
 
         if (piks &&
             (flag=compare_bin(a,a_length,b,b_length,
-             (my_bool) ((nextflag & SEARCH_PREFIX) && next_key_length <= 0))))
+			      (my_bool) ((nextflag & SEARCH_PREFIX) &&
+					 next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -828,7 +831,8 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
         uint length=keyseg->length;
         if (piks &&
             (flag=compare_bin(a,length,b,length,
-             (my_bool) ((nextflag & SEARCH_PREFIX) && next_key_length <= 0))))
+			      (my_bool) ((nextflag & SEARCH_PREFIX) &&
+					 next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=length;
         b+=length;
@@ -841,9 +845,17 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
         get_key_pack_length(b_length,pack_length,b);
         next_key_length=key_length-b_length-pack_length;
 
+	if (!(nextflag & (SEARCH_PREFIX | SEARCH_UPDATE)))
+	{
+	  while (a_length && a[a_length-1] == ' ')
+	    a_length--;
+	  while (b_length && b[b_length-1] == ' ')
+	    b_length--;
+	}
         if (piks &&
             (flag=_mi_compare_text(keyseg->charset,a,a_length,b,b_length,
-             (my_bool) ((nextflag & SEARCH_PREFIX) && next_key_length <= 0))))
+				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
+					      next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -859,7 +871,8 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
 
         if (piks &&
             (flag=compare_bin(a,a_length,b,b_length,
-             (my_bool) ((nextflag & SEARCH_PREFIX) && next_key_length <= 0))))
+			      (my_bool) ((nextflag & SEARCH_PREFIX) &&
+					 next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
