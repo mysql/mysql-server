@@ -23,10 +23,10 @@
   the second column is the ODBC state (which the 4.1 server sends out by
   default) and the last is the state used by the JDBC driver.
   If the last column is "" then it means that the JDBC driver is using the
-  ODBC state
+  ODBC state.
 
-  The errors in this file is sorted in the same order as in mysqld_error.h
-  to allow on to do binary searches for the sqlstate.
+  The errors in this file are sorted in the same order as in mysqld_error.h
+  to allow one to do binary searches for the sqlstate.
 */
 
 ER_DUP_KEY,			"23000", "",

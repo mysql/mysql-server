@@ -2098,9 +2098,10 @@ CHARSET_INFO my_charset_utf8_general_ci=
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
     to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -2125,9 +2126,10 @@ CHARSET_INFO my_charset_utf8_bin=
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
     to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -2173,7 +2175,7 @@ int main()
   
   test_mb(cs,(uchar*)str);
   
-  pr1;2cintf("orig      :'%s'\n",str);
+  printf("orig      :'%s'\n",str);
   
   my_caseup_utf8(cs,str,15);
   printf("caseup    :'%s'\n",str);

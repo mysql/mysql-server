@@ -6300,7 +6300,6 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   my_long10_to_str_8bit,
   my_longlong10_to_str_8bit,
   my_fill_8bit,
-    
   my_strntol_8bit,
   my_strntoul_8bit,
   my_strntoll_8bit,
@@ -6321,6 +6320,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -6348,6 +6348,7 @@ CHARSET_INFO my_charset_big5_bin=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */

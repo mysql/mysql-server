@@ -599,6 +599,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
