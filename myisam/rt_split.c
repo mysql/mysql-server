@@ -326,7 +326,8 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
       cur2 = rt_PAGE_NEXT_KEY(cur2, key_length, nod_flag);
       ++n2;
     }
-    memcpy(to - nod_flag, cur->key - nod_flag, full_length);
+    if (to != cur->key)
+      memcpy(to - nod_flag, cur->key - nod_flag, full_length);
   }
  
   mi_putint(page, 2 + n1 * full_length, nod_flag);
