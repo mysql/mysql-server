@@ -5,6 +5,13 @@ TO=dev@mysql.com
 FROM=$USER@mysql.com
 LIMIT=10000
 
+if [ "$REAL_EMAIL" = "" ]
+then
+ echo "Warning: you must set REAL_EMAIL in your profile"
+else
+ FROM=$REAL_EMAIL 
+fi
+
 BK_STATUS=$BK_STATUS$BK_COMMIT
 
 if [ "$BK_STATUS" = OK ]
