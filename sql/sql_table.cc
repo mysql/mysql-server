@@ -835,7 +835,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 #endif
     }
 
-    List_iterator<key_part_spec> cols(key->columns);
+    List_iterator<key_part_spec> cols(key->columns), cols2(key->columns);
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
@@ -851,6 +851,19 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name);
 	DBUG_RETURN(-1);
       }
+      for (uint dup_nr= 0; dup_nr < column_nr; dup_nr++)
+      {
+	key_part_spec *dup_column= cols2++;
+        if (!my_strcasecmp(system_charset_info,
+	     	           column->field_name, dup_column->field_name))
+	{
+	  my_printf_error(ER_DUP_FIELDNAME,
+			  ER(ER_DUP_FIELDNAME),MYF(0),
+			  column->field_name);
+	  DBUG_RETURN(-1);
+	}
+      }
+      cols2.rewind();
       /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
 	 ft code anyway, and 0 (set to column width later) for char's.
 	 it has to be correct col width for char's, as char data are not

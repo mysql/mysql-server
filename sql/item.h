@@ -266,6 +266,14 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
+  /*
+    This function is used only in Item_func_isnull/Item_func_isnotnull
+    (implementations of IS NULL/IS NOT NULL clauses). Item_func_is{not}null
+    calls this method instead of one of val/result*() methods, which
+    normally will set null_value. This allows to determine nullness of
+    a complex expression without fully evaluating it.
+    Any new item which can be NULL must implement this call.
+  */
   virtual bool is_null() { return 0; }
   /*
     it is "top level" item of WHERE clause and we do not need correct NULL
@@ -710,6 +718,8 @@ public:
   void print(String *str);
   /* parameter never equal to other parameter of other item */
   bool eq(const Item *item, bool binary_cmp) const { return 0; }
+  bool is_null()
+  { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
 };
 
 class Item_int :public Item_num
