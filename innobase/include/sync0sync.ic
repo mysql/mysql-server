@@ -134,8 +134,9 @@ mutex_reset_lock_word(
         __asm   XCHG    EDX, DWORD PTR [ECX]                    
 #else
 	mutex->lock_word = 0;
-
+#if !(defined(__GNUC__) && defined(UNIV_INTEL_X86))
 	os_fast_mutex_unlock(&(mutex->os_fast_mutex));
+#endif
 #endif
 }
 
