@@ -6823,8 +6823,8 @@ static void test_explain_bug()
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN, 0);
 
-  verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_LONGLONG,
-                       "", "", "", 3, 0);
+  verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING,
+                       "", "", "", NAME_LEN*64, 0);
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN*16, 0);
@@ -10037,6 +10037,358 @@ static void test_bug4030()
   mysql_stmt_close(stmt);
 }
 
+static void test_view()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  MYSQL_BIND      bind[1];
+  char            str_data[50];
+  long            length = 0L;
+  long            is_null = 0L;
+  const char *query=
+    "SELECT COUNT(*) FROM v1 WHERE `SERVERNAME`=?";
+
+  myheader("test_view");
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2,t3,v1");
+  myquery(rc);
+
+  rc = mysql_query(mysql, "DROP VIEW IF EXISTS v1,t1,t2,t3");
+  myquery(rc);
+  rc= mysql_query(mysql,"CREATE TABLE `t1` ( `SERVERGRP` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', `DBINSTANCE` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', PRIMARY KEY  (`SERVERGRP`)) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+  myquery(rc);
+  rc= mysql_query(mysql,"CREATE TABLE `t2` ( `SERVERNAME` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', `SERVERGRP` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', PRIMARY KEY  (`SERVERNAME`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
+  myquery(rc);
+  rc= mysql_query(mysql,"CREATE TABLE `t3` ( `SERVERGRP` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', `TABNAME` varchar(30) character set latin1 collate latin1_bin NOT NULL default '', `MAPSTATE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `ACTSTATE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `LOCAL_NAME` varchar(30) character set latin1 collate latin1_bin NOT NULL default '', `CHG_DATE` varchar(8) character set latin1 collate latin1_bin NOT NULL default '00000000', `CHG_TIME` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `MXUSER` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', PRIMARY KEY  (`SERVERGRP`,`TABNAME`,`MAPSTATE`,`ACTSTATE`,`LOCAL_NAME`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
+  myquery(rc);
+  rc= mysql_query(mysql,"CREATE VIEW v1 AS select sql_no_cache T0001.SERVERNAME AS `SERVERNAME`,T0003.TABNAME AS `TABNAME`,T0003.LOCAL_NAME AS `LOCAL_NAME`,T0002.DBINSTANCE AS `DBINSTANCE` from t2 T0001 join t1 T0002 join t3 T0003 where ((T0002.SERVERGRP = T0001.SERVERGRP) and (T0002.SERVERGRP = T0003.SERVERGRP) and (T0003.MAPSTATE = _latin1'A') and (T0003.ACTSTATE = _latin1' '))");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  strcpy(str_data, "TEST");
+  bind[0].buffer_type= FIELD_TYPE_STRING;
+  bind[0].buffer= (char *)&str_data;
+  bind[0].buffer_length= 50;
+  bind[0].length= &length;
+  length= 4;
+  bind[0].is_null= (char*)&is_null;
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt,rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    assert(1 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1,t2,t3");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW v1");
+  myquery(rc);
+}
+
+
+static void test_view_where()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query=
+    "select v1.c,v2.c from v1, v2";
+
+  myheader("test_view_where");
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,v1,v2");
+  myquery(rc);
+
+  rc = mysql_query(mysql, "DROP VIEW IF EXISTS v1,v2,t1");
+  myquery(rc);
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int, b int)");
+  myquery(rc);
+  rc= mysql_query(mysql,"insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10)");
+  myquery(rc);
+  rc= mysql_query(mysql,"create view v1 (c) as select b from t1 where a<3");
+  myquery(rc);
+  rc= mysql_query(mysql,"create view v2 (c) as select b from t1 where a>=3");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    assert(4 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW v1, v2");
+  myquery(rc);
+}
+
+
+static void test_view_2where()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  MYSQL_BIND      bind[8];
+  char            parms[8][100];
+  long            length[8];
+  const char *query= "SELECT `RELID` ,`REPORT` ,`HANDLE` ,`LOG_GROUP` ,`USERNAME` ,`VARIANT` ,`TYPE` ,`VERSION` ,`ERFDAT` ,`ERFTIME` ,`ERFNAME` ,`AEDAT` ,`AETIME` ,`AENAME` ,`DEPENDVARS` ,`INACTIVE` FROM `V_LTDX` WHERE `MANDT` = ? AND `RELID` = ? AND `REPORT` = ? AND `HANDLE` = ? AND `LOG_GROUP` = ? AND `USERNAME` IN ( ? , ? ) AND `TYPE` = ?";
+
+  myheader("test_view_2where");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS LTDX");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS V_LTDX");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE `LTDX` ( `MANDT` char(3) character set latin1 collate latin1_bin NOT NULL default '000', `RELID` char(2) character set latin1 collate latin1_bin NOT NULL default '', `REPORT` varchar(40) character set latin1 collate latin1_bin NOT NULL default '', `HANDLE` varchar(4) character set latin1 collate latin1_bin NOT NULL default '', `LOG_GROUP` varchar(4) character set latin1 collate latin1_bin NOT NULL default '', `USERNAME` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `VARIANT` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `TYPE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `SRTF2` int(11) NOT NULL default '0', `VERSION` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `ERFDAT` varchar(8) character set latin1 collate latin1_bin NOT NULL default '00000000', `ERFTIME` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `ERFNAME` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `AEDAT` varchar(8) character set latin1 collate latin1_bin NOT NULL default '00000000', `AETIME` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `AENAME` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `DEPENDVARS` varchar(10) character set latin1 collate latin1_bin NOT NULL default '', `INACTIVE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `CLUSTR` smallint(6) NOT NULL default '0', `CLUSTD` blob, PRIMARY KEY  (`MANDT`,`RELID`,`REPORT`,`HANDLE`,`LOG_GROUP`,`USERNAME`,`VARIANT`,`TYPE`,`SRTF2`)) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW V_LTDX AS select T0001.MANDT AS `MANDT`,T0001.RELID AS `RELID`,T0001.REPORT AS `REPORT`,T0001.HANDLE AS `HANDLE`,T0001.LOG_GROUP AS `LOG_GROUP`,T0001.USERNAME AS `USERNAME`,T0001.VARIANT AS `VARIANT`,T0001.TYPE AS `TYPE`,T0001.VERSION AS `VERSION`,T0001.ERFDAT AS `ERFDAT`,T0001.ERFTIME AS `ERFTIME`,T0001.ERFNAME AS `ERFNAME`,T0001.AEDAT AS `AEDAT`,T0001.AETIME AS `AETIME`,T0001.AENAME AS `AENAME`,T0001.DEPENDVARS AS `DEPENDVARS`,T0001.INACTIVE AS `INACTIVE` from LTDX T0001 where (T0001.SRTF2 = 0)");
+  myquery(rc);
+  for (i=0; i < 8; i++) {
+    strcpy(parms[i], "1");
+    bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
+    bind[i].buffer = (char *)&parms[i];
+    bind[i].buffer_length = 100;
+    bind[i].is_null = 0;
+    bind[i].length = &length[i];
+    length[i] = 1;
+  }
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt,rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  assert(0 == my_process_stmt_result(stmt));
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP VIEW V_LTDX");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE LTDX");
+  myquery(rc);
+}
+
+
+static void test_view_star()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  MYSQL_BIND      bind[8];
+  char            parms[8][100];
+  long            length[8];
+  const char *query= "SELECT * FROM vt1 WHERE a IN (?,?)";
+
+  myheader("test_view_star");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1, vt1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS t1, vt1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW vt1 AS SELECT a FROM t1");
+  myquery(rc);
+  for (i= 0; i < 2; i++) {
+    sprintf((char *)&parms[i], "%d", i);
+    bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
+    bind[i].buffer = (char *)&parms[i];
+    bind[i].buffer_length = 100;
+    bind[i].is_null = 0;
+    bind[i].length = &length[i];
+    length[i] = 1;
+  }
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt,rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    assert(0 == my_process_stmt_result(stmt));
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW vt1");
+  myquery(rc);
+}
+
+
+static void test_view_insert()
+{
+  MYSQL_STMT *insert_stmt, *select_stmt;
+  int rc, i;
+  MYSQL_BIND      bind[1];
+  long            my_val = 0L;
+  ulong           my_length = 0L;
+  long            my_null = 0L;
+  const char *query=
+    "insert into v1 values (?)";
+
+  myheader("test_view_insert");
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,v1");
+  myquery(rc);
+  rc = mysql_query(mysql, "DROP VIEW IF EXISTS t1,v1");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t1 (a int, primary key (a))");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "create view v1 as select a from t1 where a>=1");
+  myquery(rc);
+
+  insert_stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(insert_stmt, query, strlen(query));
+  check_execute(insert_stmt, rc);
+  query= "select * from t1";
+  select_stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(select_stmt, query, strlen(query));
+  check_execute(select_stmt, rc);
+
+  bind[0].buffer_type = FIELD_TYPE_LONG;
+  bind[0].buffer = (char *)&my_val;
+  bind[0].length = &my_length;
+  bind[0].is_null = (char*)&my_null;
+  rc= mysql_stmt_bind_param(insert_stmt, bind);
+  check_execute(insert_stmt, rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    my_val= i;
+
+    rc= mysql_stmt_execute(insert_stmt);
+    check_execute(insert_stmt, rc);
+
+    rc= mysql_stmt_execute(select_stmt);
+    check_execute(select_stmt, rc);
+    assert(i + 1 == (int) my_process_stmt_result(select_stmt));
+  }
+  mysql_stmt_close(insert_stmt);
+  mysql_stmt_close(select_stmt);
+
+  rc= mysql_query(mysql, "DROP VIEW v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
+
+static void test_left_join_view()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query=
+    "select t1.a, v1.x from t1 left join v1 on (t1.a= v1.x);";
+
+  myheader("test_left_join_view");
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,v1");
+  myquery(rc);
+
+  rc = mysql_query(mysql, "DROP VIEW IF EXISTS v1,t1");
+  myquery(rc);
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int)");
+  myquery(rc);
+  rc= mysql_query(mysql,"insert into t1 values (1), (2), (3)");
+  myquery(rc);
+  rc= mysql_query(mysql,"create view v1 (x) as select a from t1 where a > 1");
+  myquery(rc);
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    assert(3 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP VIEW v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
+
+static void test_view_insert_fields()
+{
+  MYSQL_STMT	*stmt;
+  char		parm[11][1000];
+  long		l[11];
+  int		rc, i;
+  MYSQL_BIND	bind[11];
+  const char    *query= "INSERT INTO `v1` ( `K1C4` ,`K2C4` ,`K3C4` ,`K4N4` ,`F1C4` ,`F2I4` ,`F3N5` ,`F7F8` ,`F6N4` ,`F5C8` ,`F9D8` ) VALUES( ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )";
+
+  myheader("test_view_insert_fields");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS t1, v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 ( K1C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', K3C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', F1C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', F2I4 int(11) NOT NULL default '0', F3N5 varchar(5) character set latin1 collate latin1_bin NOT NULL default '00000', F4I4 int(11) NOT NULL default '0', F5C8 varchar(8) character set latin1 collate latin1_bin NOT NULL default '', F6N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', F7F8 double NOT NULL default '0', F8F8 double NOT NULL default '0', F9D8 decimal(8,2) NOT NULL default '0.00', PRIMARY KEY  (K1C4,K2C4,K3C4,K4N4)) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW v1 AS select sql_no_cache K1C4 AS `K1C4`,K2C4 AS `K2C4`,K3C4 AS `K3C4`,K4N4 AS `K4N4`,F1C4 AS `F1C4`,F2I4 AS `F2I4`,F3N5 AS `F3N5`,F7F8 AS `F7F8`,F6N4 AS `F6N4`,F5C8 AS `F5C8`,F9D8 AS `F9D8` from t1 T0001");
+
+  for (i= 0; i < 11; i++)
+  {
+    l[i]= 20;
+    bind[i].buffer_type= MYSQL_TYPE_STRING;
+    bind[i].is_null= 0;
+    bind[i].buffer= (char *)&parm[i];
+
+    strcpy(parm[i], "1");
+    bind[i].buffer_length= 2;
+    bind[i].length= &l[i];
+  }
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  query= "select * from t1";
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  assert(1 == my_process_stmt_result(stmt));
+
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "DROP VIEW v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -10335,6 +10687,13 @@ int main(int argc, char **argv)
     test_bug4236();         /* init -> execute */
     test_bug4030();         /* test conversion string -> time types in
                                libmysql */
+    test_view();            /* Test of VIEWS with prepared statements */
+    test_view_where();      /* VIEW with WHERE clause & merge algorithm */
+    test_view_2where();     /* VIEW with WHERE * SELECt with WHERE */
+    test_view_star();       /* using query with * from VIEW */
+    test_view_insert();     /* inserting in VIEW without field list */
+    test_left_join_view();  /* left join on VIEW with WHERE condition */
+    test_view_insert_fields(); /* insert into VIOEW with fields list */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.

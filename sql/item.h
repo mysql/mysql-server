@@ -430,6 +430,10 @@ public:
   void register_item_tree_changing(Item **ref)
     { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
+
+  friend bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
+                            const char *table_name, List_iterator<Item> *it,
+                            bool any_privileges);
 };
 
 
@@ -438,11 +442,18 @@ class Item_field :public Item_ident
   void set_field(Field *field);
 public:
   Field *field,*result_field;
+  /*
+    if any_privileges set to TRUE then here real effective privileges will
+    be stored
+  */
+  uint have_privileges;
+  /* field need any privileges (for VIEW creation) */
+  bool any_privileges;
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),
-     field(0), result_field(0)
+     field(0), result_field(0), have_privileges(0), any_privileges(0)
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);

@@ -326,6 +326,10 @@ sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
 					&SV::sortbuff_size);
 sys_var_thd_sql_mode    sys_sql_mode("sql_mode",
                                      &SV::sql_mode);
+sys_var_thd_enum	sys_sql_updatable_view_key("sql_updatable_view_key",
+                                                   &SV::sql_updatable_view_key,
+                                                   &sql_updatable_view_key_typelib);
+
 sys_var_thd_table_type  sys_table_type("table_type",
 				       &SV::table_type);
 sys_var_thd_storage_engine sys_storage_engine("storage_engine",
@@ -583,6 +587,7 @@ sys_var *sys_variables[]=
   &sys_sql_low_priority_updates,
   &sys_sql_max_join_size,
   &sys_sql_mode,
+  &sys_sql_updatable_view_key,
   &sys_sql_warnings,
   &sys_storage_engine,
 #ifdef HAVE_REPLICATION
@@ -808,6 +813,8 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
+  {sys_sql_updatable_view_key.name,
+                              (char*) &sys_sql_updatable_view_key,  SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},

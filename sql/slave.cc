@@ -897,7 +897,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
   bool some_tables_updating= 0;
   DBUG_ENTER("tables_ok");
 
-  for (; tables; tables = tables->next)
+  for (; tables; tables= tables->next_global)
   {
     char hash_key[2*NAME_LEN+2];
     char *end;
