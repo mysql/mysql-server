@@ -6333,8 +6333,8 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c EMAIL: mkp@socsci.auc.dk (Martin Kasper Petersen)
 @image{Flags/denmark} Denmark [SunSITE] @
-@uref{http://SunSITE.auc.dk/mysql/, WWW}
-@uref{ftp://SunSITE.auc.dk/pub/databases/mysql/, FTP}
+@uref{http://mirrors.sunsite.dk/mysql/, WWW}
+@uref{ftp://sunsite.dk/mirrors/mysql/, FTP}
 
 @c @item
 @c Tõnu does not work there anymore :-) 990720
