@@ -2906,8 +2906,9 @@ void Item_func_match::init_search(bool no_order)
 
   if (ft_tmp->charset() != cmp_collation.collation)
   {
+    uint dummy_errors;
     search_value.copy(ft_tmp->ptr(), ft_tmp->length(), ft_tmp->charset(),
-                      cmp_collation.collation);
+                      cmp_collation.collation, &dummy_errors);
     ft_tmp= &search_value;
   }
 
