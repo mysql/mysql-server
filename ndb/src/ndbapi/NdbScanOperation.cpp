@@ -612,7 +612,7 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag){
       LinearSectionPtr ptr[3];
       ptr[0].p = prep_array;
       ptr[0].sz = cnt;
-      ret = tp->sendFragmentedSignal(&tSignal, nodeId, ptr, 1);
+      ret = tp->sendSignal(&tSignal, nodeId, ptr, 1);
     } else {
       tSignal.setLength(4+cnt);
       ret = tp->sendSignal(&tSignal, nodeId);
@@ -803,7 +803,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
   LinearSectionPtr ptr[3];
   ptr[0].p = m_prepared_receivers;
   ptr[0].sz = theParallelism;
-  if (tp->sendFragmentedSignal(tSignal, aProcessorId, ptr, 1) == -1) {
+  if (tp->sendSignal(tSignal, aProcessorId, ptr, 1) == -1) {
     setErrorCode(4002);
     return -1;
   } 

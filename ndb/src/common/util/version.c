@@ -74,6 +74,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
 };
 
 struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
+  { MAKE_VERSION(3,5,4), MAKE_VERSION(3,5,3), UG_Exact },
   { 0, 0, UG_Null }
 };
 
