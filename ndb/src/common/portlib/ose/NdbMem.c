@@ -17,7 +17,6 @@
 
 #include "NdbMem.h"
 
-#include <assert.h>
 
 #if defined NDB_OSE
 #include <ose.h>
@@ -134,7 +133,6 @@ int NdbMem_MemUnlockAll(){
 }
 
 #else
-#include <assert.h>
 #include <stdlib.h>
 
 

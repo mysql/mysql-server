@@ -17,9 +17,6 @@
 #ifndef NdbRecAttr_H
 #define NdbRecAttr_H
 
-#include <stdlib.h>
-
-#include <ndb_types.h>
 #include <NdbDictionary.hpp>
 #include "AttrType.hpp"
 
@@ -427,9 +424,9 @@ inline
 void
 NdbRecAttr::release()
 {
-  if (theStorageX != NULL) {
+  if (theStorageX != 0) {
     delete [] theStorageX;
-    theStorageX = NULL;
+    theStorageX = 0;
   }
 }
 
@@ -437,10 +434,10 @@ inline
 void
 NdbRecAttr::init()
 {
-  theStorageX = NULL;
-  theValue = NULL;
-  theRef = NULL;
-  theNext = NULL;
+  theStorageX = 0;
+  theValue = 0;
+  theRef = 0;
+  theNext = 0;
   theAttrId = 0xFFFF;
   theNULLind = -1;
 }
@@ -470,7 +467,7 @@ inline
 bool
 NdbRecAttr::copyoutRequired() const
 {
-  return theRef != theValue && theValue != NULL;
+  return theRef != theValue && theValue != 0;
 }
 
 inline

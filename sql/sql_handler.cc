@@ -103,7 +103,7 @@ int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
 }
 
 static enum enum_ha_read_modes rkey_to_rnext[]=
-    { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
+    { RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
 
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
@@ -146,7 +146,12 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   char buff[MAX_FIELD_WIDTH];
   String buffer(buff, sizeof(buff), system_charset_info);
   uint num_rows;
-  it++;
+  byte *key;
+  uint key_len;
+  LINT_INIT(key); 
+  LINT_INIT(key_len); 
+
+  it++;                                         // Skip first NULL field
 
   insert_fields(thd,tables,tables->db,tables->alias,&it);
 
@@ -194,13 +199,16 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       DBUG_ASSERT(keyname != 0);
       err=table->file->index_prev(table->record[0]);
       break;
+    case RNEXT_SAME:
+      /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
+      DBUG_ASSERT(keyname != 0);
+      err= table->file->index_next_same(table->record[0], key, key_len);
+      break;
     case RKEY:
     {
       DBUG_ASSERT(keyname != 0);
       KEY *keyinfo=table->key_info+keyno;
       KEY_PART_INFO *key_part=keyinfo->key_part;
-      uint key_len;
-      byte *key;
       if (key_expr->elements > keyinfo->key_parts)
       {
 	my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),

@@ -17,8 +17,7 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <ndb_global.h>
 #include <NdbOut.hpp>
 
 #define ERROR(x) {ndbout_c((x)); }

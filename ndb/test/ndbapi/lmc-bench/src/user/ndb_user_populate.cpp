@@ -19,7 +19,7 @@ extern "C" {
 #include "user_populate.h"
 }
 
-#include <stdio.h>
+#include <ndb_global.h>
 #include <NdbApi.hpp>
 
 #include "ndb_schema.hpp"

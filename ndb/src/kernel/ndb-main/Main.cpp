@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <ndb_version.h>
 #include "Configuration.hpp"
 #include <TransporterRegistry.hpp>
@@ -32,7 +34,6 @@
 #include <NodeState.hpp>
 
 #if defined NDB_SOLARIS
-#include <sys/types.h>     // For system information
 #include <sys/processor.h> // For system informatio
 #endif
 
@@ -41,10 +42,6 @@
 #endif
 
 extern EventLogger g_eventLogger;
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-#include <sys/types.h>
-#include <sys/wait.h>
-#endif
 
 void catchsigs(bool ignore); // for process signal handling
 extern "C" void handler(int signo);  // for process signal handling
@@ -81,10 +78,6 @@ NDB_MAIN(ndb_kernel){
   char homePath[255];
   NdbConfig_HomePath(homePath, 255);
 
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-  /**
-   * This has only been tested with linux & solaris
-   */
   if (theConfig->getDaemonMode()) {
     // Become a daemon
     char lockfile[255], logfile[255];
@@ -137,7 +130,6 @@ NDB_MAIN(ndb_kernel){
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
-#endif
   
   systemInfo(* theConfig,
 	     theConfig->clusterConfigurationData().SizeAltData.logLevel);
@@ -188,9 +180,9 @@ NDB_MAIN(ndb_kernel){
 
 void 
 systemInfo(const Configuration & config, const LogLevel & logLevel){
+#ifdef NDB_WIN32
   int processors = 0;
   int speed;
-#ifdef NDB_WIN32
   SYSTEM_INFO sinfo;
   GetSystemInfo(&sinfo);
   processors = sinfo.dwNumberOfProcessors;
@@ -236,16 +228,25 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 void 
 catchsigs(bool ignore){
 #if ! defined NDB_SOFTOSE && !defined NDB_OSE 
+
+#if defined SIGRTMIN
+  #define MAX_SIG_CATCH SIGRTMIN
+#elif defined NSIG
+  #define MAX_SIG_CATCH NSIG
+#else
+  #error "neither SIGRTMIN or NSIG is defined on this platform, please report bug at bugs.mysql.com"
+#endif
+
   // Makes the main process catch process signals, eg installs a 
   // handler named "handler". "handler" will then be called is instead 
   // of the defualt process signal handler)
   if(ignore){
-    for(int i = 1; i<100; i++){
+    for(int i = 1; i < MAX_SIG_CATCH; i++){
       if(i != SIGCHLD)
 	signal(i, SIG_IGN);
-    } 
+    }
   } else {
-    for(int i = 1; i<100; i++){
+    for(int i = 1; i < MAX_SIG_CATCH; i++){
       signal(i, handler);
     }
   }
@@ -260,8 +261,10 @@ handler(int sig){
   case SIGINT:   /*  2 - Interrupt  */
   case SIGQUIT:  /*  3 - Quit       */
   case SIGTERM:  /* 15 - Terminate  */
-#ifndef NDB_MACOSX
+#ifdef SIGPWR
   case SIGPWR:   /* 19 - Power fail */
+#endif
+#ifdef SIGPOLL
   case SIGPOLL:  /* 22              */
 #endif
   case SIGSTOP:  /* 23              */
@@ -270,6 +273,9 @@ handler(int sig){
   case SIGTTOU:  /* 27              */
     globalData.theRestartFlag = perform_stop;
     break;
+#ifdef SIGWINCH
+  case SIGWINCH:
+#endif
   case SIGPIPE:
     /**
      * Can happen in TCP Transporter

@@ -17,7 +17,7 @@
 #ifndef INPUT_STREAM_HPP
 #define INPUT_STREAM_HPP
 
-#include <stdio.h>
+#include <ndb_global.h>
 #include <NdbTCP.h>
 
 /**

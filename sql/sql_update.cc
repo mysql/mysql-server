@@ -425,6 +425,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
   TABLE_LIST tables;
   List<Item> all_fields;
+  SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -437,10 +438,10 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd, update_table_list, conds) ||
-      thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-      setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+      select_lex->setup_ref_array(thd, order_num) ||
+      setup_order(thd, select_lex->ref_pointer_array,
 		  update_table_list, all_fields, all_fields, order) ||
-      setup_ftfuncs(&thd->lex->select_lex))
+      setup_ftfuncs(select_lex))
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
@@ -449,6 +450,11 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
+  }
+  if (thd->current_arena && select_lex->first_execution)
+  {
+    select_lex->prep_where= select_lex->where;
+    select_lex->first_execution= 0;
   }
 
   DBUG_RETURN(0);

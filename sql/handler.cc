@@ -103,15 +103,16 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
-    return(enum db_type) current_thd->variables.table_type;
+  THD *thd=current_thd;
+  if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+    return (enum db_type) thd->variables.table_type;
   }
   
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, types->type))
-      return(enum db_type)types->db_type;
+      return (enum db_type) types->db_type;
   }
   return DB_TYPE_UNKNOWN;
 }
@@ -742,7 +743,7 @@ int ha_delete_table(enum db_type table_type, const char *path)
   {
     /* Ensure that table handler get path in lower case */
     strmov(tmp_path, path);
-    my_casedn_str(system_charset_info, tmp_path);
+    my_casedn_str(files_charset_info, tmp_path);
     path= tmp_path;
   }
   int error=file->delete_table(path);
@@ -1184,7 +1185,7 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
   int error;
   if (!(error=index_next(buf)))
   {
-    if (key_cmp(table, key, active_index, keylen))
+    if (key_cmp_if_same(table, key, active_index, keylen))
     {
       table->status=STATUS_NOT_FOUND;
       error=HA_ERR_END_OF_FILE;
@@ -1248,7 +1249,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   {
     /* Ensure that handler gets name in lower case */
     strmov(name_buff, name);
-    my_casedn_str(system_charset_info, name_buff);
+    my_casedn_str(files_charset_info, name_buff);
     name= name_buff;
   }
 
@@ -1390,6 +1391,7 @@ int ha_discover(const char* dbname, const char* name,
     read_range_first()
     start_key		Start key. Is 0 if no min range
     end_key		End key.  Is 0 if no max range
+    eq_range_arg	Set to 1 if start_key == end_key		
     sorted		Set to 1 if result should be sorted per key
 
   NOTES
@@ -1403,11 +1405,12 @@ int ha_discover(const char* dbname, const char* name,
 
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
-			      bool sorted)
+			      bool eq_range_arg, bool sorted)
 {
   int result;
   DBUG_ENTER("handler::read_range_first");
 
+  eq_range= eq_range_arg;
   end_range= 0;
   if (end_key)
   {
@@ -1417,7 +1420,6 @@ int handler::read_range_first(const key_range *start_key,
 				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
   }
   range_key_part= table->key_info[active_index].key_part;
-
 
   if (!start_key)			// Read first record
     result= index_first(table->record[0]);
@@ -1440,7 +1442,6 @@ int handler::read_range_first(const key_range *start_key,
 
   SYNOPSIS
     read_range_next()
-    eq_range		Set to 1 if start_key == end_key
 
   NOTES
     Record is read into table->record[0]
@@ -1451,17 +1452,19 @@ int handler::read_range_first(const key_range *start_key,
     #			Error code
 */
 
-int handler::read_range_next(bool eq_range)
+int handler::read_range_next()
 {
   int result;
   DBUG_ENTER("handler::read_range_next");
 
   if (eq_range)
-    result= index_next_same(table->record[0],
-			    end_range->key,
-			    end_range->length);
-  else
-    result= index_next(table->record[0]);
+  {
+    /* We trust that index_next_same always gives a row in range */
+    DBUG_RETURN(index_next_same(table->record[0],
+                                end_range->key,
+                                end_range->length));
+  }
+  result= index_next(table->record[0]);
   if (result)
     DBUG_RETURN(result);
   DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
@@ -1469,16 +1472,18 @@ int handler::read_range_next(bool eq_range)
 
 
 /*
-  Compare if found key is over max-value
+  Compare if found key (in row) is over max-value
 
   SYNOPSIS
     compare_key
-    range		key to compare to row
+    range		range to compare to row. May be 0 for no range
  
   NOTES
-    For this to work, the row must be stored in table->record[0]
+    See key.cc::key_cmp() for details
 
   RETURN
+    The return value is SIGN(key_in_row - range_key):
+
     0			Key is equal to range or 'range' == 0 (no range)
    -1			Key is less than range
     1			Key is larger than range
@@ -1486,37 +1491,11 @@ int handler::read_range_next(bool eq_range)
 
 int handler::compare_key(key_range *range)
 {
-  KEY_PART_INFO *key_part= range_key_part;
-  uint store_length;
-
+  int cmp;
   if (!range)
     return 0;					// No max range
-
-  for (const char *key= (const char*) range->key, *end=key+range->length;
-       key < end;
-       key+= store_length, key_part++)
-  {
-    int cmp;
-    store_length= key_part->store_length;
-    if (key_part->null_bit)
-    {
-      if (*key)
-      {
-	if (!key_part->field->is_null())
-	  return 1;
-	continue;
-      }
-      else if (key_part->field->is_null())
-	return 0;
-      key++;					// Skip null byte
-      store_length--;
-    }
-    if ((cmp=key_part->field->key_cmp((byte*) key, key_part->length)) < 0)
-      return -1;
-    if (cmp > 0)
-      return 1;
-  }
-  return key_compare_result_on_equal;
+  cmp= key_cmp(range_key_part, range->key, range->length);
+  if (!cmp)
+    cmp= key_compare_result_on_equal;
+  return cmp;
 }
-
-

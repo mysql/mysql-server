@@ -37,9 +37,8 @@
         1 - Invalid arguments
  * *************************************************** */
 
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <ndb_global.h>
+
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <NdbTick.h>

@@ -27,7 +27,7 @@ extern const char*	ut_dbg_msg_stop;
 	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
                 ut_print_timestamp(stderr);\
 	   	fprintf(stderr, ut_dbg_msg_assert_fail,\
-		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
+		os_thread_pf(os_thread_get_curr_id()), __FILE__,\
                 (ulint)__LINE__);\
 		fputs("InnoDB: Failing assertion: " #EXPR "\n", stderr);\
 		fputs(ut_dbg_msg_trap, stderr);\
@@ -36,7 +36,7 @@ extern const char*	ut_dbg_msg_stop;
 	}\
 	if (ut_dbg_stop_threads) {\
 	        fprintf(stderr, ut_dbg_msg_stop,\
-     os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
+     os_thread_pf(os_thread_get_curr_id()), __FILE__, (ulint)__LINE__);\
 		os_thread_sleep(1000000000);\
 	}\
 } while (0)
@@ -44,7 +44,7 @@ extern const char*	ut_dbg_msg_stop;
 #define ut_error do {\
         ut_print_timestamp(stderr);\
 	fprintf(stderr, ut_dbg_msg_assert_fail,\
-	os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
+	os_thread_pf(os_thread_get_curr_id()), __FILE__, (ulint)__LINE__);\
 	fprintf(stderr, ut_dbg_msg_trap);\
 	ut_dbg_stop_threads = TRUE;\
 	if (*(ut_dbg_null_ptr)) ut_dbg_null_ptr = NULL;\

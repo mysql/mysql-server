@@ -716,7 +716,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
                             COND *cond, uint range_fl, uint prefix_len)
 {
-  if (key_cmp(field->table, ref->key_buff, ref->key, prefix_len))
+  if (key_cmp_if_same(field->table, ref->key_buff, ref->key, prefix_len))
     return 1;
   if (!cond || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
     return 0;

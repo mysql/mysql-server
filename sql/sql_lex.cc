@@ -24,8 +24,6 @@
 #include "sp.h"
 #include "sp_head.h"
 
-LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
-
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -997,6 +995,7 @@ void st_select_lex_unit::init_query()
   fake_select_lex= 0;
   cleaned= 0;
   item_list.empty();
+  describe= 0;
   found_rows_for_union= 0;
 }
 
@@ -1011,10 +1010,12 @@ void st_select_lex::init_query()
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;
   cond_count= with_wild= 0;
+  conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_having_items= 0;
   prep_where= 0;
   explicit_limit= 0;
+  first_execution= 1;
 }
 
 void st_select_lex::init_select()
@@ -1414,7 +1415,9 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
-  return item_list.push_back(item);
+  DBUG_ENTER("st_select_lex::add_item_to_list");
+  DBUG_PRINT("info", ("Item: %p", item));
+  DBUG_RETURN(item_list.push_back(item));
 }
 
 
@@ -1500,12 +1503,12 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Statement *stmt= thd->current_statement ? thd->current_statement : thd;
+  Item_arena *arena= thd->current_arena ? thd->current_arena : thd;
   return (ref_pointer_array= 
-	  (Item **)stmt->alloc(sizeof(Item*) *
-			       (item_list.elements +
-				select_n_having_items +
-				order_group_num)* 5)) == 0;
+          (Item **)arena->alloc(sizeof(Item*) *
+                                (item_list.elements +
+                                 select_n_having_items +
+                                 order_group_num)* 5)) == 0;
 }
 
 
@@ -1720,6 +1723,7 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
   st_select_lex::print is in sql_select.h
 
   st_select_lex_unit::prepare, st_select_lex_unit::exec,
-  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism,
+  st_select_lex_unit::change_result
   are in sql_union.cc
 */

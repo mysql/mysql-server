@@ -148,3 +148,26 @@ grant usage on *.* to mysqltest_1@localhost identified by "password";
 grant select, update, insert on test.* to mysqltest@localhost;
 show grants for mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
+
+#
+# Bug #3403 Wrong encodin in SHOW GRANTS output
+#
+SET NAMES koi8r;
+CREATE DATABASE бд;
+USE бд;
+CREATE TABLE таб (кол int);
+
+GRANT SELECT ON бд.* TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+REVOKE SELECT ON бд.* FROM юзер@localhost;
+
+GRANT SELECT ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+REVOKE SELECT ON бд.таб FROM юзер@localhost;
+
+GRANT SELECT (кол) ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
+
+DROP DATABASE бд;
+SET NAMES latin1;
