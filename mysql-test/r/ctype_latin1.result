@@ -296,3 +296,12 @@ FD	C3BD	FD	1
 FE	C3BE	FE	1
 FF	C3BF	FF	1
 DROP TABLE t1;
+select 'a' regexp 'A' collate latin1_general_ci;
+'a' regexp 'A' collate latin1_general_ci
+1
+select 'a' regexp 'A' collate latin1_general_cs;
+'a' regexp 'A' collate latin1_general_cs
+0
+select 'a' regexp 'A' collate latin1_bin;
+'a' regexp 'A' collate latin1_bin
+0

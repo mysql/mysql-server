@@ -63,7 +63,7 @@ typedef struct unicase_info_st
 #define MY_CS_UNICODE	128    /* is a charset is full unicode   */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
-
+#define MY_CS_CSSORT	1024   /* if case sensitive sort order   */	
 #define MY_CHARSET_UNDEFINED 0
 
 
