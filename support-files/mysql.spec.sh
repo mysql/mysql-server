@@ -27,7 +27,7 @@ Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
-BuildPrereq: ncurses-devel
+BuildRequires: ncurses-devel
 Obsoletes:	mysql
 
 # Think about what you use here since the first step is to
@@ -600,6 +600,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jan 14 2005 Lenz Grimmer <lenz@mysql.com>
+
+- replaced obsoleted "BuildPrereq" with "BuildRequires" instead
+
 * Tue Jan 04 2005 Petr Chardin <petr@mysql.com>
 
 - ISAM and merge storage engines were purged. As well as appropriate

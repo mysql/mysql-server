@@ -62,3 +62,9 @@ CREATE TABLE t1 (
 insert into t1 values(0xb1),(0xb2),(0xb3);
 select hex(c) from t1;
 drop table t1;
+
+
+SET collation_connection='sjis_japanese_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='sjis_bin';
+-- source include/ctype_filesort.inc

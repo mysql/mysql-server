@@ -4392,13 +4392,20 @@ int Field_str::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
   bool use_scientific_notation= TRUE;
-  use_scientific_notation= TRUE;
-  if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+  /*
+    Check fabs(nr) against longest value that can be stored in field,
+    which depends on whether the value is < 1 or not, and negative or not
+  */
+  double anr= fabs(nr);
+  int neg= (nr < 0.0) ? 1 : 0;
+  if (field_length > 4 && field_length < 32 &&
+      (anr < 1.0 ? anr > 1/(log_10[max(0,field_length-neg-2)]) /* -2 for "0." */
+                 : anr < log_10[field_length-neg]-1))
     use_scientific_notation= FALSE;
 
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
-                                    max(0, (int)field_length-5) :
+                                    max(0, (int)field_length-neg-5) :
                                     field_length),
                                    nr));
   /*
@@ -4486,8 +4493,7 @@ void Field_string::sort_string(char *to,uint length)
   uint tmp=my_strnxfrm(field_charset,
 		       (unsigned char *) to, length,
 		       (unsigned char *) ptr, field_length);
-  if (tmp < length)
-    field_charset->cset->fill(field_charset, to + tmp, length - tmp, ' ');
+  DBUG_ASSERT(tmp == length);
 }
 
 
@@ -4840,9 +4846,7 @@ void Field_varstring::sort_string(char *to,uint length)
 			  (uchar*) to, length,
 			  (uchar*) ptr + length_bytes,
 			  tot_length);
-  if (tot_length < length)
-    field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
-			      binary() ? (char) 0 : ' ');
+  DBUG_ASSERT(tot_length == length);
 }
 
 
@@ -5520,10 +5524,7 @@ void Field_blob::sort_string(char *to,uint length)
     blob_length=my_strnxfrm(field_charset,
                             (uchar*) to, length, 
                             (uchar*) blob, blob_length);
-    if (blob_length < length)
-      field_charset->cset->fill(field_charset, to+blob_length,
-				length-blob_length,
-				binary() ? (char) 0 : ' ');
+    DBUG_ASSERT(blob_length == length);
   }
 }
 

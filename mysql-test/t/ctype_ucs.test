@@ -386,3 +386,9 @@ alter table t1 add b char(1);
 show warnings;
 select * from t1 order by a;
 drop table t1;
+
+SET collation_connection='ucs2_general_ci';
+-- source include/ctype_filesort.inc
+SET NAMES latin1;
+SET collation_connection='ucs2_bin';
+-- source include/ctype_filesort.inc
