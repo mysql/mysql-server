@@ -6,7 +6,6 @@ include "MySQL-Opt.icc"
 include "MySQL-Source.icc"
 
 option ProjectOptions = MySQLOptions
-                        //, link(defaultlibsname, "readline.lib")
 {
 
    option file(genobject, "..\\OBJ\\ZLIB\\")
@@ -16,7 +15,7 @@ option ProjectOptions = MySQLOptions
          // optimized precompiled headers
          option macros('global', 'yes')
          {
-            source type('cpp') client_pch
+            source type('cpp') client_global_pch
          }
          // target source files
          source zlib
@@ -27,6 +26,8 @@ option ProjectOptions = MySQLOptions
          source type('cpp') my_sys_cli
          source type('cpp') strings
          source type('cpp') mysqlclientlib
+         source type('cpp') '..\libmysql\dll.c'
+         source BldLevelInfo
       }
    }
 
@@ -37,51 +38,84 @@ option ProjectOptions = MySQLOptions
          // optimized precompiled headers
          option macros('global', 'yes')
          {
-            source type('cpp') client_pch //, 'sql_string.h'
+            source type('cpp') client_global_pch
          }
          // target source files
-         //source readline
          source type('cpp') "..\\client\\mysql.cc"
+         source BldLevelInfo
       }
    }
 
+   option file(genobject, "..\\OBJ\\READLINE\\")
+   {
       target "..\\bin\\mysqladmin.exe"
       {
          // optimized precompiled headers
          option macros('global', 'yes')
          {
-            source type('cpp') client_pch //, 'sql_string.h'
+            source type('cpp') client_global_pch
          }
          // target source files
          source type('cpp') "..\\client\\mysqladmin.c"
+         source BldLevelInfo
       }
+   }
 
       target "..\\bin\\mysqldump.exe"
       {
          // optimized precompiled headers
          option macros('global', 'yes')
          {
-            source type('cpp') client_pch
+            source type('cpp') client_global_pch
          }
          // target source files
          source type('cpp') "..\\client\\mysqldump.c"
+         source BldLevelInfo
       }
 
       target "..\\bin\\mysqlshow.exe"
       {
          // target source files
          source type('cpp') "..\\client\\mysqlshow.c"
+         source BldLevelInfo
       }
 
       target "..\\bin\\mysqlimport.exe"
       {
          // target source files
          source type('cpp') "..\\client\\mysqlimport.c"
+         source BldLevelInfo
       }
 
       target "..\\bin\\mysqltest.exe"
       {
          source type('cpp') "..\\client\\mysqltest.c"
+         source BldLevelInfo
+      }
+
+      target "..\\bin\\mysqlbinlog.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_global_pch
+         }
+         // target source files
+         source type('cpp') "..\\client\\mysqlbinlog.cc"
+         source BldLevelInfo
+      }
+
+      target "..\\bin\\mysqlcheck.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_global_pch
+         }
+
+         // target source files
+         source type('cpp') "..\\client\\mysqlcheck.c"
+         source BldLevelInfo
       }
 
 }

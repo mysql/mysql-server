@@ -2942,7 +2942,9 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
       Item_func_eq *func=(Item_func_eq*) cond;
       bool left_const= func->arguments()[0]->const_item();
       bool right_const=func->arguments()[1]->const_item();
-      if (!(left_const && right_const))
+      if (!(left_const && right_const) &&
+	  (func->arguments()[0]->result_type() ==
+	   (func->arguments()[1]->result_type())))
       {
 	if (right_const)
 	{
@@ -3986,14 +3988,17 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   {
     if (table->group && join->tmp_table_param.sum_func_count)
     {
-      DBUG_PRINT("info",("Using end_update"));
       if (table->keys)
       {
+	DBUG_PRINT("info",("Using end_update"));
 	end_select=end_update;
 	table->file->index_init(0);
       }
       else
+      {
+	DBUG_PRINT("info",("Using end_unique_update"));
 	end_select=end_unique_update;
+      }
     }
     else if (join->sort_and_group)
     {
@@ -4109,8 +4114,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   int error;
   bool found=0;
   COND *on_expr=join_tab->on_expr, *select_cond=join_tab->select_cond;
-  int  (*next_select)(JOIN *,struct st_join_table *,bool)=
-    join_tab->next_select;
 
   if (!(error=(*join_tab->read_first_record)(join_tab)))
   {
@@ -4134,7 +4137,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	  break;			// Searching after not null columns
 	if (!select_cond || select_cond->val_int())
 	{
-	  if ((error=(*next_select)(join,join_tab+1,0)) < 0)
+	  if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error;
 	  if (not_used_in_distinct && found_records != join->found_records)
 	    return 0;
@@ -4155,7 +4158,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     mark_as_null_row(join_tab->table);		// For group by without error
     if (!select_cond || select_cond->val_int())
     {
-      if ((error=(*next_select)(join,join_tab+1,0)) < 0)
+      if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
 	return error;				/* purecov: inspected */
     }
   }

@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 #endif
 }
 
-enum options {OPT_CHARSETS_DIR_MP=256};
+enum options_mp {OPT_CHARSETS_DIR_MP=256};
 
 static struct option long_options[] =
 {

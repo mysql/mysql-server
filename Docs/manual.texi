@@ -46840,12 +46840,20 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
 @item
+Fixed bug in const-propagation when comparing columns of different
+types. (@code{SELECT * FROM date_col="2001-01-01" and date_col=time_col})
+@item
+Fixed bug that caused error message @code{Can't write, because of unique
+constraint} with some @code{GROUP BY} queries.
+@item
 Fixed problem with sjis character strings used within quoted table names.
 @item
 Fixed coredump when using @code{CREATE ... FULLTEXT} keys with other table
 handlers than MyISAM.
 @item
 Add missing @code{InnoDB} variables to @code{SHOW VARIABLES}.
+@item
+Foreign keys checking is now done for @code{InnoDB} tables.
 @item
 Don't use @code{signal()} on windows because this appears to not be
 100 % reliable.
@@ -46858,7 +46866,9 @@ Fixed bug when doing @code{LEFT JOIN ...  ON (column_name = constant) WHERE colu
 When using replications, aborted queries that contained @code{%} could cause
 a core dump.
 @item
-TCP_NODELAY was not used on some systems. (Speed problem).
+@code{TCP_NODELAY} was not used on some systems. (Speed problem).
+@item
+Applied portability fixes for OS/2 (Patch by Yuri Dario).
 @end itemize
 
 @node News-3.23.43, News-3.23.42, News-3.23.44, News-3.23.x

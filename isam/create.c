@@ -253,10 +253,10 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
   share.base.fields=fields;
   share.base.pack_fields=packed;
   share.base.sortkey= (ushort) ~0;
-  share.base.max_data_file_length= (pointer == 4) ? ~0L :
+  share.base.max_data_file_length= (pointer == 4) ? (ulong) ~0L :
     (options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
-    (1L << (pointer*8)) :
-    (pointer == 3 && reclength >= 256L) ? NI_POS_ERROR :
+    (ulong) (1L << (pointer*8)) :
+    (pointer == 3 && reclength >= 256L) ? (ulong) NI_POS_ERROR :
     ((ulong) reclength * (1L << (pointer*8)));
   share.base.max_key_file_length= (share.base.key_reflength == 3 ?
 				  NI_POS_ERROR :
