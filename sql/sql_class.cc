@@ -86,8 +86,7 @@ extern "C" void free_user_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0),
-           is_fatal_error(0),
+THD::THD():user_time(0), is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
@@ -108,6 +107,7 @@ THD::THD():user_time(0),
   cuted_fields= sent_row_count= 0L;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
+  lex->current_select= 0;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
@@ -339,12 +339,12 @@ THD::~THD()
     safeFree(user);
   safeFree(db);
   safeFree(ip);
-  free_root(&warn_root,MYF(0));
-  free_root(&transaction.mem_root,MYF(0));
-  mysys_var=0;					// Safety (shouldn't be needed)
+  free_root(&warn_root, MYF(0));
+  free_root(&transaction.mem_root, MYF(0));
+  mysys_var= 0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
-  dbug_sentry = THD_SENTRY_GONE;
+  dbug_sentry= THD_SENTRY_GONE;
 #endif  
   DBUG_VOID_RETURN;
 }
@@ -1276,24 +1276,18 @@ Statement::Statement(THD *thd)
   :id(++thd->statement_id_counter),
   query_id(0),                                  /* initialized later */
   set_query_id(1),
-  allow_sum_func(0),                           /* initialized later */
-  command(COM_SLEEP),     /* reset in THD counstructor and mysql_parse */
+  allow_sum_func(0),                            /* initialized later */
+  command(COM_SLEEP),                           /* initialized later */ 
   lex(&main_lex),
-  query(0),
-  query_length(0),
-  free_list(0)                                 /* reset in THD constructor */
+  query(0),                                     /* these two are set */
+  query_length(0),                              /* in alloc_query() */ 
+  free_list(0)
 {
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 }
 
-/*
-  This constructor is called when statement is a subobject of THD:
-  Some variables are initialized in THD::init due to locking problems
-  This statement object will be used to hold state of currently active
-  statement.
-*/
 
 Statement::Statement()
   :id(0),
@@ -1329,9 +1323,11 @@ get_statement_id_as_hash_key(const byte *record, uint *key_length,
 
 C_MODE_END
 
+
 Statement_map::Statement_map()
 {
   enum { START_HASH_SIZE = 16 };
   hash_init(&st_hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key, (hash_free_key) 0, MYF(0));
 }
+
