@@ -61,7 +61,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
                         tztime.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-			parse_file.h sql_view.h	\
+			parse_file.h sql_view.h	sql_trigger.h \
 			examples/ha_example.h examples/ha_archive.h \
 			examples/ha_tina.h
 
@@ -97,7 +97,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
 			tztime.cc my_time.c \
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
-			sp_cache.cc parse_file.cc \
+			sp_cache.cc parse_file.cc sql_trigger.cc \
 			examples/ha_example.cc examples/ha_archive.cc \
 			examples/ha_tina.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc

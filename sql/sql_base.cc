@@ -20,6 +20,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -42,10 +44,6 @@ static my_bool open_new_frm(const char *path, const char *alias,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static Field *find_field_in_real_table(THD *thd, TABLE *table,
-				       const char *name, uint length,
-				       bool check_grants, bool allow_rowid, 
-				       uint *cached_field_index_ptr);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -210,6 +208,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 void intern_close_table(TABLE *table)
 {						// Free all structures
   free_io_cache(table);
+  delete table->triggers;
   if (table->file)
     VOID(closefrm(table));			// close file
 }
@@ -818,6 +817,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
+    delete table->triggers;
     closefrm(table);
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(0);
@@ -1081,6 +1081,7 @@ bool reopen_table(TABLE *table,bool locked)
   if (!(tmp.table_cache_key= memdup_root(&tmp.mem_root,db,
 					 table->key_length)))
   {
+    delete tmp.triggers;
     closefrm(&tmp);				// End of memory
     goto end;
   }
@@ -1109,6 +1110,7 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.next=		table->next;
   tmp.prev=		table->prev;
 
+  delete table->triggers;
   if (table->file)
     VOID(closefrm(table));		// close file, free everything
 
@@ -1495,6 +1497,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   if (error == 5)
     DBUG_RETURN(0);	// we have just opened VIEW
 
+  if (Table_triggers_list::check_n_load(thd, db, name, entry))
+    goto err;
+
   /*
     If we are here, there was no fatal error (but error may be still
     unitialized).
@@ -1523,6 +1528,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
         */
         sql_print_error("Error: when opening HEAP table, could not allocate \
 memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
+        delete entry->triggers;
         if (entry->file)
           closefrm(entry);
         goto err;
@@ -2070,10 +2076,10 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
     #			pointer to field
 */
 
-static Field *find_field_in_real_table(THD *thd, TABLE *table,
-				       const char *name, uint length,
-				       bool check_grants, bool allow_rowid, 
-				       uint *cached_field_index_ptr)
+Field *find_field_in_real_table(THD *thd, TABLE *table,
+                                const char *name, uint length,
+                                bool check_grants, bool allow_rowid,
+                                uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;

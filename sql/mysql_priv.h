@@ -481,6 +481,7 @@ int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool log_query);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
+void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
@@ -622,6 +623,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
+int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh);
@@ -650,6 +652,10 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     bool check_grants_table, bool check_grants_view,
                     bool allow_rowid,
                     uint *cached_field_index_ptr);
+Field *
+find_field_in_real_table(THD *thd, TABLE *table, const char *name,
+                         uint length, bool check_grants, bool allow_rowid,
+                         uint *cached_field_index_ptr);
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock
