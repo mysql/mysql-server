@@ -216,7 +216,7 @@ buf_LRU_get_free_block(void)
 	buf_block_t*	block		= NULL;
 	ibool		freed;
 	ulint		n_iterations	= 1;
-	ibool		mon_value_was   = 0; /* remove bug */
+	ibool		mon_value_was   = FALSE;
 	ibool		started_monitor	= FALSE;
 loop:
 	mutex_enter(&(buf_pool->mutex));
@@ -235,12 +235,14 @@ loop:
 	   
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {
+		if (!srv_print_innodb_monitor) {
 
-	   	/* Over 80 % of the buffer pool is occupied by lock heaps
-	   	or the adaptive hash index. This may be a memory leak! */
+	   		/* Over 80 % of the buffer pool is occupied by lock
+			heaps or the adaptive hash index. This may be a memory
+			leak! */
 
-	   	ut_print_timestamp(stderr);
-	   	fprintf(stderr,
+	   		ut_print_timestamp(stderr);
+	   		fprintf(stderr,
 "  InnoDB: WARNING: over 4 / 5 of the buffer pool is occupied by\n"
 "InnoDB: lock heaps or the adaptive hash index! Check that your\n"
 "InnoDB: transactions do not set too many row locks.\n"
@@ -248,10 +250,11 @@ loop:
 "InnoDB: the buffer pool bigger?\n"
 "InnoDB: Starting the InnoDB Monitor to print diagnostics, including\n"
 "InnoDB: lock heap and hash index sizes.\n",
-		buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE));
+			buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE));
 
-		srv_print_innodb_monitor = TRUE;
-
+			srv_print_innodb_monitor = TRUE;
+			os_event_set(srv_lock_timeout_thread_event);
+		}
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
 
@@ -318,6 +321,7 @@ loop:
 		mon_value_was = srv_print_innodb_monitor;
 		started_monitor = TRUE;
 		srv_print_innodb_monitor = TRUE;
+		os_event_set(srv_lock_timeout_thread_event);
 	}
 
 	/* No free block was found: try to flush the LRU list */
