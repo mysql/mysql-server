@@ -276,78 +276,85 @@ main(int argc, const char** argv)
     }
   }
   
+  for(i= 0; i < g_consumers.size(); i++)
+    if (!g_consumers[i]->endOfTables())
+    {
+      ndbout_c("Restore: Failed while closing tables");
+      return -11;
+    } 
+  
   if (ga_restore || ga_print) 
   {
-      if (ga_restore) 
+    if (ga_restore) 
+    {
+      RestoreDataIterator dataIter(metaData, &free_data_callback);
+      
+      // Read data file header
+      if (!dataIter.readHeader())
       {
-	RestoreDataIterator dataIter(metaData, &free_data_callback);
-	
-	// Read data file header
-	if (!dataIter.readHeader())
-	{
-	  ndbout << "Failed to read header of data file. Exiting..." ;
-	  return -11;
-	}
-	
-	
-	while (dataIter.readFragmentHeader(res= 0))
-	{
-	  const TupleS* tuple;
-	  while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
-	  {
-	    if (checkSysTable(tuple->getTable()->getTableName()))
-	      for(Uint32 i= 0; i < g_consumers.size(); i++) 
-		g_consumers[i]->tuple(* tuple);
-	  } // while (tuple != NULL);
-	   
-	  if (res < 0)
-	  {
-	    ndbout_c("Restore: An error occured while restoring data. "
-		     "Exiting...");
-	    return -1;
-	  }
-	  if (!dataIter.validateFragmentFooter()) {
-	    ndbout_c("Restore: Error validating fragment footer. "
-		     "Exiting...");
-	    return -1;
-	  }
-	} // while (dataIter.readFragmentHeader(res))
-	
-	if (res < 0)
-	{
-	  err << "Restore: An error occured while restoring data. Exiting... res=" << res << endl;
-	  return -1;
-	}
-	
-	
-	dataIter.validateFooter(); //not implemented
-
-	for (i= 0; i < g_consumers.size(); i++)
-	  g_consumers[i]->endOfTuples();
-	
-	RestoreLogIterator logIter(metaData);
-	if (!logIter.readHeader())
-	{
-	  err << "Failed to read header of data file. Exiting..." << endl;
-	  return -1;
-	}
-	
-	const LogEntry * logEntry = 0;
-	while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
-	{
-	  if (checkSysTable(logEntry->m_table->getTableName()))
-	    for(Uint32 i= 0; i < g_consumers.size(); i++)
-	      g_consumers[i]->logEntry(* logEntry);
-	}
-	if (res < 0)
-	{
-	  err << "Restore: An restoring the data log. Exiting... res=" << res << endl;
-	  return -1;
-	}
-	logIter.validateFooter(); //not implemented
-	for (i= 0; i < g_consumers.size(); i++)
-	  g_consumers[i]->endOfLogEntrys();
+	ndbout << "Failed to read header of data file. Exiting..." ;
+	return -11;
       }
+      
+      
+      while (dataIter.readFragmentHeader(res= 0))
+      {
+	const TupleS* tuple;
+	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
+	{
+	  if (checkSysTable(tuple->getTable()->getTableName()))
+	    for(Uint32 i= 0; i < g_consumers.size(); i++) 
+	      g_consumers[i]->tuple(* tuple);
+	} // while (tuple != NULL);
+	
+	if (res < 0)
+	{
+	  ndbout_c("Restore: An error occured while restoring data. "
+		   "Exiting...");
+	  return -1;
+	}
+	if (!dataIter.validateFragmentFooter()) {
+	  ndbout_c("Restore: Error validating fragment footer. "
+		   "Exiting...");
+	  return -1;
+	}
+      } // while (dataIter.readFragmentHeader(res))
+      
+      if (res < 0)
+      {
+	err << "Restore: An error occured while restoring data. Exiting... res=" << res << endl;
+	return -1;
+      }
+      
+      
+      dataIter.validateFooter(); //not implemented
+      
+      for (i= 0; i < g_consumers.size(); i++)
+	g_consumers[i]->endOfTuples();
+      
+      RestoreLogIterator logIter(metaData);
+      if (!logIter.readHeader())
+      {
+	err << "Failed to read header of data file. Exiting..." << endl;
+	return -1;
+      }
+      
+      const LogEntry * logEntry = 0;
+      while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
+      {
+	if (checkSysTable(logEntry->m_table->getTableName()))
+	  for(Uint32 i= 0; i < g_consumers.size(); i++)
+	    g_consumers[i]->logEntry(* logEntry);
+      }
+      if (res < 0)
+      {
+	err << "Restore: An restoring the data log. Exiting... res=" << res << endl;
+	return -1;
+      }
+      logIter.validateFooter(); //not implemented
+      for (i= 0; i < g_consumers.size(); i++)
+	g_consumers[i]->endOfLogEntrys();
+    }
   }
   clearConsumers();
   return 1;

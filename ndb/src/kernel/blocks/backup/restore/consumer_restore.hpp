@@ -49,6 +49,7 @@ public:
   virtual bool init();
   virtual void release();
   virtual bool table(const TableS &);
+  virtual bool endOfTables();
   virtual void tuple(const TupleS &);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
@@ -83,6 +84,8 @@ public:
     const NdbDictionary::Table* m_new_table;
   } m_cache;
   const NdbDictionary::Table* get_table(const NdbDictionary::Table* );
+
+  Vector<const NdbDictionary::Table*> m_indexes;
 };
 
 #endif
