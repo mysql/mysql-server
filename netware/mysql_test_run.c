@@ -760,7 +760,7 @@ void run_test(char *test)
     // create files
     snprintf(master_opt_file, PATH_MAX, "%s/%s-master.opt", test_dir, test);
     snprintf(slave_opt_file, PATH_MAX, "%s/%s-slave.opt", test_dir, test);
-    snprintf(slave_master_info_file, PATH_MAX, "%s/%s-slave-master-info.opt", test_dir, test);
+    snprintf(slave_master_info_file, PATH_MAX, "%s/%s.slave-mi", test_dir, test);
     snprintf(reject_file, PATH_MAX, "%s/%s%s", result_dir, test, REJECT_SUFFIX);
     snprintf(out_file, PATH_MAX, "%s/%s%s", result_dir, test, OUT_SUFFIX);
     snprintf(err_file, PATH_MAX, "%s/%s%s", result_dir, test, ERR_SUFFIX);
