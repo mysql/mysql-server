@@ -1405,7 +1405,6 @@ row_create_index_for_mysql(
 	ulint		i;
 	ulint		j;
 	
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
