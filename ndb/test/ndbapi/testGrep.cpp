@@ -254,9 +254,7 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-#if 0
-
-#include "../bank/Bank.hpp"
+#include "bank/Bank.hpp"
 
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank;
@@ -445,7 +443,6 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 */
-#endif
 
 NDBT_TESTSUITE(testGrep);
 TESTCASE("GrepBasic", 
@@ -476,8 +473,6 @@ TESTCASE("GrepNodeRestart",
 }
 
 
-#if 0
-
 TESTCASE("GrepBank", 
 	 "Test that grep and restore works during transaction load\n"
 	 " by backing up the bank"
@@ -498,7 +493,6 @@ TESTCASE("GrepBank",
   //  FINALIZER(runDropBank);
 
 }
-#endif
 
 TESTCASE("NFMaster", 
 	 "Test that grep behaves during node failiure\n"){
