@@ -128,6 +128,9 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 
 static struct my_option my_long_options[] =
 {
+  {"all", 'a', "Deprecated. Use --create-options instead.",
+   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
@@ -240,7 +243,7 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
-   "Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
+   "Deprecated. Use --skip-set-charset instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
