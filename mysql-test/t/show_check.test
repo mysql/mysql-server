@@ -21,6 +21,7 @@ check table t1 type=fast;
 check table t1 type=changed;
 insert into t1 values (5,5,5);
 check table t1 type=changed;
+check table t1 type=medium;
 check table t1 type=extended;
 show keys from t1;
 !$1062 insert into t1 values (5,5,5);
