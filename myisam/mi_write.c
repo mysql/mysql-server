@@ -152,6 +152,17 @@ err:
   save_errno=my_errno;
   if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL)
   {
+    if (info->bulk_insert)
+    {
+      int j;
+      for (j=0 ; j < share->base.keys ; j++)
+      {
+        if (is_tree_inited(& info->bulk_insert[j]))
+        {
+          reset_tree(& info->bulk_insert[j]);
+        }
+      }
+    }
     info->errkey= (int) i;
     while ( i-- > 0)
     {
