@@ -2148,7 +2148,7 @@ The server will not act as a slave.");
   (void) thr_setconcurrency(concurrency);	// 10 by default
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)	  //IRENA
   {
-    hEventShutdown=CreateEvent(0, FALSE, FALSE, event_name);
+    hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
       sql_print_error("Warning: Can't create thread to handle shutdown requests");

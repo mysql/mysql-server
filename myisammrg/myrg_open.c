@@ -32,7 +32,7 @@
 
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
-  int save_errno,i,j,errpos;
+  int save_errno,i,errpos;
   uint files,dir_length,length,options, key_parts;
   ulonglong file_offset;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
@@ -113,6 +113,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   options= (uint) ~0;
   for (i=files ; i-- > 0 ; )
   {
+    uint j;
     m_info->open_tables[i].table=isam;
     m_info->options|=isam->s->options;
     options&=isam->s->options;

@@ -122,6 +122,10 @@ SOURCE=.\myrg_queue.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\myrg_range.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\myrg_rfirst.c
 # End Source File
 # Begin Source File
