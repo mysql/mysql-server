@@ -5063,6 +5063,19 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case MYSQL_TYPE_VAR_STRING:
     DBUG_ASSERT(0);                             // Impossible
     break;
+  case MYSQL_TYPE_BIT:
+    {
+      if (!length)
+        new_field->length= 1;
+      if (new_field->length > MAX_BIT_FIELD_LENGTH)
+      {
+        my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), field_name,
+                 MAX_BIT_FIELD_LENGTH);
+        DBUG_RETURN(1);
+      }
+      new_field->pack_length= (new_field->length + 7) / 8;
+      break;
+    }
   }
 
   if (!(new_field->flags & BLOB_FLAG) &&
