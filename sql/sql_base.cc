@@ -1384,7 +1384,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       /* Give right error message */
       thd->clear_error();
       my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
-      sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
+      sql_print_error("Couldn't repair table: %s.%s",db,name);
       if (entry->file)
 	closefrm(entry);
       error=1;
@@ -1424,7 +1424,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
-        sql_print_error("Error: when opening HEAP table, could not allocate \
+        sql_print_error("When opening HEAP table, could not allocate \
 memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
         if (entry->file)
           closefrm(entry);
@@ -1820,8 +1820,8 @@ bool rm_temporary_table(enum db_type base, char *path)
   if (file && file->delete_table(path))
   {
     error=1;
-    sql_print_error("Warning: Could not remove tmp table: '%s', error: %d",
-		    path, my_errno);
+    sql_print_warning("Could not remove tmp table: '%s', error: %d",
+                      path, my_errno);
   }
   delete file;
   DBUG_RETURN(error);

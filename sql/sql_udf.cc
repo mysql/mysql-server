@@ -184,8 +184,7 @@ void udf_init()
       if (!(dl = dlopen(tmp->dl, RTLD_NOW)))
       {
 	/* Print warning to log */
-	sql_print_error(ER(ER_CANT_OPEN_LIBRARY),
-			tmp->dl,errno,dlerror());
+	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl,errno,dlerror());
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }

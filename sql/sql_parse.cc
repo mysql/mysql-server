@@ -1022,12 +1022,12 @@ pthread_handler_decl(handle_one_connection,arg)
     if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings > 1)
-	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
-			thd->thread_id,(thd->db ? thd->db : "unconnected"),
-			thd->user ? thd->user : "unauthenticated",
-			thd->host_or_ip,
-			(net->last_errno ? ER(net->last_errno) :
-			 ER(ER_UNKNOWN_ERROR)));
+        sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                          thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                          thd->user ? thd->user : "unauthenticated",
+                          thd->host_or_ip,
+                          (net->last_errno ? ER(net->last_errno) :
+                           ER(ER_UNKNOWN_ERROR)));
       send_error(thd,net->last_errno,NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }

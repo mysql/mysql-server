@@ -203,7 +203,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     host.sort=	 get_sort(2,host.host.hostname,host.db);
     if (check_no_resolve && hostname_requires_resolving(host.host.hostname))
     {
-      sql_print_error("Warning: 'host' entry '%s|%s' "
+      sql_print_warning("'host' entry '%s|%s' "
 		      "ignored in --skip-name-resolve mode.",
 		      host.host.hostname, host.db, host.host.hostname);
       continue;
@@ -271,8 +271,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     user.user= get_field(&mem, table->field[1]);
     if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
     {
-      sql_print_error("Warning: 'user' entry '%s@%s' "
-		      "ignored in --skip-name-resolve mode.",
+      sql_print_warning("'user' entry '%s@%s' "
+                        "ignored in --skip-name-resolve mode.",
 		      user.user, user.host.hostname, user.host.hostname);
       continue;
     }
@@ -284,16 +284,16 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       switch (password_len) {
       case 45: /* 4.1: to be removed */
-        sql_print_error("Found 4.1 style password for user '%s@%s'. "
-                        "Ignoring user. "
-                        "You should change password for this user.",
-                        user.user ? user.user : "",
-                        user.host.hostname ? user.host.hostname : "");
+        sql_print_warning("Found 4.1 style password for user '%s@%s'. "
+                          "Ignoring user. "
+                          "You should change password for this user.",
+                          user.user ? user.user : "",
+                          user.host.hostname ? user.host.hostname : "");
         break;
       default:
-        sql_print_error("Found invalid password for user: '%s@%s'; "
-                        "Ignoring user", user.user ? user.user : "",
-                        user.host.hostname ? user.host.hostname : "");
+        sql_print_warning("Found invalid password for user: '%s@%s'; "
+                          "Ignoring user", user.user ? user.user : "",
+                           user.host.hostname ? user.host.hostname : "");
         break;
       }
     }
@@ -368,15 +368,15 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     db.db=get_field(&mem, table->field[1]);
     if (!db.db)
     {
-      sql_print_error("Found an entry in the 'db' table with empty database name; Skipped");
+      sql_print_warning("Found an entry in the 'db' table with empty database name; Skipped");
       continue;
     }
     db.user=get_field(&mem, table->field[2]);
     if (check_no_resolve && hostname_requires_resolving(db.host.hostname))
     {
-      sql_print_error("Warning: 'db' entry '%s %s@%s' "
-		      "ignored in --skip-name-resolve mode.",
-		      db.db, db.user, db.host.hostname, db.host.hostname);
+      sql_print_warning("'db' entry '%s %s@%s' "
+		        "ignored in --skip-name-resolve mode.",
+		        db.db, db.user, db.host.hostname, db.host.hostname);
       continue;
     }
     db.access=get_access(table,3);
@@ -733,9 +733,9 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	else
 	{
 	  if (global_system_variables.log_warnings)
-	    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
-			    acl_user->ssl_cipher,
-			    SSL_get_cipher(ssl));
+	    sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
+			      acl_user->ssl_cipher,
+			      SSL_get_cipher(ssl));
 	  break;
 	}
       }
@@ -757,8 +757,8 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         if (strcmp(acl_user->x509_issuer, ptr))
         {
           if (global_system_variables.log_warnings)
-            sql_print_error("X509 issuer mismatch: should be '%s' "
-			    "but is '%s'", acl_user->x509_issuer, ptr);
+            sql_print_information("X509 issuer mismatch: should be '%s' "
+			      "but is '%s'", acl_user->x509_issuer, ptr);
           free(ptr);
           break;
         }
@@ -775,7 +775,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         if (strcmp(acl_user->x509_subject,ptr))
         {
           if (global_system_variables.log_warnings)
-            sql_print_error("X509 subject mismatch: '%s' vs '%s'",
+            sql_print_information("X509 subject mismatch: '%s' vs '%s'",
                             acl_user->x509_subject, ptr);
         }
         else
@@ -2610,10 +2610,10 @@ my_bool grant_init(THD *org_thd)
     {
       if (hostname_requires_resolving(mem_check->host))
       {
-	sql_print_error("Warning: 'tables_priv' entry '%s %s@%s' "
-			"ignored in --skip-name-resolve mode.",
-			mem_check->tname, mem_check->user,
-			mem_check->host, mem_check->host);
+        sql_print_warning("'tables_priv' entry '%s %s@%s' "
+                          "ignored in --skip-name-resolve mode.",
+                          mem_check->tname, mem_check->user,
+                          mem_check->host, mem_check->host);
 	continue;
       }
     }
@@ -3680,12 +3680,6 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  /* XXX this should not be necessary. The error message is already printed
-     by replace_xxx_table. my_error() should be use above instead of
-     sql_print_error(), and print ER_NONEXISTING_GRANT - as other grant
-     commands do */
-  /* when this code is deleted, the error slot (error 1268) can be reused,
-     as this error code was not present in any MySQL release */
   if (result)
     my_error(ER_REVOKE_GRANTS, MYF(0));
 

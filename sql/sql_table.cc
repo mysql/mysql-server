@@ -3250,8 +3250,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       my_free((char*) table, MYF(0));
     }
     else
-      sql_print_error("Warning: Could not open BDB table %s.%s after rename\n",
-		      new_db,table_name);
+      sql_print_warning("Could not open BDB table %s.%s after rename\n",
+                        new_db,table_name);
     (void) berkeley_flush_logs();
   }
 #endif
