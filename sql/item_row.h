@@ -61,5 +61,6 @@ public:
 
   virtual uint cols() { return arg_count; }
   virtual Item* el(uint i) { return items[i]; }
+  virtual Item** addr(uint i) { return items + i; }
   virtual bool check_cols(uint c);
 };

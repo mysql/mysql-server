@@ -21,6 +21,63 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+extern Item_result item_cmp_type(Item_result a,Item_result b);
+class Item_bool_func2;
+class Arg_comparator;
+
+typedef int (Arg_comparator::*arg_cmp_func)();
+
+class Arg_comparator: public Sql_alloc
+{
+  Item **a, **b;
+  arg_cmp_func func;
+  Item_bool_func2 *owner;
+  Arg_comparator *comparators;   // used only for compare_row()
+
+public:
+  Arg_comparator() {};
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
+
+  inline void seta(Item **item) { a= item; }
+  inline void setb(Item **item) { b= item; }
+
+  int set_compare_func(Item_bool_func2 *owner, Item_result type);
+  inline int set_compare_func(Item_bool_func2 *owner)
+  {
+    return set_compare_func(owner, item_cmp_type((*a)->result_type(),
+						 (*b)->result_type()));
+  }
+
+  inline int set_cmp_func(Item_bool_func2 *owner,
+			  Item **a1, Item **a2,
+			  Item_result type)
+  {
+    a= a1;
+    b= a2;
+    return set_compare_func(owner, type);
+  }
+  inline int set_cmp_func(Item_bool_func2 *owner,
+			  Item **a1, Item **a2)
+  {
+    return set_cmp_func(owner, a1, a2, item_cmp_type((*a1)->result_type(),
+						     (*a2)->result_type()));
+  }
+  inline int compare() { return (this->*func)(); }
+
+  int compare_string();		 // compare args[0] & args[1]
+  int compare_real();            // compare args[0] & args[1]
+  int compare_int();             // compare args[0] & args[1]
+  int compare_row();             // compare args[0] & args[1]
+  int compare_e_string();	 // compare args[0] & args[1]
+  int compare_e_real();          // compare args[0] & args[1]
+  int compare_e_int();           // compare args[0] & args[1]
+  int compare_e_row();           // compare args[0] & args[1]
+
+  static arg_cmp_func comparator_matrix [4][2];
+
+  friend class Item_func;
+};
+
 class Item_bool_func :public Item_int_func
 {
 public:
@@ -33,13 +90,15 @@ public:
 class Item_bool_func2 :public Item_int_func
 {						/* Bool with 2 string args */
 protected:
+  Arg_comparator cmp;
   String tmp_value1,tmp_value2;
 public:
-  Item_bool_func2(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_bool_func2(Item *a,Item *b):
+    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
-    arg_store.set_compare_func(this);
+    cmp.set_cmp_func(this, tmp_arg, tmp_arg+1);
   }
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
