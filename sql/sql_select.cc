@@ -1574,7 +1574,8 @@ err:
   Approximate how many records will be used in each table
 *****************************************************************************/
 
-static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
+static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
+				      TABLE *table,
 				      key_map keys,ha_rows limit)
 {
   int error;
@@ -1583,7 +1584,7 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(keys,(table_map) 0,limit))
+    if ((error=select->test_quick_select(thd, keys,(table_map) 0,limit))
 	== 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
@@ -1866,8 +1867,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 			  found_const_table_map,
 			  s->on_expr ? s->on_expr : conds,
 			  &error);
-      records= get_quick_record_count(select,s->table, s->const_keys,
-				      join->row_limit);
+      records= get_quick_record_count(join->thd, select, s->table,
+				      s->const_keys, join->row_limit);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
@@ -3218,9 +3219,9 @@ store_val_in_field(Field *field,Item *item)
   bool error;
   THD *thd=current_thd;
   ha_rows cuted_fields=thd->cuted_fields;
-  thd->count_cuted_fields=1;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
   error= item->save_in_field(field, 1);
-  thd->count_cuted_fields=0;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   return error || cuted_fields != thd->cuted_fields;
 }
 
@@ -3377,7 +3378,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
 	    sel->cond=and_conds(sel->cond,tab->on_expr);
-	    if (sel->test_quick_select(tab->keys,
+	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
@@ -3390,7 +3391,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	      */
               sel->cond=orig_cond;
               if (!tab->on_expr ||
-                  sel->test_quick_select(tab->keys,
+                  sel->test_quick_select(join->thd, tab->keys,
                                          used_tables & ~ current_map,
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
@@ -5828,7 +5829,8 @@ test_if_quick_select(JOIN_TAB *tab)
 {
   delete tab->select->quick;
   tab->select->quick=0;
-  return tab->select->test_quick_select(tab->keys,(table_map) 0,HA_POS_ERROR);
+  return tab->select->test_quick_select(tab->join->thd, tab->keys,
+					(table_map) 0, HA_POS_ERROR);
 }
 
 
@@ -6921,7 +6923,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick=get_ft_or_quick_select_for_ref(table, tab)))
+      if (!(select->quick=get_ft_or_quick_select_for_ref(tab->join->thd,
+							 table, tab)))
 	goto err;
     }
   }

@@ -34,6 +34,7 @@ create table t1 (a tinyint not null auto_increment, b blob not null, primary key
 
 let $1=100;
 disable_query_log;
+--disable_warnings
 SET SQL_WARNINGS=0;
 while ($1)
 {
@@ -41,6 +42,7 @@ while ($1)
   dec $1;
 }
 SET SQL_WARNINGS=1;
+--enable_warnings
 enable_query_log;
 check table t1;
 repair table t1;
