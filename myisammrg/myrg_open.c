@@ -43,6 +43,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   DBUG_ENTER("myrg_open");
 
   LINT_INIT(m_info);
+  m_info=0;
   isam=0;
   errpos=files=0;
   bzero((char*) &file,sizeof(file));
@@ -75,7 +76,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       if( !strncmp(buff+1,"INSERT_METHOD=",14))
       {			/* Lookup insert method */
 	int tmp=find_type(buff+15,&merge_insert_method,2);
-	m_info.merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
+	m_info->merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
       }
       continue;		/* Skip comments */
     }
@@ -115,7 +116,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     m_info->open_tables[files].file_offset=(my_off_t) file_offset;
     file_offset+=isam->state->data_file_length;
     files++;
-    if (m_info.reclength != isam->s->base.reclength)
+    if (m_info->reclength != isam->s->base.reclength)
     {
       my_errno=HA_ERR_WRONG_MRG_TABLE_DEF;
       goto err;
@@ -128,6 +129,9 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       m_info->rec_per_key_part[i]+=isam->s->state.rec_per_key_part[i] / m_info->tables;
   }
 
+  if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
+                                           MYF(MY_WME|MY_ZEROFILL))))
+    goto err;
   /* Don't mark table readonly, for ALTER TABLE ... UNION=(...) to work */
   m_info->options&= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
 
@@ -136,7 +140,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
-  m_info->keys=(files) ? m_info->open_tables->table->s->base.keys : 0;
+  m_info->keys= files ? isam->s->base.keys : 0;
   bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
   /* this works ok if the table list is empty */
