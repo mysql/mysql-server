@@ -620,6 +620,9 @@ int stop_slave(THD* thd, bool net_report )
 #ifdef HAVE_TIMESPEC_TS_SEC
       abstime.ts_sec=time(NULL)+2;		
       abstime.ts_nsec=0;
+#elif defined(__WIN__)
+      abstime.tv_sec=time((time_t*) 0)+2;
+      abstime.tv_nsec=0;
 #else
       struct timeval tv;
       gettimeofday(&tv,0);
