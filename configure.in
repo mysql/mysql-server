@@ -1862,7 +1862,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS="$CXXFLAGS -Werror"
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
@@ -1894,7 +1894,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS="$CXXFLAGS -Werror"
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed 's/-fbranch-probabilities//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
@@ -2341,7 +2341,7 @@ extern int     mbcharlen_${c}(uint);"
     mbcharlen_${c}"
   else
     CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
-    0,          /* mbmaxlen  */
+    1,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
     NULL        /* mbcharlen */"

@@ -556,7 +556,17 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	select_distinct= 0;
 	no_order= !order;
 	if (all_order_fields_used)
+	{
+	  if (order && skip_sort_order)
+	  {
+	    /*
+	      Force MySQL to read the table in sorted order to get result in
+	      ORDER BY order.
+	    */	    
+	    join.tmp_table_param.quick_group=0;
+	  }
 	  order=0;
+	}
 	join.group=1;				// For end_write_group
       }
       else

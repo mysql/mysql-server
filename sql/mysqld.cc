@@ -1233,7 +1233,7 @@ void yyerror(const char *s)
 {
   NET *net=my_pthread_getspecific_ptr(NET*,THR_NET);
   char *yytext=(char*) current_lex->tok_start;
-  if (!strcmp(s,"parse error"))
+  if (!strcmp(s,"parse error") || !strcmp(s,"syntax error"))
     s=ER(ER_SYNTAX_ERROR);
   net_printf(net,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
 	     current_lex->yylineno);
@@ -3787,7 +3787,7 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
-   "Don't start more than this number of threads to handle INSERT DELAYED statements. This option does not yet have effect (on TODO), unless it is set to zero, which means INSERT DELAYED is not used.",
+   "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
    (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
    0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
