@@ -104,13 +104,13 @@ prepare stmt1 from ' select substr(''MySQL'',1,?) from t1 where a=1 ' ;
 execute stmt1 using @arg00 ;
 # variations on 'concat'
 set @arg00='MySQL' ;
-select a , concat(@arg00,b) from t1 ;
+select a , concat(@arg00,b) from t1 order by a;
 # BUG#3796 Prepared statement, select concat(<parameter>,<column>),wrong result
-prepare stmt1 from ' select a , concat(?,b) from t1 ' ;
+prepare stmt1 from ' select a , concat(?,b) from t1 order by a ' ;
 execute stmt1 using @arg00;
 #
-select a , concat(b,@arg00) from t1 ;
-prepare stmt1 from ' select a , concat(b,?) from t1 ' ;
+select a , concat(b,@arg00) from t1 order by a ;
+prepare stmt1 from ' select a , concat(b,?) from t1 order by a ' ;
 execute stmt1 using @arg00;
 
 # variations on 'group_concat'
@@ -147,7 +147,7 @@ create table t5 (id1 int(11) not null default '0',
        value2 varchar(100), value1 varchar(100)) ;
 insert into t5 values (1,'hh','hh'),(2,'hh','hh'),
                   (1,'ii','ii'),(2,'ii','ii') ;
-prepare stmt1 from ' select id1,value1 from t5 where id1=? or value1=? ' ;
+prepare stmt1 from ' select id1,value1 from t5 where id1=? or value1=? order by id1,value1 ' ;
 set @arg00=1 ;
 set @arg01='hh' ;
 execute stmt1 using @arg00, @arg01 ;
@@ -216,8 +216,8 @@ execute stmt1 using @arg00 ;
 # parameter in IN
 set @arg00=2 ;
 set @arg01=3 ;
-select a FROM t1 where a in (@arg00,@arg01);
-prepare stmt1 from ' select a FROM t1 where a in (?,?) ';
+select a FROM t1 where a in (@arg00,@arg01) order by a;
+prepare stmt1 from ' select a FROM t1 where a in (?,?) order by a ';
 execute stmt1 using @arg00, @arg01;
 # case derived from client_test.c: test_bug1500()
 set @arg00= 'one' ;
@@ -270,9 +270,9 @@ execute stmt1 using @arg00 ;
 ##### parameter used in having clause
 set @arg00='two' ;
 select a,b FROM t1 where a is not NULL
-AND b is not NULL having b <> @arg00 ;
+AND b is not NULL having b <> @arg00 order by a ;
 prepare stmt1 from ' select a,b FROM t1 where a is not NULL
-AND b is not NULL having b <> ? ' ;
+AND b is not NULL having b <> ? order by a ' ;
 execute stmt1 using @arg00 ;
 
 ##### parameter used in order clause
@@ -297,7 +297,7 @@ execute stmt1 using @arg00;
 
 ##### parameter used in limit clause
 set @arg00=1;
-prepare stmt1 from ' select a,b from t1
+prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
 execute stmt1 ;
 # currently (May 2004, Version 4.1) it is impossible
@@ -327,10 +327,10 @@ select '------ join tests ------' as test_sequence ;
 # no parameter
 select first.a as a1, second.a as a2 
 from t1 first, t1 second
-where first.a = second.a ;
+where first.a = second.a order by a1 ;
 prepare stmt1 from ' select first.a as a1, second.a as a2 
         from t1 first, t1 second
-        where first.a = second.a ';
+        where first.a = second.a order by a1 ';
 execute stmt1 ;
 
 # some parameters
@@ -350,15 +350,15 @@ execute stmt1 using @arg00, @arg01, @arg02;
 drop table if exists t2 ;
 --enable_warnings
 create table t2 as select * from t1 ;
-set @query1= 'SELECT * FROM t2 join t1 on (t1.a=t2.a) ' ;
-set @query2= 'SELECT * FROM t2 natural join t1 ' ;
-set @query3= 'SELECT * FROM t2 join t1 using(a) ' ;
-set @query4= 'SELECT * FROM t2 left join t1 on(t1.a=t2.a) ' ;
-set @query5= 'SELECT * FROM t2 natural left join t1 ' ;
-set @query6= 'SELECT * FROM t2 left join t1 using(a) ' ;
-set @query7= 'SELECT * FROM t2 right join t1 on(t1.a=t2.a) ' ;
-set @query8= 'SELECT * FROM t2 natural right join t1 ' ;
-set @query9= 'SELECT * FROM t2 right join t1 using(a) ' ;
+set @query1= 'SELECT * FROM t2 join t1 on (t1.a=t2.a) order by t2.a ' ;
+set @query2= 'SELECT * FROM t2 natural join t1 order by t2.a ' ;
+set @query3= 'SELECT * FROM t2 join t1 using(a) order by t2.a ' ;
+set @query4= 'SELECT * FROM t2 left join t1 on(t1.a=t2.a) order by t2.a ' ;
+set @query5= 'SELECT * FROM t2 natural left join t1 order by t2.a ' ;
+set @query6= 'SELECT * FROM t2 left join t1 using(a) order by t2.a ' ;
+set @query7= 'SELECT * FROM t2 right join t1 on(t1.a=t2.a) order by t2.a ' ;
+set @query8= 'SELECT * FROM t2 natural right join t1 order by t2.a ' ;
+set @query9= 'SELECT * FROM t2 right join t1 using(a) order by t2.a ' ;
 let $1= 9 ;
 while ($1)
 {
@@ -424,7 +424,7 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
 ######## correlated subquery
 # no parameter
 prepare stmt1 from ' select a, b FROM t1 outer_table where
-   a = (select a from t1 where b = outer_table.b ) ';
+   a = (select a from t1 where b = outer_table.b ) order by a ';
 # also Bug#4000 (only BDB tables)
 # Bug#4106 : ndb table, query with correlated subquery, wrong result
 execute stmt1 ;
