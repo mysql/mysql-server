@@ -2327,3 +2327,19 @@ select * from t2,t3 where t2.s = t3.s;
 s	s
 two		two	
 drop table t1, t2, t3;
+CREATE TABLE t1 (
+i int(11) NOT NULL default '0',
+c char(10) NOT NULL default '',
+PRIMARY KEY  (i),
+UNIQUE KEY c (c)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t1 VALUES (2,'b');
+INSERT INTO t1 VALUES (3,'c');
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+DROP TABLE t1;

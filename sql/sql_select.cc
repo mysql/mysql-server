@@ -4901,6 +4901,15 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   else
   {
+    if (!table->key_read &&
+        (table->used_keys & ((key_map) 1 << tab->ref.key)) &&
+    	!table->no_keyread &&
+        (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
+    {
+      table->key_read=1;
+      table->file->extra(HA_EXTRA_KEYREAD);
+      tab->index= tab->ref.key;
+    }
     if ((error=join_read_const(tab)))
     {
       tab->info="unique row not found";
@@ -7617,7 +7626,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       sprintf(buff3,"%.0f",join->best_positions[i].records_read);
       item_list.push_back(new Item_string(buff3,strlen(buff3)));
       my_bool key_read=table->key_read;
-      if (tab->type == JT_NEXT &&
+      if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
 	  ((table->used_keys & ((key_map) 1 << tab->index))))
 	key_read=1;
       
