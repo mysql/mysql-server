@@ -2430,7 +2430,6 @@ mysql_execute_command(THD *thd)
 				       create_table_local);
     break;
 
-create_error:
     res= 1; //error reported
 unsent_create_error:
     // put tables back for PS rexecuting
