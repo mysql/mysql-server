@@ -84,7 +84,7 @@ public:
     when(when_arg), exec_time(exec_time_arg),
     valid_exec_time(valid_exec_time_arg)
   {
-    server_id = server_id_arg ? server_id_arg : server_id = ::server_id;
+    server_id = server_id_arg ? server_id_arg : (::server_id);
   }
 
   Log_event(const char* buf): valid_exec_time(0)
