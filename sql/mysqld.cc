@@ -3522,8 +3522,13 @@ struct my_option my_long_options[] =
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
    "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.",
    (gptr*) &lower_case_table_names,
-   (gptr*) &lower_case_table_names, 0,
-   GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 1, 0, 1, 0},
+   (gptr*) &lower_case_table_names, 0, GET_BOOL, NO_ARG,
+#ifdef FN_NO_CASE_SENCE
+    1
+#else
+    0
+#endif
+   , 0, 1, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
