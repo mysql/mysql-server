@@ -302,7 +302,7 @@ static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0, opt_console= 0;
+my_bool opt_log_slave_updates= 0, opt_console= 0, opt_allow_suspicious_udfs;
 my_bool opt_readonly = 0, opt_sync_bdb_logs, opt_sync_frm;
 
 volatile bool  mqh_used = 0;
@@ -3525,7 +3525,7 @@ enum options_mysqld {
   OPT_BDB_MAX_LOCK,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
-  OPT_RANGE_ALLOC_BLOCK_SIZE,
+  OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
   OPT_SYNC_FRM, OPT_BDB_NOSYNC
@@ -3538,6 +3538,13 @@ struct my_option my_long_options[] =
 {
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"allow-suspicious-udfs", OPT_ALLOW_SUSPICIOUS_UDFS,
+   "Allows to use UDF's consisting of only one symbol xxx() "
+   "without corresponing xxx_init() or xxx_deinit(). That also means "
+   "that one can load any function from any library, for example exit() "
+   "from libc.so",
+   (gptr*) &opt_allow_suspicious_udfs, (gptr*) &opt_allow_suspicious_udfs,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b',
    "Path to installation directory. All paths are usually resolved relative to this.",
    (gptr*) &mysql_home_ptr, (gptr*) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,

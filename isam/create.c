@@ -58,13 +58,14 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
   base_pos=512;					/* Enough for N_STATE_INFO */
   bzero((byte*) &share,sizeof(share));
   if ((file = my_create(fn_format(buff,name,"",N_NAME_IEXT,4),0,
-       O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+       O_RDWR | O_EXCL | O_NOFOLLOW,MYF(MY_WME))) < 0)
     goto err;
   errpos=1;
   VOID(fn_format(buff,name,"",N_NAME_DEXT,2+4));
   if (!(flags & HA_DONT_TOUCH_DATA))
   {
-    if ((dfile = my_create(buff,0,O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+    if ((dfile = my_create(buff,0,O_RDWR | O_EXCL | O_NOFOLLOW,
+                           MYF(MY_WME))) < 0)
       goto err;
     errpos=2;
   }
