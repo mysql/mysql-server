@@ -62,3 +62,16 @@ create table t1 (date date);
 insert into t1 values ("2000-08-10"),("2000-08-11");
 select date_add(date,INTERVAL 1 DAY),date_add(date,INTERVAL 1 SECOND) from t1;
 drop table t1;
+
+#
+# Test problem with DATE_FORMAT
+#
+
+CREATE TABLE t1(AFIELD INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(GMT  VARCHAR(32));
+INSERT INTO t2 VALUES('GMT-0800');
+SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)) FROM t1, t2 GROUP BY t1.AFIELD;
+INSERT INTO t1 VALUES(1);
+SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)), DATE_FORMAT("2002-03-06 10:11:12",  CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)) FROM t1,t2 GROUP BY t1.AFIELD;
+drop table t1,t2;

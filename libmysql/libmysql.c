@@ -1338,7 +1338,7 @@ mysql_init(MYSQL *mysql)
 
 /*
   Only enable LOAD DATA INFILE by default if configured with
-  --with-enabled-local-inflile
+  --enable-local-infile
 */
 #ifdef ENABLED_LOCAL_INFILE
   mysql->options.client_flag|= CLIENT_LOCAL_FILES;

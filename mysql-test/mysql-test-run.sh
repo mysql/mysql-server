@@ -79,8 +79,10 @@ sleep_until_file_created ()
 
 # No paths below as we can't be sure where the program is!
 
-BASENAME=`which basename | head -1`
-DIFF=`which diff | head -1`
+SED=sed
+
+BASENAME=`which basename | $SED q`
+DIFF=`which diff | $SED q`
 CAT=cat
 CUT=cut
 HEAD=head
@@ -88,13 +90,12 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
-GCOV=`which gcov | head -1`
+GCOV=`which gcov | $SED q`
 PRINTF=printf
 RM=rm
 TIME=time
 TR=tr
-XARGS=`which xargs | head -1`
-SED=sed
+XARGS=`which xargs | $SED q`
 
 # Are we using a source or a binary distribution?
 
@@ -166,6 +167,7 @@ MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
 NO_SLAVE=0
+USER_TEST=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
@@ -249,6 +251,9 @@ while test $# -gt 0; do
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME_AFTER_RESTART=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
+      ;;
+    --user-test=*)
+      USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -1248,11 +1253,16 @@ then
  if [ x$RECORD = x1 ]; then
   $ECHO "Will not run in record mode without a specific test case."
  else
-  for tf in $TESTDIR/*.$TESTSUFFIX
-  do
-    run_testcase $tf
-  done
-  $RM -f $TIMEFILE	# Remove for full test
+  if [ -z "$USER_TEST" ]
+  then
+    for tf in $TESTDIR/*.$TESTSUFFIX
+    do
+     run_testcase $tf
+    done
+    $RM -f $TIMEFILE	# Remove for full test
+  else
+   $USER_TEST  
+  fi  
  fi
 else
   while [ ! -z "$1" ]; do

@@ -576,6 +576,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   delete outparam->file;
   outparam->file=0;				// For easyer errorchecking
   outparam->db_stat=0;
+  hash_free(&outparam->name_hash);
   free_root(&outparam->mem_root,MYF(0));
   my_free(outparam->table_name,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);
