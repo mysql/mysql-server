@@ -588,6 +588,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
     while (start_id == *slave_run_id)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
+      pthread_mutex_lock(cond_lock);
       const char* old_msg = thd->enter_cond(start_cond,cond_lock,
 					    "Waiting for slave thread to start");
       pthread_cond_wait(start_cond,cond_lock);
