@@ -245,7 +245,7 @@ public:
 
 class Item_func_between :public Item_int_func
 {
-  CHARSET_INFO *cmp_charset;
+  DTCollation cmp_collation;
 public:
   Item_result cmp_type;
   String value0,value1,value2;
