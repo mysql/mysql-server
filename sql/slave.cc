@@ -926,7 +926,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       if(type_code == LOAD_EVENT)
 	skip_load_data_infile(net);
 	
-      mi->inc_pos(event_len);
+      mi->inc_pos(event_len, ev->log_seq);
       flush_master_info(mi);
       if(slave_skip_counter)
         --slave_skip_counter;
@@ -1019,10 +1019,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	return 1;
       }
       free_root(&thd->mem_root,0);
-      mi->last_log_seq = ev->log_seq;
-      delete ev;
       thd->log_seq = 0;
-      mi->inc_pos(event_len);
+      mi->inc_pos(event_len, ev->log_seq);
+      delete ev;
       flush_master_info(mi);
       break;
     }
@@ -1035,11 +1034,10 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	mysql_bin_log.write(sev);
       }
 
-      mi->last_log_seq = ev->log_seq;
-      delete ev;
       thd->log_seq = 0;
-      mi->inc_pos(event_len);
+      mi->inc_pos(event_len, ev->log_seq);
       flush_master_info(mi);
+      delete ev;
       break;
     }
 	  
@@ -1150,8 +1148,6 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	return 1;
       }
       
-      mi->last_log_seq = ev->log_seq;
-      delete ev;
       thd->log_seq = 0;
       free_root(&thd->mem_root,0);
 	    
@@ -1159,18 +1155,19 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       {
 	sql_print_error("Slave: Fatal error running query '%s' ",
 			thd->query);
+        delete ev;
 	return 1;
       }
 
-      mi->inc_pos(event_len);
+      mi->inc_pos(event_len, ev->log_seq);
+      delete ev;
       flush_master_info(mi);
       break;
     }
 
     case START_EVENT:
       close_temporary_tables(thd);
-      mi->inc_pos(event_len);
-      mi->last_log_seq = ev->log_seq;
+      mi->inc_pos(event_len, ev->log_seq);
       flush_master_info(mi);
       delete ev;
       thd->log_seq = 0;
@@ -1180,10 +1177,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       if(mi->pos > 4) // stop event should be ignored after rotate event
 	{
           close_temporary_tables(thd);
-          mi->inc_pos(event_len);
+          mi->inc_pos(event_len, ev->log_seq);
           flush_master_info(mi);
 	}
-      mi->last_log_seq = ev->log_seq;
       delete ev;
       thd->log_seq = 0;
       break;
@@ -1207,17 +1203,17 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
       mi->pos = rev->pos; 
       mi->last_log_seq = ev->log_seq;
-      pthread_cond_broadcast(&mi->cond);
-      pthread_mutex_unlock(&mi->lock);
 #ifndef DBUG_OFF
       if (abort_slave_event_count)
 	++events_till_abort;
 #endif
       if (rotate_binlog)
       {
-	mi->last_log_seq = 0;
 	mysql_bin_log.new_file();
+	mi->last_log_seq = 0;
       }
+      pthread_cond_broadcast(&mi->cond);
+      pthread_mutex_unlock(&mi->lock);
       flush_master_info(mi);
       
       if (write_slave_event)
