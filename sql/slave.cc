@@ -1389,6 +1389,7 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 	       1 /* no auto events */,
                max_relay_log_size ? max_relay_log_size : max_binlog_size))
   {
+    pthread_mutex_unlock(&rli->data_lock);
     sql_print_error("Failed in open_log() called from init_relay_log_info()");
     DBUG_RETURN(1);
   }

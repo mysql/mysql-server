@@ -204,7 +204,7 @@ character-set=euckr
 "This operation cannot be performed with a running slave, run STOP SLAVE first",
 "This operation requires a running slave, configure slave and do START SLAVE",
 "The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
-"Could not initialize master info structure, check permisions on master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Could not create slave thread, check system resources",
 "User %-.64s has already more than 'max_user_connections' active connections",
 "You may only use constant expressions with SET",

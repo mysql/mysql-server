@@ -53,7 +53,6 @@ sub abort
 	if ($opt_mail && !$opt_dry_run)
 	{
 		$messagefile= "/tmp/message.$$";
-		$subject= "Bootstrap of $REPO failed";
 		open(TMP,">$messagefile");
 		print TMP "$message\n\n";
 		close TMP;

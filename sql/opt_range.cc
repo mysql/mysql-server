@@ -1090,7 +1090,6 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
       all rows between 'X' and 'X           ...'
     */
     uint length= uint2korr(str+maybe_null);
-    char *end;
     str2= str+ key_part->part_length + maybe_null;
     /* remove end space */
     while (length > 0 && str[length+HA_KEY_BLOB_LENGTH+maybe_null-1] == ' ')

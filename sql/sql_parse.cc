@@ -2569,7 +2569,7 @@ mysql_execute_command(THD *thd)
 
     /* Fix lock for first table */
     if (tables->lock_type == TL_WRITE_DELAYED)
-      tables->lock_type = TL_WRITE;
+      tables->lock_type= TL_WRITE;
 
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
