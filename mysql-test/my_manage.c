@@ -327,7 +327,7 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
 int spawn(char *path, arg_list_t *al, int join, char *input,
           char *output, char *error, HANDLE *pid)
 {
-  intptr_t result;
+  bool result;
   int i;
   STARTUPINFO startup_info;
   PROCESS_INFORMATION process_information;
@@ -665,7 +665,11 @@ void del_tree(char *dir)
   rmdir(dir);
 #else
   struct _finddata_t parent;
+#if defined(_MSC_VER) && _MSC_VER > 1200
   intptr_t handle;
+#else
+  long handle;
+#endif  /* _MSC_VER && _MSC_VER > 1200  */ 
   char temp[FN_REFLEN];
   char mask[FN_REFLEN];
 
@@ -728,7 +732,11 @@ int removef(const char *format, ...)
     va_list ap;
     char path[FN_REFLEN];
     struct _finddata_t parent;
+#if defined(_MSC_VER) && _MSC_VER > 1200
     intptr_t handle;
+#else
+    long handle;
+#endif  /* _MSC_VER && _MSC_VER > 1200  */ 
     char temp[FN_REFLEN];
     char *p;
 

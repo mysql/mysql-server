@@ -1302,9 +1302,18 @@ String *Item_func_trim::val_str(String *str)
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
+  String *remove_str; /* The string to remove from res. */
+
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+  else
+    remove_str= &remove; /* Default value. */
 
   if (!remove_str || (remove_length=remove_str->length()) == 0 ||
       remove_length > res->length())
@@ -2596,16 +2605,16 @@ String *Item_func_quote::val_str(String *str)
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the
-    old result in str
+    old result in arg
   */
-  if (str->realloc(new_length))
+  if (arg->realloc(new_length))
     goto null;
 
   /*
     As 'arg' and 'str' may be the same string, we must replace characters
     from the end to the beginning
   */
-  to= (char*) str->ptr() + new_length - 1;
+  to= (char*) arg->ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2633,10 +2642,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  str->length(new_length);
+  arg->length(new_length);
   str->set_charset(collation.collation);
   null_value= 0;
-  return str;
+  return arg;
 
 null:
   null_value= 1;
