@@ -547,7 +547,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
 
-%token  HELP
 %token  BEFORE_SYM
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
