@@ -896,7 +896,7 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type)
 
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
-  bool res= (*update_func)(thd, var);
+  int res= (*update_func)(thd, var);
   thd->lex.select_lex.options=thd->options;
   return res;
 }
@@ -1010,7 +1010,7 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
 
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {
-  bool result=0;
+  int result= 0;
   LOCK_ACTIVE_MI;
   pthread_mutex_lock(&active_mi->rli.run_lock);
   if (active_mi->rli.slave_running)
@@ -1236,26 +1236,24 @@ sys_var *find_sys_var(const char *str, uint length)
 
     RETURN VALUE
     0	ok
-    1	Something got wrong (normally no variables was updated)
+    1	ERROR, message sent (normally no variables was updated)
+    -1  ERROR, message not sent
 */
 
-bool sql_set_variables(THD *thd, List<set_var_base> *var_list)
+int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
-  bool error=0;
+  int error= 0;
   List_iterator<set_var_base> it(*var_list);
 
   set_var_base *var;
   while ((var=it++))
   {
-    if (var->check(thd))
-      return 1;
+    if ((error=var->check(thd)))
+      return error;
   }
   it.rewind();
   while ((var=it++))
-  {
-    if (var->update(thd))
-      error=1;
-  }
+    error|= var->update(thd);			// Returns 0, -1 or 1
   return error;
 }
 
@@ -1264,14 +1262,14 @@ bool sql_set_variables(THD *thd, List<set_var_base> *var_list)
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
 
-bool set_var::check(THD *thd)
+int set_var::check(THD *thd)
 {
   if (var->check_type(type))
   {
     my_error(type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE,
 	     MYF(0),
 	     var->name);
-    return 1;
+    return -1;
   }
   if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     return 1;
@@ -1282,28 +1280,29 @@ bool set_var::check(THD *thd)
     if (var->check_default(type))
     {
       my_error(ER_NO_DEFAULT, MYF(0), var->name);
-      return 1;
+      return -1;
     }
     return 0;
   }
 
   if (value->fix_fields(thd,0))
-    return 1;
+    return -1;
   if (var->check_update_type(value->result_type()))
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name);
-    return 1;
+    return -1;
   }    
-  return var->check(thd, this);
+  return var->check(thd, this) ? -1 : 0;
 }
 
 
-bool set_var::update(THD *thd)
+int set_var::update(THD *thd)
 {
+  int error;
   if (!value)
     var->set_default(thd, type);
   else if (var->update(thd, this))
-    return 1;					// should never happen
+    return -1;				// should never happen
   if (var->after_update)
     (*var->after_update)(thd, type);
   return 0;
@@ -1314,19 +1313,19 @@ bool set_var::update(THD *thd)
   Functions to handle SET @user_variable=const_expr
 *****************************************************************************/
 
-bool set_var_user::check(THD *thd)
+int set_var_user::check(THD *thd)
 {
-  return user_var_item->fix_fields(thd,0);
+  return user_var_item->fix_fields(thd,0) ? -1 : 0;
 }
 
 
-bool set_var_user::update(THD *thd)
+int set_var_user::update(THD *thd)
 {
   if (user_var_item->update())
   {
     /* Give an error if it's not given already */
-    send_error(&thd->net, ER_SET_CONSTANTS_ONLY);
-    return 1;
+    my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
+    return -1;
   }
   return 0;
 }
@@ -1336,16 +1335,19 @@ bool set_var_user::update(THD *thd)
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
-bool set_var_password::check(THD *thd)
+int set_var_password::check(THD *thd)
 {
   if (!user->host.str)
     user->host.str= (char*) thd->host_or_ip;
-  return check_change_password(thd, user->host.str, user->user.str);
+  /* Returns 1 as the function sends error to client */
+  return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
 }
 
-bool set_var_password::update(THD *thd)
+int set_var_password::update(THD *thd)
 {
-  return change_password(thd, user->host.str, user->user.str, password);
+  /* Returns 1 as the function sends error to client */
+  return (change_password(thd, user->host.str, user->user.str, password) ?
+	  1 : 0);
 }
 
 /****************************************************************************

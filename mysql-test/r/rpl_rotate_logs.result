@@ -80,4 +80,4 @@ select count(*) from t3 where n >= 4;
 count(*)
 100
 unlock tables;
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4;

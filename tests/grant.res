@@ -27,11 +27,11 @@ show grants for grant_user@localhost
 GRANT SELECT ON *.* TO 'grant_user'@'localhost'
 
 insert into mysql.user (host,user) values ('error','grant_user')
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
+Error in execute: insert command denied to user: 'grant_user@localhost' for table 'user'
 update mysql.user set host='error' WHERE user='grant_user'
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
+Error in execute: update command denied to user: 'grant_user@localhost' for table 'user'
 create table grant_test.test (a int,b int)
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: create command denied to user: 'grant_user@localhost' for table 'test'
 grant select on *.* to grant_user2@localhost
 Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
 revoke select on grant_test.test from grant_user@opt_host
@@ -99,28 +99,28 @@ select * from mysql.user where user = 'grant_user'
 localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
 
 select * from mysql.db where user = 'grant_user'
-localhost	grant_test	grant_user	Y	N	N	N	N	N	N	N	N	N
+localhost	grant_test	grant_user	Y	N	N	N	N	N	N	N	N	N	N	N
 
 Connecting grant_user
 select count(*) from grant_test.test
 2
 
 select * from mysql.user where user = 'grant_user'
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
+Error in execute: select command denied to user: 'grant_user@localhost' for table 'user'
 insert into grant_test.test values (4,0)
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: insert command denied to user: 'grant_user@localhost' for table 'test'
 update grant_test.test set a=1
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: update command denied to user: 'grant_user@localhost' for table 'test'
 delete from grant_test.test
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: delete command denied to user: 'grant_user@localhost' for table 'test'
 create table grant_test.test2 (a int)
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: create command denied to user: 'grant_user@localhost' for table 'test2'
 ALTER TABLE grant_test.test add c int
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: alter command denied to user: 'grant_user@localhost' for table 'test'
 CREATE INDEX dummy ON grant_test.test (a)
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: index command denied to user: 'grant_user@localhost' for table 'test'
 drop table grant_test.test
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: drop command denied to user: 'grant_user@localhost' for table 'test'
 grant ALL PRIVILEGES on grant_test.* to grant_user2@localhost
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant ALL PRIVILEGES on grant_test.* to grant_user@localhost WITH GRANT OPTION
@@ -133,14 +133,14 @@ REVOKE ALL PRIVILEGES on grant_test.* from grant_user@localhost
 REVOKE ALL PRIVILEGES on grant_test.* from grant_user@localhost
 Connecting grant_user
 insert into grant_test.test values (6,0)
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error in execute: insert command denied to user: 'grant_user@localhost' for table 'test'
 REVOKE GRANT OPTION on grant_test.* from grant_user@localhost
 Connecting grant_user
 Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant ALL PRIVILEGES on grant_test.* to grant_user@localhost
 Connecting grant_user
 select * from mysql.user where user = 'grant_user'
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
+Error in execute: select command denied to user: 'grant_user@localhost' for table 'user'
 insert into grant_test.test values (7,0)
 update grant_test.test set a=3 where a=2
 delete from grant_test.test where a=3
@@ -152,7 +152,7 @@ show tables from grant_test
 test
 
 insert into mysql.user (host,user) values ('error','grant_user',0)
-Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
+Error in execute: insert command denied to user: 'grant_user@localhost' for table 'user'
 revoke ALL PRIVILEGES on grant_test.* from grant_user@localhost
 select * from mysql.user where user = 'grant_user'
 localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0
@@ -190,11 +190,11 @@ delete from grant_test.test
 Error in execute: delete command denied to user: 'grant_user@localhost' for table 'test'
 grant delete on grant_test.test to grant_user@localhost
 delete from grant_test.test where a=1
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
 update grant_test.test set b=3 where b=1
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 update grant_test.test set b=b+1
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select * from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 grant select on grant_test.test to grant_user@localhost
@@ -267,7 +267,7 @@ Error in execute: Access denied for user: 'grant_user@localhost' to database 'gr
 drop database grant_test
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 flush tables
-Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
+Error in execute: Access denied. You need the RELOAD privilege for this operation
 flush privileges
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
 localhost	grant_test	grant_user	test2	root@localhost	Update,Delete,Create,Grant,Index,Alter	Insert
@@ -291,15 +291,15 @@ grant update(b),delete on grant_test.test to grant_user@localhost
 revoke update(a) on grant_test.test from grant_user@localhost
 Error in execute: There is no such grant defined for user 'grant_user' on host 'localhost' on table 'test'
 delete from grant_test.test where a=2
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
 update test set b=5 where b>0
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 grant select(a),select(b) on grant_test.test to grant_user@localhost
 delete from grant_test.test where a=2
 delete from grant_test.test where A=2
 update test set b=5 where b>0
 update test set a=11 where b>5
-Error in execute: update command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+Error in execute: UPDATE command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
 select a,A from test
 8	8
 5	5
@@ -313,9 +313,9 @@ select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.t
 revoke GRANT OPTION on grant_test.test from grant_user@localhost
 Error in execute: There is no such grant defined for user 'grant_user' on host 'localhost' on table 'test'
 grant select(a) on grant_test.test to grant_user@localhost
-show columns from test
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+show full columns from test
+a	int(11)	YES		NULL		select
+b	int(11)	YES		NULL		
 
 grant insert (b), update (b) on grant_test.test to grant_user@localhost
 select count(a) from test
@@ -333,19 +333,19 @@ update test set b=3 where a > 0
 select * from test
 Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select b from test
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select a from test where b > 0
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 insert into test (a) values (10)
-Error in execute: insert command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+Error in execute: INSERT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
 insert into test (b) values (b)
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 insert into test (a,b) values (1,5)
-Error in execute: insert command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+Error in execute: INSERT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
 insert into test (b) values (1),(b)
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 update test set b=3 where b > 0
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv
 localhost	grant_test	grant_user	test	root@localhost		Select,Insert,Update
 
@@ -379,13 +379,13 @@ localhost	grant_test	grant_user	test	b	Select,Insert,Update
 localhost	grant_test	grant_user	test	a	Select,Update
 
 insert into test (a,b) values (12,12)
-Error in execute: insert command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+Error in execute: INSERT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
 grant insert on grant_test.* to grant_user@localhost
 Connecting grant_user
 insert into test (a,b) values (13,13)
 revoke select(b) on grant_test.test from grant_user@localhost
 select count(a) from test where a+b > 0
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 update test set b=5 where a=2
 grant select on grant_test.test to grant_user@localhost
 Connecting grant_user
@@ -402,7 +402,7 @@ select count(a) from test where a+b > 0
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 grant select(a) on grant_test.test to grant_user@localhost
 select count(a) from test where a+b > 0
-Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 grant select on *.* to grant_user@localhost
 Connecting grant_user
 select count(a) from test where a+b > 0
@@ -415,7 +415,7 @@ select count(a) from test where a+b > 0
 4
 
 select * from mysql.db where user = 'grant_user'
-localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N
+localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N	N	N
 
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv where user = 'grant_user'
 localhost	grant_test	grant_user	test	root@localhost		Select,Insert,Update
@@ -430,7 +430,7 @@ Error in execute: select command denied to user: 'grant_user@localhost' for tabl
 select * from mysql.user
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'user'
 select * from mysql.db where user = 'grant_user'
-localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N
+localhost	grant_test	grant_user	N	Y	N	N	N	N	N	N	N	N	N	N
 
 select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.tables_priv where user = 'grant_user'
 select Host, Db, User, Table_name, Column_name, Column_priv from mysql.columns_priv where user = 'grant_user'
@@ -465,7 +465,7 @@ Error in execute: Access denied for user: 'grant_user@localhost' (Using password
 grant SELECT on grant_test.test3 to grant_user@localhost
 Connecting grant_user
 LOCK TABLES grant_test.test3 READ
-Error in execute: Access denied for user: 'grant_user@localhost' (Using password: NO)
+Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant LOCK TABLES on *.* to grant_user@localhost
 show grants for grant_user@localhost
 GRANT LOCK TABLES ON *.* TO 'grant_user'@'localhost'
@@ -480,8 +480,9 @@ LOCK TABLES grant_test.test3 READ
 UNLOCK TABLES
 revoke SELECT,INSERT,UPDATE,DELETE on grant_test.test3 from grant_user@localhost
 Connecting grant_user
-Access denied for user: 'grant_user@localhost' to database 'grant_test'
 revoke LOCK TABLES on *.* from grant_user@localhost
+Connecting grant_user
+Access denied for user: 'grant_user@localhost' to database 'grant_test'
 drop table grant_test.test3
 show grants for grant_user@localhost
 grant all on *.* to grant_user@localhost WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3

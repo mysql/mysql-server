@@ -783,7 +783,6 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
   db_access=0; host_access= ~0;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
-  THD *thd= current_thd;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   memcpy_fixed(&key,bin_ip,sizeof(struct in_addr));
@@ -1014,6 +1013,21 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   return(0);
 }
 
+
+/*
+  Change a password for a user
+
+  SYNOPSIS
+    change_password()
+    thd			Thread handle
+    host		Hostname
+    user		User name
+    new_password	New password for host@user
+
+  RETURN VALUES
+    0	ok
+    1	ERROR; In this case the error is sent to the client.
+*/    
 
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
