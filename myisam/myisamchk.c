@@ -152,71 +152,145 @@ enum options {
 
 static struct my_option my_long_options[] =
 {
-  {"analyze", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'a', 0, 0, 0, 0, 0, 0, 0},
-  {"block-search", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'b', 0, 0, 0, 0, 0, 0, 0},
-  {"backup", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'B', 0, 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", "", (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0, 0, 1},
-
-  {"check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'c', 0, 0, 0, 0, 0, 0, 0},
-  {"check-only-changed", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'C', 0, 0, 0, 0, 0, 0, 0},
-
-  {"correct-checksum", "", 0, 0, 0, GET_NO_ARG, NO_ARG, OPT_CORRECT_CHECKSUM, 0, 0, 0, 0, 0, 0, 0},
+  {"analyze",
+   "Analyze distribution of keys. Will make some joins in MySQL faster. You can check the calculated distribution.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'a', 0, 0,
+   0, 0, 0, 0},
+  {"block-search", "No help available.", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'b',
+   0, 0, 0, 0, 0, 0},
+  {"backup", "Make a backup of the .MYD file as 'filename-time.BAK'", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 'B', 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", "Directory where character sets are.",
+   (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, OPT_CHARSETS_DIR, 0,
+   0, 0, 0, 0, 0},
+  {"check", "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'c', 0, 0,
+   0, 0, 0, 0},
+  {"check-only-changed",
+   "Check only tables that has changed since last check.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 'C', 0, 0, 0, 0, 0, 0},
+  {"correct-checksum", "Correct checksum information for table.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, OPT_CORRECT_CHECKSUM, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", "", 0, 0, 0, GET_STR, OPT_ARG, '#', 0, 0, 0, 0, 0, 0, 0},
+  {"debug", "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
+   GET_STR, OPT_ARG, '#', 0, 0, 0, 0, 0, 0},
 #endif
-  {"description", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'd', 0, 0, 0, 0, 0, 0, 0},
-  {"data-file-length", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'D', 0, 0, 0, 0, 0, 0, 0},
-  {"extend-check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'e', 0, 0, 0, 0, 0, 0, 0},
-  {"fast", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'F', 0, 0, 0, 0, 0, 0, 0},
-  {"force", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'f', 0, 0, 0, 0, 0, 0, 0},
-  {"help", "", 0, 0, 0, GET_NO_ARG, NO_ARG, '?', 0, 0, 0, 0, 0, 0, 0},
-  {"information", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'i', 0, 0, 0, 0, 0, 0, 0},
-  {"keys-used", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'k', 0, 0, 0, 0, 0, 0, 0},
-  {"medium-check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'm', 0, 0, 0, 0, 0, 0, 0},
-  {"quick", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'q', 0, 0, 0, 0, 0, 0, 0},
-  {"read-only", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'T', 0, 0, 0, 0, 0, 0, 0},
-  {"recover", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'r', 0, 0, 0, 0, 0, 0, 0},
-  {"safe-recover", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'o', 0, 0, 0, 0, 0, 0, 0},
-  {"start-check-pos", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, OPT_START_CHECK_POS, 0, 0, 0, 0, 0, 0, 0},
-  {"set-auto-increment", "", 0, 0, 0, GET_LONG, OPT_ARG, 'A', 0, 0, 0, 0, 0, 0, 0},
-  {"set-character-set", "", 0, 0, 0, GET_STR, REQUIRED_ARG, OPT_SET_CHARSET, 0, 0, 0, 0, 0, 0, 0},
-  {"set-variable", "", 0, 0, 0, GET_STR, REQUIRED_ARG, 'O', 0, 0, 0, 0, 0, 0, 0},
-  {"silent", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 's', 0, 0, 0, 0, 0, 0, 0},
-  {"sort-index", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'S', 0, 0, 0, 0, 0, 0, 0},
-  {"sort-records", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'R', 0, 0, 0, 0, 0, 0, 0},
-  {"sort-recover", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'n', 0, 0, 0, 0, 0, 0, 0},
-  {"tmpdir", "", 0, 0, 0, GET_STR, REQUIRED_ARG, 't', 0, 0, 0, 0, 0, 0, 0},
-  {"update-state", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'U', 0, 0, 0, 0, 0, 0, 0},
-  {"unpack", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'u', 0, 0, 0, 0, 0, 0, 0},
-  {"verbose", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'v', 0, 0, 0, 0, 0, 0, 0},
-  {"version", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'V', 0, 0, 0, 0, 0, 0, 0},
-  {"wait", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'w', 0, 0, 0, 0, 0, 0, 0},
-
-  /* variables begin here */
-  { "key_buffer_size", "", (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0, GET_LONG, REQUIRED_ARG, OPT_KEY_BUFFER_SIZE, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0, 1}, 
-  { "myisam_block_size", "", (gptr*) &opt_myisam_block_size, (gptr*) &opt_myisam_block_size, 0, GET_LONG, REQUIRED_ARG, OPT_MYISAM_BLOCK_SIZE, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0, 1}, 
-  { "read_buffer_size", "", (gptr*) &check_param.read_buffer_length, (gptr*) &check_param.read_buffer_length, 0, GET_LONG, REQUIRED_ARG, OPT_READ_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0, 1}, 
-  { "write_buffer_size", "", (gptr*) &check_param.write_buffer_length, (gptr*) &check_param.write_buffer_length, 0, GET_LONG, REQUIRED_ARG, OPT_WRITE_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0, 1}, 
-  { "sort_buffer_size", "", (gptr*) &check_param.sort_buffer_length, (gptr*) &check_param.sort_buffer_length, 0, GET_LONG, REQUIRED_ARG, OPT_SORT_BUFFER_SIZE, (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0, 1}, 
-  { "sort_key_blocks", "", (gptr*) &check_param.sort_key_blocks, (gptr*) &check_param.sort_key_blocks, 0, GET_LONG, REQUIRED_ARG, OPT_SORT_KEY_BLOCKS, BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0, 1},
-  { "decode_bits", "", (gptr*) &decode_bits, (gptr*) &decode_bits, 0, GET_LONG, REQUIRED_ARG, OPT_DECODE_BITS, 9L, 4L, 17L, 0L, 1L, 0, 1},
-  { "ft_min_word_len", "", (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MIN_WORD_LEN, 4, 1, HA_FT_MAXLEN, 0, 1, 0, 1},
-  { "ft_max_word_len", "", (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0, 1},
-  { "ft_max_word_len_for_sort", "", (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN_FOR_SORT, 20, 4, HA_FT_MAXLEN, 0, 1, 0, 1},
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+  {"description", "Prints some information about table.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 'd', 0, 0, 0, 0, 0, 0},
+  {"data-file-length",
+   "Max length of data file (when recreating data-file when it's full).",
+   (gptr*) &check_param.max_data_file_length,
+   (gptr*) &check_param.max_data_file_length, 0, GET_LONG, REQUIRED_ARG, 'D',
+   0, 0, 0, 0, 0, 0},
+  {"extend-check",
+   "Try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option if you are not totally desperate.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'e', 0, 0, 0, 0, 0, 0},
+  {"fast", "Check only tables that hasn't been closed properly.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 'F', 0, 0, 0, 0, 0, 0},
+  {"force",
+   "Restart with -r if there are any errors in the table. States will be updated as with --update-state.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'f', 0, 0, 0, 0, 0,
+   0},
+  {"help", "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, '?', 0,
+   0, 0, 0, 0, 0},
+  {"information", "Print statistics information about table that is checked.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 'i', 0, 0, 0, 0, 0, 0},
+  {"keys-used", "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
+   (gptr*) &check_param.keys_in_use, (gptr*) &check_param.keys_in_use, 0,
+   GET_LL, REQUIRED_ARG, 'k', -1LL, 0, 0, 0, 0, 0},
+  {"medium-check",
+   "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'm', 0, 0, 0, 0, 0,
+   0},
+  {"quick", "Faster repair by not modifying the data file.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 'q', 0, 0, 0, 0, 0, 0},
+  {"read-only", "Don't mark table as checked.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   'T', 0, 0, 0, 0, 0, 0},
+  {"recover",
+   "Can fix almost anything except unique keys that aren't unique.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 'r', 0, 0, 0, 0, 0, 0},
+  {"safe-recover",
+   "Uses old recovery method; Slower than '-r' but can handle a couple of cases where '-r' reports that it can't fix the data file.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 'o', 0, 0, 0, 0, 0, 0},
+  {"start-check-pos", "No help available.", 0, 0, 0, GET_LONG, REQUIRED_ARG, 
+   OPT_START_CHECK_POS, 0, 0, 0, 0, 0, 0},
+  {"set-auto-increment",
+   "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.", (gptr*) &check_param.auto_increment_value,
+   (gptr*) &check_param.auto_increment_value, 0, GET_LONG, OPT_ARG, 'A', 0, 0,
+   0, 0, 0, 0},
+  {"set-character-set", "Change the character set used by the index", 0, 0, 0,
+   GET_STR, REQUIRED_ARG, OPT_SET_CHARSET, 0, 0, 0, 0, 0, 0},
+  {"set-variable", "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 'O', 0, 0, 0, 0, 0, 0},
+  {"silent",
+   "Only print errors. One can use two -s to make myisamchk very silent.", 0,
+   0, 0, GET_NO_ARG, NO_ARG, 's', 0, 0, 0, 0, 0, 0},
+  {"sort-index",
+   "Sort index blocks. This speeds up 'read-next' in applications.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 'S', 0, 0, 0, 0, 0, 0},
+  {"sort-records",
+   "Sort records according to an index. This makes your data much more localized and may speed up things. (It may be VERY slow to do a sort the first time!)",
+   (gptr*) &check_param.opt_sort_key, (gptr*) &check_param.opt_sort_key, 0,
+   GET_LONG, REQUIRED_ARG, 'R', 0, 0, 0, 0, 0, 0},
+  {"sort-recover",
+   "Force recovering with sorting even if the temporary file was very big.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 'n', 0, 0, 0, 0, 0, 0},
+  {"tmpdir", "Path for temporary files.", (gptr*) &check_param.tmpdir, 0, 0,
+   GET_STR, REQUIRED_ARG, 't', 0, 0, 0, 0, 0, 0},
+  {"update-state", "Mark tables as crashed if any errors were found.", 0, 0,
+   0, GET_NO_ARG, NO_ARG, 'U', 0, 0, 0, 0, 0, 0},
+  {"unpack", "Unpack file packed with myisampack.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 'u', 0, 0, 0, 0, 0, 0},
+  {"verbose",
+   "Print more information. This can be used with --describe and --check. Use many -v for more verbosity!", 0, 0, 0, GET_NO_ARG, NO_ARG, 'v', 0, 0, 0, 0, 0,
+   0},
+  {"version", "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'V', 0,
+   0, 0, 0, 0, 0},
+  {"wait", "Wait if table is locked.", 0, 0, 0, GET_NO_ARG, NO_ARG, 'w', 0, 0,
+   0, 0, 0, 0},
+  { "key_buffer_size", "", (gptr*) &check_param.use_buffers, 
+    (gptr*) &check_param.use_buffers, 0, GET_LONG, REQUIRED_ARG, 
+    OPT_KEY_BUFFER_SIZE, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+    (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0}, 
+  { "myisam_block_size", "", (gptr*) &opt_myisam_block_size, 
+    (gptr*) &opt_myisam_block_size, 0, GET_LONG, REQUIRED_ARG, 
+    OPT_MYISAM_BLOCK_SIZE, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, 
+    MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0}, 
+  { "read_buffer_size", "", (gptr*) &check_param.read_buffer_length, 
+    (gptr*) &check_param.read_buffer_length, 0, GET_LONG, REQUIRED_ARG,
+    OPT_READ_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+    (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
+  { "write_buffer_size", "", (gptr*) &check_param.write_buffer_length,
+    (gptr*) &check_param.write_buffer_length, 0, GET_LONG, REQUIRED_ARG, 
+    OPT_WRITE_BUFFER_SIZE, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+    (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
+  { "sort_buffer_size", "", (gptr*) &check_param.sort_buffer_length, 
+    (gptr*) &check_param.sort_buffer_length, 0, GET_LONG, REQUIRED_ARG,
+    OPT_SORT_BUFFER_SIZE, (long) SORT_BUFFER_INIT, 
+    (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), (long) ~0L, 
+    (long) MALLOC_OVERHEAD, (long) 1L, 0}, 
+  { "sort_key_blocks", "", (gptr*) &check_param.sort_key_blocks,
+    (gptr*) &check_param.sort_key_blocks, 0, GET_LONG, REQUIRED_ARG,
+    OPT_SORT_KEY_BLOCKS, BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
+  { "decode_bits", "", (gptr*) &decode_bits, (gptr*) &decode_bits, 0,
+    GET_LONG, REQUIRED_ARG, OPT_DECODE_BITS, 9L, 4L, 17L, 0L, 1L, 0},
+  { "ft_min_word_len", "", (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len,
+    0, GET_LONG, REQUIRED_ARG, OPT_FT_MIN_WORD_LEN, 4, 1, HA_FT_MAXLEN, 0, 1,
+    0},
+  { "ft_max_word_len", "", (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len,
+    0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN, HA_FT_MAXLEN, 10,
+    HA_FT_MAXLEN, 0, 1, 0},
+  { "ft_max_word_len_for_sort", "", (gptr*) &ft_max_word_len_for_sort,
+    (gptr*) &ft_max_word_len_for_sort, 0, GET_LONG, REQUIRED_ARG,
+    OPT_FT_MAX_WORD_LEN_FOR_SORT, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.2 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.3 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
 
 static void usage(void)
 {
-  uint i;
   print_version();
   puts("By Monty, for your professional use");
   puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
@@ -297,17 +371,9 @@ static void usage(void)
 		      data much more localized and may speed up things\n\
 		      (It may be VERY slow to do a sort the first time!)");
 
-  print_defaults("my",load_default_groups);
-  printf("\nThe variables you can set are:\n");
-  for (i=0; my_long_options[i].name ; i++)
-  {
-    if (!my_long_options[i].opt_is_var)
-      continue;
-#ifdef TO_BE_FIXED
-    printf("%-20s  current value: %lu\n", my_long_options[i].name, 
-	   *my_long_options[i].value);
-#endif
-  }
+  print_defaults("my", load_default_groups);
+  putchar('\n');
+  my_print_variables(my_long_options);
 }
 
 
@@ -318,127 +384,217 @@ get_one_option(int optid,
 	       const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  uint old_testflag;
-
   switch (optid) {
   case 'a':
-    check_param.testflag|= T_STATISTICS;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_STATISTICS;
+    else
+      check_param.testflag|= T_STATISTICS;
     break;
   case 'A':
     if (argument)
-      check_param.auto_increment_value=strtoull(argument, NULL, 0);
+      check_param.auto_increment_value= strtoull(argument, NULL, 0);
     else
-      check_param.auto_increment_value=0;	/* Set to max used value */
+      check_param.auto_increment_value= 0;	/* Set to max used value */
     check_param.testflag|= T_AUTO_INC;
     break;
   case 'b':
-    check_param.search_after_block=strtoul(argument, NULL, 10);
+    check_param.search_after_block= strtoul(argument, NULL, 10);
     break;
   case 'B':
-    check_param.testflag|= T_BACKUP_DATA;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_BACKUP_DATA;
+    else
+      check_param.testflag|= T_BACKUP_DATA;
     break;
   case 'c':
-    check_param.testflag|= T_CHECK;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_CHECK;
+    else
+      check_param.testflag|= T_CHECK;
     break;
   case 'C':
-    check_param.testflag|= T_CHECK | T_CHECK_ONLY_CHANGED;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~(T_CHECK | T_CHECK_ONLY_CHANGED);
+    else
+      check_param.testflag|= T_CHECK | T_CHECK_ONLY_CHANGED;
     break;
   case 'D':
     check_param.max_data_file_length=strtoll(argument, NULL, 10);
     break;
   case 's':				/* silent */
-    if (check_param.testflag & T_SILENT)
-      check_param.testflag|=T_VERY_SILENT;
-    check_param.testflag|= T_SILENT;
-    check_param.testflag&= ~T_WRITE_LOOP;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~(T_SILENT | T_VERY_SILENT);
+    else
+    {
+      if (check_param.testflag & T_SILENT)
+	check_param.testflag|= T_VERY_SILENT;
+      check_param.testflag|= T_SILENT;
+      check_param.testflag&= ~T_WRITE_LOOP;
+    }
     break;
   case 'w':
-    check_param.testflag|= T_WAIT_FOREVER;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_WAIT_FOREVER;
+    else
+      check_param.testflag|= T_WAIT_FOREVER;
     break;
   case 'd':				/* description if isam-file */
-    check_param.testflag|= T_DESCRIPT;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_DESCRIPT;
+    else
+      check_param.testflag|= T_DESCRIPT;
     break;
   case 'e':				/* extend check */
-    check_param.testflag|= T_EXTEND;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_EXTEND;
+    else
+      check_param.testflag|= T_EXTEND;
     break;
   case 'i':
-    check_param.testflag|= T_INFO;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_INFO;
+    else
+      check_param.testflag|= T_INFO;
     break;
   case 'f':
-    check_param.tmpfile_createflag= O_RDWR | O_TRUNC;
-    check_param.testflag|= T_FORCE_CREATE | T_UPDATE_STATE;
+    if (argument && *argument == '0')
+    {
+      check_param.tmpfile_createflag= O_RDWR | O_TRUNC | O_EXCL;
+      check_param.testflag&= ~(T_FORCE_CREATE | T_UPDATE_STATE);
+    }
+    else
+    {
+      check_param.tmpfile_createflag= O_RDWR | O_TRUNC;
+      check_param.testflag|= T_FORCE_CREATE | T_UPDATE_STATE;
+    }
     break;
   case 'F':
-    check_param.testflag|=T_FAST;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_FAST;
+    else
+      check_param.testflag|= T_FAST;
     break;
   case 'k':
     check_param.keys_in_use= (ulonglong) strtoll(argument, NULL, 10);
     break;
   case 'm':
-    check_param.testflag|= T_MEDIUM;		/* Medium check */
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_MEDIUM;
+    else
+      check_param.testflag|= T_MEDIUM;		/* Medium check */
     break;
   case 'r':				/* Repair table */
-    check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~(T_REP | T_REP_BY_SORT);
+    else
+      check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
     break;
   case 'o':
-    check_param.testflag= (check_param.testflag & ~T_REP_BY_SORT) | T_REP;
-    check_param.force_sort=0;
-    my_disable_async_io=1;		/* More safety */
+    if (argument && *argument == '0')
+    {
+      check_param.testflag&= ~(T_REP | T_REP_BY_SORT);
+      check_param.force_sort= 0;
+    }
+    else
+    {
+      check_param.testflag= (check_param.testflag & ~T_REP_BY_SORT) | T_REP;
+      check_param.force_sort= 0;
+      my_disable_async_io= 1;		/* More safety */
+    }
     break;
   case 'n':
-    check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
-    check_param.force_sort=1;
+    if (argument && *argument == '0')
+    {
+      check_param.testflag&= ~(T_REP | T_REP_BY_SORT);
+      check_param.force_sort= 0;
+    }
+    else
+    {
+      check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
+      check_param.force_sort= 1;
+    }
     break;
   case 'q':
-    check_param.opt_rep_quick++;
+    if (argument && *argument == '0')
+      check_param.opt_rep_quick=0;
+    else
+      check_param.opt_rep_quick++;
     break;
   case 'u':
-    check_param.testflag|= T_UNPACK | T_REP_BY_SORT;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~(T_UNPACK | T_REP_BY_SORT);
+    else
+      check_param.testflag|= T_UNPACK | T_REP_BY_SORT;
     break;
   case 'v':				/* Verbose */
-    check_param.testflag|= T_VERBOSE;
-    check_param.verbose++;
+    if (argument && *argument == '0')
+    {
+      check_param.testflag&= ~T_VERBOSE;
+      check_param.verbose=0;
+    }
+    else
+    {
+      check_param.testflag|= T_VERBOSE;
+      check_param.verbose++;
+    }
     break;
   case 'R':				/* Sort records */
-    old_testflag=check_param.testflag;
-    check_param.testflag|= T_SORT_RECORDS;
-    check_param.opt_sort_key=(uint) atoi(argument) - 1;
-    if (check_param.opt_sort_key >= MI_MAX_KEY)
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_SORT_RECORDS;
+    else
     {
-      fprintf(stderr,
-	      "The value of the sort key is bigger than max key: %d.\n",
-	      MI_MAX_KEY);
-      exit(1);
+      check_param.testflag|= T_SORT_RECORDS;
+      check_param.opt_sort_key= (uint) atoi(argument) - 1;
+      if (check_param.opt_sort_key >= MI_MAX_KEY)
+      {
+	fprintf(stderr,
+		"The value of the sort key is bigger than max key: %d.\n",
+		MI_MAX_KEY);
+	exit(1);
+      }
     }
     break;
   case 'S':			      /* Sort index */
-    old_testflag=check_param.testflag;
-    check_param.testflag|= T_SORT_INDEX;
-    break;
-  case 't':
-    check_param.tmpdir=argument;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_SORT_INDEX;
+    else
+      check_param.testflag|= T_SORT_INDEX;
     break;
   case 'T':
-    check_param.testflag|= T_READONLY;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_READONLY;
+    else
+      check_param.testflag|= T_READONLY;
     break;
   case 'U':
-    check_param.testflag|= T_UPDATE_STATE;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_UPDATE_STATE;
+    else
+      check_param.testflag|= T_UPDATE_STATE;
     break;
   case '#':
-    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/myisamchk.trace");
+    if (argument && *argument == '0')
+    {
+      DBUG_POP();
+    }
+    else
+    {
+      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/myisamchk.trace");
+    }
     break;
   case 'V':
     print_version();
     exit(0);
   case OPT_CORRECT_CHECKSUM:
-    if (*argument && *argument == '0')
+    if (argument && *argument == '0')
       check_param.testflag&= ~T_CALC_CHECKSUM;
     else
-      check_param.testflag|=T_CALC_CHECKSUM;
+      check_param.testflag|= T_CALC_CHECKSUM;
     break;
 #ifdef DEBUG					/* Only useful if debugging */
   case OPT_START_CHECK_POS:
-    check_param.start_check_pos=strtoull(argument, NULL, 0);
+    check_param.start_check_pos= strtoull(argument, NULL, 0);
     break;
 #endif
   case '?':

@@ -64,6 +64,8 @@ struct old_sql_ex
     char empty_flags;
   };
 
+#define NUM_LOAD_DELIM_STRS 5
+
 
 struct sql_ex_info
   {
@@ -153,8 +155,8 @@ struct sql_ex_info
 #define L_THREAD_ID_OFFSET   0
 #define L_EXEC_TIME_OFFSET   4
 #define L_SKIP_LINES_OFFSET  8
-#define L_DB_LEN_OFFSET      12
-#define L_TBL_LEN_OFFSET     13
+#define L_TBL_LEN_OFFSET     12
+#define L_DB_LEN_OFFSET      13
 #define L_NUM_FIELDS_OFFSET  14
 #define L_SQL_EX_OFFSET      18
 #define L_DATA_OFFSET    LOAD_HEADER_LEN
@@ -570,6 +572,7 @@ public:
   char* block;
   uint block_len;
   uint file_id;
+  bool inited_from_old;
 #ifndef MYSQL_CLIENT
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			const char* table_name_arg,
@@ -578,7 +581,7 @@ public:
 			char* block_arg, uint block_len_arg);
 #endif  
   
-  Create_file_log_event(const char* buf, int event_len);
+  Create_file_log_event(const char* buf, int event_len, bool old_format);
   ~Create_file_log_event()
   {
   }
@@ -591,7 +594,7 @@ public:
 			  4 + 1 + block_len;}
   int get_data_body_offset() { return fake_base ? LOAD_EVENT_OVERHEAD:
     LOAD_EVENT_OVERHEAD + CREATE_FILE_HEADER_LEN; }
-  bool is_valid() { return block != 0; }
+  bool is_valid() { return inited_from_old || block != 0; }
   int write_data_header(IO_CACHE* file);
   int write_data_body(IO_CACHE* file);
   int write_base(IO_CACHE* file); // cut out Create_file extentions and

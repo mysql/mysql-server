@@ -828,6 +828,7 @@ int load_master_data(THD* thd)
   active_mi->rli.master_log_pos = active_mi->master_log_pos;
   strnmov(active_mi->rli.master_log_name,active_mi->master_log_name,
 	  sizeof(active_mi->rli.master_log_name));
+  flush_relay_log_info(&active_mi->rli);
   pthread_cond_broadcast(&active_mi->rli.data_cond);
   pthread_mutex_unlock(&active_mi->rli.data_lock);
   thd->proc_info = "starting slave";

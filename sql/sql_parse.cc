@@ -233,8 +233,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		  db ? db : (char*) "");
   thd->db_access=0;
   /* Don't allow user to connect if he has done too many queries */
-  if ((max_questions || max_user_connections) && 
-      get_or_create_user_conn(thd,user,thd->host_or_ip,max_questions))
+  if ((max_questions || max_user_connections) &&  get_or_create_user_conn(thd,user,thd->host_or_ip,max_questions))
     return -1;
   if (max_user_connections && thd->user_connect && 
       check_for_max_user_connections(thd->user_connect))

@@ -19017,7 +19017,7 @@ in MySQL < 4.0.2 whether index is @code{FULLTEXT} or not.
 Note that as the @code{Cardinality} is counted based on statistics
 stored as integers, it's not necessarily accurate for small tables.
 
-The @code{Null} and @code{Index_type} column was added in MySQL 4.0.2.
+The @code{Null} and @code{Index_type} columns were added in MySQL 4.0.2.
 
 @node SHOW TABLE STATUS, SHOW STATUS, SHOW DATABASE INFO, SHOW
 @subsubsection @code{SHOW TABLE STATUS}
@@ -29836,6 +29836,32 @@ mysql> select 1 IS NOT NULL, 0 IS NOT NULL, NULL IS NOT NULL;
         -> 1 1 0
 @end example
 
+@cindex ODBC compatibility
+@cindex compatibility, with ODBC
+To be able to work good with other programs, MySQL supports the following
+extra features when using @code{IS NULL}:
+
+@itemize @bullet
+@item
+You can find the last inserted row with:
+
+@example
+SELECT * FROM tbl_name WHERE auto_col IS NULL
+@end example
+
+This can be disabled by setting @code{SQL_AUTO_IS_NULL=0}. @xref{SET OPTION}.
+@item
+For @code{NOT NULL} @code{DATE} and @code{DATETIME} columns you can find
+the special date @code{0000-00-00} by using:
+
+@example
+SELECT * FROM tbl_name WHERE date_column IS NULL
+@end example
+
+This is needed to get some ODBC applications to work (as ODBC doesn't
+support a @code{0000-00-00} date)
+@end itemize
+
 @findex BETWEEN ... AND
 @item expr BETWEEN min AND max
 If @code{expr} is greater than or equal to @code{min} and @code{expr} is
@@ -32000,7 +32026,7 @@ mysql> select CAST(1 AS UNSIGNED) -2.0
 If you are using a string in an arithmetic operation, this is converted
 to a floating point number.
 
-The @code{CAST()} and @code{CONVERT()} function was added in MySQL 4.0.2.
+The @code{CAST()} and @code{CONVERT()} functions were added in MySQL 4.0.2.
 
 The handing of unsigned values was changed in MySQL 4.0 to be able to
 support @code{BIGINT} values properly. If you have some code that you
@@ -48385,6 +48411,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed a bug where @code{SQL_CALC_ROWS} returned a wrong value when used
+with one table and @code{ORDER BY} and with InnoDB tables.
+@item
+Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
+@item
 Fixed some problems with @code{USE KEYS} / @code{IGNORE KEYS} when using
 many keys with the same start column.
 @item
@@ -48393,7 +48424,7 @@ an index that covers the whole row.
 @item
 Optimized InnoDB sort-buffer handling to take less memory.
 @item
-Fixed bug in multi-table-delete and InnoDB tables.
+Fixed bug in multi table @code{DELETE} and InnoDB tables.
 @item
 Fixed problem with @code{TRUNCATE} and InnoDB that gave the error
 @code{Can't execute the given command because you have active locked
@@ -48414,24 +48445,24 @@ repair tables with @code{nan} in float or double columns.
 Fixed new bug in @code{myisamchk} where it didn't correctly update number of 
 ``parts'' in the MyISAM index file.
 @item
-Changed to use autoconf 2.52 (from Autconf 2.13).
+Changed to use @code{autoconf} 2.52 (from @code{autoconf} 2.13).
 @item
-Fixed optimization problem where a MySQL was a long time in a
-``preparing'' state when selecting from an empty table which had contained
+Fixed optimization problem where the MySQL Server was in ``preparing'' state
+for a long time when selecting from an empty table which had contained
 a lot of rows.
 @item
 Fixed bug in complicated join with @code{const} tables. This fix also
 improves performance a bit when referring to another table from a
 @code{const} table.
 @item
-First pre-version of multi table updates.
+First pre-version of multi table @code{UPDATE}s.
 @item
-Fixed bug in multi table delete.
+Fixed bug in multi table @code{DELETE}.
 @item
 Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
 @item
-@code{SELECT ... INSERT} did a full rollback in case of an error. Fixed
-so that we only roll back the last statement.
+@code{INSERT ... SELECT} did a full rollback in case of an error. Fixed
+so that we only roll back the last statement in the current transaction.
 @item
 Fixed bug with empty expression for boolean fulltext search.
 @item

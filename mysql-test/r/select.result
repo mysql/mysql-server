@@ -1331,10 +1331,10 @@ table	type	possible_keys	key	key_len	ref	rows	Extra
 t2	ref	fld3	fld3	30	const	1	where used; Using index
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	index	fld3	fld3	30	NULL	1199	where used; Using index
+t2	index	NULL	fld3	30	NULL	1199	where used; Using index
 explain select fld3 from t2 use index (fld1) where fld3 = 'honeysuckle';
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	index	fld3	fld3	30	NULL	1199	where used; Using index
+t2	index	NULL	fld3	30	NULL	1199	where used; Using index
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t2	ref	fld3	fld3	30	const	1	where used; Using index
