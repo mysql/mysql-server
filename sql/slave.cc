@@ -71,7 +71,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
-static int create_table_from_dump(THD* thd, NET* net, const char* db,
+static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name);
 static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
 char* rewrite_db(char* db);
@@ -1049,10 +1049,10 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
 }
 
 
-static int create_table_from_dump(THD* thd, NET* net, const char* db,
+static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name)
 {
-  ulong packet_len = my_net_read(net); // read create table statement
+  ulong packet_len;
   char *query;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
@@ -1060,7 +1060,9 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   int error= 1;
   handler *file;
   ulong save_options;
+  NET *net= &mysql->net;
   
+  packet_len= my_net_read(net); // read create table statement
   if (packet_len == packet_error)
   {
     send_error(thd, ER_MASTER_NET_READ);
@@ -1068,32 +1070,27 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   }
   if (net->read_pos[0] == 255) // error from master
   {
-    net->read_pos[packet_len] = 0;
-    net_printf(thd, ER_MASTER, net->read_pos + 3);
+    char *err_msg; 
+    err_msg= (char*) net->read_pos + ((mysql->server_capabilities &
+				       CLIENT_PROTOCOL_41) ?
+				      3+SQLSTATE_LENGTH+1 : 3);
+    net_printf(thd, ER_MASTER, err_msg);
     return 1;
   }
   thd->command = COM_TABLE_DUMP;
+  thd->query_length= packet_len;
   /* Note that we should not set thd->query until the area is initalized */
-  if (!(query = sql_alloc(packet_len + 1)))
+  if (!(query = thd->strmake((char*) net->read_pos, packet_len)))
   {
     sql_print_error("create_table_from_dump: out of memory");
     net_printf(thd, ER_GET_ERRNO, "Out of memory");
     return 1;
   }
-  memcpy(query, net->read_pos, packet_len);
-  query[packet_len]= 0;
-  thd->query_length= packet_len;
-  /*
-    We make the following lock in an attempt to ensure that the compiler will
-    not rearrange the code so that thd->query is set too soon
-  */
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query= query;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
-  
+
   /* we do not want to log create table statement */
   save_options = thd->options;
   thd->options &= ~(ulong) (OPTION_BIN_LOG);
@@ -1185,8 +1182,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     errmsg= "Failed on table dump request";
     goto err;
   }
-  if (create_table_from_dump(thd, &mysql->net, db_name,
-			    table_name))
+  if (create_table_from_dump(thd, mysql, db_name, table_name))
     goto err;    // create_table_from_dump will have sent the error already
   error = 0;
 
@@ -2996,17 +2992,20 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif
-  uint client_flag=0;
+  ulong client_flag= CLIENT_REMEMBER_OPTIONS;
   if (opt_slave_compressed_protocol)
     client_flag=CLIENT_COMPRESS;		/* We will use compression */
 
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
+  /* This one is not strictly needed but we have it here for completeness */
+  mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
+
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
-	 (reconnect ? mysql_reconnect(mysql) != 0:
-	  !(mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, 
-			  (char *)&thd->variables.net_read_timeout),
-	    mysql_options(mysql, MYSQL_SET_CHARSET_NAME, (char *)default_charset_info),
-	    mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-			      mi->port, 0, client_flag))))
+	 (reconnect ? mysql_reconnect(mysql) != 0 :
+	  mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
+			     mi->port, 0, client_flag) == 0))
   {
     /* Don't repeat last error */
     if ((int)mysql_errno(mysql) != last_errno)
