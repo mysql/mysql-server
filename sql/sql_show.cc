@@ -204,7 +204,8 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
 	if (!my_stat(buff, &status, MYF(0)) ||
-	    !MY_S_ISDIR(status.st_mode))
+	    !MY_S_ISDIR(status.st_mode) ||
+            (wild && wild_compare(file->name, wild, 0)))
 	  continue;
       }
       else
