@@ -2918,14 +2918,31 @@ unsent_create_error:
   }
 
   case SQLCOM_SET_OPTION:
+  {
+    List<set_var_base> *lex_var_list= &lex->var_list;
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
       break;
-    if (!(res= sql_set_variables(thd, &lex->var_list)))
+    if (lex->one_shot_set && not_all_support_one_shot(lex_var_list))
+    {
+      my_printf_error(0, "The SET ONE_SHOT syntax is reserved for \
+purposes internal to the MySQL server", MYF(0));
+      res= -1;
+      break;
+    }
+    if (!(res= sql_set_variables(thd, lex_var_list)))
+    {
+      /*
+        If the previous command was a SET ONE_SHOT, we don't want to forget
+        about the ONE_SHOT property of that SET. So we use a |= instead of = .
+      */
+      thd->one_shot_set|= lex->one_shot_set;
       send_ok(thd);
+    }
     if (thd->net.report_error)
       res= -1;
     break;
+  }
 
   case SQLCOM_UNLOCK_TABLES:
     unlock_locked_tables(thd);
@@ -3377,6 +3394,29 @@ unsent_create_error:
     break;
   }
   thd->proc_info="query end";			// QQ
+  if (thd->one_shot_set)
+    {
+      /*
+        If this is a SET, do nothing. This is to allow mysqlbinlog to print
+        many SET commands (in this case we want the charset temp setting to
+        live until the real query). This is also needed so that SET
+        CHARACTER_SET_CLIENT... does not cancel itself immediately.
+      */
+      if (lex->sql_command != SQLCOM_SET_OPTION)
+      {
+        thd->variables.character_set_client=
+          global_system_variables.character_set_client;
+        thd->variables.collation_connection=
+          global_system_variables.collation_connection;
+        thd->variables.collation_database=
+          global_system_variables.collation_database;
+        thd->variables.collation_server=
+          global_system_variables.collation_server;
+        thd->update_charset();
+        /* Add timezone stuff here */
+        thd->one_shot_set= 0;
+      }
+    }
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 

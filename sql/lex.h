@@ -310,6 +310,7 @@ static SYMBOL symbols[] = {
   { "OFFSET",		SYM(OFFSET_SYM)},
   { "OLD_PASSWORD",	SYM(OLD_PASSWORD)},
   { "ON",		SYM(ON)},
+  { "ONE_SHOT",		SYM(ONE_SHOT_SYM)},
   { "OPEN",		SYM(OPEN_SYM)},
   { "OPTIMIZE",		SYM(OPTIMIZE)},
   { "OPTION",		SYM(OPTION)},

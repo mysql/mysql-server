@@ -611,7 +611,7 @@ typedef struct st_lex
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt;
   uint8 describe;
-  bool drop_if_exists, drop_temporary, local_file;
+  bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
