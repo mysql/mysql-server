@@ -9,6 +9,7 @@ drop table if exists t1;
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 select 'hello' 'monty';
 select length('\n\t\r\b\0\_\%\\');
+select bit_length('\n\t\r\b\0\_\%\\');
 select concat('monty',' was here ','again'),length('hello'),char(ascii('h'));
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE'); 

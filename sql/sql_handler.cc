@@ -130,7 +130,11 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   select_limit+=offset_limit;
   send_fields(thd,list,1);
 
+  HANDLER_TABLES_HACK(thd);
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
+  HANDLER_TABLES_HACK(thd);
+  if (!lock)
+     goto err0; // mysql_lock_tables() printed error message already
 
   for (uint num_rows=0; num_rows < select_limit; )
   {
@@ -238,6 +242,7 @@ ok:
   return 0;
 err:
   mysql_unlock_tables(thd,lock);
+err0:
   return -1;
 }
 
