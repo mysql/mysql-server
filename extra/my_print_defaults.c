@@ -120,25 +120,33 @@ int main(int argc, char **argv)
   int count, error;
   char **load_default_groups, *tmp_arguments[2],
        **argument, **arguments;
+  char *defaults, *extra_defaults;
   MY_INIT(argv[0]);
+
+  get_defaults_files(argc, argv, &defaults, &extra_defaults);
 
   /*
   ** Check out the args
   */
-  if (get_options(&argc,&argv))
-    exit(1);
   if (!(load_default_groups=(char**) my_malloc((argc+2)*sizeof(char*),
 					       MYF(MY_WME))))
+    exit(1);
+  if (get_options(&argc,&argv))
     exit(1);
 
   for (count=0; *argv ; argv++,count++)
     load_default_groups[count]= *argv;
   load_default_groups[count]=0;
 
-  count=1;
+  count=0;
   arguments=tmp_arguments;
-  arguments[0]=my_progname;
-  arguments[1]=0;
+  arguments[count++]=my_progname;
+  if (extra_defaults)
+    arguments[count++]= extra_defaults;
+  if (defaults)
+    arguments[count++]= defaults;
+  arguments[count]= 0;
+
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
 			   &count, &arguments)))
   {

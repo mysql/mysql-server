@@ -691,16 +691,24 @@ public:
   {
     int err_not_used;
     char *end_not_used;
-    String *res;  res=val_str(&str_value);
+    String *res;
+    res=val_str(&str_value);
     return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),
 			    &end_not_used, &err_not_used) : 0.0;
   }
   longlong val_int()
   {
     int err_not_used;
-    String *res;  res=val_str(&str_value);
-    return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10,
-                             (char**) 0, &err_not_used) : (longlong) 0;
+    char *end;
+    String *res;
+    longlong value;
+    CHARSET_INFO *cs;
+
+    if (!(res= val_str(&str_value)))
+      return 0;                                 /* Null value */
+    cs= res->charset();
+    end= (char*) res->ptr()+res->length();
+    return cs->cset->my_strtoll10(cs, res->ptr(), &end, &err_not_used);
   }
   my_decimal *val_decimal(my_decimal *dec);
   enum Item_result result_type () const { return STRING_RESULT; }
