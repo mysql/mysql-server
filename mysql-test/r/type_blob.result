@@ -455,3 +455,149 @@ select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
 OK	581
 drop table t1;
+create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
+insert into t1 (txt) values ('Chevy'), ('Chevy ');
+select * from t1 where txt='Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy ' or txt='Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy' or txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where id='1' or id='2';
+id	txt
+1	Chevy
+2	Chevy 
+insert into t1 (txt) values('Ford');
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt='Ford';
+id	txt
+1	Chevy
+2	Chevy 
+3	Ford
+select * from t1 where txt='Chevy' or txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt=' Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt in ('Chevy ','Chevy');
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt in ('Chevy');
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt between 'Chevy' and 'Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt between 'Chevy' and 'Chevy' or txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt between 'Chevy' and 'Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt < 'Chevy ';
+id	txt
+select * from t1 where txt <= 'Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt > 'Chevy';
+id	txt
+3	Ford
+select * from t1 where txt >= 'Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+3	Ford
+drop table t1;
+create table t1 (id integer primary key auto_increment, txt text, unique index txt_index (txt (20)));
+insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
+select * from t1 where txt='Chevy' or txt is NULL;
+id	txt
+3	NULL
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy ' or txt='Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy' or txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where id='1' or id='2';
+id	txt
+1	Chevy
+2	Chevy 
+insert into t1 (txt) values('Ford');
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt='Ford';
+id	txt
+1	Chevy
+2	Chevy 
+4	Ford
+select * from t1 where txt='Chevy' or txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt=' Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt in ('Chevy ','Chevy');
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt in ('Chevy');
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt between 'Chevy' and 'Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt between 'Chevy' and 'Chevy' or txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt between 'Chevy' and 'Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt < 'Chevy ';
+id	txt
+select * from t1 where txt < 'Chevy ' or txt is NULL;
+id	txt
+3	NULL
+select * from t1 where txt <= 'Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+select * from t1 where txt > 'Chevy';
+id	txt
+4	Ford
+select * from t1 where txt >= 'Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+4	Ford
+drop table t1;

@@ -288,10 +288,10 @@ static int sort_keys(KEY *a, KEY *b)
   {
     if (!(b->flags & HA_NOSAME))
       return -1;
-    if ((a->flags ^ b->flags) & HA_NULL_PART_KEY)
+    if ((a->flags ^ b->flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
     {
       /* Sort NOT NULL keys before other keys */
-      return (a->flags & HA_NULL_PART_KEY) ? 1 : -1;
+      return (a->flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
@@ -1695,8 +1695,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
-  ** Collect all keys which isn't in drop list. Add only those
-  ** for which some fields exists.
+    Collect all keys which isn't in drop list. Add only those
+    for which some fields exists.
   */
 
   List_iterator<Key> key_it(keys);

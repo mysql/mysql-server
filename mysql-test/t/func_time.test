@@ -201,3 +201,10 @@ select * from t1, t2 where t1.start between t2.ctime1 and t2.ctime2;
 select * from t1, t2 where t1.start >= t2.ctime1 and t1.start <= t2.ctime2;
 select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 drop table t1,t2,t3;
+
+#
+# Test unix timestamp
+#
+select @a:=FROM_UNIXTIME(1);
+select unix_timestamp(@a);
+select unix_timestamp('1969-12-01 19:00:01');
