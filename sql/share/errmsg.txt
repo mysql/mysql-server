@@ -5094,7 +5094,7 @@ ER_SP_BADSELECT 0A000
 ER_SP_BADRETURN 42000 
 	eng "RETURN is only allowed in a FUNCTION"
 ER_SP_BADSTATEMENT 0A000 
-	eng "LOCK and UNLOCK tables are not allowed in stored procedures"
+	eng "%s is not allowed in stored procedures"
 ER_UPDATE_LOG_DEPRECATED_IGNORED 42000 
 	eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
 ER_UPDATE_LOG_DEPRECATED_TRANSLATED 42000 
