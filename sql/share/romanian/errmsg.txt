@@ -192,7 +192,7 @@ character-set=latin2
 "Got error %d during FLUSH_LOGS",
 "Got error %d during CHECKPOINT",
 "Aborted connection %ld to db: '%-.64s' user: '%-.32s' host: `%-.64s' (%-.64s)",
-"The handler for the table does not support binary table dump","Binlog closed while trying to FLUSH MASTER",
+"The handler for the table does not support binary table dump",
 "Binlog closed while trying to FLUSH MASTER",
 "Failed rebuilding the index of dumped table '%-.64s'",
 "Error from master: '%-.64s'",
