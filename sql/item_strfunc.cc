@@ -1281,12 +1281,12 @@ String *Item_func_password::val_str(String *str)
   struct rand_struct rand_st; // local structure for 2 param version
   ulong  seed=0;              // seed to initialise random generator to
   
+  String *res  =args[0]->val_str(str);          
   if ((null_value=args[0]->null_value))
     return 0;
-    
+  
   if (arg_count == 1)
   {    
-    String *res  =args[0]->val_str(str);
     if (res->length() == 0)
       return &empty_string;
     make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
@@ -1296,22 +1296,30 @@ String *Item_func_password::val_str(String *str)
   }
   else
   {
+   /* We'll need the buffer to get second parameter */
+    char key_buff[80];
+    String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
+    String *key  =args[1]->val_str(&tmp_key_value);          
+    
     /* Check second argument for NULL value. First one is already checked */
     if ((null_value=args[1]->null_value))
       return 0;
+      
+    /* This shall be done after checking for null for proper results */       
+    if (res->length() == 0)
+      return &empty_string;  
+      
     /* Generate the seed first this allows to avoid double allocation */  
-    char* seed_ptr=args[1]->val_str(str)->c_ptr();
+    char* seed_ptr=key->c_ptr();
     while (*seed_ptr)
     {
       seed=seed*211+*seed_ptr; /* Use simple hashing */
       seed_ptr++;
     }
+    
     /* Use constants which allow nice random values even with small seed */
     randominit(&rand_st,seed*111111+33333333L,seed*1111+55555555L);
     
-    String *res  =args[0]->val_str(str);
-    if (res->length() == 0)
-      return &empty_string;
     make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
                             &rand_st);
     str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
