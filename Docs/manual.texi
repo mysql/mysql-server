@@ -50448,6 +50448,9 @@ Fixed overrun bug when calling @code{AES_DECRYPT()} with wrong arguments
 even if one is using other ssl options in a options file or previously
 on the command line.
 @item
+Fixed bug in @code{MATCH ... AGAINST( ... IN BOOLEAN MODE)}
+used with @code{ORDER BY}.
+@item
 Added @code{LOCK TABLES} and @code{CREATE TEMPORARY TABLES} privilege on
 the database level.  One must run the @code{ mysql_fix_privilege_tables}
 script on old installations to activate these.
