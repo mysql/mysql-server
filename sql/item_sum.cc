@@ -387,7 +387,7 @@ double Item_sum_hybrid::val()
     return (double) sum_int;
   case REAL_RESULT:
     return sum;
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
@@ -422,7 +422,7 @@ Item_sum_hybrid::val_str(String *str)
     else
       str->set((longlong) sum_int,thd_charset());
     break;
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     break;
@@ -467,7 +467,7 @@ bool Item_sum_min::add()
     }
   }
   break;
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     break;
@@ -513,7 +513,7 @@ bool Item_sum_max::add()
     }
   }
   break;
-  case ROW_RESULT:
+  default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     break;
