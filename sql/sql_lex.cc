@@ -21,6 +21,8 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
+#include "sp.h"
+#include "sp_head.h"
 
 LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
 
@@ -109,6 +111,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   LEX *lex= &thd->lex;
   lex->thd= thd;
   lex->next_state=MY_LEX_START;
+  lex->buf= buf;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
   lex->select_lex.create_refs=lex->in_comment=0;
@@ -121,6 +124,9 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
+  lex->sphead= NULL;
+  lex->spcont= NULL;
+  lex->spfuns.empty();
   return lex;
 }
 
@@ -144,6 +150,17 @@ static int find_keyword(LEX *lex, uint len, bool function)
     lex->yylval->symbol.length=len;
     return symbol->tok;
   }
+
+  LEX_STRING ls;
+  ls.str = (char *)tok; ls.length= len;
+  if (function && sp_function_exists(current_thd, &ls))	// QQ temp fix
+  {
+    lex->safe_to_cache_query= 0;
+    lex->yylval->lex_str.str= lex->thd->strmake((char*)lex->tok_start, len);
+    lex->yylval->lex_str.length= len;
+    return SP_FUNC;
+  }
+
 #ifdef HAVE_DLOPEN
   udf_func *udf;
   if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))

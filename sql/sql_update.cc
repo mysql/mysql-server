@@ -323,7 +323,6 @@ int mysql_update(THD *thd,
   log_delayed= (transactional_table || table->tmp_table);
   if (updated && (error <= 0 || !transactional_table))
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -357,7 +356,7 @@ int mysql_update(THD *thd,
   delete select;
   free_underlaid_joins(thd, &thd->lex.select_lex);
   if (error >= 0)
-    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
+    send_error(thd,thd->killed_errno()); /* purecov: inspected */
   else
   {
     char buff[80];
@@ -934,7 +933,6 @@ bool multi_update::send_eof()
 
   if (updated && (local_error <= 0 || !trans_safe))
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,

@@ -1,0 +1,135 @@
+#
+# Stored PROCEDURE error tests
+#
+
+# Make sure we don't have any procedures left.
+delete from mysql.proc;
+
+delimiter |;
+
+# Check that we get the right error, i.e. UDF declaration parses correctly,
+# but foo.so doesn't exist.
+# QQ This generates an error message containing a misleading errno which
+#    might vary between systems (it usually doesn't have anything to do with
+#    the actual failing dlopen()).
+#--error 1126
+#create function foo returns real soname "foo.so"|
+
+create procedure proc1()
+  set @x = 42|
+
+create function func1() returns int
+  return 42|
+
+# Can't create recursively
+--error 1259
+create procedure foo()
+  create procedure bar() set @x=3|
+--error 1259
+create procedure foo()
+  create function bar() returns double return 2.3|
+
+# Already exists
+--error 1260
+create procedure proc1()
+  set @x = 42|
+--error 1260
+create function func1() returns int
+  return 42|
+
+drop procedure proc1|
+drop function func1|
+
+# Does not exist
+--error 1261
+alter procedure foo|
+--error 1261
+alter function foo|
+--error 1261
+drop procedure foo|
+--error 1261
+drop function foo|
+--error 1261
+call foo()|
+drop procedure if exists foo|
+
+# LEAVE/ITERATE with no match
+--error 1264
+create procedure foo()
+foo: loop
+  leave bar;
+end loop|
+--error 1264
+create procedure foo()
+foo: loop
+  iterate bar;
+end loop|
+
+# Redefining label
+--error 1265
+create procedure foo()
+foo: loop
+  foo: loop
+    set @x=2;
+  end loop foo;
+end loop foo|
+
+# End label mismatch
+--error 1266
+create procedure foo()
+foo: loop
+  set @x=2;
+end loop bar|
+
+# Referring to undef variable
+--error 1267
+create procedure foo(out x int)
+begin
+  declare y int;
+  set x = y;
+end|
+
+# We require INTO in SELECTs for some older clients (as mysql and mysqltest,
+# for now).
+create procedure foo()
+begin
+  select name from mysql.proc;
+  select type from mysql.proc;
+end|
+--error 1268
+call foo()|
+drop procedure foo|
+
+# RETURN in FUNCTION only
+--error 1269
+create procedure foo()
+  return 42|
+
+# Doesn't allow queries in FUNCTIONs (for now :-( )
+--error 1270
+create function foo() returns int
+begin
+  declare x int;
+  select max(c) into x from test.t;
+  return x;
+end|
+
+# Wrong number of arguments
+create procedure p(x int)
+  insert into test.t1 values (x)|
+create function f(x int) returns int
+  return x+42|
+
+--error 1274
+call p()|
+--error 1274
+call p(1, 2)|
+--error 1274
+select f()|
+--error 1274
+select f(1, 2)|
+
+drop procedure p|
+drop function f|
+
+delimiter ;|

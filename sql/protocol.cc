@@ -360,7 +360,7 @@ send_eof(THD *thd, bool no_flush)
       uint tmp= min(thd->total_warn_count, 65535);
       buff[0]=254;
       int2store(buff+1, tmp);
-      int2store(buff+3, 0);			// No flags yet
+      int2store(buff+3, thd->server_status);
       VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));
     }

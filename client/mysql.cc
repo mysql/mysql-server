@@ -1568,7 +1568,7 @@ com_help(String *buffer __attribute__((unused)),
     for (i = 0; commands[i].name; i++)
     {
       if (commands[i].func)
-        tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+	tee_fprintf(stdout, "%-10s(\\%c)\t%s\n", commands[i].name,
 		    commands[i].cmd_char, commands[i].doc);
     }
   }
@@ -2380,6 +2380,37 @@ static int com_source(String *buffer, char *line)
   return error;
 }
 
+	/* ARGSUSED */
+static int
+com_delimiter(String *buffer __attribute__((unused)), char *line)
+{
+  char *tmp;
+  char buff[256];
+
+  if (strlen(line)> 255)
+  {
+    put_info("'DELIMITER' command was too long.", INFO_ERROR);
+    return 0;
+  }
+  bzero(buff, sizeof(buff));
+  strmov(buff, line);
+  tmp= get_arg(buff, 0);
+
+  if (!tmp || !*tmp)
+  {
+    put_info("DELIMITER must be followed by a 'delimiter' char", INFO_ERROR);
+    return 0;
+  }
+
+  if (strlen(tmp)> 1)
+  {
+    put_info("Argument must be one char", INFO_ERROR);
+    return 0;
+  }
+
+  delimiter= *tmp;
+  return 0;
+}
 
 	/* ARGSUSED */
 static int
