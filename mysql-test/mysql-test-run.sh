@@ -347,7 +347,7 @@ fi
 [ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
 [ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
 
-[ -z "$COLUMNS" ] && COLUMNS=80
+if test ${COLUMNS:-0} -lt 80 ; then COLUMNS=80 ; fi
 E=`$EXPR $COLUMNS - 8`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
@@ -547,10 +547,10 @@ mysql_install_db () {
 
     for slave_num in 1 2 ;
     do
-     $RM -rf var/slave$slave_num-data/
-     mkdir -p var/slave$slave_num-data/mysql
-     mkdir -p var/slave$slave_num-data/test
-     cp var/slave-data/mysql/* var/slave$slave_num-data/mysql
+      $RM -rf var/slave$slave_num-data/
+      mkdir -p var/slave$slave_num-data/mysql
+      mkdir -p var/slave$slave_num-data/test
+      cp var/slave-data/mysql/* var/slave$slave_num-data/mysql
     done
     return 0
 }
@@ -604,7 +604,8 @@ abort_if_failed()
 start_manager()
 {
  if [ $USE_MANAGER = 0 ] ; then
-  echo "Manager disabled, skipping manager start."
+   echo "Manager disabled, skipping manager start."
+   $RM -f $MYSQL_MANAGER_LOG
   return
  fi
  $ECHO "Starting MySQL Manager"
@@ -675,7 +676,7 @@ manager_term()
   shift
   if [ $USE_MANAGER = 0 ] ; then
     $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
-    connect_timeout=5 -O shutdown_timeout=20 shutdown >/dev/null 2>&1
+    connect_timeout=5 -O shutdown_timeout=20 shutdown >> $MYSQL_MANAGER_LOG 2>&1
     return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \

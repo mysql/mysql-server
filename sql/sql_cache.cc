@@ -743,7 +743,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy(thd->query+thd->query_length, thd->db, thd->db_length);
+      memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
       DBUG_PRINT("qcache", ("database : %s length %u",
 			    thd->db, thd->db_length)); 
     }
@@ -761,7 +761,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       flags|= (byte) thd->convert_set->number();
       DBUG_ASSERT(thd->convert_set->number() < 128);
     }
-    tot_length=thd->query_length+1+thd->db_length;
+    tot_length=thd->query_length+thd->db_length+2;
     thd->query[tot_length-1] = (char) flags;
 
     /* Check if another thread is processing the same query? */
@@ -832,7 +832,6 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     statistic_increment(refused, &structure_guard_mutex);
 
 end:
-  thd->query[thd->query_length]= 0;		// Restore end null
   DBUG_VOID_RETURN;
 }
 
@@ -890,12 +889,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     goto err;
   }
 
-  /* Test if the query is a SELECT */
-  while (*sql == ' ' || *sql == '\t')
-  {
-    sql++;
-    query_length--;
-  }
+  /*
+    Test if the query is a SELECT
+    (pre-space is removed in dispatch_command)
+  */
   if (toupper(sql[0]) != 'S' || toupper(sql[1]) != 'E' ||
       toupper(sql[2]) !='L')
   {
@@ -911,10 +908,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
   Query_cache_block *query_block;
 
-  tot_length=query_length+thd->db_length+1;
+  tot_length=query_length+thd->db_length+2;
   if (thd->db_length)
   {
-    memcpy(sql+query_length, thd->db, thd->db_length);
+    memcpy(sql+query_length+1, thd->db, thd->db_length);
     DBUG_PRINT("qcache", ("database: '%s' length %u",
 			  thd->db, thd->db_length));
   }
@@ -936,9 +933,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   sql[tot_length-1] = (char) flags;
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);
-  
-  sql[query_length] = '\0';			// Restore end null
-
   /* Quick abort on unlocked data */
   if (query_block == 0 ||
       query_block->query()->result() == 0 ||
@@ -2582,8 +2576,11 @@ my_bool Query_cache::move_by_type(byte **border,
     pthread_cond_init(&new_query->lock, NULL);
     pthread_mutex_init(&new_query->clients_guard,MY_MUTEX_INIT_FAST);
 
+    /* 
+      If someone is writing to this block, inform the writer that the block
+      has been moved.
+    */
     NET *net = new_block->query()->writer();
-    /* QQ: When could this happen ? */
     if (net != 0)
     {
       net->query_cache_query= (gptr) new_block;
@@ -2877,15 +2874,17 @@ void Query_cache::queries_dump()
     {
       uint len;
       char *str = (char*) query_cache_query_get_key((byte*) block, &len, 0);
-      uint flags = (uint) (uchar) str[len-1];
-      DBUG_PRINT("qcache", ("%u (%u,%u) %.*s",len,
+      len--;					// Point at flags
+      uint flags = (uint) (uchar) str[len];
+      str[len]=0;
+      DBUG_PRINT("qcache", ("%u (%u,%u) '%s' '%s'",
 			  ((flags & QUERY_CACHE_CLIENT_LONG_FLAG_MASK)? 1:0),
-			  (flags & QUERY_CACHE_CHARSET_CONVERT_MASK), len-1,
-			    str));
+			  (flags & QUERY_CACHE_CHARSET_CONVERT_MASK), len,
+			    str,strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,
 			    (ulong)block->pnext, (ulong)block->pprev));
-
+      str[len]=(char) flags;
       for (TABLE_COUNTER_TYPE t = 0; t < block->n_tables; t++)
       {
 	Query_cache_table *table = block->table(t)->parent;
