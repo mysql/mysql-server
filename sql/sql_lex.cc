@@ -1733,6 +1733,12 @@ bool st_lex::can_not_use_merged()
   {
   case SQLCOM_CREATE_VIEW:
   case SQLCOM_SHOW_CREATE:
+  /*
+    SQLCOM_SHOW_FIELDS is necessary to make 
+    information schema tables working correctly with views.
+    see get_schema_tables_result function
+  */
+  case SQLCOM_SHOW_FIELDS:
     return TRUE;
   default:
     return FALSE;

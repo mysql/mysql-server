@@ -21,7 +21,7 @@ extern my_string	mysql_unix_port;
                              CLIENT_TRANSACTIONS | \
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
-sig_handler pipe_sig_handler(int sig);
+sig_handler my_pipe_sig_handler(int sig);
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
@@ -32,7 +32,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 #if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
 #define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0;
-#define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
+#define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE, my_pipe_sig_handler)
 #define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
 #else
 #define init_sigpipe_variables

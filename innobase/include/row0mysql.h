@@ -99,6 +99,7 @@ row_mysql_store_col_in_innobase_format(
 					as dfield is used! */
 	ulint		col_len,	/* in: MySQL column length */
 	ulint		type,		/* in: data type */
+	bool		comp,		/* in: TRUE=compact format */
 	ulint		is_unsigned);	/* in: != 0 if unsigned integer type */
 /********************************************************************
 Handles user errors and lock waits detected by the database engine. */

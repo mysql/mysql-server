@@ -77,117 +77,129 @@ NdbSqlUtil::char_like(const char* s1, unsigned n1,
 
 const NdbSqlUtil::Type
 NdbSqlUtil::m_typeList[] = {
-  {
+  { // 0
     Type::Undefined,
     NULL
   },
-  {
+  { // 1
     Type::Tinyint,
     cmpTinyint
   },
-  {
+  { // 2
     Type::Tinyunsigned,
     cmpTinyunsigned
   },
-  {
+  { // 3
     Type::Smallint,
     cmpSmallint
   },
-  {
+  { // 4
     Type::Smallunsigned,
     cmpSmallunsigned
   },
-  {
+  { // 5
     Type::Mediumint,
     cmpMediumint
   },
-  {
+  { // 6
     Type::Mediumunsigned,
     cmpMediumunsigned
   },
-  {
+  { // 7
     Type::Int,
     cmpInt
   },
-  {
+  { // 8
     Type::Unsigned,
     cmpUnsigned
   },
-  {
+  { // 9
     Type::Bigint,
     cmpBigint
   },
-  {
+  { // 10
     Type::Bigunsigned,
     cmpBigunsigned
   },
-  {
+  { // 11
     Type::Float,
     cmpFloat
   },
-  {
+  { // 12
     Type::Double,
     cmpDouble
   },
-  {
-    Type::Decimal,
-    NULL  // cmpDecimal
+  { // 13
+    Type::Olddecimal,
+    cmpOlddecimal
   },
-  {
+  { // 14
     Type::Char,
     cmpChar
   },
-  {
+  { // 15
     Type::Varchar,
     cmpVarchar
   },
-  {
+  { // 16
     Type::Binary,
     cmpBinary
   },
-  {
+  { // 17
     Type::Varbinary,
     cmpVarbinary
   },
-  {
+  { // 18
     Type::Datetime,
     cmpDatetime
   },
-  {
+  { // 19
     Type::Date,
     cmpDate
   },
-  {
+  { // 20
     Type::Blob,
     NULL  // cmpBlob
   },
-  {
+  { // 21
     Type::Text,
     NULL  // cmpText
   },
-  {
+  { // 22
     Type::Bit,
     NULL  // cmpBit
   },
-  {
+  { // 23
     Type::Longvarchar,
     cmpLongvarchar
   },
-  {
+  { // 24
     Type::Longvarbinary,
     cmpLongvarbinary
   },
-  {
+  { // 25
     Type::Time,
     cmpTime
   },
-  {
+  { // 26
     Type::Year,
     cmpYear
   },
-  {
+  { // 27
     Type::Timestamp,
     cmpTimestamp
+  },
+  { // 28
+    Type::Olddecimalunsigned,
+    cmpOlddecimalunsigned
+  },
+  { // 29
+    Type::Decimal,
+    cmpDecimal
+  },
+  { // 30
+    Type::Decimalunsigned,
+    cmpDecimalunsigned
   }
 };
 
@@ -430,12 +442,81 @@ NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void*
   return CmpUnknown;
 }
 
-// not used by MySQL or NDB
+int
+NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
+{
+  int sgn = +1;
+  unsigned i = 0;
+  while (i < n) {
+    int c1 = s1[i];
+    int c2 = s2[i];
+    if (c1 == c2) {
+      if (c1 == '-')
+        sgn = -1;
+    } else if (c1 == '-') {
+      return -1;
+    } else if (c2 == '-') {
+      return +1;
+    } else if (c1 < c2) {
+      return -1 * sgn;
+    } else {
+      return +1 * sgn;
+    }
+    i++;
+  }
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  if (full) {
+    assert(n1 == n2);
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    return cmp_olddecimal(v1, v2, n1);
+  }
+  return CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  if (full) {
+    assert(n1 == n2);
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    return cmp_olddecimal(v1, v2, n1);
+  }
+  return CmpUnknown;
+}
+
 int
 NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  assert(false);
-  return 0;
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  // compare as binary strings
+  unsigned n = (n1 <= n2 ? n1 : n2);
+  int k = memcmp(v1, v2, n);
+  if (k == 0) {
+    k = (full ? n1 : n) - n2;
+  }
+  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  // compare as binary strings
+  unsigned n = (n1 <= n2 ? n1 : n2);
+  int k = memcmp(v1, v2, n);
+  if (k == 0) {
+    k = (full ? n1 : n) - n2;
+  }
+  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
 }
 
 int
