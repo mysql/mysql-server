@@ -982,6 +982,7 @@ void st_select_lex::init_query()
   cond_count= with_wild= 0;
   ref_pointer_array= 0;
   select_n_having_items= 0;
+  prep_where= 0;
 }
 
 void st_select_lex::init_select()
