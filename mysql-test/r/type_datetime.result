@@ -102,3 +102,13 @@ insert into t1 values (now(), now());
 select * from t1 where a is null or b is null;
 a	b
 drop table t1;
+create table t1 (dt datetime);
+insert into t1 values ("12-00-00"), ("00-00-00 01:00:00");
+insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
+select * from t1;
+dt
+2012-00-00 00:00:00
+2000-00-00 01:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+drop table t1;

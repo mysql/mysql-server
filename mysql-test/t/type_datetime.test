@@ -68,3 +68,15 @@ insert into t1 values (now(), now());
 insert into t1 values (now(), now());
 select * from t1 where a is null or b is null;
 drop table t1;
+
+#
+# Test for bug #7297 "Two digit year should be interpreted correctly even
+# with zero month and day"
+#
+create table t1 (dt datetime);
+# These dates should be treated as dates in 21st century
+insert into t1 values ("12-00-00"), ("00-00-00 01:00:00");
+# Zero dates are still special :/
+insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
+select * from t1;
+drop table t1;
