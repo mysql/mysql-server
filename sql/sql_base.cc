@@ -112,6 +112,74 @@ static void check_unused(void)
 #define check_unused()
 #endif
 
+int list_open_tables(THD *thd,List<char> *tables, const char *db,const char *wild)
+{
+  int result = 0;
+  uint col_access=thd->col_access;
+  TABLE_LIST table_list;
+  DBUG_ENTER("list_open_tables");
+  VOID(pthread_mutex_lock(&LOCK_open));
+  bzero((char*) &table_list,sizeof(table_list));
+
+  for (uint idx=0 ; result == 0 && idx < open_cache.records; idx++)
+  {
+    TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
+    if ((!entry->real_name) || strcmp(entry->table_cache_key,db))
+      continue;
+    if (wild && wild[0] && wild_compare(entry->real_name,wild))
+      continue;
+    if (db && !(col_access & TABLE_ACLS))
+    {
+      table_list.db= (char*) db;
+      table_list.real_name= entry->real_name;/*real name*/
+      table_list.grant.privilege=col_access;
+      if (check_grant(thd,TABLE_ACLS,&table_list,1))
+        continue;
+    }
+    /* need to check if he have't already listed it */
+
+    List_iterator<char> it(*tables);
+    char *table_name; 
+    int check = 0;
+    while (check == 0 && (table_name=it++))
+    {
+      if (!strcmp(table_name,entry->real_name))
+        check++;
+    }
+    if (check)
+      continue;
+    
+    if (tables->push_back(thd->strdup(entry->real_name)))
+    {
+      result = -1;
+    }
+  }
+  
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  DBUG_RETURN(result);  
+}
+
+char*
+query_table_status(THD *thd,const char *db,const char *table_name)
+{
+  int cached = 0, in_use = 0;
+  char info[256];
+
+  for (uint idx=0 ; idx < open_cache.records; idx++)
+  {
+    TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
+    if (strcmp(entry->table_cache_key,db) ||
+        strcmp(entry->real_name,table_name))
+      continue;
+
+    cached++;
+    if (entry->in_use)
+      in_use++;
+  }
+
+  sprintf(info, "cached=%d, in_use=%d", cached, in_use);
+  return thd->strdup(info);
+}
 
 
 /******************************************************************************

@@ -19889,7 +19889,7 @@ commands to examine and kill threads.
 
 @example
    SHOW DATABASES [LIKE wild]
-or SHOW TABLES [FROM db_name] [LIKE wild]
+or SHOW [OPEN] TABLES [FROM db_name] [LIKE wild]
 or SHOW COLUMNS FROM tbl_name [FROM db_name] [LIKE wild]
 or SHOW INDEX FROM tbl_name [FROM db_name]
 or SHOW TABLE STATUS [FROM db_name] [LIKE wild]
@@ -19944,6 +19944,10 @@ get this list using the @code{mysqlshow db_name} command.
 @strong{NOTE:} If a user doesn't have any privileges for a table, the table
 will not show up in the output from @code{SHOW TABLES} or @code{mysqlshow
 db_name}.
+
+@code{SHOW OPEN TABLES} lists the tables that are currently open in
+the table cache. @xref{Table cache}.  The @code{Comment} field tells
+how many times the table is @code{cached} and @code{in_use}.
 
 @code{SHOW COLUMNS} lists the columns in a given table.  If the column
 types are different than you expect them to be based on a @code{CREATE
