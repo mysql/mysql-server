@@ -88,7 +88,7 @@ public:
   /**
    * Compare column <b>ColId</b> with <b>val</b>
    */
-  int cmp(BinaryCondition cond, int ColId, const void *val, Uint32 len); 
+  int cmp(BinaryCondition cond, int ColId, const void *val, Uint32 len = 0); 
 
   /** 
    * @name Integer Comparators
