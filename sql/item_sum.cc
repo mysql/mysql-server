@@ -811,7 +811,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
     {
       int res;
       Field* f = *field;
-      int len = f->field_length;
+      int len = f->pack_length();
       switch((*field)->type())
 	{
 	case FIELD_TYPE_STRING:
@@ -921,7 +921,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	      compare_key = (qsort_cmp2)simple_raw_key_cmp;
 	      break;
 	    }
-	  cmp_arg = (void*)(key_len = field->field_length);
+	  cmp_arg = (void*)(key_len = field->pack_length());
 	  rec_offset = 1;
 	}
       else // too bad, cannot cheat - there is more than one field
@@ -931,7 +931,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	  field_end = (field = table->field) + table->fields;
 	  for(key_len = 0; field < field_end; ++field)
 	    {
-	      key_len += (*field)->field_length;
+	      key_len += (*field)->pack_length();
 	      if(!(*field)->binary())
 		all_binary = 0;
 	    }
