@@ -486,7 +486,7 @@ public:
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
-  ~Item_ref() { if (ref && (*ref) != this) delete *ref; }
+  ~Item_ref() { if (ref && (*ref) && (*ref) != this) delete *ref; }
   double val()
   {
     double tmp=(*ref)->val_result();

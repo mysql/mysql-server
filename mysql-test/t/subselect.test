@@ -595,3 +595,9 @@ insert into t1 values (1), (2), (3);
 explain select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
 from t1;
 drop table t1;
+
+#
+# error in IN
+#
+-- error 1146
+select t1.Continent, t2.Name, t2.Population from t1 LEFT JOIN t2 ON t1.Code = t2.Country  where t2.Population IN (select max(t2.Population) AS Population from t2, t1 where t2.Country = t1.Code group by Continent);
