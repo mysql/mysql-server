@@ -208,8 +208,21 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 {
   TABLE		*tmp_table;
   int		error, tmp_error;
-  bool		need_tmp,hidden_group_fields;
-  bool		simple_order,simple_group,no_order, skip_sort_order;
+  bool         need_tmp;
+  bool          hidden_group_fields;
+  /*
+    simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
+    to other tables than the first non-constant table in the JOIN.
+    It's also set if ORDER/GROUP BY is empty.
+  */
+  bool         simple_order, simple_group;
+  /*
+    Is set only in case if we have a GROUP BY clause
+    and no ORDER BY after constant elimination of 'order'.
+  */
+  bool          no_order;
+  /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
+  bool          skip_sort_order;
   ha_rows	select_limit;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
