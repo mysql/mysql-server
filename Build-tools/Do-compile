@@ -276,7 +276,11 @@ if ($opt_stage <= 3)
   my $flags= "";
   log_timestamp();
   log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
-  log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
+  # No need to add the debug symbols, if the binaries are not stripped (saves space)
+  unless ($opt_with_debug || $opt_no_strip)
+  {
+    log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
+  }
 
   $flags.= "--no-strip" if ($opt_no_strip || $opt_with_debug);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
