@@ -2158,6 +2158,22 @@ call bug8116(42)|
 userid
 drop procedure bug8116|
 drop table t3|
+drop procedure if exists bug6857|
+create procedure bug6857(counter int)
+begin
+declare t0, t1 int;
+declare plus bool default 0;
+set t0 = current_time();
+while counter > 0 do
+set counter = counter - 1;
+end while;
+set t1 = current_time();
+if t1 > t0 then
+set plus = 1;
+end if;
+select plus;
+end|
+drop procedure bug6857|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|
