@@ -55,13 +55,7 @@ pthread_handler_decl(handle_manager,arg __attribute__((unused)))
     {
       if (reset_flush_time)
       {
-#ifdef HAVE_TIMESPEC_TS_SEC
-        abstime.ts_sec = time(NULL)+flush_time;	// Bsd 2.1
-        abstime.ts_nsec = 0;
-#else
-        abstime.tv_sec = time(NULL)+flush_time;	// Linux or Solairs
-        abstime.tv_nsec = 0;
-#endif
+	set_timespec(abstime, flush_time);
         reset_flush_time = FALSE;
       }
       while (!manager_status && !error && !abort_loop)

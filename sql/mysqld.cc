@@ -447,15 +447,7 @@ static void close_connections(void)
     if (pthread_kill(select_thread,THR_CLIENT_ALARM))
       break;					// allready dead
 #endif
-#ifdef HAVE_TIMESPEC_TS_SEC
-    abstime.ts_sec=time(NULL)+2;		// Bsd 2.1
-    abstime.ts_nsec=0;
-#else
-    struct timeval tv;
-    gettimeofday(&tv,0);
-    abstime.tv_sec=tv.tv_sec+2;
-    abstime.tv_nsec=tv.tv_usec*1000;
-#endif
+    set_timespec(abstime, 2);
     for (uint tmp=0 ; tmp < 10 ; tmp++)
     {
       error=pthread_cond_timedwait(&COND_thread_count,&LOCK_thread_count,

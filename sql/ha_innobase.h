@@ -91,6 +91,7 @@ class ha_innobase: public handler
   	~ha_innobase() {}
 
   	const char* table_type() const { return("InnoDB");}
+	const char *index_type(uint key_number) { return "BTREE"; }
   	const char** bas_ext() const;
  	ulong option_flag() const { return int_option_flag; }
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }

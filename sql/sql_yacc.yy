@@ -351,6 +351,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	PRECISION
 %token  QUICK
 %token	REAL
+%token	SIGNED
 %token	SMALLINT
 %token	STRING_SYM
 %token	TEXT_SYM
@@ -1009,7 +1010,8 @@ field_opt_list:
 	| field_option {}
 
 field_option:
-	UNSIGNED	{ Lex->type|= UNSIGNED_FLAG;}
+	SIGNED		{}
+	| UNSIGNED	{ Lex->type|= UNSIGNED_FLAG;}
 	| ZEROFILL	{ Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; }
 
 opt_len:
@@ -1595,7 +1597,9 @@ simple_expr:
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
           { Select->ftfunc_list.push_back((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
-	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
+	| BINARY expr %prec NEG		{ $$= new Item_func_binary($2); }
+	| SIGNED expr %prec NEG		{ $$= new Item_func_signed($2); }
+	| UNSIGNED expr %prec NEG	{ $$= new Item_func_unsigned($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ) }
 	| FUNC_ARG0 '(' ')'

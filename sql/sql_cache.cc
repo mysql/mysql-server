@@ -288,6 +288,11 @@ If join_results allocated new block(s) then we need call pack_cache again.
   pthread_mutex_lock(M);}
 #define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
   (ulong)(M))); pthread_mutex_unlock(M);}
+#define SEM_LOCK(M) { int val = 0; sem_getvalue (M, &val); \
+  DBUG_PRINT("lock", ("sem lock 0x%lx (%d)", (ulong)(M), val)); \
+  sem_wait(M); DBUG_PRINT("lock", ("sem lock ok")); }
+#define SEM_UNLOCK(M) {DBUG_PRINT("info", ("sem unlock 0x%lx", (ulong)(M))); \
+  sem_post(M);  DBUG_PRINT("info", ("sem unlock ok")); }
 #define STRUCT_LOCK(M) {DBUG_PRINT("lock", ("%d struct lock...",__LINE__)); \
   pthread_mutex_lock(M);DBUG_PRINT("lock", ("struct lock OK"));}
 #define STRUCT_UNLOCK(M) { \
@@ -310,6 +315,8 @@ If join_results allocated new block(s) then we need call pack_cache again.
 #else
 #define MUTEX_LOCK(M) pthread_mutex_lock(M)
 #define MUTEX_UNLOCK(M) pthread_mutex_unlock(M)
+#define SEM_LOCK(M) sem_wait(M)
+#define SEM_UNLOCK(M) sem_post(M)
 #define STRUCT_LOCK(M) pthread_mutex_lock(M)
 #define STRUCT_UNLOCK(M) pthread_mutex_unlock(M)
 #define BLOCK_LOCK_WR(B) B->query()->lock_writing()
@@ -426,7 +433,7 @@ void Query_cache_query::init_n_lock()
 {
   DBUG_ENTER("Query_cache_query::init_n_lock");
   res=0; wri = 0; len = 0;
-  pthread_cond_init(&lock, NULL);
+  sem_init(&lock, 0, 1);
   pthread_mutex_init(&clients_guard,MY_MUTEX_INIT_FAST);
   clients = 0;
   lock_writing();
@@ -446,7 +453,7 @@ void Query_cache_query::unlock_n_destroy()
     active semaphore
   */
   this->unlock_writing();
-  pthread_cond_destroy(&lock);
+  sem_destroy(&lock);
   pthread_mutex_destroy(&clients_guard);
   DBUG_VOID_RETURN;
 }
@@ -462,9 +469,7 @@ void Query_cache_query::unlock_n_destroy()
 
 void Query_cache_query::lock_writing()
 {
-  MUTEX_LOCK(&clients_guard);
-  while (clients != 0)
-    pthread_cond_wait(&lock,&clients_guard);
+  SEM_LOCK(&lock);
 }
 
 
@@ -478,18 +483,12 @@ void Query_cache_query::lock_writing()
 my_bool Query_cache_query::try_lock_writing()
 {
   DBUG_ENTER("Query_cache_block::try_lock_writing");
-  if (pthread_mutex_trylock(&clients_guard))
+  if (sem_trywait(&lock)!=0 || clients != 0)
   {
-    DBUG_PRINT("qcache", ("can't lock mutex"));
+    DBUG_PRINT("info", ("can't lock semaphore"));
     DBUG_RETURN(0);
   }
-  if (clients != 0)
-  {
-    DBUG_PRINT("info", ("already locked (r)"));
-    MUTEX_UNLOCK(&clients_guard);
-    DBUG_RETURN(0);
-  }
-  DBUG_PRINT("qcache", ("mutex 'lock' 0x%lx locked", (ulong) &lock));
+  DBUG_PRINT("info", ("mutex 'lock' 0x%lx locked", (ulong) &lock));
   DBUG_RETURN(1);
 }
 
@@ -497,23 +496,28 @@ my_bool Query_cache_query::try_lock_writing()
 void Query_cache_query::lock_reading()
 {
   MUTEX_LOCK(&clients_guard);
-  clients++;
+  if ( ++clients == 1 )
+    SEM_LOCK(&lock);
   MUTEX_UNLOCK(&clients_guard);
 }
 
 
 void Query_cache_query::unlock_writing()
 {
-  MUTEX_UNLOCK(&clients_guard);
+  SEM_UNLOCK(&lock);
 }
 
 
 void Query_cache_query::unlock_reading()
 {
+  /*
+    To avoid unlocking semaphore before unlocking mutex (that may cause
+    destroying locked mutex), we use temporary boolean variable 'unlock'.
+  */
   MUTEX_LOCK(&clients_guard);
-  if (--clients == 0)
-    pthread_cond_broadcast(&lock);
+  bool ulock = ((--clients) == 0);
   MUTEX_UNLOCK(&clients_guard);
+  if (ulock) SEM_UNLOCK(&lock);
 }
 
 extern "C"
@@ -1377,8 +1381,11 @@ void Query_cache::free_cache(my_bool destruction)
     /* Becasue we did a flush, all cache memory must be in one this block */
     bins[0].free_blocks->destroy();
     total_blocks--;
-    DBUG_PRINT("qcache", ("free memory %lu (should be %lu)",
-			  free_memory , query_cache_size));
+#ifndef DBUG_OFF
+    if (free_memory != query_cache_size)
+      DBUG_PRINT("qcache", ("free memory %lu (should be %lu)",
+			    free_memory , query_cache_size));
+#endif
     my_free((gptr) cache, MYF(MY_ALLOW_ZERO_PTR));
     make_disabled();
     hash_free(&queries);
@@ -2573,7 +2580,7 @@ my_bool Query_cache::move_by_type(byte **border,
       } while ( result_block != first_result_block );
     }
     Query_cache_query *new_query= ((Query_cache_query *) new_block->data());
-    pthread_cond_init(&new_query->lock, NULL);
+    sem_init(&new_query->lock, 0, 1);
     pthread_mutex_init(&new_query->clients_guard,MY_MUTEX_INIT_FAST);
 
     /* 
@@ -2948,6 +2955,7 @@ my_bool Query_cache::check_integrity()
   my_bool result = 0;
   uint i;
   STRUCT_LOCK(&structure_guard_mutex);
+  DBUG_ENTER("check_integrity");
 
   if (hash_check(&queries))
   {
@@ -3030,6 +3038,8 @@ my_bool Query_cache::check_integrity()
 	result = 1;
       break;
     case Query_cache_block::RES_INCOMPLETE:
+      // This type of block can be not lincked yet (in multithread environment)
+      break;
     case Query_cache_block::RES_BEG:
     case Query_cache_block::RES_CONT:
     case Query_cache_block::RESULT:
@@ -3048,11 +3058,13 @@ my_bool Query_cache::check_integrity()
       }
       else
       {
+	BLOCK_LOCK_RD(query_block);
 	if (in_list(queries_blocks, query_block, "query from results"))
 	  result = 1;
 	if (in_list(query_block->query()->result(), block,
 		    "results"))
 	  result = 1;
+	BLOCK_UNLOCK_RD(query_block);
       }
       break;
     }
@@ -3160,15 +3172,15 @@ my_bool Query_cache::check_integrity()
       } while (block != bins[i].free_blocks);
       if (count != bins[i].number)
       {
-	DBUG_PRINT("qcache", ("bin[%d].number is %d, but bin have %d blocks",
-			      bins[i].number,  count));
+	DBUG_PRINT("error", ("bin[%d].number is %d, but bin have %d blocks",
+			     bins[i].number,  count));
 	result = 1;
       }
     }
   }
   DBUG_ASSERT(result == 0);
   STRUCT_UNLOCK(&structure_guard_mutex);
-  return result;
+  DBUG_RETURN(result);
 }
 
 

@@ -101,9 +101,9 @@ match(ttxt.inhalt) against ('foobar');
 id
 3
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
-t2	1	tig	1	ticket	A	NULL	NULL	NULL	
-t2	1	tix	1	inhalt	A	NULL	1	NULL	FULLTEXT
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t2	1	tig	1	ticket	A	NULL	NULL	NULL	YES	BTREE	
+t2	1	tix	1	inhalt	A	NULL	1	NULL	YES	FULLTEXT	
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
