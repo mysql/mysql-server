@@ -1534,7 +1534,7 @@ No description available.
 
 @emph{Professional Linux Programming}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281, Barnes and Noble}
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1861003013&bfmtype=book, Barnes and Noble}
 @item Publisher @tab            Wrox Press, Inc.
 @item Authors   @tab            N/A
 @item Pub Date  @tab            September 2000
@@ -1558,11 +1558,11 @@ time.
 @emph{PHP and MySQL Web Development}
 @multitable @columnfractions .3 .7
 @item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672317842&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            N/A
-@item Authors   @tab            William Jason Gilmore
+@item Publisher @tab            Sams
+@item Authors   @tab            Luke Welling, Laura Thomson
 @item Pub Date  @tab            November 2000
 @item ISBN      @tab            0672317842
-@item Pages     @tab            N/A
+@item Pages     @tab            700
 @item Price     @tab            $49.99
 @end multitable
 
