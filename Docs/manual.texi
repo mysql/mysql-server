@@ -43,7 +43,10 @@ END-INFO-DIR-ENTRY
 @sp 10
 @center @titlefont{@strong{MySQL} Reference Manual}
 @sp 10
-@center Copyright @copyright{} 1997, 1998, 1999, 2000 TcX AB, Detron HB and MySQL Finland AB
+@center Copyright @copyright{} 1997-2000 TcX AB, Detron HB and MySQL Finland AB
+@c blank page after title page makes page 1 be a page front.
+@c also makes the back of the title page blank.
+@page
 @end titlepage
 
 @c This should be added. The HTML conversion also needs a MySQL version
@@ -28413,18 +28416,18 @@ aren't specified.  Another way to around this bug is to upgrade to
 MyODBC 2.50.33 and @strong{MySQL} 3.23.x, which together provides a
 workaround for this bug!
 @item
-Set the `Return matching rows' MyODBC option field when connecting to
+Set the ``Return matching rows'' MyODBC option field when connecting to
 @strong{MySQL}.
 @item
 You should have a primary key in the table;  If not, new or updated rows
-may chow up as @code{#Deleted#}.
+may show up as @code{#Deleted#}.
 @item
 You should have a timestamp in all tables you want to be able to update.
 For maximum portability @code{TIMESTAMP(14)} or simple @code{TIMESTAMP}
 is recommended instead of other @code{TIMESTAMP(X)} variations.
 @item
 Only use double float fields. Access fails when comparing with single floats.
-The symptom usually is that new or updated rows may chow up as @code{#Deleted#}
+The symptom usually is that new or updated rows may show up as @code{#Deleted#}
 or that you can't find or update rows.
 @item
 If you still get the error @code{Another user has changed your data} after

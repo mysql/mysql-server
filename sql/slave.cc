@@ -40,7 +40,7 @@ extern bool opt_log_slave_updates ;
 
 static inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
-static int init_master_info(MASTER_INFO* mi);
+int init_master_info(MASTER_INFO* mi);
 static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_sleep(THD* thd, int sec);
@@ -249,7 +249,7 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
   return error;
 }
 
-static int init_master_info(MASTER_INFO* mi)
+int init_master_info(MASTER_INFO* mi)
 {
   FILE* file;
   MY_STAT stat_area;
