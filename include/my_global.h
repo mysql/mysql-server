@@ -120,6 +120,21 @@
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
 #endif
 
+/*
+  Solaris include file <sys/feature_tests.h> refers to X/Open document
+
+    System Interfaces and Headers, Issue 5
+
+  saying we should define _XOPEN_SOURCE=500 to get POSIX.1c prototypes
+  but apparently other systems (namely FreeBSD) don't agree.
+  Furthermore X/Open has since 2004 "System Interfaces, Issue 6"
+  that dictates _XOPEN_SOURCE=600, but Solaris checks for 500.
+  So, let's define 500 for solaris only.
+*/
+#ifdef __sun__
+#define _XOPEN_SOURCE 500
+#endif
+
 #if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
