@@ -130,6 +130,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select `v6`.`c` AS `c` from `test`.`v6`
 show tables;
+Tables_in_test
+t1
+v1
+v2
+v3
+v4
+v5
+v6
+show full tables;
 Tables_in_test	table_type
 t1	BASE TABLE
 v1	VIEW
@@ -1043,7 +1052,7 @@ drop table t1;
 CREATE VIEW v02 AS SELECT * FROM DUAL;
 ERROR HY000: No tables used
 SHOW TABLES;
-Tables_in_test	table_type
+Tables_in_test
 CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
 select * from v1;
 EXISTS (SELECT 1 UNION SELECT 2)
