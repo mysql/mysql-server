@@ -1625,3 +1625,14 @@ PIPPO
 1
 NULL
 DROP TABLE t1, t2;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SET SQL_SELECT_LIMIT=1;
+select sum(a) from (select * from t1) as a;
+sum(a)
+6
+select 2 in (select * from t1);
+2 in (select * from t1)
+1
+SET SQL_SELECT_LIMIT=default;
+drop table t1;

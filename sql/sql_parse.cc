@@ -3758,7 +3758,9 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
-  select_lex->select_limit= lex->thd->variables.select_limit;
+  select_lex->select_limit= (&lex->select_lex == select_lex) ?
+	lex->thd->variables.select_limit :	/* Primry UNION */
+	HA_POS_ERROR;				/* subquery */
   if (select_lex == &lex->select_lex)
   {
     lex->exchange= 0;
@@ -3810,7 +3812,9 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->select_number= INT_MAX;
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
-      fake->select_limit= lex->thd->variables.select_limit;
+      fake->select_limit= (&lex->unit == unit) ?
+	lex->thd->variables.select_limit :	/* Primry UNION */
+	HA_POS_ERROR;				/* subquery */
     }
   }
 
