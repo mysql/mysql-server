@@ -716,6 +716,12 @@ struct show_var_st init_vars[]= {
 };
 
 
+bool sys_var::check(THD *thd, set_var *var)
+{
+  var->save_result.ulonglong_value= var->value->val_int();
+  return 0;
+}
+
 /*
   Functions to check and update variables
 */
@@ -964,12 +970,9 @@ static void fix_max_connections(THD *thd, enum_var_type type)
   resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
 }
 
-
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
+  ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
@@ -988,9 +991,7 @@ void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
 
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
+  ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (option_limits)
     *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
@@ -1037,9 +1038,7 @@ byte *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
+  ulonglong tmp= var->save_result.ulonglong_value;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
@@ -1078,9 +1077,7 @@ byte *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
+  ulonglong tmp= var->save_result.ulonglong_value;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ha_rows) tmp > max_system_variables.*offset)
@@ -1123,12 +1120,9 @@ byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
   return (byte*) &(thd->variables.*offset);
 }
 
-
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
+  ulonglong tmp= var->save_result.ulonglong_value;
 
   if ((ulonglong) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
@@ -1700,9 +1694,7 @@ void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
 
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
+  ulonglong tmp= var->save_result.ulonglong_value;
 
   NAMED_LIST *list;
   LEX_STRING *base_name= &var->base;
@@ -1799,11 +1791,7 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
-  time_t tmp= (time_t) var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
-
-  thd->set_time(tmp);
+  thd->set_time((time_t) var->save_result.ulonglong_value);
   return 0;
 }
 
@@ -1824,11 +1812,7 @@ byte *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
-
-  thd->insert_id(tmp);
+  thd->insert_id(var->save_result.ulonglong_value);
   return 0;
 }
 
@@ -1843,11 +1827,7 @@ byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_insert_id::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
-
-  thd->next_insert_id= tmp;
+  thd->next_insert_id= var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -1860,6 +1840,7 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
 {
+  var->save_result.ulonglong_value= var->value->val_int();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (thd->master_access & SUPER_ACL)
     return 0;
@@ -1887,6 +1868,7 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
   UNLOCK_ACTIVE_MI;
+  var->save_result.ulong_value= (ulong) var->value->val_int();
   return result;
 }
 
@@ -1903,7 +1885,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   if (!active_mi->rli.slave_running)
   {
     pthread_mutex_lock(&active_mi->rli.data_lock);
-    active_mi->rli.slave_skip_counter= (ulong) var->value->val_int();
+    active_mi->rli.slave_skip_counter= var->save_result.ulong_value;
     pthread_mutex_unlock(&active_mi->rli.data_lock);
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
@@ -1914,21 +1896,13 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 
 bool sys_var_rand_seed1::update(THD *thd, set_var *var)
 {
-  ulong tmp= (ulong) var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
-
-  thd->rand.seed1= tmp;
+  thd->rand.seed1= (ulong) var->save_result.ulonglong_value;
   return 0;
 }
 
 bool sys_var_rand_seed2::update(THD *thd, set_var *var)
 {
-  ulong tmp= (ulong) var->value->val_int();
-  if (thd->net.report_error)
-    return 1;
-
-  thd->rand.seed2= tmp;
+  thd->rand.seed2= (ulong) var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -2153,6 +2127,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error=var->check(thd)))
       DBUG_RETURN(error);
   }
+  if (thd->net.report_error)
+    DBUG_RETURN(1);
   it.rewind();
   while ((var=it++))
     error|= var->update(thd);			// Returns 0, -1 or 1
@@ -2215,7 +2191,8 @@ int set_var::update(THD *thd)
 
 int set_var_user::check(THD *thd)
 {
-  return user_var_item->fix_fields(thd,0, (Item**) 0) ? -1 : 0;
+  return (user_var_item->fix_fields(thd,0, (Item**) 0) ||
+	  user_var_item->check()) ? -1 : 0;
 }
 
 

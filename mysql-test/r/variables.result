@@ -365,3 +365,27 @@ ERROR HY000: Unknown system variable 'xxxxxxxxxx'
 select 1;
 1
 1
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+100	200
+set @svc=@@global.max_user_connections, @svj=@@local.max_join_size;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+100	200
+set @@global.max_user_connections=111,@@local.max_join_size=222;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+111	222
+set @@global.max_user_connections=@@local.max_join_size,@@local.max_join_size=@@global.max_user_connections;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+222	111
+set @@global.max_user_connections=@svc, @@local.max_join_size=@svj;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+100	200
+set @a=1, @b=2;
+set @a=@b, @b=@a;
+select @a, @b;
+@a	@b
+2	1

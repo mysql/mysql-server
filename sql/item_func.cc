@@ -2255,6 +2255,54 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   return(str);
 }
 
+/*
+  This functions is invoked on SET @variable or @variable:= expression.
+  Evaluete (and check expression), store results.
+
+  SYNOPSYS
+    Item_func_set_user_var::check()
+
+  NOTES
+    For now it always return OK. All problem with value evalueting
+    will be catched by thd->net.report_error check in sql_set_variables().
+
+  RETURN
+    0 - OK.
+*/
+
+bool
+Item_func_set_user_var::check()
+{
+  bool res;
+  DBUG_ENTER("Item_func_set_user_var::check");
+  LINT_INIT(res);
+
+  switch (cached_result_type) {
+  case REAL_RESULT:
+  {
+    save_result.vreal= args[0]->val();
+    break;
+  }
+  case INT_RESULT:
+  {
+    save_result.vint= args[0]->val_int();
+    break;
+  }
+  break;
+  case STRING_RESULT:
+  {
+    save_result.vstr= args[0]->val_str(&value);
+    break;
+  }
+  case ROW_RESULT:
+  default:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    break;
+  }
+  DBUG_RETURN(0);
+}
+
 
 /*
   This functions is invoked on SET @variable or @variable:= expression.
@@ -2282,29 +2330,27 @@ Item_func_set_user_var::update()
   switch (cached_result_type) {
   case REAL_RESULT:
   {
-    double value=args[0]->val();
-    res= update_hash((void*) &value,sizeof(value), REAL_RESULT, 
-		     &my_charset_bin, DERIVATION_NONE);
+    res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
+		     REAL_RESULT, &my_charset_bin, DERIVATION_NONE);
     break;
   }
   case INT_RESULT:
   {
-    longlong value=args[0]->val_int();
-    res= update_hash((void*) &value, sizeof(longlong), INT_RESULT,
-		     &my_charset_bin, DERIVATION_NONE);
+    res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
+		     INT_RESULT, &my_charset_bin, DERIVATION_NONE);
     break;
   }
   break;
   case STRING_RESULT:
   {
-    String *tmp;
-    tmp=args[0]->val_str(&value);
-    if (!tmp)					// Null value
+    if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
 		       DERIVATION_NONE);
     else
-      res= update_hash((void*) tmp->ptr(), tmp->length(), STRING_RESULT,
-		       tmp->charset(), args[0]->collation.derivation);
+      res= update_hash((void*) save_result.vstr->ptr(),
+		       save_result.vstr->length(), STRING_RESULT,
+		       save_result.vstr->charset(),
+		       args[0]->collation.derivation);
     break;
   }
   case ROW_RESULT:
@@ -2319,18 +2365,21 @@ Item_func_set_user_var::update()
 
 double Item_func_set_user_var::val()
 {
+  check();
   update();					// Store expression
   return entry->val(&null_value);
 }
 
 longlong Item_func_set_user_var::val_int()
 {
+  check();
   update();					// Store expression
   return entry->val_int(&null_value);
 }
 
 String *Item_func_set_user_var::val_str(String *str)
 {
+  check();
   update();					// Store expression
   return entry->val_str(&null_value, str, decimals);
 }
