@@ -273,6 +273,7 @@ TESTCASE("ScanLessThanLoop",
 NDBT_TESTSUITE_END(testScanInterpreter);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testScanInterpreter.execute(argc, argv);
 }
 

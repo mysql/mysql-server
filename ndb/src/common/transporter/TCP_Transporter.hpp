@@ -52,8 +52,7 @@ private:
 		  int r_port, 
 		  NodeId lHostId,
 		  NodeId rHostId,
-		  int byteorder,
-		  bool compression, bool checksum, bool signalId,
+		  bool checksum, bool signalId,
 		  Uint32 reportFreq = 4096);
   
   // Disconnect, delete send buffers and receive buffer

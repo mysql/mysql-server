@@ -18,21 +18,24 @@
 #include "Dbtux.hpp"
 
 /*
- * Search key vs node prefix.
+ * Search key vs node prefix or entry
  *
- * The comparison starts at given attribute position (in fact 0).  The
- * position is updated by number of equal initial attributes found.  The
- * prefix may be partial in which case CmpUnknown may be returned.
+ * The comparison starts at given attribute position.  The position is
+ * updated by number of equal initial attributes found.  The entry data
+ * may be partial in which case CmpUnknown may be returned.
  */
 int
-Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, ConstData entryData, unsigned maxlen)
+Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen)
 {
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   // number of words of attribute data left
   unsigned len2 = maxlen;
-  // skip to right position in search key
-  searchKey += start;
+  // skip to right position in search key only
+  for (unsigned i = 0; i < start; i++) {
+    jam();
+    searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
+  }
   int ret = 0;
   while (start < numAttrs) {
     if (len2 <= AttributeHeaderSize) {
@@ -41,22 +44,21 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
       break;
     }
     len2 -= AttributeHeaderSize;
-    if (*searchKey != 0) {
+    if (! searchKey.ah().isNULL()) {
       if (! entryData.ah().isNULL()) {
         jam();
         // current attribute
         const DescAttr& descAttr = descEnt.m_descAttr[start];
-        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
-        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
         // full data size
         const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
         ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
         const unsigned size2 = min(size1, len2);
         len2 -= size2;
         // compare
-        const Uint32* const p1 = *searchKey;
+        NdbSqlUtil::Cmp* const cmp = c_sqlCmp[start];
+        const Uint32* const p1 = &searchKey[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        ret = (*type.m_cmp)(p1, p2, size1, size2);
+        ret = (*cmp)(0, p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           break;
@@ -75,7 +77,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
         break;
       }
     }
-    searchKey += 1;
+    searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
     entryData += AttributeHeaderSize + entryData.ah().getDataSize();
     start++;
   }
@@ -83,60 +85,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
 }
 
 /*
- * Search key vs tree entry.
- *
- * Start position is updated as in previous routine.
- */
-int
-Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, TableData entryKey)
-{
-  const unsigned numAttrs = frag.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  // skip to right position
-  searchKey += start;
-  entryKey += start;
-  int ret = 0;
-  while (start < numAttrs) {
-    if (*searchKey != 0) {
-      if (*entryKey != 0) {
-        jam();
-        // current attribute
-        const DescAttr& descAttr = descEnt.m_descAttr[start];
-        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
-        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
-        // full data size
-        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-        // compare
-        const Uint32* const p1 = *searchKey;
-        const Uint32* const p2 = *entryKey;
-        ret = (*type.m_cmp)(p1, p2, size1, size1);
-        if (ret != 0) {
-          jam();
-          break;
-        }
-      } else {
-        jam();
-        // not NULL > NULL
-        ret = +1;
-        break;
-      }
-    } else {
-      if (*entryKey != 0) {
-        jam();
-        // NULL < not NULL
-        ret = -1;
-        break;
-      }
-    }
-    searchKey += 1;
-    entryKey += 1;
-    start++;
-  }
-  return ret;
-}
-
-/*
- * Scan bound vs node prefix.
+ * Scan bound vs node prefix or entry.
  *
  * Compare lower or upper bound and index attribute data.  The attribute
  * data may be partial in which case CmpUnknown may be returned.
@@ -183,9 +132,8 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         jam();
         // current attribute
         const unsigned index = boundInfo.ah().getAttributeId();
+        ndbrequire(index < frag.m_numAttrs);
         const DescAttr& descAttr = descEnt.m_descAttr[index];
-        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
-        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
         ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
         // full data size
         const unsigned size1 = boundInfo.ah().getDataSize();
@@ -193,9 +141,10 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         const unsigned size2 = min(size1, len2);
         len2 -= size2;
         // compare
+        NdbSqlUtil::Cmp* const cmp = c_sqlCmp[index];
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        int ret = (*type.m_cmp)(p1, p2, size1, size2);
+        int ret = (*cmp)(0, p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           return ret;
@@ -237,75 +186,6 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
      * included in the range) then the boundary is to the right of all
      * equal keys.
      */
-    if (type == 3) {
-      jam();
-      return -1;
-    }
-    return +1;
-  }
-}
-
-/*
- * Scan bound vs tree entry.
- */
-int
-Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, TableData entryKey)
-{
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  // direction 0-lower 1-upper
-  ndbrequire(dir <= 1);
-  // initialize type to equality
-  unsigned type = 4;
-  while (boundCount != 0) {
-    // get and skip bound type
-    type = boundInfo[0];
-    boundInfo += 1;
-    if (! boundInfo.ah().isNULL()) {
-      if (*entryKey != 0) {
-        jam();
-        // current attribute
-        const unsigned index = boundInfo.ah().getAttributeId();
-        const DescAttr& descAttr = descEnt.m_descAttr[index];
-        const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
-        ndbassert(type.m_typeId != NdbSqlUtil::Type::Undefined);
-        // full data size
-        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-        // compare
-        const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
-        const Uint32* const p2 = *entryKey;
-        int ret = (*type.m_cmp)(p1, p2, size1, size1);
-        if (ret != 0) {
-          jam();
-          return ret;
-        }
-      } else {
-        jam();
-        // not NULL > NULL
-        return +1;
-      }
-    } else {
-      jam();
-      if (*entryKey != 0) {
-        jam();
-        // NULL < not NULL
-        return -1;
-      }
-    }
-    boundInfo += AttributeHeaderSize + boundInfo.ah().getDataSize();
-    entryKey += 1;
-    boundCount -= 1;
-  }
-  if (dir == 0) {
-    // lower bound
-    jam();
-    if (type == 1) {
-      jam();
-      return +1;
-    }
-    return -1;
-  } else {
-    // upper bound
-    jam();
     if (type == 3) {
       jam();
       return -1;
