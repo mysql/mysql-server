@@ -31,6 +31,7 @@ extern char* slave_load_tmpdir;
 extern my_string master_info_file,relay_log_info_file;
 extern my_string opt_relay_logname, opt_relaylog_index_name;
 extern bool opt_skip_slave_start;
+extern ulong relay_log_space_limit;
 struct st_master_info;
 
 /*
@@ -153,6 +154,9 @@ typedef struct st_relay_log_info
   bool log_pos_current;
   bool abort_pos_wait;
   bool skip_log_purge;
+  ulonglong log_space_limit,log_space_total;
+  pthread_mutex_t log_space_lock;
+  pthread_cond_t log_space_cond;
   
   st_relay_log_info():info_fd(-1),cur_log_fd(-1),inited(0),
 		      cur_log_init_count(0),
@@ -163,17 +167,21 @@ typedef struct st_relay_log_info
       bzero(&info_file,sizeof(info_file));
       pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
       pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
+      pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
       pthread_cond_init(&data_cond, NULL);
       pthread_cond_init(&start_cond, NULL);
       pthread_cond_init(&stop_cond, NULL);
+      pthread_cond_init(&log_space_cond, NULL);
     }
   ~st_relay_log_info()
     {
       pthread_mutex_destroy(&run_lock);
       pthread_mutex_destroy(&data_lock);
+      pthread_mutex_destroy(&log_space_lock);
       pthread_cond_destroy(&data_cond);
       pthread_cond_destroy(&start_cond);
       pthread_cond_destroy(&stop_cond);
+      pthread_cond_destroy(&log_space_cond);
     }
   inline void inc_pending(ulonglong val)
   {

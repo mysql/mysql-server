@@ -751,7 +751,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
     need_relay_log_purge = 0;
     mi->rli.skip_log_purge=1;
     strnmov(mi->rli.relay_log_name,lex_mi->relay_log_name,
-	    sizeof(mi->rli.relay_log_name));
+	    sizeof(mi->rli.relay_log_name)-1);
   }
 
   if (lex_mi->relay_log_pos)
