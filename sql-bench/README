@@ -44,17 +44,16 @@ test-ATIS.sh		Creation of 29 tables and a lot of selects on them.
 test-connect.sh		Test how fast a connection to the server is.
 test-create.sh		Test how fast a table is created.
 test-insert.sh		Test create and fill of a table.
-test-wisconsin.sh	This is a port of the PostgreSQL version of this
-			benchmark.
+test-wisconsin.sh	A port of the PostgreSQL version of this benchmark.
 run-all-tests		Use this to run all tests. When all tests are run,
-			use the --log --use-old option to get a RUN-file.
+			use the --log and --use-old options to get a RUN-file.
 compare-results		Generates a comparison table from different RUN files.
-server-cfg		Contains the limit and functions for all supported
+server-cfg		Contains the limits and functions for all supported
 			SQL servers.  If you want to add a new server, this
 			should be the only file that neads to be changed.
 
 
-Most of the test should use portable SQL to make it possible to
+Most of the tests should use portable SQL to make it possible to
 compare different databases. Sometimes SQL extensions can make things
 a lot faster. In this case the test may use the extensions if the --fast
 option is used.
