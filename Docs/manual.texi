@@ -13638,6 +13638,7 @@ be chosen from the list of values @code{'value1'}, @code{'value2'},
 
 @cindex storage requirements, column type
 @cindex columns, storage requirements
+
 @node Storage requirements, Numeric types, Column types, Column types
 @subsection Column Type Storage Requirements
 
@@ -13646,7 +13647,8 @@ The storage requirements for each of the column types supported by
 
 @cindex numeric types
 @cindex types, numeric
-@subheading Storage requirements for numeric types
+
+@subsubheading Storage requirements for numeric types
 
 @multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
@@ -13669,7 +13671,8 @@ The storage requirements for each of the column types supported by
 @cindex time types
 @cindex types, date
 @cindex types, time
-@subheading Storage requirements for date and time types
+
+@subsubheading Storage requirements for date and time types
 
 @multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
@@ -13680,7 +13683,7 @@ The storage requirements for each of the column types supported by
 @item @code{YEAR}          @tab 1 byte
 @end multitable
 
-@subheading Storage requirements for string types
+@subsubheading Storage requirements for string types
 
 @multitable @columnfractions .5 .5
 @item @strong{Column type} @tab @strong{Storage required}
