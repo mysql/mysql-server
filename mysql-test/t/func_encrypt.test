@@ -1,0 +1,46 @@
+-- source include/have_openssl.inc
+
+use test;
+drop  table if exists x;
+create table x (x blob);
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('a','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','a'));
+insert into x values (des_encrypt('ab','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','ab'));
+insert into x values (des_encrypt('abc','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abc'));
+insert into x values (des_encrypt('abcd','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcd'));
+insert into x values (des_encrypt('abcde','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcde'));
+insert into x values (des_encrypt('abcdef','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcdef'));
+insert into x values (des_encrypt('abcdefg','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcdefg'));
+insert into x values (des_encrypt('abcdefgh','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcdefgh'));
+insert into x values (des_encrypt('abcdefghi','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcdefghi'));
+insert into x values (des_encrypt('abcdefghij','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcdefghij'));
+insert into x values (des_encrypt('abcdefghijk','The quick red fox jumped over the lazy brown dog'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','abcdefghijk'));
+insert into x values (des_encrypt('The quick red fox jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('quick red fox jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('red fox jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('fox jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('lazy brown dog','sabakala'));
+insert into x values (des_encrypt('brown dog','sabakala'));
+insert into x values (des_encrypt('dog','sabakala'));
+insert into x values (des_encrypt('jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('jumped over the lazy brown dog','sabakala'));
+insert into x values (des_encrypt('jumped over the lazy brown dog','sabakala'));
+select * from x;
+select des_decrypt(x,'sabakala') from x;
+#drop table x;
+
+
