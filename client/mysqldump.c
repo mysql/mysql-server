@@ -2107,10 +2107,10 @@ static void get_actual_table_name(const char *old_table_name,
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
-  char query[ NAME_LEN + 50 ];
+  char query[2*NAME_LEN+50];
+  char show_name_buff[FN_REFLEN];
   DBUG_ENTER("get_actual_table_name");
 
-  char show_name_buff[FN_REFLEN];
   sprintf(query, "SHOW TABLES LIKE %s", 
 	  quote_for_like(old_table_name, show_name_buff));
   if (mysql_query_with_error_report(sock, 0, query))
