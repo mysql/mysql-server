@@ -551,7 +551,8 @@ Works on many different platforms.  @xref{Which OS}.
 Uses GNU Automake (1.4), Autoconf (Version 2.52 or newer), and Libtool for
 portability.
 @item
-APIs for C, C++, Eiffel, Java, Perl, PHP, Python, and Tcl.  @xref{Clients}.
+APIs for C, C++, Eiffel, Java, Perl, PHP, Python, Ruby, and Tcl.
+@xref{Clients}.
 @item
 Fully multi-threaded using kernel threads.  This means it can easily
 use multiple CPUs if available.
@@ -4918,7 +4919,7 @@ don't know the PostgreSQL roadmap.
 @multitable @columnfractions .30 .30
 @item @strong{Feature}                     @tab @strong{MySQL version}
 @item Subselects                           @tab 4.1
-@item Foreign keys                         @tab 4.1
+@item Foreign keys                         @tab 4.1 (3.23 with InnoDB)
 @item Views                                @tab 5.0
 @item Stored procedures                    @tab 5.0
 @item Triggers                             @tab 5.0
@@ -8175,7 +8176,7 @@ Renamed mysqld startup options @code{--skip-locking} to
 @code{SHOW MASTER STATUS} now returns an empty set if binary log is not
 enabled.
 @item
-@code{SHOW SLAVE STATUS} now returns an empty set if slave is not initialized.
+@code{SHOW SLAVE STATUS} now returns an empty set if slave is not initialised.
 @item
 mysqld now has the option @code{--temp-pool} enabled by default as this
 gives better performance with some OS.
@@ -50265,7 +50266,8 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
 
 @itemize @bullet
-@item Fixed all boolean type variables to work with the old syntax,
+@item
+Fixed all boolean type variables/options to work with the old syntax,
 e.g. all of these work: --lower-case-table-names, --lower-case-table-names=1,
 -O lower-case-table-names=1, --set-variable=lower-case-table-names=1
 @item
@@ -50274,14 +50276,14 @@ Fixed shutdown problem (SIGTERM signal handling) on Solaris. (Bug from 4.0.2).
 @code{SHOW MASTER STATUS} now returns an empty set if binary log is not
 enabled.
 @item
-@code{SHOW SLAVE STATUS} now returns an empty set if slave is not initialized.
+@code{SHOW SLAVE STATUS} now returns an empty set if slave is not initialised.
 @item
 Don't update MyISAM index file on update if not strictly necessary.
 @item
 Fixed bug in @code{SELECT DISTINCT ... FROM many_tables ORDER BY
 not-used-column}.
 @item
-Fixed a bug with bigint's and quoted strings.
+Fixed a bug with @code{BIGINT}s and quoted strings.
 @item
 Added @code{QUOTE()} function that performs SQL quoting to produce values
 that can be used as data values in queries.
