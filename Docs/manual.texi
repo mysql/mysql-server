@@ -24699,7 +24699,8 @@ master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
 setup unless your client code is written to take care of the potential
 problems that can happen from updates that occur in different sequence
-on different servers
+on different servers. Note that the log format has changed in 3.23.26 
+so that pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
 terminate, and a message will appear in @code{.err} file. You should
@@ -24736,7 +24737,11 @@ this.
 @item
 Starting in 3.23.19 you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
-and @code{FLUSH SLAVE} commands
+and @code{FLUSH SLAVE} commands. In 3.23.26 we have renamed them to
+@code{RESET MASTER} and @code{RESET SLAVE} respectively to clarify
+what they do. The old @code{FLUSH} variants still work, though for 
+compatibility.
+
 @item
 Starting in 3.23.21 you can use LOAD TABLE FROM MASTER for network
 backup and to set up replication initially.
@@ -24771,7 +24776,9 @@ location. Note that if you give it a parameter with an extention
 @code{FLUSH LOGS} . The problem is fixed
 in 3.23.25. If you are using this kind of log name, @code{FLUSH LOGS}
 will be ignored on binlog. To clear the log, run @code{FLUSH MASTER},
-and do not forget to run @code{FLUSH SLAVE} on all slaves.
+and do not forget to run @code{FLUSH SLAVE} on all slaves. In 3.23.26
+and later versions you should use @code{RESET MASTER} and @code{RESET
+SLAVE}
 
 @item
 @code{log-bin-index}
@@ -24907,13 +24914,14 @@ summary of commands:
 @item @code{SET SQL_LOG_BIN=1}
  @tab Re-enable update logging (Master)
 
-@item @code{FLUSH MASTER}
+@item @code{RESET MASTER}
  @tab Deletes all binary logs listed in the index file, resetting the binlog
-index file to be empty. (Master)
+index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
 
-@item @code{FLUSH SLAVE}
+@item @code{RESET SLAVE}
  @tab Makes the slave forget its replication position in the master
-logs. (Slave)
+logs. In pre 3.23.26 versions the command was called 
+@code{FLUSH SLAVE}(Slave)
 
 @item @code{LOAD TABLE tblname FROM MASTER}
  @tab Downloads a copy of the table from master to the slave. (Slave)
@@ -25183,7 +25191,7 @@ use @code{nsupdate} to dynamically update your DNS
 @item
 You should run your slaves with @code{log-bin} option and without
 @code{log-slave-updates}. This way the slave will be ready to become a
-master as soon as you issue @code{STOP SLAVE}; @code{FLUSH MASTER}, and
+master as soon as you issue @code{STOP SLAVE}; @code{RESET MASTER}, and
 @code{CHANGE MASTER TO} on the other slaves. It will also help you catch
 spurious updates that may happen because of misconfiguration of the
 slave ( ideally, you want to configure access rights so that no client
