@@ -30,6 +30,7 @@ int
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status, unsigned int _timeout);
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _hostName = NULL;
   int _no_contact = 0;
