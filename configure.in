@@ -1142,8 +1142,8 @@ dnl Is this the right match for DEC OSF on alpha?
       fi
       echo "Adding defines for OSF1"
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
-      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_ZERO"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_ZERO"
       # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
       CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include -I/usr/include.dtk"
     ;;
