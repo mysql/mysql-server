@@ -3706,6 +3706,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	new_field->field_name=item->name;
       if (org_field->maybe_null())
 	new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
+      if (org_field->type()==FIELD_TYPE_VAR_STRING)
+	table->db_create_options|= HA_OPTION_PACK_RECORD;
     }
     return new_field;
   }
