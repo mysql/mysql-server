@@ -2021,15 +2021,15 @@ select period as "Nuvarande period" from t1 group by "Nuvarande period" limit 1;
 Nuvarande period
 9410
 show tables;
-Tables_in_test
-t1
-t2
-t3
-t4
+Tables_in_test	Type
+t1	table
+t2	table
+t3	table
+t4	table
 show tables from test like "s%";
-Tables_in_test (s%)
+Tables_in_test (s%)	Type
 show tables from test like "t?";
-Tables_in_test (t?)
+Tables_in_test (t?)	Type
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(11)	NULL		PRI	NULL	auto_increment	select,insert,update,references	

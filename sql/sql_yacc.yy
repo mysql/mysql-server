@@ -192,6 +192,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %token	ACTION
 %token	AGGREGATE_SYM
+%token	ALGORITHM_SYM
 %token	ALL
 %token	AND_SYM
 %token	AS
@@ -210,6 +211,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	BYTE_SYM
 %token	CACHE_SYM
 %token	CASCADE
+%token  CASCADED
 %token	CAST_SYM
 %token	CHARSET
 %token	CHECKSUM_SYM
@@ -302,6 +304,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	LONG_NUM
 %token	LONG_SYM
 %token	LOW_PRIORITY
+%token	MERGE_SYM
 %token	MASTER_HOST_SYM
 %token	MASTER_USER_SYM
 %token	MASTER_LOG_FILE_SYM
@@ -402,6 +405,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	TABLE_SYM
 %token	TABLESPACE
 %token	TEMPORARY
+%token	TEMPTABLE_SYM
 %token	TERMINATED
 %token	TEXT_STRING
 %token	TO_SYM
@@ -431,6 +435,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	VALUE_SYM
 %token	VALUES
 %token	VARIABLES
+%token	VIEW_SYM
 %token	WHERE
 %token	WITH
 %token	WRITE_SYM
@@ -774,7 +779,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
         prepare prepare_src execute deallocate 
-	statement sp_suid
+	statement sp_suid opt_view_list view_list or_replace algorithm
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic sp_a_chistic
 END_OF_INPUT
 
@@ -1182,7 +1187,19 @@ create:
 	    if (lex->sphead->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    lex->sphead->restore_thd_mem_root(YYTHD);
-	  } 
+	  }
+	| CREATE or_replace algorithm VIEW_SYM table_ident
+	  {
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+	    lex->sql_command= SQLCOM_CREATE_VIEW;
+	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	    /* first table in list is target VIEW name */
+	    if (!lex->select_lex.add_table_to_list(thd, $5, NULL, 0))
+              YYABORT;
+	  }
+	  opt_view_list AS select_init check_option
+	  {}
 	;
 
 sp_name:
@@ -2177,6 +2194,10 @@ create_select:
 	      lex->sql_command= SQLCOM_INSERT_SELECT;
 	    else if (lex->sql_command == SQLCOM_REPLACE)
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
+	    /*
+	      following work only with local list, global list is
+	      created correctly in this case
+	    */
 	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
 	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
@@ -2186,7 +2207,13 @@ create_select:
 	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
 	  }
 	  opt_select_from
-	  { Lex->current_select->table_list.push_front(&Lex->save_list); }
+	  {
+	    /*
+	      following work only with local list, global list is
+	      created correctly in this case
+	    */
+	    Lex->current_select->table_list.push_front(&Lex->save_list);
+	  }
         ;
 
 opt_as:
@@ -2260,10 +2287,12 @@ create_table_option:
 	    TABLE_LIST *table_list= lex->select_lex.get_table_list();
 	    lex->create_info.merge_list= lex->select_lex.table_list;
 	    lex->create_info.merge_list.elements--;
-	    lex->create_info.merge_list.first= (byte*) (table_list->next);
+	    lex->create_info.merge_list.first=
+	      (byte*) (table_list->next_local);
 	    lex->select_lex.table_list.elements=1;
-	    lex->select_lex.table_list.next= (byte**) &(table_list->next);
-	    table_list->next=0;
+	    lex->select_lex.table_list.next=
+	      (byte**) &(table_list->next_local);
+	    table_list->next_local= 0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
 	| opt_default charset opt_equal charset_name_or_default
@@ -2926,6 +2955,18 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
+	| ALTER VIEW_SYM table_ident
+	  {
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+	    lex->sql_command= SQLCOM_CREATE_VIEW;
+	    lex->create_view_mode= VIEW_ALTER;
+	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	    /* first table in list is target VIEW name */
+	    lex->select_lex.add_table_to_list(thd, $3, NULL, 0);
+	  }
+	  opt_view_list AS select_init
+	  {}
 	;
 
 alter_list:
@@ -3074,9 +3115,10 @@ opt_ignore:
 	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
 
 opt_restrict:
-	/* empty */	{}
-	| RESTRICT	{}
-	| CASCADE	{};
+	/* empty */	{ Lex->drop_mode= DROP_DEFAULT; }
+	| RESTRICT	{ Lex->drop_mode= DROP_RESTRICT; }
+	| CASCADE	{ Lex->drop_mode= DROP_CASCADE; }
+	;
 
 opt_place:
 	/* empty */	{}
@@ -3790,12 +3832,16 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    Lex->uncacheable(UNCACHEABLE_RAND);
+	    LEX *lex= Lex;
+	    lex->uncacheable(UNCACHEABLE_RAND);
+	    lex->variables_used= 1;
 	  }
 	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    Lex->uncacheable(UNCACHEABLE_RAND);
+	    LEX *lex= Lex;
+	    lex->uncacheable(UNCACHEABLE_RAND);
+	    lex->variables_used= 1;
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
@@ -3807,6 +3853,7 @@ simple_expr:
             }
 	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
 	      YYABORT;
+	    Lex->variables_used= 1;
 	  }
 	| sum_expr
 	| '+' expr %prec NEG	{ $$= $2; }
@@ -4646,7 +4693,7 @@ table_factor:
 select_derived:
         {
 	  LEX *lex= Lex;
-	  lex->derived_tables= 1;
+	  lex->derived_tables|= DERIVED_SUBQUERY;
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
@@ -5156,6 +5203,13 @@ drop:
 	  }
 	  user_list
 	  {}
+	| DROP VIEW_SYM if_exists table_list opt_restrict
+	  {
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+	    lex->sql_command= SQLCOM_DROP_VIEW;
+	    lex->drop_if_exists= $3;
+	  }
 	  ;
 
 table_list:
@@ -5634,9 +5688,19 @@ show_param:
 	  }
         | CREATE TABLE_SYM table_ident
           {
-	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if (!Select->add_table_to_list(YYTHD, $3, NULL,0))
+            LEX *lex= Lex;
+	    lex->sql_command = SQLCOM_SHOW_CREATE;
+	    if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL,0))
 	      YYABORT;
+            lex->only_view= 0;
+	  }
+        | CREATE VIEW_SYM table_ident
+          {
+            LEX *lex= Lex;
+	    lex->sql_command = SQLCOM_SHOW_CREATE;
+	    if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0))
+	      YYABORT;
+            lex->only_view= 1;
 	  }
         | MASTER_SYM STATUS_SYM
           {
@@ -6310,6 +6374,7 @@ keyword:
 	| AFTER_SYM		{}
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
+	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
 	| ASCII_SYM		{}
 	| AUTO_INC		{}
@@ -6325,6 +6390,7 @@ keyword:
 	| BYTE_SYM		{}
 	| BTREE_SYM		{}
 	| CACHE_SYM		{}
+	| CASCADED              {}
 	| CHANGED		{}
 	| CHARSET		{}
 	| CHECKSUM_SYM		{}
@@ -6417,6 +6483,7 @@ keyword:
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
 	| MEDIUM_SYM		{}
+	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
@@ -6499,6 +6566,7 @@ keyword:
 	| SUPER_SYM		{}
 	| TABLESPACE		{}
 	| TEMPORARY		{}
+	| TEMPTABLE_SYM		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
 	| TRUNCATE_SYM		{}
@@ -6515,6 +6583,7 @@ keyword:
 	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}
+	| VIEW_SYM		{}
 	| VALUE_SYM		{}
 	| WARNINGS		{}
 	| WEEK_SYM		{}
@@ -6926,8 +6995,10 @@ grant_privilege:
 	| SUPER_SYM	{ Lex->grant |= SUPER_ACL;}
 	| CREATE TEMPORARY TABLES { Lex->grant |= CREATE_TMP_ACL;}
 	| LOCK_SYM TABLES   { Lex->grant |= LOCK_TABLES_ACL; }
-	| REPLICATION SLAVE  { Lex->grant |= REPL_SLAVE_ACL;}
-	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL;}
+	| REPLICATION SLAVE  { Lex->grant |= REPL_SLAVE_ACL; }
+	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL; }
+	| CREATE VIEW_SYM { Lex->grant |= CREATE_VIEW_ACL; }
+	| SHOW VIEW_SYM { Lex->grant |= SHOW_VIEW_ACL; }
 	;
 
 
@@ -7315,4 +7386,42 @@ subselect_end:
 	  LEX *lex=Lex;
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
+
+opt_view_list:
+	/* empty */ {}
+	| '(' view_list ')'
+	;
+
+view_list:
+	ident 
+	  {
+	    Lex->view_list.push_back((LEX_STRING*)
+				     sql_memdup(&$1, sizeof(LEX_STRING)));
+	  }
+	| view_list ',' ident
+	  {
+	    Lex->view_list.push_back((LEX_STRING*)
+				     sql_memdup(&$3, sizeof(LEX_STRING)));
+	  }
+	;
+
+or_replace:
+	/* empty */	 { Lex->create_view_mode= VIEW_CREATE_NEW; }
+	| OR_SYM REPLACE { Lex->create_view_mode= VIEW_CREATE_OR_REPLACE; }
+	;
+
+algorithm:
+	/* empty */
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+	| ALGORITHM_SYM EQ MERGE_SYM
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
+	| ALGORITHM_SYM EQ TEMPTABLE_SYM
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMEPTABLE; }
+	;
+check_option:
+        /* empty */ {}
+        | WITH CHECK_SYM OPTION {}
+        | WITH CASCADED CHECK_SYM OPTION {}
+        | WITH LOCAL_SYM CHECK_SYM OPTION {}
+        ;
 
