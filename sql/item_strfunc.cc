@@ -1477,7 +1477,7 @@ String *Item_func_format::val_str(String *str)
   if (nr < 0)
     str_length--;				// Don't count sign
   length=str->length()+(diff=(str_length- dec-1)/3);
-  if (diff)
+  if (diff && diff < 330) // size of buff ...
   {
     char *tmp,*pos;
     str=copy_if_not_alloced(&tmp_str,str,length);
