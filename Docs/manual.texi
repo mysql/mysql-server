@@ -28370,7 +28370,7 @@ Note that in addition to the above, you can't have ASCII(0) or ASCII(255) or
 the quoting character in an identifier.
 
 Note that if the identifier is a restricted word or contains special characters
-you must always quote it with @code{`} when you use it:
+you must always quote it with a @code{`} (backtick) when you use it:
 
 @example
 mysql> SELECT * FROM `select` WHERE `select`.id > 100;
