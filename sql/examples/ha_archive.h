@@ -14,6 +14,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifdef __GNUC__
+#pragma interface			/* gcc class implementation */
+#endif
+
 #include <zlib.h>
 
 /*
@@ -66,7 +70,7 @@ public:
   ulong table_flags() const
   {
     return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_WRITE_DELAYED |
-            HA_NO_AUTO_INCREMENT );
+            HA_NO_AUTO_INCREMENT);
   }
   ulong index_flags(uint inx) const
   {
@@ -83,11 +87,9 @@ public:
   /*
     Called in test_quick_select to determine if indexes should be used.
   */
-  virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
+  virtual double scan_time() { return (double) (records) / 20.0+10; }
   /* The next method will never be called */
   virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
-  virtual bool fast_key_read() { return 1;}
-
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
@@ -104,7 +106,7 @@ public:
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
-  int ha_archive::read_row(byte *buf);
+  int get_row(byte *buf);
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
