@@ -2955,8 +2955,9 @@ String *Item_func_compress::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  
-  int4store(buffer.c_ptr(),res->length() & 0x3FFFFFFF);
+
+  char *tmp= buffer.c_ptr();	// int4store is a macro; avoid side effects
+  int4store(tmp, res->length() & 0x3FFFFFFF);
 
   /* This is for the stupid char fields which trim ' ': */
   char *last_char= ((char*)body)+new_size-1;
