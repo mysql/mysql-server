@@ -297,6 +297,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     {						// Get auto increment value
       id= thd->last_insert_id;
     }
+    thd->row_count++;
   }
   if (lock_type == TL_WRITE_DELAYED)
   {

@@ -315,6 +315,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
+    thd->row_count++;
   }
   end_read_record(&info);
   thd->proc_info="end";

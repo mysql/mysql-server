@@ -121,7 +121,7 @@ set_field_to_null(Field *field)
   field->reset();
   if (current_thd->count_cuted_fields)
   {
-    current_thd->cuted_fields++;		// Increment error counter
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_DATA_TRUNCATED);
     return 0;
   }
   if (!current_thd->no_errors)
@@ -175,7 +175,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return 0;					// field is set in handler.cc
   if (current_thd->count_cuted_fields)
   {
-    current_thd->cuted_fields++;		// Increment error counter
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_NULL_TO_NOTNULL);
     return 0;
   }
   if (!current_thd->no_errors)
@@ -225,7 +225,8 @@ static void do_copy_not_null(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
   {
-    current_thd->cuted_fields++;
+    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      ER_WARN_DATA_TRUNCATED);
     copy->to_field->reset();
   }
   else
@@ -324,7 +325,8 @@ static void do_cut_string(Copy_field *copy)
   {
     if (!my_isspace(system_charset_info, *ptr))	// QQ: ucs incompatible
     {
-      current_thd->cuted_fields++;		// Give a warning
+      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+        ER_WARN_DATA_TRUNCATED);
       break;
     }
   }
@@ -344,7 +346,8 @@ static void do_varstring(Copy_field *copy)
   {
     length=copy->to_length-2;
     if (current_thd->count_cuted_fields)
-      current_thd->cuted_fields++;		// Increment error counter
+      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      ER_WARN_DATA_TRUNCATED);
   }
   int2store(copy->to_ptr,length);
   memcpy(copy->to_ptr+2, copy->from_ptr,length);

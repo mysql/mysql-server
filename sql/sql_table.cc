@@ -2383,6 +2383,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       handle_duplicates == DUP_REPLACE)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   next_field=to->next_number_field;
+  thd->row_count= 0;
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -2391,6 +2392,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       error= 1;
       break;
     }
+    thd->row_count++;
     if (next_field)
       next_field->reset();
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
@@ -2408,7 +2410,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       delete_count++;
     }
     else
-      found_count++;
+      found_count++;    
   }
   end_read_record(&info);
   free_io_cache(from);

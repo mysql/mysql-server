@@ -5018,6 +5018,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     ha_rows found_records=join->found_records;
     READ_RECORD *info= &join_tab->read_record;
 
+    join->thd->row_count= 0;
     do
     {
       if (join->thd->killed)			// Aborted by user
@@ -5026,6 +5027,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	return -2;				/* purecov: inspected */
       }
       join->examined_rows++;
+      join->thd->row_count++;
       if (!on_expr || on_expr->val_int())
       {
 	found=1;

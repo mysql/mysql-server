@@ -1010,6 +1010,7 @@ err:
 
 bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 {
+  bool not_used;
   char buff[80], *error= 0;
   uint error_len= 0;
   String str(buff, sizeof(buff), system_charset_info), *res;
@@ -1019,7 +1020,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
     if (!(res= var->value->val_str(&str)))
       goto err;
     var->save_result.ulong_value= (ulong)
-      find_set(enum_names, res->c_ptr(), res->length(), &error, &error_len);
+      find_set(enum_names, res->c_ptr(), res->length(), &error, &error_len, &not_used);
     if (error_len)
     {
       strmake(buff, error, min(sizeof(buff), error_len));

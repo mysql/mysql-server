@@ -210,6 +210,8 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual void set_charset(CHARSET_INFO *charset) { }
+  virtual void set_warning(const unsigned int level, 
+                           const unsigned int code);
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -1108,7 +1110,7 @@ bool set_field_to_null(Field *field);
 bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
 uint find_enum(TYPELIB *typelib,const char *x, uint length);
 ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
-		   char **err_pos, uint *err_len);
+		   char **err_pos, uint *err_len, bool *set_warning);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
 
