@@ -15,6 +15,7 @@ Subject: bk commit
 
 EOF
   bk changes -v -r+
+  bk cset -r+ -d
  ) | /usr/sbin/sendmail -t
 else
  echo "commit failed because '$BK_COMMIT', sorry life is hard..." 

@@ -120,6 +120,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
+extern ulonglong safemalloc_mem_limit;
 #else
 #define my_checkmalloc() (0)
 #define TERMINATE(A) {}

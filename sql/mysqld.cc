@@ -248,9 +248,6 @@ double log_10[32];			/* 10 potences */
 I_List<THD> threads,thread_cache;
 time_t start_time;
 
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
-extern ulonglong safemalloc_mem_limit;
-#endif
 
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
