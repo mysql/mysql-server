@@ -21,6 +21,8 @@
 
 #include "mymrgdef.h"
 
+static MYRG_TABLE *find_table(MYRG_TABLE *start,MYRG_TABLE *end,ulonglong pos);
+
 /*
   	If filepos == HA_OFFSET_ERROR, read next
 	Returns same as mi_rrnd:
@@ -33,6 +35,8 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
 {
   int error;
   MI_INFO *isam_info;
+  DBUG_ENTER("myrg_rrnd");
+  DBUG_PRINT("info",("offset: 0x%016qx", (ulonglong)filepos));
 
   if (filepos == HA_OFFSET_ERROR)
   {
@@ -40,7 +44,7 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
     {
       if (info->open_tables == info->end_table)
       {						/* No tables */
-	return (my_errno=HA_ERR_END_OF_FILE);
+	DBUG_RETURN(my_errno=HA_ERR_END_OF_FILE);
       }
       isam_info=(info->current_table=info->open_tables)->table;
       if (info->cache_in_use)
@@ -60,11 +64,11 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
       if ((error=(*isam_info->s->read_rnd)(isam_info,(byte*) buf,
 					   (my_off_t) filepos,1)) !=
 	  HA_ERR_END_OF_FILE)
-	return (error);
+	DBUG_RETURN(error);
       if (info->cache_in_use)
 	mi_extra(info->current_table->table,HA_EXTRA_NO_CACHE);
       if (info->current_table+1 == info->end_table)
-	return(HA_ERR_END_OF_FILE);
+	DBUG_RETURN(HA_ERR_END_OF_FILE);
       info->current_table++;
       info->last_used_table=info->current_table;
       if (info->cache_in_use)
@@ -78,31 +82,34 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
       isam_info->lastinx= (uint) -1;
     }
   }
-  info->current_table=_myrg_find_table(info,filepos);
+  info->current_table=find_table(info->open_tables,
+				 info->end_table-1,filepos);
   isam_info=info->current_table->table;
   isam_info->update&= HA_STATE_CHANGED;
-  return ((*isam_info->s->read_rnd)
-	  (isam_info, (byte*) buf,
-	   (ha_rows) (filepos - info->current_table->file_offset),
-	   0));
+  DBUG_RETURN((*isam_info->s->read_rnd)
+              (isam_info, (byte*) buf,
+	      (ha_rows) (filepos - info->current_table->file_offset),
+	      0));
 }
 
 
 	/* Find which table to use according to file-pos */
 
-MYRG_TABLE *_myrg_find_table(MYRG_INFO *info, ulonglong pos)
+static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,
+			      ulonglong pos)
 {
-  MYRG_TABLE *t;
+  MYRG_TABLE *mid;
+  DBUG_ENTER("find_table");
 
-  info->records=info->del=info->data_file_length=0;
-
-  for (t=info->open_tables ; t < info->end_table ; t++)
+  while (start != end)
   {
-    t->file_offset=info->data_file_length;
-    if (pos < t->file_offset) return t-1;
-    info->data_file_length+=t->table->state->data_file_length;
-    info->records+=t->table->state->records;
-    info->del+=t->table->state->del;
+    mid=start+((uint) (end-start)+1)/2;
+    if (mid->file_offset > pos)
+      end=mid-1;
+    else
+      start=mid;
   }
-  return t-1;
+  DBUG_PRINT("info",("offset: 0x%016qx, table: %s",
+                    (ulonglong)pos, start->table->filename));
+  DBUG_RETURN(start);
 }
