@@ -3015,12 +3015,8 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
 }
 
 
-static const char *ha_ndb_bas_ext[]= { ha_ndb_ext, NullS };
-const char**
-ha_ndbcluster::bas_ext() const
-{   
-  return ha_ndb_bas_ext; 
-}
+static const char *ha_ndb_bas_exts[]= { ha_ndb_ext, NullS };
+{ return ha_ndb_bas_exts; }
 
 
 /*
