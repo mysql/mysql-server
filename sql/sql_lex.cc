@@ -1005,6 +1005,7 @@ void st_select_lex::init_query()
   first_execution= 1;
   first_cond_optimization= 1;
   parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  no_wrap_view_item= 0;
 }
 
 void st_select_lex::init_select()
