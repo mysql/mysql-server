@@ -462,7 +462,7 @@ public:
 };
 
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
 class sys_var_slave_skip_counter :public sys_var
 {
 public:
@@ -474,6 +474,14 @@ public:
     We can't retrieve the value of this, so we don't have to define
     type() or value_ptr()
   */
+};
+
+class sys_var_sync_binlog_period :public sys_var_long_ptr
+{
+public:
+  sys_var_sync_binlog_period(const char *name_arg, ulong *value_ptr)
+    :sys_var_long_ptr(name_arg,value_ptr) {}
+  bool update(THD *thd, set_var *var);
 };
 #endif
 
