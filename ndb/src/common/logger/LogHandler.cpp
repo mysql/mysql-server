@@ -76,15 +76,15 @@ LogHandler::append_impl(const char* pCategory, Logger::LoggerLevel level,
 			const char* pMsg)
 {
   writeHeader(pCategory, level);
-  if (m_count_repeated_messages == 0)
+  if (m_count_repeated_messages <= 1)
     writeMessage(pMsg);
   else
   {
     BaseString str(pMsg);
     str.appfmt(" - Repeated %d times", m_count_repeated_messages);
     writeMessage(str.c_str());
-    m_count_repeated_messages= 0;
   }
+  m_count_repeated_messages= 0;
   writeFooter();
 }
 

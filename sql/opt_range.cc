@@ -2562,7 +2562,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   char *key_ptr= (char*) key_val;
   SEL_ARG *sel_arg, *tuple_arg= NULL;
   bool cur_covered;
-  bool prev_covered= bitmap_is_set(&info->covered_fields, key_part->fieldnr);
+  bool prev_covered= test(bitmap_is_set(&info->covered_fields,
+                                        key_part->fieldnr));
   key_range min_range;
   key_range max_range;
   min_range.key= (byte*) key_val;
@@ -2575,7 +2576,9 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   for(i= 0, sel_arg= scan->sel_arg; sel_arg;
       i++, sel_arg= sel_arg->next_key_part)
   {
-    cur_covered= bitmap_is_set(&info->covered_fields, (key_part + i)->fieldnr);
+    DBUG_PRINT("info",("sel_arg step"));
+    cur_covered= test(bitmap_is_set(&info->covered_fields,
+                                    (key_part + i)->fieldnr));
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
@@ -7027,8 +7030,12 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                        cur_group_key_parts, tree, cur_index_tree,
                        cur_quick_prefix_records, have_min, have_max,
                        &cur_read_cost, &cur_records);
-
-    if (cur_read_cost < best_read_cost)
+    /*
+      If cur_read_cost is lower than best_read_cost use cur_index.
+      Do not compare doubles directly because they may have different
+      representations (64 vs. 80 bits).
+    */
+    if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
       index_info= cur_index_info;
       index= cur_index;

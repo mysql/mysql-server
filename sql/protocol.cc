@@ -59,6 +59,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   uint length;
   char buff[MYSQL_ERRMSG_SIZE+2], *pos;
 #endif
+  const char *orig_err= err;
   NET *net= &thd->net;
   DBUG_ENTER("net_send_error");
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,
@@ -91,6 +92,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
 	err=ER(sql_errno);	 /* purecov: inspected */
       }
     }
+    orig_err= err;
   }
 
 #ifdef EMBEDDED_LIBRARY
@@ -129,6 +131,8 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
 #endif  /* EMBEDDED_LIBRARY*/
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno,
+	       orig_err ? orig_err : ER(sql_errno));
   thd->is_fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
 
@@ -242,6 +246,8 @@ net_printf_error(THD *thd, uint errcode, ...)
   strmake(net->last_error, text_pos, length);
   strmake(net->sqlstate, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
 #endif
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, errcode,
+	       text_pos ? text_pos : ER(errcode));
   thd->is_fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }

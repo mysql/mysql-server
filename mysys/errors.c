@@ -49,6 +49,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't create symlink '%s' pointing at '%s' (Error %d)",
   "Error on realpath() on '%s' (Error %d)",
   "Can't sync file '%s' to disk (Errcode: %d)",
+  "Collation '%s' is not a compiled collation and is not specified in the '%s' file",
 };
 
 void init_glob_errs(void)
@@ -87,5 +88,6 @@ void init_glob_errs()
   EE(EE_CANT_SYMLINK)=	"Can't create symlink '%s' pointing at '%s' (Error %d)";
   EE(EE_REALPATH)=	"Error on realpath() on '%s' (Error %d)";
   EE(EE_SYNC)=		"Can't sync file '%s' to disk (Errcode: %d)";
+  EE(EE_UNKNOWN_COLLATION)= "Collation '%s' is not a compiled collation and is not specified in the %s file";
 }
 #endif

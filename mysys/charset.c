@@ -64,7 +64,7 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
     else if (my_mbcharlen(cs, i)>1)
       state_map[i]=(uchar) MY_LEX_IDENT;
 #endif
-    else if (!my_isgraph(cs,i))
+    else if (my_isspace(cs,i))
       state_map[i]=(uchar) MY_LEX_SKIP;
     else
       state_map[i]=(uchar) MY_LEX_CHAR;
@@ -530,7 +530,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   {
     char index_file[FN_REFLEN];
     strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
-    my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
+    my_error(EE_UNKNOWN_COLLATION, MYF(ME_BELL), cs_name, index_file);
   }
 
   return cs;
