@@ -1599,24 +1599,42 @@ void  st_table_list::calc_md5(char *buffer)
 /*
   set ancestor TABLE for table place holder of VIEW
 
+  DESCRIPTION
+    Replace all views that only uses one table with the table itself.
+    This allows us to treat the view as a simple table and even update
+    it
+
   SYNOPSIS
     st_table_list::set_ancestor()
 */
 
 void st_table_list::set_ancestor()
 {
-  /* process all tables of view */
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  TABLE_LIST *tbl;
+
+  if ((tbl= ancestor))
   {
-    if (tbl->ancestor)
-      ancestor->set_ancestor();
-    tbl->table->grant= grant;
-  }
-  /* if view contain only one table, substitute TABLE of it */
-  if (ancestor && !ancestor->next_local)
-  {
-    table= ancestor->table;
-    schema_table= ancestor->schema_table;
+    /* This is a view. Process all tables of view */
+    DBUG_ASSERT(view);
+    do
+    {
+      if (tbl->ancestor)                        // This is a view
+      {
+        /*
+          This is the only case where set_ancestor is called on an object
+          that may not be a view (in which case ancestor is 0)
+        */
+        tbl->ancestor->set_ancestor();
+      }
+      tbl->table->grant= grant;
+    } while ((tbl= tbl->next_local));
+
+    /* if view contain only one table, substitute TABLE of it */
+    if (!ancestor->next_local)
+    {
+      table= ancestor->table;
+      schema_table= ancestor->schema_table;
+    }
   }
 }
 
@@ -1679,6 +1697,8 @@ void st_table_list::restore_want_privilege()
     conds           - condition of this JOIN
     check_opt_type  - WHITH CHECK OPTION type (VIEW_CHECK_NONE,
                       VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
+  NOTES
+    ancestor is list of tables and views used by view
 
   DESCRIPTION
     It is:
@@ -1689,8 +1709,8 @@ void st_table_list::restore_want_privilege()
     If there are underlying view(s) procedure first will be called for them.
 
   RETURN
-    0 - OK
-    1 - error
+    FALSE - OK
+    TRUE  - error
 */
 
 bool st_table_list::setup_ancestor(THD *thd, Item **conds,
@@ -1709,6 +1729,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   bool save_set_query_id= thd->set_query_id;
   bool save_wrapper= select_lex->no_wrap_view_item;
   bool save_allow_sum_func= thd->allow_sum_func;
+  bool res= FALSE;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
   for (tbl= ancestor; tbl; tbl= tbl->next_local)
@@ -1718,20 +1739,23 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
                             (check_opt_type == VIEW_CHECK_CASCADED ?
                              VIEW_CHECK_CASCADED :
                              VIEW_CHECK_NONE)))
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
   }
+
+  /*
+    We have to ensure that inside the view we are not referring to any
+    table outside of the view.  We do it by changing the pointers used
+    by fix_fields to look up tables so that only tables and views in
+    view are seen.  We also set linkage to DERIVED_TABLE_TYPE as a barrier
+    so that we stop resolving fields as this level.
+  */
+  thd->lex->current_select= select_lex;
+  select_lex->table_list.first= (byte *)ancestor;
+  select_lex->master_unit()->first_select()->linkage= DERIVED_TABLE_TYPE;
 
   if (field_translation)
   {
     DBUG_PRINT("info", ("there are already translation table"));
-    /*
-      Prevent look up in SELECTs tree (DERIVED_TABLE_TYPE is barrier for name
-      lookup) and emulate main table list by ancestor table list for
-      subquery processing
-    */
-    thd->lex->current_select= select_lex;
-    select_lex->table_list.first= (byte *)ancestor;
-    select_lex->master_unit()->first_select()->linkage= DERIVED_TABLE_TYPE;
 
     select_lex->no_wrap_view_item= 1;
 
@@ -1769,23 +1793,15 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
     goto ok;
   }
 
-  /* view fields translation table */
+  /* Create view fields translation table */
+
   if (!(transl=
 	(Field_translator*)(thd->current_arena->
                             alloc(select->item_list.elements *
                                   sizeof(Field_translator)))))
   {
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
-
-  /*
-    Prevent look up in SELECTs tree (DERIVED_TABLE_TYPE is barrier for name
-    lookup) and emulate main table list by ancestor table list for
-    subquery processing
-  */
-  thd->lex->current_select= select_lex;
-  select_lex->table_list.first= (byte *)ancestor;
-  select_lex->master_unit()->first_select()->linkage= DERIVED_TABLE_TYPE;
 
   select_lex->no_wrap_view_item= 1;
 
@@ -1928,16 +1944,10 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
       thd->restore_backup_item_arena(arena, &backup);
   }
 
-ok:
-  select_lex->no_wrap_view_item= save_wrapper;
-  thd->lex->current_select= current_select_save;
-  select_lex->table_list.first= main_table_list_save;
-  select_lex->master_unit()->first_select()->linkage= linkage_save;
-  thd->set_query_id= save_set_query_id;
-  thd->allow_sum_func= save_allow_sum_func;
-  DBUG_RETURN(0);
+  goto ok;
 
 err:
+  res= TRUE;
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST)
@@ -1945,13 +1955,15 @@ err:
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
   }
+
+ok:
   select_lex->no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   select_lex->table_list.first= main_table_list_save;
   select_lex->master_unit()->first_select()->linkage= linkage_save;
   thd->set_query_id= save_set_query_id;
   thd->allow_sum_func= save_allow_sum_func;
-  DBUG_RETURN(1);
+  DBUG_RETURN(res);
 }
 
 
