@@ -2723,11 +2723,12 @@ flush_option:
 	| STATUS_SYM	{ Lex->type|= REFRESH_STATUS; }
         | SLAVE         { Lex->type|= REFRESH_SLAVE; }
         | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
-	| DES_KEY_FILE	{ Lex->type|= REFRESH_DES_KEY_FILE; };
+	| DES_KEY_FILE	{ Lex->type|= REFRESH_DES_KEY_FILE; }
+ 	| RESOURCES     { Lex->type|= REFRESH_USER_RESOURCES; };
 
 opt_table_list:
-	/* empty */  {}
-	| table_list {};
+	/* empty */  {;}
+	| table_list {;};
 
 reset:
 	RESET_SYM
@@ -3676,14 +3677,14 @@ grant_option:
         | MAX_CONNECTIONS_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.connections=$2;
-	}
+	};
 
 begin:
 	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work;
 
 opt_work:
 	/* empty */ {}
-	| WORK_SYM {};
+	| WORK_SYM {;};
 
 commit:
 	COMMIT_SYM   { Lex->sql_command = SQLCOM_COMMIT;};

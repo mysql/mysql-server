@@ -652,7 +652,12 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->host.hostname && !strcmp(host,acl_user->host.hostname))
       {
 	acl_user->access=privileges;
-	acl_user->user_resource=*mqh;
+	if (mqh->questions)
+	  acl_user->user_resource.questions=mqh->questions;
+	if (mqh->updates)
+	  acl_user->user_resource.updates=mqh->updates;
+	if (mqh->connections)
+	  acl_user->user_resource.connections=mqh->connections;
 #ifdef HAVE_OPENSSL  
 	acl_user->ssl_type=ssl_type;
         acl_user->ssl_cipher=ssl_cipher;
