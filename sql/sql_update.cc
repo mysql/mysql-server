@@ -88,6 +88,28 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
+/*
+  Process usual UPDATE
+
+  SYNOPSIS
+    mysql_update()
+    thd			thread handler
+    fields		fields for update
+    values		values of fields for update
+    conds		WHERE clause expression
+    order_num		number of elemen in ORDER BY clause
+    order		ORDER BY clause list
+    limit		limit clause
+    handle_duplicates	how to handle duplicates
+
+  RETURN
+    0  - OK
+    2  - privilege check and openning table passed, but we need to convert to
+         multi-update because of view substitution
+    1  - error and error sent to client
+    -1 - error and error is not sent to client
+*/
+
 int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
@@ -120,6 +142,15 @@ int mysql_update(THD *thd,
 
   if ((error= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(error);
+
+  if (table_list->table == 0)
+  {
+    DBUG_ASSERT(table_list->view &&
+		table_list->ancestor && table_list->ancestor->next_local);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* convert to multiupdate */
+    return 2;
+  }
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -521,8 +552,8 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, table_list, conds) ||
-      setup_conds(thd, table_list, conds) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, 0) ||
+      setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
 		  table_list, all_fields, all_fields, order) ||
@@ -566,25 +597,31 @@ int mysql_multi_update_prepare(THD *thd)
   TABLE_LIST *table_list= lex->query_tables;
   List<Item> *fields= &lex->select_lex.item_list;
   TABLE_LIST *tl;
+  TABLE_LIST *leaves;
   table_map tables_for_update= 0, readonly_tables= 0;
   int res;
   bool update_view= 0;
   DBUG_ENTER("mysql_multi_update_prepare");
+
+  if (setup_tables(thd, table_list, &lex->select_lex.where,
+                   &lex->select_lex.leaf_tables, 0))
+    DBUG_RETURN(-1);
   /*
     Ensure that we have update privilege for all tables and columns in the
     SET part
   */
-  for (tl= table_list; tl; tl= tl->next_local)
+  for (tl= (leaves= lex->select_lex.leaf_tables); tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
     /*
       Update of derived tables is checked later
       We don't check privileges here, becasue then we would get error
       "UPDATE command denided .. for column N" instead of
       "Target table ... is not updatable"
     */
-    if (!tl->derived)
-      tl->grant.want_privilege= table->grant.want_privilege=
+    TABLE *table= tl->table;
+    TABLE_LIST *tlist;
+    if (!(tlist= tl->belong_to_view?tl->belong_to_view:tl)->derived)
+      tlist->grant.want_privilege= table->grant.want_privilege=
         (UPDATE_ACL & ~table->grant.privilege);
   }
 
@@ -592,14 +629,13 @@ int mysql_multi_update_prepare(THD *thd)
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
     time.
   */
-  if (setup_tables(thd, table_list, &lex->select_lex.where) ||
-      (thd->lex->select_lex.no_wrap_view_item= 1,
+  if ((thd->lex->select_lex.no_wrap_view_item= 1,
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
        thd->lex->select_lex.no_wrap_view_item= 0,
        res))
     DBUG_RETURN(-1);
 
-  for (tl= table_list; tl ; tl= tl->next_local)
+  for (tl= table_list; tl; tl= tl->next_local)
   {
     if (tl->view)
     {
@@ -626,30 +662,49 @@ int mysql_multi_update_prepare(THD *thd)
   /*
     Count tables and setup timestamp handling
   */
-  for (tl= table_list; tl ; tl= tl->next_local)
+  for (tl= leaves; tl; tl= tl->next_leaf)
   {
     TABLE *table= tl->table;
+    TABLE_LIST *tlist= tl->belong_to_view?tl->belong_to_view:tl;
 
     /* We only need SELECT privilege for columns in the values list */
-    tl->grant.want_privilege= table->grant.want_privilege=
+    tlist->grant.want_privilege= table->grant.want_privilege=
       (SELECT_ACL & ~table->grant.privilege);
     // Only set timestamp column if this is not modified
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
       table->timestamp_on_update_now= 0;
 
-    if (!tl->updatable || check_key_in_view(thd, tl))
+    if (!tlist->updatable || check_key_in_view(thd, tl))
       readonly_tables|= table->map;
   }
   if (tables_for_update & readonly_tables)
   {
     // find readonly table/view which cause error
-    for (tl= table_list; tl ; tl= tl->next_local)
+    for (tl= leaves; tl; tl= tl->next_leaf)
     {
       if ((readonly_tables & tl->table->map) &&
           (tables_for_update & tl->table->map))
       {
-	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
+	TABLE_LIST *table= tl->belong_to_view ? tl->belong_to_view : tl;
+	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table->alias, "UPDATE");
+	DBUG_RETURN(-1);
+      }
+    }
+  }
+
+  /* check single table update for view compound from several tables */
+  for (tl= table_list; tl; tl= tl->next_local)
+  {
+    if (tl->table == 0)
+    {
+      DBUG_ASSERT(tl->view &&
+		  tl->ancestor && tl->ancestor->next_local);
+      TABLE_LIST *for_update= 0;
+      if (tl->check_single_table(&for_update, tables_for_update))
+      {
+	my_error(ER_VIEW_MULTIUPDATE, MYF(0),
+		 tl->view_db.str, tl->view_name.str);
 	DBUG_RETURN(-1);
       }
     }
@@ -665,19 +720,22 @@ int mysql_multi_update(THD *thd,
 		       COND *conds,
 		       ulong options,
 		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+		       bool converted)
 {
-  int res;
+  int res= 0;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res= open_and_lock_tables(thd, table_list)))
+  if (!converted && (res= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(res);
 
   if ((res= mysql_multi_update_prepare(thd)))
     DBUG_RETURN(res);
 
-  if (!(result= new multi_update(thd, table_list, fields, values,
+  if (!(result= new multi_update(thd, table_list,
+				 thd->lex->select_lex.leaf_tables,
+				 fields, values,
 				 handle_duplicates)))
     DBUG_RETURN(-1);
 
@@ -701,12 +759,14 @@ int mysql_multi_update(THD *thd,
 
 
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
+			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
 			   enum enum_duplicates handle_duplicates_arg)
-  :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
-   updated(0), found(0), fields(field_list), values(value_list),
-   table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0), transactional_tables(1)
+  :all_tables(table_list), leaves(leaves_list), update_tables(0),
+   thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
+   values(value_list), table_count(0), copy_field(0),
+   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
+   transactional_tables(1)
 {}
 
 
@@ -754,8 +814,9 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
 
   update.empty();
-  for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
+  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
+    /* TODO: add support of view of join support */
     TABLE *table=table_ref->table;
     if (tables_to_update & table->map)
     {
@@ -823,10 +884,10 @@ int multi_update::prepare(List<Item> &not_used_values,
     which will cause an error when reading a row.
     (This issue is mostly relevent for MyISAM tables)
   */
-  for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
+  for (table_ref= leaves;  table_ref; table_ref= table_ref->next_leaf)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) && 
+    if (!(tables_to_update & table->map) &&
 	find_table_in_local_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache

@@ -1411,7 +1411,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for(; table; table= table->next_local)
+  for(; table; table= table->next_leaf)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)
@@ -1424,14 +1424,13 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 table_map subselect_single_select_engine::upper_select_const_tables()
 {
   return calc_const_tables((TABLE_LIST *) select_lex->outer_select()->
-			   table_list.first);
+			   leaf_tables);
 }
 
 
 table_map subselect_union_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) unit->outer_select()->
-			   table_list.first);
+  return calc_const_tables((TABLE_LIST *) unit->outer_select()->leaf_tables);
 }
 
 
