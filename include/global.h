@@ -33,7 +33,7 @@
 #endif /* _cplusplus */
 
 /* The client defines this to avoid all thread code */
-#if defined(UNDEF_THREADS_HACK) && !defined(THREAD_SAFE_CLIENT)
+#if defined(UNDEF_THREADS_HACK)
 #undef THREAD
 #undef HAVE_mit_thread
 #undef HAVE_LINUXTHREADS
