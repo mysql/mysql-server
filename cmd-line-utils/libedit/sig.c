@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: sig.c,v 1.8 2001/01/09 17:31:04 jdolecek Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * sig.c: Signal handling stuff.

@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: key.c,v 1.12 2001/05/17 01:02:17 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * key.c: This module contains the procedures for maintaining

@@ -37,10 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.19 2001/01/10 08:10:45 jdolecek Exp $");
-#endif /* not lint && not SCCSID */
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
