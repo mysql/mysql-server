@@ -5425,7 +5425,7 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
       }
       new_cond->used_tables_cache=((Item_cond_or*) cond)->used_tables_cache;
       new_cond->top_level_item();
-      DBUG_RETURN(new_cond);
+      return new_cond;
     }
   }
 
