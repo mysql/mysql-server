@@ -1778,7 +1778,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
        as well as allow us to catch illegal cross references/
        Warshall's algorithm is used to build the transitive closure.
        As we use bitmaps to represent the relation the complexity
-       of the algorithm is O(number of tables). 
+       of the algorithm is O((number of tables)^2). 
     */
     for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
@@ -3465,7 +3465,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     Here ti are structures of the JOIN_TAB type.
 
   EXAMPLE
-    For rhe query: 
+    For the query: 
       SELECT * FROM t1
                     LEFT JOIN
                     (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
@@ -3483,9 +3483,6 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     already applied to the join query (see simplify_joins).
     This function can be called only after the execution plan
     has been chosen.
-   
-  RETURN VALUE
-    None.
 */
  
 static void
@@ -3510,7 +3507,7 @@ make_outerjoin_info(JOIN *join)
       if (embedding)
         tab->first_upper= embedding->nested_join->first_nested;
     }    
-    while (embedding)
+    for ( ; embedding ; embedding= embedding->embedding)
     {
       NESTED_JOIN *nested_join= embedding->nested_join;
       if (!nested_join->counter)
@@ -3530,7 +3527,6 @@ make_outerjoin_info(JOIN *join)
         break;
       /* Table tab is the last inner table for nested join. */
       nested_join->first_nested->last_inner= tab;
-      embedding= embedding->embedding;
     }
   }
 }
@@ -4689,7 +4685,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
            the corresponding on expression is added to E. 
 	*/ 
         table->on_expr= simplify_joins(join, &nested_join->join_list,
-                                       table->on_expr, top && FALSE);
+                                       table->on_expr, FALSE);
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -6230,10 +6226,13 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     Thus, when the first row from t5 with t5.a=t3.a is found
     this pointer for t5 is changed from t4 to t2.             
 
+  STRUCTURE NOTES
+    join_tab->first_unmatched points always backwards to the first inner
+    table of the embedding nested join, if any.
+
   RETURN
     0, if success
     # of the error, otherwise
-    
 */
 
 static int
@@ -6252,9 +6251,11 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   JOIN_TAB *first_inner_tab= join_tab->first_inner;
    
   my_bool *report_error= &(join->thd->net.report_error);
+  join->return_tab= join_tab;
 
   if (join_tab->last_inner)
-  { /* join_tab is the first inner table for an outer join operation. */
+  {
+    /* join_tab is the first inner table for an outer join operation. */
 
     /* Set initial state of guard variables for this table.*/
     join_tab->found=0;
@@ -6348,14 +6349,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
           /* A match from join_tab is found for the current partial join. */
 	  if ((error=(*join_tab->next_select)(join, join_tab+1, 0)) < 0)
 	    return error;
-          if (join->return_tab)
-          {
-            /* We are just returning to the nest level of join->return_tab. */
-            if (join->return_tab != join_tab)
+          if (join->return_tab < join_tab)
               return 0;
-            /* The return point is reached */
-	    join->return_tab= 0;
-          }
 	  /*
 	    Test if this was a SELECT DISTINCT query on a table that
 	    was not in the field list;  In this case we can abort if
@@ -6423,8 +6418,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       {  
         if (tab->select_cond && !tab->select_cond->val_int())
         {
-          if (tab != join_tab)
-            join->return_tab= tab;
+	  join->return_tab= tab;
           return 0;
         }
       }
