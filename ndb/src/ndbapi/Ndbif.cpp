@@ -350,47 +350,46 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       
       return;
     }
-  case GSN_TRANSID_AI:
-    {
-      tFirstDataPtr = int2void(tFirstData);
-      assert(tFirstDataPtr);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-      NdbReceiver* tRec = void2rec(tFirstDataPtr);
-      assert(tRec->checkMagicNumber());
-      assert(tRec->getTransaction());
-      assert(tRec->getTransaction()->checkState_TransId(((const TransIdAI*)tDataPtr)->transId));
-      if(tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
-	 tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
-	Uint32 com;
-	if(aSignal->m_noOfSections > 0){
-	  com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
-	} else {
-	  com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
-				     tLen - TransIdAI::HeaderLength);
-	}
-	
-	if(com == 1){
-	  switch(tRec->getType()){
-	  case NdbReceiver::NDB_OPERATION:
-	  case NdbReceiver::NDB_INDEX_OPERATION:
-	    if(tCon->OpCompleteSuccess() != -1){
-	      completedTransaction(tCon);
-	      return;
-	    }
-	    break;
-	  case NdbReceiver::NDB_SCANRECEIVER:
-	    tCon->theScanningOp->receiver_delivered(tRec);
-	    theWaiter.m_state = (tWaitState == WAIT_SCAN? NO_WAIT: tWaitState);
-	    break;
-	  default:
-	    goto InvalidSignal;
-	  }
-	}
-	break;
+  case GSN_TRANSID_AI:{
+    tFirstDataPtr = int2void(tFirstData);
+    NdbReceiver* tRec;
+    if (tFirstDataPtr && (tRec = void2rec(tFirstDataPtr)) && 
+	tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
+	tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
+      Uint32 com;
+      if(aSignal->m_noOfSections > 0){
+	com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
       } else {
-	goto InvalidSignal;
+	com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+				   tLen - TransIdAI::HeaderLength);
       }
+      
+      if(com == 1){
+	switch(tRec->getType()){
+	case NdbReceiver::NDB_OPERATION:
+	case NdbReceiver::NDB_INDEX_OPERATION:
+	  if(tCon->OpCompleteSuccess() != -1){
+	    completedTransaction(tCon);
+	    return;
+	  }
+	  break;
+	case NdbReceiver::NDB_SCANRECEIVER:
+	  tCon->theScanningOp->receiver_delivered(tRec);
+	  theWaiter.m_state = (tWaitState == WAIT_SCAN ? NO_WAIT : tWaitState);
+	  break;
+	default:
+	  goto InvalidSignal;
+	}
+      }
+      break;
+    } else {
+      /**
+       * This is ok as transaction can have been aborted before TRANSID_AI
+       * arrives (if TUP on  other node than TC)
+       */
+      return;
     }
+  }
   case GSN_TCKEY_FAILCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
@@ -695,7 +694,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	 (tCon = void2con(tFirstDataPtr)) && (tCon->checkMagicNumber() == 0)){
 	
 	if(aSignal->m_noOfSections > 0){
-	  tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, ptr[0].p, ptr[0].sz);
+	  tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, 
+						  ptr[0].p, ptr[0].sz);
 	} else {
 	  tReturnCode = 
 	    tCon->receiveSCAN_TABCONF(aSignal, 
@@ -730,12 +730,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_KEYINFO20: {
     tFirstDataPtr = int2void(tFirstData);
-    if (tFirstDataPtr == 0) goto InvalidSignal;
-    NdbReceiver* tRec = void2rec(tFirstDataPtr);
-    
-    if(tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
-       tCon->checkState_TransId(&((const KeyInfo20*)tDataPtr)->transId1)){
-
+    NdbReceiver* tRec;
+    if (tFirstDataPtr && (tRec = void2rec(tFirstDataPtr)) &&
+	tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
+	tCon->checkState_TransId(&((const KeyInfo20*)tDataPtr)->transId1)){
+      
       Uint32 len = ((const KeyInfo20*)tDataPtr)->keyLen;
       Uint32 info = ((const KeyInfo20*)tDataPtr)->scanInfo_Node;
       int com = -1;
@@ -756,8 +755,13 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	goto InvalidSignal;
       }
       break;
+    } else {
+      /**
+       * This is ok as transaction can have been aborted before KEYINFO20
+       * arrives (if TUP on  other node than TC)
+       */
+      return;
     }
-    goto InvalidSignal;
   }
   case GSN_TCINDXCONF:{
     tFirstDataPtr = int2void(tFirstData);

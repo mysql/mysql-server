@@ -3574,7 +3574,6 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
       key.scanNumber = KeyInfo20::getScanNo(regTcPtr->tcScanInfo);
       key.fragPtrI = fragptr.i;
       c_scanTakeOverHash.find(scanptr, key);
-      ndbassert(scanptr.i != RNIL);
     }
     if (scanptr.i == RNIL) {
       jam();
@@ -5995,10 +5994,15 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
     break;
   case TcConnectionrec::STOPPED:
     jam();
-/* ------------------------------------------------------------------------- */
-/*WE ARE CURRENTLY QUEUED FOR ACCESS TO THE FRAGMENT BY A LOCAL CHECKPOINT.  */
-/* ------------------------------------------------------------------------- */
+    /* ---------------------------------------------------------------------
+     * WE ARE CURRENTLY QUEUED FOR ACCESS TO THE FRAGMENT BY A LCP
+     * Since nothing has been done, just release operation
+     * i.e. no prepare log record has been written 
+     *      so no abort log records needs to be written
+     */
     releaseWaitQueue(signal);
+    continueAfterLogAbortWriteLab(signal);
+    return;
     break;
   case TcConnectionrec::WAIT_AI_AFTER_ABORT:
     jam();
@@ -9953,9 +9957,11 @@ void Dblqh::execLCP_HOLDOPCONF(Signal* signal)
     return;
   } else {
     jam();
+
                                         /* NO MORE HOLDOPS NEEDED */
     lcpLocptr.p->lcpLocstate = LcpLocRecord::HOLDOP_READY;
     checkLcpHoldop(signal);
+
     if (lcpPtr.p->lcpState == LcpRecord::LCP_WAIT_ACTIVE_FINISH) {
       if (fragptr.p->activeList == RNIL) {
         jam();
@@ -9973,6 +9979,7 @@ void Dblqh::execLCP_HOLDOPCONF(Signal* signal)
       }//if
     }//if
   }//if
+
   /* ----------------------- */
   /*           ELSE          */
   /* ------------------------------------------------------------------------
@@ -10045,7 +10052,6 @@ void Dblqh::execTUP_LCPSTARTED(Signal* signal)
 void Dblqh::lcpStartedLab(Signal* signal) 
 {
   checkLcpStarted(signal);
-
   if (lcpPtr.p->lcpState == LcpRecord::LCP_STARTED) {
     jam();
     /* ----------------------------------------------------------------------
@@ -10064,7 +10070,7 @@ void Dblqh::lcpStartedLab(Signal* signal)
     sendAccContOp(signal);	/* START OPERATIONS IN ACC       */
     moveAccActiveFrag(signal);	/* MOVE FROM ACC BLOCKED LIST TO ACTIVE LIST 
 				   ON FRAGMENT */
-  }//if
+  }
   /*---------------*/
   /*       ELSE    */
   /*-------------------------------------------------------------------------*/
@@ -10125,32 +10131,27 @@ void Dblqh::execLQH_RESTART_OP(Signal* signal)
 
   lcpPtr.i = signal->theData[1];
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
-  if (fragptr.p->fragStatus == Fragrecord::BLOCKED) {
-    if (lcpPtr.p->lcpState == LcpRecord::LCP_STARTED) {
-      jam();
-      /***********************************************************************/
-      /*  THIS SIGNAL CAN ONLY BE RECEIVED WHEN FRAGMENT IS BLOCKED AND 
-       *  THE LOCAL CHECKPOINT HAS BEEN STARTED. THE BLOCKING WILL BE 
-       *  REMOVED AS SOON AS ALL OPERATIONS HAVE BEEN STARTED.
-       ***********************************************************************/
-      restartOperationsLab(signal);
-      return;
-    } else {
-      jam();
-      if (lcpPtr.p->lcpState == LcpRecord::LCP_BLOCKED_COMP) {
-        jam();
-	/*******************************************************************>
-	 *   THE CHECKPOINT IS COMPLETED BUT HAS NOT YET STARTED UP 
-	 *   ALL OPERATIONS AGAIN. 
-	 *   WE PERFORM THIS START-UP BEFORE CONTINUING WITH THE NEXT 
-	 *   FRAGMENT OF THE LOCAL CHECKPOINT TO AVOID ANY STRANGE ERRORS.  
-	 *******************************************************************> */
-        restartOperationsLab(signal);
-        return;
-      }//if
-    }//if
-  }//if
-  ndbrequire(false);
+  ndbrequire(fragptr.p->fragStatus == Fragrecord::BLOCKED);
+  if (lcpPtr.p->lcpState == LcpRecord::LCP_STARTED) {
+    jam();
+    /***********************************************************************/
+    /*  THIS SIGNAL CAN ONLY BE RECEIVED WHEN FRAGMENT IS BLOCKED AND 
+     *  THE LOCAL CHECKPOINT HAS BEEN STARTED. THE BLOCKING WILL BE 
+     *  REMOVED AS SOON AS ALL OPERATIONS HAVE BEEN STARTED.
+     ***********************************************************************/
+    restartOperationsLab(signal);
+  } else if (lcpPtr.p->lcpState == LcpRecord::LCP_BLOCKED_COMP) {
+    jam();
+    /*******************************************************************>
+     *   THE CHECKPOINT IS COMPLETED BUT HAS NOT YET STARTED UP 
+     *   ALL OPERATIONS AGAIN. 
+     *   WE PERFORM THIS START-UP BEFORE CONTINUING WITH THE NEXT 
+     *   FRAGMENT OF THE LOCAL CHECKPOINT TO AVOID ANY STRANGE ERRORS.  
+     *******************************************************************> */
+    restartOperationsLab(signal);
+  } else {
+    ndbrequire(false);
+  }
 }//Dblqh::execLQH_RESTART_OP()
 
 void Dblqh::restartOperationsLab(Signal* signal) 
@@ -10203,13 +10204,13 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
    * WHEN ARRIVING HERE THE OPERATION IS ALREADY SET IN THE ACTIVE LIST. 
    * THUS WE CAN IMMEDIATELY CALL THE METHODS THAT EXECUTE FROM WHERE 
    * THE OPERATION WAS STOPPED.
-   *------------------------------------------------------------------------- */
+   *------------------------------------------------------------------------ */
   switch (tcConnectptr.p->transactionState) {
   case TcConnectionrec::STOPPED:
     jam();
     /*-----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND ACCKEYREQ           
-     *----------------------------------------------------------------------- */
+     *---------------------------------------------------------------------- */
     prepareContinueAfterBlockedLab(signal);
     return;
     break;
@@ -10217,7 +10218,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND ACC_COMMITREQ
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     releaseActiveFrag(signal);
     commitContinueAfterBlockedLab(signal);
     return;
@@ -10226,7 +10227,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND ACC_ABORTREQ
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     abortContinueAfterBlockedLab(signal, true);
     return;
     break;
@@ -10234,7 +10235,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING COPY FRAGMENT
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     continueCopyAfterBlockedLab(signal);
     return;
     break;
@@ -10242,7 +10243,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING COPY FRAGMENT
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     continueFirstCopyAfterBlockedLab(signal);
     return;
     break;
@@ -10250,7 +10251,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING SCAN
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
     continueFirstScanAfterBlockedLab(signal);
     return;
@@ -10259,7 +10260,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING SCAN
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
     continueAfterCheckLcpStopBlocked(signal);
     return;
@@ -10268,7 +10269,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING SCAN
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
     continueScanAfterBlockedLab(signal);
     return;
@@ -10278,7 +10279,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING RELEASE 
      *       LOCKS IN SCAN  
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
     continueScanReleaseAfterBlockedLab(signal);
     return;
@@ -10287,7 +10288,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING CLOSE OF SCAN
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     continueCloseScanAfterBlockedLab(signal);
     return;
     break;
@@ -10295,7 +10296,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     jam();
     /* ----------------------------------------------------------------------
      *       STOPPED BEFORE TRYING TO SEND NEXT_SCANREQ DURING CLOSE OF COPY
-     * ---------------------------------------------------------------------- */
+     * --------------------------------------------------------------------- */
     continueCloseCopyAfterBlockedLab(signal);
     return;
     break;
@@ -10421,7 +10422,12 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
    * ----------------------------------------------------------------------- */
   if (fragptr.p->fragStatus == Fragrecord::BLOCKED) {
     jam();
+    /**
+     * LCP of fragment complete
+     *   but restarting of operations isn't
+     */
     lcpPtr.p->lcpState = LcpRecord::LCP_BLOCKED_COMP;
+    //restartOperationsLab(signal);
     return;
   }//if
 
@@ -10698,25 +10704,25 @@ void Dblqh::checkLcpStarted(Signal* signal)
 
   terrorCode = ZOK;
   clsLcpLocptr.i = lcpPtr.p->firstLcpLocAcc;
+  int i = 0;
   do {
     ptrCheckGuard(clsLcpLocptr, clcpLocrecFileSize, lcpLocRecord);
-    if (clsLcpLocptr.p->lcpLocstate != LcpLocRecord::ACC_STARTED) {
-      ndbrequire((clsLcpLocptr.p->lcpLocstate == LcpLocRecord::ACC_COMPLETED) ||
-              (clsLcpLocptr.p->lcpLocstate == LcpLocRecord::ACC_WAIT_STARTED));
+    if (clsLcpLocptr.p->lcpLocstate == LcpLocRecord::ACC_WAIT_STARTED){
       return;
     }//if
     clsLcpLocptr.i = clsLcpLocptr.p->nextLcpLoc;
+    i++;
   } while (clsLcpLocptr.i != RNIL);
 
+  i = 0;
   clsLcpLocptr.i = lcpPtr.p->firstLcpLocTup;
   do {
     ptrCheckGuard(clsLcpLocptr, clcpLocrecFileSize, lcpLocRecord);
-    if (clsLcpLocptr.p->lcpLocstate != LcpLocRecord::TUP_STARTED) {
-      ndbrequire((clsLcpLocptr.p->lcpLocstate == LcpLocRecord::TUP_COMPLETED) ||
-              (clsLcpLocptr.p->lcpLocstate == LcpLocRecord::TUP_WAIT_STARTED));
+    if (clsLcpLocptr.p->lcpLocstate == LcpLocRecord::TUP_WAIT_STARTED){
       return;
     }//if
     clsLcpLocptr.i = clsLcpLocptr.p->nextLcpLoc;
+    i++;
   } while (clsLcpLocptr.i != RNIL);
   lcpPtr.p->lcpState = LcpRecord::LCP_STARTED;
 }//Dblqh::checkLcpStarted()
@@ -10874,18 +10880,28 @@ void Dblqh::sendAccContOp(Signal* signal)
 {
   LcpLocRecordPtr sacLcpLocptr;
 
+  int count = 0;
   sacLcpLocptr.i = lcpPtr.p->firstLcpLocAcc;
   do {
     ptrCheckGuard(sacLcpLocptr, clcpLocrecFileSize, lcpLocRecord);
     sacLcpLocptr.p->accContCounter = 0;
-/* ------------------------------------------------------------------------- */
-/*SEND START OPERATIONS TO ACC AGAIN                                         */
-/* ------------------------------------------------------------------------- */
-    signal->theData[0] = lcpPtr.p->lcpAccptr;
-    signal->theData[1] = sacLcpLocptr.p->locFragid;
-    sendSignal(fragptr.p->accBlockref, GSN_ACC_CONTOPREQ, signal, 2, JBA);
+    if(sacLcpLocptr.p->lcpLocstate == LcpLocRecord::ACC_STARTED){
+      /* ------------------------------------------------------------------- */
+      /*SEND START OPERATIONS TO ACC AGAIN                                   */
+      /* ------------------------------------------------------------------- */
+      signal->theData[0] = lcpPtr.p->lcpAccptr;
+      signal->theData[1] = sacLcpLocptr.p->locFragid;
+      sendSignal(fragptr.p->accBlockref, GSN_ACC_CONTOPREQ, signal, 2, JBA);
+      count++;
+    } else if(sacLcpLocptr.p->lcpLocstate == LcpLocRecord::ACC_COMPLETED){
+      signal->theData[0] = sacLcpLocptr.i;
+      sendSignal(reference(), GSN_ACC_CONTOPCONF, signal, 1, JBB);
+    } else {
+      ndbrequire(false);
+    }
     sacLcpLocptr.i = sacLcpLocptr.p->nextLcpLoc;
   } while (sacLcpLocptr.i != RNIL);
+  
 }//Dblqh::sendAccContOp()
 
 /* ------------------------------------------------------------------------- */
