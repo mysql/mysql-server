@@ -96,7 +96,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
-  current_tablenr=0;
   handler_items=0;
   tmp_table=0;
   lock=locked_tables=0;
@@ -161,8 +160,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
-
-
   /* Prepared statements */
   last_prepared_stmt= 0;
   init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
@@ -218,6 +215,7 @@ void THD::init(void)
   warn_list.empty();
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
+  update_charset();
 }
 
 

@@ -1355,6 +1355,7 @@ int open_tables(THD *thd,TABLE_LIST *start)
   int result=0;
   DBUG_ENTER("open_tables");
 
+  thd->current_tablenr= 0;
  restart:
   thd->proc_info="Opening tables";
   for (tables=start ; tables ; tables=tables->next)
@@ -1473,6 +1474,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   DBUG_ENTER("open_ltable");
 
   thd->proc_info="Opening table";
+  thd->current_tablenr= 0;
   while (!(table=open_table(thd,table_list->db,
 			    table_list->real_name,table_list->alias,
 			    &refresh)) && refresh) ;
