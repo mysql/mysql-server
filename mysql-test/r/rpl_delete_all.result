@@ -9,7 +9,7 @@ drop database if exists test1;
 Warnings:
 Note	1008	Can't drop database 'test1'; database doesn't exist
 show tables from test1;
-ERROR HY000: Can't read dir of './test1/' (Errcode: 2)
+ERROR HY000: Can't read dir of './test1/' (Errcode: X)
 create table t1 (a int);
 drop table if exists t1;
 Warnings:
