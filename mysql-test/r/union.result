@@ -177,4 +177,14 @@ a
 11
 12
 13
+(select * from t1 limit 2) union (select * from t2 limit 20,3);
+a
+1
+2
+set SQL_SELECT_LIMIT=2;
+(select * from t1 limit 2) union (select * from t2 limit 3);
+a
+1
+2
+set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
