@@ -55,7 +55,7 @@ my_bool my_thread_global_init(void)
   pthread_mutexattr_init(&my_fast_mutexattr);
   pthread_mutexattr_setkind_np(&my_fast_mutexattr,PTHREAD_MUTEX_ADAPTIVE_NP);
 #endif
-#ifdef PPTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_init(&my_errchk_mutexattr);
   pthread_mutexattr_setkind_np(&my_errchk_mutexattr,
 			       PTHREAD_MUTEX_ERRORCHECK_NP);
