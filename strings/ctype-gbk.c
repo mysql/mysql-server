@@ -9939,6 +9939,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncoll_gbk,
   my_strnncollsp_gbk,
   my_strnxfrm_gbk,
+  my_strnxfrmlen_simple,
   my_like_range_gbk,
   my_wildcmp_mb,
   my_strcasecmp_mb,
