@@ -1202,8 +1202,8 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 {
   uint data_len;
   char* buf_end = (char*)buf + event_len;
-  const char* data_head = buf + ((old_format) ?
-				 OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN);
+  uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
+  const char* data_head = buf + header_len;
   thread_id = uint4korr(data_head + L_THREAD_ID_OFFSET);
   exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
   skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
@@ -1212,7 +1212,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
 	  
   int body_offset = ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-		     LOAD_HEADER_LEN + OLD_HEADER_LEN :
+		     LOAD_HEADER_LEN + header_len :
 		     get_data_body_offset());
   
   if ((int) event_len < body_offset)
