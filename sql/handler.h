@@ -319,6 +319,9 @@ public:
   virtual void append_create_info(String *packet) {}
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
+
+  /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
+  virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
   { return; }       /* prepare InnoDB for HANDLER */  
   virtual void free_foreign_key_create_info(char* str) {} 
