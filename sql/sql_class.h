@@ -1305,7 +1305,7 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      copy_field=0;
+      save_copy_field= copy_field= 0;
     }
   }
 };
