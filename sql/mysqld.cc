@@ -3375,39 +3375,34 @@ int main(int argc, char **argv)
 	return 0;
       }
     }
-    else if (argc >= 4)
+    else if (argc == 4 || argc == 5)
     {
-      const char *defaults_file = "--defaults-file";
-      const char *service = "--local-service";
-      char extra_opt[FN_REFLEN] = "";  
+      /*
+        This may seem strange, because we handle --local-service while
+        preserving 4.1's behavior of allowing any one other argument that is
+        passed to the service on startup. (The assumption is that this is
+        --defaults-file=file, but that was not enforced in 4.1, so we don't
+        enforce it here.)
+      */
+      char *extra_opt= NULL;
       char *account_name = NULL;
-      char *option;
       int index;
       for (index = 3; index < argc; index++)
       {
-        option= argv[index];
-        /* 
-          Install an optional service with optional config file
-          mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
-        */
-        if (strncmp(option, defaults_file, strlen(defaults_file)) == 0)
-        {
-          strmov(extra_opt, option);	  
-        }
-        else
-        /* 
-          Install an optional service as local service
-          mysqld --install-manual mysqldopt --local-service
-        */
-        if (strncmp(option, service, strlen(service)) == 0)
+        if (strncmp(argv[index], "--local-service", 15) == 0)
         {
           account_name=(char*)malloc(27);
           strmov(account_name, "NT AUTHORITY\\LocalService\0");
         }
+        else
+        {
+          extra_opt= argv[index];
+        }
       }
 
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
-        return 0;
+      if (argc != 5 || account_name)
+        if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
+          return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
