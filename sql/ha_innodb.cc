@@ -5468,4 +5468,29 @@ innobase_get_at_most_n_mbchars(
 }
 }
 
+extern "C" {
+/**********************************************************************
+This function returns true if SQL-query in the current thread
+is either REPLACE or LOAD DATA INFILE REPLACE. 
+NOTE that /mysql/innobase/row/row0ins.c must contain the 
+prototype for this function ! */
+
+ibool
+innobase_query_is_replace(void)
+/*===========================*/
+{
+	THD*	thd;
+	
+	thd = (THD *)innobase_current_thd();
+	
+	if ( thd->lex->sql_command == SQLCOM_REPLACE ||
+	     ( thd->lex->sql_command == SQLCOM_LOAD &&
+	       thd->lex->duplicates == DUP_REPLACE )) {
+		return true;
+	} else {
+		return false;
+	}
+}
+}
+
 #endif /* HAVE_INNOBASE_DB */

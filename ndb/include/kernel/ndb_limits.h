@@ -110,7 +110,7 @@
  */
 #define MAX_TTREE_NODE_SIZE 64		// total words in node
 #define MAX_TTREE_PREF_SIZE 4		// words in min prefix
-#define MAX_TTREE_NODE_SLACK 3		// diff between max and min occupancy
+#define MAX_TTREE_NODE_SLACK 2		// diff between max and min occupancy
 
 /*
  * Blobs.
