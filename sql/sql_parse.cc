@@ -3275,7 +3275,6 @@ mysql_new_select(LEX *lex, bool move_down)
     select_lex->include_neighbour(lex->current_select);
 
   select_lex->master_unit()->global_parameters= select_lex;
-  DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
   return 0;
