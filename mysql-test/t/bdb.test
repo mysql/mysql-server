@@ -686,7 +686,7 @@ drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=bdb;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
---error 690
+--error 1062
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 select id from t1;
@@ -697,7 +697,7 @@ create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(3
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 begin;
---error 690
+--error 1062
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
@@ -705,3 +705,13 @@ commit;
 select id,id3 from t1;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+#
+# Test with empty tables (crashed with lock error)
+#
+
+CREATE TABLE t1 (SYAIN_NO char(5) NOT NULL default '', KINMU_DATE char(6) NOT NULL default '', PRIMARY KEY  (SYAIN_NO,KINMU_DATE)) TYPE=BerkeleyDB;
+CREATE TABLE t2 ( SYAIN_NO char(5) NOT NULL default '',STR_DATE char(8) NOT NULL default '',PRIMARY KEY  (SYAIN_NO,STR_DATE) ) TYPE=BerkeleyDB;
+select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
+select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
+DROP TABLE t1,t2;

@@ -28,6 +28,8 @@
 #include <odbcinst.h>
 #endif
 #include <global.h>
+#include <mysql_com.h>
+#include <violite.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -37,7 +39,6 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "errmsg.h"
-#include <violite.h>
 
 extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/stat.h>
@@ -69,9 +70,22 @@ extern "C" {					// Because of SCO 3.2V4.2
 
 }
 
+static void mc_free_rows(MYSQL_DATA *cur);
+static MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
+		  	          my_bool default_value,
+				  my_bool long_flag_protocol);
+
 static void mc_end_server(MYSQL *mysql);
 static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, uint to);
 static void mc_free_old_query(MYSQL *mysql);
+static int mc_send_file_to_server(MYSQL *mysql, const char *filename);
+static my_ulonglong mc_net_field_length_ll(uchar **packet);
+static ulong mc_net_field_length(uchar **packet);
+static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
+			   ulong *lengths);
+static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+				uint fields);
+
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
@@ -735,18 +749,18 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_OPENSSL
   /* Oops.. are we careful enough to not send ANY information */
   /* without encryption? */
-  if (client_flag & CLIENT_SSL)
+/*  if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
-      goto error;
+      goto error;*/
     /* Do the SSL layering. */
-    DBUG_PRINT("info", ("IO layer change in progress..."));
+ /*   DBUG_PRINT("info", ("IO layer change in progress..."));
     VioSSLConnectorFd* connector_fd = (VioSSLConnectorFd*)
       (mysql->connector_fd);
     VioSocket*	vio_socket = (VioSocket*)(mysql->net.vio);
     VioSSL*	vio_ssl =    connector_fd->connect(vio_socket);
     mysql->net.vio =         (NetVio*)(vio_ssl);
-  }
+  }*/
 #endif /* HAVE_OPENSSL */
 
   int3store(buff+2,max_allowed_packet);
@@ -816,11 +830,506 @@ mc_mysql_close(MYSQL *mysql)
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
 #ifdef HAVE_OPENSSL
-    ((VioConnectorFd*)(mysql->connector_fd))->delete();
-    mysql->connector_fd = 0;
+/*    ((VioConnectorFd*)(mysql->connector_fd))->delete();
+    mysql->connector_fd = 0;*/
 #endif /* HAVE_OPENSSL */
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
   }
   DBUG_VOID_RETURN;
 }
+
+void STDCALL mc_mysql_free_result(MYSQL_RES *result)
+{
+  DBUG_ENTER("mc_mysql_free_result");
+  DBUG_PRINT("enter",("mysql_res: %lx",result));
+  if (result)
+  {
+    if (result->handle && result->handle->status == MYSQL_STATUS_USE_RESULT)
+    {
+      DBUG_PRINT("warning",("Not all rows in set were read; Ignoring rows"));
+      for (;;)
+      {
+	uint pkt_len;
+	if ((pkt_len=(uint) mc_net_safe_read(result->handle)) == packet_error)
+	  break;
+	if (pkt_len == 1 && result->handle->net.read_pos[0] == 254)
+	  break;				/* End of data */
+      }
+      result->handle->status=MYSQL_STATUS_READY;
+    }
+    mc_free_rows(result->data);
+    if (result->fields)
+      free_root(&result->field_alloc,MYF(0));
+    if (result->row)
+      my_free((gptr) result->row,MYF(0));
+    my_free((gptr) result,MYF(0));
+  }
+  DBUG_VOID_RETURN;
+}
+
+static void mc_free_rows(MYSQL_DATA *cur)
+{
+  if (cur)
+  {
+    free_root(&cur->alloc,MYF(0));
+    my_free((gptr) cur,MYF(0));
+  }
+}
+
+static MYSQL_FIELD *
+mc_unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
+	      my_bool default_value, my_bool long_flag_protocol)
+{
+  MYSQL_ROWS	*row;
+  MYSQL_FIELD	*field,*result;
+  DBUG_ENTER("unpack_fields");
+
+  field=result=(MYSQL_FIELD*) alloc_root(alloc,sizeof(MYSQL_FIELD)*fields);
+  if (!result)
+    DBUG_RETURN(0);
+
+  for (row=data->data; row ; row = row->next,field++)
+  {
+    field->table=  strdup_root(alloc,(char*) row->data[0]);
+    field->name=   strdup_root(alloc,(char*) row->data[1]);
+    field->length= (uint) uint3korr(row->data[2]);
+    field->type=   (enum enum_field_types) (uchar) row->data[3][0];
+    if (long_flag_protocol)
+    {
+      field->flags=   uint2korr(row->data[4]);
+      field->decimals=(uint) (uchar) row->data[4][2];
+    }
+    else
+    {
+      field->flags=   (uint) (uchar) row->data[4][0];
+      field->decimals=(uint) (uchar) row->data[4][1];
+    }
+    if (INTERNAL_NUM_FIELD(field))
+      field->flags|= NUM_FLAG;
+    if (default_value && row->data[5])
+      field->def=strdup_root(alloc,(char*) row->data[5]);
+    else
+      field->def=0;
+    field->max_length= 0;
+  }
+  mc_free_rows(data);				/* Free old data */
+  DBUG_RETURN(result);
+}
+
+int STDCALL
+mc_mysql_send_query(MYSQL* mysql, const char* query, uint length)
+{
+  return mc_simple_command(mysql, COM_QUERY, query, length, 1);
+}
+
+int STDCALL mc_mysql_read_query_result(MYSQL *mysql)
+{
+  uchar *pos;
+  ulong field_count;
+  MYSQL_DATA *fields;
+  uint length;
+  DBUG_ENTER("mc_mysql_read_query_result");
+
+  if ((length = mc_net_safe_read(mysql)) == packet_error)
+    DBUG_RETURN(-1);
+  mc_free_old_query(mysql);			/* Free old result */
+get_info:
+  pos=(uchar*) mysql->net.read_pos;
+  if ((field_count= mc_net_field_length(&pos)) == 0)
+  {
+    mysql->affected_rows= mc_net_field_length_ll(&pos);
+    mysql->insert_id=	  mc_net_field_length_ll(&pos);
+    if (mysql->server_capabilities & CLIENT_TRANSACTIONS)
+    {
+      mysql->server_status=uint2korr(pos); pos+=2;
+    }
+    if (pos < mysql->net.read_pos+length && mc_net_field_length(&pos))
+      mysql->info=(char*) pos;
+    DBUG_RETURN(0);
+  }
+  if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
+  {
+    int error=mc_send_file_to_server(mysql,(char*) pos);
+    if ((length=mc_net_safe_read(mysql)) == packet_error || error)
+      DBUG_RETURN(-1);
+    goto get_info;				/* Get info packet */
+  }
+  if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
+    mysql->server_status|= SERVER_STATUS_IN_TRANS;
+
+  mysql->extra_info= mc_net_field_length_ll(&pos); /* Maybe number of rec */
+  if (!(fields=mc_read_rows(mysql,(MYSQL_FIELD*) 0,5)))
+    DBUG_RETURN(-1);
+  if (!(mysql->fields=mc_unpack_fields(fields,&mysql->field_alloc,
+				    (uint) field_count,0,
+				    (my_bool) test(mysql->server_capabilities &
+						   CLIENT_LONG_FLAG))))
+    DBUG_RETURN(-1);
+  mysql->status=MYSQL_STATUS_GET_RESULT;
+  mysql->field_count=field_count;
+  DBUG_RETURN(0);
+}
+
+int STDCALL mc_mysql_query(MYSQL *mysql, const char *query, uint length)
+{
+  DBUG_ENTER("mysql_real_query");
+  DBUG_PRINT("enter",("handle: %lx",mysql));
+  DBUG_PRINT("query",("Query = \"%s\"",query));
+  if(!length)
+    length = strlen(query);
+  if (mc_simple_command(mysql,COM_QUERY,query,length,1))
+    DBUG_RETURN(-1);
+  DBUG_RETURN(mc_mysql_read_query_result(mysql));
+}
+
+static int mc_send_file_to_server(MYSQL *mysql, const char *filename)
+{
+  int fd, readcount;
+  char buf[IO_SIZE*15],*tmp_name;
+  DBUG_ENTER("send_file_to_server");
+
+  fn_format(buf,filename,"","",4);		/* Convert to client format */
+  if (!(tmp_name=my_strdup(buf,MYF(0))))
+  {
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno=CR_OUT_OF_MEMORY));
+    DBUG_RETURN(-1);
+  }
+  if ((fd = my_open(tmp_name,O_RDONLY, MYF(0))) < 0)
+  {
+    mysql->net.last_errno=EE_FILENOTFOUND;
+    sprintf(buf,EE(mysql->net.last_errno),tmp_name,errno);
+    strmake(mysql->net.last_error,buf,sizeof(mysql->net.last_error)-1);
+    my_net_write(&mysql->net,"",0); net_flush(&mysql->net);
+    my_free(tmp_name,MYF(0));
+    DBUG_RETURN(-1);
+  }
+
+  while ((readcount = (int) my_read(fd,buf,sizeof(buf),MYF(0))) > 0)
+  {
+    if (my_net_write(&mysql->net,buf,readcount))
+    {
+      mysql->net.last_errno=CR_SERVER_LOST;
+      strmov(mysql->net.last_error,ER(mysql->net.last_errno));
+      DBUG_PRINT("error",("Lost connection to MySQL server during LOAD DATA of local file"));
+      (void) my_close(fd,MYF(0));
+      my_free(tmp_name,MYF(0));
+      DBUG_RETURN(-1);
+    }
+  }
+  (void) my_close(fd,MYF(0));
+  /* Send empty packet to mark end of file */
+  if (my_net_write(&mysql->net,"",0) || net_flush(&mysql->net))
+  {
+    mysql->net.last_errno=CR_SERVER_LOST;
+    sprintf(mysql->net.last_error,ER(mysql->net.last_errno),errno);
+    my_free(tmp_name,MYF(0));
+    DBUG_RETURN(-1);
+  }
+  if (readcount < 0)
+  {
+    mysql->net.last_errno=EE_READ; /* the errmsg for not entire file read */
+    sprintf(buf,EE(mysql->net.last_errno),tmp_name,errno);
+    strmake(mysql->net.last_error,buf,sizeof(mysql->net.last_error)-1);
+    my_free(tmp_name,MYF(0));
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+/* Get the length of next field. Change parameter to point at fieldstart */
+static ulong mc_net_field_length(uchar **packet)
+{
+  reg1 uchar *pos= *packet;
+  if (*pos < 251)
+  {
+    (*packet)++;
+    return (ulong) *pos;
+  }
+  if (*pos == 251)
+  {
+    (*packet)++;
+    return NULL_LENGTH;
+  }
+  if (*pos == 252)
+  {
+    (*packet)+=3;
+    return (ulong) uint2korr(pos+1);
+  }
+  if (*pos == 253)
+  {
+    (*packet)+=4;
+    return (ulong) uint3korr(pos+1);
+  }
+  (*packet)+=9;					/* Must be 254 when here */
+  return (ulong) uint4korr(pos+1);
+}
+
+/* Same as above, but returns ulonglong values */
+
+static my_ulonglong mc_net_field_length_ll(uchar **packet)
+{
+  reg1 uchar *pos= *packet;
+  if (*pos < 251)
+  {
+    (*packet)++;
+    return (my_ulonglong) *pos;
+  }
+  if (*pos == 251)
+  {
+    (*packet)++;
+    return (my_ulonglong) NULL_LENGTH;
+  }
+  if (*pos == 252)
+  {
+    (*packet)+=3;
+    return (my_ulonglong) uint2korr(pos+1);
+  }
+  if (*pos == 253)
+  {
+    (*packet)+=4;
+    return (my_ulonglong) uint3korr(pos+1);
+  }
+  (*packet)+=9;					/* Must be 254 when here */
+#ifdef NO_CLIENT_LONGLONG
+  return (my_ulonglong) uint4korr(pos+1);
+#else
+  return (my_ulonglong) uint8korr(pos+1);
+#endif
+}
+
+/* Read all rows (fields or data) from server */
+
+static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+			     uint fields)
+{
+  uint	field,pkt_len;
+  ulong len;
+  uchar *cp;
+  char	*to;
+  MYSQL_DATA *result;
+  MYSQL_ROWS **prev_ptr,*cur;
+  NET *net = &mysql->net;
+  DBUG_ENTER("mc_read_rows");
+
+  if ((pkt_len=(uint) mc_net_safe_read(mysql)) == packet_error)
+    DBUG_RETURN(0);
+  if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+				       MYF(MY_WME | MY_ZEROFILL))))
+  {
+    net->last_errno=CR_OUT_OF_MEMORY;
+    strmov(net->last_error,ER(net->last_errno));
+    DBUG_RETURN(0);
+  }
+  init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
+  result->alloc.min_malloc=sizeof(MYSQL_ROWS);
+  prev_ptr= &result->data;
+  result->rows=0;
+  result->fields=fields;
+
+  while (*(cp=net->read_pos) != 254 || pkt_len != 1)
+  {
+    result->rows++;
+    if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
+					    sizeof(MYSQL_ROWS))) ||
+	!(cur->data= ((MYSQL_ROW)
+		      alloc_root(&result->alloc,
+				     (fields+1)*sizeof(char *)+pkt_len))))
+    {
+      mc_free_rows(result);
+      net->last_errno=CR_OUT_OF_MEMORY;
+      strmov(net->last_error,ER(net->last_errno));
+      DBUG_RETURN(0);
+    }
+    *prev_ptr=cur;
+    prev_ptr= &cur->next;
+    to= (char*) (cur->data+fields+1);
+    for (field=0 ; field < fields ; field++)
+    {
+      if ((len=(ulong) mc_net_field_length(&cp)) == NULL_LENGTH)
+      {						/* null field */
+	cur->data[field] = 0;
+      }
+      else
+      {
+	cur->data[field] = to;
+	memcpy(to,(char*) cp,len); to[len]=0;
+	to+=len+1;
+	cp+=len;
+	if (mysql_fields)
+	{
+	  if (mysql_fields[field].max_length < len)
+	    mysql_fields[field].max_length=len;
+	}
+      }
+    }
+    cur->data[field]=to;			/* End of last field */
+    if ((pkt_len=mc_net_safe_read(mysql)) == packet_error)
+    {
+      mc_free_rows(result);
+      DBUG_RETURN(0);
+    }
+  }
+  *prev_ptr=0;					/* last pointer is null */
+  DBUG_PRINT("exit",("Got %d rows",result->rows));
+  DBUG_RETURN(result);
+}
+
+
+/*
+** Read one row. Uses packet buffer as storage for fields.
+** When next packet is read, the previous field values are destroyed
+*/
+
+
+static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
+			   ulong *lengths)
+{
+  uint field;
+  ulong pkt_len,len;
+  uchar *pos,*prev_pos;
+
+  if ((pkt_len=(uint) mc_net_safe_read(mysql)) == packet_error)
+    return -1;
+  if (pkt_len == 1 && mysql->net.read_pos[0] == 254)
+    return 1;				/* End of data */
+  prev_pos= 0;				/* allowed to write at packet[-1] */
+  pos=mysql->net.read_pos;
+  for (field=0 ; field < fields ; field++)
+  {
+    if ((len=(ulong) mc_net_field_length(&pos)) == NULL_LENGTH)
+    {						/* null field */
+      row[field] = 0;
+      *lengths++=0;
+    }
+    else
+    {
+      row[field] = (char*) pos;
+      pos+=len;
+      *lengths++=len;
+    }
+    if (prev_pos)
+      *prev_pos=0;				/* Terminate prev field */
+    prev_pos=pos;
+  }
+  row[field]=(char*) prev_pos+1;		/* End of last field */
+  *prev_pos=0;					/* Terminate last field */
+  return 0;
+}
+
+my_ulonglong STDCALL mc_mysql_num_rows(MYSQL_RES *res)
+{
+  return res->row_count;
+}
+
+unsigned int STDCALL mc_mysql_num_fields(MYSQL_RES *res)
+{
+  return res->field_count;
+}
+
+void STDCALL mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
+{
+  MYSQL_ROWS	*tmp=0;
+  DBUG_PRINT("info",("mysql_data_seek(%ld)",(long) row));
+  if (result->data)
+    for (tmp=result->data->data; row-- && tmp ; tmp = tmp->next) ;
+  result->current_row=0;
+  result->data_cursor = tmp;
+}
+
+MYSQL_ROW STDCALL mc_mysql_fetch_row(MYSQL_RES *res)
+{
+  DBUG_ENTER("mc_mysql_fetch_row");
+  if (!res->data)
+  {						/* Unbufferred fetch */
+    if (!res->eof)
+    {
+      if (!(mc_read_one_row(res->handle,res->field_count,res->row,
+			    res->lengths)))
+      {
+	res->row_count++;
+	DBUG_RETURN(res->current_row=res->row);
+      }
+      else
+      {
+	DBUG_PRINT("info",("end of data"));
+	res->eof=1;
+	res->handle->status=MYSQL_STATUS_READY;
+      }
+    }
+    DBUG_RETURN((MYSQL_ROW) NULL);
+  }
+  {
+    MYSQL_ROW tmp;
+    if (!res->data_cursor)
+    {
+      DBUG_PRINT("info",("end of data"));
+      DBUG_RETURN(res->current_row=(MYSQL_ROW) NULL);
+    }
+    tmp = res->data_cursor->data;
+    res->data_cursor = res->data_cursor->next;
+    DBUG_RETURN(res->current_row=tmp);
+  }
+}
+
+int STDCALL mc_mysql_select_db(MYSQL *mysql, const char *db)
+{
+  int error;
+  DBUG_ENTER("mysql_select_db");
+  DBUG_PRINT("enter",("db: '%s'",db));
+
+  if ((error=mc_simple_command(mysql,COM_INIT_DB,db,(uint) strlen(db),0)))
+    DBUG_RETURN(error);
+  my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+  mysql->db=my_strdup(db,MYF(MY_WME));
+  DBUG_RETURN(0);
+}
+
+
+MYSQL_RES * STDCALL mc_mysql_store_result(MYSQL *mysql)
+{
+  MYSQL_RES *result;
+  DBUG_ENTER("mysql_store_result");
+
+  if (!mysql->fields)
+    DBUG_RETURN(0);
+  if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  {
+    strmov(mysql->net.last_error,
+	   ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    DBUG_RETURN(0);
+  }
+  mysql->status=MYSQL_STATUS_READY;		/* server is ready */
+  if (!(result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
+				      sizeof(ulong)*mysql->field_count,
+				      MYF(MY_WME | MY_ZEROFILL))))
+  {
+    mysql->net.last_errno=CR_OUT_OF_MEMORY;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
+    DBUG_RETURN(0);
+  }
+  result->eof=1;				/* Marker for buffered */
+  result->lengths=(ulong*) (result+1);
+  if (!(result->data=mc_read_rows(mysql,mysql->fields,mysql->field_count)))
+  {
+    my_free((gptr) result,MYF(0));
+    DBUG_RETURN(0);
+  }
+  mysql->affected_rows= result->row_count= result->data->rows;
+  result->data_cursor=	result->data->data;
+  result->fields=	mysql->fields;
+  result->field_alloc=	mysql->field_alloc;
+  result->field_count=	mysql->field_count;
+  result->current_field=0;
+  result->current_row=0;			/* Must do a fetch first */
+  mysql->fields=0;				/* fields is now in result */
+  DBUG_RETURN(result);				/* Data fetched */
+}
+
+
+
+
+
+
+
+

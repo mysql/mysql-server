@@ -1,0 +1,38 @@
+source include/master-slave.inc;
+eval_result; #result depends on some server specific params
+
+#clean up slave binlogs
+connection slave;
+slave stop;
+reset master;
+reset slave;
+
+connection master;
+reset master;
+drop table if exists t1;
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (NULL);
+drop table t1;
+create table t1 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t1;
+drop table t1;
+show binlog events;
+show binlog events from 79 limit 1;
+show binlog events from 79 limit 2;
+show binlog events from 79 limit 2,1;
+flush logs;
+create table t1 (n int);
+insert into t1 values (1);
+drop table t1;
+show binlog events;
+show binlog events in 'master-bin.002';
+show master logs;
+save_master_pos;
+connection slave;
+let $VERSION=`select version()`;
+slave start;
+sync_with_master;
+show master logs;
+show binlog events in 'slave-bin.001' from 4;
+show binlog events in 'slave-bin.002' from 4;
+show slave status;

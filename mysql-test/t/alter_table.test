@@ -71,7 +71,6 @@ ALTER TABLE t1 ADD Column new_col int not null;
 UNLOCK TABLES;
 OPTIMIZE TABLE t1;
 DROP TABLE t1;
-drop table if exists t1;
 
 #
 # ALTER TABLE ... ENABLE/DISABLE KEYS
@@ -91,4 +90,14 @@ while ($1)
  dec $1;
 }
 alter table t1 enable keys;
+drop table t1;
+
+#
+# Drop and add an auto_increment column
+#
+
+create table t1 (i int unsigned not null auto_increment primary key);
+insert into t1 values (null),(null),(null),(null);
+alter table t1 drop i,add i int unsigned not null auto_increment, drop primary key, add primary key (i);
+select * from t1;
 drop table t1;

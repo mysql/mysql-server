@@ -31,3 +31,56 @@ connection slave;
 sync_with_master;
 drop database if exists bar;
 drop database if exists foo;
+
+#now let's test load data from master
+
+#first create some databases and tables on the master
+connection master;
+set sql_log_bin = 0;
+create database foo;
+create database bar;
+show databases;
+create table foo.t1(n int, s char(20));
+create table foo.t2(n int, s text);
+insert into foo.t1 values (1, 'one'), (2, 'two'), (3, 'three'); 
+insert into foo.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen'); 
+
+create table bar.t1(n int, s char(20));
+create table bar.t2(n int, s text);
+insert into bar.t1 values (1, 'one bar'), (2, 'two bar'), (3, 'three bar'); 
+insert into bar.t2 values (11, 'eleven bar'), (12, 'twelve bar'),
+ (13, 'thirteen bar'); 
+set sql_log_bin = 1;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+#this should show that the slave is empty at this point
+show databases;
+load data from master;
+
+#now let's check if we have the right tables and the right data in them
+show databases;
+use foo;
+show tables;
+use bar;
+show tables;
+select * from bar.t1;
+select * from bar.t2;
+
+#now let's see if replication works
+connection master;
+insert into bar.t1 values (4, 'four bar');
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from bar.t1;
+
+#now time for cleanup
+connection master;
+drop database bar;
+drop database foo;
+save_master_pos;
+connection slave;
+sync_with_master;
+

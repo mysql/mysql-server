@@ -527,8 +527,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   int error=0;
   uint extra_testflag=0;
   bool optimize_done= !optimize, statistics_done=0;
-  char fixed_name[FN_REFLEN];
   const char *old_proc_info=thd->proc_info;
+  char fixed_name[FN_REFLEN];
   MYISAM_SHARE* share = file->s;
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
@@ -540,8 +540,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   param.thd=thd;
   param.tmpdir=mysql_tmpdir;
   param.out_flag=0;
-  VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
-		     4+ (param.opt_follow_links ? 16 : 0)));
+  strmov(fixed_name,file->filename);
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables && mi_lock_database(file,F_WRLCK))
@@ -831,6 +830,8 @@ void ha_myisam::position(const byte* record)
 void ha_myisam::info(uint flag)
 {
   MI_ISAMINFO info;
+  char name_buff[FN_REFLEN];
+
   (void) mi_status(file,&info,flag);
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -860,6 +861,18 @@ void ha_myisam::info(uint flag)
     raid_type=info.raid_type;
     raid_chunks=info.raid_chunks;
     raid_chunksize=info.raid_chunksize;
+    
+   /*
+     Set data_file_name and index_file_name to point at the symlink value
+     if table is symlinked (Ie;  Real name is not same as generated name)
+   */
+    data_file_name=index_file_name=0;
+    fn_format(name_buff, file->filename, "", MI_NAME_DEXT, 2);
+    if (strcmp(name_buff, info.data_file_name))
+      data_file_name=info.data_file_name;
+    strmov(fn_ext(name_buff),MI_NAME_IEXT);
+    if (strcmp(name_buff, info.index_file_name))
+      index_file_name=info.index_file_name;
   }
   if (flag & HA_STATUS_ERRKEY)
   {
@@ -915,6 +928,7 @@ THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
 
 void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 {
+  MI_ISAMINFO info;
   table->file->info(HA_STATUS_AUTO | HA_STATUS_CONST);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
@@ -926,6 +940,8 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
     create_info->raid_chunks= raid_chunks;
     create_info->raid_chunksize= raid_chunksize;
   }
+  create_info->data_file_name=data_file_name;
+  create_info->index_file_name=index_file_name;
 }
 
 
@@ -1097,8 +1113,10 @@ int ha_myisam::create(const char *name, register TABLE *form,
   create_info.raid_type=info->raid_type;
   create_info.raid_chunks=info->raid_chunks ? info->raid_chunks : RAID_DEFAULT_CHUNKS;
   create_info.raid_chunksize=info->raid_chunksize ? info->raid_chunksize : RAID_DEFAULT_CHUNKSIZE;
+  create_info.data_file_name= info->data_file_name;
+  create_info.index_file_name=info->index_file_name;
 
-  error=mi_create(fn_format(buff,name,"","",2+4+16),
+  error=mi_create(fn_format(buff,name,"","",2+4),
 		  form->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,
 		  0, (MI_UNIQUEDEF*) 0,

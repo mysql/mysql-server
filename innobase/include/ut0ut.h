@@ -136,6 +136,13 @@ ut_difftime(
 				/* out: time2 - time1 expressed in seconds */
 	ib_time_t	time2,	/* in: time */
 	ib_time_t	time1);	/* in: time */
+/**************************************************************
+Prints a timestamp to a file. */
+
+void
+ut_print_timestamp(
+/*===============*/
+	FILE*  file); /* in: file where to print */
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */

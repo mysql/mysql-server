@@ -1,0 +1,38 @@
+Testing server 'PostgreSQL version 7.1.2' at 2001-06-11 18:18:15
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 140 wallclock secs ( 7.94 usr  1.85 sys +  0.00 cusr  0.00 csys =  9.79 CPU)
+
+Test connect/simple select/disconnect
+Time for connect+select_simple (10000): 155 wallclock secs (10.57 usr  2.71 sys +  0.00 cusr  0.00 csys = 13.28 CPU)
+
+Test simple select
+Time for select_simple (10000):  5 wallclock secs ( 2.74 usr  0.38 sys +  0.00 cusr  0.00 csys =  3.12 CPU)
+
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select_1_row (10000): 190 wallclock secs (10.78 usr  2.23 sys +  0.00 cusr  0.00 csys = 13.01 CPU)
+
+Testing select 1 row from table
+Time to select_1_row (10000):  6 wallclock secs ( 2.65 usr  0.43 sys +  0.00 cusr  0.00 csys =  3.08 CPU)
+
+Testing select 2 rows from table
+Time to select_2_rows (10000):  7 wallclock secs ( 2.81 usr  0.40 sys +  0.00 cusr  0.00 csys =  3.21 CPU)
+
+Test select with aritmetic (+)
+Time for select_column+column (10000):  8 wallclock secs ( 2.90 usr  0.33 sys +  0.00 cusr  0.00 csys =  3.23 CPU)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing retrieval of big records (65000 bytes)
+Time for book-keeping (1):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Time to select_big_str (10000): 37 wallclock secs (12.51 usr  5.97 sys +  0.00 cusr  0.00 csys = 18.48 CPU)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.01 CPU)
+
+Total time: 550 wallclock secs (52.92 usr 14.30 sys +  0.00 cusr  0.00 csys = 67.22 CPU)

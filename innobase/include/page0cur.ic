@@ -171,10 +171,10 @@ page_cur_search(
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(page, tuple, mode,
-					&low_matched_fields,
-					&low_matched_bytes,
 					&up_matched_fields,
 					&up_matched_bytes,
+					&low_matched_fields,
+					&low_matched_bytes,
 					cursor);
 	return(low_matched_fields);
 }

@@ -26,7 +26,6 @@
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
 #include <my_bitmap.h>
-#include <violite.h>
 
 #undef write  // remove pthread.h macro definition for EMX
 
@@ -35,6 +34,7 @@ typedef ulong key_map;			/* Used for finding keys */
 typedef ulong key_part_map;		/* Used for finding key parts */
 
 #include "mysql_com.h"
+#include <violite.h>
 #include "unireg.h"
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
@@ -147,7 +147,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define SELECT_BIG_RESULT	16
 #define OPTION_FOUND_ROWS	32
 #define SELECT_HIGH_PRIORITY	64		/* Intern */
-#define SELECT_USE_CACHE	256		/* Intern */
+#define SELECT_NO_JOIN_CACHE	256		/* Intern */
 
 #define OPTION_BIG_TABLES	512		/* for SQL OPTION */
 #define OPTION_BIG_SELECTS	1024		/* for SQL OPTION */
@@ -223,7 +223,7 @@ inline THD *_current_thd(void)
 #include "opt_range.h"
 
 
-void mysql_create_db(THD *thd, char *db, uint create_info);
+int mysql_create_db(THD *thd, char *db, uint create_info);
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
 int quick_rm_table(enum db_type base,const char *db,
@@ -232,6 +232,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
+void mysql_new_select(LEX *lex);
 void init_max_user_conn(void);
 void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
@@ -245,7 +246,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 bool check_stack_overrun(THD *thd,char *dummy);
 bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables);
-void mysql_rm_db(THD *thd,char *db,bool if_exists);
+int mysql_rm_db(THD *thd,char *db,bool if_exists);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
@@ -304,6 +305,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
                  List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 uint select_type,select_result *result);
+int mysql_union(THD *thd,LEX *lex, uint no);
 Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
@@ -473,8 +475,7 @@ pthread_handler_decl(handle_manager, arg);
 #ifndef DBUG_OFF
 void print_where(COND *cond,const char *info);
 void print_cached_tables(void);
-void TEST_filesort(TABLE **form,SORT_FIELD *sortorder,uint s_length,
-		   ha_rows special);
+void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special);
 #endif
 void mysql_print_status(THD *thd);
 /* key.cc */
@@ -520,7 +521,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_grant, LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_binlog_update, LOCK_slave, LOCK_server_id;
+       LOCK_binlog_update, LOCK_slave, LOCK_server_id, LOCK_slave_list;
 extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
                       COND_slave_stopped, COND_slave_start;
 extern pthread_attr_t connection_attrib;
@@ -548,7 +549,7 @@ extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     binlog_cache_size, max_binlog_cache_size;
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates, using_update_log;
-extern bool opt_sql_bin_update, opt_safe_show_db;
+extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
 extern const char *default_tx_isolation_name;
@@ -616,7 +617,7 @@ void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
 void end_read_record(READ_RECORD *info);
-ha_rows filesort(TABLE **form,struct st_sort_field *sortorder, uint s_length,
+ha_rows filesort(TABLE *form,struct st_sort_field *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special,ha_rows max_rows,
 		 ha_rows *examined_rows);
 void change_double_for_sort(double nr,byte *to);
@@ -667,7 +668,7 @@ extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
 inline bool add_item_to_list(Item *item)
 {
-  return current_lex->item_list.push_back(item);
+  return current_lex->select->item_list.push_back(item);
 }
 inline bool add_value_to_list(Item *value)
 {
@@ -675,11 +676,11 @@ inline bool add_value_to_list(Item *value)
 }
 inline bool add_order_to_list(Item *item,bool asc)
 {
-  return add_to_list(current_lex->order_list,item,asc);
+  return add_to_list(current_lex->select->order_list,item,asc);
 }
 inline bool add_group_to_list(Item *item,bool asc)
 {
-  return add_to_list(current_lex->group_list,item,asc);
+  return add_to_list(current_lex->select->group_list,item,asc);
 }
 inline void mark_as_null_row(TABLE *table)
 {

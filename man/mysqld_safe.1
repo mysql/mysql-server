@@ -1,0 +1,86 @@
+.TH SAFE_MYSQLD	  1 "19 December 2000"
+.SH NAME
+.BR mysqld_safe
+is the recommended way to start a mysqld daemon on Unix. mysqld_safe adds some safety features such as restarting the server when an error occurs and logging run-time information to a log file. 
+.SH SYNOPSIS
+.B mysqld_safe
+.RB [ \-\-basedir=\fP\fIpath\fP ]
+.RB [ \-\-core\-file\-size=# ]
+.RB [ \-\-defaults\-extra\-file=\fP\fIpath\fP ]
+.RB [ \-\-defaults\-file=\fP\fIpath\fP ]
+.RB [ \-\-open\-files=# ]
+.RB [ \-\-datadir=\fP\fIpath\fP ]
+.RB [ \-\-err\-log=\fP\fIpath \fP]
+.RB [ \-\-ledir=path ]
+.RB [ \-\-log=\fP\fIpath\fP ]
+.RB [ \-\-no\-defaults ]
+.RB [ \-\-open\-files=# ]
+.RB [ \-\-pid\-file=\fP\fIpath\fP ]
+.RB [ \-\-port=# ]
+.RB [ \-\-socket=\fP\fIpath\fP ]
+.RB [ \-\-timezone=# ]
+.RB [ \-\-user=# ]
+.SH DESCRIPTION
+.TP 
+.BR \-\-basedir=\fP\fIpath \fP
+.TP 
+.BR \-\-core\-file\-size=# 
+.TP 
+.BR \-\-defaults\-extra\-file=\fP\fIpath \fP
+.TP 
+.BR \-\-defaults\-file=\fP\fIpath \fP
+.TP 
+.BR \-\-open\-files=# 
+Size of the core file mysqld should be able to create. Passed to ulimit \-c. 
+.TP 
+.BR \-\-datadir=\fP\fIpath \fP
+.TP 
+.BR \-\-err\-log=\fP\fIpath \fP
+.TP 
+.BR \-\-ledir=\fP\fIpath \fP
+Path to mysqld 
+.TP 
+.BR \-\-log=\fP\fIpath \fP
+.TP 
+.BR \-\-no\-defaults 
+.TP 
+.BR \-\-open\-files=# 
+Number of files mysqld should be able to open. Passed to ulimit \-n. 
+.TP 
+.BR \-\-pid\-file=\fP\fIpath \fP
+.TP 
+.BR \-\-port=# 
+.TP 
+.BR \-\-socket=\fP\fIpath \fP
+.TP 
+.BR \-\-timezone=# 
+Set the timezone (the TZ) variable to the value of this parameter. 
+.TP 
+.BR \-\-user=# 
+.SH NOTE
+Note that all options on the command line to mysqld_safe are passed to mysqld. If you wants to use any options in mysqld_safe that mysqld doesn't support, you must specify these in the option file. 
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+mysqld_safe (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill\-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page

@@ -32,3 +32,13 @@ insert into t1 values ('NYC Lib','New York');
 select t2.isbn,city,t1.libname,count(t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city,t1.libname;
 select t2.isbn,city,t1.libname,count(distinct t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city having count(distinct t1.libname) > 1;
 drop table t1, t2, t3;
+
+#
+# Problem with LEFT JOIN
+#
+
+create table t1 (f1 int);
+insert into t1 values (1);
+create table t2 (f1 int,f2 int);
+select t1.f1,count(distinct t2.f2),count(distinct 1,NULL) from t1 left join t2 on t1.f1=t2.f1 group by t1.f1;
+drop table t1,t2;

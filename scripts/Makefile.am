@@ -44,7 +44,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqlhotcopy.sh \
 		        mysqldumpslow.sh \
 			mysqld_multi.sh \
-			safe_mysqld.sh
+			mysqld_safe.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \

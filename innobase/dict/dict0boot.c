@@ -313,6 +313,11 @@ dict_boot(void)
 
 	mtr_commit(&mtr);
 	/*-------------------------*/
+
+	/* Initialize the insert buffer table and index for each tablespace */
+
+	ibuf_init_at_db_start();
+
 	/* Load definitions of other indexes on system tables */
 
 	dict_load_sys_table(dict_sys->sys_tables);
@@ -320,10 +325,6 @@ dict_boot(void)
 	dict_load_sys_table(dict_sys->sys_indexes);
 	dict_load_sys_table(dict_sys->sys_fields);
 	
-	/* Initialize the insert buffer table and index for each tablespace */
-
-	ibuf_init_at_db_start();
-
 	mutex_exit(&(dict_sys->mutex));
 }
 

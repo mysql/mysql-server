@@ -138,8 +138,11 @@ class TMP_TABLE_PARAM {
   }
   inline void cleanup(void)
   {
-    delete [] copy_field;
-    copy_field=0;
+    if (copy_field)				/* Fix for Intel compiler */
+    {
+      delete [] copy_field;
+      copy_field=0;
+    }
   }
 };
 

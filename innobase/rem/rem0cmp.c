@@ -177,7 +177,9 @@ cmp_whole_field(
 				(int)(type->prtype & ~DATA_NOT_NULL),
 				a, a_length, b, b_length));
 	default:
-		assert(0);
+	        fprintf(stderr,
+			"InnoDB: unknown type number %lu\n", data_type);
+	        ut_a(0);
 	}
 
 	return(0);

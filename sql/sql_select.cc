@@ -385,6 +385,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       thd->fatal_error)
     goto err;
   thd->proc_info="preparing";
+  result->initialize_tables(&join);
   if ((tmp=join_read_const_tables(&join)) > 0)
     goto err;
   if (tmp && !(select_options & SELECT_DESCRIBE))
@@ -403,7 +404,22 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;					/* purecov: inspected */
   }
   if (join.const_tables && !thd->locked_tables)
+  {
+    TABLE **table, **end;
+    for (table=join.table, end=table + join.const_tables ;
+	 table != end;
+	 table++)
+    {
+      /* BDB tables require that we call index_end() before doing an unlock */
+      if ((*table)->key_read)
+      {
+	(*table)->key_read=0;
+	(*table)->file->extra(HA_EXTRA_NO_KEYREAD);
+      }
+      (*table)->file->index_end();
+    }
     mysql_unlock_some_tables(thd, join.table,join.const_tables);
+  }
   if (!conds && join.outer_join)
   {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
@@ -484,8 +500,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	      (group && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT)));
 
-  make_join_readinfo(&join, (select_options & SELECT_DESCRIBE) | 
-           (ftfuncs.elements ? 0 : SELECT_USE_CACHE)); // No cache for MATCH
+  // No cache for MATCH
+  make_join_readinfo(&join,
+		     (select_options & (SELECT_DESCRIBE |
+					SELECT_NO_JOIN_CACHE)) | 
+		     (ftfuncs.elements ? SELECT_NO_JOIN_CACHE : 0));
 
   /* Need to tell Innobase that to play it safe, it should fetch all
      columns of the tables: this is because MySQL
@@ -2465,7 +2484,7 @@ make_join_readinfo(JOIN *join,uint options)
       ** if previous table use cache
       */
       table->status=STATUS_NO_RECORD;
-      if (i != join->const_tables && (options & SELECT_USE_CACHE) &&
+      if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
 	  tab->use_quick != 2 && !tab->on_expr)
       {
 	if ((options & SELECT_DESCRIBE) ||
@@ -2478,7 +2497,7 @@ make_join_readinfo(JOIN *join,uint options)
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
-	join->thd->lex.options|=QUERY_NO_GOOD_INDEX_USED;
+	join->thd->lex.select_lex.options|=QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	statistic_increment(select_range_check_count, &LOCK_status);
       }
@@ -2493,7 +2512,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.options|=QUERY_NO_INDEX_USED;
+	    join->thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
@@ -2505,7 +2524,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.options|=QUERY_NO_INDEX_USED;
+	    join->thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
@@ -2807,7 +2826,12 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
     if (send_row)
       result->send_data(fields);
     if (tables)					// Not from do_select()
+    {
+      /* Close open cursors */
+      for (TABLE_LIST *table=tables; table ; table=table->next)
+	table->table->file->index_end();
       result->send_eof();			// Should be safe
+    }
   }
   DBUG_RETURN(0);
 }
@@ -3920,7 +3944,7 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
   thd->proc_info="converting HEAP to MyISAM";
 
   if (create_myisam_tmp_table(&new_table,param,
-			      thd->lex.options | thd->options))
+			      thd->lex.select_lex.options | thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
@@ -5130,9 +5154,11 @@ part_of_refkey(TABLE *table,Field *field)
 ** Returns: 1 if key is ok.
 **	    0 if key can't be used
 **	    -1 if reverse key can be used
+**          used_key_parts is set to key parts used if length != 0
 *****************************************************************************/
 
-static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx)
+static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+				uint *used_key_parts)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
@@ -5164,6 +5190,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx)
     reverse=flag;				// Remember if reverse
     key_part++;
   }
+  *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
   return reverse;
 }
 
@@ -5225,10 +5252,41 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   if (ref_key >= 0)
   {
+    int order_direction;
+    uint used_key_parts;
     /* Check if we get the rows in requested sorted order by using the key */
     if ((usable_keys & ((key_map) 1 << ref_key)) &&
-	test_if_order_by_key(order,table,ref_key) == 1)
+	(order_direction = test_if_order_by_key(order,table,ref_key,
+						&used_key_parts)))
+    {
+      if (order_direction == -1)
+      {
+	if (select && select->quick)
+	{
+	  // ORDER BY ref_key DESC
+	  QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
+						       used_key_parts);
+	  if (!tmp || tmp->error)
+	  {
+	    delete tmp;
+	    DBUG_RETURN(0);		// Reverse sort not supported
+	  }
+	  select->quick=tmp;
+	  DBUG_RETURN(1);
+	}
+	if (tab->ref.key_parts < used_key_parts)
+	{
+	  /*
+	    SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+	    TODO:
+	    Add a new traversal function to read last matching row and
+	    traverse backwards.
+	  */
+	  DBUG_RETURN(0);
+	}
+      }
       DBUG_RETURN(1);			/* No need to sort */
+    }
   }
   else
   {
@@ -5247,10 +5305,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     for (nr=0; keys ; keys>>=1, nr++)
     {
+      uint not_used;
       if (keys & 1)
       {
 	int flag;
-	if ((flag=test_if_order_by_key(order,table,nr)))
+	if ((flag=test_if_order_by_key(order, table, nr, &not_used)))
 	{
 	  if (!no_changes)
 	  {
@@ -5311,7 +5370,9 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	goto err;
     }
   }
-  table->found_records=filesort(&table,sortorder,length,
+  if (table->tmp_table)
+    table->file->info(HA_STATUS_VARIABLE);	// Get record count
+  table->found_records=filesort(table,sortorder,length,
 				select, 0L, select_limit, &examined_rows);
   delete select;				// filesort did select
   tab->select=0;
@@ -6647,7 +6708,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   DBUG_ENTER("select_describe");
 
   /* Don't log this into the slow query log */
-  join->thd->lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  join->thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("table",NAME_LEN));
   field_list.push_back(new Item_empty_string("type",10));
   field_list.push_back(item=new Item_empty_string("possible_keys",
@@ -6806,7 +6867,7 @@ static void describe_info(THD *thd, const char *info)
   String *packet= &thd->packet;
 
   /* Don't log this into the slow query log */
-  thd->lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   field_list.push_back(new Item_empty_string("Comment",80));
   if (send_fields(thd,field_list,1))
     return; /* purecov: inspected */

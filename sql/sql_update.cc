@@ -128,7 +128,7 @@ int mysql_update(THD *thd,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.options|=QUERY_NO_INDEX_USED;
+    thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
     if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
     {
       delete select;
@@ -184,7 +184,7 @@ int mysql_update(THD *thd,
                                                MYF(MY_FAE | MY_ZEROFILL));
       if (setup_order(thd, &tables, fields, all_fields, order) ||
           !(sortorder=make_unireg_sortorder(order, &length)) ||
-          (table->found_records = filesort(&table, sortorder, length,
+          (table->found_records = filesort(table, sortorder, length,
                                            (SQL_SELECT *) 0, 0L,
 					   HA_POS_ERROR, &examined_rows))
           == HA_POS_ERROR)

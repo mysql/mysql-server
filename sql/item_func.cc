@@ -1758,7 +1758,7 @@ Item_func_get_user_var::val_str(String *str)
     return NULL;
   switch (entry->type) {
   case REAL_RESULT:
-    str->set(*(double*) entry->value);
+    str->set(*(double*) entry->value,decimals);
     break;
   case INT_RESULT:
     str->set(*(longlong*) entry->value);

@@ -17,10 +17,6 @@
 
 #include "mysys_priv.h"
 #include <m_string.h>
-#ifdef HAVE_REALPATH
-#include <sys/param.h>
-#include <sys/stat.h>
-#endif
 
 	/* format a filename with replace of library and extension */
 	/* params to and name may be identicall */
@@ -33,21 +29,12 @@
 	/*		32  Resolve filename to full path */
 	/*		64  Return NULL if too long path */
 
-#ifdef SCO
-#define BUFF_LEN 4097
-#else
-#ifdef MAXPATHLEN
-#define BUFF_LEN MAXPATHLEN
-#else
-#define BUFF_LEN FN_LEN
-#endif
-#endif
 
 my_string fn_format(my_string to, const char *name, const char *dsk,
 		    const char *form, int flag)
 {
   reg1 uint length;
-  char dev[FN_REFLEN], buff[BUFF_LEN], *pos, *startpos;
+  char dev[FN_REFLEN], buff[FN_REFLEN], *pos, *startpos;
   const char *ext;
   DBUG_ENTER("fn_format");
   DBUG_PRINT("enter",("name: %s  dsk: %s  form: %s  flag: %d",
@@ -109,18 +96,13 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
 #endif
     (void) strmov(pos,ext);			/* Don't convert extension */
   }
-  /* Purify gives a lot of UMR errors when using realpath */
-#if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
-  if (flag & 16)
+  if (flag & 32)
+    (void) my_realpath(to, to, MYF(flag & 32 ? 0 : MY_RESOLVE_LINK));
+  else if (flag & 16)
   {
-    struct stat stat_buff;
-    if (flag & 32 || (!lstat(to,&stat_buff) && S_ISLNK(stat_buff.st_mode)))
-    {
-      if (realpath(to,buff))
-	strmake(to,buff,FN_REFLEN-1);
-    }
+    strmov(buff,to);
+    (void) my_readlink(to, buff, MYF(0));
   }
-#endif
   DBUG_RETURN (to);
 } /* fn_format */
 

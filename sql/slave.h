@@ -1,6 +1,8 @@
 #ifndef SLAVE_H
 #define SLAVE_H
 
+#include "mysql.h"
+
 typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
@@ -13,11 +15,12 @@ typedef struct st_master_info
   char password[HASH_PASSWORD_LENGTH+1];
   uint port;
   uint connect_retry;
+  uint32 last_log_seq; // log sequence number of last processed event
   pthread_mutex_t lock;
   pthread_cond_t cond;
   bool inited;
   
-  st_master_info():pending(0),fd(-1),inited(0)
+  st_master_info():pending(0),fd(-1),last_log_seq(0),inited(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
@@ -64,12 +67,16 @@ typedef struct st_table_rule_ent
 #define TABLE_RULE_ARR_SIZE   16
 
 int flush_master_info(MASTER_INFO* mi);
+int register_slave_on_master(MYSQL* mysql);
 
-int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd = -1);
+int mysql_table_dump(THD* thd, const char* db,
+		     const char* tbl_name, int fd = -1);
 // if fd is -1, dump to NET
-int fetch_nx_table(THD* thd, MASTER_INFO* mi);
+
+int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
+		   MASTER_INFO* mi, MYSQL* mysql);
 // retrieve non-exitent table from master
-// the caller must set thd->last_nx_table and thd->last_nx_db first
+
 int show_master_info(THD* thd);
 int show_binlog_info(THD* thd);
 
@@ -112,9 +119,9 @@ extern int disconnect_slave_event_count, abort_slave_event_count ;
 #endif
 
 // the master variables are defaults read from my.cnf or command line
-extern uint master_port, master_connect_retry;
+extern uint master_port, master_connect_retry, report_port;
 extern my_string master_user, master_password, master_host,
-  master_info_file;
+  master_info_file, report_user, report_host, report_password;
 
 extern I_List<i_string> replicate_do_db, replicate_ignore_db;
 extern I_List<i_string_pair> replicate_rewrite_db;

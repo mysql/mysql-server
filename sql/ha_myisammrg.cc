@@ -232,7 +232,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 
     for (table=file->open_tables ; table != file->end_table ; table++)
     {
-      char *name=table->table->s->filename;
+      char *name=table->table->filename;
       char buff[FN_REFLEN];
       TABLE_LIST *ptr;
       if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
@@ -278,7 +278,7 @@ void ha_myisammrg::append_create_info(String *packet)
 
   for (first=table=file->open_tables ; table != file->end_table ; table++)
   {
-    char *name=table->table->s->filename;
+    char *name=table->table->filename;
     fn_format(buff,name,"","",3);
     if (table != first)
       packet->append(',');

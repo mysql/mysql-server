@@ -160,7 +160,9 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   MI_COLUMNDEF *rec;			/* Pointer to field information */
   MI_PACK    pack;			/* Data about packed records */
   MI_BLOB    *blobs;			/* Pointer to blobs */
-  char	*filename;			/* Name of indexfile */
+  char  *unique_file_name;		/* realpath() of index file */
+  char  *data_file_name,		/* Resolved path names from symlinks */
+        *index_file_name;
   byte *file_map;			/* mem-map of file if possible */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */

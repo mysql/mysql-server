@@ -1,8 +1,9 @@
 #!/bin/sh
 
 #shift
-TO=dev@mysql.com
+TO=dev-public@mysql.com
 FROM=$USER@mysql.com
+INTERNALS=internals@lists.mysql.com
 LIMIT=10000
 
 if [ "$REAL_EMAIL" = "" ]
@@ -23,6 +24,24 @@ List-ID: <bk.mysql>
 From: $FROM
 To: $TO
 Subject: bk commit - 4.0 tree
+
+EOF
+  bk changes -v -r+
+  bk cset -r+ -d
+ ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ echo "Notifying internals list at $INTERNALS"
+ (
+   cat <<EOF
+List-ID: <bk.mysql>
+From: $FROM
+To: $INTERNALS
+Subject: bk commit into 4.0 tree
+
+Below is the list of changes that have just been committed into a
+4.0 repository of $USER. When $USER does a push, they will be propogated to 
+the main repository and within 24 hours after the push to the public repository. 
+For information on how to access the public repository
+see http://www.mysql.com/doc/I/n/Installing_source_tree.html
 
 EOF
   bk changes -v -r+

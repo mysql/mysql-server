@@ -56,6 +56,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
+ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool           srv_is_being_started = FALSE;
 ibool           srv_was_started      = FALSE;
 
@@ -531,6 +532,7 @@ innobase_start_or_create_for_mysql(void)
 /*	yydebug = TRUE; */
 
 	srv_is_being_started = TRUE;
+        srv_startup_is_before_trx_rollback_phase = TRUE;
 
 	if (0 == ut_strcmp(srv_unix_file_flush_method_str, "fdatasync")) {
 	  srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
@@ -548,6 +550,9 @@ innobase_start_or_create_for_mysql(void)
 	  return(DB_ERROR);
 	}
 
+	/*
+	printf("srv_unix set to %lu\n", srv_unix_file_flush_method);
+	*/
 	os_aio_use_native_aio = srv_use_native_aio;
 
 	err = srv_boot();
@@ -728,6 +733,7 @@ innobase_start_or_create_for_mysql(void)
 
 		trx_sys_create();
 		dict_create();
+                srv_startup_is_before_trx_rollback_phase = FALSE;
 
 	} else if (srv_archive_recovery) {
 		fprintf(stderr,
@@ -742,9 +748,15 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		trx_sys_init_at_db_start();
+		/* Since ibuf init is in dict_boot, and ibuf is needed
+		in any disk i/o, first call dict_boot */
+
 		dict_boot();
+
+		trx_sys_init_at_db_start();
 		
+                srv_startup_is_before_trx_rollback_phase = FALSE;
+
 		recv_recovery_from_archive_finish();
 	} else {
 		/* We always try to do a recovery, even if the database had
@@ -759,12 +771,15 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		trx_sys_init_at_db_start();
+		/* Since ibuf init is in dict_boot, and ibuf is needed
+		in any disk i/o, first call dict_boot */
 		dict_boot();
+		trx_sys_init_at_db_start();
 
 		/* The following needs trx lists which are initialized in
 		trx_sys_init_at_db_start */
-		
+
+                srv_startup_is_before_trx_rollback_phase = FALSE;
 		recv_recovery_from_checkpoint_finish();
 	}
 	
@@ -813,7 +828,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(&srv_lock_timeout_monitor_thread, NULL,
 					thread_ids + 2 + SRV_MAX_N_IO_THREADS);	
-	fprintf(stderr, "InnoDB: Started\n");
+	ut_print_timestamp(stderr);
+	fprintf(stderr, "  InnoDB: Started\n");
 
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
@@ -835,8 +851,9 @@ innobase_shutdown_for_mysql(void)
 {
         if (!srv_was_started) {
 	  if (srv_is_being_started) {
+	    ut_print_timestamp(stderr);
             fprintf(stderr, 
-	"InnoDB: Warning: shutting down not properly started database\n");
+	"  InnoDB: Warning: shutting down a not properly started database\n");
 	  }
 	  return(DB_SUCCESS);
 	}

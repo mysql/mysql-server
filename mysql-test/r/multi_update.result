@@ -1,0 +1,22 @@
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+test.t3	check	status	OK
+count(*)
+0
+count(*)
+0
+count(*)
+0
+count(*)
+0
+count(*)
+0
+count(*)
+0
+count(*)
+0
+count(*)
+0
+count(*)
+0

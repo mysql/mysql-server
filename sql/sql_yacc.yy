@@ -21,6 +21,7 @@
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200				/* Because of 64K stack */
 #define Lex current_lex
+#define Select Lex->select
 #include "mysql_priv.h"
 #include "slave.h"  
 #include "sql_acl.h"
@@ -129,6 +130,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LOAD
 %token	LOCK_SYM
 %token	UNLOCK_SYM
+%token  BINLOG_SYM
+%token  EVENTS_SYM
 
 %token	ACTION
 %token	AGGREGATE_SYM
@@ -161,6 +164,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DELAY_KEY_WRITE_SYM
 %token	DESC
 %token	DESCRIBE
+%token  DIRECTORY_SYM
 %token	DISTINCT
 %token	DISABLE_SYM
 %token	DYNAMIC_SYM
@@ -193,6 +197,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENT
 %token	IGNORE_SYM
 %token	INDEX
+%token	INDEXES
 %token	INFILE
 %token	INNER_SYM
 %token	INNOBASE_SYM
@@ -464,12 +469,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_escape
 
 %type <string>
-	text_string
+	text_string 
 
 %type <num>
 	type int_type real_type order_dir opt_field_spec set_option lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-	table_option opt_if_not_exists
+	table_option opt_if_not_exists 
 
 %type <ulong_num>
 	ULONG_NUM raid_types
@@ -526,7 +531,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
-        when_list2 expr_list2 handler
+	when_list2 expr_list2  handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock varchar
@@ -541,7 +546,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_rkey_mode handler_read_or_scan
-        END_OF_INPUT
+	single_multi table_wild_list table_wild_one opt_wild union union_list
+	precision
+END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -647,7 +654,6 @@ master_def:
        }
 
 
-
 /* create a table */
 
 create:
@@ -671,36 +677,41 @@ create:
 
 	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
 	  {
-	    Lex->sql_command= SQLCOM_CREATE_INDEX;
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_CREATE_INDEX;
 	    if (!add_table_to_list($6,NULL,1))
 	      YYABORT;
-	    Lex->create_list.empty();
-	    Lex->key_list.empty();
-	    Lex->col_list.empty();
-	    Lex->change=NullS;
+	    lex->create_list.empty();
+	    lex->key_list.empty();
+	    lex->col_list.empty();
+	    lex->change=NullS;
 	  }
 	  '(' key_list ')'
 	  {
-	    Lex->key_list.push_back(new Key($2,$4.str,Lex->col_list));
-	    Lex->col_list.empty();
+	    LEX *lex=Lex;
+	    lex->key_list.push_back(new Key($2,$4.str,lex->col_list));
+	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
 	  {
-	    Lex->sql_command=SQLCOM_CREATE_DB;
-	    Lex->name=$4.str;
-            Lex->create_info.options=$3;
+	    LEX *lex=Lex;
+	    lex->sql_command=SQLCOM_CREATE_DB;
+	    lex->name=$4.str;
+            lex->create_info.options=$3;
 	  }
 	| CREATE udf_func_type UDF_SYM ident
 	  {
-	    Lex->sql_command = SQLCOM_CREATE_FUNCTION;
-	    Lex->udf.name=$4.str;
-	    Lex->udf.name_length=$4.length;
-	    Lex->udf.type= $2;
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
+	    lex->udf.name=$4.str;
+	    lex->udf.name_length=$4.length;
+	    lex->udf.type= $2;
 	  }
 	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
 	  {
-	    Lex->udf.returns=(Item_result) $7;
-	    Lex->udf.dl=$9.str;
+	    LEX *lex=Lex;
+	    lex->udf.returns=(Item_result) $7;
+	    lex->udf.dl=$9.str;
 	  }
 
 create2:
@@ -711,8 +722,9 @@ create3:
 	/* empty */ {}
 	| opt_duplicate opt_as SELECT_SYM
           {
-	    Lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-	    mysql_init_select(Lex);
+	    LEX *lex=Lex;
+	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	    mysql_init_select(lex);
           }
           select_options select_item_list opt_select_from {}
 
@@ -762,15 +774,17 @@ create_table_option:
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
-	    TABLE_LIST *table_list= (TABLE_LIST*) lex->table_list.first;
-	    lex->create_info.merge_list= lex->table_list;
+	    TABLE_LIST *table_list= (TABLE_LIST*) lex->select->table_list.first;
+	    lex->create_info.merge_list= lex->select->table_list;
 	    lex->create_info.merge_list.elements--;
 	    lex->create_info.merge_list.first= (byte*) (table_list->next);
-	    lex->table_list.elements=1;
-	    lex->table_list.next= (byte**) &(table_list->next);
+	    lex->select->table_list.elements=1;
+	    lex->select->table_list.next= (byte**) &(table_list->next);
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; }
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -818,8 +832,9 @@ field_list_item:
 	  }
 	| key_type opt_ident '(' key_list ')'
 	  {
-	    Lex->key_list.push_back(new Key($1,$2,Lex->col_list));
-	    Lex->col_list.empty();		/* Alloced by sql_alloc */
+	    LEX *lex=Lex;
+	    lex->key_list.push_back(new Key($1,$2,lex->col_list));
+	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
@@ -837,16 +852,18 @@ opt_constraint:
 field_spec:
 	field_ident
 	 {
-	   Lex->length=Lex->dec=0; Lex->type=0; Lex->interval=0;
-	   Lex->default_value=0;
+	   LEX *lex=Lex;
+	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+	   lex->default_value=0;
 	 }
 	type opt_attribute
 	{
+	  LEX *lex=Lex;
 	  if (add_field_to_list($1.str,
 				(enum enum_field_types) $3,
-				Lex->length,Lex->dec,Lex->type,
-				Lex->default_value,Lex->change,
-				Lex->interval))
+				lex->length,lex->dec,lex->type,
+				lex->default_value,lex->change,
+				lex->interval))
 	    YYABORT;
 	}
 
@@ -898,12 +915,14 @@ type:
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')'
 	  {
-	    Lex->interval=typelib(Lex->interval_list);
+	    LEX *lex=Lex;
+	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_ENUM;
 	  }
 	| SET { Lex->interval_list.empty();} '(' string_list ')'
 	  {
-	    Lex->interval=typelib(Lex->interval_list);
+	    LEX *lex=Lex;
+	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_SET;
 	  }
 
@@ -935,7 +954,14 @@ real_type:
 float_options:
 	/* empty */		{}
 	| '(' NUM ')'		{ Lex->length=$2.str; }
-	| '(' NUM ',' NUM ')'	{ Lex->length=$2.str; Lex->dec=$4.str; }
+	| precision		{}
+
+precision:
+	'(' NUM ',' NUM ')'
+	{
+	  LEX *lex=Lex;
+	  lex->length=$2.str; lex->dec=$4.str;
+	}
 
 field_options:
 	/* empty */		{}
@@ -955,7 +981,7 @@ opt_len:
 
 opt_precision:
 	/* empty */	{}
-	| '(' NUM ',' NUM ')'	{ Lex->length=$2.str; Lex->dec=$4.str; }
+	| precision	{}
 
 opt_attribute:
 	/* empty */ {}
@@ -1022,6 +1048,7 @@ key_or_index:
 keys_or_index:
 	KEYS {}
 	| INDEX {}
+	| INDEXES {}
 
 opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
@@ -1062,10 +1089,10 @@ alter:
 	  lex->col_list.empty();
 	  lex->drop_list.empty();
 	  lex->alter_list.empty();
-          lex->order_list.elements=0;
-          lex->order_list.first=0;
-          lex->order_list.next= (byte**) &lex->order_list.first;
-	  lex->db=lex->name=0;
+          lex->select->order_list.elements=0;
+          lex->select->order_list.first=0;
+          lex->select->order_list.next= (byte**) &lex->select->order_list.first;
+	  lex->select->db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
           lex->alter_keys_onoff=LEAVE_AS_IS;
@@ -1083,40 +1110,70 @@ add_column:
 alter_list_item:
 	add_column field_list_item opt_place { Lex->simple_alter=0; }
 	| add_column '(' field_list ')'      { Lex->simple_alter=0; }
-	| CHANGE opt_column field_ident { Lex->change= $3.str; Lex->simple_alter=0; }
+	| CHANGE opt_column field_ident
+	  {
+	     LEX *lex=Lex;
+	     lex->change= $3.str; lex->simple_alter=0;
+	  }
           field_spec
 	| MODIFY_SYM opt_column field_ident
 	  {
-	    Lex->length=Lex->dec=0; Lex->type=0; Lex->interval=0;
-	    Lex->default_value=0;
-            Lex->simple_alter=0;
+	    LEX *lex=Lex;
+	    lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+	    lex->default_value=0;
+            lex->simple_alter=0;
 	  }
 	  type opt_attribute
 	  {
+	    LEX *lex=Lex;
 	    if (add_field_to_list($3.str,
 				  (enum enum_field_types) $5,
-				  Lex->length,Lex->dec,Lex->type,
-				  Lex->default_value, $3.str,
-				  Lex->interval))
+				  lex->length,lex->dec,lex->type,
+				  lex->default_value, $3.str,
+				  lex->interval))
 	     YYABORT;
-             Lex->simple_alter=0;
+             lex->simple_alter=0;
 	  }
 	| DROP opt_column field_ident opt_restrict
-	  { Lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
-					    $3.str)); Lex->simple_alter=0; }
-	| DROP PRIMARY_SYM KEY_SYM { Lex->drop_primary=1; Lex->simple_alter=0; }
+	  {
+	    LEX *lex=Lex;
+	    lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
+					    $3.str)); lex->simple_alter=0;
+	  }
+	| DROP PRIMARY_SYM KEY_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->drop_primary=1; lex->simple_alter=0;
+	  }
 	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP key_or_index field_ident
-	  { Lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-					    $3.str)); Lex->simple_alter=0; }
+	  {
+	    LEX *lex=Lex;
+	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+						    $3.str));
+	    lex->simple_alter=0;
+	  }
 	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
 	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
 	| ALTER opt_column field_ident SET DEFAULT literal
-	  { Lex->alter_list.push_back(new Alter_column($3.str,$6)); Lex->simple_alter=0; }
+	  {
+	    LEX *lex=Lex;
+	    lex->alter_list.push_back(new Alter_column($3.str,$6));
+	    lex->simple_alter=0;
+	  }
 	| ALTER opt_column field_ident DROP DEFAULT
-	  { Lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0)); Lex->simple_alter=0; }
+	  {
+	    LEX *lex=Lex;
+	    lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0));
+	    lex->simple_alter=0;
+	  }
 	| RENAME opt_to table_alias table_ident
-	  { Lex->db=$4->db.str ; Lex->name= $4->table.str; Lex->simple_alter=0; }
+	  { 
+	    LEX *lex=Lex;
+	    lex->select->db=$4->db.str;
+	    lex->name= $4->table.str;
+	    lex->simple_alter=0; 
+	  }
         | create_table_options { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; }
 
@@ -1146,14 +1203,16 @@ opt_to:
 slave:
 	SLAVE START_SYM
          {
-           Lex->sql_command = SQLCOM_SLAVE_START;
-	   Lex->type = 0;
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
          }
          |
 	SLAVE STOP_SYM
          {
-           Lex->sql_command = SQLCOM_SLAVE_STOP;
-	   Lex->type = 0;
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
          };
 
 restore:
@@ -1179,8 +1238,9 @@ backup:
 repair:
 	REPAIR table_or_tables
 	{
-	   Lex->sql_command = SQLCOM_REPAIR;
-	   Lex->check_opt.init();
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_REPAIR;
+	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 
@@ -1204,24 +1264,27 @@ mi_check_type:
 analyze:
 	ANALYZE_SYM table_or_tables
 	{
-	   Lex->sql_command = SQLCOM_ANALYZE;
-	   Lex->check_opt.init();
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_ANALYZE;
+	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 
 check:
 	CHECK_SYM table_or_tables
 	{
-	   Lex->sql_command = SQLCOM_CHECK;
-	   Lex->check_opt.init();
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_CHECK;
+	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 
 optimize:
 	OPTIMIZE table_or_tables
 	{
-	   Lex->sql_command = SQLCOM_OPTIMIZE;
-	   Lex->check_opt.init();
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_OPTIMIZE;
+	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 
@@ -1252,11 +1315,11 @@ select:
 	SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  lex->sql_command= SQLCOM_SELECT;
+	  if (lex->sql_command!=SQLCOM_UNION_SELECT)  lex->sql_command= SQLCOM_SELECT;
 	  lex->lock_option=TL_READ;
 	  mysql_init_select(lex);
 	}
-	select_options select_item_list select_into select_lock_type
+	select_options select_item_list select_into select_lock_type union
 
 select_into:
 	limit_clause {}
@@ -1277,13 +1340,13 @@ select_option_list:
 	| select_option
 
 select_option:
-	STRAIGHT_JOIN { Lex->options|= SELECT_STRAIGHT_JOIN; }
+	STRAIGHT_JOIN { Select->options|= SELECT_STRAIGHT_JOIN; }
 	| HIGH_PRIORITY { Lex->lock_option= TL_READ_HIGH_PRIORITY; }
-	| DISTINCT	{ Lex->options|= SELECT_DISTINCT; }
-	| SQL_SMALL_RESULT { Lex->options|= SELECT_SMALL_RESULT; }
-	| SQL_BIG_RESULT { Lex->options|= SELECT_BIG_RESULT; }
-	| SQL_BUFFER_RESULT { Lex->options|= OPTION_BUFFER_RESULT; }
-	| SQL_CALC_FOUND_ROWS { Lex->options|= OPTION_FOUND_ROWS; }
+	| DISTINCT	{ Select->options|= SELECT_DISTINCT; }
+	| SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
+	| SQL_BIG_RESULT { Select->options|= SELECT_BIG_RESULT; }
+	| SQL_BUFFER_RESULT { Select->options|= OPTION_BUFFER_RESULT; }
+	| SQL_CALC_FOUND_ROWS { Select->options|= OPTION_FOUND_ROWS; }
 	| ALL		{}
 
 select_lock_type:
@@ -1470,10 +1533,10 @@ simple_expr:
 	| '(' expr ')'		{ $$= $2; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH '(' ident_list ')' AGAINST '(' expr ')'
-          { Lex->ftfunc_list.push_back(
+          { Select->ftfunc_list.push_back(
                    (Item_func_match *)($$=new Item_func_match(*$3,$7))); }
         | MATCH ident_list AGAINST '(' expr ')'
-          { Lex->ftfunc_list.push_back(
+          { Select->ftfunc_list.push_back(
                    (Item_func_match *)($$=new Item_func_match(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
@@ -1704,30 +1767,30 @@ sum_expr:
 	  { $$=new Item_sum_sum($3); }
 
 in_sum_expr:
-	{ Lex->in_sum_expr++ }
+	{ Select->in_sum_expr++ }
 	expr
 	{
-	  Lex->in_sum_expr--;
+	  Select->in_sum_expr--;
 	  $$=$2;
 	}
 
 expr_list:
-	{ Lex->expr_list.push_front(new List<Item>); }
+	{ Select->expr_list.push_front(new List<Item>); }
 	expr_list2
-	{ $$= Lex->expr_list.pop(); }
+	{ $$= Select->expr_list.pop(); }
 
 expr_list2:
-	expr { Lex->expr_list.head()->push_back($1); }
-	| expr_list2 ',' expr { Lex->expr_list.head()->push_back($3); }
+	expr { Select->expr_list.head()->push_back($1); }
+	| expr_list2 ',' expr { Select->expr_list.head()->push_back($3); }
 
 ident_list:
-        { Lex->expr_list.push_front(new List<Item>); }
+        { Select->expr_list.push_front(new List<Item>); }
         ident_list2
-        { $$= Lex->expr_list.pop(); }
+        { $$= Select->expr_list.pop(); }
 
 ident_list2:
-        simple_ident { Lex->expr_list.head()->push_back($1); }
-        | ident_list2 ',' simple_ident { Lex->expr_list.head()->push_back($3); }
+        simple_ident { Select->expr_list.head()->push_back($1); }
+        | ident_list2 ',' simple_ident { Select->expr_list.head()->push_back($3); }
 
 opt_expr:
 	/* empty */      { $$= NULL; }
@@ -1738,20 +1801,22 @@ opt_else:
 	| ELSE expr    { $$= $2; }
 
 when_list:
-        { Lex->when_list.push_front(new List<Item>) }
+        { Select->when_list.push_front(new List<Item>) }
 	when_list2
-	{ $$= Lex->when_list.pop(); }
+	{ $$= Select->when_list.pop(); }
 
 when_list2:
 	expr THEN_SYM expr
 	  {
-	    Lex->when_list.head()->push_back($1);
-	    Lex->when_list.head()->push_back($3);
+	    SELECT_LEX *sel=Select;	    
+	    sel->when_list.head()->push_back($1);
+	    sel->when_list.head()->push_back($3);
 	}
 	| when_list2 WHEN_SYM expr THEN_SYM expr
 	  {
-	    Lex->when_list.head()->push_back($3);
-	    Lex->when_list.head()->push_back($5);
+	    SELECT_LEX *sel=Select;
+	    sel->when_list.head()->push_back($3);
+	    sel->when_list.head()->push_back($5);
 	  }
 
 opt_pad:
@@ -1766,15 +1831,21 @@ join_table_list:
 	| join_table_list INNER_SYM JOIN_SYM join_table ON expr
 	  { add_join_on($4,$6); $$=$4; }
 	| join_table_list INNER_SYM JOIN_SYM join_table
-	  { Lex->db1=$1->db; Lex->table1=$1->name;
-	    Lex->db2=$4->db; Lex->table2=$4->name; }
+	  {
+	    SELECT_LEX *sel=Select;
+	    sel->db1=$1->db; sel->table1=$1->name;
+	    sel->db2=$4->db; sel->table2=$4->name;
+	  }
 	  USING '(' using_list ')'
 	  { add_join_on($4,$8); $$=$4; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table ON expr
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table
-	  { Lex->db1=$1->db; Lex->table1=$1->name;
-	    Lex->db2=$5->db; Lex->table2=$5->name; }
+	  {
+	    SELECT_LEX *sel=Select;
+	    sel->db1=$1->db; sel->table1=$1->name;
+	    sel->db2=$5->db; sel->table2=$5->name;
+	  }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table
@@ -1782,8 +1853,11 @@ join_table_list:
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table ON expr
 	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table
-	  { Lex->db1=$1->db; Lex->table1=$1->name;
-	    Lex->db2=$5->db; Lex->table2=$5->name; }
+	  {
+	    SELECT_LEX *sel=Select;
+	    sel->db1=$1->db; sel->table1=$1->name;
+	    sel->db2=$5->db; sel->table2=$5->name;
+	  }
 	  USING '(' using_list ')'
 	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table
@@ -1797,10 +1871,16 @@ normal_join:
 	| CROSS JOIN_SYM {}
 
 join_table:
-	{ Lex->use_index_ptr=Lex->ignore_index_ptr=0; }
+	{
+	  SELECT_LEX *sel=Select;
+	  sel->use_index_ptr=sel->ignore_index_ptr=0;
+	}
         table_ident opt_table_alias opt_key_definition
-	{ if (!($$=add_table_to_list($2,$3,0,TL_UNLOCK, Lex->use_index_ptr,
-	                             Lex->ignore_index_ptr))) YYABORT; }
+	{
+	  SELECT_LEX *sel=Select;
+	  if (!($$=add_table_to_list($2,$3,0,TL_UNLOCK, sel->use_index_ptr,
+	                             sel->ignore_index_ptr))) YYABORT;
+	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
 
@@ -1811,30 +1891,41 @@ opt_outer:
 opt_key_definition:
 	/* empty */	{}
 	| USE_SYM    key_usage_list
-          { Lex->use_index= *$2; Lex->use_index_ptr= &Lex->use_index; }
+          {
+	    SELECT_LEX *sel=Select;
+	    sel->use_index= *$2;
+	    sel->use_index_ptr= &sel->use_index;
+	  }
 	| IGNORE_SYM key_usage_list
-	  { Lex->ignore_index= *$2; Lex->ignore_index_ptr= &Lex->ignore_index;}
+	  {
+	    SELECT_LEX *sel=Select;
+	    sel->ignore_index= *$2;
+	    sel->ignore_index_ptr= &sel->ignore_index;
+	  }
 
 key_usage_list:
-	key_or_index { Lex->interval_list.empty() } '(' key_usage_list2 ')'
-        { $$= &Lex->interval_list; }
+	key_or_index { Select->interval_list.empty() } '(' key_usage_list2 ')'
+        { $$= &Select->interval_list; }
 
 key_usage_list2:
 	key_usage_list2 ',' ident
-        { Lex->interval_list.push_back(new String((const char*) $3.str,$3.length)); }
+        { Select->interval_list.push_back(new String((const char*) $3.str,$3.length)); }
 	| ident
-        { Lex->interval_list.push_back(new String((const char*) $1.str,$1.length)); }
+        { Select->interval_list.push_back(new String((const char*) $1.str,$1.length)); }
 	| PRIMARY_SYM
-        { Lex->interval_list.push_back(new String("PRIMARY",7)); }
+        { Select->interval_list.push_back(new String("PRIMARY",7)); }
 
 using_list:
 	ident
-	  { if (!($$= new Item_func_eq(new Item_field(Lex->db1,Lex->table1, $1.str), new Item_field(Lex->db2,Lex->table2,$1.str))))
+	  {
+	    SELECT_LEX *sel=Select;
+	    if (!($$= new Item_func_eq(new Item_field(sel->db1,sel->table1, $1.str), new Item_field(sel->db2,sel->table2,$1.str))))
 	      YYABORT;
 	  }
 	| using_list ',' ident
 	  {
-	    if (!($$= new Item_cond_and(new Item_func_eq(new Item_field(Lex->db1,Lex->table1,$3.str), new Item_field(Lex->db2,Lex->table2,$3.str)), $1)))
+	    SELECT_LEX *sel=Select;
+	    if (!($$= new Item_cond_and(new Item_func_eq(new Item_field(sel->db1,sel->table1,$3.str), new Item_field(sel->db2,sel->table2,$3.str)), $1)))
 	      YYABORT;
 	  }
 
@@ -1865,13 +1956,16 @@ opt_table_alias:
 
 
 where_clause:
-	/* empty */  { Lex->where= 0; }
-	| WHERE expr { Lex->where= $2; }
+	/* empty */  { Select->where= 0; }
+	| WHERE expr { Select->where= $2; }
 
 having_clause:
 	/* empty */
-	| HAVING { Lex->create_refs=1; } expr
-	{ Lex->having= $3; Lex->create_refs=0; }
+	| HAVING { Select->create_refs=1; } expr
+	{
+	  SELECT_LEX *sel=Select;
+	  sel->having= $3; sel->create_refs=0;
+	}
 
 opt_escape:
 	ESCAPE_SYM TEXT_STRING	{ $$= $2.str; }
@@ -1901,7 +1995,7 @@ opt_order_clause:
 	| order_clause
 
 order_clause:
-	ORDER_SYM BY { Lex->sort_default=1; } order_list
+	ORDER_SYM BY { Select->sort_default=1; } order_list
 
 order_list:
 	order_list ',' order_ident order_dir
@@ -1911,39 +2005,46 @@ order_list:
 
 order_dir:
 	/* empty */ { $$ =  1; }
-	| ASC  { $$ = Lex->sort_default=1; }
-	| DESC { $$ = Lex->sort_default=0; }
+	| ASC  { $$ = Select->sort_default=1; }
+	| DESC { $$ = Select->sort_default=0; }
 
 
 limit_clause:
 	/* empty */
 	{
-	  Lex->select_limit= (Lex->sql_command == SQLCOM_HA_READ) ?
+	  SELECT_LEX *sel=Select;
+	  sel->select_limit= (Lex->sql_command == SQLCOM_HA_READ) ?
              1 : current_thd->default_select_limit;
-	  Lex->offset_limit= 0L;
+	  sel->offset_limit= 0L;
 	}
 	| LIMIT ULONG_NUM
-	  { Lex->select_limit= $2; Lex->offset_limit=0L; }
+	  {
+	    SELECT_LEX *sel=Select;
+	    sel->select_limit= $2; sel->offset_limit=0L;
+	  }
 	| LIMIT ULONG_NUM ',' ULONG_NUM
-	  { Lex->select_limit= $4; Lex->offset_limit=$2; }
+	  {
+	    SELECT_LEX *sel=Select;
+	    sel->select_limit= $4; sel->offset_limit=$2;
+	  }
 
 delete_limit_clause:
 	/* empty */
 	{
-	  Lex->select_limit= HA_POS_ERROR;
+	  Select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ULONGLONG_NUM
-	{ Lex->select_limit= (ha_rows) $2; }
+	{ Select->select_limit= (ha_rows) $2; }
 
 ULONG_NUM:
-	NUM { $$= strtoul($1.str,NULL,10); }
-	| REAL_NUM { $$= strtoul($1.str,NULL,10); }
+	NUM	    { $$= strtoul($1.str,NULL,10); }
+	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); }
 
 ULONGLONG_NUM:
-	NUM	   { $$= (ulonglong) strtoul($1.str,NULL,10); }
-	| LONG_NUM { $$= strtoull($1.str,NULL,10); }
-	| REAL_NUM { $$= strtoull($1.str,NULL,10); }
+	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
+	| LONG_NUM  { $$= strtoull($1.str,NULL,10); }
+	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); }
 
 procedure_clause:
@@ -1998,28 +2099,32 @@ opt_into:
 drop:
 	DROP TABLE_SYM if_exists table_list opt_restrict
 	{
-	  Lex->sql_command = SQLCOM_DROP_TABLE;
-	  Lex->drop_if_exists = $3;
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_DROP_TABLE;
+	  lex->drop_if_exists = $3;
 	}
 	| DROP INDEX ident ON table_ident {}
 	  {
-	     Lex->sql_command= SQLCOM_DROP_INDEX;
-	     Lex->drop_list.empty();
-	     Lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+	     LEX *lex=Lex;
+	     lex->sql_command= SQLCOM_DROP_INDEX;
+	     lex->drop_list.empty();
+	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						     $3.str));
 	     if (!add_table_to_list($5,NULL, 1))
 	      YYABORT;
 	  }
 	| DROP DATABASE if_exists ident
 	  {
-	    Lex->sql_command= SQLCOM_DROP_DB;
-	    Lex->drop_if_exists=$3;
-	    Lex->name=$4.str;
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_DROP_DB;
+	    lex->drop_if_exists=$3;
+	    lex->name=$4.str;
 	 }
 	| DROP UDF_SYM ident
 	  {
-	    Lex->sql_command = SQLCOM_DROP_FUNCTION;
-	    Lex->udf.name=$3.str;
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_DROP_FUNCTION;
+	    lex->udf.name=$3.str;
 	  }
 
 
@@ -2062,17 +2167,19 @@ insert2:
 insert_table:
 	table_name
 	{
-	  Lex->field_list.empty();
-	  Lex->many_values.empty();
-	  Lex->insert_list=0;
+	  LEX *lex=Lex;
+	  lex->field_list.empty();
+	  lex->many_values.empty();
+	  lex->insert_list=0;
 	}
 
 insert_field_spec:
 	opt_field_spec insert_values {}
 	| SET
 	  {
-	    if (!(Lex->insert_list = new List_item) ||
-		Lex->many_values.push_back(Lex->insert_list))
+	    LEX *lex=Lex;
+	    if (!(lex->insert_list = new List_item) ||
+		lex->many_values.push_back(lex->insert_list))
 	      YYABORT;
 	   }
 	   ident_eq_list
@@ -2110,8 +2217,9 @@ ident_eq_list:
 ident_eq_value:
 	simple_ident equal expr
 	 {
-	  if (Lex->field_list.push_back($1) ||
-	      Lex->insert_list->push_back($3))
+	  LEX *lex=Lex;
+	  if (lex->field_list.push_back($1) ||
+	      lex->insert_list->push_back($3))
 	    YYABORT;
 	 }
 
@@ -2126,7 +2234,8 @@ no_braces:
 	 }
 	 opt_values ')'
 	 {
-	  if (Lex->many_values.push_back(Lex->insert_list))
+	  LEX *lex=Lex;
+	  if (lex->many_values.push_back(lex->insert_list))
 	    YYABORT;
 	 }
 
@@ -2155,10 +2264,11 @@ update:
         opt_order_clause
         delete_limit_clause
 	{ 
-          Lex->sql_command = SQLCOM_UPDATE;
-          Lex->order_list.elements=0;
-          Lex->order_list.first=0;
-          Lex->order_list.next= (byte**) &Lex->order_list.first;          
+	  LEX *lex=Lex;
+          lex->sql_command = SQLCOM_UPDATE;
+          lex->select->order_list.elements=0;
+          lex->select->order_list.first=0;
+          lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
 
 update_list:
@@ -2182,22 +2292,64 @@ opt_low_priority:
 delete:
 	DELETE_SYM
 	{ 
-          Lex->sql_command= SQLCOM_DELETE; Lex->options=0;
-	  Lex->lock_option= current_thd->update_lock_default;
-          Lex->order_list.elements=0;
-          Lex->order_list.first=0;
-          Lex->order_list.next= (byte**) &Lex->order_list.first;
-        }
-        opt_delete_options FROM table_name
-	where_clause opt_order_clause delete_limit_clause
+	  LEX *lex=Lex;
+	  lex->sql_command= SQLCOM_DELETE; lex->select->options=0;
+	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->select->order_list.elements=0;
+	  lex->select->order_list.first=0;
+	  lex->select->order_list.next= (byte**) &lex->select->order_list.first;
+	}
+	opt_delete_options single_multi	{}
+
+single_multi:
+ 	FROM table_name where_clause opt_order_clause delete_limit_clause {}
+	| table_wild_list
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command =  SQLCOM_MULTI_DELETE;
+            mysql_init_select(lex);
+            lex->select->select_limit=HA_POS_ERROR;
+            lex->auxilliary_table_list.elements=0; 
+            lex->auxilliary_table_list.first=0;
+            lex->auxilliary_table_list.next= (byte**) &(lex->auxilliary_table_list.first);
+          }
+          FROM 
+          {
+	    LEX *lex=Lex;
+	    lex->auxilliary_table_list=lex->select_lex.table_list;
+	    lex->select->table_list.elements=0; 
+            lex->select->table_list.first=0;
+            lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
+	  } join_table_list where_clause
+
+
+table_wild_list:
+	  table_wild_one {}
+	  | table_wild_list ',' table_wild_one {}
+
+table_wild_one:
+	 ident opt_wild
+	 {
+	    if (!add_table_to_list(new Table_ident($1),NULL,1,TL_WRITE))
+	      YYABORT;
+         }
+	 | ident '.' ident opt_wild
+	   {
+	     if (!add_table_to_list(new Table_ident($1,$3,0),NULL,1,TL_WRITE))
+	      YYABORT;
+	   }
+
+opt_wild:
+	/* empty */	{} 
+	| '.' '*'	{}
 
 
 opt_delete_options:
-	/* empty */	    {}
+	/* empty */	{}
 	| opt_delete_option opt_delete_options {}
 
 opt_delete_option:
-	QUICK		{ Lex->options|= OPTION_QUICK; }
+	QUICK		{ Select->options|= OPTION_QUICK; }
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 truncate:
@@ -2205,17 +2357,16 @@ truncate:
 	{
 	  LEX* lex = Lex;
 	  lex->sql_command= SQLCOM_TRUNCATE;
-	  lex->options=0;
-	  lex->order_list.elements=0;
-          lex->order_list.first=0;
-          lex->order_list.next= (byte**) &lex->order_list.first;
-
+	  lex->select->options=0;
+	  lex->select->order_list.elements=0;
+          lex->select->order_list.first=0;
+          lex->select->order_list.next= (byte**) &lex->select->order_list.first;
 	  lex->lock_option= current_thd->update_lock_default; }
 
 opt_table_sym:
 	/* empty */
 	| TABLE_SYM
-
+ 
 /* Show things */
 
 show:	SHOW { Lex->wild=0;} show_param
@@ -2224,18 +2375,26 @@ show_param:
 	DATABASES wild
 	  { Lex->sql_command= SQLCOM_SHOW_DATABASES; }
 	| TABLES opt_db wild
-	  { Lex->sql_command= SQLCOM_SHOW_TABLES; Lex->db= $2; Lex->options=0;}
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_TABLES;
+	    lex->select->db= $2; lex->select->options=0;
+	   }
 	| TABLE_SYM STATUS_SYM opt_db wild
-	  { Lex->sql_command= SQLCOM_SHOW_TABLES;
-	    Lex->options|= SELECT_DESCRIBE;
-	    Lex->db= $3;
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_TABLES;
+	    lex->select->options|= SELECT_DESCRIBE;
+	    lex->select->db= $3;
 	  }
 	| OPEN_SYM TABLES opt_db wild
-	  { Lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
-	    Lex->db= $3;
-	    Lex->options=0;
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
+	    lex->select->db= $3;
+	    lex->select->options=0;
 	  }
-	| opt_full COLUMNS FROM table_ident opt_db wild
+	| opt_full COLUMNS from_or_in table_ident opt_db wild
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
@@ -2246,7 +2405,15 @@ show_param:
         | MASTER_SYM LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
-          }      
+          }
+        | SLAVE HOSTS_SYM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
+          }
+        | BINLOG_SYM EVENTS_SYM binlog_in binlog_from limit_clause
+          {
+	    Lex->sql_command = SQLCOM_SHOW_BINLOG_EVENTS;
+          } 
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -2264,8 +2431,12 @@ show_param:
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
-	  { Lex->sql_command= SQLCOM_SHOW_GRANTS;
-	    Lex->grant_user=$3; Lex->grant_user->password.str=NullS; }
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_GRANTS;
+	    lex->grant_user=$3;
+	    lex->grant_user->password.str=NullS;
+	  }
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
@@ -2283,7 +2454,7 @@ show_param:
 
 opt_db:
 	/* empty */  { $$= 0; }
-	| FROM ident { $$= $2.str; }
+	| from_or_in ident { $$= $2.str; }
 
 wild:
 	/* empty */
@@ -2293,18 +2464,32 @@ opt_full:
 	/* empty */ { Lex->verbose=0; }
 	| FULL	    { Lex->verbose=1; }
 
+from_or_in:
+	FROM
+	| IN_SYM
+
+binlog_in:
+	/* empty */ { Lex->mi.log_file_name = 0; }
+        | IN_SYM TEXT_STRING { Lex->mi.log_file_name = $2.str; }
+
+binlog_from:
+	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
+        | FROM ULONGLONG_NUM { Lex->mi.pos = $2; }
+
+
 /* A Oracle compatible synonym for show */
 describe:
 	describe_command table_ident
 	{
-	  Lex->wild=0;
-	  Lex->verbose=0;
-	  Lex->sql_command=SQLCOM_SHOW_FIELDS;
+	  LEX *lex=Lex;
+	  lex->wild=0;
+	  lex->verbose=0;
+	  lex->sql_command=SQLCOM_SHOW_FIELDS;
 	  if (!add_table_to_list($2, NULL,0))
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select { Lex->options|= SELECT_DESCRIBE };
+	| describe_command select { Select->options|= SELECT_DESCRIBE };
 
 
 describe_command:
@@ -2320,7 +2505,12 @@ opt_describe_column:
 /* flush things */
 
 flush:
-	FLUSH_SYM {Lex->sql_command= SQLCOM_FLUSH; Lex->type=0; } flush_options
+	FLUSH_SYM
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
+	}
+	flush_options
 
 flush_options:
 	flush_options ',' flush_option
@@ -2341,8 +2531,11 @@ opt_table_list:
 	| table_list {}
 
 reset:
-	RESET_SYM {Lex->sql_command= SQLCOM_RESET; Lex->type=0; } reset_options
-
+	RESET_SYM
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command= SQLCOM_RESET; lex->type=0;
+	} reset_options
 reset_options:
 	reset_options ',' reset_option
 	| reset_option
@@ -2352,7 +2545,12 @@ reset_option:
         | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
 
 purge:
-	PURGE { Lex->sql_command = SQLCOM_PURGE; Lex->type=0;}
+	PURGE
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_PURGE;
+	  lex->type=0;
+	}
         MASTER_SYM LOGS_SYM TO_SYM TEXT_STRING
          {
 	   Lex->to_log = $6.str;
@@ -2363,29 +2561,34 @@ purge:
 kill:
 	KILL_SYM expr
 	{
-	  if ($2->fix_fields(current_thd,0))
-	     { 
-		send_error(&current_thd->net, ER_SET_CONSTANTS_ONLY);
-	        YYABORT;
-	     }
-          Lex->sql_command=SQLCOM_KILL;
-	  Lex->thread_id= (ulong) $2->val_int();
+	  LEX *lex=Lex;
+	  if ($2->fix_fields(lex->thd,0))
+	  { 
+	    send_error(&lex->thd->net, ER_SET_CONSTANTS_ONLY);
+	    YYABORT;
+	  }
+          lex->sql_command=SQLCOM_KILL;
+	  lex->thread_id= (ulong) $2->val_int();
 	}
 
 /* change database */
 
 use:	USE_SYM ident
-	{ Lex->sql_command=SQLCOM_CHANGE_DB; Lex->db= $2.str; }
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command=SQLCOM_CHANGE_DB; lex->select->db= $2.str;
+	}
 
 /* import, export of files */
 
-load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
+load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	{
-	  Lex->sql_command= SQLCOM_LOAD;
-	  Lex->local_file= $4;
-	  if (!(Lex->exchange= new sql_exchange($6.str,0)))
+	  LEX *lex=Lex;
+	  lex->sql_command= SQLCOM_LOAD;
+	  lex->local_file= $4;
+	  if (!(lex->exchange= new sql_exchange($6.str,0)))
 	    YYABORT;
-	  Lex->field_list.empty();
+	  lex->field_list.empty();
 	}
 	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
 	opt_ignore_lines opt_field_spec
@@ -2400,6 +2603,11 @@ load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
 	  if (!add_table_to_list($3,NULL,1))
 	    YYABORT;
 
+        }
+        |
+	LOAD DATA_SYM FROM MASTER_SYM
+        {
+	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
         }
 
 opt_local:
@@ -2428,7 +2636,11 @@ field_term_list:
 field_term:
 	TERMINATED BY text_string { Lex->exchange->field_term= $3;}
 	| OPTIONALLY ENCLOSED BY text_string
-	  { Lex->exchange->enclosed= $4; Lex->exchange->opt_enclosed=1;}
+	  {
+	    LEX *lex=Lex;
+	    lex->exchange->enclosed= $4;
+	    lex->exchange->opt_enclosed=1;
+	  }
 	| ENCLOSED BY text_string { Lex->exchange->enclosed= $3;}
 	| ESCAPED BY text_string  { Lex->exchange->escaped= $3;}
 
@@ -2498,13 +2710,25 @@ order_ident:
 
 simple_ident:
 	ident
-	{ $$ = !Lex->create_refs || Lex->in_sum_expr > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str); }
+	{
+	  SELECT_LEX *sel=Select;
+	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str);
+	}
 	| ident '.' ident
-	{ $$ = !Lex->create_refs || Lex->in_sum_expr > 0 ? (Item*) new Item_field(NullS,$1.str,$3.str) : (Item*) new Item_ref(NullS,$1.str,$3.str); }
+	{
+	  SELECT_LEX *sel=Select;
+	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field(NullS,$1.str,$3.str) : (Item*) new Item_ref(NullS,$1.str,$3.str);
+	}
 	| '.' ident '.' ident
-	{ $$ = !Lex->create_refs || Lex->in_sum_expr > 0 ? (Item*) new Item_field(NullS,$2.str,$4.str) : (Item*) new Item_ref(NullS,$2.str,$4.str); }
+	{
+	  SELECT_LEX *sel=Select;
+	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field(NullS,$2.str,$4.str) : (Item*) new Item_ref(NullS,$2.str,$4.str);
+	}
 	| ident '.' ident '.' ident
-	{ $$ = !Lex->create_refs || Lex->in_sum_expr > 0 ? (Item*) new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str); }
+	{
+	  SELECT_LEX *sel=Select;
+	  $$ = !sel->create_refs || sel->in_sum_expr > 0 ? (Item*) new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
+	}
 
 
 field_ident:
@@ -2521,10 +2745,11 @@ ident:
 	IDENT	    { $$=$1; }
 	| keyword
 	{
+	  LEX *lex;
 	  $$.str=sql_strmake($1.str,$1.length);
 	  $$.length=$1.length;
-	  if (Lex->next_state != STATE_END)
-	    Lex->next_state=STATE_OPERATOR_OR_IDENT;
+	  if ((lex=Lex)->next_state != STATE_END)
+	    lex->next_state=STATE_OPERATOR_OR_IDENT;
 	}
 
 ident_or_text:
@@ -2575,6 +2800,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
+	| DIRECTORY_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
         | DISABLE_SYM           {}
 	| DUMPFILE		{}
@@ -2598,6 +2824,7 @@ keyword:
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
+	| INDEXES		{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
 	| INNOBASE_SYM		{}
@@ -2675,12 +2902,14 @@ keyword:
 set:
 	SET opt_option
 	{
-	  THD *thd=current_thd;
-	  Lex->sql_command= SQLCOM_SET_OPTION;
-	  Lex->options=thd->options;
-	  Lex->select_limit=thd->default_select_limit;
-	  Lex->gemini_spin_retries=thd->gemini_spin_retries;
-	  Lex->tx_isolation=thd->tx_isolation;
+	  LEX *lex=Lex;
+	  lex->sql_command= SQLCOM_SET_OPTION;
+	  lex->select->options=lex->thd->options;
+	  lex->select->select_limit=lex->thd->default_select_limit;
+	  lex->gemini_spin_retries=lex->thd->gemini_spin_retries;
+	  lex->tx_isolation=lex->thd->tx_isolation;
+	  lex->option_type=0;
+	  lex->option_list.empty()
 	}
 	option_value_list
 
@@ -2690,36 +2919,41 @@ opt_option:
 
 option_value_list:
 	option_value
+	| GLOBAL_SYM { Lex->option_type=1; } option_value
+	| LOCAL_SYM  { Lex->option_type=0; } option_value
 	| option_value_list ',' option_value
 
 option_value:
 	set_option equal NUM
 	{
+	  SELECT_LEX *sel=Select;
 	  if (atoi($3.str) == 0)
-	    Lex->options&= ~$1;
+	    sel->options&= ~$1;
 	  else
-	    Lex->options|= $1;
+	    sel->options|= $1;
 	}
 	| set_isolation
 	| AUTOCOMMIT equal NUM
 	{
+	  SELECT_LEX *sel=Select;
 	  if (atoi($3.str) != 0)	/* Test NOT AUTOCOMMIT */
-	    Lex->options&= ~(OPTION_NOT_AUTO_COMMIT);
+	    sel->options&= ~(OPTION_NOT_AUTO_COMMIT);
 	  else
-	    Lex->options|= OPTION_NOT_AUTO_COMMIT;
+	    sel->options|= OPTION_NOT_AUTO_COMMIT;
 	}
 	| SQL_SELECT_LIMIT equal ULONG_NUM
 	{
-	  Lex->select_limit= $3;
+	  Select->select_limit= $3;
 	}
 	| SQL_SELECT_LIMIT equal DEFAULT
 	{
-	  Lex->select_limit= HA_POS_ERROR;
+	  Select->select_limit= HA_POS_ERROR;
 	}
 	| SQL_MAX_JOIN_SIZE equal ULONG_NUM
 	{
-	  current_thd->max_join_size= $3;
-	  Lex->options&= ~OPTION_BIG_SELECTS;
+	  LEX *lex=Lex;
+	  lex->thd->max_join_size= $3;
+	  lex->select->options&= ~OPTION_BIG_SELECTS;
 	}
 	| SQL_MAX_JOIN_SIZE equal DEFAULT
 	{
@@ -2794,6 +3028,28 @@ option_value:
 	      slave_skip_counter = $3;
 	    pthread_mutex_unlock(&LOCK_slave);
           }
+	| ident equal DEFAULT
+	  {
+	    LEX *lex=Lex;
+	    lex->option_list.push_back(new Set_option(lex->option_type,
+						      $1.str,$1.length,
+						      (Item*) 0));
+	   }
+	| ident equal expr
+	  {
+	     THD *thd=current_thd;
+	     Item *item= $3;
+	     if (item->fix_fields(current_thd,0))
+	     {
+		send_error(&thd->net, ER_SET_CONSTANTS_ONLY);
+	        YYABORT;
+	     }
+	     thd->lex.option_list.
+	       push_back(new Set_option(thd->lex.option_type,
+					$1.str,$1.length,
+					item));
+	   }
+
 
 text_or_password:
 	TEXT_STRING { $$=$1.str;}
@@ -2842,7 +3098,10 @@ set_isolation:
 	  default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
         }
 	| SESSION_SYM tx_isolation
-	{ current_thd->session_tx_isolation= Lex->tx_isolation= $2; }
+	{
+	 LEX *lex=Lex;
+	 lex->thd->session_tx_isolation= lex->tx_isolation= $2;
+	}
 	| tx_isolation
 	{ Lex->tx_isolation= $1; }
 
@@ -2926,8 +3185,9 @@ handler_rkey_function:
 	| LAST_SYM { Lex->ha_read_mode = RLAST;  }
 	| handler_rkey_mode
 	{
-	  Lex->ha_read_mode = RKEY;
-	  if (!(Lex->insert_list = new List_item))
+	  LEX *lex=Lex;
+	  lex->ha_read_mode = RKEY;
+	  if (!(lex->insert_list = new List_item))
 	    YYABORT;
 	} '(' values ')' { }
 
@@ -2943,22 +3203,24 @@ handler_rkey_mode:
 revoke:
 	REVOKE
 	{
-	  Lex->sql_command = SQLCOM_REVOKE;
-	  Lex->users_list.empty();
-	  Lex->columns.empty();
-	  Lex->grant= Lex->grant_tot_col=0;
-	  Lex->db=0;
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_REVOKE;
+	  lex->users_list.empty();
+	  lex->columns.empty();
+	  lex->grant= lex->grant_tot_col=0;
+	  lex->select->db=0;
 	}
 	grant_privileges ON opt_table FROM user_list
 
 grant:
 	GRANT
 	{
-	  Lex->sql_command = SQLCOM_GRANT;
-	  Lex->users_list.empty();
-	  Lex->columns.empty();
-	  Lex->grant= Lex->grant_tot_col=0;
-	  Lex->db=0;
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_GRANT;
+	  lex->users_list.empty();
+	  lex->columns.empty();
+	  lex->grant= lex->grant_tot_col=0;
+	  lex->select->db=0;
 	}
 	grant_privileges ON opt_table TO_SYM user_list
 	grant_option
@@ -2998,43 +3260,47 @@ grant_privilege:
 opt_table:
 	'*'
 	  {
-	    Lex->db=current_thd->db;
-	    if (Lex->grant == UINT_MAX)
-	      Lex->grant = DB_ACLS & ~GRANT_ACL;
-	    else if (Lex->columns.elements)
+	    LEX *lex=Lex;
+	    lex->select->db=lex->thd->db;
+	    if (lex->grant == UINT_MAX)
+	      lex->grant = DB_ACLS & ~GRANT_ACL;
+	    else if (lex->columns.elements)
 	    {
-	       net_printf(&current_thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	       net_printf(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	       YYABORT;
-	     }
+	    }
 	  }
 	| ident '.' '*'
 	  {
-	    Lex->db = $1.str;
-	    if (Lex->grant == UINT_MAX)
-	      Lex->grant = DB_ACLS & ~GRANT_ACL;
-	    else if (Lex->columns.elements)
+	    LEX *lex=Lex;
+	    lex->select->db = $1.str;
+	    if (lex->grant == UINT_MAX)
+	      lex->grant = DB_ACLS & ~GRANT_ACL;
+	    else if (lex->columns.elements)
 	    {
-	      net_printf(&current_thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      net_printf(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
 	| '*' '.' '*'
 	  {
-	    Lex->db = NULL;
-	    if (Lex->grant == UINT_MAX)
-	      Lex->grant = GLOBAL_ACLS & ~GRANT_ACL;
-	    else if (Lex->columns.elements)
+	    LEX *lex=Lex;
+	    lex->select->db = NULL;
+	    if (lex->grant == UINT_MAX)
+	      lex->grant = GLOBAL_ACLS & ~GRANT_ACL;
+	    else if (lex->columns.elements)
 	    {
-	      net_printf(&current_thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      net_printf(&lex->thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	      YYABORT;
 	    }
 	  }
 	| table_ident
 	  {
+	    LEX *lex=Lex;
 	    if (!add_table_to_list($1,NULL,0))
 	      YYABORT;
-	    if (Lex->grant == UINT_MAX)
-	      Lex->grant =  TABLE_ACLS & ~GRANT_ACL;
+	    if (lex->grant == UINT_MAX)
+	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
 	  }
 
 
@@ -3065,7 +3331,11 @@ grant_user:
 
 
 opt_column_list:
-	/* empty */ { Lex->grant |= Lex->which_columns; }
+	/* empty */
+	{
+	  LEX *lex=Lex;
+	  lex->grant |= lex->which_columns;
+	}
 	| '(' column_list ')'
 
 column_list:
@@ -3078,16 +3348,17 @@ column_list_id:
 	  String *new_str = new String((const char*) $1.str,$1.length);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
+	  LEX *lex=Lex;
 	  while ((point=iter++))
 	  {
 	    if (!my_strcasecmp(point->column.ptr(),new_str->ptr()))
 		break;
 	  }
-	  Lex->grant_tot_col|= Lex->which_columns;
+	  lex->grant_tot_col|= lex->which_columns;
 	  if (point)
-	    point->rights |= Lex->which_columns;
+	    point->rights |= lex->which_columns;
 	  else
-	    Lex->columns.push_back(new LEX_COLUMN (*new_str,Lex->which_columns));
+	    lex->columns.push_back(new LEX_COLUMN (*new_str,lex->which_columns));
 	}
 
 grant_option:
@@ -3106,3 +3377,23 @@ commit:
 
 rollback:
 	ROLLBACK_SYM { Lex->sql_command = SQLCOM_ROLLBACK;}
+
+
+/*
+** UNIONS : glue selects together
+*/
+
+
+union:	
+  /* empty */ {}
+  | union_list
+
+union_list:
+  UNION_SYM  
+  {
+    LEX *lex=Lex;
+    if (lex->exchange) YYABORT; /* Only the last SELECT can have  INTO...... */
+    lex->sql_command=SQLCOM_UNION_SELECT;
+    mysql_new_select(lex); lex->select->linkage=UNION_TYPE;
+  } 
+  select

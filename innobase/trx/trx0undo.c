@@ -613,6 +613,10 @@ trx_undo_insert_header_reuse(
 	/* Insert undo data is not needed after commit: we may free all
 	the space on the page */
 
+	ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
+					+ TRX_UNDO_PAGE_TYPE)
+						== TRX_UNDO_INSERT);
+
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START, new_free);
 	
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_FREE, new_free);
@@ -800,7 +804,7 @@ trx_undo_free_page(
 	ulint		hist_size;
 
 	UT_NOT_USED(hdr_offset);
-	ut_ad(hdr_page_no != page_no);
+	ut_a(hdr_page_no != page_no);
 	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(rseg->mutex)));
 	
@@ -1411,6 +1415,10 @@ trx_undo_reuse_cached(
 	if (type == TRX_UNDO_INSERT) {
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
 	} else {
+		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
+					+ TRX_UNDO_PAGE_TYPE)
+						== TRX_UNDO_UPDATE);
+
 		offset = trx_undo_header_create(undo_page, trx_id, mtr);
 	}
 	

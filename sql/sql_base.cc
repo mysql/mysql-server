@@ -384,6 +384,9 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->in_lock_tables=1;
     result=reopen_tables(thd,1,1);
     thd->in_lock_tables=0;
+    /* Set version for table */
+    for (TABLE *table=thd->open_tables; table ; table=table->next)
+      table->version=refresh_version;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (if_wait_for_refresh)
@@ -501,11 +504,12 @@ void close_temporary(TABLE *table,bool delete_table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
-  uint init_query_buf_size = 11, query_buf_size; // "drop table "
-  char* query, *p;
+  char *query, *end;
+  const uint init_query_buf_size = 11;		// "drop table "
+  uint query_buf_size; 
   bool found_user_tables = 0;
   
-  LINT_INIT(p);
+  LINT_INIT(end);
   query_buf_size = init_query_buf_size;
 
   for (table=thd->temporary_tables ; table ; table=table->next)
@@ -513,37 +517,37 @@ void close_temporary_tables(THD *thd)
     query_buf_size += table->key_length;
   }
 
-  if(query_buf_size == init_query_buf_size)
+  if (query_buf_size == init_query_buf_size)
     return; // no tables to close
 
-  if((query = alloc_root(&thd->mem_root, query_buf_size)))
-    {
-      memcpy(query, "drop table ", init_query_buf_size);
-      p = query + init_query_buf_size;
-    }
+  if ((query = alloc_root(&thd->mem_root, query_buf_size)))
+  {
+    memcpy(query, "drop table ", init_query_buf_size);
+    end = query + init_query_buf_size;
+  }
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
-    if(query) // we might be out of memory, but this is not fatal
+    if (query) // we might be out of memory, but this is not fatal
+    {
+      // skip temporary tables not created directly by the user
+      if (table->table_name[0] != '#')
       {
-	// skip temporary tables not created directly by the user
-	if(table->table_name[0] != '#')
-	  {
-	    p = strxmov(p,table->table_cache_key,".",
-		    table->table_name,",", NullS);
-	    // here we assume table_cache_key always starts
-	    // with \0 terminated db name
-	    found_user_tables = 1;
-	  }
+	end = strxmov(end,table->table_cache_key,".",
+		      table->table_name,",", NullS);
+	// here we assume table_cache_key always starts
+	// with \0 terminated db name
+	found_user_tables = 1;
       }
+    }
     next=table->next;
     close_temporary(table);
   }
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
     uint save_query_len = thd->query_length;
-    *--p = 0;
-    thd->query_length = (uint)(p-query);
+    *--end = 0;					// Remove last ','
+    thd->query_length = (uint)(end-query);
     Query_log_event qinfo(thd, query);
     mysql_bin_log.write(&qinfo);
     thd->query_length = save_query_len;
@@ -837,25 +841,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
-      MEM_ROOT* glob_alloc;
-      LINT_INIT(glob_alloc);
-
-      if (errno == ENOENT &&
-	 (glob_alloc = my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC)))
-	// Sasha: needed for replication
-	// remember the name of the non-existent table
-	// so we can try to download it from the master
-      {
-	int table_name_len = (uint) strlen(table_name);
-	int db_len = (uint) strlen(db);
-	thd->last_nx_db = alloc_root(glob_alloc,db_len + table_name_len + 2);
-	if(thd->last_nx_db)
-	{
-	  thd->last_nx_table = thd->last_nx_db + db_len + 1;
-	  memcpy(thd->last_nx_table, table_name, table_name_len + 1);
-	  memcpy(thd->last_nx_db, db, db_len + 1);
-	}
-      }
       table->next=table->prev=table;
       free_cache_entry(table);
       VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1394,11 +1379,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   bool refresh;
   DBUG_ENTER("open_ltable");
 
-#ifdef __WIN__
-  /* Win32 can't drop a file that is open */
-  if (lock_type == TL_WRITE_ALLOW_READ)
-    lock_type= TL_WRITE;
-#endif
   thd->proc_info="Opening table";
   while (!(table=open_table(thd,table_list->db ? table_list->db : thd->db,
 			    table_list->real_name,table_list->name,
@@ -1406,6 +1386,19 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   if (table)
   {
     int error;
+
+#ifdef __WIN__
+    /* Win32 can't drop a file that is open */
+    if (lock_type == TL_WRITE_ALLOW_READ
+#ifdef HAVE_GEMINI_DB
+        && table->db_type != DB_TYPE_GEMINI
+#endif /* HAVE_GEMINI_DB */
+       )
+    {
+      lock_type= TL_WRITE;
+    }
+#endif /* __WIN__ */
+
     table_list->table=table;
     table->grant= table_list->grant;
     if (thd->locked_tables)

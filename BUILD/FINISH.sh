@@ -15,6 +15,10 @@ $make -k clean || true
 aclocal && autoheader && aclocal && automake && autoconf
 (cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+if [ -d gemini ]
+then
+   (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
+fi
 
 CFLAGS=\"$cflags\" CXX=gcc CXXFLAGS=\"$cxxflags\" $configure"
 

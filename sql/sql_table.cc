@@ -59,9 +59,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   VOID(pthread_mutex_lock(&LOCK_open));
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  if(global_read_lock)
+  if (global_read_lock)
   {
-    if(thd->global_read_lock)
+    if (thd->global_read_lock)
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
@@ -220,6 +220,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   file=get_new_handler((TABLE*) 0, create_info->db_type);
+
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (file->option_flag() & HA_NO_TEMP_TABLES))
+  {
+    my_error(ER_ILLEGAL_HA,MYF(0),table_name);
+    DBUG_RETURN(-1);
+  }
 
   /* Don't pack keys in old tables if the user has requested this */
 
@@ -422,6 +429,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			ER(ER_KEY_COLUMN_DOES_NOT_EXITS),MYF(0),
 			column->field_name);
 	DBUG_RETURN(-1);
+      }
+      if (key->type == Key::FULLTEXT &&
+          (file->option_flag() & HA_NO_FULLTEXT_KEY))
+      {
+        my_printf_error(ER_WRONG_KEY_COLUMN, ER(ER_WRONG_KEY_COLUMN), MYF(0),
+                        column->field_name);
+        DBUG_RETURN(-1);
       }
       if (f_is_blob(sql_field->pack_flag))
       {
@@ -825,13 +839,13 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 
     int lock_retcode;
     pthread_mutex_lock(&LOCK_open);
-    if((lock_retcode = lock_table_name(thd, table)) < 0)
+    if ((lock_retcode = lock_table_name(thd, table)) < 0)
     {
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(-1);
     }
 
-    if(lock_retcode && wait_for_locked_table_names(thd, table))
+    if (lock_retcode && wait_for_locked_table_names(thd, table))
     {
       unlock_table_name(thd, table);
       pthread_mutex_unlock(&LOCK_open);
@@ -839,7 +853,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
     }
     pthread_mutex_unlock(&LOCK_open);
 
-    if(my_copy(src_path,
+    if (my_copy(src_path,
 	       fn_format(dst_path, dst_path,"",
 			 reg_ext, 4),
 	       MYF(MY_WME)))
@@ -853,7 +867,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
     // generate table will try to send OK which messes up the output
     // for the client
 
-    if(generate_table(thd, table, 0))
+    if (generate_table(thd, table, 0))
     {
       unlock_table_name(thd, table);
       thd->net.no_send_ok = save_no_send_ok;
@@ -914,7 +928,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
       // now we should be able to open the partially restored table
       // to finish the restore in the handler later on
-      if(!(table->table = reopen_name_locked_table(thd, table)))
+      if (!(table->table = reopen_name_locked_table(thd, table)))
         unlock_table_name(thd, table);
     }
 
@@ -1091,7 +1105,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table,*new_table;
   int error;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN],
-    *table_name,*db;
+       *table_name,*db;
+  char index_file[FN_REFLEN], data_file[FN_REFLEN];
   bool use_timestamp=0;
   ha_rows copied,deleted;
   ulonglong next_insert_id;
@@ -1113,10 +1128,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
+    // Check if name changed
 #ifdef FN_LOWER_CASE
-    if (!my_strcasecmp(new_name_buff,table_name))// Check if name changed
+    if (!strcmp(db,new_db) && !my_strcasecmp(new_name_buff,table_name))
 #else
-    if (!strcmp(new_name_buff,table_name))	// Check if name changed
+    if (!strcmp(db,new_db) && !strcmp(new_name_buff,table_name))
 #endif
       new_name=table_name;			// No. Make later check easier
     else
@@ -1233,7 +1249,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (drop->type == Alter_drop::COLUMN &&
 	  !my_strcasecmp(field->field_name, drop->name))
+      {
+	/* Reset auto_increment value if it was dropped */
+	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
+	    !(create_info->used_fields & HA_CREATE_USED_AUTO))
+	{
+	  create_info->auto_increment_value=0;
+	  create_info->used_fields|=HA_CREATE_USED_AUTO;
+	}
 	break;
+      }
     }
     if (drop)
     {
@@ -1439,6 +1464,53 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if (table->tmp_table)
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
+
+  /*
+    Handling of symlinked tables:
+    If no rename:
+      Create new data file and index file on the same disk as the
+      old data and index files.
+      Copy data.
+      Rename new data file over old data file and new index file over
+      old index file.
+      Symlinks are not changed.
+
+   If rename:
+      Create new data file and index file on the same disk as the
+      old data and index files.  Create also symlinks to point at
+      the new tables.
+      Copy data.
+      At end, rename temporary tables and symlinks to temporary table
+      to final table name.
+      Remove old table and old symlinks
+
+    If rename is made to another database:
+      Create new tables in new database.
+      Copy data.
+      Remove old table and symlinks.
+  */
+
+  if (!strcmp(db, new_db))		// Ignore symlink if db changed
+  {
+    if (create_info->index_file_name)
+    {
+      /* Fix index_file_name to have 'tmp_name' as basename */
+      strmov(index_file, tmp_name);
+      create_info->index_file_name=fn_same(index_file,
+					   create_info->index_file_name,
+					   1);
+    }
+    if (create_info->data_file_name)
+    {
+      /* Fix data_file_name to have 'tmp_name' as basename */
+      strmov(data_file, tmp_name);
+      create_info->data_file_name=fn_same(data_file,
+					  create_info->data_file_name,
+					  1);
+    }
+  }
+  else
+    create_info->data_file_name=create_info->index_file_name=0;
 
   if ((error=mysql_create_table(thd, new_db, tmp_name,
 				create_info,
@@ -1685,12 +1757,22 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
     if (setup_order(thd, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
-        (from->found_records = filesort(&from, sortorder, length, 
-                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR,
+        (from->found_records = filesort(from, sortorder, length, 
+					(SQL_SELECT *) 0, 0L, HA_POS_ERROR,
 					&examined_rows))
         == HA_POS_ERROR)
       goto err;
   };
+
+  /* Turn off recovery logging since rollback of an
+     alter table is to delete the new table so there
+     is no need to log the changes to it.              */
+  error = ha_recovery_logging(thd,false);
+  if (error)
+  {
+    error = 1;
+    goto err;
+  }
 
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
   if (handle_duplicates == DUP_IGNORE ||
@@ -1737,6 +1819,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->activate_all_index(thd))
     error=1;
 
+  tmp_error = ha_recovery_logging(thd,true);
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
@@ -1748,6 +1831,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
+  tmp_error = ha_recovery_logging(thd,true);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;

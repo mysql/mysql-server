@@ -1,0 +1,24 @@
+#test to see if replication can continue when master sporadically fails on
+# COM_BINLOG_DUMP and additionally limits the number of events per dump
+source include/master-slave.inc;
+connection master;
+drop table if exists t1;
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (NULL),(NULL);
+delete from t1;
+insert into t1 values (NULL),(NULL);
+insert into t1 values (NULL),(NULL);
+flush logs;
+delete from t1;
+insert into t1 values (NULL),(NULL);
+insert into t1 values (NULL),(NULL);
+insert into t1 values (NULL),(NULL);
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
