@@ -29,6 +29,8 @@ volatile bool slave_running = 0;
 char* slave_load_tmpdir = 0;
 pthread_t slave_real_id;
 MASTER_INFO glob_mi;
+MY_BITMAP slave_error_mask;
+bool use_slave_mask = 0;
 HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
@@ -78,6 +80,37 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
 {
   *len = e->key_len;
   return (byte*)e->db;
+}
+
+
+/* called from get_options() in mysqld.cc on start-up */
+void init_slave_skip_errors(char* arg)
+{
+  char* p;
+  my_bool last_was_digit = 0;
+  if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
+  {
+    fprintf(stderr, "Badly out of memory, please check your system status\n");
+    exit(1);
+  }
+  use_slave_mask = 1;
+  for (;isspace(*arg);++arg)
+    /* empty */;
+  if (!my_casecmp(arg,"all",3))
+  {
+    bitmap_set_all(&slave_error_mask);
+    return;
+  }
+  for (p= arg ; *p; )
+  {
+    long err_code;
+    if (!(p= str2int(p, 10, 0, LONG_MAX, &err_code)))
+      break;
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask,(uint)err_code);
+    while (!isdigit(*p) && *p)
+      p++;
+  }
 }
 
 
@@ -1003,6 +1036,12 @@ point. If you are sure that your master is ok, run this query manually on the\
       return 0;
     }
 }
+
+inline int ignored_error_code(int err_code)
+{
+  return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
+}
+
 
 static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {

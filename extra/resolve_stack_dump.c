@@ -74,7 +74,8 @@ static void usage()
   printf("Usage: %s [OPTIONS] symbols-file [numeric-dump-file]\n", my_progname);
   printf("\n\
   -?, --help               Display this help and exit.\n\
-  -h, --host=...           Connect to host.\n\
+  -s, --symbols-file=...   Use specified symbols file.\n\
+  -n, --numeric-dump-file=...  Read the dump from specified file.\n\
   -V, --version            Output version information and exit.\n");
   printf("\n\
 The symbols-file should include the output from:  'nm --numeric-sort mysqld'.\n\

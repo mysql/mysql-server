@@ -735,6 +735,8 @@ void clean_up(bool print_message)
   DBUG_PRINT("exit",("clean_up"));
   if (cleanup_done++)
     return; /* purecov: inspected */
+  if (use_slave_mask)
+    bitmap_free(&slave_error_mask);
   acl_free(1);
   grant_free();
   query_cache.resize(0);
@@ -1801,7 +1803,7 @@ int main(int argc, char **argv)
 #endif
   select_thread=pthread_self();
   select_thread_in_use=1;
-  if (use_temp_pool && bitmap_init(&temp_pool,1024))
+  if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     unireg_abort(1);
 
   /*
@@ -2674,7 +2676,7 @@ enum options {
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
-	       OPT_DES_KEY_FILE
+	       OPT_DES_KEY_FILE, OPT_SLAVE_SKIP_ERRORS
 };
 
 static struct option long_options[] = {
@@ -2824,6 +2826,8 @@ static struct option long_options[] = {
   {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
+  {"slave-skip-errors", required_argument, 0,
+   (int) OPT_SLAVE_SKIP_ERRORS},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
   {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
@@ -3585,6 +3589,9 @@ static void get_options(int argc,char **argv)
       break;
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
+      break;
+    case OPT_SLAVE_SKIP_ERRORS:
+      init_slave_skip_errors(optarg);
       break;
     case OPT_SAFEMALLOC_MEM_LIMIT:
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
