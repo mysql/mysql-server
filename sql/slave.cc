@@ -345,7 +345,13 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     }
   }
   DBUG_ASSERT(thd != 0);
-  KICK_SLAVE(thd);
+  /* is is criticate to test if the slave is running. Otherwise, we might
+     be referening freed memory trying to kick it
+  */
+  if (*slave_running)
+  {
+    KICK_SLAVE(thd);
+  }
   while (*slave_running)
   {
     /* there is a small chance that slave thread might miss the first
@@ -367,7 +373,9 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     DBUG_ASSERT_LOCK(cond_lock);
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
     if (*slave_running)
+    {
       KICK_SLAVE(thd);
+    }
   }
   if (term_lock)
     pthread_mutex_unlock(term_lock);

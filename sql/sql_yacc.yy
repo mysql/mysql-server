@@ -241,6 +241,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MASTER_PORT_SYM
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_SERVER_ID_SYM
+%token  RELAY_LOG_FILE_SYM
+%token  RELAY_LOG_POS_SYM
 %token	MATCH
 %token	MAX_ROWS
 %token  MAX_QUERIES_PER_HOUR
@@ -700,6 +702,16 @@ master_def:
        MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
        {
 	 Lex->mi.connect_retry = $3;
+       }
+       |
+       RELAY_LOG_FILE_SYM EQ TEXT_STRING
+       {
+	 Lex->mi.relay_log_name = $3.str;
+       }
+       |
+       RELAY_LOG_POS_SYM EQ ULONG_NUM
+       {
+	 Lex->mi.relay_log_pos = $3;
        }
 
 
@@ -3013,6 +3025,7 @@ keyword:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
+        | IO_THREAD {}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
@@ -3055,6 +3068,8 @@ keyword:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM      {}
 	| RAID_TYPE		{}
+        | RELAY_LOG_FILE_SYM {}
+        | RELAY_LOG_POS_SYM {}
 	| RELOAD		{}
 	| REPAIR		{}
 	| REPEATABLE_SYM	{}
@@ -3074,6 +3089,7 @@ keyword:
 	| SQL_CACHE_SYM		{}
 	| SQL_NO_CACHE_SYM	{}
 	| SQL_QUERY_CACHE_TYPE_SYM {}
+        | SQL_THREAD {}
 	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
