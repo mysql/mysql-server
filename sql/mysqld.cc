@@ -5916,16 +5916,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     sf_malloc_mem_limit = atoi(argument);
 #endif
     break;
-#ifdef EMBEDDED_LIBRARY
-  case OPT_MAX_ALLOWED_PACKET:
-    max_allowed_packet= atoi(argument);
-    global_system_variables.max_allowed_packet= max_allowed_packet;
-    break;
-  case OPT_NET_BUFFER_LENGTH:
-    net_buffer_length=  atoi(argument);
-    global_system_variables.net_buffer_length= net_buffer_length;
-    break;
-#endif
 #include <sslopt-case.h>
   case 'V':
     print_version();
@@ -6477,6 +6467,9 @@ static void get_options(int argc,char **argv)
 #ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)
     set_root(mysqld_chroot);
+#else
+  max_allowed_packet= global_system_variables.max_allowed_packet;
+  net_buffer_length= global_system_variables.net_buffer_length;
 #endif
   fix_paths();
 
