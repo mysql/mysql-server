@@ -1234,6 +1234,7 @@ public:
   enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
+  table_map not_null_tables() const { return and_tables_cache; }
 };
 
 
