@@ -25,7 +25,7 @@
    that implements transactions.
    The NDB API consists of the following fundamental classes:
    - Ndb_cluster_connection, representing a connection to a cluster, 
-   - Ndb is the main class, representing the database, 
+   - Ndb is the main class, representing a connection to a database, 
    - NdbTransaction represents a transaction, 
    - NdbOperation represents an operation using a primary key,
    - NdbScanOperation represents an operation performing a full table scan.
@@ -44,15 +44,15 @@
    The main structure of an application program is as follows:
    -# Construct and connect to a cluster using the Ndb_cluster_connection
       object.
-   -# Construct and initialize Ndb object(s).
-   -# Define and execute transactions using NdbTransaction and Ndb*Operation.
-   -# Delete Ndb objects
-   -# Delete cluster connection
+   -# Construct and initialize Ndb object(s) to connect to a database.
+   -# Define and execute transactions using NdbTransaction.
+   -# Delete Ndb objects.
+   -# Delete cluster connection.
 
    The main structure of a transaction is as follows:
    -# Start transaction (an NdbTransaction)
    -# Add and define operations associated with the transaction using
-      Ndb*Operation
+      NdbOperation, NdbScanOperation, NdbIndexOperation, NdbIndexScanOperation
    -# Execute transaction
 
    The execution can be of two different types, 
@@ -65,8 +65,9 @@
    for later execution.
 
    If the execute is of type <var>Commit</var>, then the transaction is
-   committed, and no further addition or definition of operations 
-   is allowed.
+   committed. The transaction <em>must</em> be closed after it has been 
+   commited (event if commit fails), and no further addition or definition of 
+   operations is allowed.
 
 
    @section secSync                     Synchronous Transactions
@@ -78,14 +79,18 @@
        (typically created using Ndb::startTransaction()).
        At this point, the transaction is only being defined,
        and is not yet sent to the NDB kernel.
-    -# Define operations and add them to the transaction, 
-       using NdbTransaction::getNdb*Operation() and
-       methods of the Ndb*Operation class.
+    -# Define operations and add them to the transaction, using 
+       NdbTransaction::getNdbOperation(),
+       NdbTransaction::getNdbScanOperation(),
+       NdbTransaction::getNdbIndexOperation(), or
+       NdbTransaction::getNdbIndexScanOperation(),
+       and methods of the respective NdbOperation class.
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
     -# Close the transaction (using Ndb::closeTransaction()).
   
-   For an example of this process, see the program listing in @ref ndbapi_example1.cpp.
+   For an example of this process, see the program listing in 
+   @ref ndbapi_simple.cpp.
 
    To execute several parallel synchronous transactions, one can either 
    use multiple Ndb objects in several threads, or start multiple 
@@ -93,9 +98,9 @@
 
    @section secNdbOperations            Operations
 
-   Each NdbTransaction
-   consists of a list of operations which are represented by instances 
-   of Ndb*Operation.
+   Each NdbTransaction consists of a list of operations which are represented 
+   by instances of NdbOperation, NdbScanOperation, NdbIndexOperation, and/or
+   NdbIndexScanOperation.
 
    <h3>Single row operations</h3>
    After the operation is created using NdbTransaction::getNdbOperation()
@@ -105,8 +110,8 @@
    -# Specify search conditions, using NdbOperation::equal()
    -# Specify attribute actions, using NdbOperation::getValue()
 
-   Here are two brief examples illustrating this process. For the sake of brevity, 
-   we omit error-handling.
+   Here are two brief examples illustrating this process. For the sake of 
+   brevity, we omit error-handling.
    
    This first example uses an NdbOperation:
    @code
@@ -122,12 +127,12 @@
      // 4. Attribute Actions
      MyRecAttr= MyOperation->getValue("ATTR2", NULL);
    @endcode
-   For additional examples of this sort, see @ref ndbapi_example1.cpp.
+   For additional examples of this sort, see @ref ndbapi_simple.cpp.
 
    The second example uses an NdbIndexOperation:
    @code
      // 1. Create
-     MyOperation= MyTransaction->getNdbIndexOperation("MYINDEX", "MYTABLENAME");
+     MyOperation= MyTransaction->getNdbIndexOperation("MYINDEX","MYTABLENAME");
 
      // 2. Define type of operation and lock mode
      MyOperation->readTuple(NdbOperation::LM_Read);
@@ -138,10 +143,11 @@
      // 4. Attribute Actions 
      MyRecAttr = MyOperation->getValue("ATTR2", NULL);
    @endcode
-   Another example of this second type can be found in @ref ndbapi_example4.cpp.
+   Another example of this second type can be found in 
+   @ref ndbapi_simple_index.cpp.
 
-   We will now discuss in somewhat greater detail each step involved in the creation 
-   and use of synchronous transactions.
+   We will now discuss in somewhat greater detail each step involved in the 
+   creation and use of synchronous transactions.
 
    <h4>Step 1: Define single row operation type</h4>
    The following types of operations exist:
@@ -162,18 +168,11 @@
    operate on a defined unique hash index.)
 
    @note If you want to define multiple operations within the same transaction,
-         then you need to call NdbTransaction::getNdb*Operation for each
-         operation.
+         then you need to call NdbTransaction::getNdbOperation() or
+	 NdbTransaction::getNdbIndexOperation() for each operation.
 
    <h4>Step 2: Specify Search Conditions</h4>
-   The search condition is used to select tuples.
-
-   For NdbOperation::insertTuple it is also allowed to define the
-   search key by using NdbOperation::setValue.
-   The NDB API will automatically detect that it is
-   supposed to use NdbOperation::equal instead. 
-   For NdbOperation::insertTuple it is not necessary to use
-   NdbOperation::setValue on key attributes before other attributes.
+   The search condition is used to select tuples using NdbOperation::equal()
 
    <h4>Step 3: Specify Attribute Actions</h4>
    Now it is time to define which attributes should be read or updated.
@@ -183,21 +182,21 @@
    also possible to use the attribute identity to define the
    attribute.
 
-   NdbOperation::getValue returns an NdbRecAttr object
+   NdbOperation::getValue() returns an NdbRecAttr object
    containing the read value.
    To get the value, there is actually two methods.
    The application can either
    - use its own memory (passed through a pointer aValue) to
-     NdbOperation::getValue, or
+     NdbOperation::getValue(), or
    - receive the attribute value in an NdbRecAttr object allocated
      by the NDB API.
 
-   The NdbRecAttr object is released when Ndb::closeTransaction
+   The NdbRecAttr object is released when Ndb::closeTransaction()
    is called.
    Thus, the application can not reference this object after
-   Ndb::closeTransaction have been called.
+   Ndb::closeTransaction() have been called.
    The result of reading data from an NdbRecAttr object before
-   calling NdbTransaction::execute is undefined.
+   calling NdbTransaction::execute() is undefined.
 
 
    @subsection secScan              Scan Operations 
@@ -214,16 +213,17 @@
    - They can operate on several nodes in parallell
 
    After the operation is created using NdbTransaction::getNdbScanOperation()
-   (or NdbTransaction::getNdbIndexScanOperation()), it is defined in the following 
-   three steps:
+   (or NdbTransaction::getNdbIndexScanOperation()), 
+   it is defined in the following three steps:
    -# Define the standard operation type, using NdbScanOperation::readTuples()
-   -# Specify search conditions, using @ref NdbScanFilter and/or @ref NdbIndexScanOperation::setBound
+   -# Specify search conditions, using @ref NdbScanFilter and/or 
+      @ref NdbIndexScanOperation::setBound()
    -# Specify attribute actions, using NdbOperation::getValue()
    -# Executing the transaction, using NdbTransaction::execute()
-   -# Iterating through the result set using NdbScanOperation::nextResult
+   -# Iterating through the result set using NdbScanOperation::nextResult()
 
-   Here are two brief examples illustrating this process. For the sake of brevity, 
-   we omit error-handling.
+   Here are two brief examples illustrating this process. For the sake of 
+   brevity, we omit error-handling.
    
    This first example uses an NdbScanOperation:
    @code
@@ -262,11 +262,14 @@
    @endcode
 
    <h4>Step 1: Define scan operation operation type</h4>
-   Scan operations only support 1 operation, @ref NdbScanOperation::readTuples or @ref NdbIndexScanOperation::readTuples
+   Scan operations only support 1 operation, 
+   @ref NdbScanOperation::readTuples() 
+   or @ref NdbIndexScanOperation::readTuples()
 
-   @note If you want to define multiple scan operations within the same transaction,
-         then you need to call NdbTransaction::getNdb*ScanOperation for each
-         operation.
+   @note If you want to define multiple scan operations within the same 
+         transaction, then you need to call 
+	 NdbTransaction::getNdbScanOperation() or 
+	 NdbTransaction::getNdbIndexScanOperation() for each operation.
 
    <h4>Step 2: Specify Search Conditions</h4>
    The search condition is used to select tuples.
@@ -288,33 +291,32 @@
    also possible to use the attribute identity to define the
    attribute.
 
-   NdbOperation::getValue returns an NdbRecAttr object
+   NdbOperation::getValue() returns an NdbRecAttr object
    containing the read value.
    To get the value, there is actually two methods.
    The application can either
    - use its own memory (passed through a pointer aValue) to
-     NdbOperation::getValue, or
+     NdbOperation::getValue(), or
    - receive the attribute value in an NdbRecAttr object allocated
      by the NDB API.
 
-   The NdbRecAttr object is released when Ndb::closeTransaction
-   is called.
-   Thus, the application can not reference this object after
-   Ndb::closeTransaction have been called.
+   The NdbRecAttr object is released when Ndb::closeTransaction()
+   is called. Thus, the application can not reference this object after
+   Ndb::closeTransaction() have been called.
    The result of reading data from an NdbRecAttr object before
-   calling NdbTransaction::execute is undefined.
+   calling NdbTransaction::execute() is undefined.
 
    <h3> Using Scan to update/delete </h3>
    Scanning can also be used to update/delete rows.
    This is performed by
    -# Scan using exclusive locks, NdbOperation::LM_Exclusive
    -# When iterating through the result set, for each row optionally call 
-      either NdbScanOperation::updateCurrentTuple or 
-      NdbScanOperation::deleteCurrentTuple
-   -# If performing NdbScanOperation::updateCurrentTuple, 
-      set new values on record using ordinary @ref NdbOperation::setValue.
-      NdbOperation::equal should _not_ be called as the primary key is 
-      retreived from the scan.
+      either NdbScanOperation::updateCurrentTuple() or 
+      NdbScanOperation::deleteCurrentTuple()
+   -# If performing NdbScanOperation::updateCurrentTuple(), 
+      set new values on record using ordinary @ref NdbOperation::setValue().
+      NdbOperation::equal() should <em>not</em> be called as the primary 
+      key is retreived from the scan.
 
    @note that the actual update/delete will not be performed until next 
    NdbTransaction::execute (as with single row operations), 
@@ -323,13 +325,16 @@
 
    <h4> Index scans specific features </h4> 
    The following features are available when performing an index scan
-   - Scan subset of table using @ref NdbIndexScanOperation::setBound
-   - Ordering result set ascending or descending, @ref NdbIndexScanOperation::readTuples
-   - When using NdbIndexScanOperation::BoundEQ on distribution key 
-     only fragment containing rows will be scanned.
+   - Scan subset of table using @ref NdbIndexScanOperation::setBound()
+   - Ordering result set ascending or descending, 
+     @ref NdbIndexScanOperation::readTuples()
+   - When using NdbIndexScanOperation::BoundEQ on partition key 
+     only fragments containing rows will be scanned.
    
    Rows are returned unordered unless sorted is set to true.
-   @note When performing sorted scan, parameter parallelism to readTuples will
+
+   @note When performing sorted scan, parameter parallelism to 
+   NdbIndexScanOperation::readTuples() will
    be ignored and max parallelism will be used instead. 
 
    @subsection secScanLocks Lock handling with scans
@@ -339,11 +344,11 @@
 
    But Ndb will only lock a batch of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
-   batch parameter to @ref NdbScanOperation::readTuples.
+   batch parameter to NdbScanOperation::readTuples().
 
    To let the application handle how locks are released 
-   @ref NdbScanOperation::nextResult have a parameter fetch_allow.
-   If NdbScanOperation::nextResult is called with fetch_allow = false, no
+   NdbScanOperation::nextResult() have a parameter fetch_allow.
+   If NdbScanOperation::nextResult() is called with fetch_allow = false, no
    locks may be released as result of the function call. Otherwise the locks
    for the current batch may be released.
 
@@ -376,11 +381,12 @@
 
    One recommended way to handle a transaction failure 
    (i.e. an error is reported) is to:
-   -# Rollback transaction (NdbTransaction::execute with a special parameter)
+   -# Rollback transaction (NdbTransaction::execute() with a special parameter)
    -# Close transaction
    -# Restart transaction (if the error was temporary)
 
-   @note Transaction are not automatically closed when an error occur.
+   @note Transactions are not automatically closed when an error occur. Call
+   Ndb::closeTransaction() to close.
 
    Several errors can occur when a transaction holds multiple 
    operations which are simultaneously executed.
@@ -388,9 +394,9 @@
    objects and query for their NdbError objects to find out what really
    happened.
 
-   NdbTransaction::getNdbErrorOperation returns a reference to the 
+   NdbTransaction::getNdbErrorOperation() returns a reference to the 
    operation causing the latest error.
-   NdbTransaction::getNdbErrorLine delivers the method number of the 
+   NdbTransaction::getNdbErrorLine() delivers the method number of the 
    erroneous method in the operation.
 
    @code
@@ -413,35 +419,35 @@
    Getting errorLine == 0 means that the error occurred when executing the 
    operations.
    Here errorOperation will be a pointer to the theOperation object.
-   NdbTransaction::getNdbError will return the NdbError object 
+   NdbTransaction::getNdbError() will return the NdbError object 
    including holding information about the error.
 
    Since errors could have occurred even when a commit was reported,
-   there is also a special method, NdbTransaction::commitStatus,
+   there is also a special method, NdbTransaction::commitStatus(),
    to check the commit status of the transaction.
 
-*******************************************************************************/
+******************************************************************************/
 
 /**
- * @page ndbapi_example1.cpp ndbapi_example1.cpp
- * @include ndbapi_example1.cpp 
+ * @page ndbapi_simple.cpp ndbapi_simple.cpp
+ * @include ndbapi_simple.cpp 
  */
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
- * @page ndbapi_example2.cpp ndbapi_example2.cpp
- * @include ndbapi_example2.cpp 
+ * @page ndbapi_async1.cpp ndbapi_async1.cpp
+ * @include ndbapi_async1.cpp 
  */
 #endif
 
 /**
- * @page ndbapi_example3.cpp ndbapi_example3.cpp
- * @include ndbapi_example3.cpp 
+ * @page ndbapi_retries.cpp ndbapi_retries.cpp
+ * @include ndbapi_retries.cpp 
  */
 
 /**
- * @page ndbapi_example4.cpp ndbapi_example4.cpp
- * @include ndbapi_example4.cpp 
+ * @page ndbapi_simple_index.cpp ndbapi_simple_index.cpp
+ * @include ndbapi_simple_index.cpp 
  */
 
 /**
@@ -454,32 +460,14 @@
    @page secAdapt  Adaptive Send Algorithm
 
    At the time of "sending" the transaction 
-   (using NdbTransaction::execute), the transactions 
+   (using NdbTransaction::execute()), the transactions 
    are in reality <em>not</em> immediately transfered to the NDB Kernel.  
    Instead, the "sent" transactions are only kept in a 
    special send list (buffer) in the Ndb object to which they belong.
    The adaptive send algorithm decides when transactions should
    be transfered to the NDB kernel.
   
-   For each of these "sent" transactions, there are three 
-   possible states:
-   -# Waiting to be transferred to NDB Kernel.
-   -# Has been transferred to the NDB Kernel and is currently 
-      being processed.
-   -# Has been transferred to the NDB Kernel and has 
-      finished processing.
-      Now it is waiting for a call to a poll method.  
-      (When the poll method is invoked, 
-      then the transaction callback method will be executed.)
-      
-   The poll method invoked (either Ndb::pollNdb or Ndb::sendPollNdb)
-   will return when:
-   -# at least 'minNoOfEventsToWakeup' of the transactions
-      in the send list have transitioned to state 3 as described above, and 
-   -# all of these transactions have executed their callback methods.
-  
-  
-   Since the NDB API is designed as a multi-threaded interface, 
+   The NDB API is designed as a multi-threaded interface and
    it is desirable to transfer database operations from more than 
    one thread at a time. 
    The NDB API keeps track of which Ndb objects are active in transfering
@@ -510,13 +498,35 @@
       later releases of NDB Cluster.
       However, to support faster than 10 ms checks, 
       there has to be support from the operating system.
-   -# When calling NdbTransaction::execute synchronously or calling any 
-      of the poll-methods, there is a force parameter that overrides the 
-      adaptive algorithm and forces the send to all nodes.
+   -# When methods that are affected by the adaptive send alorithm,
+      e.g. NdbTransaction::execute(), there is a force parameter 
+      that overrides it forces the send to all nodes.
 
-   @note The times mentioned above are examples.  These might 
+   @note The reasons mentioned above are examples.  These might 
          change in later releases of NDB Cluster.
 */
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
+
+   For each of these "sent" transactions, there are three 
+   possible states:
+   -# Waiting to be transferred to NDB Kernel.
+   -# Has been transferred to the NDB Kernel and is currently 
+      being processed.
+   -# Has been transferred to the NDB Kernel and has 
+      finished processing.
+      Now it is waiting for a call to a poll method.  
+      (When the poll method is invoked, 
+      then the transaction callback method will be executed.)
+      
+   The poll method invoked (either Ndb::pollNdb() or Ndb::sendPollNdb())
+   will return when:
+   -# at least 'minNoOfEventsToWakeup' of the transactions
+      in the send list have transitioned to state 3 as described above, and 
+   -# all of these transactions have executed their callback methods.
+*/
+#endif
 
 /**
    @page secConcepts  NDB Cluster Concepts
@@ -559,14 +569,17 @@
    
    The application programmer can however hint the NDB API which 
    transaction coordinator to use
-   by providing a <em>distribution key</em> (usually the primary key).
-   By using the primary key as distribution key, 
+   by providing a <em>partition key</em> (usually the primary key).
+   By using the primary key as partition key, 
    the transaction will be placed on the node where the primary replica
    of that record resides.
    Note that this is only a hint, the system can be 
    reconfigured and then the NDB API will choose a transaction
    coordinator without using the hint.
-   For more information, see NdbDictionary::Column::setDistributionKey.
+   For more information, see NdbDictionary::Column::getPartitionKey(),
+   Ndb::startTransaction().  The application programmer can specify
+   the partition key from SQL by using the construct, 
+   "CREATE TABLE ... ENGINE=NDB PARTITION BY KEY (<attribute list>)".
 
 
    @section secRecordStruct          Record Structure 
@@ -635,7 +648,7 @@
    A simple example is an application that uses many simple updates where
    a transaction needs to update one record. 
    This record has a 32 bit primary key, 
-   which is also the distribution key. 
+   which is also the partition key. 
    Then the keyData will be the address of the integer 
    of the primary key and keyLen will be 4.
 */

@@ -309,8 +309,8 @@ private:
   int invokeActiveHook();
   // blob handle maintenance
   int atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
-  int preExecute(ExecType anExecType, bool& batch);
-  int postExecute(ExecType anExecType);
+  int preExecute(NdbTransaction::ExecType anExecType, bool& batch);
+  int postExecute(NdbTransaction::ExecType anExecType);
   int preCommit();
   int atNextResult();
   // errors

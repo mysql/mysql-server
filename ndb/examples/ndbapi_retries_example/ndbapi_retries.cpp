@@ -15,9 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 // 
-//  ndbapi_example3.cpp: Error handling and transaction retries
+//  ndbapi_retries.cpp: Error handling and transaction retries
 //
-//  Execute ndbapi_example1 to create the table "MYTABLENAME"
+//  Execute ndbapi_simple to create the table "MYTABLENAME"
 //  before executing this program.
 //
 //  There are many ways to program using the NDB API.  In this example
@@ -104,7 +104,7 @@ int insert(int transactionId, NdbTransaction* myTransaction) {
     exit(-1);
   }
 
-  return myTransaction->execute(NoCommit);
+  return myTransaction->execute(NdbTransaction::NoCommit);
 }
 
 
@@ -131,7 +131,7 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb) {
       result = -1;  // Failure
     } else if (insert(transactionId, myTransaction) || 
 	       insert(10000+transactionId, myTransaction) ||
-	       myTransaction->execute(Commit)) {
+	       myTransaction->execute(NdbTransaction::Commit)) {
       TRANSERROR(myTransaction);
       ndberror = myTransaction->getNdbError();
       result = -1;  // Failure

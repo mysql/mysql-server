@@ -29,7 +29,7 @@
 
 static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
-static NdbDictionary::Dictionary* dic = 0;
+static const NdbDictionary::Dictionary * dic = 0;
 static int _unqualified = 0;
 
 static void
@@ -233,16 +233,19 @@ int main(int argc, char** argv){
 
   ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
   if (ndb_cluster_connection->connect(12,5,1))
-    fatal("unable to connect");
+    fatal("Unable to connect to management server.");
+  if (ndb_cluster_connection->wait_until_ready(30,0) < 0)
+    fatal("Cluster nodes not ready in 30 seconds.");
+
   ndb = new Ndb(ndb_cluster_connection, _dbname);
   if (ndb->init() != 0)
     fatal("init");
-  if (ndb->waitUntilReady(30) < 0)
-    fatal("waitUntilReady");
   dic = ndb->getDictionary();
   for (int i = 0; _loops == 0 || i < _loops; i++) {
     list(_tabname, (NdbDictionary::Object::Type)_type);
   }
+  delete ndb;
+  delete ndb_cluster_connection;
   return NDBT_ProgramExit(NDBT_OK);
 }
 
