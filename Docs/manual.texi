@@ -2433,7 +2433,7 @@ mysql> SHOW STATUS;
 If a bug or problem occurs while running @strong{mysqld}, try to provide an
 input script that will reproduce the anomaly.  This script should include any
 necessary source files.  The more closely the script can reproduce your
-situation, the better.  If you can make a repeatable test case, you should
+situation, the better.  If you can make a reproduceable test case, you should
 post this to @email{bugs@@lists.mysql.com} for a high priority treatment!
 
 If you can't provide a script, you should at least include the output
@@ -4786,7 +4786,7 @@ Included in the MySQL distribution are two different testing suites,
 @file{mysql-test-run} and 
 @uref{http://www.mysql.com/information/crash-me.php,crash-me}, as well
 as a benchmark suite.  The test system is actively updated with code to
-test each new feature and almost all repeatable bugs that have come to
+test each new feature and almost all reproduceable bugs that have come to
 our attention.  We test MySQL with these on a lot of platforms before
 every release.  These tests are more sophisticated than anything we have 
 seen from PostgreSQL, and they ensures that the MySQL is kept to a high
