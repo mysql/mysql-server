@@ -379,6 +379,7 @@ public:
   uint f_precision0, f_scale0;
   uint f_precision1, f_scale1;
   uint dec_bin_size0, dec_bin_size1;
+  uint sample;
   Item_variance_field(Item_sum_variance *item);
   enum Type type() const {return FIELD_VARIANCE_ITEM; }
   double val_real();
@@ -422,9 +423,10 @@ public:
   uint f_precision0, f_scale0;
   uint f_precision1, f_scale1;
   uint dec_bin_size0, dec_bin_size1;
+  uint sample;
 
-  Item_sum_variance(Item *item_par) :Item_sum_num(item_par), hybrid_type(REAL_RESULT),
-    cur_dec(0),count(0)
+  Item_sum_variance(Item *item_par, uint sample_arg) :Item_sum_num(item_par),
+    hybrid_type(REAL_RESULT), cur_dec(0), count(0), sample(sample_arg)
     {}
   Item_sum_variance(THD *thd, Item_sum_variance *item);
   enum Sumfunctype sum_func () const { return VARIANCE_FUNC; }
@@ -463,7 +465,8 @@ public:
 class Item_sum_std :public Item_sum_variance
 {
   public:
-  Item_sum_std(Item *item_par) :Item_sum_variance(item_par) {}
+  Item_sum_std(Item *item_par, uint sample_arg)
+    :Item_sum_variance(item_par, sample_arg) {}
   Item_sum_std(THD *thd, Item_sum_std *item)
     :Item_sum_variance(thd, item)
     {}
