@@ -374,8 +374,10 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   char* backup_dir = thd->lex.backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
+  DBUG_ENTER("restore");
+
   if (!fn_format(src_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
-    return HA_ADMIN_INVALID;
+    DBUG_RETURN(HA_ADMIN_INVALID);
 
   int error = 0;
   const char* errmsg = "";
@@ -390,8 +392,8 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 
   tmp_check_opt.init();
   tmp_check_opt.quick = 1;
-  tmp_check_opt.flags |= T_VERY_SILENT;
-  return repair(thd, &tmp_check_opt);
+  tmp_check_opt.flags |= T_VERY_SILENT | T_CALC_CHECKSUM;
+  DBUG_RETURN(repair(thd, &tmp_check_opt));
 
  err:
   {
@@ -403,7 +405,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     param.table_name = table->table_name;
     param.testflag = 0;
     mi_check_print_error(&param,errmsg, errno );
-    return error;
+    DBUG_RETURN(error);
   }
 }
 
@@ -474,7 +476,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "repair";
-  param.testflag = ((check_opt->flags & ~T_EXTEND) | 
+  param.testflag = ((check_opt->flags & ~(T_EXTEND)) | 
 		    T_SILENT | T_FORCE_CREATE |
 		    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   if (check_opt->quick)
