@@ -30,7 +30,6 @@ noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
-			@ZLIB_LIBS@ \
 			$(top_builddir)/myisam/libmyisam.a \
 			$(top_builddir)/myisammrg/libmyisammrg.a \
 			$(top_builddir)/heap/libheap.a \
@@ -38,7 +37,7 @@ LDADD =			@isam_libs@ \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
-			$(top_builddir)/strings/libmystrings.a 
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \

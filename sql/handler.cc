@@ -476,27 +476,41 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    bool operation_done= 0;
     bool transaction_commited= 0;
+    bool operation_done= 0, need_start_waiters= 0;
 
-    /* Update the binary log if we have cached some queries */
-    if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
+    /* If transaction has done some updates to tables */
+    if (trans == &thd->transaction.all &&
 	my_b_tell(&thd->transaction.trans_log))
     {
-      mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
-      statistic_increment(binlog_cache_use, &LOCK_status);
-      if (thd->transaction.trans_log.disk_writes != 0)
+      if (error= wait_if_global_read_lock(thd, 0, 0))
       {
-        /* 
-          We have to do this after addition of trans_log to main binlog since
-          this operation can cause flushing of end of trans_log to disk. 
+        /*
+          Note that ROLLBACK [TO SAVEPOINT] does not have this test; it's
+          because ROLLBACK never updates data, so needn't wait on the lock.
         */
-        statistic_increment(binlog_cache_disk_use, &LOCK_status);
-        thd->transaction.trans_log.disk_writes= 0;
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+        error= 1;
       }
-      reinit_io_cache(&thd->transaction.trans_log,
-		      WRITE_CACHE, (my_off_t) 0, 0, 1);
-      thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      else
+        need_start_waiters= 1;
+      if (mysql_bin_log.is_open())
+      {
+        mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+        statistic_increment(binlog_cache_use, &LOCK_status);
+        if (thd->transaction.trans_log.disk_writes != 0)
+        {
+          /* 
+            We have to do this after addition of trans_log to main binlog since
+            this operation can cause flushing of end of trans_log to disk. 
+          */
+          statistic_increment(binlog_cache_disk_use, &LOCK_status);
+          thd->transaction.trans_log.disk_writes= 0;
+        }
+        reinit_io_cache(&thd->transaction.trans_log,
+                        WRITE_CACHE, (my_off_t) 0, 0, 1);
+        thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      }
     }
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
@@ -551,6 +565,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       statistic_increment(ha_commit_count,&LOCK_status);
       thd->transaction.cleanup();
     }
+    if (need_start_waiters)
+      start_waiting_global_read_lock(thd);
   }
 #endif // using transactions
   DBUG_RETURN(error);

@@ -7999,7 +7999,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   if (!item)
     return 1;
 
-  if (item != not_found_item)
+  if (item != (Item **)not_found_item)
   {
     order->item= ref_pointer_array + counter;
     order->in_field_list=1;

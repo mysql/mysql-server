@@ -828,7 +828,6 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern uchar days_in_month[];
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -955,8 +954,9 @@ void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh);
+bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh, bool is_not_commit);
 void start_waiting_global_read_lock(THD *thd);
+void make_global_read_lock_block_commit(THD *thd);
 
 /* Lock based on name */
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
