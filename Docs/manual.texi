@@ -52760,8 +52760,8 @@ update statements if you want to narrow down the problem.
 @cindex clients, debugging
 
 To be able to debug a MySQL client with the integrated debug package,
-you should configure MySQL with @code{--with-debug}.
-@xref{configure options}.
+you should configure MySQL with @code{--with-debug} or
+@code{--with-debug=full}.  @xref{configure options}.
 
 @tindex MYSQL_DEBUG environment variable
 @tindex Environment variable, MYSQL_DEBUG
