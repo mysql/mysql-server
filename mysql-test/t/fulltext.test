@@ -27,7 +27,8 @@ select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MOD
 select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
-select *, MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
 
 # boolean w/o index:
 
