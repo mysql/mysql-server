@@ -192,6 +192,8 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
   }
   fix_length_and_dec();
+  if (thd && thd->net.last_errno) // An error inside fix_length_and_dec accured
+    return 1;
   fixed= 1;
   return 0;
 }
@@ -307,9 +309,9 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     break;
   case STRING_RESULT:
     if (max_length > 255)
-      res= new Field_blob(max_length, maybe_null, name, t_arg, charset());
+      res= new Field_blob(max_length, maybe_null, name, t_arg, collation.collation);
     else
-      res= new Field_string(max_length, maybe_null, name, t_arg, charset());
+      res= new Field_string(max_length, maybe_null, name, t_arg, collation.collation);
     break;
   case ROW_RESULT:
   default:
@@ -974,13 +976,13 @@ String *Item_func_min_max::val_str(String *str)
 	res2= args[i]->val_str(res == str ? &tmp_value : str);
 	if (res2)
 	{
-	  int cmp= sortcmp(res,res2,charset());
+	  int cmp= sortcmp(res,res2,collation.collation);
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
       }
     }
-    res->set_charset(charset());
+    res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -1098,7 +1100,7 @@ longlong Item_func_coercibility::val_int()
     return 0;
   }
   null_value= 0;
-  return (longlong) args[0]->derivation();
+  return (longlong) args[0]->collation.derivation;
 }
 
 void Item_func_locate::fix_length_and_dec()
@@ -1181,8 +1183,7 @@ longlong Item_func_field::val_int()
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
-      if (tmp_value && field->length() == tmp_value->length() &&
-	  !sortcmp(field,tmp_value,cmp_collation.collation))
+      if (tmp_value && !sortcmp(field,tmp_value,cmp_collation.collation))
         return (longlong) (i);
     }
   }
@@ -1433,8 +1434,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	There is no a general rule for UDF. Everything depends on
 	the particular user definted function.
       */
-      if (item->charset()->state & MY_CS_BINSORT)
-	func->set_charset(&my_charset_bin);
+      if (item->collation.collation->state & MY_CS_BINSORT)
+	func->collation.set(&my_charset_bin);
       if (item->maybe_null)
 	func->maybe_null=1;
       func->with_sum_func= func->with_sum_func || item->with_sum_func;
@@ -2198,7 +2199,7 @@ Item_func_set_user_var::val_str(String *str)
     update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, DERIVATION_NONE);
   else
     update_hash((void*) res->ptr(), res->length(), STRING_RESULT,
-		res->charset(), args[0]->derivation());
+		res->charset(), args[0]->collation.derivation);
   return res;
 }
 
