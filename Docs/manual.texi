@@ -6757,14 +6757,15 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://www2.linuxforum.net/mirror/mysql/, WWW}
 
 @item
-@c EMAIL: Vincent_Fong@innovator.com.hk (Vincent Fong)
-@image{Flags/china} China [ISL/Hong Kong] @
-@uref{http://mysql.islnet.net, WWW}
+@c EMAIL: vfong@hklpg.org (Vincent Fong)
+@image{Flags/china} China [HKLPG/Hong Kong] @
+@uref{http://mysql.hklpg.org, WWW}
 
-@item
+@c @item
+@c Not ok 20010308; Other content! (Tonu)
 @c EMAIL: xcyber@yahoo.com (xcyber)
-@image{Flags/china} China [xcyber.org/Hong Kong] @
-@uref{http://mysql.xcyber.org/, WWW}
+@c @image{Flags/china} China [xcyber.org/Hong Kong] @
+@c @uref{http://mysql.xcyber.org/, WWW}
 
 @c @item
 @c Not ok 20010330; Non-existent! (Matt)
