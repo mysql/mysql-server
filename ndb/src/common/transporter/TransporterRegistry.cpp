@@ -1374,11 +1374,6 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     DBUG_RETURN(false);
   }
 
-  if(!ndb_mgm_is_connected(m_mgm_handle))
-    ndb_mgm_connect(m_mgm_handle, 0, 0, 0);
-  if(!ndb_mgm_is_connected(m_mgm_handle))
-    DBUG_RETURN(false);
-
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &t= m_transporter_interface[i];
@@ -1411,18 +1406,6 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     }
     t.m_s_service_port= (t.m_s_service_port<=0)?-port:port; // -`ve if dynamic
     DBUG_PRINT("info", ("t.m_s_service_port = %d",t.m_s_service_port));
-
-    if(t.m_s_service_port < 0
-       && ndb_mgm_set_connection_int_parameter(m_mgm_handle,
-					     get_localNodeId(),
-					     t.m_remote_nodeId,
-					     CFG_CONNECTION_SERVER_PORT,
-					     t.m_s_service_port,
-					     &mgm_reply) < 0)
-    {
-      delete transporter_service;
-      DBUG_RETURN(false);
-    }
     transporter_service->setTransporterRegistry(this);
   }
   DBUG_RETURN(true);
@@ -1609,25 +1592,9 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
    * Set connectstring
    */
   {
-    char c[100];
-    char *cs= &c[0];
-    unsigned len= strlen(sc->get_server_name())+20;
-    if( len > sizeof(c) )
-    {
-      /*
-       * server name is long. malloc enough for it and the port number
-       */
-      cs= (char*)malloc(len*sizeof(char));
-      if(!cs)
-      {
-	ndb_mgm_destroy_handle(&h);
-	return NDB_INVALID_SOCKET;
-      }
-    }
-    snprintf(cs,len,"%s:%u",sc->get_server_name(),sc->get_port());
-    ndb_mgm_set_connectstring(h, cs);
-    if(cs != &c[0])
-      free(cs);
+    BaseString cs;
+    cs.assfmt("%s:%u",sc->get_server_name(),sc->get_port());
+    ndb_mgm_set_connectstring(h, cs.c_str());
   }
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
