@@ -5746,7 +5746,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   }
 
   List<NDB_SHARE> util_open_tables;
-  set_timespec(abstime, ndb_cache_check_time);
+  set_timespec(abstime, 0);
   for (;;)
   {
 
@@ -5764,12 +5764,21 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
     if (ndb_cache_check_time == 0)
     {
+      /* Wake up in 10 seconds to check if value has changed */
       set_timespec(abstime, 10);
       continue;
     }
 
     /* Set new time to wake up */
-    set_timespec(abstime, ndb_cache_check_time);
+    struct timeval tv;
+    gettimeofday(&tv,0);
+    abstime.tv_sec= tv.tv_sec + (ndb_cache_check_time / 1000);
+    abstime.tv_nsec= tv.tv_usec * 1000 + (ndb_cache_check_time % 1000);
+    if (abstime.tv_nsec >= 1000000000)
+    {
+      abstime.tv_sec  += 1;
+      abstime.tv_nsec -= 1000000000;
+    }
 
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
