@@ -1729,6 +1729,15 @@ ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 
 extern "C"
 int
+ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid)
+{
+  CHECK_HANDLE(handle, -1);
+  handle->cfg._ownNodeId= nodeid;
+  return 0;
+}
+
+extern "C"
+int
 ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle)
 {
   CHECK_HANDLE(handle, 0);
