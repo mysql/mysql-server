@@ -3710,7 +3710,7 @@ list in this manual. @xref{TODO}.
 * Missing Transactions::        Transactions
 * Missing Triggers::            Triggers
 * Missing Foreign Keys::        Foreign Keys
-* Broken Foreign KEY::          Reasons NOT to Use Foreign Keys constraints
+* Broken Foreign KEY::          Why We Did Not Implement Foreign Keys
 * Missing Views::               Views
 * Missing comments::            @samp{--} as the start of a comment
 @end menu
@@ -3993,60 +3993,69 @@ coded to avoid them.
 
 
 @node Broken Foreign KEY, Missing Views, Missing Foreign Keys, Missing functions
-@subsubsection Reasons NOT to Use Foreign Keys constraints
+@subsubsection Why We Did Not Implement Foreign Keys
 
-@cindex foreign keys, reasons not to use
+@cindex foreign keys, why not implemented
 
-There are so many problems with foreign key constraints that we don't
-know where to start:
+Many database scholars and programmers feel very strongly that
+referential integrity should be enforced inside the database server. Indeed,
+in many cases, this approach is very helpful. However, in talking with many
+database users we have observed that foreign keys are often misused, which
+can cause severe problems. Even when used properly, it is not a
+magic solution for the referential integrity problem, although it does make
+things easier in some cases.
+
+Because of the above observations, we did not assign implementing foreign
+keys a high priority. Our user base consisted of mostly of developers who
+did not mind enforcing referential integerity inside the application code,
+and in fact, preferred to do it that way because it gave them more control.
+
+However, in the last couple of years, our user base has expanded a great deal
+and we now have many users who would like to have the enforced referential
+integrity support inside MySQL. So we will implement the foreign keys in
+the near future, although at this point we cannot provide a definite
+delivery date.
+
+Some advantages of foreign key enforcement:
 
 @itemize @bullet
 @item
-Foreign key constraints make life very complicated, because the foreign
-key definitions must be stored in a database and implementing them would
-destroy the whole ``nice approach'' of using files that can be moved,
-copied, and removed.
+Assuming proper design of the relations, foreign key constraints will make it
+more difficult for a programmer to introduce an inconsistency into the
+database
 
 @item
-The speed impact is terrible for @code{INSERT} and @code{UPDATE}
-statements, and in this case almost all @code{FOREIGN KEY} constraint
-checks are useless because you usually insert records in the right
-tables in the right order, anyway.
+Using cascading updates and deletes can simplify the client code
 
 @item
-There is also a need to hold locks on many more tables when updating one
-table, because the side effects can cascade through the entire database. It's
-MUCH faster to delete records from one table first and subsequently delete
-them from the other tables.
-
-@item
-You can no longer restore a table by doing a full delete from the table
-and then restoring all records (from a new source or from a backup).
-
-@item
-If you use foreign key constraints you can't dump and restore tables
-unless you do so in a very specific order.
-
-@item
-It's very easy to do ``allowed'' circular definitions that make the
-tables impossible to re-create each table with a single create statement,
-even if the definition works and is usable.
-
-@item
-It's very easy to overlook @code{FOREIGN KEY ... ON DELETE} rules when
-one codes an application. It's not unusual that one loses a lot of
-important information just because a wrong or misused @code{ON DELETE} rule.
+Properly designed foreign key rules aid in documenting relations between
+tables
 @end itemize
 
-The only nice aspect of @code{FOREIGN KEY} is that it gives ODBC and some
-other client programs the ability to see how a table is connected and to use
-this to show connection diagrams and to help in building applications.
+Disadvantages:
 
-MySQL will soon store @code{FOREIGN KEY} definitions so that a
-client can ask for and receive an answer about how the original
-connection was made. The current @file{.frm} file format does not have
-any place for it.  At a later stage we will implement the foreign key
-constraints for application that can't easily be coded to avoid them.
+@itemize @bullet
+@item
+MySQL does not yet support enforced referential integrity, so if your
+application depends on it, you will not be able to use it with MySQL until
+we implement this feature.
+
+@item
+Mistakes, that are easy to make in designing key relations, can cause severe
+problems, for example, circular rules, or the wrong combination of cascading
+deletes.
+
+@item
+A properly written application will make sure internally that it is not
+violating referential integrity constraints before proceding with a query.
+Thus, additionaly checks on the database level will only slow down performance
+for such application.
+
+@item
+It is not uncommon for a DBA to make such a complex topology of relations that
+it becomes very difficult, and in some cases impossible to backup or restore
+individual tables.
+@end itemize
 
 
 @node Missing Views, Missing comments, Broken Foreign KEY, Missing functions
@@ -6411,6 +6420,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
 
+@item
+@c EMAIL: ftpmaint@belnet.be (Antoine Delvaux)
+@image{Flags/belgium} Belgium [BELNET] @
+@uref{http://mysql.belnet.be/, WWW}
+@uref{ftp://ftp.belnet.be/mirror/ftp.mysql.com/pub/mysql/, FTP}
+
 @c @item
 @c Not ok 20000919; Old site (Matt)
 @c EMAIL: delian@naturella.com (Delian Delchev)
@@ -6455,7 +6470,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
-@c EMAIL: guru@borsen.dk  (Jesper Angelo)
+@c EMAIL: guru@borsen.dk (Jesper Angelo)
 @image{Flags/denmark} Denmark [Borsen] @
 @uref{ http://mysql.borsen.dk/, WWW}
 
@@ -44734,7 +44749,7 @@ By default, MySQL searches are case-insensitive (although there are
 some character sets that are never case insensitive, such as @code{czech}).
 That means that if you search with @code{col_name LIKE 'a%'}, you will get all
 column values that start with @code{A} or @code{a}. If you want to make this
-search case-sensitive, use something like @code{INDEX(col_name, "A")=0} to
+search case-sensitive, use something like @code{INSTR(col_name, "A")=1} to
 check a prefix. Or use @code{STRCMP(col_name, "A") = 0} if the column value
 must be exactly @code{"A"}.
 
