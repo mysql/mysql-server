@@ -754,6 +754,7 @@ public:
     bool res= udf.fix_fields(thd, tables, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
     const_item_cache= udf.const_item_cache;
+    fixed= 1;
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }

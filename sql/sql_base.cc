@@ -2225,8 +2225,10 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
-  thd->cond_count=0;
-  thd->allow_sum_func=0;
+  
+  thd->cond_count= 0;
+  bool save_allow_sum_func= thd->allow_sum_func;
+  thd->allow_sum_func= 0;
   if (*conds)
   {
     thd->where="where clause";
@@ -2299,6 +2301,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	table->on_expr=and_conds(table->on_expr,cond_and);
     }
   }
+  thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(test(thd->fatal_error));
 }
 
