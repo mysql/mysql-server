@@ -1019,7 +1019,8 @@ loop:
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
 					fprintf(stderr, 
-"InnoDB: Starting an apply batch of log records to the database...\n");
+"InnoDB: Starting an apply batch of log records to the database...\n"
+"InnoDB: Progress in percents:");
 					has_printed = TRUE;
 				}
 				
@@ -1046,6 +1047,16 @@ loop:
 
 			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
 		}
+
+		if (has_printed
+		    && (i * 100) / hash_get_n_cells(recv_sys->addr_hash)
+		    != ((i + 1) * 100)
+		             / hash_get_n_cells(recv_sys->addr_hash)) {
+
+		        fprintf(stderr, "%lu ",
+			  (i * 100) / hash_get_n_cells(recv_sys->addr_hash));
+
+		}
 	}
 
 	/* Wait until all the pages have been processed */
@@ -1058,6 +1069,11 @@ loop:
 
 		mutex_enter(&(recv_sys->mutex));
 	}	
+
+	if (has_printed) {
+
+	        fprintf(stderr, "\n");
+	}
 
 	if (!allow_ibuf) {
 		/* Flush all the file pages to disk and invalidate them in
