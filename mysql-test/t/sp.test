@@ -3397,6 +3397,29 @@ call bug8937()|
 drop procedure bug8937|
 delete from t1|
 
+#
+# BUG#9566: explicit LOCK TABLE and store procedures result in illegal state
+#
+# We should not think that mysql.proc table does not exist if we are unable
+# to open it under LOCK TABLE or in prelocked mode. Probably this test
+# should be removed when Monty will allow access to mysql.proc without
+# locking it.
+#
+--disable_warnings
+drop procedure if exists bug9566|
+--enable_warnings
+create procedure bug9566()
+begin
+  select * from t1;
+end|
+lock table t1 read|
+# This should fail because we forgot to lock mysql.proc table explicitly
+--error 1100
+call bug9566()|
+unlock tables|
+# This should succeed
+drop procedure bug9566|
+
 
 #
 # BUG#NNNN: New bug synopsis
