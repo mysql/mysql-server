@@ -1695,7 +1695,11 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
     }
     sleep(CON_RETRY_SLEEP);
   }
-  con->reconnect= 1; /* TODO: change this to 0 in future versions */
+  /*
+   TODO: change this to 0 in future versions, but the 'kill' test relies on
+   existing behavior
+  */
+  con->reconnect= 1;
   return con_error;
 }
 
@@ -1789,6 +1793,12 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
     error= 1;
     goto err;
   }
+
+  /*
+   TODO: change this to 0 in future versions, but the 'kill' test relies on
+   existing behavior
+  */
+  con->reconnect= 1;
 
   if (record)
   {
