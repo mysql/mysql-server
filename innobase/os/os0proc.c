@@ -271,11 +271,11 @@ os_awe_allocate_physical_mem(
 "InnoDB: AWE: Error: allocated only %lu pages of %lu requested.\n"
 "InnoDB: Check that you have enough free RAM.\n"
 "InnoDB: In Windows XP Professional and 2000 Professional\n"
-"InnoDB: Windows PAE size is max 4 GB. In 2000 and .NET"
+"InnoDB: Windows PAE size is max 4 GB. In 2000 and .NET\n"
 "InnoDB: Advanced Servers and 2000 Datacenter Server it is 32 GB,\n"
 "InnoDB: and in .NET Datacenter Server it is 64 GB.\n"
 "InnoDB: A Microsoft web page said that the processor must be an Intel\n"
-"InnoDB: processor.",
+"InnoDB: processor.\n",
 			(ulint)NumberOfPages,
 			(ulint)NumberOfPagesInitial);
 
