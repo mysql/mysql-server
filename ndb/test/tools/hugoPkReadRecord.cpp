@@ -28,6 +28,7 @@
 
 int main(int argc, const char** argv)
 {
+  ndb_init();
   int _row = 0;
   int _hex = 0;
   int _primaryKey = 0;

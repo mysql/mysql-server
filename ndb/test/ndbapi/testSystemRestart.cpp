@@ -1179,6 +1179,7 @@ TESTCASE("SR8",
 NDBT_TESTSUITE_END(testSystemRestart);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testSystemRestart.execute(argc, argv);
 }
 

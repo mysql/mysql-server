@@ -141,6 +141,7 @@ TESTCASE("Bank",
 NDBT_TESTSUITE_END(testBank);
 
 int main(int argc, const char** argv){
+  ndb_init();
   // Tables should not be auto created
   testBank.setCreateTable(false);
 

@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
@@ -105,7 +104,6 @@ Configuration::init(int argc, const char** argv){
   }
   // check for depricated flag '-i'
 
-  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
@@ -506,7 +504,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 tmp;
-    if(!ndb_mgm_get_int_parameter(&db, LogLevel::MIN_LOGLEVEL_ID+j, &tmp)){
+    if(!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp)){
       m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
     }
   }
