@@ -1590,6 +1590,14 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
   fix_tables_pointers(thd->lex->all_selects_list);
+
+  /*
+    open temporary memory pool, which will be closed in
+    mysql_test_select_fields,  mysql_test_upd_fields or
+    mysql_test_insert_fields
+  */
+  if (thd->current_statement)
+    thd->ps_setup_prepare_memory();
   DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 

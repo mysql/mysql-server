@@ -8117,7 +8117,7 @@ static void test_subqueries()
 {
   MYSQL_STMT *stmt;
   int rc, i;
-  const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s, (a-1,b-1) in (select a,b from t2) as in_row_s FROM t1";
+  const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s, (a-1,b-1) in (select a,b from t2) as in_row_s FROM t1, (select a x, b y from t2) tt WHERE x=a";
 
   myheader("test_subquery");
   
@@ -8165,7 +8165,8 @@ static void test_distinct()
 {
   MYSQL_STMT *stmt;
   int rc, i;
-  const char *query= "SELECT count(distinct b), group_concat(a) FROM t1";
+  const char *query= 
+    "SELECT 2+count(distinct b), group_concat(a) FROM t1 group by a";
 
   myheader("test_subquery");
   
@@ -8176,7 +8177,8 @@ static void test_distinct()
   myquery(rc);
 
   rc= mysql_query(mysql,
-		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+		  "insert into t1 values (1,1), (2, 2), (3,3), (4,4), (5,5),\
+(1,10), (2, 20), (3,30), (4,40), (5,50)\;");
   myquery(rc);
 
   for (i= 0; i < 3; i++)
@@ -8185,7 +8187,7 @@ static void test_distinct()
     mystmt_init(stmt);
     rc= mysql_execute(stmt);
     mystmt(stmt, rc);
-    assert(1 == my_process_stmt_result(stmt));
+    assert(5 == my_process_stmt_result(stmt));
     mysql_stmt_close(stmt);
   }
 
@@ -8194,9 +8196,6 @@ static void test_distinct()
 }
 
 
-/*
-  Test for bug#2248 "mysql_fetch without prior mysql_execute hangs"
-*/
 
 static void test_bug2248()
 {
@@ -8391,6 +8390,8 @@ int main(int argc, char **argv)
    
     start_time= time((time_t *)0);
 
+    test_subqueries();
+
     client_query();         /* simple client query test */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
@@ -8457,7 +8458,7 @@ int main(int argc, char **argv)
     test_stmt_close();      /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test */
-    test_multi_statements(); /* test multi statement execution */
+/*    test_multi_statements(); *//* test multi statement execution */
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */

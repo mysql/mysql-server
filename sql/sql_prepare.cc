@@ -622,7 +622,12 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
     DBUG_RETURN(1); 
 #endif
   if (open_and_lock_tables(thd, table_list))
-    DBUG_RETURN(1); 
+  {
+    // this memory pool was opened in open_and_lock_tables
+    thd->ps_setup_free_memory();
+    DBUG_RETURN(1);
+  }
+
   table= table_list->table;
 
   if ((values= its++))
@@ -630,12 +635,12 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
     uint value_count;
     ulong counter= 0;
     
-    thd->ps_setup_prepare_memory();
     if (check_insert_fields(thd,table,fields,*values,1))
     {
       thd->ps_setup_free_memory();
       DBUG_RETURN(1);
     }
+    // this memory pool was opened in open_and_lock_tables
     thd->ps_setup_free_memory();
 
     value_count= values->elements;
@@ -652,6 +657,11 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
         DBUG_RETURN(1);
       }
     }
+  }
+  else
+  {
+    // this memory pool was opened in open_and_lock_tables
+    thd->ps_setup_free_memory();
   }
   if (send_prep_stmt(stmt, 0))
     DBUG_RETURN(1);
@@ -683,16 +693,21 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
   if (open_and_lock_tables(thd, table_list))
+  {
+    // this memory pool was opened in open_and_lock_tables
+    thd->ps_setup_free_memory();
     DBUG_RETURN(1);
+  }
 
-  thd->ps_setup_prepare_memory();
   if (setup_tables(table_list, 0) ||
       setup_fields(thd, 0, table_list, fields, 1, 0, 0) ||
       setup_conds(thd, table_list, &conds) || thd->net.report_error)
   {
+    // this memory pool was opened in open_and_lock_tables
     thd->ps_setup_free_memory();
     DBUG_RETURN(1);
   }
+  // this memory pool was opened in open_and_lock_tables
   thd->ps_setup_free_memory();
 
   /* 
@@ -748,44 +763,50 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
    DBUG_RETURN(1);
     
   if (open_and_lock_tables(thd, tables))
+  {
+    // this memory pool was opened in open_and_lock_tables
+    thd->ps_setup_free_memory();
     DBUG_RETURN(1);
+  }
 
   if (lex->describe)
   {
     if (send_prep_stmt(stmt, 0))
-      DBUG_RETURN(1);      
+      goto err;
   }
   else 
   {
     if (!result && !(result= new select_send()))
     {
       send_error(thd, ER_OUT_OF_RESOURCES);
-      DBUG_RETURN(1);
+      goto err;
     }
 
     thd->used_tables= 0;	// Updated by setup_fields  
-    thd->ps_setup_prepare_memory();
 
     if (unit->prepare(thd, result, 0))
-    {
-      unit->cleanup();
-      thd->ps_setup_free_memory();
-      DBUG_RETURN(1);
-    }
-   
+      goto err_prep;
+
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0)
 #ifndef EMBEDDED_LIBRARY
 	|| net_flush(&thd->net)
 #endif
 	)
-    {
-      DBUG_RETURN(1);
-    }
+      goto err_prep;
+
     unit->cleanup();
-    thd->ps_setup_free_memory();
   }
-  DBUG_RETURN(0);  
+  // this memory pool was opened in open_and_lock_tables
+  thd->ps_setup_free_memory();
+  DBUG_RETURN(0);
+
+err_prep:
+  unit->cleanup();
+err:
+  // this memory pool was opened in open_and_lock_tables
+  thd->ps_setup_free_memory();
+  DBUG_RETURN(1);
 }
 
 
@@ -1006,7 +1027,6 @@ void mysql_stmt_execute(THD *thd, char *packet)
   stmt->query_id= thd->query_id;
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
-  thd->current_statement= stmt;
   thd->free_list= 0;
 
   /*
@@ -1051,8 +1071,14 @@ void mysql_stmt_execute(THD *thd, char *packet)
       tables->table= 0; // safety - nasty init
       tables->table_list= 0;
     }
-
-    sl->master_unit()->unclean();
+    
+    {
+      SELECT_LEX_UNIT *unit= sl->master_unit();
+      unit->unclean();
+      unit->types.empty();
+      // for derived tables & PS (which can't be reset bu Item_subquery)
+      unit->reinit_exec_mechanism();
+    }
   }
 
 
@@ -1082,10 +1108,10 @@ void mysql_stmt_execute(THD *thd, char *packet)
 
   free_items(thd->free_list);
   cleanup_items(stmt->free_list);
+  close_thread_tables(thd); // to close derived tables
   free_root(&thd->mem_root, MYF(0));
   thd->set_statement(&thd->stmt_backup);
 end:
-  thd->current_statement= 0;
   DBUG_VOID_RETURN;
 }
 

@@ -934,6 +934,7 @@ public:
     DBUG_ASSERT(current_statement!=0);
     cleanup_items(current_statement->free_list);
     free_items(free_list);
+    close_thread_tables(this); // to close derived tables
     free_root(&mem_root, MYF(0));
     set_item_arena(current_statement);
   }
