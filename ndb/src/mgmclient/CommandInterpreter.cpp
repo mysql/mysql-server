@@ -106,6 +106,7 @@ private:
    */
   void executeHelp(char* parameters);
   void executeShow(char* parameters);
+  void executePurge(char* parameters);
   void executeShutdown(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
@@ -264,6 +265,7 @@ static const char* helpText =
 #ifdef HAVE_GLOBAL_REPLICATION
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
 #endif
+"PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -541,6 +543,10 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
     executeAbortBackup(allAfterFirstToken);
     return true;
   }
+  else if (strcmp(firstToken, "PURGE") == 0) {
+    executePurge(allAfterFirstToken);
+    return true;
+  } 
 #ifdef HAVE_GLOBAL_REPLICATION
   else if(strcmp(firstToken, "REPLICATION") == 0 ||
 	  strcmp(firstToken, "REP") == 0) {
@@ -980,6 +986,46 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
     }
   }
   ndbout << endl;
+}
+
+void
+CommandInterpreter::executePurge(char* parameters) 
+{ 
+  int command_ok= 0;
+  do {
+    if (emptyString(parameters))
+      break;
+    char* firstToken = strtok(parameters, " ");
+    char* nextToken = strtok(NULL, " \0");
+    if (strcmp(firstToken,"STALE") == 0 &&
+	nextToken &&
+	strcmp(nextToken, "SESSIONS") == 0) {
+      command_ok= 1;
+      break;
+    }
+  } while(0);
+
+  if (!command_ok) {
+    ndbout_c("Unexpected command, expected: PURGE STALE SESSIONS");
+    return;
+  }
+
+  int i;
+  char *str;
+  connect();
+  
+  if (ndb_mgm_purge_stale_sessions(m_mgmsrv, &str)) {
+    ndbout_c("Command failed");
+    return;
+  }
+  if (str) {
+    ndbout_c("Purged sessions with node id's: %s", str);
+    free(str);
+  }
+  else
+  {
+    ndbout_c("No sessions purged");
+  }
 }
 
 void
