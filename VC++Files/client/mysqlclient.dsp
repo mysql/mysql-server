@@ -25,7 +25,7 @@ CFG=mysqlclient - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=xicl6.exe
+CPP=cl.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysqlclient - Win32 Release"
@@ -48,7 +48,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\mysqlclient.lib"
 
@@ -72,7 +72,7 @@ LIB32=xilink6.exe -lib
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\mysqlclient.lib"
 
@@ -105,14 +105,6 @@ SOURCE=..\mysys\charset.c
 # Begin Source File
 
 SOURCE=..\libmysql\client.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\completion_hash.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\completion_hash.h
 # End Source File
 # Begin Source File
 
@@ -426,23 +418,11 @@ SOURCE=..\libmysql\password.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\readline.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\mysys\safemalloc.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\mysys\sha1.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\sql_string.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\sql_string.h
 # End Source File
 # Begin Source File
 
