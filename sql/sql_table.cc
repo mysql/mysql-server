@@ -2209,7 +2209,7 @@ table_exists:
     char warn_buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(warn_buff, sizeof(warn_buff),
 		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		 ER_TABLE_EXISTS_ERROR,warn_buff);
     res= 0;
   }

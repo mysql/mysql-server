@@ -1038,7 +1038,8 @@ void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh, bool is_not_commit);
+bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
+                              bool is_not_commit);
 void start_waiting_global_read_lock(THD *thd);
 void make_global_read_lock_block_commit(THD *thd);
 

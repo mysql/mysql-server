@@ -195,13 +195,15 @@ explain select count(*) from t1 where x in (1,2);
 drop table t1;
 
 #
-# bug #1172
+# bug #1172: "Force index" option caused server crash
 #
 CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
 INSERT INTO t1 VALUES (0),(0),(1),(1);
 CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
+explain select * from t1 force index(i1), t2 force index(j1) where 
+ (t1.key1 <t2.keya + 1) and t2.keya=3;
 DROP TABLE t1,t2;
 
 #
@@ -415,14 +417,17 @@ drop table t1;
 --disable_warnings
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
 --enable_warnings
-insert into t1(x) values (0xfffffffffffffff0);
-insert into t1(x) values (0xfffffffffffffff1);
+insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
 select * from t1;
 select count(*) from t1 where x>0;
 select count(*) from t1 where x=0;
 select count(*) from t1 where x<0;
 select count(*) from t1 where x < -16;
 select count(*) from t1 where x = -16;
+explain select count(*) from t1 where x > -16;
+
+# The following result should be (2). To be fixed when we add 'unsigned flag' to
+# Field::store(longlong)
 select count(*) from t1 where x > -16;
 select count(*) from t1 where x = 18446744073709551601;
 

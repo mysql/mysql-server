@@ -102,3 +102,5 @@ tags:
 test:
 	cd mysql-test ; ./mysql-test-run
 
+# Don't update the files from bitkeeper
+%::SCCS/s.%

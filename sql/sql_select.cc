@@ -4910,13 +4910,13 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       JOIN_TAB *tab=join->join_tab+i;
       JOIN_TAB *first_inner_tab= tab->first_inner; 
       table_map current_map= tab->table->map;
+      bool use_quick_range=0;
       /*
 	Following force including random expression in last table condition.
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
       */
       if (i == join->tables-1)
 	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-      bool use_quick_range=0;
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
@@ -4935,11 +4935,26 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       COND *tmp=make_cond_for_table(cond,used_tables,current_map);
       if (!tmp && tab->quick)
       {						// Outer join
-	/*
-	  Hack to handle the case where we only refer to a table
-	  in the ON part of an OUTER JOIN.
-	*/
-	tmp=new Item_int((longlong) 1,1);	// Always true
+        if (tab->type != JT_ALL)
+        {
+          /*
+            Don't use the quick method
+            We come here in the case where we have 'key=constant' and
+            the test is removed by make_cond_for_table()
+          */
+          delete tab->quick;
+          tab->quick= 0;
+        }
+        else
+        {
+          /*
+            Hack to handle the case where we only refer to a table
+            in the ON part of an OUTER JOIN. In this case we want the code
+            below to check if we should use 'quick' instead.
+          */
+          tmp= new Item_int((longlong) 1,1);	// Always true
+        }
+
       }
       if (tmp)
       {
@@ -5989,6 +6004,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
+  DBUG_ENTER("simplify_joins");
 
   /* 
     Try to simplify join operations from join_list.
@@ -6122,36 +6138,34 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       li.replace(nested_join->join_list);
     }
   }
-  return conds;         
+  DBUG_RETURN(conds);         
 }
 
      
 static COND *
 optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
 {
+  THD *thd= join->thd;
   SELECT_LEX *select= thd->lex->current_select;
   DBUG_ENTER("optimize_cond");
 
-  THD *thd= join->thd;
-  SELECT_LEX *select= thd->lex->current_select;
   if (select->first_cond_optimization)
   {
-    Item_arena *arena, backup;
+    /*
+      The following code will allocate the new items in a permanent
+      MEMROOT for prepared statements and stored procedures.
+    */
+
+    Item_arena *arena=thd->current_arena, backup;
     select->first_cond_optimization= 0;
 
-    arena= thd->current_arena;
-    if (!arena->is_stmt_prepare())
-      arena= 0;
-    else
-      thd->set_n_backup_item_arena(arena, &backup);
+    thd->set_n_backup_item_arena(arena, &backup);
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(join, join->join_list, conds, TRUE);
 
     select->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
-    select->first_cond_optimization= 0;
-    if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_backup_item_arena(arena, &backup);
   }
 
   if (!conds)
@@ -6161,7 +6175,7 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
   }
   else
   {
-    DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
+    DBUG_EXECUTE("where", print_where(conds, "original"););
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
     /*

@@ -528,14 +528,14 @@ static void close_connections(void)
   (void) pthread_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use)
   {
-    DBUG_PRINT("quit",("killing manager thread: %lx",manager_thread));
+    DBUG_PRINT("quit",("killing manager thread: 0x%lx",manager_thread));
    (void) pthread_cond_signal(&COND_manager);
   }
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_PRINT("quit",("waiting for select thread: %lx",select_thread));
+  DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
   while (select_thread_in_use)
@@ -2476,7 +2476,7 @@ static void init_ssl()
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher);
-    DBUG_PRINT("info",("ssl_acceptor_fd: %lx", (long) ssl_acceptor_fd));
+    DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
   }
@@ -4331,6 +4331,10 @@ Disable with --skip-isam.",
 log and this option justs turns on --log-bin instead.",
    (gptr*) &opt_update_logname, (gptr*) &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-warnings", 'W', "Log some not critical warnings to the log file.",
+   (gptr*) &global_system_variables.log_warnings,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
+   0, 0, 0},
   {"low-priority-updates", OPT_LOW_PRIORITY_UPDATES,
    "INSERT/DELETE/UPDATE has lower priority than selects.",
    (gptr*) &global_system_variables.low_priority_updates,
