@@ -766,23 +766,36 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   mysql->client_flag=client_flag;
 
 #ifdef HAVE_OPENSSL
+  if ((mysql->server_capabilities & CLIENT_SSL) &&
+      (mysql->options.use_ssl || (client_flag & CLIENT_SSL)))
+  {
+    DBUG_PRINT("info", ("Changing IO layer to SSL"));
+    client_flag |= CLIENT_SSL;
+  }
+  else
+  {
+    if (client_flag & CLIENT_SSL)
+    {
+      DBUG_PRINT("info", ("Leaving IO layer intact because server doesn't support SSL"));
+    }
+    client_flag &= ~CLIENT_SSL;
+  }
   /* Oops.. are we careful enough to not send ANY information */
   /* without encryption? */
-/*  if (client_flag & CLIENT_SSL)
+  if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
-      goto error;*/
+      goto error;
     /* Do the SSL layering. */
- /*   DBUG_PRINT("info", ("IO layer change in progress..."));
-    VioSSLConnectorFd* connector_fd = (VioSSLConnectorFd*)
-      (mysql->connector_fd);
-    VioSocket*	vio_socket = (VioSocket*)(mysql->net.vio);
-    VioSSL*	vio_ssl =    connector_fd->connect(vio_socket);
-    mysql->net.vio =         (NetVio*)(vio_ssl);
-  }*/
+    DBUG_PRINT("info", ("IO layer change in progress..."));
+    DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
+    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio);
+    DBUG_PRINT("info", ("IO layer change done!"));
+  }
 #endif /* HAVE_OPENSSL */
-
   int3store(buff+2,max_allowed_packet);
+
+  
   if (user && user[0])
     strmake(buff+5,user,32);
   else
@@ -821,6 +834,32 @@ error:
   DBUG_RETURN(0);
 }
 
+
+#ifdef HAVE_OPENSSL
+/*
+**************************************************************************
+** Free strings in the SSL structure and clear 'use_ssl' flag.
+** NB! Errors are not reported until you do mysql_real_connect.
+**************************************************************************
+*/
+int STDCALL
+mysql_ssl_clear(MYSQL *mysql)
+{
+  my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+  mysql->options.ssl_key = 0;
+  mysql->options.ssl_cert = 0;
+  mysql->options.ssl_ca = 0;
+  mysql->options.ssl_capath = 0;
+  mysql->options.use_ssl = FALSE;
+  my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
+  mysql->connector_fd = 0;
+  return 0;
+}
+#endif /* HAVE_OPENSSL */
+
 /*************************************************************************
 ** Send a QUIT to the server and close the connection
 ** If handle is alloced by mysql connect free it.
@@ -849,8 +888,7 @@ mc_mysql_close(MYSQL *mysql)
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
 #ifdef HAVE_OPENSSL
-/*    ((VioConnectorFd*)(mysql->connector_fd))->delete();
-    mysql->connector_fd = 0;*/
+    mysql_ssl_clear(mysql);
 #endif /* HAVE_OPENSSL */
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));

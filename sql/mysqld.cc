@@ -279,13 +279,14 @@ volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
-  master_info_file = (char*) "master.info";
+  master_info_file = (char*) "master.info", master_ssl_key=0, master_ssl_cert=0;
 my_string report_user = 0, report_password = 0, report_host=0;
  
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
+bool master_ssl = 0;
 
 ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -707,7 +708,6 @@ void clean_up(bool print_message)
   my_free(opt_ssl_cert,MYF(0));
   my_free(opt_ssl_ca,MYF(0));
   my_free(opt_ssl_capath,MYF(0));
-//  my_free(ssl_acceptor_fd,MYF(0));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
@@ -2495,6 +2495,10 @@ enum options {
 	       OPT_MASTER_HOST,             OPT_MASTER_USER,
                OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
                OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
+#ifdef HAVE_OPENSSL
+	       OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
+	       OPT_MASTER_SSL_CERT,            
+#endif /* HAVE_OPESSSL*/ 
                OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
                OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
                OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -2601,6 +2605,9 @@ static struct option long_options[] = {
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
+  {"master-ssl",      	    optional_argument, 0, (int) OPT_MASTER_SSL},
+  {"master-ssl-key",        optional_argument, 0, (int) OPT_MASTER_SSL_KEY},
+  {"master-ssl-cert",       optional_argument, 0, (int) OPT_MASTER_SSL_CERT},
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
     // needs to be available for the test case to pass in non-debugging mode
@@ -3017,6 +3024,23 @@ struct show_var_st status_vars[]= {
   {"Sort_range",	       (char*) &filesort_range_count,   SHOW_LONG},
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
+#ifdef HAVE_OPENSSL
+  {"SSL_CTX_sess_accept",      (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
+  {"SSL_CTX_sess_accept_good", (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"SSL_CTX_sess_accept_renegotiate", (char*) 0, 		SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
+  {"SSL_CTX_sess_cb_hits",     (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
+  {"SSL_CTX_sess_number",      (char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
+  {"SSL_CTX_get_session_cache_mode", (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"SSL_CTX_sess_get_cache_size", (char*) 0,			SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"SSL_CTX_get_verify_mode",  (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
+  {"SSL_CTX_get_verify_depth", (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"SSL_get_verify_mode",      (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
+  {"SSL_get_verify_depth",     (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
+  {"SSL_session_reused",       (char*) 0,			SHOW_SSL_SESSION_REUSED},
+  {"SSL_get_version",          (char*) 0,  			SHOW_SSL_GET_VERSION},
+  {"SSL_get_cipher",           (char*) 0,  			SHOW_SSL_GET_CIPHER},
+  {"SSL_get_default_timeout",  (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
+#endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
@@ -3855,6 +3879,17 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);
       break;
+#ifdef HAVE_OPENSSL
+    case OPT_MASTER_SSL:
+      master_ssl=atoi(optarg);
+      break;
+    case OPT_MASTER_SSL_KEY:
+      master_ssl_key=optarg;
+      break;
+    case OPT_MASTER_SSL_CERT:
+      master_ssl_cert=optarg;
+      break;
+#endif /* HAVE_OPENSSL */
     case OPT_REPORT_HOST:
       report_host=optarg;
       break;

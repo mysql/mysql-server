@@ -40,6 +40,7 @@
 #include <getopt.h>
 #include "my_readline.h"
 #include <signal.h>
+#include <violite.h>
 
 const char *VER="11.15";
 
@@ -326,6 +327,16 @@ int main(int argc,char *argv[])
 	  "Your MySQL connection id is %ld to server version: %s\n",
 	  mysql_thread_id(&mysql),mysql_get_server_info(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
+
+#ifdef HAVE_OPENSSL
+  if(SSL_get_cipher(mysql.net.vio->ssl_)) {
+    sprintf((char*) glob_buffer.ptr(),
+  	  "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
+    put_info((char*) glob_buffer.ptr(),INFO_INFO);
+  } else
+    put_info("SSL is not in use\n",INFO_INFO);
+#endif /* HAVE_OPENSSL */
+
 
 #ifdef HAVE_READLINE
   initialize_readline(my_progname);

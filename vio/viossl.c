@@ -70,15 +70,20 @@ report_errors()
   unsigned long	l;
   const char*	file;
   const char*	data;
-  int		line,flags;
+  int		line,flags, any_ssl_error = 0;
   DBUG_ENTER("report_errors");
 
   while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)) != 0)
   {
     char buf[200];
+    any_ssl_error = 1;
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
 			 file,line,(flags&ERR_TXT_STRING)?data:"")) ;
   }
+  if (!any_ssl_error) {
+    DBUG_PRINT("info", ("No OpenSSL errors."));
+  }
+  DBUG_PRINT("info", ("BTW, errno=%d", errno));
   DBUG_VOID_RETURN;
 }
 
@@ -107,11 +112,10 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
   DBUG_ENTER("vio_ssl_read");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d, ssl_=%p",
 		       vio->sd, buf, size, vio->ssl_));
-  DBUG_ASSERT(vio->ssl_!= 0);
 
-  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
-		     ,SSL_get_cipher_name(vio->ssl_)));
-  
+#ifndef DBUG_OFF
+  errno = 0;
+#endif /* DBUG_OFF */
   r = SSL_read(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
   if ( r< 0)
@@ -127,9 +131,10 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
   int r;
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
-  DBUG_ASSERT(vio->ssl_!=0);
-  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'",
-		     SSL_get_cipher_name(vio->ssl_)));
+
+#ifndef DBUG_OFF
+  errno = 0;
+#endif /* DBUG_OFF */
   r = SSL_write(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
   if (r<0)
@@ -293,58 +298,79 @@ my_bool vio_ssl_poll_read(Vio *vio,uint timeout)
 #endif
 }
 
-
-/* FIXME: There are some duplicate code in 
- * sslaccept()/sslconnect() which maybe can be eliminated 
- */
-void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
+void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio)
 {
   X509*    client_cert;
   char *str;
+  int i;
+//  const int blocking = vio_is_blocking(vio);
   DBUG_ENTER("sslaccept");
-  DBUG_PRINT("enter", ("sd=%s ptr=%p", sd->sd,ptr));
-  vio_reset(sd,VIO_TYPE_SSL,sd->sd,0,FALSE);
-  sd->ssl_=0;
-  sd->open_=FALSE; 
-  DBUG_ASSERT(sd != 0);
-  DBUG_ASSERT(ptr != 0);
-  DBUG_ASSERT(ptr->ssl_context_ != 0);
-  if (!(sd->ssl_ = SSL_new(ptr->ssl_context_)))
+  DBUG_PRINT("enter", ("sd=%d ptr=%p", vio->sd,ptr));
+  vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
+  vio->ssl_=0;
+  vio->open_=FALSE; 
+  if (!(vio->ssl_ = SSL_new(ptr->ssl_context_)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
     DBUG_VOID_RETURN;
   }
-  DBUG_PRINT("info", ("ssl_=%p",sd->ssl_));
-  SSL_set_fd(sd->ssl_,sd->sd);
-/*  SSL_accept(sd->ssl_);  */
-/*  if (!(ptr->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
-  {
-    DBUG_PRINT("error", ("BIO_new_socket failure"));
-    report_errors();
-    SSL_free(sd->ssl_);
-    sd->ssl_=0;
-    DBUG_RETURN(sd);
+  DBUG_PRINT("info", ("ssl_=%p",vio->ssl_));
+  vio_blocking(vio, FALSE);
+  SSL_set_fd(vio->ssl_,vio->sd);
+  SSL_set_accept_state(vio->ssl_);
+
+  /* FIXME possibly infinite loop */
+  while (SSL_is_init_finished(vio->ssl_)) {
+    DBUG_PRINT("info",("SSL_is_init_finished(vio->ssl_) is not 1"));
+    if((i=SSL_do_handshake(vio->ssl_))!=SSL_ERROR_NONE) 
+    {
+      DBUG_PRINT("info",("*** errno %d",errno));
+      switch (SSL_get_error(vio->ssl_,i))
+      {
+      case SSL_ERROR_NONE:
+        DBUG_PRINT("info",("SSL_ERROR_NONE: handshake finished"));
+      break;
+      case SSL_ERROR_SSL:
+        DBUG_PRINT("info",("SSL_ERROR_SSL: SSL protocol error "));
+      break;
+      case SSL_ERROR_WANT_CONNECT:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_CONNECT:If you are doing non-blocking connects call again when the connection is established"));
+      break;
+      case SSL_ERROR_WANT_READ:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_READ: if non-blocking etc, call again when data is available"));
+      break;
+      case SSL_ERROR_WANT_WRITE:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_WRITE: if non-blocking etc, call again when data is available to write"));
+      break;
+      case SSL_ERROR_WANT_X509_LOOKUP:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_X509_LOOKUP: /* not used yet but could be :-) */"));
+      break;
+      case SSL_ERROR_SYSCALL:
+        DBUG_PRINT("info",("SSL_ERROR_SYSCALL: An error than the error code can be found in errno (%d)",errno));
+      break;
+      case SSL_ERROR_ZERO_RETURN:
+        DBUG_PRINT("info",("SSL_ERROR_ZERO_RETURN: 0 returned on the read, normally means the socket is closed :-) */"));
+      break;
+      default:
+        DBUG_PRINT("info",("Unknown SSL error returned"));
+      break;
+      }
+    }
+    usleep(100);
   }
-  SSL_set_bio(sd->ssl_, ptr->bio_, ptr->bio_);*/
-  SSL_set_accept_state(sd->ssl_);
-/*
-  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd);
-  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); 
-*/
-  sd->open_ = TRUE;
-
-
-  client_cert = SSL_get_peer_certificate (sd->ssl_);
+  vio->open_ = TRUE;
+#ifndef DBUF_OFF
+  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
+		     ,SSL_get_cipher_name(vio->ssl_)));
+  client_cert = SSL_get_peer_certificate (vio->ssl_);
   if (client_cert != NULL) {
     DBUG_PRINT("info",("Client certificate:"));
     str = X509_NAME_oneline (X509_get_subject_name (client_cert), 0, 0);
-    /* CHK_NULL(str); */
     DBUG_PRINT("info",("\t subject: %s", str));
     free (str);
 
     str = X509_NAME_oneline (X509_get_issuer_name  (client_cert), 0, 0);
-    /* CHK_NULL(str); */
     DBUG_PRINT("info",("\t issuer: %s", str));
     free (str);
 
@@ -354,47 +380,78 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
     X509_free (client_cert);
   } else
     DBUG_PRINT("info",("Client does not have certificate."));
-
+#endif
   DBUG_VOID_RETURN;
 }
 
-void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
+void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio)
 {
   char *str;
+//  char s[]="abc";
+int i;
   X509*    server_cert;
+  const int blocking = vio_is_blocking(vio);
   DBUG_ENTER("sslconnect");
-  DBUG_PRINT("enter", ("sd=%s ptr=%p ctx: %p", sd->sd,ptr,ptr->ssl_context_));
-  vio_reset(sd,VIO_TYPE_SSL,sd->sd,0,FALSE);
+  DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context_));
+  vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
 
-  sd->bio_=0;
-  sd->ssl_=0;
-  sd->open_=FALSE; 
-  DBUG_ASSERT(sd != 0);
-  DBUG_ASSERT(ptr != 0);
-  DBUG_ASSERT(ptr->ssl_context_ != 0);
-
-  if (!(sd->ssl_ = SSL_new(ptr->ssl_context_)))
+  vio->ssl_=0;
+  vio->open_=FALSE; 
+  if (!(vio->ssl_ = SSL_new(ptr->ssl_context_)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
     DBUG_VOID_RETURN;
   }
-  DBUG_PRINT("info", ("ssl_=%p",sd->ssl_));
-  printf("ssl_=%p\n",sd->ssl_);
-/*  if (!(sd->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
-  {
-    DBUG_PRINT("error", ("BIO_new_socket failure"));
-    report_errors();
-    SSL_free(sd->ssl_);
-    sd->ssl_=0;
-    DBUG_RETURN(sd);
+  DBUG_PRINT("info", ("ssl_=%p",vio->ssl_));
+  vio_blocking(vio, FALSE);
+  SSL_set_fd (vio->ssl_, vio->sd);
+  SSL_set_connect_state(vio->ssl_);
+
+  /* FIXME possibly infinite loop */
+  while (SSL_is_init_finished(vio->ssl_)) {
+    DBUG_PRINT("info",("SSL_is_init_finished(vio->ssl_) is not 1"));
+    if((i=SSL_do_handshake(vio->ssl_))!=SSL_ERROR_NONE) 
+    {
+      DBUG_PRINT("info",("*** errno %d",errno));
+      switch (SSL_get_error(vio->ssl_,i))
+      {
+      case SSL_ERROR_NONE:
+        DBUG_PRINT("info",("SSL_ERROR_NONE: handshake finished"));
+      break;
+      case SSL_ERROR_SSL:
+        DBUG_PRINT("info",("SSL_ERROR_SSL: SSL protocol error "));
+      break;
+      case SSL_ERROR_WANT_CONNECT:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_CONNECT:If you are doing non-blocking connects call again when the connection is established"));
+      break;
+      case SSL_ERROR_WANT_READ:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_READ: if non-blocking etc, call again when data is available"));
+      break;
+      case SSL_ERROR_WANT_WRITE:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_WRITE: if non-blocking etc, call again when data is available to write"));
+      break;
+      case SSL_ERROR_WANT_X509_LOOKUP:
+        DBUG_PRINT("info",("SSL_ERROR_WANT_X509_LOOKUP: /* not used yet but could be :-) */"));
+      break;
+      case SSL_ERROR_SYSCALL:
+        DBUG_PRINT("info",("SSL_ERROR_SYSCALL: An error than the error code can be found in errno (%d)",errno));
+      break;
+      case SSL_ERROR_ZERO_RETURN:
+        DBUG_PRINT("info",("SSL_ERROR_ZERO_RETURN: 0 returned on the read, normally means the socket is closed :-) */"));
+      break;
+      default:
+        DBUG_PRINT("info",("Unknown SSL error returned"));
+      break;
+      }
+    }
+    usleep(100);
   }
-  SSL_set_bio(sd->ssl_, sd->bio_, sd->bio_);*/
-
-  SSL_set_fd (sd->ssl_, sd->sd);
-  SSL_set_connect_state(sd->ssl_);
-
-  server_cert = SSL_get_peer_certificate (sd->ssl_);
+  vio->open_ = TRUE;
+#ifndef DBUG_OFF
+  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
+		     ,SSL_get_cipher_name(vio->ssl_)));
+  server_cert = SSL_get_peer_certificate (vio->ssl_);
   if (server_cert != NULL) {
     DBUG_PRINT("info",("Server certificate:"));
     str = X509_NAME_oneline (X509_get_subject_name (server_cert), 0, 0);
@@ -402,18 +459,17 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
     free (str);
 
     str = X509_NAME_oneline (X509_get_issuer_name  (server_cert), 0, 0);
-    DBUG_PRINT("info",("\t issuer: %s\n", str));
+    DBUG_PRINT("info",("\t issuer: %s", str));
     free (str);
 
     /* We could do all sorts of certificate verification stuff here before
      *        deallocating the certificate. */
 
-    X509_free(server_cert);
+    X509_free (server_cert);
   } else
     DBUG_PRINT("info",("Server does not have certificate."));
-
-  /* sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); */
-  sd->open_ = TRUE;
+#endif
+  vio_blocking(vio, blocking);
   DBUG_VOID_RETURN;
 }
 
