@@ -8637,6 +8637,7 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_simple,	/* strnxfrm   */
@@ -8649,6 +8650,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_euc_kr,
   mbcharlen_euc_kr,
   my_numchars_mb,
@@ -8695,7 +8697,7 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -8722,7 +8724,7 @@ CHARSET_INFO my_charset_euckr_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

@@ -53,7 +53,6 @@ typedef struct unicase_info_st
 #define MY_SEQ_SPACES	2
 
         /* My charsets_list flags */
-#define MY_NO_SETS       0
 #define MY_CS_COMPILED  1      /* compiled-in sets               */
 #define MY_CS_CONFIG    2      /* sets that have a *.conf file   */
 #define MY_CS_INDEX     4      /* sets listed in the Index file  */
@@ -62,7 +61,7 @@ typedef struct unicase_info_st
 #define MY_CS_PRIMARY	32     /* if primary collation           */
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
 #define MY_CS_UNICODE	128    /* is a charset is full unicode   */
-#define MY_CS_NONTEXT	256    /* if a charset is not sprintf() compatible */
+#define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
 
 #define MY_CHARSET_UNDEFINED 0
@@ -102,6 +101,7 @@ struct charset_info_st;
 
 typedef struct my_collation_handler_st
 {
+  my_bool (*init)(struct charset_info_st *, void *(*alloc)(uint));
   /* Collation routines */
   int     (*strnncoll)(struct charset_info_st *,
 		       const uchar *, uint, const uchar *, uint);
@@ -140,6 +140,7 @@ extern MY_COLLATION_HANDLER my_collation_ucs2_uca_handler;
 
 typedef struct my_charset_handler_st
 {
+  my_bool (*init)(struct charset_info_st *, void *(*alloc)(uint));
   /* Multibyte routines */
   int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
   int     (*mbcharlen)(struct charset_info_st *, uint);

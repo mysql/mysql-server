@@ -9869,6 +9869,49 @@ static void test_bug4026()
   mysql_stmt_close(stmt);
 }
 
+
+static void test_bug4079()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  const char *stmt_text;
+  unsigned long res;
+  int rc;
+
+  myheader("test_bug4079");
+
+  /* Create and fill table */
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "CREATE TABLE t1 (a int)");
+  mysql_query(mysql, "INSERT INTO t1 VALUES (1), (2)");
+
+  /* Prepare erroneous statement */
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT 1 < (SELECT a FROM t1)";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  /* Execute the select statement */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Bind input buffers */
+  bzero(bind, sizeof(bind));
+
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char*) &res;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc != 0 && rc != MYSQL_NO_DATA);
+  printf("Got error from mysql_stmt_fetch (as expected):\n%s\n",
+         mysql_stmt_error(stmt));
+  /* buggy version of libmysql hanged up here */
+  mysql_stmt_close(stmt);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10162,6 +10205,7 @@ int main(int argc, char **argv)
     test_ps_i18n();         /* test for i18n support in binary protocol */
     test_bug3796();         /* test for select concat(?, <string>) */
     test_bug4026();         /* test microseconds precision of time types */
+    test_bug4079();         /* erroneous subquery in prepared statement */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
