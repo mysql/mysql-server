@@ -637,7 +637,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       the following 'if', thought conceptually wrong,
       is a useful optimization nevertheless.
     */
-    if (file->state != &file->s->state.state);
+    if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
@@ -691,12 +691,22 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
       else
       {
-	/* Only disable old index if the table was empty */
-	if (file->state->records == 0)
+	/*
+	  Only disable old index if the table was empty and we are inserting
+	  a lot of rows.
+	  We should not do this for only a few rows as this is slower and
+	  we don't want to update the key statistics based of only a few rows.
+	*/
+	if (file->state->records == 0 &&
+	    (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
 	  mi_disable_non_unique_index(file,rows);
-        ha_myisam::extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			     current_thd->variables.bulk_insert_buff_size);
-	table->bulk_insert= 1;
+        else
+        {
+          mi_init_bulk_insert(file,
+			      current_thd->variables.bulk_insert_buff_size,
+			      rows);
+	  table->bulk_insert= 1;
+	}
       }
     }
     enable_activate_all_index=1;
@@ -713,7 +723,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
 
-  mi_extra(file, HA_EXTRA_BULK_INSERT_END, 0);
+  mi_end_bulk_insert(file);
   table->bulk_insert= 0;
   if (enable_activate_all_index &&
      share->state.key_map != set_bits(ulonglong, share->base.keys))
@@ -954,13 +964,11 @@ int ha_myisam::extra(enum ha_extra_function operation)
 }
 
 
-/* To be used with WRITE_CACHE, EXTRA_CACHE and BULK_INSERT_BEGIN */
+/* To be used with WRITE_CACHE and EXTRA_CACHE */
 
 int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) &
-      (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_BULK_INSERT_BEGIN))
+  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return mi_extra(file, operation, (void*) &cache_size);
 }
@@ -1224,8 +1232,7 @@ longlong ha_myisam::get_auto_increment()
   }
 
   if (table->bulk_insert)
-    mi_extra(file, HA_EXTRA_BULK_INSERT_FLUSH,
-	     (void*) &table->next_number_index);
+    mi_flush_bulk_insert(file, table->next_number_index);
 
   longlong nr;
   int error;

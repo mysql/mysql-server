@@ -158,11 +158,11 @@ sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
 sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
 					     &SV::pseudo_thread_id);
-sys_var_thd_ulonglong	sys_max_join_size("max_join_size",
+sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
-sys_var_thd_ulonglong	sys_sql_max_join_size("sql_max_join_size",
+sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
@@ -284,7 +284,7 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks",
 
 /* Local state variables */
 
-static sys_var_thd_ulonglong	sys_select_limit("sql_select_limit",
+static sys_var_thd_ha_rows	sys_select_limit("sql_select_limit",
 						 &SV::select_limit);
 static sys_var_timestamp	sys_timestamp("timestamp");
 static sys_var_last_insert_id	sys_last_insert_id("last_insert_id");
@@ -606,7 +606,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
   {
-    if (thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
+    if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options|= OPTION_BIG_SELECTS;
     else
       thd->options&= ~OPTION_BIG_SELECTS;
@@ -753,12 +753,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
-  {
-    /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
     global_system_variables.*offset= (ulong) tmp;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-  }
   else
     thd->variables.*offset= (ulong) tmp;
   return 0;
@@ -785,10 +780,60 @@ byte *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
+{
+  ulonglong tmp= var->value->val_int();
+
+  /* Don't use bigger value than given with --maximum-variable-name=.. */
+  if ((ha_rows) tmp > max_system_variables.*offset)
+    tmp= max_system_variables.*offset;
+
+  if (option_limits)
+    tmp= (ha_rows) getopt_ull_limit_value(tmp, option_limits);
+  if (var->type == OPT_GLOBAL)
+  {
+    /* Lock is needed to make things safe on 32 bit systems */
+    pthread_mutex_lock(&LOCK_global_system_variables);    
+    global_system_variables.*offset= (ha_rows) tmp;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.*offset= (ha_rows) tmp;
+  return 0;
+}
+
+
+void sys_var_thd_ha_rows::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+  {
+    /* We will not come here if option_limits is not set */
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.*offset= (ha_rows) option_limits->def_value;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
+
+byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return (byte*) &(global_system_variables.*offset);
+  return (byte*) &(thd->variables.*offset);
+}
+
+
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   if (var->type == OPT_GLOBAL)
+  {
+    /* Lock is needed to make things safe on 32 bit systems */
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= var->value->val_int();
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
   else
     thd->variables.*offset= var->value->val_int();
   return 0;
@@ -798,7 +843,11 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 void sys_var_thd_ulonglong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= (ulonglong) option_limits->def_value;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
   else
     thd->variables.*offset= global_system_variables.*offset;
 }
@@ -905,6 +954,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type)
     return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type));
   case SHOW_LONGLONG:
     return new Item_int(*(longlong*) value_ptr(thd, var_type));
+  case SHOW_HA_ROWS:
+    return new Item_int((longlong) *(ha_rows*) value_ptr(thd, var_type));
   case SHOW_MY_BOOL:
     return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type),1);
   case SHOW_CHAR:

@@ -2179,9 +2179,12 @@ void Item_func_get_user_var::fix_length_and_dec()
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
-    const_var_flag= thd->query_id != var_entry->update_query_id;
+  var_entry= get_variable(&thd->user_vars, name, 0);
 }
+
+
+bool Item_func_get_user_var::const_item() const
+{ return var_entry && current_thd->query_id != var_entry->update_query_id; }
 
 
 enum Item_result Item_func_get_user_var::result_type() const

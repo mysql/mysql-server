@@ -130,18 +130,24 @@ AC_PROG_CXX
 AC_PROG_CPP
 
 # Print version of CC and CXX compiler (if they support --version)
-CC_VERSION=`$CC --version`
+CC_VERSION=`$CC --version | sed 1q`
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C Compiler version");
   AC_MSG_RESULT("$CC $CC_VERSION")
+else
+CC_VERSION=""
 fi
-CXX_VERSION=`$CXX --version`
+CXX_VERSION=`$CXX --version | sed 1q`
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C++ compiler version");
   AC_MSG_RESULT("$CXX $CXX_VERSION")
+else
+CXX_VERSION=""
 fi
+AC_SUBST(CXX_VERSION)
+AC_SUBST(CC_VERSION)
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -960,8 +966,8 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
-      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DFN_NO_CASE_SENCE"
       MAX_C_OPTIMIZE="-O"
       with_named_curses=""
     fi
@@ -969,8 +975,8 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
-      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DFN_NO_CASE_SENCE"
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
@@ -1231,7 +1237,7 @@ then
 #	CC="$CC -Kthread -DOpenUNIX8";
 #	CXX="$CXX -Kthread -DOpenUNIX8";
 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7";
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else

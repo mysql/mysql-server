@@ -344,8 +344,8 @@ struct system_variables
 {
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
-  ulonglong select_limit;
-  ulonglong max_join_size;
+  ha_rows select_limit;
+  ha_rows max_join_size;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;

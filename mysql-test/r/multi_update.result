@@ -251,3 +251,13 @@ n	d
 select * from t2;
 n	d
 drop table t1,t2;
+drop table if exists t1,t2,t3;
+CREATE TABLE t1 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
+INSERT INTO t1 VALUES (1,'jedan'),(2,'dva'),(3,'tri'),(4,'xxxxxxxxxx'),(5,'a'),(10,''),(11,''),(12,''),(13,'');
+CREATE TABLE t2 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
+INSERT INTO t2 VALUES (1,'jedan'),(2,'dva'),(3,'tri'),(4,'xxxxxxxxxx'),(5,'a');
+CREATE TABLE t3 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
+INSERT INTO t3 VALUES (1,'jedan'),(2,'dva');
+update t1,t2 set t1.naziv="aaaa" where t1.broj=t2.broj;
+update t1,t2,t3 set t1.naziv="bbbb", t2.naziv="aaaa" where t1.broj=t2.broj and t2.broj=t3.broj;
+drop table if exists t1,t2,t3;

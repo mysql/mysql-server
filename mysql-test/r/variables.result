@@ -48,6 +48,9 @@ set max_join_size=100;
 show variables like 'max_join_size';
 Variable_name	Value
 max_join_size	100
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	HA_POS_ERROR
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
 Variable_name	Value
@@ -59,7 +62,7 @@ max_join_size	2000
 set GLOBAL max_join_size=DEFAULT;
 show global variables like 'max_join_size';
 Variable_name	Value
-max_join_size	18446744073709551615
+max_join_size	HA_POS_ERROR
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
 @@session.max_join_size	@@global.max_join_size

@@ -368,8 +368,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     {
       /* Remember old statistics for key */
       memcpy((char*) rec_per_key_part,
-	     (char*) share->state.rec_per_key_part+
-	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     (char*) (share->state.rec_per_key_part +
+		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     keyinfo->keysegs*sizeof(*rec_per_key_part));
       continue;
     }
@@ -1912,8 +1912,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     {
       /* Remember old statistics for key */
       memcpy((char*) rec_per_key_part,
-	     (char*) share->state.rec_per_key_part+
-	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     (char*) (share->state.rec_per_key_part +
+		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param.keyinfo->keysegs*sizeof(*rec_per_key_part));
       continue;
     }
@@ -2272,8 +2272,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     {
       /* Remember old statistics for key */
       memcpy((char*) rec_per_key_part,
-	     (char*) share->state.rec_per_key_part+
-	     (uint) (rec_per_key_part - param->rec_per_key_part),
+	     (char*) (share->state.rec_per_key_part+
+		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param[i].keyinfo->keysegs*sizeof(*rec_per_key_part));
       i--;
       continue;
@@ -2435,7 +2435,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   got_error=0;
 
   if (&share->state.state != info->state)
-    memcpy( &share->state.state, info->state, sizeof(*info->state));
+    memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
   got_error|= flush_blocks(param,share->kfile);

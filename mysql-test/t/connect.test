@@ -63,5 +63,3 @@ show tables;
 #--error 1045
 #connect (con1,localhost,test,zorro,);
 #--error 1045
-
-

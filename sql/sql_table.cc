@@ -46,7 +46,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 ** This will wait for all users to free the table before dropping it
 *****************************************************************************/
 
-int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
+int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
+		   my_bool drop_temporary)
 {
   int error;
   DBUG_ENTER("mysql_rm_table");
@@ -57,7 +58,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
 
-  if (global_read_lock)
+  if (!drop_temporary && global_read_lock)
   {
     if (thd->global_read_lock)
     {
@@ -72,7 +73,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     }
 
   }
-  error=mysql_rm_table_part2(thd,tables,if_exists,0);
+  error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary, 0);
 
  err:
   pthread_mutex_unlock(&LOCK_open);
@@ -91,14 +92,15 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
 int mysql_rm_table_part2_with_lock(THD *thd,
 				   TABLE_LIST *tables, bool if_exists,
-				   bool dont_log_query)
+				   bool drop_temporary, bool dont_log_query)
 {
   int error;
   thd->mysys_var->current_mutex= &LOCK_open;
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
 
-  error=mysql_rm_table_part2(thd,tables, if_exists, dont_log_query);
+  error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary,
+			     dont_log_query);
 
   pthread_mutex_unlock(&LOCK_open);
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
@@ -111,6 +113,17 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 }
 
 /*
+  Execute the drop of a normal or temporary table
+
+  SYNOPSIS
+    mysql_rm_table_part2()
+    thd			Thread handler
+    tables		Tables to drop
+    if_exists		If set, don't give an error if table doesn't exists.
+			In this case we give an warning of level 'NOTE'
+    drop_temporary	Only drop temporary tables
+    dont_log_query	Don't log the query
+
   TODO:
     When logging to the binary log, we should log
     tmp_tables and transactional tables as separate statements if we
@@ -120,10 +133,15 @@ int mysql_rm_table_part2_with_lock(THD *thd,
    The current code only writes DROP statements that only uses temporary
    tables to the cache binary log.  This should be ok on most cases, but
    not all.
+
+ RETURN
+   0	ok
+   1	Error
+   -1	Thread was killed
 */
 
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool dont_log_query)
+			 bool drop_temporary, bool dont_log_query)
 {
   TABLE_LIST *table;
   char	path[FN_REFLEN];
@@ -142,26 +160,28 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       continue;					// removed temporary table
     }
 
-    abort_locked_tables(thd,db,table->real_name);
-    while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
-    {
-      dropping_tables++;
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-      dropping_tables--;
-    }
-    drop_locked_tables(thd,db,table->real_name);
-    if (thd->killed)
-      DBUG_RETURN(-1);
-
-    /* remove form file and isam files */
-    strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
-	    NullS);
-    (void) unpack_filename(path,path);
     error=0;
+    if (!drop_temporary)
+    {
+      abort_locked_tables(thd,db,table->real_name);
+      while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
+      {
+	dropping_tables++;
+	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+	dropping_tables--;
+      }
+      drop_locked_tables(thd,db,table->real_name);
+      if (thd->killed)
+	DBUG_RETURN(-1);
 
-    table_type=get_table_type(path);
+      /* remove form file and isam files */
+      strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
+	      NullS);
+      (void) unpack_filename(path,path);
 
-    if (access(path,F_OK))
+      table_type=get_table_type(path);
+    }
+    if (drop_temporary || access(path,F_OK))
     {
       if (if_exists)
         store_warning(thd, ER_BAD_TABLE_ERROR, table->real_name);
