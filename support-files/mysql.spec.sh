@@ -16,7 +16,7 @@ Copyright:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
-Packager:	Lenz Grimmer <lenz@mysql.com>
+Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
@@ -154,7 +154,7 @@ Requires: MySQL >= 4.0
 
 %description Max 
 Optional MySQL server binary that supports additional features like
-Berkeley DB, OpenSSL, RAID and User Defined Functions (UDF).
+Berkeley DB, OpenSSL, RAID and User Defined Functions (UDFs).
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -254,6 +254,13 @@ export PATH
 # Build the 4.0 Max binary (includes BDB and UDFs and therefore
 # cannot be linked statically against the patched glibc)
 
+# If we want to compile with RAID using gcc 3, we need to use
+# gcc instead of g++ to avoid linking problems (RAID code is written in C++)
+if gcc -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+then
+	export CXX="gcc"
+fi
+
 BuildMySQL "--enable-shared \
 		--with-openssl \
 		--with-berkeley-db \
@@ -318,6 +325,10 @@ install -m644 $MBD/sql/mysqld.sym $RBR/usr/lib/mysql/mysqld.sym
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
 install -m755 $MBD/support-files/mysql.server $RBR/etc/init.d/mysql
+
+# Create a symlink "rcmysql", pointing to the init.script. SuSE users
+# will appreciate that, as all services usually offer this.
+ln -s ../../sbin/init.d/mysql $RPM_BUILD_ROOT/usr/sbin/rcmysql
 
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)
@@ -463,6 +474,7 @@ fi
 %attr(755, root, root) /usr/bin/safe_mysqld
 
 %attr(755, root, root) /usr/sbin/mysqld
+%attr(755, root, root) /usr/sbin/rcmysql
 %attr(644, root, root) /usr/lib/mysql/mysqld.sym
 
 %attr(644, root, root) /etc/logrotate.d/mysql
@@ -536,6 +548,14 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+* Fri May 16 2003 Lenz Grimmer <lenz@mysql.com>
+
+- re-enabled RAID again
+
+* Wed Apr 30 2003 Lenz Grimmer <lenz@mysql.com>
+
+- disabled MyISAM RAID (--with-raid) - it throws an assertion which
+  needs to be investigated first.
 
 * Mon Mar 10 2003 Lenz Grimmer <lenz@mysql.com>
 

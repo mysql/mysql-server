@@ -1161,6 +1161,33 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 
 
 /*
+  Allocate string field in MEM_ROOT and return it as String
+
+  SYNOPSIS
+    get_field()
+    mem   	MEM_ROOT for allocating
+    field 	Field for retrieving of string
+    res         result String
+
+  RETURN VALUES
+    true   string is empty
+    false  all ok
+*/
+
+bool get_field(MEM_ROOT *mem, Field *field, String *res)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff,sizeof(buff),&my_charset_bin);
+  field->val_str(&str,&str);
+  uint length=str.length();
+  if (!length)
+    return true;
+  char *to= strmake_root(mem, str.ptr(), length);
+  res->set(to,length,((Field_str*)field)->charset());
+  return false;
+}
+
+/*
   Allocate string field in MEM_ROOT and return it as NULL-terminated string
 
   SYNOPSIS

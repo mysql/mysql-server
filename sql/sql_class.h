@@ -358,6 +358,7 @@ struct system_variables
   ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
+  ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
@@ -365,6 +366,7 @@ struct system_variables
   ulong net_retry_count;
   ulong net_wait_timeout;
   ulong net_write_timeout;
+  ulong preload_buff_size;
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
@@ -385,6 +387,8 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   
+  CHARSET_INFO	*character_set_server;
+  CHARSET_INFO	*character_set_database;
   CHARSET_INFO 	*character_set_client;
   CHARSET_INFO  *character_set_results;
   CHARSET_INFO  *collation_connection;
@@ -434,13 +438,14 @@ public:
     ip - client IP
    */
   char	  *host,*user,*priv_user,*db,*ip;
+  char	  priv_host[MAX_HOSTNAME];
   /* remote (peer) port */
   uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
- 
+
   ulong client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   ulong max_client_packet_length;
@@ -970,8 +975,7 @@ class user_var_entry
   char *value;
   ulong length, update_query_id, used_query_id;
   Item_result type;
-  CHARSET_INFO *var_charset;
-  enum Item::coercion var_coercibility;
+  DTCollation collation;
 };
 
 /* Class for unique (removing of duplicates) */

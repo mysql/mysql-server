@@ -128,7 +128,7 @@ a
 1
 2
 select t1.a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a) left join t1 as t32 using (a) left join t1 as t33 using (a) left join t1 as t34 using (a) left join t1 as t35 using (a) left join t1 as t36 using (a) left join t1 as t37 using (a) left join t1 as t38 using (a) left join t1 as t39 using (a) left join t1 as t40 using (a) left join t1 as t41 using (a) left join t1 as t42 using (a) left join t1 as t43 using (a) left join t1 as t44 using (a) left join t1 as t45 using (a) left join t1 as t46 using (a) left join t1 as t47 using (a) left join t1 as t48 using (a) left join t1 as t49 using (a) left join t1 as t50 using (a) left join t1 as t51 using (a) left join t1 as t52 using (a) left join t1 as t53 using (a) left join t1 as t54 using (a) left join t1 as t55 using (a) left join t1 as t56 using (a) left join t1 as t57 using (a) left join t1 as t58 using (a) left join t1 as t59 using (a) left join t1 as t60 using (a) left join t1 as t61 using (a) left join t1 as t62 using (a) left join t1 as t63 using (a) left join t1 as t64 using (a) left join t1 as t65 using (a);
-Too many tables. MySQL can only use XX tables in a join
+ERROR HY000: Too many tables. MySQL can only use XX tables in a join
 drop table t1;
 CREATE TABLE t1 (
 a int(11) NOT NULL,
@@ -274,3 +274,101 @@ SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (site
 rate_code	base_rate
 cust	20
 drop table t1,t2;
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, Value1 VARCHAR(255));
+CREATE TABLE t2 (ID INTEGER NOT NULL PRIMARY KEY, Value2 VARCHAR(255));
+INSERT INTO t1 VALUES (1, 'A');
+INSERT INTO t2 VALUES (1, 'B');
+SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND (Value1 = 'A' AND Value2 <> 'B');
+ID	Value1	ID	Value2
+SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND Value1 = 'A' AND Value2 <> 'B';
+ID	Value1	ID	Value2
+SELECT * FROM t1 NATURAL JOIN t2 WHERE (Value1 = 'A' AND Value2 <> 'B') AND 1;
+ID	Value1	ID	Value2
+drop table t1,t2;
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values (2),(4);
+select * from t1 natural left join t2;
+i	i
+1	NULL
+2	2
+select * from t1 left join t2 on (t1.i=t2.i);
+i	i
+1	NULL
+2	2
+select * from t1 natural left join t2 natural left join t3;
+i	i	i
+1	NULL	NULL
+2	2	2
+select * from t1 left join t2 on (t1.i=t2.i) left join t3 on (t2.i=t3.i);
+i	i	i
+1	NULL	NULL
+2	2	2
+select * from t3 natural right join t2;
+i	i
+2	2
+NULL	3
+select * from t3 right join t2 on (t3.i=t2.i);
+i	i
+2	2
+NULL	3
+select * from t3 natural right join t2 natural right join t1;
+i	i	i
+NULL	NULL	1
+2	2	2
+select * from t3 right join t2 on (t3.i=t2.i) right join t1 on (t2.i=t1.i);
+i	i	i
+NULL	NULL	1
+2	2	2
+select * from t1,t2 natural left join t3 order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select * from t1,t2 left join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select t1.i,t2.i,t3.i from t2 natural left join t3,t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select t1.i,t2.i,t3.i from t2 left join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	2	2
+1	3	NULL
+2	2	2
+2	3	NULL
+select * from t1,t2 natural right join t3 order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+select * from t1,t2 right join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+i	i	i
+1	NULL	4
+1	2	2
+2	NULL	4
+2	2	2
+drop table t1,t2,t3;

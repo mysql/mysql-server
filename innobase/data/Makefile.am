@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libdata.a
+noinst_LIBRARIES =	libdata.a
 
 libdata_a_SOURCES =	data0data.c data0type.c
 

@@ -1,5 +1,11 @@
 #! /bin/sh                   
 
+# debug
+#set -x
+
+# stop on errors
+set -e
+
 for package in . ./innobase
 do
 	(cd $package

@@ -49,6 +49,8 @@
 static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
+const char	*not_error_sqlstate= "00000";
+
 const char *sql_protocol_names_lib[] =
 { "TCP", "SOCKET", "PIPE", "MEMORY",NullS };
 TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
@@ -66,7 +68,7 @@ TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
 #define closesocket(A) close(A)
 #endif
 
-void mysql_once_init(void);
+void mysqld_once_init(void);
 static void end_server(MYSQL *mysql);
 static void append_wild(char *to,char *end,const char *wild);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
@@ -373,7 +375,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 MYSQL * STDCALL
 mysql_init(MYSQL *mysql)
 {
-  mysql_once_init();
+  mysqld_once_init();
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
@@ -386,7 +388,7 @@ mysql_init(MYSQL *mysql)
 }
 
 
-void mysql_once_init()
+void mysqld_once_init()
 {
   if (!mysql_client_init)
   {
@@ -450,6 +452,7 @@ static inline int mysql_init_charset(MYSQL *mysql)
   if (!mysql->charset)
   {
     mysql->last_errno=CR_CANT_READ_CHARSET;
+    strmov(mysql->sqlstate, "HY0000");
     if (mysql->options.charset_dir)
       sprintf(mysql->last_error,ER(mysql->last_errno),
               charset_name ? charset_name : "unknown",
@@ -515,6 +518,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag&= ~CLIENT_COMPRESS;
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
+  mysql->server_status= SERVER_STATUS_AUTOCOMMIT;
 
   if (mysql->options.init_commands)
   {
@@ -1039,9 +1043,9 @@ mysql_list_fields(MYSQL *mysql __attribute__((unused)), const char *table __attr
 
 /* List all running processes (threads) in server */
 MYSQL_RES * STDCALL
-mysql_list_processes(MYSQL *mysql)
+mysql_list_processes(MYSQL *mysql __attribute__((unused)))
 {
-#ifdef DUMMY
+#ifdef FOR_THE_FUTURE
   MYSQL_DATA *fields;
   uint field_count;
   uchar *pos;
@@ -1062,7 +1066,7 @@ mysql_list_processes(MYSQL *mysql)
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
-#endif /*DUMMY*/
+#endif /* FOR_THE_FUTURE */
   return 0;
 }
 
@@ -1130,6 +1134,7 @@ mysql_stat(MYSQL *mysql)
   if (!mysql->net.read_pos[0])
   {
     mysql->net.last_errno=CR_WRONG_HOST_INFO;
+    strmov(mysql->sqlstate, unknown_sqlstate);
     strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     return mysql->net.last_error;
   }
@@ -1284,17 +1289,22 @@ unsigned int STDCALL mysql_field_count(MYSQL *mysql)
 
 my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql)
 {
-  return (mysql)->affected_rows;
+  return mysql->affected_rows;
 }
 
 my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql)
 {
-  return (mysql)->insert_id;
+  return mysql->insert_id;
 }
 
 uint STDCALL mysql_errno(MYSQL *mysql)
 {
   return mysql->last_errno;
+}
+
+const char *STDCALL mysql_sqlstate(MYSQL *mysql)
+{
+  return mysql->sqlstate;
 }
 
 const char * STDCALL mysql_error(MYSQL *mysql)
@@ -1527,4 +1537,97 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
     *to++= *name;
   }
   *to=0;
+}
+
+
+/********************************************************************
+ Transactional APIs
+*********************************************************************/
+
+/*
+  Commit the current transaction
+*/
+
+my_bool STDCALL mysql_commit(MYSQL * mysql)
+{
+  DBUG_ENTER("mysql_commit");
+  DBUG_RETURN((my_bool) mysql_real_query(mysql, "commit", 6));
+}
+
+/*
+  Rollback the current transaction
+*/
+
+my_bool STDCALL mysql_rollback(MYSQL * mysql)
+{
+  DBUG_ENTER("mysql_rollback");
+  DBUG_RETURN((my_bool) mysql_real_query(mysql, "rollback", 8));
+}
+
+
+/*
+  Set autocommit to either true or false
+*/
+
+my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
+{
+  DBUG_ENTER("mysql_autocommit");
+  DBUG_PRINT("enter", ("mode : %d", auto_mode));
+
+  if (auto_mode) /* set to true */
+    DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=1", 16));
+  DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=0", 16));
+}
+
+
+/********************************************************************
+ Multi query execution + SPs APIs
+*********************************************************************/
+
+/*
+  Returns if there are any more query results exists to be read using 
+  mysql_next_result()
+*/
+
+my_bool STDCALL mysql_more_results(MYSQL *mysql)
+{
+  my_bool res;
+  DBUG_ENTER("mysql_more_results");
+  
+  res= ((mysql->server_status & SERVER_MORE_RESULTS_EXISTS) ? 
+	1: 0);
+  DBUG_PRINT("exit",("More results exists ? %d", res)); 
+  DBUG_RETURN(res);
+}
+
+
+/*
+  Reads and returns the next query results
+*/
+
+my_bool STDCALL mysql_next_result(MYSQL *mysql)
+{
+  DBUG_ENTER("mysql_next_result");
+  
+  mysql->last_error[0]= 0;
+  mysql->last_errno= 0;
+  strmov(mysql->sqlstate, not_error_sqlstate);
+  mysql->affected_rows= ~(my_ulonglong) 0;
+
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+    DBUG_RETURN(mysql_read_query_result(mysql));
+  
+  DBUG_RETURN(0);
+}
+
+
+my_bool STDCALL
+mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
+	      const char *key __attribute__((unused)),
+	      const char *cert __attribute__((unused)),
+	      const char *ca __attribute__((unused)),
+	      const char *capath __attribute__((unused)),
+	      const char *cipher __attribute__((unused)))
+{
+  return 0;
 }

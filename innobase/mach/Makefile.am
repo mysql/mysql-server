@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libmach.a
+noinst_LIBRARIES =	libmach.a
 
 libmach_a_SOURCES =	mach0data.c
 

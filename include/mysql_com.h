@@ -25,6 +25,7 @@
 #define HOSTNAME_LENGTH 60
 #define USERNAME_LENGTH 16
 #define SERVER_VERSION_LENGTH 60
+#define SQLSTATE_LENGTH 5
 
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."
@@ -100,20 +101,23 @@ enum enum_server_command
 #define CLIENT_ODBC		64	/* Odbc client */
 #define CLIENT_LOCAL_FILES	128	/* Can use LOAD DATA LOCAL */
 #define CLIENT_IGNORE_SPACE	256	/* Ignore spaces before '(' */
+#define CLIENT_PROTOCOL_41	512	/* New 4.1 protocol */
 #define CLIENT_INTERACTIVE	1024	/* This is an interactive client */
-#define CLIENT_SSL              2048     /* Switch to SSL after handshake */
-#define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */
+#define CLIENT_SSL              2048	/* Switch to SSL after handshake */
+#define CLIENT_IGNORE_SIGPIPE   4096    /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
-#define CLIENT_PROTOCOL_41       16384   /* New 4.1 protocol  */
-#define CLIENT_SECURE_CONNECTION 32768   /* New 4.1 authentication */
-#define CLIENT_MULTI_QUERIES     65536   /* Enable/disable multi query support */
+#define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
+#define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
+#define CLIENT_MULTI_QUERIES     65536  /* Enable/disable multiquery support */
+#define CLIENT_MULTI_RESULTS    131072  /* Enable/disable multi-results */
+#define CLIENT_REMEMBER_OPTIONS	(1L << 31)
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
 #define SERVER_STATUS_MORE_RESULTS 4	/* More results on server */
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 
-#define MYSQL_ERRMSG_SIZE	200
+#define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
 #define NET_WRITE_TIMEOUT	60		/* Timeout on write */
 #define NET_WAIT_TIMEOUT	8*60*60		/* Wait for new query */
@@ -149,7 +153,7 @@ typedef struct st_net {
     queries in cache that have not stored its results yet
   */
 #endif
-  char last_error[MYSQL_ERRMSG_SIZE];
+  char last_error[MYSQL_ERRMSG_SIZE], sqlstate[SQLSTATE_LENGTH+1];
   unsigned int last_errno;
   unsigned char error;
   gptr query_cache_query;
@@ -321,6 +325,7 @@ my_bool check_scramble(const char *, const char *message,
 		       unsigned long *salt,my_bool old_ver);
 char *get_tty_password(char *opt_message);
 void hash_password(unsigned long *result, const char *password);
+const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 

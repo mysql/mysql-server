@@ -6226,7 +6226,43 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-CHARSET_INFO my_charset_big5 =
+static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
+{
+  my_strnncoll_big5,
+  my_strnncollsp_big5,
+  my_strnxfrm_big5,
+  my_like_range_big5,
+  my_wildcmp_mb,
+  my_strcasecmp_mb,
+  my_hash_sort_simple
+};
+
+static MY_CHARSET_HANDLER my_charset_big5_handler=
+{
+  ismbchar_big5,
+  mbcharlen_big5,
+  my_numchars_mb,
+  my_charpos_mb,
+  my_mb_wc_big5,	/* mb_wc       */
+  my_wc_mb_big5,	/* wc_mb       */
+  my_caseup_str_mb,
+  my_casedn_str_mb,
+  my_caseup_mb,
+  my_casedn_mb,
+  my_snprintf_8bit,
+  my_long10_to_str_8bit,
+  my_longlong10_to_str_8bit,
+  my_fill_8bit,
+    
+  my_strntol_8bit,
+  my_strntoul_8bit,
+  my_strntoll_8bit,
+  my_strntoull_8bit,
+  my_strntod_8bit,
+  my_scan_8bit
+};
+
+CHARSET_INFO my_charset_big5_chinese_ci=
 {
     1,0,0, 		/* number     */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -6239,38 +6275,36 @@ CHARSET_INFO my_charset_big5 =
     sort_order_big5,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     1,			/* strxfrm_multiply */
-    my_strnncoll_big5,
-    my_strnncollsp_big5,
-    my_strnxfrm_big5,
-    my_like_range_big5,
-    my_wildcmp_mb,
     2,			/* mbmaxlen   */
-    ismbchar_big5,
-    mbcharlen_big5,
-    my_numchars_mb,
-    my_charpos_mb,
-    my_mb_wc_big5,	/* mb_wc       */
-    my_wc_mb_big5,	/* wc_mb       */
-    my_caseup_str_mb,
-    my_casedn_str_mb,
-    my_caseup_mb,
-    my_casedn_mb,
-    my_strcasecmp_mb,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_big5_handler,
+    &my_collation_big5_chinese_ci_handler
+};
+
+
+CHARSET_INFO my_charset_big5_bin=
+{
+    84,0,0, 		/* number     */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    "big5",		/* cs name    */
+    "big5_bin",		/* name       */
+    "",			/* comment    */
+    ctype_big5,
+    to_lower_big5,
+    to_upper_big5,
+    sort_order_big5,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    2,			/* mbmaxlen   */
+    0,
+    &my_charset_big5_handler,
+    &my_collation_bin_handler
 };
 
 

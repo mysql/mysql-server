@@ -31,7 +31,6 @@ static char *mstr(char *str,const char *src,uint l1,uint l2)
   return str;
 }
 
-
 struct my_cs_file_section_st
 {
   int        state;
@@ -220,6 +219,8 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
       i->cs.state|= MY_CS_PRIMARY;
     else if (!strncmp("binary",attr,len))
       i->cs.state|= MY_CS_BINSORT;
+    else if (!strncmp("compiled",attr,len))
+      i->cs.state|= MY_CS_COMPILED;
     break;
   case _CS_UPPERMAP:
     fill_uchar(i->to_upper,MY_CS_TO_UPPER_TABLE_SIZE,attr,len);
@@ -263,4 +264,3 @@ my_bool my_parse_charset_xml(const char *buf, uint len,
   my_xml_parser_free(&p);
   return rc;
 }
-

@@ -100,6 +100,15 @@ memory is read outside the allocated blocks. */
 
 #define YYDEBUG			1
 
+#ifdef HAVE_purify
+/* The following sets all new allocated memory to zero before use:
+this can be used to eliminate unnecessary Purify warnings, but note that
+it also masks many bugs Purify could detect. For detailed Purify analysis it
+is best to remove the define below and look through the warnings one
+by one. */
+#define UNIV_SET_MEM_TO_ZERO
+#endif
+
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG
@@ -178,7 +187,11 @@ management to ensure correct alignment for doubles etc. */
 /* Another basic type we use is unsigned long integer which is intended to be
 equal to the word size of the machine. */
 
+#ifdef _WIN64
+typedef unsigned __int64	ulint;
+#else
 typedef unsigned long int	ulint;
+#endif
 
 typedef long int		lint;
 

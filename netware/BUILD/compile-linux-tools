@@ -1,7 +1,10 @@
 #! /bin/sh                   
 
-#debug
+# debug
 #set -x
+
+# stop on errors
+set -e
 
 if test ! -r ./sql/mysqld.cc
 then

@@ -2620,6 +2620,24 @@ row_search_for_mysql(
 	printf("N tables locked %lu\n", trx->mysql_n_tables_locked);
 */
 	/*-------------------------------------------------------------*/
+	/* PHASE 0: Release a possible s-latch we are holding on the
+	adaptive hash index latch if there is someone waiting behind */
+
+	if (trx->has_search_latch
+	    && btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
+
+		/* There is an x-latch request on the adaptive hash index:
+		release the s-latch to reduce starvation and wait for
+		BTR_SEA_TIMEOUT rounds before trying to keep it again over
+		calls from MySQL */
+
+		rw_lock_s_unlock(&btr_search_latch);
+		trx->has_search_latch = FALSE;
+
+		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+	}
+	
+	/*-------------------------------------------------------------*/
 	/* PHASE 1: Try to pop the row from the prefetch cache */
 
 	if (direction == 0) {
@@ -2685,16 +2703,31 @@ row_search_for_mysql(
 		mode = pcur->search_mode;
 	}
 
+	if ((direction == ROW_SEL_NEXT || direction == ROW_SEL_PREV)
+	    && pcur->old_stored != BTR_PCUR_OLD_STORED) {
+
+		/* MySQL sometimes seems to do fetch next or fetch prev even
+		if the search condition is unique; this can, for example,
+		happen with the HANDLER commands; we do not always store the
+		pcur position in this case, so we cannot restore cursor
+		position, and must return immediately */
+
+		/* printf("%s record not found 1\n", index->name); */
+	
+		trx->op_info = (char *) "";
+		return(DB_RECORD_NOT_FOUND);
+	}
+
 	mtr_start(&mtr);
 
 	/* In a search where at most one record in the index may match, we
-	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete
+	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete-
 	marked matching record.
 
-	Note that in a unique secondary index there may be different delete
+	Note that in a unique secondary index there may be different delete-
 	marked versions of a record where only the primary key values differ:
 	thus in a secondary index we must use next-key locks when locking
-	delete marked records. */
+	delete-marked records. */
 	
 	if (match_mode == ROW_SEL_EXACT
 	    && index->type & DICT_UNIQUE
@@ -2715,25 +2748,9 @@ row_search_for_mysql(
 	if (unique_search	
 	    && index->type & DICT_CLUSTERED
 	    && !prebuilt->templ_contains_blob
+	    && !prebuilt->used_in_HANDLER
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
 
-		if (direction == ROW_SEL_NEXT) {
-			/* MySQL sometimes seems to do fetch next even
-			if the search condition is unique; we do not store
-			pcur position in this case, so we cannot
-			restore cursor position, and must return
- 			immediately */
-
- 			mtr_commit(&mtr);
-
-			/* printf("%s record not found 1\n", index->name); */
-	
-			trx->op_info = (char *) "";
-			return(DB_RECORD_NOT_FOUND);
-		}
-
-		ut_a(direction == 0);	/* We cannot do fetch prev, as we have
-					not stored the cursor position */
 		mode = PAGE_CUR_GE;
 
 		unique_search_from_clust_index = TRUE;
@@ -2754,23 +2771,7 @@ row_search_for_mysql(
 			NOT prepared to inserts interleaved with the SELECT,
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
-			
-			if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
-			        /* There is an x-latch request: release
-				a possible s-latch to reduce starvation
-				and wait for BTR_SEA_TIMEOUT rounds before
-				trying to keep it again over calls from
-				MySQL */
 
-				if (trx->has_search_latch) {
-			        	rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
-				}
-
-				trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-				
-				goto no_shortcut;
-			}
 #ifndef UNIV_SEARCH_DEBUG			
 			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
@@ -2806,6 +2807,10 @@ row_search_for_mysql(
 				}    	
 				
 				trx->op_info = (char *) "";
+				
+				/* NOTE that we do NOT store the cursor
+				position */
+
 				return(DB_SUCCESS);
 			
 			} else if (shortcut == SEL_EXHAUSTED) {
@@ -2825,6 +2830,10 @@ row_search_for_mysql(
 				}
 
 				trx->op_info = (char *) "";
+
+				/* NOTE that we do NOT store the cursor
+				position */
+
 				return(DB_RECORD_NOT_FOUND);
 			}
 
@@ -2833,7 +2842,6 @@ row_search_for_mysql(
 		}
 	}
 
-no_shortcut:
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 
@@ -3206,6 +3214,7 @@ rec_loop:
 			&& prebuilt->select_lock_type == LOCK_NONE
 			&& !prebuilt->templ_contains_blob
 			&& !prebuilt->clust_index_was_generated
+			&& !prebuilt->used_in_HANDLER
 	                && prebuilt->template_type
 	                                 != ROW_MYSQL_DUMMY_TEMPLATE) {
 
@@ -3214,7 +3223,9 @@ rec_loop:
 		update, that is why we require ...lock_type == LOCK_NONE.
 		Since we keep space in prebuilt only for the BLOBs of
 		a single row, we cannot cache rows in the case there
-		are BLOBs in the fields to be fetched. */
+		are BLOBs in the fields to be fetched. In HANDLER we do
+		not cache rows because there the cursor is a scrollable
+		cursor. */
 
 		row_sel_push_cache_row_for_mysql(prebuilt, rec);
 
@@ -3243,11 +3254,16 @@ rec_loop:
 		}
 	}
 got_row:
-	/* TODO: should we in every case store the cursor position, even
-	if this is just a join, for example? */
+	/* We have an optimization to save CPU time: if this is a consistent
+	read on a unique condition on the clustered index, then we do not
+	store the pcur position, because any fetch next or prev will anyway
+	return 'end of file'. An exception is the MySQL HANDLER command
+	where the user can move the cursor with PREV or NEXT even after
+	a unique search. */
 
 	if (!unique_search_from_clust_index
-				|| prebuilt->select_lock_type == LOCK_X) {
+	    || prebuilt->select_lock_type == LOCK_X
+	    || prebuilt->used_in_HANDLER) {
 
 		/* Inside an update always store the cursor position */
 

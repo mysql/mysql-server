@@ -235,7 +235,8 @@ public:
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()
     { return ulonglong2double(data_file_length) / IO_SIZE + 1; }
-  virtual double read_time(ha_rows rows) { return rows2double(rows); }
+  virtual double read_time(uint index, uint ranges, ha_rows rows)
+ { return rows2double(ranges+rows); }
   virtual bool fast_key_read() { return 0;}
   virtual key_map keys_to_use_for_scanning() { return 0; }
   virtual bool has_transactions(){ return 0;}
@@ -304,6 +305,7 @@ public:
   virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
+  virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   /*
     restore assumes .frm file must exist, and that generate_table() has been
     called; It will just copy the data file and run repair.
@@ -389,6 +391,7 @@ void ha_resize_key_cache(void);
 int ha_start_stmt(THD *thd); 
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);
+int ha_commit_complete(THD *thd);
 int ha_release_temporary_latches(THD *thd);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);

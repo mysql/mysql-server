@@ -51,7 +51,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
   1	Could not create file or write to it.  Error sent through my_error()
 */
 
-static bool write_db_opt(const char *path, HA_CREATE_INFO *create)
+static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
   register File file;
   char buf[256]; // Should be enough for one option
@@ -61,8 +61,9 @@ static bool write_db_opt(const char *path, HA_CREATE_INFO *create)
   {
     ulong length;
     CHARSET_INFO *cs= (create && create->table_charset) ? 
-		     create->table_charset : default_charset_info;
-    length= my_sprintf(buf,(buf, "default-character-set=%s\n", cs->name));
+		     create->table_charset :
+		     thd->variables.character_set_database;
+    length= my_sprintf(buf,(buf, "default-character-set=%s\ndefault-collation=%s\n", cs->csname,cs->name));
 
     /* Error is written by my_write */
     if (!my_write(file,(byte*) buf, length, MYF(MY_NABP+MY_WME)))
@@ -89,7 +90,7 @@ static bool write_db_opt(const char *path, HA_CREATE_INFO *create)
 
 */
 
-static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
+static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
   File file;
   char buf[256];
@@ -98,7 +99,7 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
   uint nbytes;
 
   bzero((char*) create,sizeof(*create));
-  create->table_charset= default_charset_info;
+  create->table_charset= global_system_variables.character_set_database;
   if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
   {
     IO_CACHE cache;
@@ -115,12 +116,18 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
-	  if (strcmp(pos+1,"DEFAULT"))
+	  if (!(create->table_charset=get_charset_by_csname(pos+1, 
+							    MY_CS_PRIMARY,
+							    MYF(0))))
 	  {
-	    if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
-	    {
-	      sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
-	    }
+	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+	  }
+	}
+	else if (!strncmp(buf,"default-collation", (pos-buf)))
+	{
+	  if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
+	  {
+	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
 	  }
 	}
       }
@@ -197,7 +204,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
   unpack_dirname(path, path);
   strcat(path,MY_DB_OPT_FILE);
-  if (write_db_opt(path, create_info))
+  if (write_db_opt(thd, path, create_info))
   {
     /*
       Could not create options file.
@@ -270,7 +277,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   /* Check directory */
   (void)sprintf(path,"%s/%s/%s", mysql_data_home, db, MY_DB_OPT_FILE);
   fn_format(path, path, "", "", MYF(MY_UNPACK_FILENAME));
-  if ((error=write_db_opt(path, create_info)))
+  if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
   /* 
@@ -280,7 +287,9 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (thd->db && !strcmp(thd->db,db))
   {
     thd->db_charset= (create_info && create_info->table_charset) ?
-		     create_info->table_charset : default_charset_info;
+		     create_info->table_charset : 
+		     global_system_variables.character_set_database;
+    thd->variables.character_set_database= thd->db_charset;
   }
 
   mysql_update_log.write(thd,thd->query, thd->query_length);
@@ -401,6 +410,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   ulong found_other_files=0;
   char filePath[FN_REFLEN];
   TABLE_LIST *tot_list=0, **tot_list_next;
+  List<String> raid_dirs;
+
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
 
@@ -420,6 +431,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     {
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
+      String *dir;
+
       strxmov(newpath,org_path,"/",file->name,NullS);
       unpack_filename(newpath,newpath);
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
@@ -430,7 +443,11 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	  my_dirend(dirp);
 	  DBUG_RETURN(-1);
 	}
+	raid_dirs.push_back(dir=new String(newpath, &my_charset_latin1));
+	dir->copy();
+	continue;
       }
+      found_other_files++;
       continue;
     }
     if (find_type(fn_ext(file->name),&deletable_extentions,1+2) <= 0)
@@ -440,7 +457,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(&my_charset_latin1, 
+    if (db && !my_strcasecmp(&my_charset_latin1,
                              fn_ext(file->name), reg_ext))
     {
       /* Drop the table nicely */
@@ -470,12 +487,19 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       deleted++;
     }
   }
-  my_dirend(dirp);
-
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
+  {
+    my_dirend(dirp);
     DBUG_RETURN(-1);
-
+  }
+  List_iterator<String> it(raid_dirs);
+  String *dir;
+  while ((dir= it++))
+    if (rmdir(dir->c_ptr()) < 0)
+      found_other_files++;
+  my_dirend(dirp);  
+  
   /*
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
@@ -573,11 +597,11 @@ bool mysql_change_db(THD *thd, const char *name)
   {
     net_printf(thd,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
-	       thd->host_or_ip,
+	       thd->priv_host,
 	       dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user,
-		    thd->host_or_ip,
+		    thd->priv_host,
 		    dbname);
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
@@ -600,8 +624,11 @@ bool mysql_change_db(THD *thd, const char *name)
   thd->db_access=db_access;
 
   strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-  load_db_opt(path, &create);
-  thd->db_charset= create.table_charset ? create.table_charset : default_charset_info;
+  load_db_opt(thd, path, &create);
+  thd->db_charset= create.table_charset ? 
+		   create.table_charset : 
+		   global_system_variables.character_set_database;
+  thd->variables.character_set_database= thd->db_charset;
   DBUG_RETURN(0);
 }
 
@@ -659,7 +686,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   if (found_libchar)
     path[length-1]= FN_LIBCHAR;
   strmov(path+length, MY_DB_OPT_FILE);
-  load_db_opt(path, &create);
+  load_db_opt(thd, path, &create);
   
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));

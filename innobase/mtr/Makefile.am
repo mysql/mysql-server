@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libmtr.a
+noinst_LIBRARIES =	libmtr.a
 
 libmtr_a_SOURCES =	mtr0mtr.c mtr0log.c
 

@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libfut.a
+noinst_LIBRARIES =	libfut.a
 
 libfut_a_SOURCES =	fut0fut.c fut0lst.c
 

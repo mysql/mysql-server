@@ -52,7 +52,7 @@ debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMA
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 
-base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client"
+base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline"
 static_link="--with-mysqld-ldflags=-all-static --with-client-ldflags=-all-static"
 alpha_configs=""	# Not used yet
 pentium_configs=""
@@ -71,4 +71,22 @@ else
   make=make
 fi
 
-CXX=gcc
+if test -z "$CXX" ; then
+  CXX=gcc
+fi
+
+# If ccache (a compiler cache which reduces build time)
+# (http://samba.org/ccache) is installed, use it.
+# We use 'grep' and hope 'grep' will work as expected
+# (returns 0 if finds lines)
+if ccache -V > /dev/null 2>&1
+then
+  if ! (echo "$CC" | grep "ccache" > /dev/null)
+  then
+    CC="ccache $CC"
+  fi
+  if ! (echo "$CXX" | grep "ccache" > /dev/null)
+  then
+    CXX="ccache $CXX"
+  fi
+fi

@@ -262,6 +262,42 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
   return len;
 }
 
+
+MY_COLLATION_HANDLER my_collation_bin_handler =
+{
+    my_strnncoll_binary,
+    my_strnncollsp_binary,
+    my_strnxfrm_bin,
+    my_like_range_simple,
+    my_wildcmp_bin,
+    my_strcasecmp_bin,
+    my_hash_sort_bin
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    NULL,			/* ismbchar      */
+    NULL,			/* mbcharlen     */
+    my_numchars_8bit,
+    my_charpos_8bit,
+    my_mb_wc_bin,
+    my_wc_mb_bin,
+    my_caseup_str_bin,
+    my_casedn_str_bin,
+    my_caseup_bin,
+    my_casedn_bin,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
+
 CHARSET_INFO my_charset_bin =
 {
     63,0,0,			/* number        */
@@ -277,33 +313,8 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* tab_from_uni  */
     "","",
     0,				/* strxfrm_multiply */
-    my_strnncoll_binary,	/* strnncoll     */
-    my_strnncollsp_binary,
-    my_strnxfrm_bin,		/* strxnfrm      */
-    my_like_range_simple,	/* like_range    */
-    my_wildcmp_bin,		/* wildcmp       */
     1,				/* mbmaxlen      */
-    NULL,			/* ismbchar      */
-    NULL,			/* mbcharlen     */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_bin,		/* mb_wc         */
-    my_wc_mb_bin,		/* wc_mb         */
-    my_caseup_str_bin,		/* caseup_str    */
-    my_casedn_str_bin,		/* casedn_str    */
-    my_caseup_bin,		/* caseup        */
-    my_casedn_bin,		/* casedn        */
-    my_strcasecmp_bin,		/* strcasecmp    */
-    my_hash_sort_bin,		/* hash_sort     */
     (char) 255,			/* max_sort_char */
-    my_snprintf_8bit,		/* snprintf      */
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_bin_handler
 };

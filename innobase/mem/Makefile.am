@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libmem.a
+noinst_LIBRARIES =	libmem.a
 
 libmem_a_SOURCES =	mem0mem.c mem0pool.c
 

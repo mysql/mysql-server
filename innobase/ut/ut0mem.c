@@ -225,6 +225,8 @@ ut_free_all_mem(void)
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	ut_a(ut_total_allocated_memory == 0);
+
+        os_fast_mutex_free(&ut_list_mutex);
 }
 
 /**************************************************************************

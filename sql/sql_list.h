@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ public:
   {
     return (void*) sql_alloc((uint) size);
   }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr, size_t size) {} /*lint -e715 */
   static void operator delete[](void *ptr, size_t size) {}
 #ifdef HAVE_purify
@@ -190,6 +192,7 @@ public:
   inline void *replace(void *element)
   {						// Return old element
     void *tmp=current->info;
+    DBUG_ASSERT(current->info != 0);
     current->info=element;
     return tmp;
   }
@@ -368,6 +371,7 @@ template <class T>
 class I_List :private base_ilist {
 public:
   I_List() :base_ilist()	{}
+  inline void empty()		{ base_ilist::empty(); }
   inline bool is_empty()        { return base_ilist::is_empty(); } 
   inline void append(T* a)	{ base_ilist::append(a); }
   inline void push_back(T* a)	{ base_ilist::push_back(a); }

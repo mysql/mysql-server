@@ -27,7 +27,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 all:			$(targets) txt_files
 
 txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
-			INSTALL-BINARY
+			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 CLEAN_FILES:		$(BUILD_SOURCES)
 	touch $(BUILD_SOURCES)
@@ -156,54 +156,6 @@ manual_letter.de.ps:	manual.de.texi include.texi
 	$(DVIPS) -t letter manual.de.dvi -o $@
 	touch $@
 
-
-#
-# Internals Manual
-#
-
-# GNU Info
-internals.info:	internals.texi include.texi
-	cd $(srcdir) && $(MAKEINFO) --no-split -I $(srcdir) $<
-
-# Plain Text
-internals.txt:	internals.texi include.texi
-	cd $(srcdir) && \
-	$(MAKEINFO) -I $(srcdir) --no-headers --no-split --output $@ $<
-
-# HTML, all in one file
-internals.html:	internals.texi include.texi $(srcdir)/Support/texi2html
-	cd $(srcdir) && @PERL@ $(srcdir)/Support/texi2html $(TEXI2HTML_FLAGS) $<
-internals_toc.html: internals.html
-
-# PDF, Portable Document Format
-internals.pdf: internals.texi
-	sed -e 's|@image{[^}]*} *||g' <$< >internals-tmp.texi
-	pdftex --interaction=nonstopmode internals-tmp.texi
-	texindex internals-tmp.??
-	pdftex --interaction=nonstopmode internals-tmp.texi
-	texindex internals-tmp.??
-	pdftex --interaction=nonstopmode internals-tmp.texi
-	mv internals-tmp.pdf $@
-	rm -f internals-tmp.*
-	touch $@
-
-# Postscript, A4 Paper
-internals_a4.ps:	internals.texi include.texi
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
-	    $(TEXI2DVI) --batch --texinfo --quiet '@afourpaper' $<
-	$(DVIPS) -t a4 internals.dvi -o $@
-	touch $@
-
-# Postscript, US Letter Paper
-internals_letter.ps:	internals.texi include.texi
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
-	    $(TEXI2DVI) --batch $<
-	$(DVIPS) -t letter internals.dvi -o $@
-	touch $@
-
-
 #
 # Miscellaneous
 #
@@ -253,6 +205,9 @@ INSTALL-BINARY:	mysql.info $(GT)
 
 ../COPYING.LIB:		mysql.info $(GT)
 	perl -w $(GT) mysql.info "LGPL license" "Function Index" > $@
+
+../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
+	perl -w $(GT) mysql.info "Mac OS X installation" "Netware installation" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

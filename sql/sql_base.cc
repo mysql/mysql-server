@@ -35,8 +35,6 @@ static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
-static key_map get_key_map_from_key_list(TABLE *table,
-					 List<String> *index_list);
 
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
@@ -423,8 +421,9 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 {
   DBUG_ENTER("close_thread_table");
 
-  bool found_old_table=0;
-  TABLE *table=*table_ptr;
+  bool found_old_table= 0;
+  TABLE *table= *table_ptr;
+  DBUG_ASSERT(table->key_read == 0);
 
   *table_ptr=table->next;
   if (table->version != refresh_version ||
@@ -543,7 +542,8 @@ TABLE_LIST * find_table_in_list(TABLE_LIST *table,
 {
   for (; table; table= table->next)
     if ((!db_name || !strcmp(table->db, db_name)) &&
-	(!table_name || !strcmp(table->alias, table_name)))
+	(!table_name || !my_strcasecmp(table_alias_charset,
+				       table->alias, table_name)))
       break;
   return table;
 }
@@ -1693,7 +1693,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     else
       thd->dupp_field=field;
   }
-  if (check_grants  && check_grant_column(thd,table,name,length))
+  if (check_grants && check_grant_column(thd,table,name,length))
     return WRONG_GRANT;
   return field;
 }
@@ -1738,13 +1738,13 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     bool found_table=0;
     for (; tables ; tables=tables->next)
     {
-      if (!strcmp(tables->alias,table_name) &&
+      if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
 	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
-					grant_option && 
-					tables->table->grant.want_privilege,
+					test(tables->table->grant.
+					     want_privilege),
 					1);
 	if (find)
 	{
@@ -1801,8 +1801,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     }
 
     Field *field=find_field_in_table(thd,tables->table,name,length,
-				     grant_option &&
-				     tables->table->grant.want_privilege,
+				     test(tables->table->grant.want_privilege),
 				     allow_rowid);
     if (field)
     {
@@ -1868,20 +1867,22 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 {
   List_iterator<Item> li(items);
   Item **found=0,*item;
+  const char *db_name=0;
   const char *field_name=0;
   const char *table_name=0;
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
     table_name= ((Item_ident*) find)->table_name;
+    db_name=    ((Item_ident*) find)->db_name;
   }
 
   for (uint i= 0; (item=li++); i++)
   {
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
-      if (!my_strcasecmp(system_charset_info,
-                         ((Item_field*) item)->name,field_name))
+      Item_field *item_field= (Item_field*) item;
+      if (!my_strcasecmp(system_charset_info, item_field->name, field_name))
       {
 	if (!table_name)
 	{
@@ -1897,11 +1898,16 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	  found= li.ref();
 	  *counter= i;
 	}
-	else if (!strcmp(((Item_field*) item)->table_name,table_name))
+	else
 	{
-	  found= li.ref();
-	  *counter= i;
-	  break;
+	  if (!strcmp(item_field->table_name,table_name) &&
+	      (!db_name || (db_name && item_field->db_name &&
+			    !strcmp(item_field->table_name,table_name))))
+	  {
+	    found= li.ref();
+	    *counter= i;
+	    break;
+	  }
 	}
       }
     }
@@ -2058,8 +2064,8 @@ bool setup_tables(TABLE_LIST *tables)
 }
 
 
-static key_map get_key_map_from_key_list(TABLE *table, 
-					 List<String> *index_list)
+key_map get_key_map_from_key_list(TABLE *table, 
+				  List<String> *index_list)
 {
   key_map map=0;
   List_iterator_fast<String> it(*index_list);
@@ -2094,13 +2100,15 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   for (; tables ; tables=tables->next)
   {
     TABLE *table=tables->table;
-    if (!table_name || (!strcmp(table_name,tables->alias) &&
+    if (!table_name || (!my_strcasecmp(table_alias_charset, table_name,
+				       tables->alias) &&
 			(!db_name || !strcmp(tables->db,db_name))))
     {
       /* Ensure that we have access right to all columns */
-      if (grant_option && !thd->master_access &&
-	  check_grant_all_columns(thd,SELECT_ACL,table) )
+      if (!(table->grant.privilege & SELECT_ACL) &&
+	  check_grant_all_columns(thd,SELECT_ACL,table))
 	DBUG_RETURN(-1);
+
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
@@ -2227,7 +2235,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 ******************************************************************************/
 
 int
-fill_record(List<Item> &fields,List<Item> &values)
+fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value;
@@ -2237,7 +2245,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field, 0) > 0)
+    if (value->save_in_field(field->field, 0) > 0 && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2245,7 +2253,7 @@ fill_record(List<Item> &fields,List<Item> &values)
 
 
 int
-fill_record(Field **ptr,List<Item> &values)
+fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -2255,7 +2263,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field, 0) == 1)
+    if (value->save_in_field(field, 0) == 1 && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2310,7 +2318,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.table_charset= thd->db_charset;
+  create_info.table_charset= thd->variables.character_set_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
@@ -2327,7 +2335,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.table_charset= thd->db_charset;
+  create_info.table_charset= thd->variables.character_set_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,

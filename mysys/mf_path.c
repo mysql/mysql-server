@@ -77,6 +77,9 @@ my_string my_path(my_string to, const char *progname,
 #define F_OK 0
 #define PATH_SEP ';'
 #define PROGRAM_EXTENSION ".exe"
+#elif defined(__NETWARE__)
+#define PATH_SEP ';'
+#define PROGRAM_EXTENSION ".nlm"
 #else
 #define PATH_SEP ':'
 #endif

@@ -59,7 +59,8 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
       if (start_key_len == 0)
         start_key_len=USE_WHOLE_KEY;
       key_buff=info->lastkey+info->s->base.max_key_length;
-      start_key_len=_mi_pack_key(info,inx,key_buff,(uchar*) start_key,start_key_len);
+      start_key_len= _mi_pack_key(info,inx,key_buff,(uchar*) start_key,
+				  start_key_len, (HA_KEYSEG**) 0);
       res=rtree_estimate(info, inx, key_buff, start_key_len, myisam_read_vec[start_search_flag]);
       res=res?res:1;
       break;
@@ -103,7 +104,8 @@ static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
   if (key_len == 0)
     key_len=USE_WHOLE_KEY;
   key_buff=info->lastkey+info->s->base.max_key_length;
-  key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key,key_len);
+  key_len=_mi_pack_key(info,inx,key_buff,(uchar*) key,key_len,
+		       (HA_KEYSEG**) 0);
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,keyinfo->seg,
 				    (uchar*) key_buff,key_len););
   nextflag=myisam_read_vec[search_flag];

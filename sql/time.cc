@@ -28,7 +28,6 @@ uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037
 	/* Currently only my_time_zone is inited */
 
 static long my_time_zone=0;
-pthread_mutex_t LOCK_timezone;
 
 void init_time(void)
 {
@@ -39,14 +38,14 @@ void init_time(void)
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
   l_time= &tm_tmp;
-  my_time_zone=0;
+  my_time_zone=		3600;		/* Comp. for -3600 in my_gmt_sec */
   my_time.year=		(uint) l_time->tm_year+1900;
   my_time.month=	(uint) l_time->tm_mon+1;
   my_time.day=		(uint) l_time->tm_mday;
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
-  my_time.second=		(uint) l_time->tm_sec;
-  VOID(my_gmt_sec(&my_time));		/* Init my_time_zone */
+  my_time.second=	(uint) l_time->tm_sec;
+  my_gmt_sec(&my_time, &my_time_zone);	/* Init my_time_zone */
 }
 
 /*
@@ -57,26 +56,39 @@ void init_time(void)
 
 */
 
-long my_gmt_sec(TIME *t)
+long my_gmt_sec(TIME *t, long *my_timezone)
 {
   uint loop;
   time_t tmp;
   struct tm *l_time,tm_tmp;
-  long diff;
+  long diff, current_timezone;
 
   if (t->hour >= 24)
   {					/* Fix for time-loop */
     t->day+=t->hour/24;
     t->hour%=24;
   }
-  pthread_mutex_lock(&LOCK_timezone);
-  tmp=(time_t) ((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
-		 (long) days_at_timestart)*86400L + (long) t->hour*3600L +
-		(long) (t->minute*60 + t->second)) + (time_t) my_time_zone;
+
+  /*
+    Calculate the gmt time based on current time and timezone
+    The -1 on the end is to ensure that if have a date that exists twice
+    (like 2002-10-27 02:00:0 MET), we will find the initial date.
+
+    By doing -3600 we will have to call localtime_r() several times, but
+    I couldn't come up with a better way to get a repeatable result :(
+
+    We can't use mktime() as it's buggy on many platforms and not thread safe.
+  */
+  tmp=(time_t) (((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
+		  (long) days_at_timestart)*86400L + (long) t->hour*3600L +
+		 (long) (t->minute*60 + t->second)) + (time_t) my_time_zone -
+		3600);
+  current_timezone= my_time_zone;
+
   localtime_r(&tmp,&tm_tmp);
   l_time=&tm_tmp;
   for (loop=0;
-       loop < 3 &&
+       loop < 2 &&
 	 (t->hour != (uint) l_time->tm_hour ||
 	  t->minute != (uint) l_time->tm_min);
        loop++)
@@ -89,14 +101,16 @@ long my_gmt_sec(TIME *t)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
 	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
-    my_time_zone+=diff;
-    tmp+=(time_t) diff;
+    current_timezone+= diff+3600;		// Compensate for -3600 above
+    tmp+= (time_t) diff;
     localtime_r(&tmp,&tm_tmp);
     l_time=&tm_tmp;
   }
-  /* Fix that if we are in the not existing daylight saving time hour
-     we move the start of the next real hour */
-  if (loop == 3 && t->hour != (uint) l_time->tm_hour)
+  /*
+    Fix that if we are in the not existing daylight saving time hour
+    we move the start of the next real hour
+  */
+  if (loop == 2 && t->hour != (uint) l_time->tm_hour)
   {
     int days= t->day - l_time->tm_mday;
     if (days < -1)
@@ -108,11 +122,9 @@ long my_gmt_sec(TIME *t)
     if (diff == 3600)
       tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
     else if (diff == -3600)
-      tmp-=t->minute*60 + t->second;		// Move to next hour
+      tmp-=t->minute*60 + t->second;		// Move to previous hour
   }
-  if ((my_time_zone >=0 ? my_time_zone: -my_time_zone) > 3600L*12)
-    my_time_zone=0;			/* Wrong date */
-  pthread_mutex_unlock(&LOCK_timezone);
+  *my_timezone= current_timezone;
   return (long) tmp;
 } /* my_gmt_sec */
 
@@ -251,145 +263,6 @@ void get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
   DBUG_VOID_RETURN;
 }
 
-/*	find date from string and put it in vektor
-	Input: pos = "YYMMDD" OR "YYYYMMDD" in any order or
-	"xxxxx YYxxxMMxxxDD xxxx" where xxx is anything exept
-	a number. Month or day mustn't exeed 2 digits, year may be 4 digits.
-*/
-
-
-#ifdef NOT_NEEDED
-
-void find_date(string pos,uint *vek,uint flag)
-{
-  uint length,value;
-  string start;
-  DBUG_ENTER("find_date");
-  DBUG_PRINT("enter",("pos: '%s'  flag: %d",pos,flag));
-
-  bzero((char*) vek,sizeof(int)*4);
-  while (*pos && !my_isdigit(my_charset_latin1,*pos))
-    pos++;
-  length=(uint) strlen(pos);
-  for (uint i=0 ; i< 3; i++)
-  {
-    start=pos; value=0;
-    while (my_isdigit(my_charset_latin1,pos[0]) &&
-	   ((pos-start) < 2 || ((pos-start) < 4 && length >= 8 &&
-				!(flag & 3))))
-    {
-      value=value*10 + (uint) (uchar) (*pos - '0');
-      pos++;
-    }
-    vek[flag & 3]=value; flag>>=2;
-    while (*pos && (my_ispunct(my_charset_latin1,*pos) || 
-                    my_isspace(my_charset_latin1,*pos)))
-      pos++;
-  }
-  DBUG_PRINT("exit",("year: %d  month: %d  day: %d",vek[0],vek[1],vek[2]));
-  DBUG_VOID_RETURN;
-} /* find_date */
-
-
-	/* Outputs YYMMDD if input year < 100 or YYYYMMDD else */
-
-static long calc_daynr_from_week(uint year,uint week,uint day)
-{
-  long daynr;
-  int weekday;
-
-  daynr=calc_daynr(year,1,1);
-  if ((weekday= calc_weekday(daynr,0)) >= 3)
-    daynr+= (7-weekday);
-  else
-    daynr-=weekday;
-
-  return (daynr+week*7+day-8);
-}
-
-void convert_week_to_date(string date,uint flag,uint *res_length)
-{
-  string format;
-  uint year,vek[4];
-
-  find_date(date,vek,(uint) (1*4+2*16));		/* YY-WW-DD */
-  year=vek[0];
-
-  get_date_from_daynr(calc_daynr_from_week(vek[0],vek[1],vek[2]),
-		      &vek[0],&vek[1],&vek[2]);
-  *res_length=8;
-  format="%04d%02d%02d";
-  if (year < 100)
-  {
-    vek[0]= vek[0]%100;
-    *res_length=6;
-    format="%02d%02d%02d";
-  }
-  sprintf(date,format,vek[flag & 3],vek[(flag >> 2) & 3],
-	  vek[(flag >> 4) & 3]);
-  return;
-}
-
-	/* returns YYWWDD or YYYYWWDD according to input year */
-	/* flag only reflects format of input date */
-
-void convert_date_to_week(string date,uint flag,uint *res_length)
-{
-  uint vek[4],weekday,days,year,week,day;
-  long daynr,first_daynr;
-  char buff[256],*format;
-
-  if (! date[0])
-  {
-    get_date(buff,0,0L);			/* Use current date */
-    find_date(buff+2,vek,(uint) (1*4+2*16));	/* YY-MM-DD */
-  }
-  else
-    find_date(date,vek,flag);
-
-  year= vek[0];
-  daynr=      calc_daynr(year,vek[1],vek[2]);
-  first_daynr=calc_daynr(year,1,1);
-
-	/* Caculate year and first daynr of year */
-  if (vek[1] == 1 && (weekday=calc_weekday(first_daynr,0)) >= 3 &&
-      vek[2] <= 7-weekday)
-  {
-    if (!year--)
-      year=99;
-    first_daynr=first_daynr-calc_days_in_year(year);
-  }
-  else if (vek[1] == 12 &&
-	   (weekday=calc_weekday(first_daynr+calc_days_in_year(year)),0) < 3 &&
-	   vek[2] > 31-weekday)
-  {
-    first_daynr=first_daynr+calc_days_in_year(year);
-    if (year++ == 99)
-      year=0;
-  }
-
-	/* Calulate daynr of first day of week 1 */
-  if ((weekday= calc_weekday(first_daynr,0)) >= 3)
-    first_daynr+= (7-weekday);
-  else
-    first_daynr-=weekday;
-
-  days=(int) (daynr-first_daynr);
-  week=days/7+1 ; day=calc_weekday(daynr,0)+1;
-
-  *res_length=8;
-  format="%04d%02d%02d";
-  if (year < 100)
-  {
-    *res_length=6;
-    format="%02d%02d%02d";
-  }
-  sprintf(date,format,year,week,day);
-  return;
-}
-
-#endif
-
 	/* Functions to handle periods */
 
 ulong convert_period_to_month(ulong period)
@@ -516,14 +389,14 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   else
     date[6]=0;
 
-  if (year_length == 2)
+  if (year_length == 2 && i >=2 && (date[1] || date[2]))
     date[0]+= (date[0] < YY_PART_YEAR ? 2000 : 1900);
   number_of_fields=i;
   while (i < 6)
     date[i++]=0;
   if (number_of_fields < 3 || date[1] > 12 ||
       date[2] > 31 || date[3] > 23 || date[4] > 59 || date[5] > 59 ||
-      !fuzzy_date && (date[1] == 0 || date[2] == 0))
+      (!fuzzy_date && (date[1] == 0 || date[2] == 0)))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)				// If zero date
@@ -567,6 +440,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
 time_t str_to_timestamp(const char *str,uint length)
 {
   TIME l_time;
+  long not_used;
+
   if (str_to_TIME(str,length,&l_time,0) == TIMESTAMP_NONE)
     return(0);
   if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR)
@@ -574,7 +449,7 @@ time_t str_to_timestamp(const char *str,uint length)
     current_thd->cuted_fields++;
     return(0);
   }
-  return(my_gmt_sec(&l_time));
+  return(my_gmt_sec(&l_time, &not_used));
 }
 
 

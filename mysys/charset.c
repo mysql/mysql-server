@@ -120,45 +120,15 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   
   if (cs->state & MY_CS_BINSORT)
   {
-    CHARSET_INFO *b= &my_charset_bin;
-    cs->strnxfrm    = b->strnxfrm;
-    cs->like_range  = b->like_range;
-    cs->wildcmp     = b->wildcmp;
-    cs->strnncoll   = b->strnncoll;
-    cs->strnncollsp = b->strnncollsp;
-    cs->strcasecmp  = b->strcasecmp;
-    cs->hash_sort   = b->hash_sort;
+    cs->coll= &my_collation_bin_handler;
   }
   else
   {
-    cs->strnxfrm    = my_strnxfrm_simple;
-    cs->like_range  = my_like_range_simple;
-    cs->wildcmp     = my_wildcmp_8bit;
-    cs->strnncoll   = my_strnncoll_simple;
-    cs->strnncollsp = my_strnncollsp_simple;
-    cs->strcasecmp  = my_strcasecmp_8bit;
-    cs->hash_sort   = my_hash_sort_simple;
+    cs->coll= &my_collation_8bit_simple_ci_handler;
   }
   
-  cs->caseup_str  = my_caseup_str_8bit;
-  cs->casedn_str  = my_casedn_str_8bit;
-  cs->caseup      = my_caseup_8bit;
-  cs->casedn      = my_casedn_8bit;
-  cs->mb_wc       = my_mb_wc_8bit;
-  cs->wc_mb       = my_wc_mb_8bit;
-  cs->snprintf	  = my_snprintf_8bit;
-  cs->long10_to_str= my_long10_to_str_8bit;
-  cs->longlong10_to_str= my_longlong10_to_str_8bit;
-  cs->fill	  = my_fill_8bit;
-  cs->strntol     = my_strntol_8bit;
-  cs->strntoul    = my_strntoul_8bit;
-  cs->strntoll    = my_strntoll_8bit;
-  cs->strntoull   = my_strntoull_8bit;
-  cs->strntod     = my_strntod_8bit;
-  cs->scan	  = my_scan_8bit;
+  cs->cset= &my_charset_8bit_handler;
   cs->mbmaxlen    = 1;
-  cs->numchars    = my_numchars_8bit;
-  cs->charpos     = my_charpos_8bit;
 }
 
 
@@ -313,6 +283,8 @@ static int add_collation(CHARSET_INFO *cs)
   {
     if (!all_charsets[cs->number])
     {
+      if (cs->state & MY_CS_COMPILED)
+        goto clear;
       if (!(all_charsets[cs->number]=
          (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
@@ -327,10 +299,10 @@ static int add_collation(CHARSET_INFO *cs)
     
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
+      simple_cs_init_functions(all_charsets[cs->number]);
       simple_cs_copy_data(all_charsets[cs->number],cs);
       if (simple_cs_is_full(all_charsets[cs->number]))
       {
-        simple_cs_init_functions(all_charsets[cs->number]);
         all_charsets[cs->number]->state |= MY_CS_LOADED;
       }
     }
@@ -341,6 +313,7 @@ static int add_collation(CHARSET_INFO *cs)
       if (cs->comment)
 	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
     }
+clear:
     cs->number= 0;
     cs->primary_number= 0;
     cs->binary_number= 0;
@@ -395,6 +368,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 char *get_charsets_dir(char *buf)
 {
   const char *sharedir= SHAREDIR;
+  char *res;
   DBUG_ENTER("get_charsets_dir");
 
   if (charsets_dir != NULL)
@@ -408,9 +382,9 @@ char *get_charsets_dir(char *buf)
       strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
 	      NullS);
   }
-  convert_dirname(buf,buf,NullS);
+  res= convert_dirname(buf,buf,NullS);
   DBUG_PRINT("info",("charsets dir: '%s'", buf));
-  DBUG_RETURN(strend(buf));
+  DBUG_RETURN(res);
 }
 
 CHARSET_INFO *all_charsets[256];
@@ -423,56 +397,63 @@ static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 {
   CHARSET_INFO *cs;
 
-  MY_ADD_CHARSET(&my_charset_latin1);
-  
   MY_ADD_CHARSET(&my_charset_bin);
+  
+  MY_ADD_CHARSET(&my_charset_latin1);
+  MY_ADD_CHARSET(&my_charset_latin1_bin);
+  MY_ADD_CHARSET(&my_charset_latin1_german2_ci);
 
 #ifdef HAVE_CHARSET_big5
-  MY_ADD_CHARSET(&my_charset_big5);
+  MY_ADD_CHARSET(&my_charset_big5_chinese_ci);
+  MY_ADD_CHARSET(&my_charset_big5_bin);
 #endif
 
-#ifdef HAVE_CHARSET_czech
-  MY_ADD_CHARSET(&my_charset_czech);
+#ifdef HAVE_CHARSET_cp1250
+  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
 #endif
 
-#ifdef HAVE_CHARSET_euc_kr
-  MY_ADD_CHARSET(&my_charset_euc_kr);
+#ifdef HAVE_CHARSET_latin2
+  MY_ADD_CHARSET(&my_charset_latin2_czech_ci);
+#endif
+
+#ifdef HAVE_CHARSET_euckr
+  MY_ADD_CHARSET(&my_charset_euckr_korean_ci);
+  MY_ADD_CHARSET(&my_charset_euckr_bin);
 #endif
 
 #ifdef HAVE_CHARSET_gb2312
-  MY_ADD_CHARSET(&my_charset_gb2312);
+  MY_ADD_CHARSET(&my_charset_gb2312_chinese_ci);
+  MY_ADD_CHARSET(&my_charset_gb2312_bin);
 #endif
 
 #ifdef HAVE_CHARSET_gbk
-  MY_ADD_CHARSET(&my_charset_gbk);
-#endif
-
-#ifdef HAVE_CHARSET_latin1_de
-  MY_ADD_CHARSET(&my_charset_latin1_de);
+  MY_ADD_CHARSET(&my_charset_gbk_chinese_ci);
+  MY_ADD_CHARSET(&my_charset_gbk_bin);
 #endif
 
 #ifdef HAVE_CHARSET_sjis
-  MY_ADD_CHARSET(&my_charset_sjis);
+  MY_ADD_CHARSET(&my_charset_sjis_japanese_ci);
+  MY_ADD_CHARSET(&my_charset_sjis_bin);
 #endif
 
 #ifdef HAVE_CHARSET_tis620
-  MY_ADD_CHARSET(&my_charset_tis620);
+  MY_ADD_CHARSET(&my_charset_tis620_thai_ci);
+  MY_ADD_CHARSET(&my_charset_tis620_bin);
 #endif
 
 #ifdef HAVE_CHARSET_ucs2
-  MY_ADD_CHARSET(&my_charset_ucs2);
+  MY_ADD_CHARSET(&my_charset_ucs2_general_ci);
+  MY_ADD_CHARSET(&my_charset_ucs2_bin);
 #endif
 
 #ifdef HAVE_CHARSET_ujis
-  MY_ADD_CHARSET(&my_charset_ujis);
+  MY_ADD_CHARSET(&my_charset_ujis_japanese_ci);
+  MY_ADD_CHARSET(&my_charset_ujis_bin);
 #endif
 
 #ifdef HAVE_CHARSET_utf8
-  MY_ADD_CHARSET(&my_charset_utf8);
-#endif
-
-#ifdef HAVE_CHARSET_win1250ch
-  MY_ADD_CHARSET(&my_charset_win1250ch);
+  MY_ADD_CHARSET(&my_charset_utf8_general_ci);
+  MY_ADD_CHARSET(&my_charset_utf8_bin);
 #endif
 
   /* Copy compiled charsets */
@@ -530,12 +511,6 @@ static my_bool init_available_charsets(myf myflags)
 void free_charsets(void)
 {
   charset_initialized=0;
-}
-
-
-static void get_charset_conf_name(const char *cs_name, char *buf)
-{
-  strxmov(get_charsets_dir(buf), cs_name, ".conf", NullS);
 }
 
 
@@ -639,6 +614,9 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 {
   CHARSET_INFO *cs=NULL;
   CHARSET_INFO **css;
+  DBUG_ENTER("get_charset_by_csname");
+  DBUG_PRINT("enter",("name: '%s'", cs_name));
+
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   
   for (css= all_charsets; css < all_charsets+255; ++css)
@@ -650,7 +628,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
     }
-  }  
+  }
   
   if (!cs && (flags & MY_WME))
   {
@@ -659,30 +637,5 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
   }
 
-  return cs;
-}
-
-
-/* Only append name if it doesn't exist from before */
-
-static my_bool charset_in_string(const char *name, DYNAMIC_STRING *s)
-{
-  uint length= (uint) strlen(name);
-  const char *pos;
-  for (pos=s->str ; (pos=strstr(pos,name)) ; pos++)
-  {
-    if (! pos[length] || pos[length] == ' ')
-      return TRUE;				/* Already existed */
-  }
-  return FALSE;
-}
-
-
-static void charset_append(DYNAMIC_STRING *s, const char *name)
-{
-  if (!charset_in_string(name, s))
-  {
-    dynstr_append(s, name);
-    dynstr_append(s, " ");
-  }
+  DBUG_RETURN(cs);
 }

@@ -79,8 +79,10 @@ void Item_subselect::select_transformer(THD *thd, st_select_lex_unit *unit)
 }
 
 
-bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
+  thd= thd_param;
+
   if (substitution)
   {
     (*ref)= substitution;
@@ -113,6 +115,20 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   fixed= 1;
   thd->where= save_where;
   return res;
+}
+
+bool Item_subselect::exec()
+{
+  MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
+  if (&thd->mem_root != old_root)
+  {
+    my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
+    int res= engine->exec();
+    my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+    return (res);
+  }
+  else
+    return engine->exec();
 }
 
 Item::Type Item_subselect::type() const 
@@ -253,12 +269,12 @@ bool Item_singlerow_subselect::null_inside()
 
 void Item_singlerow_subselect::bring_value()
 {
-  engine->exec();
+  exec();
 }
 
 double Item_singlerow_subselect::val () 
 {
-  if (!engine->exec() && !value->null_value)
+  if (!exec() && !value->null_value)
   {
     null_value= 0;
     return value->val();
@@ -272,7 +288,7 @@ double Item_singlerow_subselect::val ()
 
 longlong Item_singlerow_subselect::val_int () 
 {
-  if (!engine->exec() && !value->null_value)
+  if (!exec() && !value->null_value)
   {
     null_value= 0;
     return value->val_int();
@@ -286,7 +302,7 @@ longlong Item_singlerow_subselect::val_int ()
 
 String *Item_singlerow_subselect::val_str (String *str) 
 {
-  if (!engine->exec() && !value->null_value)
+  if (!exec() && !value->null_value)
   {
     null_value= 0;
     return value->val_str(str);
@@ -354,7 +370,7 @@ void Item_exists_subselect::fix_length_and_dec()
 
 double Item_exists_subselect::val () 
 {
-  if (engine->exec())
+  if (exec())
   {
     reset();
     return 0;
@@ -364,7 +380,7 @@ double Item_exists_subselect::val ()
 
 longlong Item_exists_subselect::val_int () 
 {
-  if (engine->exec())
+  if (exec())
   {
     reset();
     return 0;
@@ -374,7 +390,7 @@ longlong Item_exists_subselect::val_int ()
 
 String *Item_exists_subselect::val_str(String *str)
 {
-  if (engine->exec())
+  if (exec())
   {
     reset();
     return 0;
@@ -385,7 +401,7 @@ String *Item_exists_subselect::val_str(String *str)
 
 double Item_in_subselect::val () 
 {
-  if (engine->exec())
+  if (exec())
   {
     reset();
     null_value= 1;
@@ -398,7 +414,7 @@ double Item_in_subselect::val ()
 
 longlong Item_in_subselect::val_int () 
 {
-  if (engine->exec())
+  if (exec())
   {
     reset();
     null_value= 1;
@@ -411,7 +427,7 @@ longlong Item_in_subselect::val_int ()
 
 String *Item_in_subselect::val_str(String *str)
 {
-  if (engine->exec())
+  if (exec())
   {
     reset();
     null_value= 1;
@@ -492,7 +508,7 @@ void Item_in_subselect::single_value_transformer(THD *thd,
     {
       sl->item_list.push_back(item);
       setup_ref_array(thd, &sl->ref_pointer_array,
-		      1 + sl->with_sum_func +
+		      1 + sl->select_items +
 		      sl->order_list.elements + sl->group_list.elements);
       // To prevent crash on Item_ref_null_helper destruction in case of error
       sl->ref_pointer_array[0]= 0;

@@ -323,7 +323,7 @@ row_ins_clust_index_entry_by_modify(
 
 /*************************************************************************
 Returns TRUE if in a cascaded update/delete an ancestor node of node
-updates table. */
+updates (not DELETE, but UPDATE) table. */
 static
 ibool
 row_ins_cascade_ancestor_updates_table(
@@ -341,7 +341,7 @@ row_ins_cascade_ancestor_updates_table(
 
 		upd_node = parent;
 
-		if (upd_node->table == table) {
+		if (upd_node->table == table && upd_node->is_delete == FALSE) {
 
 			return(TRUE);
 		}
@@ -438,6 +438,111 @@ row_ins_cascade_calc_update_vec(
 }
 
 /*************************************************************************
+Reports a foreign key error associated with an update or a delete of a
+parent table index entry. */
+static
+void
+row_ins_foreign_report_err(
+/*=======================*/
+	char*		errstr,		/* in: error string from the viewpoint
+					of the parent table */
+	que_thr_t*	thr,		/* in: query thread whose run_node
+					is an update node */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint */
+	rec_t*		rec,		/* in: a matching index record in the
+					child table */
+	dtuple_t*	entry)		/* in: index entry in the parent
+					table */
+{
+	char*	buf	= dict_foreign_err_buf;
+
+	mutex_enter(&dict_foreign_err_mutex);
+	ut_sprintf_timestamp(buf);
+	sprintf(buf + strlen(buf), " Transaction:\n");
+	trx_print(buf + strlen(buf), thr_get_trx(thr));
+
+	sprintf(buf + strlen(buf),
+"Foreign key constraint fails for table %.500s:\n",
+				foreign->foreign_table_name);
+	dict_print_info_on_foreign_key_in_create_format(
+				foreign, buf + strlen(buf));
+	sprintf(buf + strlen(buf), "\n%s", errstr);
+	sprintf(buf + strlen(buf),
+" in parent table, in index %.500s tuple:\n",
+			foreign->referenced_index->name);
+	if (entry) {
+		dtuple_sprintf(buf + strlen(buf), 1000, entry);
+	}
+	sprintf(buf + strlen(buf),
+"\nBut in child table %.500s, in index %.500s, there is a record:\n",
+		foreign->foreign_table_name, foreign->foreign_index->name);
+	if (rec) {
+		rec_sprintf(buf + strlen(buf), 1000, rec);
+	}
+	sprintf(buf + strlen(buf), "\n");
+       
+	ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+	mutex_exit(&dict_foreign_err_mutex);
+}
+
+/*************************************************************************
+Reports a foreign key error to dict_foreign_err_buf when we are trying
+to add an index entry to a child table. Note that the adding may be the result
+of an update, too. */
+static
+void
+row_ins_foreign_report_add_err(
+/*===========================*/
+	que_thr_t*	thr,		/* in: query thread whose run_node
+					is an insert node */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint */
+	rec_t*		rec,		/* in: a record in the parent table:
+					it does not match entry because we
+					have an error! */
+	dtuple_t*	entry)		/* in: index entry to insert in the
+					child table */
+{
+	char*	buf	= dict_foreign_err_buf;
+
+	mutex_enter(&dict_foreign_err_mutex);
+	ut_sprintf_timestamp(buf);
+	sprintf(buf + strlen(buf), " Transaction:\n");
+	trx_print(buf + strlen(buf), thr_get_trx(thr));			
+	sprintf(buf + strlen(buf),
+"Foreign key constraint fails for table %.500s:\n",
+				foreign->foreign_table_name);
+	dict_print_info_on_foreign_key_in_create_format(
+				foreign, buf + strlen(buf));
+	sprintf(buf + strlen(buf),
+"\nTrying to add in child table, in index %.500s tuple:\n",
+			foreign->foreign_index->name);
+	if (entry) {
+		dtuple_sprintf(buf + strlen(buf), 1000, entry);
+	}
+	sprintf(buf + strlen(buf),
+"\nBut in parent table %.500s, in index %.500s,\n"
+"the closest match we can find is record:\n",
+				foreign->referenced_table_name,
+				foreign->referenced_index->name);
+	if (rec && page_rec_is_supremum(rec)) {
+		/* If the cursor ended on a supremum record, it is better
+		to report the previous record in the error message, so that
+		the user gets a more descriptive error message. */
+		rec = page_rec_get_prev(rec);
+	}
+
+	if (rec) {
+		rec_sprintf(buf + strlen(buf), 1000, rec);
+	}
+	sprintf(buf + strlen(buf), "\n");
+
+	ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+	mutex_exit(&dict_foreign_err_mutex);
+}
+
+/*************************************************************************
 Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT. */
@@ -453,6 +558,8 @@ row_ins_foreign_check_on_constraint(
 					type is != 0 */
 	btr_pcur_t*	pcur,		/* in: cursor placed on a matching
 					index record in the child table */
+	dtuple_t*	entry,		/* in: index entry in the parent
+					table */
 	mtr_t*		mtr)		/* in: mtr holding the latch of pcur
 					page */
 {
@@ -506,6 +613,10 @@ row_ins_foreign_check_on_constraint(
 			return(DB_SUCCESS);
 		}
 
+		row_ins_foreign_report_err((char*)"Trying to delete",
+					thr, foreign,
+					btr_pcur_get_rec(pcur), entry);
+
 	        return(DB_ROW_IS_REFERENCED);
 	}
 
@@ -522,6 +633,10 @@ row_ins_foreign_check_on_constraint(
 
 			return(DB_SUCCESS);
 		}
+
+		row_ins_foreign_report_err((char*)"Trying to update",
+					thr, foreign,
+					btr_pcur_get_rec(pcur), entry);
 
 	        return(DB_ROW_IS_REFERENCED);
 	}
@@ -563,14 +678,13 @@ row_ins_foreign_check_on_constraint(
 		}
 	}
 
-	/* We do not allow cyclic cascaded updating of the same
-	table. Check that we are not updating the same table which
-	is already being modified in this cascade chain. We have to
-	check this because the modification of the indexes of a
-	'parent' table may still be incomplete, and we must avoid
-	seeing the indexes of the parent table in an inconsistent
-	state! In this way we also prevent possible infinite
-	update loops caused by cyclic cascaded updates. */
+	/* We do not allow cyclic cascaded updating (DELETE is allowed,
+	but not UPDATE) of the same table, as this can lead to an infinite
+	cycle. Check that we are not updating the same table which is
+	already being modified in this cascade chain. We have to check
+	this also because the modification of the indexes of a 'parent'
+	table may still be incomplete, and we must avoid seeing the indexes
+	of the parent table in an inconsistent state! */
 
 	if (!cascade->is_delete
 	    && row_ins_cascade_ancestor_updates_table(cascade, table)) {
@@ -579,6 +693,10 @@ row_ins_foreign_check_on_constraint(
 	        constraints, but play safe and return an error */
 
 	        err = DB_ROW_IS_REFERENCED;
+
+		row_ins_foreign_report_err(
+(char*)"Trying an update, possibly causing a cyclic cascaded update\n"
+"in the child table,", thr, foreign, btr_pcur_get_rec(pcur), entry);
 
 		goto nonstandard_exit_func;
 	}
@@ -809,11 +927,10 @@ row_ins_check_foreign_constraint(
 				dictionary cache if they exist at all */
 	dict_table_t*	table,	/* in: if check_ref is TRUE, then the foreign
 				table, else the referenced table */
-	dict_index_t*	index __attribute__((unused)),/* in: index in table */
 	dtuple_t*	entry,	/* in: index entry for index */
 	que_thr_t*	thr)	/* in: query thread */
 {
-  upd_node_t*  upd_node;
+  	upd_node_t*  	upd_node;
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
@@ -824,6 +941,7 @@ row_ins_check_foreign_constraint(
 	int		cmp;
 	ulint		err;
 	ulint		i;
+	char*		buf		= dict_foreign_err_buf;
 	mtr_t		mtr;
 
 run_again:
@@ -884,6 +1002,25 @@ run_again:
 
 	if (check_table == NULL) {
 		if (check_ref) {
+			mutex_enter(&dict_foreign_err_mutex);
+			ut_sprintf_timestamp(buf);
+			sprintf(buf + strlen(buf), " Transaction:\n");
+			trx_print(buf + strlen(buf), thr_get_trx(thr));
+			sprintf(buf + strlen(buf),
+"Foreign key constraint fails for table %.500s:\n",
+				foreign->foreign_table_name);
+			dict_print_info_on_foreign_key_in_create_format(
+				foreign, buf + strlen(buf));
+			sprintf(buf + strlen(buf),
+"\nTrying to add to index %.500s tuple:\n", foreign->foreign_index->name);
+			dtuple_sprintf(buf + strlen(buf), 1000, entry);
+			sprintf(buf + strlen(buf),
+"\nBut the parent table %.500s does not currently exist!\n",
+				foreign->referenced_table_name);
+
+			ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+			mutex_exit(&dict_foreign_err_mutex);
+
 			return(DB_NO_REFERENCED_ROW);
 		}
 
@@ -949,7 +1086,8 @@ run_again:
 
 		if (cmp == 0) {
 			if (rec_get_deleted_flag(rec)) {
-				err = row_ins_set_shared_rec_lock(LOCK_ORDINARY,
+				err = row_ins_set_shared_rec_lock(
+							LOCK_ORDINARY,
 							rec, check_index, thr);
 				if (err != DB_SUCCESS) {
 
@@ -989,13 +1127,17 @@ run_again:
 
 					err =
 					  row_ins_foreign_check_on_constraint(
-						thr, foreign, &pcur, &mtr);
-
+						thr, foreign, &pcur, entry,
+									&mtr);
 					if (err != DB_SUCCESS) {
 
 						break;
 					}
 				} else {
+					row_ins_foreign_report_err(
+					(char*)"Trying to delete or update",
+						thr, foreign, rec, entry);
+
 					err = DB_ROW_IS_REFERENCED;
 					break;
 				}
@@ -1012,6 +1154,8 @@ run_again:
 
 			if (check_ref) {			
 				err = DB_NO_REFERENCED_ROW;
+				row_ins_foreign_report_add_err(
+						thr, foreign, rec, entry);
 			} else {
 				err = DB_SUCCESS;
 			}
@@ -1025,6 +1169,9 @@ next_rec:
 
 		if (!moved) {
 			if (check_ref) {			
+				rec = btr_pcur_get_rec(&pcur);
+				row_ins_foreign_report_add_err(
+						thr, foreign, rec, entry);
 				err = DB_NO_REFERENCED_ROW;
 			} else {
 				err = DB_SUCCESS;
@@ -1100,7 +1247,7 @@ row_ins_check_foreign_constraints(
 			}
 
 			err = row_ins_check_foreign_constraint(TRUE, foreign,
-						table, index, entry, thr);
+						table, entry, thr);
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
 			}
@@ -1114,6 +1261,53 @@ row_ins_check_foreign_constraints(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/*************************************************************************
+Reports a UNIQUE key error to dict_unique_err_buf so that SHOW INNODB
+STATUS can print it. */
+static
+void
+row_ins_unique_report_err(
+/*======================*/
+	que_thr_t*	thr,	/* in: query thread */
+	rec_t*		rec,	/* in: a record in the index */
+	dtuple_t*	entry,	/* in: index entry to insert in the index */
+	dict_index_t*	index)	/* in: index */
+{
+#ifdef notdefined
+        /* Disable reporting to test if the slowdown of REPLACE in 4.0.13 was
+	caused by this! */
+
+	char*	buf	= dict_unique_err_buf;
+
+	/* The foreign err mutex protects also dict_unique_err_buf */
+
+	mutex_enter(&dict_foreign_err_mutex);
+
+	ut_sprintf_timestamp(buf);
+	sprintf(buf + strlen(buf), " Transaction:\n");
+	trx_print(buf + strlen(buf), thr_get_trx(thr));			
+
+	sprintf(buf + strlen(buf),
+"Unique key constraint fails for table %.500s.\n", index->table_name);
+	sprintf(buf + strlen(buf),
+"Trying to add in index %.500s (%lu fields unique) tuple:\n", index->name,
+	  				dict_index_get_n_unique(index));
+		
+	dtuple_sprintf(buf + strlen(buf), 1000, entry);
+
+	sprintf(buf + strlen(buf),
+"\nBut there is already a record:\n");
+
+	rec_sprintf(buf + strlen(buf), 1000, rec);
+
+	sprintf(buf + strlen(buf), "\n");
+
+	ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+	mutex_exit(&dict_foreign_err_mutex);
+#endif
 }
 
 /*******************************************************************
@@ -1246,10 +1440,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 		if (cmp == 0) {
 			if (row_ins_dupl_error_with_rec(rec, entry, index)) {
-				/* printf("Duplicate key in index %s\n",
-				     				index->name);
-				dtuple_print(entry); */
-
+				row_ins_unique_report_err(thr, rec, entry,
+								   index);
 				err = DB_DUPLICATE_KEY;
 
 				thr_get_trx(thr)->error_info = index;
@@ -1344,7 +1536,8 @@ row_ins_duplicate_error_in_clust(
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							cursor->index)) {
 				trx->error_info = cursor->index;
-				
+				row_ins_unique_report_err(thr, rec, entry,
+							  cursor->index);
 				return(DB_DUPLICATE_KEY);
 			}
 		}
@@ -1368,6 +1561,8 @@ row_ins_duplicate_error_in_clust(
 							cursor->index)) {
 				trx->error_info = cursor->index;
 
+				row_ins_unique_report_err(thr, rec, entry,
+							  cursor->index);
 				return(DB_DUPLICATE_KEY);
 			}
 		}

@@ -34,6 +34,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 static void init_variables(const struct my_option *options);
 static int setval(const struct my_option *opts, char *argument,
 		  my_bool set_maximum_value);
+static char *check_struct_option(char *cur_arg, char *key_name);
 
 /*
   The following three variables belong to same group and the number and
@@ -67,6 +68,14 @@ my_bool my_getopt_print_errors= 1;
   one. Call function 'get_one_option()' once for each option.
 */
 
+static gptr* (*getopt_get_addr)(char *, uint, const struct my_option *);
+
+void my_getopt_register_get_addr(gptr* (*func_addr)(char *, uint,
+						    const struct my_option *))
+{
+  getopt_get_addr= func_addr;
+}
+
 int handle_options(int *argc, char ***argv, 
 		   const struct my_option *longopts, 
 		   my_bool (*get_one_option)(int,
@@ -76,8 +85,10 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length, i;
   my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
           option_is_loose;
-  char *progname= *(*argv), **pos, **pos_end, *optend, *prev_found;
+  char **pos, **pos_end, *optend, *prev_found,
+       *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
+  gptr *value;
   int error;
 
   LINT_INIT(opt_found);
@@ -110,7 +121,7 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      if (my_getopt_print_errors)
 		fprintf(stderr, "%s: Option '-O' requires an argument\n",
-			progname);
+			my_progname);
 	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	    cur_arg= *pos;
@@ -128,7 +139,7 @@ int handle_options(int *argc, char ***argv,
 	      if (my_getopt_print_errors)
 		fprintf(stderr,
 			"%s: Option '--set-variable' requires an argument\n",
-			progname);
+			my_progname);
 	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	  }
@@ -142,7 +153,7 @@ int handle_options(int *argc, char ***argv,
 	      if (my_getopt_print_errors)
 		fprintf(stderr,
 			"%s: Option '--set-variable' requires an argument\n",
-			progname);
+			my_progname);
 	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	    cur_arg= *pos;
@@ -159,19 +170,20 @@ int handle_options(int *argc, char ***argv,
 	    continue;
 	  }
 	}
-	optend= strcend(cur_arg, '=');
-	length= optend - cur_arg;
+	opt_str= check_struct_option(cur_arg, key_name);
+	optend= strcend(opt_str, '=');
+	length= optend - opt_str;
 	if (*optend == '=')
 	  optend++;
 	else
-	  optend=0;
+	  optend= 0;
 
 	/*
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option
 	*/
 	optp= longopts;
-	if (!(opt_found= findopt(cur_arg, length, &optp, &prev_found)))
+	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
 	{
 	  /*
 	    Didn't find any matching option. Let's see if someone called
@@ -183,18 +195,18 @@ int handle_options(int *argc, char ***argv,
 	      must_be_var= 1; /* option is followed by an argument */
 	    for (i= 0; special_opt_prefix[i]; i++)
 	    {
-	      if (!getopt_compare_strings(special_opt_prefix[i], cur_arg,
+	      if (!getopt_compare_strings(special_opt_prefix[i], opt_str,
 					  special_opt_prefix_lengths[i]) &&
-		  cur_arg[special_opt_prefix_lengths[i]] == '-')
+		  opt_str[special_opt_prefix_lengths[i]] == '-')
 	      {
 		/*
 		  We were called with a special prefix, we can reuse opt_found
 		*/
 		special_used= 1;
-		cur_arg+= (special_opt_prefix_lengths[i] + 1);
+		opt_str+= (special_opt_prefix_lengths[i] + 1);
 		if (i == OPT_LOOSE)
 		  option_is_loose= 1;
-		if ((opt_found= findopt(cur_arg, length -
+		if ((opt_found= findopt(opt_str, length -
 					(special_opt_prefix_lengths[i] + 1),
 					&optp, &prev_found)))
 		{
@@ -203,7 +215,7 @@ int handle_options(int *argc, char ***argv,
 		    if (my_getopt_print_errors)
 		      fprintf(stderr,
 			      "%s: ambiguous option '--%s-%s' (--%s-%s)\n",
-			      progname, special_opt_prefix[i], cur_arg,
+			      my_progname, special_opt_prefix[i], opt_str,
 			      special_opt_prefix[i], prev_found);
 		    return EXIT_AMBIGUOUS_OPTION;
 		  }
@@ -237,8 +249,8 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      if (my_getopt_print_errors)
 		fprintf(stderr,
-			"%s: %s: unknown variable '%s'\n", progname,
-			option_is_loose ? "WARNING" : "ERROR", cur_arg);
+			"%s: %s: unknown variable '%s'\n", my_progname,
+			option_is_loose ? "WARNING" : "ERROR", opt_str);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_VARIABLE;
 	    }
@@ -246,8 +258,8 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      if (my_getopt_print_errors)
 		fprintf(stderr,
-			"%s: %s: unknown option '--%s'\n", progname,
-			option_is_loose ? "WARNING" : "ERROR", cur_arg);
+			"%s: %s: unknown option '--%s'\n", my_progname,
+			option_is_loose ? "WARNING" : "ERROR", opt_str);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_OPTION;
 	    }
@@ -264,57 +276,61 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr, "%s: variable prefix '%s' is not unique\n",
-		      progname, cur_arg);
+		      my_progname, opt_str);
 	    return EXIT_VAR_PREFIX_NOT_UNIQUE;
 	  }
 	  else
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr, "%s: ambiguous option '--%s' (%s, %s)\n",
-		      progname, cur_arg, prev_found, optp->name);
+		      my_progname, opt_str, prev_found, optp->name);
 	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
-	if (must_be_var && optp->var_type == GET_NO_ARG)
+	if (must_be_var && (optp->var_type & GET_TYPE_MASK) == GET_NO_ARG)
 	{
 	  if (my_getopt_print_errors)
 	    fprintf(stderr, "%s: option '%s' cannot take an argument\n",
-		    progname, optp->name);
+		    my_progname, optp->name);
 	  return EXIT_NO_ARGUMENT_ALLOWED;
 	}
+	value= optp->var_type & GET_ASK_ADDR ?
+	  (*getopt_get_addr)(key_name, strlen(key_name), optp) : optp->value;
+  
 	if (optp->arg_type == NO_ARG)
 	{
-	  if (optend && optp->var_type != GET_BOOL)
+	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
-		      progname, optp->name);
+		      my_progname, optp->name);
 	    return EXIT_NO_ARGUMENT_ALLOWED;
 	  }
-	  if (optp->var_type == GET_BOOL)
+	  if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
 	  {
 	    /*
 	      Set bool to 1 if no argument or if the user has used
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
 	      */
-	    *((my_bool*) optp->value)= 	(my_bool) (!optend || *optend == '1');
+	    *((my_bool*) value)= (my_bool) (!optend || *optend == '1');
 	    (*argc)--;	    
 	    get_one_option(optp->id, optp, argument);
 	    continue;
 	  }
 	  argument= optend;
 	}
-	else if (optp->arg_type == OPT_ARG && optp->var_type == GET_BOOL)
+	else if (optp->arg_type == OPT_ARG &&
+		 (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
 	{
 	  if (optend == disabled_my_option)
-	    *((my_bool*) optp->value)= (my_bool) 0;
+	    *((my_bool*) value)= (my_bool) 0;
 	  else
 	  {
 	    if (!optend) /* No argument -> enable option */
-	      *((my_bool*) optp->value)= (my_bool) 1;
+	      *((my_bool*) value)= (my_bool) 1;
 	    else /* If argument differs from 0, enable option, else disable */
-	      *((my_bool*) optp->value)= (my_bool) atoi(optend) != 0;
+	      *((my_bool*) value)= (my_bool) atoi(optend) != 0;
 	  }
 	  (*argc)--;	    
 	  continue;
@@ -326,7 +342,7 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr, "%s: option '--%s' requires an argument\n",
-		      progname, optp->name);
+		      my_progname, optp->name);
 	    return EXIT_ARGUMENT_REQUIRED;
 	  }
 	  argument= *pos;
@@ -346,7 +362,8 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      /* Option recognized. Find next what to do with it */
 	      opt_found= 1;
-	      if (optp->var_type == GET_BOOL && optp->arg_type == NO_ARG)
+	      if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL &&
+		  optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
 		get_one_option(optp->id, optp, argument);
@@ -370,7 +387,7 @@ int handle_options(int *argc, char ***argv,
 		    if (my_getopt_print_errors)
 		      fprintf(stderr,
 			      "%s: option '-%c' requires an argument\n",
-			      progname, optp->id);
+			      my_progname, optp->id);
 		    return EXIT_ARGUMENT_REQUIRED;
 		  }
 		  argument= *pos;
@@ -382,7 +399,7 @@ int handle_options(int *argc, char ***argv,
 	      {
 		fprintf(stderr,
 			"%s: Error while setting value '%s' to '%s'\n",
-			progname, argument, optp->name);
+			my_progname, argument, optp->name);
 		return error;
 	      }
 	      get_one_option(optp->id, optp, argument);
@@ -393,7 +410,7 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr,
-		      "%s: unknown option '-%c'\n", progname, *optend);
+		      "%s: unknown option '-%c'\n", my_progname, *optend);
 	    return EXIT_UNKNOWN_OPTION;
 	  }
 	}
@@ -404,7 +421,7 @@ int handle_options(int *argc, char ***argv,
       {
 	fprintf(stderr,
 		"%s: Error while setting value '%s' to '%s'\n",
-		progname, argument, optp->name);
+		my_progname, argument, optp->name);
 	return error;
       }
       get_one_option(optp->id, optp, argument);
@@ -422,6 +439,47 @@ int handle_options(int *argc, char ***argv,
   */
   (*argv)[argvpos]= 0;
   return 0;
+}
+
+
+/*
+  function: check_struct_option
+
+  Arguments: Current argument under processing from argv and a variable
+  where to store the possible key name.
+
+  Return value: In case option is a struct option, returns a pointer to
+  the current argument at the position where the struct option (key_name)
+  ends, the next character after the dot. In case argument is not a struct
+  option, returns a pointer to the argument.
+
+  key_name will hold the name of the key, or 0 if not found.
+*/
+
+static char *check_struct_option(char *cur_arg, char *key_name)
+{
+  char *ptr, *ptr2;
+
+  ptr= strcend(cur_arg, '.');
+  ptr2= strcend(cur_arg, '=');
+
+  /* 
+     Minimum length for a struct option is 3 (--a.b)
+     If the (first) dot is after an equal sign, then it is part
+     of a variable value and the option is not a struct option.
+  */
+  if (strlen(ptr) >= 3 && ptr2 - ptr > 0)
+  {
+    uint len= ptr - cur_arg;
+    strnmov(key_name, cur_arg, len);
+    key_name[len]= '\0';
+    return ++ptr;
+  }
+  else
+  {
+    key_name= 0;
+    return cur_arg;
+  }
 }
 
 /*
@@ -444,7 +502,7 @@ static int setval(const struct my_option *opts, char *argument,
     if (!result_pos)
       return EXIT_NO_PTR_TO_VARIABLE;
 
-    switch (opts->var_type) {
+    switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_INT:
     case GET_UINT:           /* fall through */
       *((int*) result_pos)= (int) getopt_ll(argument, opts, &err);
@@ -634,7 +692,7 @@ static void init_variables(const struct my_option *options)
   {
     if (options->value)
     {
-      switch (options->var_type) {
+      switch ((options->var_type & GET_TYPE_MASK)) {
       case GET_BOOL:
 	if (options->u_max_value)
 	  *((my_bool*) options->u_max_value)= (my_bool) options->max_value;
@@ -706,13 +764,15 @@ void my_print_help(const struct my_option *options)
     {
       printf("--%s", optp->name);
       col+= 2 + strlen(optp->name);
-      if (optp->var_type == GET_STR || optp->var_type == GET_STR_ALLOC)
+      if ((optp->var_type & GET_TYPE_MASK) == GET_STR ||
+	  (optp->var_type & GET_TYPE_MASK) == GET_STR_ALLOC)
       {
 	printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
 	       optp->arg_type == OPT_ARG ? "]" : "");
 	col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
       }
-      else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
+      else if ((optp->var_type & GET_TYPE_MASK) == GET_NO_ARG ||
+	       (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
       {
 	putchar(' ');
 	col++;
@@ -775,7 +835,7 @@ void my_print_variables(const struct my_option *options)
       length= strlen(optp->name);
       for (; length < name_space; length++)
 	putchar(' ');
-      switch (optp->var_type) {
+      switch ((optp->var_type & GET_TYPE_MASK)) {
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */
 	printf("%s\n", *((char**) optp->value) ? *((char**) optp->value) :

@@ -178,7 +178,7 @@ loop:
 
 		/* Not enough free space, do a syncronous flush of the log
 		buffer */
-		log_flush_up_to(ut_dulint_max, LOG_WAIT_ALL_GROUPS);
+		log_write_up_to(ut_dulint_max, LOG_WAIT_ALL_GROUPS, TRUE);
 
 		count++;
 
@@ -375,7 +375,7 @@ log_pad_current_log_block(void)
 	log_close();
 	log_release();
 
-	ut_a((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
+	ut_ad((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
 						== LOG_BLOCK_HDR_SIZE);
 }
 
@@ -675,7 +675,9 @@ log_init(void)
 	
 	log_sys->buf_next_to_write = 0;
 
-	log_sys->flush_lsn = ut_dulint_zero;
+	log_sys->write_lsn = ut_dulint_zero;
+	log_sys->current_flush_lsn = ut_dulint_zero;
+	log_sys->flushed_to_disk_lsn = ut_dulint_zero;
 
 	log_sys->written_to_some_lsn = log_sys->lsn;
 	log_sys->written_to_all_lsn = log_sys->lsn;
@@ -867,7 +869,7 @@ log_group_check_flush_completion(
 			printf("Log flushed first to group %lu\n", group->id);
 		}
 	
-		log_sys->written_to_some_lsn = log_sys->flush_lsn;
+		log_sys->written_to_some_lsn = log_sys->write_lsn;
 		log_sys->one_flushed = TRUE;
 
 		return(LOG_UNLOCK_NONE_FLUSHED_LOCK);
@@ -896,15 +898,15 @@ log_sys_check_flush_completion(void)
 
 	if (log_sys->n_pending_writes == 0) {
 	
-		log_sys->written_to_all_lsn = log_sys->flush_lsn;
-		log_sys->buf_next_to_write = log_sys->flush_end_offset;
+		log_sys->written_to_all_lsn = log_sys->write_lsn;
+		log_sys->buf_next_to_write = log_sys->write_end_offset;
 
-		if (log_sys->flush_end_offset > log_sys->max_buf_free / 2) {
+		if (log_sys->write_end_offset > log_sys->max_buf_free / 2) {
 			/* Move the log buffer content to the start of the
 			buffer */
 
 			move_start = ut_calc_align_down(
-						log_sys->flush_end_offset,
+						log_sys->write_end_offset,
 						OS_FILE_LOG_BLOCK_SIZE);
 			move_end = ut_calc_align(log_sys->buf_free,
 						OS_FILE_LOG_BLOCK_SIZE);
@@ -982,57 +984,6 @@ log_io_complete(
 }
 
 /**********************************************************
-Flushes the log files to the disk, using, for example, the Unix fsync.
-This function does the flush even if the user has set
-srv_flush_log_at_trx_commit = FALSE. */
-
-void
-log_flush_to_disk(void)
-/*===================*/
-{
-	log_group_t*	group;
-loop:
-	mutex_enter(&(log_sys->mutex));
-
-	if (log_sys->n_pending_writes > 0) {
-		/* A log file write is running */
-		
-		mutex_exit(&(log_sys->mutex));
-
-		/* Wait for the log file write to complete and try again */
-
-		os_event_wait(log_sys->no_flush_event);
-
-		goto loop;
-	}
-
-	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-
-	log_sys->n_pending_writes++;
-	group->n_pending_writes++;
-
-	os_event_reset(log_sys->no_flush_event);
-	os_event_reset(log_sys->one_flushed_event);
-
-	mutex_exit(&(log_sys->mutex));
-	
-	fil_flush(group->space_id);
-
-	mutex_enter(&(log_sys->mutex));
-
-	ut_a(group->n_pending_writes == 1);
-	ut_a(log_sys->n_pending_writes == 1);
-	
-	group->n_pending_writes--;
-	log_sys->n_pending_writes--;
-
-	os_event_set(log_sys->no_flush_event);
-	os_event_set(log_sys->one_flushed_event);
-	
-	mutex_exit(&(log_sys->mutex));
-}
-
-/**********************************************************
 Writes a log file header to a log file space. */
 static
 void
@@ -1047,6 +998,8 @@ log_group_file_header_flush(
 {
 	byte*	buf;
 	ulint	dest_offset;
+	
+	UT_NOT_USED(type);
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -1117,8 +1070,8 @@ log_group_write_buf(
 	ulint	i;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_a(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (new_data_offset == 0) {
 		write_header = TRUE;
@@ -1205,12 +1158,15 @@ by the transaction. If there is a flush running, it waits and checks if the
 flush flushed enough. If not, starts a new flush. */
 
 void
-log_flush_up_to(
+log_write_up_to(
 /*============*/
 	dulint	lsn,	/* in: log sequence number up to which the log should
 			be written, ut_dulint_max if not specified */
-	ulint	wait)	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
+	ulint	wait,	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
 			or LOG_WAIT_ALL_GROUPS */
+	ibool	flush_to_disk)
+			/* in: TRUE if we want the written log also to be
+			flushed to disk */
 {
 	log_group_t*	group;
 	ulint		start_offset;
@@ -1239,9 +1195,18 @@ loop:
 	
 	mutex_enter(&(log_sys->mutex));
 
-	if ((ut_dulint_cmp(log_sys->written_to_all_lsn, lsn) >= 0)
-	    	|| ((ut_dulint_cmp(log_sys->written_to_some_lsn, lsn) >= 0)
-	        			&& (wait != LOG_WAIT_ALL_GROUPS))) {
+	if (flush_to_disk
+	    && ut_dulint_cmp(log_sys->flushed_to_disk_lsn, lsn) >= 0) {
+	    
+		mutex_exit(&(log_sys->mutex));
+
+		return;
+	}
+
+	if (!flush_to_disk
+	    && (ut_dulint_cmp(log_sys->written_to_all_lsn, lsn) >= 0
+	    	|| (ut_dulint_cmp(log_sys->written_to_some_lsn, lsn) >= 0
+	        			&& wait != LOG_WAIT_ALL_GROUPS))) {
 
 		mutex_exit(&(log_sys->mutex));
 
@@ -1249,10 +1214,19 @@ loop:
 	}
 	
 	if (log_sys->n_pending_writes > 0) {
-		/* A flush is running */
+		/* A write (+ possibly flush to disk) is running */
 
-		if (ut_dulint_cmp(log_sys->flush_lsn, lsn) >= 0) {
-			/* The flush will flush enough: wait for it to
+		if (flush_to_disk
+		    && ut_dulint_cmp(log_sys->current_flush_lsn, lsn) >= 0) {
+			/* The write + flush will write enough: wait for it to
+			complete  */
+	    
+			goto do_waits;
+		}
+
+		if (!flush_to_disk
+		    && ut_dulint_cmp(log_sys->write_lsn, lsn) >= 0) {
+			/* The write will write enough: wait for it to
 			complete  */
 
 			goto do_waits;
@@ -1260,16 +1234,17 @@ loop:
 		
 		mutex_exit(&(log_sys->mutex));
 
-		/* Wait for the flush to complete and try to start a new
-		flush */
+		/* Wait for the write to complete and try to start a new
+		write */
 
 		os_event_wait(log_sys->no_flush_event);
 
 		goto loop;
 	}
 
-	if (log_sys->buf_free == log_sys->buf_next_to_write) {
-		/* Nothing to flush */
+	if (!flush_to_disk
+			&& log_sys->buf_free == log_sys->buf_next_to_write) {
+		/* Nothing to write and no flush to disk requested */
 
 		mutex_exit(&(log_sys->mutex));
 
@@ -1277,7 +1252,7 @@ loop:
 	}
 
 	if (log_debug_writes) {
-		printf("Flushing log from %lu %lu up to lsn %lu %lu\n",
+		printf("Writing log from %lu %lu up to lsn %lu %lu\n",
 			ut_dulint_get_high(log_sys->written_to_all_lsn),
 			ut_dulint_get_low(log_sys->written_to_all_lsn),
 					ut_dulint_get_high(log_sys->lsn),
@@ -1301,7 +1276,12 @@ loop:
 
 	ut_ad(area_end - area_start > 0);
 
-	log_sys->flush_lsn = log_sys->lsn;
+	log_sys->write_lsn = log_sys->lsn;
+
+	if (flush_to_disk) {
+		log_sys->current_flush_lsn = log_sys->lsn;
+	}
+
 	log_sys->one_flushed = FALSE;
 	
 	log_block_set_flush_bit(log_sys->buf + area_start, TRUE);
@@ -1318,9 +1298,11 @@ loop:
 			OS_FILE_LOG_BLOCK_SIZE);
 
 	log_sys->buf_free += OS_FILE_LOG_BLOCK_SIZE;
-	log_sys->flush_end_offset = log_sys->buf_free;
+	log_sys->write_end_offset = log_sys->buf_free;
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	/* Do the write to the log files */
 
 	while (group) {
 		log_group_write_buf(LOG_FLUSH, group,
@@ -1330,20 +1312,25 @@ loop:
 						OS_FILE_LOG_BLOCK_SIZE),
 			start_offset - area_start);
 
-		log_group_set_fields(group, log_sys->flush_lsn);
+		log_group_set_fields(group, log_sys->write_lsn);
 						
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
 	mutex_exit(&(log_sys->mutex));
 
-	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && srv_flush_log_at_trx_commit != 2) {
+	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+		/* O_DSYNC means the OS did not buffer the log file at all:
+		so we have also flushed to disk what we have written */
+
+		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
+
+	} else if (flush_to_disk) {
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 	        fil_flush(group->space_id);
+		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1403,7 +1390,7 @@ log_flush_margin(void)
 	mutex_exit(&(log->mutex));
 
 	if (do_flush) {
-		log_flush_up_to(ut_dulint_max, LOG_NO_WAIT);
+		log_write_up_to(ut_dulint_max, LOG_NO_WAIT, FALSE);
 	}
 }
 
@@ -1555,7 +1542,8 @@ log_group_checkpoint(
 	buf = group->checkpoint_buf;
 	
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
-	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN,
+						log_sys->next_checkpoint_lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			log_group_calc_lsn_offset(
@@ -1664,8 +1652,10 @@ log_reset_first_header_and_checkpoint(
 	lsn = ut_dulint_add(start, LOG_BLOCK_HDR_SIZE);
 
 	/* Write the label of ibbackup --restore */
-	sprintf((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "ibbackup ");
-	ut_sprintf_timestamp((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
+	sprintf((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
+				"ibbackup ");
+	ut_sprintf_timestamp(
+			(char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
 						+ strlen("ibbackup "));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 	
@@ -1773,7 +1763,7 @@ log_checkpoint(
 	write-ahead-logging algorithm ensures that the log has been flushed
 	up to oldest_lsn. */
 
-	log_flush_up_to(oldest_lsn, LOG_WAIT_ALL_GROUPS);
+	log_write_up_to(oldest_lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -2466,7 +2456,7 @@ loop:
 
 		mutex_exit(&(log_sys->mutex));
 	
-		log_flush_up_to(limit_lsn, LOG_WAIT_ALL_GROUPS);
+		log_write_up_to(limit_lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 
 		calc_new_limit = FALSE;
 
@@ -2913,10 +2903,9 @@ logs_empty_and_mark_files_at_shutdown(void)
 	dulint	lsn;
 	ulint	arch_log_no;
 
-	if (srv_print_verbose_log)
-	{
-	  ut_print_timestamp(stderr);
-	  fprintf(stderr, "  InnoDB: Starting shutdown...\n");
+	if (srv_print_verbose_log) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Starting shutdown...\n");
 	}
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -3018,15 +3007,17 @@ loop:
 		goto loop;
 	}
 
+	/* Make some checks that the server really is quiet */
+	ut_a(buf_all_freed());
+	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
+
 	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);	
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
-	if (srv_print_verbose_log)
-	{
-	  ut_print_timestamp(stderr);
-	  fprintf(stderr, "  InnoDB: Shutdown completed\n");
-	}
+	/* Make some checks that the server really is quiet */
+	ut_a(buf_all_freed());
+	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 }
 
 /**********************************************************
@@ -3104,8 +3095,8 @@ log_print(
 	       "Last checkpoint at  %lu %lu\n",
 			ut_dulint_get_high(log_sys->lsn),
 			ut_dulint_get_low(log_sys->lsn),
-			ut_dulint_get_high(log_sys->written_to_some_lsn),
-			ut_dulint_get_low(log_sys->written_to_some_lsn),
+			ut_dulint_get_high(log_sys->flushed_to_disk_lsn),
+			ut_dulint_get_low(log_sys->flushed_to_disk_lsn),
 			ut_dulint_get_high(log_sys->last_checkpoint_lsn),
 			ut_dulint_get_low(log_sys->last_checkpoint_lsn));
 

@@ -107,7 +107,7 @@
 "Blob feltet '%-.64s' kan ikkje ha ein standard verdi",
 "Ugyldig database namn '%-.64s'",
 "Ugyldig tabell namn '%-.64s'",
-"SELECT ville undersøkje for mange postar og ville sannsynligvis ta veldig lang tid. Undersøk WHERE klausulen og bruk SET OPTION SQL_BIG_SELECTS=1 om SELECTen er korrekt",
+"SELECT ville undersøkje for mange postar og ville sannsynligvis ta veldig lang tid. Undersøk WHERE klausulen og bruk SET SQL_BIG_SELECTS=1 om SELECTen er korrekt",
 "Ukjend feil",
 "Ukjend prosedyre %s",
 "Feil parameter tal til prosedyra %s",
@@ -252,7 +252,7 @@
 "Every derived table must have it's own alias",
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s",
-"Client does not support authentication protocol requested by server. Consider upgrading MySQL client",
+"Client does not support authentication protocol requested by server; consider upgrading MySQL client",
 "All parts of a SPATIAL KEY must be NOT NULL",
 "COLLATION '%s' is not valid for CHARACTER SET '%s'",
 "The slave was already running",
@@ -264,3 +264,7 @@
 "%d line(s) was(were) cut by group_concat()",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+"Can't drop one or more of the requested users"
+"Can't revoke all privileges, grant for one or more of the requested users"
+"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
+"Illegal mix of collations for operation '%s'",

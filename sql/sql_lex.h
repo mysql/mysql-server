@@ -59,7 +59,7 @@ enum enum_sql_command {
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
-  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
+  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL,  SQLCOM_ANALYZE,
   SQLCOM_ROLLBACK, SQLCOM_COMMIT, SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
@@ -71,12 +71,11 @@ enum enum_sql_command {
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_HELP,
+  SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL,
 
   /* This should be the last !!! */
   SQLCOM_END
 };
-
 
 typedef List<Item> List_item;
 
@@ -191,6 +190,13 @@ protected:
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
+  enum enum_parsing_place
+  {
+    NO_MATTER,
+    IN_HAVING,
+    SELECT_LIST
+  };
+
   ulong options;
   enum sub_select_type linkage;
   SQL_LIST order_list;                /* ORDER clause */
@@ -200,16 +206,16 @@ public:
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
 
-  uint with_sum_func;   /* sum function indicator and number of it */
-  bool create_refs;
+  uint select_items;    /* number of items in select_list */
+  enum_parsing_place parsing_place; /* where we are parsing expression */
+  bool with_sum_func;   /* sum function indicator */
   bool dependent;	/* dependent from outer select subselect */
   bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
 
   static void *operator new(size_t size)
   {
-    // TODO: Change to alloc() and explicitely clear elements in constructors
-    return (void*) sql_calloc((uint) size);
+    return (void*) sql_alloc((uint) size);
   }
   static void operator delete(void *ptr,size_t size) {}
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}

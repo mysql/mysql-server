@@ -147,11 +147,11 @@ insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
 LOCK TABLES t1 write, t2 read;
 DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
-Table 't2' was locked with a READ lock and can't be updated
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
-Table 't2' was locked with a READ lock and can't be updated
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-Table 't2' was locked with a READ lock and can't be updated
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 unlock tables;
 LOCK TABLES t1 write, t2 write;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
@@ -172,7 +172,7 @@ create table t2 (n int(10), d int(10));
 insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
 set sql_safe_updates=0;
 drop table t1,t2;
 set timestamp=1038401397;
@@ -190,7 +190,7 @@ n	d	unix_timestamp(t)
 1	10	1038401397
 2	20	1038401397
 UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
-You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1=2 WHERE t1.n=t2.n' at line 1
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1=2 WHERE t1.n=t2.n' at line 1
 drop table t1,t2;
 set timestamp=0;
 set sql_safe_updates=0;
@@ -300,7 +300,7 @@ a	b
 107	7
 108	8
 109	9
-update t1,t2 set t1.b=t1.b+2,t2.b=t1.b where t1.b between 3 and 5;
+update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t2.a=t1.a-100;
 select * from t1;
 a	b
 201	1
@@ -314,13 +314,21 @@ a	b
 109	9
 select * from t2;
 a	b
-1	3
-2	3
-3	3
-4	3
-5	3
-6	3
-7	3
-8	3
-9	3
+1	1
+2	2
+3	13
+4	14
+5	15
+6	6
+7	7
+8	8
+9	9
 drop table t1,t2;
+CREATE TABLE t3 (  KEY1 varchar(50) NOT NULL default '',  PARAM_CORR_DISTANCE_RUSH double default NULL,  PARAM_CORR_DISTANCE_GEM double default NULL,  PARAM_AVG_TARE double default NULL,  PARAM_AVG_NB_DAYS double default NULL,  PARAM_DEFAULT_PROP_GEM_SRVC varchar(50) default NULL,  PARAM_DEFAULT_PROP_GEM_NO_ETIK varchar(50) default NULL,  PARAM_SCENARIO_COSTS varchar(50) default NULL,  PARAM_DEFAULT_WAGON_COST double default NULL,  tmp int(11) default NULL,  PRIMARY KEY  (KEY1)) TYPE=MyISAM;
+INSERT INTO t3 VALUES ('A',1,1,22,3.2,'R','R','BASE2',0.24,NULL);
+create table t1 (A varchar(1));
+insert into t1 values  ("A") ,("B"),("C"),("D");
+create table t2(Z varchar(15));
+insert into t2(Z)  select concat(a.a,b.a,c.a,d.a) from t1 as a, t1 as b, t1 as c, t1 as d;
+update t2,t3 set Z =param_scenario_costs;
+drop table t1,t2,t3;

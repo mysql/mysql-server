@@ -34,6 +34,7 @@
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
+** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
 #define DUMP_VERSION "10.2"
@@ -77,7 +78,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		lock_tables=1,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
+	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_names=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 	        opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0;
@@ -85,7 +86,7 @@ static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
-             *where=0, *default_charset= (char *)MYSQL_CHARSET, 
+             *where=0, *default_charset= (char *) "binary",
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
 static ulong opt_compatible_mode= 0;
@@ -131,7 +132,7 @@ static struct my_option my_long_options[] =
    "Allow creation of column names that are keywords.", (gptr*) &opt_keywords,
    (gptr*) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are", (gptr*) &charsets_dir,
+   "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compatible", OPT_COMPATIBLE,
    "Change the dump to be compatible with a given mode. By default tables are dumped without any restrictions. Legal modes are: mysql323, mysql40, postgresql, oracle, mssql, db2, sapdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option does a no operation on earlier server versions.",
@@ -203,15 +204,19 @@ static struct my_option my_long_options[] =
   {"single-transaction", OPT_TRANSACTION,
    "Dump all tables in single transaction to get consistent snapshot. Mutually exclusive with --lock-tables.",
    (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0,
-   GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},   
+   GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"no-create-db", 'n',
-   "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}",
+   "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}.",
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"no-create-info", 't', "Don't write table creation info.",
    (gptr*) &tFlag, (gptr*) &tFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-set-names", 'N',
+   "'SET NAMES charset_name' will not be put in the output.",
+   (gptr*) &opt_set_names, (gptr*) &opt_set_names, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -222,17 +227,17 @@ static struct my_option my_long_options[] =
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
-  {"pipe", 'W', "Use named pipes to connect to server", 0, 0, 0, GET_NO_ARG,
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"quote-names",'Q', "Quote table and column names with a `",
+  {"quote-names",'Q', "Quote table and column names with backticks (`).",
    (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
@@ -240,7 +245,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
@@ -345,6 +350,8 @@ static void write_header(FILE *sql_file, char *db_name)
 	  sql_file);
     fprintf(sql_file, "-- Server version\t%s\n",
 	    mysql_get_server_info(&mysql_connection));
+    if (!opt_set_names)
+      fprintf(sql_file,"\n/*!40101 SET NAMES %s*/;\n",default_charset);
   }
   return;
 } /* write_header */
@@ -428,6 +435,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       char buff[255];
 
       opt_quoted= 1;
+      opt_set_names= 1;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
 				    argument, strlen(argument),
@@ -492,7 +500,8 @@ static int get_options(int *argc, char ***argv)
 	    my_progname);
     return(1);
   }
-  if (!(charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
+  if (!(charset_info= get_charset_by_csname(default_charset, 
+  					    MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
   {
@@ -556,6 +565,8 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+  if (!opt_set_names)
+    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
@@ -1613,7 +1624,7 @@ int main(int argc, char **argv)
       else
       {
 	row = mysql_fetch_row(master);
-	if (row[0] && row[1])
+	if (row && row[0] && row[1])
 	{
 	  fprintf(md_result_file,
 		  "\n--\n-- Position to start replication from\n--\n\n");

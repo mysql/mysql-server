@@ -23,6 +23,27 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
+
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   fname);
+}
+
+static void my_coll_agg3_error(DTCollation &c1, 
+			       DTCollation &c2,
+			       DTCollation &c3,
+			       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);
@@ -87,48 +108,15 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
-bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
-				      CHARSET_INFO *cs2, enum coercion co2)
+
+bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
+				 Item ** ref)
 {
-  if((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
-  {
-    cmp_charset= &my_charset_bin;
-    return 0;
-  }
-
-  if ((co1 == COER_NOCOLL) || (co2 == COER_NOCOLL))
+  if (Item_int_func::fix_fields(thd, tables, ref))
     return 1;
-
-  if (!my_charset_same(cs1,cs2))
-    return 1;
-
-  if (co1 < co2)
-    cmp_charset= cs1;
-  else if (co2 < co1)
-    cmp_charset= cs2;
-  else // co1==co2
-  {
-    if (cs1 == cs2)
-      cmp_charset= cs1;
-    else
-    {
-      if (co1 == COER_COERCIBLE)
-      {
-        CHARSET_INFO *c= get_charset_by_csname(cs1->csname,MY_CS_PRIMARY,MYF(0));
-	if (c)
-	{
-	  cmp_charset= c;
-	  return 0;
-	}
-	else
-	  return 1;
-      }
-       else
-	return 1;
-    }
-  }
   return 0;
 }
+
 
 void Item_bool_func2::fix_length_and_dec()
 {
@@ -136,10 +124,63 @@ void Item_bool_func2::fix_length_and_dec()
 
   /*
     As some compare functions are generated after sql_yacc,
-    we have to check for out of memory conditons here
+    we have to check for out of memory conditions here
   */
   if (!args[0] || !args[1])
     return;
+
+  /* 
+    We allow to convert to Unicode character sets in some cases.
+    The conditions when conversion is possible are:
+    - arguments A and B have different charsets
+    - A wins according to coercibility rules
+    - character set of A is superset for character set of B
+   
+    If all of the above is true, then it's possible to convert
+    B into the character set of A, and then compare according
+    to the collation of A.
+  */
+
+  if (args[0] && args[1])
+  {
+    uint strong= 0;
+    uint weak= 0;
+
+    if ((args[0]->derivation() < args[1]->derivation()) && 
+	!my_charset_same(args[0]->charset(), args[1]->charset()) &&
+        (args[0]->charset()->state & MY_CS_UNICODE))
+    {
+      weak= 1;
+    }
+    else if ((args[1]->derivation() < args[0]->derivation()) && 
+	     !my_charset_same(args[0]->charset(), args[1]->charset()) &&
+             (args[1]->charset()->state & MY_CS_UNICODE))
+    {
+      strong= 1;
+    }
+    
+    if (strong || weak)
+    {
+      Item* conv= 0;
+      if (args[weak]->type() == STRING_ITEM)
+      {
+        String tmp, cstr;
+        String *ostr= args[weak]->val_str(&tmp);
+        cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
+		  args[strong]->charset());
+        conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
+			      args[weak]->derivation());
+	((Item_string*)conv)->str_value.copy();
+      }
+      else
+      {
+	conv= new Item_func_conv_charset(args[weak],args[strong]->charset());
+        conv->collation.set(args[weak]->derivation());
+      }
+      args[weak]= conv ? conv : args[weak];
+    }
+  }
+  
   // Make a special case of compare with fields to get nicer DATE comparisons
   if (args[0]->type() == FIELD_ITEM)
   {
@@ -149,7 +190,9 @@ void Item_bool_func2::fix_length_and_dec()
       if (convert_constant_item(field,&args[1]))
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-			 INT_RESULT); // Works for all types.
+			 INT_RESULT);		// Works for all types.
+	cmp_collation.set(&my_charset_bin, 
+			  DERIVATION_NONE);	// For test in fix_fields
 	return;
       }
     }
@@ -163,20 +206,23 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT); // Works for all types.
+	cmp_collation.set(&my_charset_bin,
+			  DERIVATION_NONE);	// For test in fix_fields
 	return;
       }
     }
   }
-  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
-		      args[1]->charset(), args[1]->coercibility))
+  set_cmp_func();
+  /*
+    We must set cmp_charset here as we may be called from for an automatic
+    generated item, like in natural join
+  */
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
   {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
+    /* set_cmp_charset() failed */
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
     return;
   }
-  set_cmp_func();
 }
 
 
@@ -194,21 +240,21 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       comparators= 0;
       return 1;
     }
-    if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
-      for (uint i=0; i < n; i++)
-      {
-	if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
-	{
-	  my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
-	  return 1;
-	}
-	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
-      }
-    else
+    if (!(comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
       return 1;
+    for (uint i=0; i < n; i++)
+    {
+      if ((*a)->el(i)->cols() != (*b)->el(i)->cols())
+      {
+	my_error(ER_CARDINALITY_COL, MYF(0), (*a)->el(i)->cols());
+	return 1;
+      }
+      comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
+    }
   }
   return 0;
 }
+
 
 int Arg_comparator::compare_string()
 {
@@ -218,7 +264,7 @@ int Arg_comparator::compare_string()
     if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
-      return sortcmp(res1,res2,owner->cmp_charset);
+      return sortcmp(res1,res2,owner->cmp_collation.collation);
     }
   }
   owner->null_value= 1;
@@ -232,7 +278,7 @@ int Arg_comparator::compare_e_string()
   res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
-  return test(sortcmp(res1, res2, owner->cmp_charset) == 0);
+  return test(sortcmp(res1, res2, owner->cmp_collation.collation) == 0);
 }
 
 
@@ -461,7 +507,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value= sortcmp(a,b,cmp_charset);
+  int value= sortcmp(a,b,cmp_collation.collation);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
@@ -541,11 +587,19 @@ void Item_func_between::fix_length_and_dec()
   cmp_type=item_cmp_type(args[0]->result_type(),
            item_cmp_type(args[1]->result_type(),
                          args[2]->result_type()));
-  /* QQ: COERCIBILITY */
-  if (args[0]->binary() | args[1]->binary() | args[2]->binary())
-    cmp_charset= &my_charset_bin;
-  else
-    cmp_charset= args[0]->charset();
+
+  if (cmp_type == STRING_RESULT)
+  {
+    cmp_collation.set(args[0]->collation);
+    if (!cmp_collation.aggregate(args[1]->collation))
+      cmp_collation.aggregate(args[2]->collation);
+    if (cmp_collation.derivation == DERIVATION_NONE)
+    {
+      my_coll_agg3_error(args[0]->collation, args[1]->collation, 
+			 args[2]->collation, func_name());
+      return;
+    }
+  }
 
   /*
     Make a special case of compare with date/time and longlong fields.
@@ -577,17 +631,17 @@ longlong Item_func_between::val_int()
     a=args[1]->val_str(&value1);
     b=args[2]->val_str(&value2);
     if (!args[1]->null_value && !args[2]->null_value)
-      return (sortcmp(value,a,cmp_charset) >= 0 && 
-	      sortcmp(value,b,cmp_charset) <= 0) ? 1 : 0;
+      return (sortcmp(value,a,cmp_collation.collation) >= 0 && 
+	      sortcmp(value,b,cmp_collation.collation) <= 0) ? 1 : 0;
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
     {
-      null_value= sortcmp(value,b,cmp_charset) <= 0; // not null if false range.
+      null_value= sortcmp(value,b,cmp_collation.collation) <= 0; // not null if false range.
     }
     else
     {
-      null_value= sortcmp(value,a,cmp_charset) >= 0; // not null if false range.
+      null_value= sortcmp(value,a,cmp_collation.collation) >= 0; // not null if false range.
     }
   }
   else if (cmp_type == INT_RESULT)
@@ -653,12 +707,8 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
-  if (set_charset(args[0]->charset(),args[0]->coercibility,
-		  args[1]->charset(),args[1]->coercibility))
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
+  if (collation.set(args[0]->collation,args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 
@@ -734,13 +784,9 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    if (set_charset(args[1]->charset(), args[1]->coercibility,
-		args[2]->charset(), args[2]->coercibility))
+    if (collation.set(args[1]->collation, args[2]->collation))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
+      my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
       return;
     }
   }
@@ -1150,17 +1196,17 @@ void Item_func_coalesce::fix_length_and_dec()
  Classes and function for the IN operator
 ****************************************************************************/
 
-static int cmp_longlong(longlong *a,longlong *b)
+static int cmp_longlong(void *cmp_arg, longlong *a,longlong *b)
 {
   return *a < *b ? -1 : *a == *b ? 0 : 1;
 }
 
-static int cmp_double(double *a,double *b)
+static int cmp_double(void *cmp_arg, double *a,double *b)
 {
   return *a < *b ? -1 : *a == *b ? 0 : 1;
 }
 
-static int cmp_row(cmp_item_row* a, cmp_item_row* b)
+static int cmp_row(void *cmp_arg, cmp_item_row* a, cmp_item_row* b)
 {
   return a->compare(b);
 }
@@ -1177,18 +1223,18 @@ int in_vector::find(Item *item)
   {
     uint mid=(start+end+1)/2;
     int res;
-    if ((res=(*compare)(base+mid*size,result)) == 0)
+    if ((res=(*compare)(collation, base+mid*size, result)) == 0)
       return 1;
     if (res < 0)
       start=mid;
     else
       end=mid-1;
   }
-  return (int) ((*compare)(base+start*size,result) == 0);
+  return (int) ((*compare)(collation, base+start*size, result) == 0);
 }
 
-in_string::in_string(uint elements,qsort_cmp cmp_func)
-  :in_vector(elements, sizeof(String), cmp_func),
+in_string::in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs)
+  :in_vector(elements, sizeof(String), cmp_func, cs),
    tmp(buff, sizeof(buff), &my_charset_bin)
 {}
 
@@ -1227,7 +1273,7 @@ in_row::in_row(uint elements, Item * item)
 {
   base= (char*) new cmp_item_row[count= elements];
   size= sizeof(cmp_item_row);
-  compare= (qsort_cmp) cmp_row;
+  compare= (qsort2_cmp) cmp_row;
   tmp.store_value(item);
 }
 
@@ -1252,7 +1298,7 @@ void in_row::set(uint pos, Item *item)
 }
 
 in_longlong::in_longlong(uint elements)
-  :in_vector(elements,sizeof(longlong),(qsort_cmp) cmp_longlong)
+  :in_vector(elements,sizeof(longlong),(qsort2_cmp) cmp_longlong, 0)
 {}
 
 void in_longlong::set(uint pos,Item *item)
@@ -1269,7 +1315,7 @@ byte *in_longlong::get_value(Item *item)
 }
 
 in_double::in_double(uint elements)
-  :in_vector(elements,sizeof(double),(qsort_cmp) cmp_double)
+  :in_vector(elements,sizeof(double),(qsort2_cmp) cmp_double, 0)
 {}
 
 void in_double::set(uint pos,Item *item)
@@ -1416,18 +1462,9 @@ bool Item_func_in::nulls_in_row()
   return 0;
 }
 
-static int srtcmp_in(const String *x,const String *y)
+static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
-  CHARSET_INFO *cs= x->charset();
-  return cs->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
-}
-
-static int bincmp_in(const String *x,const String *y)
-{
-  CHARSET_INFO *cs= &my_charset_bin;
-  return cs->strnncollsp(cs,
+  return cs->coll->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
 }
@@ -1442,10 +1479,18 @@ void Item_func_in::fix_length_and_dec()
   {
     switch (item->result_type()) {
     case STRING_RESULT:
-      if (item->binary())
-	array=new in_string(arg_count,(qsort_cmp) srtcmp_in);
-      else
-	array=new in_string(arg_count,(qsort_cmp) bincmp_in);
+      uint i;
+      cmp_collation.set(item->collation);
+      for (i=0 ; i<arg_count; i++)
+	if (cmp_collation.aggregate(args[i]->collation))
+	  break;
+      if (cmp_collation.derivation == DERIVATION_NONE)
+      {
+        my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
+	return;
+      }
+      array=new in_string(arg_count,(qsort2_cmp) srtcmp_in, 
+			  cmp_collation.collation);
       break;
     case INT_RESULT:
       array= new in_longlong(arg_count);
@@ -1581,7 +1626,9 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   List_iterator<Item> li(list);
   Item *item;
+#ifndef EMBEDDED_LIBRARY
   char buff[sizeof(char*)];			// Max local vars in function
+#endif
   used_tables_cache=0;
   const_item_cache=0;
 
@@ -1851,7 +1898,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  return my_wildcmp(cmp_charset,
+  return my_wildcmp(cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
 		    escape,wild_one,wild_many) ? 0 : 1;
@@ -1883,16 +1930,6 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
-
-  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
-		      args[1]->charset(), args[1]->coercibility))
-  {
-    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
-	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
-	     func_name());
-    return 1;
-  }
 
   /*
     We could also do boyer-more for non-const items, but as we would have to
@@ -1950,7 +1987,12 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
   decimals= 0;
-  binary_cmp= (args[0]->binary() || args[1]->binary());
+
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+  {
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+    return 1;
+  }
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   const_item_cache=args[0]->const_item() && args[1]->const_item();
@@ -1966,9 +2008,10 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
-		       binary_cmp ? REG_EXTENDED | REG_NOSUB :
+		       (cmp_collation.collation->state & MY_CS_BINSORT) ?
+		       REG_EXTENDED | REG_NOSUB :
 		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		       res->charset())))
+		       cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -2015,10 +2058,10 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-		  binary_cmp ? REG_EXTENDED | REG_NOSUB :
+		  (cmp_collation.collation->state & MY_CS_BINSORT) ?
+		  REG_EXTENDED | REG_NOSUB :
 		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		  res->charset()))
-
+		  cmp_collation.collation))
       {
 	null_value=1;
 	return 0;
@@ -2065,7 +2108,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (cmp_charset == &my_charset_bin)
+  if (cmp_collation.collation == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2168,7 +2211,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cmp_charset == &my_charset_bin)
+  if (cmp_collation.collation == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2199,7 +2242,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cmp_charset == &my_charset_bin)
+  if (cmp_collation.collation == &my_charset_bin)
   {
     while (j <= tlmpl)
     {
@@ -2300,86 +2343,4 @@ longlong Item_cond_xor::val_int()
     }
   }
   return (longlong) result;
-}
-
-/****************************************************************
- Classes and functions for spatial relations
-*****************************************************************/
-
-longlong Item_func_spatial_rel::val_int()
-{
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry g1, g2;
-  MBR mbr1, mbr2;
-
-  if ((null_value= (args[0]->null_value ||
-		    args[1]->null_value ||
-		    g1.create_from_wkb(res1->ptr() + SRID_SIZE,
-				       res1->length() - SRID_SIZE) || 
-		    g2.create_from_wkb(res2->ptr() + SRID_SIZE,
-				       res2->length() - SRID_SIZE) ||
-		    g1.get_mbr(&mbr1) || 
-		    g2.get_mbr(&mbr2))))
-   return 0;
-
-  switch (spatial_rel)
-  {
-    case SP_CONTAINS_FUNC:
-      return mbr1.contains(&mbr2);
-    case SP_WITHIN_FUNC:
-      return mbr1.within(&mbr2);
-    case SP_EQUALS_FUNC:
-      return mbr1.equals(&mbr2);
-    case SP_DISJOINT_FUNC:
-      return mbr1.disjoint(&mbr2);
-    case SP_INTERSECTS_FUNC:
-      return mbr1.intersects(&mbr2);
-    case SP_TOUCHES_FUNC:
-      return mbr1.touches(&mbr2);
-    case SP_OVERLAPS_FUNC:
-      return mbr1.overlaps(&mbr2);
-    case SP_CROSSES_FUNC:
-      return 0;
-    default:
-      break;
-  }
-
-  null_value=1;
-  return 0;
-}
-
-longlong Item_func_isempty::val_int()
-{
-  String tmp; 
-  null_value=0;
-  return args[0]->null_value ? 1 : 0;
-}
-
-longlong Item_func_issimple::val_int()
-{
-  String tmp;
-  String *wkb=args[0]->val_str(&tmp);
-
-  if ((null_value= (!wkb || args[0]->null_value )))
-    return 0;
-  /* TODO: Ramil or Holyfoot, add real IsSimple calculation */
-  return 0;
-}
-
-longlong Item_func_isclosed::val_int()
-{
-  String tmp;
-  String *swkb= args[0]->val_str(&tmp);
-  Geometry geom;
-  int isclosed;
-
-  null_value= (!swkb || 
-	       args[0]->null_value ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) ||
-	       !GEOM_METHOD_PRESENT(geom,is_closed) ||
-	       geom.is_closed(&isclosed));
-
-  return (longlong) isclosed;
 }

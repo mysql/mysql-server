@@ -33,7 +33,7 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
   if (function == HA_EXTRA_CACHE)
   {
     info->cache_in_use=1;
-    info->cache_size= (extra_arg ? *(long*) extra_arg :
+    info->cache_size= (extra_arg ? *(ulong*) extra_arg :
 		       my_default_record_cache_size);
   }
   else

@@ -679,7 +679,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
   field_list.push_back(new Item_empty_string("Type",40));
-  field_list.push_back(new Item_empty_string("Collation",40));
+  if (verbose)
+    field_list.push_back(new Item_empty_string("Collation",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
   field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
@@ -719,8 +720,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
         protocol->store(type.ptr(), type.length(), system_charset_info);
-	protocol->store(field->charset()->name, system_charset_info);
-
+	if (verbose)
+	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
+			system_charset_info);
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -923,7 +925,10 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       protocol->store((const char*) pos, system_charset_info);
       protocol->store(table->file->index_type(i), system_charset_info);
       /* Comment */
-      protocol->store("", system_charset_info);
+      if (!(table->keys_in_use & ((key_map) 1 << i)))
+	protocol->store("disabled",8, system_charset_info);
+      else
+        protocol->store("", 0, system_charset_info);
       if (protocol->write())
         DBUG_RETURN(1); /* purecov: inspected */
     }
@@ -1001,12 +1006,7 @@ static void
 append_identifier(THD *thd, String *packet, const char *name)
 {
   char qtype;
-  if ((thd->variables.sql_mode & MODE_ANSI_QUOTES) ||
-      (thd->variables.sql_mode & MODE_POSTGRESQL) ||
-      (thd->variables.sql_mode & MODE_ORACLE) ||
-      (thd->variables.sql_mode & MODE_MSSQL) ||
-      (thd->variables.sql_mode & MODE_DB2) ||
-      (thd->variables.sql_mode & MODE_SAPDB))
+  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     qtype= '\"';
   else
     qtype= '`';
@@ -1028,16 +1028,16 @@ append_identifier(THD *thd, String *packet, const char *name)
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
-  my_bool foreign_db_mode=    ((thd->variables.sql_mode & MODE_POSTGRESQL) ||
-			       (thd->variables.sql_mode & MODE_ORACLE) ||
-			       (thd->variables.sql_mode & MODE_MSSQL) ||
-			       (thd->variables.sql_mode & MODE_DB2) ||
-			       (thd->variables.sql_mode & MODE_SAPDB));
-  my_bool limited_mysql_mode= ((thd->variables.sql_mode & 
-				MODE_NO_FIELD_OPTIONS) ||
-			       (thd->variables.sql_mode & MODE_MYSQL323) ||
-			       (thd->variables.sql_mode & MODE_MYSQL40));
-
+  my_bool foreign_db_mode=    (thd->variables.sql_mode & (MODE_POSTGRESQL |
+							  MODE_ORACLE |
+							  MODE_MSSQL |
+							  MODE_DB2 |
+							  MODE_SAPDB |
+							  MODE_ANSI)) != 0;
+  my_bool limited_mysql_mode= (thd->variables.sql_mode &
+			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
+				MODE_MYSQL40)) != 0;
+			       
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
@@ -1070,22 +1070,35 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
+    if (field->has_charset())
+    {
+      if (field->charset() == &my_charset_bin)
+        packet->append(" binary");
+      else if (!limited_mysql_mode && !foreign_db_mode)
+      {
+	if (field->charset() != table->table_charset)
+	{
+	  packet->append(" character set ");
+	  packet->append(field->charset()->csname);
+	}
+	/* 
+	  For string types dump collation name only if 
+	  collation is not primary for the given charset
+	*/
+	if (!(field->charset()->state & MY_CS_PRIMARY))
+	{
+	  packet->append(" collate ", 9);
+	  packet->append(field->charset()->name);
+	}
+      }
+    }
+
+    if (flags & NOT_NULL_FLAG)
+      packet->append(" NOT NULL", 9);
+
     bool has_default = (field->type() != FIELD_TYPE_BLOB &&
 			field->type() != FIELD_TYPE_TIMESTAMP &&
 			field->unireg_check != Field::NEXT_NUMBER);
-    
-    /* 
-      For string types dump collation name only if 
-      collation is not primary for the given charset
-    */
-    if (!(field->charset()->state & MY_CS_PRIMARY) &&
-	!limited_mysql_mode && !foreign_db_mode)
-    {
-      packet->append(" collate ", 9);
-      packet->append(field->charset()->name);
-    }
-    if (flags & NOT_NULL_FLAG)
-      packet->append(" NOT NULL", 9);
 
     if (has_default)
     {
@@ -1417,11 +1430,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 static bool write_collation(Protocol *protocol, CHARSET_INFO *cs)
 {
   protocol->prepare_for_resend();
-  protocol->store(cs->csname, system_charset_info);
   protocol->store(cs->name, system_charset_info);
+  protocol->store(cs->csname, system_charset_info);
   protocol->store_short((longlong) cs->number);
-  protocol->store((cs->state & MY_CS_PRIMARY) ? "Y" : "",system_charset_info);
-  protocol->store((cs->state & MY_CS_COMPILED)? "Y" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_PRIMARY) ? "Yes" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_COMPILED)? "Yes" : "",system_charset_info);
   protocol->store_short((longlong) cs->strxfrm_multiply);
   return protocol->write();
 }
@@ -1433,15 +1446,14 @@ int mysqld_show_collations(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
-  char flags[64];
 
   DBUG_ENTER("mysqld_show_charsets");
 
-  field_list.push_back(new Item_empty_string("Charset",30));
   field_list.push_back(new Item_empty_string("Collation",30));
+  field_list.push_back(new Item_empty_string("Charset",30));
   field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
-  field_list.push_back(new Item_empty_string("D",30));
-  field_list.push_back(new Item_empty_string("C",30));
+  field_list.push_back(new Item_empty_string("Default",30));
+  field_list.push_back(new Item_empty_string("Compiled",30));
   field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
 
   if (protocol->send_fields(&field_list, 1))
@@ -1485,7 +1497,6 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
-  char flags[64];
 
   DBUG_ENTER("mysqld_show_charsets");
 
@@ -1587,7 +1598,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_QUESTION:
 	end= int10_to_str((long) thd->query_id, buff, 10);
         break;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
       case SHOW_RPL_STATUS:
 	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
@@ -1599,7 +1610,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
       case SHOW_OPENTABLES:
 	end= int10_to_str((long) cached_tables(), buff, 10);
         break;

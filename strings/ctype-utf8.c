@@ -1723,13 +1723,13 @@ static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
   switch (count) { 
     /* Fall through all cases!!! */
 #ifdef UNICODE_32BIT
-    case 6: r[5] = 0x80 | (wc & 0x3f); wc = wc >> 6; wc |= 0x4000000;
-    case 5: r[4] = 0x80 | (wc & 0x3f); wc = wc >> 6; wc |= 0x200000;
-    case 4: r[3] = 0x80 | (wc & 0x3f); wc = wc >> 6; wc |= 0x10000;
+    case 6: r[5] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x4000000;
+    case 5: r[4] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x200000;
+    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;
 #endif
-    case 3: r[2] = 0x80 | (wc & 0x3f); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = 0x80 | (wc & 0x3f); wc = wc >> 6; wc |= 0xc0;
-    case 1: r[0] = wc;
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 1: r[0] = (uchar) wc;
   }
   return count;
 }
@@ -1950,40 +1950,30 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
   return 0; /* Illegal mb head */;
 }
 
-CHARSET_INFO my_charset_utf8 =
+
+static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-    33,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
-    "utf8",		/* cs name      */
-    "utf8_general_ci",	/* name         */
-    "",			/* comment      */
-    ctype_utf8,		/* ctype        */
-    to_lower_utf8,	/* to_lower     */
-    to_upper_utf8,	/* to_upper     */
-    to_upper_utf8,	/* sort_order   */
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    "","",
-    1,			/* strxfrm_multiply */
-    my_strnncoll_utf8,	/* strnncoll    */
+    my_strnncoll_utf8,
     my_strnncollsp_utf8,
-    my_strnxfrm_utf8,	/* strnxfrm     */
-    my_like_range_simple,/* like_range   */
-    my_wildcmp_mb,	/* wildcmp      */
-    3,			/* mbmaxlen     */
-    my_ismbchar_utf8,	/* ismbchar     */
-    my_mbcharlen_utf8,	/* mbcharlen    */
+    my_strnxfrm_utf8,
+    my_like_range_simple,
+    my_wildcmp_mb,
+    my_strcasecmp_utf8,
+    my_hash_sort_utf8
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    my_ismbchar_utf8,
+    my_mbcharlen_utf8,
     my_numchars_mb,
     my_charpos_mb,
-    my_utf8_uni,	/* mb_wc        */
-    my_uni_utf8,	/* wc_mb        */
+    my_utf8_uni,
+    my_uni_utf8,
     my_caseup_str_utf8,
     my_casedn_str_utf8,
     my_caseup_utf8,
     my_casedn_utf8,
-    my_strcasecmp_utf8,
-    my_hash_sort_utf8,	/* hash_sort    */
-    0,
     my_snprintf_8bit,
     my_long10_to_str_8bit,
     my_longlong10_to_str_8bit,
@@ -1994,6 +1984,53 @@ CHARSET_INFO my_charset_utf8 =
     my_strntoull_8bit,
     my_strntod_8bit,
     my_scan_8bit
+};
+
+
+
+CHARSET_INFO my_charset_utf8_general_ci=
+{
+    33,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,	/* state  */
+    "utf8",		/* cs name      */
+    "utf8_general_ci",	/* name         */
+    "",			/* comment      */
+    ctype_utf8,		/* ctype        */
+    to_lower_utf8,	/* to_lower     */
+    to_upper_utf8,	/* to_upper     */
+    to_upper_utf8,	/* sort_order   */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    1,			/* strxfrm_multiply */
+    3,			/* mbmaxlen     */
+    0,
+    &my_charset_handler,
+    &my_collation_ci_handler
+};
+
+
+CHARSET_INFO my_charset_utf8_bin=
+{
+    83,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE,	/* state  */
+    "utf8",		/* cs name      */
+    "utf8_bin",		/* name         */
+    "",			/* comment      */
+    ctype_utf8,		/* ctype        */
+    to_lower_utf8,	/* to_lower     */
+    to_upper_utf8,	/* to_upper     */
+    to_upper_utf8,	/* sort_order   */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    3,			/* mbmaxlen     */
+    0,
+    &my_charset_handler,
+    &my_collation_ci_handler
 };
 
 

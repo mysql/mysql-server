@@ -105,7 +105,7 @@
 "BLOB fält '%-.64s' kan inte ha ett DEFAULT-värde",
 "Felaktigt databasnamn '%-.64s'",
 "Felaktigt tabellnamn '%-.64s'",
-"Den angivna frågan skulle troligen ta mycket lång tid!  Kontrollera din WHERE och använd SET OPTION SQL_BIG_SELECTS=1 ifall du vill hantera stora joins",
+"Den angivna frågan skulle läsa mer än MAX_JOIN_SIZE rader.  Kontrollera din WHERE och använd SET SQL_BIG_SELECTS=1 eller SET MAX_JOIN_SIZE=# ifall du vill hantera stora joins",
 "Oidentifierat fel",
 "Okänd procedur: %s",
 "Felaktigt antal parametrar till procedur %s",
@@ -250,7 +250,7 @@
 "Varje 'derived table' måste ha sitt eget alias",
 "Select %u reducerades vid optimiering",
 "Tabell '%-.64s' från en SELECT kan inte användas i %-.32s",
-"Klienten stöder inte autentiseringsprotokollet som begärts av servern. Överväg uppgradering av klientprogrammet.",
+"Klienten stöder inte autentiseringsprotokollet som begärts av servern; överväg uppgradering av klientprogrammet.",
 "Alla delar av en SPATIAL KEY måste vara NOT NULL",
 "COLLATION '%s' är inte tillåtet för CHARACTER SET '%s'",
 "Slaven har redan startat",
@@ -262,3 +262,7 @@
 "%d rad(er) kapades av group_concat()",
 "Använder handler %s för tabell '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+"Can't drop one or more of the requested users"
+"Can't revoke all privileges, grant for one or more of the requested users"
+"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
+"Illegal mix of collations for operation '%s'",

@@ -183,7 +183,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     MY_INIT((char *)"mysql_embedded");	// init my_sys library & pthreads
   }
 
-  if (init_common_variables("my", argc, argv, (const char **)groups))
+  if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
   {
     mysql_server_end();
     return 1;

@@ -739,7 +739,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 			query_cache_size_arg));
   free_cache(0);
   query_cache_size= query_cache_size_arg;
-  DBUG_RETURN(init_cache());
+  DBUG_RETURN(::query_cache_size= init_cache());
 }
 
 
@@ -761,11 +761,11 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   uint8 tables_type= 0;
 
   if ((local_tables = is_cacheable(thd, thd->query_length,
-			     thd->query, &thd->lex, tables_used,
-			     &tables_type)))
+				   thd->query, &thd->lex, tables_used,
+				   &tables_type)))
   {
     NET *net= &thd->net;
-    byte flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
+    byte flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -790,8 +790,10 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     */
     flags|= (byte) thd->charset()->number;
     DBUG_ASSERT(thd->charset()->number < 128);
-    tot_length=thd->query_length+thd->db_length+2;
-    thd->query[tot_length-1] = (char) flags;
+    tot_length= thd->query_length+thd->db_length+2+sizeof(ha_rows);
+    thd->query[tot_length-1]= (char) flags;
+    memcpy((void *)(thd->query + (tot_length-sizeof(ha_rows)-1)),
+	   (const void *)&thd->variables.select_limit, sizeof(ha_rows));
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
@@ -921,7 +923,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
   Query_cache_block *query_block;
 
-  tot_length=query_length+thd->db_length+2;
+  tot_length= query_length+thd->db_length+2+sizeof(ha_rows);
   if (thd->db_length)
   {
     memcpy(sql+query_length+1, thd->db, thd->db_length);
@@ -937,10 +939,12 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
      Most significant bit - CLIENT_LONG_FLAG,
      Other - charset number (0 no charset convertion)
   */
-  flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
-  flags |= (byte) thd->charset()->number;
+  flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
+  flags|= (byte) thd->charset()->number;
   DBUG_ASSERT(thd->charset()->number < 128);
-  sql[tot_length-1] = (char) flags;
+  sql[tot_length-1]= (char) flags;
+  memcpy((void *)(sql + (tot_length-sizeof(ha_rows)-1)),
+ 	 (const void *)&thd->variables.select_limit, sizeof(ha_rows));
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);
   /* Quick abort on unlocked data */
@@ -1314,6 +1318,12 @@ ulong Query_cache::init_cache()
   mem_bin_steps = 1;
   mem_bin_size = max_mem_bin_size >> QUERY_CACHE_MEM_BIN_STEP_PWR2;
   prev_size = 0;
+  if (mem_bin_size <= min_allocation_unit)
+  {
+    DBUG_PRINT("qcache", ("too small query cache => query cache disabled"));
+    // TODO here (and above) should be warning in 4.1
+    goto err;
+  }
   while (mem_bin_size > min_allocation_unit)
   {
     mem_bin_num += mem_bin_count;
@@ -1340,14 +1350,6 @@ ulong Query_cache::init_cache()
   query_cache_size -= additional_data_size;
 
   STRUCT_LOCK(&structure_guard_mutex);
-  if (max_mem_bin_size	<= min_allocation_unit)
-  {
-    DBUG_PRINT("qcache",
-	       (" max bin size (%lu) <= min_allocation_unit => cache disabled",
-		max_mem_bin_size));
-    STRUCT_UNLOCK(&structure_guard_mutex);
-    goto err;
-  }
 
   if (!(cache = (byte *)
 	 my_malloc_lock(query_cache_size+additional_data_size, MYF(0))))
@@ -1428,7 +1430,8 @@ ulong Query_cache::init_cache()
 #else
   // windows, OS/2 or other case insensitive file names work around
   VOID(hash_init(&tables,
-		 lower_case_table_names ? &my_charset_bin : system_charset_info,
+		 lower_case_table_names ? &my_charset_bin :
+		 system_charset_info,
 		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 

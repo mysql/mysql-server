@@ -455,82 +455,78 @@ uchar NEAR sort_order_tis620[]=
    Arg: const source string and length of converted string
    Ret: Sortable string
 */
-
+/*
+  NOTE: isn't it faster to alloc buffer in calling function?
+ */
 static uchar* thai2sortable(const uchar * tstr,uint len)
 {
 /* We use only 3 levels (neglect capitalization). */
 
-  const uchar* p = tstr;
+  const uchar* p= tstr;
   uchar		*outBuf;
-/*  uchar	*pRight1, *pRight2, *pRight3, *pRight4; */
-/*  uchar	*pLeft1, *pLeft2, *pLeft3, *pLeft4; */
   uchar		*pRight1, *pRight2, *pRight3;
   uchar		*pLeft1, *pLeft2, *pLeft3;
   uint	bufSize;
+  uint  RightSize;
 
-  len = (uint) strnlen((char*) tstr,len);
-  bufSize = (uint) buffsize((char*) tstr);
-  if(!(pRight1 = (uchar *)malloc(sizeof(uchar) * bufSize))) {
-    return( (uchar*) tstr);
-  }
-  pLeft1 = pRight1;
-  outBuf = pRight1;
-  if(!(pRight2 = (uchar *)malloc(sizeof(uchar) * (len + 1)))) {
-    free(pRight1);
-    return((uchar*) tstr);
-  }
-  pLeft2 = pRight2;
-  if(!(pRight3 = (uchar *)malloc(sizeof(uchar) * (len + 1)))) {
-    free(pRight1);
-    free(pRight2);
-    return((uchar*) tstr);
-  }
-  pLeft3 = pRight3;
-/*  if(!(pRight4 = (uchar *)malloc(sizeof(uchar) * (len + 1)))) {
-    free(pRight1);
-    free(pRight2);
-    free(pRight3);
-    return((uchar*) tstr);
-  }
-  pLeft4 = pRight4;*/
-  while(len--) {
-    if(isldvowel(*p) && isconsnt(p[1])) {
-      *pRight1++ = t_ctype[p[1]][0];
-      *pRight2++ = t_ctype[p[1]][1];
-      *pRight3++ = t_ctype[p[1]][2];
-/*	*pRight4++ = t_ctype[p[1]][3]; */
-      *pRight1++ = t_ctype[*p][0];
-      *pRight2++ = t_ctype[*p][1];
-      *pRight3++ = t_ctype[*p][2];
-/*	*pRight4++ = t_ctype[*p][3]; */
+  len= (uint) strnlen((char*) tstr,len);
+  bufSize= (uint) buffsize((char*) tstr);
+  RightSize= sizeof(uchar) * (len + 1);
+  if (!(outBuf= pLeft1= pRight1= 
+       (uchar *)malloc(sizeof(uchar) * bufSize + RightSize*2)))
+    return (uchar*) tstr;
+  pLeft2= pRight2= pRight1 + sizeof(uchar) * bufSize;
+  pLeft3= pRight3= pRight2 + RightSize;
+
+  while (--len)
+  {
+    int *t_ctype0= t_ctype[p[0]];
+    if (isldvowel(*p) && isconsnt(p[1]))
+    {
+      int *t_ctype1= t_ctype[p[1]];
+      *pRight1++= t_ctype1[0];
+      *pRight2++= t_ctype1[1];
+      *pRight3++= t_ctype1[2];
+      *pRight1++= t_ctype0[0];
+      *pRight2++= t_ctype0[1];
+      *pRight3++= t_ctype0[2];
+      p+= 2;
       len--;
-      p += 2;
-    } else {
-      *pRight1 = t_ctype[*p][0];
-      if(*pRight1 != IGNORE) pRight1++;
-      *pRight2 = t_ctype[*p][1];
-      if(*pRight2 != IGNORE) pRight2++;
-      *pRight3 = t_ctype[*p][2];
-      if(*pRight3 != IGNORE) pRight3++;
-/*	*pRight4 = t_ctype[*p][3];
-      if(*pRight4 != IGNORE) pRight4++;*/
+    }
+    else
+    {
+      *pRight1= t_ctype0[0];
+      if(*pRight1 != IGNORE)
+	pRight1++;
+      *pRight2= t_ctype0[1];
+      if (*pRight2 != IGNORE)
+	pRight2++;
+      *pRight3= t_ctype0[2];
+      if(*pRight3 != IGNORE)
+	pRight3++;
       p++;
     }
   }
-  *pRight1++ = L2_BLANK;
-  *pRight2++ = L3_BLANK;
-/*  *pRight3++ = L4_BLANK; */
-  *pRight3++ = '\0';
-/*  *pRight4++ = '\0'; */
+  if (!len)
+  {
+    int *t_ctype0= t_ctype[p[0]];
+    *pRight1= t_ctype0[0];
+    if (*pRight1 != IGNORE)
+      pRight1++;
+    *pRight2= t_ctype0[1];
+    if (*pRight2 != IGNORE)
+      pRight2++;
+    *pRight3= t_ctype0[2];
+    if (*pRight3 != IGNORE)
+      pRight3++;
+  }
+  *pRight1++= L2_BLANK;
+  *pRight2++= L3_BLANK;
+  *pRight3++= '\0';
   memcpy(pRight1, pLeft2, pRight2 - pLeft2);
-  pRight1 += pRight2 - pLeft2;
+  pRight1+= pRight2 - pLeft2;
   memcpy(pRight1, pLeft3, pRight3 - pLeft3);
-/*  pRight1 += pRight3 - pLeft3; */
-/*  memcpy(pRight1, pLeft4, pRight4 - pLeft4); */
-  free(pLeft2);
-  free(pLeft3);
-/*  free(pLeft4); */
-  return(outBuf);
+  return outBuf;
 }
 
 /* strncoll() replacement, compare 2 string, both are conveted to sortable string
@@ -543,12 +539,12 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
 {
   uchar *tc1, *tc2;
   int i;
-  tc1 = thai2sortable(s1, len1);
-  tc2 = thai2sortable(s2, len2);
-  i = strcmp((char*)tc1, (char*)tc2);
+  tc1= thai2sortable(s1, len1);
+  tc2= thai2sortable(s2, len2);
+  i= strcmp((char*)tc1, (char*)tc2);
   free(tc1);
   free(tc2);
-  return(i);
+  return i;
 }
 
 static
@@ -572,12 +568,12 @@ int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
 {
   uint bufSize;
   uchar *tmp;
-  bufSize = (uint) buffsize((char*)src);
-  tmp = thai2sortable(src,srclen);
+  bufSize= (uint) buffsize((char*)src);
+  tmp= thai2sortable(src,srclen);
   set_if_smaller(bufSize,(uint) len);
   memcpy((uchar *)dest, tmp, bufSize);
   free(tmp);
-  return (int) bufSize;
+  return (int)bufSize;
 }
 
 /* strcoll replacment, compare 2 strings
@@ -588,12 +584,12 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 {
   uchar *tc1, *tc2;
   int i;
-  tc1 = thai2sortable(s1, (uint) strlen((char*)s1));
-  tc2 = thai2sortable(s2, (uint) strlen((char*)s2));
-  i = strcmp((char*)tc1, (char*)tc2);
+  tc1= thai2sortable(s1, (uint) strlen((char*)s1));
+  tc2= thai2sortable(s2, (uint) strlen((char*)s2));
+  i= strcmp((char*)tc1, (char*)tc2);
   free(tc1);
   free(tc2);
-  return(i);
+  return i;
 }
 
 /* strxfrm replacment, convert Thai string to sortable string
@@ -605,9 +601,9 @@ int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
   uint bufSize;
   uchar *tmp;
 
-  bufSize = (uint) buffsize((char*) src);
-  tmp = thai2sortable(src, len);
-  memcpy((uchar *) dest, tmp, bufSize);
+  bufSize= (uint)buffsize((char*) src);
+  tmp= thai2sortable(src, len);
+  memcpy((uchar *)dest, tmp, bufSize);
   free(tmp);
   return bufSize;
 }
@@ -637,7 +633,7 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
     if (*ptr == escape && ptr+1 != end)
     {
       ptr++;					/* Skipp escape */
-      *min_str++= *max_str++ = *ptr;
+      *min_str++ = *max_str++ = *ptr;
       continue;
     }
     if (*ptr == w_one)			/* '_' in SQL */
@@ -671,32 +667,65 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
 */
 void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 {
-  const uchar* fr = from;
-  uchar* p = ptr;
+  const uchar* fr= from;
+  uchar* p= ptr;
 
-  if(length > field_length) {
-    length = field_length;
-  }
+  if (length > field_length)
+    length= field_length;
+
   while (length--)
-  {
-    if((istone(*fr) || isdiacrt1(*fr)) &&
+    if ((istone(*fr) || isdiacrt1(*fr)) &&
        (islwrvowel(fr[1]) || isuprvowel(fr[1])))
     {
-      *p = fr[1];
-      p[1] = *fr;
-      fr += 2;
-      p += 2;
+      *p= fr[1];
+      p[1]= *fr;
+      fr+= 2;
+      p+= 2;
       length--;
     }
     else
-    {
       *p++ = *fr++;
-    }
-  }
 }
 
 
-CHARSET_INFO my_charset_tis620 =
+static MY_COLLATION_HANDLER my_collation_ci_handler =
+{
+    my_strnncoll_tis620,
+    my_strnncollsp_tis620,
+    my_strnxfrm_tis620,
+    my_like_range_tis620,
+    my_wildcmp_8bit,	/* wildcmp   */
+    my_strcasecmp_8bit,
+    my_hash_sort_simple,
+};
+
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    NULL,		/* ismbchar  */
+    NULL,		/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
+    my_mb_wc_8bit,	/* mb_wc     */
+    my_wc_mb_8bit,	/* wc_mb     */
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
+
+
+
+CHARSET_INFO my_charset_tis620_thai_ci=
 {
     18,0,0,		/* number    */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state     */
@@ -709,37 +738,35 @@ CHARSET_INFO my_charset_tis620 =
     sort_order_tis620,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     4,			/* strxfrm_multiply */
-    my_strnncoll_tis620,
-    my_strnncollsp_tis620,
-    my_strnxfrm_tis620,
-    my_like_range_tis620,
-    my_wildcmp_8bit,	/* wildcmp   */
     1,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_8bit,	/* mb_wc     */
-    my_wc_mb_8bit,	/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_ci_handler
+};
+
+CHARSET_INFO my_charset_tis620_bin=
+{
+    89,0,0,		/* number    */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state     */
+    "tis620",		/* cs name    */
+    "tis620_bin",	/* name      */
+    "",			/* comment   */
+    ctype_tis620,
+    to_lower_tis620,
+    to_upper_tis620,
+    sort_order_tis620,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    1,			/* mbmaxlen  */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 

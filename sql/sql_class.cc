@@ -109,7 +109,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   file_id = 0;
   cond_count=0;
   warn_id= 0;
-  db_charset=default_charset_info;
+  db_charset= global_system_variables.character_set_database;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -120,6 +120,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   net.last_error[0]=0;				// If error on boot
   ull=0;
   system_thread=cleanup_done=0;
+  peer_port= 0;					// For SHOW PROCESSLIST
   transaction.changed_tables = 0;
 #ifdef	__WIN__
   real_id = 0;

@@ -1,9 +1,51 @@
-select database(),user() like "%@%";
-database()	user() like "%@%"
-test	1
+select database();
+database()
+test
+select charset(database());
+charset(database())
+utf8
+select database() = "test";
+database() = "test"
+1
+select database() = _utf8"test";
+database() = _utf8"test"
+1
+select database() = _latin1"test";
+database() = _latin1"test"
+1
+select user() like "%@%";
+user() like "%@%"
+1
+select user() like _utf8"%@%";
+user() like _utf8"%@%"
+1
+select user() like _latin1"%@%";
+user() like _latin1"%@%"
+1
+select charset(user());
+charset(user())
+utf8
+select version()>="3.23.29";
+version()>="3.23.29"
+1
 select version()>=_utf8"3.23.29";
 version()>=_utf8"3.23.29"
 1
+select version()>=_latin1"3.23.29";
+version()>=_latin1"3.23.29"
+1
+select charset(version());
+charset(version())
+utf8
+create table t1 (version char(40)) select database(), user(), version() as 'version';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `database()` char(102) character set utf8 NOT NULL default '',
+  `user()` char(231) character set utf8 NOT NULL default '',
+  `version` char(40) character set utf8 default NULL
+) TYPE=MyISAM CHARSET=latin1
+drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL
 1	0	NULL

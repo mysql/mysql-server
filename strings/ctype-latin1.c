@@ -174,8 +174,32 @@ int my_wc_mb_latin1(CHARSET_INFO *cs __attribute__((unused)),
   return ((wc < 256) && ((str[0]=uni_latin1[wc]) || (!wc))) ? 1 : MY_CS_ILUNI;
 }
 
+static MY_CHARSET_HANDLER my_charset_handler=
+{
+    NULL,
+    NULL,
+    my_numchars_8bit,
+    my_charpos_8bit,
+    my_mb_wc_latin1,
+    my_wc_mb_latin1,
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
 
-CHARSET_INFO my_charset_latin1 =
+
+CHARSET_INFO my_charset_latin1=
 {
     8,0,0,				/* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY,	/* state     */
@@ -190,35 +214,10 @@ CHARSET_INFO my_charset_latin1 =
     NULL,		/* tab_from_uni */
     "","",
     0,			/* strxfrm_multiply */
-    my_strnncoll_simple,
-    my_strnncollsp_simple,
-    my_strnxfrm_simple,
-    my_like_range_simple,
-    my_wildcmp_8bit,	/* wildcmp   */
     1,			/* mbmaxlen  */
-    NULL,		/* ismbchar  */
-    NULL,		/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_latin1,	/* mb_wc     */
-    my_wc_mb_latin1,	/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_8bit_simple_ci_handler
 };
 
 
@@ -428,7 +427,20 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
   return dest - dest_orig;
 }
 
-CHARSET_INFO my_charset_latin1_de =
+
+static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
+{
+    my_strnncoll_latin1_de,
+    my_strnncollsp_latin1_de,
+    my_strnxfrm_latin1_de,
+    my_like_range_simple,
+    my_wildcmp_8bit,
+    my_strcasecmp_8bit,
+    my_hash_sort_simple
+};
+
+
+CHARSET_INFO my_charset_latin1_german2_ci=
 {
     31,0,0,				/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */
@@ -443,34 +455,32 @@ CHARSET_INFO my_charset_latin1_de =
     NULL,				/* tab_from_uni */
     "","",
     2,					/* strxfrm_multiply */
-    my_strnncoll_latin1_de,
-    my_strnncollsp_latin1_de,
-    my_strnxfrm_latin1_de,
-    my_like_range_simple,
-    my_wildcmp_8bit,			/* wildcmp   */
     1,					/* mbmaxlen  */
-    NULL,				/* ismbchar  */
-    NULL,				/* mbcharlen */
-    my_numchars_8bit,
-    my_charpos_8bit,
-    my_mb_wc_latin1,			/* mb_wc     */
-    my_wc_mb_latin1,			/* wc_mb     */
-    my_caseup_str_8bit,
-    my_casedn_str_8bit,
-    my_caseup_8bit,
-    my_casedn_8bit,
-    my_strcasecmp_8bit,
-    my_hash_sort_simple,
     0,
-    my_snprintf_8bit,
-    my_long10_to_str_8bit,
-    my_longlong10_to_str_8bit,
-    my_fill_8bit,
-    my_strntol_8bit,
-    my_strntoul_8bit,
-    my_strntoll_8bit,
-    my_strntoull_8bit,
-    my_strntod_8bit,
-    my_scan_8bit
+    &my_charset_handler,
+    &my_collation_german2_ci_handler
+};
+
+
+CHARSET_INFO my_charset_latin1_bin=
+{
+    47,0,0,				/* number    */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state     */
+    "latin1",				/* cs name    */
+    "latin1_bin",			/* name      */
+    "",					/* comment   */
+    ctype_latin1,
+    to_lower_latin1,
+    to_upper_latin1,
+    sort_order_latin1_de,
+    latin1_uni,				/* tab_to_uni   */
+    NULL,				/* tab_from_uni */
+    "",
+    "",
+    0,					/* strxfrm_multiply */
+    1,					/* mbmaxlen  */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 

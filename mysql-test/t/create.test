@@ -27,11 +27,9 @@ drop table if exists t1,t2;
 !$1167 create table t1 (b char(0) not null, index(b));
 create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 !$1163 create table t1 (a int not null,b text) type=heap;
-!$1171 create table t1 (a int ,primary key(a)) type=heap;
 drop table if exists t1;
 
 !$1075 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
-!$1171 create table t1 (ordid int(8), primary key (ordid));
 
 -- error 1044,1
 create table not_existing_database.test (a int);
@@ -124,6 +122,41 @@ drop table t1;
 create table t1 select if('2002'='2002','Y','N');
 select * from t1;
 drop table if exists t1;
+
+#
+# Test default table type
+#
+SET SESSION table_type="heap";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+drop table t1;
+# Test what happens when using a non existing table type
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+SET SESSION table_type=default;
+drop table t1;
+
+
+#
+# ISO requires that primary keys are implicitly NOT NULL
+#
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+insert into t1 values ("a", 1), ("b", 2);
+--error 1048
+insert into t1 values ("c", NULL);
+--error 1048
+insert into t1 values (NULL, 3);
+--error 1048
+insert into t1 values (NULL, NULL);
+drop table t1;
+
+#
+# Test create with foreign keys
+#
+
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;

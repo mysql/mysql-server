@@ -1,12 +1,12 @@
 drop table if exists t1;
 drop table t1;
-Unknown table 't1'
+ERROR 42S02: Unknown table 't1'
 create table t1(n int);
 insert into t1 values(1);
 create temporary table t1( n int);
 insert into t1 values(2);
 create table t1(n int);
-Table 't1' already exists
+ERROR 42S01: Table 't1' already exists
 drop table t1;
 select * from t1;
 n
@@ -48,4 +48,4 @@ Database
 mysql
 test
 drop database mysqltest;
-Can't drop database 'mysqltest'. Database doesn't exist
+ERROR HY000: Can't drop database 'mysqltest'. Database doesn't exist

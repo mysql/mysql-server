@@ -2,8 +2,43 @@ LIBRARY		LIBMYSQL
 DESCRIPTION	'MySQL 4.1 Client Library'
 VERSION		6.0
 EXPORTS
+	_dig_vec
+	bmove_upp
+	delete_dynamic
+	free_defaults
+	getopt_compare_strings
+	getopt_ull_limit_value
+	handle_options
+	init_dynamic_array
+	insert_dynamic
+	int2str
+	is_prefix
+	list_add
+	list_delete
+	load_defaults
+	max_allowed_packet
+	my_end
+	my_getopt_print_errors
+	my_init
+	my_malloc
+	my_memdup
+	my_no_flags_free
+	my_path
+	my_print_help
+	my_print_variables
+	my_realloc
+	my_strdup
+	my_thread_end
+	my_thread_init
+	myodbc_remove_escape
 	mysql_affected_rows
+	mysql_autocommit
+	mysql_bind_param
+	mysql_bind_result
+	mysql_change_user
+	mysql_character_set_name
 	mysql_close
+	mysql_commit
 	mysql_data_seek
 	mysql_debug
 	mysql_dump_debug_info
@@ -11,6 +46,9 @@ EXPORTS
 	mysql_errno
 	mysql_error
 	mysql_escape_string
+	mysql_execute
+	mysql_fetch
+	mysql_fetch_column
 	mysql_fetch_field
 	mysql_fetch_field_direct
 	mysql_fetch_fields
@@ -32,117 +70,54 @@ EXPORTS
 	mysql_list_fields
 	mysql_list_processes
 	mysql_list_tables
+	mysql_more_results
+	mysql_next_result
 	mysql_num_fields
 	mysql_num_rows
 	mysql_odbc_escape_string
 	mysql_options
+	mysql_param_count
+	mysql_param_result
 	mysql_ping
+	mysql_prepare
+	mysql_prepare_result
 	mysql_query
+	mysql_read_query_result
 	mysql_real_connect
+	mysql_real_escape_string
 	mysql_real_query
 	mysql_refresh
+	mysql_rollback
 	mysql_row_seek
 	mysql_row_tell
 	mysql_select_db
+	mysql_send_long_data
+	mysql_send_query
 	mysql_shutdown
+	mysql_ssl_set
 	mysql_stat
+	mysql_stmt_affected_rows
+	mysql_stmt_close
+	mysql_stmt_data_seek
+	mysql_stmt_errno
+	mysql_stmt_error
+	mysql_stmt_free_result
+	mysql_stmt_num_rows
+	mysql_stmt_row_seek
+	mysql_stmt_row_tell
+	mysql_stmt_store_result
 	mysql_store_result
 	mysql_thread_id
+	mysql_thread_safe
 	mysql_use_result
-	bmove_upp
-	delete_dynamic
-	_dig_vec
-	init_dynamic_array
-	insert_dynamic
-	int2str
-	is_prefix
-	list_add
-	list_delete
-	max_allowed_packet
-	my_init
-	my_end
-	my_strdup
-	my_malloc
-	my_memdup
-	my_no_flags_free
-	my_realloc
-	my_thread_end
-	my_thread_init
+	mysql_warning_count
 	net_buffer_length
 	set_dynamic
 	strcend
+	strcont
 	strdup_root
 	strfill
 	strinstr
 	strmake
 	strmov
 	strxmov
-	myodbc_remove_escape
-	mysql_thread_safe
-	mysql_character_set_name
-	mysql_change_user
-	mysql_send_query
-	mysql_read_query_result
-	mysql_real_escape_string
-	mysql_ssl_set
-	mysql_real_connect
-	mysql_master_query
-	mysql_master_send_query
-	mysql_slave_query
-	mysql_slave_send_query
-	mysql_enable_rpl_parse
-	mysql_disable_rpl_parse
-	mysql_rpl_parse_enabled
-	mysql_enable_reads_from_master
-	mysql_disable_reads_from_master
-	mysql_reads_from_master_enabled
-	mysql_rpl_query_type
-	mysql_rpl_probe
-	mysql_set_master
-	mysql_add_slave
-	my_getopt_print_errors
-	handle_options
-	my_print_help
-	my_print_variables
-	getopt_ull_limit_value
-	getopt_compare_strings
-	mysql_warning_count
-	mysql_prepare
-        mysql_execute
-	mysql_param_count
-        mysql_bind_param
-        mysql_bind_result
-	mysql_param_result
-        mysql_prepare_result
-        mysql_stmt_close
-        mysql_stmt_error
-        mysql_stmt_errno
-        mysql_fetch
-	mysql_fetch_column
-        mysql_send_long_data
-        mysql_next_result
-	mysql_stmt_affected_rows
-	mysql_stmt_store_result
-	mysql_stmt_data_seek
-	mysql_stmt_row_seek
-	mysql_stmt_row_tell
-	mysql_stmt_num_rows
-	mysql_more_results
-        mysql_commit
-        mysql_rollback
-        mysql_autocommit
-        load_defaults
-        free_defaults
-  
-  
-	
-	
-	
-
-	
-
-
-
-
-
-

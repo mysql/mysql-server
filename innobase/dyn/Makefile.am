@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libdyn.a
+noinst_LIBRARIES =	libdyn.a
 
 libdyn_a_SOURCES =	dyn0dyn.c
 

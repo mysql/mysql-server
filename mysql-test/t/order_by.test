@@ -334,9 +334,21 @@ SELECT titre,t1.numeropost,auteur,icone,nbrep,'0',date,vue,ouvert,lastauteur,des
 drop table t1,t2;
 
 #
+# Test order by with NULL values
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (3, 4);
+INSERT INTO t1 VALUES (5, NULL);
+SELECT * FROM t1 ORDER BY b;
+SELECT * FROM t1 ORDER BY b DESC;
+SELECT * FROM t1 ORDER BY (a + b);
+SELECT * FROM t1 ORDER BY (a + b) DESC;
+DROP TABLE t1;
+
+#
 # Test of test_if_subkey() function
 #
-
 CREATE TABLE t1 (
   FieldKey varchar(36) NOT NULL default '',
   LongVal bigint(20) default NULL,
@@ -345,7 +357,7 @@ CREATE TABLE t1 (
   KEY LongField (FieldKey,LongVal),
   KEY StringField (FieldKey,StringVal(32))
 );
-INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
+INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;

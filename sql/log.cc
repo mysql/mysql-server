@@ -209,9 +209,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 #ifdef EMBEDDED_LIBRARY
     sprintf(buff, "%s, Version: %s, embedded library\n", my_progname, server_version);
 #elif __NT__
-    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysqld_port, mysqld_unix_port);
 #else
-    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysqld_port,mysqld_unix_port);
 #endif
     end=strmov(strend(buff),"Time                 Id Command    Argument\n");
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
@@ -317,7 +317,10 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d)", log_name, errno);
+  sql_print_error("Could not use %s for logging (error %d). \
+Turning logging off for the whole duration of the MySQL server process. \
+To turn it on again: fix the cause, \
+shutdown the MySQL server and restart it.", log_name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
   if (index_file_nr >= 0)
@@ -963,14 +966,6 @@ void MYSQL_LOG::new_file(bool need_lock)
 	THD* thd = current_thd;
 	Rotate_log_event r(thd,new_name+dirname_length(new_name));
 	r.set_log_pos(this);
-
-	/*
-	  Because this log rotation could have been initiated by a master of
-	  the slave running with log-bin, we set the flag on rotate
-	  event to prevent infinite log rotation loop
-	*/
-	if (thd->slave_thread)
-	  r.flags|= LOG_EVENT_FORCED_ROTATE_F;
 	r.write(&log_file);
 	bytes_written += r.get_event_len();
       }
@@ -1157,6 +1152,8 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 
 bool MYSQL_LOG::write(Log_event* event_info)
 {
+  THD *thd=event_info->thd;
+  bool called_handler_commit=0;
   bool error=0;
   bool should_rotate = 0;
   DBUG_ENTER("MYSQL_LOG::write(event)");
@@ -1171,7 +1168,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
   /* In most cases this is only called if 'is_open()' is true */
   if (is_open())
   {
-    THD *thd=event_info->thd;
     const char *local_db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
     IO_CACHE *file = ((event_info->get_cache_stmt()) ?
@@ -1196,6 +1192,12 @@ bool MYSQL_LOG::write(Log_event* event_info)
       No check for auto events flag here - this write method should
       never be called if auto-events are enabled
     */
+
+    /*
+    1. Write first log events which describe the 'run environment'
+    of the SQL command
+    */
+
     if (thd)
     {
       if (thd->last_insert_id_used)
@@ -1241,7 +1243,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	    goto err;
 	}
       }
-#if 0
+#ifdef TO_BE_REMOVED
       if (thd->variables.convert_set)
       {
 	char buf[256], *p;
@@ -1253,12 +1255,39 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	  goto err;
       }
 #endif
+
+      /*
+	If the user has set FOREIGN_KEY_CHECKS=0 we wrap every SQL
+	command in the binlog inside:
+	SET FOREIGN_KEY_CHECKS=0;
+	<command>;
+	SET FOREIGN_KEY_CHECKS=1;
+      */
+
+      if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+      {
+	Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=0", 24, 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
     }
+
+    /* Write the SQL command */
+
     event_info->set_log_pos(this);
-    if (event_info->write(file) ||
-	file == &log_file && flush_io_cache(file))
+    if (event_info->write(file))
       goto err;
-    error=0;
+
+    /* Write log events to reset the 'run environment' of the SQL command */
+
+    if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+    {
+      Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
+      e.set_log_pos(this);
+      if (e.write(file))
+	goto err;
+    }
 
     /*
       Tell for transactional table handlers up to which position in the
@@ -1268,26 +1297,41 @@ bool MYSQL_LOG::write(Log_event* event_info)
       the table handler commit here, protected by the LOCK_log mutex,
       because otherwise the transactions may end up in a different order
       in the table handler log!
+
+      Note that we will NOT call ha_report_binlog_offset_and_commit() if
+      there are binlog events cached in the transaction cache. That is
+      because then the log event which we write to the binlog here is
+      not a transactional event. In versions < 4.0.13 before this fix this
+      caused an InnoDB transaction to be committed if in the middle there
+      was a MyISAM event!
     */
 
-    if (file == &log_file)
+    if (file == &log_file) // we are writing to the real log (disk)
     {
-      /*
-	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
-	chunks also before it is successfully completed. We only report
-	the binlog write and do the commit inside the transactional table
-	handler if the log event type is appropriate.
-      */
-
-      if (event_info->get_type_code() == QUERY_EVENT
-          || event_info->get_type_code() == EXEC_LOAD_EVENT)
+      if (flush_io_cache(file))
+	goto err;
+ 
+      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
       {
-	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
-                                                 file->pos_in_file);
+        /*
+          LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
+          chunks also before it is successfully completed. We only report
+          the binlog write and do the commit inside the transactional table
+          handler if the log event type is appropriate.
+        */
+        
+        if (event_info->get_type_code() == QUERY_EVENT ||
+            event_info->get_type_code() == EXEC_LOAD_EVENT)
+        {
+          error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+                                                     file->pos_in_file);
+          called_handler_commit=1;
+        }
       }
-
+      /* we wrote to the real log, check automatic rotation */
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
+    error=0;
 
 err:
     if (error)
@@ -1309,6 +1353,16 @@ err:
   }
 
   pthread_mutex_unlock(&LOCK_log);
+
+  /*
+    Flush the transactional handler log file now that we have released
+    LOCK_log; the flush is placed here to eliminate the bottleneck on the
+    group commit
+  */
+
+  if (called_handler_commit)
+    ha_commit_complete(thd);
+
 #ifdef HAVE_REPLICATION
   if (should_rotate && expire_logs_days)
   {
@@ -1316,7 +1370,6 @@ err:
     if (purge_time >= 0)
       error= purge_logs_before_date(purge_time);
   }
-
 #endif
   DBUG_RETURN(error);
 }
@@ -1423,6 +1476,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
+
+  /* Flush the transactional handler log file now that we have released
+  LOCK_log; the flush is placed here to eliminate the bottleneck on the
+  group commit */  
+
+  ha_commit_complete(thd);
+
   DBUG_RETURN(0);
 
 err:
