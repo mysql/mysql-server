@@ -214,7 +214,6 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   Procedure	*procedure;
   List<Item>	all_fields(fields);
   bool		select_distinct;
-  SELECT_LEX *select_lex = &(thd->lex.select_lex);
   SELECT_LEX *cur_sel = thd->lex.select;
   DBUG_ENTER("mysql_select");
 
@@ -4277,7 +4276,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   if (table)
   {
-    int old_error=error,tmp;
+    int tmp;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
       my_errno=tmp;

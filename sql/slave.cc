@@ -41,9 +41,7 @@ DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
-static TABLE* save_temporary_tables = 0;
-/* TODO: fix variables to access ulonglong values and make it ulonglong */
-ulong relay_log_space_limit = 0;
+ulonglong relay_log_space_limit = 0;
 
 /*
   When slave thread exits, we need to remember the temporary tables so we
@@ -53,17 +51,14 @@ ulong relay_log_space_limit = 0;
 */
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
-static int events_till_disconnect = -1;
 int events_till_abort = -1;
-static int stuck_count = 0;
+static int events_till_disconnect = -1;
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
 void skip_load_data_infile(NET* net);
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev);
 static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev);
-static int queue_old_event(MASTER_INFO* mi, const char* buf,
-			   uint event_len);
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli);
 static inline bool io_slave_killed(THD* thd,MASTER_INFO* mi);
 static inline bool sql_slave_killed(THD* thd,RELAY_LOG_INFO* rli);
@@ -288,7 +283,6 @@ err:
 void init_slave_skip_errors(const char* arg)
 {
   const char *p;
-  my_bool last_was_digit = 0;
   if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
   {
     fprintf(stderr, "Badly out of memory, please check your system status\n");
@@ -669,11 +663,14 @@ static void free_string_array(DYNAMIC_ARRAY *a)
   delete_dynamic(a);
 }
 
+#ifdef NOT_USED_YET
+
 static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 {
   end_master_info(mi);
   return 0;
 }
+#endif
 
 void end_slave()
 {
@@ -1818,7 +1815,6 @@ slave_begin:
   MASTER_INFO* mi = (MASTER_INFO*)arg; 
   char llbuff[22];
   uint retry_count= 0;
-  ulonglong last_failed_pos = 0; // TODO: see if last_failed_pos is needed
   DBUG_ASSERT(mi->inited);
   
   pthread_mutex_lock(&mi->run_lock);
@@ -2079,9 +2075,6 @@ pthread_handler_decl(handle_slave_sql,arg)
 slave_begin:  
 #endif  
   THD *thd;			/* needs to be first for thread_stack */
-  MYSQL *mysql = NULL ;
-  bool retried_once = 0;
-  ulonglong last_failed_pos = 0; // TODO: see if this can be removed
   char llbuff[22],llbuff1[22];
   RELAY_LOG_INFO* rli = &((MASTER_INFO*)arg)->rli; 
   const char* errmsg=0;
@@ -2700,7 +2693,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
   */
   pthread_mutex_lock(&rli->data_lock);
   
-  while (!(was_killed=sql_slave_killed(thd,rli)))
+  while (!sql_slave_killed(thd,rli))
   {
     /*
       We can have two kinds of log reading:

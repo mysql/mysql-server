@@ -24,11 +24,10 @@
 #define DONT_MAP_VIO
 #include <my_global.h>
 #include <mysql_com.h>
+#include <my_sys.h>
+#include <m_string.h>
 #include <violite.h>
 #include <errno.h>
-#include <my_sys.h>
-#include <my_net.h>
-#include <m_string.h>
 
 /*
  * Helper to fill most of the Vio* with defaults.
