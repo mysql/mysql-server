@@ -289,7 +289,7 @@ my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 
-static bool opt_do_pstack = 0;
+static my_bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 
 static ulong opt_myisam_block_size;
@@ -306,6 +306,7 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_console= 0;
+my_bool opt_readonly = 0;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -376,7 +377,7 @@ const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
-bool master_ssl = 0;
+my_bool master_ssl = 0;
 
 ulong master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -404,8 +405,7 @@ ulong slow_launch_threads = 0;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN], *charsets_list,
-     blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
-     *opt_init_file;
+     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 #ifndef EMBEDDED_LIBRARY
@@ -3143,6 +3143,7 @@ enum options {
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
+  OPT_READONLY,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
@@ -3927,6 +3928,11 @@ replicating a LOAD DATA INFILE command",
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
    GET_ULONG, REQUIRED_ARG, SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  {"read-only", OPT_READONLY,
+   "Make all tables readonly, with the expections for replications (slave) threads and users with the SUPER privilege",
+   (gptr*) &opt_readonly,
+   (gptr*) &opt_readonly,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
    (gptr*) &slow_launch_time, (gptr*) &slow_launch_time, 0, GET_ULONG,
