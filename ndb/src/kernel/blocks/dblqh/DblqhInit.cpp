@@ -220,7 +220,7 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
   addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED);
   addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
-  addRecSignal(GSN_SIZEALT_REP, &Dblqh::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
   addRecSignal(GSN_LQHADDATTREQ, &Dblqh::execLQHADDATTREQ);
   addRecSignal(GSN_TUP_ADD_ATTCONF, &Dblqh::execTUP_ADD_ATTCONF);

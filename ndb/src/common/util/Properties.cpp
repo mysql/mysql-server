@@ -21,6 +21,12 @@
 #include <NdbTCP.h>
 #include <NdbOut.hpp>
 
+static
+char * f_strdup(const char * s){
+  if(!s) return 0;
+  return strdup(s);
+}
+
 /**
  * Note has to be a multiple of 4 bytes
  */
@@ -36,6 +42,7 @@ struct PropertyImpl{
 
   ~PropertyImpl();
   PropertyImpl(const char * name, Uint32 value);
+  PropertyImpl(const char * name, Uint64 value);
   PropertyImpl(const char * name, const char * value);
   PropertyImpl(const char * name, const Properties * value);
   
@@ -167,6 +174,11 @@ Properties::put(const char * name, Uint32 value, bool replace){
   return ::put(impl, name, value, replace);
 }
 
+bool
+Properties::put64(const char * name, Uint64 value, bool replace){
+  return ::put(impl, name, value, replace);
+}
+
 bool 
 Properties::put(const char * name, const char * value, bool replace){
   return ::put(impl, name, value, replace);
@@ -205,6 +217,40 @@ Properties::get(const char * name, Uint32 * value) const {
   
   if(nvp->valueType == PropertiesType_Uint32){
     * value = * (Uint32 *)nvp->value;
+    setErrno(E_PROPERTIES_OK);
+    return true;
+  }
+
+  if(nvp->valueType == PropertiesType_Uint64){
+    Uint64 tmp = * (Uint64 *)nvp->value;
+    Uint64 max = 1; max <<= 32;
+    if(tmp < max){
+      * value = (Uint32)tmp;
+      setErrno(E_PROPERTIES_OK);
+      return true;
+    }
+  }
+  setErrno(E_PROPERTIES_INVALID_TYPE);
+  return false;
+}
+
+bool
+Properties::get(const char * name, Uint64 * value) const {
+  PropertyImpl * nvp = impl->get(name);
+  if(nvp == 0){
+    setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
+    return false;
+  }
+  
+  if(nvp->valueType == PropertiesType_Uint32){
+    Uint32 tmp = * (Uint32 *)nvp->value;
+    * value = (Uint64)tmp;
+    setErrno(E_PROPERTIES_OK);
+    return true;
+  }
+
+  if(nvp->valueType == PropertiesType_Uint64){
+    * value = * (Uint64 *)nvp->value;
     setErrno(E_PROPERTIES_OK);
     return true;
   }
@@ -263,7 +309,7 @@ Properties::getCopy(const char * name, char ** value) const {
   }
 
   if(nvp->valueType == PropertiesType_char){
-    * value = strdup((const char *)nvp->value);
+    * value = f_strdup((const char *)nvp->value);
     setErrno(E_PROPERTIES_OK);
     return true;
   }
@@ -312,6 +358,10 @@ Properties::print(FILE * out, const char * prefix) const{
     case PropertiesType_Uint32:
       fprintf(out, "%s%s = (Uint32) %d\n", buf, impl->content[i]->name,
 	      *(Uint32 *)impl->content[i]->value);
+      break;
+    case PropertiesType_Uint64:
+      fprintf(out, "%s%s = (Uint64) %lld\n", buf, impl->content[i]->name,
+	      *(Uint64 *)impl->content[i]->value);
       break;
     case PropertiesType_char:
       fprintf(out, "%s%s = (char*) \"%s\"\n", buf, impl->content[i]->name,
@@ -598,11 +648,18 @@ PropertiesImpl::getPackedSize(Uint32 pLen) const {
       sz += 4; // Name Len
       sz += 4; // Value Len
       sz += mod4(pLen + strlen(content[i]->name)); // Name
-      if(content[i]->valueType == PropertiesType_char){
+      switch(content[i]->valueType){
+      case PropertiesType_char:
 	sz += mod4(strlen((char *)content[i]->value));
-      } else if(content[i]->valueType == PropertiesType_Uint32){
+	break;
+      case PropertiesType_Uint32:
 	sz += mod4(4);
-      } else {
+	break;
+      case PropertiesType_Uint64:
+	sz += mod4(8);
+	break;
+      case PropertiesType_Properties:
+      default:
 	assert(0);
       }
     }
@@ -700,6 +757,9 @@ PropertiesImpl::pack(Uint32 *& buf, const char * prefix, Uint32 pLen) const {
     case PropertiesType_Uint32:
       valLenData  = 4;
       break;
+    case PropertiesType_Uint64:
+      valLenData  = 8;
+      break;
     case PropertiesType_char:
       valLenData  = strlen((char *)content[i]->value);
       break;
@@ -721,6 +781,14 @@ PropertiesImpl::pack(Uint32 *& buf, const char * prefix, Uint32 pLen) const {
     switch(content[i]->valueType){
     case PropertiesType_Uint32:
       * (Uint32 *)valBuf = htonl(* (Uint32 *)content[i]->value);
+      break;
+    case PropertiesType_Uint64:{
+      Uint64 val =  * (Uint64 *)content[i]->value;
+      Uint32 hi = (val >> 32);
+      Uint32 lo = (val & 0xFFFFFFFF);
+      * (Uint32 *)valBuf = htonl(hi);
+      * (Uint32 *)(valBuf + 4) = htonl(lo);
+    }
       break;
     case PropertiesType_char:
       memcpy(valBuf, content[i]->value, strlen((char*)content[i]->value));
@@ -788,6 +856,12 @@ PropertiesImpl::unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top,
     case PropertiesType_Uint32:
       res3 = top->put(nameBuf, ntohl(* (Uint32 *)valBuf), true);
       break;
+    case PropertiesType_Uint64:{
+      Uint64 hi = ntohl(* (Uint32 *)valBuf);
+      Uint64 lo = ntohl(* (Uint32 *)(valBuf + 4));
+      res3 = top->put64(nameBuf, (hi << 32) + lo, true);
+    }
+      break;
     case PropertiesType_char:
       res3 = top->put(nameBuf, valBuf, true);
       break;
@@ -808,6 +882,9 @@ PropertyImpl::~PropertyImpl(){
   case PropertiesType_Uint32:
     delete (Uint32 *)value;
     break;
+  case PropertiesType_Uint64:
+    delete (Uint64 *)value;
+    break;
   case PropertiesType_char:
     free((char *)value);
     break;
@@ -822,6 +899,8 @@ PropertyImpl::copyPropertyImpl(const PropertyImpl & org){
   switch(org.valueType){
   case PropertiesType_Uint32:
     return new PropertyImpl(org.name, * (Uint32 *)org.value);
+  case PropertiesType_Uint64:
+    return new PropertyImpl(org.name, * (Uint64 *)org.value);
     break;
   case PropertiesType_char:
     return new PropertyImpl(org.name, (char *)org.value);
@@ -836,21 +915,28 @@ PropertyImpl::copyPropertyImpl(const PropertyImpl & org){
 }
 
 PropertyImpl::PropertyImpl(const char * _name, Uint32 _value){
-  this->name = strdup(_name);
+  this->name = f_strdup(_name);
   this->value = new Uint32;
   * ((Uint32 *)this->value) = _value;
   this->valueType = PropertiesType_Uint32;
 }
 
+PropertyImpl::PropertyImpl(const char * _name, Uint64 _value){
+  this->name = f_strdup(_name);
+  this->value = new Uint64;
+  * ((Uint64 *)this->value) = _value;
+  this->valueType = PropertiesType_Uint64;
+}
+
 PropertyImpl::PropertyImpl(const char * _name, const char * _value){
-  this->name = strdup(_name);
-  this->value = strdup(_value);
+  this->name = f_strdup(_name);
+  this->value = f_strdup(_value);
   this->valueType = PropertiesType_char;
 
 }
 
 PropertyImpl::PropertyImpl(const char * _name, const Properties * _value){
-  this->name = strdup(_name);
+  this->name = f_strdup(_name);
   this->value = new Properties(* _value);
   this->valueType = PropertiesType_Properties;
 }
@@ -894,6 +980,16 @@ Properties::setErrno(Uint32 pErr, Uint32 osErr) const {
  
 bool
 Properties::put(const char * name, Uint32 no, Uint32 val, bool replace){
+  size_t tmp_len = strlen(name)+20;
+  char * tmp = (char*)malloc(tmp_len);
+  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  bool res = put(tmp, val, replace);
+  free(tmp);
+  return res;
+}
+
+bool
+Properties::put64(const char * name, Uint32 no, Uint64 val, bool replace){
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
   snprintf(tmp, tmp_len, "%s_%d", name, no);
@@ -949,6 +1045,16 @@ Properties::contains(const char * name, Uint32 no) const {
 
 bool 
 Properties::get(const char * name, Uint32 no, Uint32 * value) const{
+  size_t tmp_len = strlen(name)+20;
+  char * tmp = (char*)malloc(tmp_len);
+  snprintf(tmp, tmp_len, "%s_%d", name, no);
+  bool res = get(tmp, value);
+  free(tmp);
+  return res;
+}
+
+bool 
+Properties::get(const char * name, Uint32 no, Uint64 * value) const{
   size_t tmp_len = strlen(name)+20;
   char * tmp = (char*)malloc(tmp_len);
   snprintf(tmp, tmp_len, "%s_%d", name, no);
