@@ -310,7 +310,7 @@ select Host, Db, User, Table_name, Grantor, Table_priv, Column_priv from mysql.t
 revoke GRANT OPTION on grant_test.test from grant_user@localhost
 Error in execute: There is no such grant defined for user 'grant_user' on host 'localhost' on table 'test'
 grant select(a) on grant_test.test to grant_user@localhost
-show columns from test
+show full columns from test
 a	int(11)	YES		NULL		select
 b	int(11)	YES		NULL		
 
