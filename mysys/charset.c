@@ -615,14 +615,6 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 }
 
 
-static CHARSET_INFO *get_internal_charset_by_name(const char *name, myf flags)
-{
-  uint cs_number=get_charset_number(name);
-  return cs_number ? get_internal_charset(cs_number,flags) : NULL;
-}
-
-
-
 CHARSET_INFO *get_charset(uint cs_number, myf flags)
 {
   CHARSET_INFO *cs;
@@ -664,10 +656,39 @@ my_bool set_default_charset(uint cs, myf flags)
 
 CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 {
+  uint cs_number;
   CHARSET_INFO *cs;
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
-  cs=get_internal_charset_by_name(cs_name, flags);
 
+  cs_number=get_charset_number(cs_name);
+  cs= cs_number ? get_internal_charset(cs_number,flags) : NULL;
+
+  if (!cs && (flags & MY_WME))
+  {
+    char index_file[FN_REFLEN];
+    strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
+    my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
+  }
+
+  return cs;
+}
+
+
+CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
+{
+  CHARSET_INFO *cs=NULL;
+  CHARSET_INFO **css;
+  (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
+  
+  for (css= all_charsets; css < all_charsets+255; ++css)
+  {
+    if ( css[0] && css[0]->csname && !strcmp(css[0]->csname, cs_name))
+    {
+      cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
+      break;
+    }
+  }  
+  
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN];
