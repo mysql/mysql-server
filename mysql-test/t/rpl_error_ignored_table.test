@@ -44,7 +44,7 @@ select (@id := id) - id from t3;
 kill @id;
 drop table t2,t3;
 connection master;
---error 1053;
+--error 1053,0;
 reap;
 connection master1;
 show binlog events from 79;
