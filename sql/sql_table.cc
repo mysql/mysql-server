@@ -1144,6 +1144,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       if (alter)
       {
+        if (def->sql_type == FIELD_TYPE_BLOB)
+        {
+          my_error(ER_BLOB_CANT_HAVE_DEFAULT,MYF(0),def->change);
+          DBUG_RETURN(-1);
+        }
 	def->def=alter->def;			// Use new default
 	alter_it.remove();
       }
