@@ -239,7 +239,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 
   DBUG_PRINT("info",("user table fields: %d, password length: %d",
 		     table->s->fields, table->field[2]->field_length));
-  
+
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
@@ -322,6 +322,12 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
         user.access|= CREATE_PROC_ACL;
       if (table->s->fields <= 33 && (user.access & ALTER_ACL))
         user.access|= ALTER_PROC_ACL;
+
+      /*
+        pre 5.0.3 did not have CREATE_USER_ACL
+      */
+      if (table->s->fields <= 36 && (user.access & GRANT_ACL))
+        user.access|= CREATE_USER_ACL;
 
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
@@ -1541,18 +1547,26 @@ end:
 }
 
 
-/* Return 1 if we are allowed to create new users */
+/*
+  Return 1 if we are allowed to create new users
+  the logic here is: INSERT_ACL is sufficient.
+  It's also a requirement in opt_safe_user_create,
+  otherwise CREATE_USER_ACL is enough.
+*/
 
 static bool test_if_create_new_users(THD *thd)
 {
-  bool create_new_users=1;    // Assume that we are allowed to create new users
-  if (opt_safe_user_create && !(thd->master_access & INSERT_ACL))
+  bool create_new_users= test(thd->master_access & INSERT_ACL) ||
+                         (!opt_safe_user_create &&
+                          test(thd->master_access & CREATE_USER_ACL));
+  if (!create_new_users)
   {
     TABLE_LIST tl;
     ulong db_access;
     bzero((char*) &tl,sizeof(tl));
     tl.db=	   (char*) "mysql";
     tl.table_name=  (char*) "user";
+    create_new_users= 1;
 
     db_access=acl_get(thd->host, thd->ip,
 		      thd->priv_user, tl.db, 0);
@@ -1614,8 +1628,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       goto end;
     }
     /*
-      There are four options which affect the process of creation of 
-      a new user(mysqld option --safe-create-user, 'insert' privilege
+      There are four options which affect the process of creation of
+      a new user (mysqld option --safe-create-user, 'insert' privilege
       on 'mysql.user' table, using 'GRANT' with 'IDENTIFIED BY' and
       SQL_MODE flag NO_AUTO_CREATE_USER). Below is the simplified rule
       how it should work.
@@ -1623,6 +1637,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       else if (identified_by) => create
       else if (no_auto_create_user) => reject
       else create
+
+      see also test_if_create_new_users()
     */
     else if (((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
               !password_len) || !create_user)
@@ -2925,7 +2941,7 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     table_name= table_list->table_name;
 
     grant_name= proc_hash_search(Str->host.str, NullS, db_name,
-    				 Str->user.str, table_name, 1);
+                                 Str->user.str, table_name, 1);
     if (!grant_name)
     {
       if (revoke_grant)
@@ -2946,7 +2962,7 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
       }
       my_hash_insert(&proc_priv_hash,(byte*) grant_name);
     }
-    
+
     if (replace_proc_table(thd, grant_name, tables[1].table, *Str,
 			   db_name, table_name, rights, revoke_grant))
     {
@@ -3688,11 +3704,13 @@ static const char *command_array[]=
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
+  "CREATE USER"
 };
 
 static uint command_lengths[]=
 {
-  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9, 14, 13
+  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
+  14, 13, 11
 };
 
 
