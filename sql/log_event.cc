@@ -140,11 +140,6 @@ Log_event::Log_event()
 
 /*
   Delete all temporary files used for SQL_LOAD.
-
-  TODO
-  - When we get a 'server start' event, we should only remove
-    the files associated with the server id that just started.
-    Easily fixable by adding server_id as a prefix to the log files.
 */
 
 static void cleanup_load_tmpdir()
@@ -152,13 +147,30 @@ static void cleanup_load_tmpdir()
   MY_DIR *dirp;
   FILEINFO *file;
   uint i;
+  char fname[FN_REFLEN];
+  char prefbuf[31];
+  char *p;
+  
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
     return;
-  char fname[FN_REFLEN];
+  
+  /* 
+     When we are deleting temporary files, we should only remove
+     the files associated with the server id of our server.
+     We don't use event_server_id here because since we've disabled
+     direct binlogging of Create_file/Append_file/Exec_load events
+     we cannot meet Start_log event in the middle of events from one 
+     LOAD DATA.
+  */
+  p= strmake(prefbuf,"SQL_LOAD-",9);
+  p= int10_to_str(::server_id, p, 10);
+  *(p++)= '-';
+  *p= 0;
+
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
     file=dirp->dir_entry+i;
-    if (is_prefix(file->name,"SQL_LOAD-"))
+    if (is_prefix(file->name, prefbuf))
     {
       fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
       my_delete(fname, MYF(0));
