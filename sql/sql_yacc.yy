@@ -1244,8 +1244,8 @@ field_spec:
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->comment,
-				lex->change,lex->interval,lex->charset
-				,lex->uint_geom_type))
+				lex->change,lex->interval,lex->charset,
+				lex->uint_geom_type))
 	    YYABORT;
 	};
 
@@ -1305,8 +1305,8 @@ type:
 #else
 	                                  net_printf(Lex->thd, ER_FEATURE_DISABLED,
 			                             ER(ER_FEATURE_DISABLED),
-			                             MYF(0), "Spatial extentions",
-	                                             "HAVE_SPATIAL");
+			                             sym_group_geom.name,
+	                                             sym_group_geom.needed_define);
 					  YYABORT;
 #endif
 					}
@@ -1589,41 +1589,31 @@ delete_option:
 
 key_type:
 	key_or_index			    { $$= Key::MULTIPLE; }
-	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
-	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
-	| SPATIAL_SYM
+	| FULLTEXT_SYM opt_key_or_index	    { $$= Key::FULLTEXT; }
+	| SPATIAL_SYM opt_key_or_index
 	  {
 #ifdef HAVE_SPATIAL
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
 	               ER(ER_FEATURE_DISABLED),
-		       MYF(0), "Spatial extentions",
-	               "HAVE_SPATIAL");
-	    YYABORT;
-#endif
-	  }
-	| SPATIAL_SYM key_or_index
-	  {
-#ifdef HAVE_SPATIAL
-	    $$= Key::SPATIAL;
-#else
-	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
-	               MYF(0), "Spatial extentions",
-	               "HAVE_SPATIAL");
+		       sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  };
 
 constraint_key_type:
 	PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
-	| UNIQUE_SYM	    { $$= Key::UNIQUE; }
-	| UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
+	| UNIQUE_SYM opt_key_or_index { $$= Key::UNIQUE; };
 
 key_or_index:
 	KEY_SYM {}
 	| INDEX {};
+
+opt_key_or_index:
+	/* empty */ {}
+	| key_or_index
+	;
 
 opt_keys_or_index:
 	/* empty */ {}
@@ -1646,8 +1636,7 @@ opt_unique_or_fulltext:
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
 	               ER(ER_FEATURE_DISABLED),
-	               MYF(0), "Spatial extentions",
-	               "HAVE_SPATIAL");
+	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  }
@@ -1662,15 +1651,7 @@ opt_btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
 	| RTREE_SYM
 	  {
-#ifdef HAVE_RTREE_KEYS
 	    $$= HA_KEY_ALG_RTREE;
-#else
-	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
-	               MYF(0), "RTree keys",
-	               "HAVE_RTREE_KEYS");
-	    YYABORT;
-#endif
 	  }
 	| HASH_SYM	{ $$= HA_KEY_ALG_HASH; };
 
@@ -1769,8 +1750,8 @@ alter_list_item:
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->comment,
-				  $3.str, lex->interval, lex->charset
-				  ,lex->uint_geom_type))
+				  $3.str, lex->interval, lex->charset,
+				  lex->uint_geom_type))
 	       YYABORT;
           }
           opt_place
@@ -2605,7 +2586,7 @@ simple_expr:
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
 			 ER(ER_FEATURE_DISABLED),
-			 MYF(0), $1.symbol->group->name,
+			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
@@ -2617,7 +2598,7 @@ simple_expr:
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
 			 ER(ER_FEATURE_DISABLED),
-			 MYF(0), $1.symbol->group->name,
+			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
@@ -2629,7 +2610,7 @@ simple_expr:
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
 			 ER(ER_FEATURE_DISABLED),
-			 MYF(0), $1.symbol->group->name,
+			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
@@ -2641,7 +2622,7 @@ simple_expr:
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
 			 ER(ER_FEATURE_DISABLED),
-			 MYF(0), $1.symbol->group->name,
+			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
@@ -2736,8 +2717,7 @@ simple_expr:
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
 	               ER(ER_FEATURE_DISABLED),
-	               MYF(0), "Spatial extentions",
-	               "HAVE_SPATIAL");
+	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  }

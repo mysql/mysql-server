@@ -81,9 +81,10 @@ TODO:
 #endif
 #include <my_getopt.h>
 #include "mysql_version.h"
+#include "mysql_priv.h"
 #include "lex.h"
 
-static struct my_option my_long_options[] =
+struct my_option my_long_options[] =
 {
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

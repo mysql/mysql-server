@@ -528,7 +528,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       break;
 #else
       my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
-		      "Spatial extentions", "HAVE_SPATIAL");
+		      sym_group_geom.name, sym_group_geom.needed_define);
       DBUG_RETURN(-1);
 #endif /*HAVE_SPATIAL*/
     case FIELD_TYPE_VAR_STRING:
@@ -669,7 +669,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         break;
 #else
 	my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
-			"Spatial extentions", "HAVE_SPATIAL");
+			sym_group_geom.name, sym_group_geom.needed_define);
 	DBUG_RETURN(-1);
 #endif
     case Key::FOREIGN_KEY:
@@ -700,7 +700,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
        checking for proper key parts number:
     */
 
-#ifdef HAVE_SPATIAL
     /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags == HA_SPATIAL)
     {
@@ -712,7 +711,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
     }
     else
-#endif
     if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
 #ifdef HAVE_RTREE_KEYS
@@ -728,7 +726,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_RETURN(-1);
 #else
       my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
-		      "Spatial extentions", "HAVE_SPATIAL");
+		      sym_group_rtree.name, sym_group_rtree.needed_define);
       DBUG_RETURN(-1);
 #endif
     }
@@ -829,13 +827,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
                             MYF(0),column->field_name);
             DBUG_RETURN(-1);
           }
-#ifdef HAVE_SPATIAL
           if (key->type == Key::SPATIAL)
           {
             my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
             DBUG_RETURN(-1);
           }
-#endif
         }
         if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
         {
@@ -859,11 +855,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	    DBUG_RETURN(-1);
 	  }
 	}
-#ifdef HAVE_SPATIAL  //TODO HF What's this for???
+        /* TODO HF What's this for??? */
 	else if (f_is_geom(sql_field->pack_flag))
 	{
 	}
-#endif
 	else if (column->length > length ||
 		 ((f_is_packed(sql_field->pack_flag) ||
 		   ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
