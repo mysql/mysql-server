@@ -211,6 +211,7 @@ AC_MSG_RESULT($mysql_cv_sys_os)
 case "$target_os" in
   sco3.2v5*) 
      CFLAGS="$CFLAGS -DSCO"
+     CXXFLAGS="$CXXFLAGS -DSCO"
      LD='$(CC) $(CFLAGS)'
      case "$CFLAGS" in
        *-belf*) 

@@ -147,3 +147,6 @@ do-lib-dist:
 	echo '	$$(AR) r $$@ $$?'  >>$$dir/Makefile; \
 	gtar cvzf $$dir.tar.gz $$dir; \
 	cd $$dir; gmake
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

@@ -7,7 +7,7 @@
 @c @synindex tp fn cp
 @synindex cp fn
 @iftex
-@c Well this is normal in Europe. Maybe this shold go into the include.texi?
+@c Well this is normal in Europe. Maybe this should go into the include.texi?
 @afourpaper
 @end iftex
 @c Get version and other info
@@ -47,10 +47,10 @@ This is a manual about @strong{MySQL} internals.
 @end menu
 
 @node caching
-@chapter How do MySQL handle caching
+@chapter How MySQL handles caching
 
 MySQL has the following caches:
-(Note that the some of the filename has wrong spelling of cache :)
+(Note that the some of the filename have a wrong spelling of cache. :)
 
 @itemize @bullet
 @item Key cache
@@ -76,17 +76,17 @@ cached for each user/database combination. sql/sql_acl.cc
 
 @item Heap table cache
 Many use of GROUP BY or DISTINCT caches all found
-rows in a HEAP table (this is a very quick, in memory table with hash index)
+rows in a HEAP table (this is a very quick in-memory table with hash index)
 
 @item Join row cache.
 For every full join in a SELECT statement (a full join here means there
-was no keys that one could use to find the next table in a list), the
+were no keys that one could use to find the next table in a list), the
 found rows are cached in a join cache.  One SELECT query can use many
 join caches in the worst case.
 @end itemize
 
 @node flush tables
-@chapter How do MySQL handle flush tables
+@chapter How MySQL handles flush tables
 
 @itemize @bullet
 @item
@@ -122,23 +122,23 @@ same tables.
 @end itemize
 
 @node Filesort
-@chapter How do MySQL do sorting (filesort)
+@chapter How MySQL does sorting (filesort)
 
 - Read all rows according to key or by table-scanning.
 - Store the sort-key in a buffer (sort_buffer).
 - When the buffer gets full, run a qsort on it and store the result
   in a temporary file.  Save a pointer to the sorted block.
-- Repeate the above until all rows has been read.
+- Repeat the above until all rows have been read.
 
 - Repeat the following until there is less than MERGEBUFF2 (15) blocks left.
   - Do a multi-merge of up to MERGEBUFF (7) regions to one block in
     another temporary file.  Repeat until all blocks from the first file
-    is in the second file.
+    are in the second file.
 - On the last multi-merge, only the pointer to the row (last part of
   the sort-key) is written to a result file.
 
-- Now the code in sql/records.cc will be used to read through the
-  in sorted order by using the row pointersin the result file.
+- Now the code in sql/records.cc will be used to read through them
+  in sorted order by using the row pointers in the result file.
   To optimize this, we read in a big block of row pointers, sort these
   and then we read the rows in the sorted order into a row buffer
   (record_buffer) .
@@ -152,5 +152,3 @@ same tables.
 @contents
 
 @bye
-
-Do text here do something ??
