@@ -3379,8 +3379,6 @@ void Dbtc::releaseSimpleRead(Signal* signal,
       (state == CS_START_COMMITTING ? CS_CONNECTED : state);
     setApiConTimer(regApiPtr.i, 0, __LINE__);
 
-    if(state != regApiPtr.p->apiConnectstate)
-      ndbout_c("resettting state from %d to %d", state, regApiPtr.p->apiConnectstate);
     return;
   }
   

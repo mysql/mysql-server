@@ -52,8 +52,8 @@ NdbConnection* HugoOperations::getTransaction(){
 
 int HugoOperations::pkReadRecord(Ndb* pNdb,
 				 int recordNo,
-				 bool exclusive,
-				 int numRecords){
+				 int numRecords,
+				 NdbOperation::LockMode lm){
   int a;  
   allocRows(numRecords);
   int check;
@@ -64,93 +64,21 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    if (exclusive == true)
-      check = pOp->readTupleExclusive();
-    else
+rand_lock_mode:
+    switch(lm){
+    case NdbOperation::LM_Read:
       check = pOp->readTuple();
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
-      return NDBT_FAILED;
+      break;
+    case NdbOperation::LM_Exclusive:
+      check = pOp->readTupleExclusive();
+      break;
+    case NdbOperation::LM_CommittedRead:
+      check = pOp->dirtyRead();
+      break;
+    default:
+      lm = (NdbOperation::LockMode)((rand() >> 16) & 3);
+      goto rand_lock_mode;
     }
-    
-    // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
-    
-    // Define attributes to read  
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if((rows[r]->attributeStore(a) = 
-	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
-	ERR(pTrans->getNdbError());
-	return NDBT_FAILED;
-      }
-    } 
-  }
-  return NDBT_OK;
-}
-
-int HugoOperations::pkDirtyReadRecord(Ndb* pNdb,
-				      int recordNo,
-				      int numRecords){
-  int a; 
-  allocRows(numRecords);
-  int check;
-  for(int r=0; r < numRecords; r++){
-    NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
-    if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    check = pOp->dirtyRead();
-
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    // Define primary keys
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if (tab.getColumn(a)->getPrimaryKey() == true){
-	if(equalForAttr(pOp, a, r+recordNo) != 0){
-	  ERR(pTrans->getNdbError());
-	  return NDBT_FAILED;
-	}
-      }
-    }
-    
-    // Define attributes to read  
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if((rows[r]->attributeStore(a) = 
-	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
-	ERR(pTrans->getNdbError());
-	return NDBT_FAILED;
-      }
-    } 
-  }
-  return NDBT_OK;
-}
-
-int HugoOperations::pkSimpleReadRecord(Ndb* pNdb,
-				       int recordNo,
-				       int numRecords){
-  int a; 
-  allocRows(numRecords);
-  int check;
-  for(int r=0; r < numRecords; r++){
-    NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
-    if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    check = pOp->simpleRead();
     
     if( check == -1 ) {
       ERR(pTrans->getNdbError());

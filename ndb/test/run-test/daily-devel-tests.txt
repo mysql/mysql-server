@@ -63,15 +63,15 @@ args: -n NoLoad T6 T8 T13
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n PkRead T6 T8 T13 
+args: -n MixedPkRead T6 T8 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -l 1 -n PkReadPkUpdate 
+args: -l 1 -n MixedPkReadPkUpdate 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -l 1 -n ReadUpdateScan 
+args: -l 1 -n MixedReadUpdateScan 
 
 max-time: 2500
 cmd: testNodeRestart
