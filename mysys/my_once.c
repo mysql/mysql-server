@@ -24,8 +24,17 @@
 #include "my_static.h"
 #include "mysys_err.h"
 
-	/* alloc for things we don't nead to free */
-	/* No DBUG_ENTER... here to get smaller dbug-startup */
+/*
+  Alloc for things we don't nead to free
+
+  SYNOPSIS
+    my_once_alloc()
+      Size
+      MyFlags
+
+  NOTES
+    No DBUG_ENTER... here to get smaller dbug-startup 
+*/
 
 gptr my_once_alloc(unsigned int Size, myf MyFlags)
 {
@@ -69,7 +78,12 @@ gptr my_once_alloc(unsigned int Size, myf MyFlags)
 } /* my_once_alloc */
 
 
-	/* deallocate everything used by my_once_alloc */
+/*
+  Deallocate everything used by my_once_alloc
+
+  SYNOPSIS
+    my_once_free()
+*/
 
 void my_once_free(void)
 {
