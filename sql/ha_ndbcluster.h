@@ -229,6 +229,7 @@ int ndbcluster_discover(const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
 int ndbcluster_drop_database(const char* path);
 
+void ndbcluster_print_error(int error);
 
 
 
