@@ -160,7 +160,7 @@ copy_dir_files() {
   for arg do
     print_debug "Copying files from directory '$arg'"
     cd $SOURCE/$arg/
-    for i in *.c *.h *.ih *.i *.ic *.asm *.def \
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
              README INSTALL* LICENSE 
     do 
       if [ -f $i ] 
