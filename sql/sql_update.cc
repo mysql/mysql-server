@@ -707,7 +707,12 @@ bool mysql_multi_update_prepare(THD *thd)
     else
     {
       DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
-      tl->lock_type= TL_READ;
+      /*
+        If we are using the binary log, we need TL_READ_NO_INSERT to get
+        correct order of statements. Otherwise, we use a TL_READ lock to
+        improve performance.
+      */
+      tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
       tl->updating= 0;
     }
 
