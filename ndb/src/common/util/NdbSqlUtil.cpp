@@ -153,8 +153,8 @@ NdbSqlUtil::m_typeList[] = {
     cmpDatetime
   },
   {
-    Type::Timespec,
-    cmpTimespec
+    Type::Date,
+    cmpDate
   },
   {
     Type::Blob,
@@ -485,36 +485,34 @@ NdbSqlUtil::cmpDatetime(const void* info, const Uint32* p1, const Uint32* p2, Ui
 }
 
 int
-NdbSqlUtil::cmpTimespec(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpDate(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
+#ifdef ndb_date_is_4_byte_native_int
   assert(full >= size && size > 0);
-  /*
-   * Timespec is CC YY MM DD hh mm ss \0 NN NN NN NN
-   *
-   * Not used via MySQL.
-   */
+  union { Uint32 p[2]; Int32 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
+#else
+  assert(full >= size && size > 0);
   union { const Uint32* p; const unsigned char* v; } u1, u2;
   u1.p = p1;
   u2.p = p2;
-  // no format check
-  int k = memcmp(u1.v, u2.v, 4);
-  if (k != 0)
-    return k < 0 ? -1 : +1;
-  if (size >= 2) {
-    k = memcmp(u1.v + 4, u2.v + 4, 4);
-    if (k != 0)
-      return k < 0 ? -1 : +1;
-    if (size >= 3) {
-      Uint32 n1 = *(const Uint32*)(u1.v + 8);
-      Uint32 n2 = *(const Uint32*)(u2.v + 8);
-      if (n1 < n2)
-        return -1;
-      if (n2 > n1)
-        return +1;
-      return 0;
-    }
-  }
-  return CmpUnknown;
+  // from Field_newdate::val_int
+  Uint64 j1 = uint3korr(u1.v);
+  Uint64 j2 = uint3korr(u2.v);
+  j1 = (j1 % 32L)+(j1 / 32L % 16L)*100L + (j1/(16L*32L))*10000L;
+  j2 = (j2 % 32L)+(j2 / 32L % 16L)*100L + (j2/(16L*32L))*10000L;
+  if (j1 < j2)
+    return -1;
+  if (j1 > j2)
+    return +1;
+  return 0;
+#endif
 }
 
 int

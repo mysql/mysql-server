@@ -130,7 +130,7 @@ NdbColumnImpl::init(Type t)
   case Binary:
   case Varbinary:
   case Datetime:
-  case Timespec:
+  case Date:
     m_precision = 0;
     m_scale = 0;
     m_length = 1;
@@ -1174,7 +1174,7 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtBinary,          NdbDictionary::Column::Binary },
   { DictTabInfo::ExtVarbinary,       NdbDictionary::Column::Varbinary },
   { DictTabInfo::ExtDatetime,        NdbDictionary::Column::Datetime },
-  { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
+  { DictTabInfo::ExtDate,            NdbDictionary::Column::Date },
   { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
   { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
   { -1, -1 }
