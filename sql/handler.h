@@ -137,6 +137,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_MAX_ROWS		32
 #define HA_CREATE_USED_AVG_ROW_LENGTH	64
 #define HA_CREATE_USED_PACK_KEYS	128
+#define HA_CREATE_USED_CHARSET		256
 
 typedef struct st_thd_trans {
   void *bdb_tid;

@@ -82,6 +82,7 @@ static SYMBOL symbols[] = {
   { "CASE",		SYM(CASE_SYM),0,0},
   { "CHAR",		SYM(CHAR_SYM),0,0},
   { "CHARACTER",	SYM(CHAR_SYM),0,0},
+  { "CHARSET",		SYM(CHARSET),0,0},
   { "CHANGE",		SYM(CHANGE),0,0},
   { "CHANGED",		SYM(CHANGED),0,0},
   { "CHECK",		SYM(CHECK_SYM),0,0},

@@ -375,6 +375,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
+    if(!sql_field->charset)
+      sql_field->charset = create_info->table_charset ?
+			     create_info->table_charset : default_charset_info;
     pos+=sql_field->pack_length;
   }
   if (auto_increment > 1)
@@ -1645,6 +1648,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->max_rows=table->max_rows;
   if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
     create_info->avg_row_length=table->avg_row_length;
+  if (!(used_fields & HA_CREATE_USED_CHARSET))
+    create_info->table_charset=table->table_charset;
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
