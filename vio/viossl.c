@@ -105,10 +105,12 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d, ssl_=%p", vio->sd, buf, size, vio->ssl_));
-  assert(vio->ssl_!= 0);
+  DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d, ssl_=%p",
+		       vio->sd, buf, size, vio->ssl_));
+  DBUG_ASSERT(vio->ssl_!= 0);
 
-  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'",SSL_get_cipher_name(vio->ssl_)));
+  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
+		     ,SSL_get_cipher_name(vio->ssl_)));
   
   r = SSL_read(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
@@ -125,8 +127,9 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
   int r;
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
-  assert(vio->ssl_!=0);
-  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'",SSL_get_cipher_name(vio->ssl_)));
+  DBUG_ASSERT(vio->ssl_!=0);
+  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'",
+		     SSL_get_cipher_name(vio->ssl_)));
   r = SSL_write(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
   if (r<0)
@@ -301,12 +304,11 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
   DBUG_ENTER("sslaccept");
   DBUG_PRINT("enter", ("sd=%s ptr=%p", sd->sd,ptr));
   vio_reset(sd,VIO_TYPE_SSL,sd->sd,0,FALSE);
-//  ptr->bio_=0;
   sd->ssl_=0;
   sd->open_=FALSE; 
-  assert(sd != 0);
-  assert(ptr != 0);
-  assert(ptr->ssl_context_ != 0);
+  DBUG_ASSERT(sd != 0);
+  DBUG_ASSERT(ptr != 0);
+  DBUG_ASSERT(ptr->ssl_context_ != 0);
   if (!(sd->ssl_ = SSL_new(ptr->ssl_context_)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
@@ -315,7 +317,7 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
   }
   DBUG_PRINT("info", ("ssl_=%p",sd->ssl_));
   SSL_set_fd(sd->ssl_,sd->sd);
-//  SSL_accept(sd->ssl_);                
+/*  SSL_accept(sd->ssl_);  */
 /*  if (!(ptr->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
   {
     DBUG_PRINT("error", ("BIO_new_socket failure"));
@@ -326,8 +328,10 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
   }
   SSL_set_bio(sd->ssl_, ptr->bio_, ptr->bio_);*/
   SSL_set_accept_state(sd->ssl_);
-//  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd);
-//  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); 
+/*
+  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd);
+  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); 
+*/
   sd->open_ = TRUE;
 
 
@@ -335,12 +339,12 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
   if (client_cert != NULL) {
     DBUG_PRINT("info",("Client certificate:"));
     str = X509_NAME_oneline (X509_get_subject_name (client_cert), 0, 0);
-    //CHK_NULL(str);
+    /* CHK_NULL(str); */
     DBUG_PRINT("info",("\t subject: %s", str));
     free (str);
 
     str = X509_NAME_oneline (X509_get_issuer_name  (client_cert), 0, 0);
-    //CHK_NULL(str);
+    /* CHK_NULL(str); */
     DBUG_PRINT("info",("\t issuer: %s", str));
     free (str);
 
@@ -365,9 +369,9 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
   sd->bio_=0;
   sd->ssl_=0;
   sd->open_=FALSE; 
-  assert(sd != 0);
-  assert(ptr != 0);
-  assert(ptr->ssl_context_ != 0);
+  DBUG_ASSERT(sd != 0);
+  DBUG_ASSERT(ptr != 0);
+  DBUG_ASSERT(ptr->ssl_context_ != 0);
 
   if (!(sd->ssl_ = SSL_new(ptr->ssl_context_)))
   {
@@ -408,7 +412,7 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
   } else
     DBUG_PRINT("info",("Server does not have certificate."));
 
-//  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_);
+  /* sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); */
   sd->open_ = TRUE;
   DBUG_VOID_RETURN;
 }
