@@ -291,6 +291,8 @@ typedef struct st_relay_log_info
     UNTIL_LOG_NAMES_CMP_UNKNOWN= -2, UNTIL_LOG_NAMES_CMP_LESS= -1,
     UNTIL_LOG_NAMES_CMP_EQUAL= 0, UNTIL_LOG_NAMES_CMP_GREATER= 1
   } until_log_names_cmp_result;
+
+  char cached_charset[6];
   
   st_relay_log_info();
   ~st_relay_log_info();
@@ -334,6 +336,14 @@ typedef struct st_relay_log_info
     return ((until_condition == UNTIL_MASTER_POS) ? group_master_log_pos :
 	    group_relay_log_pos);
   }
+  /*
+    Last charset (6 bytes) seen by slave SQL thread is cached here; it helps
+    the thread save 3 get_charset() per Query_log_event if the charset is not
+    changing from event to event (common situation).
+    When the 6 bytes are equal to 0 is used to mean "cache is invalidated".
+  */
+  void cached_charset_invalidate();
+  bool cached_charset_compare(char *charset);
 } RELAY_LOG_INFO;
 
 
