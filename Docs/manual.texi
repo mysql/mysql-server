@@ -23682,6 +23682,9 @@ TEST. Note that the statistics SHOW gives about Innobase tables
 are only approximate: they are used in SQL optimization. Table and
 index reserved sizes in bytes are accurate, though.
 
+NOTE: DROP DATABASE does not currently work for Innobase tables!
+You must drop the tables individually.
+
 Note that in addition to your tables, the rollback segment uses space
 from the tablespace.
 
@@ -23707,8 +23710,7 @@ error 1000000'.
 
 Contact information of Innobase Oy, producer of the Innobase engine:
 
-Website: Being registered, probably @uref{http://www.innobase.fi}.
-This should open about March 3rd, 2001.
+Website: @uref{http://www.innobase.fi}.
 
 @email{Heikki.Tuuri@@innobase.inet.fi}
 @example
