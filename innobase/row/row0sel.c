@@ -2119,10 +2119,10 @@ row_sel_convert_mysql_key_to_innobase(
 				   + 256 * key_ptr[data_offset + 1];
 			data_field_len = data_offset + 2 + field->prefix_len;
 			data_offset += 2;
-			
-			type = DATA_CHAR; /* now that we know the length, we
-					  store the column value like it would
-					  be a fixed char field */
+
+			/* now that we know the length, we store the column
+			value like it would be a fixed char field */
+
 		} else if (field->prefix_len > 0) {
 			/* Looks like MySQL pads unused end bytes in the
 			prefix with space. Therefore, also in UTF-8, it is ok
@@ -2146,11 +2146,12 @@ row_sel_convert_mysql_key_to_innobase(
 		
 		if (!is_null) {
 		        row_mysql_store_col_in_innobase_format(
-					dfield, buf, key_ptr + data_offset,
-					data_len, type,
-					index->table->comp,
-					dfield_get_type(dfield)->prtype
-							& DATA_UNSIGNED);
+					dfield,
+					buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset,
+					data_len,
+					index->table->comp);
 			buf += data_len;
 		}
 
@@ -2225,7 +2226,7 @@ row_sel_store_row_id_to_prebuilt(
 		dict_index_name_print(stderr, prebuilt->trx, index);
 		fprintf(stderr, "\n"
 "InnoDB: Field number %lu, record:\n",
-			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
+		    (ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
 		rec_print_new(stderr, index_rec, offsets);
 		putc('\n', stderr);
 		ut_error;
@@ -2235,8 +2236,9 @@ row_sel_store_row_id_to_prebuilt(
 }
 
 /******************************************************************
-Stores a non-SQL-NULL field in the MySQL format. */
-UNIV_INLINE
+Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
+function is row_mysql_store_col_in_innobase_format() in row0mysql.c. */
+static
 void
 row_sel_field_store_in_mysql_format(
 /*================================*/
@@ -2251,6 +2253,8 @@ row_sel_field_store_in_mysql_format(
 	ulint	len)	/* in: length of the data */
 {
 	byte*	ptr;
+	byte*	field_end;
+	byte*	pad_ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
 
@@ -2274,25 +2278,66 @@ row_sel_field_store_in_mysql_format(
 		}
 
 		ut_ad(templ->mysql_col_len == len);
-	} else if (templ->type == DATA_VARCHAR || templ->type == DATA_VARMYSQL
-					|| templ->type == DATA_BINARY) {
-		/* Store the length of the data to the first two bytes of
-		dest; does not do anything yet because MySQL has
-		no real vars! */
+	} else if (templ->type == DATA_VARCHAR
+	           || templ->type == DATA_VARMYSQL
+		   || templ->type == DATA_BINARY) {
+
+		field_end = dest + templ->mysql_col_len;
+
+		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
+			/* This is a >= 5.0.3 type true VARCHAR. Store the
+			length of the data to the first byte or the first
+			two bytes of dest. */
 		
-		dest = row_mysql_store_var_len(dest, len);
+			dest = row_mysql_store_true_var_len(dest, len,
+						templ->mysql_length_bytes);
+		}
+
+		/* Copy the actual data */
 		ut_memcpy(dest, data, len);
-#if 0
-		/* No real var implemented in MySQL yet! */
-		ut_ad(templ->mysql_col_len >= len + 2);
-#endif
 		
+		/* Pad with trailing spaces. We pad with spaces also the
+		unused end of a >= 5.0.3 true VARCHAR column, just in case
+		MySQL expects its contents to be deterministic. */
+			
+		pad_ptr = dest + len;
+
+		ut_ad(templ->mbminlen <= templ->mbmaxlen);
+
+		/* We handle UCS2 charset strings differently. */
+		if (templ->mbminlen == 2) {
+			/* A space char is two bytes, 0x0020 in UCS2 */
+
+			if (len & 1) {
+				/* A 0x20 has been stripped from the column.
+				Pad it back. */
+				
+				if (pad_ptr < field_end) {
+					*pad_ptr = 0x20;
+					pad_ptr++;
+				}
+			}
+			
+			/* Pad the rest of the string with 0x0020 */
+
+			while (pad_ptr < field_end) {
+				*pad_ptr = 0x00;
+				pad_ptr++;
+				*pad_ptr = 0x20;
+				pad_ptr++;
+			}
+		} else {
+			ut_ad(templ->mbminlen == 1);
+			/* space=0x20 */
+
+			memset(pad_ptr, 0x20, field_end - pad_ptr);
+		}
 	} else if (templ->type == DATA_BLOB) {
 		/* Store a pointer to the BLOB buffer to dest: the BLOB was
 		already copied to the buffer in row_sel_store_mysql_rec */
 
-		row_mysql_store_blob_ref(dest, templ->mysql_col_len,
-							data, len);
+		row_mysql_store_blob_ref(dest, templ->mysql_col_len, data,
+									len);
 	} else if (templ->type == DATA_MYSQL) {
 		memcpy(dest, data, len);
 
@@ -2306,9 +2351,10 @@ row_sel_field_store_in_mysql_format(
 		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
 
 		if (templ->mbminlen != templ->mbmaxlen) {
-			/* Pad with spaces.  This undoes the stripping
+			/* Pad with spaces. This undoes the stripping
 			done in row0mysql.ic, function
 			row_mysql_store_col_in_innobase_format(). */
+
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
 		}
 	} else {
@@ -2320,6 +2366,7 @@ row_sel_field_store_in_mysql_format(
 			|| templ->type == DATA_DOUBLE
 			|| templ->type == DATA_DECIMAL);
 		ut_ad(templ->mysql_col_len == len);
+
 		memcpy(dest, data, len);
 	}
 }
@@ -2435,40 +2482,6 @@ row_sel_store_mysql_rec(
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, data, len);
-
-			if (templ->type == DATA_VARCHAR
-					|| templ->type == DATA_VARMYSQL
-					|| templ->type == DATA_BINARY) {
-				/* Pad with trailing spaces */
-				data = mysql_rec + templ->mysql_col_offset;
-
-				ut_ad(templ->mbminlen <= templ->mbmaxlen);
-				/* Handle UCS2 strings differently. */
-				if (templ->mbminlen == 2) {
-					/* space=0x0020 */
-					ulint	col_len = templ->mysql_col_len;
-
-					ut_a(!(col_len & 1));
-					if (len & 1) {
-						/* A 0x20 has been stripped
-						from the column.
-						Pad it back. */
-						goto pad_0x20;
-					}
-					/* Pad the rest of the string
-					with 0x0020 */
-					while (len < col_len) {
-						data[len++] = 0x00;
-					pad_0x20:
-						data[len++] = 0x20;
-					}
-				} else {
-					ut_ad(templ->mbminlen == 1);
-					/* space=0x20 */
-					memset(data + len, 0x20,
-						templ->mysql_col_len - len);
-				}
-			}
 
 			/* Cleanup */
 			if (extern_field_heap) {
