@@ -563,9 +563,9 @@ Calculates MBR_AREA(a+b) - MBR_AREA(a)
 double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
                           uint key_length, double *ab_area)
 {
-  double a_area = 1;
+  double a_area= 1.0;
   
-  *ab_area = 1;
+  *ab_area= 1.0;
   for (; (int)key_length > 0; keyseg += 2)
   {
     key_length -= keyseg->length * 2;
@@ -626,6 +626,105 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   }
   return *ab_area - a_area;
 }
+
+#define RT_PERIM_INC_KORR(type, korr_func, len) \
+{ \
+   type amin, amax, bmin, bmax; \
+   amin = korr_func(a); \
+   bmin = korr_func(b); \
+   p_inc(a, b, len); \
+   amax = korr_func(a); \
+   bmax = korr_func(b); \
+   p_inc(a, b, len); \
+   a_perim+= (((double)amax) - ((double)amin)); \
+   *ab_perim+= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
+   break; \
+}
+
+#define RT_PERIM_INC_GET(type, get_func, len)\
+{\
+   type amin, amax, bmin, bmax; \
+   get_func(amin, a); \
+   get_func(bmin, b); \
+   p_inc(a, b, len); \
+   get_func(amax, a); \
+   get_func(bmax, b); \
+   p_inc(a, b, len); \
+   a_perim+= (((double)amax) - ((double)amin)); \
+   *ab_perim+= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
+   break; \
+}
+
+/*
+Calculates MBR_PERIMETER(a+b) - MBR_PERIMETER(a)
+*/
+double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
+				uint key_length, double *ab_perim)
+{
+  double a_perim = 0.0;
+  
+  *ab_perim= 0.0;
+  for (; (int)key_length > 0; keyseg += 2)
+  {
+    key_length -= keyseg->length * 2;
+    
+    /* Handle NULL part */
+    if (keyseg->null_bit)
+    {
+      return -1;
+    }
+
+    switch ((enum ha_base_keytype) keyseg->type) {
+    case HA_KEYTYPE_TEXT:
+    case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_VARTEXT:
+    case HA_KEYTYPE_VARBINARY:
+    case HA_KEYTYPE_NUM:
+    default:
+      return 1;
+      break;
+    case HA_KEYTYPE_INT8:
+      {
+        int amin, amax, bmin, bmax;
+        amin = (int)*((signed char *)a);
+        bmin = (int)*((signed char *)b);
+        p_inc(a, b, 1);
+        amax = (int)*((signed char *)a);
+        bmax = (int)*((signed char *)b);
+        p_inc(a, b, 1);
+        a_perim+= (((double)amax) - ((double)amin));
+        *ab_perim+= ((double)max(amax, bmax) - (double)min(amin, bmin));
+        break;
+      }
+    case HA_KEYTYPE_SHORT_INT:
+      RT_PERIM_INC_KORR(int16, mi_sint2korr, 2);
+    case HA_KEYTYPE_USHORT_INT:
+      RT_PERIM_INC_KORR(uint16, mi_uint2korr, 2);
+    case HA_KEYTYPE_INT24:
+      RT_PERIM_INC_KORR(int32, mi_sint3korr, 3);
+    case HA_KEYTYPE_UINT24:
+      RT_PERIM_INC_KORR(int32, mi_uint3korr, 3);
+    case HA_KEYTYPE_LONG_INT:
+      RT_PERIM_INC_KORR(int32, mi_sint4korr, 4);
+    case HA_KEYTYPE_ULONG_INT:
+      RT_PERIM_INC_KORR(uint32, mi_uint4korr, 4);
+#ifdef HAVE_LONG_LONG
+    case HA_KEYTYPE_LONGLONG:
+      RT_PERIM_INC_KORR(longlong, mi_sint8korr, 8);
+    case HA_KEYTYPE_ULONGLONG:
+      RT_PERIM_INC_KORR(longlong, mi_sint8korr, 8);
+#endif
+    case HA_KEYTYPE_FLOAT:
+      RT_PERIM_INC_GET(float, mi_float4get, 4);
+    case HA_KEYTYPE_DOUBLE:
+      RT_PERIM_INC_GET(double, mi_float8get, 8);
+    case HA_KEYTYPE_END:
+      return *ab_perim - a_perim;
+    }
+  }
+  return *ab_perim - a_perim;
+}
+
 
 #define RT_PAGE_MBR_KORR(type, korr_func, store_func, len) \
 { \
