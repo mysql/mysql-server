@@ -3101,7 +3101,8 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
 		(field->type() == FIELD_TYPE_DATETIME)) &&
-		(field->flags & NOT_NULL_FLAG))
+		(field->flags & NOT_NULL_FLAG) &&
+	       !field->table->maybe_null)
       {
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))

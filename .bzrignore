@@ -303,3 +303,5 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+bdb/include/db_ext.h
+bdb/include/mutex_ext.h

@@ -46844,6 +46844,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.45
 @itemize @bullet
 @item
+Fixed problem with @code{t1 LEFT_JOIN t2 ... WHERE t2.date_column IS NULL} when
+date_column was declared as @code{NOT NULL}.
+@item
 Fixed bug with BDB tables and keys on @code{BLOB}'s.
 @item
 Fixed bug in @code{MERGE} tables on OS with 32 bit file pointers.
