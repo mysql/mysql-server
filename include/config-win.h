@@ -349,6 +349,7 @@ inline double ulonglong2double(ulonglong value)
 #define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
 
 #define HAVE_SPATIAL 1
+#define HAVE_RTREE_KEYS 1
 
 /* Define charsets you want */
 /* #undef HAVE_CHARSET_armscii8 */
