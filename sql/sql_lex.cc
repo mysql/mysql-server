@@ -1550,6 +1550,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     1 - found
     0 - OK (table did not found)
 */
+
 bool st_select_lex_unit::check_updateable(char *db, char *table)
 {
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
@@ -1561,7 +1562,7 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
 
 /*
   Find db.table which will be updated in this select and 
-  underlayed ones (except derived tables)
+  underlaying ones (except derived tables)
 
   SYNOPSIS
     st_select_lex::check_updateable()
@@ -1572,11 +1573,30 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
     1 - found
     0 - OK (table did not found)
 */
+
 bool st_select_lex::check_updateable(char *db, char *table)
 {
   if (find_real_table_in_list(get_table_list(), db, table))
     return 1;
 
+  return check_updateable_in_subqueries(db, table);
+}
+
+/*
+   Find db.table which will be updated in underlaying subqueries
+
+   SYNOPSIS
+    st_select_lex::check_updateable_in_subqueries()
+    db		- data base name
+    table	- real table name
+
+  RETURN
+    1 - found
+    0 - OK (table did not found)
+*/
+
+bool st_select_lex::check_updateable_in_subqueries(char *db, char *table)
+{
   for (SELECT_LEX_UNIT *un= first_inner_unit();
        un;
        un= un->next_unit())
