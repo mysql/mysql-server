@@ -86,6 +86,7 @@ ADD Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
 ADD Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Execute_priv,
 ADD Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
 
+
 UPDATE user SET show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv where user<>"" AND @hadShowDbPriv = 0;
 
 ALTER TABLE user
@@ -99,6 +100,20 @@ ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+
+#
+# Create VIEWs privrlages (v5.1)
+#
+ALTER TABLE db ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE host ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE user ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
+
+#
+# Show VIEWs privrlages (v5.1)
+#
+ALTER TABLE db ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 #
 # Create some possible missing tables

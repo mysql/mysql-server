@@ -65,13 +65,15 @@ then
   c_d="$c_d   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d PRIMARY KEY Host (Host,Db,User),"
   c_d="$c_d KEY User (User)"
   c_d="$c_d )"
   c_d="$c_d comment='Database privileges';"
   
-  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');
-  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');"
+  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y');
+  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y');"
 fi
 
 if test ! -f $mdata/host.frm
@@ -95,6 +97,8 @@ then
   c_h="$c_h  Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_h="$c_h  Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_h="$c_h  Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_h="$c_h  PRIMARY KEY Host (Host,Db)"
   c_h="$c_h )"
   c_h="$c_h comment='Host privileges;  Merged with database privileges';"
@@ -131,6 +135,8 @@ then
   c_u="$c_u   Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') DEFAULT '' NOT NULL,"
   c_u="$c_u   ssl_cipher BLOB NOT NULL,"
   c_u="$c_u   x509_issuer BLOB NOT NULL,"
@@ -144,21 +150,21 @@ then
 
   if test "$1" = "test" 
   then
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
     INSERT INTO user (host,user) values ('localhost','');
     INSERT INTO user (host,user) values ('$hostname','');"
   else
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
     if test "$windows" = "0"
     then
       i_u="$i_u 
-           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
            INSERT INTO user (host,user) values ('$hostname','');
            INSERT INTO user (host,user) values ('localhost','');"
     else
-      i_u="INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
+      i_u="INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
     fi
   fi 
 fi

@@ -36,6 +36,8 @@
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
+#define FIRST_NON_YN_FIELD 26
+
 class acl_entry :public hash_filo_element
 {
 public:
@@ -303,9 +305,14 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
+
       if (table->fields >= 31)	 /* Starting from 4.0.2 we have more fields */
       {
-        char *ssl_type=get_field(&mem, table->field[24]);
+	uint base_field= 24;
+	if (table->fields > 31) /* Starting from 5.1 we have more privileges */
+	  base_field= 26;
+
+        char *ssl_type=get_field(&mem, table->field[base_field]);
         if (!ssl_type)
           user.ssl_type=SSL_TYPE_NONE;
         else if (!strcmp(ssl_type, "ANY"))
@@ -315,15 +322,15 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
         else  /* !strcmp(ssl_type, "SPECIFIED") */
           user.ssl_type=SSL_TYPE_SPECIFIED;
 
-        user.ssl_cipher=   get_field(&mem, table->field[25]);
-        user.x509_issuer=  get_field(&mem, table->field[26]);
-        user.x509_subject= get_field(&mem, table->field[27]);
+        user.ssl_cipher=   get_field(&mem, table->field[base_field+1]);
+        user.x509_issuer=  get_field(&mem, table->field[base_field+2]);
+        user.x509_subject= get_field(&mem, table->field[base_field+3]);
 
-        char *ptr = get_field(&mem, table->field[28]);
+        char *ptr = get_field(&mem, table->field[base_field+4]);
         user.user_resource.questions=atoi(ptr);
-        ptr = get_field(&mem, table->field[29]);
+        ptr = get_field(&mem, table->field[base_field+5]);
         user.user_resource.updates=atoi(ptr);
-        ptr = get_field(&mem, table->field[30]);
+        ptr = get_field(&mem, table->field[base_field+6]);
         user.user_resource.connections=atoi(ptr);
         if (user.user_resource.questions || user.user_resource.updates ||
             user.user_resource.connections)
@@ -3016,15 +3023,16 @@ static void add_user_option(String *grant, ulong value, const char *name)
 
 static const char *command_array[]=
 {
-  "SELECT", "INSERT","UPDATE","DELETE","CREATE", "DROP", "RELOAD","SHUTDOWN",
-  "PROCESS","FILE","GRANT","REFERENCES","INDEX", "ALTER", "SHOW DATABASES",
-  "SUPER", "CREATE TEMPORARY TABLES", "LOCK TABLES", "EXECUTE",
-  "REPLICATION SLAVE", "REPLICATION CLIENT",
+  "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
+  "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
+  "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
+  "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
+  "CREATE VIEW", "SHOW VIEW"
 };
 
 static uint command_lengths[]=
 {
-  6,6,6,6,6,4,6,8,7,4,5,10,5,5,14,5,23,11,7,17,18
+  6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9
 };
 
 
