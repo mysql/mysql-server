@@ -226,7 +226,7 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
   return MY_XML_OK;
 }
 
-static my_bool read_charset_index(myf myflags)
+static my_bool read_charset_index(const char *filename, myf myflags)
 {
   char *buf;
   int  fd;
@@ -237,7 +237,7 @@ static my_bool read_charset_index(myf myflags)
   if (! (buf = (char *)my_malloc(MAX_BUF,myflags)))
     return FALSE;
   
-  strmov(get_charsets_dir(buf),MY_CHARSET_INDEX);
+  strmov(get_charsets_dir(buf),filename);
   
   if ((fd=my_open(buf,O_RDONLY,myflags)) < 0)
   {
@@ -313,7 +313,7 @@ static my_bool init_available_charsets(myf myflags)
       if (*cs)
         set_max_sort_char(*cs);
     }
-    error = read_charset_index(myflags);
+    error = read_charset_index(MY_CHARSET_INDEX,myflags);
     charset_initialized=1;
     pthread_mutex_unlock(&THR_LOCK_charset);
   }
