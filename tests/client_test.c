@@ -9729,7 +9729,7 @@ static void test_bug3796()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[1];
   const char *concat_arg0= "concat_with_";
-  const int OUT_BUFF_SIZE= 30;
+  enum { OUT_BUFF_SIZE= 30 };
   char out_buff[OUT_BUFF_SIZE];
   char canonical_buff[OUT_BUFF_SIZE];
   ulong out_length;
