@@ -8,10 +8,10 @@
 
 use strict;
 
-my $table_width  = 12.75;   # cm
-my $gutter_width =  0.55;    # 2 mm
+my $table_width  = 12.75; # Specify the max width of the table in cm
+my $gutter_width =  0.55; # Specify the width of the gutters in cm
 
-my $str = join '', <>;
+my $str = join '', <>; # Push stdin (or file)
 
 $str =~ s{([\t ]*(<colspec colwidth=\".+?\" />\s*)+)}
          {&rel2abs($1)}ges;

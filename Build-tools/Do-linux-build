@@ -1,9 +1,17 @@
 #! /bin/sh
 
 set -e -x
-OTHER_LIBC_DIR=/usr/local/mysql-glibc
 
-BUILD/compile-pentium-max --with-other-libc=$OTHER_LIBC_DIR \
+# Only use the "--with-other-libc" parameter, if another libc actually
+# exists, since this will also force static linking, which does not work
+# together with OpenSSL
+OTHER_LIBC_DIR=/usr/local/mysql-glibc
+OTHER_LIBC=""
+if [ -d OTHER_LIBC_DIR ] ; then
+	OTHER_LIBC="--with-other-libc=$OTHER_LIBC_DIR"
+fi
+
+BUILD/compile-pentium-max $OTHER_LIBC \
   --with-comment="Official MySQL Binary"  \
   --prefix=/usr/local/mysql --with-extra-charset=complex \
   --enable-thread-safe-client --enable-local-infile \

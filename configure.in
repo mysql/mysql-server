@@ -364,6 +364,9 @@ AC_PATH_PROG(SED, sed, sed)
 AC_PATH_PROG(CMP, cmp, cmp)
 AC_PATH_PROG(CHMOD, chmod, chmod)
 AC_PATH_PROG(HOSTNAME, hostname, hostname)
+# Check for a GNU tar named 'gtar', or 'gnutar' (MacOS X) and
+# fall back to 'tar' otherwise and hope that it's a GNU tar as well
+AC_CHECK_PROGS(TAR, gnutar gtar tar)
 dnl We use a path for perl so the script startup works
 dnl We make sure to use perl, not perl5, in hopes that the RPMs will
 dnl not depend on the perl5 binary being installed (probably a bug in RPM)
@@ -882,9 +885,9 @@ case $SYSTEM_TYPE in
     CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS";
     ;;
   *hpux10.20*)
-    echo "Enabling snprintf workaround for hpux 10.20"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE"
-    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE"
+    echo "Enabling workarounds for hpux 10.20"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHPUX -DSIGNAL_WITH_VIO_CLOSE -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       echo "Using --with-named-thread=-lpthread"
@@ -892,9 +895,9 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *hpux11.*)
-    echo "Enabling pread/pwrite workaround for hpux 11"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS"
-    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS"
+    echo "Enabling workarounds for hpux 11"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       echo "Using --with-named-thread=-lpthread"
@@ -2375,8 +2378,9 @@ echo "latest release, upcoming features, and other information to make your"
 echo "work or play with MySQL more productive. There you can also find"
 echo "information about mailing lists for MySQL discussion."
 echo
-echo "Remember to check the platform specific part in the reference manual for"
-echo "hints about installing on your platfrom. See the Docs directory."
+echo "Remember to check the platform specific part of the reference manual for"
+echo "hints about installing MySQL on your platform. Also have a look at the"
+echo "files in the Docs directory."
 echo
 # The following text is checked in ./Do-compile to se that the configure ends.
 echo "Thank you for choosing MySQL!"

@@ -81,10 +81,16 @@ UNIV_INLINE
 ibool
 ibuf_should_try(
 /*============*/
-	dict_index_t*	index)	/* in: index where to insert */
+	dict_index_t*	index,			/* in: index where to insert */
+	ulint		ignore_sec_unique)	/* in: if != 0, we should
+						ignore UNIQUE constraint on
+						a secondary index when we
+						decide */
 {
-	if (!(index->type & (DICT_CLUSTERED | DICT_UNIQUE))
-					&& ibuf->meter > IBUF_THRESHOLD) {
+	if (!(index->type & DICT_CLUSTERED)
+	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))
+	    && ibuf->meter > IBUF_THRESHOLD) {
+
 		ibuf_flush_count++;
 
 		if (ibuf_flush_count % 8 == 0) {

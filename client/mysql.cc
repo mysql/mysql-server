@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2002 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.2";
+const char *VER= "12.4";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -354,18 +354,6 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql),mysql_get_server_info(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-#ifdef HAVE_OPENSSL
-  if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
-  {
-    sprintf((char*) glob_buffer.ptr(),
-	    "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
-    put_info((char*) glob_buffer.ptr(),INFO_INFO);
-  }
-  else
-    put_info("SSL is not in use\n",INFO_INFO);
-#endif /* HAVE_OPENSSL */
-
-
 #ifdef HAVE_READLINE
   initialize_readline(my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
@@ -460,6 +448,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -489,7 +480,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"no-beep", 'b', "Turn off beep on error.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0}, 
- {"host", 'h', "Connect to host.", (gptr*) &current_host,
+  {"host", 'h', "Connect to host.", (gptr*) &current_host,
    (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"html", 'H', "Produce HTML output.", (gptr*) &opt_html, (gptr*) &opt_html,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -533,8 +524,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, 
-   GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
@@ -571,19 +563,19 @@ static struct my_option my_long_options[] =
   {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
-   (gptr*) &opt_connect_timeout, 0, GET_LONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
+   (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
    0, 1},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_LONG,
+   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 16 *1024L*1024L, 4096, 512*1024L*1024L, MALLOC_OVERHEAD,
    1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-   (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_LONG,
+   (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"select_limit", OPT_SELECT_LIMIT, "", (gptr*) &select_limit,
-   (gptr*) &select_limit, 0, GET_LONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
+   (gptr*) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
   {"max_join_size", OPT_MAX_JOIN_SIZE, "", (gptr*) &max_join_size,
-   (gptr*) &max_join_size, 0, GET_LONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
+   (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
    0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -694,7 +686,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     case 'p':
       if (argument == disabled_my_option)
-	opt_password= "";
+	opt_password= (char*) "";
       else
       {
 	if (argument)
@@ -2326,6 +2318,13 @@ com_status(String *buffer __attribute__((unused)),
       tee_fprintf(stdout, "Current user:\t\t%s\n",cur[1]);
       (void) mysql_fetch_row(result);		// Read eof
     }
+#ifdef HAVE_OPENSSL
+    if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+      tee_fprintf(stdout, "SSL cipher in use is %s\n",
+		  SSL_get_cipher(mysql.net.vio->ssl_));
+    else
+#endif /* HAVE_OPENSSL */
+      tee_puts("SSL is not in use\n", stdout);
   }
   else
   {

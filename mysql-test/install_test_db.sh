@@ -218,6 +218,6 @@ END_OF_DATA
 then
     exit 0
 else
-    echo "Error executing mysqld --boostrap"
+    echo "Error executing mysqld --bootstrap"
     exit 1
 fi

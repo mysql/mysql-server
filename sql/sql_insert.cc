@@ -311,7 +311,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   }
   thd->proc_info="end";
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table_list, 1);
+  }
   table->time_stamp=save_time_stamp;		// Restore auto timestamp ptr
   table->next_number_field=0;
   thd->count_cuted_fields=0;
@@ -1330,7 +1332,9 @@ void select_insert::send_error(uint errcode,const char *err)
   table->file->activate_all_index(thd);
   ha_rollback_stmt(thd);
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table, 1);
+  }
 }
 
 
@@ -1343,8 +1347,9 @@ bool select_insert::send_eof()
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
     error=error2;
   if (info.copied || info.deleted)
+  {
     query_cache_invalidate3(thd, table, 1);
-
+  }
   if (error)
   {
     table->file->print_error(error,MYF(0));

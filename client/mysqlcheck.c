@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.0"
+#define CHECK_VERSION "2.1"
 
 #include "client_priv.h"
 #include <my_getopt.h>
@@ -107,8 +107,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, GET_LONG,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
   {"quick", 'q',
    "If you are using this option with CHECK TABLE, it prevents the check from scanning the rows to check for wrong links. This is the fastest check. If you are using this option with REPAIR TABLE, it will try to repair only the index tree. This is the fastest repair method for a table.",
    (gptr*) &opt_quick, (gptr*) &opt_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -614,8 +615,8 @@ int main(int argc, char **argv)
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
 
-  if (opt_auto_repair && 
-      init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
+  if (opt_auto_repair &&
+      my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
   {
     first_error = 1;
     goto end;

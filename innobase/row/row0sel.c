@@ -2116,8 +2116,14 @@ row_sel_store_mysql_rec(
 				extern_field_heap = NULL;
  			}
 		} else {
-			mysql_rec[templ->mysql_null_byte_offset] |=
+			if (!templ->mysql_null_bit_mask) {
+				fprintf(stderr,
+"InnoDB: Error: trying to return an SQL NULL field in a non-null\n"
+"innoDB: column! Table name %s\n", prebuilt->table->name);
+			} else {
+				mysql_rec[templ->mysql_null_byte_offset] |=
 					(byte) (templ->mysql_null_bit_mask);
+			}
 		}
 	} 
 }
