@@ -336,7 +336,6 @@ static int sort_keys(KEY *a, KEY *b)
     keys		List of keys to create
     tmp_table		Set to 1 if this is an internal temporary table
 			(From ALTER TABLE)    
-    no_log		Don't log the query to binary log.
 
   DESCRIPTION		       
     If one creates a temporary table, this is automaticly opened
@@ -354,7 +353,7 @@ static int sort_keys(KEY *a, KEY *b)
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
-		       List<Key> &keys,bool tmp_table,bool no_log)
+		       List<Key> &keys,bool tmp_table)
 {
   char		path[FN_REFLEN];
   const char	*key_name, *alias;
@@ -779,7 +778,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       goto end;
     }
   }
-  if (!tmp_table && !no_log)
+  if (!tmp_table)
   {
     // Must be written before unlock
     mysql_update_log.write(thd,thd->query, thd->query_length);
@@ -843,6 +842,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   TABLE tmp_table;		// Used during 'create_field()'
   TABLE *table;
   tmp_table.table_name=0;
+  Disable_binlog disable_binlog(thd);
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -873,9 +873,17 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   /* create and lock table */
   /* QQ: This should be done atomic ! */
+  /* We don't log the statement, it will be logged later */
   if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0,1)) // no logging
+			 *keys,0))
     DBUG_RETURN(0);
+  /*
+    If this is a HEAP table, the automatic DELETE FROM which is written to the
+    binlog when a HEAP table is opened for the first time since startup, must
+    not be written: 1) it would be wrong (imagine we're in CREATE SELECT: we
+    don't want to delete from it) 2) it would be written before the CREATE
+    TABLE, which is a wrong order. So we keep binary logging disabled.
+  */
   if (!(table=open_table(thd,db,name,name,(bool*) 0)))
   {
     quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
@@ -892,6 +900,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(table);
+  /* Note that leaving the function resets binlogging properties */
 }
 
 
@@ -1753,6 +1762,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   List_iterator<Key> key_it(keys);
   List_iterator<create_field> field_it(create_list);
   List<key_part_spec> key_parts;
+  Disable_binlog *disable_binlog;
 
   KEY *key_info=table->key_info;
   for (uint i=0 ; i < table->keys ; i++,key_info++)
@@ -1915,12 +1925,16 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   else
     create_info->data_file_name=create_info->index_file_name=0;
-
+  /* We don't log the statement, it will be logged later */
+  disable_binlog= new Disable_binlog(thd);
   if ((error=mysql_create_table(thd, new_db, tmp_name,
 				create_info,
-				create_list,key_list,1,1))) // no logging
+				create_list,key_list,1)))
+  {
+    delete disable_binlog;
     DBUG_RETURN(error);
-
+  }
+  delete disable_binlog; // reset binlogging properties for next code lines
   if (table->tmp_table)
     new_table=open_table(thd,new_db,tmp_name,tmp_name,0);
   else
