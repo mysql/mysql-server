@@ -9638,63 +9638,12 @@ client/server and don't need to access the server from other hosts.
 Add some nice start and shutdown icons to the MySQL installation.
 
 @item
-Create a tool to manage registry entries for the MySQL startup
-options.  The registry entry reading is already coded into @file{mysqld.cc},
-but it should be recoded to be more parameter oriented.  The tool should
-also be able to update the @file{C:\my.cnf} option file if the user prefers
-to use that instead of the registry.
 
 @item
-When registering @code{mysqld} as a service with @code{--install} (on NT)
-it would be nice if you could also add default options on the command line.
-For the moment, the workaround is to list the parameters in the
-@file{C:\my.cnf} file instead.
-
-@item
-It would be real nice to be able to kill @code{mysqld} from the task manager.
-For the moment, you must use @code{mysqladmin shutdown}.
-
-@item
-Port @code{readline} to Windows for use in the @code{mysql} command line tool.
-
-@item
-GUI versions of the standard MySQL clients (@code{mysql},
-@code{mysqlshow}, @code{mysqladmin}, and @code{mysqldump}) would be nice.
-
-@item
-It would be nice if the socket read and write functions in @file{net.c} were
-interruptible. This would make it possible to kill open threads with
-@code{mysqladmin kill} on Windows.
-
-@item
-@code{mysqld} always starts in the "C" locale and not in the default locale.
-We would like to have @code{mysqld} use the current locale for the sort order.
-
-@item
-Implement UDF functions with @code{.DLL}s.
-
-@item
-Add macros to use the faster thread-safe increment/decrement methods
-provided by Windows.
-
-@end itemize
-
-Other Windows-specific issues are described in the @file{README} file that
-comes with the MySQL-Windows distribution.
-
-
-@node Solaris, BSD Notes, Windows, Operating System Specific Notes
-@subsection Solaris Notes
-
-@cindex Solaris installation problems
-@cindex problems, installing on Solaris
-@cindex tar, problems on Solaris
-@cindex errors, directory checksum
-@cindex checksum errors
-
-On Solaris, you may run into trouble even before you get the MySQL
-distribution unpacked!  Solaris @code{tar} can't handle long file names, so
-you may see an error like this when you unpack MySQL:
+The CSSA-2001-SCO.35.2 (the patch is listed in custom as
+erg711905-dscr_remap security patch (ver 2.0.0) breaks FSU threads and
+makes mysqld instable.  You have to remove this one if you want to run
+mysqld on an OpenServer 5.0.6 machine.
 
 @example
 x mysql-3.22.12-beta/bench/Results/ATIS-mysql_odbc-NT_4.0-cmp-db2,\
@@ -49083,6 +49032,12 @@ not yet 100% confident in this code.
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
+@item
+Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
+32 indexes.
+@item
+Fixed that one can use @code{SET PASSWORD} for the anonymous user.
+@item
 Fixed core-dump bug when reading client groups from option files using
 @code{mysql_options()}.
 @item

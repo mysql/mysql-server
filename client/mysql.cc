@@ -530,6 +530,7 @@ static void usage(int version)
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
   -X, --xml		Produce XML output.\n\
+  --local-infile=[1|0]  Enable/disable LOAD DATA LOCAL INFILE\n\
   -L, --skip-line-numbers\n\
                         Don't write line number for errors.\n");
 #ifndef __WIN__
