@@ -2090,6 +2090,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     "utf8",		/* cs name      */
     "utf8_general_ci",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
@@ -2116,6 +2117,7 @@ CHARSET_INFO my_charset_utf8_bin=
     "utf8",		/* cs name      */
     "utf8_bin",		/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */

@@ -200,6 +200,7 @@ typedef struct charset_info_st
   const char *csname;
   const char *name;
   const char *comment;
+  const char *tailoring;
   uchar    *ctype;
   uchar    *to_lower;
   uchar    *to_upper;

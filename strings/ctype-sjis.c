@@ -4579,6 +4579,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     "sjis",		/* cs name    */
     "sjis_japanese_ci",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
@@ -4604,6 +4605,7 @@ CHARSET_INFO my_charset_sjis_bin=
     "sjis",		/* cs name    */
     "sjis_bin",		/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
