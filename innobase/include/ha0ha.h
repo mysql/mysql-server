@@ -131,6 +131,14 @@ ha_print_info(
 	char*		buf_end,/* in: buffer end */
 	hash_table_t*	table);	/* in: hash table */
 
+/* The hash table external chain node */
+
+typedef struct ha_node_struct ha_node_t;
+struct ha_node_struct {
+	ha_node_t* next; /* next chain node or NULL if none */
+	void*	data;	/* pointer to the data */
+	ulint	fold;	/* fold value for the data */
+};
 
 #ifndef UNIV_NONINL
 #include "ha0ha.ic"

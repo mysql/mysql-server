@@ -85,7 +85,7 @@ extern	ibool	srv_is_being_shut_down;
 /* At a shutdown the value first climbs from 0 to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE */
 
-extern 	ulint	srv_shutdown_state;
+extern  ulint   srv_shutdown_state;
 
 #define SRV_SHUTDOWN_CLEANUP	1
 #define SRV_SHUTDOWN_LAST_PHASE	2

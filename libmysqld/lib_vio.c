@@ -151,7 +151,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
   DBUG_RETURN(size);
 }
 
-int vio_blocking(Vio * vio, my_bool set_blocking_mode)
+int vio_blocking(Vio * vio, my_bool set_blocking_mode, my_bool *old_mode)
 {
   return (0);
 }

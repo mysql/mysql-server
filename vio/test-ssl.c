@@ -59,6 +59,7 @@ main(	int	argc,
 	char*	ca_file = 0,	*ca_path = 0;
 	char*	cipher=0;
 	int	child_pid,sv[2];
+	my_bool unused;
 	struct st_VioSSLAcceptorFd* ssl_acceptor=0;
 	struct st_VioSSLConnectorFd* ssl_connector=0; 
 	Vio* client_vio=0, *server_vio=0;
@@ -96,11 +97,11 @@ main(	int	argc,
 
 	client_vio = (struct st_vio*)my_malloc(sizeof(struct st_vio),MYF(0));
         client_vio->sd = sv[0];
-	client_vio->vioblocking(client_vio,0);
+	client_vio->vioblocking(client_vio, 0, &unused);
         sslconnect(ssl_connector,client_vio,60L);
 	server_vio = (struct st_vio*)my_malloc(sizeof(struct st_vio),MYF(0));
         server_vio->sd = sv[1];
-	server_vio->vioblocking(client_vio,0);
+	server_vio->vioblocking(client_vio, 0, &unused);
         sslaccept(ssl_acceptor,server_vio,60L);
 
 	printf("Socketpair: %d , %d\n", client_vio->sd, server_vio->sd);

@@ -251,6 +251,7 @@ mem_pool_fill_free_list(
 	mem_area_t*	area;
 	mem_area_t*	area2;
 	ibool		ret;
+	char            err_buf[500];
 
 	ut_ad(mutex_own(&(pool->mutex)));
 
@@ -279,15 +280,34 @@ mem_pool_fill_free_list(
 	area = UT_LIST_GET_FIRST(pool->free_list[i + 1]);
 
 	if (area == NULL) {
+	        if (UT_LIST_GET_LEN(pool->free_list[i + 1]) > 0) {
+	    		ut_print_timestamp(stderr);
+
+	                fprintf(stderr,
+"  InnoDB: Error: mem pool free list %lu length is %lu\n"
+"InnoDB: though the list is empty!\n",
+			i + 1, UT_LIST_GET_LEN(pool->free_list[i + 1]));
+		}
+
 		ret = mem_pool_fill_free_list(i + 1, pool);
 
 		if (ret == FALSE) {
+
 			return(FALSE);
 		}
 
 		area = UT_LIST_GET_FIRST(pool->free_list[i + 1]);
 	}
-	
+
+	if (UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0) {
+		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
+	        fprintf(stderr,
+"InnoDB: Error: Removing element from mem pool free list %lu\n"
+"InnoDB: though the list length is 0! Dump of 100 bytes around element:\n%s\n",
+			i + 1, err_buf);
+		ut_a(0);
+	}
+
 	UT_LIST_REMOVE(free_list, pool->free_list[i + 1], area);
 
 	area2 = (mem_area_t*)(((byte*)area) + ut_2_exp(i));
@@ -320,6 +340,7 @@ mem_area_alloc(
 	mem_area_t*	area;
 	ulint		n;
 	ibool		ret;
+	char            err_buf[500];
 
 	n = ut_2_log(ut_max(size + MEM_AREA_EXTRA_SIZE, MEM_AREA_MIN_SIZE));
 
@@ -342,7 +363,24 @@ mem_area_alloc(
 		area = UT_LIST_GET_FIRST(pool->free_list[n]);
 	}
 
-	ut_a(mem_area_get_free(area));
+	if (!mem_area_get_free(area)) {
+		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
+	        fprintf(stderr,
+"InnoDB: Error: Removing element from mem pool free list %lu though the\n"
+"InnoDB: element is not marked free! Dump of 100 bytes around element:\n%s\n",
+			n, err_buf);
+		ut_a(0);
+	}
+
+	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
+		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
+	        fprintf(stderr,
+"InnoDB: Error: Removing element from mem pool free list %lu\n"
+"InnoDB: though the list length is 0! Dump of 100 bytes around element:\n%s\n",
+			n, err_buf);
+		ut_a(0);
+	}
+
 	ut_ad(mem_area_get_size(area) == ut_2_exp(n));	
 
 	mem_area_set_free(area, FALSE);
@@ -413,6 +451,7 @@ mem_area_free(
 	void*		new_ptr;
 	ulint		size;
 	ulint		n;
+	char            err_buf[500];
 	
 	if (mem_out_of_mem_err_msg_count > 0) {
 		/* It may be that the area was really allocated from the
@@ -429,10 +468,18 @@ mem_area_free(
 
 	area = (mem_area_t*) (((byte*)ptr) - MEM_AREA_EXTRA_SIZE);
 
+	if (mem_area_get_free(area)) {
+		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
+	        fprintf(stderr,
+"InnoDB: Error: Freeing element to mem pool free list though the\n"
+"InnoDB: element is marked free! Dump of 100 bytes around element:\n%s\n",
+			err_buf);
+		ut_a(0);
+	}
+
 	size = mem_area_get_size(area);
 	
 	ut_ad(size != 0);
-	ut_a(!mem_area_get_free(area));
 
 #ifdef UNIV_LIGHT_MEM_DEBUG	
 	if (((byte*)area) + size < pool->buf + pool->size) {

@@ -286,7 +286,7 @@ buf_page_print(
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 	"  InnoDB: Page dump in ascii and hex (%u bytes):\n%s",
-					UNIV_PAGE_SIZE, buf);
+					(ulint)UNIV_PAGE_SIZE, buf);
 	fprintf(stderr, "InnoDB: End of page dump\n");
 
 	mem_free(buf);
@@ -1707,10 +1707,11 @@ buf_print(void)
 
 	mutex_enter(&(buf_pool->mutex));
 	
-	printf("LRU len %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
-	printf("free len %lu \n", UT_LIST_GET_LEN(buf_pool->free));
-	printf("flush len %lu \n", UT_LIST_GET_LEN(buf_pool->flush_list));
 	printf("buf_pool size %lu \n", size);
+	printf("database pages %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
+	printf("free pages %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+	printf("modified database pages %lu \n",
+				UT_LIST_GET_LEN(buf_pool->flush_list));
 
 	printf("n pending reads %lu \n", buf_pool->n_pend_reads);
 
@@ -1819,13 +1820,20 @@ buf_print_io(
 	mutex_enter(&(buf_pool->mutex));
 	
 	buf += sprintf(buf,
-		"Free list length  %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+		"Buffer pool size   %lu\n", size);
 	buf += sprintf(buf,
-		"LRU list length   %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
+		"Free buffers       %lu\n", UT_LIST_GET_LEN(buf_pool->free));
 	buf += sprintf(buf,
-		"Flush list length %lu \n",
+		"Database pages     %lu\n", UT_LIST_GET_LEN(buf_pool->LRU));
+/*
+	buf += sprintf(buf,
+		"Lock heap buffers  %lu\n", buf_pool->n_lock_heap_pages);
+	buf += sprintf(buf,
+		"Hash index buffers %lu\n", buf_pool->n_adaptive_hash_pages);
+*/
+	buf += sprintf(buf,
+		"Modified db pages  %lu\n",
 				UT_LIST_GET_LEN(buf_pool->flush_list));
-	buf += sprintf(buf, "Buffer pool size  %lu\n", size);
 
 	buf += sprintf(buf, "Pending reads %lu \n", buf_pool->n_pend_reads);
 
@@ -1836,8 +1844,8 @@ buf_print_io(
 		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);
-	time_elapsed = difftime(current_time, buf_pool->last_printout_time);
-
+	time_elapsed = 0.001 + difftime(current_time,
+						buf_pool->last_printout_time);
 	buf_pool->last_printout_time = current_time;
 
 	buf += sprintf(buf, "Pages read %lu, created %lu, written %lu\n",
@@ -1868,6 +1876,20 @@ buf_print_io(
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
 
 	mutex_exit(&(buf_pool->mutex));
+}
+
+/**************************************************************************
+Refreshes the statistics used to print per-second averages. */
+
+void
+buf_refresh_io_stats(void)
+/*======================*/
+{
+        buf_pool->last_printout_time = time(NULL);
+	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
+	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
+	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
+	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
 }
 
 /*************************************************************************

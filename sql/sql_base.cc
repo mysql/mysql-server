@@ -32,7 +32,7 @@ TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
-			     const char *name, const char *alias, bool locked);
+			     const char *name, const char *alias);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static key_map get_key_map_from_key_list(TABLE *table,
@@ -107,6 +107,24 @@ static void check_unused(void)
 #else
 #define check_unused()
 #endif
+
+/*
+  Create a list for all open tables matching SQL expression
+
+  SYNOPSIS
+    list_open_tables()
+    thd			Thread THD
+    wild		SQL like expression
+
+  NOTES
+    One gets only a list of tables for which one has any kind of privilege.
+    db and table names are allocated in result struct, so one doesn't need
+    a lock on LOCK_open when traversing the return list.
+
+  RETURN VALUES
+    NULL	Error (Probably OOM)
+    #		Pointer to list of names of open tables.
+*/
 
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 {
@@ -275,6 +293,16 @@ void intern_close_table(TABLE *table)
     VOID(closefrm(table));			// close file
 }
 
+/*
+  Remove table from the open table cache
+
+  SYNOPSIS
+    free_cache_entry()
+    table		Table to remove
+
+  NOTE
+    We need to have a lock on LOCK_open when calling this
+*/
 
 static void free_cache_entry(TABLE *table)
 {
@@ -709,7 +737,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(thd, table, db, table_name, table_name, 1) ||
+  if (open_unireg_entry(thd, table, db, table_name, table_name) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
@@ -842,8 +870,11 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
-    if (open_unireg_entry(thd, table,db,table_name,alias,1) ||
+    }
+    if (open_unireg_entry(thd, table,db,table_name,alias) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
@@ -934,8 +965,7 @@ bool reopen_table(TABLE *table,bool locked)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
-  if (open_unireg_entry(current_thd,&tmp,db,table_name,table->table_name,
-			locked))
+  if (open_unireg_entry(current_thd,&tmp,db,table_name,table->table_name))
     goto end;
   free_io_cache(table);
 
@@ -1176,7 +1206,6 @@ bool wait_for_tables(THD *thd)
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
     result=reopen_tables(thd,0,0);
-
   }
   pthread_mutex_unlock(&LOCK_open);
   thd->proc_info=0;
@@ -1241,7 +1270,7 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 */
 
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
-			     const char *name, const char *alias, bool locked)
+			     const char *name, const char *alias)
 {
   char path[FN_REFLEN];
   int error;
@@ -1261,23 +1290,17 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     table_list.db=(char*) db;
     table_list.name=(char*) name;
     table_list.next=0;
-    if (!locked)
-      pthread_mutex_lock(&LOCK_open);
     safe_mutex_assert_owner(&LOCK_open);
 
     if ((error=lock_table_name(thd,&table_list)))
     {
       if (error < 0)
       {
-	if (!locked)
-	  pthread_mutex_unlock(&LOCK_open);
 	goto err;
       }
       if (wait_for_locked_table_names(thd,&table_list))
       {
 	unlock_table_name(thd,&table_list);
-	if (!locked)
-	  pthread_mutex_unlock(&LOCK_open);
 	goto err;
       }
     }
@@ -1307,9 +1330,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       thd->net.last_error[0]=0;			// Clear error message
       thd->net.last_errno=0;
     }
-    if (locked)
-      pthread_mutex_lock(&LOCK_open);      // Get back original lock
+    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd,&table_list);
+
     if (error)
       goto err;
   }
@@ -1368,9 +1391,9 @@ int open_tables(THD *thd,TABLE_LIST *start)
 	  }
 	}
 	*prev_table=0;
+	pthread_mutex_unlock(&LOCK_open);
 	if (found)
 	  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
-	pthread_mutex_unlock(&LOCK_open);
 	goto restart;
       }
       result= -1;				// Fatal error
@@ -2207,6 +2230,7 @@ int setup_ftfuncs(THD *thd)
   return 0;
 }
 
+
 int init_ftfuncs(THD *thd, bool no_order)
 {
   if (thd->lex.select->ftfunc_list.elements)
@@ -2217,9 +2241,7 @@ int init_ftfuncs(THD *thd, bool no_order)
     thd->proc_info="FULLTEXT initialization";
 
     while ((ifm=li++))
-    {
       ifm->init_search(no_order);
-    }
   }
   return 0;
 }

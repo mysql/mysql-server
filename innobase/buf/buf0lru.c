@@ -27,6 +27,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "btr0sea.h"
 #include "os0file.h"
+#include "log0recv.h"
 
 /* The number of blocks from the LRU_old pointer onward, including the block
 pointed to, must be 3/8 of the whole LRU list length, except that the
@@ -204,6 +205,44 @@ buf_LRU_get_free_block(void)
 	ibool		started_monitor	= FALSE;
 loop:
 	mutex_enter(&(buf_pool->mutex));
+
+	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 10) {
+	   	ut_print_timestamp(stderr);
+
+	   	fprintf(stderr,
+"  InnoDB: ERROR: over 9 / 10 of the buffer pool is occupied by\n"
+"InnoDB: lock heaps or the adaptive hash index!\n"
+"InnoDB: We intentionally generate a seg fault to print a stack trace\n"
+"InnoDB: on Linux!\n");
+
+		ut_a(0);
+	   
+	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {
+
+	   	/* Over 80 % of the buffer pool is occupied by lock heaps
+	   	or the adaptive hash index. This may be a memory leak! */
+
+	   	ut_print_timestamp(stderr);
+	   	fprintf(stderr,
+"  InnoDB: WARNING: over 4 / 5 of the buffer pool is occupied by\n"
+"InnoDB: lock heaps or the adaptive hash index! Check that your\n"
+"InnoDB: transactions do not set too many row locks. Starting InnoDB\n"
+"InnoDB: Monitor to print diagnostics, including lock heap and hash index\n"
+"InnoDB: sizes.\n");
+
+		srv_print_innodb_monitor = TRUE;
+
+	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
+
+		/* Switch off the InnoDB Monitor; this is a simple way
+		to stop the monitor if the situation becomes less urgent,
+		but may also surprise users! */
+
+		srv_print_innodb_monitor = FALSE;
+	}
 
 	if (buf_pool->LRU_flush_ended > 0) {
 		mutex_exit(&(buf_pool->mutex));
