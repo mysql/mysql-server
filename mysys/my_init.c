@@ -73,6 +73,9 @@ void my_init(void)
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
+#ifdef UNIXWARE7
+  (void) isatty(0);			/* Go around connect() bug in UW7 */
+#endif
   my_thread_global_init();
 #ifndef __WIN__
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */

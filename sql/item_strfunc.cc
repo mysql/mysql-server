@@ -1199,6 +1199,7 @@ void Item_func_elt::fix_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   }
   maybe_null=1;					// NULL if wrong first arg
+  with_sum_func= with_sum_func || item->with_sum_func;
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
 }

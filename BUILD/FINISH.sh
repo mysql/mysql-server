@@ -22,7 +22,7 @@ if [ "x$strip" = "xyes" ]
 then
   commands="$commands
 
-mkdir tmp
+mkdir -p tmp
 nm --numeric-sort sql/mysqld  > tmp/mysqld.sym
 objdump -d sql/mysqld > tmp/mysqld.S
 strip sql/mysqld"

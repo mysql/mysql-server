@@ -56,11 +56,13 @@
 **
 ** Function 'myfunc_int' returns summary length of all its arguments.
 **
+** Function 'sequence' returns an sequence starting from a certain number
+**
 ** On the end is a couple of functions that converts hostnames to ip and
 ** vice versa.
 **
 ** A dynamicly loadable file should be compiled sharable
-** (something like: gcc -shared -o udf_example.so myfunc.cc).
+** (something like: gcc -shared -o my_func.so myfunc.cc).
 ** You can easily get all switches right by doing:
 ** cd sql ; make udf_example.o
 ** Take the compile line that make writes, remove the '-c' near the end of
@@ -74,6 +76,7 @@
 ** CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
 ** CREATE FUNCTION myfunc_double RETURNS REAL SONAME "udf_example.so";
 ** CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "udf_example.so";
+** CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
 ** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
 ** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
 ** CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "udf_example.so";
@@ -121,6 +124,10 @@ double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		     char *error);
 longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		    char *error);
+my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+ void sequence_deinit(UDF_INIT *initid);
+long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+		   char *error);
 }
 
 
@@ -535,6 +542,8 @@ double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 ** This function should return the result as a long long
 ***************************************************************************/
 
+/* This function returns the sum of all arguments */
+
 long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		     char *error)
 {
@@ -558,6 +567,50 @@ long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   return val;
 }
 
+
+/*
+  Simple example of how to get a sequences starting from the first argument
+  or 1 if no arguments have been given
+*/
+
+my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+{
+  if (args->arg_count > 1)
+  {
+    strmov(message,"This function takes none or 1 argument");
+    return 1;
+  }
+  if (args->arg_count)
+    args->arg_type[0]= INT_RESULT;		// Force argument to int
+
+  if (!(initid->ptr=(char*) malloc(sizeof(longlong))))
+  {
+    strmov(message,"Couldn't allocate memory");
+    return 1;
+  }
+  bzero(initid->ptr,sizeof(longlong));
+  // Fool MySQL to think that this function is a constant
+  // This will ensure that MySQL only evalutes the function
+  // when the rows are sent to the client and not before any ORDER BY
+  // clauses
+  initid->const_item=1;
+  return 0;
+}
+
+void sequence_deinit(UDF_INIT *initid)
+{
+  if (initid->ptr)
+    free(initid->ptr);
+}
+
+long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+		   char *error)
+{
+  ulonglong val=0;
+  if (args->arg_count)
+    val= *((long long*) args->args[0]);
+  return ++ *((longlong*) initid->ptr) + val;
+}
 
 /****************************************************************************
 ** Some functions that handles IP and hostname conversions
