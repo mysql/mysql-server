@@ -1481,9 +1481,10 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 %s, last_errno=%d, retry in %d sec",
 		      mc_mysql_error(mysql), last_errno=mc_mysql_errno(mysql),
 		      mi->connect_retry);
-      safe_sleep(thd, mi->connect_retry);
     }
-    if (err_count++ == master_retry_count)
+    safe_sleep(thd, mi->connect_retry);
+    /* if master_retry_count is not set, keep trying until success */
+    if (master_retry_count && err_count++ == master_retry_count)
     {
       slave_was_killed=1;
       break;
