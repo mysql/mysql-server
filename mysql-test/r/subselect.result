@@ -1624,6 +1624,14 @@ select 2 in (select * from t1);
 1
 SET SQL_SELECT_LIMIT=default;
 drop table t1;
+CREATE TABLE t1 (a int, b int, INDEX (a));
+INSERT INTO t1 VALUES (1, 1), (1, 2), (1, 3);
+SELECT * FROM t1 WHERE a = (SELECT MAX(a) FROM t1 WHERE a = 1) ORDER BY b;
+a	b
+1	1
+1	2
+1	3
+DROP TABLE t1;
 create table t1(val varchar(10));
 insert into t1 values ('aaa'), ('bbb'),('eee'),('mmm'),('ppp');
 select count(*) from t1 as w1 where w1.val in (select w2.val from t1 as w2 where w2.val like 'm%') and w1.val in (select w3.val from t1 as w3 where w3.val like 'e%');
