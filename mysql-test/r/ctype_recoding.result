@@ -1,4 +1,4 @@
-SET NAMES koi8r;
+SET CHARACTER SET koi8r;
 DROP TABLE IF EXISTS таблица;
 CREATE TABLE таблица 
 (
@@ -6,15 +6,15 @@ CREATE TABLE таблица
 );
 SHOW TABLES;
 Tables_in_test
-я┌п╟п╠п╩п╦я├п╟
+таблица
 SHOW CREATE TABLE таблица;
 Table	Create Table
-я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
-  `п©п╬п╩п╣` char(32) character set koi8r NOT NULL default ''
+таблица	CREATE TABLE `таблица` (
+  `поле` char(32) character set koi8r NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM таблица;
 Field	Type	Collation	Null	Key	Default	Extra
-п©п╬п╩п╣	char(32) character set koi8r	koi8r_general_ci				
+поле	char(32) character set koi8r	koi8r_general_ci				
 SET CHARACTER SET cp1251;
 SHOW TABLES;
 Tables_in_test
