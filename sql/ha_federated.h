@@ -72,7 +72,7 @@ private:
       return errorcode otherwise
   */
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
-  bool ha_federated::create_where_from_key(String *to, KEY *key_info, const byte *key, uint key_length); 
+  bool create_where_from_key(String *to, KEY *key_info, const byte *key, uint key_length); 
 
 public:
   ha_federated(TABLE *table): handler(table),
