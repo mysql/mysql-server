@@ -85,11 +85,11 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
     Transporter *t= m_transporter_registry->theTransporters[nodeId];
 
-    // send info about own id (just as response to acnowledge connection)
+    // send info about own id (just as response to acknowledge connection)
     SocketOutputStream s_output(sockfd);
     s_output.println("%d", t->getLocalNodeId());
 
-    // setup transporter (transporter responsable for closing sockfd)
+    // setup transporter (transporter responsible for closing sockfd)
     t->connect_server(sockfd);
   }
 

@@ -20,6 +20,8 @@
 #include <mgmapi.h>
 #include <ndb_types.h>
 
+class ConfigRetriever;
+
 class Configuration {
 public:
   Configuration();
@@ -31,6 +33,7 @@ public:
   bool init(int argc, const char** argv);
 
   void setupConfiguration();
+  void closeConfiguration();
   
   bool lockPagesInMainMemory() const;
   
@@ -78,6 +81,8 @@ private:
   ndb_mgm_configuration_iterator * m_clusterConfigIter;
   ndb_mgm_configuration_iterator * m_ownConfigIterator;
   
+  ConfigRetriever *m_config_retriever;
+
   /**
    * arguments to NDB process
    */

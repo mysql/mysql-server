@@ -48,7 +48,7 @@
 #endif
 
 TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
-
+ConfigRetriever *TransporterFacade::s_config_retriever= 0;
 
 
 /*****************************************************************************
@@ -333,11 +333,15 @@ atexit_stop_instance(){
  * 
  * Which is protected by a mutex
  */
+
+
 TransporterFacade* 
 TransporterFacade::start_instance(const char * connectString){
 
   // TransporterFacade used from API get config from mgmt srvr
-  ConfigRetriever configRetriever;
+  s_config_retriever= new ConfigRetriever;
+
+  ConfigRetriever &configRetriever= *s_config_retriever;
   configRetriever.setConnectString(connectString);
   ndb_mgm_configuration * props = configRetriever.getConfig(NDB_VERSION, 
 							    NODE_TYPE_API);
@@ -390,6 +394,14 @@ TransporterFacade::start_instance(int nodeId,
   return tf;
 }
 
+void
+TransporterFacade::close_configuration(){
+  if (s_config_retriever) {
+    delete s_config_retriever;
+    s_config_retriever= 0;
+  }
+}
+
 /**
  * Note that this function need no locking since its
  * only called from the destructor of Ndb (the NdbObject)
@@ -398,6 +410,9 @@ TransporterFacade::start_instance(int nodeId,
  */
 void
 TransporterFacade::stop_instance(){
+
+  close_configuration();
+
   if(theFacadeInstance == NULL){
     /**
      * We are called from atexit function

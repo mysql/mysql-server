@@ -103,7 +103,7 @@ ConfigInfo::m_SectionRules[] = {
   { "OSE",  fixHostname, "HostName1" },
   { "OSE",  fixHostname, "HostName2" },
 
-  { "TCP",  fixPortNumber, 0 },
+  { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
   //{ "SHM",  fixShmKey, 0 },
 
   /**
@@ -337,7 +337,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2202,
+    NDB_BASE_PORT+2,
     0,
     0x7FFFFFFF },
 
@@ -1382,7 +1382,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2200,
+    NDB_BASE_PORT,
     0,
     0x7FFFFFFF },
 
@@ -1566,7 +1566,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2202,
+    NDB_BASE_PORT+2,
     0,
     0x7FFFFFFF },
 
@@ -2517,11 +2517,27 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
 
   Uint32 id;
   if(!ctx.m_currentSection->get("Id", &id)){
+    Uint32 nextNodeId= 1;
+    ctx.m_userProperties.get("NextNodeId", &nextNodeId);
+    id= nextNodeId;
+    while (ctx.m_userProperties.get("AllocatedNodeId_", id, &id))
+      id++;
+    ctx.m_userProperties.put("NextNodeId", id+1, true);
+    ctx.m_currentSection->put("Id", id);
+#if 0
     ctx.reportError("Mandatory parameter Id missing from section "
 		    "[%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
+#endif
+  } else if(ctx.m_userProperties.get("AllocatedNodeId_", id, &id)) {
+    ctx.reportError("Duplicate Id in section "
+		    "[%s] starting at line: %d",
+		    ctx.fname, ctx.m_sectionLineno);
+    return false;
   }
+
+  ctx.m_userProperties.put("AllocatedNodeId_", id, id);
   snprintf(ctx.pname, sizeof(ctx.pname), "Node_%d", id);
   
   ctx.m_currentSection->put("Type", ctx.fname);
@@ -3317,7 +3333,7 @@ bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
 #if 0
   Properties * props= ctx.m_config;
   Properties computers;
-  Uint32 port_base = 2202;
+  Uint32 port_base = NDB_BASE_PORT+2;
 
   Uint32 nNodes;
   ctx.m_userProperties.get("NoOfNodes", &nNodes);

@@ -1350,15 +1350,6 @@ EventLogger::EventLogger() : Logger(), m_logLevel(), m_filterLevel(15)
 
 EventLogger::~EventLogger()
 {
-
-}
-
-bool
-EventLogger::open()
-{
-  char clusterLog[128];
-  NdbConfig_ClusterLogFileName(clusterLog, 128);
-  return open(clusterLog);
 }
 
 bool
