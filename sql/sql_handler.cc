@@ -232,8 +232,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     {
       if (err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
       {
-        sql_print_error("mysql_ha_read: Got error %d when reading table",
-                        err);
+        sql_print_error("mysql_ha_read: Got error %d when reading table '%s'",
+                        err, tables->real_name);
         table->file->print_error(err,MYF(0));
         goto err;
       }
