@@ -712,7 +712,7 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
-  :dont_free(0),error(0),free_file(0),cur_range(NULL),range(0),in_range(0)
+  :dont_free(0),error(0),free_file(0),in_range(0),cur_range(NULL),range(0)
 {
   sorted= 0;
   index= key_nr;
@@ -822,7 +822,7 @@ QUICK_INDEX_MERGE_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
     processed separately.
   */
   if (head->file->primary_key_is_clustered() &&
-      quick_sel_range->index == head->primary_key)
+      quick_sel_range->index == head->s->primary_key)
     pk_quick_select= quick_sel_range;
   else
     return quick_selects.push_back(quick_sel_range);
@@ -927,10 +927,10 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     DBUG_RETURN(0);
   }
 
-  if (!(file= get_new_handler(head, head->db_type)))
+  if (!(file= get_new_handler(head, head->s->db_type)))
     goto failure;
   DBUG_PRINT("info", ("Allocated new handler %p", file));
-  if (file->ha_open(head->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+  if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
   {
     /* Caller will free the memory */
     goto failure;
@@ -1551,7 +1551,7 @@ public:
 static int fill_used_fields_bitmap(PARAM *param)
 {
   TABLE *table= param->table;
-  param->fields_bitmap_size= (table->fields/8 + 1);
+  param->fields_bitmap_size= (table->s->fields/8 + 1);
   uchar *tmp;
   uint pk;
   if (!(tmp= (uchar*)alloc_root(param->mem_root,param->fields_bitmap_size)) ||
@@ -1560,13 +1560,13 @@ static int fill_used_fields_bitmap(PARAM *param)
     return 1;
 
   bitmap_clear_all(&param->needed_fields);
-  for (uint i= 0; i < table->fields; i++)
+  for (uint i= 0; i < table->s->fields; i++)
   {
     if (param->thd->query_id == table->field[i]->query_id)
       bitmap_set_bit(&param->needed_fields, i+1);
   }
 
-  pk= param->table->primary_key;
+  pk= param->table->s->primary_key;
   if (param->table->file->primary_key_is_clustered() && pk != MAX_KEY)
   {
     /* The table uses clustered PK and it is not internally generated */
@@ -1674,10 +1674,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-    if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
-						   sizeof(KEY_PART)*
-						   head->key_parts))
-                              || fill_used_fields_bitmap(&param))
+    if (!(param.key_parts= (KEY_PART*) alloc_root(&alloc,
+                                                  sizeof(KEY_PART)*
+                                                  head->s->key_parts)) ||
+        fill_used_fields_bitmap(&param))
     {
       thd->no_errors=0;
       free_root(&alloc,MYF(0));			// Return memory & allocator
@@ -1692,7 +1692,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       This is used in get_mm_parts function.
     */
     key_info= head->key_info;
-    for (idx=0 ; idx < head->keys ; idx++, key_info++)
+    for (idx=0 ; idx < head->s->keys ; idx++, key_info++)
     {
       KEY_PART_INFO *key_part_info;
       if (!keys_to_use.is_set(idx))
@@ -1876,7 +1876,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   double result;
   if (param->table->file->primary_key_is_clustered())
   {
-    result= param->table->file->read_time(param->table->primary_key,
+    result= param->table->file->read_time(param->table->s->primary_key,
                                           records, records);
   }
   else
@@ -2040,7 +2040,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
     all_scans_rors &= (*cur_child)->is_ror;
     if (pk_is_clustered &&
-        param->real_keynr[(*cur_child)->key_idx] == param->table->primary_key)
+        param->real_keynr[(*cur_child)->key_idx] ==
+        param->table->s->primary_key)
     {
       cpk_scan= cur_child;
       cpk_scan_records= (*cur_child)->records;
@@ -2763,13 +2764,15 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   */
   ROR_SCAN_INFO **cur_ror_scan;
   ROR_SCAN_INFO *cpk_scan= NULL;
+  uint cpk_no;
   bool cpk_scan_used= FALSE;
+
   if (!(tree->ror_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      param->keys)))
     return NULL;
-  uint cpk_no= (param->table->file->primary_key_is_clustered())?
-               param->table->primary_key : MAX_KEY;
+  cpk_no= ((param->table->file->primary_key_is_clustered()) ?
+           param->table->s->primary_key : MAX_KEY);
 
   for (idx= 0, cur_ror_scan= tree->ror_scans; idx < param->keys; idx++)
   {
@@ -3128,7 +3131,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           read_index_only &&
           (param->table->file->index_flags(keynr, param->max_key_part,1) &
            HA_KEYREAD_ONLY) &&
-          !(pk_is_clustered && keynr == param->table->primary_key))
+          !(pk_is_clustered && keynr == param->table->s->primary_key))
         /* We can resolve this by only reading through this key. */
         found_read_time= get_index_only_read_time(param,found_records,keynr) +
                          cpu_cost;
@@ -4975,8 +4978,8 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
       Clustered PK scan is a special case, check_quick_keys doesn't recognize
       CPK scans as ROR scans (while actually any CPK scan is a ROR scan).
     */
-    cpk_scan= (param->table->primary_key == param->real_keynr[idx]) &&
-              param->table->file->primary_key_is_clustered();
+    cpk_scan= ((param->table->s->primary_key == param->real_keynr[idx]) &&
+               param->table->file->primary_key_is_clustered());
     param->is_ror_scan= !cpk_scan;
   }
 
@@ -5237,12 +5240,13 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
 {
   KEY *table_key= param->table->key_info + keynr;
   KEY_PART_INFO *key_part= table_key->key_part + nparts;
-  KEY_PART_INFO *key_part_end= table_key->key_part +
-                               table_key->key_parts;
+  KEY_PART_INFO *key_part_end= (table_key->key_part +
+                                table_key->key_parts);
+  uint pk_number;
 
   if (key_part == key_part_end)
     return TRUE;
-  uint pk_number= param->table->primary_key;
+  pk_number= param->table->s->primary_key;
   if (!param->table->file->primary_key_is_clustered() || pk_number == MAX_KEY)
     return FALSE;
 
@@ -5947,7 +5951,7 @@ int QUICK_RANGE_SELECT::get_next_init(void)
   if (file->table_flags() & HA_NEED_READ_RANGE_BUFFER)
   {
     mrange_bufsiz= min(multi_range_bufsiz,
-                       QUICK_SELECT_I::records * head->reclength);
+                       QUICK_SELECT_I::records * head->s->reclength);
 
     while (mrange_bufsiz &&
            ! my_multi_malloc(MYF(MY_WME),
@@ -6795,7 +6799,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   ORDER *tmp_group;
   Item *item;
   Item_field *item_field;
-
   DBUG_ENTER("get_best_group_min_max");
 
   /* Perform few 'cheap' tests whether this access method is applicable. */
@@ -6805,7 +6808,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
        (!join->select_distinct)))
     DBUG_RETURN(NULL);
-  if(table->keys == 0)        /* There are no indexes to use. */
+  if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
 
   /* Analyze the query in more detail. */
@@ -6863,7 +6866,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     first one. Here we set the variables: group_prefix_len and index_info.
   */
   KEY *cur_index_info= table->key_info;
-  KEY *cur_index_info_end= cur_index_info + table->keys;
+  KEY *cur_index_info_end= cur_index_info + table->s->keys;
   KEY_PART_INFO *cur_part= NULL;
   KEY_PART_INFO *end_part; /* Last part for loops. */
   /* Last index part. */
@@ -8279,21 +8282,26 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
         (cur_range->flag & (EQ_RANGE | NULL_RANGE)))
         continue; /* Check the next range. */
     else if (result)
-        /*
-          In all other cases (HA_ERR_*, HA_READ_KEY_EXACT with NO_MIN_RANGE,
-          HA_READ_AFTER_KEY, HA_READ_KEY_OR_NEXT) if the lookup failed for this
-          range, it can't succeed for any other subsequent range.
-        */
+    {
+      /*
+        In all other cases (HA_ERR_*, HA_READ_KEY_EXACT with NO_MIN_RANGE,
+        HA_READ_AFTER_KEY, HA_READ_KEY_OR_NEXT) if the lookup failed for this
+        range, it can't succeed for any other subsequent range.
+      */
       break;
+    }
 
     /* A key was found. */
     if (cur_range->flag & EQ_RANGE)
       break; /* No need to perform the checks below for equal keys. */
 
     if (cur_range->flag & NULL_RANGE)
-    { /* Remember this key, and continue looking for a non-NULL key that */
-      /* satisfies some other condition. */
-      memcpy(tmp_record, record, head->rec_buff_length);
+    {
+      /*
+        Remember this key, and continue looking for a non-NULL key that
+        satisfies some other condition.
+      */
+      memcpy(tmp_record, record, head->s->rec_buff_length);
       found_null= TRUE;
       continue;
     }
@@ -8334,7 +8342,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
   */
   if (found_null && result)
   {
-    memcpy(record, tmp_record, head->rec_buff_length);
+    memcpy(record, tmp_record, head->s->rec_buff_length);
     result= 0;
   }
   return result;
