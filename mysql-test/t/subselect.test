@@ -1158,3 +1158,12 @@ SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
 DROP TABLE t1;
+
+#
+# SELECT(EXISTS * ...)optimisation
+#
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4);
+select * from t1 up where exists (select * from t1 where t1.a=up.a);
+explain extended select * from t1 up where exists (select * from t1 where t1.a=up.a);
+drop table t1;
