@@ -1776,7 +1776,7 @@ int register_slave_on_master(MYSQL* mysql)
     packet.append((char)0);
   
   if (report_password)
-    net_store_data(&packet, report_user);
+    net_store_data(&packet, report_password);
   else
     packet.append((char)0);
 
