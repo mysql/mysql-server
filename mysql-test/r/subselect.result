@@ -52,6 +52,54 @@ a
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
 a
 1
+SELECT (SELECT 1,2,3) = ROW(1,2,3);
+(SELECT 1,2,3) = ROW(1,2,3)
+1
+SELECT (SELECT 1,2,3) = ROW(1,2,1);
+(SELECT 1,2,3) = ROW(1,2,1)
+0
+SELECT (SELECT 1,2,3) < ROW(1,2,1);
+(SELECT 1,2,3) < ROW(1,2,1)
+0
+SELECT (SELECT 1,2,3) > ROW(1,2,1);
+(SELECT 1,2,3) > ROW(1,2,1)
+1
+SELECT (SELECT 1,2,3) = ROW(1,2,NULL);
+(SELECT 1,2,3) = ROW(1,2,NULL)
+NULL
+SELECT ROW(1,2,3) = (SELECT 1,2,3);
+ROW(1,2,3) = (SELECT 1,2,3)
+1
+SELECT ROW(1,2,3) = (SELECT 1,2,1);
+ROW(1,2,3) = (SELECT 1,2,1)
+0
+SELECT ROW(1,2,3) < (SELECT 1,2,1);
+ROW(1,2,3) < (SELECT 1,2,1)
+0
+SELECT ROW(1,2,3) > (SELECT 1,2,1);
+ROW(1,2,3) > (SELECT 1,2,1)
+1
+SELECT ROW(1,2,3) = (SELECT 1,2,NULL);
+ROW(1,2,3) = (SELECT 1,2,NULL)
+NULL
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'a');
+(SELECT 1.5,2,'a') = ROW(1.5,2,'a')
+1
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'b');
+(SELECT 1.5,2,'a') = ROW(1.5,2,'b')
+0
+SELECT (SELECT 1.5,2,'a') = ROW('b',2,'b');
+(SELECT 1.5,2,'a') = ROW('b',2,'b')
+0
+SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
+(SELECT 'b',2,'a') = ROW(1.5,2,'a')
+0
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
+(SELECT 1.5,2,'a') = ROW(1.5,'c','a')
+0
+SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
+(SELECT 1.5,'c','a') = ROW(1.5,2,'a')
+0
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -602,7 +650,7 @@ CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin
 INSERT INTO t1 values (1),(1);
 UPDATE t SET id=(SELECT * FROM t1);
 Subselect returns more than 1 record
-drop table t;
+drop table t, t1;
 create table t (a int);
 insert into t values (1),(2),(3);
 select 1 IN (SELECT * from t);
@@ -711,3 +759,54 @@ This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 select 10.5 IN (SELECT * from t LIMIT 1 UNION SELECT 1.5);
 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t;
+create table t1 (a int, b int, c varchar(10));
+create table t2 (a int);
+insert into t1 values (1,2,'a'),(2,3,'b'),(3,4,'c');
+insert into t2 values (1),(2),(NULL);
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),(select c from t1 where a=t2.a)  from t2;
+a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a')	(select c from t1 where a=t2.a)
+1	1	a
+2	0	b
+NULL	NULL	NULL
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b'),(select c from t1 where a=t2.a) from t2;
+a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b')	(select c from t1 where a=t2.a)
+1	0	a
+2	1	b
+NULL	NULL	NULL
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c'),(select c from t1 where a=t2.a) from t2;
+a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c')	(select c from t1 where a=t2.a)
+1	0	a
+2	0	b
+NULL	NULL	NULL
+drop table t1,t2;
+drop table if exists t;
+create table t (a int, b real, c varchar(10));
+insert into t values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
+select ROW(1, 1, 'a') IN (select a,b,c from t);
+ROW(1, 1, 'a') IN (select a,b,c from t)
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t);
+ROW(1, 2, 'a') IN (select a,b,c from t)
+NULL
+select ROW(1, 1, 'a') IN (select b,a,c from t);
+ROW(1, 1, 'a') IN (select b,a,c from t)
+1
+select ROW(1, 1, 'a') IN (select a,b,c from t where a is not null);
+ROW(1, 1, 'a') IN (select a,b,c from t where a is not null)
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t where a is not null);
+ROW(1, 2, 'a') IN (select a,b,c from t where a is not null)
+0
+select ROW(1, 1, 'a') IN (select b,a,c from t where a is not null);
+ROW(1, 1, 'a') IN (select b,a,c from t where a is not null)
+1
+select ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a');
+ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a')
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a');
+ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a')
+NULL
+select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
+ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a')
+1
+drop table if exists t;
