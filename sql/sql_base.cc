@@ -2792,10 +2792,6 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   TABLE_LIST *first_select_table= (select_insert ?
                                    tables->next_local:
                                    0);
-  if (!tables || tables->setup_is_done)
-    DBUG_RETURN(0);
-  tables->setup_is_done= 1;
-
   if (!(*leaves))
     make_leaves_list(leaves, tables);
 

@@ -2212,7 +2212,7 @@ mysql_execute_command(THD *thd)
 	if (!result && !(result= new select_send()))
           goto error;
 	query_cache_store_query(thd, all_tables);
-	res= handle_select(thd, lex, result);
+	res= handle_select(thd, lex, result, 0);
         if (result != lex->result)
           delete result;
       }
@@ -2635,7 +2635,7 @@ mysql_execute_command(THD *thd)
             and item_list belong to SELECT
           */
           select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-          res=handle_select(thd, lex, result);
+          res= handle_select(thd, lex, result, 0);
           select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
           delete result;
         }
@@ -3005,7 +3005,7 @@ create_error:
           and item_list belong to SELECT
         */
 	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-	res= handle_select(thd, lex, result);
+	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
@@ -3092,7 +3092,8 @@ create_error:
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
 			select_lex->options | thd->options |
-			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
+			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                        OPTION_SETUP_TABLES_DONE,
 			result, unit, select_lex);
       delete result;
     }
