@@ -68,6 +68,10 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
  */
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
+MYSQL * STDCALL 
+cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
+		       const char *passwd, const char *db,
+		       uint port, const char *unix_socket,ulong client_flag);
 
 #ifdef HAVE_GETPWUID
 struct passwd *getpwuid(uid_t);
@@ -179,7 +183,7 @@ static MYSQL_METHODS embedded_methods=
 
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
-		   const char *passwd __attribute__((unused)), const char *db,
+		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,ulong client_flag)
 {
   char          *db_name;
@@ -188,6 +192,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+
+  if (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION)
+    cli_mysql_real_connect(mysql, host, user, 
+			   passwd, db, port, unix_socket, client_flag);
+  if ((mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION) &&
+      host && strcmp(host,LOCAL_HOST))
+    cli_mysql_real_connect(mysql, host, user, 
+			   passwd, db, port, unix_socket, client_flag);
 
   mysql->methods= &embedded_methods;
 
