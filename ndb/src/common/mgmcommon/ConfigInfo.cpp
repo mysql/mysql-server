@@ -2497,13 +2497,15 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
     ctx.reportError("Computer \"%s\" not declared"
 		    "- [%s] starting at line: %d",
 		    compId, ctx.fname, ctx.m_sectionLineno);
+    return false;
   }
   
   const char * hostname;
   if(!computer->get("HostName", &hostname)){
-    ctx.reportError("HostName missing in [COMPUTER] Id: %s"
-		    "- [%s] starting at line: %d",
+    ctx.reportError("HostName missing in [COMPUTER] (Id: %d) "
+		    " - [%s] starting at line: %d",
 		    compId, ctx.fname, ctx.m_sectionLineno);
+    return false;
   }
   
   require(ctx.m_currentSection->put("HostName", hostname));
