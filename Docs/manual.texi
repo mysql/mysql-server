@@ -3234,7 +3234,7 @@ In MySQL Server 4.0 you can use multi-table delete to delete rows from many
 tables with one command. @xref{DELETE}.
 
 In the near future we will extend the @code{FOREIGN KEY} implementation
-so that the information will be saved in the table-specification file
+so that the information will be saved in the table specification file
 and may be retrieved by @code{mysqldump} and ODBC. At a later stage we
 will implement the foreign key constraints for applications that can't
 easily be coded to avoid them.
@@ -17956,7 +17956,7 @@ If @code{QUICK} is given then MySQL will try to do a
 If you use @code{EXTENDED} then MySQL will create the index row
 by row instead of creating one index at a time with sorting; this may be
 better than sorting on fixed-length keys if you have long @code{CHAR}
-keys that compress very good.
+keys that compress very well.
 
 As of @code{MySQL} 4.0.2 there is a @code{USE_FRM} mode for @code{REPAIR}.
 Use it if the @file{.MYI} file is missing or if its header is corrupted.
@@ -28616,14 +28616,15 @@ down the server.
 There are two kind of system variables: Thread-specific (or
 connection-specific)
 variables that are unique to the current connection and global variables
-that are either used to configure global events or used as initial
-variables for a new connection.
+that are used to configure global events.
+Global variables also are used to set up the initial values of the
+corresponding thread-specific variables for new connections.
 
-When mysqld starts all global variables are initialised from command
-line arguments and option files.  You can change the used value with the
-@code{SET GLOBAL} command. When a new thread is created the thread-specific
+When @code{mysqld} starts, all global variables are initialised from command
+line arguments and option files.  You can change the value with the
+@code{SET GLOBAL} command. When a new thread is created, the thread-specific
 variables are initialised from the global variables and they
-will not change even if one issues a new @code{SET GLOBAL} command.
+will not change even if you issue a new @code{SET GLOBAL} command.
 
 To set the value for a @code{GLOBAL} variable, you should use one
 of the following syntaxes:
@@ -28673,8 +28674,8 @@ global value.
 The reason for requiring @code{GLOBAL} for setting @code{GLOBAL} only
 variables but not for retrieving them is to ensure that we don't later
 run into problems if we later would introduce a thread-specific variable
-with the same name or remove a thread-specific variable.  In this case
-you could accidently change the state for the whole server and not
+with the same name or remove a thread-specific variable.  In this case,
+you could accidentally change the state for the server as a whole, rather than
 just for your own connection.
 
 The following is a full list of all variables that you change and retrieve
@@ -28729,7 +28730,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item query_cache_size @tab num @tab GLOBAL
 @item query_cache_type @tab enum @tab GLOBAL
 @item read_buffer_size @tab num @tab GLOBAL | SESSION
-@item read_rnd_buffer_size num @tab GLOBAL | SESSION
+@item read_rnd_buffer_size @tab num @tab GLOBAL | SESSION
 @item rpl_recovery_rank @tab num @tab GLOBAL
 @item safe_show_database @tab bool @tab GLOBAL
 @item server_id @tab num @tab GLOBAL
@@ -28776,7 +28777,7 @@ Here is a description of some of the variables:
 @item identity @tab Alias for last_insert_id (Sybase compatiblity)
 @item sql_low_priority_updates @tab Alias for low_priority_updates
 @item sql_max_join_size @tab Alias for max_join_size
-@item delay_key_write_for_all_tables @tab If this and delay_key_write is set then all new MyISAM tables that are opened will use delayed key writes.
+@item delay_key_write_for_all_tables @tab If this and delay_key_write are set, then all new MyISAM tables that are opened will use delayed key writes.
 @item version @tab Alias for VERSION() (Sybase (?) compatability)
 @end multitable
 
@@ -47243,7 +47244,7 @@ you have to increase this variable both in the client and in the server.
 
 It's safe to increase this variable as memory is only allocated when
 needed; this variable is more a precaution to catch wrong packets
-between the client/server and also to ensure that you don't accidently
+between the client/server and also to ensure that you don't accidentally
 use big packets so that you run out of memory.
 
 If you are using the @code{mysql} client, you may specify a bigger
