@@ -139,14 +139,14 @@ id	parent_id	level
 1010	102	2
 1015	102	2
 explain select level from t1 where level=1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	12	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	ref	level	level	1	const	12	where used; Using index
 explain select level,id from t1 where level=1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	12	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	ref	level	level	1	const	12	where used; Using index
 explain select level,id,parent_id from t1 where level=1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	12	where used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	ref	level	level	1	const	12	where used
 select level,id from t1 where level=1;
 level	id
 1	1002
@@ -596,8 +596,8 @@ id	parent_id	level
 1025	102	2
 1016	102	2
 explain select level from t1 where level=1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	6	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	ref	level	level	1	const	6	where used; Using index
 select level,id from t1 where level=1;
 level	id
 1	1004
@@ -758,8 +758,8 @@ DROP TABLE t1;
 create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) type = innodb;
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	range	PRIMARY	PRIMARY	4	NULL	1	where used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	range	PRIMARY	PRIMARY	4	NULL	1	where used
 drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=innodb;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
@@ -892,29 +892,29 @@ drop table t1;
 create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) type=innodb;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 explain select * from t1 order by a;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	NULL	PRIMARY	4	NULL	4	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	index	NULL	PRIMARY	4	NULL	4	
 explain select * from t1 order by b;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	NULL	b	4	NULL	4	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	index	NULL	b	4	NULL	4	
 explain select * from t1 order by c;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 explain select a from t1 order by a;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	NULL	PRIMARY	4	NULL	4	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	index	NULL	PRIMARY	4	NULL	4	Using index
 explain select b from t1 order by b;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	NULL	b	4	NULL	4	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	index	NULL	b	4	NULL	4	Using index
 explain select a,b from t1 order by b;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	NULL	b	4	NULL	4	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	index	NULL	b	4	NULL	4	Using index
 explain select a,b from t1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	NULL	b	4	NULL	4	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	index	NULL	b	4	NULL	4	Using index
 explain select a,b,c from t1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ALL	NULL	NULL	NULL	NULL	4	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	FIRST	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table t1;
 create table t1 (t int not null default 1, key (t)) type=innodb;
 desc t1;

@@ -357,6 +357,28 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
   return new_table;
 }
 
+int THD::send_explain_fields(select_result *result)
+{
+  List<Item> field_list;
+  Item *item;
+  field_list.push_back(new Item_int("id",0,3));
+  field_list.push_back(new Item_empty_string("select_type",19));
+  field_list.push_back(new Item_empty_string("table",NAME_LEN));
+  field_list.push_back(new Item_empty_string("type",10));
+  field_list.push_back(item=new Item_empty_string("possible_keys",
+						  NAME_LEN*MAX_KEY));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_int("key_len",0,3));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_empty_string("ref",
+						  NAME_LEN*MAX_REF_PARTS));
+  item->maybe_null=1;
+  field_list.push_back(new Item_real("rows",0.0,0,10));
+  field_list.push_back(new Item_empty_string("Extra",255));
+  return (result->send_fields(field_list,1));
+}
 
 /*****************************************************************************
 ** Functions to provide a interface to select results

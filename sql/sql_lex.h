@@ -282,8 +282,10 @@ public:
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc;
   JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
+  const char *type; /* type of select for EXPLAIN */
   uint in_sum_expr;
-  bool	create_refs, 
+  uint select_number; /* number of select (used for EXPLAIN) */
+  bool create_refs, 
     braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
     depended, /* depended from outer select subselect */
     /* TRUE when having fix field called in processing of this SELECT */

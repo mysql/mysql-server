@@ -128,6 +128,9 @@ struct st_table {
 
   uint          temp_pool_slot;
 
+  /* number of select if it is derived table */
+  uint          derived_select_number;   
+
   THD		*in_use;			/* Which thread uses this */
   struct st_table *next,*prev;
 };
