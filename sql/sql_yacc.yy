@@ -7921,7 +7921,7 @@ check_option:
         /* empty */
           { Lex->create_view_check= VIEW_CHECK_NONE; }
         | WITH CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
+          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
         | WITH CASCADED CHECK_SYM OPTION
           { Lex->create_view_check= VIEW_CHECK_CASCADED; }
         | WITH LOCAL_SYM CHECK_SYM OPTION
