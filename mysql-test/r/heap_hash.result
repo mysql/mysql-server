@@ -1,10 +1,10 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 create table t1 (a int not null,b int not null, primary key using HASH (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	NULL	NULL	NULL	NULL		HASH	
+t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH	
 select * from t1;
 a	b
 2	2
@@ -169,7 +169,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	11	Using where
 explain select * from t1 where btn="a" and new_col="a";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	btn	btn	11	const,const	10	Using where
+1	SIMPLE	t1	ref	btn	btn	11	const,const	2	Using where
 drop table t1;
 CREATE TABLE t1 (
 a int default NULL,
@@ -182,7 +182,7 @@ SELECT * FROM t1 WHERE a=NULL;
 a	b
 explain SELECT * FROM t1 WHERE a IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	10	Using where
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where
 SELECT * FROM t1 WHERE a<=>NULL;
 a	b
 NULL	99
@@ -203,3 +203,139 @@ DELETE from t1 where a < 100;
 SELECT * from t1;
 a
 DROP TABLE t1;
+create table t1
+(
+a char(8) not null,
+b char(20) not null,
+c int not null,
+key (a)
+) engine=heap;
+insert into t1 values ('aaaa', 'prefill-hash=5',0);
+insert into t1 values ('aaab', 'prefill-hash=0',0);
+insert into t1 values ('aaac', 'prefill-hash=7',0);
+insert into t1 values ('aaad', 'prefill-hash=2',0);
+insert into t1 values ('aaae', 'prefill-hash=1',0);
+insert into t1 values ('aaaf', 'prefill-hash=4',0);
+insert into t1 values ('aaag', 'prefill-hash=3',0);
+insert into t1 values ('aaah', 'prefill-hash=6',0);
+explain select * from t1 where a='aaaa';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+explain select * from t1 where a='aaab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+explain select * from t1 where a='aaac';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+explain select * from t1 where a='aaad';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	1	Using where
+insert into t1 select * from t1;
+explain select * from t1 where a='aaaa';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+explain select * from t1 where a='aaab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+explain select * from t1 where a='aaac';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+explain select * from t1 where a='aaad';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+create table t2 as select * from t1;
+delete from t1;
+insert into t1 select * from t2;
+explain select * from t1 where a='aaaa';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+explain select * from t1 where a='aaab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+explain select * from t1 where a='aaac';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+explain select * from t1 where a='aaad';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	8	const	2	Using where
+drop table t1, t2;
+create table t1 (
+id int unsigned not null primary key auto_increment, 
+name varchar(20) not null,
+index heap_idx(name),
+index btree_idx using btree(name)
+) engine=heap;
+create table t2 (
+id int unsigned not null primary key auto_increment, 
+name varchar(20) not null,
+index btree_idx using btree(name),
+index heap_idx(name)
+) engine=heap;
+insert into t1 (name) values ('Matt'), ('Lilu'), ('Corbin'), ('Carly'), 
+('Suzy'), ('Hoppy'), ('Burrito'), ('Mimi'), ('Sherry'), ('Ben'), ('Phil'), 
+('Emily'), ('Mike');
+insert into t2 select * from t1;
+explain select * from t1 where name='matt';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	heap_idx,btree_idx	heap_idx	20	const	1	Using where
+explain select * from t2 where name='matt';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	btree_idx,heap_idx	btree_idx	20	const	1	Using where
+explain select * from t1 where name='Lilu';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	heap_idx,btree_idx	heap_idx	20	const	1	Using where
+explain select * from t2 where name='Lilu';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	btree_idx,heap_idx	btree_idx	20	const	1	Using where
+explain select * from t1 where name='Phil';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	heap_idx,btree_idx	heap_idx	20	const	1	Using where
+explain select * from t2 where name='Phil';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	btree_idx,heap_idx	btree_idx	20	const	1	Using where
+explain select * from t1 where name='Lilu';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	heap_idx,btree_idx	heap_idx	20	const	1	Using where
+explain select * from t2 where name='Lilu';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	btree_idx,heap_idx	btree_idx	20	const	1	Using where
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+select count(*) from t1 where name='Matt';
+count(*)
+7
+explain select * from t1 ignore index (btree_idx) where name='matt';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	heap_idx	heap_idx	20	const	7	Using where
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	id	NULL	91	NULL	NULL		HASH	
+t1	1	heap_idx	1	name	NULL	15	NULL	NULL		HASH	
+t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE	
+flush tables;
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	id	NULL	91	NULL	NULL		HASH	
+t1	1	heap_idx	1	name	NULL	13	NULL	NULL		HASH	
+t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE	
+create table t3
+(
+a varchar(20) not null,
+b varchar(20) not null,
+key (a,b)
+) engine=heap;
+insert into t3 select name, name from t1;
+show index from t3;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH	
+t3	1	a	2	b	NULL	15	NULL	NULL		HASH	
+flush tables;
+show index from t3;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH	
+t3	1	a	2	b	NULL	13	NULL	NULL		HASH	
+drop table t1,t2;

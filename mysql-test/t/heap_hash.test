@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 create table t1 (a int not null,b int not null, primary key using HASH (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
@@ -141,3 +141,105 @@ INSERT into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11);
 DELETE from t1 where a < 100;
 SELECT * from t1;
 DROP TABLE t1;
+
+
+#
+# Hash index # records estimate test
+#
+create table t1
+(
+  a char(8) not null,
+  b char(20) not null,
+  c int not null,
+  key (a)
+) engine=heap;
+
+insert into t1 values ('aaaa', 'prefill-hash=5',0);
+insert into t1 values ('aaab', 'prefill-hash=0',0);
+insert into t1 values ('aaac', 'prefill-hash=7',0);
+insert into t1 values ('aaad', 'prefill-hash=2',0);
+insert into t1 values ('aaae', 'prefill-hash=1',0);
+insert into t1 values ('aaaf', 'prefill-hash=4',0);
+insert into t1 values ('aaag', 'prefill-hash=3',0);
+insert into t1 values ('aaah', 'prefill-hash=6',0);
+
+explain select * from t1 where a='aaaa';
+explain select * from t1 where a='aaab';
+explain select * from t1 where a='aaac';
+explain select * from t1 where a='aaad';
+insert into t1 select * from t1;
+explain select * from t1 where a='aaaa';
+explain select * from t1 where a='aaab';
+explain select * from t1 where a='aaac';
+explain select * from t1 where a='aaad';
+
+# Check if delete_all_rows() updates #hash_buckets
+create table t2 as select * from t1;
+delete from t1;
+insert into t1 select * from t2;
+explain select * from t1 where a='aaaa';
+explain select * from t1 where a='aaab';
+explain select * from t1 where a='aaac';
+explain select * from t1 where a='aaad';
+drop table t1, t2;
+
+
+# Btree and hash index use costs. 
+create table t1 (
+  id int unsigned not null primary key auto_increment, 
+  name varchar(20) not null,
+  index heap_idx(name),
+  index btree_idx using btree(name)
+) engine=heap;
+
+create table t2 (
+  id int unsigned not null primary key auto_increment, 
+  name varchar(20) not null,
+  index btree_idx using btree(name),
+  index heap_idx(name)
+) engine=heap;
+
+insert into t1 (name) values ('Matt'), ('Lilu'), ('Corbin'), ('Carly'), 
+  ('Suzy'), ('Hoppy'), ('Burrito'), ('Mimi'), ('Sherry'), ('Ben'), ('Phil'), 
+  ('Emily'), ('Mike');
+insert into t2 select * from t1;
+
+explain select * from t1 where name='matt';
+explain select * from t2 where name='matt';
+
+explain select * from t1 where name='Lilu';
+explain select * from t2 where name='Lilu';
+
+explain select * from t1 where name='Phil';
+explain select * from t2 where name='Phil';
+
+explain select * from t1 where name='Lilu';
+explain select * from t2 where name='Lilu';
+
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+insert into t1 (name) select name from t2;
+
+select count(*) from t1 where name='Matt';
+explain select * from t1 ignore index (btree_idx) where name='matt';
+show index from t1;
+
+flush tables;
+show index from t1;
+
+create table t3
+(
+  a varchar(20) not null,
+  b varchar(20) not null,
+  key (a,b)
+) engine=heap;
+insert into t3 select name, name from t1;
+show index from t3;
+flush tables;
+show index from t3;
+
+drop table t1,t2;
+
