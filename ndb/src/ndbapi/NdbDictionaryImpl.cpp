@@ -212,12 +212,15 @@ NdbColumnImpl::create_psuedo(const char * name){
   } else if(!strcmp(name, "NDB$ROW_COUNT")){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::ROW_COUNT;
+    col->m_impl.m_attrSize = 8;
   } else if(!strcmp(name, "NDB$COMMIT_COUNT")){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
+    col->m_impl.m_attrSize = 8;
   } else {
     abort();
   }
+  return col;
 }
 
 /**
@@ -642,7 +645,9 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 	NdbColumnImpl::create_psuedo("NDB$COMMIT_COUNT");
     }
     m_globalHash->unlock();
+    return true;
   }
+  return false;
 }
 
 NdbTableImpl * 
