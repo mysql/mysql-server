@@ -748,7 +748,7 @@ select 1 / 0;
 #+-------+
 #| 1 / 0 |
 #+-------+
-#| NULL |
+#| NULL  |
 #+-------+
 #1 row in set, 1 warning (0.00 sec)
 #
@@ -864,3 +864,8 @@ SELECT MOD(col1,0) FROM Sow6_2f;
 INSERT INTO Sow6_2f VALUES ('a59b');
 #-- should return SQLSTATE 22018 invalid character value for cast
 drop table Sow6_2f;
+
+#
+# bug#9501
+#
+select 10.3330000000000/12.34500000;
