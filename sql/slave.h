@@ -176,7 +176,7 @@ typedef struct st_relay_log_info
     pending += val;
   }
   // TODO: this probably needs to be fixed
-  inline void inc_pos(ulonglong val, uint32 log_pos, bool skip_lock=0)
+  inline void inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
   {
     if (!skip_lock)
       pthread_mutex_lock(&data_lock);
