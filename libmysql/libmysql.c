@@ -3167,13 +3167,6 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
  Fetch and conversion of result set rows (binary protocol).
 *********************************************************************/
 
-static void set_zero_time(MYSQL_TIME *tm)
-{
-  bzero((void *)tm, sizeof(*tm));
-  tm->time_type= MYSQL_TIMESTAMP_NONE;
-}
-
-
 /*
   Read date, (time, datetime) value from network buffer and store it
   in MYSQL_TIME structure.
