@@ -6,6 +6,7 @@ use Data::Dumper;
 use File::Basename;
 use File::Path;
 use DBI;
+use Sys::Hostname;
 
 =head1 NAME
 
@@ -36,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.12";
+my $VERSION = "1.13";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -68,6 +69,7 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   --resetmaster        reset the binlog once all tables are locked
   --resetslave         reset the master.info once all tables are locked
   --tmpdir=#	       temporary directory (instead of $opt_tmpdir)
+  --record_log_pos=#   record slave and master status in specified db.table
 
   Try \'perldoc $0 for more complete documentation\'
 _OPTIONS
@@ -101,6 +103,7 @@ GetOptions( \%opt,
     "regexp=s",
     "suffix=s",
     "checkpoint=s",
+    "record_log_pos=s",
     "flushlog",
     "resetmaster",
     "resetslave",
@@ -117,6 +120,7 @@ GetOptions( \%opt,
 #   'target'  - destination directory of the copy
 #   'tables'  - array-ref to list of tables in the db
 #   'files'   - array-ref to list of files to be copied
+#   'index'   - array-ref to list of indexes to be copied
 #
 
 my @db_desc = ();
@@ -169,6 +173,16 @@ if ( $opt{checkpoint} ) {
        };
 
     die "Error accessing Checkpoint table ($opt{checkpoint}): $@"
+      if ( $@ );
+}
+
+# --- check that log_pos table exists if specified ---
+if ( $opt{record_log_pos} ) {
+    eval { $dbh->do( qq{ select host, time_stamp, log_file, log_pos, master_host, master_log_file, master_log_pos
+			 from $opt{record_log_pos} where 1 != 1} );
+       };
+
+    die "Error accessing log_pos table ($opt{record_log_pos}): $@"
       if ( $@ );
 }
 
@@ -294,8 +308,6 @@ foreach my $rdb ( @db_desc ) {
 
 # --- resolve targets for copies ---
 
-my @targets = ();
-
 if (defined($tgt_name) && length $tgt_name ) {
     # explicit destination directory specified
 
@@ -382,11 +394,12 @@ foreach my $rdb ( @db_desc ) {
 # read lock all the tables we'll be copying
 # in order to get a consistent snapshot of the database
 
-if ( $opt{checkpoint} ) {
-    # convert existing READ lock on checkpoint table into WRITE lock
-    unless ( $hc_locks =~ s/$opt{checkpoint}\s+READ/$opt{checkpoint} WRITE/ ) {
-	$hc_locks .= ", $opt{checkpoint} WRITE";
-    }
+if ( $opt{checkpoint} || $opt{record_log_pos} ) {
+  # convert existing READ lock on checkpoint and/or log_pos table into WRITE lock
+  foreach my $table ( grep { defined } ( $opt{checkpoint}, $opt{record_log_pos} ) ) {
+    $hc_locks .= ", $table WRITE" 
+	unless ( $hc_locks =~ s/$table\s+READ/$table WRITE/ );
+  }
 }
 
 my $hc_started = time;	# count from time lock is granted
@@ -411,6 +424,11 @@ else {
     $dbh->do( "FLUSH LOGS" ) if ( $opt{flushlog} );
     $dbh->do( "RESET MASTER" ) if ( $opt{resetmaster} );
     $dbh->do( "RESET SLAVE" ) if ( $opt{resetslave} );
+
+    if ( $opt{record_log_pos} ) {
+	record_log_pos( $dbh, $opt{record_log_pos} );
+	$dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
+    }
 }
 
 my @failed = ();
@@ -472,6 +490,12 @@ if ( @failed ) {
     # hotcopy failed - cleanup
     # delete any @targets 
     # rename _old copy back to original
+
+    my @targets = ();
+    foreach my $rdb ( @db_desc ) {
+        push @targets, $rdb->{target} if ( -d  $rdb->{target} );
+    }
+    print "Deleting @targets \n" if $opt{debug};
 
     print "Deleting @targets \n" if $opt{debug};
     rmtree([@targets]);
@@ -603,7 +627,6 @@ sub safe_system
   }
 }
 
-
 sub retire_directory {
     my ( @dir ) = @_;
 
@@ -623,6 +646,40 @@ sub retire_directory {
 	  or die "Can't rename $dir=>$tgt_oldpath: $!\n";
 	print "Existing hotcopy directory renamed to '$tgt_oldpath'\n" unless $opt{quiet};
     }
+}
+
+sub record_log_pos {
+    my ( $dbh, $table_name ) = @_;
+
+    eval {
+	my ($file,$position) = get_row( $dbh, "show master status" );
+	die "master status is undefined" if !defined $file || !defined $position;
+	
+	my ($master_host, undef, undef, undef, $log_file, $log_pos ) 
+	    = get_row( $dbh, "show slave status" );
+	
+	my $hostname = hostname();
+	
+	$dbh->do( qq{ replace into $table_name 
+			  set host=?, log_file=?, log_pos=?, 
+                          master_host=?, master_log_file=?, master_log_pos=? }, 
+		  undef, 
+		  $hostname, $file, $position, 
+		  $master_host, $log_file, $log_pos  );
+	
+    };
+    
+    if ( $@ ) {
+	warn "Failed to store master position: $@\n";
+    }
+}
+
+sub get_row {
+  my ( $dbh, $sql ) = @_;
+
+  my $sth = $dbh->prepare($sql);
+  $sth->execute;
+  return $sth->fetchrow_array();
 }
 
 __END__
@@ -658,6 +715,38 @@ The checkpoint-table must contain at least the following fields:
   msg varchar(255)
 
 =back
+
+=item --record_log_pos log-pos-table
+
+Just before the database files are copied, update the record in the
+log-pos-table from the values returned from "show master status" and
+"show slave status". The master status values are stored in the
+log_file and log_pos columns, and establish the position in the binary
+logs that any slaves of this host should adopt if initialised from
+this dump.  The slave status values are stored in master_host,
+master_log_file, and master_log_pos, and these are useful if the host
+performing the dump is a slave and other sibling slaves are to be
+initialised from this dump.
+
+The name of the log-pos table should be supplied in database.table format.
+A sample log-pos table definition:
+
+=over 4
+
+CREATE TABLE log_pos (
+  host            varchar(60) NOT null,
+  time_stamp      timestamp(14) NOT NULL,
+  log_file        varchar(32) default NULL,
+  log_pos         int(11)     default NULL,
+  master_host     varchar(60) NULL,
+  master_log_file varchar(32) NULL,
+  master_log_pos  int NULL,
+
+  PRIMARY KEY  (host) 
+);
+
+=back
+
 
 =item --suffix suffix
 
@@ -784,7 +873,7 @@ Study the code inside this script and only rely on it if I<you> believe
 that it does the right thing for you.
 
 Patches adding bug fixes, documentation and new features are welcome.
-Please send these to internals@mysql.com.
+Please send these to internals@lists.mysql.com.
 
 =head1 TO DO
 
@@ -814,6 +903,8 @@ Add support for forthcoming MySQL ``RAID'' table subdirectory layouts.
 Tim Bunce
 
 Martin Waite - added checkpoint, flushlog, regexp and dryrun options
+               Fixed cleanup of targets when hotcopy fails. 
+	       Added --record_log_pos.
 
 Ralph Corderoy - added synonyms for commands
 
