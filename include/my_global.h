@@ -51,6 +51,16 @@
 #endif
 #endif /* _WIN32... */
 
+/* sometimes we want to make sure that the variable is not put into
+   a register in debugging mode so we can see its value in the core
+*/
+
+#ifndef DBUG_OFF
+#define dbug_volatile volatile
+#else
+#define dbug_volatile
+#endif
+
 /*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelyhood of the truthfulness
