@@ -135,7 +135,7 @@ Obsoletes: mysql-Max
 
 %description Max
 Extra MySQL server binary to get support extra features like
-transactional tables. To active these features on only have to install
+transactional tables. To active these features one only has to install
 this package after the server package.
 
 %prep
@@ -298,15 +298,25 @@ chmod -R og-rw $mysql_datadir/mysql
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
+%post Max
+# Restart mysqld, to use the new binary.
+# There may be a better way to handle this.
+/etc/rc.d/init.d/mysql stop > /dev/null 2>&1
+echo "Giving mysqld a couple of seconds to restart"
+sleep 5
+/etc/rc.d/init.d/mysql start
+sleep 2
+
 %preun
-if test -x /etc/rc.d/init.d/mysql
-then
-  /etc/rc.d/init.d/mysql stop > /dev/null
-fi
-# Remove autostart of mysql
 if test $1 = 0
 then
-   /sbin/chkconfig --del mysql
+  if test -x /etc/rc.d/init.d/mysql
+  then
+    /etc/rc.d/init.d/mysql stop > /dev/null
+  fi
+
+  # Remove autostart of mysql
+  /sbin/chkconfig --del mysql
 fi
 # We do not remove the mysql user since it may still own a lot of
 # database files.
