@@ -272,7 +272,7 @@ int run_test(const char *filename)
   create_key(key, nrecords*upd);
   print_key(key," INTERSECT\n");
   hrows=mi_records_in_range(file,0,key,0,HA_READ_MBR_INTERSECT,record+1,0,0);
-  printf("     %ld rows\n",hrows);
+  printf("     %ld rows\n", (long) hrows);
 
 
   if (mi_close(file)) goto err;
