@@ -157,8 +157,8 @@ void Item_func::set_outer_resolving()
 
 void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
 {
-  Item **arg,**arg_end;
-  for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
+  Item **arg, **arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
     if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
       (*arg)->split_sum_func(ref_pointer_array, fields);
@@ -167,7 +167,7 @@ void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(*arg);
       ref_pointer_array[el]= *arg;
-      *arg=new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
+      *arg= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
     }
   }
 }

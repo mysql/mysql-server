@@ -591,3 +591,6 @@ help.c
 vi.h
 include/readline/readline.h
 cmd-line-utils/libedit/common.h
+stamp-h2
+stamp-h3
+stamp-h4
