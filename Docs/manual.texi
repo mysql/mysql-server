@@ -49343,6 +49343,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed mutex bug in replication when reading from master fails.
+@item
 Added missing mutex in @code{TRUNCATE TABLE};  This fixes some core
 dump/hangup problems when using @code{TRUNCATE TABLE}.
 @item
