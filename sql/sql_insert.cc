@@ -111,7 +111,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  bool log_on= (!(thd->master_access & SUPER_ACL)) || (thd->options & OPTION_BIN_LOG);
+  bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
   bool transactional_table, log_delayed, bulk_insert;
   uint value_count;
   ulong counter = 1;
