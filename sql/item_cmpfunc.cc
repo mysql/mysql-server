@@ -2365,10 +2365,10 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     int error;
     if ((error= regcomp(&preg,res->c_ptr(),
-                        ((cmp_collation.collation->state & MY_CS_BINSORT) ||
-                         (cmp_collation.collation->state & MY_CS_CSSORT)) ?
+                        ((cmp_collation.collation->state &
+                          (MY_CS_BINSORT | MY_CS_CSSORT)) ?
                          REG_EXTENDED | REG_NOSUB :
-                         REG_EXTENDED | REG_NOSUB | REG_ICASE,
+                         REG_EXTENDED | REG_NOSUB | REG_ICASE),
                         cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
@@ -2417,10 +2417,10 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-                  ((cmp_collation.collation->state & MY_CS_BINSORT) ||
-                   (cmp_collation.collation->state & MY_CS_CSSORT)) ?
+                  ((cmp_collation.collation->state &
+                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
                    REG_EXTENDED | REG_NOSUB :
-                   REG_EXTENDED | REG_NOSUB | REG_ICASE,
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE),
                    cmp_collation.collation))
       {
 	null_value=1;
