@@ -326,3 +326,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING');
 select count(*) from t1 where sca_code = 'PD';
 drop table t1;
+
+#
+# Test of opening table twice
+#
+CREATE TABLE t1 (a int not null, primary key (a)) type=bdb;
+insert into t1 values(1),(2),(3);
+select t1.a from t1 natural join t1 as t2 order by t1.a;
+drop table t1;

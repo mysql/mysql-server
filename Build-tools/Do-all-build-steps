@@ -15,6 +15,7 @@ echo "Building on $to_host"
 
 rm -rf $BD/*
 rm -f $WD/binary/*
+mkdir -p $WD/binary
 mkdir -p $WD/Logs
 mkdir -p $BD/Logs
 
