@@ -43,7 +43,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_find_rows.sh \
 			mysqlhotcopy.sh \
 		        mysqldumpslow.sh \
-			mysqld_multi \
+			mysqld_multi.sh \
 			safe_mysqld.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
