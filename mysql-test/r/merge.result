@@ -536,7 +536,7 @@ INSERT INTO t2 VALUES (1,2), (2,2);
 CREATE TABLE t (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) TYPE=MRG_MyISAM UNION=(t1,t2);
 select max(b) from t where a = 2;
 max(b)
-NULL
+2
 select max(b) from t1 where a = 2;
 max(b)
 1
