@@ -20,3 +20,4 @@ t2	CREATE TABLE `t2` (
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
 ) TYPE=MyISAM
+ticket	inhalt

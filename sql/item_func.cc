@@ -1924,7 +1924,13 @@ void Item_func_match::init_search(bool no_order)
   char tmp1[FT_QUERY_MAXLEN];
   String tmp2(tmp1,sizeof(tmp1));
 
-  ft_tmp=key_item()->val_str(&tmp2);
+  // MATCH ... AGAINST (NULL) is meaningless, but possible 
+  if (!(ft_tmp=key_item()->val_str(&tmp2)))
+  {
+    ft_tmp=&tmp2;
+    tmp2.set("",0);
+  }
+
   ft_handler=(FT_DOCLIST *)
      table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length(),
                               join_key && !no_order);

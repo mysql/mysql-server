@@ -1968,9 +1968,6 @@ get_best_combination(JOIN *join)
   KEYUSE *keyuse;
   KEY *keyinfo;
   uint table_count;
-  String *ft_tmp=0;
-  char tmp1[FT_QUERY_MAXLEN];
-  String tmp2(tmp1,sizeof(tmp1));
 
   table_count=join->tables;
   if (!(join->join_tab=join_tab=
@@ -2026,8 +2023,7 @@ get_best_combination(JOIN *join)
       {
         Item_func_match *ifm=(Item_func_match *)keyuse->val;
 
-        ft_tmp=ifm->key_item()->val_str(&tmp2);
-        length=ft_tmp->length();
+        length=0;
         keyparts=1;
         ifm->join_key=1;
       }
@@ -2070,16 +2066,9 @@ get_best_combination(JOIN *join)
       if (ftkey)
       {
         j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
-        if (!keyuse->used_tables)
-        {
-          // AFAIK key_buff is zeroed...
-	  // We don't need to free ft_tmp as the buffer will be freed atom.
-          memcpy((gptr)key_buff, (gptr) ft_tmp->ptr(), ft_tmp->length());
-        }
-        else
-	{
+        if (keyuse->used_tables)
           return TRUE; // not supported yet. SerG
-	}
+
         j->type=JT_FT;
       }
       else
