@@ -25,14 +25,14 @@
 #pragma interface
 #endif
 
+class Instance_map;
+
 class Instance
 {
 public:
-  Instance(): is_connected(FALSE)
-  {}
   ~Instance();
-
   int init(const char *name);
+  int complete_initialization(Instance_map *instance_map_arg);
 
   /* check if the instance is running and set up mysql connection if yes */
   bool is_running();
@@ -44,7 +44,7 @@ public:
   Instance_options options;
 
   /* connection to the instance */
-  MYSQL mysql;
+  pid_t pid;
 
 private:
   /*
@@ -53,8 +53,7 @@ private:
     and we issue the start command once more.
   */
   pthread_mutex_t LOCK_instance;
-  /* Here we store the state of the following connection */
-  bool is_connected;
+  Instance_map *instance_map;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_H */

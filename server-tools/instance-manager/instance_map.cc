@@ -123,6 +123,9 @@ Instance_map::Instance_map(const char *default_mysqld_path_arg,
 
 int Instance_map::init()
 {
+  pthread_mutex_init(&pid_cond.LOCK_pid, 0);
+  pthread_cond_init(&pid_cond.COND_pid, 0);
+
   if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
                 get_instance_key, delete_instance, 0))
     return 1;
@@ -135,6 +138,8 @@ Instance_map::~Instance_map()
   hash_free(&hash);
   pthread_mutex_unlock(&LOCK_instance_map);
   pthread_mutex_destroy(&LOCK_instance_map);
+  pthread_mutex_destroy(&pid_cond.LOCK_pid);
+  pthread_cond_destroy(&pid_cond.COND_pid);
 }
 
 
@@ -189,6 +194,7 @@ void Instance_map::complete_initialization()
   while (i < hash.records)
   {
     instance= (Instance *) hash_element(&hash, i);
+    instance->complete_initialization(this);
     instance->options.complete_initialization(mysqld_path, user, password);
     i++;
   }
@@ -218,7 +224,8 @@ Instance_map::find(uint instance_number)
   Instance *instance;
   char name[80];
 
-  sprintf(name, "mysqld%i", instance_number);
+  snprintf(name, sizeof(name) - 1, "mysqld%i", instance_number);
+  name[sizeof(name) - 1]= 0; /* safety */
   pthread_mutex_lock(&LOCK_instance_map);
   instance= (Instance *) hash_search(&hash, (byte *) name, strlen(name));
   pthread_mutex_unlock(&LOCK_instance_map);

@@ -45,6 +45,7 @@ Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
   thread_info(pthread_self())
 {
   pthread_mutex_init(&LOCK_guardian, 0);
+  pthread_cond_init(&COND_guardian, 0);
   thread_registry.register_thread(&thread_info);
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
   guarded_instances= NULL;
@@ -60,6 +61,7 @@ Guardian_thread::~Guardian_thread()
   thread_registry.unregister_thread(&thread_info);
   pthread_mutex_unlock(&LOCK_guardian);
   pthread_mutex_destroy(&LOCK_guardian);
+  pthread_cond_destroy(&COND_guardian);
 }
 
 
@@ -79,27 +81,32 @@ void Guardian_thread::run()
 {
   Instance *instance;
   LIST *loop;
+  struct timespec timeout;
 
   my_thread_init();
+  pthread_mutex_lock(&LOCK_guardian);
+
 
   while (!thread_registry.is_shutdown())
   {
-    pthread_mutex_lock(&LOCK_guardian);
     loop= guarded_instances;
     while (loop != NULL)
     {
       instance= (Instance *) loop->data;
-      /* instance-> start already checks whether instance is running */
+      /* instance-> start already checks whether the instance is running */
       if (instance->start() != ER_INSTANCE_ALREADY_STARTED)
         log_info("guardian attempted to restart instance %s",
                  instance->options.instance_name);
       loop= loop->next;
     }
     move_to_list(&starting_instances, &guarded_instances);
-    pthread_mutex_unlock(&LOCK_guardian);
-    sleep(monitoring_interval);
+    timeout.tv_sec= time(NULL) + monitoring_interval;
+    timeout.tv_nsec= 0;
+
+    pthread_cond_timedwait(&COND_guardian, &LOCK_guardian, &timeout);
   }
 
+  pthread_mutex_unlock(&LOCK_guardian);
   my_thread_end();
 }
 

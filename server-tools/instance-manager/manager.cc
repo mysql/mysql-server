@@ -16,12 +16,6 @@
 
 #include "manager.h"
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <signal.h>
-#include <thr_alarm.h>
-
 #include "thread_registry.h"
 #include "listener.h"
 #include "instance_map.h"
@@ -29,6 +23,14 @@
 #include "user_map.h"
 #include "log.h"
 #include "guardian.h"
+
+#include <my_global.h>
+#include <my_sys.h>
+#include <m_string.h>
+#include <signal.h>
+#include <thr_alarm.h>
+#include <sys/wait.h>
+
 
 static int create_pid_file(const char *pid_file_name)
 {
@@ -90,6 +92,7 @@ void manager(const Options &options)
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGTERM);
+  sigaddset(&mask, SIGCHLD);
   sigaddset(&mask, SIGPIPE);
   sigaddset(&mask, SIGHUP);
   /*
@@ -169,6 +172,13 @@ void manager(const Options &options)
     {
       case THR_SERVER_ALARM:
         process_alarm(signo);
+      break;
+      case SIGCHLD:
+        wait(NULL);
+        /* wake threads waiting for an instance to shutdown */
+        pthread_cond_broadcast(&instance_map.pid_cond.COND_pid);
+        /* wake guardian */
+        pthread_cond_broadcast(&guardian_thread.COND_guardian);
       break;
       default:
         thread_registry.deliver_shutdown();
