@@ -1364,8 +1364,6 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   return 0;
 }
 
-extern MY_COLLATION_HANDLER my_collation_uca_handler;
-
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
     my_strnncoll_ucs2,
@@ -1443,6 +1441,29 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     &my_collation_ucs2_general_ci_handler
 };
 
+CHARSET_INFO my_charset_ucs2_general_uca=
+{
+    45,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
+    "ucs2",		/* cs name    */
+    "ucs2_general_uca",	/* name         */
+    "",			/* comment      */
+    ctype_ucs2,		/* ctype        */
+    to_lower_ucs2,	/* to_lower     */
+    to_upper_ucs2,	/* to_upper     */
+    to_upper_ucs2,	/* sort_order   */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
 
 CHARSET_INFO my_charset_ucs2_bin=
 {
