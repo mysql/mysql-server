@@ -608,22 +608,25 @@ drop procedure hndlr3|
 # Variables might be uninitialized when using handlers
 # (Otherwise the compiler can detect if a variable is not set, but
 #  not in this case.)
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 ( id   char(16), data int )|
+
 create procedure hndlr4()
 begin
   declare x int default 0;
   declare val int;	                           # No default
   declare continue handler for sqlexception set x=1;
 
-  select data into val from test.t1 where id='z' limit 1;  # No hits
+  select data into val from test.t3 where id='z' limit 1;  # No hits
 
-  if val < 10 then
-    insert into test.t1 values ('z', 10);
-  end if;
+  insert into test.t3 values ('z', val);
 end|
 
 call hndlr4()|
-select * from t1|
-delete from t1|
+select * from t3|
+drop table t3|
 drop procedure hndlr4|
 
 
@@ -654,6 +657,9 @@ call cur1()|
 select * from t1|
 drop procedure cur1|
 
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
 create table t3 ( s char(16), i int )|
 
 create procedure cur2()

@@ -316,9 +316,17 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   close_thread_tables(thd);
 
   // The rest of the frame are local variables which are all IN.
-  // QQ See comment in execute_procedure below.
-  for (; i < csize ; i++)
-    nctx->push_item(NULL);
+  // Default all variables to null (those with default clauses will
+  // be set by an set instruction).
+  {
+    Item_null *nit= NULL;	// Re-use this, and only create if needed
+    for (; i < csize ; i++)
+    {
+      if (! nit)
+	nit= new Item_null();
+      nctx->push_item(nit);
+    }
+  }
   thd->spcont= nctx;
 
   ret= execute(thd);

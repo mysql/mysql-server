@@ -514,21 +514,21 @@ id	data
 hndlr3	13
 delete from t1;
 drop procedure hndlr3;
+drop table if exists t3;
+create table t3 ( id   char(16), data int );
 create procedure hndlr4()
 begin
 declare x int default 0;
 declare val int;	                           # No default
 declare continue handler for sqlexception set x=1;
-select data into val from test.t1 where id='z' limit 1;  # No hits
-if val < 10 then
-insert into test.t1 values ('z', 10);
-end if;
+select data into val from test.t3 where id='z' limit 1;  # No hits
+insert into test.t3 values ('z', val);
 end;
 call hndlr4();
-select * from t1;
+select * from t3;
 id	data
-z	10
-delete from t1;
+z	NULL
+drop table t3;
 drop procedure hndlr4;
 create procedure cur1()
 begin
@@ -555,6 +555,7 @@ foo	40
 bar	15
 zap	663
 drop procedure cur1;
+drop table if exists t3;
 create table t3 ( s char(16), i int );
 create procedure cur2()
 begin
