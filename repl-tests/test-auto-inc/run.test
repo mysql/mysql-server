@@ -1,0 +1,10 @@
+source ../include/master-slave.inc;
+connection master;
+drop table if exists x;
+create table x(n int auto_increment primary key);
+set insert_id = 2000;
+insert into x values (NULL),(NULL),(NULL);
+connection slave;
+sleep 3;
+@x.master select * from x;
+ 

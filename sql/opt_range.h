@@ -71,7 +71,7 @@ public:
   double read_time;
 
   QUICK_SELECT(TABLE *table,uint index_arg,bool no_alloc=0);
-  ~QUICK_SELECT();
+  virtual ~QUICK_SELECT(); // fixed by Sasha needs to be virtual
   void reset(void) { next=0; it.rewind(); }
   virtual int init() { return 0; }
   virtual int get_next();

@@ -24590,6 +24590,16 @@ master-password=<replication user password>
 
 replacting the values in <> with what is relevant to your system.
 
+Starting in version 3.23.26, you must also have on both master and 
+slave 
+
+@example
+server-id=<some unique number between 1 and 2^32-1>
+@end example
+
+@code{server-id} must be different for each server participating in
+replication
+
 @item Restart the slave(s)
 
 @end itemize
@@ -24615,6 +24625,13 @@ still resides on the master server at the time of update
 propogation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
 Update queries that use user variables are not replication-safe (yet)
+@item
+Starting in 3.23.26, it is safe to connect servers in a circular
+master-slave relationship with @code{log-slave-updates} enabled. 
+Note, however, that many queries will not work right in this kind of
+setup unless your client code is written to take care of the potential
+problems that can happen from updates that occur in different sequence
+on different servers
 @item
 If the query on the slave gets an error, the slave thread will
 terminate, and a message will appear in @code{.err} file. You should
@@ -24649,13 +24666,6 @@ replication (binary) logging on the master, and @code{SET SQL_LOG_BIN =
 1} will turn in back on - you must have the process privilege to do
 this.
 @item
-The slave thread does not log updates to the binary log of the slave,
-so it is possible to couple two servers in a mutual master-slave
-relationship. You can actually set up a load balancing scheme and do
-queries safely on either of the servers. Just do not expect to do LOCK
-TABLES on one server, then connect to the other and still have that
-lock :-) .
-@item
 Starting in 3.23.19 you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
 and @code{FLUSH SLAVE} commands
@@ -24668,6 +24678,10 @@ TO }
 @item
 Starting in 3.23.23, you tell the master that updates in certain
 databases should not be logged to the binary log with @code{binlog-ignore-db}
+@item 
+Starting in 3.23.26, you can use @code{replicate-rewrite-db} to tell
+the slave to apply updates from one database on the master to the one
+with a different name on the slave
 @end itemize
 
 @node Replication Options, Replication SQL, Replication Features, Replication
@@ -24783,6 +24797,22 @@ exclude all others not explicitly mentioned.
 to the binary log 
 (Set on @strong{Master}, Example: @code{binlog-ignore-db=some_database})
 
+@item
+@code{replicate-rewrite-db}
+ @tab Tells the slave to apply updates to a database with a different
+name than the original ( Set on @strong{Slave}, Example: 
+@code{replicate-rewrite-db=master_db_name->slave_db_name}
+
+@item
+@code{skip-slave-start}
+ @tab Tells the slave server not to start the slave on the startup.
+The user can start it later with @code{SLAVE START}
+
+@item
+@code{server-id}
+ @tab Sets the unique replicaiton numeric server id. You should pick one  to assign.
+The range is from 1 to 2^32-1. (Set on both @strong{Master} and 
+@strong{Slave}. Example: @code{server-id=3})
 @end multitable
 
 @cindex SQL commands, replication
@@ -24888,9 +24918,26 @@ it up from @code{pthread_cond_wait()}.  In the meantime, the slave
 could have opened another connection, which resulted in another 
 @code{Binlog_Dump} thread.
 
-Once we add @strong{server_id} variable for each server that 
-participates in replication, we will fix @code{Binlog_Dump} thread to
-kill all the zombies from the same slave on reconnect.
+The above problem should not be present in 3.23.26 and later versions.
+In 3.23.26 we added @code{server-id} to each replication server, and 
+now all the old zombie threads are killed on the master when a new replication thread
+connects from the same slave
+
+@strong{Q}: How do I upgrade on a hot replication setup?
+@strong{A}: If you are upgrading  pre-3.23.26 versions, you should just
+lock the master tables, let the slave catch up, then run @code{FLUSH
+MASTER} on the master, and @code{FLUSH SLAVE} on the slave to reset the
+logs, then restart new versions of the master and the slave. Note that
+the slave can stay down for some time - since the master is logging 
+all the updates, the slave will be able to catch up once it is up and
+can connect.
+
+We plan to make post 3.23.26 versions to be backwards compatible 
+for replication down to 3.23.26, so upgrade should be just a matter
+of plug and play. Of course, as one joke goes, plug and play works 
+usually only 50% of the time - just the plug part. We hope to do much
+better than that, though. 
+ 
 
 @cindex replication, two-way
 @strong{Q}: What issues should I be aware of when setting up two-way
@@ -37857,6 +37904,26 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+Fixed mutex bug in the binary replication log - long update queries could
+be read only in part by the slave if it did it at the wrong time, which
+was not fatal, but resulted in a performance-degrading reconnect and
+a scary message in the error log
+@item
+Changed the format of the binary log - added magic number, server 
+version, binlog version. Added server id and query error code for each query event
+@item 
+Replication thread from the slave will now kill all the stale threads
+from the same server
+@item 
+Long replication user names were not being handled properly
+@item
+Added --replicate-rewrite-db
+@item
+Added --skip-slave-start
+@item
+Updates that generated an error code ( such as INSERT INTO foo(some_key)
+ values (1),(1);) erroneously terminated the slave thread
 @item
 Added optimization of queries where @code{DISTINCT} is only used on columns
 from some of the tables.
