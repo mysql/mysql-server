@@ -595,7 +595,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 
 Getting Maximum Performance from MySQL
 
@@ -895,6 +895,8 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.35::                Changes in release 3.23.35
+* News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
@@ -1173,7 +1175,7 @@ see @ref{General-SQL}. For books that focus more specifically on
 
 @strong{MySQL}, the most popular Open Source SQL database, is provided
 by @strong{MySQL AB}.  @strong{MySQL AB} is a commercial company that
-builds is business providing services around the @strong{MySQL} database.
+builds its business providing services around the @strong{MySQL} database.
 @xref{What is MySQL AB}.
 
 @table @asis
@@ -4486,6 +4488,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.paco.net.ua, WWW}
 @uref{ftp://mysql.paco.net.ua/, FTP}
 
+@item
+@c mizi@alkar.net (Alexander Ryumshin)
+@image{Flags/ukraine} Ukraine [ISP Alkar Teleport/Dnepropetrovsk] @
+@uref{http://mysql.dp.ua/, WWW}
+
 @end itemize
 
 @strong{North America:}
@@ -5679,7 +5686,7 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 
 
 @cindex installing, source distribution
-@cindex source distribtuion, installing
+@cindex source distribution, installing
 @cindex installation overview
 @node Installing source, Installing source tree, Installing binary, Installing
 @section Installing a MySQL Source Distribution
@@ -6165,9 +6172,15 @@ Download @strong{BitKeeper} from
 @item
 Follow the instructions to install it.
 @item
-Once @strong{BitKeeper} is installed,
-@code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
-may take a while, depending on the speed of your connection.
+Once @strong{BitKeeper} is installed, if you want to clone 3.23 branch,
+@code{bk clone bk://work.mysql.com:7000 mysql}, and
+@code{bk clone bk://work.mysql.com:7001 mysql-4.0} for 4.0 branch
+
+- the initial download
+may take a while, depending on the speed of your connection. If you have the
+most
+recent beta version of @strong{BitKeeper}, replace @code{clone} with
+@code{oclone}.
 @item
 You will need GNU autoconf/automake, libtool, and m4 to do the next stage.
 If you get some strange error during the first stage, check that you really
@@ -6193,7 +6206,7 @@ you @code{./configure} with different values for @code{prefix},
 @code{tcp-port}, and @code{unix-socket-path}.
 @item
 Play hard with your new installation and try to make the new features
-crash. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
+crash. Start by running @code{make test}. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
 sure you have a full test case for the bug that we can run.
 @item
 If you have gotten to the @code{make} stage and it does not compile,
@@ -6204,7 +6217,9 @@ if you execute @code{aclocal} and get @code{command not found}, or a
 similar problem, do not report it - make sure all the needed tools are
 installed and your @code{PATH} variable is set correctly.
 @item
-After the initial @code{bk clone}, do @code{bk pull} to get the updates.
+After the initial @code{bk clone}, do @code{bk pull} to get the updates. If
+you are using the most recent beta version of BitKeeper, you should use
+@code{bk opull} instead.
 @item
 You can examine change history of the tree with all the diffs with
 @code{bk sccstool}. If you see some funny diffs or code that you have a
@@ -6618,6 +6633,7 @@ To install the @strong{MySQL} @code{DBD} module with ActiveState Perl on
 Windows, you should do the following:
 
 @itemize @bullet
+@item Get activestate perl from @uref{http://www.activestate.com/Products/ActivePerl/index.html} and install it.
 @item Open a DOS shell.
 @item If required, set the HTTP_proxy variable. For example, you might try:
 @code{set HTTP_proxy=my.proxy.com:3128}
@@ -22064,6 +22080,11 @@ or
 mysql> UPDATE mysql.user SET password=PASSWORD("newpass") where user="bob' and host="%.loc.gov";
 @end example
 
+@item SQL_ANSI_MODE = 0 | 1
+@cindex ANSI mode, SQL_ANSI_MODE
+If set to @code{1}, the connection will be in ANSI mode, as described in
+@ref{ANSI mode}.
+
 @item SQL_AUTO_IS_NULL = 0 | 1
 If set to @code{1} (default) then one can find the last inserted row
 for a table with an auto_increment row with the following construct:
@@ -23587,7 +23608,7 @@ The @code{GEMINI} table type is developed and supported by NuSphere Corporation
 (@uref{http://www.nusphere.com}).  It features row-level locking, transaction
 support (@code{COMMIT} and @code{ROLLBACK}), and automatic crash recovery.
 
-@code{GEMINI} tables will be included in the @strong{MySQL} 4.0 source
+@code{GEMINI} tables will be included in the @strong{MySQL} 3.23.35 source
 distribution.
 
 @node GEMINI start, GEMINI features, GEMINI overview, GEMINI
@@ -23665,10 +23686,10 @@ NuSphere is working on removing these limitations.
 @subsection INNOBASE Tables overview
 
 Innobase is included in the @strong{MySQL} source distribution starting
-from 3.23.34 and will be activated in the @strong{MySQL}-max binary.
+from 3.23.34a and will be activated in the @strong{MySQL}-max binary.
 
 If you have downloaded a binary version of @strong{MySQL} that includes
-support for Berkeley DB, simply follow the instructions for
+support for Innobase, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
 
 To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
@@ -23677,7 +23698,7 @@ To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
 
 @example
 cd /path/to/source/of/mysql-3.23.34
-./configure --with-berkeley-db
+./configure --with-innobase
 @end example
 
 Innobase provides MySQL with a transaction safe table handler with
@@ -26615,7 +26636,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -33693,7 +33714,7 @@ If you find out something is wrong, please only send the relevant rows
 send the whole MyODBC or ODBC log file!
 
 If you are unable to find out what's wrong, the last option is to
-make an archive (tar or zip) that contains a MyODBC log file, the ODBC
+make an archive (tar or zip) that contains a MyODBC trace file, the ODBC
 log file, and a README file that explains the problem.  You can send this
 to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at MySQL AB
 will have access to the files you upload, and we will be very discrete
@@ -40245,6 +40266,12 @@ If a test fails totally, you should check the logs file in the
 @item
 If you have compiled @strong{MySQL} with debugging you can try to debug this
 with the @code{--gdb} and @code{--debug} options to @code{mysql-test-run}.
+@xref{Making trace files}.
+
+If you have not compiled @strong{MySQL} for debugging you should probably
+do that.  Just specify the @code{--with-debug} options to @code{configure}!
+@xref{Installing source}.
+
 @end itemize
 
 @page
@@ -41105,8 +41132,8 @@ An open source client for exploring databases and executing SQL. Supports
 A query tool for @strong{MySQL} and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
 A query tool written in Perl. Uses DBI and Tk.
-@item @uref{http://www.mysql.com/Downloads/Win32/Msc110.EXE, Mascon 2000.1.10.48}
-@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc110.EXE, Free Mascon 2000.1.10.47}
+@item @uref{http://www.mysql.com/Downloads/Win32/Msc201.EXE, Mascon 2.1.15}
+@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc201.EXE, Free Mascon 2.1.14}
 Mascon is a powerful Win32 GUI for the administering MySQL server
 databases. Mascon's features include visual table design, connections to
 multiple servers, data and blob editing of tables, security setting, SQL
@@ -42040,6 +42067,9 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+
+* News-3.23.35::                Changes in release 3.23.35
+* News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
@@ -42077,7 +42107,23 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.34, News-3.23.33, News-3.23.x, News-3.23.x
+@node News-3.23.35, News-3.23.34a, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.35
+@itemize @bullet
+@item
+Added SQL_ANSI_MODE.  You can now switch to ANSI mode for only your 
+connection by running @code{SET SQL_ANSI_MODE=1}, and you can turn
+ANSI mode off with @code{SET SQL_ANSI_MODE=0}.
+@end itemize
+
+@node News-3.23.34a, News-3.23.34, News-3.23.35, News-3.23.x
+@appendixsubsec Changes in release 3.23.34a
+@itemize @bullet
+@item
+Add extra files to distribution to allow one to compile Innobase.
+@end itemize
+
+@node News-3.23.34, News-3.23.33, News-3.23.34a, News-3.23.x
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
@@ -42123,6 +42169,8 @@ Fixed bug in bi-directonal replication.
 @item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
+@item
+Fixed @code{MAX()} optimization on sub-key for @code{BDB} tables.
 @item
 Fixed problem with 'garbage results' when using @code{BDB} tables and
 @code{BLOB} or @code{TEXT} fields when joining many tables.
@@ -47037,6 +47085,12 @@ in some cases the @code{PROCEDURE} will not transform the columns.
 @item
 Creation of a table of type @code{MERGE} doesn't check if the underlying
 tables are of compatible types.
+@item
+@strong{MySQL} can't yet handle @code{NaN}, @code{-Inf} and @code{Inf}
+values in double. Using these will cause problems when trying to export
+and import data. We should as a intermediate solution change @code{NaN} to
+@code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
+Minimum respective maximum possible @code{double} value.
 @end itemize
 
 The following are known bugs in earlier versions of @strong{MySQL}:
@@ -47177,6 +47231,11 @@ characters in database, table and column names.
 @item
 Add a portable interface over @code{gethostbyaddr_r()} so that we can change
 @code{ip_to_hostname()} to not block other threads while doing DNS lookups.
+@item
+Add @code{record_in_range()} method to @code{MERGE} tables to be
+able to choose the right index when there is many to choose from. We should
+also extend the info interface to get the key distribution for each index,
+of @code{analyze} is run on all sub tables.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
@@ -47668,7 +47727,7 @@ send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
 If you can cause the @code{mysqld} server to crash quickly, you can try to
 create a trace file of this:
 
-Start the @code{mysqld} server with a trace log in @file{/tmp/mysql.trace}.
+Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}.
 The log file will get very @emph{BIG}.
 
 @code{mysqld --debug --log}

@@ -31,7 +31,7 @@
 # $server	Object for current server
 # $limits	Hash reference to limits for benchmark
 
-$benchmark_version="2.11a";
+$benchmark_version="2.12";
 use Getopt::Long;
 
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";

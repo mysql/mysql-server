@@ -47,6 +47,7 @@ require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
 $opt_server="mysql"; $opt_host="localhost"; $opt_database="test";
 $opt_dir="limits";
+$opt_user=$opt_password="";
 $opt_debug=$opt_help=$opt_Information=$opt_restart=$opt_force=$opt_quick=0;
 $opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=0;
 $opt_db_start_cmd="";           # the db server start command

@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.12";
+const char *VER="11.13";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1518,6 +1518,22 @@ com_ego(String *buffer,char *line)
   return result;
 }
 
+static void
+print_field_types(MYSQL_RES *result)
+{
+  MYSQL_FIELD	*field;  
+  while ((field = mysql_fetch_field(result)))
+  {
+    tee_fprintf(PAGER,"%s '%s' %d %d %d %d %d\n",
+		field->name,
+		field->table ? "" : field->table,
+		(int) field->type,
+		field->length, field->max_length, 
+		field->flags, field->decimals);
+  }
+  tee_puts("", PAGER);
+}
+
 
 static void
 print_table_data(MYSQL_RES *result)
@@ -1528,6 +1544,11 @@ print_table_data(MYSQL_RES *result)
   bool		*num_flag;
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
+  if (info_flag)
+  {
+    print_field_types(result);
+    mysql_field_seek(result,0);
+  }
   separator.copy("+",1);
   while ((field = mysql_fetch_field(result)))
   {

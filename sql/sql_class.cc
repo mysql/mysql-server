@@ -84,6 +84,10 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
     query_start_used=0;
   query_length=col_access=0;
   query_error=0;
+#ifdef STOP_IO_WITH_FD_CLOSE
+  active_fd = -1;
+  pthread_mutex_init(&active_fd_lock, NULL);
+#endif  
   server_id = ::server_id;
   server_status=SERVER_STATUS_AUTOCOMMIT;
   next_insert_id=last_insert_id=0;
@@ -176,11 +180,15 @@ THD::~THD()
   
   if (host != localhost)			// If not pointer to constant
     safeFree(host);
-  safeFree(user);
+  if (user != delayed_user)
+    safeFree(user);
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
+#ifdef STOP_IO_WITH_FD_CLOSE
+  pthread_mutex_destroy(&active_fd_lock);
+#endif  
   DBUG_VOID_RETURN;
 }
 

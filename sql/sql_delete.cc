@@ -192,7 +192,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   (void) table->file->extra(HA_EXTRA_NO_READCHECK);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);    
-  init_read_record(&info,thd,table,select,1,1);
+  init_read_record(&info,thd,table,select,-1,1);
   ulong deleted=0L;
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)

@@ -11,6 +11,7 @@ insert delayed into t1 set a = 4;
 insert delayed into t1 set a = 5, tmsp = 19711006010203;
 insert delayed into t1 (a, tmsp) values (6, 19711006010203);
 insert delayed into t1 (a, tmsp) values (7, NULL);
+--sleep 1
 insert into t1 set a = 8,tmsp=19711006010203;
 select * from t1 where tmsp=0;
 select * from t1 where tmsp=19711006010203;
@@ -27,5 +28,6 @@ insert delayed into t1 values (null,"c");
 insert delayed into t1 values (3,"d"),(null,"e");
 --error 1136
 insert delayed into t1 values (3,"this will give an","error");
+--sleep 2
 select * from t1;
 drop table t1;
