@@ -23,3 +23,9 @@ ts	from_unixtime(ts)
 1048989599	2003-03-30 03:59:59
 1048989601	2003-03-30 04:00:01
 DROP TABLE t1;
+select @a:=FROM_UNIXTIME(1);
+@a:=FROM_UNIXTIME(1)
+1970-01-01 01:00:01
+select unix_timestamp(@a);
+unix_timestamp(@a)
+1

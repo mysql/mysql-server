@@ -125,6 +125,8 @@ long my_gmt_sec(TIME *t, long *my_timezone)
       tmp-=t->minute*60 + t->second;		// Move to previous hour
   }
   *my_timezone= current_timezone;
+  if (tmp < 0 && t->year <= 1900+YY_PART_YEAR)
+    tmp= 0;
   return (long) tmp;
 } /* my_gmt_sec */
 
@@ -445,7 +447,7 @@ time_t str_to_timestamp(const char *str,uint length)
 
   if (str_to_TIME(str,length,&l_time,0) == TIMESTAMP_NONE)
     return(0);
-  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR)
+  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
   {
     current_thd->cuted_fields++;
     return(0);

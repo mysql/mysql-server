@@ -544,6 +544,26 @@ int multi_update::prepare(List<Item> &not_used_values)
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
+
+  /*
+    Mark all copies of tables that are updates to ensure that
+    init_read_record() will not try to enable a cache on them
+
+    The problem is that for queries like
+
+    UPDATE t1, t1 AS t2 SET t1.b=t2.c WHERE t1.a=t2.a;
+
+    the row buffer may contain things that doesn't match what is on disk
+    which will cause an error when reading a row.
+    (This issue is mostly relevent for MyISAM tables)
+  */
+  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
+  {
+    TABLE *table=table_ref->table;
+    if (!(tables_to_update & table->map) && 
+	check_dup(table_ref->db, table_ref->real_name, update_tables))
+      table->no_cache= 1;			// Disable row cache
+  }
   DBUG_RETURN(thd->fatal_error != 0);
 }
 
@@ -685,7 +705,7 @@ multi_update::~multi_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next)
-    table->table->no_keyread=0;
+    table->table->no_keyread= table->table->no_cache= 0;
 
   if (tmp_tables)
   {
