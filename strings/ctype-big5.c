@@ -6175,6 +6175,9 @@ my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
 
   int code;
 
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+  
   if(wc<0x80)
   {
     s[0]=wc;
@@ -6199,6 +6202,9 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 {
 
   int hi=s[0];
+  
+  if (s >= e)
+    return MY_CS_TOOFEW(0);
   
   if(hi<0x80)
   {
