@@ -131,10 +131,14 @@ enum ha_extra_function {
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
   /*
-    Instructs InnoDB to retrieve all columns, not just those where
-    field->query_id is the same as the current query id
+    Instructs InnoDB to retrieve all columns (except in key read), not just
+    those where field->query_id is the same as the current query id
   */
   HA_EXTRA_RETRIEVE_ALL_COLS,
+  /*
+    Instructs InnoDB to retrieve at least all the primary key columns
+  */
+  HA_EXTRA_RETRIEVE_PRIMARY_KEY,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
   HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
