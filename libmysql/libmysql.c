@@ -801,7 +801,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   NET *net= &mysql->net;
   int readcount;
   void *li_ptr;          /* pass state to local_infile functions */
-  char *buf;;		/* buffer to be filled by local_infile_read */
+  char *buf;		/* buffer to be filled by local_infile_read */
   struct st_mysql_options *options= &mysql->options;
   DBUG_ENTER("handle_local_infile");
 
