@@ -126,12 +126,19 @@ AC_DEFUN(MYSQL_CHECK_ZLIB_WITH_COMPRESS, [
 save_LIBS="$LIBS"
 LIBS="-l$1 $LIBS"
 AC_CACHE_CHECK([if libz with compress], mysql_cv_compress,
-[AC_TRY_LINK([#include <zlib.h>
+[AC_TRY_RUN([#include <zlib.h>
 #ifdef __cplusplus
 extern "C"
 #endif
-],
-[ return compress(0, (unsigned long*) 0, "", 0);
+int main(int argv, char **argc)
+{
+  return 0;
+}
+
+int link_test()
+{
+  return compress(0, (unsigned long*) 0, "", 0);
+}
 ], mysql_cv_compress=yes, mysql_cv_compress=no)])
 if test "$mysql_cv_compress" = "yes"
 then
@@ -706,7 +713,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
 /usr/include/ssl /opt/ssl/include /opt/openssl/include \
 /usr/local/ssl/include /usr/local/include ; do
    if test -f $d/openssl/ssl.h  ; then
-     OPENSSL_INCLUDE=$d
+     OPENSSL_INCLUDE=-I$d
    fi
   done
 
@@ -716,6 +723,15 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
     OPENSSL_LIB=$d
   fi
  done
+
+  # On RedHat 9 we need kerberos to compile openssl
+  for d in /usr/kerberos/include
+  do
+   if test -f $d/krb5.h  ; then
+     OPENSSL_INCLUDE="$OPENSSL_INCLUDE -I$d"
+   fi
+  done
+
 
  if test -z "$OPENSSL_LIB" -o -z "$OPENSSL_INCLUDE" ; then
    echo "Could not find an installation of OpenSSL"
@@ -749,9 +765,9 @@ AC_MSG_CHECKING(for OpenSSL)
     openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
     # Don't set openssl_includes to /usr/include as this gives us a lot of
     # compiler warnings when using gcc 3.x
-    if test "$OPENSSL_INCLUDE" != "/usr/include"
+    if test "$OPENSSL_INCLUDE" != "-I/usr/include"
     then
-	openssl_includes="-I$OPENSSL_INCLUDE"
+	openssl_includes="$OPENSSL_INCLUDE"
     fi
     AC_DEFINE(HAVE_OPENSSL)
 

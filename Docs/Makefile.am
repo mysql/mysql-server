@@ -208,7 +208,7 @@ INSTALL-BINARY:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "LGPL license" "Function Index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "Mac OS X installation" "Netware installation" > $@
+	perl -w $(GT) mysql.info "Mac OS X installation" "NetWare installation" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

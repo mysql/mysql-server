@@ -32,7 +32,6 @@ typedef struct st_innobase_share {
   uint table_name_length,use_count;
 } INNOBASE_SHARE;
 
-
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {

@@ -127,3 +127,10 @@ insert into t1 values ("a", 1), ("b", 2);
 !$1048 insert into t1 values (NULL, 3);
 !$1048 insert into t1 values (NULL, NULL);
 drop table t1;
+
+#
+# Bug # 801
+#
+
+create table t1 select x'4132';
+drop table t1;
