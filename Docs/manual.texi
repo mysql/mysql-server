@@ -337,7 +337,7 @@ MySQL language reference
 * LOAD DATA::                   @code{LOAD DATA INFILE} syntax
 * UPDATE::                      @code{UPDATE} syntax
 * USE::                         @code{USE} syntax
-* FLUSH::                       @code{Flush} syntax (clearing caches)
+* FLUSH::                       @code{FLUSH} syntax (clearing caches)
 * KILL::                        @code{KILL} syntax
 * SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
 * EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
@@ -417,7 +417,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 * SHOW VARIABLES::              
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
+* SHOW CREATE TABLE::
 
 MySQL table types
 
@@ -643,7 +643,6 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -764,7 +763,7 @@ MySQL change history
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
-Changes in release 3.23.x  (Recommended; beta)
+Changes in release 3.23.x  (Released as beta)
 
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
@@ -5002,8 +5001,8 @@ shell> ./configure --with-charset=CHARSET
 @code{czech}, @code{danish},@code{dec8}, @code{dos}, @code{euc_kr},
 @code{gb2312}, @code{gbk}, @code{german1}, @code{hebrew}, @code{hp8},
 @code{hungarian}, @code{koi8_ru}, @code{koi8_ukr}, @code{latin1}, @code{latin2},
-@code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, @code{usa7},
-@code{win1251} or @code{win1251ukr}.
+@code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, @code{usa7} or
+@code{win1251ukr}.
 @xref{Character sets}.
 
 If you want to convert characters between the server and the client,

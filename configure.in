@@ -1524,7 +1524,8 @@ AC_ARG_WITH(charset,
   [  --with-charset=CHARSET  use CHARSET by default (one of: big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                          latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr
+dnl win1251 is deprecated - it's available, but not listed here in the help
+                          latin1 latin2 swe7 usa7 win1250 win1251ukr
                           ujis sjis tis620; default is latin1)],
   [default_charset="$withval"],
   [default_charset="$DEFAULT_CHARSET"])
