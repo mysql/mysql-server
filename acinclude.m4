@@ -846,21 +846,21 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_BDB], [
   AC_ARG_WITH([berkeley-db],
-              [\
+              [
   --with-berkeley-db[=DIR]
                           Use BerkeleyDB located in DIR],
               [bdb="$withval"],
               [bdb=no])
 
   AC_ARG_WITH([berkeley-db-includes],
-              [\
+              [
   --with-berkeley-db-includes=DIR
                           Find Berkeley DB headers in DIR],
               [bdb_includes="$withval"],
               [bdb_includes=default])
 
   AC_ARG_WITH([berkeley-db-libs],
-              [\
+              [
   --with-berkeley-db-libs=DIR
                           Find Berkeley DB libraries in DIR],
               [bdb_libs="$withval"],
@@ -1108,7 +1108,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_INNODB], [
   AC_ARG_WITH([innodb],
-              [\
+              [
   --without-innodb        Do not include the InnoDB table handler],
               [innodb="$withval"],
               [innodb=yes])
@@ -1182,6 +1182,7 @@ dnl END OF MYSQL_CHECK_INNODB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
+
 dnl Got this from the GNU tar 1.13.11 distribution
 dnl by Paul Eggert <eggert@twinsun.com>
 dnl ---------------------------------------------------------------------------

@@ -49055,6 +49055,8 @@ not yet 100% confident in this code.
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
+Fixed core-dump bug when reading client groups from option files using
+@code{mysql_options()}.
 @item
 Memory leak (16 bytes per every @strong{corrupted} table) closed.
 @item
