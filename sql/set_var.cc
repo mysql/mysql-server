@@ -550,6 +550,8 @@ struct show_var_st init_vars[]= {
   {sys_max_connections.name,    (char*) &sys_max_connections,	    SHOW_SYS},
   {sys_max_connect_errors.name, (char*) &sys_max_connect_errors,    SHOW_SYS},
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
+  {sys_max_insert_delayed_threads.name,
+   (char*) &sys_max_insert_delayed_threads,   SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
   {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
