@@ -1426,15 +1426,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
         if (e.write(file))
           goto err;
       }
-#if MYSQL_VERSION_ID < 40100      
-      if (thd->variables.convert_set)
-      {
-	Query_log_event e(thd, "SET CHARACTER SET DEFAULT", 25, 0);
-	e.set_log_pos(this);
-	if (e.write(file))
-	  goto err;
-      }
-#endif
     }
 
     /*
@@ -1932,19 +1923,6 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
 }
 
 
-Disable_binlog::Disable_binlog(THD *thd_arg) : 
-  thd(thd_arg), save_options(thd_arg->options)
-{
-  thd_arg->options&= ~OPTION_BIN_LOG;
-}
-
-
-Disable_binlog::~Disable_binlog()
-{
-  thd->options= save_options;
-}
-
-
 /*
   Check if a string is a valid number
 
@@ -2009,14 +1987,14 @@ void print_buffer_to_file(enum loglevel level, const char *buffer)
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
   fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d  [%s] %s\n",
-    	  start->tm_year % 100,
-  	  start->tm_mon+1,
-	  start->tm_mday,
-	  start->tm_hour,
-	  start->tm_min,
-	  start->tm_sec,
+          start->tm_year % 100,
+          start->tm_mon+1,
+          start->tm_mday,
+          start->tm_hour,
+          start->tm_min,
+          start->tm_sec,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "WARNING" : "INFORMATION"),
+           "WARNING" : "NOTE"),
           buffer);
 
   fflush(stderr);

@@ -155,3 +155,26 @@ NULL
 select cast(NULL as BINARY);
 cast(NULL as BINARY)
 NULL
+CREATE TABLE t1 (a enum ('aac','aab','aaa') not null);
+INSERT INTO t1 VALUES ('aaa'),('aab'),('aac');
+SELECT a, CAST(a AS CHAR) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
+a	CAST(a AS CHAR)
+aac	aac
+aab	aab
+aaa	aaa
+SELECT a, CAST(a AS CHAR(3)) FROM t1 ORDER BY CAST(a AS CHAR(2)), a;
+a	CAST(a AS CHAR(3))
+aac	aac
+aab	aab
+aaa	aaa
+SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
+a	CAST(a AS UNSIGNED)
+aaa	3
+aab	2
+aac	1
+SELECT a, CAST(a AS CHAR(2)) FROM t1 ORDER BY CAST(a AS CHAR(3)), a;
+a	CAST(a AS CHAR(2))
+aaa	aa
+aab	aa
+aac	aa
+DROP TABLE t1;
