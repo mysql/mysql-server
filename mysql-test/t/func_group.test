@@ -155,3 +155,11 @@ insert into t1 values (-1), (-2), (-3);
 select bit_and(col), bit_or(col) from t1;
 select SQL_BIG_RESULT bit_and(col), bit_or(col) from t1 group by col;
 drop table t1;
+
+#
+# Bug #3376: avg() and an empty table
+#
+
+create table t1 (a int);
+select avg(2) from t1;
+drop table t1;
