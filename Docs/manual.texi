@@ -46916,6 +46916,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
 @item
+Remove end space from @code{enum} values. (This fixed a problem with
+@code{SHOW CREATE TABLE}).
+@item
 Fixed bug in @code{CONCAT_WS()} that cut the result.
 @item
 Changed name of variables @code{Com_show_master_stat} to
