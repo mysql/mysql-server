@@ -2810,8 +2810,6 @@ row_search_for_mysql(
 		mode = pcur->search_mode;
 	}
 
-	mtr_start(&mtr);
-
 	/* In a search where at most one record in the index may match, we
 	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete-
 	marked matching record.
@@ -2834,9 +2832,12 @@ row_search_for_mysql(
 		
 		if (direction != 0 && !prebuilt->used_in_HANDLER) {
 		        
+			trx->op_info = (char*)"";
 			return(DB_RECORD_NOT_FOUND);
 		}
 	}
+
+	mtr_start(&mtr);
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 2: Try fast adaptive hash index search if possible */
