@@ -76,6 +76,7 @@ public:
   const char *get_mgmd_host() const;
   const char *get_connectstring(char *buf, int buf_sz) const;
   NdbMgmHandle get_mgmHandle() { return m_handle; };
+  NdbMgmHandle* get_mgmHandlePtr() { return &m_handle; };
 
   Uint32 get_configuration_nodeid() const;
 private:

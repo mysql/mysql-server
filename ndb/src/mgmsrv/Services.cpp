@@ -266,6 +266,8 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("transporter connect", &MgmApiSession::transporter_connect, ""),
 
+  MGM_CMD("get mgmd nodeid", &MgmApiSession::get_mgmd_nodeid, ""),
+
   MGM_END()
 };
 
@@ -1552,6 +1554,14 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
   m_socket= NDB_INVALID_SOCKET;   // so nobody closes it
 
   m_mgmsrv.transporter_connect(s);
+}
+
+void
+MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
+			       Properties const &args) {
+  m_output->println("get mgmd nodeid reply");
+  m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());  
+  m_output->println("");
 }
 
 template class MutexVector<int>;
