@@ -171,7 +171,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   for (arg= args, last= args + nargs; arg < last; arg++)
   {
     Item* conv;
-    uint dummy_offset;
+    uint32 dummy_offset;
     if (!String::needs_conversion(0, coll.collation,
                                   (*arg)->collation.collation,
                                   &dummy_offset))
