@@ -45829,9 +45829,6 @@ Another common reason to receive the @code{MySQL server has gone away} error
 is because you have issued a ``close'' on your MySQL connection
 and then tried to run a query on the closed connection.
 
-You can check that the MySQL hasn't died by executing
-@code{mysqladmin version} and examining the uptime.
-
 If you have a script, you just have to issue the query again for the client
 to do an automatic reconnection.
 
@@ -45846,6 +45843,15 @@ server.
 to the server, but it didn't get a full answer (or any answer) to the question.
 @end multitable
 
+You will also get this error if someone has kills the running thread with
+@code{kill #threadid#}.
+
+You can check that the MySQL hasn't died by executing @code{mysqladmin
+version} and examining the uptime.  If the problem is that mysqld
+crashed you should concentrate one finding the reason for the crash.
+You should in this case start by checking if issuing the query again
+will kill MySQL again. @xref{Crashing}.
+
 You can also get these errors if you send a query to the server that is
 incorrect or too large. If @code{mysqld} gets a packet that is too large
 or out of order, it assumes that something has gone wrong with the client and
@@ -45856,6 +45862,26 @@ starting @code{mysqld} with the @code{-O max_allowed_packet=#} option
 use more memory only when you issue a big query or when @code{mysqld} must
 return a big result row!
 
+If you want to make a bug report regarding this problem, be sure that
+you include the following information:
+
+@itemize @bullet
+@item
+Include information if MySQL died or not. (You can find this in the
+@code{hostname.err file}. @xref{Crashing}.
+@item
+If a specific query kills @code{mysqld} and the involved tables where
+checked with @code{CHECK TABLE} before you did the query, can you do
+a test case for this? @xref{Reproduceable test case}.
+@item
+What is the value of the @code{wait_timeout} variable in the MySQL server ?
+@code{mysqladmin variables} gives you the value of this
+@item
+Have you tried to run @code{mysqld} with @code{--log} and check if the
+issued query appears in the log ?
+@end itemize
+
+@xref{Asking questions}.
 
 @node Can not connect to server, Blocked host, Gone away, Common errors
 @appendixsubsec @code{Can't connect to [local] MySQL server} Error

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2002 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -685,7 +685,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     case 'p':
       if (argument == disabled_my_option)
-	opt_password= "";
+	opt_password= (char*) "";
       else
       {
 	if (argument)
@@ -2319,7 +2319,7 @@ com_status(String *buffer __attribute__((unused)),
     }
 #ifdef HAVE_OPENSSL
     if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
-      tee_fprintf("SSL cipher in use is %s\n",
+      tee_fprintf(stdout, "SSL cipher in use is %s\n",
 		  SSL_get_cipher(mysql.net.vio->ssl_));
     else
 #endif /* HAVE_OPENSSL */
