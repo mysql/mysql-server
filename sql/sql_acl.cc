@@ -3589,8 +3589,13 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
+#ifdef TO_BE_DELETED
+  /* XXX this should not be necessary. The error message is already printed */
+  /* when this code is deleted, the error slot (error 1268) can be reused,
+     as this error code was not present in any MySQL release */
   if (result)
     my_error(ER_REVOKE_GRANTS, MYF(0));
+#endif
   DBUG_RETURN(result);
 }
 
