@@ -1106,7 +1106,11 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   thd->used_tables= 0;                        // Updated by setup_fields
 
-  // JOIN::prepare calls
+  /*
+    JOIN::prepare calls
+    It is not SELECT COMMAND for sure, so setup_tables will be called as
+    usual, and we pass 0 as setup_tables_done_option
+  */
   if (unit->prepare(thd, 0, 0))
   {
     goto err_prep;
@@ -1239,7 +1243,8 @@ error:
 */
 static bool select_like_statement_test(Prepared_statement *stmt,
                                        TABLE_LIST *tables,
-                                       bool (*specific_prepare)(THD *thd))
+                                       bool (*specific_prepare)(THD *thd),
+                                       ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_statement_test");
   THD *thd= stmt->thd;
@@ -1258,7 +1263,7 @@ static bool select_like_statement_test(Prepared_statement *stmt,
   thd->used_tables= 0;                        // Updated by setup_fields
 
   // JOIN::prepare calls
-  if (lex->unit.prepare(thd, 0, 0))
+  if (lex->unit.prepare(thd, 0, setup_tables_done_option))
   {
     res= TRUE;
   }
@@ -1298,7 +1303,7 @@ static int mysql_test_create_table(Prepared_statement *stmt)
       select_lex->item_list.elements)
   {
     select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-    res= select_like_statement_test(stmt, tables, 0);
+    res= select_like_statement_test(stmt, tables, 0, 0);
     select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
   }
 
@@ -1333,7 +1338,8 @@ static bool mysql_test_multiupdate(Prepared_statement *stmt,
     here we do not pass tables for opening, tables will be opened and locked
     by mysql_multi_update_prepare
   */
-  return select_like_statement_test(stmt, 0, &mysql_multi_update_prepare);
+  return select_like_statement_test(stmt, 0, &mysql_multi_update_prepare,
+                                    OPTION_SETUP_TABLES_DONE);
 }
 
 
@@ -1362,7 +1368,8 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
     return res;
   if ((res= select_like_statement_test(stmt, tables,
-                                       &mysql_multi_delete_prepare)))
+                                       &mysql_multi_delete_prepare,
+                                       OPTION_SETUP_TABLES_DONE)))
     return res;
   if (!tables->table)
   {
@@ -1415,7 +1422,8 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
     and item_list belong to SELECT
   */
   lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-  res= select_like_statement_test(stmt, tables, &mysql_insert_select_prepare);
+  res= select_like_statement_test(stmt, tables, &mysql_insert_select_prepare,
+                                  OPTION_SETUP_TABLES_DONE);
   /* revert changes*/
   lex->select_lex.table_list.first= (byte*) first_local_table;
   lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -1769,11 +1777,6 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= (ORDER *)sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
-    }
-    {
-      TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
-      if (tables)
-        tables->setup_is_done= 0;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();

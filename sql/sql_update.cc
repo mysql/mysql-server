@@ -771,9 +771,6 @@ bool mysql_multi_update_prepare(THD *thd)
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
-    /* undone setup_tables() */
-    table_list->setup_is_done= 0;
-
     if (setup_tables(thd, table_list, &lex->select_lex.where,
                      &lex->select_lex.leaf_tables, FALSE, FALSE) ||
         (lex->select_lex.no_wrap_view_item= 1,
@@ -842,7 +839,8 @@ bool mysql_multi_update(THD *thd,
 		    total_list,
 		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
-		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
+		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                    OPTION_SETUP_TABLES_DONE,
 		    result, unit, select_lex);
   delete result;
   thd->abort_on_warning= 0;
