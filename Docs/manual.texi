@@ -7213,6 +7213,20 @@ of function} warnings. These may be ignored.
 @node Linux, Alpha-DEC-UNIX, SunOS, Source install system issues
 @subsection Linux Notes (All Linux Versions)
 
+The notes below regarding @strong{glibc} apply only to the situation
+when you build @strong{MySQL}
+yourself. If you are running Linux on an x86 machine, in most cases it is
+much better for you to just use our binary. We link our binaries against
+the best patched version of @strong{glibc} we can come up with and with the
+best compiler options, in an attempt to make it suitable for a high-load
+server. So if you read the text below, and are in doubt about
+what you should do, try our binary first to see if it meets your needs, and
+worry about your own build only after you have discovered that our binary is
+not good enough. In that case, we would appreciate a note about it, so we
+can build a better binary next time. For a typical user, even for setups with
+a lot of concurrent connections and/or tables exceeding 2GB limit, our
+binary in most cases is the best choice. 
+
 @strong{MySQL} uses LinuxThreads on Linux.  If you are using an old
 Linux version that doesn't have @code{glibc2}, you must install
 LinuxThreads before trying to compile
@@ -7270,71 +7284,90 @@ creation - which means it may take a long time to connect to @strong{MySQL}
 multiple CPU systems, we have observed a gradual drop in query speed as
 the number of clients increases. In the process of trying to find a
 solution, we have received a kernel patch from one of our users, who
-claimed it made a lot of difference for his site. We have done some
-limited testing in which the patch greatly improved the scalability of
-@strong{MySQL}. The patch is available here
+claimed it made a lot of difference for his site.  The patch is available here
 (@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch}). We have
-done a rather extensive testing of this patch - Sasha Pachev has bravely put
-it on his development machine, and it now has run without problems for a year.
-Eventually, we have felt sufficiently confident about it that we installed it
-on several systems of one of our biggest customers. The patch has significantly
-improved @code{MySQL} performance without causing any problems. So it should
-be pretty safe. This issue has been fixed in the 2.4 kernel.
+now done rather extensive testing of this patch on both development and
+production systems.  It has significantly
+improved @code{MySQL} performance without causing any problems and we now
+recommend it to our users who are still running high-load servers on
+2.2 kernels.  This issue has been fixed in the 2.4 kernel, so if you are not
+satisfied with
+the current performance of your system, rather than patching your 2.2 kernel,
+it might be easier to just upgrade to 2.4, which will also give you a nice
+SMP boost in addition to fixing this fairness bug.
 
-We have also tested @strong{MySQL} on 2.4 kernel on a 2 CPU machine and
+We have tested @strong{MySQL} on the 2.4 kernel on a 2 CPU machine and
 found @strong{MySQL} scales MUCH better - there was virtually no slowdown
 on query throughput all the way up
-to 1000 clients.  If your plan to set up a
-dedicated Linux SMP machine to run @strong{MySQL} under heavy load, we
-recommend that you give 2.4 kernel a try! We are currently trying to collect
-some info on how well @code{MySQL} performs on 2.4 kernel on 4-way and 8-way
+to 1000 clients, and @strong{MySQL} scaling factor ( computed as the ratio of
+maximum throughput to the throughput with one client) was 180%.
+We have observed similar results on a 4-CPU system - virtually no
+slowdown as the number of
+clients was increased up to 1000, and 300% scaling factor. So for a high-load
+SMP server we would definitely recommend the 2.4 kernel at this point. We
+have discovered that it is essential to run @code{mysqld} process with the
+highest possible priority on the 2.4 kernel to achieve maximum performance.
+This can be done by adding
+@code{renice -20 $$} command to @code{safe_mysqld}. In our testing on a
+4-CPU machine, increasing the priority gave 60% increase in throughput with
+400 clients.
+
+We are currently also trying to collect
+more info on how well @code{MySQL} performs on 2.4 kernel on 4-way and 8-way
 systems. If you have access such a system and have done some benchmarks,
 please send a mail to @email{docs@@mysql.com} with the results - we will
 include them in the manual.
 
-The following paragraph is only relevant if you are using a glibc
-version older than 2.2.2 (Note that if you are going to use MANY
-connections to MySQL, you still need to change the STACK_SIZE and
-PTHREAD_THREADS_MAX variables in glibc 2.2.2).
-
 There is another issue that greatly hurts @strong{MySQL} performance,
-especially on SMP systems.  The old implementation of mutex in
-LinuxThreads was also very bad for programs with many threads that only
+especially on SMP systems.  The implementation of mutex in
+LinuxThreads in @strong{glibc-2.1} is very bad for programs with many
+threads that only
 hold the mutex for a short time. On an SMP system, ironic as it is, if
 you link @strong{MySQL} against unmodified @strong{LinuxThreads},
 removing processors from the machine improves @strong{MySQL} performance
-in many cases.  We have made a patch available for glibc 2.1,
+in many cases.  We have made a patch available for @strong{glibc 2.1.3},
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
-and for glibc 2.2,
-@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2-patch,linuxthreads-2.2-patch}
-to correct this behaveour. Please note that since there are so many
-versions of glibc floating around, the patch may not apply cleanly to
-yours, so some manual work may be required.
+to correct this behaviour.
+
+With @strong{glibc-2.2.2}
+@strong{MySQL} version 3.23.36 will use the adaptive mutex, which is much
+better than even the patched one in @strong{glibc-2.1.3}. Be warned, however,
+that under some conditions, the current mutex code in @strong{glibc-2.2.2}
+overspins, which hurts @strong{MySQL} performance. The chance of this
+condition can be reduced by renicing @code{mysqld} process to the highest
+priority. We have also been able to correct the overspin behaviour with
+a patch, available @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2.2.patch,here}. It combines the correction of overspin, maximum number of
+threads, and stack spacing all in one. You will need to apply it in the
+@code{linuxthreads} directory with
+@code{patch -p0 </tmp/linuxthreads-2.2.2.patch}.
+We hope it will be included in
+some form in to the future releases of @code{glibc-2.2}. In any case, if
+you link against @code{glibc-2.2.2} you still need to correct
+@code{STACK_SIZE} and @code{PTHREAD_THREADS_MAX}. We hope that the defaults
+will be corrected to some more acceptable values for high-load
+@strong{MySQL} setup in the future, so that your own build can be reduced
+to @code{./configure; make; make install}.
+
 
 We recommend that you use the above patches to build a special static
 version of @code{libpthread.a} and use it only for statically linking
-against @code{MySQL}. We know that the patch is safe for @code{MySQL}
-and significantly improves its performance, but we cannot say anything
+against @code{MySQL}. We know that the patches are safe for @code{MySQL}
+and significantly improve its performance, but we cannot say anything
 about other applications. If you link other applications against the
 patched version of the library, or build a patched shared version and
 install it on your system, you are doing it at your own risk with regard
 to other applications that depend on @code{LinuxThreads}.
 
-If you can't start @code{mysqld} or if @code{mysql_install_db} doesn't work,
-please continue reading!  This only happens on Linux system with problems in
-the LinuxThreads or @code{libc}/@code{glibc} libraries. There are a lot of
-simple workarounds to get @strong{MySQL} to work!  The simplest is to use the
-binary version of @strong{MySQL} (not the RPM) for Linux x86.  One nice
-aspect of this version is that it's probably 10% faster than any version you
-would compile yourself!  @xref{Compile and link options}.
+If you experience any strange problems during the installation of
+@strong{MySQL}, or with some common utilties hanging, it is very likely that
+they are either library or compiler related. If this is the case, using our
+binary will resolve them.
 
 One known problem with the binary distribution is that with older Linux
 systems that use @code{libc} (like RedHat 4.x or Slackware), you will get
 some non-fatal problems with hostname resolution.
 @xref{Binary notes-Linux}.
 
-@code{myisamchk} hangs with @code{libc.so.5.3.12}. Upgrading to the newest
-@code{libc} fixes this problem.
 
 When using LinuxThreads you will see a minimum of three processes
 running. These are in fact threads. There will be one thread for the
@@ -7356,27 +7389,6 @@ signal, you can start mysqld with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
 with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
-
-@c the stuff below is really out of date - hardly anybody uses it anymore
-
-If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
-you must upgrade to LinuxThreads Version 0.7.1 or newer.
-
-If you are using RedHat, you might get errors like this:
-
-@example
-/usr/bin/perl is needed...
-/usr/sh is needed...
-/usr/sh is needed...
-@end example
-
-If so, you should upgrade your version of @code{rpm} to
-@file{rpm-2.4.11-1.i386.rpm} and @file{rpm-devel-2.4.11-1.i386.rpm} (or later).
-
-You can get the upgrades of libraries to RedHat Version 4.2 from
-@uref{ftp://ftp.redhat.com/updates/4.2/i386}. Or
-@uref{http://www.sunsite.unc.edu/pub/Linux/distributions/redhat/code/rpm/}
-for other distributions.
 
 If you are linking your own @strong{MySQL} client and get the error:
 
