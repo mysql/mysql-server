@@ -379,6 +379,12 @@ Item_field::Item_field(THD *thd, Field *f)
       orig_db_name= thd->strdup(db_name);
     orig_table_name= thd->strdup(table_name);
     orig_field_name= thd->strdup(field_name);
+    /*
+      We don't restore 'name' in cleanup because it's not changed
+      during execution. Still we need it to point to persistent
+      memory if this item is to be reused.
+    */
+    name= (char*) orig_field_name;
   }
   set_field(f);
 }
@@ -404,6 +410,20 @@ void Item_field::set_field(Field *field_par)
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
   fixed= 1;
+}
+
+
+/*
+  Reset this item to point to a field from the new temporary table.
+  This is used when we create a new temporary table for each execution
+  of prepared statement.
+*/
+
+void Item_field::reset_field(Field *f)
+{
+  set_field(f);
+  /* 'name' is pointing at field->field_name of old field */
+  name= (char*) f->field_name;
 }
 
 const char *Item_ident::full_name() const
