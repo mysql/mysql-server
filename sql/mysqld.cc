@@ -1821,7 +1821,12 @@ extern "C" int my_message_sql(uint error, const char *str,
   DBUG_PRINT("error", ("Message: '%s'", str));
   if ((thd= current_thd))
   {
-    if (thd->lex.current_select->no_error && !thd->is_fatal_error)
+    /*
+      thd->lex.current_select equel to zero if lex structure is not inited
+      (not query command (COM_QUERY))
+    */
+    if (thd->lex.current_select &&
+	thd->lex.current_select->no_error && !thd->is_fatal_error)
     {
       DBUG_PRINT("error", ("above error converted to warning"));
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
