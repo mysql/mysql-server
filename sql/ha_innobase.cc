@@ -293,12 +293,16 @@ innobase_mysql_print_thd(
 
 #ifdef notdefined
         /* August 8, 2002
-        Revert these changes because they seem to make control
-        characters sometimes appear in the output and scramble it;
-        on platforms (what are those?) where sprintf does not work
+        Revert these changes because they make control characters sometimes
+	appear in the output and scramble it:
+	the reason is that the last character of the ouptput will be
+	'\n', not the null character '\0'. We do not know where the output
+	ends in buf!
+
+        On platforms (what are those?) where sprintf does not work
         we should define sprintf as 'my_emulated_sprintf'; InnoDB code
         contains lots of sprintfs, it does not help to remove them from
-	just a single file */
+	just a single file. */
 
 	/*  We can't use value of sprintf() as this is not portable */
   	buf+= my_sprintf(buf,
@@ -334,6 +338,7 @@ innobase_mysql_print_thd(
 	  buf=strnmov(buf, thd->query, 150);
   	}  
 	*buf='\n';
+	/* Here we should add '\0' to the nd of output to mark its end */
 #endif
 }
 }
