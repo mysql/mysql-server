@@ -1,7 +1,7 @@
 /************************************************************************
-Starts the Innobase database server
+Starts the InnoDB database server
 
-(c) 1996-2000 Innobase Oy
+(c) 1996-2000 InnoDB Oy
 
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
@@ -207,7 +207,7 @@ open_or_create_log_file(
 	if (ret == FALSE) {
 		if (os_file_get_last_error() != OS_FILE_ALREADY_EXISTS) {
 			fprintf(stderr,
-			"Innobase: Error in creating or opening %s\n", name);
+			"InnoDB: Error in creating or opening %s\n", name);
 				
 			return(DB_ERROR);
 		}
@@ -216,7 +216,7 @@ open_or_create_log_file(
 					name, OS_FILE_OPEN, OS_FILE_AIO, &ret);
 		if (!ret) {
 			fprintf(stderr,
-			"Innobase: Error in opening %s\n", name);
+			"InnoDB: Error in opening %s\n", name);
 				
 			return(DB_ERROR);
 		}
@@ -227,8 +227,8 @@ open_or_create_log_file(
 		if (size != UNIV_PAGE_SIZE * srv_log_file_size
 							|| size_high != 0) {
 			fprintf(stderr,
-			"Innobase: Error: log file %s is of different size\n"
-			"Innobase: than specified in the .cnf file!\n", name);
+			"InnoDB: Error: log file %s is of different size\n"
+			"InnoDB: than specified in the .cnf file!\n", name);
 				
 			return(DB_ERROR);
 		}					
@@ -236,16 +236,16 @@ open_or_create_log_file(
 		*log_file_created = TRUE;
 					
 		fprintf(stderr,
-		"Innobase: Log file %s did not exist: new to be created\n",
+		"InnoDB: Log file %s did not exist: new to be created\n",
 									name);
-		printf("Innobase: Setting log file %s size to %lu\n",
+		printf("InnoDB: Setting log file %s size to %lu\n",
 			             name, UNIV_PAGE_SIZE * srv_log_file_size);
 
 		ret = os_file_set_size(name, files[i],
 					UNIV_PAGE_SIZE * srv_log_file_size, 0);
 		if (!ret) {
 			fprintf(stderr,
-		"Innobase: Error in creating %s: probably out of disk space\n",
+		"InnoDB: Error in creating %s: probably out of disk space\n",
 			name);
 
 			return(DB_ERROR);
@@ -335,7 +335,7 @@ open_or_create_data_files(
 			if (os_file_get_last_error() !=
 						OS_FILE_ALREADY_EXISTS) {
 				fprintf(stderr,
-				"Innobase: Error in creating or opening %s\n",
+				"InnoDB: Error in creating or opening %s\n",
 				name);
 
 				return(DB_ERROR);
@@ -343,9 +343,9 @@ open_or_create_data_files(
 
 			if (one_created) {
 				fprintf(stderr,
-	"Innobase: Error: data files can only be added at the end\n");
+	"InnoDB: Error: data files can only be added at the end\n");
 				fprintf(stderr,
-	"Innobase: of a tablespace, but data file %s existed beforehand.\n",
+	"InnoDB: of a tablespace, but data file %s existed beforehand.\n",
 				name);
 				return(DB_ERROR);
 			}
@@ -355,7 +355,7 @@ open_or_create_data_files(
 
 			if (!ret) {
 				fprintf(stderr,
-				"Innobase: Error in opening %s\n", name);
+				"InnoDB: Error in opening %s\n", name);
 
 				return(DB_ERROR);
 			}
@@ -366,8 +366,8 @@ open_or_create_data_files(
 			if (size != UNIV_PAGE_SIZE * srv_data_file_sizes[i]
 		    					|| size_high != 0) {
 				fprintf(stderr,
-			"Innobase: Error: data file %s is of different size\n"
-			"Innobase: than specified in the .cnf file!\n", name);
+			"InnoDB: Error: data file %s is of different size\n"
+			"InnoDB: than specified in the .cnf file!\n", name);
 				
 				return(DB_ERROR);
 			}
@@ -382,26 +382,26 @@ open_or_create_data_files(
 
 			if (i > 0) {
 				fprintf(stderr, 
-	"Innobase: Data file %s did not exist: new to be created\n", name);
+	"InnoDB: Data file %s did not exist: new to be created\n", name);
 			} else {
 				fprintf(stderr, 
- 		"Innobase: The first specified data file %s did not exist:\n"
-		"Innobase: a new database to be created!\n", name);
+ 		"InnoDB: The first specified data file %s did not exist:\n"
+		"InnoDB: a new database to be created!\n", name);
 				*create_new_db = TRUE;
 			}
 			
-			printf("Innobase: Setting file %s size to %lu\n",
+			printf("InnoDB: Setting file %s size to %lu\n",
 			       name, UNIV_PAGE_SIZE * srv_data_file_sizes[i]);
 
 			printf(
-	    "Innobase: Database physically writes the file full: wait...\n");
+	    "InnoDB: Database physically writes the file full: wait...\n");
 
 			ret = os_file_set_size(name, files[i],
 				UNIV_PAGE_SIZE * srv_data_file_sizes[i], 0);
 
 			if (!ret) {
 				fprintf(stderr, 
-	"Innobase: Error in creating %s: probably out of disk space\n", name);
+	"InnoDB: Error in creating %s: probably out of disk space\n", name);
 
 				return(DB_ERROR);
 			}
@@ -503,7 +503,7 @@ test_measure_cont(
 }
 
 /********************************************************************
-Starts Innobase and creates a new database if database files
+Starts InnoDB and creates a new database if database files
 are not found and the user wants. Server parameters are
 read from a file of name "srv_init" in the ib_home directory. */
 
@@ -606,7 +606,7 @@ innobase_start_or_create_for_mysql(void)
 					&sum_of_new_sizes);
 	if (err != DB_SUCCESS) {
 
-	        fprintf(stderr, "Innobase: Could not open data files\n");
+	        fprintf(stderr, "InnoDB: Could not open data files\n");
 
 		return((int) err);
 	}
@@ -634,12 +634,12 @@ innobase_start_or_create_for_mysql(void)
 			if ((log_opened && create_new_db)
 			    		|| (log_opened && log_created)) {
 				fprintf(stderr, 
-	"Innobase: Error: all log files must be created at the same time.\n"
-	"Innobase: If you want bigger or smaller log files,\n"
-	"Innobase: shut down the database and make sure there\n"
-	"Innobase: were no errors in shutdown.\n"
-	"Innobase: Then delete the existing log files. Edit the .cnf file\n"
-	"Innobase: and start the database again.\n");
+	"InnoDB: Error: all log files must be created at the same time.\n"
+	"InnoDB: If you want bigger or smaller log files,\n"
+	"InnoDB: shut down the database and make sure there\n"
+	"InnoDB: were no errors in shutdown.\n"
+	"InnoDB: Then delete the existing log files. Edit the .cnf file\n"
+	"InnoDB: and start the database again.\n");
 
 				return(DB_ERROR);
 			}
@@ -652,9 +652,9 @@ innobase_start_or_create_for_mysql(void)
 		if (ut_dulint_cmp(max_flushed_lsn, min_flushed_lsn) != 0
 				|| max_arch_log_no != min_arch_log_no) {
 			fprintf(stderr, 
-		"Innobase: Cannot initialize created log files because\n"
-		"Innobase: data files were not in sync with each other\n"
-		"Innobase: or the data files are corrupt./n");
+		"InnoDB: Cannot initialize created log files because\n"
+		"InnoDB: data files were not in sync with each other\n"
+		"InnoDB: or the data files are corrupt./n");
 
 			return(DB_ERROR);
 		}
@@ -662,11 +662,11 @@ innobase_start_or_create_for_mysql(void)
 		if (ut_dulint_cmp(max_flushed_lsn, ut_dulint_create(0, 1000))
 		    < 0) {
 		    	fprintf(stderr,
-		"Innobase: Cannot initialize created log files because\n"
-		"Innobase: data files are corrupt, or new data files were\n"
-		"Innobase: created when the database was started previous\n"
-		"Innobase: time but the database was not shut down\n"
-		"Innobase: normally after that.\n");
+		"InnoDB: Cannot initialize created log files because\n"
+		"InnoDB: data files are corrupt, or new data files were\n"
+		"InnoDB: created when the database was started previous\n"
+		"InnoDB: time but the database was not shut down\n"
+		"InnoDB: normally after that.\n");
 
 			return(DB_ERROR);
 		}
@@ -694,7 +694,7 @@ innobase_start_or_create_for_mysql(void)
 
 	} else if (srv_archive_recovery) {
 		fprintf(stderr,
-	"Innobase: Starting archive recovery from a backup...\n");
+	"InnoDB: Starting archive recovery from a backup...\n");
 	
 		err = recv_recovery_from_archive_start(
 					min_flushed_lsn,
@@ -776,7 +776,7 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(&srv_lock_timeout_monitor_thread, NULL,
 					thread_ids + 2 + SRV_MAX_N_IO_THREADS);	
-	fprintf(stderr, "Innobase: Started\n");
+	fprintf(stderr, "InnoDB: Started\n");
 
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
@@ -789,7 +789,7 @@ innobase_start_or_create_for_mysql(void)
 }
 
 /********************************************************************
-Shuts down the Innobase database. */
+Shuts down the InnoDB database. */
 
 int
 innobase_shutdown_for_mysql(void) 
@@ -799,7 +799,7 @@ innobase_shutdown_for_mysql(void)
         if (!srv_was_started) {
 	  if (srv_is_being_started) {
             fprintf(stderr, 
-	"Innobase: Warning: shutting down not properly started database\n");
+	"InnoDB: Warning: shutting down not properly started database\n");
 	  }
 	  return(DB_SUCCESS);
 	}

@@ -150,8 +150,8 @@ int mysql_delete(THD *thd,
 			 (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)));
 #ifdef HAVE_INNOBASE_DB
   /* We need to add code to not generate table based on the table type */
-  if (!innobase_skip)
-    use_generate_table=0;		// Innobase can't use re-generate table
+  if (!innodb_skip)
+    use_generate_table=0;		// Innodb can't use re-generate table
 #endif
   if (use_generate_table && ! thd->open_tables)
   {

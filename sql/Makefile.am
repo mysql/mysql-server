@@ -21,7 +21,7 @@ MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ \
-			@bdb_includes@ @innobase_includes@ @gemini_includes@ \
+			@bdb_includes@ @innodb_includes@ @gemini_includes@ \
 			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
 			-I$(srcdir) -I../include -I.. -I.

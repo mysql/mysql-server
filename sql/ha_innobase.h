@@ -149,8 +149,8 @@ class ha_innobase: public handler
 			     		enum thr_lock_type lock_type);
 };
 
-extern bool innobase_skip;
-extern SHOW_COMP_OPTION have_innobase;
+extern bool innodb_skip;
+extern SHOW_COMP_OPTION have_innodb;
 extern uint innobase_init_flags, innobase_lock_type;
 extern ulong innobase_cache_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;

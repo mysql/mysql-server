@@ -52,6 +52,7 @@ parse_arguments() {
       --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
       --mysqld=*)   MYSQLD=`echo "$arg" | sed -e "s;--mysqld=;;"` ;;
+      --mysqld-version=*) MYSQLD=mysqld-`echo "$arg" | sed -e "s;--mysqld-version=;;"` ;;
       *)
         if test -n "$pick_args"
         then
@@ -92,7 +93,14 @@ fi
 MYSQL_UNIX_PORT=${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}
 MYSQL_TCP_PORT=${MYSQL_TCP_PORT:-@MYSQL_TCP_PORT@}
 user=@MYSQLD_USER@
-MYSQLD=mysqld
+
+# Use the mysqld-max binary by default if the user doesn't specify a binary
+if test -x $ledir/mysqld-max
+then
+  MYSQLD=mysqld-max
+else
+  MYSQLD=mysqld
+fi
 
 # these rely on $DATADIR by default, so we'll set them later on
 pid_file=

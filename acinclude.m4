@@ -912,31 +912,31 @@ dnl END OF MYSQL_CHECK_BDB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_CHECK_INNOBASE
-dnl Sets HAVE_INNOBASE_DB if --with-innobase is used
+dnl Macro: MYSQL_CHECK_INNODB
+dnl Sets HAVE_INNOBASE_DB if --with-innodb is used
 dnl ---------------------------------------------------------------------------
 
-AC_DEFUN([MYSQL_CHECK_INNOBASE], [
-  AC_ARG_WITH([innobase],
+AC_DEFUN([MYSQL_CHECK_INNODB], [
+  AC_ARG_WITH([innodb],
               [\
-  --with-innobase         Use Innobase],
-              [innobase="$withval"],
-              [innobase=no])
+  --with-innodb         Use Innodb],
+              [innodb="$withval"],
+              [innodb=no])
 
-  AC_MSG_CHECKING([for Innobase])
+  AC_MSG_CHECKING([for Innodb])
 
-  have_innobase_db=no
-  innobase_includes=
-  innobase_libs=
-  case "$innobase" in
+  have_innodb=no
+  innodb_includes=
+  innodb_libs=
+  case "$innodb" in
     yes )
-      AC_MSG_RESULT([Using Innobase])
+      AC_MSG_RESULT([Using Innodb])
       AC_DEFINE(HAVE_INNOBASE_DB)
-      have_innobase_db="yes"
-      innobase_includes="-I../innobase/include"
+      have_innodb="yes"
+      innodb_includes="-I../innobase/include"
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
-      innobase_libs="\
+      innodb_libs="\
  ../innobase/usr/libusr.a\
  ../innobase/odbc/libodbc.a\
  ../innobase/srv/libsrv.a\
@@ -973,19 +973,19 @@ dnl circular references.
  ../innobase/os/libos.a\
  ../innobase/ut/libut.a"
 
-      AC_CHECK_LIB(rt, aio_read, [innobase_libs="$innobase_libs -lrt"])
+      AC_CHECK_LIB(rt, aio_read, [innodb_libs="$innodb_libs -lrt"])
       ;;
     * )
-      AC_MSG_RESULT([Not using Innobase])
+      AC_MSG_RESULT([Not using Innodb])
       ;;
   esac
 
-  AC_SUBST(innobase_includes)
-  AC_SUBST(innobase_libs)
+  AC_SUBST(innodb_includes)
+  AC_SUBST(innodb_libs)
 ])
 
 dnl ---------------------------------------------------------------------------
-dnl END OF MYSQL_CHECK_INNOBASE SECTION
+dnl END OF MYSQL_CHECK_INNODB SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
