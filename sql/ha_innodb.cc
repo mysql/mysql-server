@@ -4033,8 +4033,8 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	if ((thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
-	   (thd->lex->create_info.auto_increment_value != 0)) {
+	if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+	   (create_info->auto_increment_value != 0)) {
 
 		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or 
 		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
@@ -4043,7 +4043,7 @@ ha_innobase::create(
 		auto increment field if the value is greater than the
 		maximum value in the column. */
 
-		auto_inc_value = thd->lex->create_info.auto_increment_value;
+		auto_inc_value = create_info->auto_increment_value;
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
 	}
 
