@@ -2530,10 +2530,6 @@ my_bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
 {
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
-    /*
-      Do we need a flags variable for all attributes or a bool for each
-      attribute?
-    */
     stmt->update_max_length= value ? *(const my_bool*) value : 0;
     break;
   default: 
@@ -2550,7 +2546,7 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
     *(unsigned long *) value= stmt->update_max_length;
-      break;
+    break;
   default: 
     return TRUE;
   }
@@ -3716,7 +3712,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
 
   mysql= mysql->last_used_con;
 
-  if (!stmt->bind_result_done)
+  if (stmt->update_max_length && !stmt->bind_result_done)
   {
     /*
       We must initalize the bind structure to be able to calculate
@@ -3755,7 +3751,8 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
       memcpy((char *) cur->data, (char *) cp+1, pkt_len-1);
       cur->length= pkt_len;		/* To allow us to do sanity checks */
       result->rows++;
-      stmt_update_metadata(stmt, cur);
+      if (stmt->update_max_length)
+	stmt_update_metadata(stmt, cur);
     }
     else
     {
