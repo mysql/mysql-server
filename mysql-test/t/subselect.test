@@ -8,6 +8,10 @@ SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVI
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1);
 -- error 1245
 SELECT (SELECT a) as a;
+EXPLAIN SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
+SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
+-- error 1054
+SELECT (SELECT 1), a;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
