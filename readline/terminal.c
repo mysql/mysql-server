@@ -85,7 +85,7 @@ static int tcap_initialized;
 extern 
 #  endif /* __EMX__ || NEED_EXTERN_PC */
 char PC;
-const char *BCc, *UPc;
+char *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
@@ -434,8 +434,8 @@ _rl_init_terminal_io (terminal_name)
          tgoto if _rl_term_IC or _rl_term_DC is defined, but just in case we
          change that later... */
       PC = '\0';
-      BCc = (char*)(_rl_term_backspace = "\b");
-      UPc = (char*)_rl_term_up;
+      BC = (char*)(_rl_term_backspace = "\b");
+      UP = (char*)_rl_term_up;
 
       return 0;
     }
@@ -445,8 +445,8 @@ _rl_init_terminal_io (terminal_name)
   /* Set up the variables that the termcap library expects the application
      to provide. */
   PC = _rl_term_pc ? *_rl_term_pc : 0;
-  BCc = (char*)_rl_term_backspace;
-  UPc = (char*)_rl_term_up;
+  BC = (char*)_rl_term_backspace;
+  UP = (char*)_rl_term_up;
 
   if (!_rl_term_cr)
     _rl_term_cr = "\r";
