@@ -50,12 +50,14 @@ sub mtr_show_failed_diff ($) {
     $result_file=  "$result_file$::opt_result_ext";
   }
 
+  my $diffopts= $::opt_udiff ? "-u" : "-c";
+
   if ( -f $reject_file )
   {
     print "Below are the diffs between actual and expected results:\n";
     print "-------------------------------------------------------\n";
     # FIXME check result code?!
-    mtr_run("diff",["-c",$result_file,$reject_file], "", "", "", "");
+    mtr_run("diff",[$diffopts,$result_file,$reject_file], "", "", "", "");
     print "-------------------------------------------------------\n";
     print "Please follow the instructions outlined at\n";
     print "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html\n";
