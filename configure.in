@@ -15,6 +15,7 @@ SHARED_LIB_VERSION=11:0:0
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
+MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
 F_PART=`echo $MYSQL_BASE_VERSION | sed -e "s|\.||g"| sed -e "s|[a-zA-Z]\+||"|sed -e "s|^\(..\)$|\\10|"`
 L_PART=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|^[[0-9]]\.[[0-9]]*\.||" | sed -e "s|^\(.\)$|0\\1|" | sed -e "s|[[a-z]]||"`
