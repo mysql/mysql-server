@@ -986,7 +986,8 @@ void st_select_lex::init_query()
   join= 0;
   where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
-  insert_select= having_fix_field= 0;
+  having_fix_field= 0;
+  resolve_mode= NOMATTER_MODE;
   with_wild= 0;
 }
 

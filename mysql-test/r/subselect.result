@@ -1225,20 +1225,6 @@ a	(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 an
 2	2
 1	2
 drop table t1,t2,t3;
-create table t1 (a char(10) character set koi8r collate koi8r_bin);
-create table t2 select (select a from t1);
-show create table t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `(select a from t1)` char(10) character set koi8r collate koi8r_bin default NULL
-) TYPE=MyISAM CHARSET=latin1
-drop table t1,t2;
-CREATE TABLE t1 
-(s1 CHAR(5) COLLATE latin1_german1_ci,
-s2 CHAR(5) COLLATE latin1_swedish_ci);
-SELECT * FROM t1 WHERE s1 = (SELECT s2 FROM t1);
-ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
-drop table t1;
 create table t1 (s1 int);
 create table t2 (s1 int);
 insert into t1 values (1);
@@ -1246,3 +1232,10 @@ insert into t2 values (1);
 select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
 s1
 drop table t1,t2;
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
+ERROR 42S02: Unknown table 'x' in field list
+DROP TABLE t1, t2;
