@@ -1,4 +1,4 @@
-.TH MYSQLDUMP 1 "19 December 2000"
+.TH mysqldump 1 "19 December 2000" "MySQL 3.23" "MySQL database"
 .SH NAME
 mysqldump \- text-based client for dumping or backing up mysql databases , tables and or data.
 
@@ -123,7 +123,7 @@ Connect to host.
 Lock all tables for read.
 .TP  
 .BR    \-n | \-\-no\-create\-db 
-'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'
+\&'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'
 will not be put in the output. The above line will
 be added otherwise, if 
 .BR \-\-databases 

@@ -508,6 +508,14 @@ btr_search_check_guess(
 /*===================*/
 				/* out: TRUE if success */
 	btr_cur_t*	cursor,	/* in: guessed cursor position */
+	ibool           can_only_compare_to_cursor_rec,
+	                        /* in: if we do not have a latch on the page
+				of cursor, but only a latch on
+			        btr_search_latch, then ONLY the columns
+				of the record UNDER the cursor are
+				protected, not the next or previous record
+				in the chain: we cannot look at the next or
+				previous record to check our guess! */
 	dtuple_t* 	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
@@ -564,6 +572,13 @@ btr_search_check_guess(
 
 			return(FALSE);
 		}
+	}
+
+	if (can_only_compare_to_cursor_rec) {
+	        /* Since we could not determine if our guess is right just by
+	        looking at the record under the cursor, return FALSE */
+
+	        return(FALSE);
 	}
 
 	match = 0;
@@ -670,6 +685,7 @@ btr_search_guess_on_hash(
 	ulint		fold;
 	ulint		tuple_n_fields;
 	dulint		tree_id;
+	ibool           can_only_compare_to_cursor_rec = TRUE;
 #ifdef notdefined
 	btr_cur_t	cursor2;
 	btr_pcur_t	pcur;
@@ -744,6 +760,8 @@ btr_search_guess_on_hash(
 			goto failure;
 		}
 
+		can_only_compare_to_cursor_rec = FALSE;
+
 		buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
 	}
 
@@ -775,7 +793,15 @@ btr_search_guess_on_hash(
 				fold);
 */				
 	} else {
-		success = btr_search_check_guess(cursor, tuple, mode, mtr);
+	        /* If we only have the latch on btr_search_latch, not on the
+		page, it only protects the columns of the record the cursor
+		is positioned on. We cannot look at the next of the previous
+		record to determine if our guess for the cursor position is
+		right. */
+
+		success = btr_search_check_guess(cursor,
+				               can_only_compare_to_cursor_rec,
+					       tuple, mode, mtr);
 	}
 	
 	if (!success) {

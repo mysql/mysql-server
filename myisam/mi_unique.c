@@ -24,7 +24,7 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, byte *record,
 {
   my_off_t lastpos=info->lastpos;
   MI_KEYDEF *key= &info->s->keyinfo[def->key];
-  uchar *key_buff=info->lastkey+info->s->base.max_key_length;
+  uchar *key_buff=info->lastkey2;
   DBUG_ENTER("mi_check_unique");
 
   mi_unique_store(record+key->seg->start, unique_hash);
@@ -80,7 +80,16 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
     if (keyseg->null_bit)
     {
       if (record[keyseg->null_pos] & keyseg->null_bit)
+      {
+	/*
+	  Change crc in a way different from an empty string or 0.
+	  (This is an optimisation;  The code will work even if this isn't
+	  done)
+	*/
+	crc=((crc << 8) + 511+
+	     (crc >> (8*sizeof(ha_checksum)-8)));
 	continue;
+      }
     }
     pos= record+keyseg->start;
     if (keyseg->flag & HA_VAR_LENGTH)

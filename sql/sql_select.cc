@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1009,7 +1009,6 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   table_map found_const_table_map,all_table_map;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
-  SQL_SELECT *select;
   KEYUSE *keyuse,*start_keyuse;
   table_map outer_join=0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
@@ -1021,7 +1020,6 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
-  select=0;
 
   join->best_ref=stat_vector;
 
@@ -1205,7 +1203,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	    {					// Found everything for ref.
 	      int tmp;
 	      ref_changed = 1;
-	      s->type=JT_CONST;
+	      s->type= JT_CONST;
 	      join->const_table_map|=table->map;
 	      set_position(join,const_count++,s,start_keyuse);
 	      if (create_ref_for_key(join, s, start_keyuse,
@@ -1256,23 +1254,44 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if (s->const_keys)
     {
       ha_rows records;
-      if (!select)
-	select=make_select(s->table, found_const_table_map,
-			   found_const_table_map,
-			   and_conds(conds,s->on_expr),&error);
-      records=get_quick_record_count(select,s->table, s->const_keys,
-				     join->row_limit);
+      SQL_SELECT *select;
+      select= make_select(s->table, found_const_table_map,
+			  found_const_table_map,
+			  s->on_expr ? s->on_expr : conds,
+			  &error);
+      records= get_quick_record_count(select,s->table, s->const_keys,
+				      join->row_limit);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
+      if (records == 0 && s->table->reginfo.impossible_range)
+      {
+	/*
+	  Impossible WHERE or ON expression
+	  In case of ON, we mark that the we match one empty NULL row.
+	  In case of WHERE, don't set found_const_table_map to get the
+	  caller to abort with a zero row result.
+	*/
+	join->const_table_map|= s->table->map;
+	set_position(join,const_count++,s,(KEYUSE*) 0);
+	s->type= JT_CONST;
+	if (s->on_expr)
+	{
+	  /* Generate empty row */
+	  s->info= "Impossible ON condition";
+	  found_const_table_map|= s->table->map;
+	  s->type= JT_CONST;
+	  mark_as_null_row(s->table);		// All fields are NULL
+	}
+      }
       if (records != HA_POS_ERROR)
       {
 	s->found_records=records;
 	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
       }
+      delete select;
     }
   }
-  delete select;
 
   /* Find best combination and return it */
   join->join_tab=stat;
@@ -2367,7 +2386,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 	   keyparts != keyinfo->key_parts)
     j->type=JT_REF;				/* Must read with repeat */
   else if (ref_key == j->ref.key_copy)
-  {						/* Should never be reached */
+  {
     /*
       This happen if we are using a constant expression in the ON part
       of an LEFT JOIN.
@@ -7333,36 +7352,39 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info)));
-      else if (tab->select)
+      else
       {
-	if (tab->use_quick == 2)
+	if (tab->select)
 	{
-	  sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
-		  tab->keys);
-	  buff_ptr=strend(buff_ptr);
+	  if (tab->use_quick == 2)
+	  {
+	    sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
+		    tab->keys);
+	    buff_ptr=strend(buff_ptr);
+	  }
+	  else
+	    buff_ptr=strmov(buff_ptr,"; Using where");
 	}
-	else
-	  buff_ptr=strmov(buff_ptr,"; Using where");
+	if (key_read)
+	  buff_ptr= strmov(buff_ptr,"; Using index");
+	if (table->reginfo.not_exists_optimize)
+	  buff_ptr= strmov(buff_ptr,"; Not exists");
+	if (need_tmp_table)
+	{
+	  need_tmp_table=0;
+	  buff_ptr= strmov(buff_ptr,"; Using temporary");
+	}
+	if (need_order)
+	{
+	  need_order=0;
+	  buff_ptr= strmov(buff_ptr,"; Using filesort");
+	}
+	if (distinct && test_all_bits(used_tables,thd->used_tables))
+	  buff_ptr= strmov(buff_ptr,"; Distinct");
+	if (buff_ptr == buff)
+	  buff_ptr+= 2;
+	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       }
-      if (key_read)
-	buff_ptr= strmov(buff_ptr,"; Using index");
-      if (table->reginfo.not_exists_optimize)
-	buff_ptr= strmov(buff_ptr,"; Not exists");
-      if (need_tmp_table)
-      {
-	need_tmp_table=0;
-	buff_ptr= strmov(buff_ptr,"; Using temporary");
-      }
-      if (need_order)
-      {
-	need_order=0;
-	buff_ptr= strmov(buff_ptr,"; Using filesort");
-      }
-      if (distinct && test_all_bits(used_tables,thd->used_tables))
-	buff_ptr= strmov(buff_ptr,"; Distinct");
-      if (buff_ptr == buff)
-	buff_ptr+= 2;
-      item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))

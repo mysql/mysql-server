@@ -2322,6 +2322,7 @@ my_bool grant_init(THD *org_thd)
   if (t_table->file->index_first(t_table->record[0]))
   {
     t_table->file->index_end();
+    return_val= 0;
     goto end_unlock;
   }
   grant_option= TRUE;
