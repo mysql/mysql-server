@@ -2619,7 +2619,7 @@ int my_strnncollsp_gbk(CHARSET_INFO * cs,
 }
 
 
-int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
                     uchar * dest, uint len,
                     const uchar * src, uint srclen)
 {
@@ -2661,7 +2661,7 @@ int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 #define max_sort_char ((uchar) 255)
 
-extern my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
+static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
                                  const char *ptr,uint ptr_length,
                                  int escape, int w_one, int w_many,
                                  uint res_length, char *min_str,char *max_str,
@@ -2713,18 +2713,13 @@ extern my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-int ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
 		 const char* p, const char *e)
 {
   return (isgbkhead(*(p)) && (e)-(p)>1 && isgbktail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
-{
-  return isgbkhead(c);
-}
-
-int mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static int mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgbkhead(c)? 2:0);
 }
@@ -9908,7 +9903,6 @@ CHARSET_INFO my_charset_gbk =
     my_wildcmp_mb,	/* wildcmp  */
     2,			/* mbmaxlen */
     ismbchar_gbk,
-    ismbhead_gbk,
     mbcharlen_gbk,
     my_numchars_mb,
     my_charpos_mb,

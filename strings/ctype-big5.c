@@ -399,11 +399,6 @@ static int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
-static my_bool ismbhead_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
-{
-  return isbig5head(c);
-}
-
 static int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
   return (isbig5head(c)? 2: 0);
@@ -6253,7 +6248,6 @@ CHARSET_INFO my_charset_big5 =
     my_wildcmp_mb,
     2,			/* mbmaxlen   */
     ismbchar_big5,
-    ismbhead_big5,
     mbcharlen_big5,
     my_numchars_mb,
     my_charpos_mb,

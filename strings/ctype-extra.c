@@ -42,7 +42,6 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,
-    NULL,
     NULL,		 /* mb_wc      */
     NULL,		 /* wc_mb      */
     

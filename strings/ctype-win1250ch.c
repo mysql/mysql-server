@@ -662,7 +662,6 @@ CHARSET_INFO my_charset_win1250ch =
     my_wildcmp_8bit,		/* wildcmp   */
     1,				/* mbmaxlen  */
     NULL,			/* ismbchar  */
-    NULL,			/* ismbhead  */
     NULL,			/* mbcharlen */
     my_numchars_8bit,
     my_charpos_8bit,
