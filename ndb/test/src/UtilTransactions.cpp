@@ -951,8 +951,15 @@ UtilTransactions::scanAndCompareUniqueIndex(Ndb* pNdb,
 
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+      const NdbError err = pNdb->getNdbError();
       pNdb->closeTransaction(pTrans);
+      ERR(err);
+      
+      if (err.status == NdbError::TemporaryError){
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
       return NDBT_FAILED;
     }
 

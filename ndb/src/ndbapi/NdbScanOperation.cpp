@@ -566,6 +566,8 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
     setErrorCode(4028); // Node fail
     break;
   case -3: // send_next_scan -> return fail (set error-code self)
+    if(theError.code == 0)
+      setErrorCode(4028); // seq changed = Node fail
     break;
   }
     
