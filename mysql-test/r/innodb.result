@@ -848,16 +848,16 @@ id	name	value	uid
 3	three	three value	103
 6	two	other value	102
 drop table t1;
-create database test_$1;
-create table test_$1.t1 (a int not null) type= innodb;
-insert into test_$1.t1 values(1);
-create table test_$1.t2 (a int not null) type= myisam;
-insert into test_$1.t2 values(1);
-create table test_$1.t3 (a int not null) type= heap;
-insert into test_$1.t3 values(1);
+create database mysqltest;
+create table mysqltest.t1 (a int not null) type= innodb;
+insert into mysqltest.t1 values(1);
+create table mysqltest.t2 (a int not null) type= myisam;
+insert into mysqltest.t2 values(1);
+create table mysqltest.t3 (a int not null) type= heap;
+insert into mysqltest.t3 values(1);
 commit;
-drop database test_$1;
-show tables from test_$1;
+drop database mysqltest;
+show tables from mysqltest;
 Got one of the listed errors
 create table t1 (a int not null) type= innodb;
 insert into t1 values(1),(2);
