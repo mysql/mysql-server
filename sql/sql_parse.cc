@@ -1779,7 +1779,7 @@ mysql_execute_command(void)
     }
     else
     {
-      thd->options= ((thd->options & (ulong) (OPTION_STATUS_NO_TRANS_UPDATE)) |
+      thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
 		     OPTION_BEGIN);
       thd->server_status|= SERVER_STATUS_IN_TRANS;
       send_ok(&thd->net);

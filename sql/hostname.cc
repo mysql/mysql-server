@@ -123,6 +123,7 @@ void reset_host_errors(struct in_addr *in)
 
 my_string ip_to_hostname(struct in_addr *in, uint *errors)
 {
+  uint i;
   host_entry *entry;
   DBUG_ENTER("ip_to_hostname");
 
@@ -222,7 +223,7 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   }
 
   /* Check that 'gethostbyname' returned the used ip */
-  for (uint i=0; check->h_addr_list[i]; i++)
+  for (i=0; check->h_addr_list[i]; i++)
   {
     if (*(uint32*)(check->h_addr_list)[i] == in->s_addr)
     {

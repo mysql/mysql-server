@@ -72,7 +72,7 @@ public:
 
   static void operator delete(void *ptr, size_t size)
   {
-    my_free((byte*)ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+    my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
   
   int write(IO_CACHE* file);

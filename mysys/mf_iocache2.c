@@ -50,7 +50,8 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
 }
 
 /*
-**  Fill buffer
+**  Fill buffer.  Note that this assumes that you have already used
+**  all characters in the CACHE, independent of the rc_pos value!
 **  return:  0 on error or EOF (info->error = -1 on error)
 **           number of characters
 */
@@ -102,9 +103,9 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
   uint length;
   max_length--;					/* Save place for end \0 */
   /* Calculate number of characters in buffer */
-  if (!(length= (uint) (info->rc_end - info->rc_pos)))
-    if (!(length=my_b_fill(info)))
-      return 0;
+  if (!(length= my_b_bytes_in_cache(info)) &&
+      !(length= my_b_fill(info)))
+    return 0;
   for (;;)
   {
     char *pos,*end;
