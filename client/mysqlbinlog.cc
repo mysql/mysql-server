@@ -54,7 +54,7 @@ static struct option long_options[] =
   {"help", 	  no_argument, 		0, '?'},
   {"host", 	  required_argument,	0, 'h'},
   {"offset", 	  required_argument,	0, 'o'},
-  {"password",	  required_argument,	0, 'p'},
+  {"password",	  optional_argument,	0, 'p'},
   {"port", 	  required_argument,	0, 'P'},
   {"position",	  required_argument,	0, 'j'},
   {"result-file", required_argument,    0, 'r'},
@@ -71,7 +71,7 @@ static ulonglong offset = 0;
 static const char* host = "localhost";
 static int port = MYSQL_PORT;
 static const char* user = "test";
-static const char* pass = "";
+static char* pass = 0;
 static ulonglong position = 0;
 static bool use_remote = 0;
 static short binlog_flags = 0; 
@@ -84,6 +84,7 @@ static void dump_log_entries(const char* logname);
 static void dump_remote_file(NET* net, const char* fname);
 static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
+static void cleanup();
 static MYSQL* safe_connect();
 
 
@@ -97,6 +98,11 @@ void sql_print_error(const char *format,...)
   va_end(args);
 }
 
+static void cleanup()
+{
+  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+}
+
 static void die(const char* fmt, ...)
 {
   va_list args;
@@ -105,6 +111,7 @@ static void die(const char* fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  cleanup();
   exit(1);
 }
 
@@ -177,9 +184,10 @@ static void dump_remote_file(NET* net, const char* fname)
 static int parse_args(int *argc, char*** argv)
 {
   int c, opt_index = 0;
+  bool tty_password= 0;
 
   result_file = stdout;
-  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:r:t:?V", long_options,
+  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p::P:r:t:?V", long_options,
 			 &opt_index)) != EOF)
   {
     switch(c)
@@ -213,7 +221,17 @@ static int parse_args(int *argc, char*** argv)
       
     case 'p':
       use_remote = 1;
-      pass = my_strdup(optarg, MYF(0));
+      if (optarg)
+      {
+	char *start=optarg;
+	my_free(pass,MYF(MY_ALLOW_ZERO_PTR));        
+	pass= my_strdup(optarg,MYF(MY_FAE));
+	while (*optarg) *optarg++= 'x';		/* Destroy argument */
+	if (*start)
+	  start[1]=0;				/* Cut length of argument */
+      }
+      else
+	tty_password=1;
       break;
 
     case 'r':
@@ -244,6 +262,8 @@ static int parse_args(int *argc, char*** argv)
 
   (*argc)-=optind;
   (*argv)+=optind;
+  if (tty_password)
+    pass= get_tty_password(NullS);
 
   return 0;
 }
@@ -457,6 +477,7 @@ int main(int argc, char** argv)
     my_fclose(result_file, MYF(0));
   if (use_remote)
     mysql_close(mysql);
+  cleanup();
   return 0;
 }
 
