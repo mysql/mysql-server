@@ -123,14 +123,16 @@ if (($opt_directory ne $PWD) && (!-d $opt_directory && !$opt_dry_run))
 if ($opt_pull)
 {
 	&logger("Updating BK tree $REPO to latest ChangeSet first");
-	$command= "cd $REPO; bk pull; cd ..";
-	&run_command($command, "Could not update $REPO!");
+  chdir ($REPO) or &abort("Could not chdir to $REPO!");
+	&run_command("bk pull", "Could not update $REPO!");
+  chdir ($PWD) or &abort("Could not chdir to $PWD!");
 
 	unless ($opt_skip_manual)
 	{
 		&logger("Updating manual tree in $opt_docdir");
-		$command= "cd $opt_docdir; bk pull; cd ..";
-		&run_command($command, "Could not update $opt_docdir!");
+    chdir ($opt_docdir) or &abort("Could not chdir to $opt_docdir!");
+	  &run_command("bk pull", "Could not update $opt_docdir!");
+    chdir ($PWD) or &abort("Could not chdir to $PWD!");
 	}
 }
 
