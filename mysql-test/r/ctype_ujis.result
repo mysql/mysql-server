@@ -111,3 +111,18 @@ no index
 あ
 あ
 drop table t1;
+CREATE TABLE t1 (
+a char(1) NOT NULL default '',
+b enum('あ','い') default NULL
+) CHARACTER SET ujis;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) NOT NULL default '',
+  `b` enum('あ','い') default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	char(1)				
+b	enum('あ','い')	YES		NULL	
+DROP TABLE t1;
