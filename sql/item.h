@@ -46,6 +46,7 @@ public:
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
   my_bool with_sum_func;
+  my_bool fixed;                        /* If item fixed with fix_fields */
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
