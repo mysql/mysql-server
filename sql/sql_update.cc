@@ -97,6 +97,7 @@ int mysql_update(THD *thd,
   bool 		using_limit=limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
+  bool          check;
   int		error=0;
   uint		used_index;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -344,6 +345,7 @@ int mysql_update(THD *thd,
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   thd->proc_info="Updating";
+  check= (table_list->check_option != 0);
   query_id=thd->query_id;
 
   while (!(error=info.read_record(&info)) && !thd->killed)
@@ -353,6 +355,22 @@ int mysql_update(THD *thd,
       store_record(table,record[1]);
       if (fill_record(fields,values, 0) || thd->net.report_error)
 	break; /* purecov: inspected */
+      if (check && table_list->check_option->val_int() == 0)
+      {
+        if (thd->lex->duplicates == DUP_IGNORE)
+        {
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                       ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
+          continue;
+        }
+        else
+        {
+          my_error(ER_VIEW_CHECK_FAILED, MYF(0));
+          error=1;
+          break;
+        }
+      }
+
       found++;
       if (compare_record(table, query_id))
       {
@@ -984,6 +1002,22 @@ bool multi_update::send_data(List<Item> &not_used_values)
       store_record(table,record[1]);
       if (fill_record(*fields_for_table[offset], *values_for_table[offset], 0))
 	DBUG_RETURN(1);
+
+      if (cur_table->check_option && cur_table->check_option->val_int() == 0)
+      {
+        if (thd->lex->duplicates == DUP_IGNORE)
+        {
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                       ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
+          continue;
+        }
+        else
+        {
+          my_error(ER_VIEW_CHECK_FAILED, MYF(0));
+          DBUG_RETURN(1);
+        }
+      }
+
       found++;
       if (compare_record(table, thd->query_id))
       {
