@@ -492,6 +492,17 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   
   // Insert Attribute Id into ATTRINFO part. 
   const Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+
+  CHARSET_INFO* cs = tAttrInfo->m_cs;
+  // invalid data can crash kernel
+  if (cs != NULL &&
+      (*cs->cset->well_formed_len)(cs,
+                                   aValue,
+                                   aValue + sizeInBytes,
+                                   sizeInBytes) != sizeInBytes) {
+    setErrorCodeAbort(744);
+    return -1;
+  }
 #if 0
   tAttrSize = tAttrInfo->theAttrSize;
   tArraySize = tAttrInfo->theArraySize;
