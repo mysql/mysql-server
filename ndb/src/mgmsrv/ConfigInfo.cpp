@@ -2973,7 +2973,13 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
     require(ctx.m_currentSection->get(buf, &id));
     
     const Properties * node;
-    require(ctx.m_config->get("Node", id, &node));
+    if(!ctx.m_config->get("Node", id, &node))
+    {
+      ctx.reportError("Unknown node: \"%d\" specified in connection "
+		      "[%s] starting at line: %d",
+		      id, ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
     
     const char * hostname;
     require(node->get("HostName", &hostname));
