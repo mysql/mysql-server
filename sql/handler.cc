@@ -416,7 +416,12 @@ int ha_init()
   }
 #endif
   DBUG_ASSERT(total_ha < MAX_HA);
-  opt_using_transactions= total_ha>opt_bin_log;
+  /*
+    Check if there is a transaction-capable storage engine besides the
+    binary log (which is considered a transaction-capable storage engine in
+    counting total_ha)
+  */
+  opt_using_transactions= total_ha>(ulong)opt_bin_log;
   savepoint_alloc_size+= sizeof(SAVEPOINT);
   return error;
 }

@@ -139,8 +139,12 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   999900000, 999990000, 999999000,
   999999900, 999999990 };
 
+#ifdef HAVE_purify
+#define sanity(d) DBUG_ASSERT((d)->len > 0)
+#else
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
                               (d)->buf[(d)->len-1] | 1))
+#endif
 
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
         do                                                              \

@@ -188,7 +188,7 @@ struct st_table {
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
-  ulong		query_id;
+  query_id_t	query_id;
 
   ha_rows	quick_rows[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
