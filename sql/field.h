@@ -72,10 +72,12 @@ public:
   virtual void reset_fields() {}
   virtual void set_default()
   {
-    memcpy(ptr, ptr + table->rec_buff_length, pack_length());
+    my_ptrdiff_t offset = (my_ptrdiff_t) (table->record[2] -
+					  table->record[0]);
+    memcpy(ptr, ptr + offset, pack_length());
     if (null_ptr)
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
-		  null_ptr[table->rec_buff_length] & null_bit);
+		  null_ptr[offset] & null_bit);
   }
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }

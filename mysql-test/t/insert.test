@@ -51,6 +51,17 @@ select * from t1;
 drop table t1;
 
 #
+#Test of behaviour with INSERT VALUES (NULL)
+#
+
+create table t1 (id int NOT NULL DEFAULT 8);
+-- error 1048
+insert into t1 values(NULL);
+insert into t1 values (1), (NULL), (2);
+select * from t1;
+drop table t1;
+
+#
 # Test of mysqld crash with fully qualified column names
 #
 
@@ -60,3 +71,4 @@ use foo;
 create table t1 (c int);
 insert into foo.t1 set foo.t1.c = '1';
 drop database foo;
+
