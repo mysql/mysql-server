@@ -100,7 +100,7 @@ commit;
 drop table t1;
 show binlog events in 'master-bin.000001';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	96	Server ver: 5.0.3-alpha-debug-log, Binlog ver: 4
+master-bin.000001	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	96	Query	1	197	use `test`; create table t1 (n int) engine=innodb
 master-bin.000001	197	Query	1	266	use `test`; BEGIN
 master-bin.000001	266	Query	1	94	use `test`; insert into t1 values(100 + 4)
@@ -207,5 +207,5 @@ master-bin.000001	9558	Xid	1	9319	COMMIT /* xid=146 */
 master-bin.000001	9585	Rotate	1	9629	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	4	Format_desc	1	96	Server ver: 5.0.3-alpha-debug-log, Binlog ver: 4
+master-bin.000002	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
 master-bin.000002	96	Query	1	173	use `test`; drop table t1
