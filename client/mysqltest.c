@@ -31,6 +31,7 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "my_config.h"
+#include "my_dir.h"
 #include "mysqld_error.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,6 +82,8 @@ typedef
 PARSER parser;
 int block_ok = 1; /* set to 0 if the current block should not be executed */
 int false_block_depth = 0;
+const char* result_file = 0; /* if set, all results are concated and
+				compared against this file*/
 
 typedef struct 
 {
@@ -113,9 +116,26 @@ struct query
 	Q_UNKNOWN} type;
 };
 
+#define DS_CHUNK   16384
+
+typedef struct dyn_string
+{
+  char* str;
+  int len,max_len;
+} DYN_STRING;
+
+DYN_STRING ds_res;
+
+void dyn_string_init(DYN_STRING* ds);
+void dyn_string_append(DYN_STRING* ds, const char* str, int len);
+int dyn_string_cmp(DYN_STRING* ds, const char* fname);
+void reject_dump(const char* record_file, char* buf, int size);
+
+
 static void die(const char* fmt, ...);
 int close_connection(struct query* q);
 VAR* var_get(char* var_name, char* var_name_end, int raw);
+void verbose_msg(const char* fmt, ...);
 
 void init_parser()
 {
@@ -131,6 +151,83 @@ int hex_val(int c)
     return c - 'a' + 10;
   else
     return -1;
+}
+
+void dyn_string_init(DYN_STRING* ds)
+{
+  if(!(ds->str = (char*)my_malloc(DS_CHUNK, MYF(0))))
+    die("Out of memory");
+  ds->len = 0;
+  ds->max_len = DS_CHUNK;
+}
+void dyn_string_append(DYN_STRING* ds, const char* str, int len)
+{
+  int new_len;
+  if(!len)
+    len = strlen(str);
+  new_len = ds->len + len;
+  if(new_len > ds->max_len)
+    {
+      int new_alloc_len = (new_len & ~(DS_CHUNK-1)) + DS_CHUNK;
+      char* tmp = (char*) my_malloc(new_alloc_len, MYF(0));
+      if(!tmp)
+	die("Out of memory");
+      memcpy(tmp, ds->str, ds->len);
+      memcpy(tmp + ds->len, str, len);
+      my_free((gptr)ds->str, MYF(0));
+      ds->str = tmp;
+      ds->len = new_len;
+      ds->max_len = new_alloc_len;
+    }
+  else
+    {
+      memcpy(ds->str + ds->len, str, len);
+      ds->len += len;
+    }
+}
+int dyn_string_cmp(DYN_STRING* ds, const char* fname)
+{
+  MY_STAT stat_info;
+  char *tmp;
+  int res;
+  int fd;
+  if(!my_stat(fname, &stat_info, MYF(MY_WME)))
+    die("Could not stat %s: errno =%d", fname, errno);
+  if(stat_info.st_size != ds->len)
+    return 2;
+  if(!(tmp = (char*) my_malloc(ds->len, MYF(0))))
+    die("Out of memory");
+  if((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
+    die("Could not open %s: errno = %d", fname, errno);
+  if(my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
+    die("read failed");
+  res = (memcmp(tmp, ds->str, stat_info.st_size)) ?  1 : 0;  
+  my_free((gptr)tmp, MYF(0));
+  my_close(fd, MYF(0));
+  return res;
+}
+
+int check_result(DYN_STRING* ds, const char* fname)
+{
+  int error = 0;
+  switch(dyn_string_cmp(ds, fname))
+    {
+    case 0:
+      break; /* ok */
+    case 2:
+      verbose_msg("Result length mismatch");
+      error = 1;
+      break;
+    case 1:
+      verbose_msg("Result content mismatch");
+      error = 1;
+      break;
+    default: /* impossible */
+      die("Unknown error code from dyn_string_cmp()");
+    }
+  if(error)
+    reject_dump(fname, ds->str, ds->len);
+  return error;
 }
 
 VAR* var_get(char* var_name, char* var_name_end, int raw)
@@ -491,7 +588,7 @@ void close_cons()
   for(--next_con; next_con >= cons; --next_con)
     {
       mysql_close(&next_con->mysql);
-      my_free(next_con->name, MYF(0));
+      my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
     }
 }
 
@@ -734,6 +831,7 @@ struct option long_options[] =
   {"silent", no_argument, 0, 'q'},
   {"quiet", no_argument, 0, 'q'},
   {"record", no_argument, 0, 'r'},
+  {"result-file", required_argument, 0, 'R'},
   {"help", no_argument, 0, '?'},
   {"user", required_argument, 0, 'u'},
   {"password", optional_argument, 0, 'p'},
@@ -752,6 +850,7 @@ void die(const char* fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  close_cons();
   exit(1);
 }
 
@@ -803,7 +902,7 @@ int parse_args(int argc, char **argv)
   my_bool tty_password=0;
 
   load_defaults("my",load_default_groups,&argc,&argv);
-  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:?rvVq",
+  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
       switch(c)
@@ -817,6 +916,9 @@ int parse_args(int argc, char **argv)
 	  break;
 	case 'u':
 	  user = optarg;
+	  break;
+	case 'R':
+	  result_file = optarg;
 	  break;
         case 'p':
 	  if (optarg)
@@ -873,7 +975,7 @@ int parse_args(int argc, char **argv)
   return 0;
 }
 
-char* safe_str_append(char* buf, char* str, int size)
+char* safe_str_append(char* buf, const char* str, int size)
 {
   int i,c ;
   for(i = 0; (c = *str++) &&  i < size - 1; i++)
@@ -882,7 +984,17 @@ char* safe_str_append(char* buf, char* str, int size)
   return buf;
 }
 
-void reject_dump(char* record_file, char* buf, int size)
+void str_to_file(const char* fname, char* str, int size)
+{
+  int fd;
+  if((fd = my_open(fname, O_WRONLY|O_CREAT, MYF(MY_WME))) < 0)
+    die("Could not open %s: errno = %d", fname, errno);
+  if(my_write(fd, (byte*)str, size, MYF(MY_WME|MY_NABP)))
+    die("write failed");
+  my_close(fd, MYF(0));
+}
+
+void reject_dump(const char* record_file, char* buf, int size)
 {
   char reject_file[MAX_RECORD_FILE+16];
   char* p;
@@ -892,11 +1004,7 @@ void reject_dump(char* record_file, char* buf, int size)
   p = safe_str_append(p, record_file, sizeof(reject_file));
   p = safe_str_append(p, (char*)".reject", reject_file - p +
 		      sizeof(reject_file));
-
-  if(!(freject = fopen(reject_file, "w")))
-    die("Could not open reject file %s, error %d", reject_file, errno);
-  fwrite(buf, size, 1, freject);
-  fclose(freject);
+  str_to_file(reject_file, buf, size);
 }
 
 int run_query(MYSQL* mysql, struct query* q)
@@ -905,46 +1013,14 @@ int run_query(MYSQL* mysql, struct query* q)
   MYSQL_FIELD* fields;
   MYSQL_ROW row;
   int num_fields,i, error = 0;
-  FILE* frecord = 0;
-  char* res_buf = 0, *p_res_buf = 0, *res_buf_end = 0, *record_buf = 0;
   struct stat info;
   unsigned long* lengths;
   char* val;
   int len;
-  int guess_result_size;
 
-  if(q->record_file[0])
+  if(!result_file && q->record_file[0])
     {
-      if(!(frecord = fopen(q->record_file, record_mode)))
-	die("Error %d opening record file '%s'", errno, q->record_file);
-      if(!record)
-	{
-	  if(stat(q->record_file, &info))
-	    die("Error %d on stat of record file '%s'", errno, q->record_file);
-	  /* let the developer be lazy and generate a .reject file
-           * by touching the the result file and running the test
-	   * in that case, we need a buffer large enough to hold the
-	   * entire rejected result
-	   */
-	  guess_result_size = (info.st_size ? info.st_size :
-			       LAZY_GUESS_BUF_SIZE) + PAD_SIZE;
-	  /* if we guess wrong, the result will be truncated */
-	  /* if the master result file is 0 length, the developer */
-	  /* wants to generate reject file, edit it, and then move into
-	   * the master result location - in this case we should just
-	   * allocate a buffer that is large enough for the kind of result
-	   * that a human would want to examine - hope 8 K is enough
-	   * if this is a real test, the result should be exactly the length
-	   * of the master file if it is correct. If it is wrong and is
-	   * longer, we should be able to tell what is wrong by looking
-	   * at the first "correct" number of bytes
-	   */
-	  if(!(p_res_buf = res_buf =
-	       (char*)malloc(guess_result_size)))
-	    die("malloc() failed trying to allocate %d bytes",
-		guess_result_size);
-	  res_buf_end = res_buf + guess_result_size;;
-	}
+      ds_res.len = 0;
     } 	
 
 
@@ -980,10 +1056,8 @@ int run_query(MYSQL* mysql, struct query* q)
       goto end;
     }
   
-  if(!q->has_result_set)
-    goto end;
 
-  if(!(res = mysql_store_result(mysql)))
+  if(!(res = mysql_store_result(mysql)) && mysql_field_count(mysql))
     {
      if(q->abort_on_error)
        die("failed in mysql_store_result for query '%s'", q->q);
@@ -994,28 +1068,19 @@ int run_query(MYSQL* mysql, struct query* q)
          goto end;
        }
     }
-  
-  if(!frecord)
-      goto end;
+
+  if(!res) goto end;
   
   fields =  mysql_fetch_fields(res);
   num_fields =  mysql_num_fields(res);
   for( i = 0; i < num_fields; i++)
     {
-      if(record)
-	fprintf(frecord, "%s\t", fields[i].name);
-      else
-	{
-	  p_res_buf = safe_str_append(p_res_buf, fields[i].name,
-				      res_buf_end - p_res_buf - 1);
-	  *p_res_buf++ = '\t';
-	}
+      dyn_string_append(&ds_res, fields[i].name, 0);
+      dyn_string_append(&ds_res, "\t", 1);
     }
 
-  if(record)
-    fputc('\n', frecord);
-  else if(res_buf_end > p_res_buf) 
-    *p_res_buf++ = '\n';
+  dyn_string_append(&ds_res, "\n", 1);
+
 
   while((row = mysql_fetch_row(res)))
   {
@@ -1030,59 +1095,28 @@ int run_query(MYSQL* mysql, struct query* q)
 	    val = (char*)"NULL";
 	    len = 4;
 	  }
-	if(record)
-	  {
-	    fwrite(val, len, 1, frecord);
-	    fputc('\t', frecord);
-	  }
-	else
-	  {
-	    if(p_res_buf + len + 1 < res_buf_end)
-	      {
-		 memcpy(p_res_buf, val, len);
-		 p_res_buf += len;
-		 *p_res_buf++ = '\t';
-	      }
-	    
-	  }
+	
+	dyn_string_append(&ds_res, val, len);
+	dyn_string_append(&ds_res, "\t", 1);
       }
-
-    if(record)
-      fputc('\n', frecord);
-    else if(res_buf_end > p_res_buf) 
-    *p_res_buf++ = '\n';
-      
+    
+    dyn_string_append(&ds_res, "\n", 1);
   }
 
-  if(!record && frecord) 
+  if(record)
     {
-      if( (len = p_res_buf - res_buf) != info.st_size)
-	{
-          verbose_msg("Result length mismatch: actual  %d, expected = %d ", len,
-	      info.st_size);
-          reject_dump(q->record_file, res_buf, len);
-	  error = 1;
-	}
-      else
-	{
-	  if(!(record_buf = (char*)malloc(info.st_size)))
-	    die("malloc() failed allocating %d bytes", info.st_size);
-	  fread(record_buf, info.st_size, 1, frecord);
-	  if(memcmp(record_buf, res_buf, len))
-	    {
-	      verbose_msg("Result not the same as the record");
-	      reject_dump(q->record_file, res_buf, len);
-	      error = 1;
-	    }
-	}
+      if(!q->record_file[0] && !result_file)
+	die("Missing result file");
+      if(!result_file)
+	str_to_file(q->record_file, ds_res.str, ds_res.len);
     }
-
+  else if(!result_file && q->record_file[0])
+    {
+      error = check_result(&ds_res, q->record_file);
+    }
   
  end:
-  if(res_buf) free(res_buf);
-  if(record_buf) free(record_buf);
   if(res) mysql_free_result(res);
-  if(frecord) fclose(frecord);
   return error;
 }
 
@@ -1170,7 +1204,7 @@ int main(int argc, char** argv)
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
   cur_block = block_stack;
-  
+  dyn_string_init(&ds_res);
   parse_args(argc, argv);
   if(!*cur_file)
     *cur_file = stdin;
@@ -1182,13 +1216,14 @@ int main(int argc, char** argv)
 
   mysql_options(&cur_con->mysql, MYSQL_READ_DEFAULT_GROUP, "mysql");
   
+  cur_con->name = my_strdup("default", MYF(MY_WME));
+  if(!cur_con->name)
+    die("Out of memory");
+  
   if(!mysql_real_connect(&cur_con->mysql, host,
 			 user, pass, db, port, unix_sock,
      0))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
-  cur_con->name = my_strdup("default", MYF(MY_WME));
-  if(!cur_con->name)
-    die("Out of memory");
 
   for(;!read_query(&q);)
     {
@@ -1229,6 +1264,12 @@ int main(int argc, char** argv)
     }
 
   close_cons();
+
+  if(result_file)
+    if(!record)
+      error |= check_result(&ds_res, result_file);
+    else
+      str_to_file(result_file, ds_res.str, ds_res.len);
   
   if (!silent) {
     if(error)
