@@ -47,7 +47,7 @@ SocketServer::~SocketServer() {
 }
 
 bool
-SocketServer::tryBind(unsigned short port, const char * intface) const {
+SocketServer::tryBind(unsigned short port, const char * intface) {
   struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
