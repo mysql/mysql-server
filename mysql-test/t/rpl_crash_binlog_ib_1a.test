@@ -1,0 +1,71 @@
+# Test if master cuts binlog at InnoDB crash's recovery,
+# if the transaction had been written to binlog but not committed into InnoDB
+# We need InnoDB in the master, and a debug build in the master.
+
+# There are 6 tests, in fact 3 pairs:
+# 1st pair: 
+# rpl_crash_binlog_innodb_1a: crash when InnoDB in autocommit mode
+# rpl_crash_binlog_innodb_1b: test of recovery after the crash of test 1a
+# 2nd pair: 
+# rpl_crash_binlog_innodb_2a: crash when InnoDB in non autocommit mode
+# rpl_crash_binlog_innodb_2b: test of recovery after the crash of test 1a
+# 3rd pair: 
+# rpl_crash_binlog_innodb_3a: crash when InnoDB in autocommit mode, at
+# very first transactional statement since master's startup (a purely
+# academic case but which will be tested a lot)
+# rpl_crash_binlog_innodb_3b: test of recovery after the crash of test 3a
+
+# The *b tests should always be run just after their 1a; don't run *b
+# alone it won't work properly.
+
+# This test is only for autocommit mode.
+
+source include/master-slave.inc ;
+source include/have_debug.inc ;
+source include/have_innodb.inc ;
+require_os unix ;
+
+flush logs; # this will help us be sure it's the same log in the next test
+
+# One problem: we need InnoDB to know of the last good position, so it 
+# must have committed at least one transaction and in the binlog before the crash.
+# NOTE: the above should become false quite soon
+
+set autocommit=1;
+set sql_log_bin=0;
+create table t1 (n int) engine=innodb;
+set sql_log_bin=1;
+sync_slave_with_master;
+
+# We use MyISAM on slave so that any spurious statement received from the
+# master has a visible effect.
+create table t1 (n int) engine=myisam;
+connection master;
+insert into t1 values (3);
+# The reported size here should be exactly the same as the one we measure
+# at the end of rpl_crash_binlog_innodb_1b.test
+show master status;
+
+# Master will crash in this (it crashes on 3rd binlog write, counting
+# the DROP IF EXISTS in master-slave.inc):
+error 2013;
+send insert into t1 values (4);
+sleep 4; # enough time to die
+# No 'reap' as it may hang as master died hard.
+# This kill speeds up:
+system sh misc/kill_master.sh ;
+
+# Check that slave did not receive the spurious INSERT statement
+connection slave;
+select * from t1;
+
+# Check that the spurious statement is in the master's binlog
+# LOAD_FILE() needs a file readable by all
+system chmod ugo+r $MYSQL_TEST_DIR/var/log/master-bin.000002 ;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval set @a=load_file("$MYSQL_TEST_DIR/var/log/master-bin.000002");
+select length(@a);
+select @a like "%values (4)%";
+
+# Now we will run rpl_crash_binlog_innodb_1b.test to test
+# if the spurious statement gets truncated at master's restart.
