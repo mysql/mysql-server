@@ -1,0 +1,40 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int);
+insert into t1 values (10);
+create table t2 (a int);
+create table t3 (a int) type=merge union(t1);
+create table t4 (a int);
+insert into t4 select * from t3;
+rename table t1 to t5, t2 to t1;
+flush no_write_to_binlog tables;
+show binlog events;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	4	Start	1	4	Server ver: 4.1.1-alpha-debug-log, Binlog ver: 3
+master-bin.000001	79	Query	1	79	use `test`; create table t1 (a int)
+master-bin.000001	137	Query	1	137	use `test`; insert into t1 values (10)
+master-bin.000001	198	Query	1	198	use `test`; create table t2 (a int)
+master-bin.000001	256	Query	1	256	use `test`; create table t3 (a int) type=merge union(t1)
+master-bin.000001	335	Query	1	335	use `test`; create table t4 (a int)
+master-bin.000001	393	Query	1	393	use `test`; insert into t4 select * from t3
+master-bin.000001	459	Query	1	459	use `test`; rename table t1 to t5, t2 to t1
+select * from t3;
+a
+flush tables;
+show binlog events;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	4	Start	1	4	Server ver: 4.1.1-alpha-debug-log, Binlog ver: 3
+master-bin.000001	79	Query	1	79	use `test`; create table t1 (a int)
+master-bin.000001	137	Query	1	137	use `test`; insert into t1 values (10)
+master-bin.000001	198	Query	1	198	use `test`; create table t2 (a int)
+master-bin.000001	256	Query	1	256	use `test`; create table t3 (a int) type=merge union(t1)
+master-bin.000001	335	Query	1	335	use `test`; create table t4 (a int)
+master-bin.000001	393	Query	1	393	use `test`; insert into t4 select * from t3
+master-bin.000001	459	Query	1	459	use `test`; rename table t1 to t5, t2 to t1
+master-bin.000001	525	Query	1	525	use `test`; flush tables
+select * from t3;
+a

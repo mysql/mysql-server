@@ -1496,7 +1496,7 @@ static void check_data_home(const char *path)
 static void sig_reload(int signo)
 {
  // Flush everything
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0);
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, NULL);
   signal(signo, SIG_ACK);
 }
 
@@ -1832,7 +1832,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_STATUS | REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
-			     (TABLE_LIST*) 0); // Flush logs
+			     (TABLE_LIST*) 0, NULL); // Flush logs
 	mysql_print_status((THD*) 0);		// Send debug some info
       }
       break;
