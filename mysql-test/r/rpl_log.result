@@ -47,10 +47,10 @@ slave-bin.001	253	Query	1	4	use test; insert into t1 values (NULL)
 slave-bin.001	316	Query	1	5	use test; drop table t1
 slave-bin.001	364	Query	1	6	use test; create table t1 (word char(20) not null)
 slave-bin.001	439	Create_file	1	7	db=test;table=t1;file_id=1;block_len=81
-slave-bin.001	646	Exec_load	1	8	;file_id=1
-slave-bin.001	669	Query	1	9	use test; drop table t1
-slave-bin.001	717	Rotate	1	4	slave-bin.002;pos=4; forced by master
-slave-bin.001	757	Stop	2	5	
+slave-bin.001	616	Exec_load	1	8	;file_id=1
+slave-bin.001	639	Query	1	9	use test; drop table t1
+slave-bin.001	687	Rotate	1	4	slave-bin.002;pos=4; forced by master
+slave-bin.001	727	Stop	2	5	
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 slave-bin.002	4	Start	2	1	Server ver: $VERSION, Binlog ver: 2
 slave-bin.002	79	Slave	2	10	host=127.0.0.1,port=$MASTER_MYPORT,log=master-bin.002,pos=4

@@ -376,3 +376,4 @@ support-files/mysql.spec
 tags
 tmp/*
 vio/viotest-ssl
+libmysqld/sql_union.cc

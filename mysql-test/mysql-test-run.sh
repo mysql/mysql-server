@@ -109,6 +109,7 @@ USERT=0
 SYST=0
 REALT=0
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
+SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
@@ -570,6 +571,7 @@ start_slave()
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=$LANGUAGE \
 	    --skip-innodb --skip-slave-start \
+	    --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
 	    --report-host=127.0.0.1 --report-user=root \
 	    --report-port=$SLAVE_MYPORT \
 	     $SMALL_SERVER \
