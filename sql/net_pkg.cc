@@ -283,8 +283,13 @@ bool
 net_store_data(String *packet,const char *from,uint length)
 {
   ulong packet_length=packet->length();
-  if (packet_length+5+length > packet->alloced_length() &&
-      packet->realloc(packet_length+5+length))
+/* 
+   We have added net5store in net_store_length. 
+   Before that largest size was int3store.
+   Therefore +5 is changed to +9
+*/
+  if (packet_length+9+length > packet->alloced_length() &&
+      packet->realloc(packet_length+9+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
 				    (ulonglong) length);
@@ -300,8 +305,8 @@ net_store_data(String *packet,const char *from)
 {
   uint length=(uint) strlen(from);
   uint packet_length=packet->length();
-  if (packet_length+5+length > packet->alloced_length() &&
-      packet->realloc(packet_length+5+length))
+  if (packet_length+9+length > packet->alloced_length() &&
+      packet->realloc(packet_length+9+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
 				    length);
