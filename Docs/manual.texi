@@ -24321,10 +24321,16 @@ summary of commands:
 @item @strong{Command} @tab @strong{Description}
 
 @item @code{SLAVE START}
- @tab Starts the slave thread. (Slave)
+ @tab Starts the slave thread.
+As of MySQL 4.0.2, you can add @code{IO_THREAD} or @code{SQL_THREAD}
+options to the statement to start the I/O thread or the SQL thread.
+The I/O thread reads queries from the master server and stores them in the
+relay log.  The SQL thread reads the relay log and executes the queries.
+(Slave)
 
 @item @code{SLAVE STOP}
- @tab Stops the slave thread. (Slave)
+ @tab Stops the slave thread. Like @code{SLAVE START}, this statement
+may be used with @code{IO_THREAD} and @code{SQL_THREAD} options. (Slave)
 
 @item @code{SET SQL_LOG_BIN=0}
 @tab Disables update logging if the user has the @code{SUPER} privilege.
