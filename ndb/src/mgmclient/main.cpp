@@ -56,9 +56,6 @@ handler(int sig){
   }
 }
 
-enum ndb_mgm_options {
-  NDB_STD_OPTS_OPTIONS
-};
 NDB_STD_OPTS_VARS;
 
 static const char default_prompt[]= "ndb_mgm> ";
@@ -83,14 +80,10 @@ static void short_usage_sub(void)
 {
   printf("Usage: %s [OPTIONS] [hostname [port]]\n", my_progname);
 }
-static void print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
 static void usage()
 {
   short_usage_sub();
-  print_version();
+  ndb_std_print_version();
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -98,18 +91,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch (optid) {
-  case '#':
-    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_mgm.trace");
-    break;
-  case 'V':
-    print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  }
-  return 0;
+  return ndb_std_get_one_option(optid, opt, argument ? argument :
+				"d:t:O,/tmp/ndb_mgm.trace");
 }
 
 static int 
