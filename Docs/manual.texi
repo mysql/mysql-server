@@ -50453,15 +50453,23 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
-One didn't get an error message if mysqld couldn't open the privilege tables.
+Fixed bug in @code{myisamchk -R} mode.
+@item
+Fixed bug that caused @code{mysqld} to crash on @code{REVOKE}.
+@item
+Fixed bug in @code{ORDER BY} when there is a constant in the @code{SELECT}
+statement.
+@item
+One didn't get an error message if @code{mysqld} couldn't open the
+privilege tables.
 @item
 @code{SET PASSWORD FOR ...} closed the connection in case of errors (bug
 from 4.0.3).
 @item
-Increased max possible @code{max_allowed_packet} in @code{mysqld} to 1G.
+Increased max possible @code{max_allowed_packet} in @code{mysqld} to 1GB.
 @item
 Fixed bug when doing a multi-line @code{INSERT} on a table with an
-auto_increment key which was not in the first part of the key.
+@code{auto_increment} key which was not in the first part of the key.
 @item
 Changed @code{LOAD DATA INFILE} to not recreate index if the table had
 rows from before.
@@ -50469,17 +50477,17 @@ rows from before.
 Fixed overrun bug when calling @code{AES_DECRYPT()} with wrong arguments.
 @item
 @code{--skip-ssl} can now be used to disable SSL in the MySQL clients,
-even if one is using other ssl options in a options file or previously
+even if one is using other SSL options in an options file or previously
 on the command line.
 @item
 Fixed bug in @code{MATCH ... AGAINST( ... IN BOOLEAN MODE)}
 used with @code{ORDER BY}.
 @item
 Added @code{LOCK TABLES} and @code{CREATE TEMPORARY TABLES} privilege on
-the database level.  One must run the @code{ mysql_fix_privilege_tables}
+the database level.  One must run the @code{mysql_fix_privilege_tables}
 script on old installations to activate these.
 @item
-In @code{SHOW TABLE ... STATUS} compressed tables showed sometimes up as
+In @code{SHOW TABLE ... STATUS} compressed tables sometimes showed up as
 @code{dynamic}.
 @item
 @code{SELECT @@@@[global|session].var_name} didn't report
@@ -50499,7 +50507,7 @@ Fixed a bug with constant expression (e.g. field of a one-row table, or field
 from a table, referenced by a @code{UNIQUE} key) appeared in @code{ORDER BY}
 part of @code{SELECT DISTINCT}.
 @item
-@code{--log-binary=a.b.c} now properly strips of @code{.b.c}.
+@code{--log-binary=a.b.c} now properly strips off @code{.b.c}.
 @item
 @code{FLUSH LOGS} removed numerical extension for all future update logs.
 @item
@@ -50510,19 +50518,18 @@ part of @code{SELECT DISTINCT}.
 @item
 @code{AND} is now optional between @code{REQUIRE} options.
 @item
-@code{REQUIRE} options was not properly saved, which could cause strange
+@code{REQUIRE} option was not properly saved, which could cause strange
 output in @code{SHOW GRANTS}.
 @item
-Fixed that @code{mysqld --help} reports right values for @code{--datadir} and
-@code{--bind-address}.
+Fixed that @code{mysqld --help} reports correct values for @code{--datadir}
+and @code{--bind-address}.
 @item
-Fixed that one can drop UDF functions that didn't exists when mysqld was
-started.
+Fixed that one can drop UDFs that didn't exist when mysqld was started.
 @item
 Fixed core dump problem with @code{SHOW VARIABLES} on some 64 bit systems
 (like Solaris sparc).
 @item
-Fixed a bug in my_getopt; --set-variable syntax didn't work for
+Fixed a bug in my_getopt; @code{--set-variable} syntax didn't work for
 those options that didn't have a valid variable in my_option struct.
 This affected at least @code{default-table-type} option.
 @item
@@ -50544,17 +50551,17 @@ Fixed bug with the @code{--slow-log} when logging an administrator command
 Fixed a bug that @code{OPTIMIZE} of locked and modified table,
 reported table corruption.
 @item
-Fixed a bug in my_getopt in handling of special prefixes (--skip-, --enable-).
---skip-external-locking didn't work and the bug may have affected other
-similar options.
+Fixed a bug in my_getopt in handling of special prefixes (@code{--skip-},
+@code{--enable-}). @code{--skip-external-locking} didn't work and the bug
+may have affected other similar options.
 @item
 Fixed bug in checking for output file name of the @code{tee} option.
 @item
 Added some more optimisation to use index for
 @code{SELECT ... FROM many_tables .. ORDER BY key limit #}
 @item
-Fixed problem in @code{SHOW OPEN TABLES} when a user didn't have access right
-to one of the opened tables.
+Fixed problem in @code{SHOW OPEN TABLES} when a user didn't have access
+permissions to one of the opened tables.
 @end itemize
 
 @node News-4.0.3, News-4.0.2, News-4.0.4, News-4.0.x
