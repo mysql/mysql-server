@@ -231,8 +231,8 @@ security bug in @code{MySQL Server}, you should send an e-mail to
 
 @menu
 * Manual-info::                 About This Manual
-* What-is::                     What Is MySQL?
-* What is MySQL AB::            What Is MySQL AB?
+* What-is::                     What Is MySQL
+* What is MySQL AB::            What Is MySQL AB
 * Licensing and Support::       MySQL Support and Licensing
 * MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
@@ -396,7 +396,7 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 
 
 @node What-is, What is MySQL AB, Manual-info, Introduction
-@section What Is MySQL?
+@section What Is MySQL
 
 @cindex MySQL, defined
 @cindex MySQL, introduction
@@ -947,7 +947,7 @@ year values).
 
 
 @node What is MySQL AB, Licensing and Support, What-is, Introduction
-@section What Is MySQL AB?
+@section What Is MySQL AB
 
 @cindex MySQL AB, defined
 
