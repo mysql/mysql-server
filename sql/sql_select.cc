@@ -579,7 +579,7 @@ JOIN::optimize()
       !(select_options & SELECT_DESCRIBE))
   {						/* purecov: inspected */
     my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
-    error= 1;					/* purecov: inspected */
+    error= -1;
     DBUG_RETURN(1);
   }
   if (const_tables && !thd->locked_tables &&

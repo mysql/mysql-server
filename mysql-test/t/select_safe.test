@@ -66,4 +66,24 @@ SET MAX_SEEKS_FOR_KEY=DEFAULT;
 
 drop table t1;
 
+# BUG#8726
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+set local  max_join_size=8;
+--error 1104
+select * from (select * from t1) x;
+
+set local  max_join_size=1;
+--error 1104
+select * from (select * from t1 a, t1 b) x;
+
+set local  max_join_size=1;
+--error 1104
+select * from (select 1 union select 2 union select 3) x;
+drop table t1;
+
 SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;
