@@ -467,11 +467,11 @@ bool Field::get_time(TIME *ltime)
     Needs to be changed if/when we want to support different time formats
 */
 
-void Field::store_time(TIME *ltime,timestamp_type type)
+int Field::store_time(TIME *ltime, timestamp_type type)
 {
   char buff[MAX_DATE_STRING_REP_LENGTH];
   uint length= (uint) my_TIME_to_str(ltime, buff);
-  store(buff, length, &my_charset_bin);
+  return store(buff, length, &my_charset_bin);
 }
 
 
@@ -3089,7 +3089,7 @@ int Field_timestamp::store(longlong nr)
   bool in_dst_time_gap;
   THD *thd= table->in_use;
 
-  if (number_to_TIME(nr, &l_time, 0, &error))
+  if (number_to_datetime(nr, &l_time, 0, &error))
   {
     if (!(timestamp= TIME_to_timestamp(thd, &l_time, &in_dst_time_gap)))
     {
@@ -3369,6 +3369,16 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
     tmp= -tmp;
   error |= Field_time::store((longlong) tmp);
   return error;
+}
+
+
+int Field_time::store_time(TIME *ltime, timestamp_type type)
+{
+  long tmp= ((ltime->month ? 0 : ltime->day * 24L) + ltime->hour) * 10000L +
+            (ltime->minute * 100 + ltime->second);
+  if (ltime->neg)
+    tmp= -tmp;
+  return Field_time::store((longlong) tmp);
 }
 
 
@@ -3953,17 +3963,20 @@ int Field_newdate::store(longlong nr)
   return error;
 }
 
-void Field_newdate::store_time(TIME *ltime,timestamp_type type)
+int Field_newdate::store_time(TIME *ltime,timestamp_type type)
 {
   long tmp;
+  int error= 0;
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
     tmp=ltime->year*16*32+ltime->month*32+ltime->day;
   else
   {
     tmp=0;
+    error= 1;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   }
   int3store(ptr,tmp);
+  return error;
 }
 
 bool Field_newdate::send_binary(Protocol *protocol)
@@ -4112,7 +4125,7 @@ int Field_datetime::store(longlong nr)
   int error;
   longlong initial_nr= nr;
   
-  nr= number_to_TIME(nr, &not_used, 1, &error);
+  nr= number_to_datetime(nr, &not_used, 1, &error);
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -4131,9 +4144,10 @@ int Field_datetime::store(longlong nr)
 }
 
 
-void Field_datetime::store_time(TIME *ltime,timestamp_type type)
+int Field_datetime::store_time(TIME *ltime,timestamp_type type)
 {
   longlong tmp;
+  int error= 0;
   /*
     We don't perform range checking here since values stored in TIME
     structure always fit into DATETIME range.
@@ -4144,6 +4158,7 @@ void Field_datetime::store_time(TIME *ltime,timestamp_type type)
   else
   {
     tmp=0;
+    error= 1;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   }
 #ifdef WORDS_BIGENDIAN
@@ -4154,6 +4169,7 @@ void Field_datetime::store_time(TIME *ltime,timestamp_type type)
   else
 #endif
     longlongstore(ptr,tmp);
+  return error;
 }
 
 bool Field_datetime::send_binary(Protocol *protocol)
