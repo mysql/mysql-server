@@ -1316,10 +1316,16 @@ alter_list_item:
 	    lex->simple_alter=0;
 	  }
 	| RENAME opt_to table_ident
-	  { 
+	  {
 	    LEX *lex=Lex;
 	    lex->select->db=$3->db.str;
 	    lex->name= $3->table.str;
+            if (check_table_name($3->table.str,$3->table.length) ||
+                $3->db.str && check_db_name($3->db.str))
+            {
+              net_printf(&lex->thd->net,ER_WRONG_TABLE_NAME,$3->table.str);
+              YYABORT;
+            }
 	  }
         | create_table_options { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };

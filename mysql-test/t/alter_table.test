@@ -243,3 +243,14 @@ LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
+
+#
+# BUG#4717 - check for valid table names
+#
+create table t1 (a int);
+--error 1103
+alter table t1 rename to `t1\\`;
+--error 1103
+rename table t1 to `t1\\`;
+drop table t1;
+
