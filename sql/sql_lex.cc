@@ -943,7 +943,7 @@ int yylex(void *arg, void *yythd)
 
 void st_select_lex_node::init_query()
 {
-  dependent= 0;
+  no_table_names_allowed= dependent= 0;
 }
 
 void st_select_lex_node::init_select()
