@@ -32,13 +32,16 @@
   FEDERATED_SHARE is a structure that will be shared amoung all open handlers
   The example implements the minimum of what you will probably need.
 */
-//FIX document
 typedef struct st_federated_share {
   char *table_name;
   char *table_base_name;
-  // the primary select query to be used in rnd_init
+  /* 
+    the primary select query to be used in rnd_init
+  */
   char *select_query;
-  // remote host info, parse_url supplies
+  /*
+    remote host info, parse_url supplies
+  */
   char *scheme;
   char *hostname;
   char *username;
@@ -73,8 +76,8 @@ private:
       return errorcode otherwise
   */
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
-  bool ha_federated::create_where_from_key(String *to, KEY *key_info, 
-                                           const byte *key, uint key_length); 
+  bool create_where_from_key(String *to, KEY *key_info, 
+                             const byte *key, uint key_length); 
 
 public:
   ha_federated(TABLE *table): handler(table),
