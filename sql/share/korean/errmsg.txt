@@ -320,3 +320,4 @@ character-set=euckr
 "Duplicate condition: %s"
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
+"Subselect value not supported"
