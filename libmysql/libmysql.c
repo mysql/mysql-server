@@ -1667,6 +1667,27 @@ static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 
 
+/*
+  Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
+  values stored in network buffer.
+*/
+
+/* 1 (length) + 2 (year) + 1 (month) + 1 (day) */
+static const unsigned MAX_DATE_REP_LENGTH= 5;
+
+/*
+  1 (length) + 1 (is negative) + 4 (day count) + 1 (hour)
+  + 1 (minute) + 1 (seconds) + 4 (microseconds)
+*/
+static const unsigned MAX_TIME_REP_LENGTH= 13;
+
+/*
+  1 (length) + 2 (year) + 1 (month) + 1 (day) +
+  1 (hour) + 1 (minute) + 1 (second) + 4 (microseconds)
+*/
+static const unsigned MAX_DATETIME_REP_LENGTH= 12;
+
+
 /**************** Misc utility functions ****************************/
 
 /*
@@ -2030,6 +2051,30 @@ static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
   return stmt->field_count;
 }
 
+
+/*
+  Update result set columns metadata if it was sent again in
+  reply to COM_EXECUTE.
+*/
+
+static void update_stmt_fields(MYSQL_STMT *stmt)
+{
+  MYSQL_FIELD *field= stmt->mysql->fields;
+  MYSQL_FIELD *field_end= field + stmt->field_count;
+  MYSQL_FIELD *stmt_field= stmt->fields;
+
+  DBUG_ASSERT(stmt->field_count == stmt->mysql->field_count);
+
+  for (; field < field_end; ++field, ++stmt_field)
+  {
+    stmt_field->charsetnr= field->charsetnr;
+    stmt_field->length   = field->length;
+    stmt_field->type     = field->type;
+    stmt_field->flags    = field->flags;
+    stmt_field->decimals = field->decimals;
+  }
+}
+
 /*
   Returns prepared statement metadata in the form of a result set.
 
@@ -2166,7 +2211,7 @@ static void store_param_double(NET *net, MYSQL_BIND *param)
 static void store_param_time(NET *net, MYSQL_BIND *param)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
-  char buff[15], *pos;
+  char buff[MAX_TIME_REP_LENGTH], *pos;
   uint length;
 
   pos= buff+1;
@@ -2177,19 +2222,19 @@ static void store_param_time(NET *net, MYSQL_BIND *param)
   pos[7]= (uchar) tm->second;
   int4store(pos+8, tm->second_part);
   if (tm->second_part)
-    length= 11;
+    length= 12;
   else if (tm->hour || tm->minute || tm->second || tm->day)
     length= 8;
   else
     length= 0;
-  buff[0]= (char) length++;  
+  buff[0]= (char) length++;
   memcpy((char *)net->write_pos, buff, length);
   net->write_pos+= length;
 }
 
 static void net_store_datetime(NET *net, MYSQL_TIME *tm)
 {
-  char buff[12], *pos;
+  char buff[MAX_DATETIME_REP_LENGTH], *pos;
   uint length;
 
   pos= buff+1;
@@ -2280,7 +2325,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
       Param->length should ALWAYS point to the correct length for the type
       Either to the length pointer given by the user or param->buffer_length
     */
-    if ((my_realloc_str(net, 9 + *param->length)))
+    if ((my_realloc_str(net, *param->length)))
     {
       set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
       DBUG_RETURN(1);
@@ -2557,16 +2602,37 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
   */
   if (mysql->methods->stmt_execute(stmt))
     DBUG_RETURN(1);
-  if (!stmt->field_count && mysql->field_count)
+  if (mysql->field_count)
   {
-    /* 
-      This is 'SHOW'/'EXPLAIN'-like query.  Current implementation of
-      prepared statements can't send result set metadata for this queries
-      on prepare stage. Read it now.
-    */
-    alloc_stmt_fields(stmt);
+    /* Server has sent result set metadata */
+    if (stmt->field_count == 0)
+    {
+      /*
+        This is 'SHOW'/'EXPLAIN'-like query. Current implementation of
+        prepared statements can't send result set metadata for these queries
+        on prepare stage. Read it now.
+      */
+      alloc_stmt_fields(stmt);
+    }
+    else
+    {
+      /*
+        Update result set metadata if it for some reason changed between
+        prepare and execute, i.e.:
+        - in case of 'SELECT ?' we don't know column type unless data was
+          supplied to mysql_stmt_execute, so updated column type is sent
+          now.
+        - if data dictionary changed between prepare and execute, for
+          example a table used in the query was altered.
+        Note, that now (4.1.3) we always send metadata in reply to
+        COM_EXECUTE (even if it is not necessary), so either this or
+        previous always branch works.
+        TODO: send metadata only when it's really necessary and add a warning
+        'Metadata changed' when it's sent twice.
+      */
+      update_stmt_fields(stmt);
+    }
   }
-      
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
   if (stmt->field_count)
   {
@@ -2693,15 +2759,17 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
       param->store_param_func= store_param_double;
       break;
     case MYSQL_TYPE_TIME:
-      /* Buffer length ignored for DATE, TIME and DATETIME */
       param->store_param_func= store_param_time;
+      param->buffer_length= MAX_TIME_REP_LENGTH;
       break;
     case MYSQL_TYPE_DATE:
       param->store_param_func= store_param_date;
+      param->buffer_length= MAX_DATE_REP_LENGTH;
       break;
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       param->store_param_func= store_param_datetime;
+      param->buffer_length= MAX_DATETIME_REP_LENGTH;
       break;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -2859,17 +2927,17 @@ static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
     set_zero_time(tm);
     return 0;
   }
-  
-  to= *pos;     
-  tm->second_part= (length > 8 ) ? (ulong) sint4korr(to+7): 0;
+
+  to= *pos;
+  tm->neg= (bool) to[0];
 
   tm->day=    (ulong) sint4korr(to+1);
   tm->hour=   (uint) to[5];
   tm->minute= (uint) to[6];
   tm->second= (uint) to[7];
+  tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
 
   tm->year= tm->month= 0;
-  tm->neg= (bool)to[0];
   return length;
 }
 
@@ -2878,16 +2946,20 @@ static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
 {
   uchar *to;
   uint  length;
- 
+
   if (!(length= net_field_length(pos)))
   {
     set_zero_time(tm);
     return 0;
   }
-  
-  to= *pos;     
-  tm->second_part= (length > 7 ) ? (ulong) sint4korr(to+7): 0;
-    
+
+  to= *pos;
+
+  tm->neg=    0;
+  tm->year=   (uint) sint2korr(to);
+  tm->month=  (uint) to[2];
+  tm->day=    (uint) to[3];
+
   if (length > 4)
   {
     tm->hour=   (uint) to[4];
@@ -2896,11 +2968,7 @@ static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
   }
   else
     tm->hour= tm->minute= tm->second= 0;
-    
-  tm->year=   (uint) sint2korr(to);
-  tm->month=  (uint) to[2];
-  tm->day=    (uint) to[3];
-  tm->neg=    0;
+  tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
   return length;
 }
 
@@ -3159,7 +3227,7 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
   }
   }
 }
-                              
+
 
 /* Fetch data to buffers */
 

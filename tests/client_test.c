@@ -9802,6 +9802,73 @@ static void test_bug3796()
   myquery(rc);
 }
 
+
+static void test_bug4026()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  MYSQL_TIME time_in, time_out;
+  MYSQL_TIME datetime_in, datetime_out;
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug4026");
+
+  /* Check that microseconds are inserted and selected successfully */
+
+  /* Create a statement handle and prepare it with select */
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT ?, ?";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  /* Bind input buffers */
+  bzero(bind, sizeof(bind));
+  bzero(&time_in, sizeof(time_in));
+  bzero(&time_out, sizeof(time_out));
+  bzero(&datetime_in, sizeof(datetime_in));
+  bzero(&datetime_out, sizeof(datetime_out));
+
+  bind[0].buffer_type= MYSQL_TYPE_TIME;
+  bind[0].buffer= (char*) &time_in;
+  bind[1].buffer_type= MYSQL_TYPE_DATETIME;
+  bind[1].buffer= (char*) &datetime_in;
+
+  time_in.hour= 23;
+  time_in.minute= 59;
+  time_in.second= 59;
+  time_in.second_part= 123456;
+
+  datetime_in= time_in;
+  datetime_in.year= 2003;
+  datetime_in.month= 12;
+  datetime_in.day= 31;
+
+  mysql_stmt_bind_param(stmt, bind);
+
+  /* Execute the select statement */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind[0].buffer= (char*) &time_out;
+  bind[1].buffer= (char*) &datetime_out;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  rc= mysql_stmt_fetch(stmt);
+  assert(rc == 0);
+  printf("%d:%d:%d.%lu\n", time_out.hour, time_out.minute, time_out.second,
+                           time_out.second_part);
+  printf("%d-%d-%d %d:%d:%d.%lu\n", datetime_out.year, datetime_out.month,
+                                    datetime_out.day, datetime_out.hour,
+                                    datetime_out.minute, datetime_out.second,
+                                    datetime_out.second_part);
+  assert(memcmp(&time_in, &time_out, sizeof(time_in)) == 0);
+  assert(memcmp(&datetime_in, &datetime_out, sizeof(datetime_in)) == 0);
+  mysql_stmt_close(stmt);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10094,6 +10161,7 @@ int main(int argc, char **argv)
                                (Bug #3686 */
     test_ps_i18n();         /* test for i18n support in binary protocol */
     test_bug3796();         /* test for select concat(?, <string>) */
+    test_bug4026();         /* test microseconds precision of time types */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
