@@ -391,8 +391,10 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 #define my_strnncoll(s, a, b, c, d) ((s)->coll->strnncoll((s), (a), (b), (c), (d), 0))
 #define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \
    ((s)->coll->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h), (i), (j)))
-#define my_wildcmp(cs,s,se,w,we,e,o,m)	((cs)->coll->wildcmp((cs),(s),(se),(w),(we),(e),(o),(m)))
+#define my_wildcmp(cs,s,se,w,we,e,o,m) ((cs)->coll->wildcmp((cs),(s),(se),(w),(we),(e),(o),(m)))
 #define my_strcasecmp(s, a, b)        ((s)->coll->strcasecmp((s), (a), (b)))
+#define my_charpos(cs, b, e, num)     (cs)->cset->charpos((cs), (const char*) (b), (const char *)(e), (num))
+
 
 #define use_mb(s)                     ((s)->cset->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->cset->ismbchar((s), (a), (b)))
