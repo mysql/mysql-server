@@ -35,7 +35,7 @@ SELECT ('test',2,3.33)=('test',2,3.33);
 ('test',2,3.33)=('test',2,3.33)
 1
 SELECT ('test',2,3.33)=('test',2,3.33,4);
-Cardinality error (more/less than 4 columns)
+Cardinality error (more/less than 3 columns)
 drop table if exists t1;
 create table t1 ( a int, b int, c int);
 insert into t1 values (1,2,3), (2,3,1), (3,2,1);
@@ -48,4 +48,13 @@ select * from t1 where (1,2,3)<(a,b,c);
 a	b	c
 2	3	1
 3	2	1
+drop table t1;
+select (1,1);
+Cardinality error (more/less than 1 columns)
+drop table if exists t1;
+create table t1 (i int);
+select 1 from t1 where (1,1);
+Cardinality error (more/less than 1 columns)
+select count(*) from t1 order by (1,1);
+Cardinality error (more/less than 1 columns)
 drop table t1;
