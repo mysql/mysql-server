@@ -3155,8 +3155,8 @@ innobase_drop_database(
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
-#ifdef __WIN__
-	casedn_str(namebuf);
+#ifdef FN_NO_CASE_SENCE
+	my_casedn_str(system_charset_info, namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
 

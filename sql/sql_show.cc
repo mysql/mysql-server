@@ -230,7 +230,7 @@ int mysqld_show_table_types(THD *thd)
     const char *option_name= show_comp_option_name[(int) *types->value];
 
     if (*types->value == SHOW_OPTION_YES &&
-	!strcasecmp(default_type_name, types->type))
+	!my_strcasecmp(system_charset_info, default_type_name, types->type))
       option_name= "DEFAULT";
     net_store_data(packet, option_name);
     net_store_data(packet, types->comment);
@@ -1398,7 +1398,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 int mysqld_show_charsets(THD *thd, const char *wild)
 {
-  uint i;
   char buff[8192];
   String packet2(buff,sizeof(buff),default_charset_info);
   List<Item> field_list;
@@ -1425,7 +1424,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
       net_store_data(&packet2,convert,cs[0]->name);
       net_store_data(&packet2,(uint32) cs[0]->number);
       net_store_data(&packet2,(uint32) cs[0]->strxfrm_multiply);
-      net_store_data(&packet2,(uint32) cs[0]->mbmaxlen ? cs[0]->mbmaxlen : 1);
+      net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen ? cs[0]->mbmaxlen : 1));
 
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
          goto err;

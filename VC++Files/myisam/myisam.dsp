@@ -265,7 +265,27 @@ SOURCE=.\mi_write.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\rt_index.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rt_key.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rt_mbr.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rt_split.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\sort.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\sp_key.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -278,6 +298,10 @@ SOURCE=.\ft_eval.h
 # Begin Source File
 
 SOURCE=.\myisamdef.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\rt_index.h
 # End Source File
 # End Group
 # End Target
