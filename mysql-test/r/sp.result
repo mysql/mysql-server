@@ -1820,6 +1820,19 @@ Ok
 Ok
 drop procedure bug5258|
 drop procedure bug5258_aux|
+create function bug4487() returns char
+begin
+declare v char;
+return v;
+end|
+Warnings:
+Warning	1311	Referring to uninitialized variable v
+select bug4487()|
+bug4487()
+NULL
+Warnings:
+Warning	1311	Referring to uninitialized variable v
+drop function bug4487|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
