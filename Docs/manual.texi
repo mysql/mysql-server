@@ -34240,9 +34240,8 @@ Record file is crashed
 @item
 Got error ### from table handler
 
-To get more information about the error you can do @code{perror
-###}. Here is the most common errors that indicates a problem with the
-table:
+To get more information about the error you can run @code{perror ###}. Here 
+is the most common errors that indicates a problem with the table:
 
 @example
 shell> perror 126 127 132 134 135 136 141 144 145
@@ -34260,22 +34259,11 @@ shell> perror 126 127 132 134 135 136 141 144 145
 Note that error 135, no more room in record file, is not an error that
 can be fixed by a simple repair. In this case you have to do:
 
-@itemize @bullet
-@item
-@code{CREATE TABLE ...} for the table with proper @code{MAX_ROWS} and
-@code{AVG_ROW_LENGTH} values. @xref{CREATE TABLE}.
-@item
-Copy the data over from the old table with @code{INSERT INTO new_table
-SELECT * from old_table}.
-@item
-Rename the old table to the new table:
-@code{RENAME old_table to tmp_table, new_table to old_table}
-@item
-Delete the old table: @code{DROP TABLE tmp_table}.
-@end itemize
-@end itemize
+@example
+ALTER TABLE table MAX_ROWS=xxx AVG_ROW_LENGTH=yyy;
+@end example
 
-In these cases, you must repair your tables. @code{myisamchk}
+In the other cases, you must repair your tables. @code{myisamchk}
 can usually detect and fix most things that go wrong.
 
 The repair process involves up to four stages, described below. Before you
@@ -34285,12 +34273,12 @@ that @code{mysqld} runs as (and to you, because you need to access the files
 you are checking).  If it turns out you need to modify files, they must also
 be writable by you.
 
-If you are using @strong{MySQL} Version 3.23.16 and above, you can (and should) use the
-@code{CHECK} and @code{REPAIR} commands to check and repair @code{MyISAM}
-tables. @xref{CHECK TABLE}. @xref{REPAIR TABLE}.
+If you are using @strong{MySQL} Version 3.23.16 and above, you can (and 
+should) use the @code{CHECK} and @code{REPAIR} commands to check and repair 
+@code{MyISAM} tables.  @xref{CHECK TABLE}.  @xref{REPAIR TABLE}.
 
 The manual section about table maintenance includes the options to
-@code{isamchk}/@code{myisamchk}. @xref{Table maintenance}.
+@code{isamchk}/@code{myisamchk}.  @xref{Table maintenance}.
 
 The following section is for the cases where the above command fails or
 if you want to use the extended features that @code{isamchk}/@code{myisamchk} provides.
