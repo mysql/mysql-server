@@ -584,18 +584,11 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   _ownNodeId= 0;
   NodeId tmp= nodeId;
-  if (getFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
-    _ownNodeId= tmp;
-    if (nodeId != 0 && nodeId != tmp) {
-      ndbout << "Unable to obtain requested nodeid " << nodeId
-	     << " nodeid " << tmp << " available\n";
-      _ownNodeId= 0; // did not get nodeid requested
-    }
-    m_allocated_resources.reserve_node(_ownNodeId);
-  } else {
-    ndbout_c("Unable to retrieve own node id");
+  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
+    ndbout << "Unable to obtain requested nodeid " << nodeId;
     exit(-1);
   }
+  _ownNodeId = tmp;
 }
 
 
@@ -2301,10 +2294,19 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
+#ifdef NDB_WIN32
+static NdbMutex & f_node_id_mutex = * NdbMutex_Create();
+#else
+static NdbMutex f_node_id_mutex = NDB_MUTEX_INITIALIZER;
+#endif
+
 bool
-MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
-			struct sockaddr *client_addr, socklen_t *client_addr_len) const 
+MgmtSrvr::alloc_node_id(NodeId * nodeId, 
+			enum ndb_mgm_node_type type,
+			struct sockaddr *client_addr, 
+			socklen_t *client_addr_len)
 {
+  Guard g(&f_node_id_mutex);
 #if 0
   ndbout << "MgmtSrvr::getFreeNodeId type=" << type
 	 << " *nodeid=" << *nodeId << endl;
@@ -2365,6 +2367,7 @@ MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
       }
     }
     *nodeId= tmp;
+    m_reserved_nodes.set(tmp);
 #if 0
     ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
 	   << " *nodeid=" << *nodeId << endl;
@@ -2769,6 +2772,7 @@ MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
 
 MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
+  Guard g(&f_node_id_mutex);
   m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
 }
 
@@ -2776,7 +2780,6 @@ void
 MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
 {
   m_reserved_nodes.set(id);
-  m_mgmsrv.m_reserved_nodes.set(id);
 }
 
 int

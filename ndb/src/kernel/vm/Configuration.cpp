@@ -35,6 +35,7 @@
 #include <ndb_limits.h>
 #include "pc.hpp"
 #include <LogLevel.hpp>
+#include <NdbSleep.h>
 
 extern "C" {
   void ndbSetOwnVersion();
@@ -153,39 +154,82 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::setupConfiguration(){
+Configuration::fetch_configuration(){
   /**
    * Fetch configuration from management server
    */
   if (m_config_retriever) {
     delete m_config_retriever;
   }
-  m_config_retriever= new ConfigRetriever();
-  ConfigRetriever &cr= *m_config_retriever;
 
-  cr.setConnectString(_connectString);
-  stopOnError(true); 
-  ndb_mgm_configuration * p = cr.getConfig(NDB_VERSION, NODE_TYPE_DB);
+  m_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_DB);
+  m_config_retriever->setConnectString(_connectString ? _connectString : "");
+  if(m_config_retriever->init() == -1 ||
+     m_config_retriever->do_connect() == -1){
+    
+    const char * s = m_config_retriever->getErrorString();
+    if(s == 0)
+      s = "No error given!";
+    
+    /* Set stop on error to true otherwise NDB will
+       go into an restart loop...
+    */
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
+  }
+  
+  ConfigRetriever &cr= *m_config_retriever;
+  
+  if((globalData.ownId = cr.allocNodeId()) == 0){
+    for(Uint32 i = 0; i<3; i++){
+      NdbSleep_SecSleep(3);
+      if(globalData.ownId = cr.allocNodeId())
+	break;
+    }
+  }
+  
+  if(globalData.ownId == 0){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, 
+	      "Unable to alloc node id", m_config_retriever->getErrorString());
+  }
+  
+  ndb_mgm_configuration * p = cr.getConfig();
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)
       s = "No error given!";
-
+    
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
-     */
-
+    */
+    
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not fetch configuration"
 	      "/invalid configuration", s);
   }
+  if(m_clusterConfig)
+    free(m_clusterConfig);
+  
+  m_clusterConfig = p;
+  
+  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, globalData.ownId)){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
+  }
+  
+  if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+	      "StopOnError missing");
+  }
+}
 
-  Uint32 nodeId = globalData.ownId = cr.getOwnNodeId();
+void
+Configuration::setupConfiguration(){
+  ndb_mgm_configuration * p = m_clusterConfig;
 
   /**
    * Configure transporters
    */
   {  
-    int res = IPCConfig::configureTransporters(nodeId, 
+    int res = IPCConfig::configureTransporters(globalData.ownId,
 					       * p, 
 					       globalTransporterRegistry);
     if(res <= 0){
@@ -247,11 +291,6 @@ Configuration::setupConfiguration(){
     }
   }
   
-  if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
-	      "StopOnError missing");
-  }
-  
   if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
@@ -268,7 +307,6 @@ Configuration::setupConfiguration(){
   
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
-  m_clusterConfig = p;
   m_clusterConfigIter = ndb_mgm_create_configuration_iterator
     (p, CFG_SECTION_NODE);
 
