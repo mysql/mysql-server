@@ -209,6 +209,7 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
+sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 #ifdef HAVE_REPLICATION
@@ -596,6 +597,7 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},

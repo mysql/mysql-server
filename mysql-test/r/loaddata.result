@@ -15,4 +15,11 @@ a	b	c	d
 0000-00-00	0000-00-00	0000-00-00	0000-00-00
 2003-03-03	2003-03-03	2003-03-03	NULL
 2003-03-03	2003-03-03	2003-03-03	NULL
+truncate table t1;
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+SELECT * from t1;
+a	b	c	d
+NULL	NULL	0000-00-00	0000-00-00
+NULL	0000-00-00	0000-00-00	0000-00-00
+NULL	2003-03-03	2003-03-03	NULL
 drop table t1;

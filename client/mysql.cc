@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.0";
+const char *VER= "14.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -2929,14 +2929,18 @@ static const char* construct_prompt()
 	add_int_to_prompt(++prompt_counter);
 	break;
       case 'v':
-	processed_prompt.append(mysql_get_server_info(&mysql));
+	if (connected)
+	  processed_prompt.append(mysql_get_server_info(&mysql));
+	else
+	  processed_prompt.append("not_connected");
 	break;
       case 'd':
 	processed_prompt.append(current_db ? current_db : "(none)");
 	break;
       case 'h':
       {
-	const char *prompt=mysql_get_host_info(&mysql);
+	const char *prompt;
+	prompt= connected ? mysql_get_host_info(&mysql) : "not_connected";
 	if (strstr(prompt, "Localhost"))
 	  processed_prompt.append("localhost");
 	else
@@ -2948,8 +2952,13 @@ static const char* construct_prompt()
       }
       case 'p':
 #ifndef EMBEDDED_LIBRARY
+	if (!connected)
+	{
+	  processed_prompt.append("not_connected");
+	  break;
+	}
 	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
-	    ! mysql.unix_socket)
+	    !mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
 	{

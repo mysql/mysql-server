@@ -32,11 +32,33 @@ show binlog events from 79 limit 2;
 show binlog events from 79 limit 2,1;
 flush logs;
 
+# We need an extra update before doing save_master_pos.
+# Otherwise, an unlikely scenario may occur:
+# * When the master's binlog_dump thread reads the end of master-bin.001,
+# it send the rotate event which is at this end, plus a fake rotate event
+# because it's starting to read a new binlog.
+# save_master_pos will record the position of the first of the two rotate
+# (because the fake one is not in the master's binlog anyway).
+# * Later the slave waits for the position of the first rotate event,
+# and it may quickly stop (in 'slave stop') without having received the fake
+# one.
+# So, depending on a few milliseconds, we end up with 2 rotate events in the
+# relay log or one, which influences the output of SHOW SLAVE STATUS, making
+# it not predictable and causing random test failures.
+# To make it predictable, we do a useless update now, but which has the interest
+# of making the slave catch both rotate events.
+
+create table t5 (a int);
+drop table t5;
+
 # Sync slave and force it to start on another binary log
 
 save_master_pos;
 connection slave;
-start slave;
+# Note that the above 'slave start' will cause a 3rd rotate event (a fake one)
+# to go into the relay log (the master always sends a fake one when replication
+# starts). 
+slave start;
 sync_with_master;
 flush logs;
 stop slave;
