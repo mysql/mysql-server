@@ -446,3 +446,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 sql-bench/test-transactions
+scripts/mysql_fix_extensions
