@@ -2387,14 +2387,12 @@ com_use(String *buffer __attribute__((unused)), char *line)
   items in the array to zero first.
 */
 
-enum quote_type { NO_QUOTE, SQUOTE, DQUOTE, BTICK };
-
 char *get_arg(char *line, my_bool get_next_arg)
 {
   char *ptr;
   my_bool quoted= 0, valid_arg= 0;
   uint count= 0;
-  enum quote_type qtype= NO_QUOTE;
+  char qtype= 0;
 
   ptr= line;
   if (get_next_arg)
@@ -2415,10 +2413,9 @@ char *get_arg(char *line, my_bool get_next_arg)
   }
   while (my_isspace(system_charset_info, *ptr))
     ptr++;
-  if ((*ptr == '\'' && (qtype= SQUOTE)) ||
-      (*ptr == '\"' && (qtype= DQUOTE)) ||
-      (*ptr == '`' && (qtype= BTICK)))
+  if (*ptr == '\'' || *ptr == '\"' || *ptr == '`')
   {
+    qtype= *ptr;
     quoted= 1;
     ptr++;
   }
@@ -2435,10 +2432,7 @@ char *get_arg(char *line, my_bool get_next_arg)
       ptr= line;
       ptr+= count;
     }
-    else if ((!quoted && *ptr == ' ') ||
-	     (*ptr == '\'' && qtype == SQUOTE) ||
-	     (*ptr == '\"' && qtype == DQUOTE) ||
-	     (*ptr == '`' && qtype == BTICK))
+    else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
       *ptr= 0;
       break;

@@ -206,10 +206,11 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
-				 protocol_version == 9 ||
-				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&ur,crypted_scramble,
-                                   cur_priv_version,hint_user);
+				 (protocol_version == 9 ||
+				  !(thd->client_capabilities &
+				    CLIENT_LONG_PASSWORD)),
+				 &ur,crypted_scramble,
+				 cur_priv_version,hint_user);
 
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
@@ -493,11 +494,11 @@ check_connections(THD *thd)
 {
   uint connect_errors=0;
   NET *net= &thd->net;
-  /* Store the connection details */
+  char *end;
   DBUG_PRINT("info", (("check_connections called by thread %d"),
-	     thd->thread_id));
+		      thd->thread_id));
   DBUG_PRINT("info",("New connection received on %s",
-			vio_description(net->vio)));
+		     vio_description(net->vio)));
   if (!thd->host)                           // If TCP/IP connection
   {
     char ip[30];
@@ -542,8 +543,7 @@ check_connections(THD *thd)
   ulong pkt_len=0;
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH +
-    SCRAMBLE_LENGTH+64],*end;
+    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+64];
     int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
                        CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION;
 
@@ -587,6 +587,18 @@ check_connections(THD *thd)
     return(ER_OUT_OF_RESOURCES);
 
   thd->client_capabilities=uint2korr(net->read_pos);
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
+    thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    end= (char*) net->read_pos+8;
+  }
+  else
+  {
+    thd->max_client_packet_length= uint3korr(net->read_pos+2);
+    end= (char*) net->read_pos+5;
+  }
+
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
@@ -612,19 +624,15 @@ check_connections(THD *thd)
       return(ER_HANDSHAKE_ERROR);
     }
   }
-  else
-  {
-    DBUG_PRINT("info", ("Leaving IO layer intact"));
-    if (pkt_len < NORMAL_HANDSHAKE_SIZE)
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      return ER_HANDSHAKE_ERROR;
-    }
-  }
 #endif
 
-  thd->max_client_packet_length=uint3korr(net->read_pos+2);
-  char *user=   (char*) net->read_pos+5;
+  if (end >= (char*) net->read_pos+ pkt_len +2)
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    return(ER_HANDSHAKE_ERROR);
+  }
+
+  char *user=   end;
   char *passwd= strend(user)+1;
   char *db=0;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)

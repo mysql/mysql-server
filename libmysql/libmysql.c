@@ -1003,6 +1003,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
 	case 3:				/* compress */
 	  options->compress=1;
+	  options->client_flag|= CLIENT_COMPRESS;
 	  break;
 	case 4:				/* password */
 	  if (opt_arg)
@@ -1828,7 +1829,7 @@ mysql_connect(MYSQL *mysql,const char *host,
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,uint client_flag)
+		   uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
@@ -1899,7 +1900,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       (!host || !strcmp(host,LOCAL_HOST)))
   {
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
-          INVALID_HANDLE_VALUE)
+	INVALID_HANDLE_VALUE)
     {
       DBUG_PRINT("error",
         ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
@@ -2178,32 +2179,28 @@ Try also with PIPE or TCP/IP
 #endif /* HAVE_OPENSSL */
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
-#ifdef HAVE_COMPRESS
-  if ((mysql->server_capabilities & CLIENT_COMPRESS) &&
-      (mysql->options.compress || (client_flag & CLIENT_COMPRESS)))
-    client_flag|=CLIENT_COMPRESS;		/* We will use compression */
-  else
+  /* Remove options that server doesn't support */
+  client_flag= ((client_flag &
+		~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41)) |
+		(client_flag & mysql->server_capabilities));
+
+#ifndef HAVE_COMPRESS
+  client_flag&= ~CLIENT_COMPRESS;
 #endif
-    client_flag&= ~CLIENT_COMPRESS;
 
-#ifdef HAVE_OPENSSL
-  if ((mysql->server_capabilities & CLIENT_SSL) &&
-      (mysql->options.use_ssl || (client_flag & CLIENT_SSL)))
+  if (client_flag & CLIENT_PROTOCOL_41)
   {
-    DBUG_PRINT("info", ("Changing IO layer to SSL"));
-    client_flag |= CLIENT_SSL;
+    /* 4.1 server and 4.1 client has a 4 byte option flag */
+    int4store(buff,client_flag);
+    int4store(buff+4,max_allowed_packet);
+    end= buff+8;
   }
   else
   {
-    if (client_flag & CLIENT_SSL)
-    {
-      DBUG_PRINT("info", ("Leaving IO layer intact because server doesn't support SSL"));
-    }
-    client_flag &= ~CLIENT_SSL;
+    int2store(buff,client_flag);
+    int3store(buff+2,max_allowed_packet);
+    end= buff+5;
   }
-#endif /* HAVE_OPENSSL */
-
-  int2store(buff,client_flag);
   mysql->client_flag=client_flag;
 
 #ifdef HAVE_OPENSSL
@@ -2214,7 +2211,7 @@ Try also with PIPE or TCP/IP
   if (client_flag & CLIENT_SSL)
   {
     struct st_mysql_options *options= &mysql->options;
-    if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
+    if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
       strmov(net->last_error,ER(net->last_errno));
@@ -2233,8 +2230,8 @@ Try also with PIPE or TCP/IP
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if(sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
-	        mysql->net.vio, (long) (mysql->options.connect_timeout)))
+    if (sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
+		   mysql->net.vio, (long) (mysql->options.connect_timeout)))
     {
       net->last_errno= CR_SSL_CONNECTION_ERROR;
       strmov(net->last_error,ER(net->last_errno));
@@ -2244,20 +2241,19 @@ Try also with PIPE or TCP/IP
   }
 #endif /* HAVE_OPENSSL */
 
-  DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld  status: %d  client_flag: %d",
+  DBUG_PRINT("info",("Server version = '%s'  capabilites: %lu  status: %u  client_flag: %lu",
 		     mysql->server_version,mysql->server_capabilities,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
-  int3store(buff+2,max_allowed_packet);
   if (user && user[0])
-    strmake(buff+5,user,32);			/* Max user name */
+    strmake(end,user,32);			/* Max user name */
   else
-    read_user_name((char*) buff+5);
+    read_user_name((char*) end);
   /* We have to handle different version of handshake here */
 #ifdef _CUSTOMCONFIG_
 #include "_cust_libmysql.h";
 #endif
-  DBUG_PRINT("info",("user: %s",buff+5));
+  DBUG_PRINT("info",("user: %s",end));
   /*
     We always start with old type handshake the only difference is message sent
     If server handles secure connection type we'll not send the real scramble
@@ -2267,25 +2263,26 @@ Try also with PIPE or TCP/IP
     if (passwd[0])
     {
       /* Prepare false scramble  */
-      end=strend(buff+5)+1;
+      end=strend(end)+1;
       bfill(end, SCRAMBLE_LENGTH, 'x');
       end+=SCRAMBLE_LENGTH;
       *end=0;
     }
     else  /* For empty password*/
     {
-      end=strend(buff+5)+1;
+      end=strend(end)+1;
       *end=0; /* Store zero length scramble */
     }
   }
   else
+  {
     /*
      Real scramble is only sent to old servers. This can be blocked 
      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
     */
-    end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
+    end=scramble(strend(end)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
-
+  }
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
@@ -3380,6 +3377,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_OPT_COMPRESS:
     mysql->options.compress= 1;			/* Remember for connect */
+    mysql->options.client_flag|= CLIENT_COMPRESS;
     break;
   case MYSQL_OPT_NAMED_PIPE:
     mysql->options.protocol=MYSQL_PROTOCOL_PIPE; /* Force named pipe */

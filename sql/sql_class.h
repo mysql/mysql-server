@@ -430,7 +430,7 @@ public:
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
  
-  uint client_capabilities;		/* What the client supports */
+  ulong client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */

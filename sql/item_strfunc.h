@@ -21,9 +21,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-extern my_bool opt_old_passwords; /* Need this variable for some functions */ 
-
-
 class Item_str_func :public Item_func
 {
 public:
@@ -264,7 +261,7 @@ public:
   Item_func_password(Item *a) :Item_str_func(a) {}
   Item_func_password(Item *a, Item *b) :Item_str_func(a,b) {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length = get_password_length(opt_old_passwords); }
+  void fix_length_and_dec();
   const char *func_name() const { return "password"; }
 };
 

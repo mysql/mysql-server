@@ -288,7 +288,7 @@ static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0, opt_old_passwords=0;
+my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -3560,7 +3560,7 @@ struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for old clients)",
+  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for 4.0 and older clients)",
    (gptr*) &opt_old_passwords, (gptr*) &opt_old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
