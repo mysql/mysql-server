@@ -36,7 +36,14 @@ static void lookup();
 int
 main(void){
   ndb_init();
-  Ndb g_ndb("test");
+
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return 1;
+  }
+
+  Ndb g_ndb(&con, "test");
   g_ndb.init(1024);
 
   require(g_ndb.waitUntilReady() == 0);
