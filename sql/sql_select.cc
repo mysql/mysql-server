@@ -3009,6 +3009,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       == Item_func::COND_AND_FUNC;
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
     Item::cond_result tmp_cond_value;
+    bool should_fix_fields=0;
 
     *cond_value=Item::COND_UNDEF;
     Item *item;
@@ -3028,6 +3029,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	delete item;				// This may be shared
 #endif
 	VOID(li.replace(new_item));
+	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)
 	*cond_value=tmp_cond_value;
@@ -3054,6 +3056,9 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	break; /* purecov: deadcode */
       }
     }
+    if (should_fix_fields)
+      cond->fix_fields(current_thd,0);
+
     if (!((Item_cond*) cond)->argument_list()->elements ||
 	*cond_value != Item::COND_OK)
       return (COND*) 0;
