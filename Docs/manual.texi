@@ -29233,42 +29233,36 @@ index.
 Full-text search is performed with the @code{MATCH} function.
 
 @example
-mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+mysql> CREATE TABLE articles (
+    ->   id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
+    ->   title VARCHAR(200),
+    ->   body TEXT,
+    ->   FULLTEXT (title,body)
+    -> );
 Query OK, 0 rows affected (0.00 sec)
 
-mysql> INSERT INTO t VALUES
-    ->   ('MySQL has now support', 'for full-text search'),
-    ->   ('Full-text indexes', 'are called collections'),
-    ->   ('Only MyISAM tables','support collections'),
-    ->   ('Function MATCH ... AGAINST()','is used to do a search'),
-    ->   ('Full-text search in MySQL', 'implements vector space model');
+mysql> INSERT INTO articles VALUES
+    -> (0,'MySQL Tutorial', 'DBMS stands for DataBase Management ...'),
+    -> (0,'How To Use MySQL Efficiently', 'After you went through a ...'),
+    -> (0,'Optimizing MySQL','In this tutorial we will show how to ...'),
+    -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. Normalize ...'),
+    -> (0,'MySQL vs. YourSQL', 'In the following database comparison we ...'),
+    -> (0,'MySQL Security', 'When configured properly, MySQL could be ...');
 Query OK, 5 rows affected (0.00 sec)
 Records: 5  Duplicates: 0  Warnings: 0
 
-mysql> SELECT * FROM t WHERE MATCH (a,b) AGAINST ('MySQL');
-+---------------------------+-------------------------------+
-| a                         | b                             |
-+---------------------------+-------------------------------+
-| MySQL has now support     | for full-text search          |
-| Full-text search in MySQL | implements vector-space-model |
-+---------------------------+-------------------------------+
+mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('database');
++----+-------------------+---------------------------------------------+
+| id | title             | body                                        |
++----+-------------------+---------------------------------------------+
+|  5 | MySQL vs. YourSQL | In the following database comparison we ... |
+|  1 | MySQL Tutorial    | DBMS stands for DataBase Management ...     |
++----+-------------------+---------------------------------------------+
 2 rows in set (0.00 sec)
-
-mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
-+------------------------------+-------------------------------+--------+
-| a                            | b                             | x      |
-+------------------------------+-------------------------------+--------+
-| MySQL has now support        | for full-text search          | 0.3834 |
-| Full-text indexes            | are called collections        | 0.3834 |
-| Only MyISAM tables           | support collections           | 0.7668 |
-| Function MATCH ... AGAINST() | is used to do a search        |      0 |
-| Full-text search in MySQL    | implements vector space model |      0 |
-+------------------------------+-------------------------------+--------+
-5 rows in set (0.00 sec)
 @end example
 
 The function @code{MATCH} matches a natural language query @code{AGAINST} 
-a text collection (which is simply the columns that are covered by a 
+a text collection (which is simply the set of columns covered by a 
 @code{FULLTEXT} index).  For every row in a table it returns relevance - 
 a similarity measure between the text in that row (in the columns that are 
 part of the collection) and the query.  When it is used in a @code{WHERE} 
@@ -29279,10 +29273,51 @@ number of words in the row, the number of unique words in that row, the
 total number of words in the collection, and the number of documents (rows) 
 that contain a particular word.
 
-MySQL uses a very simple parser to split text into words.  A ``word'' is
-any sequence of letters, numbers, @samp{'}, and @samp{_}.  Any ``word''
-that is present in the stopword list or just too short (3 characters
-or less) is ignored.
+The above is a basic example of using @code{MATCH} function. Rows are
+returned with relevance decreasing.
+
+@example
+mysql> SELECT id,MATCH (title,body) AGAINST ('Tutorial') FROM articles;
++----+-----------------------------------------+
+| id | MATCH (title,body) AGAINST ('Tutorial') |
++----+-----------------------------------------+
+|  1 |                        0.64840710366884 |
+|  2 |                                       0 |
+|  3 |                        0.66266459031789 |
+|  4 |                                       0 |
+|  5 |                                       0 |
+|  6 |                                       0 |
++----+-----------------------------------------+
+5 rows in set (0.00 sec)
+@end example
+
+This example shows how to retrieve the relevances. As neither @code{WHERE}
+nor @code{ORDER BY} clauses are present, returned rows are not ordered.
+
+@example
+mysql> SELECT id, body, MATCH (title,body) AGAINST (
+    -> 'Security implications of running MySQL as root') AS score
+    -> FROM articles WHERE MATCH (title,body) AGAINST
+    -> ('Security implications of running MySQL as root');
++----+-----------------------------------------------+-----------------+
+| id | body                                          | score           |
++----+-----------------------------------------------+-----------------+
+|  4 | 1. Never run mysqld as root. 2. Normalize ... | 1.5055546709332 |
+|  6 | When configured properly, MySQL could be ...  |   1.31140957288 |
++----+-----------------------------------------------+-----------------+
+2 rows in set (0.00 sec)
+@end example
+
+This is more complex example - the query returns the relevance and still
+sorts the rows with relevance decreasing. To achieve it one should specify
+@code{MATCH} twice. Note, that this will cause no additional overhead, as
+@strong{MySQL} optimizer will notice that these two @code{MATCH} calls are
+identical and will call full-text search code only once.
+
+@strong{MySQL} uses a very simple parser to split text into words.  A
+``word'' is any sequence of letters, numbers, @samp{'}, and @samp{_}.  Any
+``word'' that is present in the stopword list or just too short (3
+characters or less) is ignored.
 
 Every correct word in the collection and in the query is weighted,
 according to its significance in the query or collection.  This way, a
@@ -29297,17 +29332,22 @@ carefully tuned this way).  For very small tables, word distribution
 does not reflect adequately their semantical value, and this model
 may sometimes produce bizarre results.
 
-For example, search for the word "search" will produce no results in the
-above example. Word "search" is present in more than half of rows, and
-as such, is effectively treated as a stopword (that is, with semantical value
-zero).  It is, really, the desired behavior - a natural language query
-should not return every other row in 1GB table.
+@example
+mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('MySQL');
+Empty set (0.00 sec)
+@end example
+
+Search for the word @code{MySQL} produces no results in the above example.
+Word @code{MySQL} is present in more than half of rows, and as such, is
+effectively treated as a stopword (that is, with semantical value zero). 
+It is, really, the desired behavior - a natural language query should not
+return every second row in 1GB table.
 
 A word that matches half of rows in a table is less likely to locate relevant
 documents.  In fact, it will most likely find plenty of irrelevant documents.
 We all know this happens far too often when we are trying to find something on
 the Internet with a search engine.  It is with this reasoning that such rows 
-have been assigned a low semantical value in @strong{a particular dataset}.
+have been assigned a low semantical value in @strong{this particular dataset}.
 
 @menu
 * Fulltext Fine-tuning::        
@@ -44119,6 +44159,9 @@ not yet 100% confident in this code.
 @node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
+@item
+Fixed a bug when @code{SELECT} from @code{MERGE} table
+sometimes results in incorrectly ordered rows.
 @item
 Fixed a bug in @code{REPLACE()} when using the ujis character set.
 @item
