@@ -1624,6 +1624,12 @@ build_template(
 	}
 
 	if (prebuilt->select_lock_type == LOCK_X) {
+		/* In versions < 3.23.50 we always retrieved the clustered
+		index record if prebuilt->select_lock_type == LOCK_S,
+		but there is really not need for that, and in some cases
+		performance could be seriously degraded because the MySQL
+		optimizer did not know about our convention! */
+
 		/* We always retrieve the whole clustered index record if we
 		use exclusive row level locks, for example, if the read is
 		done in an UPDATE statement. */
@@ -1632,12 +1638,6 @@ build_template(
 	}
 
 	if (templ_type == ROW_MYSQL_REC_FIELDS) {
-		/* In versions < 3.23.50 we always retrieved the clustered
-		index record if prebuilt->select_lock_type == LOCK_S,
-		but there is really not need for that, and in some cases
-		performance could be seriously degraded because the MySQL
-		optimizer did not know about our convention! */
-
 		index = prebuilt->index;
 	} else {
 		index = clust_index;
@@ -2506,11 +2506,13 @@ ha_innobase::change_active_index(
   dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
 			prebuilt->index->n_fields);
 
-  /* Maybe MySQL changes the active index for a handle also
-     during some queries, we do not know: then it is safest to build
-     the template such that all columns will be fetched */
+  /* MySQL changes the active index for a handle also during some
+  queries, for example SELECT MAX(a), SUM(a) first retrieves the MAX()
+  and then calculates te sum. Previously we played safe and used
+  the flag ROW_MYSQL_WHOLE_ROW below, but that caused unnecessary
+  copying. Starting from MySQL-4.1 we use a more efficient flag here. */
 
-  build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
+  build_template(prebuilt, user_thd, table, ROW_MYSQL_REC_FIELDS);
 
   DBUG_RETURN(0);
 }
@@ -3742,8 +3744,18 @@ ha_innobase::extra(
 	obsolete! */
 
 	switch (operation) {
+	        case HA_EXTRA_FLUSH:
+	                if (prebuilt->blob_heap) {
+	                        row_mysql_prebuilt_free_blob_heap(prebuilt);
+	                }
+	                break;
  		case HA_EXTRA_RESET:
-  		case HA_EXTRA_RESET_STATE:
+	                if (prebuilt->blob_heap) {
+	                        row_mysql_prebuilt_free_blob_heap(prebuilt);
+	                }
+	        	prebuilt->read_just_key = 0;
+	        	break;
+ 		case HA_EXTRA_RESET_STATE:
 	        	prebuilt->read_just_key = 0;
 	        	break;
 		case HA_EXTRA_NO_KEYREAD:
