@@ -147,14 +147,14 @@ struct st_query
 	 Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
 	 Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
 	 Q_SYSTEM, Q_RESULT, Q_REQUIRE, Q_SAVE_MASTER_POS,
-	 Q_SYNC_WITH_MASTER,
+	 Q_SYNC_WITH_MASTER, Q_ERROR,
 	 Q_UNKNOWN, Q_COMMENT, Q_COMMENT_WITH_COMMAND} type;
 };
 
 const char *command_names[] = {
 "connection", "query","connect","sleep","inc","dec","source","disconnect",
 "let","echo","while","end","system","result", "require", "save_master_pos",
- "sync_with_master", 0
+ "sync_with_master", "error", 0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
