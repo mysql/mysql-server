@@ -13636,7 +13636,6 @@ connection between a MySQL server and a MySQL client.
 If you are using MySQL 4.0, you can also use internal openssl support.
 @xref{Secure connections}.
 
-
 To make a MySQL system secure, you should strongly consider the
 following suggestions:
 
@@ -13652,8 +13651,7 @@ this:
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
+mysql> UPDATE user SET Password=PASSWORD('new_password') WHERE user='root';
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -15395,17 +15393,17 @@ password using the @code{PASSWORD()} function):
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
-mysql> FLUSH PRIVILEGES;
+mysql> SET PASSWORD FOR root@@localhost=PASSWORD('new_password');
 @end example
 
-You can, in MySQL Version 3.22 and above, use the @code{SET PASSWORD}
-statement:
+If you know what you are doing, you can also directly manipulate the
+privilege tables:
 
 @example
 shell> mysql -u root mysql
-mysql> SET PASSWORD FOR root=PASSWORD('new_password');
+mysql> UPDATE user SET Password=PASSWORD('new_password')
+           WHERE user='root';
+mysql> FLUSH PRIVILEGES;
 @end example
 
 Another way to set the password is by using the @code{mysqladmin} command:

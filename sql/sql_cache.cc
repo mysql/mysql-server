@@ -2672,6 +2672,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path)
 
 void Query_cache::wreck(uint line, const char *message)
 {
+  THD *thd=current_thd;
   DBUG_ENTER("Query_cache::wreck");
   query_cache_size = 0;
   if (*message)
@@ -2679,7 +2680,8 @@ void Query_cache::wreck(uint line, const char *message)
   DBUG_PRINT("warning", ("=================================="));
   DBUG_PRINT("warning", ("%5d QUERY CACHE WRECK => DISABLED",line));
   DBUG_PRINT("warning", ("=================================="));
-  current_thd->killed = 1;
+  if (thd)
+    thd->killed = 1;
   bins_dump();
   cache_dump();
   DBUG_VOID_RETURN;
