@@ -254,28 +254,42 @@ public:
 };
 
 
+/*
+  Item_func_password -- new (4.1.1) PASSWORD() function implementation.
+  Returns strcat('*', octet2hex(sha1(sha1(password)))). '*' stands for new
+  password format, sha1(sha1(password) is so-called hash_stage2 value.
+  Length of returned string is always 41 byte. To find out how entire
+  authentification procedure works, see comments in password.c.
+*/
+
 class Item_func_password :public Item_str_func
 {
-  char tmp_value[64]; /* This should be enough for new password format */
+  char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH+1]; 
 public:
   Item_func_password(Item *a) :Item_str_func(a) {}
-  Item_func_password(Item *a, Item *b) :Item_str_func(a,b) {}
-  String *val_str(String *);
-  void fix_length_and_dec();
+  String *val_str(String *str);
+  void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH; }
   const char *func_name() const { return "password"; }
 };
 
 
+/*
+  Item_func_old_password -- PASSWORD() implementation used in MySQL 3.21 - 4.0
+  compatibility mode. This item is created in sql_yacc.yy when
+  'use_old_passwords' session variable is set, and to handle OLD_PASSWORD()
+  function.
+*/
+
 class Item_func_old_password :public Item_str_func
 {
-  char tmp_value[17]; /* old password length +1 */
+  char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1];
 public:
   Item_func_old_password(Item *a) :Item_str_func(a) {}
-  String *val_str(String *);
-  void fix_length_and_dec() { max_length = get_password_length(1); }
+  String *val_str(String *str);
+  void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323; } 
   const char *func_name() const { return "old_password"; }
+  unsigned int size_of() { return sizeof(*this);}  
 };
-
 
 
 class Item_func_des_encrypt :public Item_str_func
