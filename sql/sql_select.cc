@@ -4230,6 +4230,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
     Item *tmp=value->new_item();
     if (tmp)
     {
+      tmp->collation.set(value->collation.collation,
+                         value->collation.derivation);
       thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
@@ -4251,6 +4253,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
     Item *tmp=value->new_item();
     if (tmp)
     {
+      tmp->collation.set(value->collation.collation,
+                         value->collation.derivation);
       thd->change_item_tree(args, tmp);
       value= tmp;
       func->update_used_tables();
