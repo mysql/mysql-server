@@ -47,3 +47,4 @@ t2
 t3
 t4
 drop table t1, t2, t3, t4;
+drop table t1, t3, t4;
