@@ -22314,7 +22314,7 @@ mysql>
 
 @cindex administration, server
 @cindex server administration
-@cindex @code{mysladmn}
+@cindex @code{mysqladmin}
 
 A utility for performing administrative operations. The syntax is:
 
@@ -50259,6 +50259,8 @@ each individual 4.0.x release.
 @item
 Fixed bug in @code{SELECT DISTINCT ... FROM many_tables ORDER BY
 not-used-column}.
+@item
+Fixed a bug with bigint's and quoted strings.
 @item
 Added @code{QUOTE()} function that performs SQL quoting to produce values
 that can be used as data values in queries.
