@@ -325,6 +325,35 @@ convert_error_code_to_mysql(
 }
 
 /*****************************************************************
+If you want to print a thd that is not associated with the current thread,
+you must call this function before reserving the InnoDB kernel_mutex, to
+protect MySQL from setting thd->query NULL. If you print a thd of the current
+thread, we know that MySQL cannot modify thd->query, and it is not necessary
+to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+the kernel_mutex.
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_prepare_print_arbitrary_thd(void)
+/*============================================*/
+{
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+}
+
+/*****************************************************************
+Relases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_end_print_arbitrary_thd(void)
+/*========================================*/
+{
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+}
+
+/*****************************************************************
 Prints info of a THD object (== user session thread) to the
 standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
 the prototype for this function! */
@@ -335,9 +364,11 @@ innobase_mysql_print_thd(
 	FILE*   f,	/* in: output stream */
         void*   input_thd)/* in: pointer to a MySQL THD object */
 {
-  	THD*    thd;
+	const THD*	thd;
+	const char*	s;
+	char		buf[301];
 
-        thd = (THD*) input_thd;
+        thd = (const THD*) input_thd;
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, thd->query_id);
@@ -356,14 +387,31 @@ innobase_mysql_print_thd(
 		fputs(thd->user, f);
   	}
 
-	if (thd->proc_info) {
+	if ((s = thd->proc_info)) {
 		putc(' ', f);
-		fputs(thd->proc_info, f);
+		fputs(s, f);
 	}
 
-	if (thd->query) {
-		putc(' ', f);
-		fputs(thd->query, f);
+	if ((s = thd->query)) {
+		/* determine the length of the query string */
+		uint32 i, len;
+		
+		len = thd->query_length;
+
+		if (len > 300) {
+			len = 300;	/* ADDITIONAL SAFETY: print at most
+					300 chars to reduce the probability of
+					a seg fault if there is a race in
+					thd->query_length in MySQL; after
+					May 14, 2004 probably no race any more,
+					but better be safe */
+		}
+		
+                /* Use strmake to reduce the timeframe
+                   for a race, compared to fwrite() */
+		i= (uint) (strmake(buf, s, len) - buf);
+		putc('\n', f);
+		fwrite(buf, 1, i, f);
 	}
 
 	putc('\n', f);
