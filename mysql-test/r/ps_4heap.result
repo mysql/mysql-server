@@ -440,7 +440,7 @@ set @arg00=0 ;
 execute stmt1 using @arg00;
 ERROR 42S22: Unknown column '?' in 'order clause'
 set @arg00=1;
-prepare stmt1 from ' select a,b from t1
+prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
 execute stmt1 ;
 a	b
