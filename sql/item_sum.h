@@ -34,6 +34,7 @@ public:
   uint arg_count;
   bool quick_group;			/* If incremental update of fields */
 
+  inline void mark_as_sum_func();
   Item_sum() : arg_count(0),quick_group(1) 
   {
     mark_as_sum_func();
@@ -54,7 +55,6 @@ public:
   }
   Item_sum(List<Item> &list);
   ~Item_sum() { result_field=0; }
-  inline void mark_as_sum_func();
 
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
