@@ -406,12 +406,6 @@ page_create(
 	
 	rec_set_next_offs(infimum_rec, (ulint)(supremum_rec - page)); 
 	rec_set_next_offs(supremum_rec, 0);
-
-	if (page_template == NULL) {
-		page_template = mem_alloc(UNIV_PAGE_SIZE);
-
-		ut_memcpy(page_template, page, UNIV_PAGE_SIZE);
-	}
 	
 	return(page);
 }
