@@ -17,12 +17,10 @@
 #ifndef TransSS_HPP
 #define TransSS_HPP
 
-#include <NdbStdio.h>
 #include <NdbTick.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
-#include <NdbString.h>
 
 #include <TransporterDefinitions.hpp>
 #include <TransporterFacade.hpp>

@@ -31,17 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
+#include <ndb_global.h>
 #include <ndb_types.h>
 
 /* RCSID("$KTH: strlcat.c,v 1.1 2000/08/16 01:23:47 lha Exp $"); */
 
-/*#include <NdbString.h>*/
 
 #ifndef HAVE_STRLCAT
+
 size_t
 strlcat (char *dst, const char *src, size_t dst_sz)
 {

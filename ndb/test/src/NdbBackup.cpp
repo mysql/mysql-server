@@ -18,7 +18,6 @@
 #include <NdbBackup.hpp>
 #include <NdbOut.hpp>
 #include <NDBT_Output.hpp>
-#include <assert.h>
 #include <NdbConfig.h>
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>

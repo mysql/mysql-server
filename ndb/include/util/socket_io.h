@@ -17,8 +17,9 @@
 #ifndef _SOCKET_IO_H
 #define _SOCKET_IO_H
 
+#include <ndb_global.h>
+
 #include <NdbTCP.h>
-#include <stdarg.h>
 
 #ifdef  __cplusplus
 extern "C" {

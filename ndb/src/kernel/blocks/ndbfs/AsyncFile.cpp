@@ -23,19 +23,16 @@
 #endif
 #endif
 
+#include <ndb_global.h>
+
 #include "Error.hpp"
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>
-#include <string.h>
 #include <NdbMem.h>
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
-
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
 
 #ifdef NDB_LINUX
 // This is for pread and pwrite
@@ -44,9 +41,7 @@
 #endif
 #endif
 
-#include <NdbUnistd.h>
 #if defined NDB_WIN32 || defined NDB_OSE || defined NDB_SOFTOSE
-#include <NdbStdio.h>
 #else
 // For readv and writev
 #include <sys/uio.h> 

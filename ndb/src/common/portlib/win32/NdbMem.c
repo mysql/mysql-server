@@ -16,8 +16,6 @@
 
 
 #include <windows.h>
-#include <assert.h>
-#include <NdbStdio.h>
 
 #include "NdbMem.h"
 

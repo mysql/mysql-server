@@ -52,8 +52,8 @@
 //
 //===========================================================================
 
+#include <ndb_global.h>
 #include <kernel_types.h>
-#include <NdbUnistd.h>
 
 class Filename
 {

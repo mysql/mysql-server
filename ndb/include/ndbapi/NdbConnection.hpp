@@ -18,9 +18,8 @@
 #define NdbConnection_H
 
 #include <ndb_types.h>
-#include "AttrType.hpp" 
+#include <AttrType.hpp>
 #include <NdbError.hpp>
-#include <stdlib.h>
 
 class NdbConnection;
 class NdbOperation;

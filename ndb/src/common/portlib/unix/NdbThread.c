@@ -15,16 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "NdbThread.h"
 #include <pthread.h>
-#ifdef NDB_MACOSX
-#include <stdlib.h>
-#else
-#include <malloc.h>
-#endif
-#include <assert.h>
-#include <string.h>
-#include <NdbStdio.h>
 
 #define MAX_THREAD_NAME 16
 
