@@ -976,8 +976,8 @@ JOIN::exec()
 	  We can abort sorting after thd->select_limit rows if we there is no
 	  WHERE clause for any tables after the sorted one.
 	*/
-	JOIN_TAB *table= &join_tab[join.const_tables+1];
-	JOIN_TAB *end_table= &join_tab[join.tables];
+	JOIN_TAB *table= &join_tab[const_tables+1];
+	JOIN_TAB *end_table= &join_tab[tables];
 	for (; table < end_table ; table++)
 	{
 	  if (table->select_cond)
