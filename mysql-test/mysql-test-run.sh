@@ -291,6 +291,11 @@ report_stats () {
 	xwhole=`$EXPR $whole \* 100`      
 	deci=`$EXPR $raw - $xwhole`       
 	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
+	$ECHO ""
+        $ECHO "The log files in $MYSQL_TEST_DIR/var/log may give you some hint"
+	$ECHO "of what when wrong."
+	$ECHO "If you want to report this error, please read first the documentation at"
+        $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
     fi
 }
 
@@ -413,6 +418,7 @@ start_slave()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english \
+	    --skip-innobase \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]

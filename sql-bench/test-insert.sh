@@ -482,9 +482,12 @@ check_or_range("id3","select_range_key2");
 
 # Check reading on direct key on id and id3
 
-check_select_key("id","select_key_prefix");
-check_select_key2("id","id2","select_key");
-check_select_key("id3","select_key2");
+check_select_key("*","id","select_key_prefix");
+check_select_key2("*","id","id2","select_key");
+check_select_key2("id,id2","id","id2","select_key_return_key");
+check_select_key("*","id3","select_key2");
+check_select_key("id3","id3","select_key2_return_key");
+check_select_key("id,id2","id3","select_key2_return_prim");
 
 ####
 #### A lot of simple selects on ranges
@@ -1440,7 +1443,7 @@ end_benchmark($start_time);
 
 sub check_select_key
 {
-  my ($column,$check)= @_;
+  my ($sel_columns,$column,$check)= @_;
   my ($loop_time,$end_time,$i,$tmp_var,$tmp,$count,$row_count,$estimated);
 
   $estimated=0;
@@ -1451,10 +1454,10 @@ sub check_select_key
     $count+=2;
     $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
     $tmp=$tmpvar % ($total_rows);
-    fetch_all_rows($dbh,"select * from bench1 where $column=$tmp")
+    fetch_all_rows($dbh,"select $sel_columns from bench1 where $column=$tmp")
       or die $DBI::errstr;
     $tmp+=$total_rows;
-    defined($row_count=fetch_all_rows($dbh,"select * from bench1 where $column=$tmp")) or die $DBI::errstr;
+    defined($row_count=fetch_all_rows($dbh,"select $sel_columns from bench1 where $column=$tmp")) or die $DBI::errstr;
     die "Found $row_count rows on impossible id: $tmp\n" if ($row_count);
     $end_time=new Benchmark;
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i,
@@ -1472,7 +1475,7 @@ sub check_select_key
 
 sub check_select_key2
 {
-  my ($column,$column2,$check)= @_;
+  my ($sel_columns,$column,$column2,$check)= @_;
   my ($loop_time,$end_time,$i,$tmp_var,$tmp,$count,$row_count,$estimated);
 
   $estimated=0;
@@ -1483,10 +1486,10 @@ sub check_select_key2
     $count+=2;
     $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
     $tmp=$tmpvar % ($total_rows);
-    fetch_all_rows($dbh,"select * from bench1 where $column=$tmp and $column2=$tmp")
+    fetch_all_rows($dbh,"select $sel_columns from bench1 where $column=$tmp and $column2=$tmp")
       or die $DBI::errstr;
     $tmp+=$total_rows;
-    defined($row_count=fetch_all_rows($dbh,"select * from bench1 where $column=$tmp and $column2=$tmp")) or die $DBI::errstr;
+    defined($row_count=fetch_all_rows($dbh,"select $sel_columns from bench1 where $column=$tmp and $column2=$tmp")) or die $DBI::errstr;
     die "Found $row_count rows on impossible id: $tmp\n" if ($row_count);
     $end_time=new Benchmark;
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i,

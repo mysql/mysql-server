@@ -137,6 +137,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define TEST_READCHECK		64	/* Force use of readcheck */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
+#define TEST_NO_STACKTRACE	512
 
 /* options for select set by the yacc parser (stored in lex->options) */
 #define SELECT_DISTINCT		1
@@ -504,16 +505,16 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_binlog_update, LOCK_slave, LOCK_server_id;
 extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
-  COND_slave_stopped, COND_slave_start;
+                      COND_slave_stopped, COND_slave_start;
 extern pthread_attr_t connection_attrib;
-extern bool opt_endinfo,using_udf_functions, locked_in_memory;
+extern bool opt_endinfo, using_udf_functions, locked_in_memory,
+            opt_using_transactions, use_temp_pool;
+extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,
   	     ha_read_rnd_count, ha_read_rnd_next_count;
 extern MY_BITMAP temp_pool;
-extern bool use_temp_pool;
-extern char f_fyllchar;
 extern uchar *days_in_month;
 extern DATE_FORMAT dayord;
 extern double log_10[32];

@@ -4,7 +4,7 @@
 # Small basic test with ignore
 #
 
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) type=bdb;
 
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
@@ -503,8 +503,8 @@ create table t6
 
 	unique  file_platform(product_file_id,platform_id,branch_id)
 ) type=bdb;
-drop table if exists ba_archive ;
-create table ba_archive
+drop table if exists t8 ;
+create table t8
 (
 	archive_id	int		auto_increment	primary key,
 	branch_id	int		not null,
@@ -531,53 +531,6 @@ create table t7
 
 	unique  build(branch_id,target_id,build_number)
 ) type=bdb;
-drop table if exists t4_build ;
-create table t4_build
-(
-	product_build_id	int		auto_increment	primary key,
-	build_id		int		not null,
-	product_id		int		not null,
-	platform_id		int		not null,
-	/* flag whether this is a released build */
-	product_release		int		not null 	default 0,
-	/* user-defined tag, e.g. 'RealPlayer 8.0' */
-	release_tag		varchar(255)	not null,
-
-	unique	product_build(build_id,product_id,platform_id),
-	index	product_release(product_release),
-	index	release_tag(release_tag)
-) type=bdb;
-drop table if exists t7_file ;
-create table t7_file
-(
-	build_file_id		int		auto_increment	primary key,
-	product_build_id	int		not null,
-	product_file_id		int		not null,
-	/* actual filename in the build archive */
-	filename		text		not null,
-	/* actual path in the build archive */
-	file_path		text		not null,
-	/* file version string, e.g. '8.0.1.368' */
-	file_version		varchar(255)	not null,
-
-	unique	build_file(product_build_id,product_file_id),
-	index	file_version(file_version)
-) type=bdb;
-drop table if exists ba_status ;
-create table ba_status
-(
-	status_id	int		auto_increment 	primary key,
-	status_name	varchar(255)	not null,
-	status_desc	text		not null
-) type=bdb;
-insert into ba_status 
-	(status_name, status_desc)
-values 
-	('new', 'This item has been newly added.'),
-	('archived', 'This item is currently archived.'),
-	('not archived', 'This item is currently not archived.'),
-	('obsolete', 'This item is obsolete.'),
-	('unknown', 'The status of this item is unknown.') ;
 
 insert into t1 (branch_name)
 values ('RealMedia');
@@ -612,10 +565,10 @@ create temporary table tmp1
         from t1, t2, t3, t4 ;
 create temporary table tmp2 
         select tmp1.branch_id, tmp1.target_id, tmp1.platform_id, tmp1.product_id 
-        from tmp1 left join ba_archive 
+        from tmp1 left join t8 
         using (branch_id,target_id,platform_id,product_id) 
-        where ba_archive.archive_id is null ;
-insert into ba_archive 
+        where t8.archive_id is null ;
+insert into t8 
         (branch_id, target_id, platform_id, product_id, status_id)
         select branch_id, target_id, platform_id, product_id, 1
         from tmp2 ;
@@ -670,39 +623,7 @@ insert into t7
 (branch_id,target_id,build_number,build_tag,build_date,build_path)
 values (4, 4, 100, 'foo target-010101-100', '2001-01-01', 'current');
 
-insert into t4_build
-(build_id, product_id, platform_id)
-values (1, 3, 2);
-
-insert into t4_build
-(build_id, product_id, platform_id)
-values (2, 3, 2);
-
-insert into t4_build
-(build_id, product_id, platform_id)
-values (3, 1, 2);
-
-insert into t4_build
-(build_id, product_id, platform_id)
-values (4, 1, 2);
-
-insert into t4_build
-(build_id, product_id, platform_id)
-values (5, 5, 3);
-
-insert into t7_file
-(product_build_id, product_file_id, filename, file_path, file_version)
-values (1, 3, 'win32-playinst.exe', 'RP8REV/current/playerall-022101-1071/win32-i386', '8.0.3.263');
-
-insert into t7_file
-(product_build_id, product_file_id, filename, file_path, file_version)
-values (5, 5, 'file1.exe', 'foo branch/current/foo target-022101-1071/foo platform', 'version 1');
-
-insert into t7_file
-(product_build_id, product_file_id, filename, file_path, file_version)
-values (5, 6, 'file2.exe', 'foo branch/current/foo target-022101-1071/foo platform', 'version 2');
-
-update ba_archive
+update t8
 set status_id=2
 where branch_id=2 and target_id=2 and platform_id=2 and product_id=1;
 
@@ -727,4 +648,19 @@ where
     t5.file_name = 'playinst' and
     t3.platform_id = 2;
 
-drop table t1, t2, t3, t4, t5, t6,t7;
+drop table t1, t2, t3, t4, t5, t6, t7, t8;
+
+#
+# Test with blob + tinyint key
+#
+
+CREATE TABLE t1 (
+  a tinytext NOT NULL,
+  b tinyint(3) unsigned NOT NULL default '0',
+  PRIMARY KEY (a(32),b)
+) TYPE=BDB;
+INSERT INTO t1 VALUES ('a',1),('a',2);
+SELECT * FROM t1 WHERE a='a' AND b=2;
+SELECT * FROM t1 WHERE a='a' AND b in (2);
+SELECT * FROM t1 WHERE a='a' AND b in (1,2);
+drop table t1;

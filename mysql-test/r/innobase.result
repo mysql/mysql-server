@@ -108,14 +108,14 @@ id	parent_id	level
 1204	107	2
 id	parent_id	level
 1008	102	2
-1015	102	2
 1010	102	2
+1015	102	2
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	1	where used; Using index
+t1	index	level	level	1	NULL	39	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	1	where used; Using index
+t1	index	level	level	1	NULL	39	where used; Using index
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	1	where used
+t1	ref	level	level	1	const	12	
 level	id
 1	1002
 1	1003
@@ -130,28 +130,29 @@ level	id	parent_id
 1	1005	101
 1	1006	101
 1	1007	101
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	error	The handler for the table doesn't support check/repair
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	id	A	2	NULL	NULL	
+t1	1	parent_id	1	parent_id	A	4	NULL	NULL	
+t1	1	level	1	level	A	4	NULL	NULL	
 gesuchnr	benutzer_id
 1	1
 2	1
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	error	The handler for the table doesn't support check/repair
 a
 2
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	The handler for the table doesn't support check/repair
 a	b
-a	1
-a	2
-a	3
-a	4
-a	5
-b	2
-b	3
-b	4
-c	1
-c	2
-c	3
-d	1
-d	2
-d	5
-e	1
-k	1
+2	testing
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	error	The handler for the table doesn't support check/repair
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	1	skr	1	a	A	3	NULL	NULL	
+a	b
+1	
 n	after rollback
 n	after commit
 4	after commit
@@ -249,6 +250,12 @@ id	ggid	email	passwd
 1	test1		xxx
 id	ggid	email	passwd
 2	test2		yyy
+id	ggid	email	passwd
+1	this will work		
+3	test2		this will work
+id	ggid	email	passwd
+1	this will work		
+id	ggid	email	passwd
 user_name	password	subscribed	user_id	quota	weight	access_date	access_time	approved	dummy_primary_key
 user_0	somepassword	N	0	0	0	2000-09-07	23:06:59	2000-09-07 23:06:59	1
 user_1	somepassword	Y	1	1	1	2000-09-07	23:06:59	2000-09-07 23:06:59	2
@@ -344,7 +351,7 @@ id	parent_id	level
 1025	102	2
 1016	102	2
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ref	level	level	1	const	1	where used; Using index
+t1	ref	level	level	1	const	6	where used; Using index
 level	id
 1	1004
 1	1005
@@ -402,7 +409,37 @@ id	parent_id	level
 1180	105	2
 count(*)
 1
+count(*)
+1
+count(*)
+2
+count(*)
+1
+count(*)
+0
+count(*)
+1
+count(*)
+1
+sca_pic
+NULL
+NULL
 a
 1
 2
 3
+a
+2
+3
+5
+a	b
+world	2
+hello	1
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	error	The handler for the table doesn't support check/repair
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	a	A	1	NULL	NULL	
+i	j
+1	2
+i	j
+1	2

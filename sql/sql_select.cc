@@ -2040,8 +2040,7 @@ get_best_combination(JOIN *join)
             if (keyparts == keyuse->keypart)
             {
               keyparts++;
-              length+=keyinfo->key_part[keyuse->keypart].length +
-                test(keyinfo->key_part[keyuse->keypart].null_bit);
+              length+=keyinfo->key_part[keyuse->keypart].store_length;
             }
           }
           keyuse++;
@@ -2241,7 +2240,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	make_cond_for_table(cond,join->const_table_map,(table_map) 0);
       DBUG_EXECUTE("where",print_where(const_cond,"constants"););
       if (const_cond && !const_cond->val_int())
+      {
+	DBUG_PRINT("info",("Found impossible WHERE condition"));
 	DBUG_RETURN(1);				// Impossible const condition
+      }
     }
     used_tables=(select->const_tables=join->const_table_map) | RAND_TABLE_BIT;
     for (uint i=join->const_tables ; i < join->tables ; i++)
@@ -2486,6 +2488,7 @@ make_join_readinfo(JOIN *join,uint options)
 	else if (table->used_keys && ! (tab->select && tab->select->quick))
 	{					// Only read index tree
 	  tab->index=find_shortest_key(table, table->used_keys);
+	  tab->table->file->index_init(tab->index);
 	  tab->read_first_record= join_init_read_first_with_key;
 	  tab->type=JT_NEXT;		// Read with index_first / index_next
 	}
@@ -4443,13 +4446,13 @@ join_init_read_first_with_key(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  tab->table->file->index_init(tab->index);
   error=tab->table->file->index_first(tab->table->record[0]);
   if (error)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",error);
+      sql_print_error("read_first_with_key: Got error %d when reading table",
+		      error);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4492,13 +4495,12 @@ join_init_read_last_with_key(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  tab->table->file->index_init(tab->index);
   error=tab->table->file->index_last(tab->table->record[0]);
   if (error)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",
+      sql_print_error("read_last_with_key: Got error %d when reading table",
 		      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5134,7 +5136,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
       usable_keys=0;
       break;
     }
-    usable_keys&=((Item_field*) (*tmp_order->item))->field->part_of_key;
+    usable_keys&=((Item_field*) (*tmp_order->item))->field->part_of_sortkey;
   }
 
   ref_key= -1;
@@ -5175,6 +5177,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	  tab->index=nr;
 	  tab->read_first_record=  (flag > 0 ? join_init_read_first_with_key:
 				    join_init_read_last_with_key);
+	  table->file->index_init(nr);
 	  tab->type=JT_NEXT;	// Read with index_first(), index_next()
 	  DBUG_RETURN(1);
 	}

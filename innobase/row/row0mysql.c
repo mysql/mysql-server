@@ -634,31 +634,21 @@ row_update_for_mysql(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->in_update_remember_pos) {
-		if (prebuilt->index == clust_index) {
-			btr_pcur_copy_stored_position(node->pcur,
-							prebuilt->pcur);
-		} else {
-			btr_pcur_copy_stored_position(node->pcur,
-							prebuilt->clust_pcur);
-		}
-		
-	 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
-
-	 	goto skip_cursor_search;
-	} else {
-	        /* MySQL seems to call rnd_pos before updating each row it
-	        has cached: we can get the correct cursor position from
-	        prebuilt->pcur; NOTE that we cannot build the row reference
-	        from mysql_rec if the clustered index was automatically
-	        generated for the table: MySQL does not know anything about
-	        the row id used as the clustered index key */
-
+	if (prebuilt->pcur->btr_cur.index == clust_index) {
 		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
-	 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
-
-	 	goto skip_cursor_search;
+	} else {
+		btr_pcur_copy_stored_position(node->pcur, prebuilt->clust_pcur);
 	}
+		
+	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
+	 	
+	/* MySQL seems to call rnd_pos before updating each row it
+	has cached: we can get the correct cursor position from
+	prebuilt->pcur; NOTE that we cannot build the row reference
+	from mysql_rec if the clustered index was automatically
+	generated for the table: MySQL does not know anything about
+	the row id used as the clustered index key */
+
 #ifdef notdefined
 	/* We have to search for the correct cursor position */
 
@@ -691,7 +681,6 @@ row_update_for_mysql(
 
 	mem_heap_free(heap);
 #endif
-skip_cursor_search:
 	savept = trx_savept_take(trx);
 	
 	thr = que_fork_get_first_thr(prebuilt->upd_graph);
@@ -762,6 +751,36 @@ row_table_got_default_clust_index(
 }
 
 /*************************************************************************
+Calculates the key number used inside MySQL for an Innobase index. We have
+to take into account if we generated a default clustered index for the table */
+
+ulint
+row_get_mysql_key_number_for_index(
+/*===============================*/
+	dict_index_t*	index)
+{
+	dict_index_t*	ind;
+	ulint		i;
+
+	ut_a(index);
+
+	i = 0;
+	ind = dict_table_get_first_index(index->table);
+
+	while (index != ind) {
+		ind = dict_table_get_next_index(ind);
+		i++;
+	}
+
+	if (row_table_got_default_clust_index(index->table)) {
+		ut_a(i > 0);
+		i--;
+	}
+
+	return(i);
+}
+
+/*************************************************************************
 Does a table creation operation for MySQL. */
 
 int
@@ -799,12 +818,19 @@ row_create_table_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
-		ut_a(err == DB_OUT_OF_FILE_SPACE);
+		
 		trx->error_state = DB_SUCCESS;
 		
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(table->name, trx, TRUE);
+		if (err == DB_OUT_OF_FILE_SPACE) {
+		         row_drop_table_for_mysql(table->name, trx, TRUE);
+		} else {
+		         assert(err == DB_DUPLICATE_KEY);
+			 fprintf(stderr, 
+     "Innobase: error: table %s already exists in Innobase data dictionary\n",
+				 table->name);
+		}
 
 		trx->error_state = DB_SUCCESS;
 	}

@@ -583,7 +583,7 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       }
       else if (my_b_write(&log_file, (byte*) "\t\t",2) < 0)
 	error=errno;
-      sprintf(buff,"%7ld %-10.10s", id,command_name[(uint) command]);
+      sprintf(buff,"%7ld %-11.11s", id,command_name[(uint) command]);
       if (my_b_write(&log_file, (byte*) buff,strlen(buff)))
 	error=errno;
       if (format)

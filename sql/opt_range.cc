@@ -2500,14 +2500,16 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
       fputc('/',DBUG_FILE);
     if (field->real_maybe_null())
     {
-      length++;
+      length++;				// null byte is not in part_length 
       if (*key++)
       {
 	fwrite("NULL",sizeof(char),4,DBUG_FILE);
 	continue;
       }
     }
-    field->set_key_image((char*) key,key_part->part_length);
+    field->set_key_image((char*) key,key_part->part_length -
+			 ((field->type() == FIELD_TYPE_BLOB) ?
+			  HA_KEY_BLOB_LENGTH : 0));
     field->val_str(&tmp,&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
   }

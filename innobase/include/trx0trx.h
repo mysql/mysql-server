@@ -307,6 +307,9 @@ struct trx_struct{
 	/*------------------------------*/
 	ulint		error_state;	/* 0 if no error, otherwise error
 					number */
+	void*		error_info;	/* if the error number indicates a
+					duplicate key error, a pointer to
+					the problematic index is stored here */
 	sess_t*		sess;		/* session of the trx, NULL if none */
  	ulint		que_state;	/* TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
 					... */

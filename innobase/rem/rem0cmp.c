@@ -171,6 +171,7 @@ cmp_whole_field(
       		}
 
       		return(0);
+	case DATA_VARMYSQL:
 	case DATA_MYSQL:
 		return(innobase_mysql_cmp(
 				(int)(type->prtype & ~DATA_NOT_NULL),

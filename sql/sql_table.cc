@@ -747,6 +747,7 @@ bool close_cached_table(THD *thd,TABLE *table)
   DBUG_ENTER("close_cached_table");
   if (table)
   {
+    DBUG_PRINT("enter",("table: %s", table->table_name));
     VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Close all data files
     /* Mark all tables that are in use as 'old' */
     mysql_lock_abort(thd,table);		 // end threads waiting on lock
@@ -1139,9 +1140,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   old_db_type=table->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
     create_info->db_type=old_db_type;
+  new_db_type=create_info->db_type= ha_checktype(create_info->db_type);
   if (create_info->row_type == ROW_TYPE_DEFAULT)
     create_info->row_type=table->row_type;
-  new_db_type=create_info->db_type;
 
   /* Check if the user only wants to do a simple RENAME */
 
@@ -1518,6 +1519,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
   table=0;					// Marker for win32 version
+#else
+  table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
 #endif
 
   error=0;

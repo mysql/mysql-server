@@ -608,8 +608,8 @@ AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_BDB
 dnl Sets HAVE_BERKELEY_DB if inst library is found
-dnl Makes sure db version is >= 3.2.3
-dnl Looks in $srcdir for Berkeley distribution not told otherwise
+dnl Makes sure db version is correct.
+dnl Looks in $srcdir for Berkeley distribution if not told otherwise
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_BDB], [
@@ -618,7 +618,7 @@ AC_DEFUN([MYSQL_CHECK_BDB], [
   --with-berkeley-db[=DIR]
                           Use BerkeleyDB located in DIR],
               [bdb="$withval"],
-              [bdb=default])
+              [bdb=no])
 
   AC_ARG_WITH([berkeley-db-includes],
               [\
@@ -719,8 +719,6 @@ dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
       ;;
     compile )
       have_berkeley_db="$bdb"
-dnl Is added to @sql_server_dirs@ in configure.in
-      MYSQL_TOP_BUILDDIR([have_berkeley_db])
       AC_MSG_RESULT([Compiling Berekeley DB in '$have_berkeley_db'])
       ;;
     * )
@@ -791,9 +789,18 @@ AC_DEFUN([MYSQL_SEARCH_FOR_BDB], [
 dnl echo ["MYSQL_SEARCH_FOR_BDB"]
   bdb_dir_ok="no BerkeleyDB found"
 
-  for test_dir in bdb db-*.*.* ../db-*.*.* /usr/local/BerkeleyDB*; do
+  for test_dir in $srcdir/bdb $srcdir/db-*.*.* /usr/local/BerkeleyDB*; do
+dnl    echo "-----------> Looking at ($test_dir; `cd $test_dir && pwd`)"
     MYSQL_CHECK_BDB_DIR([$test_dir])
     if test X"$bdb_dir_ok" = Xsource || test X"$bdb_dir_ok" = Xinstalled; then
+dnl	echo "-----------> Found it ($bdb), ($srcdir)"
+dnl     This is needed so that 'make distcheck' works properly (VPATH build).
+dnl     VPATH build won't work if bdb is not under the source tree; but in
+dnl     that case, hopefully people will just make and install inside the
+dnl     tree, or install BDB first, and then use the installed version.
+	case "$bdb" in
+	"$srcdir/"* ) bdb=`echo "$bdb" | sed -e "s,^$srcdir/,,"` ;;
+	esac
         break
     fi
   done
@@ -834,9 +841,18 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
 ])
 
 AC_DEFUN([MYSQL_TOP_BUILDDIR], [
-  case $[$1] in
-    /* )        ;;      # already an absolute path
-    *  )        [$1]="'\$(top_builddir)/'$[$1]" ;;
+  case "$[$1]" in
+    /* ) ;;		# don't do anything with an absolute path
+    "$srcdir"/* )
+      # If BDB is under the source directory, we need to look under the
+      # build directory for bdb/build_unix.
+      # NOTE: I'm being lazy, and assuming the user did not specify
+      # something like --with-berkeley-db=bdb (it would be missing "./").
+      [$1]="\$(top_builddir)/"`echo "$[$1]" | sed -e "s,^$srcdir/,,"`
+      ;;
+    * )
+      AC_MSG_ERROR([The BDB directory must be directly under the MySQL source directory, or be specified using the full path. ('$srcdir'; '$[$1]')])
+      ;;
   esac
   if test X"$[$1]" != "/"
   then
@@ -850,24 +866,24 @@ dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_INNOBASE
-dnl Sets HAVE_INNOBASE_DB if --with-innobase-db is used
+dnl Sets HAVE_INNOBASE_DB if --with-innobase is used
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_INNOBASE], [
-  AC_ARG_WITH([innobase-db],
+  AC_ARG_WITH([innobase],
               [\
-  --with-innobase-db      Use Innobase DB],
+  --with-innobase         Use Innobase],
               [innobase="$withval"],
               [innobase=no])
 
-  AC_MSG_CHECKING([for Innobase DB])
+  AC_MSG_CHECKING([for Innobase])
 
   have_innobase_db=no
   innobase_includes=
   innobase_libs=
   case "$innobase" in
     yes )
-      AC_MSG_RESULT([Using Innobase DB])
+      AC_MSG_RESULT([Using Innobase])
       AC_DEFINE(HAVE_INNOBASE_DB)
       have_innobase_db="yes"
       innobase_includes="-I../innobase/include"
@@ -913,7 +929,7 @@ dnl circular references.
       AC_CHECK_LIB(rt, aio_read, [innobase_libs="$innobase_libs -lrt"])
       ;;
     * )
-      AC_MSG_RESULT([Not using Innobase DB])
+      AC_MSG_RESULT([Not using Innobase])
       ;;
   esac
 

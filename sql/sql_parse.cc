@@ -156,7 +156,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   {
     bool error=test(mysql_change_db(thd,db));
     if (error)
-      decrease_user_connections(user,thd->host);
+      decrease_user_connections(thd->user,thd->host);
     return error;
   }
   else
@@ -175,8 +175,8 @@ static DYNAMIC_ARRAY  user_conn_array;
 extern  pthread_mutex_t LOCK_user_conn;
 
 struct  user_conn {
-  char user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
-  int connections, len;
+  char *user;
+  uint len, connections;
 };
 
 static byte* get_key_conn(user_conn *buff, uint *length,
@@ -188,18 +188,23 @@ static byte* get_key_conn(user_conn *buff, uint *length,
 
 #define DEF_USER_COUNT 50
 
+static void free_user(struct user_conn *uc)
+{
+  my_free((char*) uc,MYF(0));
+}
+
 void init_max_user_conn(void) 
 {
   (void) hash_init(&hash_user_connections,DEF_USER_COUNT,0,0,
-		   (hash_get_key) get_key_conn,0, 0);
-  (void) init_dynamic_array(&user_conn_array,sizeof(user_conn),
-			    DEF_USER_COUNT, DEF_USER_COUNT);
+		   (hash_get_key) get_key_conn, (void (*)(void*)) free_user,
+		   0);
 }
 
 
 static int check_for_max_user_connections(const char *user, int u_length,
 					  const char *host) 
 {
+  int error=1;
   uint temp_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
@@ -207,6 +212,9 @@ static int check_for_max_user_connections(const char *user, int u_length,
     user="";
   if (!host)
     host="";
+  DBUG_ENTER("check_for_max_user_connections");
+  DBUG_PRINT("enter",("user: '%s'  host: '%s'", user, host));
+
   temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user), user, "@", host,
 			     NullS) - temp_user);
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -214,30 +222,40 @@ static int check_for_max_user_connections(const char *user, int u_length,
 					 (byte*) temp_user, temp_len);
   if (uc) /* user found ; check for no. of connections */
   {
-    if ((uint) max_user_connections ==  uc->connections) 
+    if (max_user_connections ==  (uint) uc->connections) 
     {
       net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, temp_user);
-      pthread_mutex_unlock(&LOCK_user_conn);
-      return 1;
+      goto end;
     }
     uc->connections++; 
   }
   else
   {
     /* the user is not found in the cache; Insert it */
-    struct user_conn uc;
-    memcpy(uc.user,temp_user,temp_len+1);
-    uc.len = temp_len;
-    uc.connections = 1;
-    if (!insert_dynamic(&user_conn_array, (char *) &uc))
+    struct user_conn *uc= ((struct user_conn*)
+			   my_malloc(sizeof(struct user_conn) + temp_len+1,
+				     MYF(MY_WME)));
+    if (!uc)
     {
-      hash_insert(&hash_user_connections,
-		  (byte *) dynamic_array_ptr(&user_conn_array,
-					     user_conn_array.elements - 1));
+      send_error(&current_thd->net, 0, NullS);	// Out of memory
+      goto end;
+    }      
+    uc->user=(char*) (uc+1);
+    memcpy(uc->user,temp_user,temp_len+1);
+    uc->len = temp_len;
+    uc->connections = 1;
+    if (hash_insert(&hash_user_connections, (byte*) uc))
+    {
+      my_free((char*) uc,0);
+      send_error(&current_thd->net, 0, NullS);	// Out of memory
+      goto end;
     }
   }
+  error=0;
+
+end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
-  return 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -245,11 +263,16 @@ static void decrease_user_connections(const char *user, const char *host)
 {
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   int temp_len;
-  struct user_conn uucc, *uc;
+  struct user_conn *uc;
+  if (!max_user_connections)
+    return;
   if (!user)
     user="";
   if (!host)
     host="";
+  DBUG_ENTER("decrease_user_connections");
+  DBUG_PRINT("enter",("user: '%s'  host: '%s'", user, host));
+
   temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user), user, "@", host,
 			     NullS) - temp_user);
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -262,18 +285,16 @@ static void decrease_user_connections(const char *user, const char *host)
   if (! --uc->connections)
   {
     /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(char *) uc);
-    uint element= ((uint) ((byte*) uc - (byte*) user_conn_array.buffer) /
-		   user_conn_array.size_of_element);
-    delete_dynamic_element(&user_conn_array,element);
+    (void) hash_delete(&hash_user_connections,(byte*) uc);
   }
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
+  DBUG_VOID_RETURN;
 }
+
 
 void free_max_user_conn(void)
 {
-  delete_dynamic(&user_conn_array);
   hash_free(&hash_user_connections);
 }
 
@@ -336,20 +357,20 @@ check_connections(THD *thd)
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
-    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
-	               CLIENT_TRANSACTIONS;
-    LINT_INIT(pkt_len);
+    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB;
+    if (opt_using_transactions)
+      client_flags|=CLIENT_TRANSACTIONS;
+#ifdef HAVE_COMPRESS
+    client_flags |= CLIENT_COMPRESS;
+#endif /* HAVE_COMPRESS */
 
     end=strmov(buff,server_version)+1;
     int4store((uchar*) end,thd->thread_id);
     end+=4;
     memcpy(end,thd->scramble,SCRAMBLE_LENGTH+1);
     end+=SCRAMBLE_LENGTH +1;
-#ifdef HAVE_COMPRESS
-    client_flags |= CLIENT_COMPRESS;
-#endif /* HAVE_COMPRESS */
 #ifdef HAVE_OPENSSL
-    if (ssl_acceptor_fd!=0)
+    if (ssl_acceptor_fd)
       client_flags |= CLIENT_SSL;       /* Wow, SSL is avalaible! */
     /*
      * Without SSL the handshake consists of one packet. This packet
@@ -542,8 +563,7 @@ pthread_handler_decl(handle_one_connection,arg)
       thread_safe_increment(aborted_threads,&LOCK_thread_count);
     }
 
-    if (max_user_connections)
-      decrease_user_connections(thd->user,thd->host);
+    decrease_user_connections(thd->user,thd->host);
 end_thread:
     close_connection(net);
     end_thread(thd,1);
@@ -567,17 +587,18 @@ pthread_handler_decl(handle_bootstrap,arg)
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
-  DBUG_ENTER("handle_bootstrap");
 
-  pthread_detach_this_thread();
-  thd->thread_stack= (char*) &thd;
-
+  /* The following must be called before DBUG_ENTER */
   if (my_thread_init() || thd->store_globals())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
     thd->fatal_error=1;
     goto end;
   }
+  DBUG_ENTER("handle_bootstrap");
+
+  pthread_detach_this_thread();
+  thd->thread_stack= (char*) &thd;
   thd->mysys_var=my_thread_var;
   thd->dbug_thread_id=my_thread_id();
 #ifndef __WIN__
@@ -2800,4 +2821,3 @@ static void refresh_status(void)
   pthread_mutex_unlock(&LOCK_status);
   pthread_mutex_unlock(&THR_LOCK_keycache);
 }
-

@@ -249,6 +249,7 @@ ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
+bool opt_using_transactions;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -1160,7 +1161,7 @@ New value of ebp failed sanity check, terminating backtrace!\n");
     ++frame_count;
   }
 
-  fprintf(stderr, "Stack trace successful, tryint to get some variables.\n\
+  fprintf(stderr, "Stack trace successful, trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
   heap_start = __bss_start; 
   heap_end = (char*)sbrk(0);
@@ -1224,16 +1225,19 @@ static void init_signals(void)
   struct sigaction sa; sa.sa_flags = 0;
   sigemptyset(&sa.sa_mask);
   sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
+  if (!(test_flags & TEST_NO_STACKTRACE))
+  {
 #ifdef HAVE_DARWIN_THREADS
-   sa.sa_handler=( void (*)() ) handle_segfault;
+    sa.sa_handler=( void (*)() ) handle_segfault;
 #else
-   sa.sa_handler=handle_segfault;
+    sa.sa_handler=handle_segfault;
 #endif
-  sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
 #ifdef SIGBUS
-  sigaction(SIGBUS, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
 #endif
-  sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
+  }
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
   sigset(SIGPIPE,abort_thread);
