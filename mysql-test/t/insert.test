@@ -22,3 +22,29 @@ insert into t1 values (0,"mysql a");
 insert into t1 values (0,"r1manic");
 insert into t1 values (0,"r1man");
 drop table t1;
+
+#
+# Test insert syntax
+#
+
+create table t1 (a int not null auto_increment, primary key (a), t timestamp, c char(10) default "hello");
+insert into t1 values (default,default,default), (default,default,default), (4,0,"a"),(default,default,default);
+select a,t>0,c from t1;
+truncate table t1;
+insert into t1 set a=default,t=default,c=default;
+insert into t1 set a=default,t=default,c=default;
+insert into t1 set a=4,t=0,c="a";
+insert into t1 set a=default,t=default,c=default;
+select a,t>0,c from t1;
+drop table t1;
+
+#
+# Test of mysqld crash with fully qualified column names
+#
+
+drop database if exists foo;
+create database foo;
+use foo;
+create table t1 (c int);
+insert into foo.t1 set foo.t1.c = '1';
+drop database foo;
