@@ -58,7 +58,11 @@ public:
   Item_sum(List<Item> &list);
   //Copy constructor, need to perform subselects with temporary tables
   Item_sum(THD *thd, Item_sum &item);
-  ~Item_sum() { result_field=0; }
+  void cleanup()
+  {
+    Item_result_field::cleanup();
+    result_field=0;
+  }
 
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
@@ -235,7 +239,7 @@ class Item_sum_count_distinct :public Item_sum_int
      rec_offset(item.rec_offset), use_tree(item.use_tree),
      always_null(item.always_null)
   {}
-  ~Item_sum_count_distinct();
+  void cleanup();
 
   table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
@@ -523,7 +527,6 @@ public:
   { quick_group=0;}
   Item_udf_sum(THD *thd, Item_udf_sum &item)
     :Item_sum(thd, item), udf(item.udf) {}
-  ~Item_udf_sum() {}
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
@@ -548,7 +551,6 @@ class Item_sum_udf_float :public Item_udf_sum
     :Item_udf_sum(udf_arg,list) {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float &item)
     :Item_udf_sum(thd, item) {}
-  ~Item_sum_udf_float() {}
   longlong val_int() { return (longlong) Item_sum_udf_float::val(); }
   double val();
   String *val_str(String*str);
@@ -565,7 +567,6 @@ public:
     :Item_udf_sum(udf_arg,list) {}
   Item_sum_udf_int(THD *thd, Item_sum_udf_int &item)
     :Item_udf_sum(thd, item) {}
-  ~Item_sum_udf_int() {}
   longlong val_int();
   double val() { return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
@@ -583,7 +584,6 @@ public:
     :Item_udf_sum(udf_arg,list) {}
   Item_sum_udf_str(THD *thd, Item_sum_udf_str &item)
     :Item_udf_sum(thd, item) {}
-  ~Item_sum_udf_str() {}
   String *val_str(String *);
   double val()
   {
@@ -612,7 +612,6 @@ class Item_sum_udf_float :public Item_sum_num
   Item_sum_udf_float(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float &item)
     :Item_sum_num(thd, item) {}
-  ~Item_sum_udf_float() {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   double val() { return 0.0; }
   void clear() {}
@@ -628,7 +627,6 @@ public:
   Item_sum_udf_int(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
   Item_sum_udf_int(THD *thd, Item_sum_udf_int &item)
     :Item_sum_num(thd, item) {}
-  ~Item_sum_udf_int() {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   longlong val_int() { return 0; }
   double val() { return 0; }
@@ -645,7 +643,6 @@ public:
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_sum_num() {}
   Item_sum_udf_str(THD *thd, Item_sum_udf_str &item)
     :Item_sum_num(thd, item) {}
-  ~Item_sum_udf_str() {}
   String *val_str(String *) { null_value=1; return 0; }
   double val() { null_value=1; return 0.0; }
   longlong val_int() { null_value=1; return 0; }
@@ -734,6 +731,8 @@ class Item_func_group_concat : public Item_sum
      quick_group= item.quick_group;
     };
   ~Item_func_group_concat();
+  void cleanup();
+
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
   const char *func_name() const { return "group_concat"; }
   enum Type type() const { return SUM_FUNC_ITEM; }  

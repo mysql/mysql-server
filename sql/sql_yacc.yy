@@ -4486,7 +4486,7 @@ simple_ident:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
-	      (Item*) new Item_ref(NullS,NullS,$1.str);
+	      (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
 	}
 	| ident '.' ident
 	{
@@ -4502,7 +4502,7 @@ simple_ident:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$1.str,$3.str) :
-	      (Item*) new Item_ref(NullS,$1.str,$3.str);
+	      (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
@@ -4518,7 +4518,7 @@ simple_ident:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$2.str,$4.str) :
-              (Item*) new Item_ref(NullS,$2.str,$4.str);
+              (Item*) new Item_ref(0,0,NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -4536,8 +4536,8 @@ simple_ident:
 	      (Item*) new Item_field((YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
 				     $3.str, $5.str) :
-	      (Item*) new Item_ref((YYTHD->client_capabilities &
-				    CLIENT_NO_SCHEMA ? NullS : $1.str),
+	      (Item*) new Item_ref(0,0,(YYTHD->client_capabilities &
+				        CLIENT_NO_SCHEMA ? NullS : $1.str),
                                    $3.str, $5.str);
 	};
 

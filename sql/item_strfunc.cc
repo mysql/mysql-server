@@ -616,7 +616,8 @@ void Item_func_concat_ws::split_sum_func(Item **ref_pointer_array,
     uint el= fields.elements;
     fields.push_front(separator);
     ref_pointer_array[el]= separator;
-    separator= new Item_ref(ref_pointer_array + el, 0, separator->name);
+    separator= new Item_ref(ref_pointer_array + el,
+			    &separator, 0, separator->name);
   }
   Item_str_func::split_sum_func(ref_pointer_array, fields);
 }
@@ -1709,7 +1710,7 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
     uint el= fields.elements;
     fields.push_front(item);
     ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
+    item= new Item_ref(ref_pointer_array + el, &item, 0, item->name);
   }
   Item_str_func::split_sum_func(ref_pointer_array, fields);
 }
