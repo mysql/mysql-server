@@ -2293,7 +2293,9 @@ session_id  char(9) NOT NULL, \
                          "(\"abj\", 1, 2, 3, 2003-08-30), "
                          "(\"abk\", 1, 2, 3, 2003-08-30), "
                          "(\"abl\", 1, 2, 3, 2003-08-30), "
-                         "(\"abq\", 1, 2, 3, 2003-08-30), "
+                         "(\"abq\", 1, 2, 3, 2003-08-30) ");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO test_select VALUES "
                          "(\"abw\", 1, 2, 3, 2003-08-30), "
                          "(\"abe\", 1, 2, 3, 2003-08-30), "
                          "(\"abr\", 1, 2, 3, 2003-08-30), "
@@ -4165,40 +4167,40 @@ static void test_prepare_ext()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_ext");
   myquery(rc);
 
-  sql= (char *)"CREATE TABLE test_prepare_ext\
-                (\
-                 c1  tinyint, \
-                 c2  smallint, \
-                 c3  mediumint, \
-                 c4  int, \
-                 c5  integer, \
-                 c6  bigint, \
-                 c7  float, \
-                 c8  double, \
-                 c9  double precision, \
-                 c10 real, \
-                 c11 decimal(7, 4), \
-                 c12 numeric(8, 4), \
-                 c13 date, \
-                 c14 datetime, \
-                 c15 timestamp(14), \
-                 c16 time, \
-                 c17 year, \
-                 c18 bit, \
-                 c19 bool, \
-                 c20 char, \
-                 c21 char(10), \
-                 c22 varchar(30), \
-                 c23 tinyblob, \
-                 c24 tinytext, \
-                 c25 blob, \
-                 c26 text, \
-                 c27 mediumblob, \
-                 c28 mediumtext, \
-                 c29 longblob, \
-                 c30 longtext, \
-                 c31 enum('one', 'two', 'three'), \
-                 c32 set('monday', 'tuesday', 'wednesday'))";
+  sql= (char *)"CREATE TABLE test_prepare_ext"
+               "("
+               " c1  tinyint,"
+               " c2  smallint,"
+               " c3  mediumint,"
+               " c4  int,"
+               " c5  integer,"
+               " c6  bigint,"
+               " c7  float,"
+               " c8  double,"
+               " c9  double precision,"
+               " c10 real,"
+               " c11 decimal(7, 4),"
+               " c12 numeric(8, 4),"
+               " c13 date,"
+               " c14 datetime,"
+               " c15 timestamp(14),"
+               " c16 time,"
+               " c17 year,"
+               " c18 bit,"
+               " c19 bool,"
+               " c20 char,"
+               " c21 char(10),"
+               " c22 varchar(30),"
+               " c23 tinyblob,"
+               " c24 tinytext,"
+               " c25 blob,"
+               " c26 text,"
+               " c27 mediumblob,"
+               " c28 mediumtext,"
+               " c29 longblob,"
+               " c30 longtext,"
+               " c31 enum('one', 'two', 'three'),"
+               " c32 set('monday', 'tuesday', 'wednesday'))";
 
   rc= mysql_query(mysql, sql);
   myquery(rc);
@@ -10782,7 +10784,7 @@ static void test_view()
   ulong           length = 0L;
   long            is_null = 0L;
   const char *query=
-    "SELECT COUNT(*) FROM v1 WHERE `SERVERNAME`=?";
+    "SELECT COUNT(*) FROM v1 WHERE SERVERNAME=?";
 
   myheader("test_view");
 
@@ -10791,13 +10793,38 @@ static void test_view()
 
   rc = mysql_query(mysql, "DROP VIEW IF EXISTS v1,t1,t2,t3");
   myquery(rc);
-  rc= mysql_query(mysql,"CREATE TABLE `t1` ( `SERVERGRP` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', `DBINSTANCE` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', PRIMARY KEY  (`SERVERGRP`)) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+  rc= mysql_query(mysql,"CREATE TABLE t1 ("
+                        " SERVERGRP varchar(20) NOT NULL default '', "
+                        " DBINSTANCE varchar(20) NOT NULL default '', "
+                        " PRIMARY KEY  (SERVERGRP)) "
+                        " CHARSET=latin1 collate=latin1_bin");
   myquery(rc);
-  rc= mysql_query(mysql,"CREATE TABLE `t2` ( `SERVERNAME` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', `SERVERGRP` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', PRIMARY KEY  (`SERVERNAME`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
+  rc= mysql_query(mysql,"CREATE TABLE t2 ("
+                        " SERVERNAME varchar(20) NOT NULL, "
+                        " SERVERGRP varchar(20) NOT NULL, "
+                        " PRIMARY KEY (SERVERNAME)) "
+                        " CHARSET=latin1 COLLATE latin1_bin");
   myquery(rc);
-  rc= mysql_query(mysql,"CREATE TABLE `t3` ( `SERVERGRP` varchar(20) character set latin1 collate latin1_bin NOT NULL default '', `TABNAME` varchar(30) character set latin1 collate latin1_bin NOT NULL default '', `MAPSTATE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `ACTSTATE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `LOCAL_NAME` varchar(30) character set latin1 collate latin1_bin NOT NULL default '', `CHG_DATE` varchar(8) character set latin1 collate latin1_bin NOT NULL default '00000000', `CHG_TIME` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `MXUSER` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', PRIMARY KEY  (`SERVERGRP`,`TABNAME`,`MAPSTATE`,`ACTSTATE`,`LOCAL_NAME`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
+  rc= mysql_query(mysql,
+                  "CREATE TABLE t3 ("
+                  " SERVERGRP varchar(20) BINARY NOT NULL, "
+                  " TABNAME varchar(30) NOT NULL, MAPSTATE char(1) NOT NULL, "
+                  " ACTSTATE char(1) NOT NULL , "
+                  " LOCAL_NAME varchar(30) NOT NULL, "
+                  " CHG_DATE varchar(8) NOT NULL default '00000000', "
+                  " CHG_TIME varchar(6) NOT NULL default '000000', "
+                  " MXUSER varchar(12) NOT NULL default '', "
+                  " PRIMARY KEY (SERVERGRP, TABNAME, MAPSTATE, ACTSTATE, "
+                  " LOCAL_NAME)) CHARSET=latin1 COLLATE latin1_bin");
   myquery(rc);
-  rc= mysql_query(mysql,"CREATE VIEW v1 AS select sql_no_cache T0001.SERVERNAME AS `SERVERNAME`,T0003.TABNAME AS `TABNAME`,T0003.LOCAL_NAME AS `LOCAL_NAME`,T0002.DBINSTANCE AS `DBINSTANCE` from t2 T0001 join t1 T0002 join t3 T0003 where ((T0002.SERVERGRP = T0001.SERVERGRP) and (T0002.SERVERGRP = T0003.SERVERGRP) and (T0003.MAPSTATE = _latin1'A') and (T0003.ACTSTATE = _latin1' '))");
+  rc= mysql_query(mysql,"CREATE VIEW v1 AS select sql_no_cache"
+                  " T0001.SERVERNAME AS SERVERNAME, T0003.TABNAME AS"
+                  " TABNAME,T0003.LOCAL_NAME AS LOCAL_NAME,T0002.DBINSTANCE AS"
+                  " DBINSTANCE from t2 T0001 join t1 T0002 join t3 T0003 where"
+                  " ((T0002.SERVERGRP = T0001.SERVERGRP) and"
+                  " (T0002.SERVERGRP = T0003.SERVERGRP)"
+                  " and (T0003.MAPSTATE = _latin1'A') and"
+                  " (T0003.ACTSTATE = _latin1' '))");
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
@@ -10878,7 +10905,11 @@ static void test_view_2where()
   MYSQL_BIND      bind[8];
   char            parms[8][100];
   ulong           length[8];
-  const char *query= "SELECT `RELID` ,`REPORT` ,`HANDLE` ,`LOG_GROUP` ,`USERNAME` ,`VARIANT` ,`TYPE` ,`VERSION` ,`ERFDAT` ,`ERFTIME` ,`ERFNAME` ,`AEDAT` ,`AETIME` ,`AENAME` ,`DEPENDVARS` ,`INACTIVE` FROM `V_LTDX` WHERE `MANDT` = ? AND `RELID` = ? AND `REPORT` = ? AND `HANDLE` = ? AND `LOG_GROUP` = ? AND `USERNAME` IN ( ? , ? ) AND `TYPE` = ?";
+  const char *query=
+    "select relid, report, handle, log_group, username, variant, type, "
+    "version, erfdat, erftime, erfname, aedat, aetime, aename, dependvars, "
+    "inactive from V_LTDX where mandt = ? and relid = ? and report = ? and "
+    "handle = ? and log_group = ? and username in ( ? , ? ) and type = ?";
 
   myheader("test_view_2where");
 
@@ -10886,9 +10917,38 @@ static void test_view_2where()
   myquery(rc);
   rc= mysql_query(mysql, "DROP VIEW IF EXISTS V_LTDX");
   myquery(rc);
-  rc= mysql_query(mysql, "CREATE TABLE `LTDX` ( `MANDT` char(3) character set latin1 collate latin1_bin NOT NULL default '000', `RELID` char(2) character set latin1 collate latin1_bin NOT NULL default '', `REPORT` varchar(40) character set latin1 collate latin1_bin NOT NULL default '', `HANDLE` varchar(4) character set latin1 collate latin1_bin NOT NULL default '', `LOG_GROUP` varchar(4) character set latin1 collate latin1_bin NOT NULL default '', `USERNAME` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `VARIANT` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `TYPE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `SRTF2` int(11) NOT NULL default '0', `VERSION` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `ERFDAT` varchar(8) character set latin1 collate latin1_bin NOT NULL default '00000000', `ERFTIME` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `ERFNAME` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `AEDAT` varchar(8) character set latin1 collate latin1_bin NOT NULL default '00000000', `AETIME` varchar(6) character set latin1 collate latin1_bin NOT NULL default '000000', `AENAME` varchar(12) character set latin1 collate latin1_bin NOT NULL default '', `DEPENDVARS` varchar(10) character set latin1 collate latin1_bin NOT NULL default '', `INACTIVE` char(1) character set latin1 collate latin1_bin NOT NULL default '', `CLUSTR` smallint(6) NOT NULL default '0', `CLUSTD` blob, PRIMARY KEY  (`MANDT`,`RELID`,`REPORT`,`HANDLE`,`LOG_GROUP`,`USERNAME`,`VARIANT`,`TYPE`,`SRTF2`)) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+  rc= mysql_query(mysql,
+                  "CREATE TABLE LTDX (MANDT char(3) NOT NULL default '000', "
+                  " RELID char(2) NOT NULL, REPORT varchar(40) NOT NULL,"
+                  " HANDLE varchar(4) NOT NULL, LOG_GROUP varchar(4) NOT NULL,"
+                  " USERNAME varchar(12) NOT NULL,"
+                  " VARIANT varchar(12) NOT NULL,"
+                  " TYPE char(1) NOT NULL, SRTF2 int(11) NOT NULL,"
+                  " VERSION varchar(6) NOT NULL default '000000',"
+                  " ERFDAT varchar(8) NOT NULL default '00000000',"
+                  " ERFTIME varchar(6) NOT NULL default '000000',"
+                  " ERFNAME varchar(12) NOT NULL,"
+                  " AEDAT varchar(8) NOT NULL default '00000000',"
+                  " AETIME varchar(6) NOT NULL default '000000',"
+                  " AENAME varchar(12) NOT NULL,"
+                  " DEPENDVARS varchar(10) NOT NULL,"
+                  " INACTIVE char(1) NOT NULL, CLUSTR smallint(6) NOT NULL,"
+                  " CLUSTD blob,"
+                  " PRIMARY KEY (MANDT, RELID, REPORT, HANDLE, LOG_GROUP, "
+                                "USERNAME, VARIANT, TYPE, SRTF2))"
+                 " CHARSET=latin1 COLLATE latin1_bin");
   myquery(rc);
-  rc= mysql_query(mysql, "CREATE VIEW V_LTDX AS select T0001.MANDT AS `MANDT`,T0001.RELID AS `RELID`,T0001.REPORT AS `REPORT`,T0001.HANDLE AS `HANDLE`,T0001.LOG_GROUP AS `LOG_GROUP`,T0001.USERNAME AS `USERNAME`,T0001.VARIANT AS `VARIANT`,T0001.TYPE AS `TYPE`,T0001.VERSION AS `VERSION`,T0001.ERFDAT AS `ERFDAT`,T0001.ERFTIME AS `ERFTIME`,T0001.ERFNAME AS `ERFNAME`,T0001.AEDAT AS `AEDAT`,T0001.AETIME AS `AETIME`,T0001.AENAME AS `AENAME`,T0001.DEPENDVARS AS `DEPENDVARS`,T0001.INACTIVE AS `INACTIVE` from LTDX T0001 where (T0001.SRTF2 = 0)");
+  rc= mysql_query(mysql,
+                  "CREATE VIEW V_LTDX AS select T0001.MANDT AS "
+                  " MANDT,T0001.RELID AS RELID,T0001.REPORT AS "
+                  " REPORT,T0001.HANDLE AS HANDLE,T0001.LOG_GROUP AS "
+                  " LOG_GROUP,T0001.USERNAME AS USERNAME,T0001.VARIANT AS "
+                  " VARIANT,T0001.TYPE AS TYPE,T0001.VERSION AS "
+                  " VERSION,T0001.ERFDAT AS ERFDAT,T0001.ERFTIME AS "
+                  " ERFTIME,T0001.ERFNAME AS ERFNAME,T0001.AEDAT AS "
+                  " AEDAT,T0001.AETIME AS AETIME,T0001.AENAME AS "
+                  " AENAME,T0001.DEPENDVARS AS DEPENDVARS,T0001.INACTIVE AS "
+                  " INACTIVE from LTDX T0001 where (T0001.SRTF2 = 0)");
   myquery(rc);
   for (i=0; i < 8; i++) {
     strcpy(parms[i], "1");
@@ -11085,9 +11145,26 @@ static void test_view_insert_fields()
   myquery(rc);
   rc= mysql_query(mysql, "DROP VIEW IF EXISTS t1, v1");
   myquery(rc);
-  rc= mysql_query(mysql, "CREATE TABLE t1 ( K1C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', K3C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', F1C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', F2I4 int(11) NOT NULL default '0', F3N5 varchar(5) character set latin1 collate latin1_bin NOT NULL default '00000', F4I4 int(11) NOT NULL default '0', F5C8 varchar(8) character set latin1 collate latin1_bin NOT NULL default '', F6N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', F7F8 double NOT NULL default '0', F8F8 double NOT NULL default '0', F9D8 decimal(8,2) NOT NULL default '0.00', PRIMARY KEY  (K1C4,K2C4,K3C4,K4N4)) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+  rc= mysql_query(mysql,
+                  "CREATE TABLE t1 (K1C4 varchar(4) NOT NULL,"
+                  "K2C4 varchar(4) NOT NULL, K3C4 varchar(4) NOT NULL,"
+                  "K4N4 varchar(4) NOT NULL default '0000',"
+                  "F1C4 varchar(4) NOT NULL, F2I4 int(11) NOT NULL,"
+                  "F3N5 varchar(5) NOT NULL default '00000',"
+                  "F4I4 int(11) NOT NULL default '0', F5C8 varchar(8) NOT NULL,"
+                  "F6N4 varchar(4) NOT NULL default '0000',"
+                  "F7F8 double NOT NULL default '0',"
+                  "F8F8 double NOT NULL default '0',"
+                  "F9D8 decimal(8,2) NOT NULL default '0.00',"
+                  "PRIMARY KEY (K1C4,K2C4,K3C4,K4N4)) "
+                  "CHARSET=latin1 COLLATE latin1_bin");
   myquery(rc);
-  rc= mysql_query(mysql, "CREATE VIEW v1 AS select sql_no_cache K1C4 AS `K1C4`,K2C4 AS `K2C4`,K3C4 AS `K3C4`,K4N4 AS `K4N4`,F1C4 AS `F1C4`,F2I4 AS `F2I4`,F3N5 AS `F3N5`,F7F8 AS `F7F8`,F6N4 AS `F6N4`,F5C8 AS `F5C8`,F9D8 AS `F9D8` from t1 T0001");
+  rc= mysql_query(mysql,
+                  "CREATE VIEW v1 AS select sql_no_cache "
+                  " K1C4 AS K1C4, K2C4 AS K2C4, K3C4 AS K3C4, K4N4 AS K4N4, "
+                  " F1C4 AS F1C4, F2I4 AS F2I4, F3N5 AS F3N5,"
+                  " F7F8 AS F7F8, F6N4 AS F6N4, F5C8 AS F5C8, F9D8 AS F9D8"
+                  " from t1 T0001");
 
   for (i= 0; i < 11; i++)
   {
@@ -12582,7 +12659,6 @@ static void test_bug7990()
 
 static void test_view_sp_list_fields()
 {
-  MYSQL_STMT	*stmt;
   int		rc;
   MYSQL_RES     *res;
 
