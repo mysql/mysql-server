@@ -167,6 +167,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CACHE_SYM
 %token	CASCADE
 %token	CAST_SYM
+%token	CHARSET
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
 %token	COMMITTED_SYM
@@ -855,6 +856,8 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| CHARSET opt_equal ident {}
+	| CHAR_SYM SET opt_equal ident {}
 	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; };
@@ -1088,6 +1091,7 @@ attribute:
 opt_binary:
 	/* empty */	{}
 	| BINARY	{ Lex->type|=BINARY_FLAG; };
+	| CHAR_SYM SET opt_equal ident {}
 
 references:
 	REFERENCES table_ident opt_on_delete {}
@@ -3192,6 +3196,7 @@ keyword:
 	| BOOLEAN_SYM		{}
 	| CACHE_SYM		{}
 	| CHANGED		{}
+	| CHARSET		{}
 	| CHECKSUM_SYM		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}

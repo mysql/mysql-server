@@ -169,11 +169,13 @@ typedef struct st_relay_log_info
   volatile bool abort_slave, slave_running;
   bool log_pos_current;
   bool skip_log_purge;
-  
+  bool inside_transaction;
+
   st_relay_log_info()
-  :info_fd(-1),cur_log_fd(-1), cur_log_old_open_count(0), abort_pos_wait(0),
-   slave_run_id(0), inited(0), abort_slave(0), slave_running(0),
-   log_pos_current(0), skip_log_purge(0)
+    :info_fd(-1),cur_log_fd(-1), cur_log_old_open_count(0), abort_pos_wait(0),
+  slave_run_id(0), inited(0), abort_slave(0), slave_running(0),
+  log_pos_current(0), skip_log_purge(0),
+  inside_transaction(0) /* the default is autocommit=1 */
   {
     relay_log_name[0] = master_log_name[0] = 0;
     bzero(&info_file,sizeof(info_file));

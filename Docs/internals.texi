@@ -1797,7 +1797,7 @@ The package contains the following information:
 
 @multitable @columnfractions .30 .70
 @item Size @tab Comment
-@item (param_count+7)/8 @tab Null bit map
+@item (param_count+9)/8 @tab Null bit map (2 bits reserved for protocol)
 @item 1	   @tab new_parameter_bound flag.  Is set to 1 for first
 execute or if one has rebound the parameters.
 @item 2*param_count     @tab Type of parameters (only given if new_parameter_bound flag is 1)
@@ -1813,7 +1813,7 @@ The parameters are stored the following ways:
 
 @multitable @columnfractions .20 .10 .70
 @item Type    @tab Size @tab Comment
-@item tynyint @tab 1	@tab One byte integer
+@item tinyint @tab 1	@tab One byte integer
 @item short   @tab 2	@tab
 @item int     @tab 4	@tab
 @item longlong @tab 8	@tab
@@ -1848,6 +1848,18 @@ sending the data to the client the same way that the server is sending
 bound parameters to the client.  The server is always sending the data
 as type given for 'column type' for respective column.  It's up to the
 client to convert the parameter to the requested type.
+
+DATETIME, DATE and TIME are sent to the server in a binary format as follows:
+
+@multitable @columnfractions .20 .10 .70
+@item Type    @tab Size @tab Comment
+@item date    @tab 1 + 0-11 @tab Length + 2 byte year, 1 byte MMDDHHMMSS, 4 byte billionth of a second
+@item datetime    @tab 1 + 0-11 @tab Length + 2 byte year, 1 byte MMDDHHMMSS, 4 byte billionth of a second
+@item time    @tab 1 + 0-14 @tab Length + sign (0 = pos, 1= neg), 4 byte days, 1 byte HHMMDD, 4 byte billionth of a second
+@end multitable
+
+The first byte is a length byte and then comes all parameters that are
+not 0. (Always counted from the beginning).
 
 @node Fulltext Search,  , protocol, Top
 @chapter Fulltext Search in MySQL
