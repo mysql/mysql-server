@@ -49,24 +49,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
     oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE));
     DBUG_PRINT("info",("old_size: %ld", (ulong) oldsize));
 
-#ifdef HAVE_CHSIZE
-    if (oldsize > newlength || filler == 0)
-    {
-      if (chsize(fd,(off_t) newlength))
-      {
-        DBUG_PRINT("error",("errno: %d",errno));
-        my_errno=errno;
-        if (MyFlags & MY_WME)
-          my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
-        DBUG_RETURN(1);
-      }
-      else
-      {
-        if (filler == 0)
-          DBUG_RETURN(0);
-      }
-    }
-#elif defined(HAVE_SETFILEPOINTER)
+#ifdef __WIN__
     if (oldsize > newlength)
     {
       LARGE_INTEGER new_length;
@@ -83,6 +66,23 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
       if (MyFlags & MY_WME)
         my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
       DBUG_RETURN(1);
+    }
+#elif define(HAVE_CHSIZE)
+    if (oldsize > newlength || filler == 0)
+    {
+      if (chsize(fd,(off_t) newlength))
+      {
+        DBUG_PRINT("error",("errno: %d",errno));
+        my_errno=errno;
+        if (MyFlags & MY_WME)
+          my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
+        DBUG_RETURN(1);
+      }
+      else
+      {
+        if (filler == 0)
+          DBUG_RETURN(0);
+      }
     }
 #elif defined(HAVE_FTRUNCATE)
     if (oldsize > newlength)
