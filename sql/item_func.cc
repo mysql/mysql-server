@@ -3594,11 +3594,11 @@ Item_func_set_user_var::update()
   {
     if (!save_result.vdec)					// Null value
       res= update_hash((void*) 0, 0, DECIMAL_RESULT, &my_charset_bin,
-                       DERIVATION_NONE);
+                       DERIVATION_IMPLICIT);
     else
       res= update_hash((void*) save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
-                       &my_charset_bin, DERIVATION_NONE);
+                       &my_charset_bin, DERIVATION_IMPLICIT);
     break;
   }
   case ROW_RESULT:
