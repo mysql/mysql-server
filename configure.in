@@ -389,8 +389,6 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
-  # ndb cannot be compiled with -fno-implicit-templaces
-  ndb_cxxflags_fix="$ndb_cxxflags_fix -fimplicit-templates"
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -2984,6 +2982,13 @@ then
 
 AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
+
+
+if test X"$ndb_port_base" = Xdefault
+then
+  ndb_port_base="2200"
+fi
+AC_SUBST([ndb_port_base])
 
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
