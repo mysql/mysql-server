@@ -625,6 +625,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
 		 List<Item> &item, bool set_query_id, 
 		 List<Item> *sum_func_list, bool allow_sum_func);
+void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);

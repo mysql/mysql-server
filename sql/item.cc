@@ -99,7 +99,7 @@ bool Item_ident::remove_dependence_processor(byte * arg)
   DBUG_ENTER("Item_ident::remove_dependence_processor");
   if (depended_from == (st_select_lex *) arg)
     depended_from= 0;
-  DBUG_RETURN(1);
+  DBUG_RETURN(0);
 }
 
 

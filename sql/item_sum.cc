@@ -118,6 +118,20 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
   return sum_item;
 }
 
+bool Item_sum::walk (Item_processor processor, byte *argument)
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      if ((*arg)->walk(processor, argument))
+	return 1;
+    }
+  }
+  return (this->*processor)(argument);
+}
+
 String *
 Item_sum_num::val_str(String *str)
 {

@@ -144,6 +144,9 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       res= -1;
       goto exit;
     }
+    // Item list should be fix_fielded yet another time in JOIN::prepare
+    unfix_item_list(item_list);
+
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count= item_list.elements;
     /*
