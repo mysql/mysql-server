@@ -1596,6 +1596,18 @@ mysql_connect(MYSQL *mysql,const char *host,
 
 
 /*
+  The following union is used to force a struct to be double allgined.
+  This is to avoid warings with gethostname_r() on Linux itanium systems
+*/
+
+typedef union
+{
+  double tmp;
+  char   buff[GETHOSTBYNAME_BUFF_SIZE];
+} gethostbyname_buff;
+
+
+/*
   Note that the mysql argument must be initialized with mysql_init()
   before calling mysql_real_connect !
 */
@@ -1766,8 +1778,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     {
       int tmp_errno;
       struct hostent tmp_hostent,*hp;
-      char buff2[GETHOSTBYNAME_BUFF_SIZE];
-      hp = my_gethostbyname_r(host,&tmp_hostent,buff2,sizeof(buff2),
+      gethostbyname_buff buff2;
+      hp = my_gethostbyname_r(host,&tmp_hostent,buff2.buff,sizeof(buff2),
 			      &tmp_errno);
       if (!hp)
       {

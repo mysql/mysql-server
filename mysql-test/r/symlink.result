@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t7,t8,t9;
+drop database if exists mysqltest;
 create table t1 (a int not null auto_increment, b char(16) not null, primary key (a));
 create table t2 (a int not null auto_increment, b char(16) not null, primary key (a));
 insert into t1 (b) values ("test"),("test1"),("test2"),("test3");
@@ -49,11 +50,11 @@ Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-alter table t9 rename test_mysqltest.t9;
-select count(*) from test_mysqltest.t9;
+alter table t9 rename mysqltest.t9;
+select count(*) from mysqltest.t9;
 count(*)
 16724
-show create table test_mysqltest.t9;
+show create table mysqltest.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` int(11) NOT NULL auto_increment,
@@ -62,4 +63,4 @@ t9	CREATE TABLE `t9` (
   `d` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
 ) TYPE=MyISAM
-drop database test_mysqltest;
+drop database mysqltest;

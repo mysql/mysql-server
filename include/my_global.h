@@ -43,6 +43,10 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+#if defined(i386) && !defined(__i386__)
+#define __i386__
+#endif
+
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
 #define C_MODE_START    extern "C" {
@@ -144,6 +148,10 @@ C_MODE_START
 double my_ulonglong2double(unsigned long long A);
 C_MODE_END
 #endif /* _AIX */
+
+#ifdef UNIXWARE_7
+#define pthread_attr_setstacksize(A,B)	/* setting stack breaks things */
+#endif
 
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
