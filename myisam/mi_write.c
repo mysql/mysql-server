@@ -823,7 +823,8 @@ int _mi_init_bulk_insert(MI_INFO *info)
     }
   }
 
-  if (num_keys==0 || num_keys > myisam_bulk_insert_tree_size)
+  if (num_keys==0 ||
+      num_keys * MI_MIN_SIZE_BULK_INSERT_TREE > myisam_bulk_insert_tree_size)
     DBUG_RETURN(0);
 
   info->bulk_insert=(TREE *)
