@@ -3925,6 +3925,28 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   DBUG_RETURN(stmt);
 }
 
+/*
+  Get the execute query meta information for non-select 
+  statements (on demand).
+*/
+
+unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
+{
+  MYSQL_FIELD *fields;
+  
+  if (!stmt->mysql->field_count)
+    return 0;
+  stmt->field_count= stmt->mysql->field_count;
+  fields= stmt->mysql->fields;
+  
+  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(&stmt->mem_root, 
+        sizeof(fields))) || 
+      !(stmt->bind= (MYSQL_BIND *) alloc_root(&stmt->mem_root, 
+        sizeof(MYSQL_BIND ) * stmt->field_count)))
+    return 0;
+  memcpy((char *)stmt->fields, (char *)fields, sizeof(fields));
+  return stmt->field_count;
+}
 
 /*
   Returns prepared meta information in the form of resultset
@@ -3938,8 +3960,10 @@ mysql_prepare_result(MYSQL_STMT *stmt)
   DBUG_ENTER("mysql_prepare_result");
   
   if (!stmt->field_count || !stmt->fields)
-    DBUG_RETURN(0);
-  
+  {
+    if (!alloc_stmt_fields(stmt))
+      DBUG_RETURN(0);
+  }  
   if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result)+
 				      sizeof(ulong)*stmt->field_count,
 				      MYF(MY_WME | MY_ZEROFILL))))
@@ -4436,7 +4460,7 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     default:
       sprintf(stmt->last_error,
 	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	      param->buffer_type, param->param_number);
+	      param->buffer_type, count);
       DBUG_RETURN(1);
     }
   }
@@ -4984,6 +5008,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 {
   MYSQL_BIND *param, *end;
   ulong       bind_count;
+  uint        param_count= 0;
   DBUG_ENTER("mysql_bind_result");
   DBUG_ASSERT(stmt != 0);
 
@@ -4999,7 +5024,10 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     DBUG_RETURN(1);
   }
 #endif
-  bind_count= stmt->field_count;
+  if (!(bind_count= stmt->field_count) && 
+      !(bind_count= alloc_stmt_fields(stmt)))
+    DBUG_RETURN(0);
+  
   memcpy((char*) stmt->bind, (char*) bind,
 	 sizeof(MYSQL_BIND)*bind_count);
 
@@ -5015,6 +5043,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     if (!param->length)
       param->length= &param->buffer_length;
 
+    param->param_number= param_count++;
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_TINY:
@@ -5066,7 +5095,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     default:
       sprintf(stmt->last_error,
 	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	      param->buffer_type, param->param_number);
+	      param->buffer_type, param_count);
       DBUG_RETURN(1);
     }
   }
@@ -5303,6 +5332,7 @@ static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
   free_root(&stmt->mem_root, MYF(0));
   if (!skip_list)
     stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
+  stmt->mysql->status= MYSQL_STATUS_READY;
   my_free((gptr) stmt, MYF(MY_WME));
   DBUG_RETURN(error);
 }
