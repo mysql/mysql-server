@@ -132,7 +132,7 @@ dict_index_build_internal_non_clust(
 	dict_index_t*	index);	/* in: user representation of a non-clustered
 				index */	
 /**************************************************************************
-Removes a foreign constraint struct from the dictionet cache. */
+Removes a foreign constraint struct from the dictionary cache. */
 static
 void
 dict_foreign_remove_from_cache(
@@ -581,7 +581,7 @@ dict_table_get_on_id(
 	dict_table_t*	table;
 	
 	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
-	   || trx->dict_operation) {
+	   || trx->dict_operation_lock_mode == RW_X_LATCH) {
 		/* It is a system table which will always exist in the table
 		cache: we avoid acquiring the dictionary mutex, because
 		if we are doing a rollback to handle an error in TABLE
