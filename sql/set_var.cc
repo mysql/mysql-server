@@ -1913,7 +1913,7 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+#if defined(HAVE_REPLICATION)
 bool sys_var_character_set_server::check(THD *thd, set_var *var)
 {
   if ((var->type == OPT_GLOBAL) &&
@@ -2020,7 +2020,7 @@ void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+#if defined(HAVE_REPLICATION)
 bool sys_var_collation_server::check(THD *thd, set_var *var)
 {
   if ((var->type == OPT_GLOBAL) &&
@@ -2372,7 +2372,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
   String str(buff, sizeof(buff), &my_charset_latin1);
   String *res= var->value->val_str(&str);
 
-#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+#if defined(HAVE_REPLICATION)
   if ((var->type == OPT_GLOBAL) &&
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
@@ -2736,7 +2736,6 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 
 bool not_all_support_one_shot(List<set_var_base> *var_list)
 {
-#if MYSQL_VERSION_ID < 50000
   List_iterator_fast<set_var_base> it(*var_list);
   set_var_base *var;
   while ((var= it++))
@@ -2744,7 +2743,6 @@ bool not_all_support_one_shot(List<set_var_base> *var_list)
     if (var->no_support_one_shot())
       return 1;
   }
-#endif
   return 0;
 }
 

@@ -1307,7 +1307,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (thd)
     {
-#if MYSQL_VERSION_ID < 50000
+      /* NOTE: CHARSET AND TZ REPL WILL BE REWRITTEN SHORTLY */
       /*
         To make replication of charsets working in 4.1 we are writing values
         of charset related variables before every statement in the binlog,
@@ -1353,7 +1353,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
         if (e.write(file))
           goto err;
       }
-#endif
 
       if (thd->last_insert_id_used)
       {
