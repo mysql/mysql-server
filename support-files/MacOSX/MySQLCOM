@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# /Library/StartupItems/MySQLCOM/MySQLCOM
+#
+# A script to automatically start up MySQL on system bootup
+# for Mac OS X. This is actually just a wrapper script around
+# the standard mysql.server init script, which is included in
+# the binary distribution.
+#
+# (c) 2003 MySQL AB
+# Written by Lenz Grimmer <lenz@mysql.com>
+#
+
+# Suppress the annoying "$1: unbound variable" error when no option
+# was given
+if [ -z $1 ] ; then
+	echo "Usage: $0 [start|stop|restart] "
+	exit 1
+fi
+
+# Source the common setup functions for startup scripts
+test -r /etc/rc.common || exit 1
+. /etc/rc.common
+
+# The path to the mysql.server init script. The official MySQL
+# Mac OS X packages are being installed into /usr/local/mysql.
+SCRIPT="/usr/local/mysql/support-files/mysql.server"
+
+StartService ()
+{
+	if [ "${MYSQLCOM:=-NO-}" = "-YES-" ] ; then
+		ConsoleMessage "Starting MySQL database server"
+		$SCRIPT start > /dev/null 2>&1
+	fi
+}
+
+StopService ()
+{
+	ConsoleMessage "Stopping MySQL database server"
+	$SCRIPT stop > /dev/null 2>&1
+}
+
+RestartService ()
+{
+	ConsoleMessage "Restarting MySQL database server"
+	$SCRIPT restart > /dev/null 2>&1
+}
+
+if test -x $SCRIPT ; then
+	RunService "$1"
+else
+	ConsoleMessage "Could not find MySQL startup script!"
+fi

@@ -59,7 +59,6 @@ execute stmt1 using @arg00;
 select a,b from t1 where b=@arg00;
 
 ## truncate a table
---error 1295
 prepare stmt1 from 'truncate table t1' ;
 
 

@@ -252,8 +252,8 @@ mysql
 test
 prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
-Tables_in_test (t2%)
-t2
+Tables_in_test (t2%)	table_type
+t2	BASE TABLE
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
@@ -302,18 +302,18 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 prepare stmt4 from ' show storage engines ';
 execute stmt4;
 Engine	Support	Comment
-MyISAM	YES/NO	Default type from 3.23 with great performance
-HEAP	YES/NO	Hash based, stored in memory, useful for temporary tables
-MEMORY	YES/NO	Alias for HEAP
+MyISAM	YES/NO	Default engine as of MySQL 3.23 with great performance
+HEAP	YES/NO	Alias for MEMORY
+MEMORY	YES/NO	Hash based, stored in memory, useful for temporary tables
 MERGE	YES/NO	Collection of identical MyISAM tables
 MRG_MYISAM	YES/NO	Alias for MERGE
-ISAM	YES/NO	Obsolete table type; Is replaced by MyISAM
-MRG_ISAM	YES/NO	Obsolete table type; Is replaced by MRG_MYISAM
-InnoDB	YES/NO	Supports transactions, row-level locking and foreign keys
+ISAM	YES/NO	Obsolete storage engine, now replaced by MyISAM
+MRG_ISAM	YES/NO	Obsolete storage engine, now replaced by MERGE
+InnoDB	YES/NO	Supports transactions, row-level locking, and foreign keys
 INNOBASE	YES/NO	Alias for INNODB
 BDB	YES/NO	Supports transactions and page-level locking
 BERKELEYDB	YES/NO	Alias for BDB
-NDBCLUSTER	YES/NO	Clustered, fault tolerant memory based tables
+NDBCLUSTER	YES/NO	Clustered, fault-tolerant, memory-based tables
 NDB	YES/NO	Alias for NDBCLUSTER
 EXAMPLE	YES/NO	Example storage engine
 ARCHIVE	YES/NO	Archive storage engine
@@ -381,9 +381,7 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 prepare stmt1 from ' handler t1 open ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' commit ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' rollback ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' SET sql_mode=ansi ';
 execute stmt4;
 select 'a' || 'b' ;
@@ -459,11 +457,8 @@ m
 1
 drop table t3;
 prepare stmt3 from ' create index t2_idx on t2(b) ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' drop index t2_idx on t2 ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' alter table t2 drop primary key ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 drop table if exists new_t2;
 prepare stmt3 from ' rename table t2 to new_t2 ';
 execute stmt3;

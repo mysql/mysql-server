@@ -304,6 +304,7 @@ character-set=greek
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -346,3 +347,16 @@ character-set=greek
 "Unexpected end of file while parsing comment '%-.64s'"
 "Error while parsing parameter '%-.64s' (line: '%-.64s')"
 "Unexpected end of file while skipping unknown parameter '%-.64s'"
+"EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
+"File '%-.64s' has unknown type '%-.64s' in its header"
+"'%-.64s.%-.64s' is not %s"
+"Column '%-.64s' is not updatable"
+"View's SELECT contains a subquery in the FROM clause"
+"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a variable or parameter" 
+"View's SELECT contains a temporary table '%-.64s'"
+"View's SELECT and view's field list have different column counts"
+"View merge algorithm can't be used here for now (assumed undefined algorithm)"
+"View being update does not have complete key of underlying table in it"
+"View '%-.64s.%-.64s' references invalid table(s) or column(s)"
+"Can't drop a %s from within another stored routine"

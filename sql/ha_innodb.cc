@@ -4795,8 +4795,8 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 	auto_inc_counter_for_this_stat = 0;
-	if (trx->n_tables_locked) {
-		row_unlock_table_for_mysql(trx);
+	if (trx->n_lock_table_exp) {
+		row_unlock_tables_for_mysql(trx);
 	}
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
@@ -4891,7 +4891,8 @@ innodb_show_status(
 
 	field_list.push_back(new Item_empty_string("Status", flen));
 
-	if (protocol->send_fields(&field_list, 1)) {
+	if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                               Protocol::SEND_EOF)) {
 
 		my_free(str, MYF(0));
 

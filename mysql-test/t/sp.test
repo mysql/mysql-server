@@ -1397,7 +1397,6 @@ drop procedure bug3426|
 #
 --disable_warnings
 drop table if exists t3, t4|
---enable_warnings
 
 create table t3 (
   a int primary key, 
@@ -1408,6 +1407,7 @@ create table t4 (
   b int  primary key , 
   bch char(1)
 ) engine = innodb|
+--enable_warnings
 
 insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
 insert into t4 values (1 , 'bCh1' )|
@@ -1591,6 +1591,149 @@ call bug3368('x')|
 call bug3368('yz')|
 drop procedure bug3368|
 drop table t3|
+
+#
+# BUG#4579
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (f1 int, f2 int);
+insert into t3 values (1,1);
+
+create procedure bug4579_1 ()
+begin
+  declare sf1 int;
+
+  select f1 into sf1 from t3 where f1=1 and f2=1;
+  update t3 set f2 = f2 + 1 where f1=1 and f2=1;
+  call bug4579_2();
+end|
+
+create procedure bug4579_2 ()
+begin
+end|
+
+call bug4579_1()|
+call bug4579_1()|
+call bug4579_1()|
+
+drop procedure bug4579_1|
+drop procedure bug4579_2|
+drop table t3|
+
+
+#
+# BUG#4726
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+ 
+create table t3 (f1 int, f2 int, f3 int)|
+insert into t3 values (1,1,1)|
+
+create procedure bug4726()
+begin
+   declare tmp_o_id INT;
+   declare tmp_d_id INT default 1;
+
+   while tmp_d_id <= 2 do
+   begin
+     select f1 into tmp_o_id from t3 where f2=1 and f3=1;
+     set tmp_d_id = tmp_d_id + 1;
+   end;
+   end while;
+end|
+
+call bug4726()|
+call bug4726()|
+call bug4726()|
+
+drop procedure bug4726|
+drop table t3|
+
+#
+# BUG#4318
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+ 
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+
+create procedure bug4318()
+  handler t3 read next|
+
+handler t3 open|
+# Expect no results, as tables are closed, but there shouldn't be any errors
+call bug4318()|
+call bug4318()|
+handler t3 close|
+
+drop procedure bug4318|
+drop table t3|
+
+#
+# BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
+#
+# Added tests for most other show commands we could find too.
+# (Skipping those already tested, and the ones depending on optional handlers.)
+#
+# Note: This will return a large number of results of different formats,
+#       which makes it impossible to filter with --replace_column.
+#       It's possible that some of these are not deterministic across
+#       platforms. If so, just remove the offending command.
+#
+create procedure bug4902()
+begin
+  show charset like 'foo';
+  show collation like 'foo';
+  show column types;
+  show create table t1;
+  show create database test;
+  show databases like 'foo';
+  show errors;
+  show columns from t1;
+  show grants for 'root'@'localhost';
+  show keys from t1;
+  show master status;
+  show open tables like 'foo';
+  show privileges;
+  show processlist;
+  show slave hosts;
+  show slave status;
+  show status like 'foo';
+  show tables like 'foo';
+  show variables like 'foo';
+  show warnings;
+end|
+#show binlog events;
+#show storage engines;
+
+call bug4902()|
+call bug4902()|
+
+drop procedure bug4902|
+
+#
+# BUG#4904
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+
+create procedure bug4904()
+begin
+  declare continue handler for sqlstate 'HY000' begin end;
+
+  create table t2 as select * from t;
+end|
+
+call bug4904()|
+
+drop procedure bug4904|
 
 
 #

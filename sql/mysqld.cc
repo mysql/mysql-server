@@ -4045,7 +4045,8 @@ enum options_mysqld
   OPT_LOG_QUERIES_NOT_USING_INDEXES,
   OPT_DEFAULT_TIME_ZONE,
   OPT_OPTIMIZER_SEARCH_DEPTH,
-  OPT_OPTIMIZER_PRUNE_LEVEL
+  OPT_OPTIMIZER_PRUNE_LEVEL,
+  OPT_SQL_UPDATABLE_VIEW_KEY
 };
 
 
@@ -5122,6 +5123,11 @@ The minimum value for this variable is 4096.",
     (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
     (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sql_updatable_view_key", OPT_SQL_UPDATABLE_VIEW_KEY,
+   "0 = NO = Don't check presence of key in updatable VIEW. 1 = YES = Prohibit update of VIEW which does not contain key of underlying table. 2 = LIMIT1 = Same as YES but prohibited only operation with LIMIT 1 (usually get from GUI tools).",
+   (gptr*) &global_system_variables.sql_updatable_view_key,
+   (gptr*) &max_system_variables.sql_updatable_view_key,
+   0, GET_ULONG, REQUIRED_ARG, 1, 0, 2, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

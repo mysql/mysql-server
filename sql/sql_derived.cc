@@ -52,15 +52,17 @@ mysql_handle_derived(LEX *lex)
     {
       for (TABLE_LIST *cursor= sl->get_table_list();
 	   cursor;
-	   cursor= cursor->next)
+	   cursor= cursor->next_local)
       {
 	int res;
-	if (cursor->derived && (res=mysql_derived(lex->thd, lex,
-						  cursor->derived,
-						  cursor)))
+	if (cursor->derived && (res= mysql_derived(lex->thd, lex,
+						   cursor->derived,
+						   cursor)))
 	{
 	  return res;
 	}
+	else if (cursor->ancestor)
+	  cursor->set_ancestor();
       }
       if (lex->describe)
       {
@@ -148,10 +150,11 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   derived_result->set_table(table);
 
   /*
-    if it is preparation PS only then we do not need real data and we
-    can skip execution (and parameters is not defined, too)
+    if it is preparation PS only or commands that need only VIEW structure
+    then we do not need real data and we can skip execution (and parameters
+    is not defined, too)
   */
-  if (!thd->only_prepare())
+  if (!thd->only_prepare() && !lex->only_view_structure())
   {
     if (is_union)
     {
@@ -197,11 +200,6 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     {
       org_table_list->real_name= table->real_name;
       org_table_list->table= table;
-      if (org_table_list->table_list)
-      {
-	org_table_list->table_list->real_name= table->real_name;
-	org_table_list->table_list->table= table;
-      }
       table->derived_select_number= first_select->select_number;
       table->tmp_table= TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

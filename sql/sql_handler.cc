@@ -166,7 +166,7 @@ int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed)
 
   if (tables)
   {
-    for (tl_item= tables ; tl_item; tl_item= tl_item->next)
+    for (tl_item= tables ; tl_item; tl_item= tl_item->next_local)
     {
       mysql_ha_close(thd, tl_item, /*dont_send_ok*/ 1,
                      /*dont_lock*/ 1, /*no_alias*/ 1);
@@ -249,10 +249,10 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   it++;                                         // Skip first NULL field
 
-  insert_fields(thd,tables,tables->db,tables->alias,&it);
+  insert_fields(thd, tables, tables->db, tables->alias, &it, 0);
 
   select_limit+=offset_limit;
-  protocol->send_fields(&list,1);
+  protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   HANDLER_TABLES_HACK(thd);
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);

@@ -347,7 +347,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 
       create_info->merge_list.elements++;
       (*create_info->merge_list.next) = (byte*) ptr;
-      create_info->merge_list.next= (byte**) &ptr->next;
+      create_info->merge_list.next= (byte**) &ptr->next_local;
     }
     *create_info->merge_list.next=0;
   }
@@ -375,7 +375,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   if (!(table_names= (char**) thd->alloc((create_info->merge_list.elements+1)*
 					 sizeof(char*))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  for (pos=table_names ; tables ; tables=tables->next)
+  for (pos= table_names; tables; tables= tables->next_local)
   {
     char *table_name;
     TABLE **tbl= 0;

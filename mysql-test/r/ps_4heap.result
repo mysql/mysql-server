@@ -335,6 +335,16 @@ a	b
 1	one
 3	three
 2	two
+set @arg00=1 ;
+execute stmt1 using @arg00;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00=0 ;
+execute stmt1 using @arg00;
+ERROR 42S22: Unknown column '?' in 'order clause'
 set @arg00=1;
 prepare stmt1 from ' select a,b from t1
 limit 1 ';
@@ -926,7 +936,6 @@ execute stmt1 using @arg00;
 select a,b from t1 where b=@arg00;
 a	b
 prepare stmt1 from 'truncate table t1' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 test_sequence
 ------ update tests ------
 delete from t1 ;
