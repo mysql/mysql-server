@@ -225,7 +225,6 @@ public:
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
 
-  friend class Item_asterisk_remover;
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
   friend class subselect_indexin_engine;

@@ -559,27 +559,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (select_lex->table_list.elements)
     {
       Item *having= item, *isnull= item;
-      if (item->type() == Item::FIELD_ITEM &&
-	  ((Item_field*) item)->field_name[0] == '*')
-      {
-	Item_asterisk_remover *remover;
-	item= remover= new Item_asterisk_remover(this, item,
-						 (char *)"<no matter>",
-						 (char *)"<result>");
-	if (!abort_on_null)
-	{
-	  having= 
-	    new Item_is_not_null_test(this,
-				      new Item_ref(remover->storage(),
-						   (char *)"<no matter>",
-						   (char *)"<null test>"));
-	  isnull=
-	    new Item_is_not_null_test(this,
-				      new Item_ref(remover->storage(),
-						   (char *)"<no matter>",
-						   (char *)"<null test>"));
-	}
-      }
       item= (*func)(expr, item);
       if (!abort_on_null)
       {
@@ -603,22 +582,12 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
     else
     {
-      if (item->type() == Item::FIELD_ITEM &&
-	  ((Item_field*) item)->field_name[0] == '*')
-      {
-	my_error(ER_NO_TABLES_USED, MYF(0));
-	DBUG_RETURN(ERROR);
-      }
       if (select_lex->master_unit()->first_select()->next_select())
       {
-	/* 
-	   It is in union => we should perform it.
-	   Item_asterisk_remover used only as wrapper to receine NULL value
-	*/
 	join->having= (*func)(expr, 
-			      new Item_asterisk_remover(this, item,
-							(char *)"<no matter>",
-							(char *)"<result>"));
+			      new Item_null_helper(this, item,
+						   (char *)"<no matter>",
+						   (char *)"<result>"));
 	select_lex->having_fix_field= 1;
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
