@@ -233,13 +233,27 @@ class sys_var_thd_ulonglong :public sys_var_thd
 {
 public:
   ulonglong SV::*offset;
+  bool only_global;
   sys_var_thd_ulonglong(const char *name_arg, ulonglong SV::*offset_arg)
     :sys_var_thd(name_arg), offset(offset_arg)
+  {}
+  sys_var_thd_ulonglong(const char *name_arg, ulonglong SV::*offset_arg,
+			sys_after_update_func func, bool only_global_arg)
+    :sys_var_thd(name_arg, func), offset(offset_arg),
+    only_global(only_global_arg)
   {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE type() { return SHOW_LONGLONG; }
   byte *value_ptr(THD *thd, enum_var_type type);
+  bool check_default(enum_var_type type)
+  {
+    return type == OPT_GLOBAL && !option_limits;
+  }
+  bool check_type(enum_var_type type)
+  {
+    return (only_global && type != OPT_GLOBAL);
+  }
 };
 
 

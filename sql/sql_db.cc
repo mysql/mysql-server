@@ -211,6 +211,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   ulong found_other_files=0;
   char filePath[FN_REFLEN];
   TABLE_LIST *tot_list=0, **tot_list_next;
+  List<String> raid_dirs;
+
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
 
@@ -229,6 +231,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     {
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
+      String *dir;
+
       strxmov(newpath,org_path,"/",file->name,NullS);
       unpack_filename(newpath,newpath);
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
@@ -239,7 +243,11 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	  my_dirend(dirp);
 	  DBUG_RETURN(-1);
 	}
+	raid_dirs.push_back(dir=new String(newpath));
+	dir->copy();
+	continue;
       }
+      found_other_files++;
       continue;
     }
     if (find_type(fn_ext(file->name),&deletable_extentions,1+2) <= 0)
@@ -278,12 +286,19 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       deleted++;
     }
   }
-  my_dirend(dirp);
-
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 1)))
+  {
+    my_dirend(dirp);
     DBUG_RETURN(-1);
-
+  }
+  List_iterator<String> it(raid_dirs);
+  String *dir;
+  while ((dir= it++))
+    if (rmdir(dir->c_ptr()) < 0)
+      found_other_files++;
+  my_dirend(dirp);  
+  
   /*
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
