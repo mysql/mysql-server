@@ -138,6 +138,7 @@ private:
   void doStop();
   
   TransporterRegistry* theTransporterRegistry;
+  SocketServer m_socket_server;
   int sendPerformedLastInterval;
   int theOwnId;
 
