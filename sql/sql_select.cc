@@ -1779,6 +1779,7 @@ Cursor::open(JOIN *join_arg)
   thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
 
   /* Prepare JOIN for reading rows. */
+  join->tmp_table= 0;
   join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
   join->send_records= 0;
   join->fetch_limit= join->unit->offset_limit_cnt;
