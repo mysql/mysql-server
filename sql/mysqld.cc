@@ -2832,7 +2832,9 @@ static struct option long_options[] = {
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
   {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
+#ifdef TO_BE_DONE
 #include "sslopt-longopts.h"
+#endif
 #ifdef __WIN__
   {"standalone",            no_argument,       0, (int) OPT_STANDALONE},
 #endif
@@ -3992,8 +3994,10 @@ static void get_options(int argc,char **argv)
       strmov(mysql_charsets_dir, optarg);
       charsets_dir = mysql_charsets_dir;
       break;
+#ifdef TO_BE_DONE
 #include "sslopt-case.h"
     case OPT_DES_KEY_FILE:
+#endif
 #ifdef HAVE_OPENSSL
       des_key_file=optarg;
 #endif
