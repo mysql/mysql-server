@@ -311,7 +311,8 @@ Item *create_func_current_user()
 
   length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
 		  buff);
-  return new Item_string("CURRENT_USER()", thd->memdup(buff, length), length);
+  return new Item_string("CURRENT_USER()", thd->memdup(buff, length), length,
+			 default_charset_info);
 }
 
 Item *create_func_quarter(Item* a)

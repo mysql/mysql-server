@@ -381,7 +381,6 @@ MYSQL_RES *	STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
 MYSQL_RES *	STDCALL mysql_list_processes(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_store_result(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_use_result(MYSQL *mysql);
-MYSQL_RES *	STDCALL mysql_warnings(MYSQL *mysql);
 int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 				      const char *arg);
 void		STDCALL mysql_free_result(MYSQL_RES *result);

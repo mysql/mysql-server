@@ -381,7 +381,8 @@ public:
     name=(char*) str_value.ptr();
     decimals=NOT_FIXED_DEC;
   }
-  Item_string(const char *name_par,const char *str,uint length,CHARSET_INFO *cs)
+  Item_string(const char *name_par,const char *str,uint length,
+	      CHARSET_INFO *cs)
   {
     str_value.set(str,length,cs);
     max_length=length;
