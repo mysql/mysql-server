@@ -23,8 +23,6 @@
 
 */
 
-
-
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif

@@ -31,3 +31,16 @@ drop table t1;
 explain select 1;
 Comment
 No tables used
+create table t1 (a int not null);
+explain select count(*) from t1;
+Comment
+Select tables optimized away
+insert into t1 values(1);
+explain select count(*) from t1;
+Comment
+Select tables optimized away
+insert into t1 values(1);
+explain select count(*) from t1;
+Comment
+Select tables optimized away
+drop table t1;

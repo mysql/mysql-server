@@ -245,8 +245,15 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	const_result=0;
     }
   }
-  if (used_tables != removed_tables)
-    const_result=0;				// We didn't remove all tables
+  /*
+    If we have a where clause, we can only ignore searching in the
+    tables if MIN/MAX optimisation replaced all used tables
+    This is to not to use replaced values in case of:
+    SELECT MIN(key) FROM table_1, empty_table
+    removed_tables is != 0 if we have used MIN() or MAX().
+  */
+  if (removed_tables && used_tables != removed_tables)
+    const_result= 0;				// We didn't remove all tables
   return const_result;
 }
 
