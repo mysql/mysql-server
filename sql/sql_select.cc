@@ -144,7 +144,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static void init_sum_functions(Item_sum **func);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
-			    bool distinct);
+			    bool distinct, const char *message=NullS);
 static void describe_info(THD *thd, const char *info);
 
 /*
@@ -195,6 +195,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   Procedure	*procedure;
   List<Item>	all_fields(fields);
   bool		select_distinct;
+  SELECT_LEX *select_lex = &(thd->lex.select_lex);
   DBUG_ENTER("mysql_select");
 
   /* Check that all tables, fields, conds and order are ok */
@@ -350,10 +351,13 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (cond_value == Item::COND_FALSE || !thd->select_limit)
   {					/* Impossible cond */
-    error=return_zero_rows(result, tables, fields,
-			   join.tmp_table_param.sum_func_count != 0 && !group,
-			   select_options,"Impossible WHERE",having,
-			   procedure);
+    if (select_options & SELECT_DESCRIBE && select_lex->next)
+      select_describe(&join,false,false,false,"Impossible WHERE");
+    else 
+      error=return_zero_rows(result, tables, fields,
+			     join.tmp_table_param.sum_func_count != 0 && !group,
+			     select_options,"Impossible WHERE",having,
+			     procedure);
     delete procedure;
     DBUG_RETURN(error);
   }
@@ -366,17 +370,23 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     {
       if (res < 0)
       {
-	error=return_zero_rows(result, tables, fields, !group,
-			       select_options,"No matching min/max row",
-			       having,procedure);
+	if (select_options & SELECT_DESCRIBE && select_lex->next)
+	  select_describe(&join,false,false,false,"No matching min/max row");
+	else 
+	  error=return_zero_rows(result, tables, fields, !group,
+				 select_options,"No matching min/max row",
+				 having,procedure);
 	delete procedure;
 	DBUG_RETURN(error);
       }
       if (select_options & SELECT_DESCRIBE)
       {
-	describe_info(thd,"Select tables optimized away");
+	if (select_lex->next)
+	  select_describe(&join,false,false,false,"Select tables optimized away");
+	else
+	  describe_info(thd,"Select tables optimized away");
 	delete procedure;
-	DBUG_RETURN(0);
+	DBUG_RETURN(error);
       }
       tables=0;					// All tables resolved
     }
@@ -385,7 +395,12 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {						// Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
-      describe_info(thd,"No tables used");
+    {
+      if (select_lex->next)
+	select_describe(&join,false,false,false,"No tables used");
+      else
+	describe_info(thd,"No tables used");
+    }
     else
     {
       result->send_fields(fields,1);
@@ -463,11 +478,14 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (make_join_select(&join,select,conds))
   {
-    error=return_zero_rows(result,tables,fields,
-			   join.tmp_table_param.sum_func_count != 0 && !group,
-			   select_options,
-			   "Impossible WHERE noticed after reading const tables",
-			   having,procedure);
+    if (select_options & SELECT_DESCRIBE && select_lex->next)
+      select_describe(&join,false,false,false,"Impossible WHERE noticed after reading const tables");
+    else 
+      error=return_zero_rows(result,tables,fields,
+			     join.tmp_table_param.sum_func_count != 0 && !group,
+			     select_options,
+			     "Impossible WHERE noticed after reading const tables",
+			     having,procedure);
     goto err;
   }
 
@@ -535,7 +553,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   make_join_readinfo(&join,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-     (thd->lex.select_lex.ftfunc_list.elements ? SELECT_NO_JOIN_CACHE : 0));
+     (select_lex->ftfunc_list.elements ? SELECT_NO_JOIN_CACHE : 0));
 
   /* Need to tell Innobase that to play it safe, it should fetch all
      columns of the tables: this is because MySQL
@@ -2516,6 +2534,7 @@ static void
 make_join_readinfo(JOIN *join,uint options)
 {
   uint i;
+  SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -2598,7 +2617,7 @@ make_join_readinfo(JOIN *join,uint options)
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
-	join->thd->lex.select_lex.options|=QUERY_NO_GOOD_INDEX_USED;
+	select_lex->options|=QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	statistic_increment(select_range_check_count, &LOCK_status);
       }
@@ -2613,7 +2632,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
+	    select_lex->options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
@@ -2625,7 +2644,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
-	    join->thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
+	    select_lex->options|=QUERY_NO_INDEX_USED;
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
@@ -2913,7 +2932,7 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
   DBUG_ENTER("return_zero_rows");
 
   if (select_options & SELECT_DESCRIBE)
-  {
+  {	
     describe_info(current_thd, info);
     DBUG_RETURN(0);
   }
@@ -5962,10 +5981,10 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
 
 
 /*****************************************************************************
-**	Fill join cache with packed records
-**	Records are stored in tab->cache.buffer and last record in
-**	last record is stored with pointers to blobs to support very big
-**	records
+  Fill join cache with packed records
+  Records are stored in tab->cache.buffer and last record in
+  last record is stored with pointers to blobs to support very big
+  records
 ******************************************************************************/
 
 static int
@@ -6027,7 +6046,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     if (null_fields && tables[i].table->null_fields)
     {						/* must copy null bits */
       copy->str=(char*) tables[i].table->null_flags;
-      copy->length=(tables[i].table->null_fields+7)/8;
+      copy->length=tables[i].table->null_bytes;
       copy->strip=0;
       copy->blob_field=0;
       length+=copy->length;
@@ -6940,16 +6959,17 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 ****************************************************************************/
 
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
-			    bool distinct)
+			    bool distinct,const char *message)
 {
   List<Item> field_list;
   Item *item;
   THD *thd=join->thd;
+  SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
   DBUG_ENTER("select_describe");
 
   /* Don't log this into the slow query log */
-  join->thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
-  if (join->thd->lex.select == &join->thd->lex.select_lex)
+  select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  if (join->thd->lex.select == select_lex)
   {
     field_list.push_back(new Item_empty_string("table",NAME_LEN));
     field_list.push_back(new Item_empty_string("type",10));
@@ -6970,133 +6990,150 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   }
   char buff[512],*buff_ptr;
   String tmp(buff,sizeof(buff)),*packet= &thd->packet;
-  table_map used_tables=0;
-  for (uint i=0 ; i < join->tables ; i++)
+  if (message)
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *table=tab->table;
-
-    if (tab->type == JT_ALL && tab->select && tab->select->quick)
-      tab->type= JT_RANGE;
     packet->length(0);
-    net_store_data(packet,table->table_name);
-    net_store_data(packet,join_type_str[tab->type]);
-    tmp.length(0);
-    key_map bits;
-    uint j;
-    for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
+    net_store_null(packet);
+    net_store_null(packet);
+    net_store_null(packet);
+    net_store_null(packet);
+    net_store_null(packet);
+    net_store_null(packet);
+    net_store_null(packet);
+    net_store_data(packet,message,strlen(message));
+    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+      DBUG_VOID_RETURN;
+  }
+  else
+  {
+    table_map used_tables=0;
+    for (uint i=0 ; i < join->tables ; i++)
     {
-      if (bits & 1)
-      {
-	if (tmp.length())
-	  tmp.append(',');
-	tmp.append(table->key_info[j].name);
-      }
-    }
-    if (tmp.length())
-      net_store_data(packet,tmp.ptr(),tmp.length());
-    else
-      net_store_null(packet);
-    if (tab->ref.key_parts)
-    {
-      net_store_data(packet,table->key_info[tab->ref.key].name);
-      net_store_data(packet,(uint32) tab->ref.key_length);
+      JOIN_TAB *tab=join->join_tab+i;
+      TABLE *table=tab->table;
+      
+      if (tab->type == JT_ALL && tab->select && tab->select->quick)
+	tab->type= JT_RANGE;
+      packet->length(0);
+      net_store_data(packet,table->table_name);
+      net_store_data(packet,join_type_str[tab->type]);
       tmp.length(0);
-      for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
+      key_map bits;
+      uint j;
+      for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
       {
-	if (tmp.length())
-	  tmp.append(',');
-	tmp.append((*ref)->name());
+	if (bits & 1)
+	{
+	  if (tmp.length())
+	    tmp.append(',');
+	  tmp.append(table->key_info[j].name);
+	}
       }
-      net_store_data(packet,tmp.ptr(),tmp.length());
-    }
-    else if (tab->type == JT_NEXT)
-    {
-      net_store_data(packet,table->key_info[tab->index].name);
-      net_store_data(packet,(uint32) table->key_info[tab->index].key_length);
-      net_store_null(packet);
-    }
-    else if (tab->select && tab->select->quick)
-    {
-      net_store_data(packet,table->key_info[tab->select->quick->index].name);;
-      net_store_data(packet,(uint32) tab->select->quick->max_used_key_length);
-      net_store_null(packet);
-    }
-    else
-    {
-      net_store_null(packet);
-      net_store_null(packet);
-      net_store_null(packet);
-    }
-    sprintf(buff,"%.0f",join->best_positions[i].records_read);
-    net_store_data(packet,buff);
-    my_bool key_read=table->key_read;
-    if (tab->type == JT_NEXT &&
-	((table->used_keys & ((key_map) 1 << tab->index))))
-      key_read=1;
-
-    buff_ptr=buff;
-    if (tab->info)
-      net_store_data(packet,tab->info);
-    else if (tab->select)
-    {
-      if (tab->use_quick == 2)
+      if (tmp.length())
+	net_store_data(packet,tmp.ptr(),tmp.length());
+      else
+	net_store_null(packet);
+      if (tab->ref.key_parts)
       {
-	sprintf(buff_ptr,"range checked for each record (index map: %u)",
-		tab->keys);
-	buff_ptr=strend(buff_ptr);
+	net_store_data(packet,table->key_info[tab->ref.key].name);
+	net_store_data(packet,(uint32) tab->ref.key_length);
+	tmp.length(0);
+	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
+	{
+	  if (tmp.length())
+	    tmp.append(',');
+	  tmp.append((*ref)->name());
+	}
+	net_store_data(packet,tmp.ptr(),tmp.length());
+      }
+      else if (tab->type == JT_NEXT)
+      {
+	net_store_data(packet,table->key_info[tab->index].name);
+	net_store_data(packet,(uint32) table->key_info[tab->index].key_length);
+	net_store_null(packet);
+      }
+      else if (tab->select && tab->select->quick)
+      {
+	net_store_data(packet,table->key_info[tab->select->quick->index].name);;
+	net_store_data(packet,(uint32) tab->select->quick->max_used_key_length);
+	net_store_null(packet);
       }
       else
-	buff_ptr=strmov(buff_ptr,"where used");
-    }
-    if (key_read)
-    {
-      if (buff != buff_ptr)
       {
-	buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	net_store_null(packet);
+	net_store_null(packet);
+	net_store_null(packet);
       }
-      buff_ptr=strmov(buff_ptr,"Using index");
-    }
-    if (table->reginfo.not_exists_optimize)
-    {
-      if (buff != buff_ptr)
+      sprintf(buff,"%.0f",join->best_positions[i].records_read);
+      net_store_data(packet,buff);
+      my_bool key_read=table->key_read;
+      if (tab->type == JT_NEXT &&
+	  ((table->used_keys & ((key_map) 1 << tab->index))))
+	key_read=1;
+      
+      buff_ptr=buff;
+      if (tab->info)
+	net_store_data(packet,tab->info);
+      else if (tab->select)
       {
-	buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	if (tab->use_quick == 2)
+	{
+	  sprintf(buff_ptr,"range checked for each record (index map: %u)",
+		  tab->keys);
+	  buff_ptr=strend(buff_ptr);
+	}
+	else
+	  buff_ptr=strmov(buff_ptr,"where used");
       }
-      buff_ptr=strmov(buff_ptr,"Not exists");
-    }
-    if (need_tmp_table)
-    {
-      need_tmp_table=0;
-      if (buff != buff_ptr)
+      if (key_read)
       {
-	buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	if (buff != buff_ptr)
+	{
+	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	}
+	buff_ptr=strmov(buff_ptr,"Using index");
       }
-      buff_ptr=strmov(buff_ptr,"Using temporary");
-    }
-    if (need_order)
-    {
-      need_order=0;
-      if (buff != buff_ptr)
+      if (table->reginfo.not_exists_optimize)
       {
-	buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	if (buff != buff_ptr)
+	{
+	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	}
+	buff_ptr=strmov(buff_ptr,"Not exists");
       }
-      buff_ptr=strmov(buff_ptr,"Using filesort");
-    }
-    if (distinct & test_all_bits(used_tables,thd->used_tables))
-    {
-      if (buff != buff_ptr)
+      if (need_tmp_table)
       {
-	buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	need_tmp_table=0;
+	if (buff != buff_ptr)
+	{
+	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	}
+	buff_ptr=strmov(buff_ptr,"Using temporary");
       }
-      buff_ptr=strmov(buff_ptr,"Distinct");
-    }
-    net_store_data(packet,buff,(uint) (buff_ptr - buff));
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-      DBUG_VOID_RETURN;				/* purecov: inspected */
+      if (need_order)
+      {
+	need_order=0;
+	if (buff != buff_ptr)
+	{
+	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	}
+	buff_ptr=strmov(buff_ptr,"Using filesort");
+      }
+      if (distinct & test_all_bits(used_tables,thd->used_tables))
+      {
+	if (buff != buff_ptr)
+	{
+	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
+	}
+	buff_ptr=strmov(buff_ptr,"Distinct");
+      }
+      net_store_data(packet,buff,(uint) (buff_ptr - buff));
+      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+	DBUG_VOID_RETURN;				/* Purecov: Inspected */
 
-    // For next iteration
-    used_tables|=table->map;
+      // For next iteration
+      used_tables|=table->map;
+    }
   }
   if (!join->thd->lex.select->next)
     send_eof(&thd->net);

@@ -96,7 +96,7 @@ sub main
     # remove the 'PUBLIC' file from distribution and copy LICENSE
     # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
     # exist in the new mysql distributions, but let's be sure..
-    `rm -f $destdir/PUBLIC`;
+    `rm -f $destdir/PUBLIC $destdir/README`;
     `cp -p $WD/Docs/LICENSE $destdir/`;
     
     # fix file copyrights
@@ -129,7 +129,7 @@ sub fix_usage_copyright
   foreach my $Cfile (@Cfiles)
   {
     chop $Cfile;
-    `replace \"This is free software,\\\\\\nand you are welcome to modify and redistribute it under the GPL license\" \"This is commercial software,\\\\nplease see the file LICENSE for details\" -- $Cfile`;
+    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file LICENSE for details" -- $Cfile`;
   }
 }
 

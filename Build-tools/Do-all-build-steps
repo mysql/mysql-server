@@ -63,6 +63,7 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-low-memory \
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
+ --enable-local-infile \
  --with-berkeley-db \
  --with-innodb \
  --with-vio \

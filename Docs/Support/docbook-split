@@ -1,0 +1,96 @@
+#! /usr/local/bin/perl
+# O'Reilly's Perl script to chop mysql.xml into separate ch/apps/index files.
+# The indexes are actually not used, they're created straight from the xrefs.
+
+use strict;
+
+# Breaks the MySQL reference manual into chapters, appendices, and indexes.
+
+my $input_file;
+my $directory;
+my $chap_num;
+my $app_letter;
+my $start_text;
+my $line;
+my $input_file;
+my $output_name;
+
+$input_file = "mysql.xml";
+$directory="chaps_apps_index";
+$chap_num=1;       # Start chapter numbers at one (there is no preface)
+$app_letter="a";   # Start appendix letters at "a"
+$start_text="";
+$line="";
+
+open (INPUT_FILE, '<' . $input_file) or die "Cannot open $input_file";
+
+if (-d $directory) {
+    my $unlinked = unlink <$directory/*>;
+    printf(Removed "%d files\n", $unlinked);
+}
+else {
+    mkdir $directory or die "Cannot make $directory subdirectory";
+}
+
+while (1) {
+
+    # Terminating statement for loop.
+    exit if not defined $line;
+
+    if ($line =~ /(?:.*)(<chapter.*)/i ) {
+        $start_text = $1;
+        $output_name = &make_chapter_name($chap_num);
+        $chap_num++;
+        &process_file("chapter");
+    }
+    elsif ($line =~ /(?:.*)(<appendix.*)/i ) {
+        $start_text = $1 ;
+        $output_name = &make_appendix_name($app_letter);
+        $app_letter++;
+        &process_file("appendix");
+    }
+    elsif ($line =~ /(?:.*)(<index\s+id=")(.*?)(">.*)/i ) {
+        $start_text = $1 . $2 . $3;
+        $output_name = lc($2) . ".xml";
+        &process_file("index");
+    }
+    else {
+        # Automatically skips junk in between chapters, appendices,
+        # and indexes.
+        $line = <INPUT_FILE>;
+    }
+}
+
+sub make_chapter_name {
+    my $num = shift;
+    my $name = "ch" . sprintf("%02d", $num) . ".xml";
+    return $name;
+}
+
+sub make_appendix_name {
+    my $letter = shift;
+    my $name = "app" . sprintf("%s", $letter) . ".xml";
+    return $name;
+}
+
+sub process_file {
+    my $marker=shift;
+    open (OUTPUT_FILE, '>' . $directory . "/" . $output_name) or
+        die "Cannot open $output_name";
+    # Print whatever happened to appear at the end of the previous chapter.
+    print OUTPUT_FILE $start_text . "\n" if $start_text;
+    while (1) {
+        $line = <INPUT_FILE>;
+        exit if not defined $line;
+        # Note: Anything after the terminating marker is lost, just like
+        # lines in between chapters.
+        if ($line =~ /(.*<\/\s*$marker\s*>)/i ) {
+            print OUTPUT_FILE $1 . "\n" if $1;
+            close OUTPUT_FILE;
+            return;
+        }
+        print OUTPUT_FILE $line;
+    }
+}
+
+exit 0;

@@ -13,7 +13,8 @@
          sed -e 's;MYSQL_TCP_PORT_DEFAULT=;;' >> include.texi
 
 # produce DocBook XML
-        makeinfo --force --no-ifinfo --docbook manual.texi
-        mv mysql.xml mysql-tmp.xml
-        Support/docbook-fixup.pl <mysql-tmp.xml >mysql.xml
-        rm -f mysql-tmp.xml
+        makeinfo --force --no-ifinfo --docbook -o - manual.texi |\
+         Support/docbook-fixup.pl > mysql.xml
+    
+        # See if the XML output is well-formed
+        xmlwf mysql.xml

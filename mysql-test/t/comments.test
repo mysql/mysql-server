@@ -5,7 +5,7 @@
 select 1+2/*hello*/+3;
 select 1 /* long
 multi line comment */;
-!$1065 /* empty query */;
+!$1065 ;
 select 1 /*!32301 +1 */;
 select 1 /*!52301 +1 */;
 select 1--1;
@@ -15,3 +15,4 @@ select 1 --2
 +1;
 select 1 # The rest of the row will be ignored
 ;
+/* line with only comment */;

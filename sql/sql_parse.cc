@@ -120,8 +120,9 @@ inline bool end_active_trans(THD *thd)
 static HASH hash_user_connections;
 extern  pthread_mutex_t LOCK_user_conn;
 
-static int get_or_create_user_conn(THD *thd, const char *user, const char *host,
-					  uint max_questions) 
+static int get_or_create_user_conn(THD *thd, const char *user,
+				   const char *host,
+				   uint max_questions) 
 {
   int return_val=0;
   uint temp_len;
@@ -134,19 +135,18 @@ static int get_or_create_user_conn(THD *thd, const char *user, const char *host,
   temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user)-1, user, "@", host,
 			     NullS) - temp_user);
   (void) pthread_mutex_lock(&LOCK_user_conn);
-  uc = (struct  user_conn *) hash_search(&hash_user_connections,
-					 (byte*) temp_user, temp_len);
-  if (!uc)
+  if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
+					       (byte*) temp_user, temp_len)))
   {
-    uc= ((struct user_conn*)
-	 my_malloc(sizeof(struct user_conn) + temp_len+1,
-		   MYF(MY_WME)));
-    if (!uc)
+    /* First connection for user; Create a user connection object */
+    if (!(uc= ((struct user_conn*)
+	       my_malloc(sizeof(struct user_conn) + temp_len+1,
+			 MYF(MY_WME)))))
     {
       send_error(&current_thd->net, 0, NullS);	// Out of memory
       return_val=1;
       goto end;
-    }      
+    }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->len = temp_len;
@@ -279,9 +279,6 @@ static int check_for_max_user_connections(UC *uc)
 {
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
-//  DBUG_PRINT("enter",("user: '%s'  host: '%s'", user, host));
-
-  DBUG_ASSERT(uc != 0);
   
   if (max_user_connections <=  (uint) uc->connections) 
   {
@@ -302,8 +299,6 @@ static void decrease_user_connections(UC *uc)
     return;
 
   DBUG_ENTER("decrease_user_connections");
-  DBUG_ASSERT(uc != 0);
-//  DBUG_PRINT("enter",("user: '%s'  host: '%s'", user, host));
 
   if (!--uc->connections && !mqh_used)
   {
@@ -325,6 +320,10 @@ void free_max_user_conn(void)
 /*
   Check if maximum queries per hour limit has been reached
   returns 0 if OK.
+
+  In theory we would need a mutex in the UC structure for this to be 100 %
+  safe, but as the worst scenario is that we would miss counting a couple of
+  queries, this isn't critical.
 */
 
 static bool check_mqh(THD *thd)
@@ -334,15 +333,14 @@ static bool check_mqh(THD *thd)
   UC *uc=thd->user_connect;
   DBUG_ASSERT(uc != 0);
 
-  /* TODO: Add username + host to THD for faster execution */
   bool my_start = thd->start_time != 0;
   time_t check_time = (my_start) ?  thd->start_time : time(NULL);
   if (check_time  - uc->intime >= 3600)
   {
-//    (void) pthread_mutex_lock(&LOCK_user_conn);
-    uc->questions=(uint) my_start;
+    (void) pthread_mutex_lock(&LOCK_user_conn);
+    uc->questions=1;
     uc->intime=check_time;
-//    (void) pthread_mutex_unlock(&LOCK_user_conn);
+    (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
   else if (uc->max_questions && ++(uc->questions) > uc->max_questions)
   {
@@ -356,27 +354,22 @@ end:
   DBUG_RETURN(error);
 }
 
-static void reset_mqh(THD *thd,LEX_USER *lu, uint mq)
-{
-  char user[USERNAME_LENGTH+1];
-  char host[USERNAME_LENGTH+1];
-  char *where;
 
+static void reset_mqh(THD *thd, LEX_USER *lu, uint mq)
+{
+
+  (void) pthread_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT 
   {
     UC *uc;
-    uint temp_len;
+    uint temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
 
-    memcpy(user,lu->user.str,lu->user.length);
-    user[lu->user.length]='\0';
-    memcpy(host,lu->host.str,lu->host.length);
-    host[lu->host.length]='\0';
-    temp_len= (uint) (strxnmov(temp_user, sizeof(temp_user)-1, user, "@", host,
-			     NullS) - temp_user);
-    uc = (struct  user_conn *) hash_search(&hash_user_connections,
-					 (byte*) temp_user, temp_len);
-    if (uc)
+    memcpy(temp_user,lu->user.str,lu->user.length);
+    memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
+    temp_user[lu->user.length]=temp_user[temp_len-1]=0;
+    if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
+						(byte*) temp_user, temp_len)))
     {
       uc->questions=0;
       uc->max_questions=mq;
@@ -384,20 +377,19 @@ static void reset_mqh(THD *thd,LEX_USER *lu, uint mq)
   }
   else // for FLUSH PRIVILEGES
   {
-    (void) pthread_mutex_lock(&LOCK_user_conn);
-    for (uint idx=0;idx<hash_user_connections.records;idx++)
+    for (uint idx=0;idx < hash_user_connections.records; idx++)
     {
-      HASH_LINK *data=dynamic_element(&hash_user_connections.array,idx,HASH_LINK*);
-      UC *uc=(struct  user_conn *)data->data;
+      char user[USERNAME_LENGTH+1];
+      char *where;
+      UC *uc=(struct user_conn *) hash_element(&hash_user_connections, idx);
       where=strchr(uc->user,'@');
-      memcpy(user,uc->user,where - uc->user);
-      user[where-uc->user]='\0'; where++;
-      strcpy(host,where);
-      uc->max_questions=get_mqh(user,host);
+      strmake(user,uc->user,where - uc->user);
+      uc->max_questions=get_mqh(user,where+1);
     }
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
 }
+
 
 /*
   Check connnetion and get priviliges
@@ -833,8 +825,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 {
   NET *net= &thd->net;
   bool	error=0;
-  // commands which will always take a long time should be marked with
-  // this so that they will not get logged to the slow query log
+  /*
+    Commands which will always take a long time should be marked with
+    this so that they will not get logged to the slow query log
+  */
   bool slow_command=FALSE;
   DBUG_ENTER("dispatch_command");
 
@@ -912,7 +906,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     if (max_connections && save_uc)
-      decrease_user_connections (save_uc);
+      decrease_user_connections(save_uc);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
     thd->password=test(passwd[0]);
@@ -947,8 +941,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("query",("%s",thd->query));
     if (thd->user_connect && check_mqh(thd))
     {
-      error = TRUE;
-      net->error = 0;
+      error = TRUE;				// Abort client
+      net->error = 0;				// Don't give abort message
       break;
     }
     /* thd->query_length is set by mysql_parse() */
@@ -1071,11 +1065,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       else
 	send_eof(net);
       if (mqh_used)
-      {
-	if (hash_user_connections.array.buffer == 0)
-	  init_max_user_conn();
-	reset_mqh(thd,(LEX_USER *)NULL,0);
-      }
+	reset_mqh(thd,(LEX_USER *) NULL, 0);
       break;
     }
   case COM_SHUTDOWN:
@@ -1319,6 +1309,10 @@ mysql_execute_command(void)
   }
   case SQLCOM_DO:
     res=mysql_do(thd, *lex->insert_list);
+    break;
+
+  case SQLCOM_EMPTY_QUERY:
+    send_ok(&thd->net);
     break;
 
   case SQLCOM_PURGE:
@@ -2103,13 +2097,20 @@ mysql_execute_command(void)
   {
     uint privilege= (lex->duplicates == DUP_REPLACE ?
 		     INSERT_ACL | UPDATE_ACL | DELETE_ACL : INSERT_ACL);
-    if (!(lex->local_file && (thd->client_capabilities & CLIENT_LOCAL_FILES)))
+
+    if (!lex->local_file)
     {
       if (check_access(thd,privilege | FILE_ACL,tables->db))
 	goto error;
     }
     else
     {
+      if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
+	  ! opt_local_infile)
+      {
+	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);
+	goto error;
+      }
       if (check_access(thd,privilege,tables->db,&tables->grant.privilege) ||
 	  grant_option && check_grant(thd,privilege,tables))
 	goto error;
@@ -2305,17 +2306,12 @@ mysql_execute_command(void)
 	  Query_log_event qinfo(thd, thd->query);
 	  mysql_bin_log.write(&qinfo);
 	}
-	if (mqh_used)
+	if (mqh_used && lex->mqh)
 	{
-	  if (hash_user_connections.array.buffer == 0)
-	    init_max_user_conn();
-	  if (lex->mqh)
-	  {
-	    List_iterator <LEX_USER> str_list (lex->users_list);
-	    LEX_USER *Str;
-	    str_list.rewind();
-	    reset_mqh(thd,str_list++,lex->mqh);
-	  }
+	  List_iterator <LEX_USER> str_list(lex->users_list);
+	  LEX_USER *user;
+	  while ((user=str_list++))
+	    reset_mqh(thd,user,lex->mqh);
 	}
       }
     }

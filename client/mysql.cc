@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.19";
+const char *VER="11.20";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -116,10 +116,10 @@ static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
 	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
-	    opt_compress=0,
+	    opt_compress=0, using_opt_local_infile=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
             opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1;
-static uint verbose=0,opt_silent=0,opt_mysql_port=0;
+static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
@@ -436,6 +436,7 @@ static struct option long_options[] =
   {"xml",           no_argument,           0, 'X'},
   {"host",	    required_argument,	   0, 'h'},
   {"ignore-spaces", no_argument,	   0, 'i'},
+  {"local-infile",  optional_argument,	   0, OPT_LOCAL_INFILE},
   {"no-auto-rehash",no_argument,	   0, 'A'},
   {"no-named-commands", no_argument,       0, 'g'},
   {"no-tee",        no_argument,           0, OPT_NOTEE},
@@ -737,6 +738,10 @@ static int get_options(int argc, char **argv)
       break;
     case 'C':
       opt_compress=1;
+      break;
+    case OPT_LOCAL_INFILE:
+      using_opt_local_infile=1;
+      opt_local_infile= test(!optarg || atoi(optarg)>0);
       break;
     case 'L':
       skip_line_numbers=1;
@@ -2235,6 +2240,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
+  if (using_opt_local_infile)
+    mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
