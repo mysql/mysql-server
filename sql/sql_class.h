@@ -431,12 +431,126 @@ struct system_variables
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);
+
+
+/*
+  State of a single command executed against this connection.
+  One connection can contain a lot of simultaneously running statements,
+  some of which could be:
+   - prepared, that is, contain placeholders,
+   - opened as cursors. We maintain 1 to 1 relationship between
+     statement and cursor - if user wants to create another cursor for his
+     query, we create another statement for it. 
+  To perform some action with statement we reset THD part to the state  of
+  that statement, do the action, and then save back modified state from THD
+  to the statement. It will be changed in near future, and Statement will
+  be used explicitly.
+*/
+
+class Statement
+{
+public:
+  /* FIXME: must be private */
+  LEX     main_lex;
+public:
+  /*
+    Uniquely identifies each statement object in scope of thread.
+    Can't be const at the moment because of substitute() method
+  */
+  /* const */ ulong id;
+
+  /*
+    Id of current query. Statement can be reused to execute several queries
+    query_id is global in context of the whole MySQL server.
+    ID is automatically generated from mutex-protected counter.
+    It's used in handler code for various purposes: to check which columns
+    from table are necessary for this select, to check if it's necessary to
+    update auto-updatable fields (like auto_increment and timestamp).
+  */
+  ulong query_id;
+  /*
+    - if set_query_id=1, we set field->query_id for all fields. In that case 
+    field list can not contain duplicates.
+  */
+  bool set_query_id;
+  /*
+    This variable is used in post-parse stage to declare that sum-functions,
+    or functions which have sense only if GROUP BY is present, are allowed.
+    For example in queries
+    SELECT MIN(i) FROM foo
+    SELECT GROUP_CONCAT(a, b, MIN(i)) FROM ... GROUP BY ...
+    MIN(i) have no sense.
+    Though it's grammar-related issue, it's hard to catch it out during the
+    parse stage because GROUP BY clause goes in the end of query. This
+    variable is mainly used in setup_fields/fix_fields.
+    See item_sum.cc for details.
+  */
+  bool allow_sum_func;
+  /*
+    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    first byte of the packet in do_command()
+  */
+  enum enum_server_command command;
+
+  LEX *lex;                                     // parse tree descriptor
+  /*
+    Points to the query associated with this statement. It's const, but
+    we need to declare it char * because all table handlers are written
+    in C and need to point to it.
+  */
+  char *query;
+  uint32 query_length;                          // current query length
+  /*
+    List of items created in the parser for this query. Every item puts 
+    itself to the list on creation (see Item::Item() for details))
+  */
+  Item *free_list;
+  MEM_ROOT mem_root;
+
+protected:
+  Statement();
+public:
+  Statement(THD *thd);
+  virtual ~Statement();
+};
+
+
+/*
+  Used to seek all existing statements in the connection
+  Not responsible for statements memory.
+*/
+
+class Statement_map
+{
+public:
+  Statement_map();
+  
+  int insert(Statement *statement)
+  {
+    return my_hash_insert(&st_hash, (byte *) statement);
+  }
+  Statement *seek(ulonglong id)
+  {
+    return (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+  }
+  void erase(Statement *statement)
+  {
+    hash_delete(&st_hash, (byte *) statement);
+  }
+
+  ~Statement_map() { hash_free(&st_hash); }
+private:
+  HASH st_hash;
+};
+
+
 /*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
 
-class THD :public ilink
+class THD :public ilink, 
+           public Statement
 {
 public:
 #ifdef EMBEDDED_LIBRARY
@@ -449,9 +563,6 @@ public:
   ulong extra_length;
 #endif
   NET	  net;				// client connection descriptor
-  LEX     main_lex;
-  LEX	  *lex;				// parse tree descriptor
-  MEM_ROOT mem_root;			// 1 command-life memory pool
   MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
   Protocol_simple protocol_simple;	// Normal protocol
@@ -464,7 +575,6 @@ public:
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
 
-  char	  *query;			// Points to the current query,
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
@@ -513,7 +623,6 @@ public:
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
-  enum enum_server_command command;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /*
@@ -546,7 +655,6 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
     }
   } transaction;
-  Item	     *free_list;
   Field      *dupp_field;
 #ifndef __WIN__
   sigset_t signals,block_signals;
@@ -580,15 +688,16 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
-  ulong	     query_id, warn_id, version, options, thread_id, col_access;
-  ulong      current_stmt_id;
+  ulong	     warn_id, version, options, thread_id, col_access;
+
+  /* Statement id is thread-wide. This counter is used to generate ids */
+  ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table;
   uint	     server_status,open_options;
-  uint32     query_length;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
@@ -601,9 +710,9 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread;
-  bool	     set_query_id,locked,some_tables_deleted;
+  bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
-  bool	     no_errors, allow_sum_func, password, is_fatal_error;
+  bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
@@ -646,7 +755,6 @@ public:
 
   void init(void);
   void change_user(void);
-  void init_for_queries();
   void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
