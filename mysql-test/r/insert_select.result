@@ -11,3 +11,5 @@ payoutID
 19
 20
 22
+Variable_name	Value
+myisam_bulk_insert_tree_size	8388608
