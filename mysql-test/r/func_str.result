@@ -614,6 +614,20 @@ t1	CREATE TABLE `t1` (
   `encode('abcd','ab')` binary(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a char character set latin2);
+insert into t1 values ('a'),('b');
+select charset(max(a)), coercibility(max(a)),
+charset(min(a)), coercibility(min(a)) from t1;
+charset(max(a))	coercibility(max(a))	charset(min(a))	coercibility(min(a))
+latin2	2	latin2	2
+create table t2 select max(a),min(a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `max(a)` char(1) character set latin2 default NULL,
+  `min(a)` char(1) character set latin2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t2,t1;
 select SUBSTR('abcdefg',3,2);
 SUBSTR('abcdefg',3,2)
 cd
