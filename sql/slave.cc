@@ -1091,6 +1091,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	tables.db = thd->db;
 	tables.alias= tables.real_name= (char*)lev->table_name;
 	tables.lock_type = TL_WRITE;
+	tables.updating= 1;
 	// the table will be opened in mysql_load    
         if(table_rules_on && !tables_ok(thd, &tables))
 	{
