@@ -5577,6 +5577,7 @@ insert:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_INSERT;
 	  lex->duplicates= DUP_ERROR; 
+	  mysql_init_select(lex);
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -5596,6 +5597,7 @@ replace:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
+	  mysql_init_select(lex);
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	}
 	replace_lock_option insert2
@@ -5796,6 +5798,7 @@ delete:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
+	  mysql_init_select(lex);
 	  lex->lock_option= lex->thd->update_lock_default;
 	  lex->ignore= 0;
 	  lex->select_lex.init_order();
@@ -7124,6 +7127,7 @@ set:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_SET_OPTION;
+	  mysql_init_select(lex);
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
           lex->one_shot_set= 0;
@@ -7190,7 +7194,6 @@ option_value:
             }
             else
               lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
-              
 	  }
 	| internal_variable_name equal set_expr_or_default
 	  {

@@ -340,8 +340,8 @@ typedef struct st_mi_check_param
   ha_checksum key_crc[MI_MAX_POSSIBLE_KEY];
   ulong rec_per_key_part[MI_MAX_KEY_SEG*MI_MAX_POSSIBLE_KEY];
   void *thd;
-  char *db_name,*table_name;
-  char *op_name;
+  const char *db_name, *table_name;
+  const char *op_name;
 } MI_CHECK;
 
 typedef struct st_sort_ft_buf
