@@ -33,7 +33,7 @@ typedef struct st_udf_func
   void *func;
   void *func_init;
   void *func_deinit;
-  void *func_reset;
+  void *func_clear;
   void *func_add;
   ulong usage_count;
 } udf_func;
@@ -49,7 +49,7 @@ class udf_handler :public Sql_alloc
   UDF_ARGS f_args;
   UDF_INIT initid;
   char *num_buffer;
-  uchar error;
+  uchar error, is_null;
   bool initialized;
   Item **args;
 
@@ -57,7 +57,7 @@ class udf_handler :public Sql_alloc
   table_map used_tables_cache;
   bool const_item_cache;
   udf_handler(udf_func *udf_arg) :u_d(udf_arg), buffers(0), error(0),
-    initialized(0)
+    is_null(0), initialized(0)
   {}
   ~udf_handler();
   const char *name() const { return u_d ? u_d->name.str : "?"; }
@@ -73,7 +73,6 @@ class udf_handler :public Sql_alloc
       *null_value=1;
       return 0.0;
     }
-    uchar is_null=0;
     double (*func)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)=
       (double (*)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)) u_d->func;
     double tmp=func(&initid, &f_args, &is_null, &error);
@@ -92,7 +91,6 @@ class udf_handler :public Sql_alloc
       *null_value=1;
       return LL(0);
     }
-    uchar is_null=0;
     longlong (*func)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)=
       (longlong (*)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)) u_d->func;
     longlong tmp=func(&initid, &f_args, &is_null, &error);
@@ -104,22 +102,15 @@ class udf_handler :public Sql_alloc
     *null_value=0;
     return tmp;
   }
-  void reset(my_bool *null_value)
+  void clear()
   {
-    uchar is_null=0;
-    if (get_arguments())
-    {
-      *null_value=1;
-      return;
-    }
-    void (*func)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)=
-    (void (*)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)) u_d->func_reset;
-    func(&initid, &f_args, &is_null, &error);
-    *null_value= (my_bool) (is_null || error);
+    is_null= 0;
+    void (*func)(UDF_INIT *, uchar *, uchar *)=
+    (void (*)(UDF_INIT *, uchar *, uchar *)) u_d->func_clear;
+    func(&initid, &is_null, &error);
   }
   void add(my_bool *null_value)
   {
-    uchar is_null=0;
     if (get_arguments())
     {
       *null_value=1;

@@ -509,7 +509,8 @@ public:
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   virtual bool have_field_update(void) const { return 0; }
 
-  bool reset();
+  bool reset() { return 0; }			/* TO BE FIXED */
+  bool clear();
   bool add();
   void reset_field() {};
   void update_field(int offset_arg) {};
