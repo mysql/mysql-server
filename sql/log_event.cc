@@ -1029,7 +1029,7 @@ bool Query_log_event::write(IO_CACHE* file)
   if (sql_mode_inited)
   {
     *(start++)= Q_SQL_MODE_CODE;
-    int8store(start, sql_mode);
+    int8store(start, (ulonglong)sql_mode);
     start+= 8;
   }
   if (catalog_len >= 0) // i.e. "catalog inited" (false for 4.0 events)
