@@ -231,9 +231,13 @@ int mysql_update(THD *thd,
 	    break; /* purecov: inspected */
 	  }
 	  if (!--limit && using_limit)
+	  {
+	    error= -1;
 	    break;
+	  }
 	}
       }
+      limit= tmp_limit;
       end_read_record(&info);
       /* Change select to use tempfile */
       if (select)

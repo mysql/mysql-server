@@ -91,3 +91,20 @@ update t1 set b=100 where a=1 order by b desc limit 2;
 update t1 set a=a+10+b where a=1 order by b;
 select * from t1 order by a,b;
 drop table t1;
+
+#
+# Test with limit (Bug #393)
+#
+
+CREATE TABLE t1 (
+   `id_param` smallint(3) unsigned NOT NULL default '0',
+   `nom_option` char(40) NOT NULL default '',
+   `valid` tinyint(1) NOT NULL default '0',
+   KEY `id_param` (`id_param`,`nom_option`)
+ ) TYPE=MyISAM;
+
+INSERT INTO t1 (id_param,nom_option,valid) VALUES (185,'600x1200',1);
+
+UPDATE t1 SET nom_option='test' WHERE id_param=185 AND nom_option='600x1200' AND valid=1 LIMIT 1;
+select * from t1;
+drop table t1;
