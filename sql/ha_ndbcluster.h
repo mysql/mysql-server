@@ -220,7 +220,6 @@ class ha_ndbcluster: public handler
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
-  Ndb *m_ndb;
   void *m_table;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
@@ -265,6 +264,7 @@ class ha_ndbcluster: public handler
   byte *m_multi_range_cursor_result_ptr;
   int setup_recattr(const NdbRecAttr*);
   
+  Ndb *get_ndb();
   void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();
