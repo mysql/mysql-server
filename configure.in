@@ -2341,7 +2341,7 @@ then
     readline_topdir="cmd-line-utils"
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY)
