@@ -41178,8 +41178,7 @@ of the following flags in very special circumstances:
 
 A @code{MYSQL*} connection handle if the connection was successful,
 @code{NULL} if the connection was unsuccessful.  For a successful connection,
-the return value is the same as the value of the first parameter, unless you
-pass @code{NULL} for that parameter.
+the return value is the same as the value of the first parameter.
 
 @subsubheading Errors
 
