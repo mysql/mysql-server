@@ -739,9 +739,10 @@ class Item_func_group_concat : public Item_sum
     String *res;
     char *end_ptr;
     int error;
-    res= val_str(&str_value);
+    if (!(res= val_str(&str_value)))
+      return (longlong) 0;
     end_ptr= (char*) res->ptr()+ res->length();
-    return res ? my_strtoll10(res->ptr(), &end_ptr, &error) : (longlong) 0;
+    return my_strtoll10(res->ptr(), &end_ptr, &error);
   }
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);

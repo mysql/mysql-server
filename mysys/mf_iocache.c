@@ -70,9 +70,40 @@ static void my_aiowait(my_aio_result *result);
 #define IO_ROUND_UP(X) (((X)+IO_SIZE-1) & ~(IO_SIZE-1))
 #define IO_ROUND_DN(X) ( (X)            & ~(IO_SIZE-1))
 
-static void
-init_functions(IO_CACHE* info, enum cache_type type)
+
+/*
+  Setup internal pointers inside IO_CACHE
+
+  SYNOPSIS
+    setup_io_cache()
+    info		IO_CACHE handler
+
+  NOTES
+    This is called on automaticly on init or reinit of IO_CACHE
+    It must be called externally if one moves or copies an IO_CACHE
+    object.
+*/
+
+void setup_io_cache(IO_CACHE* info)
 {
+  /* Ensure that my_b_tell() and my_b_bytes_in_cache works */
+  if (info->type == WRITE_CACHE)
+  {
+    info->current_pos= &info->write_pos;
+    info->current_end= &info->write_end;
+  }
+  else
+  {
+    info->current_pos= &info->read_pos;
+    info->current_end= &info->read_end;
+  }
+}
+
+
+static void
+init_functions(IO_CACHE* info)
+{
+  enum cache_type type= info->type;
   switch (type) {
   case READ_NET:
     /*
@@ -96,17 +127,7 @@ init_functions(IO_CACHE* info, enum cache_type type)
     info->write_function = _my_b_write;
   }
 
-  /* Ensure that my_b_tell() and my_b_bytes_in_cache works */
-  if (type == WRITE_CACHE)
-  {
-    info->current_pos= &info->write_pos;
-    info->current_end= &info->write_end;
-  }
-  else
-  {
-    info->current_pos= &info->read_pos;
-    info->current_end= &info->read_end;
-  }
+  setup_io_cache(info);
 }
 
 
@@ -236,7 +257,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->end_of_file= end_of_file;
   info->error=0;
   info->type= type;
-  init_functions(info,type);
+  init_functions(info);
 #ifdef HAVE_AIOWAIT
   if (use_async_io && ! my_disable_async_io)
   {
@@ -358,7 +379,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   }
   info->type=type;
   info->error=0;
-  init_functions(info,type);
+  init_functions(info);
 
 #ifdef HAVE_AIOWAIT
   if (use_async_io && ! my_disable_async_io &&
