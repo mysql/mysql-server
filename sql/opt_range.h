@@ -38,10 +38,14 @@ typedef struct st_key_part {
   Field *field;
 } KEY_PART;
 
+
 class QUICK_RANGE :public Sql_alloc {
  public:
   char *min_key,*max_key;
   uint16 min_length,max_length,flag;
+#ifdef HAVE_purify
+  uint16 dummy;					/* Avoid warnings on 'flag' */
+#endif
   QUICK_RANGE();				/* Full range */
   QUICK_RANGE(const char *min_key_arg,uint min_length_arg,
 	      const char *max_key_arg,uint max_length_arg,
@@ -51,7 +55,11 @@ class QUICK_RANGE :public Sql_alloc {
       min_length((uint16) min_length_arg),
       max_length((uint16) max_length_arg),
       flag((uint16) flag_arg)
-    {}
+    {
+#ifdef HAVE_purify
+      dummy=0;
+#endif
+    }
 };
 
 

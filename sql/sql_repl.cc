@@ -323,7 +323,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 
   if (pos < 4)
   {
-    errmsg = "Client requested master to start repliction from \
+    errmsg= "Client requested master to start replication from \
 impossible position";
     goto err;
   }
@@ -691,7 +691,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
   int error=0,restart_thread_mask;
   const char* errmsg=0;
   bool need_relay_log_purge=1;
-  
+  DBUG_ENTER("change_master");
+
   // kill slave thread
   lock_slave_threads(mi);
   init_thread_mask(&restart_thread_mask,mi,0 /*not inverse*/);
@@ -702,7 +703,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   {
     send_error(&thd->net,error);
     unlock_slave_threads(mi);
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->proc_info = "changing master";
   LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
@@ -711,7 +712,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   {
     send_error(&thd->net, 0, "Could not initialize master info");
     unlock_slave_threads(mi);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   /* data lock not needed since we have already stopped the running threads,
@@ -722,7 +723,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   {
     // if we change host or port, we must reset the postion
     mi->master_log_name[0] = 0;
-    mi->master_log_pos = 4;				// skip magic number
+    mi->master_log_pos= BIN_LOG_HEADER_SIZE;
     mi->rli.pending = 0;
   }
 
@@ -731,9 +732,10 @@ int change_master(THD* thd, MASTER_INFO* mi)
 	    sizeof(mi->master_log_name));
   if (lex_mi->pos)
   {
-    mi->master_log_pos = lex_mi->pos;
+    mi->master_log_pos= lex_mi->pos;
     mi->rli.pending = 0;
   }
+  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host));
@@ -769,7 +771,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			 &errmsg))
     {
       net_printf(&thd->net, 0, "Failed purging old relay logs: %s",errmsg);
-      return 1;
+      DBUG_RETURN(1);
     }
   }
   else
@@ -783,11 +785,11 @@ int change_master(THD* thd, MASTER_INFO* mi)
       //Sasha: note that I had to change net_printf() to make this work
       net_printf(&thd->net,0,"Failed initializing relay log position: %s",msg);
       unlock_slave_threads(mi);
-      return 1;
+      DBUG_RETURN(1);
     }
-      
   }
   mi->rli.master_log_pos = mi->master_log_pos;
+  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
   strnmov(mi->rli.master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.master_log_name));
   if (!mi->rli.master_log_name[0]) // uninitialized case
@@ -810,7 +812,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
     send_error(&thd->net,error);
   else
     send_ok(&thd->net);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int reset_master(THD* thd)

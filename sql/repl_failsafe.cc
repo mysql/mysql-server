@@ -811,8 +811,9 @@ int load_master_data(THD* thd)
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
 	active_mi->master_log_pos = strtoull(row[1], (char**) 0, 10);
-	if (active_mi->master_log_pos < 4)
-	  active_mi->master_log_pos = 4;	// don't hit the magic number
+	// don't hit the magic number
+	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
+	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
 	active_mi->rli.pending = 0;
 	flush_master_info(active_mi);
       }
