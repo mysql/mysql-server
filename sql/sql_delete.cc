@@ -35,18 +35,12 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   SQL_SELECT	*select=0;
   READ_RECORD	info;
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool	        using_transactions, safe_update;
+  bool	        using_transactions, safe_update, const_cond;
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
   if (!table_list->db)
     table_list->db=thd->db;
-  if (((safe_update=thd->options & OPTION_SAFE_UPDATES)) && !conds)
-  {
-    send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
-    DBUG_RETURN(1);
-  }
-
   if (!(table = open_ltable(thd,table_list, lock_type)))
     DBUG_RETURN(-1);
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -56,9 +50,17 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
       setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);
 
+  const_cond= (!conds || conds->const_item());
+  safe_update=test(thd->options & OPTION_SAFE_UPDATES);
+  if (safe_update && const_cond)
+  {
+    send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+    DBUG_RETURN(1);
+  }
+
   /* Test if the user wants to delete all rows */
-  if (!using_limit && (!conds || conds->const_item()) &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) && !safe_update)
+  if (!using_limit && const_cond &&
+      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)))
   {
     deleted= table->file->records;
     if (!(error=table->file->delete_all_rows()))

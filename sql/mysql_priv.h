@@ -201,6 +201,11 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_SERIALIZABLE		16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
+#define MODE_POSTGRESQL			128
+#define MODE_ORACLE			256
+#define MODE_MSSQL			512
+#define MODE_DB2			1024
+#define MODE_SAPDB			2048
 
 #define RAID_BLOCK_SIZE 1024
 
