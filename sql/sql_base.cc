@@ -1783,7 +1783,8 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 
 
 Field *
-find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
+find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables,
+		     bool report_error)
 {
   Field *found=0;
   const char *db=item->db_name;
@@ -1820,7 +1821,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
     }
     if (found)
       return found;
-    if (!found_table)
+    if (!found_table && report_error)
     {
       char buff[NAME_LEN*2+1];
       if (db)
@@ -1832,8 +1833,9 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
 		      thd->where);
     }
     else
-      my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-		      item->full_name(),thd->where);
+      if (report_error)
+	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
+			item->full_name(),thd->where);
     return (Field*) 0;
   }
   bool allow_rowid= tables && !tables->next;	// Only one table
@@ -1848,7 +1850,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
 	return (Field*) 0;
       if (found)
       {
-	if (!thd->where)			// Returns first found
+	if (!report_error)			// Returns first found
 	  break;
 	my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
 			name,thd->where);
@@ -1859,13 +1861,14 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   }
   if (found)
     return found;
-  my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		  MYF(0),item->full_name(),thd->where);
+  if (report_error)
+    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
+		    MYF(0), item->full_name(), thd->where);
   return (Field*) 0;
 }
 
 Item **
-find_item_in_list(Item *find,List<Item> &items)
+find_item_in_list(Item *find, List<Item> &items, bool report_error)
 {
   List_iterator<Item> li(items);
   Item **found=0,*item;
@@ -1890,7 +1893,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	  {
 	    if ((*found)->eq(item,0))
 	      continue;				// Same field twice (Access?)
-	    if (current_thd->where)
+	    if (report_error)
 	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
 			      find->full_name(), current_thd->where);
 	    return (Item**) 0;
@@ -1913,7 +1916,7 @@ find_item_in_list(Item *find,List<Item> &items)
       break;
     }
   }
-  if (!found && current_thd->where)
+  if (!found && report_error)
     my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
 		    find->full_name(),current_thd->where);
   return found;
