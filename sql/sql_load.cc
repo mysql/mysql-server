@@ -291,6 +291,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
+    if (read_file_from_client)
+      while (!read_info.next_line())
+	;
     if (mysql_bin_log.is_open())
     {
       /*
