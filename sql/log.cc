@@ -209,9 +209,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 #ifdef EMBEDDED_LIBRARY
     sprintf(buff, "%s, Version: %s, embedded library\n", my_progname, server_version);
 #elif __NT__
-    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysqld_port, mysqld_unix_port);
 #else
-    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysqld_port,mysqld_unix_port);
 #endif
     end=strmov(strend(buff),"Time                 Id Command    Argument\n");
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||

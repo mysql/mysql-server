@@ -1525,6 +1525,9 @@ static int com_server_help(String *buffer __attribute__((unused)),
       char last_char;
       
       int num_name, num_cat;
+      LINT_INIT(num_name);
+      LINT_INIT(num_cat);
+
       if (num_fields == 2)
       {
 	put_info("Many help items for your request exist", INFO_INFO);
@@ -1841,7 +1844,7 @@ print_table_data(MYSQL_RES *result)
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
-  tee_puts(separator.c_ptr(), PAGER);
+  tee_puts(separator.c_ptr_safe(), PAGER);
   if (column_names)
   {
     mysql_field_seek(result,0);

@@ -15,27 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-static my_bool	mysql_client_init=0;
-extern uint		mysql_port;
-extern my_string	mysql_unix_port;
+#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
+                             CLIENT_LOCAL_FILES | CLIENT_TRANSACTIONS |   \
+			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
-                             | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
-			     | CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
-
-
-#ifdef __WIN__
-#define CONNECT_TIMEOUT 20
-#else
-#define CONNECT_TIMEOUT 0
-#endif
-
-#ifdef HAVE_SMEM
-char *shared_memory_base_name=0;
-const char *def_shared_memory_base_name=default_shared_memory_base_name;
-#endif
-
-static my_bool org_my_init_done=0;
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
@@ -48,7 +31,7 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 */
 
 #if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0;
+#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0
 #define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
 #define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
 #else

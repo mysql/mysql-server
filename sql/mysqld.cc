@@ -35,6 +35,7 @@
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
+#include <errmsg.h>
 
 #define mysqld_charset &my_charset_latin1
 
@@ -254,7 +255,7 @@ my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 volatile bool mqh_used = 0;
 
-uint mysql_port, test_flags, select_errors, dropping_tables, ha_open_options;
+uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
 
@@ -303,7 +304,7 @@ char mysql_real_data_home[FN_REFLEN],
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
-char *mysql_unix_port, *opt_mysql_tmpdir;
+char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
@@ -561,7 +562,7 @@ static void close_connections(void)
   {
     (void) shutdown(unix_sock,2);
     (void) closesocket(unix_sock);
-    (void) unlink(mysql_unix_port);
+    (void) unlink(mysqld_unix_port);
     unix_sock= INVALID_SOCKET;
   }
 #endif
@@ -670,7 +671,7 @@ static void close_server_sock()
     DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
     VOID(closesocket(tmp_sock));
 #endif
-    VOID(unlink(mysql_unix_port));
+    VOID(unlink(mysqld_unix_port));
   }
   DBUG_VOID_RETURN;
 #endif
@@ -961,24 +962,24 @@ static void clean_up_mutexes()
 static void set_ports()
 {
   char	*env;
-  if (!mysql_port && !opt_disable_networking)
+  if (!mysqld_port && !opt_disable_networking)
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
-    mysql_port = MYSQL_PORT;
-    if ((serv_ptr = getservbyname("mysql", "tcp")))
-      mysql_port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+    mysqld_port= MYSQL_PORT;
+    if ((serv_ptr= getservbyname("mysql", "tcp")))
+      mysqld_port= ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
     if ((env = getenv("MYSQL_TCP_PORT")))
-      mysql_port = (uint) atoi(env);		/* purecov: inspected */
+      mysqld_port= (uint) atoi(env);		/* purecov: inspected */
   }
-  if (!mysql_unix_port)
+  if (!mysqld_unix_port)
   {
 #ifdef __WIN__
-    mysql_unix_port = (char*) MYSQL_NAMEDPIPE;
+    mysqld_unix_port= (char*) MYSQL_NAMEDPIPE;
 #else
-    mysql_unix_port = (char*) MYSQL_UNIX_ADDR;
+    mysqld_unix_port= (char*) MYSQL_UNIX_ADDR;
 #endif
     if ((env = getenv("MYSQL_UNIX_PORT")))
-      mysql_unix_port = env;			/* purecov: inspected */
+      mysqld_unix_port= env;			/* purecov: inspected */
   }
 }
 
@@ -1088,9 +1089,9 @@ static void server_init(void)
 
   set_ports();
 
-  if (mysql_port != 0 && !opt_disable_networking && !opt_bootstrap)
+  if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
-    DBUG_PRINT("general",("IP Socket is %d",mysql_port));
+    DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
     ip_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (ip_sock == INVALID_SOCKET)
     {
@@ -1101,14 +1102,14 @@ static void server_init(void)
     bzero((char*) &IPaddr, sizeof(IPaddr));
     IPaddr.sin_family = AF_INET;
     IPaddr.sin_addr.s_addr = my_bind_addr;
-    IPaddr.sin_port = (unsigned short) htons((unsigned short) mysql_port);
+    IPaddr.sin_port = (unsigned short) htons((unsigned short) mysqld_port);
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
     if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
 	     sizeof(IPaddr)) < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
       sql_perror("Can't start server: Bind on TCP/IP port");
-      sql_print_error("Do you already have another mysqld server running on port: %d ?",mysql_port);
+      sql_print_error("Do you already have another mysqld server running on port: %d ?",mysqld_port);
       unireg_abort(1);
     }
     if (listen(ip_sock,(int) back_log) < 0)
@@ -1123,10 +1124,10 @@ static void server_init(void)
 
 #ifdef __NT__
   /* create named pipe */
-  if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap &&
+  if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    sprintf(szPipeName, "\\\\.\\pipe\\%s", mysql_unix_port );
+    sprintf(szPipeName, "\\\\.\\pipe\\%s", mysqld_unix_port );
     ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
     ZeroMemory( &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
     if ( !InitializeSecurityDescriptor(&sdPipeDescriptor,
@@ -1172,9 +1173,9 @@ static void server_init(void)
   /*
   ** Create the UNIX socket
   */
-  if (mysql_unix_port[0] && !opt_bootstrap)
+  if (mysqld_unix_port[0] && !opt_bootstrap)
   {
-    DBUG_PRINT("general",("UNIX Socket is %s",mysql_unix_port));
+    DBUG_PRINT("general",("UNIX Socket is %s",mysqld_unix_port));
 
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
@@ -1183,8 +1184,8 @@ static void server_init(void)
     }
     bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
-    strmov(UNIXaddr.sun_path, mysql_unix_port);
-    (void) unlink(mysql_unix_port);
+    strmov(UNIXaddr.sun_path, mysqld_unix_port);
+    (void) unlink(mysqld_unix_port);
     (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
 		      sizeof(arg));
     umask(0);
@@ -1192,12 +1193,12 @@ static void server_init(void)
 	     sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
-      sql_print_error("Do you already have another mysqld server running on socket: %s ?",mysql_unix_port);
+      sql_print_error("Do you already have another mysqld server running on socket: %s ?",mysqld_unix_port);
       unireg_abort(1);					/* purecov: tested */
     }
     umask(((~my_umask) & 0666));
 #if defined(S_IFSOCK) && defined(SECURE_SOCKETS)
-    (void) chmod(mysql_unix_port,S_IFSOCK);	/* Fix solaris 2.6 bug */
+    (void) chmod(mysqld_unix_port,S_IFSOCK);	/* Fix solaris 2.6 bug */
 #endif
     if (listen(unix_sock,(int) back_log) < 0)
       sql_print_error("Warning:  listen() on Unix socket failed with error %d",
@@ -2024,6 +2025,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   init_errmessage();		/* Read error messages from file */
+  init_client_errs();
   lex_init();
   item_init();
   set_var_init();
@@ -2426,7 +2428,7 @@ The server will not act as a slave.");
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
     if (unix_sock != INVALID_SOCKET)
-      unlink(mysql_unix_port);
+      unlink(mysqld_unix_port);
     exit(1);
   }
   if (!opt_noacl)
@@ -2458,8 +2460,8 @@ The server will not act as a slave.");
   create_maintenance_thread();
 
   printf(ER(ER_READY),my_progname,server_version,
-	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysql_unix_port),
-	 mysql_port);
+	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysqld_unix_port),
+	 mysqld_port);
   fflush(stdout);
 
 #if defined(__NT__) || defined(HAVE_SMEM)
@@ -3775,8 +3777,8 @@ Does nothing yet.",
   {"log-error", OPT_ERROR_LOG_FILE, "Log error file",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &mysql_port,
-   (gptr*) &mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &mysqld_port,
+   (gptr*) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"reckless-slave", OPT_RECKLESS_SLAVE, "For debugging", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-do-db", OPT_REPLICATE_DO_DB,
@@ -3914,7 +3916,7 @@ replicating a LOAD DATA INFILE command",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", OPT_SOCKET, "Socket file to use for connection",
-   (gptr*) &mysql_unix_port, (gptr*) &mysql_unix_port, 0, GET_STR,
+   (gptr*) &mysqld_unix_port, (gptr*) &mysqld_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-bin-update-same", OPT_SQL_BIN_UPDATE_SAME,
    "If set, setting SQL_LOG_BIN to a value will automatically set SQL_LOG_UPDATE to the same value and vice versa.",
@@ -4630,7 +4632,7 @@ static void mysql_init_variables(void)
   max_sort_char= 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   errmesg= 0;
-  mysql_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
+  mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
   bzero((gptr) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
   bzero((gptr) &com_stat, sizeof(com_stat));
 
@@ -5037,7 +5039,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_SKIP_NETWORKING:
     opt_disable_networking=1;
-    mysql_port=0;
+    mysqld_port=0;
     break;
   case (int) OPT_SKIP_SHOW_DB:
     opt_skip_show_db=1;
