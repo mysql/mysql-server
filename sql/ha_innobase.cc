@@ -93,6 +93,7 @@ bool innobase_flush_log_at_trx_commit, innobase_log_archive,
 */
 
 char *innobase_data_file_path= (char*) "ibdata1:64M";
+char *internal_innobase_data_file_path=0;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -219,7 +220,7 @@ innobase_mysql_print_thd(
   	}
 
   	if (thd->query) {
-    		printf(" %0.100s", thd->query);
+    		printf(" %-.100s", thd->query);
   	}  
 
   	printf("\n");
@@ -304,7 +305,7 @@ innobase_parse_data_file_paths_and_sizes(void)
 	ulint	size;
 	ulint	i	= 0;
 
-	str = innobase_data_file_path;
+	str = internal_innobase_data_file_path;
 
 	/* First calculate the number of data files and check syntax:
 	path:size[M];path:size[M]... . Note that a Windows path may
@@ -380,7 +381,7 @@ innobase_parse_data_file_paths_and_sizes(void)
 
 	/* Then store the actual values to our arrays */
 
-	str = innobase_data_file_path;
+	str = internal_innobase_data_file_path;
 	i = 0;
 
 	while (*str != '\0') {
@@ -544,21 +545,9 @@ innobase_init(void)
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
-	if (!innobase_data_file_path)
-	{
-	  fprintf(stderr,
-       "Cannot initialize InnoDB as 'innodb_data_file_path' is not set.\n"
-       "If you do not want to use transactional InnoDB tables, add a line\n"
-       "skip-innodb\n"
-       "to the [mysqld] section of init parameters in your my.cnf\n"
-       "or my.ini. If you want to use InnoDB tables, add for example,\n"
-       "innodb_data_file_path = /mysql/data/ibdata1:20M\n"
-       "More information on setting the parameters you find in the\n"
-       "manual.\n");
-
-	  innodb_skip=1;
-	  DBUG_RETURN(FALSE);			// Continue without innobase
-	}
+	// Make a copy of innobase_data_file_path to not modify the original
+	internal_innobase_data_file_path=my_strdup(innobase_data_file_path,
+						   MYF(MY_WME));
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
 			 current_dir);
@@ -833,7 +822,7 @@ normalize_table_name(
 }
 
 /*********************************************************************
-Creates and opens a handle to a table which already exists in an Innnobase
+Creates and opens a handle to a table which already exists in an Innobase
 database. */
 
 int
@@ -2704,7 +2693,7 @@ ha_innobase::records_in_range(
    	DBUG_ENTER("records_in_range");
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "estimating range size";
+		prebuilt->trx->op_info = (char*) "estimating range size";
 	}
    	
 	active_index = keynr;
@@ -2740,7 +2729,7 @@ ha_innobase::records_in_range(
     	my_free((char*) key_val_buff2, MYF(0));
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
+		prebuilt->trx->op_info = (char*) "";
 	}
    	
 	DBUG_RETURN((ha_rows) n_rows);
@@ -2764,7 +2753,7 @@ ha_innobase::estimate_number_of_rows(void)
 
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info =
-				"estimating upper bound of table size";
+				(char*) "estimating upper bound of table size";
 	}   	
 
  	DBUG_ENTER("info");
@@ -2780,7 +2769,7 @@ ha_innobase::estimate_number_of_rows(void)
 	/* The minimum clustered index record size is 20 bytes */
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
+		prebuilt->trx->op_info = (char*) "";
 	}
    	
 	return((ha_rows) (1000 + data_file_length / 20));
@@ -2822,7 +2811,7 @@ ha_innobase::info(
  	DBUG_ENTER("info");
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "calculating table stats";
+		prebuilt->trx->op_info = (char*) "calculating table stats";
 	}
    	
  	ib_table = prebuilt->table;
@@ -2888,7 +2877,7 @@ ha_innobase::info(
   	}
 
 	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
+		prebuilt->trx->op_info = (char*) "";
 	}
    	
   	DBUG_VOID_RETURN;
