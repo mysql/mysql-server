@@ -2610,6 +2610,7 @@ unsent_create_error:
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -2638,6 +2639,7 @@ unsent_create_error:
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -2660,6 +2662,7 @@ unsent_create_error:
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
