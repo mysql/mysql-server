@@ -495,6 +495,8 @@ bool select_send::send_data(List<Item> &items)
     }
   }
   thd->sent_row_count++;
+  if (!thd->net.vio)
+    DBUG_RETURN(0);
   bool error=my_net_write(&thd->net,(char*) packet->ptr(),packet->length());
   DBUG_RETURN(error);
 }

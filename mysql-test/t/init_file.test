@@ -1,0 +1,4 @@
+#
+# This test is for bug #2526 "--init-file crashes MySQL if contains large select"
+# Have a look at code in init_file.sql 
+# 
