@@ -3,6 +3,10 @@
 # We verify that we did not introduce a deadlock.
 # This is intended to mimick how mysqldump and innobackup work.
 
+# This test doesn't work with the embedded server
+-- source include/not_embedded.inc
+
+# And it requires InnoDB
 -- source include/have_innodb.inc
 
 connect (con1,localhost,root,,);

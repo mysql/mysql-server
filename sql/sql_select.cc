@@ -4485,7 +4485,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
 	  thd->insert_id())
       {
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
 #endif
 	COND *new_cond;

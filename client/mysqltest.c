@@ -280,6 +280,7 @@ Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
 Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
+Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -365,6 +366,8 @@ const char *command_names[]=
   "character_set",
   "disable_ps_protocol",
   "enable_ps_protocol",
+  "disable_reconnect",
+  "enable_reconnect",
   0
 };
 
@@ -3623,6 +3626,12 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PS_PROTOCOL:
         ps_protocol_enabled= ps_protocol;
+        break;
+      case Q_DISABLE_RECONNECT:
+        cur_con->mysql.reconnect= 0;
+        break;
+      case Q_ENABLE_RECONNECT:
+        cur_con->mysql.reconnect= 1;
         break;
 
       default: processed = 0; break;

@@ -2190,6 +2190,29 @@ my_bool mysql_reconnect(MYSQL *mysql)
     DBUG_RETURN(1);
   }
   tmp_mysql.free_me= mysql->free_me;
+
+  /*
+    For each stmt in mysql->stmts, move it to tmp_mysql if it is
+    in state MYSQL_STMT_INIT_DONE, otherwise close it.
+  */
+  {
+    LIST *element= mysql->stmts;
+    for (; element; element= element->next)
+    {
+      MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+      if (stmt->state != MYSQL_STMT_INIT_DONE)
+      {
+        stmt->mysql= 0;
+      }
+      else
+      {
+        tmp_mysql.stmts= list_add(tmp_mysql.stmts, &stmt->list);
+      }
+      /* No need to call list_delete for statement here */
+    }
+    mysql->stmts= NULL;
+  }
+
   /* Don't free options as these are now used in tmp_mysql */
   bzero((char*) &mysql->options,sizeof(mysql->options));
   mysql->free_me=0;
@@ -2278,6 +2301,10 @@ static void mysql_close_free(MYSQL *mysql)
   SYNOPSYS
     mysql_detach_stmt_list()
       stmt_list  pointer to mysql->stmts
+
+  NOTE
+    There is similar code in mysql_reconnect(), so changes here
+    should also be reflected there.
 */
 
 void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)))
