@@ -81,7 +81,7 @@ character-set=latin1
 "La columna Blob '%-.64s' no puede ser usada en una declaracion de clave",
 "Longitud de columna demasiado grande para la columna '%-.64s' (maximo = %d).Usar BLOB en su lugar",
 "Puede ser solamente un campo automatico y este debe ser definido como una clave",
-"%s: preparado para conexiones\n",
+"%s: preparado para conexiones",
 "%s: Apagado normal\n",
 "%s: Recibiendo signal %d. Abortando!\n",
 "%s: Apagado completado\n",

@@ -81,7 +81,7 @@ character-set=ujis
 "BLOB column '%-.64s' can't be used in key specification with the used table type",
 "column '%-.64s' は,確保する column の大きさが多すぎます. (最大 %d まで). BLOB をかわりに使用してください.",
 "テーブルの定義が違います; there can be only one auto column and it must be defined as a key",
-"%s: 準備完了\n",
+"%s: 準備完了",
 "%s: Normal shutdown\n",
 "%s: Got signal %d. 中断!\n",
 "%s: Shutdown 完了\n",

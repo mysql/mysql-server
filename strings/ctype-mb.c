@@ -360,11 +360,62 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
   return cmp ? cmp : (int) ((t_is_prefix ? len : slen) - tlen);
 }
 
+
+/*
+  Compare two strings. 
+  
+  SYNOPSIS
+    my_strnncollsp_mb_bin()
+    cs			Chararacter set
+    s			String to compare
+    slen		Length of 's'
+    t			String to compare
+    tlen		Length of 't'
+
+  NOTE
+   This function is used for character strings with binary collations.
+   It ignores trailing spaces.
+
+  RETURN
+    A negative number if s < t
+    A positive number if s > t
+    0 if strings are equal
+*/
+
 static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-                                 const uchar *s, uint slen,
-                                 const uchar *t, uint tlen)
+                                 const uchar *a, uint a_length, 
+                                 const uchar *b, uint b_length)
 {
-  return my_strnncoll_mb_bin(cs,s,slen,t,tlen,0);
+  const uchar *end;
+  uint length;
+  
+  end= a + (length= min(a_length, b_length));
+  while (a < end)
+  {
+    if (*a++ != *b++)
+      return ((int) a[-1] - (int) b[-1]);
+  }
+  if (a_length != b_length)
+  {
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a_length < b_length)
+    {
+      /* put shorter key in s */
+      a_length= b_length;
+      a= b;
+      swap= -1;					/* swap sign of result */
+    }
+    for (end= a + a_length-length; a < end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+  }
+  return 0;
 }
 
 

@@ -542,22 +542,30 @@ static ulong get_sort(uint count,...)
   va_start(args,count);
   ulong sort=0;
 
+  /* Should not use this function with more than 4 arguments for compare. */
+  DBUG_ASSERT(count <= 4);
+
   while (count--)
   {
-    char *str=va_arg(args,char*);
-    uint chars=0,wild=0;
+    char *start, *str= va_arg(args,char*);
+    uint chars= 0;
+    uint wild_pos= 0;           /* first wildcard position */
 
-    if (str)
+    if (start= str)
     {
       for (; *str ; str++)
       {
 	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
-	  wild++;
+        {
+          wild_pos= str - start + 1;
+          break;
+        }
 	else
 	  chars++;
       }
     }
-    sort= (sort << 8) + (wild ? 1 : chars ? 2 : 0);
+    sort= (sort << 8) + (wild_pos ? (wild_pos > 127 ? 127 : wild_pos) : 
+                                    (chars ? 128 : 0));
   }
   va_end(args);
   return sort;
