@@ -670,3 +670,33 @@ public:
    int  do_deletes (bool from_send_error);
    bool send_eof();
  };
+
+ class multi_update : public select_result {
+   TABLE_LIST *update_tables, *table_being_updated;
+//   Unique  **tempfiles;
+   COPY_INFO *infos;
+   TABLE **tmp_tables;
+   THD *thd;
+   ha_rows updated, found;
+   List<Item> fields;
+   List <Item> **fields_by_tables;
+   thr_lock_type lock_option;
+   enum enum_duplicates dupl;
+   uint num_of_tables, num_fields, num_updated, *save_time_stamps, *field_sequence;
+   int error;
+   bool do_update;
+ public:
+   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
+		enum enum_duplicates handle_duplicates,  
+		thr_lock_type lock_option_arg, uint num);
+   ~multi_update();
+   int prepare(List<Item> &list);
+   bool send_fields(List<Item> &list,
+ 		   uint flag) { return 0; }
+   bool send_data(List<Item> &items);
+   void initialize_tables (JOIN *join);
+   void send_error(uint errcode,const char *err);
+   int  do_updates (bool from_send_error);
+   bool send_eof();
+ };
+
