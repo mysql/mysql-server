@@ -8878,8 +8878,8 @@ in a while.
 @section Windows Notes
 
 This section describes installation and use of @strong{MySQL} on Windows.
-This is also described in the @file{README} file that comes with the
-@strong{MySQL} Windows distribution.
+This information is also provided in the @file{README} file that comes
+with the @strong{MySQL} Windows distribution.
 
 @menu
 * Windows installation::        Installing @strong{MySQL} on Windows
@@ -8895,6 +8895,10 @@ This is also described in the @file{README} file that comes with the
 @node Windows installation, Win95 start, Windows, Windows
 @subsection Installing MySQL on Windows
 
+The following instructions apply to precompiled binary distributions.
+If you download a source distribution, you will have to compile and install
+it yourself.
+
 If you don't have a copy of the @strong{MySQL} distribution, you should 
 first download one from @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 
@@ -8907,23 +8911,30 @@ To install either distribution, unzip it in some empty directory and run the
 @code{Setup.exe} program.
 
 By default, @strong{MySQL}-Windows is configured to be installed in
-@file{C:\mysql}.  If you want to install @strong{MySQL} elsewhere, install it
-in @file{C:\mysql} first, then move the installation to where you want it.  If
-you do move @strong{MySQL}, you must tell @code{mysqld} where everything is by
-supplying options to @code{mysqld}. Use @code{C:\mysql\bin\mysqld --help} to
-display all options!  For example, if you have moved the @strong{MySQL}
-distribution to @file{D:\programs\mysql}, you must start @code{mysqld} with:
-@code{D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql}
+@file{C:\mysql}.  If you want to install @strong{MySQL} elsewhere,
+install it in @file{C:\mysql} first, then move the installation to
+where you want it.  If you do move @strong{MySQL}, you must indicate
+where everything is located by supplying a @code{--basedir} option when
+you start the server.  For example, if you have moved the @strong{MySQL}
+distribution to @file{D:\programs\mysql}, you must start @code{mysqld}
+like this:
+
+@example
+C:\> D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql
+@end example
+
+Use @code{mysqld --help} to display all the options that @code{mysqld}
+understands!
 
 With all newer @strong{MySQL} versions, you can also create a
 @file{C:\my.cnf} file that holds any default options for the
 @strong{MySQL} server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
 @file{C:\my.cnf} and edit it to suit your setup.  Note that you should
 specify all paths with @samp{/} instead of @samp{\}. If you use
-@samp{\}, you need to specify it twice, as @samp{\} is the escape
+@samp{\}, you need to specify it twice, because @samp{\} is the escape
 character in @strong{MySQL}.  @xref{Option files}.
 
-Starting from @strong{MySQL} 3.23.38, the Windows distribution includes
+Starting with @strong{MySQL} 3.23.38, the Windows distribution includes
 both the normal and the @strong{MySQL-Max} binaries.  The main benefit
 of using the normal @code{mysqld.exe} binary is that it's a little
 faster and uses less resources.
@@ -8980,9 +8991,13 @@ You can kill the @strong{MySQL} server by executing:
 C:\> C:\mysql\bin\mysqladmin -u root shutdown
 @end example
 
-Note that Win95 and Win98 don't support creation of named pipes.  On
-Win95 and Win98, you can only use named pipes to connect to a remote
-@strong{MySQL} running on an NT server.
+Note that Win95 and Win98 don't support creation of named pipes.
+On Win95 and Win98, you can only use named pipes to connect to a
+remote @strong{MySQL} server running on a Windows NT server host.
+(The @strong{MySQL} server must also support named pipes, of
+course. For example, using @code{mysqld-opt} under NT will not allow
+named pipe connections.  You should use either @code{mysqld-nt} or
+@code{mysqld-max-nt}.)
 
 If @code{mysqld} doesn't start, please check whether or not the
 @file{\mysql\mysql.err} file contains any reason for this.  You can also
@@ -9039,9 +9054,9 @@ with the default service options.  If you have stopped @code{mysqld-nt}, you
 have to start it with @code{NET START mysql}.
 
 The service is installed with the name @code{MySQL}. Once installed, it must
-be started using the Services Control Manager (SCM) Utility (found in Control
-Panel) or by using the @code{NET START MySQL} command.  If any options are
-desired, they must be specified as ``Startup parameters'' in the SCM utility
+be started using the Services Control Manager (SCM) Utility found in the
+Control Panel, or by using the @code{NET START MySQL} command.  If any options
+are desired, they must be specified as ``Startup parameters'' in the SCM utility
 before you start the @strong{MySQL} service.  Once running, @code{mysqld-nt}
 can be stopped using @code{mysqladmin}, or from the SCM utility or by using
 the command @code{NET STOP MySQL}. If you use SCM to stop @code{mysqld-nt},
@@ -9181,7 +9196,7 @@ Here is a note about how to connect to get a secure connection to remote
 
 @itemize @bullet
 @item
-Install an SSH client on your Windows machine --- As a user, the best non-free
+Install an SSH client on your Windows machine.  As a user, the best non-free
 one I've found is from @code{SecureCRT} from @uref{http://www.vandyke.com/}.
 Another option is @code{f-secure} from @uref{http://www.f-secure.com/}. You
 can also find some free ones on @strong{Google} at
