@@ -18,44 +18,44 @@ abs(-10)	sign(-5)	sign(5)	sign(0)
 10	-1	1	0
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 log(exp(10))	exp(log(sqrt(10))*2)	log(-1)	log(NULL)	log(1,1)	log(3,9)	log(-1,2)	log(NULL,2)
-10.000000	10.000000	NULL	NULL	NULL	2.000000	NULL	NULL
+10	10	NULL	NULL	NULL	2	NULL	NULL
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 ln(exp(10))	exp(ln(sqrt(10))*2)	ln(-1)	ln(0)	ln(NULL)
-10.000000	10.000000	NULL	NULL	NULL
+10	10	NULL	NULL	NULL
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
-3.000000	3.906891	NULL	NULL	NULL
+3	3.9068905956085	NULL	NULL	NULL
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
-2.000000	1.255273	NULL	NULL	NULL
+2	1.2552725051033	NULL	NULL	NULL
 select pow(10,log10(10)),power(2,4);
 pow(10,log10(10))	power(2,4)
-10.000000	16.000000
+10	16
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
 rand(999999)	rand()
 0.014231365187309	0.028870999839968
 select pi(),sin(pi()/2),cos(pi()/2),abs(tan(pi())),cot(1),asin(1),acos(0),atan(1);
 pi()	sin(pi()/2)	cos(pi()/2)	abs(tan(pi()))	cot(1)	asin(1)	acos(0)	atan(1)
-3.141593	1.000000	0.000000	0.000000	0.64209262	1.570796	1.570796	0.785398
+3.141593	1	6.1230317691119e-17	1.2246063538224e-16	0.64209261593433	1.5707963267949	1.5707963267949	0.78539816339745
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
 180	6.2831853071796
 SELECT ACOS(1.0);
 ACOS(1.0)
-0.000000
+0
 SELECT ASIN(1.0);
 ASIN(1.0)
-1.570796
+1.5707963267949
 SELECT ACOS(0.2*5.0);
 ACOS(0.2*5.0)
-0.000000
+0
 SELECT ACOS(0.5*2.0);
 ACOS(0.5*2.0)
-0.000000
+0
 SELECT ASIN(0.8+0.2);
 ASIN(0.8+0.2)
-1.570796
+1.5707963267949
 SELECT ASIN(1.2-0.2);
 ASIN(1.2-0.2)
-1.570796
+1.5707963267949
