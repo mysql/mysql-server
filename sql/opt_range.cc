@@ -1140,6 +1140,8 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT");
   delete_queue(&queue);
   quick_selects.delete_elements();
+  if (head->file->inited != handler::NONE)
+    head->file->ha_rnd_end();
   free_root(&alloc,MYF(0));
   DBUG_VOID_RETURN;
 }
