@@ -3303,6 +3303,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   all_fields;
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
+  ulong old_sql_mode;
+  bool no_auto_on_zero;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -3361,6 +3363,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     goto err;
   }
 
+  /* Turn on NO_AUTO_VALUE_ON_ZERO if not already on */
+  old_sql_mode= thd->variables.sql_mode;
+  if (!(no_auto_on_zero= thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
+    thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
+
   /* Handler must be told explicitly to retrieve all columns, because
      this function does not set field->query_id in the columns to the
      current query id */
@@ -3417,6 +3424,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   ha_enable_transaction(thd,TRUE);
+
+  /* Turn off NO_AUTO_VALUE_ON_ZERO if it was not already off */
+  if (!no_auto_on_zero)
+    thd->variables.sql_mode= old_sql_mode;
+
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
