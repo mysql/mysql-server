@@ -178,11 +178,23 @@ public:
   NdbOperation* getNdbOperation(const char* aTableName);
 
   /**
+   * Get an NdbOperation for a table.
+   * Note that the operation has to be defined before it is executed.
+   *
+   * @note All operations within the same transaction need to 
+   *       be initialized with this method.
+   * 
+   * @param  aTable  A table object (fetched by NdbDictionary::Dictionary::getTable)
+   * @return  Pointer to an NdbOperation object if successful, otherwise NULL.
+   */
+  NdbOperation* getNdbOperation(const NdbDictionary::Table * aTable);
+
+  /**
    * Get an operation from NdbScanOperation idlelist and 
    * get the NdbConnection object which
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param  aTableName a table name.
+   * @param  aTableName  The table name.
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbScanOperation* getNdbScanOperation(const char* aTableName);
@@ -192,25 +204,60 @@ public:
    * get the NdbConnection object which
    * was fetched by startTransaction pointing to this operation.
    *
+   * @param  aTable  A table object (fetched by NdbDictionary::Dictionary::getTable)
+   * @return pointer to an NdbOperation object if successful, otherwise NULL
+   */
+  NdbScanOperation* getNdbScanOperation(const NdbDictionary::Table * aTable);
+
+  /**
+   * Get an operation from NdbIndexScanOperation idlelist and 
+   * get the NdbConnection object which
+   * was fetched by startTransaction pointing to this operation.
+   *
    * @param  anIndexName  The index name.
-   * @param  aTableName a table name.
+   * @param  aTableName  The table name.
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbIndexScanOperation* getNdbIndexScanOperation(const char* anIndexName,
 						  const char* aTableName);
   
   /**
+   * Get an operation from NdbIndexScanOperation idlelist and 
+   * get the NdbConnection object which
+   * was fetched by startTransaction pointing to this operation.
+   *
+   * @param  anIndex  An index object (fetched by NdbDictionary::Dictionary::getIndex).
+   * @param  aTable A table object (fetched by NdbDictionary::Dictionary::getTable).
+   * @return pointer to an NdbOperation object if successful, otherwise NULL
+   */
+  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbDictionary::Index * anIndex,
+						  const NdbDictionary::Table * aTable);
+  
+  /**
    * Get an operation from NdbIndexOperation idlelist and 
    * get the NdbConnection object that
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param   indexName   An index name (as created by createIndex).
-   * @param   tableName    A table name.
+   * @param   anIndexName   The index name (as created by createIndex).
+   * @param   aTableName    The table name.
    * @return                Pointer to an NdbIndexOperation object if 
    *                        successful, otherwise NULL
    */
-  NdbIndexOperation* getNdbIndexOperation(const char*  indexName,
-                                          const char*  tableName);
+  NdbIndexOperation* getNdbIndexOperation(const char*  anIndexName,
+                                          const char*  aTableName);
+
+  /**
+   * Get an operation from NdbIndexOperation idlelist and 
+   * get the NdbConnection object that
+   * was fetched by startTransaction pointing to this operation.
+   *
+   * @param   anIndex   An index object (fetched by NdbDictionary::Dictionary::getIndex).
+   * @param   aTable    A table object (fetched by NdbDictionary::Dictionary::getTable).
+   * @return              Pointer to an NdbIndexOperation object if 
+   *                      successful, otherwise NULL
+   */
+  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index * anIndex,
+					  const NdbDictionary::Table * aTable);
 
   /** 
    * @name Execute Transaction
@@ -441,14 +488,6 @@ public:
    */
   int executePendingBlobOps(Uint8 flags = 0xFF);
 
-  // Fast path calls for MySQL ha_ndbcluster
-  NdbOperation* getNdbOperation(const NdbDictionary::Table * table);
-  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *,
-					  const NdbDictionary::Table * table);
-  NdbScanOperation* getNdbScanOperation(const NdbDictionary::Table * table);
-  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbDictionary::Index * index,
-						  const NdbDictionary::Table * table);
-  
 private:						
   /**
    * Release completed operations
