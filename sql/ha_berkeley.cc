@@ -25,7 +25,7 @@
     We will need an updated Berkeley DB version for this.
   - Killing threads that has got a 'deadlock'
   - SHOW TABLE STATUS should give more information about the table.
-  - Get a more accurate count of the number of rows (estimate_number_of_rows()).
+  - Get a more accurate count of the number of rows (estimate_rows_upper_bound()).
     We could store the found number of rows when the table is scanned and
     then increment the counter for each attempted write.
   - We will need to extend the manager thread to makes checkpoints at
@@ -63,7 +63,7 @@
 #define HA_BERKELEY_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_BERKELEY_RANGE_COUNT   100
 #define HA_BERKELEY_MAX_ROWS	  10000000 /* Max rows in table */
-/* extra rows for estimate_number_of_rows() */
+/* extra rows for estimate_rows_upper_bound() */
 #define HA_BERKELEY_EXTRA_ROWS	  100
 
 /* Bits for share->status */
@@ -2556,7 +2556,7 @@ end:
   Used when sorting to allocate buffers and by the optimizer.
 */
 
-ha_rows ha_berkeley::estimate_number_of_rows()
+ha_rows ha_berkeley::estimate_rows_upper_bound()
 {
   return share->rows + HA_BERKELEY_EXTRA_ROWS;
 }
