@@ -727,7 +727,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       strmov(delimiter, DEFAULT_DELIMITER);
     else
       strmake(delimiter, argument, sizeof(delimiter) - 1);
-    delimiter_length= strlen(delimiter);
+    delimiter_length= (uint)strlen(delimiter);
     delimiter_str= delimiter;
     break;
   case OPT_LOCAL_INFILE:
@@ -1663,7 +1663,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
   if (!connected && reconnect())
     return 1;
 
-  if ((error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd))) ||
+  if ((error= mysql_real_query_for_lazy(server_cmd,(int)strlen(server_cmd))) ||
       (error= mysql_store_result_for_lazy(&result)))
     return error;
 
@@ -1749,7 +1749,7 @@ com_help(String *buffer __attribute__((unused)),
   for (i = 0; commands[i].name; i++)
   {
     end= strmov(buff, commands[i].name);
-    for (j= strlen(commands[i].name); j < 10; j++)
+    for (j= (int)strlen(commands[i].name); j < 10; j++)
       end= strmov(end, " ");
     if (commands[i].func)
       tee_fprintf(stdout, "%s(\\%c) %s\n", buff,
@@ -2126,7 +2126,7 @@ print_table_data_xml(MYSQL_RES *result)
   mysql_field_seek(result,0);
 
   tee_fputs("<?xml version=\"1.0\"?>\n\n<resultset statement=\"", PAGER);
-  xmlencode_print(glob_buffer.ptr(), strlen(glob_buffer.ptr()));
+  xmlencode_print(glob_buffer.ptr(), (int)strlen(glob_buffer.ptr()));
   tee_fputs("\">", PAGER);
 
   fields = mysql_fetch_fields(result);
@@ -2615,7 +2615,7 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
     return 0;
   }
   strmake(delimiter, tmp, sizeof(delimiter) - 1);
-  delimiter_length= strlen(delimiter);
+  delimiter_length= (int)strlen(delimiter);
   delimiter_str= delimiter;
   return 0;
 }
@@ -2625,8 +2625,6 @@ static int
 com_use(String *buffer __attribute__((unused)), char *line)
 {
   char *tmp, buff[FN_REFLEN + 1];
-  MYSQL_RES *res;
-  MYSQL_ROW row;
 
   bzero(buff, sizeof(buff));
   strmov(buff, line);
