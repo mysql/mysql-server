@@ -2842,11 +2842,50 @@ void Field_double::sql_type(String &res) const
 }
 
 
-/****************************************************************************
-** timestamp
-** The first timestamp in the table is automaticly updated
-** by handler.cc.  The form->timestamp points at the automatic timestamp.
-****************************************************************************/
+/*
+  TIMESTAMP type.
+  Holds datetime values in range from 1970-01-01 00:00:01 UTC to 
+  2038-01-01 00:00:00 UTC stored as number of seconds since Unix 
+  Epoch in UTC.
+  
+  Up to one of timestamps columns in the table can be automatically 
+  set on row update and/or have NOW() as default value.
+  TABLE::timestamp_field points to Field object for such timestamp with 
+  auto-set-on-update. TABLE::time_stamp holds offset in record + 1 for this
+  field, and is used by handler code which performs updates required.
+  
+  Actually SQL-99 says that we should allow niladic functions (like NOW())
+  as defaults for any field. Current limitations (only NOW() and only 
+  for one TIMESTAMP field) are because of restricted binary .frm format 
+  and should go away in the future.
+  
+  Also because of this limitation of binary .frm format we use 5 different
+  unireg_check values with TIMESTAMP field to distinguish various cases of
+  DEFAULT or ON UPDATE values. These values are:
+  
+  TIMESTAMP_OLD_FIELD - old timestamp, if there was not any fields with
+    auto-set-on-update (or now() as default) in this table before, then this 
+    field has NOW() as default and is updated when row changes, else it is 
+    field which has 0 as default value and is not automaitcally updated.
+  TIMESTAMP_DN_FIELD - field with NOW() as default but not set on update
+    automatically (TIMESTAMP DEFAULT NOW())
+  TIMESTAMP_UN_FIELD - field which is set on update automatically but has not 
+    NOW() as default (but it may has 0 or some other const timestamp as 
+    default) (TIMESTAMP ON UPDATE NOW()).
+  TIMESTAMP_DNUN_FIELD - field which has now() as default and is auto-set on 
+    update. (TIMESTAMP DEFAULT NOW() ON UPDATE NOW())
+  NONE - field which is not auto-set on update with some other than NOW() 
+    default value (TIMESTAMP DEFAULT 0).
+
+  Note that TIMESTAMP_OLD_FIELD's are never created explicitly now, they are 
+  left only for preserving ability to read old tables. Such fields replaced 
+  with their newer analogs in CREATE TABLE and in SHOW CREATE TABLE. This is 
+  because we want to prefer NONE unireg_check before TIMESTAMP_OLD_FIELD for 
+  "TIMESTAMP DEFAULT 'Const'" field. (Old timestamps allowed such 
+  specification too but ignored default value for first timestamp, which of 
+  course is non-standard.) In most cases user won't notice any change, only
+  exception is different behavior of old/new timestamps during ALTER TABLE.
+ */
 
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
@@ -2857,12 +2896,34 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
   flags|=ZEROFILL_FLAG; /* 4.0 MYD compatibility */
-  if (table && !table->timestamp_field)
+  if (table && !table->timestamp_field && 
+      unireg_check != NONE)
   {
-    table->timestamp_field= this;		// Automatic timestamp
-    table->time_stamp=(ulong) (ptr_arg - (char*) table->record[0])+1;
+    /* This timestamp has auto-update */
+    table->timestamp_field= this;
     flags|=TIMESTAMP_FLAG;
   }
+}
+
+
+/*
+    Sets TABLE::timestamp_default_now and TABLE::timestamp_on_update_now 
+    members according to unireg type of this TIMESTAMP field.
+  
+  SYNOPSIS
+    Field_timestamp::set_timestamp_offsets()
+  
+*/
+void Field_timestamp::set_timestamp_offsets()
+{
+  ulong timestamp= (ulong) (ptr - (char*) table->record[0]) + 1;
+  
+  DBUG_ASSERT(table->timestamp_field == this && unireg_check != NONE);
+
+  table->timestamp_default_now= 
+    (unireg_check == TIMESTAMP_UN_FIELD)? 0 : timestamp;
+  table->timestamp_on_update_now= 
+    (unireg_check == TIMESTAMP_DN_FIELD)? 0 : timestamp;
 }
 
 

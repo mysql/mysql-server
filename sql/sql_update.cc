@@ -120,7 +120,6 @@ int mysql_update(THD *thd,
   {
     timestamp_query_id=table->timestamp_field->query_id;
     table->timestamp_field->query_id=thd->query_id-1;
-    table->time_stamp= table->timestamp_field->offset() +1;
   }
 
   /* Check the fields we are going to modify */
@@ -133,7 +132,7 @@ int mysql_update(THD *thd,
   {
     // Don't set timestamp column if this is modified
     if (table->timestamp_field->query_id == thd->query_id)
-      table->time_stamp=0;
+      table->timestamp_on_update_now= 0;
     else
       table->timestamp_field->query_id=timestamp_query_id;
   }
@@ -486,13 +485,11 @@ int mysql_multi_update(THD *thd,
 
     /* We only need SELECT privilege for columns in the values list */
     table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-    if (table->timestamp_field)
-    {
-      table->time_stamp=0;
-      // Only set timestamp column if this is not modified
-      if (table->timestamp_field->query_id != thd->query_id)
-	table->time_stamp= table->timestamp_field->offset() +1;
-    }
+    // Only set timestamp column if this is not modified
+    if (table->timestamp_field &&
+        table->timestamp_field->query_id == thd->query_id)
+      table->timestamp_on_update_now= 0;
+    
     if (tl->derived)
       derived_tables|= table->map;
   }

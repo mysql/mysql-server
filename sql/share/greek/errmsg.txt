@@ -296,3 +296,5 @@ character-set=greek
 "The MySQL server is running with the %s option so it cannot execute this statement",
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
 "Truncated wrong %-.32s value: '%-.128s'"
+"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' field",

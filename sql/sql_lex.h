@@ -532,7 +532,7 @@ typedef struct st_lex
   String *wild;
   sql_exchange *exchange;
   select_result *result;
-  Item *default_value;
+  Item *default_value, *on_update_value;
   LEX_STRING *comment, name_and_length;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;

@@ -293,6 +293,7 @@ character-set=latin1
 "Tabel %-.100s använd med '%s' är inte uppdateringsbar",
 "'%s' är inte aktiverad; För att aktivera detta måste du bygga om MySQL med '%s' definerad",
 "MySQL är started i --skip-grant-tables mod. Pga av detta kan du inte använda detta program",
-
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
 "Truncated wrong %-.32s value: '%-.128s'"
+"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' field",

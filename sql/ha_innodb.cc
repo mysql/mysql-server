@@ -2137,9 +2137,8 @@ ha_innobase::write_row(
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
-  	if (table->time_stamp) {
-    		update_timestamp(record + table->time_stamp - 1);
-    	}
+        if (table->timestamp_default_now)
+                update_timestamp(record + table->timestamp_default_now - 1);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
@@ -2510,9 +2509,8 @@ ha_innobase::update_row(
 	ut_ad(prebuilt->trx ==
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 
-        if (table->time_stamp) {
-                update_timestamp(new_row + table->time_stamp - 1);
-	}
+        if (table->timestamp_on_update_now)
+                update_timestamp(new_row + table->timestamp_on_update_now - 1);
 
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;

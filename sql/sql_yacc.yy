@@ -629,7 +629,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
-	signed_literal
+	signed_literal now_or_signed_literal
 
 %type <item_num>
 	NUM_literal
@@ -1226,7 +1226,7 @@ field_spec:
 	 {
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-	   lex->default_value=0;
+	   lex->default_value= lex->on_update_value= 0;
 	   lex->comment=0;
 	   lex->charset=NULL;
 	 }
@@ -1236,7 +1236,8 @@ field_spec:
 	  if (add_field_to_list(lex->thd, $1.str,
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
-				lex->default_value, lex->comment,
+				lex->default_value, lex->on_update_value, 
+                                lex->comment,
 				lex->change,lex->interval,lex->charset,
 				lex->uint_geom_type))
 	    YYABORT;
@@ -1432,7 +1433,9 @@ opt_attribute_list:
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
 	| NOT NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
-	| DEFAULT signed_literal { Lex->default_value=$2; }
+	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
+	| ON UPDATE_SYM NOW_SYM optional_braces 
+          { Lex->on_update_value= new Item_func_now_local(); }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
 	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
@@ -1455,6 +1458,11 @@ attribute:
 	    }
 	  }
 	;
+
+now_or_signed_literal:
+        NOW_SYM optional_braces { $$= new Item_func_now_local(); }
+        | signed_literal { $$=$1; }
+        ;
 
 charset:
 	CHAR_SYM SET	{}
@@ -1725,7 +1733,7 @@ alter_list_item:
           {
             LEX *lex=Lex;
             lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-            lex->default_value=0;
+            lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
             lex->simple_alter=0;
@@ -1736,7 +1744,8 @@ alter_list_item:
             if (add_field_to_list(lex->thd,$3.str,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
-                                  lex->default_value, lex->comment,
+                                  lex->default_value, lex->on_update_value,
+                                  lex->comment,
 				  $3.str, lex->interval, lex->charset,
 				  lex->uint_geom_type))
 	       YYABORT;
