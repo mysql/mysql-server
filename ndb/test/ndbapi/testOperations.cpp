@@ -103,6 +103,10 @@ OperationTestCase matrix[] = {
          << " failed on line " << __LINE__ << endl; \
   abort(); return NDBT_FAILED; }
 
+#define C3(b)  if (!(b)) { \
+  g_err  << "ERR: failed on line " << __LINE__ << endl; \
+  return NDBT_FAILED; }
+
 int
 runOp(HugoOperations & hugoOps,
       Ndb * pNdb,
@@ -326,18 +330,122 @@ generate(Vector<int>& out, size_t len)
   }
 }
 
+static const Uint32 DUMMY = 0;
+static const Uint32 ROW = 1;
+
+int
+verify_other(NDBT_Context* ctx,
+	     Ndb* pNdb, int seq, OPS latest, bool initial_row, bool commit)
+{
+  Uint32 no_wait = NdbOperation::LM_CommittedRead*
+    ctx->getProperty("NoWait", (Uint32)1);
+
+  for(size_t j = no_wait; j<3; j++)
+  {
+    HugoOperations other(*ctx->getTab());
+    C3(other.startTransaction(pNdb) == 0);  
+    C3(other.pkReadRecord(pNdb, ROW, 1, (NdbOperation::LockMode)j) == 0);
+    int tmp= other.execute_Commit(pNdb);
+    if(seq == 0){
+      if(j == NdbOperation::LM_CommittedRead)
+      {
+	C3(initial_row? tmp==0 && other.verifyUpdatesValue(0) == 0 : tmp==626);
+      }
+      else
+      {
+	C3(tmp == 266);
+      }
+    }
+    else if(commit)
+    {
+      switch(latest){
+      case o_INS:
+      case o_UPD:
+	C3(tmp == 0 && other.verifyUpdatesValue(seq) == 0);
+	break;
+      case o_DEL:
+	C3(tmp == 626);
+	break;
+      case o_DONE:
+	abort();
+      }
+    }
+    else 
+    {
+      // rollback
+      C3(initial_row? tmp==0 && other.verifyUpdatesValue(0) == 0 : tmp==626);
+    }
+  }
+  
+  return NDBT_OK;
+}
+
+int
+verify_savepoint(NDBT_Context* ctx,
+		 Ndb* pNdb, int seq, OPS latest,
+		 Uint64 transactionId)
+{
+  bool initial_row= (seq == 0) && latest == o_INS;
+
+  for(size_t j = 0; j<3; j++)
+  {
+    const NdbOperation::LockMode lm= (NdbOperation::LockMode)j;
+    
+    HugoOperations same(*ctx->getTab());
+    C3(same.startTransaction(pNdb) == 0);
+    same.setTransactionId(transactionId); // Cheat
+    
+    /**
+     * Increase savepoint to <em>k</em>
+     */
+    for(size_t l = 1; l<=seq; l++)
+    {
+      C3(same.pkReadRecord(pNdb, DUMMY, 1, lm) == 0); // Read dummy row
+      C3(same.execute_NoCommit(pNdb) == 0);
+      g_info << "savepoint: " << l << endl;
+    }	  
+    
+    g_info << "op(" << seq << "): " 
+	   << " lock mode " << lm << endl;
+    
+    C3(same.pkReadRecord(pNdb, ROW, 1, lm) == 0); // Read real row
+    int tmp= same.execute_Commit(pNdb);
+    if(seq == 0)
+    {
+      if(initial_row)
+      {
+	C3(tmp == 0 && same.verifyUpdatesValue(0) == 0);
+      } else
+      {
+	C3(tmp == 626);
+      }
+    }
+    else
+    {
+      switch(latest){
+      case o_INS:
+      case o_UPD:
+	C3(tmp == 0 && same.verifyUpdatesValue(seq) == 0);
+	break;
+      case o_DEL:
+	C3(tmp == 626);
+	break;
+      case o_DONE:
+	abort();
+      }
+    }
+  }
+  return NDBT_OK;
+}
+
 int 
 runOperations(NDBT_Context* ctx, NDBT_Step* step)
 {
-  const Uint32 DUMMY = 0;
-  const Uint32 ROW = 1;
-
   int tmp; 
   Ndb* pNdb = GETNDB(step);
   
   Uint32 seqNo = ctx->getProperty("Sequence", (Uint32)0);
-  Uint32 no_wait = NdbOperation::LM_CommittedRead*
-    ctx->getProperty("NoWait", (Uint32)1);
+  Uint32 commit= ctx->getProperty("Commit", (Uint32)1);
   
   if(seqNo == 0)
   {
@@ -355,8 +463,8 @@ runOperations(NDBT_Context* ctx, NDBT_Step* step)
     C3(hugoOps.execute_Commit(pNdb) == 0);
   }
     
-  const bool inital_row= (seq[0] != o_INS);
-  if(inital_row)
+  const bool initial_row= (seq[0] != o_INS);
+  if(initial_row)
   {
     HugoOperations hugoOps(*ctx->getTab());
     C3(hugoOps.startTransaction(pNdb) == 0);  
@@ -389,80 +497,36 @@ runOperations(NDBT_Context* ctx, NDBT_Step* step)
     /**
      * Verify other transaction
      */
-    for(size_t j = no_wait; j<3; j++)
-    {
-      HugoOperations other(*ctx->getTab());
-      C3(other.startTransaction(pNdb) == 0);  
-      C3(other.pkReadRecord(pNdb, ROW, 1, (NdbOperation::LockMode)j) == 0);
-      tmp= other.execute_Commit(pNdb);
-      if(j == NdbOperation::LM_CommittedRead)
-      {
-	C3(inital_row? tmp==0 && other.verifyUpdatesValue(0) == 0 : tmp==626);
-      }
-      else
-      {
-	C3(tmp == 266);
-      }
-    }
-      
+    if(verify_other(ctx, pNdb, 0, seq[0], initial_row, commit) != NDBT_OK)
+      return NDBT_FAILED;
+    
     /**
      * Verify savepoint read
      */
     Uint64 transactionId= trans1.getTransaction()->getTransactionId();
+
     for(size_t k=0; k<=i+1; k++)
     {
-      for(size_t j = 0; j<3; j++)
-      {
-	const NdbOperation::LockMode lm= (NdbOperation::LockMode)j;
-
-	HugoOperations same(*ctx->getTab());
-	C3(same.startTransaction(pNdb) == 0);  
-	same.getTransaction()->setTransactionId(transactionId); // Cheat
-	
-	/**
-	 * Increase savepoint to <em>k</em>
-	 */
-	for(size_t l = 1; l<=k; l++)
-	{
-	  C3(same.pkReadRecord(pNdb, DUMMY, 1, lm) == 0); // Read dummy row
-	  C3(same.execute_NoCommit(pNdb) == 0);
-	  g_info << "savepoint: " << l << endl;
-	}	  
-	
-	g_info << "op(" << k << ", " << i << "): " 
-	       << " lock mode " << lm << endl;
-      
-	C3(same.pkReadRecord(pNdb, ROW, 1, lm) == 0); // Read real row
-	tmp= same.execute_Commit(pNdb);
-	if(k == 0)
-	{
-	  if(inital_row)
-	  {
-	    C3(tmp == 0 && same.verifyUpdatesValue(0) == 0);
-	  } else
-	  {
-	    C3(tmp == 626);
-	  }
-	}
-	else
-	{
-	  switch(seq[k-1]){
-	  case o_INS:
-	  case o_UPD:
-	    C3(tmp == 0 && same.verifyUpdatesValue(k) == 0);
-	    break;
-	  case o_DEL:
-	    C3(tmp == 626);
-	    break;
-	  case o_DONE:
-	    abort();
-	  }
-	}
-      }
-    }  
+      if(verify_savepoint(ctx, pNdb, k, 
+			  k>0 ? seq[k-1] : initial_row ? o_INS : o_DONE, 
+			  transactionId) != NDBT_OK)
+	return NDBT_FAILED;
+    }
   }
-  C3(trans1.execute_Commit(pNdb) == 0);
+  
+  if(commit)
+  {
+    C3(trans1.execute_Commit(pNdb) == 0);
+  }
+  else
+  {
+    C3(trans1.execute_Rollback(pNdb) == 0);
+  }
 
+  if(verify_other(ctx, pNdb, seq.size(), seq.back(), 
+		  initial_row, commit) != NDBT_OK)
+    return NDBT_FAILED;
+  
   return NDBT_OK;
 }
 
@@ -495,16 +559,20 @@ main(int argc, const char** argv){
       }
     }
 
+    BaseString n1;
+    n1.append(name);
+    n1.append("_COMMIT");
+    
     NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, 
-						    name.c_str()+1, "");    
-
+						    n1.c_str()+1, "");    
+    
     pt->setProperty("Sequence", tmp[i]);
     pt->addInitializer(new NDBT_Initializer(pt, 
 					    "runClearTable", 
 					    runClearTable));
 
     pt->addStep(new NDBT_ParallelStep(pt, 
-				      name.c_str()+1,
+				      "run",
 				      runOperations));
     
     pt->addFinalizer(new NDBT_Finalizer(pt, 
@@ -512,8 +580,26 @@ main(int argc, const char** argv){
 					runClearTable));
 
     ts.addTest(pt);
-  }
 
+    name.append("_ABORT");
+    pt = new NDBT_TestCaseImpl1(&ts, name.c_str()+1, "");    
+    pt->setProperty("Sequence", tmp[i]);
+    pt->setProperty("Commit", (Uint32)0);
+    pt->addInitializer(new NDBT_Initializer(pt, 
+					    "runClearTable", 
+					    runClearTable));
+    
+    pt->addStep(new NDBT_ParallelStep(pt, 
+				      "run",
+				      runOperations));
+    
+    pt->addFinalizer(new NDBT_Finalizer(pt, 
+					"runClearTable", 
+					runClearTable));
+    
+    ts.addTest(pt);
+  }
+  
   for(Uint32 i = 0; i<sizeof(matrix)/sizeof(matrix[0]); i++){
     NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, matrix[i].name, "");
     
