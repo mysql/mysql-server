@@ -19,19 +19,19 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 # Test some error conditions with UNION
 explain select a,b from t1 union all select a,b from t2;
 
---error 1215
+--error 1216
 select a,b from t1 into outfile 'skr' union select a,b from t2;
 
---error 1215
+--error 1216
 select a,b from t1 order by a union select a,b from t2;
 
---error 1216
+--error 1217
 create table t3 select a,b from t1 union select a from t2;
 
---error 1215
+--error 1216
 insert into t3 select a from t1 order by a union select a from t2;
 
---error 1216
+--error 1217
 select a,b from t1 union select a from t2;
 
 # Test CREATE, INSERT and REPLACE
@@ -40,3 +40,18 @@ insert into t3 select a,b from t1 union all select a,b from t2;
 replace into t3 select a,b as c from t1 union all select a,b from t2;
 
 drop table t1,t2,t3;
+
+#
+# Test bug reported by joc@presence-pc.com
+#
+
+CREATE TABLE t1 (
+  `pseudo` char(35) NOT NULL default '',
+  `pseudo1` char(35) NOT NULL default '',
+  `same` tinyint(1) unsigned NOT NULL default '1',
+  PRIMARY KEY  (`pseudo1`),
+  KEY `pseudo` (`pseudo`)
+) TYPE=MyISAM;
+INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
+SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
+drop table t1;

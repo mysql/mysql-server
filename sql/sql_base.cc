@@ -1780,27 +1780,34 @@ bool setup_tables(TABLE_LIST *tables)
 {
   DBUG_ENTER("setup_tables");
   uint tablenr=0;
-  for (TABLE_LIST *table=tables ; table ; table=table->next,tablenr++)
+  for (TABLE_LIST *table_list=tables ; table_list ;
+       table_list=table_list->next,tablenr++)
   {
-    table->table->tablenr=tablenr;
-    table->table->map= (table_map) 1 << tablenr;
-    if ((table->table->outer_join=table->outer_join))
-      table->table->maybe_null=1;		// LEFT OUTER JOIN ...
-    if (table->use_index)
+    TABLE *table=table_list->table;
+
+    table->used_fields=0;
+    table->const_table=0;
+    table->outer_join=table->null_row=0;
+    table->status=STATUS_NO_RECORD;
+    table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
+    table->maybe_null=test(table->outer_join=table_list->outer_join);
+    table->tablenr=tablenr;
+    table->map= (table_map) 1 << tablenr;
+    if (table_list->use_index)
     {
-      key_map map= get_key_map_from_key_list(table->table,
-					     table->use_index);
+      key_map map= get_key_map_from_key_list(table,
+					     table_list->use_index);
       if (map == ~(key_map) 0)
 	DBUG_RETURN(1);
-      table->table->keys_in_use_for_query=map;
+      table->keys_in_use_for_query=map;
     }
-    if (table->ignore_index)
+    if (table_list->ignore_index)
     {
-      key_map map= get_key_map_from_key_list(table->table,
-					     table->ignore_index);
+      key_map map= get_key_map_from_key_list(table,
+					     table_list->ignore_index);
       if (map == ~(key_map) 0)
 	DBUG_RETURN(1);
-      table->table->keys_in_use_for_query &= ~map;
+      table->keys_in_use_for_query &= ~map;
     }
   }
   if (tablenr > MAX_TABLES)
