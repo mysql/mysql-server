@@ -973,7 +973,13 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || exit 1
+    NDB_STARTED=1
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STARTED=0
+    if [ x$NDB_STARTED != x1 ] ; then
+      if [ x$FORCE != x1 ] ; then
+        exit 1
+      fi
+    fi
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
