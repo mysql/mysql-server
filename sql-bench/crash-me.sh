@@ -1,4 +1,4 @@
-#!@PERL@
+#!@PERL@ -w
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -1333,8 +1333,7 @@ report("index in create table",'index_in_create',
 
 # The following must be executed as we need the value of end_drop_keyword
 # later
-if (! defined($limits{'create_index'}) &&
-	! defined($limits{'drop_index'}) )
+if (defined($limits{'create_index'}) && defined($limits{'drop_index'}))
 {
   if ($res=safe_query("create index crash_q on crash_me (a)"))
   {
@@ -2659,7 +2658,7 @@ sub safe_query_result
     $sth->finish;
     return ($result_type == 8) ? 0 : 1;
   }
-  if(result_type == 8) {
+  if($result_type == 8) {
     $sth->finish;
     return 1;
   }

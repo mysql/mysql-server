@@ -124,7 +124,7 @@ sub new
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
   $limits{'max_columns'}	= 2000;	# Max number of columns in table
   # Windows can't handle that many files in one directory
-  $limits{'max_tables'}		= ($machine =~ "^win") ? 5000 : 65000;
+  $limits{'max_tables'}		= (($machine || '') =~ "^win") ? 5000 : 65000;
   $limits{'max_text_size'}	= 65000; # Max size with default buffers.
   $limits{'query_size'}		= 1000000; # Max size with default buffers.
   $limits{'max_index'}		= 16; # Max number of keys
