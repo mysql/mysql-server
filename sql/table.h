@@ -157,7 +157,6 @@ typedef struct st_table_list
   uint32        db_length, real_name_length;
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
-  bool		do_redirect;		/* To get the struct in UNION's */
   bool		force_index;		/* Prefer index over table scan */
 } TABLE_LIST;
 
