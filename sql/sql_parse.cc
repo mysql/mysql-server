@@ -3043,8 +3043,8 @@ mysql_execute_command(THD *thd)
 	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
 	goto error;
       }
+      break;
     }
-    break;
   case SQLCOM_CALL:
     {
       sp_head *sp;
@@ -3057,17 +3057,40 @@ mysql_execute_command(THD *thd)
       }
       else
       {
+	uint smrx;
+	LINT_INIT(smrx);
+
 #ifndef EMBEDDED_LIBRARY
 	// When executing substatements, they're assumed to send_error when
 	// it happens, but not to send_ok.
 	my_bool nsok= thd->net.no_send_ok;
-
 	thd->net.no_send_ok= TRUE;
 #endif
+	if (sp->m_multi_query)
+	{
+	  if (! (thd->client_capabilities & CLIENT_MULTI_QUERIES))
+	  {
+	    send_error(thd, ER_SP_BADSELECT);
+#ifndef EMBEDDED_LIBRARY
+	    thd->net.no_send_ok= nsok;
+#endif
+	    sp->destroy();	// QQ Free memory. Remove this when caching!!!
+	    goto error;
+	  }
+	  smrx= thd->server_status & SERVER_MORE_RESULTS_EXISTS;
+	  thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
+	}
+
 	res= sp->execute_procedure(thd, &lex->value_list);
+
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
 #endif
+	if (sp->m_multi_query)
+	{
+	  if (! smrx)
+	    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+	}
 
 	sp->destroy();		// QQ Free memory. Remove this when caching!!!
 
@@ -3076,8 +3099,8 @@ mysql_execute_command(THD *thd)
 	else
 	  goto error;		// Substatement should already have sent error
       }
+      break;
     }
-    break;
   case SQLCOM_ALTER_PROCEDURE:
   case SQLCOM_ALTER_FUNCTION:
     {
@@ -3099,8 +3122,8 @@ mysql_execute_command(THD *thd)
 	sp->destroy();		// QQ Free memory. Remove this when caching!!!
 	send_ok(thd);
       }
+      break;
     }
-    break;
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
@@ -3149,8 +3172,8 @@ mysql_execute_command(THD *thd)
 		   lex->udf.name.str);
 	goto error;
       }
+      break;
     }
-    break;
   default:					/* Impossible */
     send_ok(thd);
     break;
