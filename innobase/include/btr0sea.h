@@ -77,8 +77,10 @@ parameters as page (this often happens when a page is split). */
 void
 btr_search_move_or_delete_hash_entries(
 /*===================================*/
-	page_t*	new_page,	/* in: records are copied to this page */
-	page_t*	page);		/* in: index page */
+	page_t*		new_page,	/* in: records are copied
+					to this page */
+	page_t*		page,		/* in: index page */
+	dict_index_t*	index);		/* in: record descriptor */
 /************************************************************************
 Drops a page hash index. */
 
@@ -128,9 +130,10 @@ btr_search_update_hash_on_delete(
 Validates the search system. */
 
 ibool
-btr_search_validate(void);
-/*=====================*/
-
+btr_search_validate(
+/*================*/
+				/* out: TRUE if ok */
+	dict_index_t*	index);	/* in: record descriptor */
 
 /* Search info directions */
 #define BTR_SEA_NO_DIRECTION	1

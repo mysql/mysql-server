@@ -246,6 +246,7 @@ trx_undo_prev_version_build(
 				index_rec page and purge_view */
 	rec_t*		rec,	/* in: version of a clustered index record */
 	dict_index_t*	index,	/* in: clustered index */
+	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory
 				needed is allocated */
 	rec_t**		old_vers);/* out, own: previous version, or NULL if

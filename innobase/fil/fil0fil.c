@@ -1579,30 +1579,38 @@ fil_op_write_log(
 	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
+	ulint	len;
 
-	log_ptr = mlog_open(mtr, 30);
-	
+	log_ptr = mlog_open(mtr, 11 + 2);
+
+	if (!log_ptr) {
+		/* Logging in mtr is switched off during crash recovery:
+		in that case mlog_open returns NULL */
+		return;
+	}
+
 	log_ptr = mlog_write_initial_log_record_for_file_op(type, space_id, 0,
 								log_ptr, mtr);
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
 
-	mach_write_to_2(log_ptr, ut_strlen(name) + 1);
+	len = strlen(name) + 1;
+
+	mach_write_to_2(log_ptr, len);
 	log_ptr += 2;
-	
 	mlog_close(mtr, log_ptr);
 
-	mlog_catenate_string(mtr, (byte*) name, ut_strlen(name) + 1);
+	mlog_catenate_string(mtr, (byte*) name, len);
 
 	if (type == MLOG_FILE_RENAME) {
-		log_ptr = mlog_open(mtr, 30);
-		mach_write_to_2(log_ptr, ut_strlen(new_name) + 1);
+		ulint	len = strlen(new_name) + 1;
+		log_ptr = mlog_open(mtr, 2 + len);
+		ut_a(log_ptr);
+		mach_write_to_2(log_ptr, len);
 		log_ptr += 2;
-	
 		mlog_close(mtr, log_ptr);
 
-		mlog_catenate_string(mtr, (byte*) new_name,
-						ut_strlen(new_name) + 1);
+		mlog_catenate_string(mtr, (byte*) new_name, len);
 	}
 }
 #endif

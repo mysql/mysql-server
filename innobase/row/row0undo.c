@@ -151,6 +151,8 @@ row_undo_search_clust_to_pcur(
 	mtr_t		mtr;
 	ibool		ret;
 	rec_t*		rec;
+	mem_heap_t*	heap;
+	const ulint*	offsets;
 
 	mtr_start(&mtr);
 
@@ -161,8 +163,11 @@ row_undo_search_clust_to_pcur(
 
 	rec = btr_pcur_get_rec(&(node->pcur));
 
+	heap = mem_heap_create(100);
+	offsets = rec_get_offsets(rec, clust_index, ULINT_UNDEFINED, heap);
+
 	if (!found || 0 != ut_dulint_cmp(node->roll_ptr,
-		   		row_get_rec_roll_ptr(rec, clust_index))) {
+			row_get_rec_roll_ptr(rec, clust_index, offsets))) {
 
 		/* We must remove the reservation on the undo log record
 		BEFORE releasing the latch on the clustered index page: this
@@ -175,7 +180,7 @@ row_undo_search_clust_to_pcur(
 		ret = FALSE;
 	} else {
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
-								node->heap);
+						offsets, node->heap);
 		btr_pcur_store_position(&(node->pcur), &mtr);
 
 		ret = TRUE;

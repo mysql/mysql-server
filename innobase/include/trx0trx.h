@@ -16,6 +16,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "que0types.h"
 #include "mem0mem.h"
 #include "read0types.h"
+#include "trx0xa.h"
 
 extern ulint	trx_n_mysql_transactions;
 
@@ -156,6 +157,36 @@ trx_commit_for_mysql(
 /*=================*/
 			/* out: 0 or error number */
 	trx_t*	trx);	/* in: trx handle */
+
+/**************************************************************************
+Does the transaction prepare for MySQL. */
+
+ulint
+trx_prepare_for_mysql(
+/*=================*/
+			/* out: 0 or error number */
+	trx_t*	trx);	/* in: trx handle */
+
+/**************************************************************************
+This function is used to find number of prepared transactions and
+their transaction objects for a recovery. */
+
+int
+trx_recover_for_mysql(
+/*=================*/
+				/* out: number of prepared transactions */
+	XID*    xid_list, 	/* in/out: prepared transactions */
+	uint	len);		/* in: number of slots in xid_list */
+
+/***********************************************************************
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state */
+trx_t *
+trx_get_trx_by_xid(
+/*===============*/
+			/* out: trx or NULL */
+	XID*	xid);	/*  in: X/Open XA Transaction Idenfication */
+
 /**************************************************************************
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE. */
@@ -339,6 +370,9 @@ struct trx_struct{
 					if we can use the insert buffer for
 					them, we set this FALSE */
 	dulint		id;		/* transaction id */
+	XID		xid;		/* X/Open XA transaction 
+					identification to identify a 
+					transaction branch */
 	dulint		no;		/* transaction serialization number ==
 					max trx id when the transaction is 
 					moved to COMMITTED_IN_MEMORY state */
@@ -353,8 +387,10 @@ struct trx_struct{
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/
-        void*           mysql_thd;      /* MySQL thread handle corresponding
-                                        to this trx, or NULL */
+	int		active_trans;	/* whether a transaction in MySQL
+					is active */
+	void*           mysql_thd;      /* MySQL thread handle corresponding
+					to this trx, or NULL */
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
 					which contains the pointer to the
 					current SQL query string */
@@ -543,6 +579,7 @@ struct trx_struct{
 #define	TRX_NOT_STARTED		1
 #define	TRX_ACTIVE		2
 #define	TRX_COMMITTED_IN_MEMORY	3
+#define	TRX_PREPARED		4	/* Support for 2PC/XA */
 
 /* Transaction execution states when trx state is TRX_ACTIVE */
 #define TRX_QUE_RUNNING		1	/* transaction is running */

@@ -228,10 +228,11 @@ int main(int argc, char** argv){
   _tabname = argv[0];
 
   ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
+  if (ndb_cluster_connection->connect(12,5,1))
+    fatal("unable to connect");
   ndb = new Ndb(ndb_cluster_connection, _dbname);
   if (ndb->init() != 0)
     fatal("init");
-  ndb_cluster_connection->connect();
   if (ndb->waitUntilReady(30) < 0)
     fatal("waitUntilReady");
   dic = ndb->getDictionary();

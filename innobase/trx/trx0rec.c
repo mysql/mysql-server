@@ -38,16 +38,18 @@ trx_undof_page_add_undo_rec_log(
 	ulint	new_free,	/* in: end offset of the entry */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	byte*	log_ptr;
-	ulint	len;
+	byte*		log_ptr;
+	const byte*	log_end;
+	ulint		len;
 
-	log_ptr = mlog_open(mtr, 30 + MLOG_BUF_MARGIN);
+	log_ptr = mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN);
 
 	if (log_ptr == NULL) {
 
 		return;
 	}
 
+	log_end = &log_ptr[11 + 13 + MLOG_BUF_MARGIN];
 	log_ptr = mlog_write_initial_log_record_fast(undo_page,
 					MLOG_UNDO_INSERT, log_ptr, mtr);
 	len = new_free - old_free - 4;
@@ -55,14 +57,11 @@ trx_undof_page_add_undo_rec_log(
 	mach_write_to_2(log_ptr, len);
 	log_ptr += 2;
 
-	if (len < 256) {
-		ut_memcpy(log_ptr, undo_page + old_free + 2, len);
-		log_ptr += len;
-	}
-
-	mlog_close(mtr, log_ptr);
-
-	if (len >= MLOG_BUF_MARGIN) {
+	if (log_ptr + len <= log_end) {
+		memcpy(log_ptr, undo_page + old_free + 2, len);
+		mlog_close(mtr, log_ptr + len);
+	} else {
+		mlog_close(mtr, log_ptr);
 		mlog_catenate_string(mtr, undo_page + old_free + 2, len);
 	}
 }	
@@ -404,6 +403,7 @@ trx_undo_page_report_modify(
 					delete marking is done */
 	rec_t*		rec,		/* in: clustered index record which
 					has NOT yet been modified */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	upd_t*		update,		/* in: update vector which tells the
 					columns to be updated; in the case of
 					a delete, this should be set to NULL */
@@ -430,6 +430,7 @@ trx_undo_page_report_modify(
 	ulint		i;
 	
 	ut_a(index->type & DICT_CLUSTERED);
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				+ TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
@@ -454,7 +455,7 @@ trx_undo_page_report_modify(
 	/* Store first some general parameters to the undo log */
 
 	if (update) {
-		if (rec_get_deleted_flag(rec)) {
+		if (rec_get_deleted_flag(rec, table->comp)) {
 			type_cmpl = TRX_UNDO_UPD_DEL_REC;
 		} else {
 			type_cmpl = TRX_UNDO_UPD_EXIST_REC;
@@ -479,14 +480,15 @@ trx_undo_page_report_modify(
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
 
-	bits = rec_get_info_bits(rec);
+	bits = rec_get_info_bits(rec, table->comp);
 	mach_write_to_1(ptr, bits);
 	ptr += 1;
 
 	/* Store the values of the system columns */
-	trx_id = dict_index_rec_get_sys_col(index, DATA_TRX_ID, rec);
-
-	roll_ptr = dict_index_rec_get_sys_col(index, DATA_ROLL_PTR, rec);
+	trx_id = dict_index_rec_get_sys_col(index, offsets,
+				DATA_TRX_ID, rec);
+	roll_ptr = dict_index_rec_get_sys_col(index, offsets,
+				DATA_ROLL_PTR, rec);
 	len = mach_dulint_write_compressed(ptr, trx_id);
 	ptr += len;
 
@@ -499,7 +501,7 @@ trx_undo_page_report_modify(
 
 	for (i = 0; i < dict_index_get_n_unique(index); i++) {
 
-		field = rec_get_nth_field(rec, i, &flen);
+		field = rec_get_nth_field(rec, offsets, i, &flen);
 
 		if (trx_undo_left(undo_page, ptr) < 4) {
 
@@ -547,14 +549,14 @@ trx_undo_page_report_modify(
 		ptr += len;
 
 		/* Save the old value of field */
-		field = rec_get_nth_field(rec, pos, &flen);
+		field = rec_get_nth_field(rec, offsets, pos, &flen);
 
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
 			return(0);
 		}
 
-		if (rec_get_nth_field_extern_bit(rec, pos)) {
+		if (rec_offs_nth_extern(offsets, pos)) {
 			/* If a field has external storage, we add to
 			flen the flag */
 
@@ -631,7 +633,7 @@ trx_undo_page_report_modify(
 			ptr += len;
 	
 			/* Save the old value of field */
-			field = rec_get_nth_field(rec, pos, &flen);
+			field = rec_get_nth_field(rec, offsets, pos, &flen);
 	
 			if (trx_undo_left(undo_page, ptr) < 5) {
 	
@@ -1008,7 +1010,9 @@ trx_undo_report_row_operation(
 	ibool		is_insert;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
-	
+	mem_heap_t*	heap;
+	ulint*		offsets		= NULL;
+
 	ut_a(index->type & DICT_CLUSTERED);
 
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
@@ -1019,7 +1023,6 @@ trx_undo_report_row_operation(
 	}
 		
 	ut_ad(thr);
-	ut_a(index->type & DICT_CLUSTERED);
 	ut_ad((op_type != TRX_UNDO_INSERT_OP)
 	      || (clust_entry && !update && !rec));
 	
@@ -1063,6 +1066,8 @@ trx_undo_report_row_operation(
 	
 	mtr_start(&mtr);
 
+	heap = mem_heap_create(100);
+
 	for (;;) {
 		undo_page = buf_page_get_gen(undo->space, page_no,
 						RW_X_LATCH, undo->guess_page,
@@ -1079,9 +1084,10 @@ trx_undo_report_row_operation(
 							index, clust_entry,
 							&mtr);
 		} else {
+			offsets = rec_reget_offsets(rec, index,
+					offsets, ULINT_UNDEFINED, heap);
 			offset = trx_undo_page_report_modify(undo_page, trx,
-							index, rec, update,
-							cmpl_info, &mtr);
+				index, rec, offsets, update, cmpl_info, &mtr);
 		}
 
 		if (offset == 0) {
@@ -1123,7 +1129,7 @@ trx_undo_report_row_operation(
 
 			mutex_exit(&(trx->undo_mutex));
 			mtr_commit(&mtr);
-
+			mem_heap_free(heap);
 			return(DB_OUT_OF_FILE_SPACE);
 		}
 	}
@@ -1140,6 +1146,7 @@ trx_undo_report_row_operation(
 
 	*roll_ptr = trx_undo_build_roll_ptr(is_insert, rseg->id, page_no,
 								offset);
+	mem_heap_free(heap);
 	return(DB_SUCCESS);
 }
 
@@ -1236,6 +1243,7 @@ trx_undo_prev_version_build(
 				index_rec page and purge_view */
 	rec_t*		rec,	/* in: version of a clustered index record */
 	dict_index_t*	index,	/* in: clustered index */
+	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory
 				needed is allocated */
 	rec_t**		old_vers)/* out, own: previous version, or NULL if
@@ -1258,7 +1266,7 @@ trx_undo_prev_version_build(
 	ibool		dummy_extern;
 	byte*		buf;
 	ulint		err;
-
+	ulint*		index_offsets	= NULL;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1266,21 +1274,25 @@ trx_undo_prev_version_build(
 						MTR_MEMO_PAGE_S_FIX) ||
 	      mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
 						MTR_MEMO_PAGE_X_FIX));
+	ut_ad(rec_offs_validate(rec, index, offsets));
+
 	if (!(index->type & DICT_CLUSTERED)) {
 		fprintf(stderr, "InnoDB: Error: trying to access"
 			" update undo rec for non-clustered index %s\n"
 			"InnoDB: Submit a detailed bug report to"
 			" http://bugs.mysql.com\n"
 			"InnoDB: index record ", index->name);
-		rec_print(stderr, index_rec);
+		index_offsets = rec_get_offsets(index_rec, index,
+						ULINT_UNDEFINED, heap);
+		rec_print(stderr, index_rec, index_offsets);
 		fputs("\n"
 			"InnoDB: record version ", stderr);
-		rec_print(stderr, rec);
+		rec_print(stderr, rec, offsets);
 		putc('\n', stderr);
    		return(DB_ERROR);
    	}	
 
-	roll_ptr = row_get_rec_roll_ptr(rec, index);
+	roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
 	old_roll_ptr = roll_ptr;
 	
 	*old_vers = NULL;
@@ -1292,7 +1304,7 @@ trx_undo_prev_version_build(
 		return(DB_SUCCESS);
 	}
 
- 	rec_trx_id = row_get_rec_trx_id(rec, index);
+ 	rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
 	
 	err = trx_undo_get_undo_rec(roll_ptr, rec_trx_id, &undo_rec, heap);
 
@@ -1341,10 +1353,12 @@ trx_undo_prev_version_build(
 		ut_print_buf(stderr, undo_rec, 150);
 		fputs("\n"
 			"InnoDB: index record ", stderr);
-		rec_print(stderr, index_rec);
+		index_offsets = rec_get_offsets(index_rec, index,
+						ULINT_UNDEFINED, heap);
+		rec_print(stderr, index_rec, index_offsets);
 		fputs("\n"
 			"InnoDB: record version ", stderr);
-		rec_print(stderr, rec);
+		rec_print(stderr, rec, offsets);
 		fprintf(stderr, "\n"
 	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n"
 	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
@@ -1358,11 +1372,10 @@ trx_undo_prev_version_build(
 		 	(ulong) ut_dulint_get_low(roll_ptr));
 		 
 		trx_purge_sys_print();
-		 
 		return(DB_ERROR);
 	}
 
-	if (row_upd_changes_field_size_or_external(rec, index, update)) {
+	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint*	ext_vect;
 		ulint	n_ext_vect;
 
@@ -1372,27 +1385,28 @@ trx_undo_prev_version_build(
 		those fields that update updates to become externally stored
 		fields. Store the info to ext_vect: */
 
-		ext_vect = mem_alloc(sizeof(ulint) * rec_get_n_fields(rec));
-		n_ext_vect = btr_push_update_extern_fields(ext_vect, rec,
+		ext_vect = mem_alloc(sizeof(ulint)
+				* rec_offs_n_fields(offsets));
+		n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets,
 								update);
 		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
 								     heap);
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
-		buf = mem_heap_alloc(heap, rec_get_converted_size(entry));
+		buf = mem_heap_alloc(heap,
+					rec_get_converted_size(index, entry));
 
-		*old_vers = rec_convert_dtuple_to_rec(buf, entry);
+		*old_vers = rec_convert_dtuple_to_rec(buf, index, entry);
 
 		/* Now set the extern bits in the old version of the record */
-		rec_set_field_extern_bits(*old_vers, ext_vect, n_ext_vect,
-									NULL);
+		rec_set_field_extern_bits(*old_vers, index,
+						ext_vect, n_ext_vect, NULL);
 		mem_free(ext_vect);
 	} else {
-		buf = mem_heap_alloc(heap, rec_get_size(rec));
-
-		*old_vers = rec_copy(buf, rec);
-
-		row_upd_rec_in_place(*old_vers, update);
+		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		*old_vers = rec_copy(buf, rec, offsets);
+		rec_offs_make_valid(*old_vers, index, offsets);
+		row_upd_rec_in_place(*old_vers, offsets, update);
 	}
 
 	return(DB_SUCCESS);

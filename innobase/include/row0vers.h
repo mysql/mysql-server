@@ -30,7 +30,8 @@ row_vers_impl_x_locked_off_kernel(
 				transaction; NOTE that the kernel mutex is
 				temporarily released! */
 	rec_t*		rec,	/* in: record in a secondary index */
-	dict_index_t*	index);	/* in: the secondary index */
+	dict_index_t*	index,	/* in: the secondary index */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*********************************************************************
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view. */
