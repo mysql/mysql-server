@@ -58,7 +58,8 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-unix-socket-path=/var/tmp/mysql.sock \
  --with-low-memory \
  --with-mit-threads=yes $EXTRA_CONFIG \
- --enable-thread-safe-client
+ --enable-thread-safe-client \
+ --without-berkeley-db
 
 gmake # --jobs=4 does not work.
 
