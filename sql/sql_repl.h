@@ -10,6 +10,7 @@ typedef struct st_slave_info
   char user[USERNAME_LENGTH+1];
   char password[HASH_PASSWORD_LENGTH+1];
   uint16 port;
+  THD* thd;
 } SLAVE_INFO;
 
 extern bool opt_show_slave_auth_info, opt_old_rpl_compat;
@@ -44,6 +45,7 @@ void reset_master();
 void init_slave_list();
 void end_slave_list();
 int register_slave(THD* thd, uchar* packet, uint packet_length);
+void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
 int purge_master_logs(THD* thd, const char* to_log);
 bool log_in_use(const char* log_name);
 void adjust_linfo_offsets(my_off_t purge_offset);

@@ -35,7 +35,7 @@ mc_mysql_init(MYSQL *mysql);
 void STDCALL
 mc_mysql_debug(const char *debug);
 
-uint STDCALL
+ulong STDCALL
 mc_net_safe_read(MYSQL *mysql);
 
 char * STDCALL mc_mysql_error(MYSQL *mysql);
