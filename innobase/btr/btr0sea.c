@@ -453,8 +453,6 @@ btr_search_info_update_slow(
 	}
 
 	if (build_index) {
-		ut_a(block->n_fields + block->n_bytes > 0);	
-
 		btr_search_build_page_hash_index(block->frame,
 						block->n_fields,
 						block->n_bytes,
@@ -1028,7 +1026,10 @@ btr_search_build_page_hash_index(
 		return;
 	}
 
-	ut_a(n_fields + n_bytes > 0);
+	if (n_fields + n_bytes == 0) {
+
+	        return;
+	}
 
 	/* Calculate and cache fold values and corresponding records into
 	an array for fast insertion to the hash index */
