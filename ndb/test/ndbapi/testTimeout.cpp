@@ -108,7 +108,7 @@ int runTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
     do{
       // Commit transaction
       CHECK(hugoOps.startTransaction(pNdb) == 0);
-      CHECK(hugoOps.pkReadRecord(pNdb, stepNo, true) == 0);
+      CHECK(hugoOps.pkReadRecord(pNdb, stepNo) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
       int sleep = minSleep + myRandom48(maxSleep-minSleep);   
@@ -162,25 +162,25 @@ int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
       case 0:
 	break;
       case 1:
-	if(hugoOps.pkReadRecord(pNdb, stepNo, true) != 0){
+	if(hugoOps.pkReadRecord(pNdb, stepNo) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
 	break;
       case 2:
-	if(hugoOps.pkUpdateRecord(pNdb, stepNo, true) != 0){
+	if(hugoOps.pkUpdateRecord(pNdb, stepNo) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
 	break;
       case 3:
-	if(hugoOps.pkDeleteRecord(pNdb, stepNo, true) != 0){
+	if(hugoOps.pkDeleteRecord(pNdb, stepNo) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
 	break;
       case 4:
-	if(hugoOps.pkInsertRecord(pNdb, stepNo+records+l, true) != 0){
+	if(hugoOps.pkInsertRecord(pNdb, stepNo+records+l) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
@@ -204,25 +204,25 @@ int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
       case 0:
 	break;
       case 1:
-	if(hugoOps.pkReadRecord(pNdb, stepNo, true) != 0){
+	if(hugoOps.pkReadRecord(pNdb, stepNo) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
 	break;
       case 2:
-	if(hugoOps.pkUpdateRecord(pNdb, stepNo, true) != 0){
+	if(hugoOps.pkUpdateRecord(pNdb, stepNo) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
 	break;
       case 3:
-	if(hugoOps.pkDeleteRecord(pNdb, stepNo, true) != 0){
+	if(hugoOps.pkDeleteRecord(pNdb, stepNo) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
 	break;
       case 4:
-	if(hugoOps.pkInsertRecord(pNdb, stepNo+2*records+l, true) != 0){
+	if(hugoOps.pkInsertRecord(pNdb, stepNo+2*records+l) != 0){
 	  g_err << stepNo << ": Fail" << __LINE__ << endl;
 	  result = NDBT_FAILED; break;
 	}
@@ -263,7 +263,7 @@ int runDontTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
     do{
       // Commit transaction
       CHECK(hugoOps.startTransaction(pNdb) == 0);
-      CHECK(hugoOps.pkReadRecord(pNdb, stepNo, true) == 0);
+      CHECK(hugoOps.pkReadRecord(pNdb, stepNo) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
       int sleep = myRandom48(maxSleep);   
@@ -299,7 +299,7 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
       // Start an insert trans
       CHECK(hugoOps.startTransaction(pNdb) == 0);
       int recordNo = records + (stepNo*loops) + l;
-      CHECK(hugoOps.pkInsertRecord(pNdb, recordNo, true) == 0);
+      CHECK(hugoOps.pkInsertRecord(pNdb, recordNo) == 0);
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
       for (int i = 0; i < 3; i++){
