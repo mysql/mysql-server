@@ -46933,10 +46933,13 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
+Fixed crash when @code{SHOW INNODB STATUS} was used and @code{skip-innodb}
+was defined.
+@item
 Fixed possible memory corruption bug in binary log file handling when
 slave rotated the logs (only affected 3.23, not 4.0).
 @item
-Fixed problem in @code{LOCK TABLES} on windows when on connects to a
+Fixed problem in @code{LOCK TABLES} on windows when one connects to a
 database that contains upper case letters.
 @item
 Fixed that @code{--skip-show-databases} doesn't reset the @code{--port} option.
