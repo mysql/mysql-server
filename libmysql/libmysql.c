@@ -1570,8 +1570,8 @@ ulong mysql_hex_string(char *to, const char *from, ulong length)
             
   for (end= from + length; from < end; from++)
   {
-    *to++= _dig_vec[((unsigned char) *from) >> 4];
-    *to++= _dig_vec[((unsigned char) *from) & 0x0F];
+    *to++= _dig_vec_upper[((unsigned char) *from) >> 4];
+    *to++= _dig_vec_upper[((unsigned char) *from) & 0x0F];
   }
   *to= '\0';
   return (ulong) (to-to0);
