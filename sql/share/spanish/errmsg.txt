@@ -203,7 +203,7 @@
 "Esta operación no puede ser hecha con el esclavo funcionando, primero use SLAVE STOP",
 "Esta operación necesita el esclavo funcionando, configure esclavo y haga el SLAVE START",
 "El servidor no está configurado como esclavo, edite el archivo config file o con CHANGE MASTER TO",
-"No puedo inicializar la estructura info del master, verifique permisiones en el master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "No puedo crear el thread esclavo, verifique recursos del sistema",
 "Usario %-.64s ya tiene mas que 'max_user_connections' conexiones activas",
 "Tu solo debes usar expresiones constantes con SET",
