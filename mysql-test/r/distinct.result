@@ -128,7 +128,7 @@ a
 1
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using temporary
-t3	ref	a	a	5	t1.a	10	Using index; Distinct
+t3	ref	a	a	5	t1.a	10	where used; Using index; Distinct
 a
 1
 2

@@ -3319,7 +3319,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
-  Field **reg_field,**from_field;
+  Field **reg_field, **from_field, **blob_field;
   Copy_field *copy=0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
@@ -3364,8 +3364,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   hidden_field_count=param->hidden_field_count;
   if (!my_multi_malloc(MYF(MY_WME),
 		       &table,sizeof(*table),
-		       &reg_field,sizeof(Field*)*(field_count+1),
-		       &from_field,sizeof(Field*)*field_count,
+		       &reg_field,  sizeof(Field*)*(field_count+1),
+		       &blob_field, sizeof(Field*)*(field_count+1),
+		       &from_field, sizeof(Field*)*field_count,
 		       &copy_func,sizeof(*copy_func)*(param->func_count+1),
 		       &param->keyinfo,sizeof(*param->keyinfo),
 		       &key_part_info,
@@ -3394,6 +3395,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bzero((char*) reg_field,sizeof(Field*)*(field_count+1));
   bzero((char*) from_field,sizeof(Field*)*field_count);
   table->field=reg_field;
+  table->blob_field= (Field_blob**) blob_field;
   table->real_name=table->path=tmpname;
   /*
     This must be "" as field may refer to it after tempory table is dropped
@@ -3406,7 +3408,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->tmp_table= TMP_TABLE;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
   table->temp_pool_slot = temp_pool_slot;
-
+  table->copy_blobs= 1;
 
   /* Calculate which type of fields we will store in the temporary table */
 
@@ -3450,7 +3452,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  if (!(new_field->flags & NOT_NULL_FLAG))
 	    null_count++;
 	  if (new_field->flags & BLOB_FLAG)
+	  {
+	    *blob_field++= new_field;
 	    blob_count++;
+	  }
 	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
 	}
       }
@@ -3472,7 +3477,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;
       if (new_field->flags & BLOB_FLAG)
+      {
+	*blob_field++= new_field;
 	blob_count++;
+      }
       if (item->marker == 4 && item->maybe_null)
       {
 	group_null_items++;
@@ -3484,6 +3492,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       hidden_null_count=null_count;
   }
   field_count= (uint) (reg_field - table->field);
+  *blob_field= 0;				// End marker
 
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint || group_null_items ||
@@ -3882,6 +3891,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   save_proc_info=thd->proc_info;
   thd->proc_info="removing tmp table";
+  free_blobs(entry);
   if (entry->db_stat && entry->file)
   {
     (void) entry->file->close();

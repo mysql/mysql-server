@@ -455,6 +455,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	      field->field_length=key_part->length;
 	    }
 	  }
+	  /*
+	    If the field can be NULL, don't optimize away the test
+	    key_part_column = expression from the WHERE clause
+	    as we need to test for NULL = NULL.
+	  */
+	  if (field->real_maybe_null())
+	    key_part->key_part_flag|= HA_PART_KEY;
 	}
 	else
 	{					// Error: shorten key
