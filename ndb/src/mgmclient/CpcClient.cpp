@@ -44,7 +44,7 @@
    ParserRow_t::IgnoreMinMax, \
    0, 0, \
    0, \
-  (desc) }
+  (desc), 0 }
 
 #define CPC_END() \
  { 0, \
@@ -55,7 +55,7 @@
    ParserRow_t::IgnoreMinMax, \
    0, 0, \
    0, \
-   0 }
+   0, 0 }
 
 #ifdef DEBUG_PRINT_PROPERTIES 
 static void printprop(const Properties &p) {
