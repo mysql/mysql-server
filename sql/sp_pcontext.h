@@ -50,7 +50,7 @@ typedef struct sp_label
   char *name;
   uint ip;			// Instruction index
   int type;			// begin/iter or ref/free 
-  struct sp_pcontext *ctx;	// The label's context
+  sp_pcontext *ctx;             // The label's context
 } sp_label_t;
 
 typedef struct sp_cond_type

@@ -439,3 +439,9 @@ v
 call px5()//
 v
 9
+create table t1 (a int not null auto_increment,b int, primary key (a));
+insert into t1 values (1,1),(NULL,3),(NULL,4);
+select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
+AUTO_INCREMENT
+4
+drop table t1;
