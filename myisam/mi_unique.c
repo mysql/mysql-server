@@ -70,7 +70,7 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 {
   const byte *pos, *end;
   ha_checksum crc=0;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
 
   for (keyseg=def->seg ; keyseg < def->end ; keyseg++)
   {
@@ -122,7 +122,7 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
 		   my_bool null_are_equal)
 {
   const byte *pos_a, *pos_b, *end;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
 
   for (keyseg=def->seg ; keyseg < def->end ; keyseg++)
   {

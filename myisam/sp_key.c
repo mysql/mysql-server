@@ -33,7 +33,7 @@ static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
               const byte *record, my_off_t filepos)
 {
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   MI_KEYDEF *keyinfo = &info->s->keyinfo[keynr];
   uint len = 0;
   byte *pos;

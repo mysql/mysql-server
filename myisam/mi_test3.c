@@ -59,7 +59,7 @@ int main(int argc,char **argv)
   uint i=0;
   MI_KEYDEF keyinfo[10];
   MI_COLUMNDEF recinfo[10];
-  MI_KEYSEG keyseg[10][2];
+  HA_KEYSEG keyseg[10][2];
   MY_INIT(argv[0]);
   get_options(argc,argv);
 

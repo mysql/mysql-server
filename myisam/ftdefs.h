@@ -122,7 +122,7 @@ byte ft_simple_get_word(byte **, byte *, FT_WORD *);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;
-  MI_KEYSEG  *seg;
+  HA_KEYSEG  *seg;
   const byte *rec, *pos;
 } FT_SEG_ITERATOR;
 

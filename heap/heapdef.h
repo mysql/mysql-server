@@ -42,7 +42,7 @@ typedef struct st_hp_hash_info
 } HASH_INFO;
 
 typedef struct {
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uint key_length;
   uint search_flag;
 } heap_rb_param;

@@ -56,7 +56,7 @@ int run_test(const char *filename)
   MI_CREATE_INFO create_info;
   MI_COLUMNDEF   recinfo[20];
   MI_KEYDEF      keyinfo[20];
-  MI_KEYSEG      keyseg[20];
+  HA_KEYSEG      keyseg[20];
 
   int silent=0;
   int create_flag=0;

@@ -67,7 +67,7 @@ Returns <0, 0, >0 acording to which is bigger
 Key_length specifies length of key to use.  Number-keys can't be splited
 If flag <> SEARCH_FIND compare also position
 */
-int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
+int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		register uchar *b, uint key_length, uint nextflag,
 		uint *diff_pos)
 {
@@ -393,7 +393,7 @@ Returns <0, 0, >0 acording to which is bigger
 Key_length specifies length of key to use.  Number-keys can't be splited
 If flag <> SEARCH_FIND compare also position
 */
-int hp_rb_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
+int hp_rb_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		  register uchar *b, uint key_length, uint nextflag,
 		  uint *diff_pos)
 {

@@ -993,7 +993,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
   KEY *pos;
   MI_KEYDEF *keydef;
   MI_COLUMNDEF *recinfo,*recinfo_pos;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uint options=table->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
 
@@ -1002,7 +1002,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
 			&recinfo,(table->fields*2+2)*sizeof(MI_COLUMNDEF),
 			&keydef, table->keys*sizeof(MI_KEYDEF),
 			&keyseg,
-			((table->key_parts + table->keys) * sizeof(MI_KEYSEG)),
+			((table->key_parts + table->keys) * sizeof(HA_KEYSEG)),
 			0)))
     DBUG_RETURN(1);
 

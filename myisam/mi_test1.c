@@ -33,8 +33,8 @@ static uint unique_key=HA_NOSAME,key_cacheing=0,opt_unique=0;
 static uint silent;
 static MI_COLUMNDEF recinfo[4];
 static MI_KEYDEF keyinfo[10];
-static MI_KEYSEG keyseg[10];
-static MI_KEYSEG uniqueseg[10];
+static HA_KEYSEG keyseg[10];
+static HA_KEYSEG uniqueseg[10];
 
 static int run_test(const char *filename);
 static void get_options(int argc, char *argv[]);

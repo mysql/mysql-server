@@ -1062,7 +1062,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 {
   uint key,keyseg_nr,field,start;
   reg3 MI_KEYDEF *keyinfo;
-  reg2 MI_KEYSEG *keyseg;
+  reg2 HA_KEYSEG *keyseg;
   reg4 const char *text;
   char buff[160],length[10],*pos,*end;
   enum en_fieldtype type;

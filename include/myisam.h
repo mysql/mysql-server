@@ -122,7 +122,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   uint16 block_size;			/* block_size (auto) */
   uint32 version;			/* For concurrent read/write */
 
-  MI_KEYSEG *seg,*end;
+  HA_KEYSEG *seg,*end;
   int (*bin_search)(struct st_myisam_info *info,struct st_mi_keydef *keyinfo,
 		    uchar *page,uchar *key,
 		    uint key_len,uint comp_flag,uchar * *ret_pos,
@@ -146,7 +146,7 @@ typedef struct st_unique_def		/* Segment definition of unique */
   uint16 keysegs;			/* Number of key-segment */
   uchar key;				/* Mapped to which key */
   uint8 null_are_equal;
-  MI_KEYSEG *seg,*end;
+  HA_KEYSEG *seg,*end;
 } MI_UNIQUEDEF;
 
 typedef struct st_mi_decode_tree	/* Decode huff-table */
@@ -318,7 +318,7 @@ typedef struct st_sort_info {
   char *record,*buff;
   void *wordlist, *wordptr;
   MI_KEYDEF *keyinfo;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
 } SORT_INFO;
 
 typedef struct st_mi_check_param

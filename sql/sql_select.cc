@@ -3942,7 +3942,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   if (table->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
-    MI_KEYSEG *seg= (MI_KEYSEG*) sql_calloc(sizeof(*seg) *
+    HA_KEYSEG *seg= (HA_KEYSEG*) sql_calloc(sizeof(*seg) *
 					    keyinfo->key_parts);
     if (!seg)
       goto err;
