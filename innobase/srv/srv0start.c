@@ -568,7 +568,14 @@ open_or_create_log_file(
 	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
 						OS_LOG_FILE, &ret);
 	if (ret == FALSE) {
-		if (os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS) {
+		if (os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
+#ifdef UNIV_AIX
+		   	/* AIX 5.1 after security patch ML7 may have errno set
+			to 0 here, which causes our function to return 100;
+			work around that AIX problem */
+		   && os_file_get_last_error(FALSE) != 100
+#endif
+		) {
 			fprintf(stderr,
 			"InnoDB: Error in creating or opening %s\n", name);
 				
@@ -728,7 +735,14 @@ open_or_create_data_files(
 					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
 			if (ret == FALSE && os_file_get_last_error(FALSE) !=
-						OS_FILE_ALREADY_EXISTS) {
+						OS_FILE_ALREADY_EXISTS
+#ifdef UNIV_AIX
+		   		/* AIX 5.1 after security patch ML7 may have
+				errno set to 0 here, which causes our function
+				to return 100; work around that AIX problem */
+		   	    && os_file_get_last_error(FALSE) != 100
+#endif
+			) {
 				fprintf(stderr,
 				"InnoDB: Error in creating or opening %s\n",
 				name);
