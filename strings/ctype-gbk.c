@@ -9837,9 +9837,9 @@ my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOSMALL;
   
-  if (wc<0x80)
+  if ((uint) wc < 0x80)
   {
-    s[0]=wc;
+    s[0]= (uchar) wc;
     return 1;
   }
   
