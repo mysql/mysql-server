@@ -394,7 +394,11 @@ static void write_header(FILE *sql_file, char *db_name)
 	      mysql_get_server_info(&mysql_connection));
     }
     if (opt_set_charset)
-      fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
+      fprintf(sql_file,
+"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
+"\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
+"\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
+"\n/*!40101 SET NAMES %s */;\n",default_charset);
     if (!path)
     {
       fprintf(md_result_file,"\
@@ -425,7 +429,9 @@ static void write_footer(FILE *sql_file)
     }
     if (opt_set_charset)
       fprintf(sql_file,
-	      "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n");
+"/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
+"/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
+"/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
     fputs("\n", sql_file);
   }
 } /* write_footer */
