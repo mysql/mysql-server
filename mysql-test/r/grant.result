@@ -145,7 +145,7 @@ show grants for drop_user@localhost;
 Grants for drop_user@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
-GRANT USAGE ON `test`.`t1` TO 'drop_user'@'localhost'
+GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
 revoke all privileges, grant from drop_user@localhost;
 show grants for drop_user@localhost;
 Grants for drop_user@localhost
