@@ -151,7 +151,7 @@ bool Item::get_time(TIME *ltime)
 
 CHARSET_INFO * Item::thd_charset() const
 {
-  return current_thd->thd_charset;
+  return current_thd->variables.thd_charset;
 }
 
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
