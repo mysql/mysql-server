@@ -30,7 +30,8 @@ testSystemRestart \
 testTimeout \
 testTransactions \
 testDeadlock \
-test_event ndbapi_slow_select testReadPerf testLcp
+test_event ndbapi_slow_select testReadPerf testLcp \
+testPartitioning
 
 #flexTimedAsynch
 #testBlobs
@@ -69,6 +70,7 @@ test_event_SOURCES = test_event.cpp
 ndbapi_slow_select_SOURCES = slow_select.cpp
 testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
+testPartitioning_SOURCES = testPartitioning.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 
