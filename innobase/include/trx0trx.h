@@ -386,9 +386,10 @@ struct trx_struct{
                                         /* how many tables the current SQL
 					statement uses, except those
 					in consistent read */
-	ibool		has_dict_operation_lock;
-					/* TRUE if the trx currently holds
-					an s-lock on dict_operation_lock */
+	ibool		dict_operation_lock_mode;
+					/* 0, RW_S_LATCH, or RW_X_LATCH:
+					the latch mode trx currently holds
+					on dict_operation_lock */
         ibool           has_search_latch;
 			                /* TRUE if this trx has latched the
 			                search system latch in S-mode */
@@ -426,34 +427,6 @@ struct trx_struct{
 	UT_LIST_NODE_T(trx_t)
 			mysql_trx_list;	/* list of transactions created for
 					MySQL */
-	/*------------------------------*/
-	mutex_t		undo_mutex;	/* mutex protecting the fields in this
-					section (down to undo_no_arr), EXCEPT
-					last_sql_stat_start, which can be
-					accessed only when we know that there
-					cannot be any activity in the undo
-					logs! */
-	dulint		undo_no;	/* next undo log record number to
-					assign */
-	trx_savept_t	last_sql_stat_start;
-					/* undo_no when the last sql statement
-					was started: in case of an error, trx
-					is rolled back down to this undo
-					number; see note at undo_mutex! */
-	trx_rseg_t*	rseg;		/* rollback segment assigned to the
-					transaction, or NULL if not assigned
-					yet */
-	trx_undo_t*	insert_undo;	/* pointer to the insert undo log, or 
-					NULL if no inserts performed yet */
-	trx_undo_t* 	update_undo;	/* pointer to the update undo log, or
-					NULL if no update performed yet */
-	dulint		roll_limit;	/* least undo number to undo during
-					a rollback */
-	ulint		pages_undone;	/* number of undo log pages undone
-					since the last undo log truncation */
-	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
-					records which are currently processed
-					by a rollback operation */
 	/*------------------------------*/
 	ulint		error_state;	/* 0 if no error, otherwise error
 					number */
@@ -508,6 +481,34 @@ struct trx_struct{
 	/*------------------------------*/
 	mem_heap_t*	read_view_heap;	/* memory heap for the read view */
 	read_view_t*	read_view;	/* consistent read view or NULL */
+	/*------------------------------*/
+	mutex_t		undo_mutex;	/* mutex protecting the fields in this
+					section (down to undo_no_arr), EXCEPT
+					last_sql_stat_start, which can be
+					accessed only when we know that there
+					cannot be any activity in the undo
+					logs! */
+	dulint		undo_no;	/* next undo log record number to
+					assign */
+	trx_savept_t	last_sql_stat_start;
+					/* undo_no when the last sql statement
+					was started: in case of an error, trx
+					is rolled back down to this undo
+					number; see note at undo_mutex! */
+	trx_rseg_t*	rseg;		/* rollback segment assigned to the
+					transaction, or NULL if not assigned
+					yet */
+	trx_undo_t*	insert_undo;	/* pointer to the insert undo log, or 
+					NULL if no inserts performed yet */
+	trx_undo_t* 	update_undo;	/* pointer to the update undo log, or
+					NULL if no update performed yet */
+	dulint		roll_limit;	/* least undo number to undo during
+					a rollback */
+	ulint		pages_undone;	/* number of undo log pages undone
+					since the last undo log truncation */
+	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
+					records which are currently processed
+					by a rollback operation */
 };
 
 #define TRX_MAX_N_THREADS	32	/* maximum number of concurrent

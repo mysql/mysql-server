@@ -23510,17 +23510,21 @@ will be logged in the execution order.
 Updates to non-transactional tables are stored in the binary log
 immediately after execution.  For transactional tables such as @code{BDB}
 or @code{InnoDB} tables, all updates (@code{UPDATE}, @code{DELETE}
-or @code{INSERT}) that change tables are cached until a @code{COMMIT}.
+or @code{INSERT}) that change tables are cached until a @code{COMMIT} command
+is sent to the server. At this point mysqld writes the whole transaction to
+the binary log before the @code{COMMIT} is executed.
 Every thread will, on start, allocate a buffer of @code{binlog_cache_size}
 to buffer queries.  If a query is bigger than this, the thread will open
-a temporary file to handle the bigger cache.  The temporary file will
+a temporary file to store the transcation.  The temporary file will
 be deleted when the thread ends.
 
-The @code{max_binlog_cache_size} can be used to restrict the total size used
-to cache a multi-query transaction.
+The @code{max_binlog_cache_size} (default 4G) can be used to restrict
+the total size used to cache a multi-query transaction.  If a transaction is
+bigger than this it will fail and roll back.
 
 If you are using the update or binary log, concurrent inserts will
-not work together with @code{CREATE ... SELECT} and @code{INSERT ... SELECT}.
+be converted to normal inserts when using @code{CREATE ... SELECT} and
+@code{INSERT ... SELECT}.
 This is to ensure that you can recreate an exact copy of your tables by
 applying the log on a backup.
 

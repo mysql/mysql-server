@@ -311,7 +311,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	error=1;
       }
       else
-	transaction_commited= 1;
+	if (!(thd->options & OPTION_BEGIN))
+	  transaction_commited= 1; 
       trans->bdb_tid=0;
     }
 #endif

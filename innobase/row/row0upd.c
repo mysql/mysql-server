@@ -89,14 +89,16 @@ row_upd_index_is_referenced(
 {
 	dict_table_t*	table		= index->table;
 	dict_foreign_t*	foreign;
+	ibool		froze_data_dict	= FALSE;
 
 	if (!UT_LIST_GET_FIRST(table->referenced_list)) {
 
 		return(FALSE);
 	}
 
-	if (!trx->has_dict_operation_lock) {
-		rw_lock_s_lock(&dict_operation_lock);
+	if (trx->dict_operation_lock_mode == 0) {
+		row_mysql_freeze_data_dictionary(trx);
+		froze_data_dict = TRUE;
 	}
 
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
@@ -104,8 +106,8 @@ row_upd_index_is_referenced(
 	while (foreign) {
 		if (foreign->referenced_index == index) {
 
-			if (!trx->has_dict_operation_lock) {
-				rw_lock_s_unlock(&dict_operation_lock);
+			if (froze_data_dict) {
+				row_mysql_unfreeze_data_dictionary(trx);
 			}
 
 			return(TRUE);
@@ -114,8 +116,8 @@ row_upd_index_is_referenced(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 	
-	if (!trx->has_dict_operation_lock) {
-		rw_lock_s_unlock(&dict_operation_lock);
+	if (froze_data_dict) {
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	return(FALSE);
@@ -162,12 +164,10 @@ row_upd_check_references_constraints(
 
 	mtr_start(mtr);	
 	
-	if (!trx->has_dict_operation_lock) {
+	if (trx->dict_operation_lock_mode == 0) {
 		got_s_lock = TRUE;
 
-		rw_lock_s_lock(&dict_operation_lock);
-
-		trx->has_dict_operation_lock = TRUE;
+		row_mysql_freeze_data_dictionary(trx);
 	}
 		
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
@@ -211,10 +211,7 @@ row_upd_check_references_constraints(
 
 			if (err != DB_SUCCESS) {
 				if (got_s_lock) {
-					rw_lock_s_unlock(
-						&dict_operation_lock);	
-					trx->has_dict_operation_lock
-								= FALSE;
+					row_mysql_unfreeze_data_dictionary(trx);
 				}
 
 				mem_heap_free(heap);
@@ -227,8 +224,7 @@ row_upd_check_references_constraints(
 	}
 
 	if (got_s_lock) {
-		rw_lock_s_unlock(&dict_operation_lock);
-		trx->has_dict_operation_lock = FALSE;
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	mem_heap_free(heap);

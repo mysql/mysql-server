@@ -126,8 +126,10 @@ os_thread_create(
 	os_thread_t	pthread;
 	pthread_attr_t  attr;
 
+#if !(defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10))
         pthread_attr_init(&attr);
-
+#endif
+        
 #ifdef UNIV_AIX
 	/* We must make sure a thread stack is at least 32 kB, otherwise
 	InnoDB might crash; we do not know if the default stack size on
@@ -142,16 +144,21 @@ os_thread_create(
 		 exit(1);
 	}
 #endif
-	ret = pthread_create(&pthread, &attr, start_f, arg);
 
+#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
+	ret = pthread_create(&pthread, pthread_attr_default, start_f, arg);
+#else
+	ret = pthread_create(&pthread, &attr, start_f, arg);
+#endif
         if (ret) {
 	         fprintf(stderr,
           "InnoDB: Error: pthread_create returned %d\n", ret);
 		 exit(1);
 	}
 
+#if !(defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10))
 	pthread_attr_destroy(&attr);
-
+#endif
 	if (srv_set_thread_priorities) {
 	
 	        my_pthread_setprio(pthread, srv_query_thread_priority);

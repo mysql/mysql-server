@@ -1275,7 +1275,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   int error;
   DBUG_ENTER("open_unireg_entry");
 
-  (void) sprintf(path,"%s/%s/%s",mysql_data_home,db,name);
+  strxmov(path, mysql_data_home, "/", db, "/", name, NullS);
   if (openfrm(path,alias,
 	       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		       HA_TRY_READ_ONLY),
