@@ -333,3 +333,5 @@ inline double ulonglong2double(ulonglong value)
 
 #define shared_memory_buffer_length 16000
 #define default_shared_memory_base_name "MYSQL"
+#define MYSQL_DEFAULT_CHARSET_NAME "latin1"
+#define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
