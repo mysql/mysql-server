@@ -206,6 +206,7 @@ extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
        NEAR my_disable_flush_key_blocks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
+extern char *defaults_extra_file;
 
 typedef struct wild_file_pack	/* Struct to hold info when selecting files */
 {

@@ -305,14 +305,14 @@ Post-installation Setup and Testing
 * Command-line options::        Command-line options
 * Option files::                Option files
 
-Is there anything special to do when upgrading/downgrading MySQL?
+Is There Anything Special to Do when Upgrading/Downgrading MySQL?
 
 * Upgrading-from-3.22::         Upgrading from a 3.22 version to 3.23
 * Upgrading-from-3.21::         Upgrading from a 3.21 version to 3.22
 * Upgrading-from-3.20::         Upgrading from a 3.20 version to 3.21
 * Upgrading-to-arch::           Upgrading to another architecture
 
-How standards-compatible is MySQL?
+How Standards-compatible Is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
 * Ansi mode::                   Running @strong{MySQL} in ANSI mode
@@ -321,7 +321,7 @@ How standards-compatible is MySQL?
 * Standards::                   What standards does @strong{MySQL} follow?
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 
-Functionality missing from MySQL
+Functionality Missing from MySQL
 
 * Missing Sub-selects::         Sub-selects
 * Missing SELECT INTO TABLE::   @code{SELECT INTO TABLE}
@@ -335,7 +335,7 @@ Foreign Keys
 
 * Broken Foreign KEY::          Reasons NOT to use foreign keys
 
-The MySQL access privilege system
+The MySQL Access Privilege System
 
 * General security::            General security
 * Security::                    How to make @strong{MySQL} secure against crackers
@@ -353,7 +353,7 @@ The MySQL access privilege system
 * Passwords::                   How to set up passwords
 * Access denied::               Causes of @code{Access denied} errors
 
-MySQL language reference
+MySQL Language Reference
 
 * Literals::                    Literals: how to write strings and numbers
 * Variables::                   User variables
@@ -394,7 +394,7 @@ MySQL language reference
 * CREATE FUNCTION::             @code{CREATE FUNCTION} syntax
 * Reserved words::              Is @strong{MySQL} picky about reserved words?
 
-Literals: how to write strings and numbers
+Literals: How to Write Strings and Numbers
 
 * String syntax::               Strings
 * Number syntax::               Numbers
@@ -402,11 +402,11 @@ Literals: how to write strings and numbers
 * NULL values::                 @code{NULL} values
 * Legal names::                 Database, table, index, column and alias names
 
-Database, table, index, column and alias names
+Database, Table, Index, Column, and Alias Names
 
 * Name case sensitivity::       Case sensitivity in names
 
-Column types
+Column Types
 
 * Storage requirements::        Column type storage requirements
 * Numeric types::               Numeric types
@@ -417,21 +417,21 @@ Column types
 * Multiple-column indexes::     Multiple-column indexes
 * Other-vendor column types::   Using column types from other database engines
 
-Date and time types
+Date and Time Types
 
 * Y2K issues::                  Y2K issues and date types
 * DATETIME::                    The @code{DATETIME}, @code{DATE} and @code{TIMESTAMP} types
 * TIME::                        The @code{TIME} type
 * YEAR::                        The @code{YEAR} type
 
-String types
+String Types
 
 * CHAR::                        The @code{CHAR} and @code{VARCHAR} types
 * BLOB::                        The @code{BLOB} and @code{TEXT} types
 * ENUM::                        The @code{ENUM} type
 * SET::                         The @code{SET} type
 
-Functions for use in @code{SELECT} and @code{WHERE} clauses
+Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 * Grouping functions::          Grouping functions
 * Arithmetic functions::        Normal arithmetic operations
@@ -447,7 +447,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 * Miscellaneous functions::     Miscellaneous functions
 * Group by functions::          Functions for @code{GROUP BY} clause
 
-@code{CREATE TABLE} syntax
+@code{CREATE TABLE} Syntax
 
 * Silent column changes::       Silent column changes
 
@@ -580,6 +580,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
+* DISTINCT optimization::       
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -4393,14 +4394,47 @@ last version number is newer than yours).  We have tried to fix only
 fatal bugs and make small, relatively safe changes to that version.
 @end itemize
 
-The second decision to make is whether you want to use a source distribution or
-a binary distribution:
+The second decision to make is whether you want to use a source
+distribution or a binary distribution.  In most cases you should probably
+use a binary distribution, if there exist one for your platform, as this
+is generally, it will be easier to install than a source distribution.
+
+In the following cases you will probably be better of with a source
+installation:
 
 @itemize @bullet
 @item
-If you want to run @strong{MySQL} on a platform for which a current binary
-distribution exists, use that.  Generally, it will be easier to install
-than a source distribution.
+If you want to install @strong{MySQL} at some explicit location. (The standard
+binary distributions are 'ready to run' at any place, but you may want
+to get even more flexibility).
+
+@item
+If you want to configure @code{mysqld} with some extra feature that is NOT in
+the standard binary distributions. Here follows a list of the most common
+extra options that you may want to use
+
+@itemize @bullet
+@item --with-berkeley-db
+@item --with-raid
+@item --with-libwrap
+@item --with-named-z-lib  (This is done for some of the binaries)
+@item --with-debugging[=full]
+@end itemize
+
+@item
+The default binary distribution is normally compiled with support
+for all characters sets and should work on a variety of processors from
+the same processor family.
+
+If you want a faster @strong{MySQL} server you may want to recompile it
+with support for only the character sets you need, use a better compiler
+(like pgcc) or use compiler options that are better optimized for your
+processor.
+
+@item
+If you have found a bug and reported it to the @strong{MySQL}
+development team you will probably got a patch that you need to apply to
+the source distribution to get the bug fixed.
 
 @item
 If you want to read (and/or modify) the C and C++ code that makes up
@@ -9122,6 +9156,7 @@ for clients from option files.
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{/etc/my.cnf} @tab Global options
 @item @code{DATADIR/my.cnf} @tab Server-specific options
+@item @code{defaults-extra-file} @tab The file specified with --defaults-extra-file=#
 @item @code{~/.my.cnf} @tab User-specific options
 @end multitable
 
@@ -9233,15 +9268,19 @@ there are sample configuration files for small, medium, large, and very
 large systems.  You can copy @file{my-xxxx.cnf} to your home directory
 (rename the copy to @file{.my.cnf}) to experiment with this.
 
-To tell a @strong{MySQL} program not to read any option files, specify
-@code{--no-defaults} as the first option on the command line.  This
-@strong{MUST} be the first option or it will have no effect!
-If you want to check which options are used, you can give the option
-@code{--print-defaults} as the first option.
+All @strong{MySQL} clients that support option files support the
+following options:
 
-If you want to force the use of a specific config file, you can use the option
-@code{--defaults-file=full-path-to-default-file}. If you do this, only the
-specified file will be read.
+@multitable @columnfractions .40 .60
+@item --no-defaults @tab Don't read any option files.
+@item --print-defaults @tab Print the program name and all options that it will get.
+@item --defaults-file=full-path-to-default-file @tab Only use the given configuration file.
+@item --defaults-extra-file=full-path-to-default-file @tab Read this configuration file after the global configuration file but before the user configuration file.
+@end multitable
+
+Note that the above options must be first on the command line to work!
+@code{--print-defaults} may however be used directly after the
+@code{--defaults-xxx-file} commands.
 
 Note for developers:  Option file handling is implemented simply by
 processing all matching options (that is, options in the appropriate group)
@@ -9251,6 +9290,19 @@ an old program that handles multiply-specified options this way but doesn't
 read option files, you need add only two lines to give it that capability.
 Check the source code of any of the standard @strong{MySQL} clients to see
 how to do this.
+
+In shell scripts you can use the @file{my_print_defaults} command to parse the
+config files:
+
+@example
+
+shell> my_print_defaults client mysql
+--port=3306
+--socket=/tmp/mysql.sock
+--no-auto-rehash
+@end example
+
+The above output contains all options for the groups 'client' and 'mysql'.
 
 @node Upgrade,  , Post-installation, Installing
 @section Is There Anything Special to Do when Upgrading/Downgrading MySQL?
@@ -20035,6 +20087,9 @@ resolve the query. Here follows an explanation of the different text
 strings that can be found in this column:
 
 @table @code
+@item Distinct
+@strong{MySQL} will not continue searching for more rows for the current row
+combination after it has found the first matching row.
 @item Not exists
 @strong{MySQL} was able to do a @code{LEFT JOIN} optimization on the
 query and will not examine more rows in this table for a row combination
@@ -20780,8 +20835,27 @@ The biggest differences between the ANSI SQL and @strong{MySQL} versions of
 
 @itemize @bullet
 @item
+In @strong{MySQL} privileges are given for an username + hostname combination
+and not only for an username.
+
+@item
 ANSI SQL doesn't have global or database-level privileges and ANSI SQL
 doesn't support all privilege types that @strong{MySQL} supports.
+@strong{MySQL} doesn't support the ANSI SQL @code{TRIGGER}, @code{EXECUTE} or
+@code{UNDER} privileges.
+
+@item
+ANSI SQL privileges are structured in a hierarchal manner. If you remove
+an user, all privileges the user has granted are revoked. In
+@strong{MySQL} the granted privileges are not automaticly revoked, but
+you have to revoke these yourself if needed.
+
+@item
+If you in @code{MySQL} have the @code{INSERT} grant on only part of the
+columns in a table, you can execute @code{INSERT} statements on the
+table; The columns for which you don't have the @code{INSERT} privilege
+will set to their default values. ANSI SQL requires you to have the
+@code{INSERT} privilege on all columns.
 
 @item
 When you drop a table in ANSI SQL, all privileges for the table are revoked.
@@ -26092,6 +26166,7 @@ great tool to find out if this is a problem with your query.
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
+* DISTINCT optimization::       
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -26171,7 +26246,7 @@ time for a large table!
 
 @cindex optimizations
 @findex WHERE
-@node Where optimizations, LEFT JOIN optimization, SELECT speed, Query Speed
+@node Where optimizations, DISTINCT optimization, SELECT speed, Query Speed
 @subsection How MySQL optimizes @code{WHERE} clauses
 
 The @code{WHERE} optimizations are put in the @code{SELECT} part here because
@@ -26244,17 +26319,13 @@ possibilities. If all columns in @code{ORDER BY} and in @code{GROUP
 BY} come from the same table, then this table is preferred first when
 joining.
 @item
-If there is an @code{ORDER BY} clause and a different @code{GROUP BY} clause,
-or if the @code{ORDER BY} or @code{GROUP BY}
-contains columns from tables other than the first table in the join
-queue, a temporary table is created.
+If there is an @code{ORDER BY} clause and a different @code{GROUP BY}
+clause, or if the @code{ORDER BY} or @code{GROUP BY} contains columns
+from tables other than the first table in the join queue, a temporary
+table is created.
 @item
 If you use @code{SQL_SMALL_RESULT}, @strong{MySQL} will use an in-memory
 temporary table.
-@item
-As @code{DISTINCT} is converted to a @code{GROUP BY} on all columns,
-@code{DISTINCT} combined with @code{ORDER BY} will in many cases also need
-a temporary table.
 @item
 Each table index is queried and the best index that spans fewer than 30% of
 the rows is used. If no such index can be found, a quick table scan is used.
@@ -26298,9 +26369,32 @@ mysql> SELECT ... FROM tbl_name ORDER BY key_part1,key_part2,...
 mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,...
 @end example
 
+@findex DISTINCT
+@cindex optimizing, DISTINCT
+@node DISTINCT optimization, LEFT JOIN optimization, Where optimizations, Query Speed
+@subsection How MySQL optimizes @code{DISTINCT}
+
+@code{DISTINCT} is converted to a @code{GROUP BY} on all columns,
+@code{DISTINCT} combined with @code{ORDER BY} will in many cases also
+need a temporary table.
+
+When combining @code{LIMIT #} with @code{DISTINCT}, @strong{MySQL} will stop
+as soon as it finds @code{#} unique rows.
+
+If you don't use columns from all used tables, @strong{MySQL} will stop
+the scanning of the not used tables as soon as it has found the first match.
+
+@example
+SELECT DISTINCT t1.a FROM t1,t2 where t1.a=t2.a;
+@end example
+
+In the case, assuming t1 is used before t2 (check with @code{EXPLAIN}), then
+@strong{MySQL} will stop reading from t2 (for that particular row in t1)
+when the first row in t2 is found.
+
 @findex LEFT JOIN
 @cindex optimizing, LEFT JOIN
-@node LEFT JOIN optimization, LIMIT optimization, Where optimizations, Query Speed
+@node LEFT JOIN optimization, LIMIT optimization, DISTINCT optimization, Query Speed
 @subsection How MySQL optimizes @code{LEFT JOIN} and @code{RIGHT JOIN}
 
 @code{A LEFT JOIN B} is in @strong{MySQL} implemented as follows:
@@ -31396,6 +31490,10 @@ You can also do this with
 Load the privilege tables with: @code{mysqladmin -h hostname
 flush-privileges} or with the SQL command @code{FLUSH PRIVILEGES}.
 @end enumerate
+
+Note that after you started @code{mysqld} with @code{--skip-grant-tables},
+any usage of @code{GRANT} commands will give you an @code{Unknown command}
+error until you have executed @code{FLUSH PRIVILEGES}.
 
 @cindex files, permissions
 @cindex error mesaages, can't find file
@@ -37759,6 +37857,16 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+Added optimization of queries where @code{DISTINCT} is only used on columns
+from some of the tables.
+@item
+Allow floating point numbers where there are no sign after the exponent
+(like 1e1).
+@item
+@code{SHOW GRANTS} didn't always show all column grants.
+@item
+Added @code{--default-extra-file=#} to all @strong{MySQL} clients.
 @item
 Automatic repair of @code{MyISAM} tables.
 @item
