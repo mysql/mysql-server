@@ -176,10 +176,13 @@ sp_cursor::close(THD *thd)
 void
 sp_cursor::destroy()
 {
-  delete m_prot;
-  m_prot= NULL;
-  free_root(&m_mem_root, MYF(0));
-  bzero((char *)&m_mem_root, sizeof(m_mem_root));
+  if (m_prot)
+  {
+    delete m_prot;
+    m_prot= NULL;
+    free_root(&m_mem_root, MYF(0));
+    bzero((char *)&m_mem_root, sizeof(m_mem_root));
+  }
   m_isopen= FALSE;
 }
 
@@ -190,14 +193,12 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
   sp_pvar_t *pv;
   MYSQL_ROW row;
   uint fldcount;
-  MYSQL_FIELD *fields= m_prot->fields;
 
   if (! m_isopen)
   {
     send_error(thd, ER_SP_CURSOR_NOT_OPEN);
     return -1;
   }
-
   if (m_current_row == NULL)
   {
     send_error(thd, ER_SP_FETCH_NO_DATA);
