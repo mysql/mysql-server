@@ -1015,23 +1015,31 @@ sp_head::restore_thd_mem_root(THD *thd)
 }
 
 
-bool check_show_routine_acceess(THD *thd, sp_head *sp, bool *full_access)
+/*
+  Check if a user has access right to a routine
+
+  SYNOPSIS
+    check_show_routine_access()
+    thd			Thread handler
+    sp			SP
+    full_access		Set to 1 if the user has SELECT right to the
+			'mysql.proc' able or is the owner of the routine
+  RETURN
+    0  ok
+    1  error
+*/
+
+bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
 {
   TABLE_LIST tables;
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= !check_table_access(thd, SELECT_ACL, &tables, 1);
-  if (!(*full_access))
-    *full_access= (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
-                   !strcmp(sp->m_definer_host.str, thd->priv_host));
-  if (!(*full_access))
-  {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    return check_some_routine_access(thd, (char * )sp->m_db.str,
-                                     (char * ) sp->m_name.str);
-#endif
-  }
+  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1) ||
+                 (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
+                  !strcmp(sp->m_definer_host.str, thd->priv_host)));
+  if (!*full_access)
+    return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str);
   return 0;
 }
 
@@ -1055,7 +1063,7 @@ sp_head::show_create_procedure(THD *thd)
   LINT_INIT(sql_mode_str);
   LINT_INIT(sql_mode_len);
 
-  if (check_show_routine_acceess(thd, this, &full_access))
+  if (check_show_routine_access(thd, this, &full_access))
     return 1;
   
   old_sql_mode= thd->variables.sql_mode;
@@ -1128,7 +1136,7 @@ sp_head::show_create_function(THD *thd)
   LINT_INIT(sql_mode_str);
   LINT_INIT(sql_mode_len);
 
-  if (check_show_routine_acceess(thd, this, &full_access))
+  if (check_show_routine_access(thd, this, &full_access))
     return 1;
 
   old_sql_mode= thd->variables.sql_mode;
