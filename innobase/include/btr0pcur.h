@@ -478,6 +478,10 @@ struct btr_pcur_struct{
 					BTR_PCUR_WAS_POSITIONED,
 					BTR_PCUR_NOT_POSITIONED */
 	ulint		search_mode;	/* PAGE_CUR_G, ... */
+	trx_t*		trx_if_known;	/* the transaction, if we know it;
+					otherwise this field is not defined;
+					can ONLY BE USED in error prints in
+					fatal assertion failures! */
 	/*-----------------------------*/
 	/* NOTE that the following fields may possess dynamically allocated
 	memory which should be freed if not needed anymore! */
