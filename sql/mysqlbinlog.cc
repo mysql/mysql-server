@@ -361,8 +361,7 @@ static void dump_local_log_entries(const char* logname)
 	die("Could not read entry at offset %ld : Error in log format or \
 read error",
 	    my_b_tell(file));
-      else
-	die("Could not construct event object");
+      // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
     if (rec_count >= offset)

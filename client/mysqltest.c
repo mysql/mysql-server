@@ -78,6 +78,7 @@ struct query
 };
 
 static void die(const char* fmt, ...);
+int close_connection(struct query* q);
 
 
 int hex_val(int c)
@@ -148,6 +149,30 @@ int select_connection(struct query* q)
     if(!strcmp(con->name, name))
       {
 	cur_con = con;
+	return 0;
+      }
+
+  die("connection '%s' not found in connection pool", name);
+  return 1;
+}
+
+int close_connection(struct query* q)
+{
+  char* p, *name;
+  struct connection *con;
+  p = (char*)q->q + q->first_word_len;
+  while(*p && isspace(*p)) p++;
+  if(!*p)
+    die("Missing connection name in connect\n");
+  name = p;
+  while(*p && !isspace(*p))
+    p++;
+  *p = 0;
+  
+  for(con = cons; con < next_con; con++)
+    if(!strcmp(con->name, name))
+      {
+	mysql_close(&con->mysql);
 	return 0;
       }
 
@@ -851,6 +876,8 @@ int main(int argc, char** argv)
 	do_connect(&q);
       else if(check_first_word(&q, "connection", 10))
 	select_connection(&q);
+      else if(check_first_word(&q, "disconnect", 10))
+	close_connection(&q);
       else if(check_first_word(&q, "source", 6))
 	do_source(&q);
       else if(check_first_word(&q, "sleep", 5))

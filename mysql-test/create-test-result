@@ -6,7 +6,7 @@
 # to start mysqld yourself and run mysqltest -r
 
 RESULT_DIR=r/3.23
-if [ -z $EDITOR] then;
+if [ -z $EDITOR] ; then
  EDITOR=vi
 fi
 
@@ -26,7 +26,7 @@ test_name=$1
 
 [ -z $test_name ] && usage
 
-result_file=$result_dir/$test_name.result
+result_file=$RESULT_DIR/$test_name.result
 
 [ -f $result_file ] && die "result file $result_file  has already been created"
 
@@ -39,11 +39,11 @@ reject_file=$result_file.reject
 if [ -f $reject_file ] ; then
   echo "Below are the contents of the reject file:"
   echo "-----start---------------------"
-  cat $result_file.
+  cat $reject_file
   echo "-----end-----------------------"
   echo "Is this the output you expected from your test case?(y/n)[n]"
   read yes_no
-  if [ x$yes_no = xy ] then;
+  if [ x$yes_no = xy ] ; then
     echo "Press any key to edit it in $EDITOR, or Ctrl-C to abort"
     read junk
     $EDITOR $reject_file

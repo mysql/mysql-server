@@ -762,6 +762,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	thd->query_error = 0; // clear error
 	thd->net.last_errno = 0;
 	thd->net.last_error[0] = 0;
+	thd->slave_proxy_id = qev->thread_id; // for temp tables
 	mysql_parse(thd, thd->query, q_len);
 	int expected_error,actual_error;
 	if((expected_error = qev->error_code) !=
@@ -782,24 +783,17 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       thd->convert_set = 0; // assume no convert for next query
       // unless set explictly
       close_thread_tables(thd);
-      free_root(&thd->mem_root,0);
       
-      if (thd->query_error)
+      if (thd->query_error || thd->fatal_error)
       {
 	sql_print_error("Slave:  error running query '%s' ",
 			qev->query);
+        free_root(&thd->mem_root,0);
 	delete ev;
 	return 1;
       }
-      
+      free_root(&thd->mem_root,0);
       delete ev;
-	    
-      if(thd->fatal_error)
-      {
-	sql_print_error("Slave: Fatal error running query '%s' ",
-			thd->query);
-	return 1;
-      }
 
       mi->inc_pos(event_len);
       flush_master_info(mi);
@@ -875,6 +869,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
 	List<Item> fields;
 	lev->set_fields(fields);
+	thd->slave_proxy_id = thd->thread_id;
 	thd->net.vio = net->vio;
 	// mysql_load will use thd->net to read the file
 	thd->net.pkt_nr = net->pkt_nr;
@@ -920,11 +915,13 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     }
 
     case START_EVENT:
+      close_temporary_tables(thd);
       mi->inc_pos(event_len);
       flush_master_info(mi);
       break;
                   
     case STOP_EVENT:
+      close_temporary_tables(thd);
       mi->inc_pos(event_len);
       flush_master_info(mi);
       break;

@@ -98,6 +98,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
+  slave_proxy_id = 0;
   last_nx_table = last_nx_db = 0;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;
