@@ -70,7 +70,6 @@ struct MgmGlobals {
   bool use_specific_ip;
   char * interface_name;
   int port;
-  int port_stats;
   
   /** The configuration of the cluster */
   Config * cluster_config;
@@ -169,8 +168,6 @@ NDB_MAIN(mgmsrv){
 
   MgmApiService * mapi = new MgmApiService();
 
-  MgmStatService * mstat = new MgmStatService();
-
   /****************************
    * Read configuration files *
    ****************************/
@@ -230,13 +227,6 @@ NDB_MAIN(mgmsrv){
     goto error_end;
   }
   
-  if(!glob.socketServer->setup(mstat, glob.port_stats, glob.interface_name)){
-    ndbout_c("Unable to setup statistic port: %d!\nPlease check if the port"
-	     " is already used.", glob.port_stats);
-    delete mstat;
-    goto error_end;
-  }
-
   if(!glob.mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
@@ -267,10 +257,7 @@ NDB_MAIN(mgmsrv){
   }
 
   //glob.mgmObject->saveConfig();
-
-  mstat->setMgm(glob.mgmObject);
   mapi->setMgm(glob.mgmObject);
-  glob.mgmObject->setStatisticsListner(mstat);
 
   char msg[256];
   snprintf(msg, sizeof(msg),
@@ -278,8 +265,8 @@ NDB_MAIN(mgmsrv){
   ndbout_c(msg);
   g_EventLogger.info(msg);
 
-  snprintf(msg, 256, "Id: %d, Command port: %d, Statistics port: %d",
-	   glob.localNodeId, glob.port, glob.port_stats);
+  snprintf(msg, 256, "Id: %d, Command port: %d",
+	   glob.localNodeId, glob.port);
   ndbout_c(msg);
   g_EventLogger.info(msg);
   
@@ -309,7 +296,6 @@ NDB_MAIN(mgmsrv){
 MgmGlobals::MgmGlobals(){
   // Default values
   port = 0;
-  port_stats = 0;
   config_filename = NULL;
   local_config_filename = NULL;
   interface_name = 0;
