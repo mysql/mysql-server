@@ -177,7 +177,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 
   fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
-    res=mysql_union(thd, lex, result, &lex->unit, 0);
+    res=mysql_union(thd, lex, result, &lex->unit);
   else
     res= mysql_select(thd, &select_lex->ref_pointer_array,
 		      (TABLE_LIST*) select_lex->table_list.first,
@@ -190,7 +190,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
-		      result, &(lex->unit), &(lex->select_lex), 0);
+		      result, &(lex->unit), &(lex->select_lex));
 
   /* Don't set res if it's -1 as we may want this later */
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
@@ -285,8 +285,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 	      ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit,
-	      bool tables_and_fields_initied)
+	      SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -302,10 +301,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if ((tables_and_fields_initied ? 0 : (setup_tables(tables_list) ||
-					setup_wild(thd, tables_list, 
-						   fields_list,
-						   &all_fields, wild_num))) ||
+  if (setup_tables(tables_list) ||
+      setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
 		   &all_fields, 1) ||
@@ -1536,7 +1533,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex,  bool tables_and_fields_initied)
+	     SELECT_LEX *select_lex)
 {
   int err;
   bool free_join= 1;
@@ -1546,26 +1543,31 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   if (select_lex->join != 0)
   {
     join= select_lex->join;
-    if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
+    // is it single SELECT in derived table, called in derived table creation
+    if (select_lex->linkage != DERIVED_TABLE_TYPE ||
+	(select_options & SELECT_DESCRIBE))
     {
-      //here is EXPLAIN of subselect or derived table
-      join->result= result;
-      if (!join->procedure && result->prepare(join->fields_list, unit))
+      if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
-	DBUG_RETURN(-1);
+	//here is EXPLAIN of subselect or derived table
+	join->result= result;
+	if (!join->procedure && result->prepare(join->fields_list, unit))
+	{
+	  DBUG_RETURN(-1);
+	}
       }
-    }
-    else
-    {
-      if (join->prepare(rref_pointer_array, tables, wild_num,
-			conds, og_num, order, group, having, proc_param,
-			select_lex, unit, tables_and_fields_initied))
+      else
       {
-	goto err;
+	if (join->prepare(rref_pointer_array, tables, wild_num,
+			  conds, og_num, order, group, having, proc_param,
+			  select_lex, unit))
+	{
+	  goto err;
+	}
       }
+      free_join= 0;
     }
     join->select_options= select_options;
-    free_join= 0;
   }
   else
   {
@@ -1574,7 +1576,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     thd->used_tables=0;                         // Updated by setup_fields
     if (join->prepare(rref_pointer_array, tables, wild_num,
 		      conds, og_num, order, group, having, proc_param,
-		      select_lex, unit, tables_and_fields_initied))
+		      select_lex, unit))
     {
       goto err;
     }
@@ -4546,6 +4548,115 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 ****************************************************************************/
 
 /*
+  Create field for temporary table from given field
+  
+  SYNOPSIS
+    create_tmp_field_from_field()
+    thd			Thread handler
+    org_field           field from which new field will be created
+    item		Item to create a field for
+    table		Temporary table
+    modify_item	        1 if item->result_field should point to new item.
+			This is relevent for how fill_record() is going to
+			work:
+			If modify_item is 1 then fill_record() will update
+			the record in the original table.
+			If modify_item is 0 then fill_record() will update
+			the temporary table
+
+  RETURN
+    0			on error
+    new_created field
+*/
+static Field* create_tmp_field_from_field(THD *thd,
+					  Field* org_field,
+					  Item *item,
+					  TABLE *table,
+					  bool modify_item)
+{
+  Field *new_field;
+
+  // The following should always be true
+  if ((new_field= org_field->new_field(&thd->mem_root,table)))
+  {
+    if (modify_item)
+      ((Item_field *)item)->result_field= new_field;
+    else
+      new_field->field_name= item->name;
+    if (org_field->maybe_null())
+      new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
+    if (org_field->type() == FIELD_TYPE_VAR_STRING)
+      table->db_create_options|= HA_OPTION_PACK_RECORD;
+  }
+  return new_field;
+}
+
+/*
+  Create field for temporary table using type of given item
+  
+  SYNOPSIS
+    create_tmp_field_from_item()
+    thd			Thread handler
+    item		Item to create a field for
+    table		Temporary table
+    copy_func		If set and item is a function, store copy of item
+			in this array
+    modify_item		1 if item->result_field should point to new item.
+			This is relevent for how fill_record() is going to
+			work:
+			If modify_item is 1 then fill_record() will update
+			the record in the original table.
+			If modify_item is 0 then fill_record() will update
+			the temporary table
+
+  RETURN
+    0			on error
+    new_created field
+*/
+static Field* create_tmp_field_from_item(THD *thd,
+					 Item *item,
+					 TABLE *table,
+					 Item ***copy_func,
+					 bool modify_item)
+{
+  bool maybe_null=item->maybe_null;
+  Field *new_field;
+  LINT_INIT(new_field);
+
+  switch (item->result_type()) {
+  case REAL_RESULT:
+    new_field=new Field_double(item->max_length, maybe_null,
+			       item->name, table, item->decimals);
+    break;
+  case INT_RESULT:
+    new_field=new Field_longlong(item->max_length, maybe_null,
+				   item->name, table, item->unsigned_flag);
+    break;
+  case STRING_RESULT:
+    if (item->max_length > 255)
+      new_field=  new Field_blob(item->max_length, maybe_null,
+				 item->name, table,
+				 item->collation.collation);
+    else
+      new_field= new Field_string(item->max_length, maybe_null,
+				  item->name, table,
+				  item->collation.collation);
+    break;
+  case ROW_RESULT: 
+  default: 
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    new_field= 0; // to satisfy compiler (uninitialized variable)
+    break;
+  }
+  if (copy_func && item->is_result_field())
+    *((*copy_func)++) = item;			// Save for copy_funcs
+  if (modify_item)
+    item->set_result_field(new_field);
+  return new_field;
+}
+
+/*
   Create field for temporary table
 
   SYNOPSIS
@@ -4556,6 +4667,8 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     type		Type of item (normally item->type)
     copy_func		If set and item is a function, store copy of item
 			in this array
+    from_field          if field will be created using other field as example,
+                        pointer example field will be written here 
     group		1 if we are going to do a relative group by on result
     modify_item		1 if item->result_field should point to new item.
 			This is relevent for how fill_record() is going to
@@ -4622,24 +4735,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return 0;					// Error
   }
   case Item::FIELD_ITEM:
-  {
-    Field *org_field=((Item_field*) item)->field,*new_field;
-
-    *from_field=org_field;
-    // The following should always be true
-    if ((new_field= org_field->new_field(&thd->mem_root,table)))
-    {
-      if (modify_item)
-	((Item_field*) item)->result_field= new_field;
-      else
-	new_field->field_name=item->name;
-      if (org_field->maybe_null())
-	new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
-      if (org_field->type()==FIELD_TYPE_VAR_STRING)
-	table->db_create_options|= HA_OPTION_PACK_RECORD;
-    }
-    return new_field;
-  }
+    return create_tmp_field_from_field(thd, (*from_field=
+					     ((Item_field*) item)->field),
+				       item, table, modify_item);
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -4653,40 +4751,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
+    return create_tmp_field_from_item(thd, item, table,
+				      copy_func, modify_item);
+  case Item::TYPE_HOLDER:
   {
-    bool maybe_null=item->maybe_null;
-    Field *new_field;
-    LINT_INIT(new_field);
-
-    switch (item->result_type()) {
-    case REAL_RESULT:
-      new_field=new Field_double(item->max_length,maybe_null,
-				 item->name,table,item->decimals);
-      break;
-    case INT_RESULT:
-      new_field=new Field_longlong(item->max_length,maybe_null,
-				   item->name,table, item->unsigned_flag);
-      break;
-    case STRING_RESULT:
-      if (item->max_length > 255)
-	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->collation.collation);
-      else
-	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->collation.collation);
-      break;
-    case ROW_RESULT: 
-    default: 
-      // This case should never be choosen
-      DBUG_ASSERT(0);
-      new_field= 0; // to satisfy compiler (uninitialized variable)
-      break;
-    }
-    if (copy_func && item->is_result_field())
-      *((*copy_func)++) = item;			// Save for copy_funcs
-    if (modify_item)
-      item->set_result_field(new_field);
-    return new_field;
+    Field *example= ((Item_type_holder *)item)->example();
+    if (example)
+      return create_tmp_field_from_field(thd, example, item, table, 0);
+    return create_tmp_field_from_item(thd, item, table, copy_func, 0);
   }
   default:					// Dosen't have to be stored
     return 0;
@@ -9077,7 +9149,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->having,
 			(ORDER*) thd->lex.proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex, 0);
+			result, unit, select_lex);
   DBUG_RETURN(res);
 }
 

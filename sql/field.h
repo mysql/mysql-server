@@ -230,6 +230,24 @@ public:
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
   void set_warning(const unsigned int level, const unsigned int code);
+  /*
+    number which describe preferences of field type converion,
+    for example, if we have int and float, float is prefered as more general
+    
+    ennumiration begins from:
+    100 for int types
+    300 for float point
+    500 time/date
+    700 string
+  */
+  virtual uint convert_order()= 0;
+  /*
+    Is this type is compatible with given 
+    (given can be stored in it)
+    Should take care only of types 'less' then current
+  */
+  virtual bool convert_order_compatible(uint order) { return 0; }
+
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -334,6 +352,7 @@ public:
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
+  uint convert_order() { return 130; }
 };
 
 
@@ -369,6 +388,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
+  uint convert_order() { return 100; }
 };
 
 
@@ -404,6 +424,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
+  uint convert_order() { return 101; }
 };
 
 
@@ -434,6 +455,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
+  uint convert_order() { return 102; }
 };
 
 
@@ -469,6 +491,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
+  uint convert_order() { return 103; }
 };
 
 
@@ -507,6 +530,7 @@ public:
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
+  uint convert_order() { return 104; }
 };
 #endif
 
@@ -540,6 +564,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
   void sql_type(String &str) const;
+  uint convert_order() { return 300; }
 };
 
 
@@ -573,6 +598,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
+  uint convert_order() { return 301; }
 };
 
 
@@ -606,6 +632,7 @@ public:
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
+  uint convert_order() { return 0; }
 };
 
 
@@ -649,6 +676,8 @@ public:
   }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
+  uint convert_order() { return 520; }
+  bool convert_order_compatible(uint ord) { return ord<520; }
 };
 
 
@@ -674,6 +703,8 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
+  uint convert_order() { return 501; }
+  bool convert_order_compatible(uint ord) { return ord<520; }
 };
 
 
@@ -706,6 +737,8 @@ public:
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 1; }
+  uint convert_order() { return 502; }
+  bool convert_order_compatible(uint ord) { return ord<520; }
 };
 
 class Field_newdate :public Field_str {
@@ -737,6 +770,8 @@ public:
   bool zero_pack() const { return 1; }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
+  uint convert_order() { return 503; }
+  bool convert_order_compatible(uint ord) { return ord<520; }
 };
 
 
@@ -770,6 +805,8 @@ public:
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 1; }
+  uint convert_order() { return 504; }
+  bool convert_order_compatible(uint ord) { return ord<520; }
 };
 
 
@@ -807,6 +844,8 @@ public:
   bool zero_pack() const { return 1; }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
+  uint convert_order() { return 530; }
+  bool convert_order_compatible(uint ord) { return ord<=501; }
 };
 
 
@@ -851,6 +890,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
   bool has_charset(void) const { return TRUE; }
+  uint convert_order() { return 700; }
 };
 
 
@@ -894,6 +934,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
   bool has_charset(void) const { return TRUE; }
+  uint convert_order() { return 701; }
 };
 
 
@@ -983,6 +1024,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
+  uint convert_order() { return 701; }
 };
 
 
@@ -1011,6 +1053,8 @@ public:
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
+  uint convert_order() { return 750; }
+  bool convert_order_compatible(uint ord) { return ord < 750; };
 };
 
 
@@ -1052,6 +1096,8 @@ public:
   bool optimize_range(uint idx) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
+  uint convert_order() { return 30; }
+  bool convert_order_compatible(uint ord) { return ord < 30; };
 };
 
 
@@ -1077,6 +1123,8 @@ public:
   void sql_type(String &str) const;
   enum_field_types real_type() const { return FIELD_TYPE_SET; }
   bool has_charset(void) const { return TRUE; }
+  uint convert_order() { return 40; }
+  bool convert_order_compatible(uint ord) { return ord < 40; };
 };
 
 
