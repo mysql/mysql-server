@@ -2979,9 +2979,9 @@ int ha_ndbcluster::reset()
   DBUG_RETURN(1);
 }
 
-
+static const char *ha_ndb_bas_exts[]= { ha_ndb_ext, NullS };
 const char **ha_ndbcluster::bas_ext() const
-{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
+{ return ha_ndb_bas_exts; }
 
 
 /*
