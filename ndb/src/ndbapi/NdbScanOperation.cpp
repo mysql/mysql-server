@@ -1284,7 +1284,7 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
     const NdbColumnImpl & col = NdbColumnImpl::getImpl(* r1->m_column);
     Uint32 len = r1->theAttrSize * r1->theArraySize;
     if(!r1_null){
-      const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(col.m_extType);
+      const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(col.m_type);
       int r = (*sqlType.m_cmp)(col.m_cs, d1, len, d2, len, true);
       if(r){
 	assert(r != NdbSqlUtil::CmpUnknown);
