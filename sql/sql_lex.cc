@@ -1636,17 +1636,21 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 
 /*
-  Unlink first table from global table list and first must outer select list
-    (lex->select_lex)
+  Unlink first table from global table list and first table from outer select
+  list (lex->select_lex)
 
   SYNOPSIS
     unlink_first_table()
-    tables		- global table list
-    global_first	- save first global table passed using this parameter
-    local_first		- save first local table passed using this parameter
+    tables		Global table list
+    global_first	Save first global table here
+    local_first		Save first local table here
+
+  NORES
+   global_first & local_first are used to save result for link_first_table_back
 
   RETURN
     global list without first table
+
 */
 TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
 				       TABLE_LIST **global_first,
@@ -1655,16 +1659,15 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
   *global_first= tables;
   *local_first= (TABLE_LIST*)select_lex.table_list.first;
   /*
-    exclude from global table list
+    Exclude from global table list
   */
   tables= tables->next;
   /*
     and from local list if it is not the same
   */
-  if (&select_lex != all_selects_list)
-    select_lex.table_list.first= (gptr)(*local_first)->next;
-  else
-    select_lex.table_list.first= (gptr)tables;
+  select_lex.table_list.first= ((&select_lex != all_selects_list) ?
+				(gptr) (*local_first)->next :
+				(gptr) tables);
   (*global_first)->next= 0;
   return tables;
 }
@@ -1675,9 +1678,9 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
 
   SYNOPSIS
     link_first_table_back()
-    tables		- global table list
-    global_first	- save first global table
-    local_first		- save first local table
+    tables		Global table list
+    global_first	Saved first global table
+    local_first		Saved first local table
 
   RETURN
     global list
