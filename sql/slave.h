@@ -210,34 +210,9 @@ typedef struct st_relay_log_info
 
   st_relay_log_info();
   ~st_relay_log_info();
-  inline void inc_pending(ulonglong val)
-  {
-    pending += val;
-  }
-  /* TODO: this probably needs to be fixed */
-  inline void inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
-  {
-    if (!skip_lock)
-      pthread_mutex_lock(&data_lock);
-    relay_log_pos += val+pending;
-    pending = 0;
-    if (log_pos)
-      master_log_pos = log_pos+ val;
-    pthread_cond_broadcast(&data_cond);
-    if (!skip_lock)
-      pthread_mutex_unlock(&data_lock);
-  }
-  /*
-    thread safe read of position - not needed if we are in the slave thread,
-    but required otherwise as var is a longlong
-  */
-  inline void read_pos(ulonglong& var)
-  {
-    pthread_mutex_lock(&data_lock);
-    var = relay_log_pos;
-    pthread_mutex_unlock(&data_lock);
-  }
-
+  void inc_pending(ulonglong val);
+  void inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0);
+  void read_pos(ulonglong& var);
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
   void close_temporary_tables();
