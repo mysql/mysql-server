@@ -583,9 +583,10 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
     }
     /*
      If the next character appears to begin a multi-byte character, we
-     escape all of the bytes of that apparent character. (The character just
-     looks like a multi-byte character -- if it were actually a multi-byte
-     character, it would have been passed through in the test above.)
+     escape that first byte of that apparent multi-byte character. (The
+     character just looks like a multi-byte character -- if it were actually
+     a multi-byte character, it would have been passed through in the test
+     above.)
 
      Without this check, we can create a problem by converting an invalid
      multi-byte character into a valid one. For example, 0xbf27 is not
@@ -593,12 +594,8 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
     */
     if (use_mb_flag && (l= my_mbcharlen(charset_info, *from)) > 1)
     {
-      while (l--)
-      {
-        *to++= '\\';
-	*to++= *from++;
-      }
-      from--;
+      *to++= '\\';
+      *to++= *from;
       continue;
     }
 #endif
