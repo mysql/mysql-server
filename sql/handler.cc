@@ -35,6 +35,9 @@
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 #endif
+#ifdef HAVE_ARCHIVE_DB
+#include "examples/ha_archive.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #else
@@ -88,6 +91,8 @@ struct show_table_type_st sys_table_types[]=
    "Alias for NDBCLUSTER", DB_TYPE_NDBCLUSTER},
   {"EXAMPLE",&have_example_db,
    "Example storage engine", DB_TYPE_EXAMPLE_DB},
+  {"ARCHIVE",&have_archive_db,
+   "Archive storage engine", DB_TYPE_ARCHIVE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -188,6 +193,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_EXAMPLE_DB
   case DB_TYPE_EXAMPLE_DB:
     return new ha_example(table);
+#endif
+#ifdef HAVE_ARCHIVE_DB
+  case DB_TYPE_ARCHIVE_DB:
+    return new ha_archive(table);
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:

@@ -375,8 +375,8 @@ KEY_CACHE *sql_key_cache;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
- have_ndbcluster, have_example_db;
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
+  have_example_db, have_archive_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -3959,6 +3959,12 @@ Disable with --skip-bdb (will save memory).",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character_set_server", 'C', "Set the default character set.",
+   (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"collation_server", OPT_DEFAULT_COLLATION, "Set the default collation.",
+   (gptr*) &default_collation_name, (gptr*) &default_collation_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
    (gptr*) &opt_console, (gptr*) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -3992,10 +3998,10 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &des_key_file, (gptr*) &des_key_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */
-  {"default-character-set", 'C', "Set the default character set.",
+  {"default-character-set", 'C', "Set the default character set (Deprecated option, use character_set_server instead).",
    (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation.",
+  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation (Deprecated option, use character_set_server instead).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
@@ -5337,6 +5343,11 @@ static void mysql_init_variables(void)
   have_example_db= SHOW_OPTION_YES;
 #else
   have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_ARCHIVE_DB
+  have_archive_db= SHOW_OPTION_YES;
+#else
+  have_archive_db= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   have_ndbcluster=SHOW_OPTION_DISABLED;
