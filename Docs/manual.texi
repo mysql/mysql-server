@@ -40597,14 +40597,14 @@ added to 3.23.
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
-Fixed coredump when client aborted connection without mysql_close()
+Fixed coredump when client aborted connection without @code{mysql_close()}.
 @item
-Fixed bug in RESTORE TABLE when trying to restore from a non-existing
-directory
+Fixed bug in @code{RESTORE TABLE} when trying to restore from a non-existing
+directory.
 @item
-Fixed coredump on the slave replicating SET PASSWORD
+Fixed coredump on the slave replicating @code{SET PASSWORD}.
 @item
-Added MASTER_POS_WAIT()
+Added @code{MASTER_POS_WAIT()}.
 @end itemize
 
 @node News-3.23.31, News-3.23.30, News-3.23.32, News-3.23.x
@@ -40612,17 +40612,17 @@ Added MASTER_POS_WAIT()
 @itemize @bullet
 @item
 The test suite now tests all reachable BDB interface code.  During
-testing we found and fixed a lot of errors in the interface code.
+testing we found and fixed many errors in the interface code.
 @item
 Using @code{HAVING} on an empty table could produce one result row when
 it shouldn't.
 @item
-Fixed that the @strong{MySQL} RPM is not dependant on perl5 anymore.
+Fixed that the @strong{MySQL} RPM is not dependent on Perl5 anymore.
 @item
 Fixed some problems with @code{HEAP} tables on Windows.
 @item
 @code{SHOW TABLE STATUS} didn't show correct average row length for tables
-bigger than 4G.
+larger than 4G.
 @item
 @code{CHECK TABLE ... EXTENDED} didn't check row links for fixed size tables.
 @item
@@ -40650,10 +40650,10 @@ case the test in the @code{WHERE} clause was wrongly optimized away.
 Fixed bug in @code{MyISAM} when deleting keys with possible @code{NULL}
 values, but the first key-column was not a prefix-compressed text column.
 @item
-Fixed that @code{mysql.server} reads the @code{mysql.server} option section
+Fixed @code{mysql.server} to read the @code{mysql.server} option section
 instead of @code{mysql_server}.
 @item
-Fixed that @code{safe_mysqld} and @code{mysql.server} also reads the
+Fixed @code{safe_mysqld} and @code{mysql.server} to also read the
 @code{server} option section.
 @item
 Added @code{Threads_created} status variable to @code{mysqld}.
@@ -40663,36 +40663,36 @@ Added @code{Threads_created} status variable to @code{mysqld}.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
-Fixed that @code{myisamdump} works against old mysqld servers.
+Fixed that @code{myisamdump} works against old @code{mysqld} servers.
 @item
-Fixed that @code{myisamchk -k#} works again.
+Fixed @code{myisamchk -k#} so that it works again.
 @item
 Fixed a problem with replication when the binary log file went over 2G
-on 32 bit systems.
+on 32-bit systems.
 @item
-@code{LOCK TABLES} will now automatically starts a new transaction.
+@code{LOCK TABLES} will now automatically start a new transaction.
 @item
 Changed BDB tables to not use internal subtransactions and reuse open files to
 get more speed.
 @item
-Added option @code{--mysqld=#} to @code{safe_mysqld}
+Added option @code{--mysqld=#} to @code{safe_mysqld}.
 @item
 Allow hex constants in the @code{--fields-*-by} and
 @code{--lines-terminated-by} options to @code{mysqldump} and
 @code{mysqlimport}. By Paul DuBois.
 @item
-Added option @code{--safe-show-databases}.
+Added option @code{--safe-show-database} to @code{mysqld}.
 @item
 Added @code{have_bdb}, @code{have_gemini}, @code{have_innobase},
-@code{have_raid}, and @code{have_ssl} to @code{SHOW VARIABLES} to make it
+@code{have_raid} and @code{have_ssl} to @code{SHOW VARIABLES} to make it
 easy to test for supported extensions.
 @item
-Added option @code{open-files-limit} to @code{mysqld}.
+Added option @code{--open-files-limit} to @code{mysqld}.
 @item
-Changed option @code{open-files} to @code{open-files-limit} in
+Changed option @code{--open-files} to @code{--open-files-limit} in
 @code{safe_mysqld}.
 @item
-Item fixed a bug where some rows where not found with @code{HEAP} tables 
+Fixed a bug where some rows were not found with @code{HEAP} tables 
 that had many keys.
 @item
 Fixed that @code{--bdb-no-sync} works.
@@ -40713,7 +40713,7 @@ Added fixing of include files for Solaris 2.8.
 Fixed bug with @code{--skip-networking} on Debian Linux.
 @item
 Fixed problem that some temporary files where reported as having the
-name @file{UNOPENED} in error messages.
+name @code{UNOPENED} in error messages.
 @item
 Fixed bug when running two simultaneous @code{SHOW LOGS} queries.
 @end itemize
@@ -40729,8 +40729,8 @@ Fixed bug in @code{<=>} operator.
 @item
 Fixed bug in @code{REPLACE} with BDB tables.
 @item
-@code{LPAD()} and @code{RPAD()} will truncate the result string if it's longer
-than the @code{length} argument.
+@code{LPAD()} and @code{RPAD()} will shorten the result string if it's longer
+than the length argument.
 @item
 Added @code{SHOW LOGS} command.
 @item
