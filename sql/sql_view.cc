@@ -59,12 +59,21 @@ int mysql_create_view(THD *thd,
   int res= 0;
   DBUG_ENTER("mysql_create_view");
 
-  if (lex->derived_tables || lex->proc_list.first ||
+  if (lex->proc_list.first ||
+      lex->result)
+  {
+    my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), (lex->result ?
+                                             "INTO" :
+                                             "PROCEDURE"));
+    res= -1;
+    goto err;
+  }
+  if (lex->derived_tables ||
       lex->variables_used || lex->param_list.elements)
   {
-    my_error((lex->derived_tables ? ER_VIEW_SELECT_DERIVED :
-              (lex->proc_list.first ? ER_VIEW_SELECT_PROCEDURE :
-              ER_VIEW_SELECT_VARIABLE)), MYF(0));
+    my_error((lex->derived_tables ?
+              ER_VIEW_SELECT_DERIVED :
+              ER_VIEW_SELECT_VARIABLE), MYF(0));
     res= -1;
     goto err;
   }

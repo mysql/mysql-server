@@ -1207,3 +1207,15 @@ create view v4 as select * from v3;
 -- error 1242
 select * from v4;
 drop view v4, v3, v2, v1;
+
+#
+# VIEW over SELECT with prohibited clauses
+#
+-- error 1349
+create view v1 as select 5 into @w;
+-- error 1349
+create view v1 as select 5 into outfile 'ttt';
+create table t1 (a int);
+-- error 1349
+create view v1 as select a from t1 procedure analyse();
+drop table t1;
