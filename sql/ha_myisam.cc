@@ -1046,7 +1046,8 @@ int ha_myisam::create(const char *name, register TABLE *table,
       keydef[i].seg[j].start=  pos->key_part[j].offset;
       keydef[i].seg[j].length= pos->key_part[j].length;
       keydef[i].seg[j].bit_start=keydef[i].seg[j].bit_end=0;
-      keydef[i].seg[j].language=MY_CHARSET_CURRENT;
+      keydef[i].seg[j].language = field->binary() ? MY_CHARSET_CURRENT : 
+                                  ((Field_str*)field)->charset()->number;
 
       if (field->null_ptr)
       {
