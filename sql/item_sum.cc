@@ -77,7 +77,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 */
 bool Item_sum::save_args_for_prepared_statement(THD *thd)
 {
-  if (thd->current_arena->is_stmt_prepare() && args_copy == 0)
+  if (!thd->current_arena->is_conventional() && args_copy == 0)
     return save_args(thd->current_arena);
   return 0;
 }

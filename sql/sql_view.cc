@@ -523,7 +523,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     will be TRUE as far as we make new table cache).
   */
   Item_arena *arena= thd->current_arena, backup;
-  if (!arena->is_stmt_prepare())
+  if (arena->is_conventional())
     arena= 0;
   else
     thd->set_n_backup_item_arena(arena, &backup);

@@ -756,7 +756,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it, bool any_privileges);
+		   List_iterator<Item> *it, bool any_privileges,
+                   bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
@@ -782,7 +783,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                uint offset_to_list,
                                const char *db_name,
                                const char *table_name);
-bool unique_table(TABLE_LIST *table, TABLE_LIST *table_list);
+TABLE_LIST *unique_table(TABLE_LIST *table, TABLE_LIST *table_list);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);

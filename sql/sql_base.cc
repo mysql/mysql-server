@@ -613,14 +613,15 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     table_list  list of tables
 
   RETURN
-    TRUE    test failed
-    FALSE   table is unique
+    found duplicate
+    0 if table is unique
 */
 
-bool unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
+TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
-  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  TABLE_LIST *res;
   const char *d_name= table->db, *t_name= table->real_name;
+  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
   if (table->view)
   {
     /* it is view and table opened */
@@ -640,11 +641,17 @@ bool unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
     }
     if (d_name == 0)
     {
-      /* it's temporary table */
-      return FALSE;
+      /* it's temporary table => always unique */
+      return 0;
     }
   }
-  return find_table_in_global_list(table_list, d_name, t_name);
+  if ((res= find_table_in_global_list(table_list, d_name, t_name)) &&
+      res->table && res->table == table->table)
+  {
+    // we found entry of this table try again.
+    return find_table_in_global_list(res->next_global, d_name, t_name);
+  }
+  return res;
 }
 
 
@@ -2504,7 +2511,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  if (arena->state == Item_arena::CONVENTIONAL_EXECUTION)
+  if (arena->is_conventional())
     arena= 0;                                   // For easier test later one
   else
     thd->set_n_backup_item_arena(arena, &backup);
@@ -2530,8 +2537,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
         it.replace(new Item_int("Not_used", (longlong) 1, 21));
       }
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-                                   ((Item_field*) item)->table_name, &it,
-                                   any_privileges))
+                             ((Item_field*) item)->table_name, &it,
+                             any_privileges, arena != 0))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -2717,6 +2724,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
+    allocate_view_names if true view names will be copied to current Item_arena                         memory (made for SP/PS)
   RETURN
     0	ok
         'it' is updated to point at last inserted
@@ -2726,7 +2734,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool
 insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
-              bool any_privileges)
+              bool any_privileges, bool allocate_view_names)
 {
   /* allocate variables on stack to avoid pool alloaction */
   Field_iterator_table table_iter;
@@ -2886,7 +2894,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
         }
-        else if (thd->current_arena->is_stmt_prepare() &&
+        else if (allocate_view_names &&
                  thd->lex->current_select->first_execution)
         {
           Item_field *item= new Item_field(thd->strdup(tables->view_db.str),
@@ -2931,7 +2939,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
-      !arena->is_stmt_prepare())
+      arena->is_conventional())
     arena= 0;                                   // For easier test
 
   thd->set_query_id=1;

@@ -293,7 +293,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Field **field;
       Item_arena *arena= thd->current_arena;
       Item_arena backup;
-      if (!arena->is_stmt_prepare())
+      if (arena->is_conventional())
         arena= 0;
       else
 	thd->set_n_backup_item_arena(arena, &backup);
