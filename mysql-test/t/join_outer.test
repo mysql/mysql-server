@@ -582,3 +582,14 @@ SELECT invoice.id, invoice.text_id, text_table.text_data
   WHERE (invoice.id LIKE '%' OR text_table.text_data LIKE '%');
 
 DROP TABLE invoice, text_table;
+
+# Bug #8681: Bad warning message when group_concat() exceeds max length
+set group_concat_max_len=5;
+create table t1 (a int, b varchar(20));
+create table t2 (a int, c varchar(20));
+insert into t1 values (1,"aaaaaaaaaa"),(2,"bbbbbbbbbb");
+insert into t2 values (1,"cccccccccc"),(2,"dddddddddd");
+select group_concat(t1.b,t2.c) from t1 left join t2 using(a) group by t1.a;
+select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by t1.a;
+drop table t1, t2;
+set group_concat_max_len=default;
