@@ -40,19 +40,22 @@ void my_inet_ntoa(struct in_addr in, char *buf);
   Handling of gethostbyname_r()
 */
 
-#if defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
 #if !defined(HPUX)
 struct hostent;
 #endif /* HPUX */
+#if !defined(HAVE_GETHOSTBYNAME_R)
+struct hostent *my_gethostbyname_r(const char *name,
+				   struct hostent *result, char *buffer,
+				   int buflen, int *h_errnop);
+void my_gethostbyname_r_free();
+#elif defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
 struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
 				   int buflen, int *h_errnop);
 #define my_gethostbyname_r_free()
-#if defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#else
+#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
 #define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-#endif /* defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
+#endif /* !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
 
 #elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
 #define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
@@ -60,17 +63,14 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
 				   int buflen, int *h_errnop);
 #define my_gethostbyname_r_free()
-#elif !defined(HAVE_GETHOSTBYNAME_R)
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-void my_gethostbyname_r_free();
 #else
-#define GETHOSTBYNAME_BUFF_SIZE 2048
 #define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
 #define my_gethostbyname_r_free()
-#endif /* defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
+#endif /* !defined(HAVE_GETHOSTBYNAME_R) */
+
+#ifndef GETHOSTBYNAME_BUFF_SIZE
+#define GETHOSTBYNAME_BUFF_SIZE 2048
+#endif
 
 #ifdef	__cplusplus
 }
