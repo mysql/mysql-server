@@ -1,0 +1,20 @@
+#
+## Bug #5036 mysqlshow is missing a column
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a int, b int);
+show tables;
+select "--------------------" as "";
+--exec $MYSQL_SHOW test
+select "---- -v ------------" as "";
+--exec $MYSQL_SHOW test -v
+select "---- -v -v ---------" as "";
+--exec $MYSQL_SHOW test -v -v
+select "----- -t -----------" as "";
+--exec $MYSQL_SHOW test -t
+select "---- -v -t ---------" as "";
+--exec $MYSQL_SHOW test -v -t
+select "---- -v -v -t ------" as "";
+--exec $MYSQL_SHOW test -v -v -t
+DROP TABLE t1, t2;
