@@ -1209,18 +1209,7 @@ do_ckp:	/* Look through the active transactions for the lowest begin LSN. */
 			return (ret);
 		}
 
-		/*
-		 * We want to make sure last_ckp only moves forward;  since
-		 * we drop locks above and in log_put, it's possible
-		 * for two calls to __txn_ckp_log to finish in a different
-		 * order from how they were called.
-		 */
-		R_LOCK(dbenv, &mgr->reginfo);
-		if (log_compare(&region->last_ckp, &ckp_lsn) < 0) {
-			region->last_ckp = ckp_lsn;
-			(void)time(&region->time_ckp);
-		}
-		R_UNLOCK(dbenv, &mgr->reginfo);
+		__txn_updateckp(dbenv, &ckp_lsn);
 	}
 	return (0);
 }
@@ -1403,4 +1392,37 @@ __txn_reset(dbenv)
 	DB_ASSERT(LOGGING_ON(dbenv));
 	return (__txn_recycle_log(dbenv,
 	    NULL, &scrap, 0, TXN_MINIMUM, TXN_MAXIMUM));
+}
+
+/*
+ * __txn_updateckp --
+ *	Update the last_ckp field in the transaction region.  This happens
+ * at the end of a normal checkpoint and also when a replication client
+ * receives a checkpoint record.
+ *
+ * PUBLIC: void __txn_updateckp __P((DB_ENV *, DB_LSN *));
+ */
+void
+__txn_updateckp(dbenv, lsnp)
+	DB_ENV *dbenv;
+	DB_LSN *lsnp;
+{
+	DB_TXNMGR *mgr;
+	DB_TXNREGION *region;
+
+	mgr = dbenv->tx_handle;
+	region = mgr->reginfo.primary;
+
+	/*
+	 * We want to make sure last_ckp only moves forward;  since
+	 * we drop locks above and in log_put, it's possible
+	 * for two calls to __txn_ckp_log to finish in a different
+	 * order from how they were called.
+	 */
+	R_LOCK(dbenv, &mgr->reginfo);
+	if (log_compare(&region->last_ckp, lsnp) < 0) {
+		region->last_ckp = *lsnp;
+		(void)time(&region->time_ckp);
+	}
+	R_UNLOCK(dbenv, &mgr->reginfo);
 }
