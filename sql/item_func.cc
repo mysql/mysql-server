@@ -2039,6 +2039,9 @@ void Item_func_match::init_search(bool no_order)
   if (ft_handler)
     return;
 
+  if (key == NO_SUCH_KEY)
+    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
+
   if (master)
   {
     join_key=master->join_key=join_key|master->join_key;
@@ -2047,9 +2050,6 @@ void Item_func_match::init_search(bool no_order)
     join_key=master->join_key;
     return;
   }
-
-  if (key == NO_SUCH_KEY)
-    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
 
   String *ft_tmp=0;
   char tmp1[FT_QUERY_MAXLEN];
