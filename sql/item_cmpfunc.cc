@@ -2298,14 +2298,18 @@ longlong Item_func_regex::val_int()
 }
 
 
-Item_func_regex::~Item_func_regex()
+void Item_func_regex::cleanup()
 {
+  DBUG_ENTER("Item_func_regex::cleanup");
+  Item_bool_func::cleanup();
   if (regex_compiled)
   {
     regfree(&preg);
     regex_compiled=0;
   }
+  DBUG_VOID_RETURN;
 }
+
 
 #endif /* USE_REGEX */
 
