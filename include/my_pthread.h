@@ -234,7 +234,6 @@ extern int my_sigwait(const sigset_t *set,int *sig);
 #include <signal.h>
 #undef sigwait
 #endif
-#undef _REENTRANT			/* Fix if _REENTRANT is in pthread.h */
 #include <pthread.h>
 #ifndef _REENTRANT
 #define _REENTRANT
