@@ -390,7 +390,7 @@ public:
   int stopSubscribeEvent(NdbEventImpl &);
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
-  int listIndexes(List& list, const char * tableName);
+  int listIndexes(List& list, Uint32 indexId);
   
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
   Ndb_local_table_info * get_local_table_info(const char * internalName);
