@@ -4249,6 +4249,12 @@ Chile [PSINet] @
 @uref{http://mysql.psinet.cl/, WWW}
 @uref{ftp://ftp.psinet.cl/pub/database/mysql/, FTP}
 
+@item
+@c EMAIL: jpabuyer@tecnoera.com (Juan Pablo Abuyeres)
+@c @image{Flags/chile}
+Chile [Tecnoera] @
+@uref{http://mysql.tecnoera.com/, WWW}
+
 @c @item
 @c Removed 990730
 @c @c EMAIL: dan@amerikanclaris.com (Danilo Lotina F.)
