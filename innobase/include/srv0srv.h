@@ -25,6 +25,7 @@ extern char*	srv_arch_dir;
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
+extern ulint*   srv_data_file_is_raw_partition;
 
 extern char**	srv_log_group_home_dirs;
 
@@ -103,13 +104,26 @@ typedef struct srv_sys_struct	srv_sys_t;
 /* The server system */
 extern srv_sys_t*	srv_sys;
 
-/* Alternatives for fiel flush option in Unix; see the InnoDB manual about
+/* Alternatives for file flush option in Unix; see the InnoDB manual about
 what these mean */
 #define SRV_UNIX_FDATASYNC   1
 #define SRV_UNIX_O_DSYNC     2
 #define SRV_UNIX_LITTLESYNC  3
 #define SRV_UNIX_NOSYNC      4
 
+/* Raw partition flags */
+#define SRV_OLD_RAW 1
+#define SRV_NEW_RAW 2
+
+void
+srv_mysql_thread_release(void);
+/*==========================*/
+os_event_t
+srv_mysql_thread_event_get(void);
+void
+srv_mysql_thread_slot_free(
+/*==========================*/
+			   os_event_t event);
 /*************************************************************************
 Boots Innobase server. */
 
