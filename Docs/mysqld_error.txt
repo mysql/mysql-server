@@ -539,8 +539,8 @@ character-set=latin1
 "Using storage engine %s for table '%s'",
 #define ER_CANT_AGGREGATE_2COLLATIONS 1267
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-#define ER_DROP_USER 1268
-"Can't drop one or more of the requested users",
+#define ER_HANDLE_USER 1268
+"Operation %s failed for %d of the requested users",
 #define ER_REVOKE_GRANTS 1269
 "Can't revoke all privileges, grant for one or more of the requested users",
 #define ER_CANT_AGGREGATE_3COLLATIONS 1270
