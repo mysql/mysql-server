@@ -368,6 +368,8 @@ bool mysql_change_db(THD *thd,const char *name)
   }
   send_ok(&thd->net);
   x_free(thd->db);
+  if (lower_case_table_names)
+    casedn_str(dbname);
   thd->db=dbname;
   thd->db_access=db_access;
   DBUG_RETURN(0);

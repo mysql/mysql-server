@@ -46868,6 +46868,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.54::                Changes in release 3.23.54
 * News-3.23.53::                Changes in release 3.23.53
 * News-3.23.52::                Changes in release 3.23.52
 * News-3.23.51::                Changes in release 3.23.51
@@ -46925,9 +46926,18 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
+@node News-3.23.54, News-3.23.53, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.54
+
+@node News-3.23.53, News-3.23.52, News-3.23.54, News-3.23.x
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
+@item
+Fixed possible memory corruption bug in binary log file handling when
+slave rotated the logs (only affected 3.23, not 4.0).
+@item
+Fixed problem in @code{LOCK TABLES} on windows when on connects to a
+database that contains upper case letters.
 @item
 Fixed that @code{--skip-show-databases} doesn't reset the @code{--port} option.
 @item
