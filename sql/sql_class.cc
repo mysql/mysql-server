@@ -109,8 +109,10 @@ THD::THD():user_time(0), fatal_error(0),
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
-#endif  
+#endif
+#ifndef EMBEDDED_LIBRARY  
   net.vio=0;
+#endif
   net.last_error[0]=0;				// If error on boot
   ull=0;
   system_thread=cleanup_done=0;
@@ -268,11 +270,13 @@ THD::~THD()
   pthread_mutex_unlock(&LOCK_delete);
 
   /* Close connection */
+#ifndef EMBEDDED_LIBRARY  
   if (net.vio)
   {
     vio_delete(net.vio);
     net_end(&net); 
   }
+#endif
   if (!cleanup_done)
     cleanup();
 #ifdef USING_TRANSACTIONS
@@ -513,6 +517,8 @@ bool select_send::send_fields(List<Item> &list,uint flag)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+
 /* Send data to client. Returns 0 if ok */
 
 bool select_send::send_data(List<Item> &items)
@@ -545,6 +551,7 @@ bool select_send::send_data(List<Item> &items)
     DBUG_RETURN(protocol->write());
   DBUG_RETURN(1);
 }
+#endif /* EMBEDDED_LIBRARY */
 
 bool select_send::send_eof()
 {

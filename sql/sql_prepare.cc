@@ -140,7 +140,11 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
   int4store(buff, stmt->stmt_id);
   int2store(buff+4, columns);
   int2store(buff+6, stmt->param_count);
+#ifndef EMBEDDED_LIBRARY
   return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
+#else
+  return true;
+#endif
 }
 
 /*
@@ -299,7 +303,11 @@ static bool setup_params_data(PREP_STMT *stmt)
   Item_param *param;
   DBUG_ENTER("setup_params_data");
 
+#ifndef EMBEDDED_LIBRARY
   uchar *pos=(uchar*) thd->net.read_pos+1+MYSQL_STMT_HEADER; //skip header
+#else
+  uchar *pos= 0; //just to compile TODO code for embedded case
+#endif
   uchar *read_pos= pos+(stmt->param_count+7) / 8; //skip null bits   
 
   if (*read_pos++) //types supplied / first execute

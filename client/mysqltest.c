@@ -1321,6 +1321,7 @@ int close_connection(struct st_query* q)
   {
     if (!strcmp(con->name, name))
     {
+#ifndef EMBEDDED_LIBRARY
       if (q->type == Q_DIRTY_CLOSE)
       {
 	if (con->mysql.net.vio)
@@ -1329,7 +1330,7 @@ int close_connection(struct st_query* q)
 	  con->mysql.net.vio = 0;
 	}
       }
-
+#endif
       mysql_close(&con->mysql);
       DBUG_RETURN(0);
     }

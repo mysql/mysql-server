@@ -39,7 +39,9 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
+#ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);
+#endif
   thd->query_error=  1; // needed to catch query errors during replication
   if (!err)
   {
@@ -56,6 +58,12 @@ void send_error(THD *thd, uint sql_errno, const char *err)
       }
     }
   }
+
+#ifdef EMBEDDED_LIBRARY
+  net->last_errno= sql_errno;
+  strmake(net->last_error, err, sizeof(net->last_error)-1);
+#else
+
   if (net->vio == 0)
   {
     if (thd->bootstrap)
@@ -78,6 +86,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
     set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
   }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
+#endif  /* EMBEDDED_LIBRARY*/
   thd->fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
   DBUG_VOID_RETURN;
@@ -88,6 +97,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   This is used by mysqld.cc, which doesn't have a THD
 */
 
+#ifndef EMBEDDED_LIBRARY
 void net_send_error(NET *net, uint sql_errno, const char *err)
 {
   char buff[2];
@@ -100,7 +110,7 @@ void net_send_error(NET *net, uint sql_errno, const char *err)
   net_write_command(net,(uchar) 255, buff, 2, err, length);
   DBUG_VOID_RETURN;
 }
-
+#endif
 
 /*
   Send a warning to the end user
@@ -137,14 +147,22 @@ net_printf(THD *thd, uint errcode, ...)
 {
   va_list args;
   uint length,offset;
-  const char *format,*text_pos;
+  const char *format;
+#ifndef EMBEDDED_LIBRARY
+  const char *text_pos;
+#else
+  char text_pos[500];
+#endif
   int head_length= NET_HEADER_SIZE;
   NET *net= &thd->net;
+
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
   thd->query_error=  1; // needed to catch query errors during replication
+#ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);	// Safety
+#endif
   va_start(args,errcode);
   /*
     The following is needed to make net_printf() work with 0 argument for
@@ -160,13 +178,16 @@ net_printf(THD *thd, uint errcode, ...)
     errcode= ER_UNKNOWN_ERROR;
   }
   offset= net->return_errno ? 2 : 0;
+#ifndef EMBEDDED_LIBRARY
   text_pos=(char*) net->buff+head_length+offset+1;
+#endif
   (void) vsprintf(my_const_cast(char*) (text_pos),format,args);
   length=(uint) strlen((char*) text_pos);
   if (length >= sizeof(net->last_error))
     length=sizeof(net->last_error)-1;		/* purecov: inspected */
   va_end(args);
 
+#ifndef EMBEDDED_LIBRARY
   if (net->vio == 0)
   {
     if (thd->bootstrap)
@@ -184,10 +205,36 @@ net_printf(THD *thd, uint errcode, ...)
   if (offset)
     int2store(text_pos-2, errcode);
   VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));
+#else
+  net->last_errno= errcode;
+  strmake(net->last_error, text_pos, length);
+#endif
   thd->fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }
 
+/*
+  Function called by my_net_init() to set some check variables
+*/
+
+#ifndef EMBEDDED_LIBRARY
+extern "C" {
+void my_net_local_init(NET *net)
+{
+  net->max_packet=   (uint) global_system_variables.net_buffer_length;
+  net->read_timeout= (uint) global_system_variables.net_read_timeout;
+  net->write_timeout=(uint) global_system_variables.net_write_timeout;
+  net->retry_count=  (uint) global_system_variables.net_retry_count;
+  net->max_packet_size= max(global_system_variables.net_buffer_length,
+			    global_system_variables.max_allowed_packet);
+}
+}
+
+#else /* EMBEDDED_LIBRARY */
+void my_net_local_init(NET *net __attribute__(unused))
+{
+}
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Return ok to the client.
@@ -214,6 +261,7 @@ net_printf(THD *thd, uint errcode, ...)
 
    If net->no_send_ok return without sending packet
 */    
+#ifndef EMBEDDED_LIBRARY
 
 void
 send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
@@ -299,6 +347,7 @@ send_eof(THD *thd, bool no_flush)
   }
   DBUG_VOID_RETURN;
 }
+#endif /* EMBEDDED_LIBRARY */
 
 
 /****************************************************************************

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
+#ifndef EMBEDDED_LIBRARY
 #include "mysql_priv.h"
 #include <mysql.h>
 #include <myisam.h>
@@ -3181,3 +3181,5 @@ err:
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
+
+#endif /* EMBEDDED_LIBRARY */

@@ -418,6 +418,16 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
       break;
+    case FIELD_TYPE_GEOMETRY:
+      sql_field->pack_flag=FIELDFLAG_GEOM |
+	pack_length_to_packflag(sql_field->pack_length -
+				portable_sizeof_char_ptr);
+      if (sql_field->charset->state & MY_CS_BINSORT)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
+      sql_field->length=8;			// Unireg field length
+      sql_field->unireg_check=Field::BLOB_FIELD;
+      blob_columns++;
+      break;
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;
@@ -1198,6 +1208,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
     thd->open_options&= ~extra_open_options;
     protocol->prepare_for_resend();
 
@@ -1264,6 +1277,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
     protocol->prepare_for_resend();
     protocol->store(table_name);
     protocol->store(operator_name);

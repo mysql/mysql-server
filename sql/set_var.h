@@ -339,6 +339,7 @@ public:
 };
 
 
+#ifndef EMBEDDED_LIBRARY
 class sys_var_slave_skip_counter :public sys_var
 {
 public:
@@ -351,7 +352,7 @@ public:
     type() or value_ptr()
   */
 };
-
+#endif
 
 class sys_var_rand_seed1 :public sys_var
 {
