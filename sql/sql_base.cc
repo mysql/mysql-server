@@ -708,11 +708,11 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   if (open_unireg_entry(thd, table, db, table_name, table_name, 1) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
-    {
-      closefrm(table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0);
-    }
+  {
+    closefrm(table);
+    pthread_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(0);
+  }
 
   table->key_length=key_length;
   table->version=0;

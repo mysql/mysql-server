@@ -2929,17 +2929,17 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
     if (having && having->val_int() == 0)
       send_row=0;
   }
-  if (!tables || !(result->send_fields(fields,1)))
+  if (!(result->send_fields(fields,1)))
   {
     if (send_row)
       result->send_data(fields);
-    if (tables)					// Not from do_select()
+    if (tables)				// Not from do_select()
     {
       /* Close open cursors */
       for (TABLE_LIST *table=tables; table ; table=table->next)
 	table->table->file->index_end();
-      result->send_eof();			// Should be safe
     }
+    result->send_eof();				// Should be safe
   }
   DBUG_RETURN(0);
 }
@@ -4877,8 +4877,10 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       {
 	JOIN_TAB *jt=join->join_tab;
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
-	    && !join->send_group_parts && !join->having && !jt->select_cond)
+	    && !join->send_group_parts && !join->having && !jt->select_cond &&
+	    !(jt->table->file->option_flag() & HA_NOT_EXACT_COUNT))
 	{
+	  /* Join over all rows in table;  Return number of found rows */
 	  join->select_options ^= OPTION_FOUND_ROWS;
 	  join->send_records = jt->records;
 	}
@@ -5603,6 +5605,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->found_records=filesort(table,sortorder,length,
 				select, 0L, select_limit, &examined_rows);
+  tab->records=table->found_records;		// For SQL_CALC_ROWS
   delete select;				// filesort did select
   tab->select=0;
   tab->select_cond=0;

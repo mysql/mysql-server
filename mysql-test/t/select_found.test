@@ -18,3 +18,15 @@ select found_rows();
 select SQL_CALC_FOUND_ROWS * from t1 left join t1 as t2 on (t1.b=t2.a) limit 2,1;
 select found_rows(); 
 drop table t1;
+
+#
+# Test SQL_CALC_FOUND_ROWS optimization when used with one table and filesort
+#
+
+create table t1 (a int not null primary key);
+insert into t1 values (1),(2),(3),(4),(5);
+select sql_calc_found_rows a from t1 where a in (1,2,3) order by a desc limit 0,2;
+select FOUND_ROWS();
+select sql_calc_found_rows a from t1 where a in (1,2,3) order by a+2 desc limit 0,2;
+select FOUND_ROWS();
+drop table t1;

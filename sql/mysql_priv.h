@@ -48,6 +48,7 @@ char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
 void kill_one_thread(THD *thd, ulong id);
+int net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
@@ -586,7 +587,8 @@ extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,
-  	     ha_read_rnd_count, ha_read_rnd_next_count;
+	     ha_read_rnd_count, ha_read_rnd_next_count,
+	     ha_commit_count, ha_rollback_count;
 extern MY_BITMAP temp_pool;
 extern uchar *days_in_month;
 extern DATE_FORMAT dayord;
