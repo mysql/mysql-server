@@ -1666,7 +1666,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
       days--;
       sec+= 3600*LL(24);
     }
-    ltime->second_part= microseconds;
+    ltime->second_part= (uint) microseconds;
     ltime->second= (uint) (sec % 60);
     ltime->minute= (uint) (sec/60 % 60);
     ltime->hour=   (uint) (sec/3600);
