@@ -406,7 +406,11 @@ row_vers_build_for_consistent_read(
 				of this records */
 	mtr_t*		mtr,	/* in: mtr holding the latch on rec */
 	dict_index_t*	index,	/* in: the clustered index */
+	ulint**		offsets,/* in/out: offsets returned by
+				rec_get_offsets(rec, index) */
 	read_view_t*	view,	/* in: the consistent read view */
+	mem_heap_t**	offset_heap,/* in/out: memory heap from which
+				the offsets are allocated */
 	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
 				old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
@@ -418,11 +422,9 @@ row_vers_build_for_consistent_read(
 	rec_t*		version;
 	rec_t*		prev_version;
 	dulint		prev_trx_id;
-	mem_heap_t*	heap;
-	mem_heap_t*	heap2;
+	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
-	ulint*		offsets;
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
@@ -432,22 +434,23 @@ row_vers_build_for_consistent_read(
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
-	heap = mem_heap_create(1024);
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+	ut_ad(rec_offs_validate(rec, index, *offsets));
 
 	ut_ad(!read_view_sees_trx_id(view,
-				row_get_rec_trx_id(rec, index, offsets)));
+				row_get_rec_trx_id(rec, index, *offsets)));
 
 	rw_lock_s_lock(&(purge_sys->latch));
 	version = rec;
 
 	for (;;) {
-		heap2 = heap;
+		mem_heap_t*	heap2	= heap;
 		heap = mem_heap_create(1024);
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						offsets, heap, &prev_version);
-		mem_heap_free(heap2); /* free version and offsets */
+						*offsets, heap, &prev_version);
+		if (heap2) {
+			mem_heap_free(heap2); /* free version */
+		}
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -461,17 +464,19 @@ row_vers_build_for_consistent_read(
 			break;
 		}
 
-		offsets = rec_get_offsets(prev_version, index, NULL,
-					ULINT_UNDEFINED, &heap);
-		prev_trx_id = row_get_rec_trx_id(prev_version, index, offsets);
+		*offsets = rec_get_offsets(prev_version, index, *offsets,
+					ULINT_UNDEFINED, offset_heap);
+		prev_trx_id = row_get_rec_trx_id(prev_version, index,
+					*offsets);
 
 		if (read_view_sees_trx_id(view, prev_trx_id)) {
 
 			/* The view already sees this version: we can copy
 			it to in_heap and return */
 
-			buf = mem_heap_alloc(in_heap, rec_offs_size(offsets));
-			*old_vers = rec_copy(buf, prev_version, offsets);
+			buf = mem_heap_alloc(in_heap, rec_offs_size(*offsets));
+			*old_vers = rec_copy(buf, prev_version, *offsets);
+			rec_offs_make_valid(*old_vers, index, *offsets);
 			err = DB_SUCCESS;
 
 			break;
