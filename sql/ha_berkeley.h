@@ -97,8 +97,7 @@ class ha_berkeley: public handler
   ulong index_flags(uint idx, uint part) const
   {
     ulong flags=HA_READ_NEXT | HA_READ_PREV;
-    if (part == (uint)~0 ||
-        table->key_info[idx].key_part[part].field->key_type() != HA_KEYTYPE_TEXT)
+    if (table->key_info[idx].key_part[part].field->key_type() != HA_KEYTYPE_TEXT)
       flags|= HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE;
     return flags;
   }
