@@ -151,9 +151,9 @@ BuildMySQL() {
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
-	CC=\"${MYSQL_BUILD_CC:-egcs}\" \
+	CC=\"${MYSQL_BUILD_CC:-gcc}\" \
 	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O3}\" \
-	CXX=\"${MYSQL_BUILD_CXX:-egcs}\" \
+	CXX=\"${MYSQL_BUILD_CXX:-gcc}\" \
 	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O3 \
 	          -felide-constructors -fno-exceptions -fno-rtti \
 		  }\" \
@@ -204,6 +204,7 @@ BuildMySQL "--enable-shared --enable-thread-safe-client --with-berkeley-db --wit
 
 # Save shared libraries and mysqld-max
 mv sql/mysqld sql/mysqld-max
+nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
@@ -219,6 +220,7 @@ BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'" \
 	   "--without-berkeley-db --without-innodb"
+nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 %install -n mysql-%{mysql_version}
 RBR=$RPM_BUILD_ROOT
@@ -239,6 +241,10 @@ make install DESTDIR=$RBR benchdir_root=/usr/share/
 
 # install saved mysqld-max
 install -m755 $MBD/sql/mysqld-max $RBR/usr/sbin/mysqld-max
+
+# install symbol files ( for stack trace resolution)
+install -m644 $MBD/sql/mysqld-max.sym $RBR/usr/lib/mysql/mysqld-max.sym
+install -m644 $MBD/sql/mysqld.sym $RBR/usr/lib/mysql/mysqld.sym
 
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
@@ -349,6 +355,7 @@ fi
 %attr(644, root, root) /usr/info/mysql.info*
 
 %attr(755, root, root) /usr/sbin/mysqld
+%attr(644, root, root) /usr/lib/mysql/mysqld.sym
 
 %attr(644, root, root) /etc/logrotate.d/mysql
 %attr(755, root, root) /etc/rc.d/init.d/mysql
@@ -403,6 +410,7 @@ fi
 
 %files Max
 %attr(755, root, root) /usr/sbin/mysqld-max
+%attr(644, root, root) /usr/lib/mysql/mysqld-max.sym
 
 %changelog 
 
