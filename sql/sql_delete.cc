@@ -141,7 +141,8 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   use_generate_table= (!using_limit && !conds &&
 		       !(specialflag &
 			 (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-		       (thd->options & OPTION_AUTO_COMMIT));
+		       (thd->options & OPTION_AUTO_COMMIT) &&
+                       !(thd->options & OPTION_BEGIN));
   if (use_generate_table && ! thd->open_tables)
   {
     error=generate_table(thd,table_list,(TABLE*) 0);
