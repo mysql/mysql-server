@@ -300,7 +300,7 @@ character-set=latin1
 "Referring to uninitialized variable %s"
 "SELECT in a stored procedure must have INTO"
 "RETURN is only allowed in a FUNCTION"
-"Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION"
+"Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION"
 "The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored."
 "The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
 "Query execution was interrupted"
