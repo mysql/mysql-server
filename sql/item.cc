@@ -1140,8 +1140,9 @@ double Item_param::val()
   case LONG_DATA_VALUE:
     {
       int dummy_err;
+      char *end_not_used;
       return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-                        str_value.length(), (char**) 0, &dummy_err);
+                        str_value.length(), &end_not_used, &dummy_err);
     }
   case TIME_VALUE:
     /*
@@ -2585,10 +2586,12 @@ double Item_cache_str::val()
   DBUG_ASSERT(fixed == 1);
   int err;
   if (value)
+  {
+    char *end_not_used;
     return my_strntod(value->charset(), (char*) value->ptr(),
-		      value->length(), (char**) 0, &err);
-  else
-    return (double)0;
+		      value->length(), &end_not_used, &err);
+  }
+  return (double)0;
 }
 
 
