@@ -156,18 +156,12 @@ int mysql_update(THD *thd,
   }
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
+  
   if (select && select->quick)
   {
-    if (select->quick->get_type() != QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
-    {
-      used_index= select->quick->index;
-      used_key_is_modified= (!select->quick->unique_key_range() &&
-			      check_if_key_used(table,used_index,fields));
-    }
-    else
-    {
-      used_key_is_modified= true;
-    }
+    used_index= select->quick->index;
+    used_key_is_modified= (!select->quick->unique_key_range() &&
+                          select->quick->check_if_keys_used(&fields));
   }
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
@@ -180,7 +174,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-    if (old_used_keys.is_set(used_index))
+    if ( (used_index != MAX_KEY) && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
@@ -226,7 +220,7 @@ int mysql_update(THD *thd,
       if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
 	goto err;
-
+      
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
@@ -286,6 +280,9 @@ int mysql_update(THD *thd,
 
   if (handle_duplicates == DUP_IGNORE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  
+  if (select && select->quick && select->quick->reset())
+        goto err;
   init_read_record(&info,thd,table,select,0,1);
 
   updated= found= 0;
@@ -833,26 +830,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
   case JT_ALL:
     /* If range search on index */
     if (join_tab->quick)
-    {
-      if (join_tab->quick->get_type() != QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
-      {
-        return !check_if_key_used(table,join_tab->quick->index,*fields);
-      }
-      else
-      {
-        QUICK_INDEX_MERGE_SELECT *qsel_imerge=
-          (QUICK_INDEX_MERGE_SELECT*)(join_tab->quick);
-        List_iterator_fast<QUICK_RANGE_SELECT> it(qsel_imerge->quick_selects);
-        QUICK_RANGE_SELECT *quick;
-        while ((quick= it++))
-        {
-          if (check_if_key_used(table, quick->index, *fields))
-            return 0;
-        }
-        return 1;
-      }
-    }
-
+      return !join_tab->quick->check_if_keys_used(fields);
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->primary_key < MAX_KEY)
