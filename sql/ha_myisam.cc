@@ -559,7 +559,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd=thd;
-  param.tmpdir=mysql_tmpdir;
+  param.tmpdir=&mysql_tmpdir_list;
   param.out_flag=0;
   strmov(fixed_name,file->filename);
 
@@ -718,7 +718,7 @@ bool ha_myisam::activate_all_index(THD *thd)
 		      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
-    param.tmpdir=mysql_tmpdir;
+    param.tmpdir=&mysql_tmpdir_list;
     error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
   }
