@@ -78,8 +78,10 @@ static const char* helpTextShow =
 "---------------------------------------------------------------------------\n"
 "SHOW prints NDB Cluster information\n\n"
 "SHOW               Print information about cluster\n" 
+#if 0
 "SHOW CONFIG        Print configuration (in initial config file format)\n" 
 "SHOW PARAMETERS    Print information about configuration parameters\n\n"
+#endif
 ;
 
 #ifdef HAVE_GLOBAL_REPLICATION
