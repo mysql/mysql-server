@@ -1817,7 +1817,19 @@ key_list:
 
 key_part:
 	ident			{ $$=new key_part_spec($1.str); }
-	| ident '(' NUM ')'	{ $$=new key_part_spec($1.str,(uint) atoi($3.str)); };
+	| ident '(' NUM ')'	
+        {
+          int key_part_len= atoi($3.str);
+#ifdef MYSQL_VERSION_ID < 50000
+          if (!key_part_len)
+          {
+            my_printf_error(ER_UNKNOWN_ERROR,
+                            "Key part '%s' length cannot be 0",
+                            MYF(0), $1.str);
+          }
+#endif
+          $$=new key_part_spec($1.str,(uint) key_part_len);
+        };
 
 opt_ident:
 	/* empty */	{ $$=(char*) 0; }	/* Defaultlength */
