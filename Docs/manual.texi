@@ -1052,8 +1052,8 @@ tricky questions are answered by Michael @code{Monty} Widenius, principal
 author of the @code{MySQL Server}.
 @xref{Support}.
 
-To order support at various levels, please visit the order section at
-@uref{https://order.mysql.com/} or contact our sales staff at
+For more information and ordering support at various levels, see
+@uref{http://www.mysql.com/support/} or contact our sales staff at
 @email{sales@@mysql.com}.
 
 
@@ -1138,7 +1138,8 @@ This means that the @code{MySQL} software can be used free of charge
 under the @code{GPL}. If you do not want to be bound by the @code{GPL}
 terms (like the requirement that your own application becomes @code{GPL}
 as well), you may purchase a commercial license for the same product
-from @code{MySQL AB} at @uref{https://order.mysql.com/}.
+from @code{MySQL AB}.
+See @uref{http://www.mysql.com/support/arrangements/price.html}.
 Since @code{MySQL AB} owns the copyright to the @code{MySQL} source code,
 we are able to employ @code{Dual Licensing} which means that the same
 product is available under @code{GPL} and under a commercial
@@ -1208,9 +1209,8 @@ For press service and inquiries not covered in our News releases
 If you have a valid support contract with @code{MySQL AB}, you will
 get timely, precise answers to your technical questions about the
 @code{MySQL} software. For more information, see @ref{Support}.
-You can order your support contract at
-@uref{https://order.mysql.com/}, or send an e-mail message to
-@email{sales@@mysql.com}.
+On our website, see @uref{http://www.mysql.com/support/}, or send
+an e-mail message to @email{sales@@mysql.com}.
 
 For information about @code{MySQL} training, please visit the training
 section at @uref{http://www.mysql.com/training/}. If you have
@@ -1230,7 +1230,10 @@ consulting staff at @email{consulting@@mysql.com}.
 
 Commercial licenses may be purchased online at
 @uref{https://order.mysql.com/}. There you will also find information
-on how to fax your purchase order to @code{MySQL AB}. If you have
+on how to fax your purchase order to @code{MySQL AB}. More information
+about licensing can be found at
+@uref{http://www.mysql.com/support/arrangements/price.html}.
+If you have
 questions regarding licensing or you want a quote for a high-volume
 license deal, please fill in the contact form on our web site
 (@uref{http://www.mysql.com/}) or send an e-mail message
@@ -1334,7 +1337,7 @@ not third-party products that access the @code{MySQL} server, though we
 try to help with these where we can.
 
 Detailed information about our various support options is given at
-@uref{https://order.mysql.com/}, where support contracts can also be
+@uref{http://www.mysql.com/support/}, where support contracts can also be
 ordered online. If you have restricted access to the Internet, contact
 our sales staff at @email{sales@@mysql.com}.
 
@@ -1430,6 +1433,8 @@ Since the @code{MySQL} software is released under the @code{GPL},
 it may often be used for free, but for certain uses you may want
 or need to buy commercial licenses from @code{MySQL AB} at
 @uref{https://order.mysql.com/}.
+See @uref{http://www.mysql.com/support/arrangements.html} for
+more information.
 
 Older versions of @code{MySQL} (3.22 and earlier) are subject to a
 more strict license
@@ -1490,10 +1495,11 @@ If you require a license, you will need one for each installation of the
 is no artificial limit on the number of clients that connect to the server
 in any way.
 
-To purchase commercial licenses and support, please visit the order section
-of our web site at @uref{https://order.mysql.com/}. If you have special
-licensing needs or you have restricted access to the Internet, please contact
-our sales staff at @email{sales@@mysql.com}.
+For commercial licenses, please visit our website at
+@uref{http://www.mysql.com/support/arrangements/price.html}.
+For support contracts, see @uref{http://www.mysql.com/support/}.
+If you have special needs or you have restricted access to the Internet,
+please contact our sales staff at @email{sales@@mysql.com}.
 
 
 @node Using the MySQL software for free under GPL,  , Using the MySQL software under a commercial license, MySQL licenses
@@ -1726,7 +1732,7 @@ Other new features target the users of embedded databases.
 The rollout of MySQL Server 4.x comes in several steps, with
 the first version labelled 4.0.0-alpha already containing most of the
 new features. Additional features have since been incorporated into
-MySQL 4.0.1, 4.0.2, and onward; Now, MySQL 4.0 will be labelled beta.
+MySQL 4.0.1, 4.0.2, and onward; MySQL 4.0.3 has been labelled beta.
 Further new features are being added in MySQL 4.1, targeted for
 alpha release in third quarter 2002.
 
@@ -1735,7 +1741,8 @@ alpha release in third quarter 2002.
 @subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
-to MySQL Server 4.x until it is released in beta version.
+to a MySQL Server 4.x until it is released in beta version
+(such as 4.0.3 beta).
 However, even the initial release has passed our extensive
 test suite without any errors on any of the platforms we test on.
 Due to the large number of new features, we thus recommend
@@ -1778,20 +1785,6 @@ such as bulk @code{INSERT}s, searching on packed indexes, creation of
 The @code{InnoDB} table handler is now offered as a feature of the
 standard MySQL server, including full support for @code{transactions}
 and @code{row-level locking}.
-
-@item
-MySQL Server 4.0 supports secure traffic between the client and the server,
-greatly increasing security against malicious intrusion and unauthorised
-access. Web applications being a cornerstone of MySQL use, web developers
-have been able to use @code{Secure Socket Layer} (@code{SSL}) to secure the
-traffic between the the end user browser and the web application, be it
-written in PHP, Perl, ASP or using any other web development tool. However,
-the traffic between the development tool and the @code{mysqld} server
-process has been protected only by virtue of them being processes
-residing on computers within the same firewall. In MySQL Server 4.0,
-the @code{mysqld} server daemon process can itself use @code{SSL},
-thus enabling secure traffic to MySQL databases from, say, a Windows
-application residing outside the firewall.
 
 @item
 Our German, Austrian, and Swiss users will note that we have a new character
@@ -50053,7 +50046,7 @@ this means that the version has not yet been released!
 @c Please don't add a new version here without also updating ../configure.in!
 
 @menu
-* News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
+* News-4.0.x::                  Changes in release 4.0.x (Beta)
 * News-3.23.x::                 Changes in release 3.23.x (Stable)
 * News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
@@ -50063,7 +50056,7 @@ this means that the version has not yet been released!
 
 
 @node News-4.0.x, News-3.23.x, News, News
-@appendixsec Changes in release 4.0.x (Development; Alpha)
+@appendixsec Changes in release 4.0.x (Beta)
 
 @cindex changes, version 4.0
 
@@ -50121,14 +50114,14 @@ each individual 4.0.x release.
 
 
 @menu
-* News-4.0.3::                  Changes in release 4.0.3
-* News-4.0.2::                  Changes in release 4.0.2 (01 July 2002)
+* News-4.0.3::                  Changes in release 4.0.3 (Aug 2002: Beta)
+* News-4.0.2::                  Changes in release 4.0.2 (01 Jul 2002)
 * News-4.0.1::                  Changes in release 4.0.1 (23 Dec 2001)
 * News-4.0.0::                  Changes in release 4.0.0 (Oct 2001: Alpha)
 @end menu
 
 @node News-4.0.3, News-4.0.2, News-4.0.x, News-4.0.x
-@appendixsubsec Changes in release 4.0.3
+@appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
 
 @itemize @bullet
 @item
@@ -50197,7 +50190,7 @@ other databases. It is synonymous with @code{LOG(X)}.
 
 
 @node News-4.0.2, News-4.0.1, News-4.0.3, News-4.0.x
-@appendixsubsec Changes in release 4.0.2 (01 July 2002)
+@appendixsubsec Changes in release 4.0.2 (01 Jul 2002)
 
 @itemize @bullet
 @item
@@ -50653,7 +50646,7 @@ Added script @code{mysql_explain_log.sh} to distribution.
 
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
-@appendixsec Changes in release 3.23.x  (Stable)
+@appendixsec Changes in release 3.23.x (Stable)
 
 @cindex changes, version 3.23
 
@@ -50703,7 +50696,7 @@ not yet 100% confident in this code.
 * News-3.23.46::                Changes in release 3.23.46 (29 Nov 2001)
 * News-3.23.45::                Changes in release 3.23.45 (22 Nov 2001)
 * News-3.23.44::                Changes in release 3.23.44 (31 Oct 2001)
-* News-3.23.43::                Changes in release 3.23.43
+* News-3.23.43::                Changes in release 3.23.43 (04 Oct 2001)
 * News-3.23.42::                Changes in release 3.23.42 (08 Sep 2001)
 * News-3.23.41::                Changes in release 3.23.41 (11 Aug 2001)
 * News-3.23.40::                Changes in release 3.23.40
@@ -50721,10 +50714,10 @@ not yet 100% confident in this code.
 * News-3.23.29::                Changes in release 3.23.29 (16 Dec 2000)
 * News-3.23.28::                Changes in release 3.23.28 (22 Nov 2000: Gamma)
 * News-3.23.27::                Changes in release 3.23.27 (24 Oct 2000)
-* News-3.23.26::                Changes in release 3.23.26
-* News-3.23.25::                Changes in release 3.23.25
+* News-3.23.26::                Changes in release 3.23.26 (18 Oct 2000)
+* News-3.23.25::                Changes in release 3.23.25 (29 Sep 2000)
 * News-3.23.24::                Changes in release 3.23.24 (08 Sep 2000)
-* News-3.23.23::                Changes in release 3.23.23
+* News-3.23.23::                Changes in release 3.23.23 (01 Sep 2000)
 * News-3.23.22::                Changes in release 3.23.22 (31 Jul 2000)
 * News-3.23.21::                Changes in release 3.23.21
 * News-3.23.20::                Changes in release 3.23.20
@@ -50735,19 +50728,19 @@ not yet 100% confident in this code.
 * News-3.23.15::                Changes in release 3.23.15 (May 2000: Beta)
 * News-3.23.14::                Changes in release 3.23.14
 * News-3.23.13::                Changes in release 3.23.13
-* News-3.23.12::                Changes in release 3.23.12
+* News-3.23.12::                Changes in release 3.23.12 (07 Mar 2000)
 * News-3.23.11::                Changes in release 3.23.11
 * News-3.23.10::                Changes in release 3.23.10
 * News-3.23.9::                 Changes in release 3.23.9
-* News-3.23.8::                 Changes in release 3.23.8
-* News-3.23.7::                 Changes in release 3.23.7
+* News-3.23.8::                 Changes in release 3.23.8 (02 Jan 2000)
+* News-3.23.7::                 Changes in release 3.23.7 (10 Dec 1999)
 * News-3.23.6::                 Changes in release 3.23.6
-* News-3.23.5::                 Changes in release 3.23.5
-* News-3.23.4::                 Changes in release 3.23.4
+* News-3.23.5::                 Changes in release 3.23.5 (20 Oct 1999)
+* News-3.23.4::                 Changes in release 3.23.4 (28 Sep 1999)
 * News-3.23.3::                 Changes in release 3.23.3
-* News-3.23.2::                 Changes in release 3.23.2
+* News-3.23.2::                 Changes in release 3.23.2 (09 Aug 1999)
 * News-3.23.1::                 Changes in release 3.23.1
-* News-3.23.0::                 Changes in release 3.23.0 (Sep 1999: Alpha)
+* News-3.23.0::                 Changes in release 3.23.0 (05 Aug 1999: Alpha)
 @end menu
 
 @node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
@@ -51155,7 +51148,7 @@ Fixed a bug in purge which could cause crashes.
 @end itemize
 
 @node News-3.23.43, News-3.23.42, News-3.23.44, News-3.23.x
-@appendixsubsec Changes in release 3.23.43
+@appendixsubsec Changes in release 3.23.43 (04 Oct 2001)
 
 @itemize @bullet
 @item
@@ -52176,7 +52169,7 @@ Small portability fixes.
 
 
 @node News-3.23.26, News-3.23.25, News-3.23.27, News-3.23.x
-@appendixsubsec Changes in release 3.23.26
+@appendixsubsec Changes in release 3.23.26 (18 Oct 2000)
 
 @itemize @bullet
 @item
@@ -52255,7 +52248,7 @@ on a patch from John Jones.
 
 
 @node News-3.23.25, News-3.23.24, News-3.23.26, News-3.23.x
-@appendixsubsec Changes in release 3.23.25
+@appendixsubsec Changes in release 3.23.25 (29 Sep 2000)
 
 @itemize @bullet
 @item
@@ -52371,7 +52364,7 @@ Restored the @code{win1251} character set (it's now only marked deprecated).
 
 
 @node News-3.23.23, News-3.23.22, News-3.23.24, News-3.23.x
-@appendixsubsec Changes in release 3.23.23
+@appendixsubsec Changes in release 3.23.23 (01 Sep 2000)
 
 @itemize @bullet
 @item
@@ -52894,7 +52887,7 @@ Added @code{print_defaults} program to the @file{.rpm} files. Removed
 
 
 @node News-3.23.12, News-3.23.11, News-3.23.13, News-3.23.x
-@appendixsubsec Changes in release 3.23.12
+@appendixsubsec Changes in release 3.23.12 (07 Mar 2000)
 
 @itemize @bullet
 @item
@@ -53067,7 +53060,7 @@ Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
 
 
 @node News-3.23.8, News-3.23.7, News-3.23.9, News-3.23.x
-@appendixsubsec Changes in release 3.23.8
+@appendixsubsec Changes in release 3.23.8 (02 Jan 2000)
 
 @itemize @bullet
 @item
@@ -53107,7 +53100,7 @@ was too big.
 
 
 @node News-3.23.7, News-3.23.6, News-3.23.8, News-3.23.x
-@appendixsubsec Changes in release 3.23.7
+@appendixsubsec Changes in release 3.23.7 (10 Dec 1999)
 
 @itemize @bullet
 @item
@@ -53220,7 +53213,7 @@ Added function @code{ORD(string)}.
 
 
 @node News-3.23.5, News-3.23.4, News-3.23.6, News-3.23.x
-@appendixsubsec Changes in release 3.23.5
+@appendixsubsec Changes in release 3.23.5 (20 Oct 1999)
 
 @itemize @bullet
 @item
@@ -53282,7 +53275,7 @@ Fixed problem with @code{UDF} functions.
 
 
 @node News-3.23.4, News-3.23.3, News-3.23.5, News-3.23.x
-@appendixsubsec Changes in release 3.23.4
+@appendixsubsec Changes in release 3.23.4 (28 Sep 1999)
 
 @itemize @bullet
 @item
@@ -53361,7 +53354,7 @@ New function @code{COALESCE()}.
 
 
 @node News-3.23.2, News-3.23.1, News-3.23.3, News-3.23.x
-@appendixsubsec Changes in release 3.23.2
+@appendixsubsec Changes in release 3.23.2 (09 Aug 1999)
 
 @itemize @bullet
 @item
@@ -53437,7 +53430,7 @@ Fixed some compilation problems.
 
 
 @node News-3.23.0,  , News-3.23.1, News-3.23.x
-@appendixsubsec Changes in release 3.23.0 (Sep 1999: Alpha)
+@appendixsubsec Changes in release 3.23.0 (05 Aug 1999: Alpha)
 
 @itemize @bullet
 @item
@@ -53599,19 +53592,19 @@ be very easy and painless.  @xref{Upgrading-from-3.21}.
 * News-3.22.35::                Changes in release 3.22.35
 * News-3.22.34::                Changes in release 3.22.34
 * News-3.22.33::                Changes in release 3.22.33
-* News-3.22.32::                Changes in release 3.22.32
+* News-3.22.32::                Changes in release 3.22.32 (14 Feb 2000)
 * News-3.22.31::                Changes in release 3.22.31
 * News-3.22.30::                Changes in release 3.22.30
-* News-3.22.29::                Changes in release 3.22.29
-* News-3.22.28::                Changes in release 3.22.28
+* News-3.22.29::                Changes in release 3.22.29 (02 Jan 2000)
+* News-3.22.28::                Changes in release 3.22.28 (20 Oct 1999)
 * News-3.22.27::                Changes in release 3.22.27
-* News-3.22.26::                Changes in release 3.22.26
+* News-3.22.26::                Changes in release 3.22.26 (16 Sep 1999)
 * News-3.22.25::                Changes in release 3.22.25
-* News-3.22.24::                Changes in release 3.22.24
-* News-3.22.23::                Changes in release 3.22.23
-* News-3.22.22::                Changes in release 3.22.22
+* News-3.22.24::                Changes in release 3.22.24 (05 Jul 1999)
+* News-3.22.23::                Changes in release 3.22.23 (08 Jun 1999)
+* News-3.22.22::                Changes in release 3.22.22 (30 Apr 1999)
 * News-3.22.21::                Changes in release 3.22.21
-* News-3.22.20::                Changes in release 3.22.20
+* News-3.22.20::                Changes in release 3.22.20 (18 Mar 1999)
 * News-3.22.19::                Changes in release 3.22.19 (Mar 1999: Stable)
 * News-3.22.18::                Changes in release 3.22.18
 * News-3.22.17::                Changes in release 3.22.17
@@ -53676,7 +53669,7 @@ Quicker kill of @code{SELECT DISTINCT} queries.
 
 
 @node News-3.22.32, News-3.22.31, News-3.22.33, News-3.22.x
-@appendixsubsec Changes in release 3.22.32
+@appendixsubsec Changes in release 3.22.32 (14 Feb 2000)
 
 @itemize @bullet
 @item
@@ -53726,7 +53719,7 @@ Fixed non-critical Y2K problem when writing short date to log files.
 
 
 @node News-3.22.29, News-3.22.28, News-3.22.30, News-3.22.x
-@appendixsubsec Changes in release 3.22.29
+@appendixsubsec Changes in release 3.22.29 (02 Jan 2000)
 
 @itemize @bullet
 @item
@@ -53755,7 +53748,7 @@ Fixed that @code{INSERT DELAYED} doesn't update timestamps that are given.
 
 
 @node News-3.22.28, News-3.22.27, News-3.22.29, News-3.22.x
-@appendixsubsec Changes in release 3.22.28
+@appendixsubsec Changes in release 3.22.28 (20 Oct 1999)
 
 @itemize @bullet
 @item
@@ -53784,7 +53777,7 @@ Fixed problem when sorting on big @code{BLOB} columns.
 
 
 @node News-3.22.26, News-3.22.25, News-3.22.27, News-3.22.x
-@appendixsubsec Changes in release 3.22.26
+@appendixsubsec Changes in release 3.22.26 (16 Sep 1999)
 
 @itemize @bullet
 @item
@@ -53823,7 +53816,7 @@ Fixed some small problems with the installation.
 
 
 @node News-3.22.24, News-3.22.23, News-3.22.25, News-3.22.x
-@appendixsubsec Changes in release 3.22.24
+@appendixsubsec Changes in release 3.22.24 (05 Jul 1999)
 
 @itemize @bullet
 @item
@@ -53843,7 +53836,7 @@ crashes some RedHat 6.0 systems
 
 
 @node News-3.22.23, News-3.22.22, News-3.22.24, News-3.22.x
-@appendixsubsec Changes in release 3.22.23
+@appendixsubsec Changes in release 3.22.23 (08 Jun 1999)
 
 @itemize @bullet
 @item
@@ -53871,7 +53864,7 @@ Fixed bug in @code{NATURAL LEFT JOIN}.
 
 
 @node News-3.22.22, News-3.22.21, News-3.22.23, News-3.22.x
-@appendixsubsec Changes in release 3.22.22
+@appendixsubsec Changes in release 3.22.22 (30 Apr 1999)
 
 @itemize @bullet
 @item
@@ -53922,7 +53915,7 @@ connections).
 
 
 @node News-3.22.20, News-3.22.19, News-3.22.21, News-3.22.x
-@appendixsubsec Changes in release 3.22.20
+@appendixsubsec Changes in release 3.22.20 (18 Mar 1999)
 
 @itemize @bullet
 @item
