@@ -3052,8 +3052,8 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       this end 0, which leads to segfault.
     */
     tmp_buf[event_len++]=0;
+    int4store(tmp_buf+EVENT_LEN_OFFSET, event_len);
     buf = (const char*)tmp_buf;
-    int4store(buf+EVENT_LEN_OFFSET, event_len);
   }
   /*
     This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
