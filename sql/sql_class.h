@@ -708,7 +708,6 @@ class select_create: public select_insert {
   HA_CREATE_INFO *create_info;
   MYSQL_LOCK *lock;
   Field **field;
-  my_bool do_not_drop;
 public:
   select_create (const char *db_name, const char *table_name,
 		 HA_CREATE_INFO *create_info_par,
@@ -717,13 +716,14 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic)
     :select_insert (NULL, &select_fields, duplic), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par), lock(0), do_not_drop(0)
+    create_info(create_info_par), lock(0)
     {}
   int prepare(List<Item> &list);
   bool send_data(List<Item> &values);
   bool send_eof();
   void abort();
 };
+
 
 class select_union :public select_result {
  public:
