@@ -277,3 +277,13 @@ Key_blocks_unused	KEY_BLOCKS_UNUSED
 set global keycache2.key_buffer_size=0;
 set global keycache3.key_buffer_size=100;
 set global keycache3.key_buffer_size=0;
+create table t1 (mytext text, FULLTEXT (mytext));
+insert t1 values ('aaabbb');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+set GLOBAL key_cache_block_size=2048;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
