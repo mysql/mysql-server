@@ -2977,7 +2977,7 @@ insert_values:
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
 	  }
-	  select_options select_item_list select_from select_lock_type
+	  select_options select_item_list opt_select_from select_lock_type
           union_clause {}
 	;
 

@@ -108,8 +108,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Set return character set to first argument if we are returning a
       string.
     */
-    if (result_type() == STRING_RESULT)
-      set_charset((*args)->charset());
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->check_cols(allowed_arg_cols) ||
@@ -123,6 +121,8 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
     }
+    if (result_type() == STRING_RESULT)
+      set_charset((*args)->charset());
   }
   fix_length_and_dec();
   fixed= 1;
