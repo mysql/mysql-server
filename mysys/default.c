@@ -60,11 +60,7 @@ DATADIR,
 NullS,
 };
 
-#define default_ext	".cnf"		/* extension for config file */
-#ifdef __WIN__
-#include <winbase.h>
-#define windows_ext	".ini"
-#endif
+static const char *f_extensions[]= { ".ini", ".cnf", 0 };
 
 static int search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
 			       const char *dir, const char *config_file,
@@ -115,7 +111,8 @@ int load_defaults(const char *conf_file, const char **groups,
   uint args_used=0;
   int error= 0;
   MEM_ROOT alloc;
-  char *ptr,**res;
+  char *ptr, **res, **ext;
+
   DBUG_ENTER("load_defaults");
 
   init_alloc_root(&alloc,512,0);
@@ -169,38 +166,43 @@ int load_defaults(const char *conf_file, const char **groups,
   }
   else if (dirname_length(conf_file))
   {
-    if ((error= search_default_file(&args, &alloc, NullS, conf_file,
-				    default_ext, &group)) < 0)
-      goto err;
+    for (ext= (char**) f_extensions; *ext; *ext++)
+      if ((error= search_default_file(&args, &alloc, NullS, conf_file,
+				      *ext, &group)) < 0)
+	goto err;
   }
   else
   {
 #ifdef __WIN__
     char system_dir[FN_REFLEN];
     GetWindowsDirectory(system_dir,sizeof(system_dir));
-    if ((search_default_file(&args, &alloc, system_dir, conf_file,
-			     windows_ext, &group)))
-      goto err;
+    for (ext= (char**) f_extensions; *ext; *ext++)
+      if ((search_default_file(&args, &alloc, system_dir, conf_file,
+			       *ext, &group)))
+        goto err;
 #endif
 #if defined(__EMX__) || defined(OS2)
-    if (getenv("ETC") &&
-        (search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
-			     default_ext, &group)) < 0)
-      goto err;
+    for (ext= (char**) f_extensions; *ext; *ext++)
+      if (getenv("ETC") &&
+	  (search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
+			       *ext, &group)) < 0)
+	goto err;
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
       if (**dirs)
       {
-	if (search_default_file(&args, &alloc, *dirs, conf_file,
-				default_ext, &group) < 0)
-	  goto err;
+	for (ext= (char**) f_extensions; *ext; *ext++)
+	  if (search_default_file(&args, &alloc, *dirs, conf_file,
+				  *ext, &group) < 0)
+	    goto err;
       }
       else if (defaults_extra_file)
       {
-	if (search_default_file(&args, &alloc, NullS, defaults_extra_file,
-				default_ext, &group) < 0)
-	  goto err;				/* Fatal error */
+        for (ext= (char**) f_extensions; ext; ext++)
+	  if (search_default_file(&args, &alloc, NullS, defaults_extra_file,
+				  *ext, &group) < 0)
+	    goto err;				/* Fatal error */
       }
     }
   }
@@ -478,8 +480,9 @@ void print_defaults(const char *conf_file, const char **groups)
 #ifdef __WIN__
   bool have_ext=fn_ext(conf_file)[0] != 0;
 #endif
-  char name[FN_REFLEN];
+  char name[FN_REFLEN], **ext;
   const char **dirs;
+
   puts("\nDefault options are read from the following files in the given order:");
 
   if (dirname_length(conf_file))
@@ -488,27 +491,35 @@ void print_defaults(const char *conf_file, const char **groups)
   {
 #ifdef __WIN__
     GetWindowsDirectory(name,sizeof(name));
-    printf("%s\\%s%s ",name,conf_file,have_ext ? "" : windows_ext);
+    if (have_ext)
+      for (ext= (char**) f_extensions; *ext; *ext++)
+        printf("%s\\%s%s ", name, conf_file, *ext);
+    else
+        printf("%s\\%s ", name, conf_file);
 #endif
 #if defined(__EMX__) || defined(OS2)
-    if (getenv("ETC"))
-      printf("%s\\%s%s ", getenv("ETC"), conf_file, default_ext);
+    for (ext= (char**) f_extensions; *ext; *ext++)
+      if (getenv("ETC"))
+        printf("%s\\%s%s ", getenv("ETC"), conf_file, *ext);
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
-      const char *pos;
-      char *end;
-      if (**dirs)
-	pos= *dirs;
-      else if (defaults_extra_file)
-	pos= defaults_extra_file;
-      else
-	continue;
-      end=convert_dirname(name, pos, NullS);
-      if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
-	*end++='.';
-      strxmov(end,conf_file,default_ext," ",NullS);
-      fputs(name,stdout);
+      for (ext= (char**) f_extensions; *ext; *ext++)
+      {
+	const char *pos;
+	char *end;
+	if (**dirs)
+	  pos= *dirs;
+	else if (defaults_extra_file)
+	  pos= defaults_extra_file;
+	else
+	  continue;
+	end= convert_dirname(name, pos, NullS);
+	if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
+	  *end++='.';
+	strxmov(end, conf_file, *ext, " ", NullS);
+	fputs(name,stdout);
+      }
     }
     puts("");
   }
