@@ -5843,6 +5843,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
+            if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST)
+              DBUG_RETURN(0);			// Use filesort
 	    // ORDER BY range_key DESC
 	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
 							 used_key_parts);
