@@ -17,7 +17,8 @@
 INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include -I..
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
-bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults
+bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
+resolve_stack_dump
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \
