@@ -139,6 +139,14 @@ typedef struct st_relay_log_info
   ulonglong log_space_limit,log_space_total;
 
   /*
+    InnoDB internally stores the master log position it has processed
+    so far; the position to store is really the sum of 
+    pos + pending + event_len here since we must store the pos of the
+    END of the current log event
+  */
+  int event_len;
+
+  /*
     Needed for problems when slave stops and we want to restart it
     skipping one or more events in the master log that have caused
     errors, and have been manually applied by DBA already.
@@ -167,6 +175,7 @@ typedef struct st_relay_log_info
   {
     relay_log_name[0] = master_log_name[0] = 0;
     bzero(&info_file,sizeof(info_file));
+    bzero(&cache_buf, sizeof(cache_buf));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
@@ -204,7 +213,7 @@ typedef struct st_relay_log_info
   }
   /*
     thread safe read of position - not needed if we are in the slave thread,
-    but required otherwise
+    but required otherwise as var is a longlong
   */
   inline void read_pos(ulonglong& var)
   {
@@ -215,6 +224,7 @@ typedef struct st_relay_log_info
 
   int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
 } RELAY_LOG_INFO;
+
 
 Log_event* next_event(RELAY_LOG_INFO* rli);
 
@@ -251,7 +261,7 @@ typedef struct st_master_info
   char master_log_name[FN_REFLEN];
   
   my_off_t master_log_pos;
-  File fd; 
+  File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
   
   /* the variables below are needed because we can change masters on the fly */
@@ -279,7 +289,7 @@ typedef struct st_master_info
 		   slave_running(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
-    bzero(&file,sizeof(file));
+    bzero(&file, sizeof(file));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&data_cond, NULL);
@@ -328,8 +338,8 @@ typedef struct st_table_rule_ent
 
 int init_slave();
 void init_slave_skip_errors(const char* arg);
-int flush_master_info(MASTER_INFO* mi);
-int flush_relay_log_info(RELAY_LOG_INFO* rli);
+bool flush_master_info(MASTER_INFO* mi);
+bool flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,
 			     bool skip_lock = 0);
@@ -384,7 +394,8 @@ void slave_print_error(RELAY_LOG_INFO* rli,int err_code, const char* msg, ...);
 
 void end_slave(); /* clean up */
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
-		     const char* slave_info_fname);
+		     const char* slave_info_fname,
+		     bool abort_if_no_master_info_file);
 void end_master_info(MASTER_INFO* mi);
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
 void end_relay_log_info(RELAY_LOG_INFO* rli);
@@ -394,7 +405,8 @@ void init_thread_mask(int* mask,MASTER_INFO* mi,bool inverse);
 int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
 		       bool need_data_lock, const char** errmsg);
 
-int purge_relay_logs(RELAY_LOG_INFO* rli,bool just_reset,const char** errmsg);
+int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
+		     const char** errmsg);
 
 extern bool opt_log_slave_updates ;
 pthread_handler_decl(handle_slave_io,arg);

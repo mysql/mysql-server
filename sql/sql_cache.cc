@@ -873,10 +873,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
       thd->variables.query_cache_type == 0)
 
-  {
-    DBUG_PRINT("qcache", ("query cache disabled or not in autocommit mode"));
     goto err;
-  }
 
   /* Check that we haven't forgot to reset the query cache variables */
   DBUG_ASSERT(thd->net.query_cache_query == 0);
@@ -1020,6 +1017,7 @@ err_unlock:
 err:
   DBUG_RETURN(0);				// Query was not cached
 }
+
 
 /*
   Remove all cached queries that uses any of the tables in the list

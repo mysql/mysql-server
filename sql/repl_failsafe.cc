@@ -240,7 +240,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
 int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 {
   LOG_INFO linfo;
-  char search_file_name[FN_REFLEN],last_log_name[FN_REFLEN];
+  char last_log_name[FN_REFLEN];
   IO_CACHE log;
   File file = -1, last_file = -1;
   pthread_mutex_t *log_lock;
@@ -264,9 +264,8 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
   }
 
   linfo.index_file_offset = 0;
-  search_file_name[0] = 0;
 
-  if (mysql_bin_log.find_first_log(&linfo, search_file_name))
+  if (mysql_bin_log.find_log_pos(&linfo, NullS))
   {
     strmov(errmsg,"Could not find first log");
     return 1;
@@ -619,18 +618,22 @@ int show_slave_hosts(THD* thd)
 
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 {
-  if (!mi->host || !*mi->host)			/* empty host */
-    return 1;
+  DBUG_ENTER("connect_to_master");
 
+  if (!mi->host || !*mi->host)			/* empty host */
+  {
+    DBUG_PRINT("error",("empty hostname"));
+    DBUG_RETURN(1);
+  }
   if (!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 			mi->port, 0, 0,
 			slave_net_timeout))
   {
     sql_print_error("Connection to master failed: %s",
 		    mc_mysql_error(mysql));
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -671,12 +674,17 @@ static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
   return 0;
 }
 
+/*
+  Load all MyISAM tables from master to this slave.
+
+  REQUIREMENTS
+   - No active transaction (flush_relay_log_info would not work in this case)
+*/
 
 int load_master_data(THD* thd)
 {
   MYSQL mysql;
   MYSQL_RES* master_status_res = 0;
-  bool slave_was_running = 0;
   int error = 0;
   const char* errmsg=0;
   int restart_thread_mask;
@@ -840,7 +848,8 @@ int load_master_data(THD* thd)
     }
   }
   thd->proc_info="purging old relay logs";
-  if (purge_relay_logs(&active_mi->rli,0 /* not only reset, but also reinit */,
+  if (purge_relay_logs(&active_mi->rli,thd,
+		       0 /* not only reset, but also reinit */,
 		       &errmsg))
   {
     send_error(&thd->net, 0, "Failed purging old relay logs");

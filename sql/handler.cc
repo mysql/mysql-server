@@ -218,6 +218,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
     }
     else
       (void) ha_rollback_stmt(thd);
+
     thd->variables.tx_isolation=thd->session_tx_isolation;
   }
 #endif
@@ -274,6 +275,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
   {
     bool operation_done= 0;
     bool transaction_commited= 0;
+
     /* Update the binary log if we have cached some queries */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))

@@ -435,7 +435,7 @@ os_fast_mutex_init(
 	
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
-	pthread_mutex_init(fast_mutex, NULL);
+	pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST);
 #endif
 }
 

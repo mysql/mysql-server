@@ -479,46 +479,14 @@ page_rec_get_next(
 
 	offs = rec_get_next_offs(rec);
 
+	ut_a(offs < UNIV_PAGE_SIZE);
+
 	if (offs == 0) {
 		
 		return(NULL);
 	}
 
 	return(page + offs);
-}
-
-/*******************************************************************
-Looks for the directory slot which owns the given record. */
-UNIV_INLINE
-ulint
-page_dir_find_owner_slot(
-/*=====================*/
-			/* out: the directory slot number */
-	rec_t*	rec)	/* in: the physical record */
-{
-	ulint			i;
-	page_t*			page;	
-	page_dir_slot_t*	slot;
-
-	ut_ad(page_rec_check(rec));
-
-	while (rec_get_n_owned(rec) == 0) {
-		rec = page_rec_get_next(rec);
-	}
-	
-	page = buf_frame_align(rec);
-
-	i = page_dir_get_n_slots(page) - 1;
-	slot = page_dir_get_nth_slot(page, i); 
-
-	while (page_dir_slot_get_rec(slot) != rec) {
-		ut_a(i > 0);
-
-		i--;
-		slot = page_dir_get_nth_slot(page, i); 
-	}
-
-	return(i);
 }
 
 /****************************************************************
@@ -534,7 +502,7 @@ page_rec_set_next(
 	page_t*	page;
 
 	ut_ad(page_rec_check(rec));	
-	ut_ad((next == NULL)
+	ut_a((next == NULL)
 	      || (buf_frame_align(rec) == buf_frame_align(next)));
 
 	page = buf_frame_align(rec);
@@ -573,7 +541,7 @@ page_rec_get_prev(
 
 	slot_no = page_dir_find_owner_slot(rec);
 
-	ut_ad(slot_no != 0);
+	ut_a(slot_no != 0);
 	
 	slot = page_dir_get_nth_slot(page, slot_no - 1);
 	
@@ -584,7 +552,7 @@ page_rec_get_prev(
 		rec2 = page_rec_get_next(rec2);
 	}
 	
-	ut_ad(prev_rec);
+	ut_a(prev_rec);
 
 	return(prev_rec);
 }

@@ -2,7 +2,6 @@
 # the ones in database bar
 
 source include/master-slave.inc;
-connection master;
 drop database if exists foo;
 create database foo;
 drop database if exists bar;

@@ -234,6 +234,10 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
+    --warnings | --log-warnings)
+     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-warnings"
+     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --log-warnings"
+     ;;
     --wait-timeout=*)
      START_WAIT_TIMEOUT=`$ECHO "$1" | $SED -e "s;--wait-timeout=;;"`
      STOP_WAIT_TIMEOUT=$START_WAIT_TIMEOUT;;
@@ -456,10 +460,6 @@ XTERM=`which xterm`
 #++
 # Function Definitions
 #--
-wait_for_server_start ()
-{
-   $MYSQLADMIN --no-defaults -u $DBUSER --silent -O connect_timeout=10 -w2 --host=$hostname --port=$1  ping >/dev/null 2>&1
-}
 
 prompt_user ()
 {
@@ -845,7 +845,7 @@ start_slave()
     master_info="--master-user=root \
           --master-connect-retry=1 \
           --master-host=127.0.0.1 \
-          --master-password= \
+          --master-password="" \
           --master-port=$MASTER_MYPORT \
           --server-id=$slave_server_id --rpl-recovery-rank=$slave_rpl_rank"
  else

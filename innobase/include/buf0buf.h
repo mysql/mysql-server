@@ -219,6 +219,16 @@ buf_page_create(
 			a page */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /************************************************************************
+Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+
+void
+buf_page_init_for_backup_restore(
+/*=============================*/
+	ulint		space,	/* in: space id */
+	ulint		offset,	/* in: offset of the page within space
+				in units of a page */
+	buf_block_t*	block);	/* in: block to init */
+/************************************************************************
 Decrements the bufferfix count of a buffer control block and releases
 a latch, if specified. */
 UNIV_INLINE
@@ -438,7 +448,7 @@ Prints info of the buffer pool data structure. */
 
 void
 buf_print(void);
-/*===========*/
+/*============*/
 /*************************************************************************
 Returns the number of pending buf pool ios. */
 
@@ -449,8 +459,10 @@ buf_get_n_pending_ios(void);
 Prints info of the buffer i/o. */
 
 void
-buf_print_io(void);
-/*==============*/
+buf_print_io(
+/*=========*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end);/* in: buffer end */
 /*************************************************************************
 Checks that all file pages in the buffer are in a replaceable state. */
 
@@ -605,6 +617,7 @@ struct buf_block_struct{
 
 	/* 1. General fields */
 
+	ulint		magic_n;	/* magic number to check */
 	ulint		state;		/* state of the control block:
 					BUF_BLOCK_NOT_USED, ... */
 	byte*		frame;		/* pointer to buffer frame which
@@ -728,6 +741,8 @@ struct buf_block_struct{
                                         /* this is set to TRUE when fsp
                                         frees a page in buffer pool */
 };
+
+#define BUF_BLOCK_MAGIC_N	41526563
 
 /* The buffer pool structure. NOTE! The definition appears here only for
 other modules of this directory (buf) to see it. Do not use from outside! */

@@ -110,11 +110,15 @@ int vio_write(Vio * vio, const gptr buf, int size)
 }
 
 
-int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode)
+int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
+		 my_bool *old_mode)
 {
   int r=0;
   DBUG_ENTER("vio_blocking");
-  DBUG_PRINT("enter", ("set_blocking_mode: %d", (int) set_blocking_mode));
+
+  *old_mode= test(!(vio->fcntl_mode & O_NONBLOCK));
+  DBUG_PRINT("enter", ("set_blocking_mode: %d  old_mode: %d",
+		       (int) set_blocking_mode, (int) *old_mode));
 
 #if !defined(HAVE_OPENSSL)
 #if !defined(___WIN__) && !defined(__EMX__)

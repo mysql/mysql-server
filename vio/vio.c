@@ -83,6 +83,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
   DBUG_VOID_RETURN;
 }
 
+
 /* Open the socket or TCP/IP connection and read the fnctl() status */
 
 Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
@@ -102,12 +103,14 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
     (void) ioctl(sd,FIOSNBIO,0);
+    vio->fcntl_mode &= ~O_NONBLOCK;
 #endif
 #else /* !defined(__WIN__) && !defined(__EMX__) */
     {
       /* set to blocking mode by default */
       ulong arg=0, r;
       r = ioctlsocket(sd,FIONBIO,(void*) &arg, sizeof(arg));
+      vio->fcntl_mode &= ~O_NONBLOCK;
     }
 #endif
   }

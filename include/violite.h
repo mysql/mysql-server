@@ -60,7 +60,7 @@ int	vio_write(Vio *vio, const gptr buf, int size);
 /*
  * Whenever the socket is set to blocking mode or not.
  */
-int	vio_blocking(Vio *vio, my_bool onoff);
+int	vio_blocking(Vio *vio, my_bool onoff, my_bool *old_mode);
 my_bool	vio_is_blocking(Vio *vio);
 /*
  * setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible.
@@ -112,7 +112,8 @@ my_bool vio_poll_read(Vio *vio,uint timeout);
 #define vio_errno(vio)	 			(vio)->vioerrno(vio)
 #define vio_read(vio, buf, size) 		(vio)->read(vio,buf,size)
 #define vio_write(vio, buf, size) 		(vio)->write(vio, buf, size)
-#define vio_blocking(vio, set_blocking_mode) 	(vio)->vioblocking(vio, set_blocking_mode)
+#define vio_blocking(vio, set_blocking_mode, old_mode)\
+ 	(vio)->vioblocking(vio, set_blocking_mode, old_mode)
 #define vio_is_blocking(vio) 			(vio)->is_blocking(vio)
 #define vio_fastsend(vio)			(vio)->fastsend(vio)
 #define vio_keepalive(vio, set_keep_alive)	(vio)->viokeepalive(vio, set_keep_alive)
@@ -213,7 +214,7 @@ struct st_vio
   int     (*vioerrno)(Vio*);
   int     (*read)(Vio*, gptr, int);
   int     (*write)(Vio*, gptr, int);
-  int     (*vioblocking)(Vio*, my_bool);
+  int     (*vioblocking)(Vio*, my_bool, my_bool *);
   my_bool (*is_blocking)(Vio*);
   int     (*viokeepalive)(Vio*, my_bool);
   int     (*fastsend)(Vio*);

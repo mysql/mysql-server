@@ -7,6 +7,7 @@
    2002-01-29 - Arjen Lentz (arjen@mysql.com)
    2002-04-11 - Arjen Lentz (arjen@mysql.com)
    2002-06-13 - Arjen Lentz (arjen@mysql.com)
+   2002-08-08 - Arjen Lentz (arjen@mysql.com)
    Translated new error messages.
 */
 
@@ -238,11 +239,11 @@
 "Optie '%s' tweemaal gebruikt in opdracht",
 "Gebruiker '%-.64s' heeft het maximale gebruik van de '%s' faciliteit overschreden (huidige waarde: %ld)",
 "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie",
-"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
-"Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
-"Variable '%-.64s' doesn't have a default value",
-"Variable '%-.64s' can't be set to the value of '%-.64s'",
-"Wrong argument type to variable '%-.64s'",
-"Variable '%-.64s' can only be set, not read",
-"Wrong usage/placement of '%s'",
-"This version of MySQL doesn't yet support '%s',"
+"Variabele '%-.64s' is LOCAL en kan niet worden gebruikt met SET GLOBAL",
+"Variabele '%-.64s' is GLOBAL en dient te worden gewijzigd met SET GLOBAL",
+"Variabele '%-.64s' heeft geen standaard waarde",
+"Variabele '%-.64s' kan niet worden gewijzigd naar de waarde '%-.64s'",
+"Foutief argumenttype voor variabele '%-.64s'",
+"Variabele '%-.64s' kan alleen worden gewijzigd, niet gelezen",
+"Foutieve toepassing/plaatsing van '%s'",
+"Deze versie van MySQL ondersteunt nog geen '%s',"

@@ -172,25 +172,3 @@ ut_2_exp(
 {
 	return(1 << n);
 }
-
-/*****************************************************************
-Calculates fast the number rounded up to the nearest power of 2. */
-UNIV_INLINE
-ulint
-ut_2_power_up(
-/*==========*/
-			/* out: first power of 2 which is >= n */
-	ulint	n)	/* in: number != 0 */
-{
-	ulint	res;
-
-	res = 1;
-
-	ut_ad(n > 0);
-
-	while (res < n) {
-		res = res * 2;
-	}
-
-	return(res);
-}

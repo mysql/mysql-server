@@ -149,6 +149,14 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg)
   }
 }
 
+/*
+  Delete all temporary files used for SQL_LOAD.
+
+  TODO
+  - When we get a 'server start' event, we should only remove
+    the files associated with the server id that just started.
+    Easily fixable by adding server_id as a prefix to the log files.
+*/
 
 static void cleanup_load_tmpdir()
 {
@@ -195,7 +203,7 @@ Log_event::Log_event(const char* buf, bool old_format)
 
 int Log_event::exec_event(struct st_relay_log_info* rli)
 {
-  if (rli)
+  if (rli)					// QQ When is this not true ?
   {
     rli->inc_pos(get_event_len(),log_pos);
     DBUG_ASSERT(rli->sql_thd != 0);
@@ -749,9 +757,9 @@ int Rotate_log_event::write_data(IO_CACHE* file)
 
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
-				 bool using_trans)
+				 ulong query_length, bool using_trans)
   :Log_event(thd_arg), data_buf(0), query(query_arg),  db(thd_arg->db),
-  q_len(thd_arg->query_length),
+  q_len((uint32) query_length),
   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
   thread_id(thd_arg->thread_id),
   cache_stmt(using_trans &&
@@ -1267,7 +1275,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   Log_event(thd_arg),mem_pool(0),master_host(0)
 {
   DBUG_ENTER("Slave_log_event");
-  if (!rli->inited)
+  if (!rli->inited)				// QQ When can this happen ?
     DBUG_VOID_RETURN;
   
   MASTER_INFO* mi = rli->mi;
@@ -1605,6 +1613,14 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
   DBUG_ASSERT(q_len == strlen(query));
+
+  /*
+    InnoDB internally stores the master log position it has processed so far;
+    position to store is really pos + pending + event_len
+    since we must store the pos of the END of the current log event
+  */
+  rli->event_len= get_event_len();
+
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->query = (char*)query;
@@ -1783,20 +1799,40 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 }
 
 
+/*
+  The master started
+
+  IMPLEMENTATION
+    - To handle the case where the master died without a stop event,
+      we clean up all temporary tables + locks that we got.
+
+  TODO
+    - Remove all active user locks
+    - If we have an active transaction at this point, the master died
+      in the middle while writing the transaction to the binary log.
+      In this case we should stop the slave.
+*/
+
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
+  /* All temporary tables was deleted on the master */
   close_temporary_tables(thd);
   /*
     If we have old format, load_tmpdir is cleaned up by the I/O thread
-    
-    TODO: cleanup_load_tmpdir() needs to remove only the files associated
-    with the server id that has just started
   */
   if (!rli->mi->old_format)
     cleanup_load_tmpdir();
   return Log_event::exec_event(rli);
 }
 
+
+/*
+  The master stopped. Clean up all temporary tables + locks that the
+  master may have set.
+
+  TODO
+    - Remove all active user locks
+*/
 
 int Stop_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1808,15 +1844,34 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
   }
   /*
     We do not want to update master_log pos because we get a rotate event
-    before stop, so by now master_log_name is set to the next log
-    if we updated it, we will have incorrect master coordinates and this
+    before stop, so by now master_log_name is set to the next log.
+    If we updated it, we will have incorrect master coordinates and this
     could give false triggers in MASTER_POS_WAIT() that we have reached
-    the targed position when in fact we have not
+    the target position when in fact we have not.
   */
   rli->inc_pos(get_event_len(), 0);  
   flush_relay_log_info(rli);
   return 0;
 }
+
+
+/*
+  Got a rotate log even from the master
+
+  IMPLEMENTATION
+    - Rotate the log file if the name of the log file changed
+      (In practice this should always be the case)
+
+  TODO
+    - Investigate/Test if we can't ignore all rotate log events
+      that we get from the master (and not even write it to the local
+      binary log).
+
+  RETURN VALUES
+  0	ok
+  1	Impossible new log file name (rotate log event is ignored)
+*/
+  
 
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1829,18 +1884,19 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     TODO: probably needs re-write    
     rotate local binlog only if the name of remote has changed
   */
-  if (!*log_name || !(log_name[ident_len] == 0 &&
-		      !memcmp(log_name, new_log_ident, ident_len)))
+  if (!*log_name || (memcmp(log_name, new_log_ident, ident_len) ||
+		     log_name[ident_len] != 0))
   {
-    write_slave_event = (!(flags & LOG_EVENT_FORCED_ROTATE_F)
-			 && mysql_bin_log.is_open());
+    write_slave_event = (!(flags & LOG_EVENT_FORCED_ROTATE_F) &&
+			 mysql_bin_log.is_open());
     rotate_binlog = (*log_name && write_slave_event);
     if (ident_len >= sizeof(rli->master_log_name))
     {
+      // This should be impossible
       pthread_mutex_unlock(&rli->data_lock);
       DBUG_RETURN(1);
     }
-    memcpy(log_name, new_log_ident,ident_len);
+    memcpy(log_name, new_log_ident, ident_len);
     log_name[ident_len] = 0;
   }
   rli->master_log_pos = pos;
@@ -1848,7 +1904,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
   if (rotate_binlog)
   {
     mysql_bin_log.new_file();
-    rli->master_log_pos = 4;
+    rli->master_log_pos = BIN_LOG_HEADER_SIZE;
   }
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) rli->master_log_pos));
   pthread_cond_broadcast(&rli->data_cond);

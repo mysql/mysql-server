@@ -34271,7 +34271,7 @@ Some small changes to the join table optimizer to make some joins faster.
 @code{MYSQL} ととしてコールできず、この代わりに @code{mysql_field_count()} を
 使用しなくてはなりません。
 @item
-@code{LIBEWRAP} の追加;  Patch by Henning P . Schmiedehausen.
+@code{LIBWRAP} の追加;  Patch by Henning P . Schmiedehausen.
 @item
 Don't allow @code{AUTO_INCREMENT} for other than numerical columns.
 @item

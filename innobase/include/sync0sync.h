@@ -117,14 +117,18 @@ FUNCTION PROTOTYPES FOR DEBUGGING */
 Prints wait info of the sync system. */
 
 void
-sync_print_wait_info(void);
-/*======================*/
+sync_print_wait_info(
+/*=================*/
+	char*	buf,		/* in/out: buffer where to print */
+	char*	buf_end);	/* in: buffer end */
 /***********************************************************************
 Prints info of the sync system. */
 
 void
-sync_print(void);
-/*============*/
+sync_print(
+/*=======*/
+	char*	buf,		/* in/out: buffer where to print */
+	char*	buf_end);	/* in: buffer end */
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
