@@ -110,8 +110,7 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=want_privilege;
 #endif
-  if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0) ||
-      setup_fields(thd, 0, update_table_list, values, 1, 0, 0))
+  if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (table->timestamp_field)
   {
@@ -126,7 +125,7 @@ int mysql_update(THD *thd,
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
+  if (setup_fields(thd, 0, update_table_list, values, 1, 0, 0))
   {
     free_underlaid_joins(thd, &thd->lex->select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
