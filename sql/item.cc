@@ -2281,6 +2281,7 @@ void Item_ref::set_properties()
   decimals=   (*ref)->decimals;
   collation.set((*ref)->collation);
   with_sum_func= (*ref)->with_sum_func;
+  unsigned_flag= (*ref)->unsigned_flag;
   fixed= 1;
 }
 
