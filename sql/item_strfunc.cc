@@ -1383,14 +1383,14 @@ String *Item_func_database::val_str(String *str)
     str->length(0);
   else
     str->copy((const char*) thd->db,(uint) strlen(thd->db),
-	      system_charset_info, thd->thd_charset);
+	      system_charset_info, thd->variables.thd_charset);
   return str;
 }
 
 String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
-  CHARSET_INFO *cs=thd->thd_charset;
+  CHARSET_INFO *cs=thd->variables.thd_charset;
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
 

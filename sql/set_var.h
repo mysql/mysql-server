@@ -453,7 +453,7 @@ public:
     {
       Item_field *item= (Item_field*) value_arg;
       if (!(value=new Item_string(item->field_name, strlen(item->field_name),
-				  system_charset_info)))
+				  item->charset())))
 	value=value_arg;			/* Give error message later */
     }
     else
