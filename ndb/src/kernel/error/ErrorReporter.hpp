@@ -37,21 +37,13 @@
           ErrorReporter::handleThreadAssert(message, __FILE__, __LINE__); }
 
 #ifdef NDEBUG
-
 #define NDB_ASSERT(trueToContinue, message)
-#define THREAD_ASSERT(trueToContinue, message)
-
 #else
-
 #define NDB_ASSERT(trueToContinue, message) \
     if ( !(trueToContinue) ) { \
           ErrorReporter::handleAssert(message, __FILE__, __LINE__); }
-
-#define THREAD_ASSERT(trueToContinue, message) \
-    if ( !(trueToContinue) ) { \
-          ErrorReporter::handleThreadAssert(message, __FILE__, __LINE__); }
-
 #endif
+
         // Description:
         //      This macro is used to report programming errors.
         // Parameters:
