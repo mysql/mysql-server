@@ -92,10 +92,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 NdbEventOperationImpl::~NdbEventOperationImpl()
 {
   int i;
-  if (sdata) NdbMem_Free(sdata);
-  for (i=0 ; i<3; i++) {
-    if (ptr[i].p) NdbMem_Free(ptr[i].p);
-  }
+  if (sdata) NdbMem_Free((char*)sdata);
   for (i=0 ; i<2; i++) {
     NdbRecAttr *p = theFirstRecAttrs[i];
     while (p) {
@@ -853,42 +850,49 @@ NdbGlobalEventBuffer::~NdbGlobalEventBuffer()
   // NdbMem_Deallocate(m_eventBufferIdToEventId);
 }
 void
-NdbGlobalEventBuffer::real_init (NdbGlobalEventBufferHandle *h, 
+NdbGlobalEventBuffer::real_init (NdbGlobalEventBufferHandle *h,
 				 int MAX_NUMBER_ACTIVE_EVENTS)
 {
-  if (m_handlers.size() == 0) { // First init
+  DBUG_ENTER("NdbGlobalEventBuffer::real_init");
+  DBUG_PRINT("enter",("m_handles.size()=%u %u", m_handlers.size(), h));
+  if (m_handlers.size() == 0)
+  { // First init
+    DBUG_PRINT("info",("first to come"));
     m_max = MAX_NUMBER_ACTIVE_EVENTS;
     m_buf = new BufItem[m_max];
-      // (BufItem *)NdbMem_Allocate(m_max*sizeof(BufItem));
-
     for (int i=0; i<m_max; i++) {
       m_buf[i].gId= 0;
     }
   }
+  assert(m_max == MAX_NUMBER_ACTIVE_EVENTS);
   // TODO make sure we don't hit roof
-  //  m_handlers[m_nhandlers] = h;
   m_handlers.push_back(h);
-  //  ndbout_c("NdbGlobalEventBuffer::real_init(), m_handles=%u %u", m_nhandlers, h);
+  DBUG_VOID_RETURN;
 }
 void
 NdbGlobalEventBuffer::real_remove(NdbGlobalEventBufferHandle *h)
 {
-  //  ndbout_c("NdbGlobalEventBuffer::real_init_remove(), m_handles=%u %u", m_nhandlers, h);
-  for (Uint32 i=0 ; i < m_handlers.size(); i++) {
-    //    ndbout_c("%u %u %u", i, m_handlers[i], h);
-    if (m_handlers[i] == h) {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_remove");
+  DBUG_PRINT("enter",("m_handles.size()=%u %u", m_handlers.size(), h));
+  for (Uint32 i=0 ; i < m_handlers.size(); i++)
+  {
+    DBUG_PRINT("info",("m_handlers[%u] %u", i, m_handlers[i]));
+    if (m_handlers[i] == h)
+    {
       m_handlers.erase(i);
-      if (m_handlers.size() == 0) {
-	//	ndbout_c("last to go");
+      if (m_handlers.size() == 0)
+      {
+	DBUG_PRINT("info",("last to go"));
 	delete[] m_buf;
 	m_buf = NULL;
-	// NdbMem_Free((char*)m_buf);
       }
-      return;
+      DBUG_VOID_RETURN;
     }
   }
-  ndbout_c("NdbGlobalEventBuffer::real_init_remove() non-existing handle");
-  exit(-1);
+  ndbout_c("NdbGlobalEventBuffer::real_remove() non-existing handle");
+  DBUG_PRINT("error",("non-existing handle"));
+  abort();
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -1231,6 +1235,9 @@ int NdbGlobalEventBuffer::real_getDataL(const int bufferId,
     DBUG_RETURN(0); // nothing to get
   }
 
+  DBUG_PRINT("info",("ID(bufferId) %d NO(bufferId) %d e.b %d",
+		     ID(bufferId), NO(bufferId), e.b));
+
   if (copy_data_alloc(b.data[e.b].sdata, b.data[e.b].ptr,
 		      sdata, ptr))
   {
@@ -1255,26 +1262,29 @@ NdbGlobalEventBuffer::copy_data_alloc(const SubTableData * const f_sdata,
 				      LinearSectionPtr t_ptr[3])
 {
   DBUG_ENTER("NdbGlobalEventBuffer::copy_data_alloc");
-  if (t_sdata == NULL) {
-    t_sdata = (SubTableData *)NdbMem_Allocate(sizeof(SubTableData));
-  }
+  unsigned sz4= (sizeof(SubTableData)+3)>>2;
+  Uint32 *ptr= (Uint32*)NdbMem_Allocate((sz4 +
+					 f_ptr[0].sz +
+					 f_ptr[1].sz +
+					 f_ptr[2].sz) * sizeof(Uint32));
+  if (t_sdata)
+    NdbMem_Free((char*)t_sdata);
+  t_sdata= (SubTableData *)ptr;
   memcpy(t_sdata,f_sdata,sizeof(SubTableData));
+  ptr+= sz4;
+
   for (int i = 0; i < 3; i++) {
     LinearSectionPtr & f_p = f_ptr[i];
     LinearSectionPtr & t_p = t_ptr[i];
     if (f_p.sz > 0) {
-      if (t_p.p == NULL) {
-	t_p.p = (Uint32 *)NdbMem_Allocate(sizeof(Uint32)*f_p.sz);
-      } else if (t_p.sz != f_p.sz) {
-	NdbMem_Free(t_p.p);
-	t_p.p = (Uint32 *)NdbMem_Allocate(sizeof(Uint32)*f_p.sz);
-      }
+      t_p.p= (Uint32 *)ptr;
       memcpy(t_p.p, f_p.p, sizeof(Uint32)*f_p.sz);
-    } else if (t_p.p != NULL) {
-      NdbMem_Free(t_p.p);
-      t_p.p = NULL;
+      ptr+= f_p.sz;
+      t_p.sz= f_p.sz;
+    } else {
+      t_p.p= NULL;
+      t_p.sz= 0;
     }
-    t_p.sz = f_p.sz;
   }
   DBUG_RETURN(0);
 }
