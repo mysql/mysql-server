@@ -13662,10 +13662,13 @@ The @code{AUTO_INCREMENT} attribute can be used to generate an unique
 identity for new rows:
 
 @example
-CREATE TABLE animals (id MEDIUMINT NOT NULL AUTO_INCREMENT,
-name CHAR(30) NOT NULL, PRIMARY KEY (id));
+CREATE TABLE animals (
+             id MEDIUMINT NOT NULL AUTO_INCREMENT,
+             name CHAR(30) NOT NULL,
+             PRIMARY KEY (id)
+             );
 INSERT INTO animals (name) VALUES ("dog"),("cat"),("penguin"),
-("lax"),("whale");
+                                  ("lax"),("whale");
 SELECT * FROM animals;
 
 Which returns:
@@ -13688,11 +13691,13 @@ value for the autoincrement column is calculated as
 useful when you want to put data into ordered groups.
 
 @example
-CREATE TABLE animals (grp ENUM('fish','mammal','bird') NOT NULL,
-             id MEDIUMINT NOT NULL AUTO_INCREMENT
-             PRIMARY KEY (grp,id));
+CREATE TABLE animals (
+             grp ENUM('fish','mammal','bird') NOT NULL,
+             id MEDIUMINT NOT NULL AUTO_INCREMENT,
+             PRIMARY KEY (grp,id)
+             );
 INSERT INTO animals (grp,name) VALUES("mammal","dog"),("mammal","cat"),
-            ("bird","penguin"),("fish","lax"),("mammal","whale");
+                  ("bird","penguin"),("fish","lax"),("mammal","whale");
 SELECT * FROM animals ORDER BY grp,id;
 
 Which returns:
