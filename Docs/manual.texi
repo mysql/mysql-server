@@ -19601,7 +19601,7 @@ The value of the @code{--datadir} option.
 
 @item @code{delay_key_write}
 If enabled (is on by default), MySQL will honor the
-@code{delay_key_write} option @code{CREATE TABLE}.  This means that the
+@code{DELAY_KEY_WRITE} option for @code{CREATE TABLE}.  This means that the
 key buffer for tables with this option will not get flushed on every
 index update, but only when a table is closed.  This will speed up
 writes on keys a lot, but you should add automatic checking of all tables
@@ -19637,12 +19637,12 @@ very little resources.
 
 @item @code{ft_min_word_len}
 The minimum length of the word to be included in a @code{FULLTEXT} index.
-@strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
+@strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
 this variable.}
 
 @item @code{ft_max_word_len}
 The maximum length of the word to be included in a @code{FULLTEXT} index.
-@strong{Note: @code{FULLTEXT} index have to be rebuilt after changing
+@strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
 this variable.}
 
 @item @code{ft_max_word_len_sort}
@@ -19652,11 +19652,10 @@ to be used in fast index recreation method in @code{REPAIR},
 slow way.  The rule of the thumb is as follows: with
 @code{ft_max_word_len_sort} increasing, @strong{MySQL} will create bigger
 temporary files (thus slowing the process down, due to disk I/O), and will put
-fewer keys in one sort block (againg, decreasing the efficiency).  When
+fewer keys in one sort block (again, decreasing the efficiency).  When
 @code{ft_max_word_len_sort} is too small, instead, @strong{MySQL} will insert a
-lot of words into index the slow way - but short words will be inserted very
-fast. It applies only to index recreation during @code{REPAIR},
-@code{CREATE INDEX}, or @code{ALTER TABLE}.
+lot of words into index the slow way, but short words will be inserted very
+quickly.
 
 @item @code{ft_boolean_syntax}
 List of operators supported by @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
@@ -19714,7 +19713,7 @@ status} and examine the variables @code{Key_read_requests},
 The @code{Key_write/Key_write_requests} is usually near 1 if you are
 using mostly updates/deletes but may be much smaller if you tend to
 do updates that affect many at the same time or if you are
-using @code{delay_key_write}. @xref{SHOW}.
+using @code{delay_key_write}. @xref{SHOW, , @code{SHOW}}.
 
 To get even more speed when writing many rows at the same time, use
 @code{LOCK TABLES}.  @xref{LOCK TABLES, , @code{LOCK TABLES}}.
@@ -19908,11 +19907,11 @@ This may be set (only numeric) to
 @item 2 @tab DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
 @end multitable
 
-@item @code{safe_show_databases}
+@item @code{safe_show_database}
 Don't show databases for which the user doesn't have any database or
 table privileges. This can improve security if you're concerned about
 people being able to see what databases other users have. See also
-@code{skip_show_databases}.
+@code{skip_show_database}.
 
 @item @code{server_id}
 The value of the @code{--server-id} option.
@@ -19923,11 +19922,11 @@ Is OFF if @code{mysqld} uses external locking.
 @item @code{skip_networking}
 Is ON if we only allow local (socket) connections.
 
-@item @code{skip_show_databases}
+@item @code{skip_show_database}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
 the @strong{process} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
-have. See also @code{safe_show_databases}.
+have. See also @code{safe_show_database}.
 
 @item @code{slave_read_timeout}
 Number of seconds to wait for more data from a master/slave connection
@@ -19950,15 +19949,15 @@ operations.
 The number of open tables for all threads. Increasing this value
 increases the number of file descriptors that @code{mysqld} requires.
 You can check if you need to increase the table cache by checking the
-@code{Opened_tables} variable. @xref{SHOW}.  If this variable is big and
-you don't do @code{FLUSH TABLES} a lot (which just forces all tables to
-be closed and reopenend), then you should increase the value of this
+@code{Opened_tables} variable. @xref{SHOW, , @code{SHOW}}.  If this variable
+is big and you don't do @code{FLUSH TABLES} a lot (which just forces all
+tables to be closed and reopenend), then you should increase the value of this
 variable.
 
 For more information about the table cache, see @ref{Table cache}.
 
 @item @code{table_type}
-The default table type
+The default table type.
 
 @item @code{thread_cache_size}
 How many threads we should keep in a cache for reuse.  When a
@@ -39485,7 +39484,7 @@ calculate the query.
 
 You may also want to change @code{binlog_cache_size} and
 @code{max_binlog_cache_size} if you are using big multi-line transactions.
-@xref{COMMIT}.
+@xref{COMMIT, , @code{COMMIT}}.
 
 
 @node BDB characteristics, BDB TODO, BDB start, BDB
