@@ -123,6 +123,7 @@ public:
   }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
+  virtual uint32 pack_length_in_rec() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
   virtual void set_default()
@@ -1237,6 +1238,7 @@ public:
   { get_key_image(buff, length, itRAW); }
   uint32 pack_length() const 
   { return (uint32) field_length + (bit_len > 0); }
+  uint32 pack_length_in_rec() const { return field_length; }
   void sql_type(String &str) const;
   field_cast_enum field_cast_type() { return FIELD_CAST_BIT; }
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
