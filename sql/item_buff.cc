@@ -57,7 +57,7 @@ bool Item_str_buff::cmp(void)
   else if (null_value)
     return 0;					// new and old value was null
   else
-    tmp= sortcmp(&value,res,item->charset()) != 0;
+    tmp= sortcmp(&value,res,item->collation.collation) != 0;
   if (tmp)
     value.copy(*res);				// Remember for next cmp
   return tmp;

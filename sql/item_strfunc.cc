@@ -310,7 +310,7 @@ String *Item_func_concat::val_str(String *str)
       }
     }
   }
-  res->set_charset(charset());
+  res->set_charset(collation.collation);
   return res;
 
 null:
@@ -596,7 +596,7 @@ String *Item_func_concat_ws::val_str(String *str)
       use_as_buff=str;
     }
   }
-  res->set_charset(charset());
+  res->set_charset(collation.collation);
   return res;
 
 null:
@@ -697,7 +697,7 @@ String *Item_func_reverse::val_str(String *str)
 
 void Item_func_reverse::fix_length_and_dec()
 {
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   max_length = args[0]->max_length;
 }
 
@@ -933,7 +933,7 @@ void Item_str_func::left_right_max_length()
   max_length=args[0]->max_length;
   if (args[1]->const_item())
   {
-    int length=(int) args[1]->val_int()*charset()->mbmaxlen;
+    int length=(int) args[1]->val_int()*collation.collation->mbmaxlen;
     if (length <= 0)
       max_length=0;
     else
@@ -944,7 +944,7 @@ void Item_str_func::left_right_max_length()
 
 void Item_func_left::fix_length_and_dec()
 {
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   left_right_max_length();
 }
 
@@ -971,7 +971,7 @@ String *Item_func_right::val_str(String *str)
 
 void Item_func_right::fix_length_and_dec()
 {
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   left_right_max_length();
 }
 
@@ -1006,7 +1006,7 @@ void Item_func_substr::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
 
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
     int32 start=(int32) args[1]->val_int()-1;
@@ -1314,7 +1314,7 @@ void Item_func_trim::fix_length_and_dec()
   if (arg_count == 1)
   {
     collation.set(args[0]->collation);
-    remove.set_charset(charset());
+    remove.set_charset(collation.collation);
     remove.set_ascii(" ",1);
   }
   else
@@ -1535,7 +1535,7 @@ String *Item_func_user::val_str(String *str)
 
 void Item_func_soundex::fix_length_and_dec()
 {
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   max_length=args[0]->max_length;
   set_if_bigger(max_length,4);
 }
@@ -1567,7 +1567,7 @@ String *Item_func_soundex::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs= charset();
+  CHARSET_INFO *cs= collation.collation;
 
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -1707,7 +1707,7 @@ String *Item_func_elt::val_str(String *str)
   }
   null_value=0;
   res= args[tmp]->val_str(str);
-  res->set_charset(charset());
+  res->set_charset(collation.collation);
   return res;
 }
 
@@ -1813,7 +1813,7 @@ String *Item_func_char::val_str(String *str)
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
 #ifdef USE_MB
-      if (use_mb(charset()))
+      if (use_mb(collation.collation))
       {
         if (num&0xFF000000L) {
            str->append((char)(num>>24));
@@ -1860,7 +1860,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 
 void Item_func_repeat::fix_length_and_dec()
 {
-  set_charset(*args[0]);
+  collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
     max_length=(long) (args[0]->max_length * args[1]->val_int());
@@ -2109,7 +2109,7 @@ String *Item_func_conv_charset::val_str(String *str)
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
-  set_charset(conv_charset, DERIVATION_IMPLICIT);
+  collation.set(conv_charset, DERIVATION_IMPLICIT);
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
 }
 
@@ -2192,7 +2192,7 @@ String *Item_func_set_collation::val_str(String *str)
   str=args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;
-  str->set_charset(charset());
+  str->set_charset(collation.collation);
   return str;
 }
 
@@ -2203,7 +2203,7 @@ void Item_func_set_collation::fix_length_and_dec()
   String tmp, *str= args[1]->val_str(&tmp);
   colname= str->c_ptr();
   if (colname == binary_keyword)
-    set_collation= get_charset_by_csname(args[0]->charset()->csname,
+    set_collation= get_charset_by_csname(args[0]->collation.collation->csname,
 					 MY_CS_BINSORT,MYF(0));
   else
   {
@@ -2214,13 +2214,14 @@ void Item_func_set_collation::fix_length_and_dec()
     }
   }
 
-  if (!set_collation || !my_charset_same(args[0]->charset(),set_collation))
+  if (!set_collation || 
+      !my_charset_same(args[0]->collation.collation,set_collation))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
-      colname,args[0]->charset()->csname);
+      colname,args[0]->collation.collation->csname);
     return;
   }
-  set_charset(set_collation, DERIVATION_EXPLICIT);
+  collation.set(set_collation, DERIVATION_EXPLICIT);
   max_length= args[0]->max_length;
 }
 
@@ -2237,7 +2238,7 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
       func_name() != item_func->func_name())
     return 0;
   Item_func_set_collation *item_func_sc=(Item_func_set_collation*) item;
-  if (charset() != item_func_sc->charset())
+  if (collation.collation != item_func_sc->collation.collation)
     return 0;
   for (uint i=0; i < arg_count ; i++)
     if (!args[i]->eq(item_func_sc->args[i], binary_cmp))
@@ -2539,7 +2540,7 @@ String *Item_func_quote::val_str(String *str)
   }
   *to= '\'';
   str->length(new_length);
-  str->set_charset(charset());
+  str->set_charset(collation.collation);
   return str;
 
 null:

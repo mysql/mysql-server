@@ -193,7 +193,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     max_length=float_length(decimals);
   }else
   {
-    cmp_charset= item->charset();
+    cmp_charset= item->collation.collation;
     max_length=item->max_length;
   }
   decimals=item->decimals;
