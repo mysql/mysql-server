@@ -156,7 +156,7 @@ level	id	parent_id
 1	1007	101
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	The storage enginge for the table doesn't support optimize
+test.t1	optimize	error	The storage engine for the table doesn't support optimize
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE	
@@ -180,7 +180,7 @@ create table t1 (a int) type=innodb;
 insert into t1 values (1), (2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	The storage enginge for the table doesn't support optimize
+test.t1	optimize	error	The storage engine for the table doesn't support optimize
 delete from t1 where a = 1;
 select * from t1;
 a
@@ -712,7 +712,7 @@ world	2
 hello	1
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	The storage enginge for the table doesn't support optimize
+test.t1	optimize	error	The storage engine for the table doesn't support optimize
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	2	NULL	NULL		BTREE	
@@ -788,7 +788,7 @@ id	id3
 UNLOCK TABLES;
 DROP TABLE t1;
 create table t1 (a char(20), unique (a(5))) type=innodb;
-ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys
+ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the storage engine doesn't support unique sub keys
 create table t1 (a char(20), index (a(5))) type=innodb;
 show create table t1;
 Table	Create Table
@@ -1289,7 +1289,7 @@ a	b
 111	100
 drop table t1;
 CREATE TABLE t1 (col1 int(1))TYPE=InnoDB;
-CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP(+0),INDEX stamp_idx
+CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 (stamp))TYPE=InnoDB;
 insert into t1 values (1),(2),(3);
 insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 );

@@ -276,7 +276,7 @@ class JOIN :public Sql_alloc
   bool rollup_init();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
-  int JOIN::rollup_send_data(uint idx);
+  int rollup_send_data(uint idx);
 };
 
 

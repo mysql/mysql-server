@@ -63,7 +63,7 @@ static void init_state_maps(CHARSET_INFO *cs)
   uint i;
   uchar *state_map= cs->state_map;
   uchar *ident_map= cs->ident_map;
-  
+
   /* Fill state_map with states to get a faster parser */
   for (i=0; i < 256 ; i++)
   {
@@ -76,13 +76,12 @@ static void init_state_maps(CHARSET_INFO *cs)
       state_map[i]=(uchar) MY_LEX_IDENT;
 #endif
     else if (!my_isgraph(cs,i))
-      state_map[i]=(uchar) MY_LEX_SKIP;      
+      state_map[i]=(uchar) MY_LEX_SKIP;
     else
       state_map[i]=(uchar) MY_LEX_CHAR;
   }
   state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) MY_LEX_IDENT;
   state_map[(uchar)'\'']=(uchar) MY_LEX_STRING;
-  state_map[(uchar)'-']=state_map[(uchar)'+']=(uchar) MY_LEX_SIGNED_NUMBER;
   state_map[(uchar)'.']=(uchar) MY_LEX_REAL_OR_POINT;
   state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) MY_LEX_CMP_OP;
   state_map[(uchar)'<']= (uchar) MY_LEX_LONG_CMP_OP;

@@ -74,7 +74,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_tx_isolation tx_isolation;
-  enum Item_cast cast_type;
+  enum Cast_target cast_type;
   enum Item_udftype udf_type;
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
@@ -2294,7 +2294,8 @@ simple_expr:
 	      YYABORT;
 	  }
 	| sum_expr
-	| '-' expr %prec NEG	{ $$= new Item_func_neg($2); }
+	| '+' expr %prec NEG	{ $$= $2; }
+	| '-' expr %prec NEG    { $$= new Item_func_neg($2); }
 	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
@@ -4138,7 +4139,7 @@ literal:
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| UNDERSCORE_CHARSET HEX_NUM
-	  { 
+	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() : 0, 
@@ -4310,8 +4311,6 @@ ident:
 	  LEX *lex= Lex;
 	  $$.str= lex->thd->strmake($1.str,$1.length);
 	  $$.length=$1.length;
-	  if (lex->next_state != MY_LEX_END)
-	    lex->next_state= MY_LEX_OPERATOR_OR_IDENT;
 	}
 	;
 
