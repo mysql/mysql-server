@@ -95,21 +95,17 @@ mysqld_show_dbs(THD *thd,const char *wild)
 ** List all open tables in a database
 ***************************************************************************/
 
-int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
+int mysqld_show_open_tables(THD *thd,const char *wild)
 {
-  Item_string *field=new Item_string("",0);
   List<Item> field_list;
-  char *end,*table_name;
-  List<char> tables;
+  OPEN_TABLE_LIST *open_list;
+  CONVERT *convert=thd->convert_set;
   DBUG_ENTER("mysqld_show_open_tables");
 
-  field->name=(char*) thd->alloc(20+(uint) strlen(db)+(wild ? (uint) strlen(wild)+4:0));
-  end=strxmov(field->name,"Open_tables_in_",db,NullS);
-  if (wild && wild[0])
-    strxmov(end," (",wild,")",NullS);
-  field->max_length=NAME_LEN;
-  field_list.push_back(field);
-  field_list.push_back(new Item_empty_string("Comment",80));
+  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Table",NAME_LEN));
+  field_list.push_back(new Item_int("In_use",0, 4));
+  field_list.push_back(new Item_int("Name_locked",0, 4));
 
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
@@ -117,12 +113,13 @@ int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
   if (!(list_open_tables(thd,&tables,db,wild)) && thd->fatal_error)
     DBUG_RETURN(-1);
 
-  List_iterator<char> it(tables);
-  while ((table_name=it++))
+  for ( ; open_list ; open_list=open_list->next)
   {
     thd->packet.length(0);
-    net_store_data(&thd->packet,table_name);
-    net_store_data(&thd->packet,query_table_status(thd,db,table_name));
+    net_store_data(&thd->packet,convert, open_list->db);
+    net_store_data(&thd->packet,convert, open_list->table);
+    net_store_data(&thd->packet,open_list->in_use);
+    net_store_data(&thd->packet,open_list->locked);
     if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
       DBUG_RETURN(-1);
   }
