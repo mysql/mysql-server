@@ -5,11 +5,16 @@ dist-hook:
 	for lang in @AVAILABLE_LANGUAGES@ charsets; \
 	do cp -a $(srcdir)/$$lang $(distdir); done
 
+all:
+	for lang in @AVAILABLE_LANGUAGES@; \
+	do \
+		../../extra/comp_err $(srcdir)/$$lang/errmsg.txt $(srcdir)/$$lang/errmsg.sys; \
+	done
+
 install-data-local:
 	for lang in @AVAILABLE_LANGUAGES@; \
 	do \
 		$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/$$lang; \
-		../../extra/comp_err $(srcdir)/$$lang/errmsg.txt $(srcdir)/$$lang/errmsg.sys; \
 		$(INSTALL_DATA) $(srcdir)/$$lang/errmsg.sys \
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.sys; \
 		$(INSTALL_DATA) $(srcdir)/$$lang/errmsg.txt \

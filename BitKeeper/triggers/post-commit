@@ -1,10 +1,10 @@
 #!/bin/sh
 
-shift
+#shift
 TO=dev@mysql.com
 FROM=$USER@mysql.com
 
-if [ "$BK_COMMIT" = OK ]
+if [ "$BK_STATUS" = OK ]
 then 
  echo "Commit successful, notifying developers at $TO"
  (
@@ -18,5 +18,5 @@ EOF
   bk cset -r+ -d
  ) | /usr/sbin/sendmail -t
 else
- echo "commit failed because '$BK_COMMIT', sorry life is hard..." 
+ echo "commit failed because '$BK_STATUS', sorry life is hard..." 
 fi
