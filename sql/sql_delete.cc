@@ -51,6 +51,12 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (setup_conds(thd, delete_table_list, &conds) || 
       setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_INSERT_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
@@ -134,9 +140,11 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   deleted=0L;
   init_ftfuncs(thd, &thd->lex.select_lex, 1);
   thd->proc_info="updating";
-  while (!(error=info.read_record(&info)) && !thd->killed)
+  while (!(error=info.read_record(&info)) && !thd->killed &&
+	 !thd->net.report_error)
   {
-    if (!(select && select->skipp_record()))
+    // thd->net.report_error is tested to disallow delete row on error
+    if (!(select && select->skipp_record())&& !thd->net.report_error )
     {
       if (!(error=table->file->delete_row(table->record[0])))
       {
@@ -199,7 +207,7 @@ cleanup:
     thd->lock=0;
   }
   delete select;
-  if (error >= 0)				// Fatal error
+  if (error >= 0 || thd->net.report_error)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else
   {

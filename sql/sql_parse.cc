@@ -60,7 +60,6 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
-static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
@@ -1803,7 +1802,7 @@ mysql_execute_command(THD *thd)
       select_result *result;
 
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-	  check_dup(tables->db, tables->real_name, tables->next))
+	  find_real_table_in_list(tables->next, tables->db, tables->real_name))
       {
 	net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
 	DBUG_VOID_RETURN;
@@ -2059,6 +2058,8 @@ mysql_execute_command(THD *thd)
                       (ORDER *) select_lex->order_list.first,
                       select_lex->select_limit,
                       lex->duplicates);
+    if (thd->net.report_error)
+      res= -1;
     break;
   case SQLCOM_UPDATE_MULTI:
     if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
@@ -2118,6 +2119,8 @@ mysql_execute_command(THD *thd)
 			  SELECT_NO_JOIN_CACHE,
 			  result, unit, select_lex, 0);
 	delete result;
+	if (thd->net.report_error)
+	  res= -1;
       }
       else
 	res= -1;					// Error is not sent
@@ -2135,6 +2138,8 @@ mysql_execute_command(THD *thd)
       goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
 		       lex->duplicates);
+    if (thd->net.report_error)
+      res= -1;
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -2165,7 +2170,7 @@ mysql_execute_command(THD *thd)
     if (unit->select_limit_cnt < select_lex->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
-    if (check_dup(tables->db, tables->real_name, tables->next))
+    if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
       net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
       DBUG_VOID_RETURN;
@@ -2179,6 +2184,8 @@ mysql_execute_command(THD *thd)
       if ((result=new select_insert(tables->table,&lex->field_list,
 				    lex->duplicates)))
 	res=handle_select(thd,lex,result);
+      if (thd->net.report_error)
+	res= -1;
     }
     else
       res= -1;
@@ -2209,6 +2216,8 @@ mysql_execute_command(THD *thd)
     res = mysql_delete(thd,tables, select_lex->where,
                        (ORDER*) select_lex->order_list.first,
                        select_lex->select_limit, select_lex->options);
+    if (thd->net.report_error)
+      res= -1;
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -2258,6 +2267,17 @@ mysql_execute_command(THD *thd)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
+    if (&lex->select_lex != lex->all_selects_list)
+      for (TABLE_LIST *t= select_lex->get_table_list();
+	   t; t= t->next)
+      {
+	if (find_real_table_in_list(t->table_list->next, t->db, t->real_name))
+	{
+	  my_error(ER_INSERT_TABLE_USED, MYF(0), t->real_name);
+	  res= -1;
+	  break;
+	}
+      }
     fix_tables_pointers(lex->all_selects_list);
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
@@ -2270,6 +2290,8 @@ mysql_execute_command(THD *thd)
 			select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE,
 			result, unit, select_lex, 0);
+      if (thd->net.report_error)
+	res= -1;
       delete result;
     }
     else
@@ -3568,9 +3590,15 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
   }
 
   if (!alias)					/* Alias is case sensitive */
+  {
+    if (table->sel)
+    {
+      net_printf(thd,ER_DERIVED_MUST_HAVE_ALIAS);
+      DBUG_RETURN(0);
+    }
     if (!(alias_str=thd->memdup(alias_str,table->table.length+1)))
       DBUG_RETURN(0);
-
+  }
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   if (table->db.str)
@@ -3677,16 +3705,6 @@ void add_join_on(TABLE_LIST *b,Item *expr)
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
 {
   b->natural_join=a;
-}
-
-	/* Check if name is used in table list */
-
-static bool check_dup(const char *db, const char *name, TABLE_LIST *tables)
-{
-  for (; tables ; tables=tables->next)
-    if (!strcmp(name,tables->real_name) && !strcmp(db,tables->db))
-      return 1;
-  return 0;
 }
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
