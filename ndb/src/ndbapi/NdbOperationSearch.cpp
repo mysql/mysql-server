@@ -146,6 +146,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     if (cs != 0) {
       // current limitation: strxfrm does not increase length
       assert(cs->strxfrm_multiply == 1);
+      ((Uint32*)xfrmData)[sizeInBytes >> 2] = 0;
       unsigned n =
       (*cs->coll->strnxfrm)(cs,
                             (uchar*)xfrmData, sizeof(xfrmData),
@@ -230,13 +231,10 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       tErrorLine++;
       theErrorLine = tErrorLine;
 
-      if (tNoKeysDef == 0) {
-	if (tDistrKey &&
-	    handle_distribution_key((Uint64*)aValue, totalSizeInWords))
-	{
-	  return -1;
-	}
-	
+      if(tDistrKey)
+	handle_distribution_key((Uint64*)aValue, totalSizeInWords);
+      
+      if (tNoKeysDef == 0) {	
 	if (tOpType == UpdateRequest) {
 	  if (tInterpretInd == 1) {
 	    theStatus = GetValue;
@@ -521,19 +519,15 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
   if(theDistrKeyIndicator_ == 1 || 
      (theNoOfTupKeyLeft > 0 && m_accessTable->m_noOfDistributionKeys > 1))
   {
-    ndbout_c("handle_distribution_key - exit");
     return 0;
   }
   
   if(m_accessTable->m_noOfDistributionKeys == 1)
   {
     setPartitionHash(value, len);
-    ndbout_c("handle_distribution_key - 1 key");
   }
   else 
   {
-    ndbout_c("handle_distribution_key - long");
-
     /**
      * Copy distribution key to linear memory
      */
