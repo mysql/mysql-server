@@ -1718,7 +1718,7 @@ insert into tmp select * from t3;
 insert into t3 select * from tmp;
 alter table t3 add t2nr int not null auto_increment primary key first;
 drop table tmp;
-SET OPTION SQL_BIG_TABLES=1;
+SET SQL_BIG_TABLES=1;
 select distinct concat(fld3," ",fld3) as namn from t2,t3 where t2.fld1=t3.t2nr order by namn limit 10;
 namn
 Abraham Abraham
@@ -1731,7 +1731,7 @@ ammonium ammonium
 analyzable analyzable
 animals animals
 animized animized
-SET OPTION SQL_BIG_TABLES=0;
+SET SQL_BIG_TABLES=0;
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
 concat(fld3," ",fld3)
 Abraham Abraham
@@ -1768,7 +1768,7 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
-SET OPTION SQL_BIG_TABLES=1;
+SET SQL_BIG_TABLES=1;
 select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
 fld3	count(*)
 affixed	1
@@ -1781,7 +1781,7 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
-SET OPTION SQL_BIG_TABLES=0;
+SET SQL_BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
 circus	aaaaaa	1
@@ -1809,6 +1809,18 @@ explain select t3.t2nr,fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t2	ALL	fld1	NULL	NULL	NULL	1199	where used; Using temporary; Using filesort
 t3	eq_ref	PRIMARY	PRIMARY	4	t2.fld1	1	where used; Using index
+explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	period	NULL	NULL	NULL	41810	Using temporary; Using filesort
+t3	ref	period	period	4	t1.period	4181	
+explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t3	index	period	period	4	NULL	41810	
+t1	ref	period	period	4	t3.period	4181	
+explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	index	period	period	4	NULL	41810	
+t3	ref	period	period	4	t1.period	4181	
 select period from t1;
 period
 9410

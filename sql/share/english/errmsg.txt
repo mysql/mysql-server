@@ -150,7 +150,7 @@
 "Table '%-.64s.%-.64s' doesn't exist",
 "There is no such grant defined for user '%-.32s' on host '%-.64s' on table '%-.64s'",
 "The used command is not allowed with this MySQL version",
-"You have an error in your SQL syntax",
+"You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use",
 "Delayed insert thread couldn't get requested lock for table %-.64s",
 "Too many delayed threads in use",
 "Aborted connection %ld to db: '%-.64s' user: '%-.32s' (%-.64s)",
