@@ -797,3 +797,11 @@ select * from t1;
 select * from t2;
 
 drop table t1,t2;
+CREATE TABLE t2 (   NEXT_T         BIGINT NOT NULL PRIMARY KEY) TYPE=MyISAM;
+CREATE TABLE t1 (  B_ID           INTEGER NOT NULL PRIMARY KEY) TYPE=InnoDB;
+SET AUTOCOMMIT=0;
+INSERT INTO t1 ( B_ID ) VALUES ( 1 );
+INSERT INTO t2 ( NEXT_T ) VALUES ( 1 );
+ROLLBACK;
+SELECT * FROM t1;
+drop table  t1,t2;
