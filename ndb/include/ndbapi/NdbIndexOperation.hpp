@@ -49,6 +49,9 @@ public:
    * @{
    */
 
+  /** insert is not allowed */
+  int insertTuple();
+
   /**
    * Define the NdbIndexOperation to be a standard operation of type readTuple.
    * When calling NdbConnection::execute, this operation
@@ -193,6 +196,7 @@ private:
 
   // Private attributes
   const NdbIndexImpl* m_theIndex;
+  const NdbTableImpl* m_thePrimaryTable;
   Uint32 m_theIndexDefined[NDB_MAX_ATTRIBUTES_IN_INDEX][3];
   Uint32 m_theIndexLen;	  	 // Length of the index in words
   Uint32 m_theNoOfIndexDefined;  // The number of index attributes
