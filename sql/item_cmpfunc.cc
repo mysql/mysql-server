@@ -292,9 +292,11 @@ void Item_func_interval::fix_length_and_dec()
     }
   }
   maybe_null=0; max_length=2;
-  used_tables_cache|=item->used_tables();
+  used_tables_cache|=     item->used_tables();
+  not_null_tables_cache&= item->not_null_tables();
   with_sum_func= with_sum_func || item->with_sum_func;
 }
+
 
 void Item_func_interval::split_sum_func(List<Item> &fields)
 {
@@ -1073,8 +1075,9 @@ void Item_func_in::fix_length_and_dec()
   }
   maybe_null= item->maybe_null;
   max_length=2;
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
+  used_tables_cache|=     item->used_tables();
+  not_null_tables_cache&= item->not_null_tables();
+  const_item_cache&=      item->const_item();
 }
 
 
@@ -1174,14 +1177,21 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
   char buff[sizeof(char*)];			// Max local vars in function
   used_tables_cache=0;
   const_item_cache=0;
+  /*
+    and_table_cache is the value that Item_cond_or() returns for
+    not_null_tables()
+  */
+  and_tables_cache= ~(table_map) 0;
 
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error flag is set!
   while ((item=li++))
   {
+    table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
 	   ((Item_cond*) item)->functype() == functype())
     {						// Identical function
+
       li.replace(((Item_cond*) item)->list);
       ((Item_cond*) item)->list.empty();
 #ifdef DELETE_ITEMS
@@ -1193,9 +1203,12 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
       item->top_level_item();
     if (item->fix_fields(thd,tables))
       return 1; /* purecov: inspected */
-    used_tables_cache|=item->used_tables();
-    with_sum_func= with_sum_func || item->with_sum_func;
-    const_item_cache&=item->const_item();
+    used_tables_cache|=     item->used_tables();
+    tmp_table_map=	    item->not_null_tables();
+    not_null_tables_cache|= tmp_table_map;
+    and_tables_cache&=      tmp_table_map;
+    const_item_cache&=	    item->const_item();
+    with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -1234,17 +1247,19 @@ Item_cond::used_tables() const
   return used_tables_cache;
 }
 
+
 void Item_cond::update_used_tables()
 {
-  used_tables_cache=0;
-  const_item_cache=1;
   List_iterator_fast<Item> li(list);
   Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
   while ((item=li++))
   {
     item->update_used_tables();
-    used_tables_cache|=item->used_tables();
-    const_item_cache&= item->const_item();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
   }
 }
 
@@ -1348,12 +1363,16 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
   {
     Item_cond *res;
     if ((res= new Item_cond_and(a, (Item*) b)))
+    {
       res->used_tables_cache= a->used_tables() | b->used_tables();
+      res->not_null_tables_cache= a->not_null_tables() | b->not_null_tables();
+    }
     return res;
   }
   if (((Item_cond_and*) a)->add((Item*) b))
     return 0;
   ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
+  ((Item_cond_and*) a)->not_null_tables_cache|= b->not_null_tables();
   return a;
 }
 
@@ -1489,6 +1508,8 @@ Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
   max_length=1; decimals=0;
   binary=args[0]->binary || args[1]->binary;
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
+  not_null_tables_cache= (args[0]->not_null_tables() |
+			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
