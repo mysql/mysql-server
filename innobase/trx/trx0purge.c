@@ -226,9 +226,9 @@ trx_purge_sys_create(void)
 						   value */
 	purge_sys->sess = sess_open(com_endpoint, (byte*)"purge_system", 13);
 
-	purge_sys->trx = (purge_sys->sess)->trx;
+	purge_sys->trx = purge_sys->sess->trx;
 
-	(purge_sys->trx)->type = TRX_PURGE;
+	purge_sys->trx->type = TRX_PURGE;
 
 	ut_a(trx_start_low(purge_sys->trx, ULINT_UNDEFINED));
 

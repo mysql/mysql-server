@@ -1088,7 +1088,15 @@ loop:
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	for (;;) {
-		ut_a(node);
+		if (node == NULL) {
+			fprintf(stderr,
+	"InnoDB: Error: trying to access page number %lu in space %lu\n"
+	"InnoDB: which is outside the tablespace bounds.\n"
+	"InnoDB: Byte offset %lu, len %lu, i/o type %lu\n", 
+ 			block_offset, space_id, byte_offset, len, type);
+ 			
+			ut_a(0);
+		}
 
 		if (node->size > block_offset) {
 			/* Found! */

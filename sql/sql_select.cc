@@ -5962,10 +5962,10 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
 
 
 /*****************************************************************************
-**	Fill join cache with packed records
-**	Records are stored in tab->cache.buffer and last record in
-**	last record is stored with pointers to blobs to support very big
-**	records
+  Fill join cache with packed records
+  Records are stored in tab->cache.buffer and last record in
+  last record is stored with pointers to blobs to support very big
+  records
 ******************************************************************************/
 
 static int
@@ -6027,7 +6027,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     if (null_fields && tables[i].table->null_fields)
     {						/* must copy null bits */
       copy->str=(char*) tables[i].table->null_flags;
-      copy->length=(tables[i].table->null_fields+7)/8;
+      copy->length=tables[i].table->null_bytes;
       copy->strip=0;
       copy->blob_field=0;
       length+=copy->length;

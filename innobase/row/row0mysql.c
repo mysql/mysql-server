@@ -26,6 +26,19 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0purge.h"
 #include "lock0lock.h"
 #include "rem0cmp.h"
+#include "log0log.h"
+
+/* List of tables we should drop in background. ALTER TABLE in MySQL requires
+that the table handler can drop the table in background when there are no
+queries to it any more. Protected by the kernel mutex. */
+typedef struct row_mysql_drop_struct	row_mysql_drop_t;
+struct row_mysql_drop_struct{
+	char*				table_name;
+	UT_LIST_NODE_T(row_mysql_drop_t) row_mysql_drop_list;
+};
+
+UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
+ibool	row_mysql_drop_list_inited 	= FALSE;
 
 /***********************************************************************
 Reads a MySQL format variable-length field (like VARCHAR) length and
@@ -172,10 +185,22 @@ handle_new_error:
 			trx_general_rollback_for_mysql(trx, TRUE, savept);
 		}
 	} else if (err == DB_TOO_BIG_RECORD) {
+           	if (savept) {
+			/* Roll back the latest, possibly incomplete
+			insertion or update */
+
+			trx_general_rollback_for_mysql(trx, TRUE, savept);
+		}
 		/* MySQL will roll back the latest SQL statement */
 	} else if (err == DB_ROW_IS_REFERENCED
 		   || err == DB_NO_REFERENCED_ROW
 		   || err == DB_CANNOT_ADD_CONSTRAINT) {
+           	if (savept) {
+			/* Roll back the latest, possibly incomplete
+			insertion or update */
+
+			trx_general_rollback_for_mysql(trx, TRUE, savept);
+		}
 		/* MySQL will roll back the latest SQL statement */
 	} else if (err == DB_LOCK_WAIT) {
 
@@ -200,6 +225,12 @@ handle_new_error:
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 				
 	} else if (err == DB_OUT_OF_FILE_SPACE) {
+           	if (savept) {
+			/* Roll back the latest, possibly incomplete
+			insertion or update */
+
+			trx_general_rollback_for_mysql(trx, TRUE, savept);
+		}
 		/* MySQL will roll back the latest SQL statement */
 
 	} else if (err == DB_MUST_GET_MORE_FILE_SPACE) {
@@ -375,13 +406,13 @@ row_update_prebuilt_trx(
 					handle */
 	trx_t*		trx)		/* in: transaction handle */
 {	
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+	if (trx->magic_n != TRX_MAGIC_N) {
 		fprintf(stderr,
-		"InnoDB: Error: trying to free a corrupt\n"
-		"InnoDB: table handle. Magic n %lu, table name %s\n",
-		prebuilt->magic_n, prebuilt->table->name);
+		"InnoDB: Error: trying to use a corrupt\n"
+		"InnoDB: trx handle. Magic n %lu\n",
+		trx->magic_n);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption((byte*)trx);
 
 		ut_a(0);
 	}
@@ -1172,8 +1203,11 @@ row_create_table_for_mysql(
 		     	row_drop_table_for_mysql(table->name, trx, TRUE);
 		} else {
 		       	ut_a(err == DB_DUPLICATE_KEY);
+
+	    		ut_print_timestamp(stderr);
+
 			fprintf(stderr, 
-     "InnoDB: Error: table %s already exists in InnoDB internal\n"
+     "  InnoDB: Error: table %s already exists in InnoDB internal\n"
      "InnoDB: data dictionary. Have you deleted the .frm file\n"
      "InnoDB: and not used DROP TABLE? Have you used DROP DATABASE\n"
      "InnoDB: for InnoDB tables in MySQL version <= 3.23.43?\n"
@@ -1349,6 +1383,164 @@ row_table_add_foreign_constraints(
 	mutex_exit(&(dict_sys->mutex));
 
 	return((int) err);
+}
+
+/*************************************************************************
+Drops a table for MySQL as a background operation. MySQL relies on Unix
+in ALTER TABLE to the fact that the table handler does not remove the
+table before all handles to it has been removed. Furhermore, the MySQL's
+call to drop table must be non-blocking. Therefore we do the drop table
+as a background operation, which is taken care of by the master thread
+in srv0srv.c. */
+static
+int
+row_drop_table_for_mysql_in_background(
+/*===================================*/
+			/* out: error code or DB_SUCCESS */
+	char*	name)	/* in: table name */
+{
+	ulint	error;
+	trx_t*	trx;
+
+	trx = trx_allocate_for_background();
+
+/*	fprintf(stderr, "InnoDB: Dropping table %s in background drop list\n",
+							name); */
+  	/* Drop the table in InnoDB */
+
+  	error = row_drop_table_for_mysql(name, trx, FALSE);
+
+	if (error != DB_SUCCESS) {
+		fprintf(stderr,
+	"InnoDB: Error: Dropping table %s in background drop list failed\n",
+								name);
+	}
+  	
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+	
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+
+  	trx_commit_for_mysql(trx);
+
+  	trx_free_for_background(trx);
+
+	return(DB_SUCCESS);
+}
+
+/*************************************************************************
+The master thread in srv0srv.c calls this regularly to drop tables which
+we must drop in background after queries to them have ended. Such lazy
+dropping of tables is needed in ALTER TABLE on Unix. */
+
+ulint
+row_drop_tables_for_mysql_in_background(void)
+/*=========================================*/
+					/* out: how many tables dropped
+					+ remaining tables in list */
+{
+	row_mysql_drop_t*	drop;
+	dict_table_t*		table;
+	ulint			n_tables;
+	ulint			n_tables_dropped = 0;
+loop:	
+	mutex_enter(&kernel_mutex);
+
+	if (!row_mysql_drop_list_inited) {
+
+		UT_LIST_INIT(row_mysql_drop_list);
+		row_mysql_drop_list_inited = TRUE;
+	}
+
+	drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
+	
+	n_tables = UT_LIST_GET_LEN(row_mysql_drop_list);
+
+	mutex_exit(&kernel_mutex);
+
+	if (drop == NULL) {
+
+		return(n_tables + n_tables_dropped);
+	}
+
+	mutex_enter(&(dict_sys->mutex));
+	table = dict_table_get_low(drop->table_name);
+	mutex_exit(&(dict_sys->mutex));
+
+	if (table->n_mysql_handles_opened > 0) {
+
+		return(n_tables + n_tables_dropped);
+	}
+
+	n_tables_dropped++;
+							
+	row_drop_table_for_mysql_in_background(drop->table_name);
+
+	mutex_enter(&kernel_mutex);
+
+	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
+
+	mem_free(drop->table_name);
+
+	mem_free(drop);
+
+	mutex_exit(&kernel_mutex);
+
+	goto loop;
+}
+
+/*************************************************************************
+Get the background drop list length. NOTE: the caller must own the kernel
+mutex! */
+
+ulint
+row_get_background_drop_list_len_low(void)
+/*======================================*/
+					/* out: how many tables in list */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+
+	if (!row_mysql_drop_list_inited) {
+
+		UT_LIST_INIT(row_mysql_drop_list);
+		row_mysql_drop_list_inited = TRUE;
+	}
+	
+	return(UT_LIST_GET_LEN(row_mysql_drop_list));
+}
+
+/*************************************************************************
+Adds a table to the list of tables which the master thread drops in
+background. We need this on Unix because in ALTER TABLE MySQL may call
+drop table even if the table has running queries on it. */
+static
+void
+row_add_table_to_background_drop_list(
+/*==================================*/
+	dict_table_t*	table)	/* in: table */
+{
+	row_mysql_drop_t*	drop;
+	
+	drop = mem_alloc(sizeof(row_mysql_drop_t));
+
+	drop->table_name = mem_alloc(1 + ut_strlen(table->name));
+
+	ut_memcpy(drop->table_name, table->name, 1 + ut_strlen(table->name));
+
+	mutex_enter(&kernel_mutex);
+
+	if (!row_mysql_drop_list_inited) {
+
+		UT_LIST_INIT(row_mysql_drop_list);
+		row_mysql_drop_list_inited = TRUE;
+	}
+
+	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
+	
+/*	fprintf(stderr, "InnoDB: Adding table %s to background drop list\n",
+							drop->table_name); */
+	mutex_exit(&kernel_mutex);
 }
 
 /*************************************************************************
@@ -1541,9 +1733,10 @@ row_drop_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
+	    	ut_print_timestamp(stderr);
 
 		fprintf(stderr, 
-     	"InnoDB: Error: table %s does not exist in the InnoDB internal\n"
+     	"  InnoDB: Error: table %s does not exist in the InnoDB internal\n"
      	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n",
@@ -1551,41 +1744,18 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	if (table->n_mysql_handles_opened > 0) {
+		
+		row_add_table_to_background_drop_list(table);
+
+		err = DB_SUCCESS;
+
+		goto funct_exit;
+	}
+
 	/* Remove any locks there are on the table or its records */
 	
 	lock_reset_all_on_table(table);
-loop:
-	if (table->n_mysql_handles_opened > 0) {
-		rw_lock_s_unlock(&(purge_sys->purge_is_running));
-
-		rw_lock_x_unlock(&(dict_foreign_key_check_lock));
-
-		mutex_exit(&(dict_sys->mutex));
-
-		if (rounds > 60) {
-			fprintf(stderr,
-	"InnoDB: waiting for queries to table %s to end before dropping it\n",
-								name);
-		}
-		
-		os_thread_sleep(1000000);
-
-		mutex_enter(&(dict_sys->mutex));
-		
-		rw_lock_x_lock(&(dict_foreign_key_check_lock));
-
-		rw_lock_s_lock(&(purge_sys->purge_is_running));
-
-		rounds++;
-
-		if (rounds > 120) {
-			fprintf(stderr,
-"InnoDB: Warning: queries to table %s have not ended but we continue anyway\n",
-								name);
-		} else {
-			goto loop;
-		}
-	}
 
 	trx->dict_operation = TRUE;
 	trx->table_id = table->id;
@@ -1621,6 +1791,8 @@ funct_exit:
   	trx_commit_for_mysql(trx);
 
 	trx->op_info = (char *) "";
+
+	srv_wake_master_thread();
 
 	return((int) err);
 }
@@ -1793,7 +1965,31 @@ row_rename_table_for_mysql(
 	err = trx->error_state;
 
 	if (err != DB_SUCCESS) {
-		row_mysql_handle_errors(&err, trx, thr, NULL);
+		if (err == DB_DUPLICATE_KEY) {
+	    		ut_print_timestamp(stderr);
+
+			fprintf(stderr,
+     "  InnoDB: Error: table %s exists in the InnoDB internal data\n"
+     "InnoDB: dictionary though MySQL is trying rename table %s to it.\n"
+     "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n",
+			new_name, old_name);
+
+			fprintf(stderr,
+     "InnoDB: If table %s is a temporary table #sql..., then it can be that\n"
+     "InnoDB: there are still queries running on the table, and it will be\n"
+     "InnoDB: dropped automatically when the queries end.\n", new_name);
+			
+			fprintf(stderr,
+     "InnoDB: You can drop the orphaned table inside InnoDB by\n"
+     "InnoDB: creating an InnoDB table with the same name in another\n"
+     "InnoDB: database and moving the .frm file to the current database.\n"
+     "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
+     "InnoDB: succeed.\n");
+		}
+
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx->error_state = DB_SUCCESS;
 	} else {
 		ut_a(dict_table_rename_in_cache(table, new_name));
 	}
@@ -1950,7 +2146,7 @@ row_check_table_for_mysql(
 	ulint		ret 	= DB_SUCCESS;
 
 	prebuilt->trx->op_info = (char *) "checking table";
-	
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
