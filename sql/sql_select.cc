@@ -608,7 +608,7 @@ JOIN::optimize()
       !(select_options & SELECT_NO_UNLOCK))
   {
     TABLE **curr_table, **end;
-    for (curr_table= table, end=cur_table + const_tables ;
+    for (curr_table= table, end=curr_table + const_tables ;
 	 curr_table != end;
 	 curr_table++)
     {
@@ -1411,7 +1411,7 @@ JOIN::exec()
 	  if (!(curr_table->select->cond=
 		new Item_cond_and(curr_table->select->cond, sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	curr_table->select_cond= cur_table->select->cond;
+	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having"););
