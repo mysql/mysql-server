@@ -2053,14 +2053,18 @@ int main(int argc, char **argv)
   {
     if (argc == 2)
     {
+      char path[FN_REFLEN];
+      my_path(path, argv[0], "");		   // Find name in path
+      fn_format(path,argv[0],path,"",1+4+16);    // Force use of full path
+
       if (!strcmp(argv[1],"-install") || !strcmp(argv[1],"--install"))
       {
-	char path[FN_REFLEN];
-	my_path(path, argv[0], "");		   // Find name in path
-	fn_format(path,argv[0],path,"",1+4+16);    // Force use of full path
-	if (!Service.Install(MYSQL_SERVICENAME,MYSQL_SERVICENAME,path))
-	  MessageBox(NULL,"Failed to install Service",MYSQL_SERVICENAME,
-		     MB_OK|MB_ICONSTOP);
+	Service.Install(1,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
+	return 0;
+      }
+      else if (!strcmp(argv[1],"-install-manual") || !strcmp(argv[1],"--install-manual"))
+      {
+        Service.Install(0,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
 	return 0;
       }
       else if (!strcmp(argv[1],"-remove") || !strcmp(argv[1],"--remove"))
