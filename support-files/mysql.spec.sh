@@ -260,7 +260,7 @@ export PATH
 
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
 # including exceptions into the code
-test -z $CXX && test -z $CC
+if [ -z "$CXX" -a -z "$CC" ]
 then
 	export CC="gcc"
 	export CXX="gcc"
