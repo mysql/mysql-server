@@ -1617,20 +1617,21 @@ trx_print(
 		(ulong) ut_dulint_get_high(trx->id),
 		 (ulong) ut_dulint_get_low(trx->id));
 
-  	switch (trx->conc_state) {
+        switch (trx->conc_state) {
 		case TRX_NOT_STARTED:
 			fputs(", not started", f);
 			break;
 		case TRX_ACTIVE:
+		case TRX_PREPARED:
 			fprintf(f, ", ACTIVE %lu sec",
 				(ulong)difftime(time(NULL), trx->start_time));
-									break;
+                        break;
 		case TRX_COMMITTED_IN_MEMORY:
 			fputs(", COMMITTED IN MEMORY", f);
 			break;
 		default:
 			fprintf(f, " state %lu", (ulong) trx->conc_state);
-  	}
+        }
 
 #ifdef UNIV_LINUX
 	fprintf(f, ", process no %lu", trx->mysql_process_no);

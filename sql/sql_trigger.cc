@@ -147,7 +147,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   /* Let us check if trigger with the same name exists */
   while ((name= it++))
   {
-    if (my_strcasecmp(system_charset_info, lex->name_and_length.str,
+    if (my_strcasecmp(system_charset_info, lex->ident.str,
                       name->str) == 0)
     {
       my_message(ER_TRG_ALREADY_EXISTS, ER(ER_TRG_ALREADY_EXISTS), MYF(0));
@@ -238,7 +238,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
   {
     it_def++;
 
-    if (my_strcasecmp(system_charset_info, lex->name_and_length.str,
+    if (my_strcasecmp(system_charset_info, lex->ident.str,
                       name->str) == 0)
     {
       /*
@@ -428,15 +428,15 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         if (!(trg_name_buff= alloc_root(&table->mem_root,
                                         sizeof(LEX_STRING) +
-                                        lex.name_and_length.length + 1)))
+                                        lex.ident.length + 1)))
           goto err_with_lex_cleanup;
 
         trg_name_str= (LEX_STRING *)trg_name_buff;
         trg_name_buff+= sizeof(LEX_STRING);
-        memcpy(trg_name_buff, lex.name_and_length.str,
-               lex.name_and_length.length + 1);
+        memcpy(trg_name_buff, lex.ident.str,
+               lex.ident.length + 1);
         trg_name_str->str= trg_name_buff;
-        trg_name_str->length= lex.name_and_length.length;
+        trg_name_str->length= lex.ident.length;
 
         if (triggers->names_list.push_back(trg_name_str, &table->mem_root))
           goto err_with_lex_cleanup;

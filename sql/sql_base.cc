@@ -384,8 +384,8 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   {
     TABLE *table, *next;
     /*
-      Close all derived tables generated from questions like
-      SELECT * from (select * from t1))
+      Close all derived tables generated in queries like
+      SELECT * FROM (SELECT * FROM t1)
     */
     for (table= thd->derived_tables ; table ; table= next)
     {
@@ -405,6 +405,18 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  /*
+    assume handlers auto-commit (if some doesn't - transaction handling
+    in MySQL should be redesigned to support it; it's a big change,
+    and it's not worth it - better to commit explicitly only writing
+    transactions, read-only ones should better take care of themselves.
+    saves some work in 2pc too)
+    see also sql_parse.cc - dispatch_command()
+  */
+  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
+  if (!thd->active_transaction())
+    thd->transaction.xid.null();
+
   /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
   if (!lock_in_use)
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -1824,7 +1836,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     -1 - error
 
   NOTE
-    The lock will automaticly be freed by close_thread_tables()
+    The lock will automaticaly be freed by close_thread_tables()
 */
 
 int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
@@ -1851,7 +1863,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
     TRUE  - error
 
   NOTE
-    The lock will automaticly be freed by close_thread_tables()
+    The lock will automaticaly be freed by close_thread_tables()
 */
 
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
