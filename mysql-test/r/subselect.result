@@ -35,6 +35,14 @@ Unknown column 'a' in 'field list'
 SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
 id
 1
+SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT 1,1);
+Cardinality error (more/less than 1 columns)
+SELECT 1 IN (SELECT 1);
+1 IN (SELECT 1)
+1
+SELECT 1 FROM (SELECT 1 as a) WHERE 1 IN (SELECT (SELECT a));
+1
+1
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);

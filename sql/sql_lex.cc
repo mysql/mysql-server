@@ -1071,7 +1071,10 @@ void st_select_lex_unit::exclude_level()
       sl->link_next->link_prev= sl->link_prev;
     SELECT_LEX_UNIT **last= 0;
     for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
+    {
+      u->master= master;
       last= (SELECT_LEX_UNIT**)&(u->next);
+    }
     if (last)
     {
       (*units_last)= sl->first_inner_unit();

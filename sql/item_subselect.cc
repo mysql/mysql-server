@@ -92,6 +92,7 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (substitution)
   {
     (*ref)= substitution;
+    substitution->name= name;
     engine->exclude();
     return substitution->fix_fields(thd, tables, ref);
   }
@@ -293,7 +294,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     if (sl->item_list.elements > 1)
     {
       my_error(ER_CARDINALITY_COL, MYF(0), 1);
-      item= 0; // Item_asterisk_remover must fail
+      DBUG_VOID_RETURN;
     }
     else
       item= (Item*) sl->item_list.pop();
