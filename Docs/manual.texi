@@ -9052,7 +9052,7 @@ kernel 2.2.13-SMP, Compaq C compiler (V6.2-504) and Compaq C++ compiler
 
 You can find the above compilers at
 @uref{http://www.support.compaq.com/alpha-tools/}).  By using these compilers,
-instead of gcc, we get about 9-14 % better performance with MySQL.
+instead of gcc, we get about 9-14% better performance with MySQL.
 
 Note that the configure line optimised the binary for the current CPU; this
 means you can only use our binary if you have an Alpha EV6 processor. We also
@@ -9761,7 +9761,7 @@ CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" \
 ./configure --prefix=/usr/local/mysql --with-low-memory --enable-assembler
 @end example
 
-If you have an UltraSPARC, you can get 4 % more performance by adding
+If you have an UltraSPARC, you can get 4% more performance by adding
 "-mcpu=v8 -Wa,-xarch=v8plusa" to CFLAGS and CXXFLAGS.
 
 If you have Sun Workshop (Fortre) 5.3 (or newer) compiler, you can
@@ -9773,7 +9773,7 @@ CXX=CC CXXFLAGS="-noex -xO4 -mt" \
 ./configure --prefix=/usr/local/mysql --enable-assembler
 @end example
 
-In the MySQL benchmarks, we got a 6 % speedup on an UltraSPARC when
+In the MySQL benchmarks, we got a 6% speedup on an UltraSPARC when
 using Sun Workshop 5.3 compared to using gcc with -mcpu flags.
 
 If you get a problem with @code{fdatasync} or @code{sched_yield},
@@ -17767,7 +17767,7 @@ The different check types stand for the following:
 @item @code{FAST}  @tab Only check tables which haven't been closed properly.
 @item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
 @item @code{MEDIUM} @tab Scan rows to verify that deleted links are okay. This also calculates a key checksum for the rows and verifies this with a calcualted checksum for the keys.
-@item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
+@item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100% consistent, but will take a long time!
 @end multitable
 
 For dynamically sized @code{MyISAM} tables a started check will always
@@ -26844,7 +26844,7 @@ would be available.  Some of the cases where this happens are:
 @itemize @bullet
 @item
 If the use of the index would require MySQL to access more
-than 30 % of the rows in the table.  (In this case a table scan is
+than 30% of the rows in the table.  (In this case a table scan is
 probably much faster, as this will require us to do much fewer seeks.)
 Note that if such a query uses @code{LIMIT} to only retrieve
 part of the rows, MySQL will use an index anyway, as it can
@@ -27326,7 +27326,7 @@ use the compiler option that you want the resulting code to be working on
 all x586 type processors (like AMD).
 
 By just using a better compiler and/or better compiler options you can
-get a 10-30 % speed increase in your application.  This is particularly
+get a 10-30% speed increase in your application.  This is particularly
 important if you compile the SQL server yourself!
 
 We have tested both the Cygnus CodeFusion and Fujitsu compilers, but
@@ -27352,7 +27352,7 @@ performance.
 
 @item
 If you strip your @code{mysqld} binary with @code{strip libexec/mysqld},
-the resulting binary can be up to 4 % faster.
+the resulting binary can be up to 4% faster.
 
 @item
 If you connect using TCP/IP rather than Unix sockets, the result is 7.5%
@@ -27361,27 +27361,27 @@ MySQL will, by default, use sockets.)
 
 @item
 If you connect using TCP/IP from another computer over a 100M Ethernet,
-things will be 8-11 % slower.
+things will be 8-11% slower.
 
 @item
-When running our benchmark with secure connections (all data encrypted
-with internal ssl support) things where 55 % slower.
+When running our benchmark tests using secure connections (all data
+encrypted with internal SSL support) things were 55% slower.
 
 @item
-If you compile with @code{--with-debug=full}, then you will loose 20 %
+If you compile with @code{--with-debug=full}, then you will loose 20%
 for most queries, but some queries may take substantially longer (The
-MySQL benchmarks ran 35 % slower)
-If you use @code{--with-debug}, then you will only loose 15 %.
+MySQL benchmarks ran 35% slower)
+If you use @code{--with-debug}, then you will only loose 15%.
 By starting a @code{mysqld} version compiled with @code{--with-debug=full}
 with @code{--skip-safemalloc} the end result should be close to when
 configuring with @code{--with-debug}.
 
 @item
-On a Sun SPARCstation 20, SunPro C++ 4.2 is 5 % faster than @code{gcc} 2.95.2.
+On a Sun SPARCstation 20, SunPro C++ 4.2 is 5% faster than @code{gcc} 2.95.2.
 
 @item
 Compiling with @code{gcc} 2.95.2 for UltraSPARC with the option
-@code{-mcpu=v8 -Wa,-xarch=v8plusa} gives 4 % more performance.
+@code{-mcpu=v8 -Wa,-xarch=v8plusa} gives 4% more performance.
 
 @item
 On Solaris 2.5.1, MIT-pthreads is 8-12% slower than Solaris native
@@ -27389,7 +27389,7 @@ threads on a single processor. With more load/CPUs the difference should
 get bigger.
 
 @item
-Running with @code{--log-bin} makes @strong{[MySQL} 1 % slower.
+Running with @code{--log-bin} makes @strong{[MySQL} 1% slower.
 
 @item
 Compiling on Linux-x86 using gcc without frame pointers
@@ -27775,7 +27775,7 @@ option. That makes it skip the updating of the last access time in the
 inode and by this will avoid some disk seeks.
 
 @item
-On Linux, you can get much more performance (up to 100 % under load is
+On Linux, you can get much more performance (up to 100% under load is
 not uncommon) by using hdpram to configure your disk's interface!  The
 following should be quite good hdparm options for MySQL (and
 probably many other applications):
@@ -37121,7 +37121,7 @@ compression.
 Internal handling of one @code{AUTO_INCREMENT} column. @code{MyISAM}
 will automatically update this on @code{INSERT/UPDATE}. The
 @code{AUTO_INCREMENT} value can be reset with @code{myisamchk}. This
-will make @code{AUTO_INCREMENT} columns faster (at least 10 %) and old
+will make @code{AUTO_INCREMENT} columns faster (at least 10%) and old
 numbers will not be reused as with the old @code{ISAM}. Note that when an
 @code{AUTO_INCREMENT} is defined on the end of a multi-part-key the old
 behavior is still present.
@@ -38081,7 +38081,7 @@ innodb_data_home_dir = c:\ibdata
 #                                  Datafiles must be able to
 #                                  hold your data and indexes
 innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
-#                                  Set buffer pool size to 50 - 80 %
+#                                  Set buffer pool size to 50 - 80%
 #                                  of your computer's memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
@@ -38092,7 +38092,7 @@ innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
 #                                  Set the log file-size to about
-#                                  15 % of the buffer pool size
+#                                  15% of the buffer pool size
 set-variable = innodb_log_file_size=10M
 set-variable = innodb_log_buffer_size=8M
 #                                  Set ..flush_log_at_trx_commit to
@@ -38181,7 +38181,7 @@ innodb_data_home_dir = /
 #                                  Datafiles must be able to
 #                                  hold your data and indexes
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
-#                                  Set buffer pool size to 50 - 80 %
+#                                  Set buffer pool size to 50 - 80%
 #                                  of your computer's memory, but
 #                                  make sure on Linux x86 total
 #                                  memory usage is < 2 GB
@@ -38194,7 +38194,7 @@ innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
 #                                  Set the log file-size to about
-#                                  15 % of the buffer pool size
+#                                  15% of the buffer pool size
 set-variable = innodb_log_file_size=50M
 set-variable = innodb_log_buffer_size=8M
 #                                  Set ..flush_log_at_trx_commit to
@@ -38241,11 +38241,11 @@ Typical values which suit most users are:
 set-variable = max_connections=200
 set-variable = record_buffer=1M
 set-variable = sort_buffer=1M
-#                                  Set key_buffer to 5 - 50 %
+#                                  Set key_buffer to 5 - 50%
 #                                  of your RAM depending on how
 #                                  much you use MyISAM tables, but
 #                                  keep key_buffer + InnoDB
-#                                  buffer pool size < 80 % of
+#                                  buffer pool size < 80% of
 #                                  your RAM
 set-variable = key_buffer=...
 @end example
@@ -38315,7 +38315,7 @@ archive InnoDB log files.
 The size of the memory buffer InnoDB uses to cache data and indexes of
 its tables.  The bigger you set this the less disk I/O is needed to
 access data in tables. On a dedicated database server you may set this
-parameter up to 80 % of the machine physical memory size. Do not set it
+parameter up to 80% of the machine physical memory size. Do not set it
 too large, though, because competition of the physical memory may cause
 paging in the operating system.
 @item @code{innodb_additional_mem_pool_size} @tab
@@ -38495,7 +38495,7 @@ After all data has been inserted you can rename the tables.
 
 During the conversion of big tables you should set the InnoDB
 buffer pool size big
-to reduce disk I/O. Not bigger than 80 % of the physical memory, though.
+to reduce disk I/O. Not bigger than 80% of the physical memory, though.
 You should set InnoDB log files big, and also the log buffer large.
 
 Make sure you do not run out of tablespace: InnoDB tables take a lot
@@ -39113,12 +39113,12 @@ SELECT * FROM t LOCK IN SHARE MODE;
 
 @strong{1.}
 If the Unix @file{top} or the Windows @file{Task Manager} shows that
-the CPU usage percentage with your workload is less than 70 %,
+the CPU usage percentage with your workload is less than 70%,
 your workload is probably
 disk-bound. Maybe you are making too many transaction commits, or the
 buffer pool is too small.
 Making the buffer pool bigger can help, but do not set
-it bigger than 80 % of physical memory.
+it bigger than 80% of physical memory.
 
 @strong{2.}
 Wrap several modifications into one transaction. InnoDB must
@@ -40032,7 +40032,7 @@ maintaining this in a separate segment in each BDB table.  If you don't
 issue a lot of @code{DELETE} or @code{ROLLBACK} statements, this number
 should be accurate enough for the MySQL optimiser, but as MySQL
 only stores the number on close, it may be incorrect if MySQL dies
-unexpectedly. It should not be fatal even if this number is not 100 %
+unexpectedly. It should not be fatal even if this number is not 100%
 correct.  One can update the number of rows by executing @code{ANALYZE
 TABLE} or @code{OPTIMIZE TABLE}. @xref{ANALYZE TABLE} . @xref{OPTIMIZE
 TABLE}.
@@ -46991,7 +46991,7 @@ mf_format.o(.text+0x201): undefined reference to `__lxstat'
 @end example
 
 it usually means that your library is compiled on a system that is not
-100 % compatible with yours.  In this case you should download the
+100% compatible with yours.  In this case you should download the
 latest MySQL source distribution and compile this yourself.
 @xref{Installing source}.
 
@@ -50345,7 +50345,7 @@ Fixed core dump when using @code{CREATE ... FULLTEXT} keys with other table
 handlers than @code{MyISAM}.
 @item
 Don't use @code{signal()} on Windows because this appears to not be
-100 % reliable.
+100% reliable.
 @item
 Fixed bug when doing @code{WHERE col_name=NULL} on an indexed column
 that had @code{NULL} values.
