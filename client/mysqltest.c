@@ -328,7 +328,7 @@ static void get_replace_column(struct st_query *q);
 static void free_replace_column();
 
 /* Disable functions that only exist in MySQL 4.0 */
-#if MYSQL_VERSION_ID < 40000 || defined(EMBEDDED_LIBRARY)
+#if MYSQL_VERSION_ID < 40000
 void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
