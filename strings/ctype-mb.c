@@ -274,7 +274,7 @@ uint my_well_formed_len_mb(CHARSET_INFO *cs,
     my_wc_t wc;
     int mblen;
 
-    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <0)
+    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
       break;
     b+= mblen;
     pos--;
