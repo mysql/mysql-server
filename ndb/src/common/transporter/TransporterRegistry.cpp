@@ -1180,28 +1180,30 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   }
 #endif
 
-  m_transporter_service = new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
+  if (m_service_port != 0) {
 
-  if (nodeIdSpecified != true) {
-    ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
-    return false;
-  }
+    m_transporter_service = new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
 
-  m_service_port = 3307 + localNodeId;
-  //m_interface_name = "ndbd";
-  m_interface_name = 0;
+    if (nodeIdSpecified != true) {
+      ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
+      return false;
+    }
 
-  if(!socket_server.setup(m_transporter_service, m_service_port, m_interface_name))
-  {
-    ndbout_c("Unable to setup transporter service port: %d!\n"
-	     "Please check if the port is already used,\n"
-	     "(perhaps a mgmtsrvrserver is already running)",
-	     m_service_port);
-    delete m_transporter_service;
-    return false;
-  }
+    //m_interface_name = "ndbd";
+    m_interface_name = 0;
 
-  m_transporter_service->setTransporterRegistry(this);
+    if(!socket_server.setup(m_transporter_service, m_service_port, m_interface_name))
+      {
+	ndbout_c("Unable to setup transporter service port: %d!\n"
+		 "Please check if the port is already used,\n"
+		 "(perhaps a mgmtsrvrserver is already running)",
+		 m_service_port);
+	delete m_transporter_service;
+	return false;
+      }
+    m_transporter_service->setTransporterRegistry(this);
+  } else
+    m_transporter_service= 0;
 
   return true;
 }
