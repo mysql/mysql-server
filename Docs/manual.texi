@@ -19687,12 +19687,12 @@ very little resources.
 @item @code{ft_min_word_len}
 The minimum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
-this variable.} (This option is new for MySQL 4.0).
+this variable.} (This option is new for MySQL 4.0.)
 
 @item @code{ft_max_word_len}
 The maximum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
-this variable.} (This option is new for MySQL 4.0).
+this variable.} (This option is new for MySQL 4.0.)
 
 @item @code{ft_max_word_len_sort}
 The maximum length of the word in a @code{FULLTEXT} index
@@ -22449,7 +22449,7 @@ tables.
 @code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
 @code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
 will be put in the output.  This will make loading the data into a MySQL
-4.0 server faster as the index are created after all data are inserted.
+4.0 server faster as the indexes are created after all data are inserted.
 @item -n, --no-create-db
 @code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
 output. The above line will be added otherwise, if --databases or
@@ -36379,7 +36379,7 @@ unless you know what you are doing!
 The minimum length of words to be indexed is defined by the MySQL
 variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
 Change it to the value you prefer, and rebuild your @code{FULLTEXT} indexes.
-(This is only available for MySQL 4.0)
+(This variable is only available from MySQL version 4.0.)
 
 @item
 The stopword list is defined in @file{myisam/ft_static.c}
@@ -44229,7 +44229,7 @@ shell> ./configure --enable-thread-safe-client
 @end example
 
 This will create a thread-safe client library @code{libmysqlclient_r}.
-(Assuming your OS has a thread safe @code{gethostbyname_r()} function)
+(Assuming your OS has a thread-safe @code{gethostbyname_r()} function.)
 This library is thread-safe per connection.  You can let two threads
 share the same connection with the following caveats:
 
