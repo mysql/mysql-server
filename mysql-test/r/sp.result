@@ -877,10 +877,17 @@ drop table t3|
 drop procedure cur2|
 create procedure chistics()
 language sql
+modifies sql data
 not deterministic
 sql security definer
 comment 'Characteristics procedure test'
- insert into t1 values ("chistics", 1)|
+  insert into t1 values ("chistics", 1)|
+show create procedure chistics|
+Procedure	sql_mode	Create Procedure
+chistics		CREATE PROCEDURE `test`.`chistics`()
+    MODIFIES SQL DATA
+    COMMENT 'Characteristics procedure test'
+insert into t1 values ("chistics", 1)
 call chistics()|
 select * from t1|
 id	data
@@ -890,6 +897,7 @@ alter procedure chistics sql security invoker name chistics2|
 show create procedure chistics2|
 Procedure	sql_mode	Create Procedure
 chistics2		CREATE PROCEDURE `test`.`chistics2`()
+    MODIFIES SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
 insert into t1 values ("chistics", 1)
@@ -899,14 +907,24 @@ language sql
 deterministic
 sql security invoker
 comment 'Characteristics procedure test'
- return 42|
+  return 42|
+show create function chistics|
+Function	sql_mode	Create Function
+chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int
+    DETERMINISTIC
+    SQL SECURITY INVOKER
+    COMMENT 'Characteristics procedure test'
+return 42
 select chistics()|
 chistics()
 42
-alter function chistics name chistics2 comment 'Characteristics function test'|
+alter function chistics name chistics2
+no sql
+comment 'Characteristics function test'|
 show create function chistics2|
 Function	sql_mode	Create Function
 chistics2		CREATE FUNCTION `test`.`chistics2`() RETURNS int
+    NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
