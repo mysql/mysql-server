@@ -621,7 +621,7 @@ CREATE TABLE t1 (
     term text NOT NULL,
     PRIMARY KEY(id),
     INDEX(list_id, term(19))
-) TYPE=MyISAM CHARSET=utf8;
+) ENGINE=MyISAM CHARSET=utf8;
 INSERT INTO t1 set list_id = 1, term = "testétest";
 INSERT INTO t1 set list_id = 1, term = "testetest";
 INSERT INTO t1 set list_id = 1, term = "testètest";

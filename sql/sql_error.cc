@@ -102,11 +102,10 @@ void mysql_reset_errors(THD *thd)
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, 
                           uint code, const char *msg)
 {
+  MYSQL_ERROR *err= 0;
   DBUG_ENTER("push_warning");
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
-
-  MYSQL_ERROR *err= NULL;
 
   if (thd->warn_list.elements < thd->variables.max_error_count)
   {

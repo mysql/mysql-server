@@ -47,17 +47,23 @@ select subtime("1997-12-31 23:59:59.999999", "1998-01-01 01:01:01.999999");
 select subtime("01:00:00.999999", "02:00:00.999998");
 select subtime("02:01:01.999999", "01:01:01.999999");
 
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 select timediff("1997-01-01 23:59:59.000001","1995-12-31 23:59:59.000002");
 select timediff("1997-12-31 23:59:59.000001","1997-12-30 01:01:01.000002");
 select timediff("1997-12-30 23:59:59.000001","1997-12-31 23:59:59.000002");
 select timediff("1997-12-31 23:59:59.000001","23:59:59.000001");
 select timediff("2000:01:01 00:00:00", "2000:01:01 00:00:00.000001");
+--enable_ps_protocol
 
 select maketime(10,11,12);
 select maketime(25,11,12);
 select maketime(-25,11,12);
 
-#Extraction functions
+# Extraction functions
+
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 select timestamp("2001-12-01", "01:01:01.999999");
 select timestamp("2001-13-01", "01:01:01.000001");
 select timestamp("2001-12-01", "25:01:01");
@@ -69,6 +75,7 @@ select date("1997-13-31 23:59:59.000001");
 select time("1997-12-31 23:59:59.000001");
 select time("1997-12-31 25:59:59.000001");
 select microsecond("1997-12-31 23:59:59.000001");
+--enable_ps_protocol
 
 create table t1 
 select makedate(1997,1) as f1,
@@ -81,7 +88,10 @@ select makedate(1997,1) as f1,
    date("1997-12-31 23:59:59.000001") as f8,
    time("1997-12-31 23:59:59.000001") as f9;
 describe t1;
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 select * from t1;
+--enable_ps_protocol
 
 create table test(t1 datetime, t2 time, t3 time, t4 datetime);
 insert into test values 
@@ -94,7 +104,10 @@ insert into test values
 ('2001-01-01 01:01:01', '01:01:01', '1 01:01:01', '2001-01-01 01:01:01');
 
 SELECT ADDTIME(t1,t2) As ttt, ADDTIME(t2, t3) As qqq from test;
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 SELECT TIMEDIFF(t1,t4) As ttt, TIMEDIFF(t2, t3) As qqq from test;
+--enable_ps_protocol
 
 drop table t1, test;
 
@@ -102,4 +115,7 @@ select addtime("-01:01:01.01", "-23:59:59.1") as a;
 select microsecond("1997-12-31 23:59:59.01") as a;
 select microsecond(19971231235959.01) as a;
 select date_add("1997-12-31",INTERVAL "10.09" SECOND_MICROSECOND) as a;
+# PS doesn't support fractional seconds
+--disable_ps_protocol
 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f");
+--enable_ps_protocol

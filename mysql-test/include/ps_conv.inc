@@ -73,7 +73,9 @@ create table t5 as select
 show create table t5 ;
 --vertical_results
 --enable_metadata
+--disable_ps_protocol
 select * from t5 ;
+--enable_ps_protocol
 --disable_metadata
 --horizontal_results
 drop table t5 ;

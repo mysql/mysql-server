@@ -1880,6 +1880,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   }
   stmt->field_count=  (uint) field_count;
   stmt->param_count=  (ulong) param_count;
+  mysql->warning_count= 0;
 
   DBUG_RETURN(0);
 }
@@ -3263,7 +3264,6 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
     tm->minute= (uint) to[6];
     tm->second= (uint) to[7];
     tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
-
     tm->year= tm->month= 0;
 
     *pos+= length;
@@ -3489,7 +3489,16 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     char buff[22];                              /* Enough for longlong */
     char *end= longlong10_to_str(value, buff, field_is_unsigned ? 10: -10);
     /* Resort to string conversion which supports all typecodes */
-    fetch_string_with_conversion(param, buff, (uint) (end - buff));
+    uint length= (uint) (end-buff);
+
+    if (field->flags & ZEROFILL_FLAG && length < field->length &&
+        field->length < 21)
+    {
+      bmove_upp((char*) buff+field->length,buff+length, length);
+      bfill((char*) buff, field->length - length,'0');
+      length= field->length;
+    }
+    fetch_string_with_conversion(param, buff, length);
     break;
   }
   }
@@ -3556,8 +3565,14 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (field->decimals >= NOT_FIXED_DEC)
 #undef NOT_FIXED_DEC
     {
-      sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1, param->buffer_length),
-	      width, value);
+      /*
+        The 14 below is to ensure that the server and client has the same
+        precisions. This will ensure that on the same machine you get the
+        same value as a string independent of the protocol you use.
+      */
+      sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1,
+                                        param->buffer_length),
+	      min(14,width), value);
       end= strcend(buff, ' ');
       *end= 0;
     }
@@ -3868,12 +3883,12 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 {
   MYSQL_BIND *param, *end;
   MYSQL_FIELD *field;
-  ulong       bind_count;
+  ulong       bind_count= stmt->field_count;
   uint        param_count= 0;
   DBUG_ENTER("mysql_stmt_bind_result");
-  DBUG_ASSERT(stmt != 0);
+  DBUG_PRINT("enter",("field_count: %d", bind_count));
 
-  if (!stmt->field_count)
+  if (!bind_count)
   {
     if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
     {
@@ -3881,7 +3896,6 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     }
     DBUG_RETURN(0);
   }
-  bind_count= stmt->field_count;
 
   /*
     We only need to check that stmt->field_count - if it is not null
@@ -3894,6 +3908,8 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
        param < end ;
        param++, field++)
   {
+    DBUG_PRINT("info",("buffer_type: %u  field_type: %u",
+                       (uint) param->buffer_type, (uint) field->type));
     /*
       Set param->is_null to point to a dummy variable if it's not set.
       This is to make the execute code easier
@@ -4221,6 +4237,8 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
       *prev_ptr= 0;
       mysql->warning_count= uint2korr(cp+1);
       mysql->server_status= uint2korr(cp+3);
+      DBUG_PRINT("info",("status: %u  warning_count: %u",
+                         mysql->server_status, mysql->warning_count));
       DBUG_RETURN(0);
     }
   }
@@ -4316,11 +4334,12 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 	 bind < end ;
 	 bind++, field++)
     {
-      bind->buffer_type= field->type;
+      bind->buffer_type= MYSQL_TYPE_NULL;
       bind->buffer_length=1;
     }
 
-    mysql_stmt_bind_result(stmt, stmt->bind);
+    if (mysql_stmt_bind_result(stmt, stmt->bind))
+      DBUG_RETURN(1);
     stmt->bind_result_done= 0;			/* No normal bind done */
   }
 
