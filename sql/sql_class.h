@@ -375,7 +375,6 @@ struct system_variables
   ulong max_error_count;
   ulong max_heap_table_size;
   ulong max_length_for_sort_data;
-  ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong myisam_repair_threads;
@@ -621,6 +620,11 @@ public:
   // TODO: document the variables below
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
+  /*
+    One thread can hold up to one named user-level lock. This variable
+    points to a lock object if the lock is present. See item_func.cc and
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+  */
   ULL		*ull;
   PREP_STMT	*last_prepared_stmt;
 #ifndef DBUG_OFF

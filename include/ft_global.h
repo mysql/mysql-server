@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-#define FT_QUERY_MAXLEN 1024
-#define HA_FT_MAXLEN 254
+#define HA_FT_MAXBYTELEN 254
+#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
 
 typedef struct st_ft_info FT_INFO;
 struct _ft_vft

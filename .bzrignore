@@ -74,6 +74,7 @@ Docs/safe-mysql.xml
 Docs/tex.fmt
 Docs/texi2dvi.out
 INSTALL-SOURCE
+INSTALL-WIN-SOURCE
 Logs/*
 MIRRORS
 Makefile

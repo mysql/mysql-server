@@ -2089,7 +2089,7 @@ table_types:
 	{
 	  $$ = ha_resolve_by_name($1.str,$1.length);
 	  if ($$ == DB_TYPE_UNKNOWN) {
-	    net_printf(YYTHD, ER_UNKNOWN_TABLE, $1.str);
+	    net_printf(YYTHD, ER_UNKNOWN_TABLE_ENGINE, $1.str);
 	    YYABORT;
 	  }
 	};
