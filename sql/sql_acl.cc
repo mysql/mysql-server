@@ -546,7 +546,9 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      We need to check for absence of SSL because without SSL
               we should reject connection.
 	    */
-	    if (vio_type(vio) == VIO_TYPE_SSL && SSL_get_peer_certificate(vio->ssl_))
+	    if (vio_type(vio) == VIO_TYPE_SSL && 
+	        SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
+	        SSL_get_peer_certificate(vio->ssl_))
 	      user_access=acl_user->access;
 	    break;
 	  case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
@@ -554,7 +556,8 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      We need to check for absence of SSL because without SSL
 	      we should reject connection.
 	    */
-	    if (vio_type(vio) == VIO_TYPE_SSL)
+	    if (vio_type(vio) == VIO_TYPE_SSL && 
+	        SSL_get_verify_result(vio->ssl_) == X509_V_OK)
 	    {
 	      if (acl_user->ssl_cipher)
 	      {
