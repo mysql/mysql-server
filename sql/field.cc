@@ -7162,6 +7162,24 @@ void create_field::create_length_to_internal_length(void)
 }
 
 
+void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
+                                      uint32 length_arg, uint32 decimals,
+                                      bool maybe_null, bool is_unsigned)
+{
+  field_name= "";
+  sql_type= sql_type_arg;
+  length= length_arg;;
+  unireg_check= Field::NONE;
+  interval= 0;
+  charset= &my_charset_bin;
+  geom_type= Field::GEOM_GEOMETRY;
+  pack_flag= (FIELDFLAG_NUMBER |
+              ((decimals & FIELDFLAG_MAX_DEC) << FIELDFLAG_DEC_SHIFT) |
+              (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
+              (is_unsigned ? 0 : FIELDFLAG_DECIMAL));
+}
+
+
 enum_field_types get_blob_type_from_length(ulong length)
 {
   enum_field_types type;
