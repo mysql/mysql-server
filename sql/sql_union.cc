@@ -361,7 +361,8 @@ int st_select_lex_unit::exec()
       item->reset();
       table->file->delete_all_rows();
     }
-    if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
+    if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL) &&
+        !describe)
       DBUG_RETURN(1);  // For sub-selects
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
