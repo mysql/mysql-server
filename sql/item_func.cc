@@ -3271,12 +3271,14 @@ const char *
 Item_func_sp::func_name() const
 {
   THD * thd= current_thd;
+  /* Calculate length to avoud reallocation of string for sure */
   uint len= ((m_name->m_db.length +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
              1 +                         // .
-             1);                         // end of string
-  String qname(alloc_root(&thd->mem_root, len), len,
+             1 +                         // end of string
+             ALIGN_SIZE(1));             // to avoid String reallocation
+  String qname((char *)alloc_root(&thd->mem_root, len), len,
                system_charset_info);
   qname.length(0);
   append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);

@@ -1176,3 +1176,10 @@ test.`f``1` ()
 5
 drop view v1;
 drop function `f``1`;
+create function x () returns int return 5;
+create view v1 as select x ();
+select * from v1;
+x ()
+5
+drop view v1;
+drop function x;
