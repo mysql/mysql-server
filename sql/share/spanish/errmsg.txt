@@ -167,7 +167,7 @@ character-set=latin1
 "Obtenido timeout leyendo paquetes de comunicación",
 "Obtenido un error de escribiendo paquetes de comunicación",
 "Obtenido timeout escribiendo paquetes de comunicación",
-"La string resultante es mayor que max_allowed_packet",
+"La string resultante es mayor que 'max_allowed_packet'",
 "El tipo de tabla usada no permite soporte para columnas BLOB/TEXT",
 "El tipo de tabla usada no permite soporte para columnas AUTO_INCREMENT",
 "INSERT DELAYED no puede ser usado con tablas '%-.64s', porque esta bloqueada con LOCK TABLES",

@@ -174,7 +174,7 @@ character-set=latin2
 "Zji-B¹tìn timeout pøi ètení komunikaèního packetu",
 "Zji-B¹tìna chyba pøi zápisu komunikaèního packetu",
 "Zji-B¹tìn timeout pøi zápisu komunikaèního packetu",
-"V-Býsledný øetìzec je del¹í ne¾ max_allowed_packet",
+"V-Býsledný øetìzec je del¹í ne¾ 'max_allowed_packet'",
 "Typ pou-B¾ité tabulky nepodporuje BLOB/TEXT sloupce",
 "Typ pou-B¾ité tabulky nepodporuje AUTO_INCREMENT sloupce",
 "INSERT DELAYED nen-Bí mo¾no s tabulkou '%-.64s' pou¾ít, proto¾e je zamèená pomocí LOCK TABLES",
