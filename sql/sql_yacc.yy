@@ -4958,7 +4958,7 @@ set:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_SET_OPTION;
-	  lex->option_type=OPT_DEFAULT;
+	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
 	}
 	option_value_list

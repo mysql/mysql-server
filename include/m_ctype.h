@@ -135,6 +135,7 @@ typedef struct my_collation_handler_st
 extern MY_COLLATION_HANDLER my_collation_mb_bin_handler;
 extern MY_COLLATION_HANDLER my_collation_8bit_bin_handler;
 extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
+extern MY_COLLATION_HANDLER my_collation_ucs2_uca_handler;
 
 
 typedef struct my_charset_handler_st
@@ -238,12 +239,12 @@ extern CHARSET_INFO my_charset_tis620_thai_ci;
 extern CHARSET_INFO my_charset_tis620_bin;
 extern CHARSET_INFO my_charset_ucs2_general_ci;
 extern CHARSET_INFO my_charset_ucs2_bin;
+extern CHARSET_INFO my_charset_ucs2_general_uca;
 extern CHARSET_INFO my_charset_ujis_japanese_ci;
 extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_cp1250_czech_ci;
-
 
 /* declarations for simple charsets */
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,
