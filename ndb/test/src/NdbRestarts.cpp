@@ -213,7 +213,7 @@ NdbRestarts::NdbRestart::NdbRestart(const char* _name,
   m_restartFunc = _func;
   m_numRequiredNodes = _requiredNodes;
   //  m_arg1 = arg1;
-};
+}
 
 
 int NdbRestarts::getNumRestarts(){
@@ -367,7 +367,7 @@ int restartRandomNodeGraceful(NdbRestarter& _restarter,
 	"Could not restart node "<<nodeId);
 
   return NDBT_OK;
-};
+}
 
 int restartRandomNodeAbort(NdbRestarter& _restarter, 
 			      const NdbRestarts::NdbRestart* _restart){
@@ -382,7 +382,7 @@ int restartRandomNodeAbort(NdbRestarter& _restarter,
 	"Could not restart node "<<nodeId);
 
   return NDBT_OK;
-};
+}
 
 int restartRandomNodeError(NdbRestarter& _restarter, 
 			   const NdbRestarts::NdbRestart* _restart){
@@ -397,7 +397,7 @@ int restartRandomNodeError(NdbRestarter& _restarter,
 	"Could not restart node "<<nodeId);
 
   return NDBT_OK;
-};
+}
 
 int restartMasterNodeError(NdbRestarter& _restarter, 
 			   const NdbRestarts::NdbRestart* _restart){
@@ -410,7 +410,7 @@ int restartMasterNodeError(NdbRestarter& _restarter,
 	"Could not restart node "<<nodeId);
 
   return NDBT_OK;
-};
+}
 
 int restartRandomNodeInitial(NdbRestarter& _restarter, 
 			     const NdbRestarts::NdbRestart* _restart){
@@ -425,7 +425,7 @@ int restartRandomNodeInitial(NdbRestarter& _restarter,
 	"Could not restart node "<<nodeId);
 
   return NDBT_OK;
-};
+}
 
 int twoNodeFailure(NdbRestarter& _restarter, 
 		   const NdbRestarts::NdbRestart* _restart){
@@ -453,7 +453,7 @@ int twoNodeFailure(NdbRestarter& _restarter,
 	"Could not restart node "<< nodeId);
 
   return NDBT_OK;
-};
+}
 
 int twoMasterNodeFailure(NdbRestarter& _restarter, 
 			 const NdbRestarts::NdbRestart* _restart){
@@ -478,7 +478,7 @@ int twoMasterNodeFailure(NdbRestarter& _restarter,
 	"Could not restart node "<< nodeId);
 
   return NDBT_OK;
-};
+}
 
 int get50PercentOfNodes(NdbRestarter& restarter, 
 			int * _nodes){
@@ -519,7 +519,7 @@ int fiftyPercentFail(NdbRestarter& _restarter,
 	"Could not start all nodes");
 
   return NDBT_OK;
-};
+}
 
 
 int restartAllNodesGracfeul(NdbRestarter& _restarter, 
@@ -533,7 +533,7 @@ int restartAllNodesGracfeul(NdbRestarter& _restarter,
 
   return NDBT_OK;
 
-};
+}
 
 int restartAllNodesAbort(NdbRestarter& _restarter, 
 			 const NdbRestarts::NdbRestart* _restart){
@@ -545,7 +545,7 @@ int restartAllNodesAbort(NdbRestarter& _restarter,
 	"Could not restart all nodes");
 
   return NDBT_OK;
-};
+}
 
 int restartAllNodesError9999(NdbRestarter& _restarter, 
 			     const NdbRestarts::NdbRestart* _restart){
@@ -557,7 +557,7 @@ int restartAllNodesError9999(NdbRestarter& _restarter,
 	"Could not restart all nodes ");
 
   return NDBT_OK;
-};
+}
 
 int fiftyPercentStopAndWait(NdbRestarter& _restarter, 
 			    const NdbRestarts::NdbRestart* _restart){
@@ -590,7 +590,7 @@ int fiftyPercentStopAndWait(NdbRestarter& _restarter,
   g_info << _restart->m_name <<  endl;
 
   return NDBT_OK;
-};
+}
 
 int
 NFDuringNR_codes[] = {
@@ -713,7 +713,7 @@ int restartNFDuringNR(NdbRestarter& _restarter,
   }
 
   return NDBT_OK;
-};
+}
 
 int
 NRDuringLCP_Master_codes[] = {
@@ -864,7 +864,7 @@ int stopOnError(NdbRestarter& _restarter,
   } while (false);
   
   return NDBT_OK;
-};
+}
 
 int getRandomNodeId(NdbRestarter& _restarter) {
   myRandom48Init(NdbTick_CurrentMillisecond());

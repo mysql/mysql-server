@@ -34,7 +34,9 @@
      an ordered index,
    - NdbRecAttr represents an attribute value
    - NdbDictionary represents meta information about tables and attributes.
-   - NdbError contains the specification for an error.
+     
+   In addition, the NDB API defines a structure NdbError, which contains the 
+   specification for an error.
 
    It is also possible to receive "events" triggered when data in the database in changed.
    This is done through the NdbEventOperation class.
