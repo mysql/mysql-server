@@ -68,7 +68,7 @@ int handle_options(int *argc, char ***argv,
 {
   uint opt_found, argvpos= 0, length, spec_len, i;
   my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
-          option_is_loose;
+          option_is_loose, option_used= 0;
   char *progname= *(*argv), **pos, *optend, *prev_found;
   const struct my_option *optp;
   int error;
@@ -84,6 +84,7 @@ int handle_options(int *argc, char ***argv,
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
     {
       char *argument=    0;
+      option_used=       1;
       must_be_var=       0;
       set_maximum_value= 0;
       special_used=      0;
@@ -336,7 +337,6 @@ int handle_options(int *argc, char ***argv,
 	      if (optp->var_type == GET_BOOL && optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
-		(*argc)--;
 		continue; // For GET_BOOL get_one_option() shouldn't be called
 	      }
 	      else if (optp->arg_type == REQUIRED_ARG ||
@@ -401,6 +401,12 @@ int handle_options(int *argc, char ***argv,
     else /* non-option found */
       (*argv)[argvpos++]= cur_arg;
   }
+  /* Destroy the first, already handled option, so that programs that look
+     for arguments in 'argv', without checking 'argc', know when to stop.
+     Items in argv, before the destroyed one, are all non-option -arguments
+     to the program, yet to be (possibly) handled. */
+  if (option_used)
+    (*argv)[argvpos]= 0;
   return 0;
 }
 
