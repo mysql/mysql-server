@@ -725,6 +725,7 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+int open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables);
 void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
