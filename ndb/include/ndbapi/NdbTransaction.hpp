@@ -362,6 +362,7 @@ public:
 
   /**
    * Close transaction
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    * @note It is not allowed to call NdbTransaction::close after sending the
    *       transaction asynchronously before the callback method has 
    * 	   been called.
@@ -369,6 +370,7 @@ public:
    *       outstanding transactions and wait until all of them 
    *       has completed before calling NdbTransaction::close).
    *       If the transaction is not committed it will be aborted.
+#endif
    */
   void close();
 

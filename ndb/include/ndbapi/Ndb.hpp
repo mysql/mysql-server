@@ -20,7 +20,7 @@
    This guide assumes a basic familiarity with MySQL Cluster concepts.
    Some of the fundamental ones are described in section @ref secConcepts.
    
-   The <em>NDB API</em> is an MySQL Cluster application interface 
+   The <em>NDB API</em> is a MySQL Cluster application interface 
    that implements transactions.
    The NDB API consists of the following fundamental classes:
    - Ndb_cluster_connection class representing a connection to a cluster, 
@@ -52,9 +52,11 @@
 
    The execute can be of two different types, 
    <em>Commit</em> or <em>NoCommit</em>.
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    (The execute can also be divided into three 
    steps: prepare, send, and poll to get asynchronous
    transactions.  More about this later.)
+#endif
    
    If the execute is of type NoCommit, 
    then the application program executes part of a transaction,
@@ -1229,6 +1231,7 @@ public:
    * @note should be called after the transaction has completed, irrespective
    *       of success or failure
    *
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    * @note It is not allowed to call Ndb::closeTransaction after sending the
    *       transaction asynchronously with either 
    *       Ndb::sendPreparedTransactions or
@@ -1237,6 +1240,7 @@ public:
    *       outstanding transactions and wait until all of them 
    *       has completed before calling Ndb::closeTransaction).
    *       If the transaction is not committed it will be aborted.
+#endif
    */
   void closeTransaction(NdbTransaction*);
 
