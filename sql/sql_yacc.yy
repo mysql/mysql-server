@@ -394,7 +394,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  END
 %token  THEN_SYM
 
-%token  SQL_ANSI_MODE
 %token	SQL_BIG_TABLES
 %token	SQL_BIG_SELECTS
 %token	SQL_SELECT_LIMIT
@@ -2609,18 +2608,6 @@ option_value:
 	  else
 	    Lex->options|= OPTION_NOT_AUTO_COMMIT;
 	}
-        | SQL_ANSI_MODE equal NUM
-        { 
-          if(atoi($3.str) == 0) 
-          {
-            Lex->options &= ~(OPTION_ANSI_MODE);
-            Lex->thd->state_map[(uchar) '"'] = STATE_STRING;
-          } else {
-            Lex->options |= OPTION_ANSI_MODE;
-            Lex->thd->state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
-          }
-        }
-
 	| SQL_SELECT_LIMIT equal ULONG_NUM
 	{
 	  Lex->select_limit= $3;
