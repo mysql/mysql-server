@@ -75,6 +75,19 @@ $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
 $manager_port=$mysql_tcp_port+1;
 
+if ($opt_stage == 0)
+{
+  system("mkdir Logs") if (! -d "Logs");
+  system("mv $log ${log}-old") if (-f $log);
+  unlink($log);
+}
+
+open(LOG,">>$log") || abort("Can't open log file, error $?");
+select LOG;
+$|=1;
+select STDOUT;
+$|=1;
+
 if (-x "$host/bin/mysqladmin")
 {
   log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
@@ -97,16 +110,7 @@ if ($opt_stage == 0)
   }
   rm_all("$host/test");
   system("mkdir $host/test") if (! -d "$host/test");
-  system("mkdir Logs") if (! -d "Logs");
-  system("mv $log ${log}-old") if (-f $log);
-  unlink($log);
 }
-
-open(LOG,">>$log") || abort("Can't open log file, error $?");
-select LOG;
-$|=1;
-select STDOUT;
-$|=1;
 
 safe_cd($host);
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
@@ -553,13 +557,17 @@ sub rm_all
 sub kill_all
 {
   my ($pattern) = @_;
-  my ($USER,$BSD,$LINUX,$pscmd, $user, $pid);
+  my ($USER,$BSD,$LINUX, $pscmd, $user, $pid);
   $user=$ENV{'USER'};
-  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4";
+  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4" || $^O eq 'darwin';
   $LINUX = $^O eq 'linux';
   $pscmd = $BSD ? "/bin/ps -auxww" : $LINUX ? "/bin/ps axuw" : "/bin/ps -ef";
 
-  open(PS, "$pscmd|") || die "can't run $pscmd: $!";
+  if (!open(PS, "$pscmd|"))
+  {
+    print "Warning: Can't run $pscmd: $!\n";
+    exit;
+  }
 
   # Catch any errors with eval.  A bad pattern, for instance.
  process:

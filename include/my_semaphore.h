@@ -34,7 +34,7 @@
 C_MODE_START
 #ifdef HAVE_SEMAPHORE_H
 #include <semaphore.h>
-#elif defined(__bsdi__)
+#elif !defined(__bsdi__)
 #ifdef __WIN__
 typedef HANDLE sem_t;
 #else

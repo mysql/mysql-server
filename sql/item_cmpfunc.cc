@@ -37,10 +37,16 @@ longlong Item_func_not::val_int()
   return !null_value && value == 0 ? 1 : 0;
 }
 
+/*
+  Convert a constant expression or string to an integer.
+  This is done when comparing DATE's of different formats and
+  also when comparing bigint to strings (in which case the string
+  is converted once to a bigint).
+*/
 
 static bool convert_constant_item(Field *field, Item **item)
 {
-  if ((*item)->const_item())
+  if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
   {
     if (!(*item)->save_in_field(field) &&
 	!((*item)->null_value))

@@ -387,13 +387,12 @@ int pthread_signal(int sig, void (*func)())
 #undef pthread_mutex_destroy
 #undef pthread_mutex_wait
 #undef pthread_mutex_timedwait
-#undef pthread_mutex_t
-#undef pthread_cond_wait
-#undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
 #undef pthread_mutex_t
+#undef pthread_cond_init
+#undef pthread_cond_wait
+#undef pthread_cond_timedwait
 #undef pthread_cond_t
-
 
 /*****************************************************************************
 ** Patches for AIX and DEC OSF/1 3.2
