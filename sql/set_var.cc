@@ -101,7 +101,7 @@ sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
-sys_var_str		sys_charset("character_set",
+sys_var_str		sys_charset("character_set_server",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
@@ -109,9 +109,9 @@ sys_var_str		sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
-sys_var_collation_client sys_collation_client("collation_client");
+sys_var_character_set_client  sys_character_set_client("character_set_client");
+sys_var_character_set_results sys_character_set_results("character_set_results");
 sys_var_collation_connection sys_collation_connection("collation_connection");
-sys_var_collation_results sys_collation_results("collation_results");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
@@ -353,9 +353,9 @@ sys_var *sys_variables[]=
   &sys_binlog_cache_size,
   &sys_buffer_results,
   &sys_bulk_insert_buff_size,
-  &sys_collation_client,
+  &sys_character_set_client,
+  &sys_character_set_results,
   &sys_collation_connection,
-  &sys_collation_results,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_default_week_format,
@@ -469,9 +469,9 @@ struct show_var_st init_vars[]= {
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
   {sys_charset.name, 	      (char*) &sys_charset,		    SHOW_SYS},
   {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
-  {sys_collation_client.name, (char*) &sys_collation_client,	    SHOW_SYS},
+  {sys_character_set_client.name,(char*) &sys_character_set_client,SHOW_SYS},
+  {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
-  {sys_collation_results.name, (char*) &sys_collation_results,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
@@ -1207,7 +1207,7 @@ CHARSET_INFO *get_old_charset_by_name(const char *name)
   for (c= old_conv; c->old_name; c++)
   {
     if (!my_strcasecmp(&my_charset_latin1,name,c->old_name))
-      return get_charset_by_name(c->new_name,MYF(0));
+      return get_charset_by_csname(c->new_name,MY_CS_PRIMARY,MYF(0));
   }
   return NULL;
 }
@@ -1221,7 +1221,25 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   if (!(res=var->value->val_str(&str)))
     res= &empty_string;
 
-  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))) &&
+  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
+  {
+    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+    return 1;
+  }
+  var->save_result.charset= tmp;	// Save for update
+  return 0;
+}
+
+bool sys_var_character_set::check(THD *thd, set_var *var)
+{
+  CHARSET_INFO *tmp;
+  char buff[80];
+  String str(buff,sizeof(buff), system_charset_info), *res;
+
+  if (!(res=var->value->val_str(&str)))
+    res= &empty_string;
+
+  if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
       !(tmp=get_old_charset_by_name(res->c_ptr())))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
@@ -1231,29 +1249,29 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   return 0;
 }
 
-bool sys_var_collation_client::update(THD *thd, set_var *var)
+bool sys_var_character_set_client::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
-    global_system_variables.collation_client= var->save_result.charset;
+    global_system_variables.character_set_client= var->save_result.charset;
   else
-    thd->variables.collation_client= var->save_result.charset;
+    thd->variables.character_set_client= var->save_result.charset;
   return 0;
 }
 
-byte *sys_var_collation_client::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_character_set_client::value_ptr(THD *thd, enum_var_type type)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.collation_client :
-		  thd->variables.collation_client);
-  return cs ? (byte*) cs->name : (byte*) "";
+		  global_system_variables.character_set_client :
+		  thd->variables.character_set_client);
+  return cs ? (byte*) cs->csname : (byte*) "NULL";
 }
 
-void sys_var_collation_client::set_default(THD *thd, enum_var_type type)
+void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-   global_system_variables.collation_client= default_charset_info;
+   global_system_variables.character_set_client= default_charset_info;
  else
-   thd->variables.collation_client= global_system_variables.collation_client;
+   thd->variables.character_set_client= global_system_variables.character_set_client;
 }
 
 
@@ -1271,7 +1289,7 @@ byte *sys_var_collation_connection::value_ptr(THD *thd, enum_var_type type)
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
 		  global_system_variables.collation_connection :
 		  thd->variables.collation_connection);
-  return cs ? (byte*) cs->name : (byte*) "";
+  return cs ? (byte*) cs->name : (byte*) "NULL";
 }
 
 void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
@@ -1282,29 +1300,29 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
    thd->variables.collation_connection= global_system_variables.collation_connection;
 }
 
-bool sys_var_collation_results::update(THD *thd, set_var *var)
+bool sys_var_character_set_results::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
-    global_system_variables.collation_results= var->save_result.charset;
+    global_system_variables.character_set_results= var->save_result.charset;
   else
-    thd->variables.collation_results= var->save_result.charset;
+    thd->variables.character_set_results= var->save_result.charset;
   return 0;
 }
 
-byte *sys_var_collation_results::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_character_set_results::value_ptr(THD *thd, enum_var_type type)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.collation_results :
-		  thd->variables.collation_results);
-  return cs ? (byte*) cs->name : (byte*) "";
+		  global_system_variables.character_set_results :
+		  thd->variables.character_set_results);
+  return cs ? (byte*) cs->csname : (byte*) "NULL";
 }
 
-void sys_var_collation_results::set_default(THD *thd, enum_var_type type)
+void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
 {
  if (type == OPT_GLOBAL)
-   global_system_variables.collation_results= default_charset_info;
+   global_system_variables.character_set_results= NULL;
  else
-   thd->variables.collation_results= global_system_variables.collation_results;
+   thd->variables.character_set_results= global_system_variables.character_set_results;
 }
 
 
@@ -1319,9 +1337,9 @@ int set_var_collation_client::check(THD *thd)
 
 int set_var_collation_client::update(THD *thd)
 {
-  thd->variables.collation_client= collation_client;
+  thd->variables.character_set_client= character_set_client;
+  thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
-  thd->variables.collation_results= collation_results;
   thd->protocol_simple.init(thd);
   thd->protocol_prep.init(thd);
   return 0;

@@ -2106,8 +2106,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     }
     default_charset_info= default_collation;
   }
-  global_system_variables.collation_results= default_charset_info;
-  global_system_variables.collation_client= default_charset_info;
+  global_system_variables.character_set_results= NULL;
+  global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
@@ -4610,8 +4610,8 @@ static void set_options(void)
 		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
-  global_system_variables.collation_results= default_charset_info;
-  global_system_variables.collation_client= default_charset_info;
+  global_system_variables.character_set_results= NULL;
+  global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;

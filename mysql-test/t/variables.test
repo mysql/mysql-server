@@ -92,7 +92,7 @@ set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 
 set character set cp1251_koi8;
-show variables like "collation_client";
+show variables like "character_set_client";
 select @@timestamp>0;
 
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
@@ -119,7 +119,7 @@ set SESSION query_cache_size=10000;
 --error 1230
 set GLOBAL table_type=DEFAULT;
 --error 1115
-set collation_client=UNKNOWN_CHARACTER_SET;
+set character_set_client=UNKNOWN_CHARACTER_SET;
 --error 1228
 set global autocommit=1;
 --error 1228
