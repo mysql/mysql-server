@@ -371,6 +371,7 @@ public:
   void print(String *str);
 
   ulong init_prepare_fake_select_lex(THD *thd);
+  int change_result(select_subselect *result, select_subselect *old_result);
 
   friend void mysql_init_query(THD *thd);
   friend int subselect_union_engine::exec();

@@ -104,7 +104,7 @@ void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   bitmap_lock(map);
-  map->bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
+  bitmap_fast_set_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }
 
@@ -144,7 +144,7 @@ void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   bitmap_lock(map);
-  map->bitmap[bitmap_bit / 8] &= ~ (1 << (bitmap_bit & 7));
+  bitmap_fast_clear_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }
 
@@ -220,7 +220,7 @@ my_bool bitmap_is_set_all(const MY_BITMAP *map)
 my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
-  return map->bitmap[bitmap_bit / 8] & (1 << (bitmap_bit & 7));
+  return bitmap_fast_is_set(map, bitmap_bit);
 }
 
 

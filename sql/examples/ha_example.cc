@@ -625,14 +625,11 @@ int ha_example::rename_table(const char * from, const char * to)
 
   Called from opt_range.cc by check_quick_keys().
 */
-ha_rows ha_example::records_in_range(int inx,
-                                     const byte *start_key,uint start_key_len,
-                                     enum ha_rkey_function start_search_flag,
-                                     const byte *end_key,uint end_key_len,
-                                     enum ha_rkey_function end_search_flag)
+ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
+                                     key_range *max_key)
 {
-  DBUG_ENTER("ha_example::records_in_range ");
-  DBUG_RETURN(records);
+  DBUG_ENTER("ha_example::records_in_range");
+  DBUG_RETURN(10);                         // low number to force index usage
 }
 
 

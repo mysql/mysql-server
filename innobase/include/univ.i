@@ -242,11 +242,6 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
-/* The following definition of __FILE__ removes compiler warnings
-associated with const char* / char* mismatches with __FILE__ */
-
-#define IB__FILE__	((char*)__FILE__)
-
 #include <stdio.h>
 #include "ut0dbg.h"
 #include "ut0ut.h"
