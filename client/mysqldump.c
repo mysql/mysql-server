@@ -307,7 +307,7 @@ static void write_header(FILE *sql_file, char *db_name)
     fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
     fprintf(sql_file, "-- Host: %s    Database: %s\n",
 	    current_host ? current_host : "localhost", db_name ? db_name : "");
-    fputs("---------------------------------------------------------\n",
+    fputs("-- ------------------------------------------------------\n",
 	  sql_file);
     fprintf(sql_file, "-- Server version\t%s\n",
 	    mysql_get_server_info(&mysql_connection));
