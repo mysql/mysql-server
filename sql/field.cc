@@ -2505,34 +2505,6 @@ void Field_timestamp::store(const char *from,uint len)
     longstore(ptr,tmp);
 }
 
-void Field_timestamp::fill_and_store(char *from,uint len)
-{
-  uint res_length;
-  if (len <= field_length)
-    res_length=field_length;
-  else if (len <= 12)
-    res_length=12;				/* purecov: inspected */
-  else if (len <= 14)
-    res_length=14;				/* purecov: inspected */
-  else
-    res_length=(len+1)/2*2;			// must be even
-  if (res_length != len)
-  {
-    bmove_upp(from+res_length,from+len,len);
-    bfill(from,res_length-len,'0');
-    len=res_length;
-  }
-  long tmp=(long) str_to_timestamp(from,len);
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
-}
-
 
 void Field_timestamp::store(double nr)
 {
@@ -2644,7 +2616,7 @@ double Field_timestamp::val_real(void)
 
 longlong Field_timestamp::val_int(void)
 {
-  uint len,pos;
+  uint len, pos, max_int_rep_len;
   int part_time;
   uint32 temp;
   time_t time_arg;
@@ -2665,7 +2637,8 @@ longlong Field_timestamp::val_int(void)
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
   res=(longlong) 0;
-  for (pos=len=0; len+1 < (uint) field_length ; len+=2,pos++)
+  max_int_rep_len= min(field_length, 14);
+  for (pos= len= 0; len+1 < max_int_rep_len ; len+= 2,pos++)
   {
     bool year_flag=0;
     switch (dayord.pos[pos]) {
@@ -2677,7 +2650,7 @@ longlong Field_timestamp::val_int(void)
     case 5: part_time=l_time->tm_sec; break;
     default: part_time=0; break; /* purecov: deadcode */
     }
-    if (year_flag && (field_length == 8 || field_length == 14))
+    if (year_flag && (max_int_rep_len == 8 || max_int_rep_len == 14))
     {
       res=res*(longlong) 10000+(part_time+
 				((part_time < YY_PART_YEAR) ? 2000 : 1900));
