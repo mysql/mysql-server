@@ -88,11 +88,9 @@ create table t2 (p int primary key, i int, a char(10), key k1(i), key k2(a));
 show status like 'key_blocks_used';
 Variable_name	Value
 Key_blocks_used	0
-show status like 'The below may fail on 64-bit systems (ingo)';
-Variable_name	Value
 show status like 'key_blocks_unused';
 Variable_name	Value
-Key_blocks_unused	1812
+Key_blocks_unused	KEY_BLOCKS_UNUSED
 insert into t1 values (1, 'qqqq'), (11, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
 (3, 1, 'yyyy'), (4, 3, 'zzzz');
@@ -111,11 +109,9 @@ update t2 set i=2 where i=1;
 show status like 'key_blocks_used';
 Variable_name	Value
 Key_blocks_used	4
-show status like 'The below may fail on 64-bit systems (ingo)';
-Variable_name	Value
 show status like 'key_blocks_unused';
 Variable_name	Value
-Key_blocks_unused	1808
+Key_blocks_unused	KEY_BLOCKS_UNUSED
 cache index t1 key (`primary`) in keycache1;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
@@ -275,11 +271,9 @@ drop table t1,t2,t3;
 show status like 'key_blocks_used';
 Variable_name	Value
 Key_blocks_used	4
-show status like 'The below may fail on 64-bit systems (ingo)';
-Variable_name	Value
 show status like 'key_blocks_unused';
 Variable_name	Value
-Key_blocks_unused	1812
+Key_blocks_unused	KEY_BLOCKS_UNUSED
 set global keycache2.key_buffer_size=0;
 set global keycache3.key_buffer_size=100;
 set global keycache3.key_buffer_size=0;
