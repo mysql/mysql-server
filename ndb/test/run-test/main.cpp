@@ -633,6 +633,11 @@ wait_ndb(atrt_config& config, int goal){
 	  g_logger.critical("Strange DB status during start: %d %d", i, min2);
 	  return false;
 	}
+
+	if(min2 < min){
+	  g_logger.critical("wait ndb failed node: %d %d %d %d", 
+			    state->node_states[i].node_id, min, min2, goal);
+	}
       }
     }
     
