@@ -157,8 +157,8 @@ bool foreign_key_prefix(Key *a, Key *b)
 
 THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 	   last_insert_id_used(0),
-	   insert_id_used(0), rand_used(0), in_lock_tables(0),
-	   global_read_lock(0), bootstrap(0)
+           insert_id_used(0), rand_used(0), time_zone_used(0),
+           in_lock_tables(0), global_read_lock(0), bootstrap(0)
 {
   host= user= priv_user= db= ip=0;
   host_or_ip= "connecting host";
