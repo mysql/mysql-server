@@ -8828,7 +8828,7 @@ To get a core dump on Linux if @code{mysqld} dies with a @code{SIGSEGV} signal,
 you can start @code{mysqld} with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting
-@code{safe_mysqld} with @code{--core-file-sizes=1000000}.
+@code{safe_mysqld} with @code{--core-file-size=1000000}.
 @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 If you are linking your own MySQL client and get the error:
@@ -50260,6 +50260,8 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
 
 @itemize @bullet
+@item
+Don't update MyISAM index file on update if not strictly necessary.
 @item
 Fixed bug in @code{SELECT DISTINCT ... FROM many_tables ORDER BY
 not-used-column}.
