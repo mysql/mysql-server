@@ -8174,13 +8174,14 @@ void Dblqh::continueScanAfterBlockedLab(Signal* signal)
     jam();
     scanptr.p->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
     accOpPtr= get_acc_ptr_from_scan_record(scanptr.p,
-                        scanptr.p->m_curr_batch_size_rows,
-                        false);
+					   scanptr.p->m_curr_batch_size_rows,
+					   false);
+    scanptr.p->scan_acc_index--;
   } else if (scanptr.p->scanFlag == NextScanReq::ZSCAN_NEXT_COMMIT) {
     jam();
     accOpPtr= get_acc_ptr_from_scan_record(scanptr.p,
-                        scanptr.p->m_curr_batch_size_rows - 1,
-                        false);
+					   scanptr.p->m_curr_batch_size_rows-1,
+					   false);
   } else {
     jam();
     accOpPtr = RNIL; // The value is not used in ACC
@@ -8190,9 +8191,9 @@ void Dblqh::continueScanAfterBlockedLab(Signal* signal)
   signal->theData[1] = accOpPtr;
   signal->theData[2] = scanptr.p->scanFlag;
   if (! scanptr.p->rangeScan)
-    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
+    sendSignal(tcConnectptr.p->tcAccBlockref, GSN_NEXT_SCANREQ, signal, 3,JBB);
   else
-    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_NEXT_SCANREQ, signal, 3, JBB);
+    sendSignal(tcConnectptr.p->tcTuxBlockref, GSN_NEXT_SCANREQ, signal, 3,JBB);
 }//Dblqh::continueScanAfterBlockedLab()
 
 /* -------------------------------------------------------------------------
