@@ -117,10 +117,12 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #if defined(HAVE_FCNTL)
   {
     struct flock lock;
-    lock.l_type= (short) locktype;
-    lock.l_whence=0L;
-    lock.l_start=(long) start;
-    lock.l_len=(long) length;
+
+    lock.l_type=   (short) locktype;
+    lock.l_whence= SEEK_SET;
+    lock.l_start=  (off_t) start;
+    lock.l_len=    (off_t) length;
+
     if (MyFlags & MY_DONT_WAIT)
     {
       if (fcntl(fd,F_SETLK,&lock) != -1)	/* Check if we can lock */
