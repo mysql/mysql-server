@@ -87,7 +87,8 @@ void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 	      const char *user, const char *db);
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
-		  const char *password,const char *scramble,char **priv_user,
+		  const char *password,const char *scramble,
+                  char **priv_user, char **priv_host,
 		  bool old_ver, USER_RESOURCES *max);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
