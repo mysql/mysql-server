@@ -9,12 +9,12 @@ use test;
 # some basic test of views and its functionality
 #
 
-# create view on unexistence table
+# create view on nonexistent table
 -- error 1146
 create view v1 (c,d) as select a,b from t1;
 
 create temporary table t1 (a int, b int);
-#view on temporary table
+# view on temporary table
 -- error 1352
 create view v1 (c) as select b+1 from t1;
 drop table t1;
@@ -22,7 +22,7 @@ drop table t1;
 create table t1 (a int, b int) max_rows=1000000;
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 
-#view with variable
+# view with variable
 -- error 1351
 create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
 
@@ -30,7 +30,7 @@ create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
 create view v1 (c) as select b+1 from t1;
 select c from v1;
 
-#tamporary table should not shade (hide) table of view
+# temporary table should not hide table of view
 create temporary table t1 (a int, b int);
 # this is empty
 select * from t1;
@@ -42,7 +42,7 @@ show create view v1;
 show create view t1;
 drop table t1;
 
-# try to use fields from underlaid table
+# try to use fields from underlying table
 -- error 1054
 select a from v1;
 -- error 1054
@@ -52,14 +52,14 @@ select b from v1;
 -- error 1054
 select v1.b from v1;
 
-# view with different algorithms (explain out put are differ)
+# view with different algorithms (explain output differs)
 explain extended select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 select c from v2;
 explain extended select c from v2;
 
-# try to use underlaid table fields in VIEW creation process
+# try to use underlying table fields in VIEW creation process
 -- error 1054
 create view v3 (c) as select a+1 from v1;
 -- error 1054
@@ -127,19 +127,19 @@ show grants for test@localhost;
 revoke create view on test.* from test@localhost;
 show grants for test@localhost;
 
-#try to drop unexisten VIEW
+# try to drop nonexistent VIEW
 -- error 1051
 drop view v100;
 
-#try to drop table with DROP VIEW
+# try to drop table with DROP VIEW
 -- error 1347
 drop view t1;
 
-#try to drop VIEW with DROP TABLE
+# try to drop VIEW with DROP TABLE
 -- error 1051
 drop table v1;
 
-#try to drop table with DROP VIEW
+# try to drop table with DROP VIEW
 
 drop view v1,v2;
 drop table t1;
@@ -213,7 +213,7 @@ grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
 
 connection user1;
 select c from mysqltest.v1;
-# there are not privilege ob column 'd'
+# there are no privileges on column 'd'
 -- error 1143
 select d from mysqltest.v1;
 
@@ -233,7 +233,7 @@ grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
 
 connection user1;
 select c from mysqltest.v1;
-# there are not privilege ob column 'd'
+# there are no privileges on column 'd'
 -- error 1143
 select d from mysqltest.v1;
 
@@ -288,7 +288,7 @@ explain select c from mysqltest.v4;
 -- error 1142
 show create view mysqltest.v4;
 
-# allow to see one of underlaing table
+# allow to see one of underlying table
 connection root;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 connection user1;
@@ -328,7 +328,7 @@ delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
 
 #
-# QUERY CHECHE options for VIEWs
+# QUERY CACHE options for VIEWs
 #
 set GLOBAL query_cache_size=1355776;
 flush status;
@@ -425,7 +425,7 @@ drop table t1;
 drop view v1,v2;
 
 #
-# LIMIT clasuse test
+# LIMIT clause test
 #
 create table t1 (a int);
 insert into t1 values (1), (2), (3), (4);
@@ -538,7 +538,7 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
 
 #
-# MEREGE VIEW with WHERE clause
+# MERGE VIEW with WHERE clause
 #
 create table t1 (a int, b int, primary key(b));
 insert into t1 values (1,20), (2,30), (3,40), (4,50), (5,100);
@@ -811,7 +811,7 @@ create view mysqltest.v1 as select * from mysqltest.t1;
 -- error 1143
 create view v3 as select a from mysqltest.t2;
 
-# give CRETEA VIEW privileges (without any privileges for result colemn)
+# give CREATE VIEW privileges (without any privileges for result column)
 connection root;
 create table mysqltest.v3 (b int);
 grant create view on mysqltest.v3 to mysqltest_1@localhost;
@@ -826,7 +826,7 @@ drop view mysqltest.v3;
 connection user1;
 create view mysqltest.v3 as select b from mysqltest.t2;
 
-# give UPDATE and INSERT privilege (to get more privileges then anderlying
+# give UPDATE and INSERT privilege (to get more privileges then underlying
 # table)
 connection root;
 grant create view, update, insert on mysqltest.v3 to mysqltest_1@localhost;
@@ -836,8 +836,8 @@ connection user1;
 create view mysqltest.v3 as select b from mysqltest.t2;
 
 
-# If give other privileges for VIEW then underlaying table have =>
-# creation prohibited
+# If we would get more privileges on VIEW then we have on
+# underlying tables => creation prohibited
 connection root;
 create table mysqltest.v3 (b int);
 grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
@@ -897,7 +897,7 @@ drop view v1;
 drop table `t1a``b`;
 
 #
-# Changing of underlaying table
+# Changing of underlying table
 #
 create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
@@ -927,7 +927,7 @@ call p1();
 drop procedure p1;
 
 #
-# updateablity should be transitive
+# updatablity should be transitive
 #
 create table t1 (col1 int,col2 char(22));
 insert into t1 values(5,'Hello, world of views');
@@ -960,7 +960,7 @@ drop view v1;
 drop table t1;
 
 #
-# Test of view updatebility in prepared statement
+# Test of view updatability in prepared statement
 #
 create table t1 (a int);
 create view v1 as select a from t1;
@@ -1162,23 +1162,21 @@ drop view v1;
 drop table t1;
 
 #
-# VIEW over droped function
+# VIEW over dropped function
 #
 create function x1 () returns int return 5;
-create table t1 (s1 int);
+create table t1 (s1 int) max_rows=1000000;
 create view v1 as select x1() from t1;
 drop function x1;
 -- error 1305
 select * from v1;
 --replace_column 12 # 13 #
 show table status;
---replace_column 12 # 13 #
-show table status;
 drop view v1;
 drop table t1;
 
 #
-# VIEW with floating point (long bumber) as column
+# VIEW with floating point (long number) as column
 #
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
@@ -1213,7 +1211,7 @@ select * from v1;
 drop view v1;
 
 #
-# bug handlimg from VIEWs
+# bug handling from VIEWs
 #
 create view v1 as select 'a',1;
 create view v2 as select * from v1 union all select * from v1;
