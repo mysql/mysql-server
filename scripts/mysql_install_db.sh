@@ -164,7 +164,7 @@ then
 fi
 
 # Create database directories mysql & test
-if test "$in_rpm" -eq 0 || "$windows" -eq 0
+
   if test ! -d $ldata; then mkdir $ldata; chmod 700 $ldata ; fi
   if test ! -d $ldata/mysql; then mkdir $ldata/mysql;  chmod 700 $ldata/mysql ; fi
   if test ! -d $ldata/test; then mkdir $ldata/test;  chmod 700 $ldata/test ; fi
