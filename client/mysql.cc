@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.18";
+const char *VER= "12.19";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -766,6 +766,7 @@ static int get_options(int argc, char **argv)
   }
   if (argc == 1)
   {
+    skip_updates= 0;
     my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
     current_db= my_strdup(*argv, MYF(MY_WME));
   }
