@@ -12,8 +12,6 @@ ndb_mgmd_SOURCES = \
 	main.cpp \
 	Services.cpp \
 	convertStrToInt.cpp \
-        NodeLogLevel.cpp \
-	NodeLogLevelList.cpp \
 	SignalQueue.cpp \
 	MgmtSrvrConfig.cpp \
 	ConfigInfo.cpp \
