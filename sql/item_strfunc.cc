@@ -954,8 +954,9 @@ String *Item_func_left::val_str(String *str)
   if (res->length() <= (uint) length ||
       res->length() <= (char_pos= res->charpos(length)))
     return res;
-  str_value.set(*res, 0, char_pos);
-  return &str_value;
+
+  tmp_value.set(*res, 0, char_pos);
+  return &tmp_value;
 }
 
 
