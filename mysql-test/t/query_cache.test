@@ -367,3 +367,17 @@ show status like "Qcache_queries_in_cache";
 select * from t3;
 show status like "Qcache_queries_in_cache";
 drop table t1, t2, t3;
+
+#
+# system databse test
+#
+use mysql;
+disable_result_log;
+select * from db;
+enable_result_log;
+show status like "Qcache_queries_in_cache";
+use test;
+disable_result_log;
+select * from mysql.db;
+enable_result_log;
+show status like "Qcache_queries_in_cache";
