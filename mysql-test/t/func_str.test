@@ -154,3 +154,12 @@ INSERT INTO t1 VALUES ('House passes the CAREERS bill');
 SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
 
 DROP TABLE t1;
+
+#
+# test for Bug #2290 "output truncated with ELT when using DISTINCT"
+#
+
+CREATE TABLE t1 (i int, j int);
+INSERT INTO t1 VALUES (1,1),(2,2);
+SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
+DROP TABLE t1;
