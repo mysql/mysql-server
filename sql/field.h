@@ -37,11 +37,7 @@ class Field
   void operator=(Field &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
-  static void operator delete(void *ptr_arg, size_t size) {
-#ifdef SAFEMALLOC
-    bfill(ptr_arg, size, 0x8F);
-#endif
-  }
+  static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is

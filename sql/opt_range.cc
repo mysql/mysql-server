@@ -1360,7 +1360,7 @@ public:
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr,size_t size) {}
+  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
 };
 
 class TRP_ROR_INTERSECT;
@@ -2716,7 +2716,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   double min_cost= read_time;
   DBUG_ENTER("get_best_ror_intersect");
 
-  if (tree->n_ror_scans < 2)
+  if ((tree->n_ror_scans < 2) || !param->table->file->records)
     DBUG_RETURN(NULL);
 
   /*
@@ -2803,6 +2803,9 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
       min_cost= intersect->total_cost;
       best_rows= (ha_rows)(intersect->records_fract*
                            rows2double(param->table->file->records));
+      /* Prevent divisons by zero */
+      if (!best_rows)
+        best_rows= 1;
       is_best_covering= intersect->is_covering;
       intersect_scans_best= intersect_scans_end;
       best_index_scan_costs= intersect->index_scan_costs;
@@ -2847,6 +2850,9 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
       min_cost= intersect->total_cost;
       best_rows= (ha_rows)(intersect->records_fract*
                            rows2double(param->table->file->records));
+      /* Prevent divisons by zero */
+      if (!best_rows)
+        best_rows= 1;
       is_best_covering= intersect->is_covering;
       best_index_scan_costs= intersect->index_scan_costs;
     }
@@ -2866,7 +2872,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     trp->last_scan=  trp->first_scan + best_num;
     trp->is_covering= is_best_covering;
     trp->read_cost= min_cost;
-    trp->records= best_rows? best_rows : 1;
+    trp->records= best_rows;
     trp->index_scan_costs= best_index_scan_costs;
     trp->cpk_scan= cpk_scan;
     DBUG_PRINT("info",

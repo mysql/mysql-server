@@ -33,7 +33,7 @@ a
 SELECT * FROM t1 where (1 AND a) IS NULL;
 a
 NULL
-set sql_mode='broken_not';
+set sql_mode='high_not_precedence';
 select * from t1 where not a between 2 and 3;
 a
 set sql_mode=default;

@@ -425,3 +425,4 @@ character-set=latin1
 "Can not modify more than one base table through a join view '%-.64s.%-.64s'"
 "Can not insert into join view '%-.64s.%-.64s' without fields list"
 "Can not delete from join view '%-.64s.%-.64s'"
+"Das Kommando %s scheiterte für %.256s",

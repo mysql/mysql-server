@@ -684,7 +684,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       mark to avoid temporary table using and put view reference and find
       last view table
     */
-    for (TABLE_LIST *tbl= view_tables;
+    for (tbl= view_tables;
          tbl;
          tbl= (view_tables_tail= tbl)->next_global)
     {

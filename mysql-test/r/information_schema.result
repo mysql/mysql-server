@@ -252,7 +252,7 @@ sel2	sel2
 select count(*) from information_schema.ROUTINES;
 count(*)
 2
-create view v0 (c) as select schema_name from information_schema.SCHEMATA;
+create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
 mysql
@@ -260,22 +260,22 @@ test
 explain select * from v0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	#	ALL	NULL	NULL	NULL	NULL	2	
-create view v1 (c) as select table_name from information_schema.TABLES
+create view v1 (c) as select table_name from information_schema.tables
 where table_name="v1";
 select * from v1;
 c
 v1
-create view v2 (c) as select column_name from information_schema.COLUMNS
+create view v2 (c) as select column_name from information_schema.columns
 where table_name="v2";
 select * from v2;
 c
 c
-create view v3 (c) as select CHARACTER_SET_NAME from information_schema.CHARACTER_SETS
+create view v3 (c) as select CHARACTER_SET_NAME from information_schema.character_sets
 where CHARACTER_SET_NAME like "latin1%";
 select * from v3;
 c
 latin1
-create view v4 (c) as select COLLATION_NAME from information_schema.COLLATIONS
+create view v4 (c) as select COLLATION_NAME from information_schema.collations
 where COLLATION_NAME like "latin1%";
 select * from v4;
 c
@@ -289,13 +289,13 @@ latin1_general_cs
 latin1_spanish_ci
 show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-select * from information_schema.VIEWS where TABLE_NAME like "v%";
+select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE
-NULL	test	v0	select `SCHEMATA`.`SCHEMA_NAME` AS `c` from `information_schema`.`SCHEMATA`	NONE	NO
-NULL	test	v1	select `TABLES`.`TABLE_NAME` AS `c` from `information_schema`.`TABLES` where (`TABLES`.`TABLE_NAME` = _utf8'v1')	NONE	NO
-NULL	test	v2	select `COLUMNS`.`COLUMN_NAME` AS `c` from `information_schema`.`COLUMNS` where (`COLUMNS`.`TABLE_NAME` = _utf8'v2')	NONE	NO
-NULL	test	v3	select `CHARACTER_SETS`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`CHARACTER_SETS` where (`CHARACTER_SETS`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO
-NULL	test	v4	select `COLLATIONS`.`COLLATION_NAME` AS `c` from `information_schema`.`COLLATIONS` where (`COLLATIONS`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO
+NULL	test	v0	select `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO
+NULL	test	v1	select `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO
+NULL	test	v2	select `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO
+NULL	test	v3	select `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO
+NULL	test	v4	select `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -434,18 +434,18 @@ information_schema.tables;
 s1
 9
 drop table t1;
-SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
+SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
-CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
+character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `CHARACTER_SET_NAME` char(30) NOT NULL default '',
   `DESCRIPTION` char(60) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
 ) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2282
 set names latin2;
-SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
+SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
-CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
+character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `CHARACTER_SET_NAME` char(30) NOT NULL default '',
   `DESCRIPTION` char(60) NOT NULL default '',
   `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
@@ -517,3 +517,19 @@ from information_schema.columns;  open c; open c; end;//
 call p108()//
 ERROR 24000: Cursor is already open
 drop procedure p108;
+create view v1 as select A1.table_name from information_schema.TABLES A1
+where table_name= "user";
+select * from v1;
+table_name
+user
+drop view v1;
+create view vo as select 'a' union select 'a';
+show index from vo;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+select * from information_schema.TABLE_CONSTRAINTS where
+TABLE_NAME= "vo";
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	CONSTRAINT_METHOD
+select * from information_schema.KEY_COLUMN_USAGE where
+TABLE_NAME= "vo";
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+drop view vo;

@@ -61,7 +61,7 @@ t1	CREATE TABLE `t1` (
 set @@sql_mode="no_field_options,mysql323,mysql40";
 show variables like 'sql_mode';
 Variable_name	Value
-sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40,BROKEN_NOT
+sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40,HIGH_NOT_PRECEDENCE
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

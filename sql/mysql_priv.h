@@ -282,7 +282,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
-#define MODE_BROKEN_NOT			(MODE_NO_AUTO_CREATE_USER*2)
+#define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -809,8 +809,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it, bool any_privileges,
-                   bool allocate_view_names,
-                   bool select_insert);
+                   bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
 		  TABLE_LIST **leaves, bool refresh_only,
                   bool select_insert);
