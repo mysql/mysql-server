@@ -1,14 +1,16 @@
 #ifndef NDB_UPGRADE_STARTUP
 #define NDB_UPGRADE_STARTUP
 
+class Ndbcntr;
+
 struct UpgradeStartup {
 
   static void installEXEC(SimulatedBlock*);
 
-  static const Uint32 GSN_CM_APPCHG = 131;
-  static const Uint32 GSN_CNTR_MASTERCONF = 148;
-  static const Uint32 GSN_CNTR_MASTERREF = 149;
-  static const Uint32 GSN_CNTR_MASTERREQ = 150;
+  STATIC_CONST( GSN_CM_APPCHG = 131 );
+  STATIC_CONST( GSN_CNTR_MASTERCONF = 148 );
+  STATIC_CONST( GSN_CNTR_MASTERREF = 149 );
+  STATIC_CONST( GSN_CNTR_MASTERREQ = 150 );
 
   static void sendCmAppChg(Ndbcntr&, Signal *, Uint32 startLevel);
   static void execCM_APPCHG(SimulatedBlock& block, Signal*);

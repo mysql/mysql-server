@@ -27,13 +27,13 @@ void Dblqh::initData()
 {
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cattrinbufFileSize = ZATTRINBUF_FILE_SIZE;
+  c_no_attrinbuf_recs= ZATTRINBUF_FILE_SIZE;
   cdatabufFileSize = ZDATABUF_FILE_SIZE;
   cfragrecFileSize = 0;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clcpLocrecFileSize = ZLCP_LOCREC_FILE_SIZE;
-  clogPageFileSize = ZLOG_PAGE_FILE_SIZE;
   clfoFileSize = ZLFO_FILE_SIZE;
   clogFileFileSize = 0;
   clogPartFileSize = ZLOG_PART_FILE_SIZE;
@@ -176,7 +176,24 @@ Dblqh::Dblqh(const class Configuration & conf):
   m_commitAckMarkerHash(m_commitAckMarkerPool),
   c_scanTakeOverHash(c_scanRecordPool)
 {
+  Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dblqh);
+
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,  
+			    &log_page_size);
+
+  /**
+   * Always set page size in half MBytes
+   */
+  clogPageFileSize= (log_page_size / sizeof(LogPageRecord));
+  Uint32 mega_byte_part= clogPageFileSize & 15;
+  if (mega_byte_part != 0) {
+    jam();
+    clogPageFileSize+= (16 - mega_byte_part);
+  }
 
   addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
   addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);
@@ -322,6 +339,8 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_TUXFRAGREF, &Dblqh::execTUXFRAGREF);
   addRecSignal(GSN_TUX_ADD_ATTRCONF, &Dblqh::execTUX_ADD_ATTRCONF);
   addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
+
+  addRecSignal(GSN_READ_PSUEDO_REQ, &Dblqh::execREAD_PSUEDO_REQ);
 
   initData();
 

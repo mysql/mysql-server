@@ -15,6 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_sys.h>
+
+#include <NdbAutoPtr.hpp>
 
 #include <NdbTCP.h>
 #include "mgmapi.h"
@@ -107,7 +110,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
 
   va_list ap;
   va_start(ap, msg);
-  vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
+  BaseString::vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
   va_end(ap);
 }
 
@@ -137,7 +140,8 @@ extern "C"
 NdbMgmHandle
 ndb_mgm_create_handle()
 {
-  NdbMgmHandle h     = (NdbMgmHandle)malloc(sizeof(ndb_mgm_handle));
+  NdbMgmHandle h     =
+    (NdbMgmHandle)my_malloc(sizeof(ndb_mgm_handle),MYF(MY_WME));
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
@@ -166,16 +170,14 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   if((* handle)->connected){
     ndb_mgm_disconnect(* handle);
   }
-  if((* handle)->hostname != 0){
-    free((* handle)->hostname);
-  }
+  my_free((* handle)->hostname,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef MGMAPI_LOG
   if ((* handle)->logfile != 0){
     fclose((* handle)->logfile);
     (* handle)->logfile = 0;
   }
 #endif
-  free(* handle);
+  my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
 }
 
@@ -228,7 +230,8 @@ parse_connect_string(const char * connect_string,
     return -1;
   }
   
-  char * line = strdup(connect_string);
+  char * line = my_strdup(connect_string,MYF(MY_WME));
+  My_auto_ptr<char> ap1(line);
   if(line == 0){
     SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
     return -1;
@@ -236,7 +239,6 @@ parse_connect_string(const char * connect_string,
   
   char * tmp = strchr(line, ':');
   if(tmp == 0){
-    free(line);
     SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
     return -1;
   }
@@ -244,17 +246,13 @@ parse_connect_string(const char * connect_string,
   
   int port = 0;
   if(sscanf(tmp, "%d", &port) != 1){
-    free(line);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_PORT_NUMBER, "");
     return -1;
   }
   
-  if(handle->hostname != 0)
-    free(handle->hostname);
-
-  handle->hostname = strdup(line);
+  my_free(handle->hostname,MYF(MY_ALLOW_ZERO_PTR));
+  handle->hostname = my_strdup(line,MYF(MY_WME));
   handle->port = port;
-  free(line);
   return 0;
 }
 
@@ -361,7 +359,7 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
   * Open the log file
   */
   char logname[64];
-  snprintf(logname, 64, "mgmapi.log");
+  BaseString::snprintf(logname, 64, "mgmapi.log");
   handle->logfile = fopen(logname, "w");
 #endif
 
@@ -403,14 +401,15 @@ ndb_mgm_disconnect(NdbMgmHandle handle)
 struct ndb_mgm_type_atoi 
 {
   const char * str;
+  const char * alias;
   enum ndb_mgm_node_type value;
 };
 
 static struct ndb_mgm_type_atoi type_values[] = 
 {
-  { "NDB", NDB_MGM_NODE_TYPE_NDB},
-  { "API", NDB_MGM_NODE_TYPE_API },
-  { "MGM", NDB_MGM_NODE_TYPE_MGM }
+  { "NDB", "ndbd", NDB_MGM_NODE_TYPE_NDB},
+  { "API", "mysqld", NDB_MGM_NODE_TYPE_API },
+  { "MGM", "ndb_mgmd", NDB_MGM_NODE_TYPE_MGM }
 };
 
 const int no_of_type_values = (sizeof(type_values) / 
@@ -437,6 +436,20 @@ ndb_mgm_get_node_type_string(enum ndb_mgm_node_type type)
   for(int i = 0; i<no_of_type_values; i++)
     if(type_values[i].value == type)
       return type_values[i].str;
+  return 0;
+}
+
+extern "C"
+const char * 
+ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type, const char** str)
+{
+  for(int i = 0; i<no_of_type_values; i++)
+    if(type_values[i].value == type)
+      {
+	if (str)
+	  *str= type_values[i].str;
+	return type_values[i].alias;
+      }
   return 0;
 }
 
@@ -509,6 +522,9 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->version = atoi(value);
   } else if(strcmp("connect_count", field) == 0){
     state->connect_count = atoi(value);    
+  } else if(strcmp("address", field) == 0){
+    strncpy(state->connect_address, value, sizeof(state->connect_address));
+    state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
     ndbout_c("Unknown field: %s", field);
   }
@@ -575,22 +591,27 @@ ndb_mgm_get_status(NdbMgmHandle handle)
 
   ndb_mgm_cluster_state *state = (ndb_mgm_cluster_state*)
     malloc(sizeof(ndb_mgm_cluster_state)+
-	   noOfNodes*sizeof(ndb_mgm_node_state));
+	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
-  state->no_of_nodes = noOfNodes;
+  state->hostname= 0;
+  state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
-  int i = -1; ptr--;
+  int i;
+  for (i= 0; i < noOfNodes; i++) {
+    state->node_states[i].connect_address[0]= 0;
+  }
+  i = -1; ptr--;
   for(; i<noOfNodes; ){
     in.gets(buf, sizeof(buf));
     tmp.assign(buf);
-    
+
     if(tmp.trim() == ""){
       break;
     }
     
     Vector<BaseString> split;
-    tmp.split(split, ":.");
+    tmp.split(split, ":.", 4);
     if(split.size() != 4)
       break;
     
@@ -931,13 +952,52 @@ struct ndb_mgm_event_categories
 {
   const char* name;
   enum ndb_mgm_event_category category;
+} categories[] = {
+  { "STARTUP", NDB_MGM_EVENT_CATEGORY_STARTUP },
+  { "SHUTDOWN", NDB_MGM_EVENT_CATEGORY_SHUTDOWN },
+  { "STATISTICS", NDB_MGM_EVENT_CATEGORY_STATISTIC },
+  { "NODERESTART", NDB_MGM_EVENT_CATEGORY_NODE_RESTART },
+  { "CONNECTION", NDB_MGM_EVENT_CATEGORY_CONNECTION },
+  { "CHECKPOINT", NDB_MGM_EVENT_CATEGORY_CHECKPOINT },
+  { "DEBUG", NDB_MGM_EVENT_CATEGORY_DEBUG },
+  { "INFO", NDB_MGM_EVENT_CATEGORY_INFO },
+  { "ERROR", NDB_MGM_EVENT_CATEGORY_ERROR },
+  { "GREP", NDB_MGM_EVENT_CATEGORY_GREP },
+  { "BACKUP", NDB_MGM_EVENT_CATEGORY_BACKUP },
+  { 0, NDB_MGM_ILLEGAL_EVENT_CATEGORY }
 };
+
+extern "C"
+ndb_mgm_event_category
+ndb_mgm_match_event_category(const char * status)
+{
+  if(status == 0)
+    return NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+  
+  for(int i = 0; categories[i].name !=0 ; i++)
+    if(strcmp(status, categories[i].name) == 0)
+      return categories[i].category;
+
+  return NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+}
+
+extern "C"
+const char * 
+ndb_mgm_get_event_category_string(enum ndb_mgm_event_category status)
+{
+  int i;
+  for(i = 0; categories[i].name != 0; i++)
+    if(categories[i].category == status)
+      return categories[i].name;
+  
+  return 0;
+}
 
 extern "C"
 int 
 ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
-				/*enum ndb_mgm_event_category*/ 
-				char * category, int level,
+				enum ndb_mgm_event_category cat,
+				int level,
 				struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, 
@@ -952,14 +1012,14 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 
   Properties args;
   args.put("node", nodeId);
-  args.put("category", category);
+  args.put("category", cat);
   args.put("level", level);
-
+  
   const Properties *reply;
   reply = ndb_mgm_call(handle, clusterlog_reply, 
 		       "set cluster loglevel", &args);
   CHECK_REPLY(reply, -1);
-
+  
   BaseString result;
   reply->get("result", result);
   if(strcmp(result.c_str(), "Ok") != 0) {
@@ -974,8 +1034,8 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
-			  /*enum ndb_mgm_event_category category*/
-			  char * category, int level,
+			  enum ndb_mgm_event_category category,
+			  int level,
 			  struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_set_loglevel_node");
@@ -1005,6 +1065,48 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
   delete reply;
   return 0;
+}
+
+extern "C"
+int
+ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
+  const ParserRow<ParserDummy> stat_reply[] = {
+    MGM_CMD("listen event", NULL, ""),
+    MGM_ARG("result", Int, Mandatory, "Error message"),
+    MGM_ARG("msg", String, Optional, "Error message"),
+    MGM_END()
+  };
+  CHECK_HANDLE(handle, -1);
+  
+  SocketClient s(handle->hostname, handle->port);
+  const NDB_SOCKET_TYPE sockfd = s.connect();
+  if (sockfd < 0) {
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	     "Unable to connect to");
+    return -1;
+  }
+
+  Properties args;
+  {
+    BaseString tmp;
+    for(int i = 0; filter[i] != 0; i += 2){
+      tmp.appfmt("%d=%d ", filter[i+1], filter[i]);
+    }
+    args.put("filter", tmp.c_str());
+  }
+  
+  int tmp = handle->socket;
+  handle->socket = sockfd;
+  
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, stat_reply, "listen event", &args);
+  
+  handle->socket = tmp;
+  
+  CHECK_REPLY(reply, -1);
+  return sockfd;
 }
 
 extern "C"
@@ -1049,11 +1151,14 @@ ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, int* _args,
   CHECK_CONNECTED(handle, -1);
 
   char buf[256];
-  char buf2[6];
   buf[0] = 0;
   for (int i = 0; i < _num_args; i++){
-    snprintf(buf2, 6, "%d ",  _args[i]);
-    strncat(buf, buf2, 256);
+    unsigned n = strlen(buf);
+    if (n + 20 > sizeof(buf)) {
+      SET_ERROR(handle, NDB_MGM_USAGE_ERROR, "arguments too long");
+      return -1;
+    }
+    sprintf(buf + n, "%s%d", i ? " " : "", _args[i]);
   }
 
   Properties args;
@@ -1509,6 +1614,16 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
 }
 
 extern "C"
+void
+ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
+{
+  if (cfg) {
+    ((ConfigValues *)cfg)->~ConfigValues();
+    free((void *)cfg);
+  }
+}
+
+extern "C"
 int
 ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodeid, int nodetype)
 {
@@ -1539,8 +1654,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodei
   do {
     const char * buf;
     if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      BaseString err;
+      err.assfmt("Could not alloc node id at %s port %d: %s",
+		 handle->hostname, handle->port, buf);
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       "Could not alloc node id: %s",buf);
+	       err.c_str());
       break;
     }
     if(!prop->get("nodeid", pnodeid) != 0){

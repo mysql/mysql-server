@@ -66,7 +66,9 @@ SocketClient::connect()
   if (m_sockfd < 0)
   {
     if (!init()) {
+#ifdef VM_TRACE
       ndbout << "SocketClient::connect() failed " << m_server_name << " " << m_port << endl;
+#endif
       return -1;
     }
   }

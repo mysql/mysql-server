@@ -427,6 +427,9 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
+#ifdef HAVE_INNOBASE_DB
+  my_bool innodb_table_locks;
+#endif /* HAVE_INNOBASE_DB */
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */
@@ -513,6 +516,9 @@ public:
   */
   Item *free_list;
   MEM_ROOT mem_root;
+#ifndef DBUG_OFF
+  bool backup_arena;
+#endif
   enum enum_state 
   {
     INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
@@ -527,14 +533,28 @@ public:
     STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
   };
 
+  /*
+    This constructor is used only when Item_arena is created as
+    backup storage for another instance of Item_arena.
+  */
+  Item_arena() {};
+  /*
+    Create arena for already constructed THD using its variables as
+    parameters for memory root initialization.
+  */
   Item_arena(THD *thd);
-  Item_arena();
+  /*
+    Create arena and optionally init memory root with minimal values.
+    Particularly used if Item_arena is part of Statement.
+  */
   Item_arena(bool init_mem_root);
   virtual Type type() const;
-  virtual ~Item_arena();
+  virtual ~Item_arena() {};
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline bool is_stmt_execute() const
+  { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
@@ -620,6 +640,23 @@ public:
     Points to the query associated with this statement. It's const, but
     we need to declare it char * because all table handlers are written
     in C and need to point to it.
+
+    Note that (A) if we set query = NULL, we must at the same time set
+    query_length = 0, and protect the whole operation with the
+    LOCK_thread_count mutex. And (B) we are ONLY allowed to set query to a
+    non-NULL value if its previous value is NULL. We do not need to protect
+    operation (B) with any mutex. To avoid crashes in races, if we do not
+    know that thd->query cannot change at the moment, one should print
+    thd->query like this:
+      (1) reserve the LOCK_thread_count mutex;
+      (2) check if thd->query is NULL;
+      (3) if not NULL, then print at most thd->query_length characters from
+      it. We will see the query_length field as either 0, or the right value
+      for it.
+    Assuming that the write and read of an n-bit memory field in an n-bit
+    computer is atomic, we can avoid races in the above way. 
+    This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
+    STATUS.
   */
   char *query;
   uint32 query_length;                          // current query length
@@ -642,12 +679,6 @@ public:
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
-
-  /*
-    Cleanup statement parse state (parse tree, lex) after execution of
-    a non-prepared SQL statement.
-  */
-  void end_statement();
 };
 
 
@@ -657,7 +688,7 @@ public:
   assignment in Statement::Statement)
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted
-  
+
   Statements are auto-deleted when they are removed from the map and when the
   map is deleted.
 */
@@ -666,7 +697,7 @@ class Statement_map
 {
 public:
   Statement_map();
-  
+
   int insert(Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
@@ -699,17 +730,35 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
+  /* Erase all statements (calls Statement destructor) */
+  void reset()
+  {
+    hash_reset(&names_hash);
+    hash_reset(&st_hash);
+    last_found_statement= 0;
+  }
 
   ~Statement_map()
   {
-    hash_free(&st_hash);
     hash_free(&names_hash);
+    hash_free(&st_hash);
   }
 private:
   HASH st_hash;
   HASH names_hash;
   Statement *last_found_statement;
 };
+
+
+/*
+  A registry for item tree transformations performed during
+  query optimization. We register only those changes which require
+  a rollback to re-execute a prepared statement or stored procedure
+  yet another time.
+*/
+
+struct Item_change_record;
+typedef I_List<Item_change_record> Item_change_list;
 
 
 /*
@@ -744,24 +793,6 @@ public:
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
-  /* 
-    Note that (A) if we set query = NULL, we must at the same time set
-    query_length = 0, and protect the whole operation with the
-    LOCK_thread_count mutex. And (B) we are ONLY allowed to set query to a
-    non-NULL value if its previous value is NULL. We do not need to protect
-    operation (B) with any mutex. To avoid crashes in races, if we do not
-    know that thd->query cannot change at the moment, one should print
-    thd->query like this:
-      (1) reserve the LOCK_thread_count mutex;
-      (2) check if thd->query is NULL;
-      (3) if not NULL, then print at most thd->query_length characters from
-      it. We will see the query_length field as either 0, or the right value
-      for it.
-    Assuming that the write and read of an n-bit memory field in an n-bit
-    computer is atomic, we can avoid races in the above way. 
-    This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
-    STATUS.
-  */
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
   /*
@@ -831,6 +862,7 @@ public:
   */
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
+  HASH		handler_tables_hash;
   /*
     One thread can hold up to one named user-level lock. This variable
     points to a lock object if the lock is present. See item_func.cc and
@@ -864,10 +896,10 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
-    uint ndb_lock_count;
 #ifdef HAVE_NDBCLUSTER_DB
-    void* ndb;
+    void* thd_ndb;
 #endif
+    bool on;
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query
@@ -888,6 +920,14 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
 #endif
+  /*
+    This is to track items changed during execution of a prepared
+    statement/stored procedure. It's created by
+    register_item_tree_change() in memory root of THD, and freed in
+    rollback_item_tree_changes(). For conventional execution it's always 0.
+  */
+  Item_change_list change_list;
+
   /*
     Current prepared Item_arena if there one, or 0
   */
@@ -1126,6 +1166,23 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+
+  void change_item_tree(Item **place, Item *new_value)
+  {
+    /* TODO: check for OOM condition here */
+    if (!current_arena->is_conventional())
+      nocheck_register_item_tree_change(place, *place, &mem_root);
+    *place= new_value;
+  }
+  void nocheck_register_item_tree_change(Item **place, Item *old_value,
+                                         MEM_ROOT *runtime_memroot);
+  void rollback_item_tree_changes();
+
+  /*
+    Cleanup statement parse state (parse tree, lex) and execution
+    state after execution of a non-prepared SQL statement.
+  */
+  void end_statement();
   inline int killed_errno() const
   {
     return killed != KILL_BAD_DATA ? killed : 0;
@@ -1148,27 +1205,6 @@ public:
 #define SYSTEM_THREAD_DELAYED_INSERT 1
 #define SYSTEM_THREAD_SLAVE_IO 2
 #define SYSTEM_THREAD_SLAVE_SQL 4
-
-/*
-  Disables binary logging for one thread, and resets it back to what it was
-  before being disabled. 
-  Some functions (like the internal mysql_create_table() when it's called by
-  mysql_alter_table()) must NOT write to the binlog (binlogging is done at the
-  at a later stage of the command already, and must be, for locking reasons);
-  so we internally disable it temporarily by creating the Disable_binlog
-  object and reset the state by destroying the object (don't forget that! or
-  write code so that the object gets automatically destroyed when leaving a
-  block, see example in sql_table.cc).
-*/
-class Disable_binlog {
-private:
-  THD *thd;
-  ulong save_options;
-public:
-  Disable_binlog(THD *thd_arg);
-  ~Disable_binlog();
-};
-
 
 /*
   Used to hold information about file and file structure in exchainge 
@@ -1209,11 +1245,19 @@ public:
     unit= u;
     return 0;
   }
+  /*
+    Because of peculiarities of prepared statements protocol
+    we need to know number of columns in the result set (if
+    there is a result set) apart from sending columns metadata.
+  */
+  virtual uint field_count(List<Item> &fields) const
+  { return fields.elements; }
   virtual bool send_fields(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
+  virtual bool simple_select() { return 0; }
   virtual void abort() {}
   /*
     Cleanup instance of this class for next execution of a prepared
@@ -1223,16 +1267,31 @@ public:
 };
 
 
+/*
+  Base class for select_result descendands which intercept and
+  transform result set rows. As the rows are not sent to the client,
+  sending of result set metadata should be suppressed as well.
+*/
+
+class select_result_interceptor: public select_result
+{
+public:
+  uint field_count(List<Item> &fields) const { return 0; }
+  bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
+};
+
+
 class select_send :public select_result {
 public:
   select_send() {}
   bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
+  bool simple_select() { return 1; }
 };
 
 
-class select_to_file :public select_result {
+class select_to_file :public select_result_interceptor {
 protected:
   sql_exchange *exchange;
   File file;
@@ -1244,7 +1303,6 @@ public:
   select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
   ~select_to_file();
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void cleanup();
@@ -1271,7 +1329,7 @@ public:
 };
 
 
-class select_insert :public select_result {
+class select_insert :public select_result_interceptor {
  public:
   TABLE_LIST *table_list;
   TABLE *table;
@@ -1285,7 +1343,6 @@ class select_insert :public select_result {
                 bool ignore_check_option_errors);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -1345,10 +1402,12 @@ public:
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
   bool  using_indirect_summary_function;
+  /* If >0 convert all blob fields to varchar(convert_blob_length) */
+  uint  convert_blob_length; 
 
   TMP_TABLE_PARAM()
     :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0)
+    group_length(0), group_null_parts(0), convert_blob_length(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -1365,7 +1424,7 @@ public:
   }
 };
 
-class select_union :public select_result {
+class select_union :public select_result_interceptor {
  public:
   TABLE *table;
   COPY_INFO info;
@@ -1374,7 +1433,6 @@ class select_union :public select_result {
   select_union(TABLE *table_par);
   ~select_union();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
@@ -1382,17 +1440,14 @@ class select_union :public select_result {
 };
 
 /* Base subselect interface class */
-class select_subselect :public select_result
+class select_subselect :public select_result_interceptor
 {
 protected:
   Item_subselect *item;
 public:
   select_subselect(Item_subselect *item);
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
-
-  friend class Ttem_subselect;
 };
 
 /* Single value subselect interface class */
@@ -1544,7 +1599,7 @@ public:
 };
 
 
-class multi_delete :public select_result
+class multi_delete :public select_result_interceptor
 {
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
@@ -1557,7 +1612,6 @@ public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
@@ -1566,7 +1620,7 @@ public:
 };
 
 
-class multi_update :public select_result
+class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;
@@ -1585,7 +1639,6 @@ public:
 	       List<Item> *values, enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
@@ -1605,7 +1658,7 @@ public:
   ~my_var() {}
 };
 
-class select_dumpvar :public select_result {
+class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
 public:
   List<my_var> var_list;
@@ -1614,7 +1667,6 @@ public:
   select_dumpvar(void)  { var_list.empty(); local_vars.empty(); vars.empty(); row_count=0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flags) { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
   void cleanup();

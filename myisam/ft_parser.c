@@ -174,7 +174,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                         FT_WORD *word)
 {
   byte *doc= *start;
-  uint mwc, length;
+  uint mwc, length, mbl;
   DBUG_ENTER("ft_simple_get_word");
 
   while (doc<end)
@@ -185,7 +185,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     }
 
     mwc= length= 0;
-    for (word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
+    for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
       if (true_word_char(cs,*doc))
         mwc= 0;
       else if (!misc_word_char(*doc) || mwc++)

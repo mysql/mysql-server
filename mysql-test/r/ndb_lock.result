@@ -28,3 +28,38 @@ x	y
 2	two
 3	three
 commit;
+drop table t1;
+create table t1 (pk integer not null primary key, u int not null, o int not null, 
+unique(u), key(o)) engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+lock tables t1 write;
+delete from t1 where pk = 1;
+unlock tables;
+select * from t1 order by pk;
+pk	u	o
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+insert into t1 values (1,1,1);
+lock tables t1 write;
+delete from t1 where u = 1;
+unlock tables;
+select * from t1 order by pk;
+pk	u	o
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+insert into t1 values (1,1,1);
+lock tables t1 write;
+delete from t1 where o = 1;
+unlock tables;
+select * from t1 order by pk;
+pk	u	o
+2	2	2
+3	3	3
+4	4	4
+5	5	5
+insert into t1 values (1,1,1);
+drop table t1;

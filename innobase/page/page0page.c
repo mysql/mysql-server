@@ -1579,7 +1579,7 @@ page_validate(
 
 		fputs("InnoDB: Record heap and dir overlap on a page ",
 			stderr);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, NULL, index);
 		fprintf(stderr, ", %p, %p\n",
 				page_header_get_ptr(page, PAGE_HEAP_TOP),
 			page_dir_get_nth_slot(page, n_slots - 1));
@@ -1610,7 +1610,7 @@ page_validate(
 				fprintf(stderr,
 				"InnoDB: Records in wrong order on page %lu",
 					(ulong) buf_frame_get_page_no(page));
-				dict_index_name_print(stderr, index);
+				dict_index_name_print(stderr, NULL, index);
 				fputs("\nInnoDB: previous record ", stderr);
 				rec_print(stderr, old_rec);
 				fputs("\nInnoDB: record ", stderr);
@@ -1752,7 +1752,7 @@ func_exit:
 	func_exit2:
 		fprintf(stderr, "InnoDB: Apparent corruption in page %lu in ",
 			(ulong) buf_frame_get_page_no(page));
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, NULL, index);
 		putc('\n', stderr);
 		buf_page_print(page);
 	}

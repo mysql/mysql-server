@@ -29,24 +29,31 @@
 void
 Ndb::checkFailedNode()
 {
-  for (NodeId i = 0; i < theNoOfDBnodes; i ++){
+  DBUG_ENTER("Ndb::checkFailedNode");
+  DBUG_PRINT("enter", ("theNoOfDBnodes: %d", theNoOfDBnodes));
+
+  DBUG_ASSERT(theNoOfDBnodes < MAX_NDB_NODES);
+  for (Uint32 i = 0; i < theNoOfDBnodes; i++){
     const NodeId node_id = theDBnodes[i];
+    DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
-    NdbConnection * tNdbCon = theConnectionArray[node_id];
+    DBUG_ASSERT(node_id < MAX_NDB_NODES);    
     if (the_release_ind[node_id] == 1){
 
       /**
        * Release all connections in idle list (for node)
        */
+      NdbConnection * tNdbCon = theConnectionArray[node_id];
       theConnectionArray[node_id] = NULL;
       while (tNdbCon != NULL) {
         NdbConnection* tempNdbCon = tNdbCon;
         tNdbCon = tNdbCon->next();
         releaseNdbCon(tempNdbCon);
-      }//while      
+      }
       the_release_ind[node_id] = 0;
-    }//if
-  }//for
+    }
+  }
+  DBUG_VOID_RETURN;
 }
 
 #if 0
@@ -425,11 +432,15 @@ Ndb::getSignal()
     theSignalIdleList = tSignalNext;
   } else {
     tSignal = new NdbApiSignal(theMyRef);
+#ifdef POORMANSPURIFY
     cnewSignals++;
+#endif
     if (tSignal != NULL)
       tSignal->next(NULL);
   }
+#ifdef POORMANSPURIFY
   cgetSignals++;
+#endif
   return tSignal;
 }
 
@@ -598,7 +609,9 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
   }
 #endif
 #endif
+#ifdef POORMANSPURIFY
   creleaseSignals++;
+#endif
   aSignal->next(theSignalIdleList);
   theSignalIdleList = aSignal;
 }
@@ -642,8 +655,8 @@ Remark:         Always release the first item in the free list
 void
 Ndb::freeScanOperation()
 {
-  NdbScanOperation* tOp = theScanOpIdleList;
-  theScanOpIdleList = (NdbIndexScanOperation *) theScanOpIdleList->next();
+  NdbIndexScanOperation* tOp = theScanOpIdleList;
+  theScanOpIdleList = (NdbIndexScanOperation *)tOp->next();
   delete tOp;
 }
 
@@ -762,7 +775,9 @@ Ndb::freeSignal()
   NdbApiSignal* tSignal = theSignalIdleList;
   theSignalIdleList = tSignal->next();
   delete tSignal;
+#ifdef POORMANSPURIFY
   cfreeSignals++;
+#endif
 }
 
 void
@@ -783,6 +798,7 @@ Remark:         Release and disconnect from DBTC a connection and seize it to th
 void
 Ndb::releaseConnectToNdb(NdbConnection* a_con)     
 {
+  DBUG_ENTER("Ndb::releaseConnectToNdb");
   NdbApiSignal          tSignal(theMyRef);
   int                   tConPtr;
 
@@ -790,7 +806,7 @@ Ndb::releaseConnectToNdb(NdbConnection* a_con)
 // manage to reach NDB or not.
 
   if (a_con == NULL)
-    return;
+    DBUG_VOID_RETURN;
 
   Uint32 node_id = a_con->getConnectedNodeId();
   Uint32 conn_seq = a_con->theNodeSequence;
@@ -821,6 +837,6 @@ Ndb::releaseConnectToNdb(NdbConnection* a_con)
     abort();
   }//if
   releaseNdbCon(a_con);
-  return;
+  DBUG_VOID_RETURN;
 }
 

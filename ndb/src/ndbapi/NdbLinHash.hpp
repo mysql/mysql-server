@@ -59,7 +59,7 @@ public:
   void releaseHashTable(void);
   
   int insertKey(const char * str, Uint32 len, Uint32 lkey1, C* data);
-  int deleteKey(const char * str, Uint32 len);
+  C *deleteKey(const char * str, Uint32 len);
 
   C* getData(const char *, Uint32);
   Uint32* getKey(const char *, Uint32);
@@ -277,7 +277,7 @@ NdbLinHash<C>::getData( const char* str, Uint32 len ){
 
 template <class C>
 inline
-int
+C *
 NdbLinHash<C>::deleteKey ( const char* str, Uint32 len){
   const Uint32 hash = Hash(str, len);
   int dir, seg;
@@ -287,20 +287,19 @@ NdbLinHash<C>::deleteKey ( const char* str, Uint32 len){
   NdbElement_t<C> **chainp = &directory[dir]->elements[seg];
   for(NdbElement_t<C> * chain = *chainp; chain != 0; chain = chain->next){
     if(chain->len == len && !memcmp(chain->str, str, len)){
+      C *data= chain->theData;
       if (oldChain == 0) {
-	delete chain;
-	* chainp = 0;
-	return 1;
+	* chainp = chain->next;
       } else {
 	oldChain->next = chain->next;
-	delete chain;
-	return 1;
       }
+      delete chain;
+      return data;
     } else {
       oldChain = chain;
     }
   }
-  return -1; /* Element doesn't exist */
+  return 0; /* Element doesn't exist */
 }
 
 template <class C>

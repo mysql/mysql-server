@@ -15,8 +15,8 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=3
 NDB_VERSION_MINOR=5
-NDB_VERSION_BUILD=0
-NDB_VERSION_STATUS=beta
+NDB_VERSION_BUILD=3
+NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -44,12 +44,12 @@ do
   case $host_os in
     netware*)
       echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err.linux -C\$(srcdir)/charsets/ \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err.linux -C\$(srcdir)/charsets/ $i/errmsg.txt $i/errmsg.sys" \
       >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
     *)
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err -C\$(srcdir)/charsets/ \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err -C\$(srcdir)/charsets/ $i/errmsg.txt $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
   esac
@@ -274,7 +274,7 @@ esac
 
 # option, cache_name, variable,
 # code to execute if yes, code to exectute if fail
-AC_DEFUN(AC_SYS_COMPILER_FLAG,
+AC_DEFUN([AC_SYS_COMPILER_FLAG],
 [
   AC_MSG_CHECKING($1)
   OLD_CFLAGS="[$]CFLAGS"
@@ -297,7 +297,7 @@ AC_DEFUN(AC_SYS_COMPILER_FLAG,
 ])
 
 # arch, option, cache_name, variable
-AC_DEFUN(AC_SYS_CPU_COMPILER_FLAG,
+AC_DEFUN([AC_SYS_CPU_COMPILER_FLAG],
 [
  if test "`uname -m 2>/dev/null`" = "$1" ; then
     AC_SYS_COMPILER_FLAG($2,$3,$4)
@@ -305,7 +305,7 @@ AC_DEFUN(AC_SYS_CPU_COMPILER_FLAG,
 ])
 
 # os, option, cache_name, variable
-AC_DEFUN(AC_SYS_OS_COMPILER_FLAG,
+AC_DEFUN([AC_SYS_OS_COMPILER_FLAG],
 [
  if test "x$mysql_cv_sys_os" = "x$1" ; then
     AC_SYS_COMPILER_FLAG($2,$3,$4)
@@ -389,8 +389,6 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
-  # ndb cannot be compiled with -fno-implicit-templaces
-  ndb_cxxflags_fix="$ndb_cxxflags_fix -fimplicit-templates"
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -969,11 +967,15 @@ esac
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
 
-# workaround for Sun Forte/x86 see BUG#4681
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
+# workaround for Sun Forte/x86 see BUG#4681
   *solaris*-i?86-no)
     CFLAGS="$CFLAGS -DBIG_TABLES"
     CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
+    ;;
+# workaround for Sun Forte compile problem for ndb
+  *solaris2.10*-sparc-no)
+    ndb_cxxflags_fix="$ndb_cxxflags_fix -instances=static"
     ;;
   *) ;;
 esac
@@ -1142,6 +1144,7 @@ dnl Is this the right match for DEC OSF on alpha?
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
       CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
       CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+      ndb_cxxflags_fix="$ndb_cxxflags_fix -I/usr/include.dtk"
     ;;
   *netware*)
     # No need for curses library so set it to null
@@ -2297,6 +2300,21 @@ else
 fi
 AC_SUBST(docs_dirs)
 
+# Shall we build the man pages?
+AC_ARG_WITH(man,
+    [  --without-man          Skip building of the man pages.],
+    [with_man=$withval],
+    [with_man=yes]
+)
+
+if test "$with_man" = "yes"
+then
+  man_dirs="man"
+else
+  man_dirs=""
+fi
+AC_SUBST(man_dirs)
+
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
     [  --without-bench         Skip building of the benchmark suite.],
@@ -2730,7 +2748,7 @@ case $default_charset in
       define(UCSC2, ucs2_czech_ci ucs2_danish_ci)
       define(UCSC3, ucs2_estonian_ci ucs2_icelandic_ci)
       define(UCSC4, ucs2_latvian_ci ucs2_lithuanian_ci)
-      define(UCSC5, ucs2_polish_ci ucs2_romanian_ci)
+      define(UCSC5, ucs2_persian_ci ucs2_polish_ci ucs2_romanian_ci)
       define(UCSC6, ucs2_slovak_ci ucs2_slovenian_ci)
       define(UCSC7, ucs2_spanish2_ci ucs2_spanish_ci)
       define(UCSC8, ucs2_swedish_ci ucs2_turkish_ci)
@@ -2748,7 +2766,7 @@ case $default_charset in
       define(UTFC2, utf8_czech_ci utf8_danish_ci)
       define(UTFC3, utf8_estonian_ci utf8_icelandic_ci)
       define(UTFC4, utf8_latvian_ci utf8_lithuanian_ci)
-      define(UTFC5, utf8_polish_ci utf8_romanian_ci)
+      define(UTFC5, utf8_persian_ci utf8_polish_ci utf8_romanian_ci)
       define(UTFC6, utf8_slovak_ci utf8_slovenian_ci)
       define(UTFC7, utf8_spanish2_ci utf8_spanish_ci)
       define(UTFC8, utf8_swedish_ci utf8_turkish_ci)
@@ -2806,7 +2824,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql client"
+sql_client_dirs="libmysql strings regex client"
 linked_client_targets="linked_libmysql_sources"
 CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
 if test "$THREAD_SAFE_CLIENT" != "no"
@@ -3029,14 +3047,21 @@ then
 AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
 
+
+if test X"$ndb_port_base" = Xdefault
+then
+  ndb_port_base="2200"
+fi
+AC_SUBST([ndb_port_base])
+
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
 then
-  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SHM_Transporter.lo SHM_Transporter.unix.lo"
+  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
 fi
 if test X"$have_ndb_sci" = Xyes
 then
-  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
+  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
 fi
 AC_SUBST([ndb_transporter_opt_objs])
 

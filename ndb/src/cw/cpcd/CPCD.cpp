@@ -237,9 +237,9 @@ CPCD::saveProcessList(){
   FILE *f;
 
   /* Create the filenames that we will use later */
-  snprintf(newfile, sizeof(newfile), "%s.new", m_procfile.c_str());
-  snprintf(oldfile, sizeof(oldfile), "%s.old", m_procfile.c_str());
-  snprintf(curfile, sizeof(curfile), "%s", m_procfile.c_str());
+  BaseString::snprintf(newfile, sizeof(newfile), "%s.new", m_procfile.c_str());
+  BaseString::snprintf(oldfile, sizeof(oldfile), "%s.old", m_procfile.c_str());
+  BaseString::snprintf(curfile, sizeof(curfile), "%s", m_procfile.c_str());
 
   f = fopen(newfile, "w");
 
@@ -378,9 +378,9 @@ CPCD::getProcessList() {
 }
 
 void
-CPCD::RequestStatus::err(enum RequestStatusCode status, char *msg) {
+CPCD::RequestStatus::err(enum RequestStatusCode status, const char *msg) {
   m_status = status;
-  snprintf(m_errorstring, sizeof(m_errorstring), "%s", msg);
+  BaseString::snprintf(m_errorstring, sizeof(m_errorstring), "%s", msg);
 }
 
 #if 0

@@ -24,7 +24,7 @@ INSERT INTO t2 VALUES('123', 'moi');
 INSERT INTO t2 VALUES('123', 'lui');
 INSERT INTO t2 VALUES('456', 'lui');
 
-select match(t1.texte,t1.sujet,t1.motsclefs) against('droit')
+select round(match(t1.texte,t1.sujet,t1.motsclefs) against('droit'),5)
        from t1 left join t2 on t2.id=t1.id;
 select match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
        from t1 left join t2 on t2.id=t1.id;

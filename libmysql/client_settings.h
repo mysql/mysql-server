@@ -21,7 +21,7 @@ extern my_string	mysql_unix_port;
                              CLIENT_TRANSACTIONS | \
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
-sig_handler pipe_sig_handler(int sig __attribute__((unused)));
+sig_handler pipe_sig_handler(int sig);
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
@@ -42,6 +42,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
+void mysql_detach_stmt_list(LIST **stmt_list);
 MYSQL *
 cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,

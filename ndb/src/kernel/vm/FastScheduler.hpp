@@ -141,7 +141,7 @@ int
 FastScheduler::checkDoJob()
 {
   /* 
-   * Joob buffer overload protetction 
+   * Job buffer overload protetction 
    * If the job buffer B is filled over a certain limit start
    * to execute the signals in the job buffer's
    */

@@ -76,7 +76,7 @@ const char *any_db="*any*";	// Special symbol for check_access
 const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
-  "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
+  "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
   "Prepare", "Prepare Execute", "Long Data", "Close stmt",
   "Reset stmt", "Set option", "Fetch",
@@ -516,12 +516,17 @@ void free_max_user_conn(void)
 /*
   Mark all commands that somehow changes a table
   This is used to check number of updates / hour
+
+  sql_command is actually set to SQLCOM_END sometimes
+  so we need the +1 to include it in the array.
 */
 
-char  uc_update_queries[SQLCOM_END];
+char  uc_update_queries[SQLCOM_END+1];
 
 void init_update_queries(void)
 {
+  bzero((gptr) &uc_update_queries, sizeof(uc_update_queries));
+
   uc_update_queries[SQLCOM_CREATE_TABLE]=1;
   uc_update_queries[SQLCOM_CREATE_INDEX]=1;
   uc_update_queries[SQLCOM_ALTER_TABLE]=1;
@@ -548,6 +553,7 @@ void init_update_queries(void)
 
 bool is_update_query(enum enum_sql_command command)
 {
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return uc_update_queries[command];
 }
 
@@ -912,7 +918,7 @@ static int check_connection(THD *thd)
     x_free(thd->user);
   if (!(thd->user= my_strdup(user, MYF(0))))
     return (ER_OUT_OF_RESOURCES);
-  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
+  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
 }
 
 
@@ -1019,6 +1025,10 @@ pthread_handler_decl(handle_one_connection,arg)
       net->compress=1;				// Use compression
 
     thd->version= refresh_version;
+    thd->proc_info= 0;
+    thd->set_time();
+    thd->init_for_queries();
+
     if (sys_init_connect.value_length && !(thd->master_access & SUPER_ACL))
     {
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
@@ -1039,12 +1049,12 @@ pthread_handler_decl(handle_one_connection,arg)
     if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings > 1)
-	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
-			thd->thread_id,(thd->db ? thd->db : "unconnected"),
-			thd->user ? thd->user : "unauthenticated",
-			thd->host_or_ip,
-			(net->last_errno ? ER(net->last_errno) :
-			 ER(ER_UNKNOWN_ERROR)));
+	sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                          thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                          thd->user ? thd->user : "unauthenticated",
+                          thd->host_or_ip,
+                          (net->last_errno ? ER(net->last_errno) :
+                           ER(ER_UNKNOWN_ERROR)));
       send_error(thd,net->last_errno,NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }
@@ -1599,6 +1609,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CREATE_DB:				// QQ: To be removed
     {
       char *db=thd->strdup(packet), *alias;
+      HA_CREATE_INFO create_info;
 
       statistic_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB],
 			  &LOCK_status);
@@ -1611,7 +1622,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1,0))
 	break;
       mysql_log.write(thd,command,packet);
-      mysql_create_db(thd,(lower_case_table_names == 2 ? alias : db),0,0);
+      bzero(&create_info, sizeof(create_info));
+      if (mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
+                          &create_info, 0) < 0)
+        send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -1633,7 +1647,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db), 0, 0);
+      if (mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
+                      0, 0) < 0)
+        send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -1904,12 +1920,12 @@ mysql_execute_command(THD *thd)
 {
   int	res= 0;
   LEX	*lex= thd->lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
-  /* list of all tables in query */
-  TABLE_LIST *all_tables;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
+  /* first table of first SELECT_LEX */
+  TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
+  /* list of all tables in query */
+  TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
@@ -2084,6 +2100,7 @@ mysql_execute_command(THD *thd)
       CHARSET_INFO *to_cs= thd->variables.collation_connection;
       bool need_conversion;
       user_var_entry *entry;
+      String *pstr= &str;
       uint32 unused;
       /*
         Convert @var contents to string in connection character set. Although
@@ -2096,29 +2113,45 @@ mysql_execute_command(THD *thd)
                                           lex->prepared_stmt_code.length))
           && entry->value)
       {
-        String *pstr;
         my_bool is_var_null;
         pstr= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
+        /*
+          NULL value of variable checked early as entry->value so here
+          we can't get NULL in normal conditions
+        */
         DBUG_ASSERT(!is_var_null);
         if (!pstr)
-          send_error(thd, ER_OUT_OF_RESOURCES);
-        DBUG_ASSERT(pstr == &str);
+        {
+          res= -1;
+          break;      // EOM (error should be reported by allocator)
+        }
       }
       else
+      {
+        /*
+          variable absent or equal to NULL, so we need to set variable to
+          something reasonable to get readable error message during parsing
+        */
         str.set("NULL", 4, &my_charset_latin1);
-      need_conversion=
-        String::needs_conversion(str.length(), str.charset(), to_cs, &unused);
+      }
 
-      query_len= need_conversion? (str.length() * to_cs->mbmaxlen) :
-                                  str.length();
+      need_conversion=
+        String::needs_conversion(pstr->length(), pstr->charset(),
+                                 to_cs, &unused);
+
+      query_len= need_conversion? (pstr->length() * to_cs->mbmaxlen) :
+                                  pstr->length();
       if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
-        send_error(thd, ER_OUT_OF_RESOURCES);
+      {
+        res= -1;
+        break;        // EOM (error should be reported by allocator)
+      }
 
       if (need_conversion)
-        query_len= copy_and_convert(query_str, query_len, to_cs, str.ptr(),
-                                    str.length(), str.charset());
+        query_len= copy_and_convert(query_str, query_len, to_cs, pstr->ptr(),
+                                    pstr->length(), pstr->charset());
       else
-        memcpy(query_str, str.ptr(), str.length());
+        memcpy(query_str, pstr->ptr(), pstr->length());
       query_str[query_len]= 0;
     }
     else
@@ -2414,9 +2447,6 @@ mysql_execute_command(THD *thd)
     {
       select_result *result;
 
-      if (select_tables &&
-	  check_table_access(thd, SELECT_ACL, select_tables, 0))
-	goto create_error;			// Error message is given
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex, select_lex);
 
@@ -2552,7 +2582,7 @@ unsent_create_error:
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(thd, ER_WRONG_TABLE_NAME, lex->name);
-	res=0;
+	res= 1;
 	break;
       }
       if (!select_lex->db)
@@ -2775,12 +2805,12 @@ unsent_create_error:
   case SQLCOM_INSERT:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-     my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
-    if ((res= insert_precheck(thd, all_tables, update)))
+    if ((res= insert_precheck(thd, all_tables)))
       break;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      select_lex->item_list, lex->value_list,
-		      (update ? DUP_UPDATE : lex->duplicates));
+                      (lex->value_list.elements ?
+                       DUP_UPDATE : lex->duplicates));
     if (thd->net.report_error)
       res= -1;
     if (first_table->view && !first_table->contain_auto_increment)
@@ -2895,10 +2925,8 @@ unsent_create_error:
     }
 
     thd->proc_info="init";
-    if ((res= open_and_lock_tables(thd, all_tables)))
-      break;
-
-    if ((res= mysql_multi_delete_prepare(thd)))
+    if ((res= open_and_lock_tables(thd, all_tables)) ||
+        (res= mysql_multi_delete_prepare(thd)))
       break;
 
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
@@ -4111,6 +4139,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 		      thd->priv_user, db, test(want_access & GRANT_ACL));
   else
     db_access=thd->db_access;
+  DBUG_PRINT("info",("db_access: %lu", db_access));
   /* Remove SHOW attribute and access rights we already have */
   want_access &= ~(thd->master_access | EXTRA_ACL);
   DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
@@ -4183,7 +4212,10 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables; tables= tables->next_global)
   {
-    if (tables->derived || (tables->table && (int)tables->table->tmp_table))
+    if (tables->derived ||
+        (tables->table && (int)tables->table->tmp_table) ||
+        my_tz_check_n_skip_implicit_tables(&tables,
+                                           thd->lex->time_zone_tables_used))
       continue;
     if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
 	thd->db)
@@ -4388,58 +4420,44 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 ****************************************************************************/
 
 void
-mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly)
+mysql_init_query(THD *thd, uchar *buf, uint length)
 {
   DBUG_ENTER("mysql_init_query");
-  LEX *lex= thd->lex;
-  lex->unit.init_query();
-  lex->unit.init_select();
-  lex->unit.thd= thd;
-  lex->select_lex.init_query();
-  lex->value_list.empty();
-  lex->param_list.empty();
-  lex->view_list.empty();
-  lex->unit.next= lex->unit.master= 
-    lex->unit.link_next= lex->unit.return_to=0;
-  lex->unit.prev= lex->unit.link_prev= 0;
-  lex->unit.slave= lex->unit.global_parameters= lex->current_select=
-    lex->all_selects_list= &lex->select_lex;
-  lex->select_lex.master= &lex->unit;
-  lex->select_lex.prev= &lex->unit.slave;
-  lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
-  lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
-  lex->select_lex.options=0;
-  lex->select_lex.init_order();
-  lex->select_lex.group_list.empty();
-  lex->describe= 0;
-  lex->derived_tables= 0;
-  lex->view_prepare_mode= FALSE;
-  lex->lock_option= TL_READ;
-  lex->found_colon= 0;
-  lex->safe_to_cache_query= 1;
-  lex->time_zone_tables_used= 0;
-  lex->proc_table= lex->query_tables= 0;
-  lex->query_tables_last= &lex->query_tables;
-  lex->variables_used= 0;
-  lex->select_lex.parent_lex= lex;
-  lex->empty_field_list_on_rset= 0;
   lex_start(thd, buf, length);
-  if (! lexonly)
-  {
-    thd->select_number= lex->select_lex.select_number= 1;
-    thd->free_list= 0;
-    thd->total_warn_count=0;			// Warnings for this query
-    thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
-    thd->sent_row_count= thd->examined_row_count= 0;
-    thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
-    thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
-			    SERVER_QUERY_NO_INDEX_USED |
-			    SERVER_QUERY_NO_GOOD_INDEX_USED);
-    thd->tmp_table_used= 0;
-    if (opt_bin_log)
-      reset_dynamic(&thd->user_var_events);
-    thd->clear_error();
-  }
+  mysql_reset_thd_for_next_command(thd);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+ Reset THD part responsible for command processing state.
+
+ DESCRIPTION
+   This needs to be called before execution of every statement
+   (prepared or conventional).
+
+ TODO
+   Make it a method of THD and align its name with the rest of
+   reset/end/start/init methods.
+   Call it after we use THD for queries, not before.
+*/
+
+void mysql_reset_thd_for_next_command(THD *thd)
+{
+  DBUG_ENTER("mysql_reset_thd_for_next_command");
+  thd->free_list= 0;
+  thd->select_number= 1;
+  thd->total_warn_count=0;			// Warnings for this query
+  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->sent_row_count= thd->examined_row_count= 0;
+  thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
+  thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
+                          SERVER_QUERY_NO_INDEX_USED |
+                          SERVER_QUERY_NO_GOOD_INDEX_USED);
+  thd->tmp_table_used= 0;
+  if (opt_bin_log)
+    reset_dynamic(&thd->user_var_events);
+  thd->clear_error();
   DBUG_VOID_RETURN;
 }
 
@@ -4624,6 +4642,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     thd->proc_info="freeing items";
     thd->end_statement();
     thd->cleanup_after_query();
+    DBUG_ASSERT(thd->change_list.is_empty());
   }
   DBUG_VOID_RETURN;
 }
@@ -4654,6 +4673,32 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   DBUG_RETURN(error);
 }
 #endif
+
+
+
+/*
+  Calculate interval lengths.
+  Strip trailing spaces from all strings.
+  After this function call:
+  - ENUM uses max_length
+  - SET uses tot_length.
+*/
+void calculate_interval_lengths(THD *thd, TYPELIB *interval,
+                                uint *max_length, uint *tot_length)
+{
+  const char **pos;
+  uint *len;
+  CHARSET_INFO *cs= thd->variables.character_set_client;
+  *max_length= *tot_length= 0;
+  for (pos= interval->type_names, len= interval->type_lengths;
+       *pos ; pos++, len++)
+  {
+    *len= (uint) strip_sp((char*) *pos);
+    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
+    *tot_length+= length;
+    set_if_bigger(*max_length, length);
+  }
+}
 
 
 /*****************************************************************************
@@ -4714,7 +4759,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
     else if (default_value->type() == Item::NULL_ITEM)
     {
-      default_value=0;
+      default_value= 0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
 	  NOT_NULL_FLAG)
       {
@@ -4785,23 +4830,23 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
   switch (type) {
   case FIELD_TYPE_TINY:
-    if (!length) new_field->length=3+sign_len;
+    if (!length) new_field->length=MAX_TINYINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_SHORT:
-    if (!length) new_field->length=5+sign_len;
+    if (!length) new_field->length=MAX_SMALLINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_INT24:
-    if (!length) new_field->length=8+sign_len;
+    if (!length) new_field->length=MAX_MEDIUMINT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_LONG:
-    if (!length) new_field->length=10+sign_len;
+    if (!length) new_field->length=MAX_INT_WIDTH+sign_len;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_LONGLONG:
-    if (!length) new_field->length=20;
+    if (!length) new_field->length=MAX_BIGINT_WIDTH;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
   case FIELD_TYPE_NULL:
@@ -4916,7 +4961,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }
-    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | NOT_NULL_FLAG;
+    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     if (default_value)
     {
       /* Grammar allows only NOW() value for ON UPDATE clause */
@@ -4937,13 +4982,24 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
     else
     {
-      /* 
-        We are setting TIMESTAMP_OLD_FIELD here only temporary, we will 
-        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when 
-        information about all TIMESTAMP fields in table will be available.
+      /*
+        If we have default TIMESTAMP NOT NULL column without explicit DEFAULT
+        or ON UPDATE values then for the sake of compatiblity we should treat
+        this column as having DEFAULT NOW() ON UPDATE NOW() (when we don't
+        have another TIMESTAMP column with auto-set option before this one)
+        or DEFAULT 0 (in other cases).
+        So here we are setting TIMESTAMP_OLD_FIELD only temporary, and will
+        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when
+        information about all TIMESTAMP fields in table will be availiable.
+
+        If we have TIMESTAMP NULL column without explicit DEFAULT value
+        we treat it as having DEFAULT NULL attribute.
       */
-      new_field->unireg_check= on_update_value?Field::TIMESTAMP_UN_FIELD:
-                                               Field::TIMESTAMP_OLD_FIELD;
+      new_field->unireg_check= (on_update_value ?
+                                Field::TIMESTAMP_UN_FIELD :
+                                (new_field->flags & NOT_NULL_FLAG ?
+                                 Field::TIMESTAMP_OLD_FIELD:
+                                 Field::NONE));
     }
     break;
   case FIELD_TYPE_DATE:				// Old date type
@@ -4970,15 +5026,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if (new_field->pack_length > 4)
 	new_field->pack_length=8;
       new_field->interval=interval;
-      new_field->length=0;
-      for (const char **pos=interval->type_names; *pos ; pos++)
-      {
-        uint length= (uint) strip_sp((char*) *pos)+1;
-        CHARSET_INFO *cs= thd->variables.character_set_client;
-        length= cs->cset->numchars(cs, *pos, *pos+length);
-        new_field->length+= length;
-      }
-      new_field->length--;
+      uint dummy_max_length;
+      calculate_interval_lengths(thd, interval,
+                                 &dummy_max_length, &new_field->length);
+      new_field->length+= (interval->count - 1);
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
       {
@@ -4989,8 +5040,9 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 	thd->cuted_fields=0;
 	String str,*res;
 	res=default_value->val_str(&str);
-	(void) find_set(interval, res->ptr(), res->length(), &not_used,
-			&not_used2, &not_used3);
+	(void) find_set(interval, res->ptr(), res->length(),
+                        &my_charset_bin,
+                        &not_used, &not_used2, &not_used3);
 	if (thd->cuted_fields)
 	{
 	  net_printf(thd,ER_INVALID_DEFAULT,field_name);
@@ -5003,14 +5055,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     {
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
-      new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
-      for (const char **pos=interval->type_names+1; *pos ; pos++)
-      {
-        uint length=(uint) strip_sp((char*) *pos);
-        CHARSET_INFO *cs= thd->variables.character_set_client;
-        length= cs->cset->numchars(cs, *pos, *pos+length);
-        set_if_bigger(new_field->length,length);
-      }
+
+      uint dummy_tot_length;
+      calculate_interval_lengths(thd, interval,
+                                 &new_field->length, &dummy_tot_length);
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
       {
@@ -5202,6 +5250,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= empty_c_string;
     ptr->db_length= 0;
   }
+  if (thd->current_arena->is_stmt_prepare())
+    ptr->db= thd->strdup(ptr->db);
 
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
@@ -5578,7 +5628,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     acl_reload(thd);
     grant_reload(thd);
     if (mqh_used)
-      reset_mqh(thd,(LEX_USER *) NULL,true);
+      reset_mqh(thd,(LEX_USER *) NULL,TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
@@ -5965,12 +6015,15 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   */
   for (table= tables; table; table= table->next_local)
   {
-    if ((check_access(thd, UPDATE_ACL, table->db,
-		      &table->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
-	(check_access(thd, SELECT_ACL, table->db,
-		      &table->grant.privilege, 0, 0) ||
-	 grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
+    if (table->derived)
+      table->grant.privilege= SELECT_ACL;
+    else if ((check_access(thd, UPDATE_ACL, table->db,
+                           &table->grant.privilege, 0, 1) ||
+              grant_option &&
+              check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
+             (check_access(thd, SELECT_ACL, table->db,
+                           &table->grant.privilege, 0, 0) ||
+              grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
       DBUG_RETURN(1);
 
     table->table_in_first_from_clause= 1;
@@ -5980,9 +6033,10 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   */
   if (&lex->select_lex != lex->all_selects_list)
   {
+    DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)
     {
-      if (!table->table_in_first_from_clause)
+      if (!table->table_in_first_from_clause && table->derived)
       {
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0) ||
@@ -6069,7 +6123,7 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
   INSERT ... SELECT query pre-check
 
   SYNOPSIS
-    multi_delete_precheck()
+    insert_delete_precheck()
     thd		Thread handler
     tables	Global table list
 
@@ -6158,13 +6212,14 @@ int delete_precheck(THD *thd, TABLE_LIST *tables)
     -1  error (message is not sent to user)
 */
 
-int insert_precheck(THD *thd, TABLE_LIST *tables, bool update)
+int insert_precheck(THD *thd, TABLE_LIST *tables)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
 
-  ulong privilege= (lex->duplicates == DUP_REPLACE ?
-		    INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
+  ulong privilege= (INSERT_ACL |
+                    (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
+                    (lex->value_list.elements ? UPDATE_ACL : 0));
 
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(1);
@@ -6190,26 +6245,60 @@ int insert_precheck(THD *thd, TABLE_LIST *tables, bool update)
   RETURN VALUE
     0   OK
     1   Error (message is sent to user)
-    -1  Error (message is not sent to user)
 */
 
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table)
 {
   LEX *lex= thd->lex;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  ulong want_priv;
+  int error= 1;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
-  ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-		    CREATE_TMP_ACL : CREATE_ACL);
+
+  want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+              CREATE_TMP_ACL : CREATE_ACL);
   lex->create_info.alias= create_table->alias;
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0) ||
       check_merge_table_access(thd, create_table->db,
 			       (TABLE_LIST *)
 			       lex->create_info.merge_list.first))
-    DBUG_RETURN(1);
-  DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
-	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
-	      1 : 0);
+    goto err;
+  if (grant_option && want_priv != CREATE_TMP_ACL &&
+      check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0))
+    goto err;
+
+  if (select_lex->item_list.elements)
+  {
+    /* Check permissions for used tables in CREATE TABLE ... SELECT */
+
+    /*
+      Only do the check for PS, becasue we on execute we have to check that
+      against the opened tables to ensure we don't use a table that is part
+      of the view (which can only be done after the table has been opened).
+    */
+    if (thd->current_arena->is_stmt_prepare())
+    {
+      /*
+        For temporary tables we don't have to check if the created table exists
+      */
+      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+          find_table_in_global_list(tables, create_table->db,
+                                    create_table->real_name))
+      {
+        net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
+
+        goto err;
+      }
+    }
+    if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  error= 0;
+
+err:
+  DBUG_RETURN(error);
 }
 
 

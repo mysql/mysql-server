@@ -105,6 +105,7 @@ int         bTestPassed = 0;
 
 
 int main(int argc, const char** argv) {
+  ndb_init();
 
   int operationType = 0;
   int tupTest = 0;
@@ -1506,12 +1507,12 @@ void delete_rows(Ndb* pMyNdb, int tupleTest, int opType) {
 
 inline void setAttrNames(){
   for (int i = 0; i < MAXATTR; i++){
-      snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
+      BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
     }
 }
 
 
 inline void setTableNames(){
-  snprintf(tableName, MAXSTRLEN, "TAB1");
+  BaseString::snprintf(tableName, MAXSTRLEN, "TAB1");
 }
 

@@ -573,12 +573,8 @@ int NdbEventOperationImpl::wait(void *p, int aMillisecondNumber)
  *
  */
 
+extern NdbMutex * ndb_global_event_buffer_mutex;
 static NdbGlobalEventBuffer *ndbGlobalEventBuffer=NULL;
-#ifdef NDB_WIN32
-static NdbMutex & ndbGlobalEventBufferMutex = * NdbMutex_Create();
-#else
-static NdbMutex ndbGlobalEventBufferMutex = NDB_MUTEX_INITIALIZER;
-#endif
 
 /*
  * Class NdbGlobalEventBufferHandle
@@ -607,18 +603,18 @@ NdbGlobalEventBufferHandle::NdbGlobalEventBufferHandle
     exit(-1);
   }
   
-  NdbMutex_Lock(&ndbGlobalEventBufferMutex);
+  NdbMutex_Lock(ndb_global_event_buffer_mutex);
   if (ndbGlobalEventBuffer == NULL) {
     if (ndbGlobalEventBuffer == NULL) {
       ndbGlobalEventBuffer = new NdbGlobalEventBuffer();
       if (!ndbGlobalEventBuffer) {
-	NdbMutex_Unlock(&ndbGlobalEventBufferMutex);
+	NdbMutex_Unlock(ndb_global_event_buffer_mutex);
 	ndbout_c("NdbGlobalEventBufferHandle:: failed to allocate ndbGlobalEventBuffer");
 	exit(-1);
       }
     }
   }
-  NdbMutex_Unlock(&ndbGlobalEventBufferMutex);
+  NdbMutex_Unlock(ndb_global_event_buffer_mutex);
 
   GUARD(real_init(this,MAX_NUMBER_ACTIVE_EVENTS));
 }
@@ -631,12 +627,12 @@ NdbGlobalEventBufferHandle::~NdbGlobalEventBufferHandle()
   ndbGlobalEventBuffer->real_remove(this);
   ndbGlobalEventBuffer->unlock();
 
-  NdbMutex_Lock(&ndbGlobalEventBufferMutex);
+  NdbMutex_Lock(ndb_global_event_buffer_mutex);
   if (ndbGlobalEventBuffer->m_handlers.size() == 0) {
     delete ndbGlobalEventBuffer;
     ndbGlobalEventBuffer = NULL;
   }
-  NdbMutex_Unlock(&ndbGlobalEventBufferMutex);
+  NdbMutex_Unlock(ndb_global_event_buffer_mutex);
 }
 
 void
@@ -770,13 +766,13 @@ void
 NdbGlobalEventBuffer::lock()
 {
   if (!m_group_lock_flag)
-    NdbMutex_Lock(&ndbGlobalEventBufferMutex);
+    NdbMutex_Lock(ndb_global_event_buffer_mutex);
 }
 void
 NdbGlobalEventBuffer::unlock()
 {
   if (!m_group_lock_flag)
-    NdbMutex_Unlock(&ndbGlobalEventBufferMutex);
+    NdbMutex_Unlock(ndb_global_event_buffer_mutex);
 }
 void
 NdbGlobalEventBuffer::add_drop_lock()
@@ -1232,7 +1228,8 @@ NdbGlobalEventBuffer::real_wait(NdbGlobalEventBufferHandle *h,
     n += hasData(h->m_bufferIds[i]);
   if (n) return n;
 
-  int r = NdbCondition_WaitTimeout(h->p_cond, &ndbGlobalEventBufferMutex, aMillisecondNumber);
+  int r = NdbCondition_WaitTimeout(h->p_cond, ndb_global_event_buffer_mutex,
+				   aMillisecondNumber);
   if (r > 0)
     return -1;
 

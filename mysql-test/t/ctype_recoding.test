@@ -121,3 +121,13 @@ CREATE TABLE `good–Ãœ»œ` (a int);
 SET NAMES utf8;
 --error 1300
 CREATE TABLE `good–Ãœ»œ` (a int);
+
+
+#
+# Test that we produce a warnign when conversion loses data.
+#
+set names latin1;
+create table t1 (a char(10) character set koi8r, b text character set koi8r);
+insert into t1 values ('test','test');
+insert into t1 values (' √’À',' √’À');
+drop table t1;

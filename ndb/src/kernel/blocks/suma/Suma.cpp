@@ -98,7 +98,7 @@ Suma::getNodeGroupMembers(Signal* signal) {
   }
 
   //  ndbout_c("c_noNodesInGroup=%d", c_noNodesInGroup);
-  ndbrequire(c_noNodesInGroup >= 0); // at least 1 node in the nodegroup
+  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
 
 #ifdef NODEFAIL_DEBUG
   for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
@@ -673,6 +673,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
  *
  */
 
+#if 0
 void
 SumaParticipant::convertNameToId(SubscriptionPtr subPtr, Signal * signal)
 {
@@ -703,6 +704,7 @@ SumaParticipant::convertNameToId(SubscriptionPtr subPtr, Signal * signal)
     sendSubCreateConf(signal, subPtr.p->m_subscriberRef, subPtr);
   }
 }
+#endif
 
 
 void 
@@ -719,6 +721,7 @@ SumaParticipant::addTableId(Uint32 tableId,
     psyncRec->m_tableList.append(&tableId, 1);  
 }
 
+#if 0
 void 
 SumaParticipant::execGET_TABLEID_CONF(Signal * signal)
 {
@@ -766,6 +769,8 @@ SumaParticipant::execGET_TABLEID_REF(Signal * signal)
 	     SubCreateRef::SignalLength,
 	     JBB);
 }
+#endif
+
 
 /*************************************************************
  *
@@ -999,6 +1004,7 @@ SumaParticipant::execSUB_CREATE_REQ(Signal* signal) {
 	}
       }
     break;
+#if 0
     case SubCreateReq::SelectiveTableSnapshot:
       /**
        * Tables specified by the user that does not exist
@@ -1041,6 +1047,7 @@ SumaParticipant::execSUB_CREATE_REQ(Signal* signal) {
 	return;
       }
     break;
+#endif
     case SubCreateReq::DatabaseSnapshot:
       {
 	jam();
@@ -1880,20 +1887,19 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->tableId = tabPtr.p->m_tableId;
   req->requestInfo = 0;
   req->savePointId = 0;
-  ScanFragReq::setConcurrency(req->requestInfo, parallelism);
   ScanFragReq::setLockMode(req->requestInfo, 0);
   ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
-  req->fragmentNo = fd.m_fragDesc.m_fragmentNo;
+  req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
-  
-  for(unsigned int i = 0; i<parallelism; i++){
-    req->clientOpPtr[i] = (ptrI << 16) + (i + 1);
-  }
-  suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 25, JBB);
+  req->clientOpPtr = (ptrI << 16);
+  req->batch_size_rows= 16;
+  req->batch_size_bytes= 0;
+  suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 
+		  ScanFragReq::SignalLength, JBB);
   
   signal->theData[0] = ptrI;
   signal->theData[1] = 0;
@@ -1995,6 +2001,8 @@ SumaParticipant::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   req->closeFlag = 0;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
+  req->batch_size_rows = 16;
+  req->batch_size_bytes = 0;
   sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
 	     ScanFragNextReq::SignalLength, JBB);
 }
@@ -2705,6 +2713,7 @@ Suma::getResponsibleSumaNodeId(Uint32 D)
     id = RNIL;
   } else {
     jam();
+    id = RNIL;
     const Uint32 n = c_noNodesInGroup; // Number nodes in node group
     const Uint32 C1 = D / n;
     const Uint32 C2 = D - C1*n; // = D % n;
