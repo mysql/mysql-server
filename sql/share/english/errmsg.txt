@@ -290,3 +290,4 @@ character-set=latin1
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
+"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
