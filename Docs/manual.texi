@@ -754,8 +754,8 @@ MySQL internals
 
 MySQL change history
 
-* News-3.23.x::                 Changes in release 3.23.x (Released as beta)
-* News-3.22.x::                 Changes in release 3.22.x (Recommended version)
+* News-3.23.x::                 Changes in release 3.23.x (Recommended; beta)
+* News-3.22.x::                 Changes in release 3.22.x (Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
@@ -35344,30 +35344,28 @@ find on the
 this means that the version has not yet been released!
 
 @menu
-* News-3.23.x::                 Changes in release 3.23.x (Released as beta)
-* News-3.22.x::                 Changes in release 3.22.x (Recommended version)
+* News-3.23.x::                 Changes in release 3.23.x (Recommended; beta)
+* News-3.22.x::                 Changes in release 3.22.x (Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 @end menu
 
 @node News-3.23.x, News-3.22.x, News, News
-@appendixsec Changes in release 3.23.x  (Released as beta)
+@appendixsec Changes in release 3.23.x  (Recommended; beta)
 
-The major difference between release 3.23 and releases 3.22 and 3.21 is that
-3.23 contains a new ISAM library (MyISAM), which is more tuned for SQL
-than the old ISAM was.
-
-The 3.23 release is under development, and things will be added at a
-fast pace to it.  For the moment we recommend this version only for
-users that desperately need a new feature that is found only in this
-release (like big file support and machine-independent tables).  (Note
-that all new functionality in @strong{MySQL} 3.23 is extensively tested, but as
-this release involves much new code, it's difficult to test everything).
+The 3.23 release has several major new features that are not
+present in the 3.22 or 3.21 releases.  We have added two new
+table types:  MyISAM, a new ISAM library which is tuned for SQL
+and supports large files; and BerkeleyDB which uses the Berkeley
+DB library from Sleepycat Software to implement transaction-safe
+tables.  The 3.23 release also includes support for database
+replication between a master and many slaves.
 
 We are not adding any more new features that are likely to break any
-old code in @strong{MySQL} 3.23 so this version should stabilise pretty soon
-and will soon be declared beta, gamma and release.
+old code in @strong{MySQL} 3.23, so we recommend that you use this
+version.  The replication and BerkeleyDB code is still under development,
+though, so 3.23 is not relesed as a stable version yet.
 
 @menu
 * News-3.23.23::                Changes in release 3.23.23
@@ -35399,6 +35397,12 @@ and will soon be declared beta, gamma and release.
 @node News-3.23.23, News-3.23.22, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
+@item
+Changed behavior of @code{--enable-thread-safe-client} so
+that both non-threaded (@code{-lmysqlclient}) and threaded
+(@code{-lmysqlclient_r}) libraries are built.  Users who linked
+against a threaded @code{-lmysqlclient} will need to link against
+@code{libmysqlclient_r} now.
 @item
 Added atomic @code{RENAME} command.
 @item
