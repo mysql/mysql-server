@@ -2004,7 +2004,11 @@ convert_search_mode_to_innobase(
 		case HA_READ_AFTER_KEY:		return(PAGE_CUR_G);
 		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
 		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
-		case HA_READ_PREFIX_LAST:	return(PAGE_CUR_LE);
+		case HA_READ_PREFIX_LAST:	ut_a(0); return(PAGE_CUR_LE);
+		        /* InnoDB does not yet support ..PREFIX_LAST!
+		        We have to add a new search flag
+		        PAGE_CUR_LE_OR_PREFIX to InnoDB. */
+
 			/* the above PREFIX flags mean that the last
 			field in the key value may just be a prefix
 			of the complete fixed length field */
