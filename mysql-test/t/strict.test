@@ -38,13 +38,15 @@ set @@sql_mode='STRICT_ALL_TABLES';
 INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
 --error 1292
-INSERT INTO t1 VALUES('2004-0-31');
+INSERT INTO t1 VALUES('2004-0-30');
 --error 1292
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
 INSERT INTO t1 VALUES('0000-00-00');
+INSERT IGNORE INTO t1 VALUES('2004-0-29');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 --error 1292
 INSERT INTO t1 VALUES('0000-00-00');
+INSERT IGNORE INTO t1 VALUES('0000-00-00');
 INSERT INTO t1 VALUES ('2004-0-30');
 --error 1292
 INSERT INTO t1 VALUES ('2004-2-30');
@@ -165,6 +167,8 @@ DROP TABLE t1;
 
 CREATE TABLE t1(col1 TINYINT, col2 TINYINT UNSIGNED);
 INSERT INTO t1 VALUES(-128,0),(0,0),(127,255),('-128','0'),('0','0'),('127','255'),(-128.0,0.0),(0.0,0.0),(127.0,255.0);
+# Test that we restored the mode checking properly after an ok query
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
 -- error 1264
 INSERT INTO t1 (col1) VALUES(-129);
 -- error 1264
@@ -187,14 +191,17 @@ INSERT INTO t1 (col1) VALUES(128.0);
 INSERT INTO t1 (col2) VALUES(-1.0);
 -- error 1264
 INSERT INTO t1 (col2) VALUES(256.0);
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 1;
 --error 1264
 UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
 --error 1264
 UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
 --error 1365
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
---error 1365
-SELECT MOD(col1,0) FROM t1;
+set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+INSERT INTO t1 values (1/0,1/0);
+set @@sql_mode='ansi,traditional';
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
 # Should return SQLSTATE 22018 invalid character value for cast
 --error 1366
 INSERT INTO t1 (col1) VALUES ('');
@@ -204,6 +211,9 @@ INSERT INTO t1 (col1) VALUES ('a59b');
 INSERT INTO t1 (col1) VALUES ('1a');
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
 INSERT IGNORE INTO t1 values (1/0,1/0);
+set @@sql_mode='ansi';
+INSERT INTO t1 values (1/0,1/0);
+set @@sql_mode='ansi,traditional';
 INSERT IGNORE INTO t1 VALUES('-129','-1'),('128','256');
 INSERT IGNORE INTO t1 VALUES(-129.0,-1.0),(128.0,256.0);
 UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
@@ -247,7 +257,7 @@ UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
 --error 1365
 UPDATE t1 SET col1 = col1 / 0 WHERE col1 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 --error 1366
 INSERT INTO t1 (col1) VALUES ('');
 --error 1366
@@ -300,7 +310,7 @@ UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
 --error 1365
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 --error 1366
 INSERT INTO t1 (col1) VALUES ('');
 --error 1366
@@ -353,7 +363,7 @@ UPDATE t1 SET col2 =col2 + 50 WHERE col2 > 0;
 --error 1365
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 --error 1264
 INSERT INTO t1 (col1) VALUES ('');
 --error 1264
@@ -411,7 +421,7 @@ INSERT INTO t1 (col2) VALUES(18446744073709551616.0);
 --error 1365
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 --error 1264
 INSERT INTO t1 (col1) VALUES ('');
 --error 1264
@@ -461,7 +471,7 @@ UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
 --error 1365
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 --error 1265
 INSERT INTO t1 (col1) VALUES ('');
 --error 1265
@@ -497,7 +507,7 @@ UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
 --error 1365
 UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
 --error 1265
 INSERT INTO t1 (col1) VALUES ('');
 --error 1265
@@ -531,7 +541,7 @@ UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
 --error 1365
 UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
 --error 1365
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
 --error 1265
 INSERT INTO t1 (col1) VALUES ('');
 --error 1265

@@ -26,14 +26,20 @@ ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES';
 INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
-INSERT INTO t1 VALUES('2004-0-31');
-ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-0-30');
+ERROR 22007: Incorrect date value: '2004-0-30' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
 ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 2
 INSERT INTO t1 VALUES('0000-00-00');
+INSERT IGNORE INTO t1 VALUES('2004-0-29');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+INSERT IGNORE INTO t1 VALUES('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
 INSERT INTO t1 VALUES ('2004-0-30');
 INSERT INTO t1 VALUES ('2004-2-30');
 ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
@@ -53,6 +59,8 @@ col1
 2004-01-03
 2004-00-31
 2004-01-04
+0000-00-00
+0000-00-00
 0000-00-00
 2004-00-30
 2004-02-30
@@ -188,6 +196,13 @@ col1
 DROP TABLE t1;
 CREATE TABLE t1(col1 TINYINT, col2 TINYINT UNSIGNED);
 INSERT INTO t1 VALUES(-128,0),(0,0),(127,255),('-128','0'),('0','0'),('127','255'),(-128.0,0.0),(0.0,0.0),(127.0,255.0);
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
+MOD(col1,0)
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
 INSERT INTO t1 (col1) VALUES(-129);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(128);
@@ -210,14 +225,30 @@ INSERT INTO t1 (col2) VALUES(-1.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(256.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 1;
+MOD(col1,0)
+NULL
+Warnings:
+Error	1365	Division by 0
 UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
-ERROR 22012: Division by 0
+set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
+INSERT INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+set @@sql_mode='ansi,traditional';
+SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
+MOD(col1,0)
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
@@ -231,6 +262,9 @@ INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
 Error	1365	Division by 0
 Error	1365	Division by 0
+set @@sql_mode='ansi';
+INSERT INTO t1 values (1/0,1/0);
+set @@sql_mode='ansi,traditional';
 INSERT IGNORE INTO t1 VALUES('-129','-1'),('128','256');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'col1' at row 1
@@ -255,7 +289,9 @@ col1	col2
 -128	0
 0	NULL
 127	255
+NULL	NULL
 2	NULL
+NULL	NULL
 NULL	NULL
 -128	0
 127	255
@@ -294,7 +330,7 @@ UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1 = col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
@@ -378,7 +414,7 @@ UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
@@ -462,7 +498,7 @@ UPDATE t1 SET col2 =col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value adjusted for column 'col2' at row 3
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
@@ -541,7 +577,7 @@ INSERT INTO t1 (col2) VALUES(18446744073709551616.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
@@ -621,7 +657,7 @@ UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 6
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 01000: Data truncated for column 'col1' at row 1
@@ -692,7 +728,7 @@ UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 2
 UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 01000: Data truncated for column 'col1' at row 1
@@ -742,7 +778,7 @@ UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
 ERROR 22003: Out of range value adjusted for column 'col1' at row 2
 UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
 ERROR 22012: Division by 0
-SELECT MOD(col1,0) FROM t1;
+UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
 ERROR 01000: Data truncated for column 'col1' at row 1

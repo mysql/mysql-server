@@ -457,6 +457,7 @@ int mysql_update(THD *thd,
     DBUG_PRINT("info",("%d records updated",updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
+  thd->abort_on_warning= 0;
   free_io_cache(table);
   DBUG_RETURN(0);
 
