@@ -31,7 +31,7 @@
 
 #if defined(__WIN__) && !defined( _CUSTOMCONFIG_)
 #define MYSQL_NAMEDPIPE "MySQL"
-#define MYSQL_SERVICENAME "MySql"
+#define MYSQL_SERVICENAME "mysqld"
 #endif /* __WIN__ */
 
 enum enum_server_command {
