@@ -579,18 +579,44 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
+      isize1, intg1, intg1x=from->intg,
       intg0=intg/DIG_PER_DEC1,
       frac0=frac/DIG_PER_DEC1,
       intg0x=intg-intg0*DIG_PER_DEC1,
       frac0x=frac-frac0*DIG_PER_DEC1,
-      intg1=from->intg/DIG_PER_DEC1,
       frac1=from->frac/DIG_PER_DEC1,
-      intg1x=from->intg-intg1*DIG_PER_DEC1,
       frac1x=from->frac-frac1*DIG_PER_DEC1,
       isize0=intg0*sizeof(dec1)+dig2bytes[intg0x],
       fsize0=frac0*sizeof(dec1)+dig2bytes[frac0x],
-      isize1=intg1*sizeof(dec1)+dig2bytes[intg1x],
       fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
+
+  /* removing leading zeroes */
+  intg1=((intg1x-1) % DIG_PER_DEC1)+1;
+  while (intg1x > 0 && *buf1 == 0)
+  {
+    intg1x-=intg1;
+    intg1=DIG_PER_DEC1;
+    buf1++;
+  }
+  if (intg1x > 0)
+  {
+    for (intg1=(intg1x-1) % DIG_PER_DEC1; *buf1 < powers10[intg1--]; intg1x--) ;
+    DBUG_ASSERT(intg1x > 0);
+  }
+  else
+    intg1x=0;
+
+  if (unlikely(intg1x+fsize1==0))
+  {
+    mask=0; /* just in case */
+    intg=1;
+    buf1=&mask;
+  }
+
+  intg1=intg1x/DIG_PER_DEC1;
+  intg1x=intg1x-intg1*DIG_PER_DEC1;
+  isize1=intg1*sizeof(dec1)+dig2bytes[intg1x];
+
   if (isize0 < isize1)
   {
     buf1+=intg1-intg0+(intg1x>0)-(intg0x>0);
