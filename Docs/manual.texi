@@ -25633,6 +25633,10 @@ database should be done through the master!
 On older servers one can use the update log to do simple replication.
 @xref{Log Replication}.
 
+Another benefit of using replication is that one can get live backups of
+the system by doing a backup on a slave instead of doing it on the
+master. @xref{Backup}.
+
 @cindex master-slave setup
 @node Replication Implementation, Replication HOWTO, Replication Intro, Replication
 @section Replication Implementation Overview
@@ -26090,7 +26094,7 @@ last log on the list), backup all the logs you are about to delete
 @end multitable
 
 @node Replication FAQ,  , Replication SQL, Replication
-@section Replication FAQ
+@section Frequently Asked Questions about replication
 
 @cindex @code{Binlog_Dump}
 @strong{Q}: Why do I sometimes see more than one @code{Binlog_Dump} thread on
@@ -26153,7 +26157,6 @@ of plug and play. Of course, as one joke goes, plug and play works
 usually only 50% of the time - just the plug part. We hope to do much
 better than that, though.
 
-
 @cindex replication, two-way
 @strong{Q}: What issues should I be aware of when setting up two-way
 replication?
@@ -26192,6 +26195,11 @@ offset by network delays.
 @strong{A}: You should set up one server as the master, and direct all
 writes to it, and configure as many slaves as you have the money and
 rackspace for, distributing the reads among the master and the slaves.
+You can also start the slaves with @code{--skip-bdb},
+@code{--low-priority-updates} and @code{--delay-key-write-for-all-tables}
+to get speed improvements for the slave.  In this case the slave will
+use non-transactional @code{MyISAM} tables instead of @code{BDB} tables
+to get more speed.
 
 @strong{Q}: What should I do to prepare my client code to use
 performance-enhancing replication?
@@ -34017,7 +34025,8 @@ relevant tables followed by @code{FLUSH TABLES} for the tables.
 @xref{FLUSH, , @code{FLUSH}}.
 You only need a read lock; this allows other threads to continue to
 query the tables while you are making a copy of the files in the
-database directory.
+database directory.  The @code{FLUSH TABLE} is needed to ensure that
+the all active index pages is written to disk before you start the backup.
 
 If you want to make a SQL level backup of a table, you can use
 @code{SELECT INTO OUTFILE} or @code{BACKUP
@@ -34082,6 +34091,10 @@ FROM tbl_name} and restore with @code{LOAD DATA INFILE 'file_name' REPLACE
 @code{UNIQUE} key in the table. The @code{REPLACE} keyword causes old records
 to be replaced with new ones when a new record duplicates an old record on
 a unique key value.
+
+If you get performance problems in making backups on your system, you can
+solve this by setting up replication and do the backups on the slave
+instead of on the master. @xref{Replication Intro}.
 
 @cindex update log
 @cindex files, update log
