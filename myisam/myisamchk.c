@@ -1408,6 +1408,12 @@ static int mi_sort_records(MI_CHECK *param,
     param->error_printed=0;
     DBUG_RETURN(-1);
   }
+  if (share->data_file_type == COMPRESSED_RECORD)
+  {
+    mi_check_print_error(param,"Can't sort read-only table '%s'", name);
+    param->error_printed=0;
+    DBUG_RETURN(-1);
+  }
   if (!(param->testflag & T_SILENT))
   {
     printf("- Sorting records for MyISAM-table '%s'\n",name);
