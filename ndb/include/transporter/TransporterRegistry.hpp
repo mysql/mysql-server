@@ -116,10 +116,19 @@ public:
    */
   bool connect_server(NDB_SOCKET_TYPE sockfd);
 
+  bool connect_client(NdbMgmHandle *h);
+
   /**
-   * use a mgmd connection to connect as a transporter
+   * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
+   * and returns the socket.
    */
   NDB_SOCKET_TYPE connect_ndb_mgmd(SocketClient *sc);
+
+  /**
+   * Given a connected NdbMgmHandle, turns it into a transporter
+   * and returns the socket.
+   */
+  NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle *h);
 
   /**
    * Remove all transporters
