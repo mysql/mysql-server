@@ -1385,7 +1385,6 @@ void Query_cache::free_cache(my_bool destruction)
     hash_free(&tables);
     if (!destruction)
       STRUCT_UNLOCK(&structure_guard_mutex);
-    DBUG_EXECUTE("check_querycache",check_integrity(););
   }
   DBUG_VOID_RETURN;
 }
@@ -2809,6 +2808,13 @@ void Query_cache::wreck(uint line, const char *message)
 void Query_cache::bins_dump()
 {
   uint i;
+  
+  if ( !initialized )
+  {
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return;
+  }
+
   DBUG_PRINT("qcache", ("mem_bin_num=%u, mem_bin_steps=%u",
 		      mem_bin_num, mem_bin_steps));
   DBUG_PRINT("qcache", ("-------------------------"));
@@ -2844,6 +2850,13 @@ void Query_cache::bins_dump()
 
 void Query_cache::cache_dump()
 {
+
+  if ( !initialized )
+  {
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return;
+  }
+
   DBUG_PRINT("qcache", ("-------------------------------------"));
   DBUG_PRINT("qcache", ("    length       used t nt"));
   DBUG_PRINT("qcache", ("-------------------------------------"));
@@ -2864,6 +2877,13 @@ void Query_cache::cache_dump()
 
 void Query_cache::queries_dump()
 {
+
+  if ( !initialized )
+  {
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return;
+  }
+
   DBUG_PRINT("qcache", ("------------------"));
   DBUG_PRINT("qcache", (" QUERIES"));
   DBUG_PRINT("qcache", ("------------------"));
@@ -2920,6 +2940,13 @@ void Query_cache::queries_dump()
 
 void Query_cache::tables_dump()
 {
+
+  if ( !initialized )
+  {
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return;
+  }
+
   DBUG_PRINT("qcache", ("--------------------"));
   DBUG_PRINT("qcache", ("TABLES"));
   DBUG_PRINT("qcache", ("--------------------"));
@@ -2948,6 +2975,13 @@ my_bool Query_cache::check_integrity()
   my_bool result = 0;
   uint i;
   STRUCT_LOCK(&structure_guard_mutex);
+
+  if ( !initialized )
+  {
+    STRUCT_UNLOCK(&structure_guard_mutex);
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return 0;
+  }
 
   if (hash_check(&queries))
   {
