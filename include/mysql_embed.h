@@ -30,7 +30,4 @@
 
 #define DONT_USE_RAID
 
-#undef  MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-embedded"
-
 #endif /* EMBEDDED_LIBRARY */

@@ -560,7 +560,6 @@ public:
     UintR scanLocalFragid;
     UintR scanSchemaVersion;
     Uint32 fragPtrI;
-    UintR scanSearchCondFalseCount;
     UintR scanStoredProcId;
     ScanState scanState;
     UintR scanTcrec;

@@ -26,6 +26,7 @@ CFG=strings - Win32 Debug
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
 CPP=xicl6.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "strings - Win32 Release"
@@ -41,7 +42,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -151,7 +152,7 @@ SOURCE=".\ctype-sjis.c"
 SOURCE=".\ctype-tis620.c"
 # End Source File
 # Begin Source File
- 
+
 SOURCE=".\ctype-uca.c"
 # End Source File
 # Begin Source File
@@ -189,10 +190,6 @@ SOURCE=.\llstr.c
 # Begin Source File
 
 SOURCE=.\longlong2str.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strnlen.c
 # End Source File
 # Begin Source File
 

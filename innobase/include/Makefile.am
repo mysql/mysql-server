@@ -32,7 +32,7 @@ noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         mem0dbg.h mem0dbg.ic mem0mem.h mem0mem.ic mem0pool.h \
         mem0pool.ic mtr0log.h mtr0log.ic mtr0mtr.h mtr0mtr.ic \
         mtr0types.h os0file.h os0proc.h os0proc.ic \
-        os0shm.h os0shm.ic os0sync.h os0sync.ic os0thread.h \
+        os0sync.h os0sync.ic os0thread.h \
         os0thread.ic page0cur.h page0cur.ic page0page.h \
         page0page.ic page0types.h pars0grm.h pars0opt.h \
         pars0opt.ic pars0pars.h pars0pars.ic pars0sym.h \
@@ -44,7 +44,7 @@ noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         row0types.h row0uins.h row0uins.ic row0umod.h row0umod.ic \
         row0undo.h row0undo.ic row0upd.h row0upd.ic row0vers.h \
         row0vers.ic srv0que.h srv0srv.h srv0srv.ic srv0start.h \
-        sync0arr.h sync0arr.ic sync0ipm.h sync0ipm.ic sync0rw.h \
+        sync0arr.h sync0arr.ic sync0rw.h \
         sync0rw.ic sync0sync.h sync0sync.ic sync0types.h \
         thr0loc.h thr0loc.ic trx0purge.h trx0purge.ic trx0rec.h \
         trx0rec.ic trx0roll.h trx0roll.ic trx0rseg.h trx0rseg.ic \
