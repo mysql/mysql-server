@@ -295,6 +295,12 @@ insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, "Sergei");
+update t1 set b=repeat('a',256);
+update t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0;
+check table t1;
+delete from t1 where i8=1;
+select * from t1;
+check table t1;
 drop table t1;
 
 #

@@ -32,6 +32,30 @@
 
 *****************************************************************************/
 
+/*
+  MUTEXES in replication:
+
+  LOCK_active_mi: this is meant for multimaster, when we can switch from a
+  master to another. It protects active_mi. We don't care of it for the moment,
+  as active_mi never moves (it's created at startup and deleted at shutdown,
+  and not changed: it always points to the same MASTER_INFO struct), because we
+  don't have multimaster. So for the moment, mi does not move, and mi->rli does
+  not either.
+
+  In MASTER_INFO: run_lock, data_lock
+  run_lock protects all information about the run state: slave_running, and the
+  existence of the I/O thread (to stop/start it, you need this mutex).
+  data_lock protects some moving members of the struct: counters (log name,
+  position) and relay log (MYSQL_LOG object).
+
+  In RELAY_LOG_INFO: run_lock, data_lock
+  see MASTER_INFO
+  
+  In MYSQL_LOG: LOCK_log, LOCK_index of the binlog and the relay log
+  LOCK_log: when you write to it. LOCK_index: when you create/delete a binlog
+  (so that you have to update the .index file).
+*/
+
 extern ulong master_retry_count;
 extern MY_BITMAP slave_error_mask;
 extern bool use_slave_mask;
@@ -42,10 +66,6 @@ extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
 struct st_master_info;
-
-extern "C" {
-  extern ulong slave_net_timeout;
-};
 
 enum enum_binlog_formats {
   BINLOG_FORMAT_CURRENT=0, /* 0 is important for easy 'if (mi->old_format)' */
