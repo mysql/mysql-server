@@ -37453,7 +37453,7 @@ parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 @cindex Query Cache
 @cindex @code{SELECT}, Query Cache
 
-From version 4.0.1 (4.0.4 for Windows), @code{MySQL server} features a @code{Query Cache}.
+From version 4.0.1, @code{MySQL server} features a @code{Query Cache}.
 When in use, the query cache stores the text of a @code{SELECT} query
 together with the corresponding result that was sent to the client.
 If an identical query is later received, the server will retrieve
