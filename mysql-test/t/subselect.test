@@ -1153,6 +1153,7 @@ SELECT a FROM t1 WHERE a = ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
+# with index
 ALTER TABLE t1 ADD INDEX (a);
 SELECT a FROM t1 WHERE a > ANY ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a < ANY ( SELECT a FROM t1 WHERE b = 2 );
@@ -1166,7 +1167,144 @@ SELECT a FROM t1 WHERE a = ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
 SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
+# having clause test
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 HAVING a = 2);
+# union test
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 WHERE b = 2 UNION SELECT a FROM t1 WHERE b = 2);
+# union + having test
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 HAVING a = 2 UNION SELECT a FROM t1 HAVING a = 2);
+# row tests
+# < > >= <= and = ALL/ <> ANY do not support row operation
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) > ANY (SELECT a FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE a > ANY (SELECT a,2 FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) > ANY (SELECT a,2 FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) > ALL (SELECT a FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE a > ALL (SELECT a,2 FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) > ALL (SELECT a,2 FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) = ALL (SELECT a,2 FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) <> ANY (SELECT a,2 FROM t1 WHERE b = 2);
+# following should be converted to IN
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) = ANY (SELECT a FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE a = ANY (SELECT a,2 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (1,2) = ANY (SELECT a,2 FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE (1,2) <> ALL (SELECT a FROM t1 WHERE b = 2);
+-- error 1241
+SELECT a FROM t1 WHERE a <> ALL (SELECT a,2 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (1,2) <> ALL (SELECT a,2 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (a,1) = ANY (SELECT a,1 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (a,1) <> ALL (SELECT a,1 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (a,1) = ANY (SELECT a,1 FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE (a,1) <> ALL (SELECT a,1 FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE (a,1) = ANY (SELECT a,1 FROM t1 WHERE b = 2 UNION SELECT a,1 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (a,1) <> ALL (SELECT a,1 FROM t1 WHERE b = 2 UNION SELECT a,1 FROM t1 WHERE b = 2);
+SELECT a FROM t1 WHERE (a,1) = ANY (SELECT a,1 FROM t1 HAVING a = 2 UNION SELECT a,1 FROM t1 HAVING a = 2);
+SELECT a FROM t1 WHERE (a,1) <> ALL (SELECT a,1 FROM t1 HAVING a = 2 UNION SELECT a,1 FROM t1 HAVING a = 2);
+# without optimisation
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 WHERE b = 2 group by a);
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 WHERE b = 2 group by a);
+# without optimisation + having
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 group by a HAVING a = 2);
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 group by a HAVING a = 2);
+# EXISTS in string contence
+SELECT concat(EXISTS(SELECT a FROM t1 WHERE b = 2 and a.a > t1.a), '-') from t1 a;
+SELECT concat(EXISTS(SELECT a FROM t1 WHERE b = 2 and a.a < t1.a), '-') from t1 a;
+SELECT concat(EXISTS(SELECT a FROM t1 WHERE b = 2 and a.a = t1.a), '-') from t1 a;
 DROP TABLE t1;
+CREATE TABLE t1 ( a double, b double );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 WHERE b = 2e0);
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 WHERE b = 2e0);
+DROP TABLE t1;
+CREATE TABLE t1 ( a char(1), b char(1));
+INSERT INTO t1 VALUES ('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE a > ANY (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a < ANY (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a = ANY (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a >= ANY (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a <= ANY (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a <> ANY (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a > ALL (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a < ALL (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a = ALL (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a >= ALL (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a <= ALL (SELECT a FROM t1 WHERE b = '2');
+SELECT a FROM t1 WHERE a <> ALL (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
 
 #
 # SELECT(EXISTS * ...)optimisation
@@ -1443,8 +1581,9 @@ select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
 
+#
 # Test for BUG#8218
-
+#
 CREATE TABLE t1 (
   categoryId int(11) NOT NULL,
   courseId int(11) NOT NULL,
@@ -1541,10 +1680,57 @@ join
 group by 
   groupstuff.groupname, colhead , t2.courseid;
 
-drop table if exists t1, t2, t3, t4, t5;
+drop table t1, t2, t3, t4, t5;
 
+#
+# Transformation in left expression of subquery (BUG#8888)
+#
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SELECT 1 FROM t1 WHERE (SELECT 1) in (SELECT 1);
+drop table t1;
 
+#
+# subselect into HAVING clause (code covarage improvement)
+#
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2);
+insert into t2 values (0),(1),(2),(3);
+select a from t2 where a in (select a from t1);
+select a from t2 having a in (select a from t1);
+prepare stmt1 from "select a from t2 where a in (select a from t1)";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+prepare stmt1 from "select a from t2 having a in (select a from t1)";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+drop table t1, t2;
+
+#
+# single row subqueries and row operations (code covarage improvement)
+#
+create table t1 (a int, b int);
+insert into t1 values (1,2);
+-- error 1241
+select 1 = (select * from t1);
+-- error 1241
+select (select * from t1) = 1;
+-- error 1241
+select (1,2) = (select a from t1);
+-- error 1241
+select (select a from t1) = (1,2);
+-- error 1241
+select (1,2,3) = (select * from t1);
+-- error 1241
+select (select * from t1) = (1,2,3);
+drop table t1
+
+#
 #decimal-related tests
+#
 create table t1 (df decimal(5,1));
 insert into t1 values(1.1);
 insert into t1 values(2.2);

@@ -1166,7 +1166,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, ""))
   {
     goto err_prep;
   }
@@ -1318,7 +1318,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   thd->used_tables= 0;                        // Updated by setup_fields
 
   // JOIN::prepare calls
-  if (lex->unit.prepare(thd, 0, setup_tables_done_option))
+  if (lex->unit.prepare(thd, 0, setup_tables_done_option, ""))
   {
     res= TRUE;
   }
