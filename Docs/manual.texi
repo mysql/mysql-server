@@ -32431,7 +32431,7 @@ create_definition:
   or    INDEX [index_name] (index_col_name,...)
   or    UNIQUE [INDEX] [index_name] (index_col_name,...)
   or    FULLTEXT [INDEX] [index_name] (index_col_name,...)
-  or    [CONSTRAINT symbol] FOREIGN KEY index_name (index_col_name,...)
+  or    [CONSTRAINT symbol] FOREIGN KEY [index_name] (index_col_name,...)
             [reference_definition]
   or    CHECK (expr)
 
@@ -32866,7 +32866,7 @@ All mapped tables must be in the same database as the @code{MERGE} table.
 @item
 If you want to insert data in a @code{MERGE} table, you have to specify with
 @code{INSERT_METHOD} into with table the row should be inserted.
-@xref{MERGE}.
+@xref{MERGE}.  This option was introduced in MySQL 4.0.0.
 
 @item
 In the created table the @code{PRIMARY} key will be placed first, followed
@@ -45796,7 +45796,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @itemize @bullet
 @item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
-argument is a binary string.  binary strings.
+argument is a binary string.
+@item
+Changed @code{RND()} initialization so that @code{RND(N)} and @code{RND(N+1)}
+are more distinct.
 @item
 Fixed core dump bug in @code{UPDATE ... ORDER BY }.
 @item
@@ -45808,6 +45811,8 @@ Added boolean fulltext search code. It should be considered early alpha.
 @item
 Extended @code{MODIFY} and @code{CHANGE} in @code{ALTER TABLE} to accept
 the @code{AFTER} keyword.
+@item
+Index are now used with @code{ORDER} BY on a whole InnoDB table.
 @end itemize
 
 @node News-4.0.0,  , News-4.0.1, News-4.0.x
