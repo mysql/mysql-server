@@ -2,7 +2,7 @@
   An alternative implementation of "strtod()" that is both
   simplier, and thread-safe.
 
-  From mit-threads as bundled with MySQL 3.22
+  From mit-threads as bundled with MySQL 3.23
 
   SQL:2003 specifies a number as
 
@@ -41,6 +41,7 @@ double my_strtod(const char *str, char **end)
   double result= 0.0;
   int negative, ndigits;
   const char *old_str;
+  my_bool overflow=0;
 
   while (my_isspace(&my_charset_latin1, *str))
     str++;
@@ -85,7 +86,8 @@ double my_strtod(const char *str, char **end)
       double scaler= 1.0;
       while (my_isdigit (&my_charset_latin1, *str))
       {
-        exp= exp*10 + *str - '0';
+        if (exp < 9999) /* protection against exp overflow */
+          exp= exp*10 + *str - '0';
         str++;
       }
       if (exp >= 1000)
@@ -93,7 +95,7 @@ double my_strtod(const char *str, char **end)
         if (neg)
           result= 0.0;
         else
-          result= DBL_MAX*10;
+          overflow=1;
         goto done;
       }
       while (exp >= 100)
@@ -112,6 +114,12 @@ double my_strtod(const char *str, char **end)
 done:
   if (end)
     *end = (char *)str;
+
+  if (overflow || ((overflow=isinf(result))))
+  {
+    result=DBL_MAX;
+    errno=EOVERFLOW;
+  }
 
   return negative ? -result : result;
 }

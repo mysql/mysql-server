@@ -169,7 +169,6 @@ set @value= "1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
 Warning	1265	Data truncated for column 'f_double        ' at row 1
-Warning	1264	Data truncated, out of range for column 'f_double        ' at row 1
 Warning	1265	Data truncated for column 'f_float         ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float         ' at row 1
 Warning	1265	Data truncated for column 'f_double_7_2    ' at row 1
@@ -177,7 +176,6 @@ Warning	1264	Data truncated, out of range for column 'f_double_7_2    ' at row 1
 Warning	1265	Data truncated for column 'f_float_4_3     ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_4_3     ' at row 1
 Warning	1265	Data truncated for column 'f_double_u      ' at row 1
-Warning	1264	Data truncated, out of range for column 'f_double_u      ' at row 1
 Warning	1265	Data truncated for column 'f_float_u       ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_u       ' at row 1
 Warning	1265	Data truncated for column 'f_double_15_1_u ' at row 1
@@ -199,7 +197,6 @@ set @value= "-1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
 Warning	1265	Data truncated for column 'f_double        ' at row 1
-Warning	1264	Data truncated, out of range for column 'f_double        ' at row 1
 Warning	1265	Data truncated for column 'f_float         ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float         ' at row 1
 Warning	1265	Data truncated for column 'f_double_7_2    ' at row 1
@@ -228,17 +225,15 @@ f_float_3_1_u   	0.0
 set @value= 1e+1111111111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Data truncated, out of range for column 'f_double        ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float         ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_double_7_2    ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_4_3     ' at row 1
-Warning	1264	Data truncated, out of range for column 'f_double_u      ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_u       ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_double_15_1_u ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_3_1_u   ' at row 1
 select * from t1 where `number          `=last_insert_id();
 number          	6
-original_value  	inf
+original_value  	1.7976931348623e+308
 f_double        	1.79769313486232e+308
 f_float         	3.40282e+38
 f_double_7_2    	99999.99
@@ -250,7 +245,6 @@ f_float_3_1_u   	99.9
 set @value= -1e+1111111111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Data truncated, out of range for column 'f_double        ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float         ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_double_7_2    ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_4_3     ' at row 1
@@ -260,7 +254,7 @@ Warning	1264	Data truncated, out of range for column 'f_double_15_1_u ' at row 1
 Warning	1264	Data truncated, out of range for column 'f_float_3_1_u   ' at row 1
 select * from t1 where `number          `=last_insert_id();
 number          	7
-original_value  	-inf
+original_value  	-1.7976931348623e+308
 f_double        	-1.79769313486232e+308
 f_float         	-3.40282e+38
 f_double_7_2    	-99999.99
