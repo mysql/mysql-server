@@ -28,8 +28,6 @@ manual is available in the following formats: as plain ASCII text in
 Docs/manual.txt, in HTML format in Docs/manual_toc.html, as GNU Info in
 Docs/mysql.info and as PostScript in Docs/manual.ps.
 
-For a contributed user manual see http://www.turbolift.com/mysql.
-
 MySQL is brought to you by the MySQL team at MySQL AB
 
 For a list of developers and other contributors, see the Credits appendix
