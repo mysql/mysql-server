@@ -59,7 +59,7 @@ public:
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
   void set(const char *str,uint length,CHARSET_INFO *cs)
-  { value=my_strntod(cs,str,length,(char**)0); }
+  { int err; value=my_strntod(cs,(char*) str,length,(char**)0,&err); }
   double val() { return value; }
   longlong val_int() { return (longlong) value; }
   String *val_str(String *s) { s->set(value,decimals,thd_charset()); return s; }
@@ -77,7 +77,7 @@ public:
   void set(double nr) { value=(longlong) nr; }
   void set(longlong nr) { value=nr; }
   void set(const char *str,uint length, CHARSET_INFO *cs)
-  { value=my_strntoll(cs,str,length,NULL,10); }
+  { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value, thd_charset()); return s; }
@@ -98,13 +98,16 @@ public:
   { str_value.copy(str,length,cs); }
   double val() 
   { 
+    int err;
     CHARSET_INFO *cs=str_value.charset();
-    return my_strntod(cs, str_value.ptr(), str_value.length(),(char**)0);
+    return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
+		      (char**) 0, &err);
   }
   longlong val_int()
   { 
+    int err;
     CHARSET_INFO *cs=str_value.charset();
-    return my_strntoll(cs,str_value.ptr(),str_value.length(),NULL,10);
+    return my_strntoll(cs,str_value.ptr(),str_value.length(),10,NULL,&err);
   }
   String *val_str(String*)
   {

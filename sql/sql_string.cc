@@ -30,6 +30,9 @@
 
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
+static uint32
+copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+		 const char *from, uint32 from_length, CHARSET_INFO *from_cs);
 
 #include "sql_string.h"
 
@@ -97,7 +100,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) cs->ll10tostr(cs,Ptr,l,-10,num);
+  str_length=(uint32) cs->longlong10_to_str(cs,Ptr,l,-10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -108,7 +111,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) cs->ll10tostr(cs,Ptr,l,10,num);
+  str_length=(uint32) cs->longlong10_to_str(cs,Ptr,l,10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -223,54 +226,50 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
   return FALSE;
 }
 
-/* Copy with charset convertion */
-bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET_INFO *to)
-{
-  uint32      new_length=to->mbmaxlen*arg_length;
-  int         cnvres;
-  my_wc_t     wc;
-  const uchar *s=(const uchar *)str;
-  const uchar *se=s+arg_length;
-  uchar       *d, *de;
+	/* Copy with charset convertion */
 
+bool String::copy(const char *str, uint32 arg_length,
+		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
     return TRUE;
-
-  d=(uchar *)Ptr;
-  de=d+new_length;
-  
-  for (str_length=new_length ; s < se && d < de ; )
-  {
-    if ((cnvres=from->mb_wc(from,&wc,s,se)) > 0 )
-    {
-      s+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILSEQ)
-    {
-      s++;
-      wc='?';
-    }
-    else
-      break;
-
-outp:
-    if ((cnvres=to->wc_mb(to,wc,d,de)) >0 )
-    {
-      d+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILUNI && wc!='?')
-    {
-      wc='?';
-      goto outp;
-    }
-    else
-      break;
-  }
-  Ptr[new_length]=0;
-  length((uint32) (d-(uchar *)Ptr));
-  str_charset=to;
+  str_length=copy_and_convert((char*) Ptr, new_length, to_cs,
+			      str, arg_length, from_cs);
+  str_charset=to_cs;
   return FALSE;
 }
+
+
+/*
+  Set a string to the value of a latin1-string, keeping the original charset
+  
+  SYNOPSIS
+    copy_or_set()
+    str			String of a simple charset (latin1)
+    arg_length		Length of string
+
+  IMPLEMENTATION
+    If string object is of a simple character set, set it to point to the
+    given string.
+    If not, make a copy and convert it to the new character set.
+
+  RETURN
+    0	ok
+    1	Could not allocate result buffer
+
+*/
+
+bool String::set_latin1(const char *str, uint32 arg_length)
+{
+  if (str_charset->mbmaxlen == 1)
+  {
+    set(str, arg_length, str_charset);
+    return 0;
+  }
+  return copy(str, arg_length, my_charset_latin1, str_charset);
+}
+
 
 /* This is used by mysql.cc */
 
@@ -306,17 +305,33 @@ bool String::append(const String &s)
   return FALSE;
 }
 
+
+/*
+  Append a latin1 string to the a string of the current character set
+*/
+
+
 bool String::append(const char *s,uint32 arg_length)
 {
   if (!arg_length)				// Default argument
     if (!(arg_length= (uint32) strlen(s)))
       return FALSE;
+  if (str_charset->mbmaxlen > 1)
+  {
+    uint32 add_length=arg_length * str_charset->mbmaxlen;
+    if (realloc(str_length+ add_length))
+      return TRUE;
+    str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
+				  s, arg_length, my_charset_latin1);
+    return FALSE;
+  }
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
   str_length+=arg_length;
   return FALSE;
 }
+
 
 #ifdef TO_BE_REMOVED
 bool String::append(FILE* file, uint32 arg_length, myf my_flags)
@@ -658,4 +673,61 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 }
 
 
+/****************************************************************************
+  Help functions
+****************************************************************************/
 
+/*
+  copy a string from one character set to another
+  
+  SYNOPSIS
+    copy_and_convert()
+    to			Store result here
+    to_cs		Character set of result string
+    from		Copy from here
+    from_length		Length of from string
+    from_cs		From character set
+
+  NOTES
+    'to' must be big enough as form_length * to_cs->mbmaxlen
+
+  RETURN
+    length of bytes copied to 'to'
+*/
+
+
+static uint32
+copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
+		 const char *from, uint32 from_length, CHARSET_INFO *from_cs)
+{
+  int         cnvres;
+  my_wc_t     wc;
+  const uchar *from_end= (const uchar*) from+from_length;
+  char *to_start= to;
+  uchar *to_end= (uchar*) to+to_length;
+
+  while ((uchar*) from < from_end)
+  {
+    if ((cnvres=from_cs->mb_wc(from_cs, &wc, (uchar*) from, from_end)) > 0)
+      from+= cnvres;
+    else if (cnvres == MY_CS_ILSEQ)
+    {
+      from++;
+      wc= '?';
+    }
+    else
+      break;					// Impossible char.
+
+outp:
+    if ((cnvres= to_cs->wc_mb(to_cs, wc, (uchar*) to, to_end)) > 0)
+      to+= cnvres;
+    else if (cnvres == MY_CS_ILUNI && wc != '?')
+    {
+      wc= '?';
+      goto outp;
+    }
+    else
+      break;
+  }
+  return (uint32) (to - to_start);
+}

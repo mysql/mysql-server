@@ -56,6 +56,9 @@ static short binlog_flags = 0;
 static MYSQL* mysql = NULL;
 static const char* table = 0;
 
+static bool use_local_load= 0;
+static const char* dirname_for_local_load= 0;
+
 static void dump_local_log_entries(const char* logname);
 static void dump_remote_log_entries(const char* logname);
 static void dump_log_entries(const char* logname);
@@ -63,6 +66,129 @@ static void dump_remote_file(NET* net, const char* fname);
 static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
+
+class Load_log_processor {
+  char target_dir_name[MY_NFILE];
+  int target_dir_name_len;
+  DYNAMIC_ARRAY file_names;
+
+  const char* create_file(Create_file_log_event *ce)
+    {
+      const char *bname= ce->fname + ce->fname_len -1;
+      while (bname>ce->fname && bname[-1]!=FN_LIBCHAR)
+	bname--;
+
+      uint blen= ce->fname_len - (bname-ce->fname);
+      uint full_len= target_dir_name_len + blen;
+      char *tmp;
+      if (!(tmp= my_malloc(full_len + 9 + 1,MYF(MY_WME))) ||
+	  set_dynamic(&file_names,(gptr)&ce,ce->file_id))
+      {
+	die("Could not construct local filename %s%s",target_dir_name,bname);
+	return 0;
+      }
+
+      char *ptr= tmp;
+      memcpy(ptr,target_dir_name,target_dir_name_len);
+      ptr+= target_dir_name_len;
+      memcpy(ptr,bname,blen);
+      ptr+= blen;
+      sprintf(ptr,"-%08x",ce->file_id);
+
+      ce->set_fname_outside_temp_buf(tmp,full_len);
+
+      return tmp;
+    }
+
+  void append_to_file(const char* fname, int flags, 
+		      gptr data, uint size)
+    {
+      FILE *file;
+      if(!(file= my_fopen(fname,flags,MYF(MY_WME))))	
+	exit(1);
+      if (my_fwrite(file,data,size,MYF(MY_WME|MY_NABP)))
+	exit(1);
+      if (my_fclose(file,MYF(MY_WME)))
+	exit(1);
+    }
+
+public:
+
+  Load_log_processor()
+    {
+      init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
+			 100,100 CALLER_INFO);
+    }
+
+  ~Load_log_processor()
+    {
+      destroy();
+      delete_dynamic(&file_names);
+    }
+
+  void init_by_dir_name(const char *atarget_dir_name)
+    {
+      char *end= strmov(target_dir_name,atarget_dir_name);
+      if (end[-1]!=FN_LIBCHAR)
+	*end++= FN_LIBCHAR;
+      target_dir_name_len= end-target_dir_name;
+    }
+  void init_by_file_name(const char *file_name)
+    {
+      int len= strlen(file_name);
+      const char *end= file_name + len - 1;
+      while (end>file_name && *end!=FN_LIBCHAR)
+	end--;
+      if (*end!=FN_LIBCHAR)
+	target_dir_name_len= 0;
+      else
+      {
+	target_dir_name_len= end - file_name + 1;
+	memmove(target_dir_name,file_name,target_dir_name_len);
+      }
+    }
+  void init_by_cur_dir()
+    {
+      target_dir_name_len= 0;
+    }
+  void destroy()
+    {
+      Create_file_log_event **ptr= (Create_file_log_event**)file_names.buffer;
+      Create_file_log_event **end= ptr + file_names.elements;
+      for (; ptr<end; ptr++)
+      {
+	if (*ptr)
+	{
+	  my_free((char*)(*ptr)->fname,MYF(MY_WME));
+	  delete *ptr;
+	  *ptr= 0;
+	}
+      }
+    }
+  Create_file_log_event *grab_event(uint file_id)
+    {
+      Create_file_log_event **ptr= 
+	(Create_file_log_event**)file_names.buffer + file_id;
+      Create_file_log_event *res= *ptr;
+      *ptr= 0;
+      return res;
+    }
+  void process(Create_file_log_event *ce)
+    {
+      const char *fname= create_file(ce);
+      append_to_file (fname,O_CREAT|O_BINARY,ce->block,ce->block_len);
+    }
+  void process(Append_block_log_event *ae)
+    {
+      if (ae->file_id >= file_names.elements)
+	die("Skiped CreateFile event for file_id: %u",ae->file_id);
+      Create_file_log_event* ce= 
+	*((Create_file_log_event**)file_names.buffer + ae->file_id);
+      append_to_file(ce->fname,O_APPEND|O_BINARY,ae->block,ae->block_len);
+    }
+};
+
+Load_log_processor load_processor;
 
 static struct my_option my_long_options[] =
 {
@@ -97,6 +223,9 @@ static struct my_option my_long_options[] =
   {"user", 'u', "Connect to the remote server as username",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+  {"local-load", 'l', "Prepare files for local load in directory",
+   (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0, 
+   GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -209,6 +338,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'l':
+    use_local_load= 1;
+    break;
   case '?':
     usage();
     exit(0);
@@ -420,6 +552,8 @@ static void dump_local_log_entries(const char* logname)
 		      MYF(MY_WME | MY_NABP)))
       exit(1);
     old_format = check_header(file);
+    if (use_local_load && !dirname_for_local_load)
+      load_processor.init_by_file_name(logname);
   }
   else
   {
@@ -441,6 +575,8 @@ static void dump_local_log_entries(const char* logname)
     }
     file->pos_in_file=position;
     file->seek_not_done=0;
+    if (use_local_load && !dirname_for_local_load)
+      load_processor.init_by_cur_dir();
   }
 
   if (!position)
@@ -495,11 +631,43 @@ Could not read entry at offset %s : Error in log format or read error",
       }
       if (!short_form)
         fprintf(result_file, "# at %s\n",llstr(old_off,llbuff));
-
-      ev->print(result_file, short_form, last_db);
+      
+      if (!use_local_load)
+	ev->print(result_file, short_form, last_db);
+      else 
+      {
+	switch(ev->get_type_code())
+	{
+	case CREATE_FILE_EVENT:
+	{
+	  Create_file_log_event* ce= (Create_file_log_event*)ev;
+	  ce->print(result_file, short_form, last_db,true);
+	  load_processor.process(ce);
+	  ev= 0;
+	  break;
+	}
+	case APPEND_BLOCK_EVENT:
+	  ev->print(result_file, short_form, last_db);
+	  load_processor.process((Append_block_log_event*)ev);
+	  break;
+	case EXEC_LOAD_EVENT:
+	{
+	  ev->print(result_file, short_form, last_db);
+	  Execute_load_log_event *exv= (Execute_load_log_event*)ev;
+	  Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
+	  ce->print(result_file, short_form, last_db,true);
+	  my_free((char*)ce->fname,MYF(MY_WME));
+	  delete ce;
+	  break;
+	}
+	default:
+	  ev->print(result_file, short_form, last_db);
+	}
+      }
     }
     rec_count++;
-    delete ev;
+    if (ev)
+      delete ev;
   }
   if (fd >= 0)
    my_close(fd, MYF(MY_WME));
@@ -520,6 +688,8 @@ int main(int argc, char** argv)
 
   if (use_remote)
     mysql = safe_connect();
+  if (dirname_for_local_load)
+    load_processor.init_by_dir_name(dirname_for_local_load);
 
   if (table)
   {

@@ -52,16 +52,19 @@ uint nr_of_decimals(const char *str)
 
 double Item_str_func::val()
 {
+  int err;
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntod(res->charset(),res->ptr(),res->length(),NULL) : 0.0;
+  return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
+			  NULL, &err) : 0.0;
 }
 
 longlong Item_str_func::val_int()
 {
+  int err;
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),NULL,10) : (longlong) 0;
+  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10,NULL,&err) : (longlong) 0;
 }
 
 
@@ -1955,6 +1958,7 @@ String *Item_func_conv::val_str(String *str)
   longlong dec;
   int from_base= (int) args[1]->val_int();
   int to_base= (int) args[2]->val_int();
+  int err;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       abs(to_base) > 36 || abs(to_base) < 2 ||
@@ -1965,9 +1969,9 @@ String *Item_func_conv::val_str(String *str)
   }
   null_value=0;
   if (from_base < 0)
-    dec= my_strntoll(res->charset(),res->ptr(),res->length(),&endptr,-from_base);
+    dec= my_strntoll(res->charset(),res->ptr(),res->length(),-from_base,&endptr,&err);
   else
-    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),&endptr,from_base);
+    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),from_base,&endptr,&err);
   ptr= longlong2str(dec,ans,to_base);
   if (str->copy(ans,(uint32) (ptr-ans), thd_charset()))
     return &empty_string;
@@ -2771,10 +2775,8 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 
-	if (len < WKB_HEADER_SIZE + 4 + 8 + 8)
+	if (len < 4 + 2 * POINT_DATA_SIZE)
 	  goto ret;
-	data+=WKB_HEADER_SIZE;
-	len-=WKB_HEADER_SIZE;
 
 	uint32 llen=len;
 	const char *ldata=data;
@@ -2786,10 +2788,6 @@ String *Item_func_spatial_collection::val_str(String *str)
 	float8get(y1,data);
 	data+=8;
 
-	len-= 4 + 8 + 8;
-
-	if (len < n_points * POINT_DATA_SIZE)
-	  goto ret;
 	data+=(n_points-2) * POINT_DATA_SIZE;
 
 	float8get(x2,data);

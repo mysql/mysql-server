@@ -414,7 +414,7 @@ static my_bool my_like_range_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_latin1_de =
 {
     31,			/* number    */
-    MY_CS_COMPILED,	/* state     */
+    MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */
     "latin1",		/* cs name    */
     "latin1_de",	/* name      */
     "",			/* comment   */
@@ -446,13 +446,14 @@ CHARSET_INFO my_charset_latin1_de =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
 };
 
 #endif

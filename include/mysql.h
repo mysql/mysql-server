@@ -439,13 +439,12 @@ typedef struct st_mysql_bind
 {
   long		*length;		/* output length pointer */
   gptr		buffer;			/* buffer */
-  unsigned long buffer_length;		/* buffer length */  
   enum enum_field_types buffer_type;	/* buffer type */
-  enum enum_field_types field_type;	/* field type */
   my_bool	is_null;		/* NULL indicator */
   my_bool	is_long_data;		/* long data indicator */
 
   /* The following are for internal use. Set by mysql_bind_param */
+  unsigned long buffer_length;		/* buffer length */  
   long		bind_length;		/* Default length of data */
   my_bool	long_ended;		/* All data supplied for long */
   unsigned int	param_number;		/* For null count and error messages */
@@ -477,6 +476,7 @@ typedef struct st_mysql_stmt
   my_bool	send_types_to_server;	/* to indicate types supply to server */
   my_bool       param_buffers;          /* to indicate the param bound buffers */
   my_bool       res_buffers;            /* to indicate the output bound buffers */
+  my_bool       result_buffered;        /* to indicate the results buffered */
 } MYSQL_STMT;
 
 
@@ -502,15 +502,17 @@ int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
 			      unsigned long len);
 MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
+my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
+int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
 
 
 /* new status messages */
-#define MYSQL_SUCCESS    0
-#define MYSQL_WARNING    1
-#define MYSQL_STATUS_ERROR 2
-#define MYSQL_NO_DATA   100
-#define MYSQL_NEED_DATA  99 
-#define MYSQL_NULL_DATA (-1)
+#define MYSQL_SUCCESS      0
+#define MYSQL_STATUS_ERROR 1
+#define MYSQL_NO_DATA      100
+#define MYSQL_NEED_DATA    99 
+#define MYSQL_NULL_DATA    (-1)
+#define MYSQL_LONG_DATA    (-2)
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 

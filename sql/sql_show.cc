@@ -1001,11 +1001,22 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 static void
 append_identifier(THD *thd, String *packet, const char *name)
 {
+  char qtype;
+  if ((thd->variables.sql_mode & MODE_ANSI_QUOTES) ||
+      (thd->variables.sql_mode & MODE_POSTGRESQL) ||
+      (thd->variables.sql_mode & MODE_ORACLE) ||
+      (thd->variables.sql_mode & MODE_MSSQL) ||
+      (thd->variables.sql_mode & MODE_DB2) ||
+      (thd->variables.sql_mode & MODE_SAPDB))
+    qtype= '\"';
+  else
+    qtype= '`';
+
   if (thd->options & OPTION_QUOTE_SHOW_CREATE)
   {
-    packet->append("`", 1);
+    packet->append(&qtype, 1);
     packet->append(name);
-    packet->append("`", 1);
+    packet->append(&qtype, 1);
   }
   else
   {
@@ -1017,6 +1028,16 @@ append_identifier(THD *thd, String *packet, const char *name)
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
+  my_bool foreign_db_mode=    ((thd->variables.sql_mode & MODE_POSTGRESQL) ||
+			       (thd->variables.sql_mode & MODE_ORACLE) ||
+			       (thd->variables.sql_mode & MODE_MSSQL) ||
+			       (thd->variables.sql_mode & MODE_DB2) ||
+			       (thd->variables.sql_mode & MODE_SAPDB));
+  my_bool limited_mysql_mode= ((thd->variables.sql_mode & 
+				MODE_NO_FIELD_OPTIONS) ||
+			       (thd->variables.sql_mode & MODE_MYSQL323) ||
+			       (thd->variables.sql_mode & MODE_MYSQL40));
+
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
@@ -1057,9 +1078,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       For string types dump collation name only if 
       collation is not primary for the given charset
     */
-    if (!field->binary() && !(field->charset()->state & MY_CS_PRIMARY))
+    if (!field->binary() && !(field->charset()->state & MY_CS_PRIMARY) &&
+	!limited_mysql_mode && !foreign_db_mode)
     {
-      packet->append(" collate ",9);
+      packet->append(" collate ", 9);
       packet->append(field->charset()->name);
     }
     if (flags & NOT_NULL_FLAG)
@@ -1083,7 +1105,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         packet->append(tmp,0);
     }
 
-    if (field->unireg_check == Field::NEXT_NUMBER)
+    if (field->unireg_check == Field::NEXT_NUMBER && !foreign_db_mode)
       packet->append(" auto_increment", 15 );
 
     if (field->comment.length)
@@ -1117,17 +1139,20 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("KEY ", 4);
 
     if (!found_primary)
-     append_identifier(thd,packet,key_info->name);
+     append_identifier(thd, packet, key_info->name);
 
-    if (table->db_type == DB_TYPE_HEAP &&
-	key_info->algorithm == HA_KEY_ALG_BTREE)
-      packet->append(" USING BTREE", 12);
-
-    // +BAR: send USING only in non-default case: non-spatial rtree
-    if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
-	!(key_info->flags & HA_SPATIAL))
-      packet->append(" USING RTREE",12);
-
+    if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
+	!limited_mysql_mode && !foreign_db_mode)
+    {
+      if (table->db_type == DB_TYPE_HEAP &&
+	  key_info->algorithm == HA_KEY_ALG_BTREE)
+	packet->append(" TYPE BTREE", 11);
+      
+      // +BAR: send USING only in non-default case: non-spatial rtree
+      if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
+	  !(key_info->flags & HA_SPATIAL))
+	packet->append(" TYPE RTREE", 11);
+    }
     packet->append(" (", 2);
 
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
@@ -1166,67 +1191,72 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   }
 
   packet->append("\n)", 2);
-  packet->append(" TYPE=", 6);
-  packet->append(file->table_type());
-  char buff[128];
-  char* p;
-
-  if (table->table_charset)
+  if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" CHARSET=");
-    packet->append(table->table_charset->csname);
-    if (!(table->table_charset->state & MY_CS_PRIMARY))
+    packet->append(" TYPE=", 6);
+    packet->append(file->table_type());
+    char buff[128];
+    char* p;
+    
+    if (table->table_charset &&
+	!(thd->variables.sql_mode & MODE_MYSQL323) &&
+	!(thd->variables.sql_mode & MODE_MYSQL40))
     {
-      packet->append(" COLLATE=");
-      packet->append(table->table_charset->name);
+      packet->append(" CHARSET=");
+      packet->append(table->table_charset->csname);
+      if (!(table->table_charset->state & MY_CS_PRIMARY))
+      {
+	packet->append(" COLLATE=");
+	packet->append(table->table_charset->name);
+      }
     }
-  }
 
-  if (table->min_rows)
-  {
-    packet->append(" MIN_ROWS=");
-    p = longlong10_to_str(table->min_rows, buff, 10);
-    packet->append(buff, (uint) (p - buff));
-  }
+    if (table->min_rows)
+    {
+      packet->append(" MIN_ROWS=");
+      p = longlong10_to_str(table->min_rows, buff, 10);
+      packet->append(buff, (uint) (p - buff));
+    }
 
-  if (table->max_rows)
-  {
-    packet->append(" MAX_ROWS=");
-    p = longlong10_to_str(table->max_rows, buff, 10);
-    packet->append(buff, (uint) (p - buff));
-  }
-  if (table->avg_row_length)
-  {
-    packet->append(" AVG_ROW_LENGTH=");
-    p=longlong10_to_str(table->avg_row_length, buff,10);
-    packet->append(buff, (uint) (p - buff));
-  }
+    if (table->max_rows)
+    {
+      packet->append(" MAX_ROWS=");
+      p = longlong10_to_str(table->max_rows, buff, 10);
+      packet->append(buff, (uint) (p - buff));
+    }
+    if (table->avg_row_length)
+    {
+      packet->append(" AVG_ROW_LENGTH=");
+      p=longlong10_to_str(table->avg_row_length, buff,10);
+      packet->append(buff, (uint) (p - buff));
+    }
 
-  if (table->db_create_options & HA_OPTION_PACK_KEYS)
-    packet->append(" PACK_KEYS=1", 12);
-  if (table->db_create_options & HA_OPTION_NO_PACK_KEYS)
-    packet->append(" PACK_KEYS=0", 12);
-  if (table->db_create_options & HA_OPTION_CHECKSUM)
-    packet->append(" CHECKSUM=1", 11);
-  if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
-    packet->append(" DELAY_KEY_WRITE=1",18);
-  if (table->row_type != ROW_TYPE_DEFAULT)
-  {
-    packet->append(" ROW_FORMAT=",12);
-    packet->append(ha_row_type[(uint) table->row_type]);
-  }
-  table->file->append_create_info(packet);
-  if (table->comment && table->comment[0])
-  {
-    packet->append(" COMMENT=", 9);
-    append_unescaped(packet, table->comment, strlen(table->comment));
-  }
-  if (file->raid_type)
-  {
-    char buff[100];
-    sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
-            my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
-    packet->append(buff);
+    if (table->db_create_options & HA_OPTION_PACK_KEYS)
+      packet->append(" PACK_KEYS=1", 12);
+    if (table->db_create_options & HA_OPTION_NO_PACK_KEYS)
+      packet->append(" PACK_KEYS=0", 12);
+    if (table->db_create_options & HA_OPTION_CHECKSUM)
+      packet->append(" CHECKSUM=1", 11);
+    if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
+      packet->append(" DELAY_KEY_WRITE=1",18);
+    if (table->row_type != ROW_TYPE_DEFAULT)
+    {
+      packet->append(" ROW_FORMAT=",12);
+      packet->append(ha_row_type[(uint) table->row_type]);
+    }
+    table->file->append_create_info(packet);
+    if (table->comment && table->comment[0])
+    {
+      packet->append(" COMMENT=", 9);
+      append_unescaped(packet, table->comment, strlen(table->comment));
+    }
+    if (file->raid_type)
+    {
+      char buff[100];
+      sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
+	      my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
+      packet->append(buff);
+    }
   }
   DBUG_RETURN(0);
 }
@@ -1497,6 +1527,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_RPL_STATUS:
 	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
+#ifndef EMBEDDED_LIBRARY
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;
@@ -1505,6 +1536,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
+#endif
       case SHOW_OPENTABLES:
 	end= int10_to_str((long) cached_tables(), buff, 10);
         break;

@@ -1626,13 +1626,13 @@ create table t1 (a enum (' ','a','b') not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('','a','b') character set latin1 NOT NULL default ''
+  `a` enum('','a','b') NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('','a','b') character set latin1 NOT NULL default 'b'
+  `a` enum('','a','b') NOT NULL default 'b'
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;

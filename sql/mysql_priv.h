@@ -209,6 +209,11 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_MSSQL			512
 #define MODE_DB2			1024
 #define MODE_SAPDB			2048
+#define MODE_NO_KEY_OPTIONS             4096
+#define MODE_NO_TABLE_OPTIONS           8192
+#define MODE_NO_FIELD_OPTIONS          16384
+#define MODE_MYSQL323                  32768
+#define MODE_MYSQL40                   65536
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -234,6 +239,10 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 /* sql_show.cc:show_log_files() */
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
+
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
 
 /* Some portable defines */
 
@@ -820,7 +829,6 @@ uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);
-void clean_up(bool print_message=1);
 ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);

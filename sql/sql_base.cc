@@ -242,6 +242,7 @@ static void free_cache_entry(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+/* Free resources allocated by filesort() and read_record() */
 
 void free_io_cache(TABLE *table)
 {
@@ -747,7 +748,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join=table->null_row=table->maybe_null=0;
+  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
@@ -906,7 +907,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join=table->null_row=table->maybe_null=0;
+  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
@@ -977,6 +978,7 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.status=		table->status;
   tmp.keys_in_use_for_query= tmp.keys_in_use;
   tmp.used_keys= 	tmp.keys_for_keyread;
+  tmp.force_index=	tmp.force_index;
 
   /* Get state */
   tmp.key_length=	table->key_length;
@@ -1748,12 +1750,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       }
       if (report_error)
       {
-	if (thd->lex.current_select->get_master()->order_list.elements)
-	  my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, ER(ER_TABLENAME_NOT_ALLOWED_HERE), 
-			  MYF(0), table_name, thd->where);
-	else
-	  my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			  table_name, thd->where);
+	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+			table_name, thd->where);
       }
       else
 	return (Field*) not_found_field;
@@ -1969,6 +1967,7 @@ bool setup_tables(TABLE_LIST *tables)
     table->maybe_null=test(table->outer_join=table_list->outer_join);
     table->tablenr=tablenr;
     table->map= (table_map) 1 << tablenr;
+    table->force_index= table_list->force_index;
     if (table_list->use_index)
     {
       key_map map= get_key_map_from_key_list(table,

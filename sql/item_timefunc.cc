@@ -529,7 +529,7 @@ void Item_func_now::fix_length_and_dec()
 {
   struct tm tm_tmp,*start;
   time_t query_start=current_thd->query_start();
-  CHARSET_INFO *cs=thd_charset();
+  CHARSET_INFO *cs=my_charset_bin;
   
   decimals=0;
   max_length=19*cs->mbmaxlen;

@@ -17,7 +17,6 @@
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
-#include "my_sys.h"			/* defines errno */
 #include <errno.h>
 
 #include "stdarg.h"
@@ -29,11 +28,13 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
+  const uchar *end;
   DBUG_ASSERT(len >= srclen);
   
-  for ( ; len > 0 ; len-- )
+  len= min(len,srclen);
+  for ( end=src+len; src < end ;  )
     *dest++= map[*src++];
-  return srclen;
+  return len;
 }
 
 int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
@@ -110,88 +111,40 @@ int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
 }
 
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
-		  unsigned char *s,
-		  unsigned char *e __attribute__((unused)))
+		  unsigned char *str,
+		  unsigned char *end __attribute__((unused)))
 {
   MY_UNI_IDX *idx;
 
-  for(idx=cs->tab_from_uni; idx->tab ; idx++){
-    if(idx->from<=wc && idx->to>=wc){
-      s[0]=idx->tab[wc-idx->from];
-      return (!s[0] && wc) ? MY_CS_ILUNI : 1;
+  for (idx=cs->tab_from_uni; idx->tab ; idx++)
+  {
+    if (idx->from <= wc && idx->to >= wc)
+    {
+      str[0]= idx->tab[wc - idx->from];
+      return (!str[0] && wc) ? MY_CS_ILUNI : 1;
     }
   }
   return MY_CS_ILUNI;
 }
 
 
-#ifdef NOT_USED
-static int my_vsnprintf_8bit(char *to, size_t n, const char* fmt, va_list ap)
-{
-  char *start=to, *end=to+n-1;
-  for (; *fmt ; fmt++)
-  {
-    if (fmt[0] != '%')
-    {
-      if (to == end)			/* End of buffer */
-	break;
-      *to++= *fmt;			/* Copy ordinary char */
-      continue;
-    }
-    /* Skip if max size is used (to be compatible with printf) */
-    fmt++;
-    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
-      fmt++;
-    if (*fmt == 'l')
-      fmt++;
-    if (*fmt == 's')				/* String parameter */
-    {
-      reg2 char	*par = va_arg(ap, char *);
-      uint plen,left_len = (uint)(end-to);
-      if (!par) par = (char*)"(null)";
-      plen = (uint) strlen(par);
-      if (left_len <= plen)
-	plen = left_len - 1;
-      to=strnmov(to,par,plen);
-      continue;
-    }
-    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
-    {
-      register int iarg;
-      if ((uint) (end-to) < 16)
-	break;
-      iarg = va_arg(ap, int);
-      if (*fmt == 'd')
-	to=int10_to_str((long) iarg,to, -10);
-      else
-	to=int10_to_str((long) (uint) iarg,to,10);
-      continue;
-    }
-    /* We come here on '%%', unknown code or too long parameter */
-    if (to == end)
-      break;
-    *to++='%';				/* % used as % or unknown code */
-  }
-  DBUG_ASSERT(to <= end);
-  *to='\0';				/* End of errmessage */
-  return (uint) (to - start);
-}
-#endif
+/* 
+   We can't use vsprintf here as it's not guaranteed to return
+   the length on all operating systems.
+   This function is also not called in a safe environment, so the
+   end buffer must be checked.
+*/
 
 int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
 		     char* to, uint n  __attribute__((unused)),
 		     const char* fmt, ...)
 {
   va_list args;
+  int result;
   va_start(args,fmt);
-#ifdef NOT_USED
-  return my_vsnprintf_8bit(to, n, fmt, args);
-#endif
-  /* 
-     FIXME: generally not safe, but it is OK for now
-     FIXME: as far as it's not called unsafely in the current code
-  */
-  return vsprintf(to,fmt,args); /* FIXME */
+  result= my_vsnprintf(to, n, fmt, args);
+  va_end(args);
+  return result;
 }
 
 
@@ -249,7 +202,8 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 
 
 long        my_strntol_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -259,10 +213,13 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   register unsigned char c;
   const char *save, *e;
   int overflow;
-  
+
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   s = nptr;
   e = nptr+l;
   
@@ -287,9 +244,12 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -305,6 +265,7 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
   cutoff = ((ulong)~0L) / (unsigned long int) base;
@@ -349,14 +310,14 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return negative ? LONG_MIN : LONG_MAX;
   }
   
   return (negative ? -((long) i) : (long) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -364,7 +325,8 @@ noconv:
 
 
 ulong      my_strntoul_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulong cutoff;
@@ -375,9 +337,12 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   const char *save, *e;
   int overflow;
 
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   s = nptr;
   e = nptr+l;
   
@@ -401,9 +366,12 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -419,6 +387,7 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
   cutoff = ((ulong)~0L) / (unsigned long int) base;
@@ -455,14 +424,14 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return ((ulong)~0L);
   }
   
   return (negative ? -((long) i) : (long) i);
   
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -470,7 +439,8 @@ noconv:
 
 
 longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr,int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -481,8 +451,11 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   const char *save;
   int overflow;
 
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
+#endif
 
   s = nptr;
   e = nptr+l;
@@ -507,9 +480,12 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   else
     negative = 0;
 
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X'|| s[1]=='x'))
     s += 2;
+#endif
 
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -525,6 +501,7 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
     else
       base = 10;
   }
+#endif
 
   save = s;
 
@@ -570,14 +547,14 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return negative ? LONGLONG_MIN : LONGLONG_MAX;
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -585,7 +562,8 @@ noconv:
 
 
 ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
-			   const char *nptr, uint l, char **endptr, int base)
+			   const char *nptr, uint l, int base,
+			   char **endptr, int *err)
 {
   int negative;
   register ulonglong cutoff;
@@ -596,8 +574,11 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   const char *save;
   int overflow;
 
+  *err= 0;				/* Initialize error indicator */
+#ifdef NOT_USED
   if (base < 0 || base == 1 || base > 36)
     base = 10;
+#endif
 
   s = nptr;
   e = nptr+l;
@@ -622,9 +603,12 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   else
     negative = 0;
 
+#ifdef NOT_USED
   if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
     s += 2;
+#endif
 
+#ifdef NOT_USED
   if (base == 0)
   {
     if (*s == '0')
@@ -640,6 +624,7 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
     else
       base = 10;
   }
+#endif
 
   save = s;
 
@@ -677,61 +662,89 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    my_errno=(ERANGE);
+    err[0]= ERANGE;
     return (~(ulonglong) 0);
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  my_errno=(EDOM);
+  err[0]= EDOM;
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
 }
 
-double      my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, uint l, char **e)
+/*
+  Read double from string
+
+  SYNOPSIS:
+    my_strntod_8bit()
+    cs		Character set information
+    str		String to convert to double
+    length	Optional length for string.
+    end		result pointer to end of converted string
+    err		Error number if failed conversion
+    
+  NOTES:
+    If length is not INT_MAX32 or str[length] != 0 then the given str must
+    be writeable
+    If length == INT_MAX32 the str must be \0 terminated.
+
+    It's implemented this way to save a buffer allocation and a memory copy.
+
+  RETURN
+    Value of number in string
+*/
+
+
+double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		       char *str, uint length, 
+		       char **end, int *err)
 {
-  char   buf[256];
-  double res;
-  if((l+1)>sizeof(buf))
+  char end_char;
+  double result;
+
+  errno= 0;					/* Safety */
+  if (length == INT_MAX32 || str[length] == 0)
+    result= strtod(str, end);
+  else
   {
-    if (e)
-      memcpy(*e,s,sizeof(s));
-    return 0;
+    end_char= str[length];
+    str[length]= 0;
+    result= strtod(str, end);
+    str[length]= end_char;			/* Restore end char */
   }
-  strncpy(buf,s,l);
-  buf[l]='\0';
-  res=strtod(buf,e);
-  if (e)
-    memcpy(*e,*e-buf+s,sizeof(s));
-  return res;
+  *err= errno;
+  return result;
 }
 
 
 /*
   This is a fast version optimized for the case of radix 10 / -10
+
+  Assume len >= 1
 */
 
-int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+int my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		     char *dst, uint len, int radix, long int val)
 {
   char buffer[66];
   register char *p, *e;
   long int new_val;
-  int  sl=0;
-  uint l;
-  
+  uint sign=0;
+
   e = p = &buffer[sizeof(buffer)-1];
-  *e='\0';
+  *p= 0;
   
   if (radix < 0)
   {
     if (val < 0)
     {
-      sl   = 1;
-      val  = -val;
+      val= -val;
+      *dst++= '-';
+      len--;
+      sign= 1;
     }
   }
   
@@ -746,41 +759,38 @@ int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
     val= new_val;
   }
   
-  if (sl)
-  {
-    *--p='-';
-  }
-
-  l=e-p;
-  l=(l>len)?len:l;
-  memcpy(dst,p,l);
-  return (int)l;
+  len= min(len, (uint) (e-p));
+  memcpy(dst, p, len);
+  return (int) len+sign;
 }
 
-int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+
+int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      char *dst, uint len, int radix, longlong val)
 {
   char buffer[65];
   register char *p, *e;
   long long_val;
-  int  sl=0;
-  uint l;
+  uint sign= 0;
   
   if (radix < 0)
   {
     if (val < 0)
     {
-      sl=1;
       val = -val;
+      *dst++= '-';
+      len--;
+      sign= 1;
     }
   }
   
   e = p = &buffer[sizeof(buffer)-1];
-  *p='\0';
+  *p= 0;
   
   if (val == 0)
   {
-    *--p='0';
+    *--p= '0';
+    len= 1;
     goto cnv;
   }
   
@@ -800,16 +810,10 @@ int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
     long_val= quo;
   }
   
+  len= min(len, (uint) (e-p));
 cnv:
-  if (sl)
-  {
-    *--p='-';
-  }
-  
-  l=e-p;
-  l=(l>len)?len:l;
-  memcpy(dst,p,l);
-  return (int)(e-p);
+  memcpy(dst, p, len);
+  return len+sign;
 }
 
 
@@ -973,4 +977,30 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' ';		// Because if key compression
   return 0;
+}
+
+
+ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
+{
+  const char *str0= str;
+  switch (sq)
+  {
+  case MY_SEQ_INTTAIL:
+    if (*str == '.')
+    {
+      for(str++ ; str != end && *str == '0' ; str++);
+      return str-str0;
+    }
+    return 0;
+
+  case MY_SEQ_SPACES:
+    for (str++ ; str != end ; str++)
+    {
+      if (!my_isspace(cs,*str))
+        break;
+    }
+    return str-str0;
+  default:
+    return 0;
+  }
 }

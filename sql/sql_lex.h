@@ -86,7 +86,8 @@ enum lex_states
   STATE_REAL_OR_POINT, STATE_BOOL, STATE_EOL, STATE_ESCAPE, STATE_LONG_COMMENT,
   STATE_END_LONG_COMMENT, STATE_COLON, STATE_SET_VAR, STATE_USER_END,
   STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER, STATE_SYSTEM_VAR,
-  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN
+  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN,
+  STAT_STRING_OR_DELIMITER
 };
 
 
@@ -212,6 +213,7 @@ public:
   bool with_sum_func;
   bool	create_refs;
   bool dependent;	/* dependent from outer select subselect */
+  bool no_table_names_allowed; /* used for global order by */
 
   static void *operator new(size_t size)
   {
@@ -243,9 +245,10 @@ public:
   virtual List<Item>* get_item_list();
   virtual List<String>* get_use_index();
   virtual List<String>* get_ignore_index();
+  virtual ulong get_table_join_options();
   virtual TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table,
 					LEX_STRING *alias,
-					bool updating,
+					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
 					List<String> *use_index= 0,
 					List<String> *ignore_index= 0);
@@ -336,6 +339,7 @@ public:
   List<Item_func_match> ftfunc_list_alloc;
   JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
   const char *type; /* type of select for EXPLAIN */
+  ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
@@ -373,9 +377,10 @@ public:
   List<Item>* get_item_list();
   List<String>* get_use_index();
   List<String>* get_ignore_index();
+  ulong get_table_join_options();
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
 				LEX_STRING *alias,
-				bool updating,
+				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
 				List<String> *ignore_index= 0);
