@@ -2235,7 +2235,9 @@ Now disabling --log-slave-updates.");
       opt_error_log= 1;				// Too long file name
     else
     {
+#ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
+#endif
 	freopen(log_error_file, "a+", stderr);
     }
   }
