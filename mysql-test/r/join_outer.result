@@ -751,3 +751,68 @@ player_id	match_1_h	*	match_id	home	UUX
 7	4	*	1	2	2
 3	3	*	1	2	1
 drop table t1, t2;
+create table t1 (a int, b int, unique index idx (a, b));
+create table t2 (a int, b int, c int, unique index idx (a, b));
+insert into t1 values (1, 10), (1,11), (2,10), (2,11);
+insert into t2 values (1,10,3);
+select t1.a, t1.b, t2.c from t1 left join t2
+on t1.a=t2.a and t1.b=t2.b and t2.c=3
+where t1.a=1 and t2.c is null;
+a	b	c
+1	11	NULL
+drop table t1, t2;
+CREATE TABLE t1 (
+ts_id bigint(20) default NULL,
+inst_id tinyint(4) default NULL,
+flag_name varchar(64) default NULL,
+flag_value text,
+UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE t2 (
+ts_id bigint(20) default NULL,
+inst_id tinyint(4) default NULL,
+flag_name varchar(64) default NULL,
+flag_value text,
+UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES
+(111056548820001, 0, 'flag1', NULL),
+(111056548820001, 0, 'flag2', NULL),
+(2, 0, 'other_flag', NULL);
+INSERT INTO t2 VALUES
+(111056548820001, 3, 'flag1', 'sss');
+SELECT t1.flag_name,t2.flag_value 
+FROM t1 LEFT JOIN t2 
+ON (t1.ts_id = t2.ts_id AND t1.flag_name = t2.flag_name AND
+t2.inst_id = 3) 
+WHERE t1.inst_id = 0 AND t1.ts_id=111056548820001 AND
+t2.flag_value IS  NULL;
+flag_name	flag_value
+flag2	NULL
+DROP TABLE t1,t2;
+CREATE TABLE invoice (
+id int(11) unsigned NOT NULL auto_increment,
+text_id int(10) unsigned default NULL,
+PRIMARY KEY  (id)
+);
+INSERT INTO invoice VALUES("1", "0");
+INSERT INTO invoice VALUES("2", "10");
+CREATE TABLE text_table (
+text_id char(3) NOT NULL default '',
+language_id char(3) NOT NULL default '',
+text_data text,
+PRIMARY KEY  (text_id,language_id)
+);
+INSERT INTO text_table VALUES("0", "EN", "0-EN");
+INSERT INTO text_table VALUES("0", "SV", "0-SV");
+INSERT INTO text_table VALUES("10", "EN", "10-EN");
+INSERT INTO text_table VALUES("10", "SV", "10-SV");
+SELECT invoice.id, invoice.text_id, text_table.text_data
+FROM invoice LEFT JOIN text_table
+ON invoice.text_id = text_table.text_id
+AND text_table.language_id = 'SV'
+  WHERE (invoice.id LIKE '%' OR text_table.text_data LIKE '%');
+id	text_id	text_data
+1	0	0-SV
+2	10	10-SV
+DROP TABLE invoice, text_table;
