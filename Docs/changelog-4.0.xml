@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE appendix PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+"http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd">
+<!--
+This is a dummy changelog file. Don't use it yet.
+It merges upward without conflict.
+-->
+<appendix id="news-4-0-x">
+
+ <title>
+  Changes in release 4.0.x
+ </title>
+
+ <para>
+  This is a dummy changelog file. Don't use it yet.
+ </para>
+
+</appendix>
