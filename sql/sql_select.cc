@@ -1751,7 +1751,7 @@ static void
 find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  double read_time)
 {
-  ulong rec;
+  ha_rows rec;
   double tmp;
   THD *thd= current_thd;
 
@@ -2013,7 +2013,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       {						// Check full join
 	if (s->on_expr)
 	{
-	  tmp=s->found_records;			// Can't use read cache
+	  tmp=rows2double(s->found_records);	// Can't use read cache
 	}
 	else
 	{
@@ -2032,11 +2032,11 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    will ensure that this will be used
 	  */
 	  best=tmp;
-	  records=s->found_records;
+	  records= rows2double(s->found_records);
 	  best_key=0;
 	}
       }
-      join->positions[idx].records_read=(double) records;
+      join->positions[idx].records_read= records;
       join->positions[idx].key=best_key;
       join->positions[idx].table= s;
       if (!best_key && idx == join->const_tables &&
@@ -2373,7 +2373,7 @@ bool
 store_val_in_field(Field *field,Item *item)
 {
   THD *thd=current_thd;
-  ulong cuted_fields=thd->cuted_fields;
+  ha_rows cuted_fields=thd->cuted_fields;
   thd->count_cuted_fields=1;
   item->save_in_field(field);
   thd->count_cuted_fields=0;
@@ -2461,7 +2461,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	use_quick_range=1;
 	tab->use_quick=1;
 	tab->ref.key_parts=0;		// Don't use ref key.
-	join->best_positions[i].records_read=tab->quick->records;
+	join->best_positions[i].records_read= rows2double(tab->quick->records);
       }
 
       COND *tmp=make_cond_for_table(cond,used_tables,current_map);

@@ -1929,7 +1929,7 @@ int ha_berkeley::delete_table(const char *name)
 
 double ha_berkeley::scan_time()
 {
-  return records/3;
+  return rows2double(records/3);
 }
 
 ha_rows ha_berkeley::records_in_range(int keynr,
@@ -2204,7 +2204,7 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
   if (!(share=(BDB_SHARE*) hash_search(&bdb_open_tables, (byte*) table_name,
 				       length)))
   {
-    ha_rows *rec_per_key;
+    ulong *rec_per_key;
     char *tmp_name;
     DB **key_file;
     u_int32_t *key_type;
