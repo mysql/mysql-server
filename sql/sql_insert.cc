@@ -18,7 +18,6 @@
 /* Insert of records */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 
 static int check_null_fields(THD *thd,TABLE *entry);
 #ifndef EMBEDDED_LIBRARY

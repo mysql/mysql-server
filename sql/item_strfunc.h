@@ -162,6 +162,7 @@ public:
 
 class Item_func_left :public Item_str_func
 {
+  String tmp_value;
 public:
   Item_func_left(Item *a,Item *b) :Item_str_func(a,b) {}
   String *val_str(String *);
