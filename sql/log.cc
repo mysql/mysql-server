@@ -237,7 +237,8 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     /*
       Explanation of the boolean black magic:
       if we are supposed to write magic number try write
-      clean up if failed
+      clean 
+up if failed
       then if index_file has not been previously opened, try to open it
       clean up if failed
     */
