@@ -970,9 +970,10 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 		(actual_error = thd->net.last_errno) && expected_error)
 	      {
 		const char* errmsg = "Slave: did not get the expected error\
- running query from master - expected: '%s', got '%s'"; 
-		sql_print_error(errmsg, ER(expected_error),
-				actual_error ? thd->net.last_error:"no error"
+ running query from master - expected: '%s'(%d), got '%s'(%d)"; 
+		sql_print_error(errmsg, ER(expected_error), expected_error,
+				actual_error ? thd->net.last_error:"no error",
+				actual_error
 				);
 		thd->query_error = 1;
 	      }

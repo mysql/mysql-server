@@ -764,14 +764,18 @@ int change_master(THD* thd)
       // if we change host or port, we must reset the postion
       glob_mi.log_file_name[0] = 0;
       glob_mi.pos = 4; // skip magic number
+      glob_mi.pending = 0;
     }
 
   if(lex_mi->log_file_name)
     strmake(glob_mi.log_file_name, lex_mi->log_file_name,
 	    sizeof(glob_mi.log_file_name));
   if(lex_mi->pos)
+  {
     glob_mi.pos = lex_mi->pos;
-
+    glob_mi.pending = 0;
+  }
+  
   if(lex_mi->host)
     {
       strmake(glob_mi.host, lex_mi->host, sizeof(glob_mi.host));
