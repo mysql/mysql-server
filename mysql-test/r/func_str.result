@@ -697,3 +697,9 @@ quote(ltrim(concat('    ', 'a')))
 select quote(trim(concat('    ', 'a')));
 quote(trim(concat('    ', 'a')))
 'a'
+select trim(null from 'kate') as "must_be_null";
+must_be_null
+NULL
+select trim('xyz' from null) as "must_be_null";
+must_be_null
+NULL
