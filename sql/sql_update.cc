@@ -319,14 +319,12 @@ int mysql_update(THD *thd,
     if (ha_autocommit_or_rollback(thd, error >= 0))
       error=1;
   }
+
   /*
-    Only invalidate the query cache if something changed or if we
-    didn't commit the transacion (query cache is automaticly
-    invalidated on commit)
+    Store table for future invalidation  or invalidate it in
+    the query cache if something changed
   */
-  if (updated &&
-      (!transactional_table ||
-       thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (updated)
   {
     query_cache_invalidate3(thd, table_list, 1);
   }

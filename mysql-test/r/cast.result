@@ -1,0 +1,39 @@
+select CAST(1-2 AS UNSIGNED);
+CAST(1-2 AS UNSIGNED)
+18446744073709551615
+select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
+CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
+-1
+select CONVERT('-1',UNSIGNED);
+CONVERT('-1',UNSIGNED)
+18446744073709551615
+select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
+cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
+18446744073709551611	18446744073709551611
+select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
+cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
+18446744073709551610	18446744073709551612
+select ~5, cast(~5 as signed);
+~5	cast(~5 as signed)
+18446744073709551610	-6
+select cast(5 as unsigned) -6.0;
+cast(5 as unsigned) -6.0
+-1.0
+select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
+cast("A" as binary) = "a"	cast(BINARY "a" as CHAR) = "A"
+0	1
+select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
+cast("2001-1-1" as DATE)	cast("2001-1-1" as DATETIME)
+2001-1-1	2001-1-1
+select cast("1:2:3" as TIME);
+cast("1:2:3" as TIME)
+1:2:3
+select cast("2001-1-1" as date) = "2001-01-01";
+cast("2001-1-1" as date) = "2001-01-01"
+0
+select cast("2001-1-1" as datetime) = "2001-01-01 00:00:00";
+cast("2001-1-1" as datetime) = "2001-01-01 00:00:00"
+0
+select cast("1:2:3" as TIME) = "1:02:03";
+cast("1:2:3" as TIME) = "1:02:03"
+0

@@ -90,6 +90,12 @@ ut_malloc_low(
 		"InnoDB: on Linux we get a stack trace.\n",
 		                  n, ut_total_allocated_memory, errno);
 
+		/* Flush stderr to make more probable that the error
+		message gets in the error file before we generate a seg
+		fault */
+
+		fflush(stderr);
+
 	        os_fast_mutex_unlock(&ut_list_mutex);
 
 		/* Make an intentional seg fault so that we get a stack
