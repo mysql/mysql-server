@@ -23,6 +23,7 @@
 
 class Query_log_event;
 class Load_log_event;
+class Slave_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
@@ -83,6 +84,7 @@ public:
 	     time_t query_start=0);
   bool write(Query_log_event* event_info); // binary log write
   bool write(Load_log_event* event_info);
+  bool write(Slave_log_event* event_info);
   bool write(IO_CACHE *cache);
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
