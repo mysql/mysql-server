@@ -1847,7 +1847,15 @@ loop:
 		if (table->n_mysql_handles_opened > 0) {
 		        mutex_exit(&(dict_sys->mutex));
 
-		        os_thread_sleep(100000);
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+		"  InnoDB: Warning: MySQL is trying to drop database %s\n"
+	    	"InnoDB: though there are still open handles to table %s.\n",
+				name, table_name);
+
+		        os_thread_sleep(1000000);
+
+		        mem_free(table_name);
 
 		        goto loop;
 		}
