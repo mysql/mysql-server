@@ -636,9 +636,7 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_abort(1);				/* purecov: inspected */
   else
     unireg_end(0);
-#ifndef OS2
   pthread_exit(0);				/* purecov: deadcode */
-#endif
   RETURN_FROM_KILL_SERVER;
 }
 
@@ -670,9 +668,7 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
-#ifndef OS2
   pthread_exit(0);				// Exit is in main thread
-#endif
 }
 
 
