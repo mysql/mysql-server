@@ -2123,7 +2123,7 @@ NdbDictInterface::execCREATE_INDX_REF(NdbApiSignal * signal,
   const CreateIndxRef* const ref = CAST_CONSTPTR(CreateIndxRef, signal->getDataPtr());
   m_error.code = ref->getErrorCode();
   if(m_error.code == ref->NotMaster)
-    m_masterNodeId= ref->m_errorNode;
+    m_masterNodeId= ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
 }
 
@@ -2249,7 +2249,7 @@ NdbDictInterface::execDROP_INDX_REF(NdbApiSignal * signal,
   const DropIndxRef* const ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
   m_error.code = ref->getErrorCode();
   if(m_error.code == ref->NotMaster)
-    m_masterNodeId= ref->m_errorNode;
+    m_masterNodeId= ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
 }
 
