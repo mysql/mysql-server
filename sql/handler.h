@@ -378,10 +378,10 @@ public:
 
   /*
    RETURN
-     true  primary key (if there is one) is clustered key covering all fields
+     true  Primary key (if there is one) is clustered key covering all fields
      false otherwise
   */
-  virtual bool primary_key_is_clustered_covering() { return false; }
+  virtual bool primary_key_is_clustered() { return false; }
 };
 
 	/* Some extern variables used with handlers */

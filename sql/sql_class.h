@@ -1233,7 +1233,8 @@ public:
   }
 
   bool get(TABLE *table);
-
+  static double get_use_cost(MEM_ROOT *alloc, uint nkeys, uint key_size, 
+                             ulong max_in_memory_size);
   friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };

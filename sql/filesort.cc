@@ -88,9 +88,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #endif
   FILESORT_INFO table_sort;
   /* 
-    don't use table->sort in filesort as it is also used by 
-    QUICK_INDEX_MERGE_SELECT. work with a copy of it and put it back at the 
-    end when index_merge select has finished with it.
+    Don't use table->sort in filesort as it is also used by 
+    QUICK_INDEX_MERGE_SELECT. Work with a copy and put it back at the end 
+    when index_merge select has finished with it.
   */
   memcpy(&table_sort, &table->sort, sizeof(FILESORT_INFO));
   table->sort.io_cache= NULL;
@@ -452,7 +452,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (quick_select)
   {
     /*
-      index_merge quick select uses table->sort when retrieving rows, so free 
+      index_merge quick select uses table->sort when retrieving rows, so free
       resoures it has allocated.
     */
     end_read_record(&read_record_info);

@@ -119,6 +119,26 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TIME_FOR_COMPARE   5	// 5 compares == one read
 
 /*
+  Number of comparisons of table rowids equivalent to reading one row from a 
+  table.
+*/
+#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
+
+/*
+  For sequential disk seeks the cost formula is:
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip  
+  
+  The cost of average seek 
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
+*/
+#define DISK_SEEK_BASE_COST ((double)0.5)
+
+#define BLOCKS_IN_AVG_SEEK  128
+
+#define DISK_SEEK_PROP_COST ((double)0.5/BLOCKS_IN_AVG_SEEK)
+
+
+/*
   Number of rows in a reference table when refereed through a not unique key.
   This value is only used when we don't know anything about the key
   distribution.
