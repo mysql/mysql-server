@@ -1325,6 +1325,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	end=strxmov(buff, "# administrator command: ",
 		    command_name[thd->command], NullS);
 	query_length=(ulong) (end-buff);
+	query=buff;
       }
       if (my_b_write(&log_file, (byte*) query,query_length) ||
 	  my_b_write(&log_file, (byte*) ";\n",2) ||
