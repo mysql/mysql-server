@@ -106,10 +106,12 @@ enum enum_server_command
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_PROTOCOL_41       16384   /* New 4.1 protocol  */
 #define CLIENT_SECURE_CONNECTION 32768   /* New 4.1 authentication */
+#define CLIENT_MULTI_QUERIES     65536   /* Enable/disable multi query support */
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
 #define SERVER_STATUS_MORE_RESULTS 4	/* More results on server */
+#define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 
 #define MYSQL_ERRMSG_SIZE	200
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
