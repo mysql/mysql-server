@@ -1986,3 +1986,8 @@ call p1();
 1
 drop procedure p1;
 drop table t1;
+create function `foo` () returns int return 5;
+select `foo` ();
+`foo` ()
+5
+drop function `foo`;
