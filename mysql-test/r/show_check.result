@@ -315,57 +315,57 @@ insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 delete from t1;
 delete from t2;
 delete from t3;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	9	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	9	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	9	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 drop table t1, t2, t3;
 create database mysqltest;
 show create database mysqltest;

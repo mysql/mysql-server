@@ -14,13 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <my_sys.h>
+#include "protocol.h"
+
+#include "messages.h"
+
 #include <mysql_com.h>
 #include <m_string.h>
 
-#include "messages.h"
-#include "protocol.h"
 
 static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
 

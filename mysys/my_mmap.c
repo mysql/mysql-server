@@ -46,11 +46,14 @@ void *my_mmap(void *addr, size_t len, int prot,
   DWORD flProtect=0;
   HANDLE hFileMap;
   LPVOID ptr;
+  HANDLE hFile= (HANDLE)_get_osfhandle(fd);
+  if (hFile == INVALID_HANDLE_VALUE)
+    return MAP_FAILED;
 
   flProtect|=SEC_COMMIT;
 
-  hFileMap=CreateFileMapping(fd, NULL, &mmap_security_attributes,
-                             PAGE_READWRITE, 0, len, 0);
+  hFileMap=CreateFileMapping(hFile, &mmap_security_attributes,
+                             PAGE_READWRITE, 0, len, NULL);
   if (hFileMap == 0)
     return MAP_FAILED;
 

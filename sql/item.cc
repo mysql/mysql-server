@@ -178,7 +178,7 @@ bool Item::val_bool()
 {
   switch(result_type()) {
   case INT_RESULT:
-    return val_int();
+    return val_int() != 0;
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value;
@@ -586,18 +586,8 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
     return NULL;
   }
   conv->str_value.copy();
-  /* 
-    The above line executes str_value.realloc() internally,
-    which alligns Alloced_length using ALLIGN_SIZE.
-    In the case of Item_string::str_value we don't want
-    Alloced_length to be longer than str_length.
-    Otherwise, some functions like Item_func_concat::val_str()
-    try to reuse str_value as a buffer for concatenation result
-    for optimization purposes, so our string constant become
-    corrupted. See bug#8785 for more details.
-    Let's shrink Alloced_length to str_length to avoid this problem.
-  */
-  conv->str_value.shrink_to_length();
+  /* Ensure that no one is going to change the result string */
+  conv->str_value.mark_as_const();
   return conv;
 }
 
@@ -1217,7 +1207,7 @@ bool Item_field::val_bool_result()
     return FALSE;
   switch (result_field->result_type()) {
   case INT_RESULT:
-    return result_field->val_int();
+    return result_field->val_int() != 0;
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value;
@@ -3946,7 +3936,7 @@ bool Item_ref::val_bool_result()
       return 0;
     switch (result_field->result_type()) {
     case INT_RESULT:
-      return result_field->val_int();
+      return result_field->val_int() != 0;
     case DECIMAL_RESULT:
     {
       my_decimal decimal_value;
