@@ -542,7 +542,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		       HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
-      outparam->crashed=(err == HA_ERR_CRASHED &&
+      outparam->crashed=(err == HA_ERR_CRASHED_ON_USAGE &&
 			 outparam->file->auto_repair() &&
 			 !(ha_open_flags & HA_OPEN_FOR_REPAIR));
       goto err_not_open; /* purecov: inspected */
@@ -569,6 +569,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
   delete outparam->file;
   outparam->file=0;				// For easyer errorchecking
+  outparam->db_stat=0;
   free_root(&outparam->mem_root,MYF(0));
   my_free(outparam->table_name,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);

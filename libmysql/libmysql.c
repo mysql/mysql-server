@@ -1450,10 +1450,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->unix_socket=0;
   strmov(mysql->server_version,(char*) net->read_pos+1);
   mysql->port=port;
-  mysql->client_flag=client_flag | mysql->options.client_flag;
-  DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld  status: %d",
-		     mysql->server_version,mysql->server_capabilities,
-		     mysql->server_status));
+  client_flag|=mysql->options.client_flag;
 
   /* Send client information for access check */
   client_flag|=CLIENT_CAPABILITIES;
@@ -1509,6 +1506,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->net.vio =         (NetVio*)(vio_ssl);
   }
 #endif /* HAVE_OPENSSL */
+
+  DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld  status: %d  client_flag: %d",
+		     mysql->server_version,mysql->server_capabilities,
+		     mysql->server_status, client_flag));
 
   int3store(buff+2,max_allowed_packet);
   if (user && user[0])
