@@ -1203,7 +1203,8 @@ inline int ha_ndbcluster::next_result(byte *buf)
 	{
 	  if  (execute_commit(this,trans) != 0)
 	    DBUG_RETURN(ndb_err(trans));
-	  DBUG_ASSERT(trans->restart() == 0);
+	  int res= trans->restart();
+	  DBUG_ASSERT(res == 0);
 	}
 	ops_pending= 0;
       }
@@ -1663,7 +1664,8 @@ int ha_ndbcluster::write_row(byte *record)
 	no_uncommitted_rows_execute_failure();
 	DBUG_RETURN(ndb_err(trans));
       }
-      DBUG_ASSERT(trans->restart() == 0);
+      int res= trans->restart();
+      DBUG_ASSERT(res == 0);
     }
   }
   if ((has_auto_increment) && (skip_auto_increment))
@@ -2294,7 +2296,8 @@ int ha_ndbcluster::rnd_init(bool scan)
   {
     if (!scan)
       DBUG_RETURN(1);
-    DBUG_ASSERT(cursor->restart() == 0);
+    int res= cursor->restart();
+    DBUG_ASSERT(res == 0);
   }
   index_init(table->primary_key);
   DBUG_RETURN(0);
