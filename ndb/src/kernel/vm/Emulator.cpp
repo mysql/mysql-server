@@ -155,7 +155,7 @@ NdbShutdown(NdbShutdownType type,
       break;
     default:
       ndbout << "Error handler " << shutting << " system"
-	     << " (unknown type: " << type << ")" << endl;
+	     << " (unknown type: " << (unsigned)type << ")" << endl;
       type = NST_ErrorHandler;
       break;
     }
