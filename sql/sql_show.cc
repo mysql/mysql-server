@@ -102,6 +102,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
+  {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
   {"Execute", "Functions,Procedures", "To execute stored routines"},
