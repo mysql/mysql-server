@@ -68,3 +68,25 @@ INSERT INTO t3 VALUES (1,1),(2,2),(3,3);
 INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
 SELECT distinct p1.processor_id, (SELECT y.yod_id FROM t1 p2, t2 y WHERE p2.processor_id = p1.processor_id and p2.processor_id = y.processor_id) FROM t1 p1;
 drop table t1,t2,t3;
+
+#
+# innodb locking
+#
+CREATE TABLE t1 (
+  id int(11) NOT NULL default '0',
+  b int(11) default NULL,
+  c char(3) default NULL,
+  PRIMARY KEY  (id),
+  KEY t2i1 (b)
+) TYPE=innodb DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
+CREATE TABLE t2 (
+  id int(11) NOT NULL default '0',
+  b int(11) default NULL,
+  c char(3) default NULL,
+  PRIMARY KEY  (id),
+  KEY t2i (b)
+) TYPE=innodb DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
+select (select max(id) from t2 where b=1 group by b) as x,b from t1 where b=1;
+drop table t1,t2;
