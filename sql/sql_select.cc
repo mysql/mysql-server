@@ -223,6 +223,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   bool          no_order;
   /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
+  /* We cannot always prepare the result before selecting. */
+  bool          is_result_prepared;
   ha_rows	select_limit;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
@@ -360,7 +362,17 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     DBUG_RETURN(-1);
   }
 #endif
-  if (!procedure && result->prepare(fields))
+  /*
+    We must not yet prepare the result table if it is the same as one of the 
+    source tables (INSERT SELECT). This is checked in mysql_execute_command()
+    and OPTION_BUFFER_RESULT is added to the select_options. A temporary 
+    table is then used to hold the result. The preparation may disable 
+    indexes on the result table, which may be used during the select, if it
+    is the same table (Bug #6034). Do the preparation after the select phase.
+  */
+  if ((is_result_prepared= (! procedure && 
+                            ! test(select_options & OPTION_BUFFER_RESULT))) &&
+      result->prepare(fields))
   {						/* purecov: inspected */
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
@@ -392,6 +404,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (cond_value == Item::COND_FALSE || !thd->select_limit)
   {					/* Impossible cond */
+    if (! is_result_prepared && ! procedure && result->prepare(fields))
+      goto err;
     error=return_zero_rows(&join, result, tables, fields,
 			   join.tmp_table_param.sum_func_count != 0 && !group,
 			   select_options,"Impossible WHERE",having,
@@ -417,6 +431,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       }
       if (res < 0)
       {
+        if (! is_result_prepared && ! procedure && result->prepare(fields))
+          goto err;
 	error=return_zero_rows(&join, result, tables, fields, !group,
 			       select_options,"No matching min/max row",
 			       having,procedure);
@@ -439,6 +455,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       describe_info(&join, "No tables used");
     else
     {
+      if (! is_result_prepared && ! procedure && result->prepare(fields))
+        goto err;
       result->send_fields(fields,1);
       if (!having || having->val_int())
       {
@@ -474,6 +492,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (join.const_table_map != join.found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
+    if (! is_result_prepared && ! procedure && result->prepare(fields))
+      goto err;
     error=return_zero_rows(&join,result,tables,fields,
 			   join.tmp_table_param.sum_func_count != 0 &&
 			   !group,0,"no matching row in const table",having,
@@ -520,6 +540,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (make_join_select(&join,select,conds))
   {
+    if (! is_result_prepared && ! procedure && result->prepare(fields))
+      goto err;
     error=return_zero_rows(&join, result, tables, fields,
 			   join.tmp_table_param.sum_func_count != 0 && !group,
 			   select_options,
@@ -926,6 +948,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       goto err;
     count_field_types(&join.tmp_table_param,all_fields,0);
   }
+  else if (! is_result_prepared && result->prepare(fields))
+    goto err;
   if (join.group || join.tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
