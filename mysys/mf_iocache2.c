@@ -96,6 +96,7 @@ uint my_b_fill(IO_CACHE *info)
 ** Read a string ended by '\n' into a buffer of 'max_length' size.
 ** Returns number of characters read, 0 on error.
 ** last byte is set to '\0'
+** If buffer is full then to[max_length-1] will be set to \0.
 */
 
 uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
