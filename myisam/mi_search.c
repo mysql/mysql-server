@@ -1287,7 +1287,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   if ((keyinfo->flag & HA_FULLTEXT) &&
       ((keyseg->type == HA_KEYTYPE_TEXT) ||
        (keyseg->type == HA_KEYTYPE_VARTEXT)) &&
-      !use_strcoll(keyseg->charset))
+      !use_strnxfrm(keyseg->charset))
     sort_order=keyseg->charset->sort_order;
 
   /* diff flag contains how many bytes is needed to pack key */

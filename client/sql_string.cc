@@ -507,7 +507,7 @@ int sortcmp(const String *x,const String *y)
   uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(x->str_charset))
+  if (use_strnxfrm(x->str_charset))
   {
 #ifndef CMP_ENDSPACE
     while (x_len && my_isspace(x->str_charset,s[x_len-1]))

@@ -23,7 +23,7 @@ int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
   int flag;
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(charset_info))
+  if (use_strnxfrm(charset_info))
   {
     if (part_key && b_length < a_length)
       a_length=b_length;
