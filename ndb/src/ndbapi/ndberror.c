@@ -578,19 +578,14 @@ const char *ndberror_classification_message(ndberror_classification classificati
 int ndb_error_string(int err_no, char *str, size_t size)
 {
   ndberror_struct error;
-  size_t len= 0, tlen= 0;
+  size_t len;
 
   error.code = err_no;
   ndberror_update(&error);
 
-  len+= snprintf(str+tlen, size-tlen, "%s", error.message);
-  tlen= len < size ? len : size;
-  len+= snprintf(str+tlen, size-tlen, ": ");
-  tlen= len < size ? len : size;
-  len+= snprintf(str+tlen, size-tlen, "%s", ndberror_status_message(error.status));
-  tlen= len < size ? len : size;
-  len+= snprintf(str+tlen, size-tlen, ": ");
-  tlen= len < size ? len : size;
-  len+= snprintf(str+tlen, size-tlen, "%s", ndberror_classification_message(error.classification));
+  len = snprintf(str, size-1, "%s: %s: %s", error.message,
+		 ndberror_status_message(error.status), ndberror_classification_message(error.classification));
+  str[size-1]= '\0';
+
   return len;
 }
