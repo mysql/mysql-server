@@ -125,7 +125,6 @@ private:
   void executeShow(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
-  void executeClusterLog(char* parameters);
 
 public:
   void executeStop(int processId, const char* parameters, bool all);
