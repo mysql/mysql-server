@@ -96,7 +96,14 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
 	if (_mi_ft_cmp(info,i,oldrec, newrec))
 	{
 	  if ((int) i == info->lastinx)
+	  {
+	  /*
+	    We are changeing the index we are reading on.  Mark that
+	    the index data has changed and we need to do a full search
+	    when doing read-next
+	  */
 	    key_changed|=HA_STATE_WRITTEN;
+	  }
 	  changed|=((ulonglong) 1 << i);
 	  if (_mi_ft_update(info,i,(char*) old_key,oldrec,newrec,pos))
 	    goto err;
@@ -123,25 +130,36 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   }
   /*
     If we are running with external locking, we must update the index file
-    that something has changed
+    that something has changed.
   */
   if (changed || !my_disable_locking)
-    key_changed|= HA_STATE_KEY_CHANGED;
+    key_changed|= HA_STATE_CHANGED;
 
   if (share->calc_checksum)
   {
     info->checksum=(*share->calc_checksum)(info,newrec);
-    key_changed|= HA_STATE_KEY_CHANGED;		/* Must update index file */
+    /* Store new checksum in index file header */
+    key_changed|= HA_STATE_CHANGED;
   }
   {
-    /* Don't update index file if data file is not extended */
+    /*
+      Don't update index file if data file is not extended and no status
+      information changed
+    */
     MI_STATUS_INFO state;
+    ha_rows org_split;
+    my_off_t org_delete_link;
+
     memcpy((char*) &state, (char*) info->state, sizeof(state));
+    org_split=	     share->state.split;
+    org_delete_link= share->state.dellink;
     if ((*share->update_record)(info,pos,newrec))
       goto err;
     if (!key_changed &&
-	memcmp((char*) &state, (char*) info->state, sizeof(state)))
-      key_changed|= HA_STATE_KEY_CHANGED;	/* Must update index file */  
+	(memcmp((char*) &state, (char*) info->state, sizeof(state)) ||
+	 org_split != share->state.split ||
+	 org_delete_link != share->state.dellink))
+      key_changed|= HA_STATE_CHANGED;		/* Must update index file */
   }
   if (auto_key_changed)
     update_auto_increment(info,newrec);
@@ -165,7 +183,7 @@ err:
   DBUG_PRINT("error",("key: %d  errno: %d",i,my_errno));
   save_errno=my_errno;
   if (changed)
-    key_changed|= HA_STATE_KEY_CHANGED;
+    key_changed|= HA_STATE_CHANGED;
   if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL)
   {
     info->errkey= (int) i;

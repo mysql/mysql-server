@@ -244,25 +244,18 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
 
-#ifdef EMBEDDED_LIBRARY
-  /*
-    Here we check that mysql_server_init was called before.
-    Actually we can perform the test for client (not embedded) library as well.
-    But i'm afraid some old applications will be broken then.
-  */
+#if defined(EMBEDDED_LIBRARY) || !defined(DBUG_OFF)
   if (!server_inited)
   {
     mysql->net.last_errno=CR_MYSQL_SERVER_INIT_MISSED;
     strmov(mysql->net.last_error,ER(mysql->net.last_errno));
     goto error;
   }
-#endif /*EMBEDDED_LIBRARY*/
+#endif
 
-  if (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION)
-    cli_mysql_real_connect(mysql, host, user, 
-			   passwd, db, port, unix_socket, client_flag);
-  if ((mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION) &&
-      host && strcmp(host,LOCAL_HOST))
+  if (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION ||
+      (mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION &&
+       host && strcmp(host,LOCAL_HOST)))
     cli_mysql_real_connect(mysql, host, user, 
 			   passwd, db, port, unix_socket, client_flag);
 
@@ -325,7 +318,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_RETURN(mysql);
 
 error:
-  DBUG_PRINT("error",("message: %u (%s)",mysql->net.last_errno,mysql->net.last_error));
+  DBUG_PRINT("error",("message: %u (%s)", mysql->net.last_errno,
+		      mysql->net.last_error));
   {
     /* Free alloced memory */
     my_bool free_me=mysql->free_me;
@@ -336,6 +330,7 @@ error:
   }
   DBUG_RETURN(0);
 }
+
 
 /*************************************************************************
 ** Send a QUIT to the server and close the connection

@@ -295,6 +295,12 @@ insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, "Sergei");
+update t1 set b=repeat('a',256);
+update t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0;
+check table t1;
+delete from t1 where i8=1;
+select i1,i2 from t1;
+check table t1;
 drop table t1;
 
 #
@@ -357,6 +363,40 @@ explain select * from t1 use index() where c=1;
 drop table t1,t2;
 
 #
+# Test bug when updating a split dynamic row where keys are not changed
+#
+
+create table t1 (a int not null auto_increment primary key, b varchar(255));
+insert into t1 (b) values (repeat('a',100)),(repeat('b',100)),(repeat('c',100));
+update t1 set b=repeat(left(b,1),200) where a=1;
+delete from t1 where (a & 1)= 0;
+update t1 set b=repeat('e',200) where a=1;
+flush tables;
+check table t1;
+
+#
+# check updating with keys
+#
+
+disable_query_log;
+let $1 = 100;
+while ($1)
+{
+  eval insert into t1 (b) values (repeat(char(($1 & 32)+65), $1));
+  dec $1;
+}
+enable_query_log;
+update t1 set b=repeat(left(b,1),255) where a between 1 and 5;
+update t1 set b=repeat(left(b,1),10) where a between 32 and 43;
+update t1 set b=repeat(left(b,1),2) where a between 64 and 66;
+update t1 set b=repeat(left(b,1),65) where a between 67 and 70;
+check table t1;
+insert into t1 (b) values (repeat('z',100));
+update t1 set b="test" where left(b,1) > 'n';
+check table t1;
+drop table t1;
+
+#
 # Test RTREE index
 #
 --error 1235
@@ -374,4 +414,3 @@ checksum table t1, t2, t3;
 checksum table t1, t2, t3 extended;
 #show table status;
 drop table t1,t2;
-

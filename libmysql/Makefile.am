@@ -42,7 +42,7 @@ link_sources:
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../strings/$$f $(srcdir)/$$f; \
 	  done; \
-	  for f in $$vs; do \
+	  for f in $$vs $(vioheaders); do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../vio/$$f $(srcdir)/$$f; \
 	  done; \

@@ -44,7 +44,7 @@ public:
   void clear() {}
   bool add() { return 0; }
   void reset_field() {}
-  void update_field(int offset) {}
+  void update_field() {}
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
     fixed= 1;

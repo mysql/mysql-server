@@ -123,8 +123,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
-  found_rows_for_union= test(first_select_in_union()->options
-			     & OPTION_FOUND_ROWS);
+  found_rows_for_union= first_select_in_union()->options & OPTION_FOUND_ROWS;
   TMP_TABLE_PARAM tmp_table_param;
   result= sel_result;
   t_and_f= tables_and_fields_initied;
@@ -239,7 +238,7 @@ int st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
-  ha_rows add_rows=0;
+  ulonglong add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !(dependent || uncacheable))
@@ -267,6 +266,11 @@ int st_select_lex_unit::exec()
 	select_limit_cnt= sl->select_limit+sl->offset_limit;
 	if (select_limit_cnt < sl->select_limit)
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
+
+	/*
+	  When using braces, SQL_CALC_FOUND_ROWS affects the whole query.
+	  We don't calculate found_rows() per union part
+	*/
 	if (select_limit_cnt == HA_POS_ERROR || sl->braces)
 	  sl->options&= ~OPTION_FOUND_ROWS;
 	else 
@@ -278,10 +282,10 @@ int st_select_lex_unit::exec()
 	  sl->options|= found_rows_for_union;
 	}
 	
-	/* 
-	   As far as union share table space we should reassign table map,
-	   which can be spoiled by 'prepare' of JOIN of other UNION parts
-	   if it use same tables
+	/*
+	  As far as union share table space we should reassign table map,
+	  which can be spoiled by 'prepare' of JOIN of other UNION parts
+	  if it use same tables
 	*/
 	uint tablenr=0;
 	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
@@ -318,11 +322,13 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
+      /* Needed for the following test and for records_at_start in next loop */
+      table->file->info(HA_STATUS_VARIABLE);
       if (found_rows_for_union & sl->options)
       {
 	/*
-	  This is a union without braces. Remember the number of rows that could
-	  also have been part of the result set.
+	  This is a union without braces. Remember the number of rows that
+	  could also have been part of the result set.
 	  We get this from the difference of between total number of possible
 	  rows and actual rows added to the temporary table.
 	*/
@@ -341,7 +347,7 @@ int st_select_lex_unit::exec()
     List<Item_func_match> empty_list;
     empty_list.empty();
 
-    if (!thd->is_fatal_error)			// Check if EOM
+    if (!thd->is_fatal_error)				// Check if EOM
     {
       ulong options= thd->options;
       thd->lex.current_select= fake_select_lex;

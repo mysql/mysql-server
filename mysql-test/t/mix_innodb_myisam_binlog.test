@@ -1,0 +1,178 @@
+# Check that binlog is ok when a transaction mixes updates to InnoDB and
+# MyISAM.
+# It would be nice to make this a replication test, but in 4.0 the
+# slave is always with --skip-innodb in the testsuite. I (Guilhem) however
+# did some tests manually on a slave; tables are replicated fine and
+# Exec_master_log_pos advances as expected.
+
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=myisam;
+
+reset master;
+
+begin;
+insert into t1 values(1);
+insert into t2 select * from t1;
+commit;
+
+show binlog events from 79;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(2);
+insert into t2 select * from t1;
+# should say some changes to non-transact1onal tables couldn't be rolled back
+--error 1196
+rollback;
+
+show binlog events from 79;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(3);
+savepoint my_savepoint;
+insert into t1 values(4);
+insert into t2 select * from t1;
+--error 1196
+rollback to savepoint my_savepoint;
+commit;
+
+show binlog events from 79;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(5);
+savepoint my_savepoint;
+insert into t1 values(6);
+insert into t2 select * from t1;
+--error 1196
+rollback to savepoint my_savepoint;
+insert into t1 values(7);
+commit;
+select a from t1 order by a; # check that savepoints work :)
+
+show binlog events from 79;
+
+# and when ROLLBACK is not explicit?
+delete from t1;
+delete from t2;
+reset master;
+
+select get_lock("a",10);
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+disconnect con1;
+
+connection con2;
+# We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
+# guarantee that logging of the terminated con1 has been done yet (it may not
+# even be started, so con1 may have not even attempted to lock the binlog yet;
+# so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
+# logging has been done, we use a user lock.
+select get_lock("a",10);
+show binlog events from 79;
+
+# and when not in a transact1on?
+delete from t1;
+delete from t2;
+reset master;
+
+insert into t1 values(9);
+insert into t2 select * from t1;
+
+show binlog events from 79;
+
+# Check that when the query updat1ng the MyISAM table is the first in the
+# transact1on, we log it immediately.
+delete from t1;
+delete from t2;
+reset master;
+
+insert into t1 values(10); # first make t1 non-empty
+begin;
+insert into t2 select * from t1;
+show binlog events from 79;
+insert into t1 values(11);
+commit;
+
+show binlog events from 79;
+
+
+# Check that things work like before this BEGIN/ROLLBACK code was added,
+# when t2 is INNODB 
+
+alter table t2 type=INNODB;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(12);
+insert into t2 select * from t1;
+commit;
+
+show binlog events from 79;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(13);
+insert into t2 select * from t1;
+rollback;
+
+show binlog events from 79;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(14);
+savepoint my_savepoint;
+insert into t1 values(15);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+commit;
+
+show binlog events from 79;
+
+delete from t1;
+delete from t2;
+reset master;
+
+begin;
+insert into t1 values(16);
+savepoint my_savepoint;
+insert into t1 values(17);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+insert into t1 values(18);
+commit;
+select a from t1 order by a; # check that savepoints work :)
+
+show binlog events from 79;
+
+drop table t1,t2;

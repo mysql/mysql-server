@@ -125,6 +125,13 @@ public:
   { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
   inline bool is_real_null(uint row_offset=0)
     { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
+  inline bool is_null_in_record(const uchar *record)
+  {
+    if (!null_ptr)
+      return 0;
+    return test(record[(uint) (null_ptr - (uchar*) table->record[0])] &
+		null_bit);
+  }
   inline void set_null(int row_offset=0)
     { if (null_ptr) null_ptr[row_offset]|= null_bit; }
   inline void set_notnull(int row_offset=0)
