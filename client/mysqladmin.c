@@ -961,24 +961,24 @@ static void nice_time(ulong sec,char *buff)
   {
     tmp=sec/(3600L*24);
     sec-=3600L*24*tmp;
-    buff=int2str(tmp,buff,10);
+    buff=int10_to_str(tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600L)
   {
     tmp=sec/3600L;
     sec-=3600L*tmp;
-    buff=int2str(tmp,buff,10);
+    buff=int10_to_str(tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60)
   {
     tmp=sec/60;
     sec-=60*tmp;
-    buff=int2str(tmp,buff,10);
+    buff=int10_to_str(tmp, buff, 10);
     buff=strmov(buff," min ");
   }
-  strmov(int2str(sec,buff,10)," sec");
+  strmov(int10_to_str(sec, buff, 10)," sec");
 }
 
 

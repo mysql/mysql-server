@@ -691,7 +691,7 @@ row_lock_table_autoinc_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	trx->op_info = (char *) "setting auto-inc lock";
+	trx->op_info = "setting auto-inc lock";
 
 	if (node == NULL) {
 		row_get_prebuilt_insert_row(prebuilt);
@@ -727,14 +727,14 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = (char *) "";
+		trx->op_info = "";
 
 		return(err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -774,7 +774,7 @@ row_lock_table_for_mysql(
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	trx->op_info = (char *) "setting table lock";
+	trx->op_info = "setting table lock";
 
 	if (prebuilt->sel_graph == NULL) {
 		/* Build a dummy select query graph */
@@ -811,14 +811,14 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = (char *) "";
+		trx->op_info = "";
 
 		return(err);
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 		
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);	
 }
@@ -869,7 +869,7 @@ row_insert_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = (char *) "inserting";
+	trx->op_info = "inserting";
 
 	trx_start_if_not_started(trx);
 
@@ -910,7 +910,7 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = (char *) "";
+		trx->op_info = "";
 
 		return(err);
 	}
@@ -927,7 +927,7 @@ run_again:
 	}	
 
 	row_update_statistics_if_needed(prebuilt->table);
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -1084,7 +1084,7 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = (char *) "updating or deleting";
+	trx->op_info = "updating or deleting";
 
 	trx_start_if_not_started(trx);
 
@@ -1131,7 +1131,7 @@ run_again:
 		
 		if (err == DB_RECORD_NOT_FOUND) {
 			trx->error_state = DB_SUCCESS;
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 
 			return((int) err);
 		}
@@ -1142,7 +1142,7 @@ run_again:
 			goto run_again;
 		}
 
-		trx->op_info = (char *) "";
+		trx->op_info = "";
 
 		return(err);
 	}
@@ -1161,7 +1161,7 @@ run_again:
 
 	row_update_statistics_if_needed(prebuilt->table);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -1437,7 +1437,7 @@ row_create_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = (char *) "creating table";
+	trx->op_info = "creating table";
 	
 	if (row_mysql_is_system_table(table->name)) {
 
@@ -1572,7 +1572,7 @@ row_create_table_for_mysql(
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -1601,7 +1601,7 @@ row_create_index_for_mysql(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
-	trx->op_info = (char *) "creating index";
+	trx->op_info = "creating index";
 
 	/* Check that the same column does not appear twice in the index.
 	Starting from 4.0.14, InnoDB should be able to cope with that, but
@@ -1669,7 +1669,7 @@ error_handling:
 		trx->error_state = DB_SUCCESS;
 	}
 	
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -1705,7 +1705,7 @@ row_table_add_foreign_constraints(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 	
-	trx->op_info = (char *) "adding foreign keys";
+	trx->op_info = "adding foreign keys";
 
 	trx_start_if_not_started(trx);
 
@@ -1749,8 +1749,8 @@ static
 int
 row_drop_table_for_mysql_in_background(
 /*===================================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name)	/* in: table name */
+				/* out: error code or DB_SUCCESS */
+	const char*	name)	/* in: table name */
 {
 	ulint	error;
 	trx_t*	trx;
@@ -1955,7 +1955,7 @@ row_discard_tablespace_for_mysql(
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	trx->op_info = (char *) "discarding tablespace";
+	trx->op_info = "discarding tablespace";
 	trx_start_if_not_started(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -2060,7 +2060,7 @@ funct_exit:
 
   	trx_commit_for_mysql(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -2085,7 +2085,7 @@ row_import_tablespace_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	trx->op_info = (char*) "importing tablespace";
+	trx->op_info = "importing tablespace";
 
 	current_lsn = log_get_lsn();
 	
@@ -2165,7 +2165,7 @@ funct_exit:
 
   	trx_commit_for_mysql(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -2274,7 +2274,7 @@ row_drop_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = (char *) "dropping table";
+	trx->op_info = "dropping table";
 
 	trx_start_if_not_started(trx);
 
@@ -2507,7 +2507,7 @@ funct_exit:
 	
   	trx_commit_for_mysql(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	srv_wake_master_thread();
 
@@ -2533,7 +2533,7 @@ row_drop_database_for_mysql(
 	ut_a(name != NULL);
 	ut_a(name[namelen - 1] == '/');
 	
-	trx->op_info = (char *) "dropping database";
+	trx->op_info = "dropping database";
 	
 	trx_start_if_not_started(trx);
 loop:
@@ -2587,7 +2587,7 @@ loop:
 	
 	trx_commit_for_mysql(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return(err);
 }
@@ -2738,7 +2738,7 @@ row_rename_table_for_mysql(
 		return(DB_ERROR);
 	}
 
-	trx->op_info = (char *) "renaming table";
+	trx->op_info = "renaming table";
 	trx_start_if_not_started(trx);
 
 	if (row_mysql_is_recovered_tmp_table(new_name)) {
@@ -2987,7 +2987,7 @@ funct_exit:
 	
   	trx_commit_for_mysql(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -3125,7 +3125,7 @@ row_check_table_for_mysql(
 	ulint		ret 		= DB_SUCCESS;
 	ulint		old_isolation_level;
 
-	prebuilt->trx->op_info = (char *) "checking table";
+	prebuilt->trx->op_info = "checking table";
 
 	old_isolation_level = prebuilt->trx->isolation_level;
 
@@ -3181,7 +3181,7 @@ row_check_table_for_mysql(
 		ret = DB_ERROR;
 	}
 
-	prebuilt->trx->op_info = (char *) "";
+	prebuilt->trx->op_info = "";
 
 	return(ret);
 }
