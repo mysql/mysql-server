@@ -890,13 +890,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   bool check_tables;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (query_cache_size == 0 ||
-      /*
-	it is not possible to check has_transactions() function of handler
-	because tables not opened yet
-      */
-      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-      thd->variables.query_cache_type == 0)
+  if (query_cache_size == 0 || thd->variables.query_cache_type == 0)
 
     goto err;
 
@@ -1014,12 +1008,15 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 						  table->key_length(),
 						  table->type()))
     {
-      DBUG_PRINT("qcache", ("Handler not allow caching for %s.%s",
+      DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
       thd->safe_to_cache_query=0;               // Don't try to cache this
       goto err_unlock;				// Parse query
     }
+    else
+      DBUG_PRINT("qcache", ("handler allow caching (%d) %s,%s",
+			    check_tables, table_list.db, table_list.alias));
   }
   move_to_query_list_end(query_block);
   hits++;
@@ -2947,7 +2944,7 @@ void Query_cache::bins_dump()
 {
   uint i;
   
-  if (!initialized)
+  if (!initialized || query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -2988,7 +2985,7 @@ void Query_cache::bins_dump()
 
 void Query_cache::cache_dump()
 {
-  if (!initialized)
+  if (!initialized || query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -3077,7 +3074,7 @@ void Query_cache::queries_dump()
 
 void Query_cache::tables_dump()
 {
-  if (!initialized)
+  if (!initialized || query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
