@@ -37,20 +37,20 @@ public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg, size_t size) {} /*lint -e715 */
 
-  char		*ptr;			/* Position to field in record */
-  uchar		*null_ptr;		/* Byte where null_bit is */
-  struct st_table *table;		/* Pointer for table */
+  char		*ptr;			// Position to field in record
+  uchar		*null_ptr;		// Byte where null_bit is
+  struct st_table *table;		// Pointer for table
   const char	*table_name,*field_name;
-  ulong		query_id;		/* For quick test of used fields */
+  ulong		query_id;		// For quick test of used fields
   /* Field is part of the following keys */
   key_map 	key_start,part_of_key,part_of_sortkey;
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
 		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
   utype		unireg_check;
-  uint32	field_length;		/* Length of field */
+  uint32	field_length;		// Length of field
   uint16	flags;
-  uchar		null_bit;		/* Bit used to test null bit */
+  uchar		null_bit;		// Bit used to test null bit
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,
 	utype unireg_check_arg, const char *field_name_arg,
@@ -99,7 +99,7 @@ public:
     ptr() to see if it changed if you are using your own buffer
     in str and restore it with set() if needed
   */
-  virtual uint size_of() const =0;		/* For new field */
+  virtual uint size_of() const =0;		// For new field
   inline bool is_null(uint row_offset=0)
   { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
   inline bool is_real_null(uint row_offset=0)
@@ -191,7 +191,7 @@ public:
   { return cmp(a,b); }
   virtual int pack_cmp(const char *b, uint key_length_arg)
   { return cmp(ptr,b); }
-  uint offset();			/* Should be inline ... */
+  uint offset();			// Should be inline ...
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(TIME *ltime,bool fuzzydate);
@@ -216,7 +216,7 @@ public:
 class Field_num :public Field {
 public:
   const uint8 dec;
-  bool zerofill,unsigned_flag;	/* Purify cannot handle bit fields */
+  bool zerofill,unsigned_flag;	// Purify cannot handle bit fields
   Field_num(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg,
@@ -832,7 +832,7 @@ public:
 
 class Field_blob :public Field_str {
   uint packlength;
-  String value;				/* For temporaries */
+  String value;				// For temporaries
   bool binary_flag;
 public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
@@ -990,17 +990,17 @@ public:
 class create_field :public Sql_alloc {
 public:
   const char *field_name;
-  const char *change;			/* If done with alter table */
-  const char *after;			/* Put column after this one */
-  Item	*def;				/* Default value */
+  const char *change;			// If done with alter table
+  const char *after;			// Put column after this one
+  Item	*def;				// Default value
   enum	enum_field_types sql_type;
   uint32 length;
   uint decimals,flags,pack_length;
   Field::utype unireg_check;
-  TYPELIB *interval;			/* Which interval to use */
-  Field *field;				/* For alter table */
+  TYPELIB *interval;			// Which interval to use
+  Field *field;				// For alter table
 
-  uint8 row,col,sc_length,interval_id;	/* For rea_create_table */
+  uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
   create_field() :after(0) {}
   create_field(Field *field, Field *orig_field);
@@ -1021,7 +1021,7 @@ class Send_field {
 
 
 /*
-** A class for quick copying data to fields
+  A class for quick copying data to fields
 */
 
 class Copy_field :public Sql_alloc {
@@ -1033,14 +1033,14 @@ public:
   uint	from_bit,to_bit;
   uint from_length,to_length;
   Field *from_field,*to_field;
-  String tmp;					/* For items */
+  String tmp;					// For items
 
   Copy_field() {}
   ~Copy_field() {}
-  void set(Field *to,Field *from,bool save);	/* Field to field */
-  void set(char *to,Field *from);		/* Field to string */
+  void set(Field *to,Field *from,bool save);	// Field to field 
+  void set(char *to,Field *from);		// Field to string
   void (*do_copy)(Copy_field *);
-  void (*do_copy2)(Copy_field *);		/* Used to handle null values */
+  void (*do_copy2)(Copy_field *);		// Used to handle null values
 };
 
 
@@ -1057,22 +1057,22 @@ ulonglong find_set(TYPELIB *typelib,const char *x, uint length);
 bool test_if_int(const char *str,int length);
 
 /*
-** The following are for the interface with the .frm file
+  The following are for the interface with the .frm file
 */
 
 #define FIELDFLAG_DECIMAL		1
-#define FIELDFLAG_BINARY		1	/*Shares same flag */
+#define FIELDFLAG_BINARY		1	// Shares same flag 
 #define FIELDFLAG_NUMBER		2
 #define FIELDFLAG_ZEROFILL		4
-#define FIELDFLAG_PACK			120	/* Bits used for packing */
+#define FIELDFLAG_PACK			120	// Bits used for packing
 #define FIELDFLAG_INTERVAL		256
-#define FIELDFLAG_BITFIELD		512	/* mangled with dec! */
-#define FIELDFLAG_BLOB			1024	/* mangled with dec! */
+#define FIELDFLAG_BITFIELD		512	// mangled with dec!
+#define FIELDFLAG_BLOB			1024	// mangled with dec!
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
-#define FIELDFLAG_FORMAT_NUMBER		16384	/* predit: ###,,## in output */
-#define FIELDFLAG_SUM			((uint) 32768)/* predit: +#fieldflag */
-#define FIELDFLAG_MAYBE_NULL		((uint) 32768)/* sql */
+#define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
+#define FIELDFLAG_SUM			((uint) 32768)// predit: +#fieldflag
+#define FIELDFLAG_MAYBE_NULL		((uint) 32768)// sql
 #define FIELDFLAG_PACK_SHIFT		3
 #define FIELDFLAG_DEC_SHIFT		8
 #define FIELDFLAG_MAX_DEC		31
