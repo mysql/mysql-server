@@ -30,7 +30,7 @@ extern bool use_slave_mask;
 extern char* slave_load_tmpdir;
 extern my_string master_info_file,relay_log_info_file;
 extern my_string opt_relay_logname, opt_relaylog_index_name;
-extern bool opt_skip_slave_start;
+extern bool opt_skip_slave_start, opt_reckless_slave;
 extern ulong relay_log_space_limit;
 struct st_master_info;
 
@@ -160,6 +160,7 @@ typedef struct st_relay_log_info
   
   st_relay_log_info():info_fd(-1),cur_log_fd(-1),inited(0),
 		      cur_log_init_count(0),
+		      abort_slave(0),slave_running(0),
 		      log_pos_current(0),abort_pos_wait(0),
 		      skip_log_purge(0)
     {
@@ -280,7 +281,8 @@ typedef struct st_master_info
   bool ignore_stop_event;
   
   
-  st_master_info():fd(-1), io_thd(0), inited(0), old_format(0)
+  st_master_info():fd(-1), io_thd(0), inited(0), old_format(0),abort_slave(0),
+		   slave_running(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     bzero(&file,sizeof(file));
@@ -331,7 +333,7 @@ typedef struct st_table_rule_ent
 #define SLAVE_FORCE_ALL 4
 
 int init_slave();
-void init_slave_skip_errors(char* arg);
+void init_slave_skip_errors(const char* arg);
 int flush_master_info(MASTER_INFO* mi);
 int flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);
@@ -413,9 +415,7 @@ extern bool do_table_inited, ignore_table_inited,
 	    wild_do_table_inited, wild_ignore_table_inited;
 extern bool table_rules_on;
 
-#ifndef DBUG_OFF
 extern int disconnect_slave_event_count, abort_slave_event_count ;
-#endif
 
 // the master variables are defaults read from my.cnf or command line
 extern uint master_port, master_connect_retry, report_port;

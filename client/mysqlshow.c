@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.0"
+#define SHOW_VERSION "9.4"
 
 #include <my_global.h>
 #include "client_priv.h"
@@ -27,7 +27,6 @@
 #include "mysqld_error.h"
 #include <signal.h>
 #include <stdarg.h>
-#include <my_getopt.h>
 #include "sslopt-vars.h"
 
 static my_string host=0,opt_password=0,user=0;
@@ -144,8 +143,9 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.", 
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, GET_LONG,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -197,14 +197,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-  case 'c':
-    charsets_dir= argument;
-    break;
   case 'v':
     opt_verbose++;
-    break;
-  case 'h':
-    host = argument;
     break;
   case 'p':
     if (argument)
@@ -218,17 +212,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     else
       tty_password=1;
-    break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    user=argument;
-    break;
-#endif
-  case 'P':
-    opt_mysql_port= (unsigned int) atoi(argument);
-    break;
-  case 'S':
-    opt_mysql_unix_port= argument;
     break;
   case 'W':
 #ifdef __WIN__
@@ -258,11 +241,7 @@ get_options(int *argc,char ***argv)
   int ho_error;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
   
   if (tty_password)
     opt_password=get_tty_password(NullS);

@@ -356,6 +356,227 @@ row_ins_dupl_error_with_rec(
 }	
 
 /*************************************************************************
+Either deletes or sets the referencing columns SQL NULL in a child row.
+Used in ON DELETE ... clause for foreign keys when a parent row is
+deleted. */
+static
+ulint
+row_ins_foreign_delete_or_set_null(
+/*===============================*/
+					/* out: DB_SUCCESS, DB_LOCK_WAIT,
+					or error code */
+	que_thr_t*	thr,		/* in: query thread whose run_node
+					is an update node */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint whose
+					type is != 0 */
+	btr_pcur_t*	pcur,		/* in: cursor placed on a matching
+					index record in the child table */
+	mtr_t*		mtr)		/* in: mtr holding the latch of pcur
+					page */
+{
+	upd_node_t*	node;
+	upd_node_t*	cascade;
+	dict_table_t*	table		= foreign->foreign_table;
+	dict_index_t*	index;
+	dict_index_t*	clust_index;
+	dtuple_t*	ref;
+	mem_heap_t*	tmp_heap;
+	rec_t*		rec;
+	rec_t*		clust_rec;
+	upd_t*		update;
+	ulint		err;
+	ulint		i;
+	char		err_buf[1000];
+	
+	ut_a(thr && foreign && pcur && mtr);
+
+	node = thr->run_node;
+
+	if (node->cascade_node == NULL) {
+		/* Extend our query graph by creating a child to current
+		update node. The child is used in the cascade or set null
+		operation. */
+
+		node->cascade_heap = mem_heap_create(128);
+		node->cascade_node = row_create_update_node_for_mysql(
+						table, node->cascade_heap);
+		que_node_set_parent(node->cascade_node, node);
+	}
+
+	/* Initialize cascade_node to do the operation we want. Note that we
+	use the SAME cascade node to do all foreign key operations of the
+	SQL DELETE: the table of the cascade node may change if there are
+	several child tables to the table where the delete is done! */
+
+	cascade = node->cascade_node;
+	
+	cascade->table = table;
+
+	if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE ) {
+		cascade->is_delete = TRUE;
+	} else {
+		cascade->is_delete = FALSE;
+
+		if (foreign->n_fields > cascade->update_n_fields) {
+			/* We have to make the update vector longer */
+
+			cascade->update = upd_create(foreign->n_fields,
+							node->cascade_heap);
+			cascade->update_n_fields = foreign->n_fields;
+		}
+	}
+
+	index = btr_pcur_get_btr_cur(pcur)->index;
+
+	rec = btr_pcur_get_rec(pcur);
+
+	if (index->type & DICT_CLUSTERED) {
+		/* pcur is already positioned in the clustered index of
+		the child table */
+	
+		clust_index = index;
+		clust_rec = rec;
+	} else {
+		/* We have to look for the record in the clustered index
+		in the child table */
+
+		clust_index = dict_table_get_first_index(table);
+
+		tmp_heap = mem_heap_create(256);
+		
+		ref = row_build_row_ref(ROW_COPY_POINTERS, index, rec,
+								tmp_heap);
+		btr_pcur_open_with_no_init(clust_index, ref,
+			PAGE_CUR_LE, BTR_SEARCH_LEAF,
+			cascade->pcur, 0, mtr);
+
+		mem_heap_free(tmp_heap);
+
+		clust_rec = btr_pcur_get_rec(cascade->pcur);
+	}
+
+	if (!page_rec_is_user_rec(clust_rec)) {
+	  	fprintf(stderr,
+			"InnoDB: error in cascade of a foreign key op\n"
+		  	"InnoDB: index %s table %s\n", index->name,
+		  	index->table->name);
+
+	  	rec_sprintf(err_buf, 900, rec);
+	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
+
+	  	rec_sprintf(err_buf, 900, clust_rec);
+	  	fprintf(stderr, "InnoDB: clustered record %s\n", err_buf);
+
+	  	fprintf(stderr,
+			"InnoDB: Make a detailed bug report and send it\n");
+	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+
+		err = DB_SUCCESS;
+
+		goto nonstandard_exit_func;
+	}
+
+	/* Set an X-lock on the row to delete or update in the child table */
+
+	err = lock_table(0, table, LOCK_IX, thr);
+
+	if (err == DB_SUCCESS) {
+		err = lock_clust_rec_read_check_and_lock(0, clust_rec,
+						clust_index, LOCK_X, thr);
+	}
+	
+	if (err != DB_SUCCESS) {
+
+		goto nonstandard_exit_func;
+	}
+
+	if (rec_get_deleted_flag(clust_rec)) {
+		/* This can happen if there is a circular reference of
+		rows such that cascading delete comes to delete a row
+		already in the process of being delete marked */
+/*
+	  	fprintf(stderr,
+			"InnoDB: error 2 in cascade of a foreign key op\n"
+		  	"InnoDB: index %s table %s\n", index->name,
+		  	index->table->name);
+
+	  	rec_sprintf(err_buf, 900, rec);
+	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
+
+	  	rec_sprintf(err_buf, 900, clust_rec);
+	  	fprintf(stderr, "InnoDB: clustered record %s\n", err_buf);
+
+	  	fprintf(stderr,
+			"InnoDB: Make a detailed bug report and send it\n");
+	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+
+		ut_a(0);
+*/
+		err = DB_SUCCESS;		
+
+		goto nonstandard_exit_func;
+	}
+
+	if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
+		/* Build the appropriate update vector which sets
+		foreign->n_fields first fields in rec to SQL NULL */
+
+		update = cascade->update;
+
+		update->info_bits = 0;
+		update->n_fields = foreign->n_fields;
+		
+		for (i = 0; i < foreign->n_fields; i++) {
+			(update->fields + i)->field_no
+				= dict_table_get_nth_col_pos(table,
+					dict_index_get_nth_col_no(index, i));
+			(update->fields + i)->exp = NULL;
+			(update->fields + i)->new_val.len = UNIV_SQL_NULL;
+			(update->fields + i)->new_val.data = NULL;
+			(update->fields + i)->extern_storage = FALSE;
+		}
+	}
+
+	/* Store pcur position and initialize or store the cascade node
+	pcur stored position */
+	
+	btr_pcur_store_position(pcur, mtr);
+	
+	if (index == clust_index) {
+		btr_pcur_copy_stored_position(cascade->pcur, pcur);
+	} else {
+		btr_pcur_store_position(cascade->pcur, mtr);
+	}
+		
+	mtr_commit(mtr);
+
+	ut_a(cascade->pcur->rel_pos == BTR_PCUR_ON);
+
+	cascade->state = UPD_NODE_UPDATE_CLUSTERED;
+	
+	err = row_update_cascade_for_mysql(thr, cascade,
+						foreign->foreign_table);
+	mtr_start(mtr);
+
+	/* Restore pcur position */
+	
+	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+
+	return(err);
+
+nonstandard_exit_func:
+
+	btr_pcur_store_position(pcur, mtr);
+
+	mtr_commit(mtr);
+	mtr_start(mtr);
+
+	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+
+	return(err);
+}
+
+/*************************************************************************
 Sets a shared lock on a record. Used in locking possible duplicate key
 records. */
 static
@@ -415,6 +636,13 @@ row_ins_check_foreign_constraint(
 	mtr_t		mtr;
 
 	ut_ad(rw_lock_own(&dict_foreign_key_check_lock, RW_LOCK_SHARED));
+
+	if (thr_get_trx(thr)->check_foreigns == FALSE) {
+		/* The user has suppressed foreign key checks currently for
+		this session */
+
+		return(DB_SUCCESS);
+	}
 
 	/* If any of the foreign key fields in entry is SQL NULL, we
 	suppress the foreign key check: this is compatible with Oracle,
@@ -478,8 +706,8 @@ row_ins_check_foreign_constraint(
 
 			goto next_rec;
 		}
-				
-		/* Try to place a lock on the index record */	
+		
+		/* Try to place a lock on the index record */
 
 		err = row_ins_set_shared_rec_lock(rec, check_index, thr);
 
@@ -501,11 +729,21 @@ row_ins_check_foreign_constraint(
 
 				if (check_ref) {			
 					err = DB_SUCCESS;
+
+					break;
+				} else if (foreign->type != 0) {
+					err =
+					  row_ins_foreign_delete_or_set_null(
+						thr, foreign, &pcur, &mtr);
+
+					if (err != DB_SUCCESS) {
+
+						break;
+					}
 				} else {
 					err = DB_ROW_IS_REFERENCED;
+					break;
 				}
-			
-				break;
 			}
 		}
 
@@ -534,6 +772,8 @@ next_rec:
 		}
 	}
 
+	btr_pcur_close(&pcur);
+
 	mtr_commit(&mtr);
 
 	/* Restore old value */
@@ -561,6 +801,10 @@ row_ins_check_foreign_constraints(
 {
 	dict_foreign_t*	foreign;
 	ulint		err;
+	trx_t*		trx;
+	ibool		got_s_lock	= FALSE;
+
+	trx = thr_get_trx(thr);
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
@@ -569,16 +813,26 @@ row_ins_check_foreign_constraints(
 
 			if (foreign->referenced_table == NULL) {
 				dict_table_get(foreign->referenced_table_name,
-						thr_get_trx(thr));
+									trx);
 			}
 
-			rw_lock_s_lock(&dict_foreign_key_check_lock);	
+			if (!trx->has_dict_foreign_key_check_lock) {
+				got_s_lock = TRUE;
+
+				rw_lock_s_lock(&dict_foreign_key_check_lock);
+
+				trx->has_dict_foreign_key_check_lock = TRUE;
+			}
 
 			err = row_ins_check_foreign_constraint(TRUE, foreign,
 						table, index, entry, thr);
+			if (got_s_lock) {
 
-			rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+				rw_lock_s_unlock(&dict_foreign_key_check_lock);	
 
+				trx->has_dict_foreign_key_check_lock = FALSE;
+			}
+				
 			if (err != DB_SUCCESS) {
 				return(err);
 			}
@@ -868,13 +1122,14 @@ row_ins_index_entry_low(
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	btr_cur_t	cursor;		
+	btr_cur_t	cursor;
+	ulint		ignore_sec_unique	= 0;
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
 	ulint		err;
 	ulint		n_unique;
-	big_rec_t*	big_rec		= NULL;
+	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
 	
 	log_free_check();
@@ -887,8 +1142,13 @@ row_ins_index_entry_low(
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 	
+	if (!(thr_get_trx(thr)->check_unique_secondary)) {
+		ignore_sec_unique = BTR_IGNORE_SEC_UNIQUE;
+	}
+
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-					mode | BTR_INSERT, &cursor, 0, &mtr);
+				mode | BTR_INSERT | ignore_sec_unique,
+				&cursor, 0, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insertion was made to the insert buffer already during

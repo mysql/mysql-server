@@ -51,52 +51,54 @@ typedef struct my_uni_idx_st {
 
 typedef struct charset_info_st
 {
-    uint      number;
-    const char *name;
-    uchar    *ctype;
-    uchar    *to_lower;
-    uchar    *to_upper;
-    uchar    *sort_order;
-    uint16      *tab_to_uni;
-    MY_UNI_IDX  *tab_from_uni;
+  uint      number;
+  const char *name;
+  uchar    *ctype;
+  uchar    *to_lower;
+  uchar    *to_upper;
+  uchar    *sort_order;
+  uint16      *tab_to_uni;
+  MY_UNI_IDX  *tab_from_uni;
     
-    /* Collation routines */
-    uint      strxfrm_multiply;
-    int     (*strnncoll)(struct charset_info_st *,
-                         const uchar *, uint, const uchar *, uint);
-    int     (*strnxfrm)(struct charset_info_st *,
-                         uchar *, uint, const uchar *, uint);
-    my_bool (*like_range)(struct charset_info_st *,
-                          const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
+  /* Collation routines */
+  uint      strxfrm_multiply;
+  int     (*strnncoll)(struct charset_info_st *,
+		       const uchar *, uint, const uchar *, uint);
+  int     (*strnxfrm)(struct charset_info_st *,
+		      uchar *, uint, const uchar *, uint);
+  my_bool (*like_range)(struct charset_info_st *,
+			const char *, uint, pchar, uint,
+			char *, char *, uint *, uint *);
     
-    /* Multibyte routines */
-    uint      mbmaxlen;
-    int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
-    my_bool (*ismbhead)(struct charset_info_st *, uint);
-    int     (*mbcharlen)(struct charset_info_st *, uint);
+  /* Multibyte routines */
+  uint      mbmaxlen;
+  int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
+  my_bool (*ismbhead)(struct charset_info_st *, uint);
+  int     (*mbcharlen)(struct charset_info_st *, uint);
     
-    /* Unicode convertion */
-    int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
-    		 const unsigned char *s,const unsigned char *e);
-    int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
-    		 unsigned char *s,unsigned char *e);
+  /* Unicode convertion */
+  int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
+	       const unsigned char *s,const unsigned char *e);
+  int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
+	       unsigned char *s,unsigned char *e);
     
-    /* Functions for case convertion */
-    void    (*caseup_str)(struct charset_info_st *, char *);
-    void    (*casedn_str)(struct charset_info_st *, char *);
-    void    (*caseup)(struct charset_info_st *, char *, uint);
-    void    (*casedn)(struct charset_info_st *, char *, uint);
+  /* Functions for case convertion */
+  void    (*caseup_str)(struct charset_info_st *, char *);
+  void    (*casedn_str)(struct charset_info_st *, char *);
+  void    (*caseup)(struct charset_info_st *, char *, uint);
+  void    (*casedn)(struct charset_info_st *, char *, uint);
     
-    /* Functions for case comparison */
-    int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
-    int  (*strncasecmp)(struct charset_info_st *, const char *, const char *, uint);
+  /* Functions for case comparison */
+  int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
+  int  (*strncasecmp)(struct charset_info_st *, const char *, const char *,
+		      uint);
     
-    /* Hash calculation */
-    uint (*hash_caseup)(struct charset_info_st *cs, const byte *key, uint len);
-    void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len, ulong *nr1, ulong *nr2); 
+  /* Hash calculation */
+  uint (*hash_caseup)(struct charset_info_st *cs, const byte *key, uint len);
+  void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
+		    ulong *nr1, ulong *nr2); 
     
-    char    max_sort_char; /* For LIKE otimization */
+  char    max_sort_char; /* For LIKE optimization */
 } CHARSET_INFO;
 
 /* strings/ctype.c */

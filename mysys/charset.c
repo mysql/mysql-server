@@ -36,6 +36,7 @@ static int charset_initialized=0;
 #define TO_LOWER_TABLE_SIZE   256
 #define TO_UPPER_TABLE_SIZE   256
 #define SORT_ORDER_TABLE_SIZE 256
+#define TO_UNI_TABLE_SIZE     256
 
 struct simpleconfig_buf_st {
   FILE *f;
@@ -122,7 +123,7 @@ static my_bool read_charset_index(CS_ID ***charsets, myf myflags)
   fb.buf[0] = '\0';
   fb.p = fb.buf;
 
-  if (init_dynamic_array(&cs, sizeof(CS_ID *), 32, 32))
+  if (my_init_dynamic_array(&cs, sizeof(CS_ID *), 32, 32))
     return TRUE;
 
   while (!get_word(&fb, buf) && !get_word(&fb, num_buf))
@@ -180,7 +181,7 @@ static my_bool init_available_charsets(myf myflags)
     pthread_mutex_lock(&THR_LOCK_charset);
     if (!cs_info_table.buffer)			/* If not initialized */
     {
-      init_dynamic_array(&cs_info_table, sizeof(CHARSET_INFO*), 16, 8);
+      my_init_dynamic_array(&cs_info_table, sizeof(CHARSET_INFO*), 16, 8);
       error = read_charset_index(&available_charsets, myflags);
     }
     charset_initialized=1;
@@ -214,11 +215,111 @@ static my_bool fill_array(uchar *array, int sz, struct simpleconfig_buf_st *fb)
   return 0;
 }
 
+static my_bool fill_uint16_array(uint16 *array, int sz, struct simpleconfig_buf_st *fb)
+{
+  char buf[MAX_LINE];
+  while (sz--)
+  {
+    if (get_word(fb, buf))
+    {
+      DBUG_PRINT("error",("get_word failed, expecting %d more words", sz + 1));
+      return 1;
+    }
+    *array++ = (uint16) strtol(buf, NULL, 16);
+  }
+  return 0;
+}
+
 
 static void get_charset_conf_name(uint cs_number, char *buf)
 {
   strxmov(get_charsets_dir(buf),
           name_from_csnum(available_charsets, cs_number), ".conf", NullS);
+}
+
+typedef struct {
+	int		nchars;
+	MY_UNI_IDX	uidx;
+} uni_idx;
+
+#define PLANE_SIZE	0x100
+#define PLANE_NUM	0x100
+#define PLANE_NUMBER(x)	(((x)>>8) % PLANE_NUM)
+
+static int pcmp(const void * f, const void * s)
+{
+  const uni_idx *F=(const uni_idx*)f;
+  const uni_idx *S=(const uni_idx*)s;
+  int res;
+
+  if(!(res=((S->nchars)-(F->nchars))))
+    res=((F->uidx.from)-(S->uidx.to));
+  return res;
+}
+
+static my_bool create_fromuni(CHARSET_INFO *cs){
+  uni_idx	idx[PLANE_NUM];
+  int		i,n;
+  
+  /* Clear plane statistics */
+  bzero(idx,sizeof(idx));
+  
+  /* Count number of characters in each plane */
+  for(i=0;i<0x100;i++)
+  {
+    uint16 wc=cs->tab_to_uni[i];
+    int pl= PLANE_NUMBER(wc);
+    
+    if(wc || !i)
+    {
+      if(!idx[pl].nchars)
+      {
+        idx[pl].uidx.from=wc;
+        idx[pl].uidx.to=wc;
+      }else
+      {
+        idx[pl].uidx.from=wc<idx[pl].uidx.from?wc:idx[pl].uidx.from;
+        idx[pl].uidx.to=wc>idx[pl].uidx.to?wc:idx[pl].uidx.to;
+      }
+      idx[pl].nchars++;
+    }
+  }
+  
+  /* Sort planes in descending order */
+  qsort(&idx,PLANE_NUM,sizeof(uni_idx),&pcmp);
+  
+  for(i=0;i<PLANE_NUM;i++)
+  {
+    int ch,numchars;
+    
+    /* Skip empty plane */
+    if(!idx[i].nchars)
+      break;
+    
+    numchars=idx[i].uidx.to-idx[i].uidx.from+1;
+    idx[i].uidx.tab=(unsigned char*)my_once_alloc(numchars*sizeof(*idx[i].uidx.tab),MYF(MY_WME));
+    bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
+    
+    for(ch=1;ch<PLANE_SIZE;ch++)
+    {
+      uint16 wc=cs->tab_to_uni[ch];
+      if(wc>=idx[i].uidx.from && wc<=idx[i].uidx.to && wc)
+      {
+        int ofs=wc-idx[i].uidx.from;
+        idx[i].uidx.tab[ofs]=ch;
+      }
+    }
+  }
+  
+  /* Allocate and fill reverse table for each plane */
+  n=i;
+  cs->tab_from_uni=(MY_UNI_IDX*)my_once_alloc(sizeof(MY_UNI_IDX)*(n+1),MYF(MY_WME));
+  for(i=0;i<n;i++)
+    cs->tab_from_uni[i]=idx[i].uidx;
+  
+  /* Set end-of-list marker */
+  bzero(&cs->tab_from_uni[i],sizeof(MY_UNI_IDX));
+  return FALSE;
 }
 
 
@@ -247,10 +348,12 @@ static my_bool read_charset_file(uint cs_number, CHARSET_INFO *set,
   if (fill_array(set->ctype,      CTYPE_TABLE_SIZE,      &fb) ||
       fill_array(set->to_lower,   TO_LOWER_TABLE_SIZE,   &fb) ||
       fill_array(set->to_upper,   TO_UPPER_TABLE_SIZE,   &fb) ||
-      fill_array(set->sort_order, SORT_ORDER_TABLE_SIZE, &fb))
+      fill_array(set->sort_order, SORT_ORDER_TABLE_SIZE, &fb) ||
+      fill_uint16_array(set->tab_to_uni,TO_UNI_TABLE_SIZE,&fb))
     result=TRUE;
 
   my_fclose(fb.f, MYF(0));
+  create_fromuni(set);
   DBUG_RETURN(result);
 }
 
@@ -299,10 +402,11 @@ static CHARSET_INFO *find_charset_by_name(CHARSET_INFO **table,
 static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
 {
   CHARSET_INFO tmp_cs,*cs;
-  uchar tmp_ctype[CTYPE_TABLE_SIZE];
-  uchar tmp_to_lower[TO_LOWER_TABLE_SIZE];
-  uchar tmp_to_upper[TO_UPPER_TABLE_SIZE];
-  uchar tmp_sort_order[SORT_ORDER_TABLE_SIZE];
+  uchar  tmp_ctype[CTYPE_TABLE_SIZE];
+  uchar  tmp_to_lower[TO_LOWER_TABLE_SIZE];
+  uchar  tmp_to_upper[TO_UPPER_TABLE_SIZE];
+  uchar  tmp_sort_order[SORT_ORDER_TABLE_SIZE];
+  uint16 tmp_to_uni[TO_UNI_TABLE_SIZE];
 
   /* Don't allocate memory if we are not sure we can find the char set */
   cs= &tmp_cs;
@@ -311,6 +415,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->to_lower=tmp_to_lower;
   cs->to_upper=tmp_to_upper;
   cs->sort_order=tmp_sort_order;
+  cs->tab_to_uni=tmp_to_uni;
   if (read_charset_file(cs_number, cs, flags))
     return NULL;
 
@@ -322,6 +427,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->to_lower = (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,   MYF(MY_WME));
   cs->to_upper = (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,   MYF(MY_WME));
   cs->sort_order=(uchar*) my_once_alloc(SORT_ORDER_TABLE_SIZE, MYF(MY_WME));
+  cs->tab_to_uni=(uint16*)my_once_alloc(TO_UNI_TABLE_SIZE*sizeof(uint16), MYF(MY_WME));
   cs->number   = cs_number;
   memcpy((char*) cs->name,	 (char*) cs_name,	strlen(cs_name) + 1);
   memcpy((char*) cs->ctype,	 (char*) tmp_ctype,	sizeof(tmp_ctype));
@@ -329,6 +435,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   memcpy((char*) cs->to_upper, (char*) tmp_to_upper,	sizeof(tmp_to_upper));
   memcpy((char*) cs->sort_order, (char*) tmp_sort_order,
 	 sizeof(tmp_sort_order));
+  memcpy((char*) cs->tab_to_uni, (char*) tmp_to_uni, sizeof(tmp_to_uni));
 
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
@@ -336,6 +443,8 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->casedn      = my_casedn_8bit;
   cs->strcasecmp  = my_strcasecmp_8bit;
   cs->strncasecmp = my_strncasecmp_8bit;
+  cs->mb_wc       = my_mb_wc_8bit;
+  cs->wc_mb       = my_wc_mb_8bit;
   
   insert_dynamic(&cs_info_table, (gptr) &cs);
   return cs;

@@ -209,6 +209,27 @@ row_update_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 /*************************************************************************
+Creates an query graph node of 'update' type to be used in the MySQL
+interface. */
+
+upd_node_t*
+row_create_update_node_for_mysql(
+/*=============================*/
+				/* out, own: update node */
+	dict_table_t*	table,	/* in: table to update */
+	mem_heap_t*	heap);	/* in: mem heap from which allocated */
+/**************************************************************************
+Does a cascaded delete or set null in a foreign key operation. */
+
+ulint
+row_update_cascade_for_mysql(
+/*=========================*/
+				/* out: error code or DB_SUCCESS */
+	que_thr_t*	thr,	/* in: query thread */
+	upd_node_t*	node,	/* in: update node used in the cascade
+				or set null operation */
+	dict_table_t*	table);	/* in: table where we do the operation */
+/*************************************************************************
 Does a table creation operation for MySQL. If the name of the created
 table ends to characters INNODB_MONITOR, then this also starts
 printing of monitor output by the master thread. */

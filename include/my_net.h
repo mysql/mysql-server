@@ -67,5 +67,47 @@ C_MODE_START
 
 void my_inet_ntoa(struct in_addr in, char *buf);
 
+/*
+  Handling of gethostbyname_r()
+*/
+
+#if !defined(HPUX)
+struct hostent;
+#endif /* HPUX */
+#if !defined(HAVE_GETHOSTBYNAME_R)
+struct hostent *my_gethostbyname_r(const char *name,
+				   struct hostent *result, char *buffer,
+				   int buflen, int *h_errnop);
+void my_gethostbyname_r_free();
+#elif defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
+struct hostent *my_gethostbyname_r(const char *name,
+				   struct hostent *result, char *buffer,
+				   int buflen, int *h_errnop);
+#define my_gethostbyname_r_free()
+#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) && !defined(HPUX)
+#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
+#endif /* !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
+
+#elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
+#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
+struct hostent *my_gethostbyname_r(const char *name,
+				   struct hostent *result, char *buffer,
+				   int buflen, int *h_errnop);
+#define my_gethostbyname_r_free()
+#else
+#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
+#define my_gethostbyname_r_free()
+#endif /* !defined(HAVE_GETHOSTBYNAME_R) */
+
+#ifndef GETHOSTBYNAME_BUFF_SIZE
+#define GETHOSTBYNAME_BUFF_SIZE 2048
+#endif
+
+/* On SCO you get a link error when refering to h_errno */
+#ifdef SCO
+#undef h_errno
+#define h_errno errno
+#endif
+
 C_MODE_END
 #endif

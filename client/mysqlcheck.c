@@ -16,10 +16,9 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.0"
+#define CHECK_VERSION "2.4"
 
 #include "client_priv.h"
-#include <my_getopt.h>
 #include <m_ctype.h>
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -94,7 +93,7 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -107,8 +106,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, GET_LONG,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
   {"quick", 'q',
    "If you are using this option with CHECK TABLE, it prevents the check from scanning the rows to check for wrong links. This is the fastest check. If you are using this option with REPAIR TABLE, it will try to repair only the index tree. This is the fastest repair method for a table.",
    (gptr*) &opt_quick, (gptr*) &opt_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -165,9 +165,8 @@ static void usage(void)
 {
   print_version();
   puts("By Jani Tolonen, 2001-04-20, MySQL Development Team\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free");
-  puts("software and you are welcome to modify and redistribute it");
-  puts("under the GPL license.\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
+  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used same time. It works on MyISAM and in some cases on BDB tables.");
@@ -198,12 +197,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'a':
     what_to_do = DO_ANALYZE;
     break;
-  case OPT_DEFAULT_CHARSET:
-    default_charset = argument;
-    break;
-  case OPT_CHARSETS_DIR:
-    charsets_dir = argument;
-    break;
   case 'c':
     what_to_do = DO_CHECK;
     break;
@@ -215,10 +208,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-  case 'h':
-    my_free(current_host, MYF(MY_ALLOW_ZERO_PTR));
-    current_host = my_strdup(argument, MYF(MY_WME));
-    break;
   case 'm':
     what_to_do = DO_CHECK;
     opt_medium_check = 1;
@@ -226,11 +215,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'o':
     what_to_do = DO_OPTIMIZE;
     break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    current_user = argument;
-    break;
-#endif
   case 'p':
     if (argument)
     {
@@ -244,14 +228,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password = 1;
     break;
-  case 'P':
-    opt_mysql_port = (unsigned int) atoi(argument);
-    break;
   case 'r':
     what_to_do = DO_REPAIR;
-    break;
-  case 'S':
-    opt_mysql_unix_port = argument;
     break;
   case 'W':
 #ifdef __WIN__
@@ -287,11 +265,7 @@ static int get_options(int *argc, char ***argv)
   load_defaults("my", load_default_groups, argc, argv);
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (!what_to_do)
   {
@@ -614,8 +588,8 @@ int main(int argc, char **argv)
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
 
-  if (opt_auto_repair && 
-      init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
+  if (opt_auto_repair &&
+      my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
   {
     first_error = 1;
     goto end;

@@ -22,6 +22,7 @@
  *   Sasha Pachev <sasha@mysql.com>
  *   Matt Wagner  <matt@mysql.com>
  *   Monty
+ *   Jani
  **/
 
 /**********************************************************************
@@ -41,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.14"
+#define MTEST_VERSION "1.24"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -55,7 +56,7 @@
 #include <hash.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
+#include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -95,10 +96,12 @@
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
 
-static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
+static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
-static int port = 0, opt_big_test=0, opt_compress=0;
+static int port = 0;
+static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0,
+               tty_password= 0;
 static uint start_lineno, *lineno;
 const char* manager_user="root",*manager_host=0;
 char *manager_pass=0;
@@ -661,7 +664,7 @@ int open_file(const char* name)
 }
 
 /* ugly long name, but we are following the convention */
-int do_wait_for_slave_to_stop(struct st_query* __attribute__((unused)) q)
+int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
 {
   MYSQL* mysql = &cur_con->mysql;
 #ifndef OS2 
@@ -699,7 +702,7 @@ int do_wait_for_slave_to_stop(struct st_query* __attribute__((unused)) q)
   return 0;
 }
 
-int do_require_manager(struct st_query* __attribute__((unused)) q)
+int do_require_manager(struct st_query* a __attribute__((unused)))
 {
   if (!manager)
     abort_not_supported_test();
@@ -1022,20 +1025,20 @@ int do_let(struct st_query* q)
   return var_set(var_name, var_name_end, var_val_start, q->end);
 }
 
-int do_rpl_probe(struct st_query* __attribute__((unused)) q)
+int do_rpl_probe(struct st_query* q __attribute__((unused)))
 {
   if(mysql_rpl_probe(&cur_con->mysql))
     die("Failed in mysql_rpl_probe(): %s", mysql_error(&cur_con->mysql));
   return 0;
 }
 
-int do_enable_rpl_parse(struct st_query* __attribute__((unused)) q)
+int do_enable_rpl_parse(struct st_query* q __attribute__((unused)))
 {
   mysql_enable_rpl_parse(&cur_con->mysql);
   return 0;
 }
 
-int do_disable_rpl_parse(struct st_query* __attribute__((unused)) q)
+int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 {
   mysql_disable_rpl_parse(&cur_con->mysql);
   return 0;
@@ -1443,12 +1446,14 @@ int do_connect(struct st_query* q)
     die("Failed on mysql_init()");
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
   /* Special database to allow one to connect without a database name */
-  if (!strcmp(con_db,"*NO-ONE*"))
+  if (con_db && !strcmp(con_db,"*NO-ONE*"))
     con_db=0;
   if ((con_error = safe_connect(&next_con->mysql, con_host,
 				con_user, con_pass,
@@ -1785,36 +1790,74 @@ int read_query(struct st_query** q_ptr)
   return 0;
 }
 
-struct option long_options[] =
+
+static struct my_option my_long_options[] =
 {
-  {"debug",       optional_argument, 0, '#'},
-  {"database",    required_argument, 0, 'D'},
-  {"basedir",	  required_argument, 0, 'b'},
-  {"big-test",	  no_argument,	     0, 'B'},
-  {"compress",	  no_argument,	     0, 'C'},
-  {"help",        no_argument,       0, '?'},
-  {"host",        required_argument, 0, 'h'},
-  {"manager-user",required_argument, 0, OPT_MANAGER_USER},
-  {"manager-host",required_argument, 0, OPT_MANAGER_HOST},
-  {"manager-password",required_argument,0,OPT_MANAGER_PASSWD},
-  {"manager-port",required_argument,0,OPT_MANAGER_PORT},
-  {"manager-wait-timeout",required_argument,0,OPT_MANAGER_WAIT_TIMEOUT},
-  {"password",    optional_argument, 0, 'p'},
-  {"port",        required_argument, 0, 'P'},
-  {"quiet",       no_argument,       0, 's'},
-  {"record",      no_argument,       0, 'r'},
-  {"result-file", required_argument, 0, 'R'},
-  {"server-arg",  required_argument, 0, 'A'},
-  {"server-file", required_argument, 0, 'F'},
-  {"silent",      no_argument,       0, 's'},
-  {"sleep",       required_argument, 0, 'T'},
-  {"socket",      required_argument, 0, 'S'},
-  {"test-file",   required_argument, 0, 'x'},
-  {"tmpdir",      required_argument, 0, 't'},
-  {"user",        required_argument, 0, 'u'},
-  {"verbose",     no_argument,       0, 'v'},
-  {"version",     no_argument,       0, 'V'},
-  {0, 0, 0, 0}
+#ifndef DBUG_OFF
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Basedir for tests", (gptr*) &opt_basedir,
+   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"big-test", 'B', "Define BIG_TEST to 1", (gptr*) &opt_big_test,
+   (gptr*) &opt_big_test, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", 'C', "Use the compressed server/client protocol",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging",
+   (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging",
+   (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging",
+   (gptr*) &manager_port, (gptr*) &manager_port, 0, GET_INT, REQUIRED_ARG,
+   MYSQL_MANAGER_PORT, 0, 0, 0, 0, 0},
+  {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
+   "Undocumented: Used for debugging", (gptr*) &manager_wait_timeout,
+   (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
+  {"password", 'p', "Password to use when connecting to server.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &port,
+   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
+   (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"record", 'r', "Record output of test_file into result file.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"result-file", 'R', "Read/Store result from/in this file.",
+   (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"server-arg", 'A', "Send enbedded server this as a paramenter",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-file", 'F', "Read embedded server arguments from file",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
+   (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sleep", 'T', "Sleep always this many seconds on sleep commands",
+   (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection.",
+   (gptr*) &unix_sock, (gptr*) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"test-file", 'x', "Read test from/in this file (default stdin).",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"tmpdir", 't', "Temporary directory where sockets are put",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Write more.", (gptr*) &verbose, (gptr*) &verbose, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
@@ -1827,170 +1870,97 @@ static void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha, Matt & Monty\n");
+  printf("MySQL AB, by Sasha, Matt, Monty & Jani\n");
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
-  printf("\n\
-  -?, --help               Display this help and exit.\n");
-#ifndef DBUG_OFF
-  puts("\
-  -#, --debug=[...]        Output debug log. Often this is 'd:t:o,filename`");
-#endif
-  printf("\
-  -h, --host=...           Connect to host.\n\
-  -u, --user=...           User for login.\n\
-  -p[password], --password[=...]\n\
-                           Password to use when connecting to server.\n\
-  -b, --basedir=...	   Basedir for tests\n\
-  -B, --big-test	   Define BIG_TEST to 1\n\
-  -C, --compress	   Use the compressed server/client protocol\n\
-  -D, --database=...       Database to use.\n\
-  -P, --port=...           Port number to use for connection.\n\
-  --server-arg=...	   Send enbedded server this as a paramenter\n\
-  --server-file=...	   Read embedded server arguments from file\n\
-  -s, --silent, --quiet    Suppress all normal output.\n\
-  -S, --socket=...         Socket file to use for connection.\n\
-  -t, --tmpdir=...	   Temporary directory where sockets are put\n\
-  -T, --sleep=#		   Sleep always this many seconds on sleep commands\n\
-  -r, --record             Record output of test_file into result file.\n\
-  -R, --result-file=...    Read/Store result from/in this file.\n\
-  -x, --test-file=...      Read test from/in this file (default stdin).\n\
-  -v, --verbose            Write more.\n\
-  -V, --version            Output version information and exit.\n\
-  --no-defaults            Don't read default options from any options file.\n\n");
+  my_print_help(my_long_options);
+  printf("  --no-defaults       Don't read default options from any options file.\n");
+  my_print_variables(my_long_options);
 }
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch(optid)	{
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
+    break;
+  case 'r':
+    record = 1;
+    break;
+  case (int)OPT_MANAGER_PASSWD:
+    my_free(manager_pass,MYF(MY_ALLOW_ZERO_PTR));
+    manager_pass=my_strdup(argument, MYF(MY_FAE));
+    while (*argument) *argument++= 'x';		/* Destroy argument */
+    break;
+  case 'x':
+    {
+      char buff[FN_REFLEN];
+      if (!test_if_hard_path(argument))
+      {
+	strxmov(buff, opt_basedir, argument, NullS);
+	argument= buff;
+      }
+      fn_format(buff, argument, "", "", 4);
+      if (!(*++cur_file = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
+	die("Could not open %s: errno = %d", argument, errno);
+      break;
+    }
+  case 'p':
+    if (argument)
+    {
+      my_free(pass, MYF(MY_ALLOW_ZERO_PTR));
+      pass= my_strdup(argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
+    }
+    else
+      tty_password= 1;
+    break;
+  case 't':
+    strnmov(TMPDIR, argument, sizeof(TMPDIR));
+    break;
+  case 'A':
+    if (!embedded_server_arg_count)
+    {
+      embedded_server_arg_count=1;
+      embedded_server_args[0]= (char*) "";
+    }
+    embedded_server_args[embedded_server_arg_count++]=
+      my_strdup(argument, MYF(MY_FAE));
+    if (embedded_server_arg_count == MAX_SERVER_ARGS ||
+	!embedded_server_args[embedded_server_arg_count-1])
+    {
+      die("Can't use server argument");
+    }
+    break;
+  case 'F':
+    if (read_server_arguments(argument))
+      die(NullS);
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(1);
+  }
+  return 0;
+}
+
 
 int parse_args(int argc, char **argv)
 {
-  int c, option_index = 0;
-  my_bool tty_password=0;
+  int ho_error;
 
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  while ((c = getopt_long(argc, argv, "A:h:p::u:b:BCF:P:D:S:R:x:t:T:#:?rvVs",
-			  long_options, &option_index)) != EOF)
-    {
-      switch(c)	{
-      case '#':
-	DBUG_PUSH(optarg ? optarg : "d:t:S:i:O,/tmp/mysqltest.trace");
-	break;
-      case 'v':
-	verbose = 1;
-	break;
-      case 'r':
-	record = 1;
-	break;
-      case (int)OPT_MANAGER_WAIT_TIMEOUT:
-	manager_wait_timeout=atoi(optarg);
-	break;
-      case (int)OPT_MANAGER_PORT:
-	manager_port=atoi(optarg);
-	break;
-      case (int)OPT_MANAGER_HOST:
-	manager_host=optarg;
-	break;
-      case (int)OPT_MANAGER_USER:
-	manager_user=optarg;
-	break;
-      case (int)OPT_MANAGER_PASSWD:
-	my_free(manager_pass,MYF(MY_ALLOW_ZERO_PTR));
-	manager_pass=my_strdup(optarg,MYF(MY_FAE));
-        while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	break;
-      case 'u':
-	user = optarg;
-	break;
-      case 'R':
-	result_file = optarg;
-	break;
-      case 'x':
-      {
-	char buff[FN_REFLEN];
-	if (!test_if_hard_path(optarg))
-	{
-	  strxmov(buff, opt_basedir, optarg, NullS);
-	  optarg=buff;
-	}
-	fn_format(buff,optarg,"","",4);
-	if (!(*++cur_file = my_fopen(buff, O_RDONLY, MYF(MY_WME))))
-	  die("Could not open %s: errno = %d", optarg, errno);
-	break;
-      }
-      case 'p':
-	if (optarg)
-	{
-	  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
-	  pass=my_strdup(optarg,MYF(MY_FAE));
-	  while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	}
-	else
-	  tty_password=1;
-	break;
-      case 'b':
-	opt_basedir= optarg;
-	break;
-      case 'B':
-        opt_big_test=1;
-        break;
-      case 'C':
-	opt_compress=1;
-	break;
-      case 'P':
-	port = atoi(optarg);
-	break;
-      case 'S':
-	unix_sock = optarg;
-	break;
-      case 'D':
-	db = optarg;
-	break;
-      case 'h':
-	host = optarg;
-	break;
-      case 's':
-	silent = 1;
-	break;
-      case 't':
-	strnmov(TMPDIR,optarg,sizeof(TMPDIR));
-	break;
-      case 'T':
-	opt_sleep=atoi(optarg);
-	break;
-      case 'A':
-	if (!embedded_server_arg_count)
-	{
-	  embedded_server_arg_count=1;
-	  embedded_server_args[0]= (char*) "";
-	}
-	embedded_server_args[embedded_server_arg_count++]=
-	  my_strdup(optarg,MYF(MY_FAE));
-	if (embedded_server_arg_count == MAX_SERVER_ARGS ||
-	    !embedded_server_args[embedded_server_arg_count-1])
-	{
-	  die("Can't use server argument");
-	}
-	break;
-      case 'F':
-	if (read_server_arguments(optarg))
-	  die(NullS);
-	break;
-      case 'V':
-	print_version();
-	exit(0);
-      case '?':
-	usage();
-	exit(1);				/* Unknown option */
-      default:
-	fprintf(stderr,"Unknown option '%c'\n",c);
-	usage();
-	exit(1);
-      }
-    }
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
-  argc-=optind;
-  argv+=optind;
   if (argc > 1)
   {
     usage();
@@ -2361,7 +2331,7 @@ int main(int argc, char** argv)
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
   cur_file = file_stack;
   lineno   = lineno_stack;
-  init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
+  my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
 		     INIT_Q_LINES);
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end = block_stack + BLOCK_STACK_DEPTH;
@@ -2388,6 +2358,8 @@ int main(int argc, char** argv)
     die("Failed in mysql_init()");
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");
@@ -2439,9 +2411,11 @@ int main(int argc, char** argv)
       case Q_QUERY:
       case Q_REAP:	
       {
-	int flags = QUERY_REAP; /* we read the result always regardless
-				* of the mode for both full query and
-				* read-result only ( reap) */
+	/*
+	  We read the result always regardless of the mode for both full
+	  query and read-result only (reap)
+	*/
+	int flags = QUERY_REAP;
 	if (q->type != Q_REAP) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
 	if (q_send_flag)
@@ -2468,12 +2442,13 @@ int main(int argc, char** argv)
 	/* fix up query pointer if this is * first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
-	/* run query can execute a query partially, depending on the flags
-	 * QUERY_SEND flag without QUERY_REAP tells it to just send the
-	 * query and read the result some time later when reap instruction
-	 * is given on this connection
+	/*
+	  run_query() can execute a query partially, depending on the flags
+	  QUERY_SEND flag without QUERY_REAP tells it to just send the
+	  query and read the result some time later when reap instruction
+	  is given on this connection.
 	 */
+	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
 	break;
       case Q_RESULT:
 	get_file_name(save_file,q);

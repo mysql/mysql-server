@@ -63,8 +63,8 @@ const char field_separator=',';
 *****************************************************************************/
 
 	/*
-	** Calculate length of number and its parts
-	** Increment cuted_fields if wrong number
+	  Calculate length of number and its parts
+	  Increment cuted_fields if wrong number
 	*/
 
 static bool
@@ -233,6 +233,8 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_length(length_arg),null_bit(null_bit_arg)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
+  comment.str= (char*) "";
+  comment.length=0;
 }
 
 uint Field::offset()
@@ -384,13 +386,34 @@ Field_decimal::reset(void)
 void Field_decimal::overflow(bool negative)
 {
   uint len=field_length;
-  char *to=ptr;
-  if (negative && !unsigned_flag)
+  char *to=ptr, filler= '9';
+  if (negative)
   {
-    *to++ = '-';
-    len--;
+    if (!unsigned_flag)
+    {
+      /* Put - sign as a first digit so we'll have -999..999 or 999..999 */
+      *to++ = '-';
+      len--;
+    }
+    else
+    {
+      filler= '0';				// Fill up with 0
+      if (!zerofill)
+      {
+	/*
+	  Handle unsigned integer without zerofill, in which case
+	  the number should be of format '   0' or '   0.000'
+	*/
+	uint whole_part=field_length- (dec ? dec+2 : 1);
+	// Fill with spaces up to the first digit
+	bfill(to, whole_part, ' ');
+	to+=  whole_part;
+	len-= whole_part;
+	// The main code will also handle the 0 before the decimal point
+      }
+    }
   }
-  bfill(to,len,negative && unsigned_flag ? '0' : '9');
+  bfill(to, len, filler);
   if (dec)
     ptr[field_length-dec-1]='.';
   return;
@@ -425,10 +448,15 @@ void Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
     from++;
     if (unsigned_flag)				// No sign with zerofill
     {
-      if (!error)
-	current_thd->cuted_fields++;
-      Field_decimal::overflow(1);
-      return;
+      if (decstr.sign_char == '+')		// just remove "+"
+        decstr.sign= 0;
+      else
+      {
+	if (!error)
+	  current_thd->cuted_fields++;
+	Field_decimal::overflow(1);
+	return;
+      }
     }
   }
   /*
@@ -4489,9 +4517,7 @@ void Field_enum::sql_type(String &res) const
   {
     if (flag)
       res.append(',');
-    res.append('\'');
-    append_unescaped(&res,*pos);
-    res.append('\'');
+    append_unescaped(&res, *pos, strlen(*pos));
     flag=1;
   }
   res.append(')');
@@ -4610,9 +4636,7 @@ void Field_set::sql_type(String &res) const
   {
     if (flag)
       res.append(',');
-    res.append('\'');
-    append_unescaped(&res,*pos);
-    res.append('\'');
+    append_unescaped(&res, *pos, strlen(*pos));
     flag=1;
   }
   res.append(')');
@@ -4713,6 +4737,7 @@ uint pack_length_to_packflag(uint type)
 Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
+		  enum_field_types field_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
 		  const char *field_name,
@@ -4728,7 +4753,8 @@ Field *make_field(char *ptr, uint32 field_length,
     if (!f_is_packed(pack_flag))
       return new Field_string(ptr,field_length,null_pos,null_bit,
 			      unireg_check, field_name, table,
-			      f_is_binary(pack_flag) != 0, default_charset_info);
+			      f_is_binary(pack_flag) != 0,
+			      default_charset_info);
 
     uint pack_length=calc_pack_length((enum_field_types)
 				      f_packtype(pack_flag),
@@ -4756,7 +4782,7 @@ Field *make_field(char *ptr, uint32 field_length,
     }
   }
 
-  switch ((enum enum_field_types) f_packtype(pack_flag)) {
+  switch (field_type) {
   case FIELD_TYPE_DECIMAL:
     return new Field_decimal(ptr,field_length,null_pos,null_bit,
 			     unireg_check, field_name, table,
@@ -4837,6 +4863,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
   unireg_check=old_field->unireg_check;
   pack_length=old_field->pack_length();
   sql_type=   old_field->real_type();
+  charset=    old_field->charset();		// May be NULL ptr
+  comment=    old_field->comment;
 
   /* Fix if the original table had 4 byte pointer blobs */
   if (flags & BLOB_FLAG)
@@ -4845,6 +4873,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {
+    /* Change CHAR -> VARCHAR if dynamic record length */
     sql_type=old_field->type();
     decimals=0;
   }

@@ -176,13 +176,15 @@ cleanup:
   }
   if (using_transactions && ha_autocommit_or_rollback(thd,error >= 0))
     error=1;
+  if (deleted)
+  {
+    query_cache_invalidate3(thd, table_list, 1);
+  }
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (deleted)
-    query_cache_invalidate3(thd, table_list, 1);
   delete select;
   if (error >= 0)				// Fatal error
     send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN: 0);
@@ -356,6 +358,9 @@ void multi_delete::send_error(uint errcode,const char *err)
   if (!deleted)
     DBUG_VOID_RETURN;
 
+  /* Somthing alredy deleted consequently we have to invalidate cache */
+  query_cache_invalidate3(thd, delete_tables, 1);
+
   /* Below can happen when thread is killed early ... */
   if (!table_being_deleted)
     table_being_deleted=delete_tables;
@@ -471,7 +476,9 @@ bool multi_delete::send_eof()
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
   if (deleted)
+  {
     query_cache_invalidate3(thd, delete_tables, 1);
+  }
   ::send_ok(&thd->net,deleted);
   return 0;
 }
@@ -510,8 +517,9 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     bzero((char*) &create_info,sizeof(create_info));
     create_info.auto_increment_value= table->file->auto_increment_value;
-    db_type table_type=table->db_type;
+    create_info.table_charset=default_charset_info;
 
+    db_type table_type=table->db_type;
     strmov(path,table->path);
     *table_ptr= table->next;			// Unlink table from list
     close_temporary(table,0);
@@ -521,7 +529,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
 					     table_list->real_name, 1))))
       (void) rm_temporary_table(table_type, path);
-    /* Sasha: if we return here we will not have binloged the truncation and
+    /*
+      If we return here we will not have binloged the truncation and
        we will not send_ok() to the client. Yes, we do need better coverage
        testing, this bug has been here for a few months :-).
     */
@@ -551,6 +560,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   bzero((char*) &create_info,sizeof(create_info));
+  create_info.table_charset=default_charset_info;
+
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
   query_cache_invalidate3(thd, table_list, 0); 

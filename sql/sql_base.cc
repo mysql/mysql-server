@@ -196,6 +196,7 @@ send_fields(THD *thd,List<Item> &list,uint flag)
   Item *item;
   char buff[80];
   CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+  DBUG_ENTER("send_fields");
 
   String tmp((char*) buff,sizeof(buff),default_charset_info);
   String *res,*packet= &thd->packet;
@@ -257,11 +258,11 @@ send_fields(THD *thd,List<Item> &list,uint flag)
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net);
-  return 0;
+  send_eof(&thd->net,1);
+  DBUG_RETURN(0);
  err:
   send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
-  return 1;					/* purecov: inspected */
+  DBUG_RETURN(1);				/* purecov: inspected */
 }
 
 
@@ -2050,10 +2051,10 @@ static void mysql_rm_tmp_tables(void)
 
 
 /*
-** CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-** the proper arguments.  This isn't very fast but it should work for most
-** cases.
-** One should normally create all indexes with CREATE TABLE or ALTER TABLE.
+  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
+  the proper arguments.  This isn't very fast but it should work for most
+  cases.
+  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
 */
 
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
@@ -2065,6 +2066,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, (ORDER*)0, FALSE,
@@ -2081,6 +2083,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, (ORDER*)0, FALSE,

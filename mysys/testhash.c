@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Test av hash libarary: stor test */
+/* Test of hash library: big test */
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -36,6 +36,7 @@ static uint16 key1[1000];
 #else
 my_bool hash_check(HASH *hash);
 #endif
+
 void free_record(void *record);
 
 static byte *hash2_key(const byte *rec,uint *length,
@@ -45,7 +46,7 @@ static byte *hash2_key(const byte *rec,uint *length,
   return (byte*) rec;
 }
 
-		/* Huvudprogrammet */
+/* main program */
 
 int main(int argc,char *argv[])
 {
@@ -75,7 +76,7 @@ static int do_test()
   printf("- Creating hash\n");
   if (hash_init(&hash,recant/2,0,6,0,free_record,0))
     goto err;
-  printf("- Writing records:s\n");
+  printf("- Writing records:\n");
 
   for (i=0 ; i < recant ; i++)
   {
@@ -242,8 +243,8 @@ err:
 } /* main */
 
 
-	/* l{ser optioner */
-	/* OBS! intierar endast DEBUG - ingen debuggning h{r ! */
+/* read options */
+/* NOTE! DBUG not initialised - no debugging here! */
 
 static int get_options(int argc, char **argv)
 {
@@ -264,7 +265,7 @@ static int get_options(int argc, char **argv)
     case 'I':
     case '?':
       printf("%s  Ver 1.0 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
-      puts("TCX Datakonsult AB, by Monty, for your professional use\n");
+      printf("MySQL AB, by Monty\n\n");
       printf("Usage: %s [-?ABIKLWv] [-m#] [-t#]\n",progname);
       exit(0);
     case '#':
@@ -274,9 +275,10 @@ static int get_options(int argc, char **argv)
     }
   }
   return 0;
-} /* get options */
+} /* get_options */
 
-	/* Ge ett randomv{rde inom ett intervall 0 <=x <= n */
+
+/* Get a random number in the interval 0 <= x <= n */
 
 static int rnd(int max_value)
 {

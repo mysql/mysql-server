@@ -1072,7 +1072,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
       DUMP(this);
       for ( ; tables_used; tables_used=tables_used->next)
       {
-	invalidate_table(tables_used->key, tables_used->key_length);
+	invalidate_table((byte*) tables_used->key, tables_used->key_length);
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
 			      tables_used->table_name));
       }

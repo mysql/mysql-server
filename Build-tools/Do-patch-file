@@ -13,8 +13,8 @@ NEW="mysql-$VER.tar.gz"
 OLD="mysql-$PVER.tar.gz"
 RESULT="mysql-$PVER-$VER.patch.gz"
 PATCH_DIR=/my/web/Downloads-live/Patches
-RESULT_DIR=/my/web/Downloads-live/MySQL-3.23
-RESULT_DIR_MAX=/my/web/Downloads-live/MySQL-Max-3.23
+RESULT_DIR=/my/web/Downloads-live/MySQL-4.0
+RESULT_DIR_MAX=/my/web/Downloads-live/MySQL-Max-4.0
 
 if test ! -f $NEWDIR/$NEW
 then

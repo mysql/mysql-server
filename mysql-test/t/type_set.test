@@ -1,0 +1,10 @@
+#
+# Test of SET with space
+#
+
+create table t1 (a set (' ','a','b') not null);
+show create table t1;
+drop table t1;
+create table t1 (a set (' ','a','b ') not null default 'b ');
+show create table t1;
+drop table t1;

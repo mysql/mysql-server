@@ -1727,7 +1727,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		       join_tab[i].table->map);
       }
     }
-    if (init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+    if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
       return TRUE;
     /* fill keyuse with found key parts */
     for (KEY_FIELD *field=key_fields ; field != end ; field++)
@@ -2480,7 +2480,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->send_records=(ha_rows) 0;
   join->group=0;
   join->do_send_rows = 1;
-  join->row_limit=HA_POS_ERROR;
+  join->row_limit=join->thd->select_limit;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -3945,6 +3945,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
 	  group->field->move_field((char*) ++group->buff);
+	  ++group_buff;
 	}
 	else
 	  group->field->move_field((char*) group_buff);
@@ -4139,6 +4140,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   }
   MI_CREATE_INFO create_info;
   bzero((char*) &create_info,sizeof(create_info));
+
   if ((options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES)
     create_info.data_file_length= ~(ulonglong) 0;
@@ -5025,7 +5027,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  join->select_options ^= OPTION_FOUND_ROWS;
-	  join->send_records = jt->records;
+	  jt->table->file->info(HA_STATUS_VARIABLE);
+	  join->send_records = jt->table->file->records;
 	}
 	else 
 	{
@@ -5063,10 +5066,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	join->procedure->end_group();
       if (idx < (int) join->send_group_parts)
       {
-	int error;
+	int error=0;
 	if (join->procedure)
 	{
-	  error=0;
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
  	  else if (join->do_send_rows)
@@ -5084,13 +5086,16 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
-	  else
+	  else if (join->do_send_rows)
 	    error=join->result->send_data(*join->fields) ? 1 : 0;
 	}
 	if (error > 0)
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
+	{
+	  join->send_records++;
 	  DBUG_RETURN(0);
+	}
 	if (!error && ++join->send_records >= join->unit->select_limit_cnt &&
 	    join->do_send_rows)
 	{
@@ -7114,6 +7119,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->offset_limit=0;
   if (thd->lex.select == select_lex)
   {
     field_list.push_back(new Item_empty_string("table",NAME_LEN));

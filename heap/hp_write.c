@@ -89,7 +89,7 @@ err:
 */
 
 int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record, 
-                  byte *recpos)
+		    byte *recpos)
 {
   heap_rb_param custom_arg;
 

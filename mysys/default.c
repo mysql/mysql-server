@@ -123,7 +123,7 @@ void load_defaults(const char *conf_file, const char **groups,
   for (; *groups ; groups++)
     group.count++;
 
-  if (init_dynamic_array(&args, sizeof(char*),*argc, 32))
+  if (my_init_dynamic_array(&args, sizeof(char*),*argc, 32))
     goto err;
   if (forced_default_file)
   {

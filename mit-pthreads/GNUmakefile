@@ -19,7 +19,7 @@ INSTALL_PATH = $(exec_prefix)
           AR = ar
           AS = gas
       CFLAGS = -I. -Iinclude -I$(srcdir)/include -DPTHREAD_KERNEL \
-		-O6 -DDBUG_OFF   -Werror
+		-O3 -DDBUG_OFF   -Werror
     CXXFLAGS = -I. -Iinclude -I$(srcdir)/include -DPTHREAD_KERNEL \
 		-g -O2
           LD = gld
