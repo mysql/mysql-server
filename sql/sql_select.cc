@@ -4837,7 +4837,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 /*****************************************************************************
 ** Remove calculation with tables that aren't yet read. Remove also tests
-** against fields that are read through key.
+** against fields that are read through key where the table is not a 
+** outer join table.
 ** We can't remove tests that are made against columns which are stored
 ** in sorted order.
 *****************************************************************************/
@@ -4853,7 +4854,8 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
     if (ref_item && ref_item->eq(right_item))
     {
       if (right_item->type() == Item::FIELD_ITEM)
-	return field->eq_def(((Item_field *) right_item)->field);
+	return (field->eq_def(((Item_field *) right_item)->field) &&
+		!field->table->maybe_null);
       if (right_item->const_item())
       {
 	// We can remove binary fields and numerical fields except float,

@@ -175,6 +175,12 @@ changequote([,])dnl
 	# hpux-9.03.mk seems to be missing; what should this be?
 	except="fork"
 	;;
+    powerpc-*-netbsd1.*)
+	name=powerpc-netbsd
+	sysincludes=netbsd-1.1
+	except="fork lseek ftruncate pipe fstat"
+	available_syscalls="sigprocmask sigaction sigsuspend"
+	;;
     sparc-*-sunos4.1.3* | sparc-*-sunos4.1.4*)
 	name=sparc-sunos-4.1.3
 	sysincludes=sunos-4.1.3

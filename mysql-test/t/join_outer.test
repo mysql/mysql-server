@@ -18,6 +18,7 @@ select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 select t1.*,t2.* from { oj t2 left outer join t1 on (t1.a=t2.a) };
 select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE t0.a=2;
 select t1.*,t2.* from t1 left join t2 using (a);
+select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
 select t1.*,t2.* from t1 left join t2 using (a,c);
 select t1.*,t2.* from t1 left join t2 using (c);
 select t1.*,t2.* from t1 natural left outer join t2;
