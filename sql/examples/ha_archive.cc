@@ -305,6 +305,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     share->use_count= 0;
     share->table_name_length= length;
     share->table_name= tmp_name;
+    share->delayed= FALSE;
     fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name,table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     strmov(share->table_name,table_name);
@@ -536,7 +537,11 @@ int ha_archive::write_row(byte * buf)
   pthread_mutex_lock(&share->mutex);
   written= gzwrite(share->archive_write, buf, table->reclength);
   DBUG_PRINT("ha_archive::get_row", ("Wrote %d bytes expected %d", written, table->reclength));
-  share->dirty= TRUE;
+  if (!delayed_insert)
+    share->dirty= TRUE;
+  else
+    share->delayed= TRUE;
+
   if (written != table->reclength)
     goto error;
   /*
@@ -594,6 +599,7 @@ int ha_archive::rnd_init(bool scan)
       {
         gzflush(share->archive_write, Z_SYNC_FLUSH);
         share->dirty= FALSE;
+        share->delayed= FALSE;
       }
       pthread_mutex_unlock(&share->mutex);
     }
@@ -628,9 +634,12 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
   if (read == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  /* If the record is the wrong size, the file is probably damaged */
+  /* If the record is the wrong size, the file is probably damaged, unless 
+    we are dealing with a delayed insert. In that case we can assume the file is ok,
+    but our row count doesn't match our data since the file has not been flushed.
+  */
   if ((ulong) read != table->reclength)
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(share->delayed ? HA_ERR_END_OF_FILE : HA_ERR_CRASHED_ON_USAGE);
 
   /* Calculate blob length, we use this for our buffer */
   for (field=table->blob_field; *field ; field++)
@@ -648,7 +657,7 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
     {
       read= gzread(file_to_read, last, size);
       if ((size_t) read != size)
-        DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+        DBUG_RETURN(share->delayed ? HA_ERR_END_OF_FILE : HA_ERR_CRASHED_ON_USAGE);
       (*field)->set_ptr(size, last);
       last += size;
     }
@@ -839,6 +848,11 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
                                        THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type)
 {
+  if (lock_type == TL_WRITE_DELAYED)
+    delayed_insert= TRUE;
+  else
+    delayed_insert= FALSE;
+
   if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) 
   {
     /* 
