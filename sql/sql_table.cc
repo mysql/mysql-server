@@ -1395,11 +1395,11 @@ mysql_rename_table(enum db_type base,
   {
     /* Table handler expects to get all file names as lower case */
     strmov(tmp_from, old_name);
-    my_casedn_str(system_charset_info, tmp_from);
+    my_casedn_str(files_charset_info, tmp_from);
     old_name= tmp_from;
 
     strmov(tmp_to, new_name);
-    my_casedn_str(system_charset_info, tmp_to);
+    my_casedn_str(files_charset_info, tmp_to);
     new_name= tmp_to;
   }
   my_snprintf(from, sizeof(from), "%s/%s/%s",
@@ -2514,10 +2514,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (lower_case_table_names != 2)
       {
-	my_casedn_str(system_charset_info, new_name_buff);
+	my_casedn_str(files_charset_info, new_name_buff);
 	new_alias= new_name;			// Create lower case table name
       }
-      my_casedn_str(system_charset_info, new_name);
+      my_casedn_str(files_charset_info, new_name);
     }
     if (new_db == db &&
 	!my_strcasecmp(table_alias_charset, new_name_buff, table_name))
@@ -2880,7 +2880,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	      current_pid, thd->thread_id);
   /* Safety fix for innodb */
   if (lower_case_table_names)
-    my_casedn_str(system_charset_info, tmp_name);
+    my_casedn_str(files_charset_info, tmp_name);
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment=table->comment;
