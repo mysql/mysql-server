@@ -2001,7 +2001,11 @@ lock_grant(
                 release it at the end of the SQL statement */
 
                 lock->trx->auto_inc_lock = lock;
-        }
+        } else if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+		ut_ad(lock_get_mode(lock) == LOCK_S
+			|| lock_get_mode(lock) == LOCK_X);
+		lock->trx->n_tables_locked++;
+	}
 
 #ifdef UNIV_DEBUG
 	if (lock_print_waits) {
@@ -2939,7 +2943,7 @@ retry:
 	}
 
 	if (ret == LOCK_VICTIM_IS_START) {
-		if (lock_get_type(lock) == LOCK_TABLE) {
+		if (lock_get_type(lock) & LOCK_TABLE) {
 			table = lock->un_member.tab_lock.table;
 			index = NULL;
 		} else {
@@ -3015,7 +3019,7 @@ lock_deadlock_recursive(
 	/* Look at the locks ahead of wait_lock in the lock queue */
 
 	for (;;) {
-		if (lock_get_type(lock) == LOCK_TABLE) {
+		if (lock_get_type(lock) & LOCK_TABLE) {
 
 			lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 		} else {
@@ -3347,7 +3351,9 @@ lock_table(
 				/* out: DB_SUCCESS, DB_LOCK_WAIT,
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
+				does nothing;
+				if LOCK_TABLE_EXP bits are set,
+				creates an explicit table lock */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
 	ulint		mode,	/* in: lock mode */
 	que_thr_t*	thr)	/* in: query thread */
@@ -3361,6 +3367,8 @@ lock_table(
 
 		return(DB_SUCCESS);
 	}
+
+	ut_ad(flags == 0 || flags == LOCK_TABLE_EXP);
 
 	trx = thr_get_trx(thr);
 
@@ -3390,7 +3398,12 @@ lock_table(
 		return(err);
 	}
 
-	lock_table_create(table, mode, trx);
+	lock_table_create(table, mode | flags, trx);
+
+	if (flags) {
+		ut_ad(mode == LOCK_S || mode == LOCK_X);
+		trx->n_tables_locked++;
+	}
 
 	lock_mutex_exit_kernel();
 
@@ -3471,7 +3484,8 @@ lock_table_dequeue(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(lock_get_type(in_lock) == LOCK_TABLE);
+	ut_ad(lock_get_type(in_lock) == LOCK_TABLE ||
+		lock_get_type(in_lock) == LOCK_TABLE_EXP);
 
 	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
 
@@ -3494,6 +3508,22 @@ lock_table_dequeue(
 }	
 
 /*=========================== LOCK RELEASE ==============================*/
+
+/*************************************************************************
+Releases a table lock.
+Releases possible other transactions waiting for this lock. */
+
+void
+lock_table_unlock(
+/*==============*/
+	lock_t*	lock)	/* in: lock */
+{
+	mutex_enter(&kernel_mutex);
+
+	lock_table_dequeue(lock);
+
+	mutex_exit(&kernel_mutex);
+}
 
 /*************************************************************************
 Releases an auto-inc lock a transaction possibly has on a table.
@@ -3542,7 +3572,7 @@ lock_release_off_kernel(
 			
 			lock_rec_dequeue_from_page(lock);
 		} else {
-			ut_ad(lock_get_type(lock) == LOCK_TABLE);
+			ut_ad(lock_get_type(lock) & LOCK_TABLE);
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && 0 != ut_dulint_cmp(trx->undo_no,
@@ -3559,6 +3589,11 @@ lock_release_off_kernel(
 			}
 
 			lock_table_dequeue(lock);
+			if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+				ut_ad(lock_get_mode(lock) == LOCK_S
+					|| lock_get_mode(lock) == LOCK_X);
+				trx->n_tables_locked--;
+			}
 		}
 
 		if (count == LOCK_RELEASE_KERNEL_INTERVAL) {
@@ -3578,6 +3613,73 @@ lock_release_off_kernel(
 	mem_heap_empty(trx->lock_heap);
 
 	ut_a(trx->auto_inc_lock == NULL);
+	ut_a(trx->n_tables_locked == 0);
+}
+
+/*************************************************************************
+Releases table locks, and releases possible other transactions waiting
+because of these locks. */
+
+void
+lock_release_tables_off_kernel(
+/*===========================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	dict_table_t*	table;
+	ulint		count;
+	lock_t*		lock;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	lock = UT_LIST_GET_LAST(trx->trx_locks);
+
+	count = 0;
+
+	while (lock != NULL) {
+
+		count++;
+
+		if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+			ut_ad(lock_get_mode(lock) == LOCK_S
+				|| lock_get_mode(lock) == LOCK_X);
+			if (trx->insert_undo || trx->update_undo) {
+
+				/* The trx may have modified the table.
+				We block the use of the MySQL query
+				cache for all currently active
+				transactions. */
+
+				table = lock->un_member.tab_lock.table;
+
+				table->query_cache_inv_trx_id =
+							trx_sys->max_trx_id;
+			}
+
+			lock_table_dequeue(lock);
+			trx->n_tables_locked--;
+			lock = UT_LIST_GET_LAST(trx->trx_locks);
+			continue;
+		}
+
+		if (count == LOCK_RELEASE_KERNEL_INTERVAL) {
+			/* Release the kernel mutex for a while, so that we
+			do not monopolize it */
+
+			lock_mutex_exit_kernel();
+
+			lock_mutex_enter_kernel();
+
+			count = 0;
+		}
+
+		lock = UT_LIST_GET_PREV(trx_locks, lock);
+	}
+
+	mem_heap_empty(trx->lock_heap);
+
+	ut_a(trx->n_tables_locked == 0);
 }
 
 /*************************************************************************
@@ -3597,7 +3699,7 @@ lock_cancel_waiting_and_release(
 			
 		lock_rec_dequeue_from_page(lock);
 	} else {
-		ut_ad(lock_get_type(lock) == LOCK_TABLE);
+		ut_ad(lock_get_type(lock) & LOCK_TABLE);
 
 		lock_table_dequeue(lock);
 	}
@@ -3638,7 +3740,7 @@ lock_reset_all_on_table_for_trx(
 			ut_a(!lock_get_wait(lock));
 			
 			lock_rec_discard(lock);
-		} else if (lock_get_type(lock) == LOCK_TABLE
+		} else if (lock_get_type(lock) & LOCK_TABLE
 				&& lock->un_member.tab_lock.table == table) {
 
 			ut_a(!lock_get_wait(lock));
@@ -3690,8 +3792,12 @@ lock_table_print(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(lock_get_type(lock) == LOCK_TABLE);
+	ut_a(lock_get_type(lock) == LOCK_TABLE ||
+		lock_get_type(lock) == LOCK_TABLE_EXP);
 
+	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+		fputs("EXPLICIT ", file);
+	}
 	fputs("TABLE LOCK table ", file);
 	ut_print_name(file, lock->un_member.tab_lock.table->name);
 	fprintf(file, " trx id %lu %lu",
@@ -4012,7 +4118,7 @@ loop:
 		
 		lock_rec_print(file, lock);
 	} else {
-		ut_ad(lock_get_type(lock) == LOCK_TABLE);
+		ut_ad(lock_get_type(lock) & LOCK_TABLE);
 	
 		lock_table_print(file, lock);
 	}
@@ -4293,7 +4399,7 @@ lock_validate(void)
 		lock = UT_LIST_GET_FIRST(trx->trx_locks);
 		
 		while (lock) {
-			if (lock_get_type(lock) == LOCK_TABLE) {
+			if (lock_get_type(lock) & LOCK_TABLE) {
 	
 				lock_table_queue_validate(
 					lock->un_member.tab_lock.table);

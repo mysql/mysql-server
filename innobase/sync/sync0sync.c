@@ -531,7 +531,7 @@ void
 mutex_get_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char**		file_name,	/* out: file where requested */
+	const char**	file_name,	/* out: file where requested */
 	ulint*		line,		/* out: line where requested */
 	os_thread_id_t* thread_id)	/* out: id of the thread which owns
 					the mutex */
@@ -590,7 +590,7 @@ mutex_list_print_info(void)
 /*=======================*/
 {
 	mutex_t*	mutex;
-	char*		file_name;
+	const char*	file_name;
 	ulint		line;
 	os_thread_id_t	thread_id;
 	ulint		count		= 0;
@@ -788,7 +788,7 @@ sync_thread_levels_g(
 
 					if (mutex_get_lock_word(mutex) != 0) {
 #ifdef UNIV_SYNC_DEBUG
-						char*		file_name;
+						const char*	file_name;
 						ulint		line;
 						os_thread_id_t	thread_id;
 

@@ -1176,7 +1176,7 @@ field_list_item:
          ;
 
 column_def:
-	  field_spec check_constraint
+	  field_spec opt_check_constraint
 	| field_spec references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
@@ -1208,15 +1208,23 @@ key_def:
 				    lex->fk_match_option));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
+	| constraint opt_check_constraint
+	  {
+	    Lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
 	| opt_constraint check_constraint
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	;
 
-check_constraint:
+opt_check_constraint:
 	/* empty */
-	| CHECK_SYM expr
+	| check_constraint
+	;
+
+check_constraint:
+	CHECK_SYM expr
 	;
 
 opt_constraint:

@@ -618,7 +618,6 @@ sync_array_detect_deadlock(
 	rw_lock_t*	lock;
 	os_thread_id_t	thread;
 	ibool		ret;
-	rw_lock_t*	lock;
 	rw_lock_debug_t*debug;
 	
         ut_a(arr && start && cell);

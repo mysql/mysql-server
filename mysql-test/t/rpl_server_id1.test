@@ -1,0 +1,23 @@
+# This test checks that a slave does not execute queries originating
+# from itself, by default.
+
+source include/master-slave.inc;
+connection slave;
+drop table if exists t1;
+create table t1 (n int);
+reset master;
+# replicate ourselves
+stop slave;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval change master to master_port=$SLAVE_MYPORT;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 18 #
+show slave status;
+start slave;
+insert into t1 values (1);
+# can't MASTER_POS_WAIT(), it does not work in this weird setup
+# (when slave is its own master without --replicate-same-server-id)
+sleep 2; # enough time for the event to be replicated (it should not)
+show status like "slave_running";
+select * from t1;
+drop table t1;

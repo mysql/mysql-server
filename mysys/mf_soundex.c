@@ -52,7 +52,7 @@ void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 
   if (remove_garbage)
   {
-    while (*in_pntr && my_isspace(cs,*in_pntr))	/* Skipp pre-space */
+    while (*in_pntr && !my_isalpha(cs,*in_pntr)) /* Skipp pre-space */
       in_pntr++;
   }
   *out_pntr++ = map[(uchar)*in_pntr];	/* Copy first letter		 */
@@ -98,7 +98,7 @@ static char get_scode(CHARSET_INFO * cs,char **ptr, pbool remove_garbage)
   ch=my_toupper(cs,**ptr);
   if (ch < 'A' || ch > 'Z')
   {
-    if (my_isalpha(cs,ch))		/* If exetended alfa (country spec) */
+    if (my_isalpha(cs,ch))		/* If extended alfa (country spec) */
       return '0';			/* threat as vokal */
     return 0;				/* Can't map */
   }
