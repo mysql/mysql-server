@@ -65,7 +65,7 @@ dict_hdr_get_new_id(
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	id = mtr_read_dulint(dict_hdr + type, MLOG_8BYTES, &mtr); 
+	id = mtr_read_dulint(dict_hdr + type, &mtr); 
 
 	/* Add some dummy code here because otherwise pgcc seems to
 	compile wrong */
@@ -76,7 +76,7 @@ dict_hdr_get_new_id(
 
 	id = ut_dulint_add(id, 1);
 	
-	mlog_write_dulint(dict_hdr + type, id, MLOG_8BYTES, &mtr); 
+	mlog_write_dulint(dict_hdr + type, id, &mtr); 
 
 	mtr_commit(&mtr);
 
@@ -105,7 +105,7 @@ dict_hdr_flush_row_id(void)
 
 	dict_hdr = dict_hdr_get(&mtr);
 	
-	mlog_write_dulint(dict_hdr + DICT_HDR_ROW_ID, id, MLOG_8BYTES, &mtr); 
+	mlog_write_dulint(dict_hdr + DICT_HDR_ROW_ID, id, &mtr); 
 
 	mtr_commit(&mtr);
 }				
@@ -141,20 +141,16 @@ dict_hdr_create(
 	/* Start counting row, table, index, and tree ids from
 	DICT_HDR_FIRST_ID */
 	mlog_write_dulint(dict_header + DICT_HDR_ROW_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	mlog_write_dulint(dict_header + DICT_HDR_TABLE_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	mlog_write_dulint(dict_header + DICT_HDR_MIX_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	/* Create the B-tree roots for the clustered indexes of the basic
 	system tables */
@@ -250,7 +246,7 @@ dict_boot(void)
 	dict_sys->row_id = ut_dulint_add(
 			     ut_dulint_align_up(
 				mtr_read_dulint(dict_hdr + DICT_HDR_ROW_ID,
-							MLOG_8BYTES, &mtr),
+							&mtr),
 				DICT_HDR_ROW_ID_WRITE_MARGIN),
 			     DICT_HDR_ROW_ID_WRITE_MARGIN);
 
