@@ -386,9 +386,9 @@ try_again:
 
 	file = CreateFile(name,
 			access,
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-					/* file can be read and written
-					also by other processes */
+			FILE_SHARE_READ,
+					/* file can be read also by other
+					processes */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -526,9 +526,14 @@ try_again:
 	file = CreateFile(name,
 			GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-					/* file can be read and written
-					also by other processes */
+			FILE_SHARE_READ,/* File can be read also by other
+					processes; we must give the read
+					permission because of ibbackup. We do
+					not give the write permission to
+					others because if one would succeed to
+					start 2 instances of mysqld on the
+					SAME files, that could cause severe
+					database corruption! */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
