@@ -4977,7 +4977,7 @@ the SQL statement in case of an error. */
 int
 ha_innobase::external_lock(
 /*=======================*/
-			        /* out: 0 or HA_ERR_CRASHED */
+			        /* out: 0 */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
