@@ -187,34 +187,31 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 
   for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
   {
-    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
-    {
-      JOIN *join= new JOIN(thd, sl->item_list, 
-			   sl->options | thd->options | SELECT_NO_UNLOCK,
-			   union_result);
-      thd->lex.current_select= sl;
-      offset_limit_cnt= sl->offset_limit;
-      select_limit_cnt= sl->select_limit+sl->offset_limit;
-      if (select_limit_cnt < sl->select_limit)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
-      if (select_limit_cnt == HA_POS_ERROR || sl->braces)
-	sl->options&= ~OPTION_FOUND_ROWS;
-      
-      res= join->prepare(&sl->ref_pointer_array,
-			 (TABLE_LIST*) sl->table_list.first, sl->with_wild,
-			 sl->where,
-			 ((sl->braces) ? sl->order_list.elements : 0) +
-			 sl->group_list.elements,
-			 (sl->braces) ? 
-			 (ORDER *)sl->order_list.first : (ORDER *) 0,
-			 (ORDER*) sl->group_list.first,
-			 sl->having,
-			 (ORDER*) NULL,
-			 sl, this, t_and_f);
-      t_and_f= 0;
-      if (res || thd->is_fatal_error)
-	goto err;
-    }
+    JOIN *join= new JOIN(thd, sl->item_list, 
+			 sl->options | thd->options | SELECT_NO_UNLOCK,
+			 union_result);
+    thd->lex.current_select= sl;
+    offset_limit_cnt= sl->offset_limit;
+    select_limit_cnt= sl->select_limit+sl->offset_limit;
+    if (select_limit_cnt < sl->select_limit)
+      select_limit_cnt= HA_POS_ERROR;		// no limit
+    if (select_limit_cnt == HA_POS_ERROR || sl->braces)
+      sl->options&= ~OPTION_FOUND_ROWS;
+    
+    res= join->prepare(&sl->ref_pointer_array,
+		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
+		       sl->where,
+		       ((sl->braces) ? sl->order_list.elements : 0) +
+		       sl->group_list.elements,
+		       (sl->braces) ? 
+		       (ORDER *)sl->order_list.first : (ORDER *) 0,
+		       (ORDER*) sl->group_list.first,
+		       sl->having,
+		       (ORDER*) NULL,
+		       sl, this, t_and_f);
+    t_and_f= 0;
+    if (res || thd->is_fatal_error)
+      goto err;
   }
 
   item_list.empty();
