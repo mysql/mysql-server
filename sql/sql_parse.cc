@@ -303,14 +303,13 @@ static int check_for_max_user_connections(USER_CONN *uc)
 {
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
-  
+
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (max_user_connections &&
-      max_user_connections <= uc->connections)
+      max_user_connections < uc->connections)
   {
     net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
-    uc->connections--;
     goto end;
   }
   if (uc->user_resources.connections &&
@@ -324,6 +323,8 @@ static int check_for_max_user_connections(USER_CONN *uc)
   }
   uc->conn_per_hour++;
 end:
+  if (error)
+    uc->connections--; // no need for decrease_user_connections() here
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
