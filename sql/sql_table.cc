@@ -48,6 +48,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   bool some_tables_deleted=0;
   uint error;
   db_type table_type;
+  TABLE_LIST *table;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -59,22 +60,22 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
   if(global_read_lock)
+  {
+    if(thd->global_read_lock)
     {
-      if(thd->global_read_lock)
-	{
-   	 my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
-		 tables->real_name);
-         error = 1;
-	 goto err;
-	}
-      while (global_read_lock && ! thd->killed)
-      {
-	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-      }
-
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
+	       tables->real_name);
+      error = 1;
+      goto err;
     }
+    while (global_read_lock && ! thd->killed)
+    {
+      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    }
+
+  }
   
-  for (TABLE_LIST *table=tables ; table ; table=table->next)
+  for (table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
     if (!close_temporary_table(thd, db, table->real_name))

@@ -19,13 +19,24 @@ mysqlhotcopy - fast on-line hot-backup utility for local MySQL databases
 
   mysqlhotcopy db_name_1 ... db_name_n /path/to/new_directory
 
+  mysqlhotcopy db_name./regex/
+
+  mysqlhotcopy db_name./^\(foo\|bar\)/
+
+  mysqlhotcopy db_name./~regex/
+
+  mysqlhotcopy db_name_1./regex_1/ db_name_1./regex_2/ ... db_name_n./regex_n/ /path/to/new_directory
+
+  mysqlhotcopy --method='scp -Bq -i /usr/home/foo/.ssh/identity' --user=root --password=secretpassword \
+         db_1./^nice_table/ user@some.system.dom:~/path/to/new_directory
+
 WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 =cut
 
 # Documentation continued at end of file
 
-my $VERSION = "1.7";
+my $VERSION = "1.8";
 
 my $OPTIONS = <<"_OPTIONS";
 
@@ -39,7 +50,7 @@ Usage: $0 db_name [new_db_name | directory]
 
   --allowold           don't abort if target already exists (rename it _old)
   --keepold            don't delete previous (now renamed) target when done
-  --noindices          don't copy index files
+  --indices            include index files in copy
   --method=#           method for copy (only "cp" currently supported)
 
   -q, --quiet          be silent except for errors
@@ -50,6 +61,8 @@ Usage: $0 db_name [new_db_name | directory]
   --suffix=#           suffix for names of copied databases
   --checkpoint=#       insert checkpoint entry into specified db.table
   --flushlog           flush logs once all tables are locked 
+
+  Try 'perldoc $0 for more complete documentation'
 _OPTIONS
 
 sub usage {
@@ -89,23 +102,26 @@ GetOptions( \%opt,
 # ==========
 # a list of hash-refs containing:
 #
-#   'src'    - name of the db to copy
-#   'target' - destination directory of the copy
-#   'tables' - array-ref to list of tables in the db
-#   'files'  - array-ref to list of files to be copied
+#   'src'     - name of the db to copy
+#   't_regex' - regex describing tables in src
+#   'target'  - destination directory of the copy
+#   'tables'  - array-ref to list of tables in the db
+#   'files'   - array-ref to list of files to be copied
 #
 
 my @db_desc = ();
 my $tgt_name = undef;
-  
+
 if ( $opt{regexp} || $opt{suffix} || @ARGV > 2 ) {
     $tgt_name   = pop @ARGV unless ( exists $opt{suffix} );
-    @db_desc = map { { 'src' => $_ } } @ARGV;
+    @db_desc = map { s{^([^\.]+)\./(.+)/$}{$1}; { 'src' => $_, 't_regex' => ( $2 ? $2 : '.*' ) } } @ARGV;
 }
 else {
     usage("Database name to hotcopy not specified") unless ( @ARGV );
 
-    @db_desc = ( { 'src' => $ARGV[0] } );
+    $ARGV[0] =~ s{^([^\.]+)\./(.+)/$}{$1};
+    @db_desc = ( { 'src' => $ARGV[0], 't_regex' => ( $2 ? $2 : '.*' ) } );
+
     if ( @ARGV == 2 ) {
 	$tgt_name   = $ARGV[1];
     }
@@ -195,15 +211,35 @@ foreach my $rdb ( @db_desc ) {
     die "Database '$db' not accessible: $@"  if ( $@ );
     my @dbh_tables = $dbh->func( '_ListTables' );
 
+    ## generate regex for tables/files
+    my $t_regex = $rdb->{t_regex};        ## assign temporary regex
+    my $negated = $t_regex =~ tr/~//d;    ## remove and count negation operator: we don't allow ~ in table names
+    $t_regex = qr/$t_regex/;              ## make regex string from user regex
+
+    ## filter (out) tables specified in t_regex
+    print "Filtering tables with '$t_regex'\n" if $opt{debug};
+    @dbh_tables = ( $negated 
+		    ? grep { $_ !~ $t_regex } @dbh_tables 
+		    : grep { $_ =~ $t_regex } @dbh_tables );
+
+    ## get list of files to copy
     my $db_dir = "$datadir/$db";
     opendir(DBDIR, $db_dir ) 
       or die "Cannot open dir '$db_dir': $!";
- 
-    my @db_files = grep { /.+\.\w+$/ } readdir(DBDIR)
-      or warn "'$db' is an empty database\n";
 
+    my %db_files;
+    map { ( /(.+)\.\w+$/ ? { $db_files{$_} = $1 } : () ) } readdir(DBDIR);
+    unless( keys %db_files ) {
+	warn "'$db' is an empty database\n";
+    }
     closedir( DBDIR );
 
+    ## filter (out) files specified in t_regex
+    my @db_files = sort ( $negated 
+			  ? grep { $db_files{$_} !~ $t_regex } keys %db_files
+			  : grep { $db_files{$_} =~ $t_regex } keys %db_files );
+
+    ## remove indices unless we're told to keep them
     unless ($opt{indices}) {
 	@db_files = grep { not /\.(ISM|MYI)$/ } @db_files;
     }
@@ -238,6 +274,12 @@ if (length $tgt_name ) {
 	$rdb->{target} = "$tgt_dirname";
       }
     }
+    elsif ($opt{method} =~ /^scp\b/) 
+    {   # we have to trust scp to hit the target
+	foreach my $rdb ( @db_desc ) {
+	    $rdb->{target} = "$tgt_dirname/$rdb->{src}";
+	}
+    }
     else
     {
       die "Last argument ($tgt_dirname) is not a directory\n"
@@ -249,7 +291,7 @@ if (length $tgt_name ) {
   }
 else {
   die "Error: expected \$opt{suffix} to exist" unless ( exists $opt{suffix} );
-  
+
   foreach my $rdb ( @db_desc ) {
     $rdb->{target} = "$datadir/$rdb->{src}$opt{suffix}";
   }
@@ -277,6 +319,10 @@ foreach my $rdb ( @db_desc ) {
     my $tgt_dirpath = $rdb->{target};
     if ( $opt{dryrun} ) {
 	print "mkdir $tgt_dirpath, 0750\n";
+    }
+    elsif ($opt{method} =~ /^scp\b/) {
+	## assume it's there?
+	## ...
     }
     else {
 	mkdir($tgt_dirpath, 0750)
@@ -320,26 +366,26 @@ else {
     printf "Flushed tables ($hc_tables) in %d seconds.\n", time-$start unless $opt{quiet};
     $dbh->do( "FLUSH LOGS" ) if ( $opt{flushlog} );
 }
-    
+
 my @failed = ();
 
 foreach my $rdb ( @db_desc ) {
     my @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{files}};
     next unless @files;
     eval { copy_files($opt{method}, \@files, $rdb->{target} ); };
-    
+
     push @failed, "$rdb->{src} -> $rdb->{target} failed: $@"
       if ( $@ );
-    
+
     if ( $opt{checkpoint} ) {
 	my $msg = ( $@ ) ? "Failed: $@" : "Succeeded";
-	
+
 	eval {
 	    $dbh->do( qq{ insert into $opt{checkpoint} (src, dest, msg) 
 			  VALUES ( '$rdb->{src}', '$rdb->{target}', '$msg' )
 			} ); 
 	};
-	
+
 	if ( $@ ) {
 	    warn "Failed to update checkpoint table: $@\n";
 	}
@@ -410,11 +456,16 @@ sub copy_files {
     my ($method, $files, $target) = @_;
     my @cmd;
     print "Copying ".@$files." files...\n" unless $opt{quiet};
+
     if ($method =~ /^s?cp\b/) { # cp or scp with optional flags
 	@cmd = ($method);
 	# add option to preserve mod time etc of copied files
 	# not critical, but nice to have
-	push @cmd, "-p" if $^O =~ m/^(solaris|linux)$/;
+	push @cmd, "-p" if $^O =~ m/^(solaris|linux|freebsd)$/;
+
+	# add recursive option for scp
+	push @cmd, "-r" if $^O =~ /m^(solaris|linux|freebsd)$/ && $method =~ /^scp\b/;
+
 	# add files to copy and the destination directory
 	push @cmd, @$files, $target;
     }
@@ -427,10 +478,13 @@ sub copy_files {
 	next;
     }
 
+    ## for some reason system fails but backticks works ok for scp...
     print "Executing '@cmd'\n" if $opt{debug};
     my $cp_status = system @cmd;
     if ($cp_status != 0) {
-	die "Error: @cmd failed ($cp_status) while copying files.\n";
+	warn "Burp ('scuse me). Trying backtick execution...\n" if $opt{debug}; #'
+	## try something else
+	`@cmd` && die "Error: @cmd failed ($cp_status) while copying files.\n";
     }
 }
 
@@ -520,7 +574,22 @@ locked, and before they are copied.
 
 =item --regexp pattern
 
-Copy all databases with names matching the pattern.  
+Copy all databases with names matching the pattern
+
+=item db_name./pattern/
+
+Copy only tables matching pattern. Shell metacharacters ( (, ), |, !,
+etc.) have to be escaped (e.g. \). For example, to select all tables
+in database db1 whose names begin with 'foo' or 'bar':
+
+    mysqlhotcopy --indices --method=cp db1./^\(foo\|bar\)/
+
+=item db_name./~pattern/
+
+Copy only tables not matching pattern. For example, to copy tables
+that do not begin with foo nor bar:
+
+    mysqlhotcopy --indices --method=cp db1./~^\(foo\|bar\)/
 
 =item -?, --help
 
@@ -542,13 +611,25 @@ port to use when connecting to local server
 
 UNIX domain socket to use when connecting to local server
 
-=item  --noindices          
+=item  --indices          
 
-don't copy index files
+include index files in copy
 
 =item  --method=#           
 
-method for copy (only "cp" currently supported)
+method for copy (only "cp" currently supported). Alpha support for
+"scp" was added in November 2000. Your experience with the scp method
+will vary with your ability to understand how scp works. 'man scp'
+and 'man ssh' are your friends.
+
+The destination directory _must exist_ on the target machine using
+the scp method. Liberal use of the --debug option will help you figure
+out what's really going on when you do an scp.
+
+Note that using scp will lock your tables for a _long_ time unless
+your network connection is _fast_. If this is unacceptable to you,
+use the 'cp' method to copy the tables to some temporary area and then
+scp or rsync the files at your leisure.
 
 =item -q, --quiet              
 
@@ -575,12 +656,8 @@ Patches adding bug fixes, documentation and new features are welcome.
 
 =head1 TO DO
 
-Allow a list of tables (or regex) to be given on the command line to
-enable a logically-related subset of the tables to be hot-copied
-rather than force the whole db to be copied in one go.
-
-Extend the above to allow multiple subsets of tables to be specified
-on the command line:
+Extend the individual table copy to allow multiple subsets of tables
+to be specified on the command line:
 
   mysqlhotcopy db newdb  t1 t2 /^foo_/ : t3 /^bar_/ : +
 
@@ -609,5 +686,6 @@ Tim Bunce
 
 Martin Waite - added checkpoint, flushlog, regexp and dryrun options
 
-Ralph Corderoy - Added synonyms for commands
-=cut
+Ralph Corderoy - added synonyms for commands
+
+Scott Wiersdorf - added table regex and scp support
