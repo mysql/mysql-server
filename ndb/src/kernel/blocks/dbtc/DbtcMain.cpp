@@ -6480,7 +6480,6 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 /*      Timeout has occured on a fragment which means a scan has timed out. */
 /*      If this is true we have an error in LQH/ACC.                        */
 /*--------------------------------------------------------------------------*/
-static int kalle = 0;
 void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 {
   ScanFragRecPtr ptr;
@@ -6520,10 +6519,6 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
       run.remove(ptr);
       comp.add(ptr);
       ptr.p->stopFragTimer();
-    } else {
-      kalle++;
-      if(kalle > 5)
-	ndbassert(scanptr.p->scanState != ScanRecord::CLOSING_SCAN);
     }
     
     scanError(signal, scanptr, ZSCAN_FRAG_LQH_ERROR);
