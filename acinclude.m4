@@ -520,7 +520,8 @@ fi
 
 AC_DEFUN(MYSQL_STACK_DIRECTION,
  [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
- [AC_TRY_RUN([find_stack_direction ()
+ [AC_TRY_RUN([#include <stdlib.h>
+ int find_stack_direction ()
  {
    static char *addr = 0;
    auto char dummy;
@@ -532,7 +533,7 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
    else
      return (&dummy > addr) ? 1 : -1;
  }
- main ()
+ int main ()
  {
    exit (find_stack_direction() < 0);
  }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
@@ -1152,3 +1153,33 @@ AC_DEFUN(MYSQL_SYS_LARGEFILE,
 	esac])
    fi
   ])
+
+# Local version of _AC_PROG_CXX_EXIT_DECLARATION that does not
+# include #stdlib.h as this breaks things on Solaris
+# (Conflicts with pthreads and big file handling)
+
+m4_define([_AC_PROG_CXX_EXIT_DECLARATION],
+[for ac_declaration in \
+   ''\
+   'extern "C" void std::exit (int) throw (); using std::exit;' \
+   'extern "C" void std::exit (int); using std::exit;' \
+   'extern "C" void exit (int) throw ();' \
+   'extern "C" void exit (int);' \
+   'void exit (int);'
+do
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <stdlib.h>
+$ac_declaration],
+                                      [exit (42);])],
+                     [],
+                     [continue])
+  _AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$ac_declaration],
+                                      [exit (42);])],
+                     [break])
+done
+rm -f conftest*
+if test -n "$ac_declaration"; then
+  echo '#ifdef __cplusplus' >>confdefs.h
+  echo $ac_declaration      >>confdefs.h
+  echo '#endif'             >>confdefs.h
+fi
+])# _AC_PROG_CXX_EXIT_DECLARATION
