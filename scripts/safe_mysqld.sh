@@ -28,10 +28,13 @@ parse_arguments() {
       --socket=*)   MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
       --port=*)     MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
       --log=*)      log=`echo "$arg" | sed -e "s;--log=;;"` ;;
-      --err-log=*)  err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
       --basedir=*)  MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
-      --ledir=*)    ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
       --user=*)     user=`echo "$arg" | sed -e "s;--user=;;"` ;;
+      --ledir=*)    ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
+      --err-log=*)  err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
+      --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
+      --core-file-size*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
+      --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
     esac
   done
 }
@@ -105,6 +108,14 @@ if test -w /
 then
   # If we are root, change the err log to the right user.
   touch $err_log; chown $user $err_log
+  if test -n "$open_files"
+  then
+    ulimit -n $open_files
+  fi
+  if test -n "$core_file_size"
+  then
+    ulimit -c $core_file_size
+  fi
 fi
 
 #

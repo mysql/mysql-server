@@ -373,6 +373,7 @@ MySQL Language Reference
 * ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
+* TRUNCATE::                    
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
 * INSERT::                      @code{INSERT} syntax
@@ -591,6 +592,7 @@ Speed of queries that access or update data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
+* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -813,7 +815,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
-* News-3.23.28::                
+* News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
@@ -2002,6 +2004,8 @@ Hands on tutorial for @strong{MySQL}.
 The Mac OS Xclave. Running @strong{MySQL} on Mac OS X
 @item @uref{http://www.prnet.de/RegEx/mysql.html}@*
 MySQL for Mac OS X Server.
+@item @uref{http://www.latencyzero.com/macosx/mysql.html}@*
+Bulding MySQL for Mac OS X
 @item @uref{http://www.lilback.com/macsql/}@*
 Client libraries for the Macintosh.
 @end itemize
@@ -4895,6 +4899,8 @@ You can start the @strong{MySQL} server with the following command:
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
+@xref{safe_mysqld}.
+
 @xref{Post-installation}.
 
 @cindex RPM file
@@ -6605,7 +6611,7 @@ table. @xref{Crashing}.
 To get a core dump on Linux if mysqld dies with a SIGSEGV
 signal, you can start mysqld with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
-@code{ulimit -c 1000000} to @code{safe_mysqld}.
+@code{ulimit -c 1000000} to @code{safe_mysqld}. @xref{safe_mysqld}.
 
 If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
 you must upgrade to LinuxThreads Version 0.7.1 or newer.
@@ -6967,6 +6973,7 @@ shell> nohup mysqld [options] &
 @code{nohup} causes the command following it to ignore any @code{SIGHUP}
 signal sent from the terminal.  Alternatively, start the server by running
 @code{safe_mysqld}, which invokes @code{mysqld} using @code{nohup} for you.
+@xref{safe_mysqld}.
 
 If you get a problem when compiling mysys/get_opt.c, just remove the
 line #define _NO_PROTO from the start of that file!
@@ -7221,7 +7228,7 @@ FreeBSD is also known to have a very low default file handle limit.
 safe_mysqld or raise the limits for the mysqld user in /etc/login.conf
 (and rebuild it witg cap_mkdb /etc/login.conf.) Also be sure you set the
 appropriate class for this user in the password file if you are not
-using the default (use: chpass mysqld-user-name)
+using the default (use: chpass mysqld-user-name). @xref{safe_mysqld}.
 
 If you get problems with the current date in @strong{MySQL}, setting the
 @code{TZ} variable will probably help. @xref{Environment variables}.
@@ -7308,7 +7315,7 @@ You can change the directory locations if you wish, or just use the
 defaults by not specifying any locations.
 
 If you have problems with performance under heavy load, try using the
-@code{--skip-thread-priority} option to @code{safe_mysqld}!  This will run
+@code{--skip-thread-priority} option to @code{mysqld}!  This will run
 all threads with the same priority; on BSDI Version 3.1, this gives better
 performance (at least until BSDI fixes their thread scheduler).
 
@@ -8466,6 +8473,7 @@ mysqld: Can't find file: 'host.frm'
 
 The above may also happen with a binary @strong{MySQL} distribution if you
 don't start @strong{MySQL} by executing exactly @code{./bin/safe_mysqld}!
+@xref{safe_mysqld}.
 
 You might need to run @code{mysql_install_db} as @code{root}.  However,
 if you prefer, you can run the @strong{MySQL} server as an unprivileged
@@ -8779,7 +8787,7 @@ system startup and shutdown, and is described more fully in
 @ref{Automatic start}.
 @item
 By invoking @code{safe_mysqld}, which tries to determine the proper options
-for @code{mysqld} and then runs it with those options.
+for @code{mysqld} and then runs it with those options. @xref{safe_mysqld}.
 @item
 On NT you should install @code{mysqld} as a service as follows:
 @example
@@ -8874,47 +8882,6 @@ the command @code{telnet your-host-name tcp-ip-port-number} and press
 @code{telnet: Unable to connect to remote host: Connection refused},
 something is using the TCP/IP port @code{mysqld} is trying to use.
 See @ref{mysql_install_db} and @ref{Multiple servers}.
-
-The @code{safe_mysqld} script is written so that it normally is able to start
-a server that was installed from either a source or a binary version of
-@strong{MySQL}, even if these install the server in slightly different
-locations.  @code{safe_mysqld} expects one of these conditions to be true:
-
-@itemize @bullet
-@item
-The server and databases can be found relative to the directory from which
-@code{safe_mysqld} is invoked.  @code{safe_mysqld} looks under its working
-directory for @file{bin} and @file{data} directories (for binary
-distributions) or for @file{libexec} and @file{var} directories (for source
-distributions).  This condition should be met if you execute
-@code{safe_mysqld} from your @strong{MySQL} installation directory (for
-example, @file{/usr/local/mysql} for a binary distribution).
-
-@item
-If the server and databases cannot be found relative to the working directory,
-@code{safe_mysqld} attempts to locate them by absolute pathnames.  Typical
-locations are @file{/usr/local/libexec} and @file{/usr/local/var}.
-The actual locations are determined when the distribution was built from which
-@code{safe_mysqld} comes.  They should be correct if
-@strong{MySQL} was installed in a standard location.
-@end itemize
-
-Because @code{safe_mysqld} will try to find the server and databases relative
-to its own working directory, you can install a binary distribution of
-@strong{MySQL} anywhere, as long as you start @code{safe_mysqld} from the
-@strong{MySQL} installation directory:
-
-@example
-shell> cd mysql_installation_directory
-shell> bin/safe_mysqld &
-@end example
-
-If @code{safe_mysqld} fails, even when invoked from the @strong{MySQL}
-installation directory, you can modify it to use the path to @code{mysqld}
-and the pathname options that are correct for your system.  Note that if you
-upgrade @strong{MySQL} in the future, your modified version of
-@code{safe_mysqld} will be overwritten, so you should make a copy of your
-edited version that you can reinstall.
 
 If @code{mysqld} is currently running, you can find out what path settings
 it is using by executing this command:
@@ -9015,7 +8982,7 @@ The @code{mysql.server} script uses the following variables:
 @findex command-line options
 @cindex options, command-line
 @node Command-line options, Option files, Automatic start, Post-installation
-@subsection Command-line Options
+@subsection mysqld command-line options
 
 @code{mysqld} accepts the following command-line options:
 
@@ -10059,6 +10026,7 @@ The following will not yet work in @strong{MySQL}:
 @example
 SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);
 SELECT * FROM table1 WHERE id NOT IN (SELECT id FROM table2);
+SELECT * FROM table1 WHERE NOT EXISTS (SELECT id FROM table2 where table1.id=table2.id);
 @end example
 
 However, in many cases you can rewrite the query without a sub-select:
@@ -10338,6 +10306,11 @@ unless you do so in a very specific order.
 It's very easy to do ``allowed'' circular definitions that make the
 tables impossible to re-create each table with a single create statement,
 even if the definition works and is usable.
+
+@item
+It's very easy to overlook @code{FOREIGN KEY ... ON DELETE} rules when
+one codes an application. It's not unusual that one loses a lot of
+important information just because a wrong or misused @code{ON DELETE} rule.
 @end itemize
 
 The only nice aspect of @code{FOREIGN KEY} is that it gives ODBC and some
@@ -12562,6 +12535,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
+* TRUNCATE::                    
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
 * INSERT::                      @code{INSERT} syntax
@@ -15173,6 +15147,9 @@ mysql> select BINARY "a" = "A";
 @end example
 
 @code{BINARY} was introduced in @strong{MySQL} 3.23.0.
+
+Note that in some context @strong{MySQL} will not be able to use the
+index efficiently when you cast an indexed column to @code{BINARY}.
 @end table
 
 @findex control flow functions
@@ -17648,6 +17625,8 @@ alter_specification:
   or    ADD PRIMARY KEY (index_col_name,...)
   or    ADD UNIQUE [index_name] (index_col_name,...)
   or    ADD FULLTEXT [index_name] (index_col_name,...)
+  or	ADD [CONSTRAINT symbol] FOREIGN KEY index_name (index_col_name,...)
+            [reference_definition]
   or    ALTER [COLUMN] col_name @{SET DEFAULT literal | DROP DEFAULT@}
   or    CHANGE [COLUMN] old_col_name create_definition
   or    MODIFY [COLUMN] create_definition
@@ -17705,6 +17684,9 @@ INDEX} are @strong{MySQL} extensions to ANSI SQL92.
 
 @item
 @code{MODIFY} is an Oracle extension to @code{ALTER TABLE}.
+
+@item
+@code{TRUNCATE} is an Oracle extension. @xref{TRUNCATE}.
 
 @item
 The optional word @code{COLUMN} is a pure noise word and can be omitted.
@@ -18054,7 +18036,6 @@ as they are being backed up. If you want to backup several tables as
 a snapshot, you must first issue @code{LOCK TABLES} obtaining a read
 lock for each table in the group.
 
-
 The command returns a table with the following columns:
 
 @multitable @columnfractions .35 .65
@@ -18065,6 +18046,8 @@ The command returns a table with the following columns:
 @item Msg_text @tab The message.
 @end multitable
 
+Note that @code{BACKUP TABLE} is only available in @strong{MySQL}
+version 3.23.25 and later.
 
 @findex RESTORE TABLE
 @node RESTORE TABLE, ANALYZE TABLE, BACKUP TABLE, Reference
@@ -18163,7 +18146,7 @@ better than sorting on fixed length keys if you have long @code{char()}
 keys that compress very good.
 
 @findex DELETE
-@node DELETE, SELECT, REPAIR TABLE, Reference
+@node DELETE, TRUNCATE, REPAIR TABLE, Reference
 @section @code{DELETE} syntax
 
 @example
@@ -18175,14 +18158,10 @@ DELETE [LOW_PRIORITY] FROM tbl_name
 given by @code{where_definition}, and returns the number of records deleted.
 
 If you issue a @code{DELETE} with no @code{WHERE} clause, all rows are
-deleted.  If you do this in @code{AUTOCOMMIT} mode, @strong{MySQL} does
-this by recreating the table as an empty table, which is much faster
-than deleting each row.  In this case, @code{DELETE} returns zero as the
-number of affected records. (@strong{MySQL} can't return the number of
-rows that were actually deleted, because the recreate is done without
-opening the data files. As long as the table definition file
-@file{tbl_name.frm} is valid, the table can be recreated this way, even
-if the data or index files have become corrupted.).
+deleted.  If you do this in @code{AUTOCOMMIT} mode, this works as
+@code{TRUNCATE}. @xref{TRUNCATE}. One problem with this is that
+@code{DELETE} will return zero as the number of affected records, but
+this will be fixed in 4.0.
 
 If you really want to know how many records are deleted when you are deleting
 all rows, and are willing to suffer a speed penalty, you can use a
@@ -18213,8 +18192,34 @@ returned to the client.  This can be used to ensure that a specific
 the @code{DELETE} command until the number of affected rows is less than
 the @code{LIMIT} value.
 
+@findex TRUNCATE
+@node TRUNCATE, SELECT, DELETE, Reference
+@section @code{TRUNCATE} syntax
+
+@example
+TRUNCATE TABLE table_name
+@end example
+
+Is in 3.23 and the same thing as @code{DELETE FROM table_name}. @xref{DELETE}.
+The differences are:
+
+@table @bullet
+@item
+Implemented as a drop and recreate of the table, which makes this
+much faster when deleting many rows.
+@item
+Not transaction safe; @code{TRUNCATE} will automaticly end the current
+transaction as if @code{COMMIT} would have been called.
+@item
+Doesn't return the number of deleted rows.
+@item
+As long as the table definition file @file{table_name.frm} is
+valid, the table can be recreated this way, even if the data or index
+files have become corrupted..
+@end table
+
 @findex SELECT
-@node SELECT, JOIN, DELETE, Reference
+@node SELECT, JOIN, TRUNCATE, Reference
 @section @code{SELECT} syntax
 
 @c help SELECT
@@ -18855,6 +18860,9 @@ or  REPLACE [LOW_PRIORITY | DELAYED]
 record in the table has the same value as a new record on a unique index,
 the old record is deleted before the new record is inserted.
 @xref{INSERT, , @code{INSERT}}.
+
+In other words, you can't access the values of the old row from a
+@code{REPLACE} statement.
 
 @findex LOAD DATA INFILE
 @node LOAD DATA, UPDATE, REPLACE, Reference
@@ -19858,10 +19866,16 @@ call should have more details.  Check your OS documentation for the
 maximum value for this variable.  Attempting to set @code{back_log}
 higher than your operating system limit will be ineffective.
 
+@item @code{basedir}
+The value of the @code{--basedir} option.
+
 @item @code{bdb_cache_size}
 The buffer that is allocated to cache index and rows for @code{BDB} tables.
 If you don't use @code{BDB} tables, you should set this to 0 or
 start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
+
+@item @code{bdb_home}
+The value of the @code{--bdb-home} option.
 
 @item @code{bdb_lock_max}
 The maximum number of locks (1000 by default) you can have active on a BDB
@@ -19869,6 +19883,18 @@ table. You should increase this if you get errors of type
 @code{bdb: Lock table is out of available locks} when you have do long
 transactions or when mysqld has to examine a lot of rows to calculate
 the query.
+
+@item @code{bdb_logdir}
+The value of the @code{--bdb-logdir} option.
+
+@item @code{bdb_tmpdir}
+The value of the @code{--bdb-tmpdir} option.
+
+@item @code{character_set}
+The default character set.
+
+@item @code{character_sets}
+The supported character sets.
 
 @item @code{concurrent_inserts}
 If @code{ON} (the default), @strong{MySQL} will allow you to use @code{INSERT}
@@ -19880,14 +19906,8 @@ or @code{--skip-new}.
 The number of seconds the @code{mysqld} server is waiting for a connect
 packet before responding with @code{Bad handshake}.
 
-@item @code{delayed_insert_timeout}
-How long a @code{INSERT DELAYED} thread should wait for @code{INSERT}
-statements before terminating.
-
-@item @code{delayed_insert_limit}
-After inserting @code{delayed_insert_limit} rows, the @code{INSERT
-DELAYED} handler will check if there are any @code{SELECT} statements
-pending. If so, it allows these to execute before continuing.
+@item @code{datadir}
+The value of the @code{--datadir} option.
 
 @item @code{delay_key_write}
 If enabled (is on by default), @strong{MySQL} will honor the
@@ -19901,14 +19921,22 @@ option this means that all tables will be treated as if they were
 created with the @code{delay_key_write} option.  You can clear this flag
 by starting @code{mysqld} with @code{--skip-new} or @code{--safe-mode}.
 
+@item @code{delayed_insert_limit}
+After inserting @code{delayed_insert_limit} rows, the @code{INSERT
+DELAYED} handler will check if there are any @code{SELECT} statements
+pending. If so, it allows these to execute before continuing.
+
+@item @code{delayed_insert_timeout}
+How long a @code{INSERT DELAYED} thread should wait for @code{INSERT}
+statements before terminating.
+
 @item @code{delayed_queue_size}
 What size queue (in rows) should be allocated for handling @code{INSERT
 DELAYED}.  If the queue becomes full, any client that does @code{INSERT
 DELAYED} will wait until there is room in the queue again.
 
 @item @code{flush}
-This is @code{ON} if you have started @strong{MySQL} with the @code{--flush}
-option.
+This is @code{ON} if you started @code{mysqld} with @code{--flush}.
 
 @item @code{flush_time}
 If this is set to a non-zero value, then every @code{flush_time} seconds all
@@ -19961,13 +19989,34 @@ using @code{delay_key_write}. @xref{SHOW}.
 To get even more speed when writing many rows at the same time use
 @code{LOCK TABLES}.  @xref{LOCK TABLES, , @code{LOCK TABLES}}.
 
-@item @code{lower_case_table_names}
-Change all table names to lower case on disk.
+@item @code{language}
+The language used for error messages.
+
+@item @code{large_file_support}
+If @code{mysqld} was compiled with options for big file support.
+
+@item @code{locked_in_memory}
+If @code{mysqld} was locked in memory with @code{--memlock}
+
+@item @code{log}
+If logging of all queries is enabled.
+
+@item @code{log_update}
+If the update log is enabled.
+
+@item @code{log_bin}
+If the binary log is enabled.
+
+@item @code{log_slave_updates}
+If the updates from the slave should be logged.
 
 @item @code{long_query_time}
 If a query takes longer than this (in seconds), the @code{Slow_queries} counter
 will be incremented. If you are using @code{--log-slow-queries}, the query
 will be logged to the slow query logfile. @xref{Slow query log}.
+
+@item @code{lower_case_table_names}
+Table names are stored in lower case on disk.
 
 @item @code{max_allowed_packet}
 The maximum size of one packet. The message buffer is initialized to
@@ -19993,14 +20042,14 @@ statements.  If you try to insert data into a new table after all @code{INSERT
 DELAYED} threads are in use, the row will be inserted as if the
 @code{DELAYED} attribute wasn't specified.
 
+@item @code{max_heap_table_size}
+Don't allow creation of heap tables bigger than this.
+
 @item @code{max_join_size}
 Joins that are probably going to read more than @code{max_join_size}
 records return an error. Set this value if your users tend to perform joins
 without a @code{WHERE} clause that take a long time and return
 millions of rows.
-
-@item @code{max_heap_table_size}
-Don't allow creation of heap tables bigger than this.
 
 @item @code{max_sort_length}
 The number of bytes to use when sorting @code{BLOB} or @code{TEXT}
@@ -20014,6 +20063,9 @@ Maximum number of temporary tables a client can keep open at the same time.
 @item @code{max_write_lock_count}
 After this many write locks, allow some read locks to run in between.
 
+@item @code{myisam_recover_options}
+The value of the @code{--myisam-recover} option.
+
 @item @code{myisam_sort_buffer_size}
 The buffer that is allocated when sorting the index when doing a
 @code{REPAIR} or when creating indexes with @code{CREATE INDEX} or
@@ -20026,19 +20078,28 @@ can set it to the expected size of a query.  (That is, the expected length of
 SQL statements sent by clients.  If statements exceed this length, the buffer
 is automatically enlarged, up to @code{max_allowed_packet} bytes.)
 
-@item @code{net_retry_count}
-If a read on a communication port is interrupted, retry this many times
-before giving up.  This value should be quite high on @code{FreeBSD} as
-internal interrupts is sent to all threads.
-
 @item @code{net_read_timeout}
 Number of seconds to wait for more data from a connection before aborting
 the read.  Note that when we don't expect data from a connection, the timeout
 is defined by @code{write_timeout}.
 
+@item @code{net_retry_count}
+If a read on a communication port is interrupted, retry this many times
+before giving up.  This value should be quite high on @code{FreeBSD} as
+internal interrupts is sent to all threads.
+
 @item @code{net_write_timeout}
 Number of seconds to wait for a block to be written to a connection before
 aborting the write.
+
+@item @code{pid_file}
+The value of the @code{--pid-file} option.
+
+@item @code{port}
+The value of the @code{--port} option.
+
+@item @code{protocol_version}
+The protocol version used by the @code{MySQL} server.
 
 @item @code{record_buffer}
 Each thread that does a sequential scan allocates a buffer of this
@@ -20049,6 +20110,15 @@ want to increase this value.
 The initial allocation of the query buffer. If most of your queries are
 long (like when inserting blobs), you should increase this!
 
+@item @code{server_id}
+The value of the @code{--server-id} option.
+
+@item @code{skip_locking}
+Is OFF if @code{mysqld} uses external locking.
+
+@item @code{skip_networking}
+Is ON if we only allow local (socket) connections.
+
 @item @code{skip_show_databases}
 This prevents people from doing @code{SHOW DATABASES}, if they don't
 have the @code{PROCESS_PRIV} privilege. This can improve security if
@@ -20058,6 +20128,9 @@ tables other users have.
 @item @code{slow_launch_time}
 If the creating of the thread longer than this (in seconds), the
 @code{Slow_launch_threads} counter will be incremented.
+
+@item @code{socket}
+The unix socket used by the server.
 
 @item @code{sort_buffer}
 Each thread that needs to do a sort allocates a buffer of this
@@ -20082,6 +20155,9 @@ connections, fail to perform queries, and be very unreliable.
 
 For information about how the table cache works, see @ref{Table cache}.
 
+@item @code{table_type}
+The default table type
+
 @item @code{thread_cache_size}
 How many threads we should keep keep in a cache for reuse.  When a
 client disconnects the clients threads is put in the cache if there
@@ -20103,11 +20179,20 @@ The stack size for each thread.  Many of the limits detected by the
 @code{crash-me} test are dependent on this value. The default is
 large enough for normal operation.  @xref{Benchmarks}.
 
+@item @code{timezone}
+The timezone for the server.
+
 @item @code{tmp_table_size}
 If an in-memory temporary table exceeds this size, @strong{MySQL}
 will automatically convert it to an on-disk @code{MyISAM} table.
 Increase the value of @code{tmp_table_size} if you do many advanced
 @code{GROUP BY} queries and you have lots of memory.
+
+@item @code{tmpdir}
+The directory used for temporary files and temporary tables.
+
+@item @code{version}
+The version number for the server.
 
 @item @code{wait_timeout}
 The number of seconds the server waits for activity on a connection before
@@ -21941,8 +22026,8 @@ reused when you insert new data into the table.
 You need enough extra memory for all HEAP tables that you want to use at
 the same time.
 @item
-To free memory, you should execute @code{DELETE FROM heap_table} or
-@code{DROP TABLE heap_table}.
+To free memory, you should execute @code{DELETE FROM heap_table},
+@code{TRUNCATE TABLE heap_table} or @code{DROP TABLE heap_table}.
 @item
 @strong{MySQL} cannot find out how approximately many rows there
 are between two values (this is used by the range optimizer to decide which
@@ -24917,140 +25002,122 @@ databases should not be logged to the binary log with @code{binlog-ignore-db}
 @item
 Starting in 3.23.26, you can use @code{replicate-rewrite-db} to tell
 the slave to apply updates from one database on the master to the one
-with a different name on the slave
+with a different name on the slave.
 @end itemize
 
 @node Replication Options, Replication SQL, Replication Features, Replication
 @section Replication Options in my.cnf
 
-The table below explains the replications options in @code{my.cnf} . All
-of the are available starting in 3.23.15 unless indicated otherwise.
+If you are using replication, we recommend you to use MySQL 3.23.27 or
+later.
+
+On both master and slave you need to use the @code{server-id} option.
+This sets an unique replication id. You should pick a unique value in the
+range between 1 to 2^32-1 for each master and slave.
+Example: @code{server-id=3}
+
+The following table has the options you can use for the @strong{MASTER}:
 
 @multitable @columnfractions .3 .7
 
 @item @strong{Option} @tab @strong{Description}
-@item
-@code{log-bin}
- @tab Should be set on the master. Tells it to keep a binary update log.
-If a parameter is specified, the log will be written to the specified
-location. Note that if you give it a parameter with an extention
-(eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to
-3.23.24 will not work right during replication if you do
-@code{FLUSH LOGS} . The problem is fixed
-in 3.23.25. If you are using this kind of log name, @code{FLUSH LOGS}
-will be ignored on binlog. To clear the log, run @code{FLUSH MASTER},
-and do not forget to run @code{FLUSH SLAVE} on all slaves. In 3.23.26
-and later versions you should use @code{RESET MASTER} and @code{RESET
-SLAVE}
+@item @code{log-bin=filename} @tab
+Write to a binary update log to the specified location. Note that if you
+give it a parameter with an extension
+(eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24
+will not work right during replication if you do @code{FLUSH LOGS} . The
+problem is fixed in 3.23.25. If you are using this kind of log name,
+@code{FLUSH LOGS} will be ignored on binlog. To clear the log, run
+@code{FLUSH MASTER}, and do not forget to run @code{FLUSH SLAVE} on all
+slaves. In 3.23.26 and later versions you should use @code{RESET MASTER}
+and @code{RESET SLAVE}
 
-@item
-@code{log-bin-index}
- @tab Because the user could issue @code{FLUSH LOGS} command, we need to
+@item @code{log-bin-index=filename} @tab
+Because the user could issue @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out
 and it what sequence. This info is stored in the binary log index file.
-The default is `hostname`.index . You can use this option
-if you want to be a rebel.
-(Set on @strong{Master}, Example: @code{log-bin-index=db.index})
+The default is `hostname`.index . You can use this option if you want to
+be a rebel.  (Example: @code{log-bin-index=db.index})
 
-@item
-@code{master-host}
- @tab Master hostname or IP address for replication. If not set, the slave
+@item @code{sql-bin-update-same} @tab
+If set, setting @code{SQL_LOG_BIN} to a value will automatically set
+@code{SQL_LOG_UPDATE} to the same value and vice versa.
+
+@item @code{binlog-do-db=database_name} @tab
+Tells the master it should log updates for the specified database, and
+exclude all others not explicitly mentioned.
+(Example: @code{binlog-do-db=some_database})
+
+@item @code{binlog-ignore-db=database_name} @tab
+Tells the master that updates to the given database should not be logged
+to the binary log (Example: @code{binlog-ignore-db=some_database})
+@end multitable
+
+The following table has the options you can use for the @strong{SLAVE}:
+
+@multitable @columnfractions .3 .7
+
+@item @strong{Option} @tab @strong{Description}
+@item @code{master-host=host} @tab
+Master hostname or IP address for replication. If not set, the slave
 thread will not be started.
-(Set on @strong{Slave}, Example: @code{master-host=db-master.mycompany.com})
+(Example: @code{master-host=db-master.mycompany.com})
 
-@item
-@code{master-user}
- @tab The user the slave thread will authenticate as when connecting to
-the master. The user must have @code{FILE} privilige. If the master user
-is not set, user @code{test} is assumed.
-(Set on @strong{Slave}, Example: @code{master-user=scott})
+@item @code{master-user=username} @tab
+The user the slave thread will us for authentication when connecting to
+the master. The user must have @code{FILE} privilege. If the master user
+is not set, user @code{test} is assumed.  (Example:
+@code{master-user=scott})
 
-@item
-@code{master-password}
- @tab The password the slave thread will authenticate with when connecting
-to the master. If not set, empty password is assumed
-(Set on @strong{Slave}, Example: @code{master-password=tiger})
+@item @code{master-password=password} @tab
+The password the slave thread will authenticate with when connecting to
+the master. If not set, an empty password is assumed (Example:
+@code{master-password=tiger})
 
-@item
-@code{master-port}
- @tab The port the master is listening on. If not set, the compiled setting
-of @code{MYSQL_PORT} is assumed. If you have not tinkered with @code{configure}
-options, this should be 3306.
-(Set on @strong{Slave}, Example: @code{master-port=3306})
+@item @code{master-port=portnumber} @tab
+The port the master is listening on. If not set, the compiled setting of
+@code{MYSQL_PORT} is assumed. If you have not tinkered with
+@code{configure} options, this should be 3306.  (Example:
+@code{master-port=3306})
 
-@item
-@code{master-connect-retry}
- @tab The number of seconds the slave thread will sleep before retrying to
-connect to the master in case the master goes down or the connection is lost.
-Default is 60.
-(Set on @strong{Slave}, Example: @code{master-connect-retry=60})
+@item @code{master-connect-retry=seconds} @tab
+The number of seconds the slave thread will sleep before retrying to
+connect to the master in case the master goes down or the connection is
+lost.  Default is 60.  (Example: @code{master-connect-retry=60})
 
-@item
-@code{master-info-file}
- @tab The location of the file that remembers where we left off on the master
+@item @code{master-info-file=filename} @tab
+The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
 directory.  Sasha: The only reason I see for ever changing the default
-is the desire to be rebelious.
-(Set on @strong{Slave}, Example: @code{master-info-file=master.info})
+is the desire to be rebelious.  (Example:
+@code{master-info-file=master.info})
 
-@item
-@code{replicate-do-db}
- @tab Tells the slave thread to restrict replication to the specified database.
-To specify more than one database, use the directive multiple times, once for
-each database. Note that this will only work if you do not use cross-database
-queries such as @code{UPDATE some_db.some_table SET foo='bar'} while having
-selected a different or no database.
-(Set on @strong{Slave}, Example: @code{replicate-do-db=some_db})
+@item @code{replicate-do-db=database_name} @tab
+Tells the slave thread to restrict replication to the specified database.
+To specify more than one database, use the directive multiple times,
+once for each database. Note that this will only work if you do not use
+cross-database queries such as @code{UPDATE some_db.some_table SET
+foo='bar'} while having selected a different or no database.
+(Example: @code{replicate-do-db=some_db})
 
-@item
-@code{replicate-ignore-db}
- @tab Tells the slave thread to not replicate to the specified database. To
-specify more than one database to ignore, use the directive multiple times,
-once for each database. You must not use cross database updates for this
-option.
-(Set on @strong{Slave}, Example: @code{replicate-ignore-db=some_db})
+@item @code{replicate-ignore-db=database_name} @tab
+Tells the slave thread to not replicate to the specified database. To
+specify more than one database to ignore, use the directive multiple
+times, once for each database. This option will not work if you use cross
+database updates. (Example: @code{replicate-ignore-db=some_db})
 
-@item
-@code{sql-bin-update-same}
- @tab If set, setting  @code{SQL_LOG_BIN} to a value will automatically set
-@code{SQL_LOG_UPDATE} to the same value and vice versa.
-(Set on @strong{Master}, Example: @code{sql-bin-update-same})
+@item @code{log-slave-updates} @tab
+Tells the slave to log the updates from the slave thread to the binary
+log. Off by default. You will need to turn it on if you plan to
+daisy-chain the slaves.
 
-@item
-@code{log-slave-updates}
- @tab Tells the slave to log the updates from the slave thread to the binary
-log. Off by default. You will need to turn it on if you plan to daisy-chain
-the slaves
-(Set on @strong{Slave}, Example: @code{log-slave-updates})
-
-@item
-@code{binlog-do-db}
- @tab Tells the master it should log updates for the specified database, and
-exclude all others not explicitly mentioned.
-(Set on @strong{Master}, Example: @code{binlog-do-db=some_database})
-
-@item
-@code{binlog-ignore-db}
- @tab Tells the master that updates to the given database should not be logged
-to the binary log
-(Set on @strong{Master}, Example: @code{binlog-ignore-db=some_database})
-
-@item
-@code{replicate-rewrite-db}
- @tab Tells the slave to apply updates to a database with a different
-name than the original ( Set on @strong{Slave}, Example:
+@item @code{replicate-rewrite-db=from_name->to_name} @tab
+Updates to a database with a different name than the original (Example:
 @code{replicate-rewrite-db=master_db_name->slave_db_name}
 
-@item
-@code{skip-slave-start}
- @tab Tells the slave server not to start the slave on the startup.
-The user can start it later with @code{SLAVE START}
-
-@item
-@code{server-id}
- @tab Sets the unique replicaiton numeric server id. You should pick one  to assign.
-The range is from 1 to 2^32-1. (Set on both @strong{Master} and
-@strong{Slave}. Example: @code{server-id=3})
+@item @code{skip-slave-start} @tab
+Tells the slave server not to start the slave on the startup.  The user
+can start it later with @code{SLAVE START}.
 @end multitable
 
 @cindex SQL commands, replication
@@ -26071,7 +26138,7 @@ This can be done with the following code:
 @example
 mysql> LOCK TABLES real_table WRITE, insert_table WRITE;
 mysql> insert into real_table select * from insert_table;
-mysql> delete from insert_table;
+mysql> TRUNCATE TABLE insert_table;
 mysql> UNLOCK TABLES;
 @end example
 
@@ -26924,12 +26991,12 @@ it is very important to @code{OPTIMIZE TABLE} sometimes.
 @node Delete speed,  , Update speed, Query Speed
 @subsection Speed of @code{DELETE} queries
 
+If you want to delete all rows in the table, you should use
+@code{TRUNCATE TABLE table_name}. @xref{TRUNCATE}.
+
 The time to delete a record is exactly proportional to the number of
 indexes. To delete records more quickly, you can increase the size of
 the index cache. @xref{Server parameters}.
-
-It's also much faster to remove all rows than to remove a big part of the
-rows from a table.
 
 @cindex optimization, tips
 @cindex tips, optimization
@@ -26961,7 +27028,7 @@ In some cases it may make sense to introduce a column that is 'hashed'
 based on information from other columns. If this column is short and
 reasonably unique it may be much faster than a big index on many
 columns. In @strong{MySQL} its very easy to use this extra column:
-@code{SELECT * FROM table_name WHERE hash=MP5(concat(col1,col2))
+@code{SELECT * FROM table_name WHERE hash=MD5(concat(col1,col2))
 AND col_1='constant' AND col_2='constant'}
 @item
 For tables that changes a lot you should try to avoid all @code{VARCHAR}
@@ -27399,6 +27466,7 @@ How big a @code{VARCHAR} column can be
 
 @menu
 * Programs::                    What do the executables do?
+* safe_mysqld::                 
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -27409,7 +27477,7 @@ How big a @code{VARCHAR} column can be
 
 @cindex environment variables
 @cindex programs, list of
-@node Programs, mysql, Tools, Tools
+@node Programs, safe_mysqld, Tools, Tools
 @section Overview of the different MySQL programs
 
 All @strong{MySQL} clients that communicate with the server using the
@@ -27530,20 +27598,106 @@ swaps @code{a} and @code{b} in the given files:
 @example
 shell> replace a b b a -- file1 file2 ...
 @end example
-
-@cindex @code{safe_mysqld}
-
-@item safe_mysqld
-A script that starts the @code{mysqld} daemon with some safety features, such
-as restarting the server when an error occurs and logging runtime information
-to a log file.
 @end table
+
+@cindex tools, safe_mysqld
+@cindex scripts
+@cindex @code{safe_mysqld}
+@node safe_mysqld, mysql, Programs, Tools
+@section safe_mysqld, the wrapper around mysqld
+
+@code{safe_mysqld} is the recommended way to start a @code{mysqld}
+daemon on Unix.  @code{safe_mysqld} adds some safety features such as
+restarting the server when an error occurs and logging runtime
+information to a log file.
+
+Normally one should never edit the @code{safe_mysqld} script, but
+instead put the options to @code{safe_mysqld} in the
+@code{[safe_mysqld]} section in the @code{my.cnf}
+file. @code{safe_mysqld} will read all options from the @code{[mysqld]}
+and @code{[safe_mysqld]} sections from the option files.
+@xref{Option files}.
+
+Note that all options on the command line to @code{safe_mysqld} are passed
+to @code{mysqld}.  If you wants to use any options in @code{safe_mysqld} that
+@code{mysqld} doesn't support, you must specify these in the option file.
+
+Most of the options to @code{safe_mysqld} are the same as the options to
+@code{mysqld}. @xref{Command-line options}.
+
+@code{safe_mysqld} supports the following options:
+
+@table @code
+@item --basedir=path
+@item --core-file-size=#
+@item --defaults-extra-file=path
+@item --defaults-file=path
+@item --open-files=#
+Size of the core file @code{mysqld} should be able to create. Passed to
+@code{ulimit -c}.
+@item --datadir=path
+@item --err-log=path
+@item --ledir=path
+Path to @code{mysqld}
+@item --log=path
+@item --no-defaults
+@item --open-files=#
+Number of files @code{mysqld} should be able to open. Passed to
+@code{ulimit -n}.
+@item --pid-file=path
+@item --port=#
+@item --socket=path
+@item --timezone=#
+Set the timezone (the @code{TZ}) variable to the value of this parameter.
+@item --user=#
+@end table
+
+The @code{safe_mysqld} script is written so that it normally is able to start
+a server that was installed from either a source or a binary version of
+@strong{MySQL}, even if these install the server in slightly different
+locations.  @code{safe_mysqld} expects one of these conditions to be true:
+
+@itemize @bullet
+@item
+The server and databases can be found relative to the directory from which
+@code{safe_mysqld} is invoked.  @code{safe_mysqld} looks under its working
+directory for @file{bin} and @file{data} directories (for binary
+distributions) or for @file{libexec} and @file{var} directories (for source
+distributions).  This condition should be met if you execute
+@code{safe_mysqld} from your @strong{MySQL} installation directory (for
+example, @file{/usr/local/mysql} for a binary distribution).
+
+@item
+If the server and databases cannot be found relative to the working directory,
+@code{safe_mysqld} attempts to locate them by absolute pathnames.  Typical
+locations are @file{/usr/local/libexec} and @file{/usr/local/var}.
+The actual locations are determined when the distribution was built from which
+@code{safe_mysqld} comes.  They should be correct if
+@strong{MySQL} was installed in a standard location.
+@end itemize
+
+Because @code{safe_mysqld} will try to find the server and databases relative
+to its own working directory, you can install a binary distribution of
+@strong{MySQL} anywhere, as long as you start @code{safe_mysqld} from the
+@strong{MySQL} installation directory:
+
+@example
+shell> cd mysql_installation_directory
+shell> bin/safe_mysqld &
+@end example
+
+If @code{safe_mysqld} fails, even when invoked from the @strong{MySQL}
+installation directory, you can modify it to use the path to @code{mysqld}
+and the pathname options that are correct for your system.  Note that if you
+upgrade @strong{MySQL} in the future, your modified version of
+@code{safe_mysqld} will be overwritten, so you should make a copy of your
+edited version that you can reinstall.
 
 @cindex command line tool
 @cindex tools, command line
 @cindex scripts
 @cindex @code{mysql}
-@node mysql, mysqladmin, Programs, Tools
+@node mysql, mysqladmin, safe_mysqld, Tools
 @section The command line tool
 
 @code{mysql} is a simple SQL shell (with GNU @code{readline} capabilities).
@@ -29553,9 +29707,12 @@ Use the table description file to create new (empty) data and index files:
 @example
 shell> mysql db_name
 mysql> SET AUTOCOMMIT=1;
-mysql> DELETE FROM tbl_name;
+mysql> TRUNCATE TABLE table_name;
 mysql> quit
 @end example
+
+If your SQL version doesn't have @code{TRUNCATE}, use @code{DELETE FROM
+table_name} instead.
 
 @item
 Copy the old data file back onto the newly created data file.
@@ -32537,7 +32694,7 @@ something like this:
 
 @example
 shell> ./configure  --with-tcp-port=port_number \
-             --with-unix-socket=file_name \
+             --with-unix-socket-path=file_name \
              --prefix=/usr/local/mysql-3.22.9
 @end example
 
@@ -34548,7 +34705,9 @@ The specified group in the option file may contain the following options:
 @item @code{port} @tab Default port number.
 @item @code{return-found-rows} @tab Tell @code{mysql_info()} to return found rows instead of updated rows when using @code{UPDATE}.
 @item @code{socket} @tab Default socket number.
-@item @code{timeout} @tab Connect timeout in seconds.
+@item
+@code{timeout} @tab Connect timeout in seconds. On Linux this timeout also
+is used for waiting for the first answer from the server.
 @item @code{user} @tab Default user.
 @end multitable
 
@@ -34758,14 +34917,20 @@ client library that uses a different protocol version.  This can happen if you
 use a very old client library to connect to a new server that wasn't started
 with the @code{--old-protocol} option.
 
-@item CR_NAMEDPIPEOPEN_ERROR;
+@item CR_NAMEDPIPEOPEN_ERROR
 Failed to create a named pipe on Windows.
 
-@item CR_NAMEDPIPEWAIT_ERROR;
+@item CR_NAMEDPIPEWAIT_ERROR
 Failed to wait for a named pipe on Windows.
 
-@item CR_NAMEDPIPESETSTATE_ERROR;
+@item CR_NAMEDPIPESETSTATE_ERROR
 Failed to get a pipe handler on Windows.
+
+@item CR_SERVER_LOST
+If @code{timeout} > 0 and it took longer then @code{timeout} seconds to
+connect to the server or if the server died while executing the
+@code{init-command}.
+
 @end table
 
 @subsubheading Example
@@ -37381,6 +37546,10 @@ Fernandez Herrero.
 @itemize @bullet
 @item Graphical clients
 @itemize @bullet
+@item @uref{http://www.ideit.com/products/dbvis: DbVisualizer}
+Freeware JDBC client to graphically visualize the data and structure
+of several databases simultaneously. By Innovative-IT Development AB.
+
 @item @uref{http://www.mysql.com/download_clients.html, mysqlgui homepage}
 The @strong{MySQL} GUI client homepage. By Sinisa at MySQL AB.
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1.tar.gz, kmysqladmin-0.4.1.tar.gz}
@@ -37801,6 +37970,13 @@ Prints the storage usage of a @strong{MySQL} database.
 sprintf() function for SQL queries that can escape blobs. By Chunhua Liu.
 @end itemize
 
+@appendixsec Windows programs
+@itemize @bullet
+@item @uref{http://www.mysql.com/Downloads/Contrib/LaunchMySQL.zip, LaunchMySQL.zip}
+The program launches the @strong{MySQL} server, shuts it down, and
+display status information. By Bill Thompson
+@end itemize
+
 @appendixsec Uncategorized
 
 @itemize @bullet
@@ -38191,9 +38367,31 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item
+Added options @code{--open-files} and @code{--timezone} to @code{safe_mysqld}.
+@item
+Fixed fatal bug in @code{CREATE TEMPORARY TABLE ...SELECT ...}.
+@item
+Fixed problem with @code{CREATE TABLE .. SELECT NULL}.
+@item
+Added status variables @code{large_file_support},@code{net_read_timeout},
+@code{net_write_timeout} and @code{query_buffer_size} to @code{SHOW VARIABLES}.
+@item
+Fixed bug where we didn't allow an index name after the
+@code{FOREIGN KEY} definition.
+@item
+Added @code{TRUNCATE TABLE table_name} as a synonym for
+@code{DELETE FROM table_name}.
+@item
 Fixed bug in a BDB key compare function when comparing part keys.
 @item
 Added variable @code{bdb_lock_max} to @code{mysqld}.
+@item
+Added more tests to the benchmark suite.
+@item
+Fixed a overflow bug in the client code when using too long database names.
+@item
+@code{mysql_connect()} now aborts on Linux if the server doesn't answer in
+@code{timeout} seconds.
 @end itemize
 
 @node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x
@@ -42601,6 +42799,8 @@ Allow users to change startup options.
 @item
 Subqueries. @code{select id from t where grp in (select grp from g where u > 100)}
 @item
+Don't allow more than # threads to run MyISAM recover at the same time.
+@item
 @code{INSERT SQL_CONCURRENT ...};  This will force the insert to happen at the
 end of the data file if the table is in use by an select to allow
 concurrent inserts.
@@ -42808,6 +43008,10 @@ insert into t1 values (now());
 create table t2 select max(a) from t1;
 show columns from t2;
 @end example
+@item
+Come up with a nice syntax for a statement that will @code{UPDATE} the row
+if it exists and @code{INSERT} a new row if the row didn't exist.
+(Like @code{REPLACE} works with @code{INSERT} / @code{DELETE})
 @end itemize
 
 @node TODO sometime, TODO unplanned, TODO future, TODO

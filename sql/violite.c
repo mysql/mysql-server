@@ -1,18 +1,19 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
    
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2 of the License, or (at your option) any later version.
    
-   This program is distributed in the hope that it will be useful,
+   This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
    
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA */
 
 /*
   Note that we can't have assertion on file descriptors;  The reason for
@@ -31,6 +32,9 @@
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
+#ifdef HAVE_POLL
+#include <sys/poll.h>
+#endif
 
 #if defined(__EMX__)
 #include <sys/ioctl.h>
@@ -396,6 +400,28 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
   else
     *in=vio->remote.sin_addr;
   DBUG_VOID_RETURN;
+}
+
+
+/* Return 0 if there is data to be read */
+
+my_bool vio_poll_read(Vio *vio,uint timeout)
+{
+#ifndef HAVE_POLL
+  return 0;
+#else
+  struct pollfd fds;
+  int res;
+  DBUG_ENTER("vio_poll");
+  fds.fd=vio->sd;
+  fds.events=POLLIN;
+  fds.revents=0;
+  if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
+  {
+    DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
+  }
+  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
+#endif
 }
 
 #endif /* HAVE_VIO */

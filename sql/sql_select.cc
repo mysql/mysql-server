@@ -2725,7 +2725,7 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
   {
     for (TABLE_LIST *table=tables; table ; table=table->next)
       mark_as_null_row(table->table);		// All fields are NULL
-    if (having && having->val_int() == 0.0)
+    if (having && having->val_int() == 0)
       send_row=0;
   }
   if (!tables || !(result->send_fields(fields,1)))
@@ -3204,6 +3204,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
   case Item::REAL_ITEM:
   case Item::STRING_ITEM:
   case Item::REF_ITEM:
+  case Item::NULL_ITEM:
   {
     bool maybe_null=item->maybe_null;
     Field *new_field;
@@ -4501,7 +4502,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     int error;
-    if (join->having && join->having->val_int() == 0.0)
+    if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(0);				// Didn't match having
     if (join->procedure)
       error=join->procedure->send_row(*join->fields);
@@ -4541,7 +4542,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	int error;
 	if (join->procedure)
 	{
-	  if (join->having && join->having->val_int() == 0.0)
+	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
 	  else
 	    error=join->procedure->send_row(*join->fields) ? 1 : 0;
@@ -4552,7 +4553,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if (!join->first_record)
 	    clear_tables(join);
-	  if (join->having && join->having->val_int() == 0.0)
+	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
 	  else
 	    error=join->result->send_data(*join->fields) ? 1 : 0;
@@ -5111,7 +5112,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
     goto err;				/* purecov: inspected */
   /* It's not fatal if the following alloc fails */
   table->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-					MYF(MY_FAE | MY_ZEROFILL));
+					MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
 
   // If table has a range, move it to select

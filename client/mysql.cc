@@ -115,7 +115,7 @@ static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    opt_compress=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
             no_named_cmds=1; // we want this to be the default
-static uint verbose=0,opt_silent=0,opt_mysql_port=0;
+static uint verbose=0,opt_silent=0,opt_mysql_port=0,opt_connect_timeout=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
@@ -334,7 +334,7 @@ sig_handler mysql_end(int sig)
   exit(status.exit_status);
 }
 
-enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET} ;
+enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET, OPT_TIMEOUT} ;
 
 
 static struct option long_options[] =
@@ -374,6 +374,7 @@ static struct option long_options[] =
   {"socket",	    required_argument,	   0, 'S'},
 #include "sslopt-longopts.h"
   {"table",	    no_argument,	   0, 't'},
+  {"timeout",	    required_argument,	   0, OPT_TIMEOUT},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user",	    required_argument,	   0, 'u'},
 #endif
@@ -545,9 +546,12 @@ static int get_options(int argc, char **argv)
     case 'p':
       if (optarg)
       {
+	char *start=optarg;
 	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
 	opt_password=my_strdup(optarg,MYF(MY_FAE));
 	while (*optarg) *optarg++= 'x';		// Destroy argument
+	if (*start)
+	  start[1]=0;
       }
       else
 	tty_password=1;
@@ -602,6 +606,9 @@ static int get_options(int argc, char **argv)
 #ifdef __WIN__
       opt_mysql_unix_port=my_strdup(MYSQL_NAMEDPIPE,MYF(0));
 #endif
+      break;
+    case OPT_TIMEOUT:
+      opt_connect_timeout=atoi(optarg);
       break;
     case 'V': usage(1); exit(0);
     case 'I':
@@ -1772,6 +1779,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     connected= 0;
   }
   mysql_init(&mysql);
+  if (opt_connect_timeout)
+    mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT,
+		  (char*) &opt_connect_timeout);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL

@@ -498,6 +498,7 @@ if ($limits->{'group_functions'})
   $loop_time=new Benchmark;
   $count=1;
 
+  $estimated=0;
   for ($tests=0 ; $tests < $small_loop_count ; $tests++)
   {
     $sth=$dbh->prepare($query="select count(*) from bench1") or die $DBI::errstr;
@@ -573,9 +574,12 @@ if ($limits->{'group_functions'})
 	print "Warning: '$query' returned wrong number of rows\n";
       }
     }
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$tests,
+					   $small_loop_count));
   }
-  $end_time=new Benchmark;
-  print "Time for select_group ($count): " .
+  print_time($estimated);
+  print " for select_group ($count): " .
       timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   $loop_time=new Benchmark;

@@ -24,8 +24,6 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
-
-
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
@@ -76,7 +74,7 @@ static int find_uniq_filename(char *name)
 
 
 
-MYSQL_LOG::MYSQL_LOG(): file(0),index_file(0),last_time(0),query_start(0),
+MYSQL_LOG::MYSQL_LOG(): file(-1),index_file(-1),last_time(0),query_start(0),
 			name(0), log_type(LOG_CLOSED),write_error(0),inited(0),
 			no_rotate(0)
 {
@@ -90,10 +88,10 @@ MYSQL_LOG::MYSQL_LOG(): file(0),index_file(0),last_time(0),query_start(0),
 MYSQL_LOG::~MYSQL_LOG()
 {
   if (inited)
-    {
-     (void) pthread_mutex_destroy(&LOCK_log);
-     (void) pthread_mutex_destroy(&LOCK_index);
-    }
+  {
+    (void) pthread_mutex_destroy(&LOCK_log);
+    (void) pthread_mutex_destroy(&LOCK_index);
+  }
 }
 
 void MYSQL_LOG::set_index_file_name(const char* index_file_name)
@@ -128,13 +126,14 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name)
 {
-
+  MY_STAT tmp_stat;
+  char buff[512];
   if (!inited)
   {
     inited=1;
     (void) pthread_mutex_init(&LOCK_log,NULL);
     (void) pthread_mutex_init(&LOCK_index, NULL);
-    if(log_type_arg == LOG_BIN && *fn_ext(log_name))
+    if (log_type_arg == LOG_BIN && *fn_ext(log_name))
       no_rotate = 1;
   }
 
@@ -149,13 +148,11 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     fn_format(index_file_name, name, mysql_data_home, ".index", 6);
   
   db[0]=0;
-  MY_STAT tmp_stat;
   bool do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
 						     &tmp_stat, MYF(0)));
   
-  file=my_fopen(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
-		MYF(MY_WME | ME_WAITTANG));
-  if (!file)
+  if ((file=my_open(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
+		    MYF(MY_WME | ME_WAITTANG)) < 0)
   {
     my_free(name,MYF(0));    
     name=0;
@@ -165,21 +162,21 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   if (log_type == LOG_NORMAL)
   {
+    char *end;
 #ifdef __NT__
-    fprintf(file, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
 #else
-    fprintf(file, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
 #endif
-    fprintf(file,"Time                 Id Command    Argument\n");
-    (void) fflush(file);
+    end=strmov(strend(buff),"Time                 Id Command    Argument\n");
+    my_write(file,buff,(uint) (end-buff),MYF(0));
   }
   else if (log_type == LOG_NEW)
   {
     time_t skr=time(NULL);
     struct tm tm_tmp;
     localtime_r(&skr,&tm_tmp);
-
-    fprintf(file,"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
+    sprintf(buff,"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
 	    my_progname,server_version,
 	    tm_tmp.tm_year % 100,
 	    tm_tmp.tm_mon+1,
@@ -187,7 +184,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 	    tm_tmp.tm_hour,
 	    tm_tmp.tm_min,
 	    tm_tmp.tm_sec);
-    (void) fflush(file);
+    my_write(file,buff,(uint) strlen(buff),MYF(0));
   }
   else if (log_type == LOG_BIN)
   {
@@ -198,25 +195,26 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     // clean up if failed
     // then if index_file has not been previously opened, try to open it
     // clean up if failed
-    if((do_magic && my_fwrite(file, (byte*)BINLOG_MAGIC, 4,
-			     MYF(MY_NABP|MY_WME)) ||
-	(!index_file && 
-       !(index_file = my_fopen(index_file_name,O_APPEND | O_BINARY | O_RDWR,
-			       MYF(MY_WME))))))
+
+    if ((do_magic && my_write(file, (byte*) BINLOG_MAGIC, 4,
+			      MYF(MY_NABP|MY_WME)) ||
+	(index_file < 0 && 
+	 (index_file = my_fopen(index_file_name,O_APPEND | O_BINARY | O_RDWR,
+				MYF(MY_WME))) < 0)))
     {
-      my_fclose(file,MYF(MY_WME));
+      my_close(file,MYF(MY_WME));
       my_free(name,MYF(0));    
       name=0;
-      file=0;
+      file= -1;
       log_type=LOG_CLOSED;
       return;
     }
     Start_log_event s;
     s.write(file);
     pthread_mutex_lock(&LOCK_index);
-    my_fseek(index_file, 0L, MY_SEEK_END, MYF(MY_WME));
-    fprintf(index_file, "%s\n", log_file_name);
-    fflush(index_file);
+    my_seek(index_file, 0L, MY_SEEK_END, MYF(MY_WME));
+    my_write(index_file, log_file_name,strlen(log_file_name), MYF(0));
+    my_write(index_file, "\n",1, MYF(0));
     pthread_mutex_unlock(&LOCK_index);
   }
 }
@@ -225,7 +223,7 @@ int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
 {
   pthread_mutex_lock(&LOCK_log);
   strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name));
-  linfo->pos = my_ftell(file, MYF(MY_WME));
+  linfo->pos = my_tell(file, MYF(MY_WME));
   pthread_mutex_unlock(&LOCK_log);
   return 0;
 }
@@ -235,63 +233,66 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
 {
   // mutex needed because we need to make sure the file pointer does not move
   // from under our feet
-  if(!index_file) return LOG_INFO_INVALID;
+  if (index_file < 0) return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
   int log_name_len = (uint) strlen(log_name);
 
   pthread_mutex_lock(&LOCK_index);
-  if(my_fseek(index_file, 0L, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
+  if (my_seek(index_file, 0L, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
+  {
+    error = LOG_INFO_SEEK;
+    goto err;
+  }
+
+  for(;;)
+  {
+    if (!fgets(fname, FN_REFLEN, index_file))
     {
-      error = LOG_INFO_SEEK;
+      error = feof(index_file) ? LOG_INFO_EOF : LOG_INFO_IO;
       goto err;
     }
 
-  for(;;)
+    // if the log entry matches, empty string matching anything
+    if (!log_name_len ||
+	(fname[log_name_len] == '\n' &&
+	 !memcmp(fname, log_name, log_name_len)))
     {
-      if(!fgets(fname, FN_REFLEN, index_file))
-	{
-	  error = feof(index_file) ? LOG_INFO_EOF : LOG_INFO_IO;
-	  goto err;
-	}
-
-      // if the log entry matches, empty string matching anything
-      if(!log_name_len || (fname[log_name_len] == '\n' && !memcmp(fname, log_name, log_name_len)))
-	{
-	  if(log_name_len)
-	    fname[log_name_len] = 0; // to kill \n
-	  else
-	    {
-	      *(strend(fname) - 1) = 0;
-	    }
-	  linfo->index_file_offset = my_ftell(index_file, MYF(MY_WME));
-	  break;
-	}
+      if (log_name_len)
+	fname[log_name_len] = 0; // to kill \n
+      else
+      {
+	*(strend(fname) - 1) = 0;
+      }
+      linfo->index_file_offset = my_tell(index_file, MYF(MY_WME));
+      break;
     }
-
+  }
   error = 0;
 err:
   pthread_mutex_unlock(&LOCK_index);
   return error;
      
 }
+
+
 int MYSQL_LOG::find_next_log(LOG_INFO* linfo)
 {
   // mutex needed because we need to make sure the file pointer does not move
   // from under our feet
-  if(!index_file) return LOG_INFO_INVALID;
+  if (!index_file) return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
   char* end ;
   
   pthread_mutex_lock(&LOCK_index);
-  if(my_fseek(index_file, linfo->index_file_offset, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
+  if (my_fseek(index_file, linfo->index_file_offset, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
     {
       error = LOG_INFO_SEEK;
       goto err;
     }
 
-  if(!fgets(fname, FN_REFLEN, index_file))
+  if (!fgets(fname, FN_REFLEN, index_file))
     {
       error = feof(index_file) ? LOG_INFO_EOF : LOG_INFO_IO;
       goto err;
@@ -310,11 +311,11 @@ err:
 // we assume that buf has at least FN_REFLEN bytes alloced
 void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
 {
-  if(inited)
+  if (inited)
     {
       int dir_len = dirname_length(log_file_name); 
       int ident_len = (uint) strlen(log_ident);
-      if(dir_len + ident_len + 1 > FN_REFLEN)
+      if (dir_len + ident_len + 1 > FN_REFLEN)
 	{
 	  buf[0] = 0;
 	  return; // protection agains malicious buffer overflow
@@ -337,7 +338,7 @@ void MYSQL_LOG::new_file()
 {
   if (file)
   {
-    if(no_rotate) // do not rotate logs that are marked non-rotatable
+    if (no_rotate) // do not rotate logs that are marked non-rotatable
       return;     // ( for binlog with constant name)
     
     char new_name[FN_REFLEN], *old_name=name;
@@ -469,14 +470,14 @@ void MYSQL_LOG::write(Query_log_event* event_info)
       if (thd->insert_id_used)
       {
 	Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
-	if(e.write(file))
+	if (e.write(file))
 	{
 	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	  goto err;
 	}
       }
 
-      if(thd->convert_set)
+      if (thd->convert_set)
 	{
 	  char buf[1024] = "SET CHARACTER SET ";
 	  char* p = strend(buf);
@@ -485,7 +486,7 @@ void MYSQL_LOG::write(Query_log_event* event_info)
 	  // just in case somebody wants it later
 	  thd->query_length = (uint)(p - buf);
 	  Query_log_event e(thd, buf);
-	  if(e.write(file))
+	  if (e.write(file))
 	    {
 	      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	      goto err;

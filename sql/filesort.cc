@@ -38,8 +38,8 @@ if (my_b_write((file),(byte*) (from),param->ref_length)) \
 
 typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
   my_off_t file_pos;			/* Where we are in the sort file */
-  ha_rows count;			/* Number of rows in table */
   uchar *base,*key;			/* key pointers */
+  ha_rows count;			/* Number of rows in table */
   ulong mem_count;			/* numbers of keys in memory */
   ulong max_keys;			/* Max keys in buffert */
 } BUFFPEK;
@@ -98,7 +98,6 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   BUFFPEK *buffpek;
   ha_rows records;
   uchar **sort_keys;
-  gptr save_1,save_2;
   IO_CACHE tempfile,*selected_records_file,*outfile;
   SORTPARAM param;
   DBUG_ENTER("filesort");
@@ -109,7 +108,6 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 
   outfile= table[0]->io_cache;
   my_b_clear(&tempfile);
-  save_1=save_2=0;
   buffpek= (BUFFPEK *) NULL; sort_keys= (uchar **) NULL; error= 1;
   maxbuffer=1;
   param.ref_length= table[0]->file->ref_length;
@@ -160,11 +158,6 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
     goto err;
 #endif
 
-	/* Reserve memory for IO_CACHE files */
-  if (! (save_1=my_malloc(DISK_BUFFER_SIZE,MYF(MY_WME))) ||
-      ! (save_2=my_malloc(DISK_BUFFER_SIZE,MYF(MY_WME))))
-    goto err;
-
   memavl=sortbuff_size;
   while (memavl >= MIN_SORT_MEMORY)
   {
@@ -207,10 +200,6 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),sortbuff_size);
     goto err;
   }
-  my_free(save_1,MYF(0));		/* Free for later use */
-  my_free(save_2,MYF(0));
-  save_1=save_2=0;
-
   param.sort_form= table[0];
   param.end=(param.local_sortorder=sortorder)+s_length;
   if ((records=find_all_keys(&param,select,sort_keys,buffpek,&maxbuffer,
@@ -252,8 +241,6 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 #endif
   x_free((gptr) sort_keys);
   x_free((gptr) buffpek);
-  x_free(save_1);
-  x_free(save_2);
   close_cached_file(&tempfile);
   if (my_b_inited(outfile))
   {

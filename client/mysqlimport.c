@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.4"
+#define IMPORT_VERSION "2.5"
 
 #include <global.h>
 #include <my_sys.h>
@@ -45,7 +45,7 @@ static my_bool	verbose=0,lock_tables=0,ignore_errors=0,delete=0,
 		replace=0,silent=0,ignore=0,opt_compress=0,opt_local_file=0;
 
 static MYSQL	mysql_connection;
-static char	*password=0, *current_user=0,
+static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, opt_low_priority=0, *opt_columns=0;
@@ -202,9 +202,12 @@ static int get_options(int *argc, char ***argv)
     case 'p':
       if (optarg)
       {
-	my_free(password,MYF(MY_ALLOW_ZERO_PTR));
-	password= my_strdup(optarg,MYF(MY_FAE));
+	char *start=optarg;
+	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+	opt_password=my_strdup(optarg,MYF(MY_FAE));
 	while (*optarg) *optarg++= 'x';		/* Destroy argument */
+	if (*start)
+	  start[1]=0;				/* Cut length of argument */
       }
       else
 	tty_password= 1;
@@ -276,7 +279,7 @@ static int get_options(int *argc, char ***argv)
   current_db= *((*argv)++);
   (*argc)--;
   if (tty_password)
-    password=get_tty_password(NullS);
+    opt_password=get_tty_password(NullS);
   return(0);
 }
 
@@ -504,7 +507,7 @@ int main(int argc, char **argv)
   argv_to_free= argv;
   if (get_options(&argc, &argv))
     return(1);
-  if (!(sock= db_connect(current_host,current_db,current_user,password)))
+  if (!(sock= db_connect(current_host,current_db,current_user,opt_password)))
     return(1); /* purecov: deadcode */
   if (lock_tables)
     lock_table(sock, argc, argv);
@@ -513,7 +516,7 @@ int main(int argc, char **argv)
       if (exitcode == 0)
 	exitcode = error;
   db_disconnect(current_host, sock);
-  my_free(password,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(argv_to_free);
   my_end(0);
   return(exitcode);

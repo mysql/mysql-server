@@ -71,6 +71,20 @@ static void init_signals(void)
 }
 #endif
 
+static inline bool end_active_trans(THD *thd)
+{
+  if (!(thd->options & OPTION_AUTO_COMMIT) ||
+      (thd->options & OPTION_BEGIN))
+  {
+    if (ha_commit(thd))
+      return 1;
+    thd->options&= ~OPTION_BEGIN;
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  }
+  return 0;
+}
+
+
 /*
 ** Check if user is ok
 ** Updates:
@@ -1143,7 +1157,7 @@ mysql_execute_command(void)
 	}
       }
       /* ALTER TABLE ends previous transaction */
-      if (!(thd->options & OPTION_AUTO_COMMIT) && ha_commit(thd))
+      if (end_active_trans(thd))
 	res= -1;
       else
 	res= mysql_alter_table(thd, lex->db, lex->name,
@@ -1347,6 +1361,7 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_DELETE:
+  case SQLCOM_TRUNCATE:
   {
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
@@ -1354,11 +1369,12 @@ mysql_execute_command(void)
       goto error;
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-    res = mysql_delete(thd,tables,lex->where,lex->select_limit,
-		       lex->lock_option, lex->options);
-#ifdef DELETE_ITEMS
-    delete lex->where;
-#endif
+    /* TRUNCATE ends previous transaction */
+    if (lex->sql_command == SQLCOM_TRUNCATE && end_active_trans(thd))
+      res= -1;
+    else
+      res = mysql_delete(thd,tables,lex->where,lex->select_limit,
+			 lex->lock_option, lex->options);
     break;
   }
   case SQLCOM_DROP_TABLE:
@@ -1699,6 +1715,11 @@ mysql_execute_command(void)
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     break;
   case SQLCOM_COMMIT:
+    /*
+      We don't use end_active_trans() here to ensure that this works
+      even if there is a problem with the OPTION_AUTO_COMMIT flag
+      (Which of course should never happen...)
+    */
     thd->options&= ~OPTION_BEGIN;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_commit(thd))

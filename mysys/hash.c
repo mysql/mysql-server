@@ -374,10 +374,11 @@ my_bool hash_delete(HASH *hash,byte *record)
   uint blength,pos2,pos_hashnr,lastpos_hashnr,idx,empty_index;
   HASH_LINK *data,*lastpos,*gpos,*pos,*pos3,*empty;
   DBUG_ENTER("hash_delete");
+  if (!hash->records)
+    DBUG_RETURN(1);
 
   blength=hash->blength;
   data=dynamic_element(&hash->array,0,HASH_LINK*);
-
   /* Search after record with key */
   pos=data+ hash_mask(rec_hashnr(hash,record),blength,hash->records);
   gpos = 0;
