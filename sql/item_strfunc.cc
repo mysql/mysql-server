@@ -977,14 +977,19 @@ String *Item_func_left::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   long length  =(long) args[1]->val_int();
+  uint char_pos;
 
   if ((null_value=args[0]->null_value))
     return 0;
   if (length <= 0)
     return &my_empty_string;
-  if (res->length() <= (uint) length)
+  if (res->length() <= (uint) length ||
+      res->length() <= (char_pos= res->charpos(length)))
     return res;
-  str_value.set(*res, 0, res->charpos(length));
+  if (&str_value == res)
+    str_value.length(char_pos);
+  else
+    str_value.set(*res, 0, char_pos);
   return &str_value;
 }
 

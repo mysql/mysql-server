@@ -98,6 +98,20 @@ SET NAMES utf8;
 SET character_set_connection=binary;
 SELECT 'ัะตัั' as s;
 
+# Bug#4417, another aspect:
+# Check that both "SHOW CREATE TABLE" and "SHOW COLUMNS"
+# return column names and default values in UTF8 after "SET NAMES BINARY"
+
+SET NAMES latin1;
+CREATE TABLE t1 (`ไ` CHAR(128) DEFAULT 'ไ', `ไ1` ENUM('ไ1','ไ2') DEFAULT 'ไ2');
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+SET NAMES binary;
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+DROP TABLE t1;
+
+
 #
 # Test that we allow only well-formed UTF8 identitiers
 #
