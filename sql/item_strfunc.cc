@@ -1094,7 +1094,8 @@ String *Item_func_database::val_str(String *str)
 String *Item_func_user::val_str(String *str)
 {
   THD *thd=current_thd;
-  if (!(thd->user) || // for system threads (e.g. replication thread)
+  // For a replication thread user may be a null pointer (To be fixed)
+  if (!thd->user ||
       str->copy((const char*) thd->user,(uint) strlen(thd->user)) ||
       str->append('@') ||
       str->append(thd->host ? thd->host : thd->ip ? thd->ip : ""))
