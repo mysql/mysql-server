@@ -318,7 +318,8 @@ int check_user(THD *thd, enum enum_server_command command,
            ur.connections || max_user_connections) &&
           get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
         DBUG_RETURN(-1);
-      if (thd->user_connect && thd->user_connect->user_resources.connections &&
+      if (thd->user_connect && (thd->user_connect->user_resources.connections ||
+            max_user_connections) &&
           check_for_max_user_connections(thd, thd->user_connect))
         DBUG_RETURN(-1);
 
