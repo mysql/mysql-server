@@ -312,6 +312,7 @@ typedef struct st_table_list
   void set_ancestor();
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_ancestor(THD *thd, Item **conds, uint8 check_option);
+  void cleanup_items();
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
   inline st_table_list *next_independent()
