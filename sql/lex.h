@@ -175,7 +175,7 @@ static SYMBOL symbols[] = {
   { "FOR",		SYM(FOR_SYM),0,0},
   { "FULL",		SYM(FULL),0,0},
   { "FULLTEXT",		SYM(FULLTEXT_SYM),0,0},
-  { "FUNCTION",		SYM(UDF_SYM),0,0},
+  { "FUNCTION",		SYM(FUNCTION_SYM),0,0},
   { "GEOMETRY",		SYM(GEOMETRY_SYM),0,0},
   { "GLOBAL",		SYM(GLOBAL_SYM),0,0},
   { "GRANT",		SYM(GRANT),0,0},
@@ -332,7 +332,8 @@ static SYMBOL symbols[] = {
   { "USER_RESOURCES",	SYM(RESOURCES),0,0},
   { "RESTORE",		SYM(RESTORE_SYM),0,0},
   { "RESTRICT",		SYM(RESTRICT),0,0},
-  { "RETURNS",		SYM(UDF_RETURNS_SYM),0,0},
+  { "RETURN",           SYM(RETURN_SYM),0,0},
+  { "RETURNS",		SYM(RETURNS_SYM),0,0},
   { "REVOKE",		SYM(REVOKE),0,0},
   { "RIGHT",		SYM(RIGHT),0,0},
   { "RLIKE",		SYM(REGEXP),0,0},	/* Like in mSQL2 */

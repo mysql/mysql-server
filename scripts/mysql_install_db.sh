@@ -312,8 +312,9 @@ then
 
   c_p="$c_p CREATE TABLE proc ("
   c_p="$c_p   name char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   type enum('function','procedure') NOT NULL,"
   c_p="$c_p   body blob DEFAULT '' NOT NULL,"
-  c_p="$c_p   PRIMARY KEY (name)"
+  c_p="$c_p   PRIMARY KEY (name,type)"
   c_p="$c_p )"
   c_p="$c_p   comment='Stored Procedures';"
 fi

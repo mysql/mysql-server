@@ -102,11 +102,20 @@ sp_head::create(THD *thd)
   DBUG_ENTER("sp_head::create");
   String *name= m_name->const_string();
   String *def= m_defstr->const_string();
+  int ret;
 
-  DBUG_PRINT("info", ("name: %s def: %s", name->c_ptr(), def->c_ptr()));
-  DBUG_RETURN(sp_create_procedure(thd,
-				  name->c_ptr(), name->length(),
-				  def->c_ptr(), def->length()));
+  DBUG_PRINT("info", ("type: %d name: %s def: %s",
+		      m_type, name->c_ptr(), def->c_ptr()));
+  if (m_type == TYPE_ENUM_FUNCTION)
+    ret= sp_create_function(thd,
+			    name->c_ptr(), name->length(),
+			    def->c_ptr(), def->length());
+  else
+    ret= sp_create_procedure(thd,
+			     name->c_ptr(), name->length(),
+			     def->c_ptr(), def->length());
+
+  DBUG_RETURN(ret);
 }
 
 int
@@ -127,7 +136,7 @@ sp_head::execute(THD *thd)
   {
     uint i;
     List_iterator_fast<Item> li(m_call_lex->value_list);
-    Item *it = li++;		// Skip first one, it's the procedure name
+    Item *it;
 
     nctx = new sp_rcontext(csize);
     if (! octx)
@@ -184,7 +193,7 @@ sp_head::execute(THD *thd)
   if (ret == 0 && csize > 0)
   {
     List_iterator_fast<Item> li(m_call_lex->value_list);
-    Item *it = li++;		// Skip first one, it's the procedure name
+    Item *it;
 
     // Copy back all OUT or INOUT values to the previous frame, or
     // set global user variables
@@ -273,23 +282,18 @@ sp_head::restore_lex(THD *thd)
   // Collect some data from the sub statement lex.
   if (thd->lex.sql_command == SQLCOM_CALL)
   {
-    // We know they are Item_strings (since we put them there ourselves)
     // It would be slightly faster to keep the list sorted, but we need
     // an "insert before" method to do that.
-    Item_string *proc= static_cast<Item_string*>(thd->lex.value_list.head());
-    String *snew= proc->val_str(NULL);
-    List_iterator_fast<Item_string> li(m_calls);
-    Item_string *it;
+    char *proc= thd->lex.udf.name.str;
+
+    List_iterator_fast<char *> li(m_calls);
+    char **it;
 
     while ((it= li++))
-    {
-      String *sold= it->val_str(NULL);
-
-      if (stringcmp(snew, sold) == 0)
+      if (strcasecmp(proc, *it) == 0)
 	break;
-    }
     if (! it)
-      m_calls.push_back(proc);
+      m_calls.push_back(&proc);
 
   }
   // Merge used tables

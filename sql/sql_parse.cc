@@ -2763,26 +2763,24 @@ mysql_execute_command(THD *thd)
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
-  case SQLCOM_CREATE_FUNCTION:
-    if (check_access(thd,INSERT_ACL,"mysql",0,1))
-      break;
+  case SQLCOM_CREATE_FUNCTION:	// UDF function
+    {
+      if (check_access(thd,INSERT_ACL,"mysql",0,1))
+	break;
 #ifdef HAVE_DLOPEN
-    if (!(res = mysql_create_function(thd,&lex->udf)))
-      send_ok(thd);
+      sp_head *sph= sp_find_function(thd, &lex->udf.name);
+      if (sph)
+      {
+	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
+	goto error;
+      }
+      if (!(res = mysql_create_function(thd,&lex->udf)))
+	send_ok(thd);
 #else
-    res= -1;
+      res= -1;
 #endif
-    break;
-  case SQLCOM_DROP_FUNCTION:
-    if (check_access(thd,DELETE_ACL,"mysql",0,1))
       break;
-#ifdef HAVE_DLOPEN
-    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
-      send_ok(thd);
-#else
-    res= -1;
-#endif
-    break;
+    }
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
@@ -2951,7 +2949,7 @@ mysql_execute_command(THD *thd)
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
-  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_CREATE_PROCEDURE:	// FUNCTION too (but not UDF!)
     if (!lex->sphead)
     {
       send_error(thd, ER_SP_NO_RECURSIVE_CREATE);
@@ -2959,22 +2957,35 @@ mysql_execute_command(THD *thd)
     }
     else
     {
-      res= lex->sphead->create(thd);
-      if (res != 0)
+      uint namelen;
+      char *name= lex->sphead->name(&namelen);
+      udf_func *udf = find_udf(name, namelen);
+
+      if (udf)
       {
-	send_error(thd, ER_SP_ALREADY_EXISTS);
+	net_printf(thd, ER_UDF_EXISTS, name);
 	goto error;
       }
-      send_ok(thd);
+      res= lex->sphead->create(thd);
+      switch (res)
+      {
+      case SP_OK:
+	send_ok(thd);
+	break;
+      case SP_WRITE_ROW_FAILED:
+	send_error(thd, ER_SP_ALREADY_EXISTS);
+	goto error;
+      default:
+	send_error(thd, ER_SP_STORE_FAILED);
+	goto error;
+      }
     }
     break;
   case SQLCOM_CALL:
     {
-      Item_string *s;
       sp_head *sp;
 
-      s= (Item_string*)lex->value_list.head();
-      sp= sp_find_procedure(thd, s);
+      sp= sp_find_procedure(thd, &lex->udf.name);
       if (! sp)
       {
 	send_error(thd, ER_SP_DOES_NOT_EXIST);
@@ -3002,12 +3013,14 @@ mysql_execute_command(THD *thd)
     }
     break;
   case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_FUNCTION:
     {
-      Item_string *s;
       sp_head *sp;
 
-      s= (Item_string*)lex->value_list.head();
-      sp= sp_find_procedure(thd, s);
+      if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+	sp= sp_find_procedure(thd, &lex->udf.name);
+      else
+	sp= sp_find_function(thd, &lex->udf.name);
       if (! sp)
       {
 	send_error(thd, ER_SP_DOES_NOT_EXIST);
@@ -3022,28 +3035,41 @@ mysql_execute_command(THD *thd)
     }
     break;
   case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_DROP_FUNCTION:
     {
-      Item_string *s;
-      sp_head *sp;
-
-      s = (Item_string*)lex->value_list.head();
-      sp = sp_find_procedure(thd, s);
-      if (! sp)
-      {
-	send_error(thd, ER_SP_DOES_NOT_EXIST);
-	goto error;
-      }
+      if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
+	res= sp_drop_procedure(thd, lex->udf.name.str, lex->udf.name.length);
       else
       {
-	String *name = s->const_string();
-
-	res= sp_drop_procedure(thd, name->c_ptr(), name->length());
-	if (res != 0)
+	res= sp_drop_function(thd, lex->udf.name.str, lex->udf.name.length);
+#ifdef HAVE_DLOPEN
+	if (res == SP_KEY_NOT_FOUND)
 	{
-	  send_error(thd, ER_SP_DROP_FAILED);
-	  goto error;
+	  udf_func *udf = find_udf(lex->udf.name.str, lex->udf.name.length);
+	  if (udf)
+	  {
+	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1))
+	      goto error;
+	    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
+	    {
+	      send_ok(thd);
+	      break;
+	    }
+	  }
 	}
+#endif
+      }
+      switch (res)
+      {
+      case SP_OK:
 	send_ok(thd);
+	break;
+      case SP_KEY_NOT_FOUND:
+	send_error(thd, ER_SP_DOES_NOT_EXIST);
+	goto error;
+      default:
+	send_error(thd, ER_SP_DROP_FAILED);
+	goto error;
       }
     }
     break;
