@@ -134,7 +134,7 @@ dist-hook:
 GT = $(srcdir)/Support/generate-text-files.pl
 
 ../INSTALL-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "Installing" "Compatibility" > $@
+	perl -w $(GT) mysql.info "Installing" "Tutorial" > $@
 
 # We put the description for the binary installation here so that
 # people who download source wont have to see it. It is moved up to
