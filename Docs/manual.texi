@@ -26845,12 +26845,10 @@ Things that are not yet supported:
 
 @menu
 * Language Structure::          
-* Variables::                   User variables
 * Column types::                Column types
 * Functions::                   Functions
 * Data Manipulation::           
 * Data Definition::             
-* DROP DATABASE::               @code{DROP DATABASE} syntax
 * Basic User Commands::         
 * Transactional Commands::      
 * Fulltext Search::             
@@ -26864,13 +26862,16 @@ included in @strong{MySQL}.  In order to use this chapter effectively, you
 may find it useful to refer to the various indexes.
 
 
-@node Language Structure, Variables, Reference, Reference
+@node Language Structure, Column types, Reference, Reference
 @section Language Structure
 
 @menu
 * Literals::                    
 * Legal names::                 
 * Name case sensitivity::       
+* Variables::                   
+* Comments::                    
+* Reserved words::              
 @end menu
 
 
@@ -27224,7 +27225,7 @@ database.  This syntax is accepted for ODBC compatibility, because some ODBC
 programs prefix table names with a @samp{.} character.
 
 
-@node Name case sensitivity,  , Legal names, Language Structure
+@node Name case sensitivity, Variables, Legal names, Language Structure
 @subsection Case Sensitivity in Names
 
 @cindex names, case-sensitivity
@@ -27275,8 +27276,8 @@ change this option, you need to first convert your old table names to
 lower case before starting @code{mysqld}.
 
 
-@node Variables, Column types, Language Structure, Reference
-@section User Variables
+@node Variables, Comments, Name case sensitivity, Language Structure
+@subsection User Variables
 
 @cindex variables, user
 @cindex user variables
@@ -27340,7 +27341,7 @@ row, but the value of @code{id} for the previous accepted row.
 * Reserved words::              
 @end menu
 
-@node Comments, Reserved words, Variables, Variables
+@node Comments, Reserved words, Variables, Language Structure
 @subsection Comment Syntax
 
 @findex Comment syntax
@@ -27392,7 +27393,7 @@ input from that file with @code{mysql < some-file}.
 @xref{Missing comments}.
 
 
-@node Reserved words,  , Comments, Variables
+@node Reserved words,  , Comments, Language Structure
 @subsection Is MySQL Picky About Reserved Words?
 
 @cindex keywords
@@ -27506,7 +27507,7 @@ used them.
 @end itemize
 
 
-@node Column types, Functions, Variables, Reference
+@node Column types, Functions, Language Structure, Reference
 @section Column Types
 
 @cindex columns, types
@@ -33034,15 +33035,22 @@ For more information about the efficiency of @code{INSERT} versus
 @xref{Insert speed}.
 
 
-@node Data Definition, DROP DATABASE, Data Manipulation, Reference
+@node Data Definition, Basic User Commands, Data Manipulation, Reference
 @section Data Definition: @code{CREATE}, @code{DROP}, @code{ALTER}
 
 @menu
 * CREATE DATABASE::             
+* DROP DATABASE::               
+* CREATE TABLE::                
+* ALTER TABLE::                 
+* RENAME TABLE::                
+* DROP TABLE::                  
+* CREATE INDEX::                
+* DROP INDEX::                  
 @end menu
 
 
-@node CREATE DATABASE,  , Data Definition, Data Definition
+@node CREATE DATABASE, DROP DATABASE, Data Definition, Data Definition
 @subsection @code{CREATE DATABASE} Syntax
 
 @findex CREATE DATABASE
@@ -33065,8 +33073,8 @@ You can also create databases with @code{mysqladmin}.
 @xref{Client-Side Scripts}.
 
 
-@node DROP DATABASE, Basic User Commands, Data Definition, Reference
-@section @code{DROP DATABASE} Syntax
+@node DROP DATABASE, CREATE TABLE, CREATE DATABASE, Data Definition
+@subsection @code{DROP DATABASE} Syntax
 
 @findex DROP DATABASE
 
@@ -33113,7 +33121,7 @@ You can also drop databases with @code{mysqladmin}. @xref{Client-Side Scripts}.
 * DROP INDEX::                  
 @end menu
 
-@node CREATE TABLE, ALTER TABLE, DROP DATABASE, DROP DATABASE
+@node CREATE TABLE, ALTER TABLE, DROP DATABASE, Data Definition
 @subsection @code{CREATE TABLE} Syntax
 
 @findex CREATE TABLE
@@ -33625,7 +33633,7 @@ Certain other column type changes may occur if you compress a table
 using @code{myisampack}. @xref{Compressed format}.
 
 
-@node ALTER TABLE, RENAME TABLE, CREATE TABLE, DROP DATABASE
+@node ALTER TABLE, RENAME TABLE, CREATE TABLE, Data Definition
 @subsection @code{ALTER TABLE} Syntax
 
 @findex ALTER TABLE
@@ -33889,7 +33897,7 @@ column, the numbers will start from 1 again.
 @xref{ALTER TABLE problems}.
 
 
-@node RENAME TABLE, DROP TABLE, ALTER TABLE, DROP DATABASE
+@node RENAME TABLE, DROP TABLE, ALTER TABLE, Data Definition
 @subsection @code{RENAME TABLE} Syntax
 
 @findex RENAME TABLE
@@ -33933,7 +33941,7 @@ will do a reverse rename for all renamed tables to get everything back
 to the original state.
 
 
-@node DROP TABLE, CREATE INDEX, RENAME TABLE, DROP DATABASE
+@node DROP TABLE, CREATE INDEX, RENAME TABLE, Data Definition
 @subsection @code{DROP TABLE} Syntax
 
 @findex DROP TABLE
@@ -33956,7 +33964,7 @@ For the moment they don't do anything.
 automatically commit any active transactions.
 
 
-@node CREATE INDEX, DROP INDEX, DROP TABLE, DROP DATABASE
+@node CREATE INDEX, DROP INDEX, DROP TABLE, Data Definition
 @subsection @code{CREATE INDEX} Syntax
 
 @findex CREATE INDEX
@@ -34013,7 +34021,7 @@ are available in @strong{MySQL} Version 3.23.23 and later.
 @ref{Fulltext Search}.
 
 
-@node DROP INDEX,  , CREATE INDEX, DROP DATABASE
+@node DROP INDEX,  , CREATE INDEX, Data Definition
 @subsection @code{DROP INDEX} Syntax
 
 @findex DROP INDEX
@@ -34029,7 +34037,7 @@ prior to Version 3.22.  In Version 3.22 or later, @code{DROP INDEX} is mapped to
 @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 
-@node Basic User Commands, Transactional Commands, DROP DATABASE, Reference
+@node Basic User Commands, Transactional Commands, Data Definition, Reference
 @section Basic MySQL User Utility Commands
 
 @menu
@@ -34105,7 +34113,7 @@ The @code{SHOW} statement provides similar information.
 
 
 @node Transactional Commands, Fulltext Search, Basic User Commands, Reference
-@section MYSQL Transactional and Locking Commands
+@section MySQL Transactional and Locking Commands
 
 @menu
 * COMMIT::                      
