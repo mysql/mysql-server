@@ -16,6 +16,7 @@
 
 
 #include <ndb_global.h>
+#include <my_sys.h>
 
 #include <NdbOut.hpp>
 
@@ -26,6 +27,9 @@
 #include <getarg.h>
 #include <NdbScanFilter.hpp>
  
+#ifndef DBUG_OFF
+const char *debug_option= 0;
+#endif
 
 int scanReadRecords(Ndb*, 
 		    const NdbDictionary::Table*, 
@@ -58,6 +62,10 @@ int main(int argc, const char** argv){
       "Output numbers in hexadecimal format", "useHexFormat" },
     { "delimiter", 'd', arg_string, &_delimiter, "Column delimiter", 
       "delimiter" },
+#ifndef DBUG_OFF
+    { "debug", 0, arg_string, &debug_option,
+      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+#endif
     { "usage", '?', arg_flag, &_help, "Print help", "" },
     { "lock", 'l', arg_integer, &_lock, 
       "Read(0), Read-hold(1), Exclusive(2)", "lock"},
@@ -79,6 +87,12 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   _tabname = argv[optind];
+
+#ifndef DBUG_OFF
+  my_init();
+  if (debug_option)
+    DBUG_PUSH(debug_option);
+#endif
 
   // Connect to Ndb
   Ndb MyNdb(_dbname);

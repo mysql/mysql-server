@@ -783,6 +783,7 @@ Remark:         Release and disconnect from DBTC a connection and seize it to th
 void
 Ndb::releaseConnectToNdb(NdbConnection* a_con)     
 {
+  DBUG_ENTER("Ndb::releaseConnectToNdb");
   NdbApiSignal          tSignal(theMyRef);
   int                   tConPtr;
 
@@ -790,7 +791,7 @@ Ndb::releaseConnectToNdb(NdbConnection* a_con)
 // manage to reach NDB or not.
 
   if (a_con == NULL)
-    return;
+    DBUG_VOID_RETURN;
 
   Uint32 node_id = a_con->getConnectedNodeId();
   Uint32 conn_seq = a_con->theNodeSequence;
@@ -821,6 +822,6 @@ Ndb::releaseConnectToNdb(NdbConnection* a_con)
     abort();
   }//if
   releaseNdbCon(a_con);
-  return;
+  DBUG_VOID_RETURN;
 }
 

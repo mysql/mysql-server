@@ -207,9 +207,11 @@ Remark:        Disconnect all connections to the database.
 void 
 Ndb::doDisconnect()
 {
+  DBUG_ENTER("Ndb::doDisconnect");
   NdbConnection* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
+  DBUG_PRINT("info", ("theNoOfDBnodes=%d", theNoOfDBnodes));
   Uint32 tNoOfDbNodes = theNoOfDBnodes;
   UintR i;
   for (i = 0; i < tNoOfDbNodes; i++) {
@@ -227,6 +229,7 @@ Ndb::doDisconnect()
     tNdbCon = tNdbCon->theNext;
     releaseConnectToNdb(tmpNdbCon);
   }//while
+  DBUG_VOID_RETURN;
 }//Ndb::disconnect()
 
 /*****************************************************************************
@@ -239,6 +242,7 @@ Remark:         Waits until a node has status != 0
 int
 Ndb::waitUntilReady(int timeout)
 {
+  DBUG_ENTER("Ndb::waitUntilReady");
   int secondsCounter = 0;
   int milliCounter = 0;
   int noChecksSinceFirstAliveFound = 0;
@@ -246,7 +250,7 @@ Ndb::waitUntilReady(int timeout)
   if (theInitState != Initialised) {
     // Ndb::init is not called
     theError.code = 4256;
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   do {
@@ -265,13 +269,13 @@ Ndb::waitUntilReady(int timeout)
     
     tp->unlock_mutex();
     if (foundAliveNode == theNoOfDBnodes) {
-      return 0;
+      DBUG_RETURN(0);
     }//if
     if (foundAliveNode > 0) {
       noChecksSinceFirstAliveFound++;
     }//if
     if (noChecksSinceFirstAliveFound > 30) {
-      return 0;
+      DBUG_RETURN(0);
     }//if
     NdbSleep_MilliSleep(100);
     milliCounter += 100;
@@ -281,9 +285,9 @@ Ndb::waitUntilReady(int timeout)
     }//if
   } while ( secondsCounter < timeout );
   if (noChecksSinceFirstAliveFound > 0) {
-    return 0;
+    DBUG_RETURN(0);
   }//if
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 /*****************************************************************************
@@ -1060,6 +1064,9 @@ Ndb::StartTransactionNodeSelectionData::init(Uint32 noOfNodes,
    * This algorithm should be implemented in Dbdih
    */
   {
+    if (fragment2PrimaryNodeMap != 0)
+      abort();
+
     fragment2PrimaryNodeMap = new Uint32[noOfFragments];
     Uint32 i;  
     for(i = 0; i<noOfNodes; i++){
