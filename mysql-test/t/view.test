@@ -1641,8 +1641,10 @@ select * from t1;
 select * from t2;
 # view without primary key
 create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
+set updatable_views_with_limit=NO;
 -- error 1288
-update v2 set a= 10 where a=200;
+update v2 set a= 10 where a=200 limit 1;
+set updatable_views_with_limit=DEFAULT;
 # just view selects
 select * from v3;
 select * from v2;
@@ -1668,14 +1670,14 @@ create table t2 (a int, primary key (a), b int);
 insert into t2 values (1000, 2000);
 create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
 # inserting into join view without field list
--- error 1365
+-- error 1394
 insert into v3 values (1,2);
--- error 1365
+-- error 1394
 insert into v3 select * from t2;
 # inserting in several tables of join view
--- error 1364
+-- error 1393
 insert into v3(a,b) values (1,2);
--- error 1364
+-- error 1393
 insert into v3(a,b) select * from t2;
 # correct inserts into join view
 insert into v3(a) values (1);
@@ -1685,17 +1687,10 @@ insert into v3(b) select b from t2;
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
 select * from t1;
 select * from t2;
-# view without primary key
-create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
--- error 1288
-insert into v2(a) values (10);
-# just view selects
-select * from v3;
-select * from v2;
 # try delete from join view
--- error 1366
+-- error 1395
 delete from v3;
--- error 1366
+-- error 1395
 delete v3,t1 from v3,t1;
 # delete from t1 just to reduce result set size
 delete from t1;
@@ -1714,5 +1709,5 @@ execute stmt1 using @a;
 deallocate prepare stmt1;
 select * from v3;
 
-drop view v3,v2;
+drop view v3;
 drop tables t1,t2;

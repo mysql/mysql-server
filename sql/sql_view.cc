@@ -489,6 +489,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 	 tbl= tbl->next_local)
     {
       if ((tbl->view && !tbl->updatable_view) || tbl->schema_table)
+      {
 	view->updatable_view= 0;
 	break;
       }
@@ -1074,18 +1075,18 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     view      view for processing
 
   RETURN
-    0  - OK
-    -1 - error (is not sent to cliet)
+    FALSE OK
+    TRUE  error (is not sent to cliet)
 */
 
-int insert_view_fields(List<Item> *list, TABLE_LIST *view)
+bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
 {
   uint elements_in_view= view->view->select_lex.item_list.elements;
   Field_translator *trans;
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
-    DBUG_RETURN(0);
+    DBUG_RETURN(FALSE);
 
   for (uint i= 0; i < elements_in_view; i++)
   {
@@ -1095,10 +1096,10 @@ int insert_view_fields(List<Item> *list, TABLE_LIST *view)
     else
     {
       my_error(ER_NON_UPDATABLE_TABLE, MYF(0), view->alias, "INSERT");
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 /*

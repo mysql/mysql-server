@@ -580,7 +580,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
   {
     for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
     {
-      if (table->table->tmp_table == NO_TMP_TABLE &&
+      if ((table->table == 0 || table->table->tmp_table == NO_TMP_TABLE) &&
           ((!strcmp(table->db, db_name) &&
             !strcmp(table->real_name, table_name)) ||
            (table->view &&
@@ -595,7 +595,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
   {
     for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
     {
-      if (table->table->tmp_table == NO_TMP_TABLE &&
+      if ((table->table == 0 || table->table->tmp_table == NO_TMP_TABLE) &&
           ((!strcmp(table->db, db_name) &&
             !strcmp(table->real_name, table_name)) ||
            (table->view &&
@@ -2786,14 +2786,14 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 
   SYNOPSIS
     setup_tables()
-    thd		Thread handler
-    tables	Table list
-    conds	Condition of current SELECT (can be changed by VIEW)
-    leaves      List of join table leaves list
-    refresh     It is onle refresh for subquery
+    thd		  Thread handler
+    tables	  Table list
+    conds	  Condition of current SELECT (can be changed by VIEW)
+    leaves        List of join table leaves list
+    refresh       It is onle refresh for subquery
+    select_insert It is SELECT ... INSERT command
 
   NOTE
-    Remap table numbers if INSERT ... SELECT
     Check also that the 'used keys' and 'ignored keys' exists and set up the
     table structure accordingly
     Create leaf tables list
@@ -2802,29 +2802,46 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
     table->map is not set and all Item_field will be regarded as const items.
 
   RETURN
-    0	ok;  In this case *map will includes the choosed index
-    1	error
+    FALSE ok;  In this case *map will includes the choosed index
+    TRUE  error
 */
 
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-                  TABLE_LIST **leaves, bool refresh)
+                  TABLE_LIST **leaves, bool refresh, bool select_insert)
 {
   DBUG_ENTER("setup_tables");
+  /*
+    this is used for INSERT ... SELECT.
+    For select we setup tables except first (and its underlaying tables)
+  */
+  TABLE_LIST *first_select_table= (select_insert ?
+                                   tables->next_local:
+                                   0);
   if (!tables || tables->setup_is_done)
     DBUG_RETURN(0);
   tables->setup_is_done= 1;
+
 
   if (!(*leaves))
   {
     make_leaves_list(leaves, tables);
   }
 
-  uint tablenr=0;
+  uint tablenr= 0;
   for (TABLE_LIST *table_list= *leaves;
        table_list;
        table_list= table_list->next_leaf, tablenr++)
   {
     TABLE *table= table_list->table;
+    if (first_select_table &&
+        (table_list->belong_to_view ?
+         table_list->belong_to_view :
+         table_list) == first_select_table)
+    {
+      /* new counting for SELECT of INSERT ... SELECT command */
+      first_select_table= 0;
+      tablenr= 0;
+    }
     setup_table_map(table, table_list, tablenr);
     table->used_keys= table->keys_for_keyread;
     if (table_list->use_index)

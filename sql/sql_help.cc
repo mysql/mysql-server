@@ -647,7 +647,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  setup_tables(thd, tables, 0, &leaves, 0);
+  setup_tables(thd, tables, 0, &leaves, FALSE, FALSE);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
     goto error;

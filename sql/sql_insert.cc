@@ -612,25 +612,26 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
   SYNOPSIS
      mysql_prepare_insert_check_table()
      thd		Thread handle
-     table_list		Table list (only one table)
+     table_list		Table list
      fields		List of fields to be updated
      where		Pointer to where clause
+     select_insert      Check is making for SELECT ... INSERT
 
    RETURN
-     0	 ok
-     1   ERROR and message sent to client
-     -1  ERROR but message is not sent to client
+     FALSE ok
+     TRUE  ERROR
 */
 
-static int mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
-                                             List<Item> &fields, COND **where)
+static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
+                                             List<Item> &fields, COND **where,
+                                             bool select_insert)
 {
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
   if (setup_tables(thd, table_list, where, &thd->lex->select_lex.leaf_tables,
-		   0))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+		   FALSE, select_insert))
+    DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
   {
@@ -641,12 +642,12 @@ static int mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
                   table_list->ancestor && table_list->ancestor->next_local);
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     DBUG_RETURN(insert_view_fields(&fields, table_list));
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -674,9 +675,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   bool res;
   DBUG_ENTER("mysql_prepare_insert");
 
-  if ((res= mysql_prepare_insert_check_table(thd, table_list,
-                                             fields, &unused_conds)))
-    DBUG_RETURN(res);
+  DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
+		       (ulong)table_list, (ulong)table,
+		       (int)insert_into_view));
+  if (mysql_prepare_insert_check_table(thd, table_list, fields, &unused_conds,
+                                       FALSE))
+    DBUG_RETURN(TRUE);
 
   if (check_insert_fields(thd, table_list, fields, *values, 1,
                           !insert_into_view) ||
@@ -688,6 +692,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
          res) ||
         setup_fields(thd, 0, table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(TRUE);
+
+  if (!table)
+    table= table_list->table;
 
   if (unique_table(table_list, table_list->next_global))
   {
@@ -1716,8 +1723,9 @@ bool mysql_insert_select_prepare(THD *thd)
   lex->query_tables->no_where_clause= 1;
   if (mysql_prepare_insert_check_table(thd, lex->query_tables,
                                        lex->field_list,
-                                       &lex->select_lex.where))
-    DBUG_RETURN(FALSE);
+                                       &lex->select_lex.where,
+                                       TRUE))
+    DBUG_RETURN(TRUE);
   /*
     setup was done in mysql_insert_select_prepare, but we have to mark
     first local table

@@ -614,10 +614,10 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
                       ALTER_INFO *alter_info);
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
                           Item **conds, uint order_num, ORDER *order);
-bool mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-                  List<Item> &values,COND *conds,
-                  uint order_num, ORDER *order, ha_rows limit,
-                  enum enum_duplicates handle_duplicates);
+int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
+		 List<Item> &values,COND *conds,
+		 uint order_num, ORDER *order, ha_rows limit,
+		 enum enum_duplicates handle_duplicates);
 bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
                         List<Item> *fields, List<Item> *values,
                         COND *conds, ulong options,
@@ -800,9 +800,11 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it, bool any_privileges,
-                   bool allocate_view_names);
+                   bool allocate_view_names,
+                   bool select_insert);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
-		  TABLE_LIST **leaves, bool refresh_only);
+		  TABLE_LIST **leaves, bool refresh_only,
+                  bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
