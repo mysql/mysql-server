@@ -889,8 +889,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                                                       ref_pointer_array,
                                                       (char *)"<ref>",
                                                       this->full_name()));
+#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
     if (!abort_on_null && left_expr->maybe_null)
       item= new Item_cond_or(new Item_func_isnull(left_expr), item); 
+#endif
     /*
       AND and comparison functions can't be changed during fix_fields()
       we can assign select_lex->having here, and pass 0 as last
@@ -944,8 +946,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  goto err;
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(orig_item));
+#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
         if (left_expr->maybe_null)
           item= new Item_cond_or(new Item_func_isnull(left_expr), item);
+#endif
       }
       item->name= (char *)in_additional_cond;
       /*
@@ -975,8 +979,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       new Item_null_helper(this, item,
 					    (char *)"<no matter>",
 					    (char *)"<result>"));
+#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
         if (!abort_on_null && left_expr->maybe_null)
           item= new Item_cond_or(new Item_func_isnull(left_expr), item);
+#endif
 	select_lex->having= join->having= item;   
 	select_lex->having_fix_field= 1;
         /*
