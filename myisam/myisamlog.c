@@ -648,7 +648,7 @@ static int examine_log(my_string file_name, char **table_names)
       goto end;
     }
   }
-  end_key_cache(dflt_keycache,1);
+  end_key_cache(*dflt_keycache,1);
   delete_tree(&tree);
   VOID(end_io_cache(&cache));
   VOID(my_close(file,MYF(0)));
@@ -668,7 +668,7 @@ static int examine_log(my_string file_name, char **table_names)
 	       llstr(isamlog_filepos,llbuff)));
   fflush(stderr);
  end:
-  end_key_cache(dflt_keycache,1);
+  end_key_cache(*dflt_keycache, 1);
   delete_tree(&tree);
   VOID(end_io_cache(&cache));
   VOID(my_close(file,MYF(0)));

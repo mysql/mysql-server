@@ -60,11 +60,6 @@
 #include "ha_innodb.h"
 #endif
 
-ulonglong dflt_key_buff_size;
-uint dflt_key_cache_block_size;
-uint dflt_key_cache_division_limit;
-uint dflt_key_cache_age_threshold;
-
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
 TYPELIB bool_typelib=
@@ -148,11 +143,15 @@ sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 					     &SV::join_buff_size);
 sys_var_key_buffer_size	sys_key_buffer_size("key_buffer_size");
-sys_var_key_cache_block_size  sys_key_cache_block_size("key_cache_block_size");
-sys_var_key_cache_division_limit
-  sys_key_cache_division_limit("key_cache_division_limit");
-sys_var_key_cache_age_threshold
-  sys_key_cache_age_threshold("key_cache_age_threshold");
+sys_var_key_cache_long  sys_key_cache_block_size("key_cache_block_size",
+						 offsetof(KEY_CACHE_VAR,
+							  block_size));
+sys_var_key_cache_long	sys_key_cache_division_limit("key_cache_division_limit",
+						     offsetof(KEY_CACHE_VAR,
+							      division_limit));
+sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
+						     offsetof(KEY_CACHE_VAR,
+							      age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
 sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -1266,7 +1265,13 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   }
   switch (type()) {
   case SHOW_LONG:
-    return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type, base));
+  {
+    ulong value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(ulong*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return new Item_uint((int32) value);
+  }
   case SHOW_LONGLONG:
   {
     longlong value;
@@ -1772,23 +1777,20 @@ void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
 }
 
 
-static LEX_STRING default_key_cache_base= {(char *) DEFAULT_KEY_CACHE_NAME, 7};
+LEX_STRING default_key_cache_base= {(char *) "default", 7 };
 
 static KEY_CACHE_VAR zero_key_cache=
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-static KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
+KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
 {
-  if (!cache_name || !cache_name->str || !cache_name->length ||
-       cache_name->str == default_key_cache_base.str ||
-      (cache_name->length == default_key_cache_base.length &&
-       !memcmp(cache_name->str, default_key_cache_base.str,
-               default_key_cache_base.length)))
+  safe_mutex_assert_owner(&LOCK_global_system_variables);
+  if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE_VAR*) find_named(&key_caches,
-                                      cache_name->str, cache_name->length,
-                                      0));
+                                      cache_name->str, cache_name->length, 0));
 }
+
 
 byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)
@@ -1799,115 +1801,134 @@ byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
   return (byte*) key_cache + offset ;
 }
     
+
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
-
   LEX_STRING *base_name= &var->base;
+  KEY_CACHE_VAR *key_cache;
+  bool error= 0;
+
+  /* If no basename, assume it's for the key cache named 'default' */
   if (!base_name->length)
     base_name= &default_key_cache_base;
-  KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  key_cache= get_key_cache(base_name);
                             
   if (!key_cache)
   {
+    /* Key cache didn't exists */
     if (!tmp)					// Tried to delete cache
-      return 0;					// Ok, nothing to do
-    if (!(key_cache= create_key_cache(base_name->str,
-                                      base_name->length)))
-      return 1;
+      goto end;					// Ok, nothing to do
+    if (!(key_cache= create_key_cache(base_name->str, base_name->length)))
+    {
+      error= 1;
+      goto end;
+    }
   }
+
+  /*
+    Abort if some other thread is changing the key cache
+    TODO: This should be changed so that we wait until the previous
+    assignment is done and then do the new assign
+  */
+  if (key_cache->in_init)
+    goto end;
+
   if (!tmp)					// Zero size means delete
   {
-    if (!key_cache->cache)
-      return 0;
-    /* Delete not default key caches */
-    if (key_cache != &dflt_key_cache_var)
+    if (key_cache == sql_key_cache)
+      goto end;					// Ignore default key cache
+
+    if (key_cache->cache)			// If initied
     {
       /*
-         Move tables using this key cache to the default key cache
-         and remove this key cache if no tables are assigned to it
+	Move tables using this key cache to the default key cache
+	and clear the old key cache.
       */
       NAMED_LIST *list; 
       key_cache= (KEY_CACHE_VAR *) find_named(&key_caches, base_name->str,
 					      base_name->length, &list);
-      delete list;
-      int rc= reassign_keycache_tables(thd, key_cache,
-                                       default_key_cache_base.str, 1);
-      my_free((char*) key_cache, MYF(0));
-      return rc;
-
+      key_cache->in_init= 1;
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      error= reassign_keycache_tables(thd, key_cache, sql_key_cache);
+      pthread_mutex_lock(&LOCK_global_system_variables);
+      key_cache->in_init= 0;
     }
-    return 0;
+    /*
+      We don't delete the key cache as some running threads my still be
+      in the key cache code with a pointer to the deleted (empty) key cache
+    */
+    goto end;
   }
 
   key_cache->buff_size= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
 
+  /* If key cache didn't existed initialize it, else resize it */
+  key_cache->in_init= 1;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+
   if (!key_cache->cache)
-    return (bool)(ha_key_cache(key_cache));
+    error= (bool) (ha_init_key_cache("", key_cache));
   else
-    return (bool)(ha_resize_key_cache(key_cache));
+    error= (bool)(ha_resize_key_cache(key_cache));
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;  
+
+end:
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return error;
 }
 
-bool sys_var_key_cache_block_size::update(THD *thd, set_var *var)
+
+bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
   ulong tmp= var->value->val_int();
   LEX_STRING *base_name= &var->base;
+  bool error= 0;
+
   if (!base_name->length)
     base_name= &default_key_cache_base;
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
   KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
                             
   if (!key_cache && !(key_cache= create_key_cache(base_name->str,
 				                  base_name->length)))
-    return 1;
+  {
+    error= 1;
+    goto end;
+  }
  
-  key_cache->block_size= (ulong) getopt_ull_limit_value(tmp, option_limits);
+  /*
+    Abort if some other thread is changing the key cache
+    TODO: This should be changed so that we wait until the previous
+    assignment is done and then do the new assign
+  */
+  if (key_cache->in_init)
+    goto end;
 
-  if (key_cache->cache)
-    /* Do not build a new key cache here */ 
-    return (bool) (ha_resize_key_cache(key_cache));
-  return 0;
-}
-
-bool sys_var_key_cache_division_limit::update(THD *thd, set_var *var)
-{
-  ulong tmp= var->value->val_int();
-  LEX_STRING *base_name= &var->base;
-  if (!base_name->length)
-    base_name= &default_key_cache_base;
-  KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
-                            
-  if (!key_cache && !(key_cache= create_key_cache(base_name->str,
-				                  base_name->length)))
-    return 1;
- 
-  key_cache->division_limit=
+  *((ulong*) (((char*) key_cache) + offset))=
     (ulong) getopt_ull_limit_value(tmp, option_limits);
 
-  if (key_cache->cache)
-    /* Do not build a new key cache here */ 
-    return (bool) (ha_change_key_cache_param(key_cache));
-  return 0;
-}
+  /*
+    Don't create a new key cache if it didn't exist
+    (key_caches are created only when the user sets block_size)
+  */
+  key_cache->in_init= 1;
 
-bool sys_var_key_cache_age_threshold::update(THD *thd, set_var *var)
-{
-  ulong tmp= var->value->val_int();
-  LEX_STRING *base_name= &var->base;
-  if (!base_name->length)
-    base_name= &default_key_cache_base;
-  KEY_CACHE_VAR *key_cache= get_key_cache(base_name);
-                            
-  if (!key_cache && !(key_cache= create_key_cache(base_name->str,
-				                  base_name->length)))
-    return 1;
- 
-  key_cache->division_limit=
-    (ulong) getopt_ull_limit_value(tmp, option_limits);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
 
-  if (key_cache->cache)
-    /* Do not build a new key cache here */ 
-    return (bool) (ha_change_key_cache_param(key_cache));
-  return 0;
+  error= (bool) (ha_resize_key_cache(key_cache));
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;  
+
+end:
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return error;
 }
 
 
@@ -2507,13 +2528,14 @@ gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 }
 
 
-void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr))
+void delete_elements(I_List<NAMED_LIST> *list,
+		     void (*free_element)(const char *name, gptr))
 {
   NAMED_LIST *element;
   DBUG_ENTER("delete_elements");
   while ((element= list->get()))
   {
-    (*free_element)(element->data);
+    (*free_element)(element->name, element->data);
     delete element;
   }
   DBUG_VOID_RETURN;
@@ -2525,60 +2547,65 @@ void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr))
 static KEY_CACHE_VAR *create_key_cache(const char *name, uint length)
 {
   KEY_CACHE_VAR *key_cache;
-  DBUG_PRINT("info",("Creating key cache: %.*s  length: %d", length, name,
-		     length));
-  if (length != default_key_cache_base.length ||
-      memcmp(name, default_key_cache_base.str, length))
+  DBUG_ENTER("create_key_cache");
+  DBUG_PRINT("enter",("name: %.*s", length, name));
+  
+  if ((key_cache= (KEY_CACHE_VAR*) my_malloc(sizeof(KEY_CACHE_VAR),
+					     MYF(MY_ZEROFILL | MY_WME))))
   {
-    if ((key_cache= (KEY_CACHE_VAR*) my_malloc(sizeof(KEY_CACHE_VAR),
-					       MYF(MY_ZEROFILL | MY_WME))))
+    if (!new NAMED_LIST(&key_caches, name, length, (gptr) key_cache))
     {
-      if (!new NAMED_LIST(&key_caches, name, length, (gptr) key_cache))
-      {
-        my_free((char*) key_cache, MYF(0));
-        key_cache= 0;
-      }
+      my_free((char*) key_cache, MYF(0));
+      key_cache= 0;
+    }
+    else
+    {
+      /*
+	Set default values for a key cache
+	The values in dflt_key_cache_var is set by my_getopt() at startup
+
+	We don't set 'buff_size' as this is used to enable the key cache
+      */
+      key_cache->block_size=	 dflt_key_cache_var.block_size;
+      key_cache->division_limit= dflt_key_cache_var.division_limit;
+      key_cache->age_threshold=  dflt_key_cache_var.age_threshold;
     }
   }
-  else
-  {
-    key_cache= &dflt_key_cache_var;
-    if (!new NAMED_LIST(&key_caches, name, length, (gptr) key_cache))
-      key_cache= 0;
-  }
-     
-  return key_cache;
+  DBUG_RETURN(key_cache);
 }
 
 
 KEY_CACHE_VAR *get_or_create_key_cache(const char *name, uint length)
 {
   LEX_STRING key_cache_name;
+  KEY_CACHE_VAR *key_cache;
+
   key_cache_name.str= (char *) name;
   key_cache_name.length= length;
-  KEY_CACHE_VAR *key_cache= get_key_cache(&key_cache_name);
-  if (!key_cache)
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  if (!(key_cache= get_key_cache(&key_cache_name)))
     key_cache= create_key_cache(name, length);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   return key_cache;
 }
 
 
-void free_key_cache(gptr key_cache)
+void free_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
 {
-  if (key_cache != (gptr) &dflt_key_cache_var)
-    my_free(key_cache, MYF(0));
+  ha_end_key_cache(key_cache);
+  my_free((char*) key_cache, MYF(0));
 }
 
-bool process_key_caches(int (* func) (KEY_CACHE_VAR *))
-{
 
+bool process_key_caches(int (* func) (const char *name, KEY_CACHE_VAR *))
+{
   I_List_iterator<NAMED_LIST> it(key_caches);
   NAMED_LIST *element;
+
   while ((element= it++))
   {
     KEY_CACHE_VAR *key_cache= (KEY_CACHE_VAR *) element->data;
-    if (key_cache != &dflt_key_cache_var)
-      func(key_cache);     
+    func(element->name, key_cache);
   }
   return 0;
 }

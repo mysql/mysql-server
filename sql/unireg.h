@@ -68,7 +68,8 @@
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 
-#define MAX_TABLES	(sizeof(table_map)*8-2)	/* Max tables in join */
+#define MAX_TABLES	(sizeof(table_map)*8-3)	/* Max tables in join */
+#define PARAM_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-3))
 #define OUTER_REF_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-2))
 #define RAND_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-1))
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
@@ -145,10 +146,10 @@
 #define MTYP_NOEMPTY_BIT 128
 
 /*
- *  Minimum length pattern before Turbo Boyer-Moore is used
- *  for SELECT "text" LIKE "%pattern%", excluding the two
- *  wildcards in class Item_func_like.
- */
+  Minimum length pattern before Turbo Boyer-Moore is used
+  for SELECT "text" LIKE "%pattern%", excluding the two
+  wildcards in class Item_func_like.
+*/
 #define MIN_TURBOBM_PATTERN_LEN 3
 
 /* 
@@ -160,7 +161,9 @@
 #define BIN_LOG_HEADER_SIZE    4 
 #define FLOATING_POINT_BUFFER 331
 
-	/* Include prototypes for unireg */
+#define DEFAULT_KEY_CACHE_NAME "default"
+
+/* Include prototypes for unireg */
 
 #include "mysqld_error.h"
 #include "structs.h"				/* All structs we need */

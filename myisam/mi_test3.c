@@ -177,7 +177,7 @@ void start_test(int id)
     exit(1);
   }
   if (key_cacheing && rnd(2) == 0)
-    init_key_cache(dflt_keycache,512,65536L,0);
+    init_key_cache(dflt_keycache, KEY_CACHE_BLOCK_SIZE, 65536L,0);
   printf("Process %d, pid: %d\n",id,getpid()); fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)

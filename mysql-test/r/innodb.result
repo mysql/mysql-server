@@ -819,7 +819,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) default NULL,
   KEY `a` (`a`(5))
-) TYPE=InnoDB CHARSET=latin1
+) TYPE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create temporary table t1 (a int not null auto_increment, primary key(a)) type=innodb;
 insert into t1 values (NULL),(NULL),(NULL);

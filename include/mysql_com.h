@@ -44,7 +44,7 @@ enum enum_server_command
   COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT,
-  COM_RESET_STMT, 
+  COM_RESET_STMT, COM_SET_OPTION,
   COM_END				/* Must be last */
 };
 
@@ -116,7 +116,7 @@ enum enum_server_command
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
-#define CLIENT_MULTI_QUERIES     65536  /* Enable/disable multiquery support */
+#define CLIENT_MULTI_STATEMENTS 65536   /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    131072  /* Enable/disable multi-results */
 #define CLIENT_REMEMBER_OPTIONS	(1L << 31)
 
@@ -192,6 +192,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 };
 
 /* For backward compatibility */
+#define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS    
 #define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL
 #define FIELD_TYPE_TINY        MYSQL_TYPE_TINY
 #define FIELD_TYPE_SHORT       MYSQL_TYPE_SHORT
@@ -229,6 +230,13 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 #define MYSQL_TYPE_ULONGLONG -5
 #define MYSQL_TYPE_UINT24    -4
 #endif
+
+/* options for mysql_set_option */
+enum enum_mysql_set_option
+{
+  MYSQL_OPTION_MULTI_STATEMENTS_ON,
+  MYSQL_OPTION_MULTI_STATEMENTS_OFF
+};
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 

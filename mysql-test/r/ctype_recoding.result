@@ -6,7 +6,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) character set cp1251 default NULL
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 SELECT a FROM t1;
 a
 проба
@@ -25,7 +25,7 @@ SHOW CREATE TABLE таблица;
 Table	Create Table
 таблица	CREATE TABLE `таблица` (
   `поле` char(32) character set koi8r NOT NULL default '' COMMENT 'комментарий поля'
-) TYPE=MyISAM CHARSET=latin1 COMMENT='комментарий таблицы'
+) TYPE=MyISAM DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
 SHOW FIELDS FROM таблица;
 Field	Type	Null	Key	Default	Extra
 поле	char(32)				
@@ -37,7 +37,7 @@ SHOW CREATE TABLE РЮАКХЖЮ;
 Table	Create Table
 РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
   `ОНКЕ` char(32) character set koi8r NOT NULL default '' COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
-) TYPE=MyISAM CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
+) TYPE=MyISAM DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Null	Key	Default	Extra
 ОНКЕ	char(32)				
@@ -49,7 +49,7 @@ SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
 Table	Create Table
 я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
   `п©п╬п╩п╣` char(32) character set koi8r NOT NULL default '' COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
-) TYPE=MyISAM CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
+) TYPE=MyISAM DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Null	Key	Default	Extra
 п©п╬п╩п╣	char(32)				

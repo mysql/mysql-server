@@ -1629,9 +1629,6 @@ NetWare. */
 
 	srv_file_per_table = srv_file_per_table_original_value;
 
-        fprintf(stderr,
-"TODO: make sure MySQL sets field->query_id right in prepare/execute\n");
-
 	return((int) DB_SUCCESS);
 }
 

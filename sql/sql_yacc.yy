@@ -588,7 +588,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	IDENT IDENT_QUOTED TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
-	NCHAR_STRING opt_component
+	NCHAR_STRING opt_component key_cache_name
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -925,7 +925,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= thd->variables.collation_database;
 	  lex->name=0;
 	}
 	create2
@@ -950,7 +950,7 @@ create:
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
-	  { Lex->create_info.table_charset=NULL; }
+	  { Lex->create_info.default_table_charset=NULL; }
 	  opt_create_database_options
 	  {
 	    LEX *lex=Lex;
@@ -1037,10 +1037,10 @@ create_database_options:
 	| create_database_options create_database_option	{};
 
 create_database_option:
-	  COLLATE_SYM collation_name_or_default	
-	  { Lex->create_info.table_charset=$2; }
+	  opt_default COLLATE_SYM collation_name_or_default	
+	  { Lex->create_info.default_table_charset=$3; }
 	| opt_default charset charset_name_or_default
-	  { Lex->create_info.table_charset=$3; }
+	  { Lex->create_info.default_table_charset=$3; }
 	;
 
 opt_table_options:
@@ -1100,10 +1100,20 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| opt_default charset opt_equal charset_name_or_default
+	| DEFAULT charset opt_equal charset_name_or_default
+	  {
+	    Lex->create_info.default_table_charset= $4;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+	  }
+	| charset opt_equal charset_name_or_default
+	  {
+	    Lex->create_info.table_charset= $3;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
+	| DEFAULT COLLATE_SYM opt_equal collation_name_or_default
 	  {
 	    Lex->create_info.table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
 	  }
 	| COLLATE_SYM opt_equal collation_name_or_default
 	  {
@@ -1578,6 +1588,11 @@ key_or_index:
 	KEY_SYM {}
 	| INDEX {};
 
+opt_keys_or_index:
+	/* empty */ {}
+	| keys_or_index
+	;
+
 keys_or_index:
 	KEYS {}
 	| INDEX {}
@@ -1644,7 +1659,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
 	  lex->tablespace_op=NO_TABLESPACE_OP;
@@ -1990,13 +2005,12 @@ table_to_table:
 	};
 
 keycache:
-        CACHE_SYM INDEX 
+        CACHE_SYM INDEX keycache_list IN_SYM key_cache_name
         {
           LEX *lex=Lex;
-          lex->sql_command=SQLCOM_ASSIGN_TO_KEYCACHE;
+          lex->sql_command= SQLCOM_ASSIGN_TO_KEYCACHE;
+	  lex->name_and_length= $5;
         }
-        keycache_list
-        {}
         ;
 
 keycache_list:
@@ -2004,29 +2018,21 @@ keycache_list:
         | keycache_list ',' assign_to_keycache;
 
 assign_to_keycache:
-        table_ident cache_keys_spec IN_SYM ident
+        table_ident cache_keys_spec
         {
           LEX *lex=Lex;
           SELECT_LEX *sel= &lex->select_lex;
           if (!sel->add_table_to_list(lex->thd, $1, NULL, 0,
                                       TL_READ,
                                       sel->get_use_index(),
-                                      (List<String> *)0,
-                                      &($4)))        
-            YYABORT;
-        }
-        |
-        table_ident cache_keys_spec IN_SYM DEFAULT
-        {
-          LEX *lex=Lex;
-          SELECT_LEX *sel= &lex->select_lex;
-          if (!sel->add_table_to_list(lex->thd, $1, NULL, 0,
-                                      TL_READ,
-                                      sel->get_use_index(),
-                                      (List<String> *)0))        
+                                      (List<String> *)0))
             YYABORT;
         }
         ;
+
+key_cache_name:
+	ident	   { $$= $1; }
+	| DEFAULT  { $$ = default_key_cache_base; }
 
 preload:
 	LOAD INDEX INTO CACHE_SYM
@@ -2056,19 +2062,22 @@ preload_keys:
 	;
 
 cache_keys_spec:
-        keys_or_index { Select->interval_list.empty(); }
+        { Select->interval_list.empty(); }
         cache_key_list_or_empty
         {
           LEX *lex=Lex;
           SELECT_LEX *sel= &lex->select_lex;
           sel->use_index= sel->interval_list;
-          sel->use_index_ptr= &sel->use_index;
         }
         ;
 
 cache_key_list_or_empty:
-	/* empty */
-	| '(' key_usage_list2 ')' {}
+	/* empty */	{ Lex->select_lex.use_index_ptr= 0; }
+	| opt_keys_or_index '(' key_usage_list2 ')'
+	  {
+            SELECT_LEX *sel= &Lex->select_lex;
+	    sel->use_index_ptr= &sel->use_index;
+	  }
 	;
 
 opt_ignore_leaves:

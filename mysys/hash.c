@@ -53,7 +53,7 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
   if (my_init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
   {
     hash->free=0;				/* Allow call to hash_free */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
   }
   hash->key_offset=key_offset;
   hash->key_length=key_length;

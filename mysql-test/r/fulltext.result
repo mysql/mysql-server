@@ -201,7 +201,7 @@ t2	CREATE TABLE `t2` (
   `inhalt` text,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 select * from t2 where MATCH inhalt AGAINST (NULL);
 ticket	inhalt
 select * from t2 where  MATCH inhalt AGAINST ('foobar');

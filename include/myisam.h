@@ -324,7 +324,7 @@ typedef struct st_mi_check_param
 	sort_buffer_length,sort_key_blocks;
   uint out_flag,warning_printed,error_printed,verbose;
   uint opt_sort_key,total_files,max_level;
-  uint testflag;
+  uint testflag, key_cache_block_size;
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
   my_bool retry_repair, force_sort, calc_checksum;
@@ -388,7 +388,6 @@ int change_to_newfile(const char * filename, const char * old_ext,
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);
-int flush_blocks(MI_CHECK *param, File file);
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 			       my_bool repair);
 int update_state_info(MI_CHECK *param, MI_INFO *info,uint update);
@@ -408,9 +407,10 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, ulonglong key_map,
 int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows);
 void mi_flush_bulk_insert(MI_INFO *info, uint inx);
 void mi_end_bulk_insert(MI_INFO *info);
-int mi_assign_to_keycache(MI_INFO *info, ulonglong key_map, 
-                          KEY_CACHE_VAR *key_cache, 
-                          pthread_mutex_t *assign_lock);
+int mi_assign_to_key_cache(MI_INFO *info, ulonglong key_map, 
+			   KEY_CACHE_VAR *key_cache);
+void mi_change_key_cache(KEY_CACHE_VAR *old_key_cache,
+			 KEY_CACHE_VAR *new_key_cache);
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
 
 #ifdef	__cplusplus

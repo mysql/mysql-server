@@ -319,6 +319,29 @@ alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
 тест	D4C5D3D4
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) character set koi8r default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 DEFAULT CHARACTER SET latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) character set koi8r default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 CHARACTER SET latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 DEFAULT CHARACTER SET cp1251;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) character set latin1 default NULL
+) TYPE=MyISAM DEFAULT CHARSET=cp1251
 drop table t1;
 CREATE TABLE t1 (
 Host varchar(16) binary NOT NULL default '',

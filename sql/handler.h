@@ -145,6 +145,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_AVG_ROW_LENGTH	64
 #define HA_CREATE_USED_PACK_KEYS	128
 #define HA_CREATE_USED_CHARSET		256
+#define HA_CREATE_USED_DEFAULT_CHARSET	512
 
 typedef struct st_thd_trans {
   void *bdb_tid;
@@ -157,7 +158,7 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 
 typedef struct st_ha_create_information
 {
-  CHARSET_INFO *table_charset;
+  CHARSET_INFO *table_charset, *default_table_charset;
   char *comment,*password;
   char *data_file_name, *index_file_name;
   ulonglong max_rows,min_rows;
@@ -180,14 +181,17 @@ typedef struct st_ha_create_information
 
 struct st_table;
 typedef struct st_table TABLE;
+typedef struct st_key_cache_asmt KEY_CACHE_ASMT;
 
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
+  KEY_CACHE_VAR  *key_cache;	/* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
+
 
 class handler :public Sql_alloc
 {
@@ -390,7 +394,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
-int ha_key_cache(KEY_CACHE_VAR *key_cache);
+int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache);
 int ha_resize_key_cache(KEY_CACHE_VAR *key_cache);
 int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache);
 int ha_end_key_cache(KEY_CACHE_VAR *key_cache);
@@ -407,3 +411,5 @@ int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
 int ha_recovery_logging(THD *thd, bool on);
+int ha_change_key_cache(KEY_CACHE_VAR *old_key_cache,
+			KEY_CACHE_VAR *new_key_cache);

@@ -292,3 +292,4 @@ character-set=koi8r
 "catalog",
 "Кеш запросов не может установить размер %lu, новый размер кеша зпросов - %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index",
+"Unknown key cache '%-.100s'",

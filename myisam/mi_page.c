@@ -32,7 +32,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_ENTER("_mi_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld",page));
 
-  tmp=(uchar*) key_cache_read(*info->s->keycache,
+  tmp=(uchar*) key_cache_read(*info->s->key_cache,
                              info->s->kfile, page, level, (byte*) buff,
 			     (uint) keyinfo->block_length,
 			     (uint) keyinfo->block_length,
@@ -52,6 +52,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     DBUG_PRINT("error",("page %lu had wrong page length: %u",
 			(ulong) page, page_size));
+    DBUG_DUMP("page", tmp, keyinfo->block_length);
     info->last_keypage = HA_OFFSET_ERROR;
     my_errno = HA_ERR_CRASHED;
     tmp = 0;
@@ -94,7 +95,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     length=keyinfo->block_length;
   }
 #endif
-  DBUG_RETURN((key_cache_write(*info->s->keycache,
+  DBUG_RETURN((key_cache_write(*info->s->key_cache,
                          info->s->kfile,page, level, (byte*) buff,length,
 			 (uint) keyinfo->block_length,
 			 (int) ((info->lock_type != F_UNLCK) ||
@@ -116,7 +117,7 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
   info->s->state.key_del[keyinfo->block_size]=pos;
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
-  DBUG_RETURN(key_cache_write(*info->s->keycache,
+  DBUG_RETURN(key_cache_write(*info->s->key_cache,
                               info->s->kfile, pos , level, buff,
 			      sizeof(buff),
 			      (uint) keyinfo->block_length,
@@ -145,7 +146,7 @@ my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo, int level)
   }
   else
   {
-    if (!key_cache_read(*info->s->keycache,
+    if (!key_cache_read(*info->s->key_cache,
                         info->s->kfile, pos, level,
 			buff,
 			(uint) sizeof(buff),

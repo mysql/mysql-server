@@ -715,6 +715,7 @@ static void get_options(register int *argc,register char ***argv)
     exit(1);
 
   check_param.tmpdir=&myisamchk_tmpdir;
+  check_param.key_cache_block_size= opt_key_cache_block_size;
 
   if (set_charset_name)
     if (!(set_charset=get_charset_by_name(set_charset_name, MYF(MY_WME))))
@@ -1046,7 +1047,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
 	  error|=chk_data_link(param, info, param->testflag & T_EXTEND);
-	error|=flush_blocks(param,share->kfile);
+	error|=flush_blocks(param, *share->key_cache, share->kfile);
 	VOID(end_io_cache(&param->read_cache));
       }
       if (!error)
@@ -1455,7 +1456,7 @@ static int mi_sort_records(MI_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(dflt_keycache,opt_key_cache_block_size,param->use_buffers,
+  init_key_cache(dflt_keycache, opt_key_cache_block_size, param->use_buffers,
                  &dflt_key_cache_var);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
@@ -1570,7 +1571,8 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(flush_blocks(param, share->kfile) | got_error);
+  DBUG_RETURN(flush_blocks(param, *share->key_cache, share->kfile) |
+	      got_error);
 } /* sort_records */
 
 

@@ -355,6 +355,7 @@ struct system_variables max_system_variables;
 
 MY_TMPDIR mysql_tmpdir_list;
 MY_BITMAP temp_pool;
+KEY_CACHE_VAR *sql_key_cache;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -373,7 +374,6 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
-                LOCK_assign,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
 rw_lock_t	LOCK_grant;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
@@ -900,7 +900,6 @@ void clean_up(bool print_message)
 #endif
   query_cache_destroy();
   table_cache_free();
-  assign_cache_free();
   hostname_cache_free();
   item_user_lock_free();
   lex_free();				/* Free some memory */
@@ -910,9 +909,8 @@ void clean_up(bool print_message)
     udf_free();
 #endif
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
-  process_key_caches(&ha_end_key_cache);
-  ha_end_key_cache(&dflt_key_cache_var);
-  delete_elements(&key_caches, free_key_cache);
+  delete_elements(&key_caches, (void (*)(const char*, gptr)) free_key_cache);
+  multi_keycache_free();
   end_thr_alarm(1);			/* Free allocated memory */
 #ifdef USE_RAID
   end_raid();
@@ -997,7 +995,6 @@ static void clean_up_mutexes()
 #endif
   (void) pthread_mutex_destroy(&LOCK_active_mi);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
-  (void) pthread_mutex_destroy(&LOCK_assign);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
@@ -1568,14 +1565,14 @@ We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
-          (ulong) dflt_key_cache_var.buff_size);
+          (ulong) sql_key_cache->buff_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
-bytes of memory\n", ((ulong) dflt_key_cache_var.buff_size +
+bytes of memory\n", ((ulong) sql_key_cache->buff_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
@@ -2204,7 +2201,6 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_assign, MY_MUTEX_INIT_FAST);
   (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
@@ -2256,7 +2252,6 @@ static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
   table_cache_init();
-  assign_cache_init();
   hostname_cache_init();
   query_cache_result_size_limit(query_cache_limit);
   query_cache_set_min_res_unit(query_cache_min_res_unit);
@@ -2328,9 +2323,10 @@ Now disabling --log-slave-updates.");
   if (opt_myisam_log)
     (void) mi_log(1);
 
-  ha_key_cache(&dflt_key_cache_var);
-  process_key_caches(&ha_key_cache);
-  
+  /* call ha_init_key_cache() on all key caches to init them */
+  process_key_caches(&ha_init_key_cache);
+  /* We must set dflt_key_cache in case we are using ISAM tables */
+  dflt_keycache= &sql_key_cache->cache;
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   if (locked_in_memory && !geteuid())
@@ -4321,25 +4317,28 @@ replicating a LOAD DATA INFILE command.",
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (gptr*) &dflt_key_cache_var.buff_size,
-   (gptr*) &dflt_key_cache_var.buff_size, 0,
-   (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
+   (gptr*) 0,
+   0, (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
    (gptr*) &dflt_key_cache_var.block_size,
-   (gptr*) &dflt_key_cache_var.block_size, 0, GET_ULONG,
-   REQUIRED_ARG, KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
+   (gptr*) 0,
+   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
+   KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (gptr*) &dflt_key_cache_var.division_limit,
-   (gptr*) &dflt_key_cache_var.division_limit, 0, GET_ULONG,
-   REQUIRED_ARG, 100, 1, 100, 0, 1, 0},
+   (gptr*) 0,
+   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
+   1, 100, 0, 1, 0},
   {"key_cache_division_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.age_threshold,
-   (gptr*) &dflt_key_cache_var.age_threshold, 0, GET_ULONG,
-   REQUIRED_ARG, 300, 100, ~0L, 0, 100, 0},
+   (gptr*) 0,
+   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   300, 100, ~0L, 0, 100, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",
    (gptr*) &global_system_variables.long_query_time,
@@ -4758,19 +4757,19 @@ struct show_var_st status_vars[]= {
   {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
+  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.blocks_changed,
+   SHOW_KEY_CACHE_LONG},
   {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used,
-                                                          SHOW_LONG_CONST},
+   SHOW_KEY_CACHE_LONG},
   {"Key_read_requests",        (char*) &dflt_key_cache_var.cache_r_requests,
-                                                                SHOW_LONG},
+   SHOW_KEY_CACHE_LONG},
   {"Key_reads",                (char*) &dflt_key_cache_var.cache_read,
-                                                                SHOW_LONG},
+   SHOW_KEY_CACHE_LONG},
   {"Key_write_requests",       (char*) &dflt_key_cache_var.cache_w_requests,
-                                                                SHOW_LONG},
+   SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.cache_write,
-                                                                SHOW_LONG},
+   SHOW_KEY_CACHE_LONG},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
-  {"Not_flushed_key_blocks",   (char*) &dflt_key_cache_var.blocks_changed,
-                                                          SHOW_LONG_CONST},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
@@ -4984,8 +4983,9 @@ static void mysql_init_variables(void)
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
-  if (!get_or_create_key_cache(DEFAULT_KEY_CACHE_NAME,
-                               strlen(DEFAULT_KEY_CACHE_NAME)))
+  multi_keycache_init();
+  if (!(sql_key_cache= get_or_create_key_cache(default_key_cache_base.str,
+					       default_key_cache_base.length)))
     exit(1);
 
   /* Initialize structures that is used when processing options */
@@ -5075,9 +5075,9 @@ static void mysql_init_variables(void)
   have_crypt=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_COMPRESS
-  SHOW_COMP_OPTION have_compress= SHOW_OPTION_YES;
+  have_compress= SHOW_OPTION_YES;
 #else
-  SHOW_COMP_OPTION have_compress= SHOW_OPTION_NO;
+  have_compress= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_LIBWRAP
   libwrapName= NullS;
@@ -5699,13 +5699,6 @@ static void get_options(int argc,char **argv)
       init_global_datetime_format(TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
     exit(1);
-  
-  /* Set up default values for a key cache */
-  KEY_CACHE_VAR *key_cache= &dflt_key_cache_var;
-  dflt_key_cache_block_size= key_cache->block_size;
-  dflt_key_buff_size= key_cache->buff_size;
-  dflt_key_cache_division_limit= key_cache->division_limit;
-  dflt_key_cache_age_threshold= key_cache->age_threshold;
 }
 
 

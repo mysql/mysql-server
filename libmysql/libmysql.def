@@ -67,6 +67,7 @@ EXPORTS
 	mysql_init
 	mysql_insert_id
 	mysql_kill
+	mysql_set_server_option
 	mysql_list_dbs
 	mysql_list_fields
 	mysql_list_processes

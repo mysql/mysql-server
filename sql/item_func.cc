@@ -2652,6 +2652,8 @@ err:
 void Item_func_match::init_search(bool no_order)
 {
   DBUG_ENTER("Item_func_match::init_search");
+
+  /* Check if init_search() has been called before */
   if (ft_handler)
     DBUG_VOID_RETURN;
 
@@ -2689,7 +2691,8 @@ void Item_func_match::init_search(bool no_order)
     ft_tmp= &search_value;
   }
 
-  if (join_key && !no_order) flags|=FT_SORTED;
+  if (join_key && !no_order)
+    flags|=FT_SORTED;
   ft_handler=table->file->ft_init_ext(flags, key,
 				      (byte*) ft_tmp->ptr(),
 				      ft_tmp->length());

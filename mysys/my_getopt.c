@@ -682,60 +682,77 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
   return num;
 }
 
-/* 
-  function: init_variables
 
+/*
+  Init one value to it's default values
+
+  SYNOPSIS
+    init_one_value()
+    option		Option to initialize
+    value		Pointer to variable
+*/
+
+static void init_one_value(const struct my_option *option, gptr *variable,
+			   longlong value)
+{
+  switch ((option->var_type & GET_TYPE_MASK)) {
+  case GET_BOOL:
+    *((my_bool*) variable)= (my_bool) value;
+    break;
+  case GET_INT:
+    *((int*) variable)= (int) value;
+    break;
+  case GET_UINT:
+    *((uint*) variable)= (uint) value;
+    break;
+  case GET_LONG:
+    *((long*) variable)= (long) value;
+    break;
+  case GET_ULONG:
+    *((ulong*) variable)= (ulong) value;
+    break;
+  case GET_LL:
+    *((longlong*) variable)= (longlong) value;
+    break;
+  case GET_ULL:
+    *((ulonglong*) variable)=  (ulonglong) value;
+    break;
+  default: /* dummy default to avoid compiler warnings */
+    break;
+  }
+}
+
+
+/* 
   initialize all variables to their default values
+
+  SYNOPSIS
+    init_variables()
+    options		Array of options
+
+  NOTES
+    We will initialize the value that is pointed to by options->value.
+    If the value is of type GET_ASK_ADDR, we will also ask for the address
+    for a value and initialize.
 */
 
 static void init_variables(const struct my_option *options)
 {
   for (; options->name; options++)
   {
-    gptr *value= (options->var_type & GET_ASK_ADDR ?
-		  (*getopt_get_addr)("", 0, options) : options->value);
-    if (value)
-    {
-      switch ((options->var_type & GET_TYPE_MASK)) {
-      case GET_BOOL:
-	if (options->u_max_value)
-	  *((my_bool*) options->u_max_value)= (my_bool) options->max_value;
-	*((my_bool*) value)= (my_bool) options->def_value;
-	break;
-      case GET_INT:
-	if (options->u_max_value)
-	  *((int*) options->u_max_value)= (int) options->max_value;
-	*((int*) value)= (int) options->def_value;
-	break;
-      case GET_UINT:
-	if (options->u_max_value)
-	  *((uint*) options->u_max_value)= (uint) options->max_value;
-	*((uint*) value)= (uint) options->def_value;
-	break;
-      case GET_LONG:
-	if (options->u_max_value)
-	  *((long*) options->u_max_value)= (long) options->max_value;
-	*((long*) value)= (long) options->def_value;
-	break;
-      case GET_ULONG:
-	if (options->u_max_value)
-	  *((ulong*) options->u_max_value)= (ulong) options->max_value;
-	*((ulong*) value)= (ulong) options->def_value;
-	break;
-      case GET_LL:
-	if (options->u_max_value)
-	  *((longlong*) options->u_max_value)= (longlong) options->max_value;
-	*((longlong*) value)= (longlong) options->def_value;
-	break;
-      case GET_ULL:
-	if (options->u_max_value)
-	  *((ulonglong*) options->u_max_value)= (ulonglong) options->max_value;
-	*((ulonglong*) value)=  (ulonglong) options->def_value;
-	break;
-      default: /* dummy default to avoid compiler warnings */
-	break;
-      }
-    }
+    gptr *variable;
+    /*
+      We must set u_max_value first as for some variables
+      options->u_max_value == options->value and in this case we want to
+      set the value to default value.
+    */
+    if (options->u_max_value)
+      init_one_value(options, options->u_max_value, options->max_value);
+    if (options->value)
+      init_one_value(options, options->value, options->def_value);
+    if (options->var_type & GET_ASK_ADDR &&
+	(variable= (*getopt_get_addr)("", 0, options)))
+      init_one_value(options, variable, options->def_value);
   }
 }
 
