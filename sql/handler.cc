@@ -395,6 +395,16 @@ int ha_init()
       ha_was_inited_ok(ht++);
   }
 #endif
+#ifdef HAVE_FEDERATED_DB
+  if (have_federated_db == SHOW_OPTION_YES)
+  {
+    if (federated_db_init())
+    {
+      have_federated_db= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+  }
+#endif
 #ifdef HAVE_ARCHIVE_DB
   if (have_archive_db == SHOW_OPTION_YES)
   {
@@ -440,6 +450,10 @@ int ha_panic(enum ha_panic_function flag)
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
     error|=ndbcluster_end();
+#endif
+#ifdef HAVE_FEDERATED_DB
+  if (have_federated_db == SHOW_OPTION_YES)
+    error|= federated_db_end();
 #endif
 #ifdef HAVE_ARCHIVE_DB
   if (have_archive_db == SHOW_OPTION_YES)
@@ -1606,7 +1620,12 @@ int handler::rename_table(const char * from, const char * to)
 }
 
 /*
-  Tell the handler to turn on or off transaction in the handler
+  Tell the storage engine that it is allowed to "disable transaction" in the
+  handler. It is a hint that ACID is not required - it is used in NDB for
+  ALTER TABLE, for example, when data are copied to temporary table.
+  A storage engine may treat this hint any way it likes. NDB for example
+  starts to commit every now and then automatically.
+  This hint can be safely ignored.
 */
 
 int ha_enable_transaction(THD *thd, bool on)
@@ -1616,7 +1635,15 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   thd->transaction.on= on;
   if (on)
-    ha_commit(thd);
+  {
+    /*
+      Now all storage engines should have transaction handling enabled.
+      But some may have it enabled all the time - "disabling" transactions
+      is an optimization hint that storage engine is free to ignore.
+      So, let's commit an open transaction (if any) now.
+    */
+    error= end_trans(thd, COMMIT);
+  }
   DBUG_RETURN(error);
 }
 
