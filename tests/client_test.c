@@ -1790,7 +1790,7 @@ static void test_ps_conj_select()
   MYSQL_STMT *stmt;
   int        rc;
   MYSQL_BIND bind[2];
-  long int   int_data;
+  int32      int_data;
   char       str_data[32];
   unsigned long str_length;
   myheader("test_ps_conj_select");
@@ -3227,7 +3227,7 @@ static void bind_fetch(int row_count)
 {
   MYSQL_STMT   *stmt;
   int          rc, i, count= row_count;
-  long         data[10];
+  int32        data[10];
   int8         i8_data;
   int16        i16_data;
   int32        i32_data;
@@ -4546,7 +4546,7 @@ static void test_multi_stmt()
 
   MYSQL_STMT  *stmt, *stmt1, *stmt2;
   int         rc;
-  ulong       id;
+  uint32      id;
   char        name[50];
   MYSQL_BIND  bind[2];
   ulong       length[2];
@@ -4605,7 +4605,7 @@ static void test_multi_stmt()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n int_data: %lu(%lu)", id, length[0]);
+  fprintf(stdout, "\n int_data: %lu(%lu)", (ulong) id, length[0]);
   fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
   assert(id == 10);
   assert(strcmp(name, "mysql") == 0);
@@ -4634,7 +4634,7 @@ static void test_multi_stmt()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n int_data: %lu(%lu)", id, length[0]);
+  fprintf(stdout, "\n int_data: %lu(%lu)", (ulong) id, length[0]);
   fprintf(stdout, "\n str_data: %s(%lu)", name, length[1]);
   assert(id == 10);
   assert(strcmp(name, "updated") == 0);
@@ -5042,7 +5042,7 @@ static void test_store_result()
 {
   MYSQL_STMT *stmt;
   int        rc;
-  long        nData;
+  int32      nData;
   char       szData[100];
   MYSQL_BIND bind[2];
   ulong      length, length1;
@@ -5094,7 +5094,7 @@ static void test_store_result()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 1: %ld, %s(%lu)", nData, szData, length1);
+  fprintf(stdout, "\n row 1: %ld, %s(%lu)", (long) nData, szData, length1);
   assert(nData == 10);
   assert(strcmp(szData, "venu") == 0);
   assert(length1 == 4);
@@ -5102,7 +5102,7 @@ static void test_store_result()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 2: %ld, %s(%lu)", nData, szData, length1);
+  fprintf(stdout, "\n row 2: %ld, %s(%lu)", (long) nData, szData, length1);
   assert(nData == 20);
   assert(strcmp(szData, "mysql") == 0);
   assert(length1 == 5);
@@ -5129,7 +5129,7 @@ static void test_store_result()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 1: %ld, %s(%lu)", nData, szData, length1);
+  fprintf(stdout, "\n row 1: %ld, %s(%lu)", (long) nData, szData, length1);
   assert(nData == 10);
   assert(strcmp(szData, "venu") == 0);
   assert(length1 == 4);
@@ -5137,7 +5137,7 @@ static void test_store_result()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 2: %ld, %s(%lu)", nData, szData, length1);
+  fprintf(stdout, "\n row 2: %ld, %s(%lu)", (long) nData, szData, length1);
   assert(nData == 20);
   assert(strcmp(szData, "mysql") == 0);
   assert(length1 == 5);
@@ -5984,7 +5984,7 @@ static void test_ushort_bug()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[4];
   ushort     short_value;
-  ulong      long_value;
+  uint32     long_value;
   ulong      s_length, l_length, ll_length, t_length;
   ulonglong  longlong_value;
   int        rc;
@@ -6038,7 +6038,7 @@ static void test_ushort_bug()
   check_execute(stmt, rc);
 
   fprintf(stdout, "\n ushort   : %d (%ld)", short_value, s_length);
-  fprintf(stdout, "\n ulong    : %ld (%ld)", long_value, l_length);
+  fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, l_length);
   fprintf(stdout, "\n longlong : %lld (%ld)", longlong_value, ll_length);
   fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
 
@@ -6068,7 +6068,7 @@ static void test_sshort_bug()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[4];
   short      short_value;
-  long       long_value;
+  int32      long_value;
   ulong      s_length, l_length, ll_length, t_length;
   ulonglong  longlong_value;
   int        rc;
@@ -6122,7 +6122,7 @@ static void test_sshort_bug()
   check_execute(stmt, rc);
 
   fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
-  fprintf(stdout, "\n slong    : %ld (%ld)", long_value, l_length);
+  fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
   fprintf(stdout, "\n longlong : %lld (%ld)", longlong_value, ll_length);
   fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
 
@@ -6152,7 +6152,7 @@ static void test_stiny_bug()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[4];
   short      short_value;
-  long       long_value;
+  int32      long_value;
   ulong      s_length, l_length, ll_length, t_length;
   ulonglong  longlong_value;
   int        rc;
@@ -6206,7 +6206,7 @@ static void test_stiny_bug()
   check_execute(stmt, rc);
 
   fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
-  fprintf(stdout, "\n slong    : %ld (%ld)", long_value, l_length);
+  fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
   fprintf(stdout, "\n longlong : %lld  (%ld)", longlong_value, ll_length);
   fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, t_length);
 
@@ -7251,7 +7251,7 @@ static void test_fetch_seek()
   MYSQL_BIND bind[3];
   MYSQL_ROW_OFFSET row;
   int        rc;
-  long       c1;
+  int32      c1;
   char       c2[11], c3[20];
 
   myheader("test_fetch_seek");
@@ -7296,7 +7296,7 @@ static void test_fetch_seek()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 0: %ld, %s, %s", c1, c2, c3);
+  fprintf(stdout, "\n row 0: %ld, %s, %s", (long) c1, c2, c3);
 
   row= mysql_stmt_row_tell(stmt);
 
@@ -7305,21 +7305,21 @@ static void test_fetch_seek()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 2: %ld, %s, %s", c1, c2, c3);
+  fprintf(stdout, "\n row 2: %ld, %s, %s", (long) c1, c2, c3);
 
   row= mysql_stmt_row_seek(stmt, row);
 
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 2: %ld, %s, %s", c1, c2, c3);
+  fprintf(stdout, "\n row 2: %ld, %s, %s", (long) c1, c2, c3);
 
   mysql_stmt_data_seek(stmt, 0);
 
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  fprintf(stdout, "\n row 0: %ld, %s, %s", c1, c2, c3);
+  fprintf(stdout, "\n row 0: %ld, %s, %s", (long) c1, c2, c3);
 
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
@@ -8050,7 +8050,7 @@ static void test_bug1500()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[3];
   int        rc;
-  long       int_data[3]= {2, 3, 4};
+  int32 int_data[3]= {2, 3, 4};
   const char *data;
 
   myheader("test_bug1500");
@@ -8836,7 +8836,7 @@ static void test_multi()
   char *query;
   MYSQL_BIND bind[1];
   int rc, i;
-  long param= 1;
+  int32 param= 1;
   ulong length= 1;
   myheader("test_multi");
 
@@ -8888,11 +8888,11 @@ static void test_multi()
 
     rc= mysql_stmt_execute(stmt_update);
     check_execute(stmt_update, rc);
-    fprintf(stdout, "update %ld\n", param);
+    fprintf(stdout, "update %ld\n", (long) param);
 
     rc= mysql_stmt_execute(stmt_delete);
     check_execute(stmt_delete, rc);
-    fprintf(stdout, "delete %ld\n", param);
+    fprintf(stdout, "delete %ld\n", (long) param);
 
     rc= mysql_stmt_execute(stmt_select1);
     check_execute(stmt_select1, rc);
@@ -8966,9 +8966,9 @@ static void test_bind_nagative()
   char *query;
   int rc;
   MYSQL_BIND      bind[1];
-  long            my_val= 0L;
+  int32           my_val= 0;
   ulong           my_length= 0L;
-  long            my_null= 0L;
+  my_bool         my_null= FALSE;
   myheader("test_insert_select");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
@@ -9010,9 +9010,9 @@ static void test_derived()
   MYSQL_STMT *stmt;
   int rc, i;
   MYSQL_BIND      bind[1];
-  long            my_val= 0L;
+  int32           my_val= 0;
   ulong           my_length= 0L;
-  long            my_null= 0L;
+  my_bool         my_null= FALSE;
   const char *query=
     "select count(1) from (select f.id from t1 f where f.id=?) as x";
 
@@ -9520,7 +9520,7 @@ static void test_union_param()
   MYSQL_BIND      bind[2];
   char            my_val[4];
   ulong           my_length= 3L;
-  long            my_null= 0L;
+  my_bool         my_null= FALSE;
   myheader("test_union_param");
 
   strcpy(my_val, "abc");
@@ -9904,7 +9904,7 @@ static void test_bug4079()
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[1];
   const char *stmt_text;
-  unsigned long res;
+  uint32 res;
   int rc;
 
   myheader("test_bug4079");
@@ -10048,7 +10048,7 @@ static void test_bug5126()
 {
   MYSQL_STMT *stmt;
   MYSQL_BIND bind[2];
-  long c1, c2;
+  int32 c1, c2;
   const char *stmt_text;
   int rc;
 
@@ -10086,7 +10086,7 @@ static void test_bug5126()
   rc= mysql_stmt_fetch(stmt);
   assert(rc == 0);
   assert(c1 == 8386608 && c2 == 1);
-  printf("%ld, %ld\n", c1, c2);
+  printf("%ld, %ld\n", (long) c1, (long) c2);
   mysql_stmt_close(stmt);
 }
 
