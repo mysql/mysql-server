@@ -2389,7 +2389,7 @@ simple_expr:
 	| DAY_SYM '(' expr ')'
 	  { $$= new Item_func_dayofmonth($3); }
 	| ELT_FUNC '(' expr ',' expr_list ')'
-	  { $$= new Item_func_elt($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_elt(*$5); }
 	| MAKE_SET_SYM '(' expr ',' expr_list ')'
 	  { $$= new Item_func_make_set($3, *$5); }
 	| ENCRYPT '(' expr ')'

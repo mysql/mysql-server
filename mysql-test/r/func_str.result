@@ -297,9 +297,9 @@ select FIELD('b','A' COLLATE latin1_bin,'B');
 FIELD('b','A' COLLATE latin1_bin,'B')
 0
 select FIELD(_latin2'b','A','B');
-Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
+ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
 select FIELD('b',_latin2'A','B');
-Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
 select FIELD('b',_latin2'A','B',1);
 FIELD('b',_latin2'A','B',1)
 1

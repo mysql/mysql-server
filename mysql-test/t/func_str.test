@@ -167,9 +167,9 @@ select FIELD('b','A','B');
 select FIELD('B','A','B');
 select FIELD('b' COLLATE latin1_bin,'A','B');
 select FIELD('b','A' COLLATE latin1_bin,'B');
---error 1265
+--error 1268
 select FIELD(_latin2'b','A','B');
---error 1265
+--error 1268
 select FIELD('b',_latin2'A','B');
 select FIELD('b',_latin2'A','B',1);
 
