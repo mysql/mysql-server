@@ -3839,12 +3839,13 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
-   0, ~0L, 0, 1, 0},
+   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this!",
    (gptr*) &global_system_variables.myisam_max_sort_file_size,
    (gptr*) &max_system_variables.myisam_max_sort_file_size, 0,
-   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, ~0L, 0, 1024*1024, 0},
+   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
+   0, 1024*1024, 0},
   {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
    "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
    (gptr*) &global_system_variables.myisam_repair_threads,
@@ -4721,11 +4722,9 @@ static void get_options(int argc,char **argv)
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
-    (my_off_t) min(global_system_variables.myisam_max_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
   myisam_max_extra_temp_length= 
-    (my_off_t) min(global_system_variables.myisam_max_extra_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
