@@ -342,3 +342,9 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
+
+
+SET collation_connection='eucjpms_japanese_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='eucjpms_bin';
+-- source include/ctype_filesort.inc
