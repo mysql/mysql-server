@@ -382,6 +382,17 @@ select 1;
 1
 select @@session.key_buffer_size;
 ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable
+set ft_boolean_syntax = @@init_connect;
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
+set global ft_boolean_syntax = @@init_connect;
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
+set init_connect = NULL;
+ERROR HY000: Variable 'init_connect' is a GLOBAL variable and should be set with SET GLOBAL
+set global init_connect = NULL;
+set ft_boolean_syntax = @@init_connect;
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
+set global ft_boolean_syntax = @@init_connect;
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@session.max_join_size
 100	200

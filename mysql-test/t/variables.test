@@ -270,6 +270,18 @@ select 1;
 --error 1238
 select @@session.key_buffer_size;
 
+--error 1229
+set ft_boolean_syntax = @@init_connect;
+--error 1231
+set global ft_boolean_syntax = @@init_connect;
+--error 1229
+set init_connect = NULL;
+set global init_connect = NULL;
+--error 1229
+set ft_boolean_syntax = @@init_connect;
+--error 1231
+set global ft_boolean_syntax = @@init_connect;
+
 #
 # swap
 #

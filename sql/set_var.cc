@@ -121,7 +121,8 @@ sys_var_character_set_server	sys_character_set_server("character_set_server");
 sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
-				    sys_set_default_charset);
+				    sys_set_default_charset,
+                                    (char *)my_charset_utf8_general_ci.name);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
@@ -150,13 +151,14 @@ sys_var_long_ptr	sys_flush_time("flush_time", &flush_time);
 sys_var_str             sys_ft_boolean_syntax("ft_boolean_syntax",
                                          sys_check_ftb_syntax,
                                          sys_update_ftb_syntax,
-                                         sys_default_ftb_syntax);
+                                         sys_default_ftb_syntax,
+                                         ft_boolean_syntax);
 sys_var_str             sys_init_connect("init_connect", 0,
                                          sys_update_init_connect,
-                                         sys_default_init_connect);
+                                         sys_default_init_connect,0);
 sys_var_str             sys_init_slave("init_slave", 0,
                                        sys_update_init_slave,
-                                       sys_default_init_slave);
+                                       sys_default_init_slave,0);
 sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 						&SV::net_interactive_timeout);
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
@@ -665,11 +667,11 @@ struct show_var_st init_vars[]= {
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {sys_key_cache_age_threshold.name,   (char*) &sys_key_cache_age_threshold,
-                                                         	    SHOW_SYS},
+                                                                    SHOW_SYS},
   {sys_key_cache_block_size.name,   (char*) &sys_key_cache_block_size,
-                                                         	    SHOW_SYS},
+                                                                    SHOW_SYS},
   {sys_key_cache_division_limit.name,   (char*) &sys_key_cache_division_limit,
-                                                         	    SHOW_SYS},
+                                                                    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
   {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
@@ -833,15 +835,11 @@ bool sys_var_str::check(THD *thd, set_var *var)
 bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
 			set_var *var)
 {
-  char *res= 0, *old_value;
-  uint new_length= 0;
-  /* If the string is "", delete old init command */
-  if (var && (new_length= var->value->str_value.length()))
-  {
-    if (!(res= my_strdup_with_length((byte*) var->value->str_value.ptr(),
-				     new_length, MYF(0))))
-      return 1;
-  }
+  char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
+  uint new_length= (var ? var->value->str_value.length() : 0);
+  if (!old_value) old_value="";
+  if (!(res= my_strdup_with_length(old_value, new_length, MYF(0))))
+    return 1;
   /*
     Replace the old value in such a way that the any thread using
     the value will work.
