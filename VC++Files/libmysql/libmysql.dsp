@@ -123,6 +123,10 @@ SOURCE=..\mysys\charset.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\client.c
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-big5.c"
 # End Source File
 # Begin Source File

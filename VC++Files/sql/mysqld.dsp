@@ -178,7 +178,7 @@ LINK32=xilink6.exe
 # Name "mysqld - Win32 Max"
 # Begin Source File
 
-SOURCE=.\convert.cpp
+SOURCE=.\client.c
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
 
@@ -657,10 +657,6 @@ SOURCE=.\mf_iocache.cpp
 
 !ENDIF
 
-# End Source File
-# Begin Source File
-
-SOURCE=.\mini_client.cpp
 # End Source File
 # Begin Source File
 
