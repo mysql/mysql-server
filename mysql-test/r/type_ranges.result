@@ -272,7 +272,7 @@ auto	bigint(17) unsigned	NULL		PRI	0		select,insert,update,references
 t1	bigint(1)	NULL			0		select,insert,update,references	
 t2	varchar(1)	latin1_swedish_ci					select,insert,update,references	
 t3	varchar(256)	latin1_swedish_ci					select,insert,update,references	
-t4	varchar(256)	NULL					select,insert,update,references	
+t4	varbinary(256)	NULL					select,insert,update,references	
 t5	longtext	latin1_swedish_ci					select,insert,update,references	
 t6	longblob	NULL					select,insert,update,references	
 t7	char(0)	latin1_swedish_ci					select,insert,update,references	

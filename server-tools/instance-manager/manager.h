@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-void manager(const char *socket_file_name);
+class Options;
+
+void manager(const Options &options);
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
