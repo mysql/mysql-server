@@ -1119,6 +1119,7 @@ static void dumpTable(uint numFields, char *table)
 	
         is_blob= (opt_hex_blob && (field->flags & BINARY_FLAG) &&
                   (field->type == FIELD_TYPE_STRING ||
+                   field->type == FIELD_TYPE_VAR_STRING ||
                    field->type == FIELD_TYPE_BLOB ||
                    field->type == FIELD_TYPE_LONG_BLOB ||
                    field->type == FIELD_TYPE_MEDIUM_BLOB ||
