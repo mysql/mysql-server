@@ -7,3 +7,4 @@ show create table VIe;
 Table	Create Table
 vie	CREATE VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
 drop database MySQLTest;
+use test;
