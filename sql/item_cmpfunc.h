@@ -264,6 +264,7 @@ public:
   longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
   enum Functype functype() const { return TRIG_COND_FUNC; };
   const char *func_name() const { return "trigcond"; };
+  bool const_item() const { return FALSE; }
 };
 
 class Item_func_not_all :public Item_func_not

@@ -123,6 +123,7 @@ public:
   }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
+  virtual uint32 pack_length_in_rec() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
   virtual void set_default()
@@ -1237,6 +1238,7 @@ public:
   { get_key_image(buff, length, itRAW); }
   uint32 pack_length() const 
   { return (uint32) field_length + (bit_len > 0); }
+  uint32 pack_length_in_rec() const { return field_length; }
   void sql_type(String &str) const;
   field_cast_enum field_cast_type() { return FIELD_CAST_BIT; }
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
@@ -1339,10 +1341,10 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define FIELDFLAG_NUMBER		2
 #define FIELDFLAG_ZEROFILL		4
 #define FIELDFLAG_PACK			120	// Bits used for packing
-#define FIELDFLAG_INTERVAL		256
-#define FIELDFLAG_BITFIELD		512	// mangled with dec!
-#define FIELDFLAG_BLOB			1024	// mangled with dec!
-#define FIELDFLAG_GEOM			2048
+#define FIELDFLAG_INTERVAL		256     // mangled with decimals!
+#define FIELDFLAG_BITFIELD		512	// mangled with decimals!
+#define FIELDFLAG_BLOB			1024	// mangled with decimals!
+#define FIELDFLAG_GEOM			2048    // mangled with decimals!
 
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
@@ -1366,10 +1368,10 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_decimals(x)		((uint8) (((x) >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC))
 #define f_is_alpha(x)		(!f_is_num(x))
 #define f_is_binary(x)          ((x) & FIELDFLAG_BINARY) // 4.0- compatibility
-#define f_is_enum(x)            ((x) & FIELDFLAG_INTERVAL)
-#define f_is_bitfield(x)	((x) & FIELDFLAG_BITFIELD)
+#define f_is_enum(x)            (((x) & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL)
+#define f_is_bitfield(x)        (((x) & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD)
 #define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
-#define f_is_geom(x)		((x) & FIELDFLAG_GEOM)
+#define f_is_geom(x)		(((x) & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM)
 #define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)

@@ -499,6 +499,10 @@ select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
 show status like 'Slow_queries';
 select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
 show status like 'Slow_queries';
+# additional test for examined rows
+flush status;
+select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6); 
+show status like 'Slow_queries';
 drop table t1;
 
 #

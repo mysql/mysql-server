@@ -24,7 +24,7 @@
 typedef struct st_bitmap
 {
   uchar *bitmap;
-  uint bitmap_size;
+  uint bitmap_size; /* number of bytes occupied by the above */
   /*
      mutex will be acquired for the duration of each bitmap operation if
      thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not

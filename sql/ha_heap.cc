@@ -471,12 +471,24 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     KEY_PART_INFO *key_part=     pos->key_part;
     KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
 
-    mem_per_row+= (pos->key_length + (sizeof(char*) * 2));
-
     keydef[key].keysegs=   (uint) pos->key_parts;
     keydef[key].flag=      (pos->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL));
     keydef[key].seg=       seg;
-    keydef[key].algorithm= ((pos->algorithm == HA_KEY_ALG_UNDEF) ? 
+
+    switch (pos->algorithm) {
+    case HA_KEY_ALG_UNDEF:
+    case HA_KEY_ALG_HASH:
+      keydef[key].algorithm= HA_KEY_ALG_HASH;
+      mem_per_row+= sizeof(char*) * 2; // = sizeof(HASH_INFO)
+      break;
+    case HA_KEY_ALG_BTREE:
+      keydef[key].algorithm= HA_KEY_ALG_BTREE;
+      mem_per_row+=sizeof(TREE_ELEMENT)+pos->key_length+sizeof(char*);
+      break;
+    default:
+      DBUG_ASSERT(0); // cannot happen
+    }
+    keydef[key].algorithm= ((pos->algorithm == HA_KEY_ALG_UNDEF) ?
 			    HA_KEY_ALG_HASH : pos->algorithm);
 
     for (; key_part != key_part_end; key_part++, seg++)
@@ -525,8 +537,10 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.auto_key_type= auto_key_type;
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
+  hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
+  max_rows = (ha_rows) (hp_create_info.max_table_size / mem_per_row);
   error= heap_create(fn_format(buff,name,"","",4+2),
-		     keys,keydef, share->reclength,
+		     keys, keydef, share->reclength,
 		     (ulong) ((share->max_rows < max_rows &&
 			       share->max_rows) ? 
 			      share->max_rows : max_rows),
