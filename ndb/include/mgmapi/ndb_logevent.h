@@ -286,101 +286,125 @@ extern "C" {
      */
     union {
       /* CONNECT */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } Connected;
 
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } Disconnected;
 
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } CommunicationClosed;
 
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } CommunicationOpened;
 
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
 	unsigned version;
       } ConnectedApiVersion;
 
       /* CHECKPOINT */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned gci;
       } GlobalCheckpointStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned gci;
       } GlobalCheckpointCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned lci;
 	unsigned keep_gci;
 	unsigned restore_gci;
       } LocalCheckpointStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned lci;
       } LocalCheckpointCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned data;
       } LCPStoppedInCalcKeepGci;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
 	unsigned table_id;
 	unsigned fragment_id;
       } LCPFragmentCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned acc_count;
 	unsigned tup_count;
       } UndoLogBlocked;
 
       /* STARTUP */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned version;
       } NDBStartStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned version;
       } NDBStartCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } STTORRYRecieved;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned phase;
 	unsigned starttype;
       } StartPhaseCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned own_id;
 	unsigned president_id;
 	unsigned dynamic_id;
       } CM_REGCONF;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned own_id;
 	unsigned other_id;
 	unsigned cause;
       } CM_REGREF;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned own_id;
 	unsigned left_id;
 	unsigned right_id;
 	unsigned dynamic_id;
       } FIND_NEIGHBOURS;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned stoptype;
       } NDBStopStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } NDBStopAborted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
 	unsigned keep_gci;
 	unsigned completed_gci;
 	unsigned restorable_gci;
       } StartREDOLog;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned log_part;
 	unsigned start_mb;
 	unsigned stop_mb;
 	unsigned gci;
       } StartLog;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned block;
 	unsigned data1;
@@ -396,48 +420,70 @@ extern "C" {
       } UNDORecordsExecuted;
   
       /* NODERESTART */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } NR_CopyDict;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } NR_CopyDistr;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned dest_node;
       } NR_CopyFragsStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned dest_node;
 	unsigned table_id;
 	unsigned fragment_id;
       } NR_CopyFragDone;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned dest_node;
       } NR_CopyFragsCompleted;
 
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned block; /* 0 = all */
 	unsigned failed_node;
 	unsigned completing_node; /* 0 = all */
       } NodeFailCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned failed_node;
 	unsigned failure_state;
       } NODE_FAILREP;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+	unsigned code;                /* code & state << 16 */
+	unsigned arbit_node;
+	unsigned ticket_0;
+	unsigned ticket_1;
 	/* TODO */
       } ArbitState;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+	unsigned code;                /* code & state << 16 */
+	unsigned arbit_node;
+	unsigned ticket_0;
+	unsigned ticket_1;
 	/* TODO */
       } ArbitResult;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } GCP_TakeoverStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } GCP_TakeoverCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
       } LCP_TakeoverStarted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned state;
       } LCP_TakeoverCompleted;
 
       /* STATISTIC */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned trans_count;
 	unsigned commit_count;
@@ -450,23 +496,29 @@ extern "C" {
 	unsigned scan_count;
 	unsigned range_scan_count;
       } TransReportCounters;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned ops;
       } OperationReportCounters;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned table_id;
       } TableCreated;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned mean_loop_count;
       } JobStatistic;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned to_node;
 	unsigned mean_sent_bytes;
       } SendBytesStatistic;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned from_node;
 	unsigned mean_received_bytes;
       } ReceiveBytesStatistic;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	int      gth;
 	unsigned page_size_kb;
@@ -476,32 +528,40 @@ extern "C" {
       } MemoryUsage;
 
       /* ERROR */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned to_node;
 	unsigned code;
       } TransporterError;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned to_node;
 	unsigned code;
       } TransporterWarning;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
 	unsigned count;
       } MissedHeartbeat;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } DeadDueToHeartbeat;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	/* TODO */
       } WarningEvent;
 
       /* INFO */
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } SentHeartbeat;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	unsigned node;
       } CreateLogBytes;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	/* TODO */
       } InfoEvent;
