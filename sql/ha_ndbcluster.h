@@ -156,8 +156,8 @@ class ha_ndbcluster: public handler
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   
-  int pk_read(const byte *key, uint key_len, 
-	      byte *buf);
+  int pk_read(const byte *key, uint key_len, byte *buf);
+  int complemented_pk_read(const byte *old_data, byte *new_data);
   int unique_index_read(const byte *key, uint key_len, 
 			byte *buf);
   int ordered_index_scan(const key_range *start_key,
