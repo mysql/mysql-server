@@ -249,8 +249,11 @@ mutex_enter_func(
 
 	/* Note that we do not peek at the value of lock_word before trying
 	the atomic test_and_set; we could peek, and possibly save time. */
+
+  mutex->count_using++;
 	
-	if (!mutex_test_and_set(mutex)) {
+	if (!mutex_test_and_set(mutex))
+	{
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
@@ -258,4 +261,5 @@ mutex_enter_func(
 	}
 
 	mutex_spin_wait(mutex, file_name, line);
+
 }

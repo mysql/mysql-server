@@ -137,6 +137,14 @@ set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	ON
+set global timed_mutexes=1;
+show variables like 'timed_mutexes';
+Variable_name	Value
+timed_mutexes	ON
+set global timed_mutexes=0;
+show variables like 'timed_mutexes';
+Variable_name	Value
+timed_mutexes	OFF
 set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
 show local variables like 'storage_engine';
 Variable_name	Value
