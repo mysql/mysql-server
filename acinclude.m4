@@ -41,14 +41,20 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 mysql_cv_btype_last_arg_accept=none
-[AC_TRY_COMPILE([#include <stdlib.h>
+[AC_TRY_COMPILE([#if defined(inline)
+#undef inline
+#endif
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 ],
 [int a = accept(1, (struct sockaddr *) 0, (socklen_t *) 0); return (a != 0);],
 mysql_cv_btype_last_arg_accept=socklen_t)]
 if test $mysql_cv_btype_last_arg_accept = none; then
-[AC_TRY_COMPILE([#include <stdlib.h>
+[AC_TRY_COMPILE([#if defined(inline)
+#undef inline
+#endif
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 ],
