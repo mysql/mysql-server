@@ -106,8 +106,11 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS \ 
-";
+  client/mysqlbinlog$BS \
+  tests/mysql_client_test$BS \
+  libmysqld/examples/mysql_client_test_embedded$BS \
+  libmysqld/examples/mysqltest_embedded$BS \
+  ";
 
 # Platform-specific bin files:
 if [ $BASE_SYSTEM = "netware" ] ; then
@@ -126,8 +129,9 @@ else
     client/.libs/mysqltest client/.libs/mysqlcheck \
     client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
     client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
-    tests/.libs/mysql_client_test libmysqld/examples/mysql_client_test_embedded \
-    libmysqld/examples/mysqltest_embedded \
+    tests/.libs/mysql_client_test \
+    libmysqld/examples/.libs/mysql_client_test_embedded \
+    libmysqld/examples/.libs/mysqltest_embedded \
   ";
 fi
 

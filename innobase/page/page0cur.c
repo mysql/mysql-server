@@ -311,9 +311,6 @@ page_cur_search_with_match(
 			low_matched_bytes = cur_matched_bytes;
 
 		} else if (cmp == -1) {
-			offsets = rec_get_offsets(mid_rec, index, offsets,
-					dtuple_get_n_fields_cmp(tuple), &heap);
-
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
 			    && page_cur_rec_field_extends(tuple, mid_rec,
 						offsets, cur_matched_fields)) {
@@ -366,9 +363,6 @@ page_cur_search_with_match(
 			low_matched_bytes = cur_matched_bytes;
 
 		} else if (cmp == -1) {
-			offsets = rec_get_offsets(mid_rec, index, offsets,
-					dtuple_get_n_fields_cmp(tuple), &heap);
-
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
 			    && page_cur_rec_field_extends(tuple, mid_rec,
 						offsets, cur_matched_fields)) {

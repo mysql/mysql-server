@@ -219,6 +219,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	CASCADE
 %token  CASCADED
 %token	CAST_SYM
+%token	CHAIN_SYM
 %token	CHARSET
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
@@ -385,6 +386,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	REDUNDANT_SYM
 %token	REFERENCES
 %token	REGEXP
+%token	RELEASE_SYM
 %token	RELOAD
 %token	RENAME
 %token	REPEATABLE_SYM
@@ -690,7 +692,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
-        start_transaction_opts
+        start_transaction_opts opt_chain opt_work_and_chain opt_release
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -777,7 +779,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
 	show describe load alter optimize keycache preload flush
-	reset purge begin commit rollback savepoint
+	reset purge begin commit rollback savepoint release
 	slave master_def master_defs master_file_def slave_until_opts
 	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
@@ -876,6 +878,7 @@ statement:
 	| preload
         | prepare
 	| purge
+	| release
 	| rename
 	| repair
 	| replace
@@ -3892,10 +3895,11 @@ select_into:
 select_from:
 	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
-        | FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
-                           clause, and DUAL is system table without fields.
-                           Is "SELECT 1 FROM DUAL" any better than
-                           "SELECT 1" ? Hmmm :) */
+        | FROM DUAL_SYM opt_limit_clause
+          /* oracle compatibility: oracle always requires FROM clause,
+             and DUAL is system table without fields.
+             Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
+          Hmmm :) */
 	;
 
 select_options:
@@ -4029,14 +4033,15 @@ bool_test:
 bool_pri:
 	bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| bool_pri IS not NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| predicate BETWEEN_SYM bit_expr AND_SYM bool_pri
-	  { $$= new Item_func_between($1,$3,$5); }
-	| predicate not BETWEEN_SYM bit_expr AND_SYM bool_pri
-	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
+	| bool_pri EQUAL_SYM predicate	{ $$= new Item_func_equal($1,$3); }
+	| bool_pri comp_op predicate %prec EQ
+	  { $$= (*$2)(0)->create($1,$3); }
+	| bool_pri comp_op all_or_any in_subselect %prec EQ
+	  { $$= all_any_subquery_creator($1, $2, $3, $4); }
 	| predicate ;
 
 predicate:
-	 bit_expr IN_SYM '(' expr_list ')'
+	bit_expr IN_SYM '(' expr_list ')'
 	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| bit_expr not IN_SYM '(' expr_list ')'
 	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
@@ -4044,6 +4049,10 @@ predicate:
 	  { $$= new Item_in_subselect($1, $3); }
 	| bit_expr not IN_SYM in_subselect
           { $$= negate_expression(YYTHD, new Item_in_subselect($1, $4)); }
+	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
+	  { $$= new Item_func_between($1,$3,$5); }
+	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
+	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
 	| bit_expr SOUNDS_SYM LIKE bit_expr
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
@@ -4054,11 +4063,6 @@ predicate:
 	| bit_expr REGEXP bit_expr	{ $$= new Item_func_regex($1,$3); }
 	| bit_expr not REGEXP bit_expr
           { $$= negate_expression(YYTHD, new Item_func_regex($1,$4)); }
-	| bit_expr EQUAL_SYM bit_expr	{ $$= new Item_func_equal($1,$3); }
-	| bit_expr comp_op bit_expr %prec EQ
-	  { $$= (*$2)(0)->create($1,$3); }
-	| bit_expr comp_op all_or_any in_subselect %prec EQ
-	  { $$= all_any_subquery_creator($1, $2, $3, $4); }
 	| bit_expr ;
 
 bit_expr:
@@ -6901,6 +6905,7 @@ keyword:
 	| BTREE_SYM		{}
 	| CACHE_SYM		{}
 	| CASCADED              {}
+	| CHAIN_SYM		{}
 	| CHANGED		{}
 	| CHARSET		{}
 	| CHECKSUM_SYM		{}
@@ -7854,25 +7859,66 @@ opt_work:
 	| WORK_SYM {;}
         ;
 
+opt_chain:
+	/* empty */ { $$= (Lex->thd->variables.completion_type == 1); }
+	| AND_SYM NO_SYM CHAIN_SYM	{ $$=0; }
+	| AND_SYM CHAIN_SYM		{ $$=1; }
+	;
+
+opt_release:
+	/* empty */ { $$= (Lex->thd->variables.completion_type == 2); }
+	| RELEASE_SYM 			{ $$=1; }
+	| NO_SYM RELEASE_SYM 		{ $$=0; }
+	;
+	
+opt_work_and_chain:
+	opt_work opt_chain 		{ $$=$2; }
+	;
+
+opt_savepoint:
+	/* empty */	{}
+	| SAVEPOINT_SYM {}
+	;
+
 commit:
-	COMMIT_SYM   { Lex->sql_command = SQLCOM_COMMIT;};
+	COMMIT_SYM opt_work_and_chain opt_release
+	{
+	  Lex->sql_command= SQLCOM_COMMIT;
+	  Lex->tx_chain= $2; 
+	  Lex->tx_release= $3;
+	}
+	;
 
 rollback:
-	ROLLBACK_SYM
-	{
-	  Lex->sql_command = SQLCOM_ROLLBACK;
+	ROLLBACK_SYM opt_work_and_chain opt_release
+	{ 
+	  Lex->sql_command= SQLCOM_ROLLBACK;
+	  Lex->tx_chain= $2; 
+	  Lex->tx_release= $3;
 	}
-	| ROLLBACK_SYM TO_SYM SAVEPOINT_SYM ident
+	| ROLLBACK_SYM opt_work
+	  TO_SYM opt_savepoint ident
 	{
 	  Lex->sql_command = SQLCOM_ROLLBACK_TO_SAVEPOINT;
-	  Lex->savepoint_name = $4.str;
-	};
+	  Lex->savepoint_name = $5.str;
+	}
+	;
+
 savepoint:
 	SAVEPOINT_SYM ident
 	{
 	  Lex->sql_command = SQLCOM_SAVEPOINT;
 	  Lex->savepoint_name = $2.str;
-	};
+	}
+	;
+
+release:
+	RELEASE_SYM SAVEPOINT_SYM ident
+	{
+	  Lex->sql_command = SQLCOM_RELEASE_SAVEPOINT;
+	  Lex->savepoint_name = $3.str;
+	}
+	;
 
 /*
    UNIONS : glue selects together

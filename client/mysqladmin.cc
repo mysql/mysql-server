@@ -1009,6 +1009,7 @@ static void usage(void)
   print_defaults("my",load_default_groups);
   puts("\nWhere command is a one or more of: (Commands may be shortened)\n\
   create databasename	Create a new database\n\
+  debug			Instruct server to write debug information to log\n\
   drop databasename	Delete a database and all its tables\n\
   extended-status       Gives an extended status message from the server\n\
   flush-hosts           Flush all cached hosts\n\
