@@ -4939,9 +4939,10 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     as well as don't copy a malformed data.
   */
   copy_length= field_charset->cset->well_formed_len(field_charset,
-						    from,from+length,
-						    field_length/
-						    field_charset->mbmaxlen);
+                                                    from,from+length,
+                                                    field_length/
+                                                    field_charset->mbmaxlen,
+                                                    &error);
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
@@ -4958,7 +4959,6 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   }
   if (error)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
-
   return error;
 }
 
@@ -5577,9 +5577,10 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
       the 'min()' call below.
     */
     copy_length= field_charset->cset->well_formed_len(field_charset,
-						      from,from +
-						      min(length, copy_length),
-						      copy_length);
+                                                      from,from +
+                                                      min(length, copy_length),
+                                                      copy_length,
+                                                      &error);
     if (copy_length < length)
       error= 1;
     Field_blob::store_length(copy_length);

@@ -226,12 +226,14 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
       if (!tAttrInfo->m_indexOnly){
+        int dummy_error;
         // invalid data can crash kernel
         if (cs != NULL &&
            (*cs->cset->well_formed_len)(cs,
                                         aValueToWrite,
                                         aValueToWrite + sizeInBytes,
-                                        sizeInBytes) != sizeInBytes)
+                                        sizeInBytes,
+                                        &dummy_error) != sizeInBytes)
           goto equal_error4;
 	Uint32 ahValue;
 	const Uint32 sz = totalSizeInWords;
