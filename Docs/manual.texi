@@ -36816,26 +36816,26 @@ documentation for @strong{MySQL}-specific features.
 @node PHP, Cplusplus, Java, Clients
 @section MySQL PHP API
 
-PHP is a server-side, HTML embedded scripting language that may be used to
-create dynamic web pages.  It contains support for accessing several
-databases, including @strong{MySQL}.  PHP may be run as a separate program,
-or compiled as a module for use with the Apache web server.
+PHP is a server-side, HTML-embedded scripting language that may be used to
+create dynamic Web pages.  It contains support for accessing several
+databases, including @strong{MySQL}.  PHP may be run as a separate program
+or compiled as a module for use with the Apache Web server.
 
 The distribution and documentation are available at the
-@uref{http://www.php.net/, PHP website}.
+@uref{http://www.php.net/, PHP web site}.
 
 @menu
 * PHP problems::                Common problems with MySQL and PHP
 @end menu
 
 @node PHP problems,  , PHP, PHP
-@subsection Common problems with MySQL and PHP
+@subsection Common Problems with MySQL and PHP
 
 @itemize @bullet
 @item Error: "Maximum Execution Time Exeeded"
 This is a PHP limit;  Go into the @file{php3.ini} file and set the maximum
 execution time up from 30 seconds to something higher, as needed.
-It is also not a bad idea to double the ram allowed per script to 16 instead of
+It is also not a bad idea to double the ram allowed per script to 16MB instead of
 8 MB.
 @item Error: "Fatal error: Call to unsupported or undefined function mysql_connect() in .."
 This means that your PHP version isn't compiled with @strong{MySQL} support.
@@ -36875,7 +36875,7 @@ interface that is based on msqltcl 1.50.
 @cindex databases, MySQL vs. others
 @cindex comparisons, MySQL vs. others
 @node Comparisons, MySQL internals, Clients, Top
-@chapter How MySQL compares to other databases
+@chapter How MySQL Compares to Other Databases
 
 @menu
 * Compare mSQL::                How @strong{MySQL} compares to @code{mSQL}
@@ -36883,14 +36883,14 @@ interface that is based on msqltcl 1.50.
 @end menu
 
 @node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
-@section How MySQL compares to @code{mSQL}
+@section How MySQL Compares to @code{mSQL}
 
 This section has been written by the @strong{MySQL} developers, so it
 should be read with that in mind. But there are NO factual errors that
 we know of.
 
-For a list of all supported limits, functions and types, see the
-@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} web page}.
+For a list of all supported limits, functions, and types, see the
+@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} Web page}.
 
 @table @strong
 @item Performance
@@ -36898,7 +36898,7 @@ For a list of all supported limits, functions and types, see the
 For a true comparison of speed, consult the growing @strong{MySQL} benchmark
 suite. @xref{Benchmarks}.
 
-Because there is no thread creation overhead, a small parser, few features and
+Because there is no thread creation overhead, a small parser, few features, and
 simple security, @code{mSQL} should be quicker at:
 
 @itemize @bullet
@@ -36925,7 +36925,7 @@ most other SQL implementions) on the following:
 @item
 Complex @code{SELECT} operations.
 @item
-Retrieving large results (@strong{MySQL} has a better, faster and safer
+Retrieving large results (@strong{MySQL} has a better, faster, and safer
 protocol).
 @item
 Tables with variable-length strings, because @strong{MySQL} has more efficent
@@ -36942,7 +36942,7 @@ Handling tables with large record lengths.
 Handling many connections at the same time. @strong{MySQL} is fully
 multi-threaded. Each connection has its own thread, which means that
 no thread has to wait for another (unless a thread is modifying
-a table another thread wants to access.) In @code{mSQL}, once one connection
+a table another thread wants to access). In @code{mSQL}, once one connection
 is established, all others must wait until the first has finished, regardless
 of whether the connection is running a query that is short or long. When the
 first connection terminates, the next can be served, while all the others wait
@@ -36971,9 +36971,9 @@ Using @code{TEXT} or @code{BLOB} columns.
 @code{mSQL} does not support @code{GROUP BY} at all.
 @strong{MySQL} supports a full @code{GROUP BY} with both @code{HAVING} and
 the following functions: @code{COUNT()}, @code{AVG()}, @code{MIN()},
-@code{MAX()}, @code{SUM()} and @code{STD()}.  @code{COUNT(*)} is optimized to
+@code{MAX()}, @code{SUM()}, and @code{STD()}.  @code{COUNT(*)} is optimized to
 return very quickly if the @code{SELECT} retrieves from one table, no other
-columns are retrieved and there is no @code{WHERE} clause.  @code{MIN()} and
+columns are retrieved, and there is no @code{WHERE} clause.  @code{MIN()} and
 @code{MAX()} may take string arguments.
 
 @item @code{INSERT} and @code{UPDATE} with calculations.
@@ -36995,7 +36995,7 @@ query, you do not have to use the full qualifier.
 
 @end itemize
 
-@item Disk space efficiency
+@item Disk Space Efficiency
 That is, how small can you make your tables?
 
 @strong{MySQL} has very precise types, so you can create tables that take
@@ -37016,11 +37016,11 @@ anything about that.
 Another important issue is the license. @strong{MySQL} has a
 more flexible license than @code{mSQL}, and is also less expensive than
 @code{mSQL}.  Whichever product you choose to use, remember to at least
-consider paying for a license or email support.  (You are required to get
+consider paying for a license or e-mail support.  (You are required to get
 a license if you include @strong{MySQL} with a product that you sell,
 of course.)
 
-@item Perl interfaces
+@item Perl Interfaces
 @strong{MySQL} has basically the same interfaces to Perl as @code{mSQL} with
 some added features.
 
@@ -37031,8 +37031,8 @@ some added features.
 The mm driver: A type 4 JDBC driver by Mark Matthews
 @email{mmatthew@@ecn.purdue.edu}.  This is released under the LGPL.
 @item
-The Resin driver. This is a commercial JDBC driver released under open source.
-@uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
+The Resin driver. This is a commercial JDBC driver released under open
+source.  @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
 @item
 The gwe driver: A Java interface by GWE technologies (not supported anymore).
 @item
@@ -37045,23 +37045,23 @@ and educational use (not supported anymore).
 @end itemize
 
 The recommended driver is the mm driver. The Resin driver may also be
-good (at least the benchmarks looks good) but we haven't got that much
+good (at least the benchmarks looks good), but we haven't received that much
 information about this yet.
 
 We know that @code{mSQL} has a JDBC driver, but we have too little experience
 with it to compare.
 
-@item Rate of development
+@item Rate of Development
 @strong{MySQL} has a very small team of developers, but we are quite
 used to coding C and C++ very rapidly. Because threads, functions,
-@code{GROUP BY} and so on are still not implemented in @code{mSQL}, it
+@code{GROUP BY}, and so on are still not implemented in @code{mSQL}, it
 has a lot of catching up to do. To get some perspective on this, you
 can view the @code{mSQL} @file{HISTORY} file for the last year and
 compare it with the News section of the @strong{MySQL} Reference Manual
 (@pxref{News}). It should be pretty obvious which one has developed
 most rapidly.
 
-@item Utility programs
+@item Utility Programs
 Both @code{mSQL} and @strong{MySQL} have many interesting third-party
 tools. Because it is very easy to port upward (from @code{mSQL} to
 @strong{MySQL}), almost all the interesting applications that are available for
@@ -37085,7 +37085,7 @@ For example, it changes instances of @code{msqlConnect()} to
 @cindex converting, tools
 @cindex tools, converting
 @node Using mSQL tools, Protocol differences, Compare mSQL, Compare mSQL
-@subsection How to convert @code{mSQL} tools for MySQL
+@subsection How to Convert @code{mSQL} Tools for MySQL
 
 According to our experience, it would just take a few hours to convert tools
 such as @code{msql-tcl} and @code{msqljava} that use the
@@ -37128,7 +37128,7 @@ multiple connections to the server from the same process.
 @cindex communications protocols
 @cindex mSQL vs. MySQL
 @node Protocol differences, Syntax differences, Using mSQL tools, Compare mSQL
-@subsection How @code{mSQL} and MySQL client/server communications protocols differ
+@subsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
 
 There are enough differences that it is impossible (or at least not easy)
 to support both.
@@ -37147,7 +37147,7 @@ client limit.
 All packets are numbered to catch duplicated or missing packets.
 @item
 All column values are sent in ASCII. The lengths of columns and rows are sent
-in packed binary coding (1, 2 or 3 bytes).
+in packed binary coding (1, 2, or 3 bytes).
 @item
 @strong{MySQL} can read in the result unbuffered (without having to store the
 full set in the client).
@@ -37159,14 +37159,14 @@ If a connection is idle for 8 hours, the server closes the connection.
 @end itemize
 
 @node Syntax differences,  , Protocol differences, Compare mSQL
-@subsection How @code{mSQL} 2.0 SQL syntax differs from MySQL
+@subsection How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
 
 @noindent
 @strong{Column types}
 
 @table @code
 @item @strong{MySQL}
-Has the following additional types (among others; see
+Has the following additional types (among others;
 @pxref{CREATE TABLE, , @code{CREATE TABLE}}):
 @itemize @bullet
 @item
@@ -37208,7 +37208,7 @@ And @code{LIKE} works.
 @end table
 
 @noindent
-@strong{Index creation}
+@strong{Index Creation}
 
 @table @code
 @item @strong{MySQL}
@@ -37220,7 +37220,7 @@ Indexes must be created after the table has been created, with separate
 @end table
 
 @noindent
-@strong{To insert a unique identifier into a table}
+@strong{To Insert a Unique Identifier into a Table}
 
 @table @code
 @item @strong{MySQL}
@@ -37232,7 +37232,7 @@ Create a @code{SEQUENCE} on a table and select the @code{_seq} column.
 @end table
 
 @noindent
-@strong{To obtain a unique identifier for a row}
+@strong{To Obtain a Unique Identifier for a Row}
 
 @table @code
 @item @strong{MySQL}
@@ -37246,7 +37246,7 @@ depending on many factors.
 @end table
 
 @noindent
-@strong{To get the time a column was last modified}
+@strong{To Get the Time a Column Was Last Modified}
 
 @table @code
 @item @strong{MySQL}
@@ -37259,12 +37259,12 @@ Use the @code{_timestamp} column.
 @end table
 
 @noindent
-@strong{@code{NULL} value comparisons}
+@strong{@code{NULL} Value Comparisons}
 
 @table @code
 @item @strong{MySQL}
 @strong{MySQL} follows
-ANSI SQL and a comparison with @code{NULL} is always @code{NULL}.
+ANSI SQL, and a comparison with @code{NULL} is always @code{NULL}.
 @item mSQL
 In @code{mSQL}, @code{NULL = NULL} is TRUE.  You
 must change @code{=NULL} to @code{IS NULL} and @code{<>NULL} to
@@ -37272,7 +37272,7 @@ must change @code{=NULL} to @code{IS NULL} and @code{<>NULL} to
 @end table
 
 @noindent
-@strong{String comparisons}
+@strong{String Comparisons}
 
 @table @code
 @item @strong{MySQL}
@@ -37287,7 +37287,7 @@ sorting in ASCII order.
 @end table
 
 @noindent
-@strong{Case-insensitive searching}
+@strong{Case-insensitive Searching}
 
 @table @code
 @item @strong{MySQL}
@@ -37299,7 +37299,7 @@ Use @code{CLIKE}.
 @end table
 
 @noindent
-@strong{Handling of trailing spaces}
+@strong{Handling of Trailing Spaces}
 
 @table @code
 @item @strong{MySQL}
@@ -37310,13 +37310,13 @@ Retains trailing space.
 @end table
 
 @noindent
-@strong{@code{WHERE} clauses}
+@strong{@code{WHERE} Clauses}
 
 @table @code
 @item @strong{MySQL}
 @strong{MySQL} correctly prioritizes everything (@code{AND} is evaluated
 before @code{OR}). To get @code{mSQL} behavior in @strong{MySQL}, use
-parentheses (as shown below).
+parentheses (as shown in an example below).
 @item mSQL
 Evaluates everything from left to right. This means that some logical
 calculations with more than three arguments cannot be expressed in any
@@ -37334,11 +37334,11 @@ mysql> SELECT * FROM table WHERE (a=1 AND (b=2 OR (a=3 AND (b=4))));
 @end table
 
 @noindent
-@strong{Access control}
+@strong{Access Control}
 
 @table @code
 @item @strong{MySQL}
-Has tables to store grant (permission) options per user, host and
+Has tables to store grant (permission) options per user, host, and
 database. @xref{Privileges}.
 @item mSQL
 Has a file @file{mSQL.acl} in which you can grant read/write privileges for
@@ -37348,36 +37348,36 @@ users.
 
 @cindex PostgreSQL, comparison
 @node Compare PostgreSQL,  , Compare mSQL, Comparisons
-@section How MySQL compares to PostgreSQL
+@section How MySQL Compares to PostgreSQL
 
 We would first like to note that @code{PostgreSQL} and @strong{MySQL}
-are both widely used products but their design goals are completely
+are both widely used products, but their design goals are completely
 different.  This means that for some applications @strong{MySQL} is more
 suitable and for others @code{PostgreSQL} is more suitable.  When
-choosing which database to use you should first check if the databases
+choosing which database to use, you should first check if the database's
 feature set is good enough to satisfy your application.  If you need
-speed then @strong{MySQL} is probably your best choice, if you need some
-of the extra features that @code{PostgreSQL} can offer you should use
+speed then @strong{MySQL} is probably your best choice. If you need some
+of the extra features that @code{PostgreSQL} can offer, you should use
 @code{PostgreSQL}.
 
 @code{PostgreSQL} has some more advanced features like user-defined
-types, triggers, rules and some transaction support (currently it's
-has about same symantic as @strong{MySQL}'s transactions in that the
-transaction is not 100 % atomic) . However, PostgreSQL lacks
+types, triggers, rules, and some transaction support (currently it
+has about the same symantics as @strong{MySQL}'s transactions in that the
+transaction is not 100% atomic). However, PostgreSQL lacks
 many of the standard types and functions from ANSI SQL and ODBC. See the
-@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} web page}
+@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} Web page}
 for a complete list of limits and which types and functions are supported
 or unsupported.
 
 Normally, @code{PostgreSQL} is a magnitude slower than
-@strong{MySQL}. @xref{Benchmarks}.  This is due largely to they have only
+@strong{MySQL}. @xref{Benchmarks}.  This is due largely to the fact that they have only
 transaction-safe tables and that their transactions system is not as
 sophisticated as Berkeley DB's.  In @strong{MySQL} you can decide per
 table if you want the table to be fast or take the speed penalty of
 making it transaction safe.
 
 The most important things that @code{PostgreSQL} supports that @strong{MySQL}
-don't yet support:
+doesn't yet support:
 
 @table @code
 @item Sub select
@@ -37387,9 +37387,9 @@ don't yet support:
 @item A way to extend the SQL to handle new key types (like R-trees)
 @end table
 
-@strong{MySQL}, on the other hand, supports a many ANSI SQL constructs
-that @code{PostgreSQL} doesn't support;  Most of these can be found at the
-@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} web page}.
+@strong{MySQL}, on the other hand, supports many ANSI SQL constructs
+that @code{PostgreSQL} doesn't support. Most of these can be found at the
+@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} Web page}.
 
 If you really need the rich type system @code{PostgreSQL} offers and you
 can afford the speed penalty of having to do everything transaction
@@ -37398,7 +37398,7 @@ safe, you should take a look at @code{PostgreSQL}.
 @cindex internals
 @cindex threads
 @node MySQL internals, Environment variables, Comparisons, Top
-@chapter MySQL internals
+@chapter MySQL Internals
 
 This chapter describes a lot of things that you need to know when
 working on the @strong{MySQL} code.
@@ -37409,7 +37409,7 @@ working on the @strong{MySQL} code.
 @end menu
 
 @node MySQL threads, MySQL full-text search, MySQL internals, MySQL internals
-@section MySQL threads
+@section MySQL Threads
 
 The @strong{MySQL} server creates the following threads:
 
@@ -37440,7 +37440,7 @@ Every connection has its own thread.
 Every different table on which one uses @code{INSERT DELAYED} gets its
 own thread.
 @item
-If you use @code{--master-host} , slave replication thread will be
+If you use @code{--master-host}, slave replication thread will be
 started to read and apply updates from the master.
 @end itemize
 
@@ -37450,7 +37450,7 @@ DELAYED} threads.
 @cindex searching, full-text
 @cindex full-text search
 @node MySQL full-text search,  , MySQL threads, MySQL internals
-@section MySQL full-text search
+@section MySQL Full-text Search
 
 Since Version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
@@ -37458,7 +37458,7 @@ index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
 @code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added
 later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is
 performed with the @code{MATCH}
-function.
+function:
 
 @example
 mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
@@ -37495,17 +37495,18 @@ mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
 5 rows in set (0.00 sec)
 @end example
 
-The function @code{MATCH} matches a natural language query @code{AGAINST} a
-text collection (which is simply the columns that are covered
-by a @strong{FULLTEXT} index). For every row in a table it returns
-relevance - similarity measure between the text in that row (in the columns
-that are part of the collection) and the query. When it is used in a
-@code{WHERE} clause (see example above) the rows returned are
-automatically sorted with relevance decreasing. Relevance is a non-
-negative floating-point number. Zero relevance means no similarity.
-Relevance is computed based on number of words in the row and number of
-unique words in that row, total number of words in the collection,
-number of documents (rows), that contain a particular word, etc.
+The function @code{MATCH} matches a natural language query
+@code{AGAINST} a text collection (which is simply the columns that are
+covered by a @strong{FULLTEXT} index). For every row in a table it
+returns relevance - a similarity measure between the text in that row
+(in the columns that are part of the collection) and the query. When it
+is used in a @code{WHERE} clause (see example above) the rows returned
+are automatically sorted with relevance decreasing. Relevance is a
+non-negative floating-point number. Zero relevance means no similarity.
+Relevance is computed based on the number of words in the row and the
+number of unique words in that row, the total number of words in the
+collection, the number of documents (rows) that contain a particular
+word, etc.
 
 MySQL uses a very simple parser to split text into words. A "word" is
 any sequence of letters, numbers, @code{'}, and @code{_}. Any "word"
@@ -37540,10 +37541,10 @@ particular dataset}.
 @page
 @cindex environment variables, list of
 @node Environment variables, Users, MySQL internals, Top
-@appendix  Environment variables
+@appendix  Environment Variables
 
-Here is a list of all environment variables that are used directly or
-indirectly by @strong{MySQL}. Most of these can also be found at other
+Here is a list of all the environment variables that are used directly or
+indirectly by @strong{MySQL}. Most of these can also be found in other
 places in this manual.
 
 Note that any options on the command line will take precedence over
@@ -37551,7 +37552,7 @@ values specified in configuration files and environment variables, and
 values in configuration files take precedence over values in environment
 variables.
 
-In many cases its preferable to use a configure file instead of environment
+In many cases it's preferable to use a configure file instead of environment
 variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 
 @tindex CCX environment variable
@@ -37604,15 +37605,15 @@ variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 @item @code{DBI_TRACE} @tab Used when tracing Perl DBI.
 @item @code{HOME} @tab The default path for the @code{mysql} history file is @file{$HOME/.mysql_history}.
 @item @code{LD_RUN_PATH} @tab Used to specify where your @code{libmysqlclient.so} is.
-@item @code{MYSQL_DEBUG} @tab Debug-trace options when debugging
+@item @code{MYSQL_DEBUG} @tab Debug-trace options when debugging.
 @item @code{MYSQL_HISTFILE} @tab The path to the @code{mysql} history file.
-@item @code{MYSQL_HOST} @tab Default host name used by the @code{mysql} command line prompt.
+@item @code{MYSQL_HOST} @tab Default host name used by the @code{mysql} command-line prompt.
 @item @code{MYSQL_PWD} @tab The default password when connecting to mysqld. Note that use of this is insecure!
 @item @code{MYSQL_TCP_PORT} @tab The default TCP/IP port.
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}.
 @item @code{PATH} @tab Used by the shell to finds the @strong{MySQL} programs.
 @item @code{TMPDIR} @tab The directory where temporary tables/files are created.
-@item @code{TZ} @tab This should be set to your local timezone. @xref{Timezone problems}.
+@item @code{TZ} @tab This should be set to your local time zone. @xref{Timezone problems}.
 @item @code{UMASK_DIR} @tab The user-directory creation mask when creating directories. Note that this is ANDed with @code{UMASK}!
 @item @code{UMASK} @tab The user-file creation mask when creating files.
 @item @code{USER} @tab The default user on Windows to use when connecting to @code{mysqld}.
@@ -37622,9 +37623,9 @@ variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 @cindex users, of MySQL
 @cindex news sites
 @node Users, Contrib, Environment variables, Top
-@appendix Some MySQL users
+@appendix Some MySQL Users
 
-@appendixsec General news sites
+@appendixsec General News Sites
 
 @itemize @bullet
 
@@ -37639,13 +37640,13 @@ variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 @item @uref{http://www.32bitsonline.com/, 32Bits Online: because there's
 more than one way to compute}
 
-@item @uref{http://www.freshmeat.net/, Freshmeat: News about new versions of computer related stuff}
+@item @uref{http://www.freshmeat.net/, Freshmeat: News about new versions of computer-related stuff}
 
 @end itemize
 
 @cindex search engines, web
 @cindex web search engines
-@appendixsec Some Web search engines
+@appendixsec Some Web Search Engines
 
 @itemize @bullet
 
@@ -37665,7 +37666,7 @@ more than one way to compute}
 
 @item @uref{http://www.yaboo.dk/, Yaboo - Yet Another BOOkmarker}
 
-item @uref{http://www.yahoosuck.com, Yahoosuck}
+@item @uref{http://www.yahoosuck.com, Yahoosuck}
 
 @item @uref{http://www.ozsearch.com.au, OzSearch Internet Guide}
 
@@ -37674,11 +37675,11 @@ item @uref{http://www.yahoosuck.com, Yahoosuck}
 @item @uref{http://osdls.library.arizona.edu/, The Open Source Digital Library System Project}
 @end itemize
 
-@appendixsec Some Information search engines concentrated on some area
+@appendixsec Some Information Search Engines Concentrated on Some Area
 
 @itemize @bullet
 
-@item @uref{http:www.spylog.ru/, SpyLOG ;  A very popular web counter site}
+@item @uref{http:www.spylog.ru/, SpyLOG ;  A very popular Web counter site}
 
 @item @uref{http://www.tucows.com/, TuCows Network; Free Software archive}
 
@@ -37686,7 +37687,7 @@ item @uref{http://www.yahoosuck.com, Yahoosuck}
 
 @item @uref{http://www.musicdatabase.com, The Music Database}
 
-@item @uref{http://www.soccersearch.com, Fotball (Soccer) search page}
+@item @uref{http://www.soccersearch.com, Football (Soccer) search page}
 
 @item @uref{http://www.headrush.net/takedown, TAKEDOWN - wrestling}
 
@@ -37711,7 +37712,7 @@ item @uref{http://www.yahoosuck.com, Yahoosuck}
 Publications at Monash University in Australia}
 
 @item @uref{http://www.ipielle.emr.it/bts/index.html,
-Occupational Health & Safety website databse (a project for the ECC)}
+Occupational Health & Safety Web site databse (a project for the ECC)}
 @c c.presutti@ipielle.emr.it
 
 @item @uref{http://data.mch.mcgill.ca/, Bioinformatics databases at the
@@ -37721,7 +37722,7 @@ Montreal Children's Hospital using MySQL}
 
 @cindex online magazines
 @cindex magazines, online
-@appendixsec Online magazines
+@appendixsec Online Magazines
 
 @itemize @bullet
 @item @uref{http://www.spoiler.com, Spoiler Webzine}.
@@ -37732,7 +37733,7 @@ An online magazine featuring music, literature, arts, and design content.
 @end itemize
 
 @cindex web sites
-@appendixsec Web sites that use MySQL as a backend
+@appendixsec Web Sites that Use MySQL as a Backend
 
 @itemize @bullet
 
@@ -37744,7 +37745,7 @@ An online magazine featuring music, literature, arts, and design content.
 
 @item @uref{http://www.expo2000.com, Expo2000} World-wide distribution of
 tickets for this event is implemented using @strong{MySQL} and tcl/tk. More than
-5000 travel-agencies all over the world have access to it.
+5000 travel agencies all over the world have access to it.
 
 @item @uref{http://www.freevote.com/, FreeVote.com is a free voting
 service with millions of users.}
@@ -37753,7 +37754,7 @@ service with millions of users.}
 @end itemize
 
 @cindex services
-@appendixsec Some Domain/Internet/Web and related services
+@appendixsec Some Domain/Internet/Web and Related Services
 
 @itemize @bullet
 
@@ -37787,7 +37788,7 @@ support @strong{MySQL}}
 
 @item @uref{http://www.worldnetla.net, WorldNet Communications - An Internet Services Provider}
 
-@item @uref{http://www.netizen.com.au/, Netizen: Australian-based web consultancy}
+@item @uref{http://www.netizen.com.au/, Netizen: Australian-based Web consultancy}
 
 @item @uref{http://www.trainingpages.co.uk, Search site for training courses in the UK}
 
@@ -37795,7 +37796,7 @@ support @strong{MySQL}}
 
 @item @uref{http://www.addurls.com/,A general links directory}
 
-@item @uref{http://www.bookmarktracker.com, A web-based bookmark management service}
+@item @uref{http://www.bookmarktracker.com, A Web-based bookmark management service}
 
 @item @uref{http://www.cdrom.com,Walnut Creek CDROM}
 
@@ -37805,7 +37806,7 @@ support @strong{MySQL}}
 
 @item @uref{http://www.buysell.net/, Online "Person To Person" Auction}
 
-@item @uref{http://tips.pair.com,Tips on web development}
+@item @uref{http://tips.pair.com,Tips on Web development}
 
 @item @uref{http://www.mailfriends.com, Mailfriends.com is a FREE service for
 everybody who wants to find friends over the internet.}
@@ -37816,13 +37817,13 @@ everybody who wants to find friends over the internet.}
 
 @c @item @uref{http://cabinboy.powersurfr.com, An Internet RFC search engine}
 
-@item @uref{http://www.dslreports.com, DSL providers search with reviews}
+@item @uref{http://www.dslreports.com, DSL-provider search with reviews}.
 Made with @strong{MySQL} and Modperl, all pages are generated dynamically out of
 the @strong{MySQL} database
 @end itemize
 
 @cindex PHP, web sites
-@appendixsec Web sites that use @code{PHP} and MySQL
+@appendixsec Web Sites that Use @code{PHP} and MySQL
 
 @itemize @bullet
 @c @item @uref{http://www.wh200th.com,  White House 200th Anniversary site}
@@ -37832,7 +37833,7 @@ the @strong{MySQL} database
 @item @uref{http://io.incluso.com, Ionline - online publication:} @strong{MySQL},
 PHP, Java, Web programming, DB development
 
-@item @uref{http://www.baboo.com, BaBoo(Browse and bookmark). Free web-based bookmark manager and Calendar}
+@item @uref{http://www.baboo.com, BaBoo(Browse and bookmark). Free Web-based bookmark manager and Calendar}
 
 @item @uref{http://www.courses.pjc.cc.fl.us/Schedule/index.php, Course
 Schedule System at Pensacola Junior College}
@@ -37851,14 +37852,14 @@ guestbooks etc.
 @c Added 990608; EMAIL: spacedmp@SpaceDump.Burken.NU (Anders Olausson)
 
 @item @uref{http://tips.pair.com, tips.pair.com} Contains tips on html,
-javascript, 2d/3d graphics and PHP3/MySQL. All pages are generated from
+javascript, 2d/3d graphics, and PHP3/MySQL. All pages are generated from
 a database.
 @c Added 990614; EMAIL: downey@image.dk (Rune Madsen)
 
 @end itemize
 
 @cindex consultants, list of
-@appendixsec Some MySQL consultants
+@appendixsec Some MySQL Consultants
 
 @itemize @bullet
 
@@ -37880,7 +37881,7 @@ a database.
 @item @uref{http://www.spring.de, Spring infotainment gmbh & co. kg}
 @c added 990905 "Oliver Pischke" <opischke@spring.de>
 
-@item @uref{http://www.wamdesign.com/, Develops websites using MySQL}
+@item @uref{http://www.wamdesign.com/, Develops Web sites using MySQL}
 @c Added 990905; max@wamdesign.com
 
 @item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
@@ -37894,7 +37895,7 @@ a database.
 @end itemize
 
 @cindex web pages, miscellaneous
-@appendixsec Uncategorized pages
+@appendixsec Uncategorized Pages
 
 @itemize @bullet
 
@@ -37917,7 +37918,7 @@ AZC.COM's Feature Showcase}
 
 @item @uref{http://www.selftaught.com/, US Folk art broker}
 
-@item @uref{http://organizer.net/, Mail reading on the web}
+@item @uref{http://organizer.net/, Mail reading on the Web}
 
 @item @uref{http://www.mypage.org/, Free home pages on www.somecoolname.mypage.org}
 
@@ -38009,16 +38010,16 @@ ANSI-92 compliance)}
 
 @item @uref{http://cpsoft.com,Pilkington Software Inc}
 
-@item @uref{http://www.no-quarter.org/,A Vietnam Veteran's Memorial (The Wall) database.}
+@item @uref{http://www.no-quarter.org/,A Vietnam Veteran's Memorial (The Wall) database}
 
-@item @uref{http://www.gamers-union.com/,Gamer's Union specializes inauctions of used & out of print gaming material}
+@item @uref{http://www.gamers-union.com/,Gamer's Union specializes in auctions of used & out-of-print gaming material}
 
 @item @uref{http://www.montereyhigh.com/office/dbul.php3, A daily bulletin at Monterey High school}
 
 @item @uref{http://www.myEastside.com,Community-owned site serving Lake
 Washington's Eastside residents and businesses}
 
-@item @uref{http://bowling-france.net/,French bowling site}.
+@item @uref{http://bowling-france.net/,French bowling site}
 @end itemize
 
 Send any additions to this list to @email{webmaster@@mysql.com}.
@@ -38027,10 +38028,10 @@ Send any additions to this list to @email{webmaster@@mysql.com}.
 @cindex contributed programs
 @cindex programs, contributed
 @node Contrib, Credits, Users, Top
-@appendix Contributed programs
+@appendix Contributed Programs
 
 Many users of @strong{MySQL} have contributed @emph{very} useful support
-tools and addons.
+tools and add-ons.
 
 @ifclear web
 A list of what is available at @uref{http://www.mysql.com/Downloads/Contrib/}
@@ -38049,11 +38050,11 @@ This listing.
 
 @cindex Perl, modules
 @itemize @bullet
-@item Perl modules
-@itemize @bullet
+@item Perl Modules
+@itemize @minus
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-Dumper-2.101.tar.gz, Data-Dumper-2.101.tar.gz}
 Perl @code{Data-Dumper} module.  Useful with @code{DBI}/@code{DBD} support for
-older perl installations.
+older Perl installations.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.14.tar.gz, DBI-1.14.tar.gz}
 Perl @code{DBI} module.
@@ -38088,14 +38089,14 @@ license. Please check @uref{http://www.worldserver.com/mm.mysql/} for
 the latest drivers (and other JDBC information) because these drivers may be out of date.
 
 @item @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
-The Resin commercial JDBC driver which is released under open source.
-It claims to be faster than the mm driver, but we haven't got that much
+The Resin commercial JDBC driver, which is released under open source.
+It claims to be faster than the mm driver, but we haven't received that much
 information about this yet.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/twz1jdbcForMysql-1.0.4-GA.tar.gz, twz1jdbcForMysql-1.0.4-GA.tar.gz}
 The twz driver: A type 4 JDBC driver by Terrence W. Zellers
 @email{zellert@@voicenet.com}.  This is commercial but is free for
-private and educational use. (not supported anymore)
+private and educational use. (Not supported anymore.)
 @c no answer from server 990830
 @c You can always find the latest driver at @uref{http://www.voicenet.com/~zellert/tjFM/}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/pmdamysql.tgz,pmdamysql.tgz}
@@ -38116,7 +38117,7 @@ variables.
 by Roland Haenel's C++ API and Ed Carp's MyC library.
 
 @item @uref{http://www.mysql.com/download_mysql++.html, mysql++}
-@strong{MySQL} C++ API (More than just a wrapper library). Originally by
+@strong{MySQL} C++ API (More than just a wrapper library.) Originally by
 @email{kevina@@clark.net}. Nowadays maintained by Sinisa at MySQL AB.
 
 @item @uref{http://nelsonjr.homepage.com/NJrAPI,NJrAPI}
@@ -38131,7 +38132,7 @@ Delphi interface to @code{libmysql.dll}, by Blestan Tabakov,
 @email{root@@tdg.bis.bg}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/DelphiMySQL2.zip, DelphiMySQL2.zip}
-Delphi interface to @code{libmysql.dll}, by @email{bsilva@@umesd.k12.or.us}
+Delphi interface to @code{libmysql.dll}, by @email{bsilva@@umesd.k12.or.us}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Udmysel.pas, Udmysql.pas}
 A wrapper for libmysql.dll for usage in Delphi. By Reiner Sombrowsky.
@@ -38140,26 +38141,26 @@ A wrapper for libmysql.dll for usage in Delphi. By Reiner Sombrowsky.
 With source code. By Matthias Fichtner.
 
 @item @uref{http://www.productivity.org/projects/mysql/, @strong{TmySQL}
-A library to use @strong{MySQL} with Delphi}
+A library to use @strong{MySQL} with Delphi}.
 
-@item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html, Delphi TDataset-component}
+@item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html, Delphi TDataset-component}.
 @item
 @item @uref{http://www.mysql.com/Downloads/Contrib/Win32/SBMySQL50Share.exe, Delphi 5 Shareware MySQL Dataset Components}
 @end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-ruby-2.2.0.tar.gz, mysql-ruby-2.2.0.tar.gz}
 @strong{MySQL} Ruby module. By TOMITA Masahiro @email{tommy@@tmtm.org}
-@uref{http://www.netlab.co.jp/ruby/,Ruby} is an Object-Oriented Interpreter Language.
+@uref{http://www.netlab.co.jp/ruby/. Ruby} is an Object-Oriented Interpreter Language.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/JdmMysqlDriver-0.1.0.tar.gz,JdmMysqlDriver-0.1.0.tar.gz}
 A VisualWorks 3.0 Smalltalk driver for @strong{MySQL}. By
-@email{joshmiller@@earthlink.net}
+@email{joshmiller@@earthlink.net}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Db.py, Db.py}
 Python module with caching. By @email{gandalf@@rosmail.com}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLmodule-1.4.tar.gz, MySQLmodule-1.4.tar.gz}
-Python interface for @strong{MySQL}. By Joseph Skinner @email{joe@@earthlight.co.nz};  Modified by Joerg Senekowitsch @email{senekow@@ibm.net}
+Python interface for @strong{MySQL}. By Joseph Skinner @email{joe@@earthlight.co.nz}. Modified by Joerg Senekowitsch @email{senekow@@ibm.net}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_11.tar.gz, mysql_mex_1_11.tar.gz}
 An interface program for the Matlab program by MathWorks.  The interface
@@ -38182,7 +38183,7 @@ This is a new version of a set of library utilities intended
 to provide a generic interface to SQL database engines such that your
 application becomes a 3-tiered application.  The advantage is that you
 can easily switch between and move to other database engines by
-implementing one file for the new backend without needing to make any
+implementing one file for the new backend without making any
 changes to your applications. By @email{damian@@cablenet.net}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/DbFramework-1.10.tar.gz, DbFramework-1.10.tar.gz}
@@ -38199,7 +38200,7 @@ databases. By Hal Roberts.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/stk-mysql.tar.gz, stk-mysql.tar.gz}
 Interface for Stk. Stk is the Tk widgets with Scheme underneath instead of Tcl.
-By Terry Jones
+By Terry Jones.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/eiffel-wrapper-1.0.tar.gz,eiffel-wrapper-1.0.tar.gz}.
 Eiffel wrapper by Michael Ravits.
@@ -38214,15 +38215,15 @@ Fernandez Herrero.
 
 @itemize @bullet
 @item Graphical clients
-@itemize @bullet
-@item @uref{http://www.ideit.com/products/dbvis/, DbVisualizer}
+@itemize @minus
+@item @uref{http://www.ideit.com/products/dbvis/, DbVisualizer}.
 Freeware JDBC client to graphically visualize the data and structure
 of several databases simultaneously. By Innovative-IT Development AB.
 
 @item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
 The @strong{MySQL} GUI client homepage. By Sinisa at MySQL AB.
-@item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1.tar.gz, kmysqladmin-0.4.1.tar.gz}
-@item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1-1.src.rpm, kmysqladmin-0.4.1-1.src.rpm}
+@item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1.tar.gz, kmysqladmin-0.4.1.tar.gz}.
+@item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1-1.src.rpm, kmysqladmin-0.4.1-1.src.rpm}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1-1.i386.rpm, kmysqladmin-0.4.1-1.i386.rpm}
 An administration tool for the @strong{MySQL} server using QT / KDE.  Tested
 only on Linux.
@@ -38244,38 +38245,38 @@ Windows GUI (binary only) to administrate a database, by David B. Mansel,
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
 An administrator tool for @strong{MySQL} on Windows 95/98 and Windows NT
-4.0. Only tested with @strong{MySQL} Version 3.23.5 - 3.23.7. Written using the
+4.0. Only tested with @strong{MySQL} Versions 3.23.5 - 3.23.7. Written using the
 Tmysql components.
 
-You can write queries and show tables, indexes, table syntax and
-administrate user,host and database and so on. The is still beta and
-have still some bugs. you can test the program with all features. Please
+You can write queries and show tables, indexes, table syntax, and
+administrate user, host, and database and so on. This is beta and
+still has some bugs. You can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
 URL @url{http://www.it-netservice.de/pages/software/index.html}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin2.zip, netadmin2.zip}
-New version of netadmin; See above for details.
+New version of netadmin. See above for details.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN203.EXE,Atronic's @strong{MySQL} client for Windows 2.0.3.0}.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
-@item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}
+@item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}.
 
 @item @uref{http://dbtools.vila.bol.com.br/, Dbtools}
 A tool to manage @strong{MySQL} databases. Currently only for Windows.
 Some features:
 @itemize @bullet
-@item manage servers, databases, tables, columns, indexes and users
-@item import wizard to import structure and data from a MS Access, MS Excel, Dbase, FoxPro, Paradox and ODBC Databases.
+@item Manage servers, databases, tables, columns, indexes, and users
+@item Import wizard to import structure and data from MS Access, MS Excel, Dbase, FoxPro, Paradox, and ODBC Databases.
 @end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/xmysqladmin-1.0.tar.gz, xmysqladmin-1.0.tar.gz}
-An X based front end to the @strong{MySQL} database engine.  It allows reloads,
+An X-based front end to the @strong{MySQL} database engine.  It allows reloads,
 status check, process control, myisamchk, grant/revoke privileges,
-creating databases, dropping databases, create, alter, browse and drop
+creating databases, dropping databases, create, alter, browse, and drop
 tables.  Originally by Gilbert Therrien, @email{gilbert@@ican.net} but
 now in public domain and supported by MySQL AB.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/xmysql-1.9.tar.gz, xmysql-1.9.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/xmysql-1.9.tar.gz, xmysql-1.9.tar.gz}.
 @item @uref{http://web.wt.net/~dblhack, xmysql home page}
 A front end to the @strong{MySQL} database engine. It allows for simple
 queries and table maintenance, as well as batch queries. By Rick
@@ -38283,7 +38284,7 @@ Mehalick, @email{dblhack@@wt.net}.
 Requires @uref{http://bragg.phys.uwm.edu/xforms,xforms 0.88} to work.
 @item @uref{http://www.tamos.net/sw/dbMetrix,dbMetrix}
 An open source client for exploring databases and executing SQL. Supports
-@strong{MySQL}, Oracle, PostgreSQL and mSQL.
+@strong{MySQL}, Oracle, PostgreSQL, and mSQL.
 @item @uref{http://www.multimania.com/bbrox/GtkSQL,GtkSQL}
 A query tool for @strong{MySQL} and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
@@ -38300,8 +38301,8 @@ DBUI is a Gtk graphical database editor.
 @end itemize
 
 @cindex Web clients
-@item Web clients
-@itemize @bullet
+@item Web Clients
+@itemize @minus
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqladmin-atif-1.0.tar.gz, mysqladmin-atif-1.0.tar.gz}
 WWW @strong{MySQL} administrator for the @code{user,} @code{db} and
 @code{host} tables.  By Tim Sailer, modified by Atif Ghaffar
@@ -38323,22 +38324,22 @@ Updated version of @file{mysqladm.tar.gz}, by High Tide.
 Updated version of @file{mysqladm.tar.gz}, by Ying Gao.  You can get the
 newest version from @uref{http://civeng.com/sqldemo/, the home site}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/myadmin-0.4.tar.gz, myadmin-0.4.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/myadmin-0.4.tar.gz, myadmin-0.4.tar.gz}.
 @item @uref{http://myadmin.cheapnet.net/, MyAdmin home page}
-A web based mysql administrator by Mike Machado.
+A Web-based mysql administrator by Mike Machado.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin_2.0.1.tar.gz,phpMyAdmin_2.0.1.tar.gz}
 A set of PHP3-scripts to adminstrate @strong{MySQL} over the WWW.
 
 @item @uref{http://www.htmlwizard.net/phpMyAdmin/, phpMyAdmin home page}
-A PHP3 tool in the spirit of mysql-webadmin, by Tobias Ratschiller, tobias@@dnet.it
+A PHP3 tool in the spirit of mysql-webadmin, by Tobias Ratschiller, tobias@@dnet.it.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/useradm.tar.gz, useradm.tar.gz}
 @strong{MySQL} administrator in PHP. By Ofni Thomas
 @email{othomas@@vaidsystems.com}.
 
 @item @uref{http://gossamer-threads.com/perl/mysqlman/mysql.cgi, MySQLMan}
-Similar functionality as phpmyadmin, but written with perl and using
+Similar functionality as phpmyadmin, but written with Perl and using
 html templates. By Alex Krohn.
 @end itemize
 
@@ -38347,19 +38348,19 @@ This cgi scripts in Perl enables you to edit content of Mysql
 database. By Tomas Zeman.
 @item
 @uref{http://futurerealm.com/opensource/futuresql.htm, FutureSQL Web Database Administration Tool}.
-FutureSQL by Peter F. Brown, is a Free, Open Source Rapid Application
-Development web database administration tool, written in Perl,
+FutureSQL by Peter F. Brown, is a free, open source rapid application
+development Web database administration tool, written in Perl,
 using @strong{MySQL}. It uses @code{DBI:DBD} and @code{CGI.pm}.
 
-FutureSQL allows one to easily setup config files to view, edit, delete
+FutureSQL allows one to easily set up config files to view, edit, delete,
 and otherwise process records from a @strong{MySQL} database. It uses a data
 dictionary, configuration files and templates, and allows "pre-processing"
-and "post-processing" on both fields, records and operations.
+and "post-processing" on both fields, records, and operations.
 @end itemize
 
 @cindex web tools
 @cindex tools,, web
-@appendixsec Web tools
+@appendixsec Web Tools
 
 @itemize @bullet
 
@@ -38378,21 +38379,21 @@ programming!  By Marc Beneteau, @email{marc@@odbsoft.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlhtml.tar.gz, sqlhtml.tar.gz}
 SQL/HTML is an HTML database manager for @strong{MySQL} using @code{DBI} 1.06.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.22 (stable version)}
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}
+@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.22 (stable version)}.
+@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}.
 @item @uref{http://search.mnoGo.ru, UdmSearch home page}
 A SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/wmtcl.doc, wmtcl.doc}
+@item @uref{http://www.mysql.com/Downloads/Contrib/wmtcl.doc, wmtcl.doc}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/wmtcl.lex, wmtcl.lex}
 With this you can write HTML files with inclusions of Tcl code. By
 @email{vvs@@scil.npi.msu.su}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/www-sql-0.5.7.lsm, www-sql-0.5.7.lsm}
+@item @uref{http://www.mysql.com/Downloads/Contrib/www-sql-0.5.7.lsm, www-sql-0.5.7.lsm}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/www-sql-0.5.7.tar.gz, www-sql-0.5.7.tar.gz}
 A CGI program that parses an HTML file containing special tags, parses
-them and inserts data from a @strong{MySQL} database.
+them, and inserts data from a @strong{MySQL} database.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/genquery.zip, genquery.zip}
 Perl SQL database interface package for html.
@@ -38409,7 +38410,7 @@ Full-text searching with Perl on @code{BLOB}/@code{TEXT} columns by Daniel Koch.
 
 @cindex tools, benchmarking
 @cindex benchmarking, tools
-@appendixsec Performance Benchmarking tools
+@appendixsec Performance Benchmarking Tools
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-bench-0.6.tar.gz, mysql-super-smack and friends}
@@ -38418,7 +38419,7 @@ User-customizable multi-threaded tool set to benchmark @strong{MySQL}. By Sasha 
 
 @cindex tools, authentication
 @cindex authentication tools
-@appendixsec Authentication tools
+@appendixsec Authentication Tools
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/ascend-radius-mysql-0.7.2.patch.gz,ascend-radius-mysql-0.7.2.patch.gz}
@@ -38426,17 +38427,17 @@ This is authentication and logging patch using @strong{MySQL} for
 Ascend-Radius. By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/icradius-0.10.tar.gz, icradius 0.10}
-@uref{http://www.mysql.com/Downloads/Contrib/icradius.README, icradius readme file}
+@uref{http://www.mysql.com/Downloads/Contrib/icradius.README, icradius readme file}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/checkpassword-0.81-mysql-0.6.6.patch.gz,
 checkpassword-0.81-mysql-0.6.6.patch.gz}
 @strong{MySQL} authentication patch for QMAIL and checkpassword. These are
-useful for management user(mail,pop account) by @strong{MySQL}.
-By @email{takeshi@@SoftAgency.co.jp}
+useful for management user (mail, pop account) by @strong{MySQL}.
+By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/jradius-diff.gz, jradius-diff.gz}
 @strong{MySQL} support for Livingston's Radius 2.01. Authentication and
-Accounting. By Jose de Leon, @email{jdl@@thevision.net}
+Accounting. By Jose de Leon, @email{jdl@@thevision.net}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mod_auth_mysql-2.20.tar.gz, mod_auth_mysql-2.20.tar.gz}
 Apache authentication module for @strong{MySQL}. By Zeev Suraski,
@@ -38456,7 +38457,7 @@ Extra for @code{mod_auth_mysql}. This is a little tool that allows you
 to add/change user records storing group and/or password entries in
 @strong{MySQL} tables. By Harry Brueckner, @email{brueckner@@respublica.de}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-passwd.README, mysql-passwd.README}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-passwd.README, mysql-passwd.README}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql-passwd-1.2.tar.gz, mysql-passwd-1.2.tar.gz}
 Extra for @code{mod_auth_mysql}. This is a two-part system for use with
 @code{mod_auth_mysql}.
@@ -38470,10 +38471,10 @@ against @strong{MySQL} tables. By Yuan John Jiang.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/qmail-1.03-mysql-0.6.6.patch.gz,qmail-1.03-mysql-0.6.6.patch.gz}
 Patch for qmail to authenticate users from a @strong{MySQL} table.
-By @email{takeshi@@SoftAgency.co.jp}
+By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/proftpd-1.2.0rc2-fix-mysql.patch, proftpd-1.2.0rc2-fix-mysql.patch}
-Patch for proftpd1.2.0rc2. By @email{takeshi@@SoftAgency.co.jp}
+Patch for proftpd1.2.0rc2. By @email{takeshi@@SoftAgency.co.jp}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/pwcheck_mysql-0.1.tar.gz,pwcheck_mysql-0.1.tar.gz}
 An authentication module for the Cyrus IMAP server. By Aaron Newsome.
@@ -38487,8 +38488,8 @@ An authentication module for the Cyrus IMAP server. By Aaron Newsome.
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql-1.14.tgz, dbf2mysql-1.14.tgz}
 Convert between @file{.dbf} files and @strong{MySQL} tables. By Maarten
-Boekhold, @email{boekhold@@cindy.et.tudelft.nl}, William Volkman and
-Michael Widenius.  This converter includes rudementary read-only support
+Boekhold (@email{boekhold@@cindy.et.tudelft.nl}), William Volkman, and
+Michael Widenius.  This converter includes rudimentary read-only support
 for MEMO fields.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql-1.13.tgz, dbf2mysql-1.13.tgz}
@@ -38511,13 +38512,13 @@ detection of @code{TIMESTAMP} fields), provides warnings and suggestions
 while converting, quotes @strong{all} special characters in text and
 binary data, and so on.  It will also convert to @code{mSQL} v1 and v2,
 and is free of charge for anyone. See
-@uref{http://www.cynergi.net/prod/exportsql/} for latest version. By
-Pedro Freire, @email{support@@cynergi.net}.  Note: Doesn't work with
+@uref{http://www.cynergi.net/prod/exportsql/} for the latest version. By
+Pedro Freire, @email{support@@cynergi.net}.  NOTE: Doesn't work with
 Access2!
 @item @uref{http://www.mysql.com/Downloads/Contrib/access_to_mysql.txt, access_to_mysql.txt}
-Paste this function into an Access module of a database which has the
+Paste this function into an Access module of a database that has the
 tables you want to export. See also @code{exportsql}. By Brian Andrews.
-Note: Doesn't work with Access2!
+NOTE: Doesn't work with Access2!
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/importsql.txt, importsql.txt}
 A script that does the exact reverse of @code{exportsql.txt}.  That is,
@@ -38535,15 +38536,15 @@ A C wrapper from @code{mSQL} to @strong{MySQL}. By @email{alfred@@sb.net}
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlconv.pl, sqlconv.pl}
 A simple script that can be used to copy fields from one @strong{MySQL} table to
 another in bulk. Basically, you can run @code{mysqldump} and pipe it to
-the @code{sqlconv.pl} script and the script will parse through the
+the @code{sqlconv.pl} script. The script will parse through the
 @code{mysqldump} output and will rearrange the fields so they can be
 inserted into a new table. An example is when you want to create a new
 table for a different site you are working on, but the table is just a
-bit different (ie - fields in different order, etc.).
+bit different (that is - fields in different order, etc.).
 By Steve Shreeve.
 @end itemize
 
-@appendixsec Using MySQL with other products
+@appendixsec Using MySQL with Other Products
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/emacs-sql-mode.tar.gz, emacs-sql-mode.tar.gz}
@@ -38551,14 +38552,14 @@ Raw port of a SQL mode for XEmacs. Supports completion. Original by
 Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @strong{MySQL} port by David Axmark.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_4.zip, MyAccess97 1.4}
-@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_4.zip, MyAccess2000 1.4}
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_4.zip, MyAccess97 1.4}.
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_4.zip, MyAccess2000 1.4}.
 
-MyAccess is an AddIn for MS Access 97/2000 which allows you to manage MySQL databases from within Access. Main functions are:
-@itemize @bullet
+MyAccess is an AddIn for MS Access 97/2000 that allows you to manage MySQL databases from within Access. Main functions are:
+@itemize @minus
 @item Create/Modify Tables
 @item Execute Queries against MySQL
-@item Extract "Create Table-Scripts' from MySQL
+@item Extract ''Create Table-Scripts'' from MySQL
 @item Import/Export tables from Access to MySQL and vice versa
 @item Log Changes
 @item Show a "Database Definition Report
@@ -38572,13 +38573,13 @@ Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
 @end itemize
 
 @cindex tools, useful
-@appendixsec Useful tools
+@appendixsec Useful Tools
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mytop, mytop}
 @item @uref{http://public.yahoo.com/~jzawodn/mytop/, mytop home page}
-mytop is a perl program which allows you to monitor MySQL servers by
-viewing active threads, queries and overall server performance
+mytop is a Perl program that allows you to monitor MySQL servers by
+viewing active threads, queries, and overall server performance
 numbers. By Jeremy D. Zawodny.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_watchdog.pl, mysql_watchdog.pl}
@@ -38595,15 +38596,15 @@ Prints out the structure of the all tables in a database. By Thomas Wana.
 Prints the structure of every table in a database. By Thomas Wana.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlsync, mysqlsync-1.0-alpha.tar.gz}.
-A perl script to keep remote copies of a @strong{MySQL} database in sync with a
-central master copy. By Mark Jeftovic.  @email{markjr@@easydns.com}
+A Perl script to keep remote copies of a @strong{MySQL} database in sync with a
+central master copy. By Mark Jeftovic.  @email{markjr@@easydns.com}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLTutor-0.2.tar.gz, MySQLTutor}.
-MySQLTutor. A tutor of @strong{MySQL} for beginners
+MySQLTutor. A @strong{MySQL} tutorial for beginners.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLDB.zip, MySQLDB.zip}
 A COM library for @strong{MySQL} by Alok Singh.
-@item @uref{http://www.mysql.com/Downloads/Contrib/MySQLDB-readme.html, MySQLDB-readme.html}
+@item @uref{http://www.mysql.com/Downloads/Contrib/MySQLDB-readme.html, MySQLDB-readme.html}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_replicate.pl, mysql_replicate.pl}
 Perl program that handles replication.  By @email{elble@@icculus.nsg.nwu.edu}
@@ -38613,10 +38614,10 @@ Perl script that uses reverse indexing to handle text searching.
 By Daniel Koch.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbcheck, dbcheck}
-Perl script that takes a backup of a tables before running isamchk on them.
+Perl script that takes a backup of tables before running isamchk on them.
 By Elizabeth.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mybackup}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mybackup}.
 @item @uref{http://www.mswanson.com/mybackup, mybackup home page}
 Wrapper for mysqldump to backup all databases. By Marc Swanson.
 
@@ -38626,7 +38627,7 @@ Prints the storage usage of a @strong{MySQL} database.
 
 @cindex RPMs, for common tools
 @cindex tools, RPMs for
-@appendixsec RPMs for common tools (Most are for RedHat 6.1)
+@appendixsec RPMs for Common Tools (Most Are for RedHat 6.1)
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/perl-Data-ShowTable-3.3-2.i386.rpm,perl-Data-ShowTable-3.3-2.i386.rpm}
@@ -38638,7 +38639,7 @@ Prints the storage usage of a @strong{MySQL} database.
 @end itemize
 
 @cindex functions, useful
-@appendixsec Useful functions
+@appendixsec Useful Functions
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysnprintf.c,mysnprintf.c}
 sprintf() function for SQL queries that can escape blobs. By Chunhua Liu.
@@ -38674,7 +38675,7 @@ Patches to add logging to @strong{MySQL} for WU-ftpd. By Zeev Suraski,
 @email{bourbon@@netvision.net.il}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/wu-ftpd-2.6.0-mysql.4.tar.gz,wu-ftpd-2.6.0-mysql.4.tar.gz}
-Patches to add logging to @strong{MySQL} for WU-ftpd 2.6.0. By,
+Patches to add logging to @strong{MySQL} for WU-ftpd 2.6.0. By
 @email{takeshi@@SoftAgency.co.jp}, based on Zeev Suraski wuftpd patches.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Old-Versions, Old-Versions}
@@ -38724,7 +38725,7 @@ The @code{replace} program (look into it, it's COOL!).
 Fixing bugs in MIT-pthreads to get it to work for @strong{MySQL}. And
 also Unireg, a curses-based application tool with many utilities.
 @item
-Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI} and
+Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI}, and
 @code{DB2mysql}.
 @item
 Most of crash-me and the foundation for the @strong{MySQL} benchmarks.
@@ -38736,9 +38737,9 @@ Most of crash-me and the foundation for the @strong{MySQL} benchmarks.
 Coordinator and initial main writer of the @strong{Reference Manual},
 including enhancements to @code{texi2html}.
 @item
-Automatic website updating from the manual.
+Automatic Web site updating from the manual.
 @item
-Inital Autoconf, Automake and @code{libtool} support.
+Inital Autoconf, Automake, and @code{libtool} support.
 @item
 The licensing stuff.
 @item
@@ -38755,7 +38756,7 @@ Our original portability code (more than 10 years old now). Nowadays
 only some parts of @code{mysys} are left.
 @item
 Someone for Monty to call in the middle of the night when he just got
-that new feature to work. :-)
+that new feature to work.
 @end itemize
 
 @item Jani Tolonen
@@ -38897,7 +38898,7 @@ For the effort to make a shareware SQL database. We at TcX started with
 wrote a SQL interface to our application builder Unireg.  @code{mysqladmin}
 and @code{mysql} are programs that were largely influenced by their
 @code{mSQL} counterparts. We have put a lot of effort into making the
-@strong{MySQL} syntax a superset of @code{mSQL}. Many of the APIs ideas are
+@strong{MySQL} syntax a superset of @code{mSQL}. Many of the API's ideas are
 borrowed from @code{mSQL} to make it easy to port free @code{mSQL} programs
 to @strong{MySQL}. @strong{MySQL} doesn't contain any code from @code{mSQL}.
 Two files in the distribution (@file{client/insert_test.c} and
@@ -38914,7 +38915,7 @@ For his public domain string library.
 For his regex library, used in @code{WHERE column REGEXP regexp}.
 @item Free Software Foundation
 From whom we got an excellent compiler (@code{gcc}), the @code{libc} library
-(from which we have borrowed @file{strto.c} to get some code working in Linux)
+(from which we have borrowed @file{strto.c} to get some code working in Linux),
 and the @code{readline} library (for the @code{mysql} client).
 @item Free Software Foundation & The XEmacs development team
 For a really great editor/environment used by almost everybody at
@@ -38922,7 +38923,7 @@ TcX/MySQL AB/detron.
 @item Patrick Lynch
 For helping us acquire @code{http://www.mysql.com/}.
 @item Fred Lindberg
-For setting up qmail to handle @strong{MySQL} mailing list and for the
+For setting up qmail to handle the @strong{MySQL} mailing list and for the
 incredible help we got in managing the @strong{MySQL} mailing lists.
 @item Igor Romanenko @email{igor@@frog.kiev.ua}
 @code{mysqldump} (previously @code{msqldump}, but ported and enhanced by
@@ -38954,7 +38955,7 @@ it easier to add other character sets.
 @item "TAMITO" @email{tommy@@valley.ne.jp}
 The @code{_MB} character set macros and the ujis and sjis character sets.
 @item Joshua Chamas @email{joshua@@chamas.com}
-Base for concurrent insert, extended date syntax, debugging on NT and
+Base for concurrent insert, extended date syntax, debugging on NT, and
 answering on the @strong{MySQL} mailing list.
 @item Yves Carlier @email{Yves.Carlier@@rug.ac.be}
 @code{mysqlaccess}, a program to show the access rights for a user.
@@ -38976,7 +38977,7 @@ For providing RPM packages of @strong{MySQL} for RedHat Linux-Alpha.
 For providing RPM versions of a lot of @strong{MySQL} clients for Intel
 and SPARC.
 @item Jay Bloodworth @email{jay@@pathways.sde.state.sc.us}
-For providing RPM versions for @strong{MySQL} 3.21 versions.
+For providing RPM versions for @strong{MySQL} Version 3.21.
 @item Jochen Wiedmann @email{wiedmann@@neckar-alb.de}
 For maintaining the Perl @code{DBD::mysql} module.
 @item Therrien Gilbert @email{gilbert@@ican.net}, Jean-Marc Pouyot @email{jmp@@scalaire.fr}
@@ -38988,7 +38989,7 @@ Polish error messages.
 @item Miguel Angel Fernandez Roiz
 Spanish error messages.
 @item Roy-Magne Mo @email{rmo@@www.hivolda.no}
-Norwegian error messages and testing of 3.21.#.
+Norwegian error messages and testing of Version 3.21.#.
 @item Timur I. Bakeyev @email{root@@timur.tatarstan.ru}
 Russian error messages.
 @item @email{brenno@@dewinter.com} && Filippo Grassilli @email{phil@@hyppo.com}
@@ -39000,7 +39001,7 @@ Slovak error messages.
 @item Stefan Saroiu @email{tzoompy@@cs.washington.edu}
 Romanian error messages.
 @item Peter Feher
-Hungarian error messages
+Hungarian error messages.
 @item David Sacerdote @email{davids@@secnet.com}
 Ideas for secure checking of DNS hostnames.
 @item Wei-Jou Chen @email{jou@@nematic.ieo.nctu.edu.tw}
@@ -39020,7 +39021,7 @@ Big parts of the Perl @code{DBI}/@code{DBD} section in the manual.
 @item Paul Southworth @email{pauls@@etext.org}, Ray Loyzaga @email{yar@@cs.su.oz.au}
 Proof-reading of the Reference Manual.
 @item Alexis Mikhailov @email{root@@medinf.chuvashia.su}
-User definable functions (UDFs); @code{CREATE FUNCTION} and
+User-definable functions (UDFs); @code{CREATE FUNCTION} and
 @code{DROP FUNCTION}.
 @item Andreas F. Bobak @email{bobak@@relog.ch}
 The @code{AGGREGATE} extension to UDF functions.
@@ -39045,7 +39046,7 @@ For making @code{mysqlaccess} more secure.
 For sponsoring the optimize section in this manual.
 @end table
 
-Other contributors, bugfinders and testers: James H. Thompson, Maurizio
+Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
 Menghini, Wojciech Tryc, Luca Berra, Zarko Mocnik, Wim Bonis, Elmar
 Haneke, @email{jehamby@@lightside}, @email{psmith@@BayNetworks.com},
 @email{duane@@connect.com.au}, Ted Deppner @email{ted@@psyber.com},
@@ -39064,17 +39065,17 @@ Benchmark questions.
 @item Tim Sailer @email{tps@@users.buoy.com}
 @code{DBD-mysql} questions.
 @item Boyd Lynn Gerber @email{gerberb@@zenez.com}
-SCO related questions.
+SCO-related questions.
 @item Richard Mehalick @email{RM186061@@shellus.com}
 @code{xmysql}-related questions and basic installation questions.
 @item Zeev Suraski @email{bourbon@@netvision.net.il}
 Apache module configuration questions (log & auth), PHP-related
-questions, SQL syntax related questions and other general questions.
+questions, SQL syntax-related questions and other general questions.
 @item Francesc Guasch @email{frankie@@citel.upc.es}
 General questions.
 @item Jonathan J Smith @email{jsmith@@wtp.net}
 Questions pertaining to OS-specifics with Linux, SQL syntax, and other
-things that might be needing some work.
+things that might need some work.
 @item David Sklar @email{sklar@@student.net}
 Using @strong{MySQL} from PHP and Perl.
 @item Alistair MacDonald @email{A.MacDonald@@uel.ac.uk}
@@ -39082,7 +39083,7 @@ Not yet specified, but is flexible and can handle Linux and maybe HP-UX.
 Will try to get user to use @code{mysqlbug}.
 @item John Lyon @email{jlyon@@imag.net}
 Questions about installing @strong{MySQL} on Linux systems, using either
-@file{.rpm} files, or compiling from source.
+@file{.rpm} files or compiling from source.
 @item Lorvid Ltd. @email{lorvid@@WOLFENET.com}
 Simple billing/license/support/copyright issues.
 @item Patrick Sherrill @email{patrick@@coconet.com}
@@ -45069,7 +45070,7 @@ patent must be licensed for everyone's free use or not licensed at all.
 
 The precise terms and conditions for copying, distribution and
 modification follow.
-
+
 	    GNU GENERAL PUBLIC LICENSE
 TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
@@ -45124,7 +45125,7 @@ these conditions, and telling the user how to view a copy of this
 License.  (Exception: if the Program itself is interactive but
 does not normally print such an announcement, your work based on
 the Program is not required to print an announcement.)
-
+
 These requirements apply to the modified work as a whole.  If
 identifiable sections of that work are not derived from the Program,
 and can be reasonably considered independent and separate works in
@@ -45182,7 +45183,7 @@ access to copy from a designated place, then offering equivalent
 access to copy the source code from the same place counts as
 distribution of the source code, even though third parties are not
 compelled to copy the source along with the object code.
-
+
 4. You may not copy, modify, sublicense, or distribute the Program
 except as expressly provided under this License.  Any attempt
 otherwise to copy, modify, sublicense or distribute the Program is
@@ -45239,7 +45240,7 @@ impose that choice.
 
 This section is intended to make thoroughly clear what is believed to
 be a consequence of the rest of this License.
-
+
 8. If the distribution and/or use of the Program is restricted in
 certain countries either by patents or by copyrighted interfaces, the
 original copyright holder who places the Program under this License
@@ -45292,7 +45293,7 @@ PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
 	     END OF TERMS AND CONDITIONS
-
+
 Appendix: How to Apply These Terms to Your New Programs
 
 If you develop a new program, and you want it to be of the greatest
@@ -45413,7 +45414,7 @@ library.  If the library is modified by someone else and passed on, we
 want its recipients to know that what they have is not the original
 version, so that any problems introduced by others will not reflect on
 the original authors' reputations.
-
+
 Finally, any free program is threatened constantly by software
 patents.  We wish to avoid the danger that companies distributing free
 software will individually obtain patent licenses, thus in effect
@@ -45460,7 +45461,7 @@ works together with the library.
 
 Note that it is possible for a library to be covered by the ordinary
 General Public License rather than by this special one.
-
+
 	  GNU LIBRARY GENERAL PUBLIC LICENSE
 TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
@@ -45507,7 +45508,7 @@ Library.
 You may charge a fee for the physical act of transferring a copy,
 and you may at your option offer warranty protection in exchange for a
 fee.
-
+
 2. You may modify your copy or copies of the Library or any portion
 of it, thus forming a work based on the Library, and copy and
 distribute such modifications or work under the terms of Section 1
@@ -45565,7 +45566,7 @@ instead of to this License.  (If a newer version than version 2 of the
 ordinary GNU General Public License has appeared, then you can specify
 that version instead if you wish.)  Do not make any other change in
 these notices.
-
+
 Once this change is made in a given copy, it is irreversible for
 that copy, so the ordinary GNU General Public License applies to all
 subsequent copies and derivative works made from that copy.
@@ -45616,7 +45617,7 @@ Otherwise, if the work is a derivative of the Library, you may
 distribute the object code for the work under the terms of Section 6.
 Any executables containing that work also fall under Section 6,
 whether or not they are linked directly with the Library itself.
-
+
 6. As an exception to the Sections above, you may also compile or
 link a "work that uses the Library" with the Library to produce a
 work containing portions of the Library, and distribute that work
@@ -45670,7 +45671,7 @@ restrictions of other proprietary libraries that do not normally
 accompany the operating system.  Such a contradiction means you cannot
 use both them and the Library together in an executable that you
 distribute.
-
+
 7. You may place library facilities that are a work based on the
 Library side-by-side in a single library together with other library
 facilities not covered by this License, and distribute such a combined
@@ -45711,7 +45712,7 @@ subject to these terms and conditions.  You may not impose any further
 restrictions on the recipients' exercise of the rights granted herein.
 You are not responsible for enforcing compliance by third parties to
 this License.
-
+
 11. If, as a consequence of a court judgment or allegation of patent
 infringement or for any other reason (not limited to patent issues),
 conditions are imposed on you (whether by court order, agreement or
@@ -45763,7 +45764,7 @@ conditions either of that version or of any later version published by
 the Free Software Foundation.  If the Library does not specify a
 license version number, you may choose any version ever published by
 the Free Software Foundation.
-
+
 14. If you wish to incorporate parts of the Library into other free
 programs whose distribution conditions are incompatible with these,
 write to the author to ask for permission.  For software which is
