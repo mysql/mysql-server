@@ -297,3 +297,4 @@ character-set=koi8r
 "The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
 "The MySQL server is running with the %s option so it cannot execute this statement",
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
+"Truncated wrong %-.32s value: '%-.128s'"

@@ -295,3 +295,4 @@ character-set=latin1
 "MySQL är started i --skip-grant-tables mod. Pga av detta kan du inte använda detta program",
 
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
+"Truncated wrong %-.32s value: '%-.128s'"
