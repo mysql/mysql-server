@@ -169,6 +169,7 @@ bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
     if (!(alarm_data=(ALARM*) my_malloc(sizeof(ALARM),MYF(MY_WME))))
     {
       DBUG_PRINT("info", ("failed my_malloc()"));
+      *alrm= 0;					/* No alarm */
       pthread_mutex_unlock(&LOCK_alarm);
       pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
       DBUG_RETURN(1);
