@@ -1084,6 +1084,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+
 /*
   getStructure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat.
