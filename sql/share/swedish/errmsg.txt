@@ -219,3 +219,4 @@
 "Felaktig använding av %s and %s",
 "SELECT kommandona har olika antal kolumner"
 "Kan inte utföra kommandot emedan du har ett READ lås",
+"Blandning av transaktionella och icke-transaktionella tabeller är stoppat",

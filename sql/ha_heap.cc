@@ -247,7 +247,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 
 int ha_heap::delete_table(const char *name)
 {
-  int error=heap_delete_all(name);
+  int error=heap_delete_table(name);
   return error == ENOENT ? 0 : error;
 }
 
@@ -272,7 +272,6 @@ ha_rows ha_heap::records_in_range(int inx,
   return 10;					// Good guess
 }
 
-/* We can just delete the heap on creation */
 
 int ha_heap::create(const char *name, TABLE *form, HA_CREATE_INFO *create_info)
 

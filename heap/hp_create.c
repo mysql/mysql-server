@@ -21,32 +21,48 @@
 
 #include "heapdef.h"
 
+
 int heap_create(const char *name)
 {
+  reg1 HP_SHARE *share;
   DBUG_ENTER("heap_create");
-  (void) heap_delete_all(name);
-  DBUG_RETURN(0);
-}
-
-int heap_delete_all(const char *name)
-{
-  reg1 HP_SHARE *info;
-  int found;
-  DBUG_ENTER("heap_delete_all");
   pthread_mutex_lock(&THR_LOCK_heap);
-  if ((info=_hp_find_named_heap(name)))
+  if ((share=_hp_find_named_heap(name)))
   {
-    if (info->open_count == 0)
-      _hp_free(info);
-    found=0;
+    if (share->open_count == 0)
+      _hp_free(share);
   }
   else
   {
-    found=my_errno=ENOENT;
+    my_errno=ENOENT;
   }
   pthread_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(found);
+  DBUG_RETURN(0);
 }
+
+int heap_delete_table(const char *name)
+{
+  int result;
+  reg1 HP_SHARE *share;
+  DBUG_ENTER("heap_delete_table");
+
+  pthread_mutex_lock(&THR_LOCK_heap);
+  if ((share=_hp_find_named_heap(name)))
+  {
+    if (share->open_count == 0)
+      _hp_free(share);
+    else
+     share->delete_on_close=1;
+    result=0;
+  }
+  else
+  {
+    result=my_errno=ENOENT;
+  }
+  pthread_mutex_unlock(&THR_LOCK_heap);
+  DBUG_RETURN(result);
+}
+
 
 void _hp_free(HP_SHARE *share)
 {

@@ -577,12 +577,14 @@ error:
 ** Note that MY_STAT is assumed to be same as struct stat
 ****************************************************************************/ 
 
-int my_fstat(int Filedes, MY_STAT *stat_area, myf MyFlags )
+int my_fstat(int Filedes, MY_STAT *stat_area,
+             myf MyFlags __attribute__((unused)))
 {
   DBUG_ENTER("my_fstat");
   DBUG_PRINT("my",("fd: %d MyFlags: %d",Filedes,MyFlags));
   DBUG_RETURN(fstat(Filedes, (struct stat *) stat_area));
 }
+
 
 MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 {

@@ -44,7 +44,7 @@ void _hp_clear(HP_SHARE *info)
     block->levels=0;
     block->last_allocated=0;
   }
-  info->records=info->deleted=info->data_length=info->index_length=0;;
+  info->records=info->deleted=info->data_length=info->index_length=0;
   info->blength=1;
   info->changed=0;
   info->del_link=0;

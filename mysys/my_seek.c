@@ -20,7 +20,7 @@
 	/* Seek to position in file */
 	/*ARGSUSED*/
 
-my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
+my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags __attribute__((unused)))
 {
   reg1 os_off_t newpos;
   DBUG_ENTER("my_seek");
@@ -40,7 +40,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
 	/* Tell current position of file */
 	/* ARGSUSED */
 
-my_off_t my_tell(File fd, myf MyFlags)
+my_off_t my_tell(File fd, myf MyFlags __attribute__((unused)))
 {
   os_off_t pos;
   DBUG_ENTER("my_tell");
