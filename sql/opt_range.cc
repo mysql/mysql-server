@@ -603,12 +603,14 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
   read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  if (head->force_index)
+    scan_time= read_time= DBL_MAX;
   if (limit < records)
     read_time=(double) records+scan_time+1;	// Force to use index
   else if (read_time <= 2.0 && !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
-  DBUG_PRINT("info",("Time to scan table: %ld",(long) read_time));
+  DBUG_PRINT("info",("Time to scan table: %g", read_time));
 
   keys_to_use&=head->keys_in_use_for_query;
   if (keys_to_use)
