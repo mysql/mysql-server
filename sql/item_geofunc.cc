@@ -148,9 +148,9 @@ String *Item_func_geometry_type::val_str(String *str)
 					  swkb->length() - SRID_SIZE)))))
     return 0;
   /* String will not move */
-  str->set(geom->get_class_info()->m_name.str,
-	   geom->get_class_info()->m_name.length,
-	   default_charset());
+  str->copy(geom->get_class_info()->m_name.str,
+	    geom->get_class_info()->m_name.length,
+	    default_charset());
   return str;
 }
 
