@@ -1097,11 +1097,9 @@ as a training partner, please visit the training section at
 @uref{http://www.mysql.com/training/} or contact us at:
 @email{training@@mysql.com}.
 
-We plan to release the @code{MySQL Certification Program} in 2002. For
-details see @uref{http://www.mysql.com/training/certification.html}.
-If you would like to be kept informed about the
-@code{MySQL Certification Program},
-please e-mail @email{certification@@mysql.com}.
+The @code{MySQL Certification Program} is being released in the second
+half of 2002. For details please see
+@uref{http://www.mysql.com/training/certification.html}.
 
 
 @node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
@@ -1222,9 +1220,6 @@ training staff at @email{training@@mysql.com}.
 
 For information on the @code{MySQL Certification Program}, please see
 @uref{http://www.mysql.com/training/certification.html}.
-If you would like to be kept informed about the
-@code{MySQL Certification Program}, please e-mail
-@email{certification@@mysql.com}.
 @xref{Business Services Training}.
 
 If you're interested in consulting, please visit the consulting
