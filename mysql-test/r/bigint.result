@@ -67,3 +67,11 @@ select * from t1 limit 9999999999;
 id	a
 9999999999	1
 drop table t1;
+CREATE TABLE t1 ( quantity decimal(60,0));
+insert into t1 values (10000000000000000000);
+insert into t1 values ('10000000000000000000');
+select * from t1;
+quantity
+10000000000000000000
+10000000000000000000
+drop table t1;
