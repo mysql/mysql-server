@@ -2265,7 +2265,7 @@ trace file.  @xref{MyODBC bug report}.
 
 Please remember that many of the people who will read your report will
 do so using an 80-column display.  When generating reports or examples
-using the @code{mysql} command line tool, you should therefore use
+using the @code{mysql} command-line tool, you should therefore use
 the @code{--vertical} option (or the @code{\G} statement terminator)
 for output that would exceed the available width for such a display
 (for example, with the @code{EXPLAIN SELECT} statement; see the
@@ -2322,7 +2322,7 @@ information you give about your situation, the more likely it is that someone
 can help you!  For example, the following is an example of a very good bug
 report (it should of course be posted with the @code{mysqlbug} script):
 
-Example run using the @code{mysql} command line tool (note the use of the
+Example run using the @code{mysql} command-line tool (note the use of the
 @code{\G} statement terminator for statements whose output width would
 otherwise exceed that of an 80-column display device):
 
@@ -21702,7 +21702,7 @@ shell> replace a b b a -- file1 file2 ...
 
 
 @node mysql, mysqladmin, Client-Side Overview, Client-Side Scripts
-@subsection The Command-line Tool
+@subsection @code{mysql}, The Command-line Tool
 
 @cindex command-line tool
 @cindex tools, command-line
@@ -21744,6 +21744,14 @@ Display this help and exit.
 @item -A, --no-auto-rehash
 No automatic rehashing. One has to use 'rehash' to get table and field
 completion. This gives a quicker start of mysql.
+
+@cindex @code{prompt}, @code{mysql} option
+@item --prompt=...
+Set the mysql prompt to specified format.
+
+@cindex @code{no-beep}, @code{mysql} option
+@item -b, --no-beep
+Turn off beep-on-error.
 
 @cindex @code{batch}, @code{mysql} option
 @item -B, --batch
@@ -21949,6 +21957,7 @@ notee   (\t)    Don't write into outfile.
 pager   (\P)    Set PAGER [to_pager].
                 Print the query results via PAGER.
 print   (\p)    Print current command.
+prompt  (\R)    Change your mysql prompt.
 quit    (\q)    Quit mysql.
 rehash  (\#)    Rebuild completion hash.
 source  (\.)    Execute a SQL script file.
@@ -21962,7 +21971,7 @@ use     (\u)    Use another database.
 
 The @code{pager} command works only in Unix.
 
-@cindex status command
+@cindex @code{status} command
 The @code{status} command gives you some information about the
 connection and the server you are using. If you are running in the
 @code{--safe-updates} mode, @code{status} will also print the values for
@@ -22105,6 +22114,86 @@ log quite that much. Last, but not least, the interactive @code{tee} is
 more handy to switch on and off, when you want to log something into a
 file, but want to be able to turn the feature off sometimes.
 @end itemize
+
+@cindex @code{prompt} command
+You can change the prompt in the @code{mysql} command-line client.
+
+You can use the following prompt options:
+@c FIX these columnfractions have NOT been measured!
+@multitable @columnfractions .10 .50
+@item @strong{Option} @tab @strong{Description}
+@item \v   @tab  mysqld version
+@item \d   @tab  database in use
+@item \h   @tab  host connected to
+@item \p   @tab  port connected on
+@item \u   @tab  username
+@item \U   @tab  full username@@host
+@item \\   @tab  @samp{\}
+@item \n   @tab  new line break
+@item \t   @tab  tab
+@item \    @tab  space
+@item \_   @tab  space
+@item \R   @tab  military hour time (0-23)
+@item \r   @tab  standard hour time (1-12)
+@item \m   @tab  minutes
+@item \y   @tab  two digit year 
+@item \Y   @tab  four digit year
+@item \D   @tab  full date format
+@item \s   @tab  seconds
+@item \w   @tab  day of the week in three letter format (Mon, Tue, ...)
+@item \P   @tab  am/pm
+@item \o   @tab  month in number format
+@item \O   @tab  month in three letter format (Jan, Feb, ...)
+@item \c   @tab  counter that counts up for each command you do
+@end multitable
+
+@samp{\} followed by any other letter just becomes that letter.
+
+You may set the prompt in the following places:
+
+@table @strong
+@item Environment Variable
+You may set the @code{MYSQL_PS1} environment variable to a prompt string.  For
+example:
+
+@example
+shell> export MYSQL_PS1="(\u@@\h) [\d]> "
+@end example
+
+@item @file{my.cnf}
+@item @file{.my.cnf}
+You may set the @code{prompt} option in any MySQL configuration file, in the
+@code{mysql} group.  For example:
+
+@example
+[mysql]
+prompt=(\u@@\h) [\d]>\_
+@end example
+
+@item Command Line
+You may set the @code{--prompt} option on the command line to @code{mysql}.
+For example:
+
+@example
+shell> mysql --prompt="(\u@@\h) [\d]> "
+
+(user@@host) [database]> 
+@end example
+
+@item Interactively
+You may also use the @code{prompt} (or @code{\R}) command to change your 
+prompt interactively.  For example:
+
+@example
+mysql> prompt (\u@@\h) [\d]>\_
+PROMPT set to '(\u@@\h) [\d]>\_'
+(user@@host) [database]> 
+(user@@host) [database]> prompt
+Returning to default PROMPT of mysql> 
+mysql> 
+@end example
+
+@end table
 
 
 @node mysqladmin, Using mysqlcheck, mysql, Client-Side Scripts
@@ -49294,6 +49383,8 @@ Changed order in which keys are created in tables.
 @item
 Added new columns @code{Null} and @code{Index_type} to @code{SHOW INDEX}
 output.
+@item
+Added @code{--no-beep} and @code{--prompt} options to @code{mysql} command-line client.
 @end itemize
 
 @node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x
