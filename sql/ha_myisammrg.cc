@@ -38,12 +38,14 @@ const char **ha_myisammrg::bas_ext() const
 int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
+  DBUG_ENTER("ha_myisammrg::open");
+
   DBUG_PRINT("info", ("ha_myisammrg::open"));
   if (!(file=myrg_open(fn_format(name_buff,name,"","",2 | 4), mode,
 		       test_if_locked)))
   {
     DBUG_PRINT("info", ("ha_myisammrg::open exit %d", my_errno));
-    return (my_errno ? my_errno : -1);
+    DBUG_RETURN((my_errno ? my_errno : -1));
   }
   DBUG_PRINT("info", ("ha_myisammrg::open myrg_extrafunc..."))
   myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
@@ -65,132 +67,165 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   if (table->crashed)
     goto err;
 #endif
-  return (0);
+  DBUG_RETURN((0));
 err:
   myrg_close(file);
   file=0;
-  return (my_errno= HA_ERR_WRONG_TABLE_DEF);
+  DBUG_RETURN((my_errno= HA_ERR_WRONG_TABLE_DEF));
 }
 
 int ha_myisammrg::close(void)
 {
-  return myrg_close(file);
+  DBUG_ENTER("ha_myisammrg::close");
+
+  DBUG_RETURN(myrg_close(file));
 }
 
 int ha_myisammrg::write_row(byte * buf)
 {
+  DBUG_ENTER("ha_myisammrg::write_row");
+
   statistic_increment(ha_write_count,&LOCK_status);
   if (table->time_stamp)
     update_timestamp(buf+table->time_stamp-1);
   if (table->next_number_field && buf == table->record[0])
       update_auto_increment();
-  return myrg_write(file,buf);
+  DBUG_RETURN(myrg_write(file,buf));
 }
 
 int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
 {
+  DBUG_ENTER("ha_myisammrg::update_row");
+
   statistic_increment(ha_update_count,&LOCK_status);
   if (table->time_stamp)
     update_timestamp(new_data+table->time_stamp-1);
-  return myrg_update(file,old_data,new_data);
+  DBUG_RETURN(myrg_update(file,old_data,new_data));
 }
 
 int ha_myisammrg::delete_row(const byte * buf)
 {
+  DBUG_ENTER("ha_myisammrg::delete_row");
+
   statistic_increment(ha_delete_count,&LOCK_status);
-  return myrg_delete(file,buf);
+  DBUG_RETURN(myrg_delete(file,buf));
 }
 
 int ha_myisammrg::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
+  DBUG_ENTER("ha_myisammrg::index_read");
+
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
 				 uint key_len, enum ha_rkey_function find_flag)
 {
+  DBUG_ENTER("ha_myisammrg::index_read_idx");
+
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::index_read_last(byte * buf, const byte * key, uint key_len)
 {
+  DBUG_ENTER("ha_myisammrg::index_read_last");
+
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,active_index, key, key_len,
 		      HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::index_next(byte * buf)
 {
+  DBUG_ENTER("ha_myisammrg::index_next");
+
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=myrg_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::index_prev(byte * buf)
 {
+  DBUG_ENTER("ha_myisammrg::index_prev");
+
   statistic_increment(ha_read_prev_count,&LOCK_status);
   int error=myrg_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::index_first(byte * buf)
 {
+  DBUG_ENTER("ha_myisammrg::index_first");
+
   statistic_increment(ha_read_first_count,&LOCK_status);
   int error=myrg_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::index_last(byte * buf)
 {
+  DBUG_ENTER("ha_myisammrg::index_last");
+
   statistic_increment(ha_read_last_count,&LOCK_status);
   int error=myrg_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::rnd_init(bool scan)
 {
-  return myrg_extra(file,HA_EXTRA_RESET,0);
+  DBUG_ENTER("ha_myisammrg::rnd_init");
+
+  DBUG_RETURN(myrg_extra(file,HA_EXTRA_RESET,0));
 }
 
 int ha_myisammrg::rnd_next(byte *buf)
 {
+  DBUG_ENTER("ha_myisammrg::rnd_next");
+
   statistic_increment(ha_read_rnd_next_count,&LOCK_status);
   int error=myrg_rrnd(file, buf, HA_OFFSET_ERROR);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 {
+  DBUG_ENTER("ha_myisammrg::rnd_pos");
+
   statistic_increment(ha_read_rnd_count,&LOCK_status);
   int error=myrg_rrnd(file, buf, ha_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 void ha_myisammrg::position(const byte *record)
 {
   ulonglong position= myrg_position(file);
+  DBUG_ENTER("ha_myisammrg::position");
+
   ha_store_ptr(ref, ref_length, (my_off_t) position);
+  DBUG_VOID_RETURN;
 }
 
 
 void ha_myisammrg::info(uint flag)
 {
   MYMERGE_INFO info;
+  DBUG_ENTER("ha_myisammrg::info");
+
   (void) myrg_status(file,&info,flag);
   /*
     The following fails if one has not compiled MySQL with -DBIG_TABLES
@@ -216,17 +251,20 @@ void ha_myisammrg::info(uint flag)
 #else
   ref_length=4;					// Can't be > than my_off_t
 #endif
+  DBUG_VOID_RETURN;
 }
 
 
 int ha_myisammrg::extra(enum ha_extra_function operation)
 {
+  DBUG_ENTER("ha_myisammrg::extra");
+
   /* As this is just a mapping, we don't have to force the underlying
      tables to be closed */
   if (operation == HA_EXTRA_FORCE_REOPEN ||
       operation == HA_EXTRA_PREPARE_FOR_DELETE)
-    return 0;
-  return myrg_extra(file,operation,0);
+    DBUG_RETURN(0);
+  DBUG_RETURN(myrg_extra(file,operation,0));
 }
 
 
@@ -234,27 +272,35 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
 
 int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
+  DBUG_ENTER("ha_myisammrg::extra_opt");
+
   if ((specialflag & SPECIAL_SAFE_MODE) &
       (operation == HA_EXTRA_WRITE_CACHE ||
        operation == HA_EXTRA_BULK_INSERT_BEGIN))
-    return 0;
-  return myrg_extra(file, operation, (void*) &cache_size);
+    DBUG_RETURN(0);
+  DBUG_RETURN(myrg_extra(file, operation, (void*) &cache_size));
 }
 
 
 int ha_myisammrg::reset(void)
 {
-  return myrg_extra(file,HA_EXTRA_RESET,0);
+  DBUG_ENTER("ha_myisammrg::reset");
+
+  DBUG_RETURN(myrg_extra(file,HA_EXTRA_RESET,0));
 }
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
 {
-  return myrg_lock_database(file,lock_type);
+  DBUG_ENTER("ha_myisammrg::external_lock");
+
+  DBUG_RETURN(myrg_lock_database(file,lock_type));
 }
 
 uint ha_myisammrg::lock_count(void) const
 {
-  return file->tables;
+  DBUG_ENTER("ha_myisammrg::lock_count");
+
+  DBUG_RETURN(file->tables);
 }
 
 
@@ -263,6 +309,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 					 enum thr_lock_type lock_type)
 {
   MYRG_TABLE *table;
+  DBUG_ENTER("**ha_myisammrg::store_lock");
 
   for (table=file->open_tables ; table != file->end_table ; table++)
   {
@@ -270,13 +317,14 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
     if (lock_type != TL_IGNORE && table->table->lock.type == TL_UNLOCK)
       table->table->lock.type=lock_type;
   }
-  return to;
+  DBUG_RETURN(to);
 }
 
 void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 {
-  // [phi] auto_increment stuff is missing (but currently not needed)
   DBUG_ENTER("ha_myisammrg::update_create_info");
+
+  // [phi] auto_increment stuff is missing (but currently not needed)
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
     MYRG_TABLE *table;
@@ -334,6 +382,8 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 void ha_myisammrg::append_create_info(String *packet)
 {
   char buff[FN_REFLEN];
+  DBUG_ENTER("ha_myisammrg::append_create_info");
+
   if (file->merge_insert_method != MERGE_INSERT_DISABLED)
   {
     packet->append(" INSERT_METHOD=",15);
@@ -351,4 +401,5 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(buff,(uint) strlen(buff));
   }
   packet->append(')');
+  DBUG_VOID_RETURN;
 }

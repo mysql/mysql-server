@@ -5,7 +5,7 @@ die "No files specified\n" unless $ARGV[0];
 $ctags="exctags -x -f - --c-types=f -u";
 
 sub get_tag {
-  local $_=<TAGS>;
+  local $.; local $_=<TAGS>;
   ($symbol, $line)= /^(.*\S)\s+function\s+(\d+)/;
   $symbol=$1 if /\s(\S+)\s*\(/;
   $line=1e50 unless $line;
@@ -40,7 +40,6 @@ while($src=shift)
       warn "$src:".($.-1)."\t$orig" if /\breturn\b/;
     }
     print;
-    next if /DBUG_ENTER/;
     next if $. < $line;
     die "Something wrong: \$.=$., \$line=$line, \$symbol=$symbol\n" if $. > $line;
     &get_tag && next if /^\s*inline /;
