@@ -39,12 +39,20 @@ $opt_loop_count=10000; # Change this to make test harder/easier
 chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
+$create_loop_count=$opt_loop_count;
 if ($opt_small_test)
 {
   $opt_loop_count/=100;
+  $create_loop_count/=1000;
 }
 
 $max_tables=min($limits->{'max_tables'},$opt_loop_count);
+
+if ($opt_small_test)
+{
+  $max_tables=10;
+}
+
 
 print "Testing the speed of creating and droping tables\n";
 print "Testing with $max_tables tables and $opt_loop_count loop count\n\n";
@@ -177,7 +185,7 @@ print "Testing create+drop\n";
 
 $loop_time=new Benchmark;
 
-for ($i=1 ; $i <= $opt_loop_count ; $i++)
+for ($i=1 ; $i <= $create_loop_count ; $i++)
 {
   do_many($dbh,$server->create("bench_$i",
 			       ["i int NOT NULL",
@@ -190,7 +198,7 @@ for ($i=1 ; $i <= $opt_loop_count ; $i++)
 }
 
 $end_time=new Benchmark;
-print "Time for create+drop ($opt_loop_count): " .
+print "Time for create+drop ($create_loop_count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 if ($opt_fast && defined($server->{vacuum}))

@@ -413,7 +413,10 @@ void close_thread_tables(THD *thd, bool locked)
   DBUG_ENTER("close_thread_tables");
 
   if (thd->locked_tables)
+  {
+    ha_commit_stmt(thd);			// If select statement
     DBUG_VOID_RETURN;				// LOCK TABLES in use
+  }
 
   TABLE *table,*next;
   bool found_old_table=0;
