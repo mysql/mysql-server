@@ -2721,7 +2721,7 @@ static int ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (isgbkhead(c)? 2:0);
+  return (isgbkhead(c)? 2 : 1);
 }
 
 /* page 0 0x8140-0xFE4F */

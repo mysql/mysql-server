@@ -193,7 +193,7 @@ static int ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (iseuc_kr(c) ? 2 : 0);
+  return (iseuc_kr(c) ? 2 : 1);
 }
 
 
