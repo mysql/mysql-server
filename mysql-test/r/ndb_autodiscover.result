@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4,t5,t6,t9;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t9;
 flush status;
 create table t1(
 id int not null primary key,
@@ -94,8 +94,6 @@ ERROR 42S01: Table 't3' already exists
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	1
-SHOW TABLES FROM test;
-Tables_in_test
 create table IF NOT EXISTS t3(
 id int not null primary key,
 id2 int not null,
@@ -118,6 +116,40 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	2
 drop table t3;
+flush status;
+create table t7(
+id int not null primary key,
+name char(255)
+) engine=ndb;
+create table t6(
+id int not null primary key,
+name char(255)
+) engine=MyISAM;
+insert into t7 values (1, "Explorer");
+insert into t6 values (2, "MyISAM table");
+select * from t7;
+id	name
+1	Explorer
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	0
+flush tables;
+show tables from test;
+Tables_in_test
+t6
+t7
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	1
+flush tables;
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t6	MyISAM	9	Fixed	1	260	#	#	#	0	NULL	#	#	NULL	#	NULL		
+t7	ndbcluster	9	Fixed	1	0	#	#	#	0	NULL	#	#	NULL	#	NULL		
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	2
+drop table t6, t7;
 flush status;
 show status like 'handler_discover%';
 Variable_name	Value
