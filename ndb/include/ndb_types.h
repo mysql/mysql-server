@@ -30,31 +30,22 @@ typedef unsigned int   Uint32;
 
 typedef unsigned int UintR;
 
-#ifdef __SIZE_TYPE__
-typedef __SIZE_TYPE__ UintPtr;
-#else
-#include <ndb_global.h>
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-#if defined(WIN32) || defined(NDB_WIN32)
-typedef Uint32 UintPtr;
-#else
-typedef uintptr_t UintPtr;
-#endif
-#endif
-
 #if defined(WIN32) || defined(NDB_WIN32)
 typedef unsigned __int64 Uint64;
 typedef   signed __int64 Int64;
-typedef UintPtr ssize_t;
 #else
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
 #endif
 
+#ifdef __SIZE_TYPE__
+typedef __SIZE_TYPE__ UintPtr;
+#else
+#if SIZEOF_CHARP == 4
+typedef Uint32 UintPtr;
+#else
+typedef Uint64 UintPtr;
+#endif
+#endif
 
 #endif
