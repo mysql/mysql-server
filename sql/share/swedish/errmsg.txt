@@ -246,7 +246,7 @@ character-set=latin1
 "Nyckelreferensen och tabellreferensen stämmer inte överens",
 "Operand should contain %d column(s)",
 "Subquery returnerade mer än 1 rad",
-"Okänd PREPARED STATEMENT id (%ld) var given till %s",
+"Okänd PREPARED STATEMENT id (%.*s) var given till %s",
 "Hjälpdatabasen finns inte eller är skadad",
 "Cyklisk referens i subqueries",
 "Konvertar kolumn '%s' från %s till %s",
