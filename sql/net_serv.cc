@@ -73,9 +73,9 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #include "thr_alarm.h"
 
 #define TEST_BLOCKING		8
-#define MAX_THREE_BYTES (256L*256L*256L-1)
+#define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
-static int net_write_buff(NET *net,const char *packet,ulong len);
+static my_bool net_write_buff(NET *net,const char *packet,ulong len);
 
 
 	/* Init with packet info */
@@ -131,12 +131,16 @@ static my_bool net_realloc(NET *net, ulong length)
 {
   uchar *buff;
   ulong pkt_length;
+  DBUG_ENTER("net_realloc");
+  DBUG_PRINT("enter",("length: %lu", length));
+
   if (length >= net->max_packet_size)
   {
-    DBUG_PRINT("error",("Packet too large (%lu)", length));
+    DBUG_PRINT("error",("Packet too large. Max sixe: %lu",
+			net->max_packet_size));
     net->error=1;
     net->last_errno=ER_NET_PACKET_TOO_LARGE;
-    return 1;
+    DBUG_RETURN(1);
   }
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
   /*
@@ -151,11 +155,11 @@ static my_bool net_realloc(NET *net, ulong length)
 #ifdef MYSQL_SERVER
     net->last_errno=ER_OUT_OF_RESOURCES;
 #endif
-    return 1;
+    DBUG_RETURN(1);
   }
   net->buff=net->write_pos=buff;
   net->buff_end=buff+(net->max_packet=pkt_length);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 	/* Remove unwanted characters from connection */
@@ -217,13 +221,13 @@ my_net_write(NET *net,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE];
   /*
-    Big packets are handled by splitting them in packets of MAX_THREE_BYTES
-    length. The last packet is always a packet that is < MAX_THREE_BYTES.
-    (The last packet may even have a lengt of 0)
+    Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
+    length. The last packet is always a packet that is < MAX_PACKET_LENGTH.
+    (The last packet may even have a length of 0)
   */
-  while (len >= MAX_THREE_BYTES)
+  while (len >= MAX_PACKET_LENGTH)
   {
-    const ulong z_size = MAX_THREE_BYTES;
+    const ulong z_size = MAX_PACKET_LENGTH;
     int3store(buff, z_size);
     buff[3]= (uchar) net->pkt_nr++;
     if (net_write_buff(net, (char*) buff, NET_HEADER_SIZE) ||
@@ -238,7 +242,7 @@ my_net_write(NET *net,const char *packet,ulong len)
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
     return 1;
   DBUG_DUMP("packet_header",(char*) buff,NET_HEADER_SIZE);
-  return net_write_buff(net,packet,len);
+  return test(net_write_buff(net,packet,len));
 }
 
 /*
@@ -256,64 +260,107 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
   ulong length=len+1;				/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
+  DBUG_ENTER("net_write_command");
+  DBUG_PRINT("enter",("length: %lu", len));
+
   buff[4]=command;				/* For first packet */
 
-  if (length >= MAX_THREE_BYTES)
+  if (length >= MAX_PACKET_LENGTH)
   {
     /* Take into account that we have the command in the first header */
-    len= MAX_THREE_BYTES -1;
+    len= MAX_PACKET_LENGTH -1;
     do
     {
-      int3store(buff, MAX_THREE_BYTES);
+      int3store(buff, MAX_PACKET_LENGTH);
       buff[3]= (uchar) net->pkt_nr++;
       if (net_write_buff(net,(char*) buff, header_size) ||
 	  net_write_buff(net,packet,len))
-	return 1;
+	DBUG_RETURN(1);
       packet+= len;
-      length-= MAX_THREE_BYTES;
-      len=MAX_THREE_BYTES;
-      header_size=NET_HEADER_SIZE;
-    } while (length >= MAX_THREE_BYTES);
+      length-= MAX_PACKET_LENGTH;
+      len= MAX_PACKET_LENGTH;
+      header_size= NET_HEADER_SIZE;
+    } while (length >= MAX_PACKET_LENGTH);
     len=length;					/* Data left to be written */
   }
   int3store(buff,length);
   buff[3]= (uchar) net->pkt_nr++;
-  return test(net_write_buff(net,(char*) buff,header_size) ||
-	      net_write_buff(net,packet,len) || net_flush(net));
+  DBUG_RETURN(test(net_write_buff(net,(char*) buff,header_size) ||
+		   net_write_buff(net,packet,len) || net_flush(net)));
 }
 
 /*
   Caching the data in a local buffer before sending it.
-  One can force the buffer to be flushed with 'net_flush'.
 
+  SYNOPSIS
+    net_write_buff()
+    net		Network handler
+    packet	Packet to send
+    len		Length of packet
+
+  DESCRIPTION
+    Fill up net->buffer and send it to the client when full.
+
+    If the rest of the to-be-sent-packet is bigger than buffer,
+    send it in one big block (to avoid copying to internal buffer).
+    If not, copy the rest of the data to the buffer and return without
+    sending data.
+
+  NOTES
+    The cached buffer can be sent as it is with 'net_flush()'.
+
+    In this code we have to be careful to not send a packet longer than
+    MAX_PACKET_LENGTH to net_real_write() if we are using the compressed protocol
+    as we store the length of the compressed packet in 3 bytes.
+
+  RETURN
+  0	ok
+  1
 */
 
-static int
+static my_bool
 net_write_buff(NET *net,const char *packet,ulong len)
 {
-  ulong left_length=(ulong) (net->buff_end - net->write_pos);
+  ulong left_length;
+  if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
+    left_length= MAX_PACKET_LENGTH - (net->write_pos - net->buff);
+  else
+    left_length= (ulong) (net->buff_end - net->write_pos);
 
   if (len > left_length)
   {
-    memcpy((char*) net->write_pos,packet,left_length);
-    if (net_real_write(net,(char*) net->buff,net->max_packet))
-      return 1;
-    net->write_pos=net->buff;
-    packet+=left_length;
-    len-= left_length;
-    left_length= net->max_packet;
-
-    /* Send out rest of the blocks as full sized blocks */
-    while (len > left_length)
+    if (net->write_pos != net->buff)
     {
-      if (net_real_write(net, packet, left_length))
+      /* Fill up already used packet and write it */
+      memcpy((char*) net->write_pos,packet,left_length);
+      if (net_real_write(net,(char*) net->buff, 
+			 (ulong) (net->write_pos - net->buff) + left_length))
 	return 1;
+      net->write_pos= net->buff;
       packet+= left_length;
       len-= left_length;
     }
+    if (net->compress)
+    {
+      /*
+	We can't have bigger packets than 16M with compression
+	Because the uncompressed length is stored in 3 bytes
+      */
+      left_length= MAX_PACKET_LENGTH;
+      while (len > left_length)
+      {
+	if (net_real_write(net, packet, left_length))
+	  return 1;
+	packet+= left_length;
+	len-= left_length;
+      }
+    }
+    if (len > net->max_packet)
+      return net_real_write(net, packet, len) ? 1 : 0;
+    /* Send out rest of the blocks as full sized blocks */
   }
   memcpy((char*) net->write_pos,packet,len);
-  net->write_pos+=len;
+  net->write_pos+= len;
   return 0;
 }
 
@@ -364,11 +411,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     memcpy(b+header_length,packet,len);
 
     if (my_compress((byte*) b+header_length,&len,&complen))
-    {
-      DBUG_PRINT("warning",
-		 ("Compression error; Continuing without compression"));
       complen=0;
-    }
     int3store(&b[NET_HEADER_SIZE],complen);
     int3store(b,len);
     b[3]=(uchar) (net->compress_pkt_nr++);
@@ -469,28 +512,15 @@ net_real_write(NET *net,const char *packet,ulong len)
 *****************************************************************************/
 
 #ifndef NO_ALARM
-/*
-  Help function to clear the commuication buffer when we get a too
-  big packet
-*/
 
-static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
+static my_bool net_safe_read(NET *net, char *buff, uint32 length,
+			     thr_alarm_t *alarmed)
 {
-  ALARM alarm_buff;
   uint retry_count=0;
-  my_bool old_mode;
-  uint32 old=remain;
-
-  if (!thr_alarm_in_use(&alarmed))
+  while (length > 0)
   {
-    if (!thr_alarm(alarmed,net->read_timeout,&alarm_buff) ||
-	vio_blocking(net->vio, TRUE, &old_mode) < 0)
-      return;					/* Can't setup, abort */
-  }
-  while (remain > 0)
-  {
-    ulong length;
-    if ((int) (length=vio_read(net->vio,(char*) net->buff,remain)) <= 0L)
+    int tmp;
+    if ((tmp=vio_read(net->vio,(char*) net->buff, length)) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
       if (!thr_got_alarm(&alarmed) && interrupted)
@@ -498,17 +528,60 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
 	if (retry_count++ < net->retry_count)
 	  continue;
       }
-      return;
+      return 1;
     }
-    remain -= (uint32) length;
-    if (!remain && old==MAX_THREE_BYTES && 
-	(length=vio_read(net->vio,(char*) net->buff,NET_HEADER_SIZE)))
-    {
-      old=remain= uint3korr(net->buff);
-      net->pkt_nr++;
-    }
-    statistic_add(bytes_received,length,&LOCK_bytes_received);
+    length-= tmp;
   }
+  return 0;
+}
+
+/*
+  Help function to clear the commuication buffer when we get a too big packet.
+
+  SYNOPSIS
+    my_net_skip_rest()
+    net		Communication handle
+    remain	Bytes to read
+    alarmed	Parameter for thr_alarm()
+    alarm_buff	Parameter for thr_alarm()
+
+  RETURN VALUES
+   0	Was able to read the whole packet
+   1	Got mailformed packet from client
+*/
+
+static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
+				ALARM *alarm_buff)
+{
+  uint32 old=remain;
+  DBUG_ENTER("my_net_skip_rest");
+  DBUG_PRINT("enter",("bytes_to_skip: %u", (uint) remain));
+
+  if (!thr_alarm_in_use(&alarmed))
+  {
+    my_bool old_mode;
+    if (!thr_alarm(alarmed,net->read_timeout, alarm_buff) ||
+	vio_blocking(net->vio, TRUE, &old_mode) < 0)
+      DBUG_RETURN(1);				/* Can't setup, abort */
+  }
+  for (;;)
+  {
+    while (remain > 0)
+    {
+      uint length= min(remain, net->max_packet);
+      if (net_safe_read(net, (char*) net->buff, length, alarmed))
+	DBUG_RETURN(1);
+      statistic_add(bytes_received, length, &LOCK_bytes_received);
+      remain -= (uint32) length;
+    }
+    if (old != MAX_PACKET_LENGTH)
+      break;
+    if (net_safe_read(net, (char*) net->buff, NET_HEADER_SIZE, alarmed))
+      DBUG_RETURN(1);
+    old=remain= uint3korr(net->buff);
+    net->pkt_nr++;
+  }
+  DBUG_RETURN(0);
 }
 #endif /* NO_ALARM */
 
@@ -607,9 +680,8 @@ my_real_read(NET *net, ulong *complen)
 	    continue;
 	  }
 #endif
-	  DBUG_PRINT("error",("Couldn't read packet: remain: %lu  errno: %d  length: %ld  alarmed: %d",
-			      remain,vio_errno(net->vio), length,
-			      thr_got_alarm(&alarmed)));
+	  DBUG_PRINT("error",("Couldn't read packet: remain: %u  errno: %d  length: %ld",
+			      remain, vio_errno(net->vio), length));
 	  len= packet_error;
 	  net->error=2;				/* Close socket */
 #ifdef MYSQL_SERVER
@@ -667,19 +739,12 @@ my_real_read(NET *net, ulong *complen)
 	{
 	  if (net_realloc(net,helping))
 	  {
-#ifdef MYSQL_SERVER
-#ifndef NO_ALARM
-	    if (net->compress)
-	    {
-	      len= packet_error;
-	      goto end;
-	    }
-	    my_net_skip_rest(net, (uint32) len, &alarmed);
-	    len=0;
+#if defined(MYSQL_SERVER) && !defined(NO_ALARM)
+	    if (!net->compress &&
+		!my_net_skip_rest(net, (uint32) len, &alarmed, &alarm_buff))
+	      net->error= 3;		/* Successfully skiped packet */
 #endif
-#else
-	    len= packet_error;          /* Return error */
-#endif
+	    len= packet_error;          /* Return error and close connection */
 	    goto end;
 	  }
 	}
@@ -723,7 +788,7 @@ my_net_read(NET *net)
   {
 #endif
     len = my_real_read(net,&complen);
-    if (len == MAX_THREE_BYTES)
+    if (len == MAX_PACKET_LENGTH)
     {
       /* First packet of a multi-packet.  Concatenate the packets */
       ulong save_pos = net->where_b;
@@ -733,7 +798,7 @@ my_net_read(NET *net)
 	net->where_b += len;
 	total_length += len;
 	len = my_real_read(net,&complen);
-      } while (len == MAX_THREE_BYTES);
+      } while (len == MAX_PACKET_LENGTH);
       if (len != packet_error)
 	len+= total_length;
       net->where_b = save_pos;
@@ -791,7 +856,7 @@ my_net_read(NET *net)
 	  else
 	    start_of_packet+= read_length + NET_HEADER_SIZE;
 
-	  if (read_length != MAX_THREE_BYTES)	    /* last package */
+	  if (read_length != MAX_PACKET_LENGTH)	/* last package */
 	  {
 	    multi_byte_packet= 0;		/* No last zero len packet */
 	    break;

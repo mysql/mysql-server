@@ -75,7 +75,8 @@ const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
-  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave"
+  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
+  "Error"					// Last command number
 };
 
 bool volatile abort_slave = 0;
@@ -209,7 +210,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD),&ur);
   DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
+	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
 	      thd->host_or_ip, thd->priv_user,
 	      passwd[0] ? "yes": "no",
@@ -882,20 +883,22 @@ bool do_command(THD *thd)
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
   {
-     DBUG_PRINT("info",("Got error reading command from socket %s",
-			vio_description(net->vio) ));
-    return TRUE;
-  }
-  else if (!packet_length)
-  {
+    DBUG_PRINT("info",("Got error %d reading command from socket %s",
+		       net->error,
+		       vio_description(net->vio)));
+    /* Check if we can continue without closing the connection */
+    if (net->error != 3)
+      DBUG_RETURN(TRUE);			// We have to close it.
     send_error(net,net->last_errno,NullS);
-    net->error=0;
+    net->error= 0;
     DBUG_RETURN(FALSE);
   }
   else
   {
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
+    if (command >= COM_END)
+      command= COM_END;				// Wrong command
     DBUG_PRINT("info",("Command on %s = %d (%s)",
 		       vio_description(net->vio), command,
 		       command_name[command]));
@@ -1025,7 +1028,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
     mysql_log.write(thd,command,"%s",thd->query);
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%-.4096s",thd->query));
     /* thd->query_length is set by mysql_parse() */
     mysql_parse(thd,thd->query,packet_length);
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1223,6 +1226,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
   case COM_DELAYED_INSERT:
+  case COM_END:
   default:
     send_error(net, ER_UNKNOWN_COM_ERROR);
     break;
