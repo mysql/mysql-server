@@ -20,10 +20,6 @@ NOTE: You can only use noninlined InnoDB functions in this file, because we
 have disables the InnoDB inlining in this file. */
 
 /* TODO list for the InnoDB handler in 4.1:
-  - Check if the query_id is now right also in prepared and executed stats
-    in build_template()
-  - Add multi-language char set support to CREATE TABLE and the comparison
-    of strings
   - Find out what kind of problems the OS X case-insensitivity causes to
     table and database names; should we 'normalize' the names like we do
     in Windows?
@@ -2129,11 +2125,6 @@ build_template(
 	for (i = 0; i < n_fields; i++) {
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
-
-		/* TODO: Check if the query_id is now right also in prepared
-		and executed SQL statements. Previously, MySQL-4.1 failed to
-		update field->query_id so that the formula
-		thd->query_id == field->query_id did not work. */
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS
 		    && !(fetch_all_in_key
@@ -4727,23 +4718,41 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
-        } else {
-                if (thd->lex->sql_command == SQLCOM_SELECT
-                                        && thd->lex->lock_option == TL_READ) {
- 
-                        /* For other than temporary tables, we obtain
-                        no lock for consistent read (plain SELECT) */
- 
-                        prebuilt->select_lock_type = LOCK_NONE;
-                } else {
-                        /* Not a consistent read: use LOCK_X as the
-                        select_lock_type value (TODO: how could we know
-                        whether it should be LOCK_S, LOCK_X, or LOCK_NONE?) */
-
-                        prebuilt->select_lock_type = LOCK_X;
-                }
-        }
+	} else {
+		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
+		    && thd->lex->sql_command == SQLCOM_SELECT
+		    && thd->lex->lock_option == TL_READ) {
 	
+			/* For other than temporary tables, we obtain
+			no lock for consistent read (plain SELECT). */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+		} else {
+			/* Not a consistent read: restore the
+			select_lock_type value. The value of
+			stored_select_lock_type was decided in:
+			1) ::store_lock(),
+			2) ::external_lock(), and
+			3) ::init_table_handle_for_HANDLER(). */
+
+			prebuilt->select_lock_type =
+				prebuilt->stored_select_lock_type;
+		}
+
+		if (prebuilt->stored_select_lock_type != LOCK_S
+		    && prebuilt->stored_select_lock_type != LOCK_X) {
+			fprintf(stderr,
+"InnoDB: Error: stored_select_lock_type is %lu inside ::start_stmt()!\n",
+			prebuilt->stored_select_lock_type);
+
+			/* Set the value to LOCK_X: this is just fault
+			tolerance, we do not know what the correct value
+			should be! */
+
+			prebuilt->select_lock_type = LOCK_X;
+		}
+	}
+
 	/* Set the MySQL flag to mark that there is an active transaction */
 	thd->transaction.all.innodb_active_trans = 1;
 
@@ -5258,14 +5267,14 @@ ha_innobase::get_auto_increment()
 }
 
 /***********************************************************************
-This function stores binlog offset and flushes logs */
+This function stores the binlog offset and flushes logs. */
 
 void 
 innobase_store_binlog_offset_and_flush_log(
-/*=============================*/
-    char *binlog_name,          /* in: binlog name */
-    longlong offset             /* in: binlog offset */
-) {
+/*=======================================*/
+    char 	*binlog_name,	/* in: binlog name */
+    longlong 	offset)		/* in: binlog offset */
+{
 	mtr_t mtr;
 	
 	assert(binlog_name != NULL);
@@ -5274,7 +5283,7 @@ innobase_store_binlog_offset_and_flush_log(
         mtr_start_noninline(&mtr); 
 
 	/* Update the latest MySQL binlog name and offset info
-           in trx sys header */
+        in trx sys header */
 
         trx_sys_update_mysql_binlog_offset(
             binlog_name,
@@ -5288,18 +5297,19 @@ innobase_store_binlog_offset_and_flush_log(
 	log_buffer_flush_to_disk();
 }
 
-char *ha_innobase::get_mysql_bin_log_name()
+char*
+ha_innobase::get_mysql_bin_log_name()
 {
-  return trx_sys_mysql_bin_log_name;
+	return(trx_sys_mysql_bin_log_name);
 }
 
-ulonglong ha_innobase::get_mysql_bin_log_pos()
+ulonglong
+ha_innobase::get_mysql_bin_log_pos()
 {
-  /*
-    trx... is ib_longlong, which is a typedef for a 64-bit integer (__int64 or
-    longlong) so it's ok to cast it to ulonglong.
-  */
-  return trx_sys_mysql_bin_log_pos;
+  	/* trx... is ib_longlong, which is a typedef for a 64-bit integer
+	(__int64 or longlong) so it's ok to cast it to ulonglong. */
+
+  	return(trx_sys_mysql_bin_log_pos);
 }
 
 extern "C" {
