@@ -613,7 +613,12 @@ bool MYSQL_LOG::open(const char *log_name,
         even if this is not the very first binlog.
       */
       Format_description_log_event s(BINLOG_VERSION);
-      s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
+      /*
+        don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
+        as we won't be able to reset it later
+      */
+      if (io_cache_type == WRITE_CACHE)
+        s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
       if (!s.is_valid())
         goto err;
       if (null_created_arg)
