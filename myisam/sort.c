@@ -286,6 +286,8 @@ pthread_handler_decl(thr_find_all_keys,arg)
   uint idx, maxbuffer;
   uchar **sort_keys=0;
 
+  LINT_INIT(keys);
+
   error=1;
 
   if (my_thread_init())
