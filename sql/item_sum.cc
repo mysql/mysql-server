@@ -41,7 +41,7 @@ Item_sum::Item_sum(List<Item> &list)
   list.empty();					// Fields are used
 }
 
-inline void Item_sum::mark_as_sum_func()
+void Item_sum::mark_as_sum_func()
 {
   current_thd->lex.current_select->with_sum_func= with_sum_func= 1;
 }

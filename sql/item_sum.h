@@ -34,7 +34,7 @@ public:
   uint arg_count;
   bool quick_group;			/* If incremental update of fields */
 
-  inline void mark_as_sum_func();
+  void mark_as_sum_func();
   Item_sum() : arg_count(0),quick_group(1) 
   {
     mark_as_sum_func();

@@ -1981,10 +1981,12 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
-	| '(' expr ',' expr_list ')'
+          /* Note: In SQL-99 "ROW" is optional, but not having it mandatory
+	     causes conflicts with the INTERVAL syntax. */
+	| ROW_SYM '(' expr ',' expr_list ')'
 	  {
-	    $4->push_front($2);
-	    $$= new Item_row(*$4);
+	    $5->push_front($3);
+	    $$= new Item_row(*$5);
 	  }
 	| EXISTS exists_subselect { $$= $2; }
 	| singleval_subselect   { $$= $1; }
@@ -2682,7 +2684,11 @@ order_dir:
 
 opt_limit_clause:
 	/* empty */ {}
-	| LIMIT 
+	| limit_clause {}
+	;
+
+limit_clause:
+	LIMIT 
 	  {
 	    LEX *lex= Lex;
 	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
@@ -4380,10 +4386,7 @@ union_opt:
 	;
 
 optional_order_or_limit:
-      	/* empty 
-           intentional reduce/reduce conflict here !!!
-           { code } below should not be executed
-           when neither ORDER BY nor LIMIT are used */ {}
+      	/* Empty */ {} 
 	|
 	  {
 	    LEX *lex=Lex;
@@ -4399,7 +4402,13 @@ optional_order_or_limit:
 	    lex->current_select->select_limit=
 	      lex->thd->variables.select_limit;
 	  }
-	opt_order_clause opt_limit_clause
+	order_or_limit
+	;
+
+order_or_limit:
+	order_clause opt_limit_clause
+	|
+	limit_clause
 	;
 
 union_option:
