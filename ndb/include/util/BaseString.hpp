@@ -48,10 +48,10 @@ public:
   bool empty() const;
 
   /** @brief Convert to uppercase */
-  void ndb_toupper();
+  BaseString& ndb_toupper();
 
   /** @brief Convert to lowercase */
-  void ndb_tolower();
+  BaseString& ndb_tolower();
 
   /** @brief Assigns from a char * */
   BaseString& assign(const char* s);
@@ -206,16 +206,18 @@ BaseString::empty() const
   return m_len == 0;
 }
 
-inline void
+inline BaseString&
 BaseString::ndb_toupper() {
   for(unsigned i = 0; i < length(); i++)
     m_chr[i] = toupper(m_chr[i]);
+  return *this;
 }
 
-inline void
+inline BaseString&
 BaseString::ndb_tolower() {
   for(unsigned i = 0; i < length(); i++)
     m_chr[i] = tolower(m_chr[i]);
+  return *this;
 }
 
 inline bool

@@ -46,7 +46,8 @@ NdbBackup::start(unsigned int & _backup_id){
   ndb_mgm_reply reply;
   reply.return_code = 0;
 
-  if (ndb_mgm_start_backup(handle, 
+  if (ndb_mgm_start_backup(handle,
+			   2, // wait until completed
 			   &_backup_id,
 			   &reply) == -1) {
     g_err  << "Could not start backup " << endl;

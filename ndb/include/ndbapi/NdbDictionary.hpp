@@ -1108,11 +1108,11 @@ public:
     int alterTable(const Table &);
 
     /**
-     * Get table with given name for alteration.
-     * @param name   Name of table to alter
-     * @return table if successful. NULL if undefined
+     * Get table with given name, NULL if undefined
+     * @param name   Name of table to get
+     * @return table if successful otherwise NULL.
      */
-    Table getTableForAlteration(const char * name);
+    const Table * getTable(const char * name);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**

@@ -19,7 +19,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"

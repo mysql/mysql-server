@@ -32,15 +32,16 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbScanFilter.hpp>
 
+// options from from mysqld.cc
+extern my_bool opt_ndb_optimized_node_selection;
+extern const char *opt_ndbcluster_connectstring;
+
 // Default value for parallelism
 static const int parallelism= 0;
 
 // Default value for max number of transactions
 // createable against NDB from this handler
 static const int max_transactions= 256;
-
-// connectstring to cluster if given by mysqld
-const char *ndbcluster_connectstring= 0;
 
 static const char *ha_ndb_ext=".ndb";
 
@@ -408,6 +409,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BIT:
     break;
   }
   return FALSE;
@@ -3704,9 +3706,13 @@ int ha_ndbcluster::create_index(const char *name,
 
 int ha_ndbcluster::rename_table(const char *from, const char *to)
 {
+  NDBDICT *dict;
   char new_tabname[FN_HEADLEN];
+  const NDBTAB *orig_tab;
+  int result;
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
+  DBUG_PRINT("info", ("Renaming %s to %s", from, to));
   set_dbname(from);
   set_tabname(from);
   set_tabname(to, new_tabname);
@@ -3714,14 +3720,20 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (check_ndb_connection())
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
 
+  dict= m_ndb->getDictionary();
+  if (!(orig_tab= dict->getTable(m_tabname)))
+    ERR_RETURN(dict->getNdbError());
 
-  int result= alter_table_name(m_tabname, new_tabname);
-  if (result == 0)
+  m_table= (void *)orig_tab;
+  // Change current database to that of target table
+  set_dbname(to);
+  m_ndb->setDatabaseName(m_dbname);
+  if (!(result= alter_table_name(new_tabname)))
   {
-    set_tabname(to);
-    handler::rename_table(from, to);
+    // Rename .ndb file
+    result= handler::rename_table(from, to);
   }
-  
+
   DBUG_RETURN(result);
 }
 
@@ -3730,19 +3742,16 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   Rename a table in NDB Cluster using alter table
  */
 
-int ha_ndbcluster::alter_table_name(const char *from, const char *to)
+int ha_ndbcluster::alter_table_name(const char *to)
 {
-  NDBDICT *dict= m_ndb->getDictionary();
-  const NDBTAB *orig_tab;
+  NDBDICT * dict= m_ndb->getDictionary();
+  const NDBTAB *orig_tab= (const NDBTAB *) m_table;
+  int ret;
   DBUG_ENTER("alter_table_name_table");
-  DBUG_PRINT("enter", ("Renaming %s to %s", from, to));
 
-  if (!(orig_tab= dict->getTable(from)))
-    ERR_RETURN(dict->getNdbError());
-      
-  NdbDictionary::Table copy_tab= dict->getTableForAlteration(from);
-  copy_tab.setName(to);
-  if (dict->alterTable(copy_tab) != 0)
+  NdbDictionary::Table new_tab= *orig_tab;
+  new_tab.setName(to);
+  if (dict->alterTable(new_tab) != 0)
     ERR_RETURN(dict->getNdbError());
 
   m_table= NULL;
@@ -3765,7 +3774,7 @@ int ha_ndbcluster::delete_table(const char *name)
   
   if (check_ndb_connection())
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
+  // Remove .ndb file
   handler::delete_table(name);
   DBUG_RETURN(drop_table());
 }
@@ -4024,6 +4033,7 @@ Ndb* check_ndb_in_thd(THD* thd)
   }
   DBUG_RETURN(thd_ndb->ndb);
 }
+
 
 
 int ha_ndbcluster::check_ndb_connection()
@@ -4308,14 +4318,18 @@ bool ndbcluster_init()
   int res;
   DBUG_ENTER("ndbcluster_init");
   // Set connectstring if specified
-  if (ndbcluster_connectstring != 0)
-    DBUG_PRINT("connectstring", ("%s", ndbcluster_connectstring));     
+  if (opt_ndbcluster_connectstring != 0)
+    DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
   if ((g_ndb_cluster_connection=
-       new Ndb_cluster_connection(ndbcluster_connectstring)) == 0)
+       new Ndb_cluster_connection(opt_ndbcluster_connectstring)) == 0)
   {
-    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",ndbcluster_connectstring));
+    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
+			opt_ndbcluster_connectstring));
     goto ndbcluster_init_error;
   }
+
+  g_ndb_cluster_connection->set_optimized_node_selection
+    (opt_ndb_optimized_node_selection);
 
   // Create a Ndb object to open the connection  to NDB
   g_ndb= new Ndb(g_ndb_cluster_connection, "sys");
@@ -4331,7 +4345,7 @@ bool ndbcluster_init()
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
 		       g_ndb_cluster_connection->get_connected_host(),
 		       g_ndb_cluster_connection->get_connected_port()));
-    g_ndb->waitUntilReady(10);
+    g_ndb_cluster_connection->wait_until_ready(10,0);
   } 
   else if(res == 1)
   {

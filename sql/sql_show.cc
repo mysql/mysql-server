@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
-#include "sql_acl.h"
 #include "repl_failsafe.h"
 #include "sp_head.h"
 #include <my_dir.h>
@@ -42,46 +41,6 @@ static int
 store_create_info(THD *thd, TABLE_LIST *table_list, String *packet);
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *packet);
-
-
-/***************************************************************************
-  List all open tables in a database
-***************************************************************************/
-
-bool mysqld_show_open_tables(THD *thd,const char *wild)
-{
-  List<Item> field_list;
-  OPEN_TABLE_LIST *open_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_open_tables");
-
-  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  field_list.push_back(new Item_return_int("In_use", 1, MYSQL_TYPE_TINY));
-  field_list.push_back(new Item_return_int("Name_locked", 4, MYSQL_TYPE_TINY));
-
-  if (protocol->send_fields(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
-    DBUG_RETURN(TRUE);
-
-  for (; open_list ; open_list=open_list->next)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(open_list->db, system_charset_info);
-    protocol->store(open_list->table, system_charset_info);
-    protocol->store_tiny((longlong) open_list->in_use);
-    protocol->store_tiny((longlong) open_list->locked);
-    if (protocol->write())
-    {
-      DBUG_RETURN(TRUE);
-    }
-  }
-  send_eof(thd);
-  DBUG_RETURN(FALSE);
-}
 
 
 /***************************************************************************
@@ -370,172 +329,6 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   VOID(ha_find_files(thd,db,path,wild,dir,files));
 
   DBUG_RETURN(0);
-}
-
-
-/***************************************************************************
-** List all columns in a table_list->real_name
-***************************************************************************/
-
-bool
-mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
-		   bool verbose)
-{
-  TABLE *table;
-  handler *file;
-  char tmp[MAX_FIELD_WIDTH];
-  char tmp1[MAX_FIELD_WIDTH];
-  Item *item;
-  Protocol *protocol= thd->protocol;
-  int res;
-  DBUG_ENTER("mysqld_show_fields");
-  DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
-                      table_list->real_name));
-
-  table_list->lock_type= TL_UNLOCK;
-  if (open_and_lock_tables(thd, table_list))
-  {
-    DBUG_RETURN(TRUE);
-  }
-  table= table_list->table;
-  file=table->file;
-  file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  (void) get_table_grant(thd, table_list);
-#endif
-  List<Item> field_list;
-  field_list.push_back(new Item_empty_string("Field",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Type",40));
-  if (verbose)
-    field_list.push_back(new Item_empty_string("Collation",40));
-  field_list.push_back(new Item_empty_string("Null",1));
-  field_list.push_back(new Item_empty_string("Key",3));
-  field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
-  item->maybe_null=1;
-  field_list.push_back(new Item_empty_string("Extra",20));
-  if (verbose)
-  {
-    field_list.push_back(new Item_empty_string("Privileges",80));
-    field_list.push_back(new Item_empty_string("Comment",255));
-  }
-        // Send first number of fields and records
-  if (protocol->send_records_num(&field_list, (ulonglong)file->records) ||
-      protocol->send_fields(&field_list, Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-  restore_record(table,default_values);      // Get empty record
-
-  Field **ptr,*field;
-  for (ptr=table->field; (field= *ptr) ; ptr++)
-  {
-    if (!wild || !wild[0] || 
-        !wild_case_compare(system_charset_info, field->field_name,wild))
-    {
-      {
-        byte *pos;
-        uint flags=field->flags;
-        String type(tmp,sizeof(tmp), system_charset_info);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-        uint col_access;
-#endif
-	protocol->prepare_for_resend();
-        protocol->store(field->field_name, system_charset_info);
-        field->sql_type(type);
-        protocol->store(type.ptr(), type.length(), system_charset_info);
-	if (verbose)
-	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
-			system_charset_info);
-        /*
-          Even if TIMESTAMP field can't contain NULL as its value it
-          will accept NULL if you will try to insert such value and will
-          convert NULL value to current TIMESTAMP. So YES here means
-          that NULL is allowed for assignment (but may be won't be
-          returned).
-        */
-        pos=(byte*) ((flags & NOT_NULL_FLAG) &&
-                     field->type() != FIELD_TYPE_TIMESTAMP ?
-                     "" : "YES");
-        protocol->store((const char*) pos, system_charset_info);
-        pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
-                     (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
-                     (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-        protocol->store((char*) pos, system_charset_info);
-
-        if (table->timestamp_field == field &&
-            field->unireg_check != Field::TIMESTAMP_UN_FIELD)
-        {
-          /*
-            We have NOW() as default value but we use CURRENT_TIMESTAMP form
-            because it is more SQL standard compatible
-          */
-          protocol->store("CURRENT_TIMESTAMP", system_charset_info);
-        }
-        else if (field->unireg_check != Field::NEXT_NUMBER &&
-                 !field->is_null() &&
-                 !(field->flags & NO_DEFAULT_VALUE_FLAG))
-        {                                               // Not null by default
-          /*
-            Note: we have to convert the default value into
-            system_charset_info before sending.
-            This is necessary for "SET NAMES binary":
-            If the client character set is binary, we want to
-            send metadata in UTF8 rather than in the column's
-            character set.
-            This conversion also makes "SHOW COLUMNS" and
-            "SHOW CREATE TABLE" output consistent. Without
-            this conversion the default values were displayed
-            differently.
-          */
-          String def(tmp1,sizeof(tmp1), system_charset_info);
-          type.set(tmp, sizeof(tmp), field->charset());
-          field->val_str(&type);
-          uint dummy_errors;
-          def.copy(type.ptr(), type.length(), type.charset(), 
-                   system_charset_info, &dummy_errors);
-          protocol->store(def.ptr(), def.length(), def.charset());
-        }
-        else if (field->unireg_check == Field::NEXT_NUMBER ||
-                 field->maybe_null())
-          protocol->store_null();                       // Null as default
-        else
-          protocol->store("",0, system_charset_info);	// empty string
-
-        char *end=tmp;
-        if (field->unireg_check == Field::NEXT_NUMBER)
-          end=strmov(tmp,"auto_increment");
-        protocol->store(tmp,(uint) (end-tmp), system_charset_info);
-
-	if (verbose)
-	{
-	  /* Add grant options & comments */
-	  end=tmp;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-          col_access= get_column_grant(thd, &table_list->grant,
-                                       table_list->db,
-                                       table_list->real_name,
-                                       field->field_name) & COL_ACLS;
-	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
-	  {
-	    if (col_access & 1)
-	    {
-	      *end++=',';
-	      end=strmov(end,grant_types.type_names[bitnr]);
-	    }
-	  }
-#else
-	  end=strmov(end,"");
-#endif
-	  protocol->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1),
-			  system_charset_info);
-	  protocol->store(field->comment.str, field->comment.length,
-			  system_charset_info);
-	}
-        if (protocol->write())
-          DBUG_RETURN(TRUE);
-      }
-    }
-  }
-  send_eof(thd);
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -1419,16 +1212,15 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 
 static bool show_status_array(THD *thd, const char *wild,
-                             show_var_st *variables,
-                             enum enum_var_type value_type,
-                             struct system_status_var *status_var,
-                             const char *prefix)
+                              show_var_st *variables,
+                              enum enum_var_type value_type,
+                              struct system_status_var *status_var,
+                              const char *prefix, TABLE *table)
 {
   char buff[1024], *prefix_end;
   /* the variable name should not be longer then 80 characters */
   char name_buffer[80];
   int len;
-  Protocol *protocol= thd->protocol;
   LEX_STRING null_lex_str;
   DBUG_ENTER("show_status_array");
 
@@ -1446,7 +1238,7 @@ static bool show_status_array(THD *thd, const char *wild,
     if (show_type == SHOW_VARS)
     {
       show_status_array(thd, wild, (show_var_st *) variables->value,
-                        value_type, status_var, variables->name);
+                        value_type, status_var, variables->name, table);
     }
     else
     {
@@ -1456,10 +1248,6 @@ static bool show_status_array(THD *thd, const char *wild,
         char *value=variables->value;
         const char *pos, *end;
         long nr;
-
-        protocol->prepare_for_resend();
-        protocol->store(name_buffer, system_charset_info);
-
         if (show_type == SHOW_SYS)
         {
           show_type= ((sys_var*) value)->type();
@@ -1728,9 +1516,11 @@ static bool show_status_array(THD *thd, const char *wild,
         default:
           break;
         }
-        if (protocol->store(pos, (uint32) (end - pos), system_charset_info) ||
-            protocol->write())
-          DBUG_RETURN(TRUE);                               /* purecov: inspected */
+        restore_record(table, default_values);
+        table->field[0]->store(name_buffer, strlen(name_buffer),
+                               system_charset_info);
+        table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
+        table->file->write_row(table->record[0]);        
       }
     }
   }
@@ -1742,25 +1532,14 @@ static bool show_status_array(THD *thd, const char *wild,
 bool mysqld_show(THD *thd, const char *wild, show_var_st *variables,
                  enum enum_var_type value_type,
                  pthread_mutex_t *mutex,
-                 struct system_status_var *status_var)
+                 struct system_status_var *status_var, TABLE *table)
 {
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show");
-
   ha_update_statistics();                    /* Export engines statistics */
-
-  field_list.push_back(new Item_empty_string("Variable_name",30));
-  field_list.push_back(new Item_empty_string("Value",256));
-  if (protocol->send_fields(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE); /* purecov: inspected */
-
   pthread_mutex_lock(mutex);
-  if (show_status_array(thd, wild, variables, value_type, status_var, ""))
+  if (show_status_array(thd, wild, variables, value_type, status_var, "", table))
     goto err;
   pthread_mutex_unlock(mutex);
-  send_eof(thd);
   DBUG_RETURN(FALSE);
 
  err:
@@ -1944,6 +1723,12 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
 }
 
 
+enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
+{
+  return (enum enum_schema_tables) (schema_table - &schema_tables[0]);
+}
+
+
 /*
   Add 'information_schema' name to db_names list
 
@@ -2034,8 +1819,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   List<char> bases;
   lex->all_selects_list= &sel;
-  enum enum_schema_tables schema_table_idx=
-    (enum enum_schema_tables) (schema_table - &schema_tables[0]);
+  enum enum_schema_tables schema_table_idx= get_schema_table_idx(schema_table);
   thr_lock_type lock_type= TL_UNLOCK;
   if (schema_table_idx == SCH_TABLES)
     lock_type= TL_READ;
@@ -3047,6 +2831,62 @@ static int get_schema_key_column_usage_record(THD *thd,
 }
 
 
+int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_open_tables");
+  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  TABLE *table= tables->table;
+  CHARSET_INFO *cs= system_charset_info;
+  OPEN_TABLE_LIST *open_list;
+  if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
+    DBUG_RETURN(1);
+
+  for (; open_list ; open_list=open_list->next)
+  {
+    restore_record(table, default_values);
+    table->field[0]->store(open_list->db, strlen(open_list->db), cs);
+    table->field[1]->store(open_list->table, strlen(open_list->table), cs);
+    table->field[2]->store((longlong) open_list->in_use);
+    table->field[3]->store((longlong)  open_list->locked);
+    table->file->write_row(table->record[0]);
+  }
+  DBUG_RETURN(0);
+}
+
+
+int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_variables");
+  LEX *lex= thd->lex;
+  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  int res= mysqld_show(thd, wild, init_vars, lex->option_type,
+                       &LOCK_global_system_variables, 0, tables->table);
+  DBUG_RETURN(res);
+}
+
+
+int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_status");
+  LEX *lex= thd->lex;
+  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  int res= 0;
+  STATUS_VAR tmp;
+
+  if (lex->option_type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_status);
+    calc_sum_of_all_status(&tmp);
+  }
+  res= mysqld_show(thd, wild, status_vars, OPT_GLOBAL, &LOCK_status,
+                   (lex->option_type == OPT_GLOBAL ?
+                    &tmp: &thd->status_var), tables->table);
+  if (lex->option_type == OPT_GLOBAL)
+    pthread_mutex_unlock(&LOCK_status);
+  DBUG_RETURN(res);
+}
+
+
 /*
   Find schema_tables elment by name
 
@@ -3353,6 +3193,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   table->next= thd->derived_tables;
   thd->derived_tables= table;
   table_list->select_lex->options |= OPTION_SCHEMA_TABLE;
+  lex->safe_to_cache_query= 0;
   DBUG_RETURN(0);
 }
 
@@ -3690,6 +3531,24 @@ ST_FIELD_INFO table_names_fields_info[]=
 };
 
 
+ST_FIELD_INFO open_tables_fields_info[]=
+{
+  {"Database", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
+  {"Table",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
+  {"In_use", 1, MYSQL_TYPE_LONG, 0, 0, "In_use"},
+  {"Name_locked", 4, MYSQL_TYPE_LONG, 0, 0, "Name_locked"},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
+ST_FIELD_INFO variables_fields_info[]=
+{
+  {"Variable_name", 80, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
+  {"Value", 255, MYSQL_TYPE_STRING, 0, 0, "Value"},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 */
@@ -3728,6 +3587,12 @@ ST_SCHEMA_TABLE schema_tables[]=
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
    get_all_tables, make_table_names_old_format, 0, 1, 2, 1},
+  {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
+   fill_open_tables, make_old_format, 0, -1, -1, 1},
+  {"STATUS", variables_fields_info, create_schema_table, fill_status, 
+   make_old_format, 0, -1, -1, 1},
+  {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
+   make_old_format, 0, -1, -1, 1},
   {0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 

@@ -103,7 +103,7 @@ page_dir_find_owner_slot(
 			(ulong) buf_frame_get_page_no(page));
 
 			if (comp) {
-				fputs("(compact record)\n", stderr);
+				fputs("(compact record)", stderr);
 			} else {
 				rec_print_old(stderr, original_rec);
 			}
@@ -113,7 +113,11 @@ page_dir_find_owner_slot(
 			fputs(
 			"InnoDB: Cannot find the dir slot for record ",
 				stderr);
-			rec_print(stderr, rec, NULL);
+			if (comp) {
+				fputs("(compact record)", stderr);
+			} else {
+				rec_print_old(stderr, rec);
+			}
 			fputs("\n"
 			"InnoDB: on that page!\n", stderr);
 

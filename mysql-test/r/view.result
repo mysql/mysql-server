@@ -659,7 +659,7 @@ ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 
 update v2 set c=a+c;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
 update t2,v3 set v3.a=v3.a+v3.c where t2.x=v3.c;
-ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'a' in table 'v3'
+ERROR 42000: update command denied to user 'mysqltest_1'@'localhost' for table 'v3'
 update v3 set a=a+c;
 ERROR 42000: update command denied to user 'mysqltest_1'@'localhost' for table 'v3'
 use test;
@@ -1433,8 +1433,7 @@ insert into v1 values (1) on duplicate key update a=2;
 insert into v1 values (1) on duplicate key update a=2;
 ERROR HY000: CHECK OPTION failed 'test.v1'
 insert ignore into v1 values (1) on duplicate key update a=2;
-Warnings:
-Error	1369	CHECK OPTION failed 'test.v1'
+ERROR HY000: CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1

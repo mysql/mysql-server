@@ -880,7 +880,6 @@ rec_get_nth_field(
 	length = rec_offs_base(offsets)[1 + n];
 
 	if (length & REC_OFFS_SQL_NULL) {
-		field = NULL;
 		length = UNIV_SQL_NULL;
 	} else {
 		length &= REC_OFFS_MASK;
@@ -1185,6 +1184,7 @@ rec_set_nth_field(
 	byte*	data2;
 	ulint	len2;
 
+	ut_ad(rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (len == UNIV_SQL_NULL) {
@@ -1195,14 +1195,15 @@ rec_set_nth_field(
 	}
 
 	data2 = rec_get_nth_field(rec, offsets, n, &len2);
-	ut_ad(len2 == len);
-
-	ut_memcpy(data2, data, len);
-
 	if (len2 == UNIV_SQL_NULL) {
 		ut_ad(!rec_offs_comp(offsets));
 		rec_set_nth_field_null_bit(rec, n, FALSE);
+		ut_ad(len == rec_get_nth_field_size(rec, n));
+	} else {
+		ut_ad(len2 == len);
 	}
+
+	ut_memcpy(data2, data, len);
 }
 
 /************************************************************** 

@@ -333,7 +333,6 @@ int spawn(char *path, arg_list_t *al, int join, char *input,
   PROCESS_INFORMATION process_information;
   DWORD exit_code;
   char win_args[1024]= "";
-  char command_line[1024]= "";
 
   /* Skip the first parameter */
   for (i= 1; i < al->argc; i++)
@@ -724,7 +723,7 @@ int removef(const char *format, ...)
   va_end(ap);
   return remove(path);
 
-#eldef __WIN__
+#elif __WIN__
   {
     va_list ap;
     char path[FN_REFLEN];
