@@ -219,6 +219,7 @@ int runScanReadVerify(NDBT_Context* ctx, NDBT_Step* step){
 int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
+  int sync_threads = ctx->getProperty("SyncThreads", (unsigned)0);
   NdbRestarter restarter;
   int i = 0;
   int lastId = 0;
@@ -235,7 +236,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   
   loops *= restarter.getNumDbNodes();
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
-    
+
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl; 
@@ -251,7 +252,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
       break;
     }
 
-    NdbSleep_SecSleep(1);
+    ctx->sync_up_and_wait("PauseThreads", sync_threads);
 
     lastId++;
     i++;
@@ -290,6 +291,32 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }    
+    i++;
+  }
+  return result;
+}
+
+int runDirtyRead(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  
+  int i = 0;
+  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
+    g_info << i << ": ";
+
+    int id = i % restarter.getNumDbNodes();
+    int nodeId = restarter.getDbNodeId(id);
+    ndbout << "Restart node " << nodeId << endl; 
+    restarter.insertErrorInNode(nodeId, 5041);
+    restarter.insertErrorInAllNodes(8048);
+    
+    if (hugoTrans.pkReadRecords(GETNDB(step), 1, 1, 
+				NdbOperation::LM_CommittedRead) != 0)
+    {
+      return NDBT_FAILED;
+    }
     i++;
   }
   return result;
@@ -543,6 +570,12 @@ TESTCASE("StopOnError",
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
   FINALIZER(runScanReadVerify);
+  FINALIZER(runClearTable);
+}
+TESTCASE("CommittedRead", 
+	 "Test committed read"){ 
+  INITIALIZER(runLoadTable);
+  STEP(runDirtyRead);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
