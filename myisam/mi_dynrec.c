@@ -62,8 +62,8 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
 
   extra=ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
     MI_DYN_DELETE_BLOCK_HEADER+1;
-  reclength=info->s->base.pack_reclength+
-    _my_calc_total_blob_length(info,record)+ extra;
+  reclength= (info->s->base.pack_reclength+ info->s->base.pack_bits+
+	      _my_calc_total_blob_length(info,record)+ extra);
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
     my_errno=HA_ERR_TO_BIG_ROW;
