@@ -1781,7 +1781,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     goto set_params_data_err;
 #endif
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
-  execute_stmt(thd, stmt, &expanded_query, true);
+  execute_stmt(thd, stmt, &expanded_query, TRUE);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
   DBUG_VOID_RETURN;
 
@@ -1834,7 +1834,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     send_error(thd);
   }
-  execute_stmt(thd, stmt, &expanded_query, false);
+  execute_stmt(thd, stmt, &expanded_query, FALSE);
   DBUG_VOID_RETURN;
 }
 

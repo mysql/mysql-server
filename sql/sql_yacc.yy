@@ -843,14 +843,14 @@ prepare_src:
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
           lex->prepared_stmt_code= $1;
-          lex->prepared_stmt_code_is_varref= false;
+          lex->prepared_stmt_code_is_varref= FALSE;
         }
         | '@' ident_or_text
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
           lex->prepared_stmt_code= $2;
-          lex->prepared_stmt_code_is_varref= true;
+          lex->prepared_stmt_code_is_varref= TRUE;
         };
 
 execute:

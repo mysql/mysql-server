@@ -2249,7 +2249,7 @@ static void mysql_close_free(MYSQL *mysql)
       stmt_list  pointer to mysql->stmts
 */
 
-void mysql_detach_stmt_list(LIST **stmt_list)
+void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)))
 {
 #ifdef MYSQL_CLIENT
   /* Reset connection handle in all prepared statements. */

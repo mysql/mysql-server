@@ -1368,7 +1368,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       */
       if (discover_retry_count++ != 0)
        goto err;
-      if (ha_create_table_from_engine(thd, db, name, true) != 0)
+      if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
        goto err;
 
       thd->clear_error(); // Clear error message
@@ -2846,8 +2846,15 @@ void flush_tables()
 
 
 /*
-** Mark all entries with the table as deleted to force an reopen of the table
-** Returns true if the table is in use by another thread
+  Mark all entries with the table as deleted to force an reopen of the table
+
+  The table will be closed (not stored in cache) by the current thread when
+  close_thread_tables() is called.
+
+  RETURN
+    0  This thread now have exclusive access to this table and no other thread
+       can access the table until close_thread_tables() is called.
+    1  Table is in use by another thread
 */
 
 bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,

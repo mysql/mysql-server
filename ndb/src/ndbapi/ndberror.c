@@ -492,6 +492,7 @@ static
 const
 int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
+#ifdef NOT_USED
 /**
  * Complete all fields of an NdbError given the error code
  * and details
@@ -507,7 +508,7 @@ set(ndberror_struct * error, int code, const char * details, ...){
     va_end(ap);
   }
 }
-
+#endif
 
 void
 ndberror_update(ndberror_struct * error){
