@@ -902,11 +902,10 @@ class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
   user_var_entry *var_entry;
-  bool const_var_flag;
 
 public:
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), name(a), const_var_flag(1) {}
+    Item_func(), name(a) {}
   user_var_entry *get_entry();
   double val();
   longlong val_int();
@@ -915,9 +914,9 @@ public:
   void print(String *str);
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
-  bool const_item() const { return const_var_flag; }
+  bool const_item() const;
   table_map used_tables() const
-  { return const_var_flag ? 0 : RAND_TABLE_BIT; }
+  { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
   unsigned int size_of() { return sizeof(*this);}  
 };
