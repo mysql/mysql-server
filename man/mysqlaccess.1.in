@@ -1,7 +1,6 @@
 .TH mysqlaccess 1 "19 December 2000" "MySQL @MYSQL_BASE_VERSION@" "MySQL database"
 .SH NAME
-.BR mysqlaccess
- \- Create new users to mysql.
+.BR mysqlaccess \- Create new users to mysql.
 .SH USAGE
 mysqlaccess [host [user [db]]] OPTIONS
 .SH SYNOPSIS

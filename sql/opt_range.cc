@@ -629,7 +629,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!records)
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
-  read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  read_time=(double) head->file->scan_time()+ scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -749,6 +749,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 						      param.range_count,
 						      found_records)+
 				(double) found_records / TIME_FOR_COMPARE);
+            DBUG_PRINT("info",("read_time: %g  found_read_time: %g",
+                               read_time, found_read_time));
 	    if (read_time > found_read_time && found_records != HA_POS_ERROR)
 	    {
 	      read_time=found_read_time;

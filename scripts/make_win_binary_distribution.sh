@@ -110,6 +110,9 @@ print_debug "Copying sql-bench to $DIRNAME/bench"
 mkdir $DIRNAME/bench
 cp -fr sql-bench/* $DIRNAME/bench
 
+print_debug "Copying support-files to $DIRNAME"
+cp support-files/* $DIRNAME
+
 # Files for bin
 for i in client_release/* client_debug/mysqld.exe lib_release/libmySQL.dll
 do
@@ -124,7 +127,7 @@ do
   cp $i $DIRNAME/include
 done
 
-# Windows users are used to having dbug.h
+# Windows users are used to having dbug.h ?
 cp include/my_dbug.h $DIRNAME/include/dbug.h
 
 # Libraries found in lib_release and lib_debug

@@ -117,7 +117,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   {
     DBUG_PRINT("info",("using rr_sequential"));
     info->read_record=rr_sequential;
-    table->file->ha_rnd_init();
+    table->file->ha_rnd_init(1);
     /* We can use record cache if we don't update dynamic length tables */
     if (!table->no_cache &&
 	(use_record_cache > 0 ||

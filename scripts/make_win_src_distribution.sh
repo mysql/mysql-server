@@ -288,6 +288,12 @@ do
 done
 
 #
+# support files
+#
+mkdir $BASE/support-files
+cp support-files/*.cnf $BASE/support-files
+
+#
 # Raw dirs from source tree
 #
 
@@ -308,7 +314,6 @@ done
 ./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' > $BASE/sql/sql_yacc.cpp-new
 mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
 
-
 unix_to_dos $BASE/README
 mv $BASE/README $BASE/README.txt
 
@@ -318,7 +323,7 @@ mv $BASE/README $BASE/README.txt
 
 if [ -d $BASE/SSL/SCCS ]
 then
-  find $BASE -type d -name SCCS | xargs rm -r -f
+  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
 
 #
