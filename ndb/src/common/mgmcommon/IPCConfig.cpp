@@ -111,175 +111,6 @@ IPCConfig::addRemoteNodeId(NodeId nodeId){
 }
 
 /**
- * Returns no of transporters configured
- */
-int
-IPCConfig::configureTransporters(TransporterRegistry * theTransporterRegistry){
-  int noOfTransportersCreated = 0;
-
-  Uint32 noOfConnections;
-  if(!props->get("NoOfConnections", &noOfConnections)) return -1;
-  
-  for (Uint32 i = 0; i < noOfConnections; i++){
-    const Properties * tmp;
-    Uint32 nodeId1, nodeId2;
-    const char * host1;
-    const char * host2;
-
-    if(!props->get("Connection", i, &tmp)) continue;
-    if(!tmp->get("NodeId1", &nodeId1)) continue;
-    if(!tmp->get("NodeId2", &nodeId2)) continue;
-    if(nodeId1 != the_ownId && nodeId2 != the_ownId) continue;
-
-    Uint32 sendSignalId;
-    Uint32 compression;
-    Uint32 checksum;
-    if(!tmp->get("SendSignalId", &sendSignalId)) continue;
-    if(!tmp->get("Checksum", &checksum)) continue;
-    
-    const char * type;
-    if(!tmp->get("Type", &type)) continue;
-
-    if(strcmp("SHM", type) == 0){
-      SHM_TransporterConfiguration conf;
-      conf.localNodeId  = the_ownId;
-      conf.remoteNodeId = (nodeId1 != the_ownId ? nodeId1 : nodeId2);
-      conf.checksum     = checksum;
-      conf.signalId     = sendSignalId;
-
-      if(!tmp->get("ShmKey", &conf.shmKey)) continue;
-      if(!tmp->get("ShmSize", &conf.shmSize)) continue;
-
-      if(!theTransporterRegistry->createTransporter(&conf)){
-	ndbout << "Failed to create SHM Transporter from: " 
-	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
-	continue;
-      } else {
-	noOfTransportersCreated++;
-	continue;
-      }
-
-    } else if(strcmp("SCI", type) == 0){
-      SCI_TransporterConfiguration conf;
-      conf.localNodeId  = the_ownId;
-      conf.remoteNodeId = (nodeId1 != the_ownId ? nodeId1 : nodeId2);
-      conf.checksum     = checksum;
-      conf.signalId     = sendSignalId;
-    
-      if(!tmp->get("SendLimit", &conf.sendLimit)) continue;
-      if(!tmp->get("SharedBufferSize", &conf.bufferSize)) continue;
-
-      if(the_ownId == nodeId1){
-	if(!tmp->get("Node1_NoOfAdapters", &conf.nLocalAdapters)) continue;
-	if(!tmp->get("Node2_Adapter", 0, &conf.remoteSciNodeId0)) continue;
-	
-	if(conf.nLocalAdapters > 1){
-	  if(!tmp->get("Node2_Adapter", 1, &conf.remoteSciNodeId1)) continue;
-	}
-      } else {
-	if(!tmp->get("Node2_NoOfAdapters", &conf.nLocalAdapters)) continue;
-	if(!tmp->get("Node1_Adapter", 0, &conf.remoteSciNodeId0)) continue;
-	
-	if(conf.nLocalAdapters > 1){
-	  if(!tmp->get("Node1_Adapter", 1, &conf.remoteSciNodeId1)) continue;
-	}
-      }
-
-      if(!theTransporterRegistry->createTransporter(&conf)){
-	ndbout << "Failed to create SCI Transporter from: " 
-	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
-	continue;
-      } else {
-	noOfTransportersCreated++;
-	continue;
-      }
-    }
-    
-    if(!tmp->get("HostName1", &host1)) continue;
-    if(!tmp->get("HostName2", &host2)) continue;
-
-    Uint32 ownNodeId;
-    Uint32 remoteNodeId;
-    const char * ownHostName;
-    const char * remoteHostName;
-
-    if(nodeId1 == the_ownId){
-      ownNodeId      = nodeId1;
-      ownHostName    = host1;
-      remoteNodeId   = nodeId2;
-      remoteHostName = host2;
-    } else if(nodeId2 == the_ownId){
-      ownNodeId      = nodeId2;
-      ownHostName    = host2;
-      remoteNodeId   = nodeId1;
-      remoteHostName = host1;
-    } else {
-      continue;
-    }
-    
-    if(strcmp("TCP", type) == 0){
-      TCP_TransporterConfiguration conf;
-      
-      if(!tmp->get("PortNumber", &conf.port)) continue;
-      if(!tmp->get("SendBufferSize", &conf.sendBufferSize)) continue;
-      if(!tmp->get("MaxReceiveSize", &conf.maxReceiveSize)) continue;
-      
-      const char * proxy;
-      if (tmp->get("Proxy", &proxy)) {
-	if (strlen(proxy) > 0 && nodeId2 == the_ownId) {
-	  // TODO handle host:port
-	  conf.port = atoi(proxy);
-	}
-      }
-      conf.sendBufferSize *= MAX_MESSAGE_SIZE;
-      conf.maxReceiveSize *= MAX_MESSAGE_SIZE;
-      
-      conf.remoteHostName = remoteHostName;
-      conf.localHostName  = ownHostName;
-      conf.remoteNodeId   = remoteNodeId;
-      conf.localNodeId    = ownNodeId;
-      conf.checksum       = checksum;
-      conf.signalId       = sendSignalId;
-
-      if(!theTransporterRegistry->createTransporter(&conf)){
-	ndbout << "Failed to create TCP Transporter from: " 
-	       << ownNodeId << " to: " << remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
-      }
-
-    } else if(strcmp("OSE", type) == 0){
-
-      OSE_TransporterConfiguration conf;
-
-      if(!tmp->get("PrioASignalSize", &conf.prioASignalSize))
-	continue;
-      if(!tmp->get("PrioBSignalSize", &conf.prioBSignalSize))
-	continue;
-      if(!tmp->get("ReceiveArraySize", &conf.receiveBufferSize))
-	continue;
-      
-      conf.remoteHostName = remoteHostName;
-      conf.localHostName  = ownHostName;
-      conf.remoteNodeId   = remoteNodeId;
-      conf.localNodeId    = ownNodeId;
-      conf.checksum       = checksum;
-      conf.signalId       = sendSignalId;
-
-      if(!theTransporterRegistry->createTransporter(&conf)){
-	ndbout << "Failed to create OSE Transporter from: " 
-	       << ownNodeId << " to: " << remoteNodeId << endl;
-      } else {
-	noOfTransportersCreated++;
-      }
-    } else {
-      continue;
-    }
-  }
-  return noOfTransportersCreated;
-}
-
-/**
  * Supply a nodeId,
  *  and get next higher node id
  * Returns false if none found
@@ -335,6 +166,8 @@ Uint32
 IPCConfig::configureTransporters(Uint32 nodeId,
 				 const class ndb_mgm_configuration & config,
 				 class TransporterRegistry & tr){
+  TransporterConfiguration conf;
+
   DBUG_ENTER("IPCConfig::configureTransporters");
 
   Uint32 noOfTransportersCreated= 0;
@@ -368,32 +201,68 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
     Uint32 server_port= 0;
     if(iter.get(CFG_CONNECTION_SERVER_PORT, &server_port)) break;
-    if (nodeId <= nodeId1 && nodeId <= nodeId2) {
+    
+    /*
+      We check the node type. MGM node becomes server.
+    */
+    Uint32 node1type, node2type;
+    ndb_mgm_configuration_iterator node1iter(config, CFG_SECTION_NODE);
+    ndb_mgm_configuration_iterator node2iter(config, CFG_SECTION_NODE);
+    node1iter.find(CFG_NODE_ID,nodeId1);
+    node2iter.find(CFG_NODE_ID,nodeId2);
+    node1iter.get(CFG_TYPE_OF_SECTION,&node1type);
+    node2iter.get(CFG_TYPE_OF_SECTION,&node2type);
+
+    conf.serverNodeId= (nodeId1 < nodeId2)? nodeId1:nodeId2;
+
+    conf.isMgmConnection= false;
+    if(node2type==NODE_TYPE_MGM)
+    {
+      conf.isMgmConnection= true;
+      conf.serverNodeId= nodeId2;
+    }
+    else if(node1type==NODE_TYPE_MGM)
+    {
+      conf.isMgmConnection= true;
+      conf.serverNodeId= nodeId1;
+    }
+    else if (nodeId == conf.serverNodeId) {
       tr.add_transporter_interface(remoteNodeId, localHostName, server_port);
     }
+
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
                nodeId, remoteNodeId, server_port, sendSignalId, checksum));
+    /*
+      This may be a dynamic port. It depends on when we're getting
+      our configuration. If we've been restarted, we'll be getting
+      a configuration with our old dynamic port in it, hence the number
+      here is negative (and we try the old port number first).
+
+      On a first-run, server_port will be zero (with dynamic ports)
+
+      If we're not using dynamic ports, we don't do anything.
+    */
+    if((int)server_port<0)
+      server_port= -server_port;
+
+    conf.localNodeId    = nodeId;
+    conf.remoteNodeId   = remoteNodeId;
+    conf.checksum       = checksum;
+    conf.signalId       = sendSignalId;
+    conf.port           = server_port;
+    conf.localHostName  = localHostName;
+    conf.remoteHostName = remoteHostName;
+
     switch(type){
-    case CONNECTION_TYPE_SHM:{
-      SHM_TransporterConfiguration conf;
-      conf.localNodeId  = nodeId;
-      conf.remoteNodeId = remoteNodeId;
-      conf.checksum     = checksum;
-      conf.signalId     = sendSignalId;
-      
-      if(iter.get(CFG_SHM_KEY, &conf.shmKey)) break;
-      if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shmSize)) break;
-      {
-	Uint32 tmp;
-	if(iter.get(CFG_SHM_SIGNUM, &tmp)) break;
-	conf.signum= tmp;
-      }
+    case CONNECTION_TYPE_SHM:
+      if(iter.get(CFG_SHM_KEY, &conf.shm.shmKey)) break;
+      if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shm.shmSize)) break;
 
-      conf.port= server_port;
-      conf.localHostName  = localHostName;
-      conf.remoteHostName = remoteHostName;
+      Uint32 tmp;
+      if(iter.get(CFG_SHM_SIGNUM, &tmp)) break;
+      conf.shm.signum= tmp;
 
-      if(!tr.createTransporter(&conf)){
+      if(!tr.createSHMTransporter(&conf)){
         DBUG_PRINT("error", ("Failed to create SHM Transporter from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
 	ndbout << "Failed to create SHM Transporter from: " 
@@ -401,60 +270,53 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       } else {
 	noOfTransportersCreated++;
       }
-      DBUG_PRINT("info", ("Created SHM Transporter using shmkey %d, buf size = %d",
-                 conf.shmKey, conf.shmSize));
-      break;
-    }
-    case CONNECTION_TYPE_SCI:{
-      SCI_TransporterConfiguration conf;
-      conf.localNodeId  = nodeId;
-      conf.remoteNodeId = remoteNodeId;
-      conf.checksum     = checksum;
-      conf.signalId     = sendSignalId;
-      conf.port= server_port;
-      
-      conf.localHostName  = localHostName;
-      conf.remoteHostName = remoteHostName;
+      DBUG_PRINT("info", ("Created SHM Transporter using shmkey %d, "
+			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
 
-      if(iter.get(CFG_SCI_SEND_LIMIT, &conf.sendLimit)) break;
-      if(iter.get(CFG_SCI_BUFFER_MEM, &conf.bufferSize)) break;
+      break;
+
+    case CONNECTION_TYPE_SCI:
+      if(iter.get(CFG_SCI_SEND_LIMIT, &conf.sci.sendLimit)) break;
+      if(iter.get(CFG_SCI_BUFFER_MEM, &conf.sci.bufferSize)) break;
       if (nodeId == nodeId1) {
-        if(iter.get(CFG_SCI_HOST2_ID_0, &conf.remoteSciNodeId0)) break;
-        if(iter.get(CFG_SCI_HOST2_ID_1, &conf.remoteSciNodeId1)) break;
+        if(iter.get(CFG_SCI_HOST2_ID_0, &conf.sci.remoteSciNodeId0)) break;
+        if(iter.get(CFG_SCI_HOST2_ID_1, &conf.sci.remoteSciNodeId1)) break;
       } else {
-        if(iter.get(CFG_SCI_HOST1_ID_0, &conf.remoteSciNodeId0)) break;
-        if(iter.get(CFG_SCI_HOST1_ID_1, &conf.remoteSciNodeId1)) break;
+        if(iter.get(CFG_SCI_HOST1_ID_0, &conf.sci.remoteSciNodeId0)) break;
+        if(iter.get(CFG_SCI_HOST1_ID_1, &conf.sci.remoteSciNodeId1)) break;
       }
-      if (conf.remoteSciNodeId1 == 0) {
-        conf.nLocalAdapters = 1;
+      if (conf.sci.remoteSciNodeId1 == 0) {
+        conf.sci.nLocalAdapters = 1;
       } else {
-        conf.nLocalAdapters = 2;
+        conf.sci.nLocalAdapters = 2;
       }
-     if(!tr.createTransporter(&conf)){
+     if(!tr.createSCITransporter(&conf)){
         DBUG_PRINT("error", ("Failed to create SCI Transporter from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
 	ndbout << "Failed to create SCI Transporter from: " 
 	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
       } else {
-        DBUG_PRINT("info", ("Created SCI Transporter: Adapters = %d, remote SCI node id %d",
-                   conf.nLocalAdapters, conf.remoteSciNodeId0));
-        DBUG_PRINT("info", ("Host 1 = %s, Host 2 = %s, sendLimit = %d, buf size = %d",
-                   conf.localHostName, conf.remoteHostName, conf.sendLimit, conf.bufferSize));
-        if (conf.nLocalAdapters > 1) {
-          DBUG_PRINT("info", ("Fault-tolerant with 2 Remote Adapters, second remote SCI node id = %d",
-                     conf.remoteSciNodeId1)); 
+        DBUG_PRINT("info", ("Created SCI Transporter: Adapters = %d, "
+			    "remote SCI node id %d",
+                   conf.sci.nLocalAdapters, conf.sci.remoteSciNodeId0));
+        DBUG_PRINT("info", ("Host 1 = %s, Host 2 = %s, sendLimit = %d, "
+			    "buf size = %d", conf.localHostName,
+			    conf.remoteHostName, conf.sci.sendLimit,
+			    conf.sci.bufferSize));
+        if (conf.sci.nLocalAdapters > 1) {
+          DBUG_PRINT("info", ("Fault-tolerant with 2 Remote Adapters, "
+			      "second remote SCI node id = %d",
+			      conf.sci.remoteSciNodeId1)); 
         }
 	noOfTransportersCreated++;
 	continue;
       }
-    }
-    case CONNECTION_TYPE_TCP:{
-      TCP_TransporterConfiguration conf;
+     break;
+
+    case CONNECTION_TYPE_TCP:
+      if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.tcp.sendBufferSize)) break;
+      if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.tcp.maxReceiveSize)) break;
       
-      if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.sendBufferSize)) break;
-      if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.maxReceiveSize)) break;
-      
-      conf.port= server_port;
       const char * proxy;
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {
 	if (strlen(proxy) > 0 && nodeId2 == nodeId) {
@@ -463,50 +325,35 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 	}
       }
       
-      conf.localNodeId    = nodeId;
-      conf.remoteNodeId   = remoteNodeId;
-      conf.localHostName  = localHostName;
-      conf.remoteHostName = remoteHostName;
-      conf.checksum       = checksum;
-      conf.signalId       = sendSignalId;
-      
-      if(!tr.createTransporter(&conf)){
+      if(!tr.createTCPTransporter(&conf)){
 	ndbout << "Failed to create TCP Transporter from: " 
 	       << nodeId << " to: " << remoteNodeId << endl;
       } else {
 	noOfTransportersCreated++;
       }
-      DBUG_PRINT("info", ("Created TCP Transporter: sendBufferSize = %d, maxReceiveSize = %d",
-                 conf.sendBufferSize, conf.maxReceiveSize));
+      DBUG_PRINT("info", ("Created TCP Transporter: sendBufferSize = %d, "
+			  "maxReceiveSize = %d", conf.tcp.sendBufferSize,
+			  conf.tcp.maxReceiveSize));
       break;
-    case CONNECTION_TYPE_OSE:{
-      OSE_TransporterConfiguration conf;
-
-      if(iter.get(CFG_OSE_PRIO_A_SIZE, &conf.prioASignalSize)) break;
-      if(iter.get(CFG_OSE_PRIO_B_SIZE, &conf.prioBSignalSize)) break;
-      if(iter.get(CFG_OSE_RECEIVE_ARRAY_SIZE, &conf.receiveBufferSize)) break;
+    case CONNECTION_TYPE_OSE:
+      if(iter.get(CFG_OSE_PRIO_A_SIZE, &conf.ose.prioASignalSize)) break;
+      if(iter.get(CFG_OSE_PRIO_B_SIZE, &conf.ose.prioBSignalSize)) break;
       
-      conf.localNodeId    = nodeId;
-      conf.remoteNodeId   = remoteNodeId;
-      conf.localHostName  = localHostName;
-      conf.remoteHostName = remoteHostName;
-      conf.checksum       = checksum;
-      conf.signalId       = sendSignalId;
-      
-      if(!tr.createTransporter(&conf)){
+      if(!tr.createOSETransporter(&conf)){
 	ndbout << "Failed to create OSE Transporter from: " 
 	       << nodeId << " to: " << remoteNodeId << endl;
       } else {
 	noOfTransportersCreated++;
       }
-    }
+      break;
+
     default:
       ndbout << "Unknown transporter type from: " << nodeId << 
 	" to: " << remoteNodeId << endl;
       break;
-    }
-    }
-  }
+    } // switch
+  } // for
+
   DBUG_RETURN(noOfTransportersCreated);
 }
   

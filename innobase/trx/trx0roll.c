@@ -52,6 +52,7 @@ trx_general_rollback_for_mysql(
 	trx_savept_t*	savept)	/* in: pointer to savepoint undo number, if
 				partial rollback requested */
 {
+#ifndef UNIV_HOTBACKUP
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
@@ -103,6 +104,12 @@ trx_general_rollback_for_mysql(
 	srv_active_wake_master_thread();
 
 	return((int) trx->error_state);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /***********************************************************************
@@ -312,6 +319,51 @@ trx_savepoint_for_mysql(
 	savep->mysql_binlog_cache_pos = binlog_cache_pos;
 
 	UT_LIST_ADD_LAST(trx_savepoints, trx->trx_savepoints, savep);
+
+	return(DB_SUCCESS);
+}
+
+/***********************************************************************
+Releases a named savepoint. Savepoints which
+were set after this savepoint are deleted. */
+
+ulint
+trx_release_savepoint_for_mysql(
+/*============================*/
+						/* out: if no savepoint
+						of the name found then
+						DB_NO_SAVEPOINT,
+						otherwise DB_SUCCESS */
+	trx_t*		trx,			/* in: transaction handle */
+	const char*	savepoint_name)		/* in: savepoint name */
+{
+	trx_named_savept_t*	savep;
+
+	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+
+	while (savep != NULL) {
+	        if (0 == ut_strcmp(savep->name, savepoint_name)) {
+		        /* Found */
+			break;
+		}
+	        savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
+	}
+
+	if (savep == NULL) {	
+
+	        return(DB_NO_SAVEPOINT);
+	}
+
+	/* We can now free all savepoints strictly later than this one */
+
+	trx_roll_savepoints_free(trx, savep);
+	
+	/* Now we can free this savepoint too */
+
+	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+
+	mem_free(savep->name);
+	mem_free(savep);
 
 	return(DB_SUCCESS);
 }

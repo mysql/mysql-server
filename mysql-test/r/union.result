@@ -565,7 +565,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` double(53,1) NOT NULL default '0.0'
+  `a` decimal(20,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -788,11 +788,11 @@ create table t3 select * from t2 union select * from t1;
 select * from t3;
 d
 1.234567800
-100000000.0
+100000000.000000000
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `d` decimal(10,9) default NULL
+  `d` decimal(19,9) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2,t3;
 create table t1 select 1 union select -1;
@@ -1137,3 +1137,39 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 drop table t2;
+create table t1(a1 int, f1 char(10));
+create table t2
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+union
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+order by f2, a1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+f2	date	YES		NULL	
+a1	int(11)	YES		NULL	
+drop table t1, t2;
+create table t1 (f1 int);
+create table t2 (f1 int, f2 int ,f3 date);
+create table t3 (f1 int, f2 char(10));
+create table t4
+(
+select t2.f3 as sdate
+from t1
+left outer join t2 on (t1.f1 = t2.f1)
+inner join t3 on (t2.f2 = t3.f1)
+order by t1.f1, t3.f1, t2.f3
+)
+union
+(
+select cast('2004-12-31' as date) as sdate
+from t1
+left outer join t2 on (t1.f1 = t2.f1)
+inner join t3 on (t2.f2 = t3.f1)
+group by t1.f1
+order by t1.f1, t3.f1, t2.f3
+)
+order by sdate;
+show columns from t4;
+Field	Type	Null	Key	Default	Extra
+sdate	date	YES		NULL	
+drop table t1, t2, t3, t4;

@@ -110,7 +110,7 @@ struct MgmGlobals {
   NodeId localNodeId;
   bool use_specific_ip;
   char * interface_name;
-  int port;
+  short unsigned int port;
   
   /** The Mgmt Server */
   MgmtSrvr * mgmObject;
@@ -258,7 +258,7 @@ int main(int argc, char** argv)
     glob.interface_name = 0;
   }
 
-  if(!glob.socketServer->setup(mapi, glob.port, glob.interface_name)){
+  if(!glob.socketServer->setup(mapi, &glob.port, glob.interface_name)){
     ndbout_c("Unable to setup management port: %d!\n"
 	     "Please check if the port is already used,\n"
 	     "(perhaps a ndb_mgmd is already running),\n"
@@ -267,12 +267,35 @@ int main(int argc, char** argv)
     delete mapi;
     goto error_end;
   }
-  
+
+  /* Construct a fake connectstring to connect back to ourselves */
+  char connect_str[20];
+  if(!opt_connect_str) {
+    snprintf(connect_str,20,"localhost:%u",glob.mgmObject->getPort());
+    opt_connect_str= connect_str;
+  }
+  glob.mgmObject->set_connect_string(opt_connect_str);
+
   if(!glob.mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
     goto error_end;
   }
+
+  /* 
+   * Connect back to ourselves so we can use mgmapi to fetch
+   * config info
+   */
+  int mgm_connect_result;
+  mgm_connect_result = glob.mgmObject->get_config_retriever()->
+    do_connect(0,0,0);
+
+  if(mgm_connect_result<0) {
+    ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
+	     mgm_connect_result);
+    ndbout_c("This is probably a bug.");
+  }
+  
 
   if (glob.daemon) {
     // Become a daemon

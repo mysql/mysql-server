@@ -894,7 +894,7 @@ drop table t1;
 #
 # IN optimisation test results
 #
-create table t1 (s1 char(5) not null, index s1(s1));
+create table t1 (s1 char(5), index s1(s1));
 create table t2 (s1 char(5), index s1(s1));
 insert into t1 values ('a1'),('a2'),('a3');
 insert into t2 values ('a1'),('a2');
@@ -1393,34 +1393,9 @@ SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 
 drop table t1;
 
 #
-# Test cases for bug #7351:
-# quantified predicate with subquery returning empty result set
-#
-
-CREATE TABLE t1 ( f1 BIGINT );
-INSERT INTO t1 SET f1= NULL;
-INSERT INTO t1 SET f1= 1;
-CREATE TABLE t2 ( f1 BIGINT );
-
-SELECT f1 FROM t1
-  WHERE  f1 <> ALL ( SELECT f1 FROM t2 );
-
-INSERT INTO t2 VALUES (1), (2);
-
-SELECT f1 FROM t1
-  WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2 );
-
-SELECT f1 FROM t1
-  WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2
-                    UNION
-                    SELECT f1 FROM t2 WHERE f1 > 3);
-
-SELECT f1 FROM t1
-   WHERE f1 <> ALL ( SELECT SUM(f1) AS sf1 FROM t2 HAVING sf1 > 10000);
-
-drop table t1,t2;
 # Test for BUG#7885: Server crash when 'any' subselect compared to
 # non-existant field.
+#
 create table t1 (a1 int);
 create table t2 (b1 int);
 --error 1054
@@ -1428,3 +1403,42 @@ select * from t1 where a2 > any(select b1 from t2);
 select * from t1 where a1 > any(select b1 from t2);
 drop table t1,t2;
 
+
+#
+# Comparison subquery with * and row
+#
+create table t1 (a integer, b integer);
+select (select * from t1) = (select 1,2);
+select (select 1,2) = (select * from t1);
+# queries whih can be converted to IN
+select  row(1,2) = ANY (select * from t1);
+select  row(1,2) != ALL (select * from t1);
+drop table t1;
+
+#
+# Comparison subquery and row with nested rows
+#
+create table t1 (a integer, b integer);
+-- error 1241
+select row(1,(2,2)) in (select * from t1 );
+-- error 1241
+select row(1,(2,2)) = (select * from t1 );
+-- error 1241
+select (select * from t1) = row(1,(2,2));
+drop table t1;
+
+#
+# Forward reference detection
+#
+create  table t1 (a integer);
+insert into t1 values (1);
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
+drop table t1;

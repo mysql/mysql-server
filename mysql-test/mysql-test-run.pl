@@ -84,10 +84,11 @@ use Sys::Hostname;
 #use Carp;
 use IO::Socket;
 use IO::Socket::INET;
-use Data::Dumper;
+#use Data::Dumper;
 use strict;
 #use diagnostics;
 
+require "lib/mtr_cases.pl";
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
@@ -165,14 +166,12 @@ our $glob_user=                   'test';
 our $glob_use_embedded_server=    0;
 
 our $glob_basedir;
-our $glob_do_test;
 
 # The total result
 
 our $path_charsetsdir;
 our $path_client_bindir;
 our $path_language;
-our $path_tests_bindir;
 our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
 our $path_slave_load_tmpdir;     # What is this?!
@@ -192,8 +191,10 @@ our $exe_master_mysqld;
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqlbinlog;
+our $exe_mysql_client_test;
 our $exe_mysqld;
 our $exe_mysqldump;              # Called from test case
+our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
 our $exe_slave_mysqld;
 
@@ -208,6 +209,7 @@ our $opt_current_test;
 our $opt_ddd;
 our $opt_debug;
 our $opt_do_test;
+our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 our $opt_extern;
 our $opt_fast;
@@ -232,8 +234,6 @@ our $opt_local_master;
 our $master;                    # Will be struct in C
 our $slave;
 
-our $opt_master_myport;
-our $opt_slave_myport;
 our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
 
@@ -284,6 +284,11 @@ our $opt_warnings;
 our $opt_with_ndbcluster;
 our $opt_with_openssl;
 
+our $exe_ndb_mgm;
+our $path_ndb_tools_dir;
+our $path_ndb_backup_dir;
+our $file_ndb_testrun_log;
+our $flag_ndb_status_ok= 1;
 
 ######################################################################
 #
@@ -297,8 +302,7 @@ sub command_line_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_and_cleanup ();
-sub collect_test_cases ($);
-sub sleep_until_file_created ($$);
+sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
 sub run_benchmarks ($);
@@ -306,6 +310,7 @@ sub run_tests ();
 sub mysql_install_db ();
 sub install_db ($$);
 sub run_testcase ($);
+sub report_failure_and_restart ($);
 sub do_before_start_master ($$);
 sub do_before_start_slave ($$);
 sub mysqld_start ($$$$);
@@ -347,18 +352,20 @@ sub main () {
     kill_and_cleanup();
     mysql_install_db();
 
-    if ( $opt_with_ndbcluster and ! $glob_use_running_ndbcluster )
-    {
-      ndbcluster_start();     # We start the cluster storage engine
-    }
-
 #    mysql_loadstd();  FIXME copying from "std_data" .frm and
 #                      .MGR but there are none?!
   }
 
   if ( $opt_start_and_exit )
   {
-    mtr_report("Servers started, exiting");
+    if ( mysqld_start('master',0,[],[]) )
+    {
+      mtr_report("Servers started, exiting");
+    }
+    else
+    {
+      mtr_error("Can't start the mysqld server");
+    }
   }
   else
   {
@@ -447,8 +454,8 @@ sub command_line_setup () {
   $path_manager_log= "$glob_mysql_test_dir/var/log/manager.log";
   $opt_current_test= "$glob_mysql_test_dir/var/log/current_test";
 
-  $opt_master_myport=   9306;
-  $opt_slave_myport=    9308;
+  my $opt_master_myport=   9306;
+  my $opt_slave_myport=    9308;
   $opt_ndbcluster_port= 9350;
 
   # Read the command line
@@ -532,6 +539,8 @@ sub command_line_setup () {
     usage("");
   }
 
+  @opt_cases= @ARGV;
+
   # Put this into a hash, will be a C struct
 
   $master->[0]->{'path_myddir'}=  "$glob_mysql_test_dir/var/master-data";
@@ -541,6 +550,8 @@ sub command_line_setup () {
   $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
   $master->[0]->{'path_myport'}=   $opt_master_myport;
   $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
+
+  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
 
   $master->[1]->{'path_myddir'}=  "$glob_mysql_test_dir/var/master1-data";
   $master->[1]->{'path_myerr'}=   "$glob_mysql_test_dir/var/log/master1.err";
@@ -598,7 +609,7 @@ sub command_line_setup () {
   # Look at the command line options and set script flags
   # --------------------------------------------------------------------------
 
-  if ( $opt_record and ! @ARGV)
+  if ( $opt_record and ! @opt_cases )
   {
     mtr_error("Will not run in record mode without a specific test case");
   }
@@ -672,6 +683,10 @@ sub command_line_setup () {
     $glob_use_running_ndbcluster= 1;
     $opt_with_ndbcluster= 1;
   }
+  else
+  {
+    $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
+  }
 
   # FIXME
 
@@ -733,7 +748,8 @@ sub executable_setup () {
       {
         mtr_error("Can't find embedded server 'mysqltest'");
       }
-      $path_tests_bindir= "$glob_basedir/libmysqld/examples";
+      $exe_mysql_client_test=
+        "$glob_basedir/libmysqld/examples/mysql_client_test_embedded";
     }
     else
     {
@@ -749,7 +765,8 @@ sub executable_setup () {
       {
         $exe_mysqltest=  "$glob_basedir/client/mysqltest";
       }
-      $path_tests_bindir= "$glob_basedir/tests";
+      $exe_mysql_client_test=
+        "$glob_basedir/tests/mysql_client_test";
     }
     if ( -f "$glob_basedir/client/.libs/mysqldump" )
     {
@@ -768,22 +785,29 @@ sub executable_setup () {
       $exe_mysqlbinlog=   "$glob_basedir/client/mysqlbinlog";
     }
 
-    $exe_mysqld= "$glob_basedir/sql/mysqld";
-    $path_client_bindir= "$glob_basedir/client";
-    $exe_mysqladmin=    "$path_client_bindir/mysqladmin";
-    $exe_mysql=         "$path_client_bindir/mysql";
-    $path_language=      "$glob_basedir/sql/share/english/";
-    $path_charsetsdir=   "$glob_basedir/sql/share/charsets";
+    $path_client_bindir=  "$glob_basedir/client";
+    $exe_mysqld=          "$glob_basedir/sql/mysqld";
+    $exe_mysqladmin=      "$path_client_bindir/mysqladmin";
+    $exe_mysql=           "$path_client_bindir/mysql";
+    $exe_mysql_fix_system_tables= "$glob_basedir/scripts/mysql_fix_privilege_tables";
+    $path_language=       "$glob_basedir/sql/share/english/";
+    $path_charsetsdir=    "$glob_basedir/sql/share/charsets";
+
+    $path_ndb_tools_dir=  "$glob_basedir/ndb/tools";
+    $exe_ndb_mgm=         "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
   }
   else
   {
-    $path_client_bindir= "$glob_basedir/bin";
-    $path_tests_bindir=  "$glob_basedir/tests";
-    $exe_mysqltest=     "$path_client_bindir/mysqltest";
-    $exe_mysqldump=     "$path_client_bindir/mysqldump";
-    $exe_mysqlbinlog=  "$path_client_bindir/mysqlbinlog";
-    $exe_mysqladmin=    "$path_client_bindir/mysqladmin";
-    $exe_mysql=         "$path_client_bindir/mysql";
+    my $path_tests_bindir=  "$glob_basedir/tests";
+
+    $path_client_bindir=    "$glob_basedir/bin";
+    $exe_mysqltest=         "$path_client_bindir/mysqltest";
+    $exe_mysqldump=         "$path_client_bindir/mysqldump";
+    $exe_mysqlbinlog=       "$path_client_bindir/mysqlbinlog";
+    $exe_mysqladmin=        "$path_client_bindir/mysqladmin";
+    $exe_mysql=             "$path_client_bindir/mysql";
+    $exe_mysql_fix_system_tables= "$path_client_bindir/scripts/mysql_fix_privilege_tables";
+
     if ( -d "$glob_basedir/share/mysql/english" )
     {
       $path_language    ="$glob_basedir/share/mysql/english/";
@@ -804,6 +828,36 @@ sub executable_setup () {
       $exe_mysqld= "$glob_basedir/bin/mysqld";
     }
 
+    if ( $glob_use_embedded_server )
+    {
+      if ( -f "$path_client_bindir/mysqltest_embedded" )
+      {
+        # FIXME valgrind?
+        $exe_mysqltest="$path_client_bindir/mysqltest_embedded";
+      }
+      else
+      {
+        error("Cannot find embedded server 'mysqltest_embedded'");
+      }
+      if ( -d "$path_tests_bindir/mysql_client_test_embedded" )
+      {
+        $exe_mysql_client_test=
+          "$path_tests_bindir/mysql_client_test_embedded";
+      }
+      else
+      {
+        $exe_mysql_client_test=
+          "$path_client_bindir/mysql_client_test_embedded";
+      }
+    }
+    else
+    {
+      $exe_mysqltest="$path_client_bindir/mysqltest";
+      $exe_mysql_client_test="$path_client_bindir/mysql_client_test";
+    }
+
+    $path_ndb_tools_dir=  "$glob_basedir/bin";
+    $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
   }
 
   # FIXME special $exe_master_mysqld and $exe_slave_mysqld
@@ -818,6 +872,10 @@ sub executable_setup () {
   {
     $exe_slave_mysqld=  $exe_mysqld;
   }
+
+  $path_ndb_backup_dir=
+    "$glob_mysql_test_dir/var/ndbcluster-$opt_ndbcluster_port";
+  $file_ndb_testrun_log= "$glob_mysql_test_dir/var/log/ndb_testrun.log";
 }
 
 
@@ -846,13 +904,18 @@ sub environment_setup () {
   # Also command lines in .opt files may contain env vars
   # --------------------------------------------------------------------------
 
-  $ENV{'LC_COLLATE'}=     "C";
-  $ENV{'MYSQL_TEST_DIR'}= $glob_mysql_test_dir;
-  $ENV{'MASTER_MYPORT'}=  $opt_master_myport;
-  $ENV{'SLAVE_MYPORT'}=   $opt_slave_myport;
-# $ENV{'MYSQL_TCP_PORT'}= '@MYSQL_TCP_PORT@'; # FIXME
-  $ENV{'MYSQL_TCP_PORT'}= 3306;
-  $ENV{'MASTER_MYSOCK'}=  $master->[0]->{'path_mysock'};
+  $ENV{'UMASK'}=              "0660"; # The octal *string*
+  $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
+  $ENV{'LC_COLLATE'}=         "C";
+  $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
+  $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
+  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
+  $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
+  $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
+# $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
+  $ENV{'MYSQL_TCP_PORT'}=     3306;
 }
 
 
@@ -872,203 +935,6 @@ sub handle_int_signal () {
   mtr_warning("got INT signal, cleaning up.....");
   stop_masters_slaves();
   mtr_error("We die from ^C signal from user");
-}
-
-
-##############################################################################
-#
-#  Collect information about test cases we are to run
-#
-##############################################################################
-
-sub collect_test_cases ($) {
-  my $suite= shift;             # Test suite name
-
-  my $testdir;
-  my $resdir;
-
-  if ( $suite eq "main" )
-  {
-    $testdir= "$glob_mysql_test_dir/t";
-    $resdir=  "$glob_mysql_test_dir/r";
-  }
-  else
-  {
-    $testdir= "$glob_mysql_test_dir/suite/$suite/t";
-    $resdir=  "$glob_mysql_test_dir/suite/$suite/r";
-  }
-
-  my @tests;               # Array of hash, will be array of C struct
-
-  opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
-
-  foreach my $elem ( sort readdir(TESTDIR) ) {
-    my $tname= mtr_match_extension($elem,"test");
-    next if ! defined $tname;
-    next if $opt_do_test and ! defined mtr_match_prefix($elem,$opt_do_test);
-    my $path= "$testdir/$elem";
-
-    # ----------------------------------------------------------------------
-    # Skip some tests silently
-    # ----------------------------------------------------------------------
-
-    if ( $opt_start_from and $tname lt $opt_start_from )
-    {
-      next;
-    }
-
-    # ----------------------------------------------------------------------
-    # Skip some tests but include in list, just mark them to skip
-    # ----------------------------------------------------------------------
-
-    my $tinfo= {};
-    $tinfo->{'name'}= $tname;
-    $tinfo->{'result_file'}= "$resdir/$tname.result";
-    push(@tests, $tinfo);
-
-    if ( $opt_skip_test and defined mtr_match_prefix($tname,$opt_skip_test) )
-    {
-      $tinfo->{'skip'}= 1;
-      next;
-    }
-
-    # FIXME temporary solution, we have a hard coded list of test cases to
-    # skip if we are using the embedded server
-
-    if ( $glob_use_embedded_server and
-         mtr_match_any_exact($tname,\@skip_if_embedded_server) )
-    {
-      $tinfo->{'skip'}= 1;
-      next;
-    }
-
-    # ----------------------------------------------------------------------
-    # Collect information about test case
-    # ----------------------------------------------------------------------
-
-    $tinfo->{'path'}= $path;
-    $tinfo->{'timezone'}= "GMT-3"; # for UNIX_TIMESTAMP tests to work
-
-    if ( defined mtr_match_prefix($tname,"rpl") )
-    {
-      if ( $opt_skip_rpl )
-      {
-        $tinfo->{'skip'}= 1;
-        next;
-      }
-
-      # FIXME currently we always restart slaves
-      $tinfo->{'slave_restart'}= 1;
-
-      if ( $tname eq 'rpl_failsafe' or $tname eq 'rpl_chain_temp_table' )
-      {
-        $tinfo->{'slave_num'}= 3;
-      }
-      else
-      {
-        $tinfo->{'slave_num'}= 1;
-      }
-    }
-
-    # FIXME what about embedded_server + ndbcluster, skip ?!
-
-    my $master_opt_file= "$testdir/$tname-master.opt";
-    my $slave_opt_file=  "$testdir/$tname-slave.opt";
-    my $slave_mi_file=   "$testdir/$tname.slave-mi";
-    my $master_sh=       "$testdir/$tname-master.sh";
-    my $slave_sh=        "$testdir/$tname-slave.sh";
-
-    if ( -f $master_opt_file )
-    {
-      $tinfo->{'master_restart'}= 1;    # We think so for now
-      # This is a dirty hack from old mysql-test-run, we use the opt file
-      # to flag other things as well, it is not a opt list at all
-      my $extra_master_opt= mtr_get_opts_from_file($master_opt_file);
-
-      foreach my $opt (@$extra_master_opt)
-      {
-        my $value;
-
-        $value= mtr_match_prefix($opt, "--timezone=");
-
-        if ( defined $value )
-        {
-          $tinfo->{'timezone'}= $value;
-          $extra_master_opt= [];
-          $tinfo->{'master_restart'}= 0;
-          last;
-        }
-
-        $value= mtr_match_prefix($opt, "--result-file=");
-
-        if ( defined $value )
-        {
-          $tinfo->{'result_file'}= "r/$value.result";
-          if ( $opt_result_ext and $opt_record or
-               -f "$tinfo->{'result_file'}$opt_result_ext")
-          {
-            $tinfo->{'result_file'}.= $opt_result_ext;
-          }
-          $extra_master_opt= [];
-          $tinfo->{'master_restart'}= 0;
-          last;
-        }
-      }
-
-      $tinfo->{'master_opt'}= $extra_master_opt;
-    }
-
-    if ( -f $slave_opt_file )
-    {
-      $tinfo->{'slave_opt'}= mtr_get_opts_from_file($slave_opt_file);
-      $tinfo->{'slave_restart'}= 1;
-    }
-
-    if ( -f $slave_mi_file )
-    {
-      $tinfo->{'slave_mi'}= mtr_get_opts_from_file($slave_mi_file);
-      $tinfo->{'slave_restart'}= 1;
-    }
-
-    if ( -f $master_sh )
-    {
-      if ( $glob_win32_perl )
-      {
-        $tinfo->{'skip'}= 1;
-      }
-      else
-      {
-        $tinfo->{'master_sh'}= $master_sh;
-        $tinfo->{'master_restart'}= 1;
-      }
-    }
-
-    if ( -f $slave_sh )
-    {
-      if ( $glob_win32_perl )
-      {
-        $tinfo->{'skip'}= 1;
-      }
-      else
-      {
-        $tinfo->{'slave_sh'}= $slave_sh;
-        $tinfo->{'slave_restart'}= 1;
-      }
-    }
-
-    # We can't restart a running server that may be in use
-
-    if ( $glob_use_running_server and
-         ( $tinfo->{'master_restart'} or $tinfo->{'slave_restart'} ) )
-    {
-      $tinfo->{'skip'}= 1;
-    }
-
-  }
-
-  closedir TESTDIR;
-
-  return \@tests;
 }
 
 
@@ -1099,22 +965,19 @@ sub kill_and_cleanup () {
     mtr_report("Killing Possible Leftover Processes");
     mkpath("$glob_mysql_test_dir/var/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
-  }
 
-  if ( $opt_with_ndbcluster and ! $glob_use_running_ndbcluster )
-  {
     ndbcluster_stop();
+    $master->[0]->{'ndbcluster'}= 1;
   }
 
   mtr_report("Removing Stale Files");
 
   rmtree("$glob_mysql_test_dir/var/log");
-  rmtree("$glob_mysql_test_dir/var/ndbcluster");
+  rmtree("$glob_mysql_test_dir/var/ndbcluster-$opt_ndbcluster_port");
   rmtree("$glob_mysql_test_dir/var/run");
   rmtree("$glob_mysql_test_dir/var/tmp");
 
   mkpath("$glob_mysql_test_dir/var/log");
-  mkpath("$glob_mysql_test_dir/var/ndbcluster");
   mkpath("$glob_mysql_test_dir/var/run");
   mkpath("$glob_mysql_test_dir/var/tmp");
   mkpath($opt_tmpdir);
@@ -1152,26 +1015,64 @@ sub kill_and_cleanup () {
 
 # FIXME why is there a different start below?!
 
+sub ndbcluster_install () {
+
+  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  {
+    return 0;
+  }
+  mtr_report("Install ndbcluster");
+  my $ndbcluster_opts=  $opt_bench ? "" : "--small";
+  if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+		["--port=$opt_ndbcluster_port",
+		 "--data-dir=$glob_mysql_test_dir/var",
+		 $ndbcluster_opts,
+		 "--initial"],
+		"", "", "", "") )
+  {
+    mtr_error("Error ndbcluster_install");
+    return 1;
+  }
+
+  ndbcluster_stop();
+  $master->[0]->{'ndbcluster'}= 1;
+
+  return 0;
+}
+
 sub ndbcluster_start () {
 
-  mtr_report("Starting ndbcluster");
-  my $ndbcluster_opts=  $opt_bench ? "" : "--small";
-  # FIXME check result code?!
-  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
-          ["--port-base=$opt_ndbcluster_port",
-           $ndbcluster_opts,
-           "--diskless",
-           "--initial",
-           "--data-dir=$glob_mysql_test_dir/var"],
-          "", "", "", "");
+  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  {
+    return 0;
+  }
+  # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+	       ["--port=$opt_ndbcluster_port",
+		"--data-dir=$glob_mysql_test_dir/var"],
+	       "", "/dev/null", "", "") )
+  {
+    mtr_error("Error ndbcluster_install");
+    return 1;
+  }
+
+  return 0;
 }
 
 sub ndbcluster_stop () {
+
+  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  {
+    return;
+  }
+  # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
   mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
-          ["--data-dir=$glob_mysql_test_dir/var",
-           "--port-base=$opt_ndbcluster_port",
+          ["--port=$opt_ndbcluster_port",
+           "--data-dir=$glob_mysql_test_dir/var",
            "--stop"],
-          "", "", "", "");
+          "", "/dev/null", "", "");
+
+  return;
 }
 
 
@@ -1189,6 +1090,10 @@ sub run_benchmarks ($) {
   if ( ! $glob_use_embedded_server and ! $opt_local_master )
   {
     $master->[0]->{'pid'}= mysqld_start('master',0,[],[]);
+    if ( ! $master->[0]->{'pid'} )
+    {
+      mtr_error("Can't start the mysqld server");
+    }
   }
 
   mtr_init_args(\$args);
@@ -1254,7 +1159,7 @@ sub run_suite () {
 
   mtr_print_thick_line();
 
-  mtr_report("Finding Tests in the '$suite' suite");
+  mtr_report("Finding  Tests in the '$suite' suite");
 
   my $tests= collect_test_cases($suite);
 
@@ -1273,11 +1178,6 @@ sub run_suite () {
        ! $opt_ddd and ! $glob_use_embedded_server )
   {
     stop_masters_slaves();
-  }
-
-  if ( $opt_with_ndbcluster and ! $glob_use_running_ndbcluster )
-  {
-    ndbcluster_stop();
   }
 
   if ( $opt_gcov )
@@ -1301,10 +1201,19 @@ sub run_suite () {
 
 sub mysql_install_db () {
 
-  mtr_report("Installing Test Databases");
-
+  # FIXME not exactly true I think, needs improvements
   install_db('master', $master->[0]->{'path_myddir'});
+  install_db('master', $master->[1]->{'path_myddir'});
   install_db('slave',  $slave->[0]->{'path_myddir'});
+  install_db('slave',  $slave->[1]->{'path_myddir'});
+  install_db('slave',  $slave->[2]->{'path_myddir'});
+
+  if ( ndbcluster_install() )
+  {
+    # failed to install, disable usage but flag that its no ok
+    $opt_with_ndbcluster= 0;
+    $flag_ndb_status_ok= 0;
+  }
 
   return 0;
 }
@@ -1368,6 +1277,9 @@ sub run_testcase ($) {
 
   mtr_tonewfile($opt_current_test,"$tname\n"); # Always tell where we are
 
+  # output current test to ndbcluster log file to enable diagnostics
+  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
+
   # ----------------------------------------------------------------------
   # If marked to skip, just print out and return.
   # Note that a test case not marked as 'skip' can still be
@@ -1423,6 +1335,12 @@ sub run_testcase ($) {
   do_before_start_master($tname,$tinfo->{'master_sh'});
 
   # ----------------------------------------------------------------------
+  # If any mysqld servers running died, we have to know
+  # ----------------------------------------------------------------------
+
+  mtr_record_dead_children();
+
+  # ----------------------------------------------------------------------
   # Start masters
   # ----------------------------------------------------------------------
 
@@ -1435,18 +1353,37 @@ sub run_testcase ($) {
 
     if ( ! $opt_local_master )
     {
+      if ( $master->[0]->{'ndbcluster'} )
+      {
+	$master->[0]->{'ndbcluster'}= ndbcluster_start();
+        if ( $master->[0]->{'ndbcluster'} )
+        {
+          report_failure_and_restart($tinfo);
+          return;
+        }
+      }
       if ( ! $master->[0]->{'pid'} )
       {
         $master->[0]->{'pid'}=
           mysqld_start('master',0,$tinfo->{'master_opt'},[]);
+        if ( ! $master->[0]->{'pid'} )
+        {
+          report_failure_and_restart($tinfo);
+          return;
+        }
       }
       if ( $opt_with_ndbcluster and ! $master->[1]->{'pid'} )
       {
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[]);
+        if ( ! $master->[1]->{'pid'} )
+        {
+          report_failure_and_restart($tinfo);
+          return;
+        }
       }
 
-      if ( $tinfo->{'master_opt'} )
+      if ( @{$tinfo->{'master_opt'}} )
       {
         $master->[0]->{'uses_special_flags'}= 1;
       }
@@ -1469,6 +1406,11 @@ sub run_testcase ($) {
           $slave->[$idx]->{'pid'}=
             mysqld_start('slave',$idx,
                          $tinfo->{'slave_opt'}, $tinfo->{'slave_mi'});
+          if ( ! $slave->[$idx]->{'pid'} )
+          {
+            report_failure_and_restart($tinfo);
+            return;
+          }
         }
       }
     }
@@ -1502,30 +1444,37 @@ sub run_testcase ($) {
                    "mysqltest returned unexpected code $res, " .
                    "it has probably crashed");
       }
-      mtr_report_test_failed($tinfo);
-      mtr_show_failed_diff($tname);
-      print "\n";
-      if ( ! $opt_force )
-      {
-        print "Aborting: $tname failed. To continue, re-run with '--force'.";
-        print "\n";
-        if ( ! $opt_gdb and ! $glob_use_running_server and
-             ! $opt_ddd and ! $glob_use_embedded_server )
-        {
-          stop_masters_slaves();
-        }
-        exit(1);
-      }
-
-      # FIXME always terminate on failure?!
-      if ( ! $opt_gdb and ! $glob_use_running_server and
-           ! $opt_ddd and ! $glob_use_embedded_server )
-      {
-        stop_masters_slaves();
-      }
-      print "Resuming Tests\n\n";
+      report_failure_and_restart($tinfo);
     }
   }
+}
+
+
+sub report_failure_and_restart ($) {
+  my $tinfo= shift;
+
+  mtr_report_test_failed($tinfo);
+  mtr_show_failed_diff($tinfo->{'name'});
+  print "\n";
+  if ( ! $opt_force )
+  {
+    print "Aborting: $tinfo->{'name'} failed. To continue, re-run with '--force'.";
+    print "\n";
+    if ( ! $opt_gdb and ! $glob_use_running_server and
+         ! $opt_ddd and ! $glob_use_embedded_server )
+    {
+      stop_masters_slaves();
+    }
+    exit(1);
+  }
+
+  # FIXME always terminate on failure?!
+  if ( ! $opt_gdb and ! $glob_use_running_server and
+       ! $opt_ddd and ! $glob_use_embedded_server )
+  {
+    stop_masters_slaves();
+  }
+  print "Resuming Tests\n\n";
 }
 
 
@@ -1603,11 +1552,13 @@ sub do_before_start_slave ($$) {
 }
 
 sub mysqld_arguments ($$$$$) {
-  my $args=       shift;
-  my $type=       shift;        # master/slave/bootstrap
-  my $idx=        shift;
-  my $extra_opt=  shift;
-  my $slave_master_info=  shift;
+  my $args=              shift;
+  my $type=              shift;        # master/slave/bootstrap
+  my $idx=               shift;
+  my $extra_opt=         shift;
+  my $slave_master_info= shift;
+
+#  print STDERR Dumper($extra_opt);
 
   my $sidx= "";                 # Index as string, 0 is empty string
   if ( $idx > 0 )
@@ -1728,17 +1679,8 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_with_ndbcluster )
   {
     mtr_add_arg($args, "%s--ndbcluster", $prefix);
-
-    if ( $glob_use_running_ndbcluster )
-    {
-      mtr_add_arg($args,"--ndb-connectstring=%s", $prefix,
-                  $opt_ndbconnectstring);
-    }
-    else
-    {
-      mtr_add_arg($args,"--ndb-connectstring=host=localhost:%d",
-                  $prefix, $opt_ndbcluster_port);
-    }
+    mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
+                $opt_ndbconnectstring);
   }
 
   # FIXME always set nowdays??? SMALL_SERVER
@@ -1835,10 +1777,10 @@ sub mysqld_arguments ($$$$$) {
 ##############################################################################
 
 sub mysqld_start ($$$$) {
-  my $type=       shift;        # master/slave/bootstrap
-  my $idx=        shift;
-  my $extra_opt=  shift;
-  my $slave_master_info=  shift;
+  my $type=              shift;        # master/slave/bootstrap
+  my $idx=               shift;
+  my $extra_opt=         shift;
+  my $slave_master_info= shift;
 
   my $args;                             # Arg vector
   my $exe;
@@ -1893,9 +1835,8 @@ sub mysqld_start ($$$$) {
                          $master->[$idx]->{'path_myerr'},
                          $master->[$idx]->{'path_myerr'}, "") )
     {
-      sleep_until_file_created($master->[$idx]->{'path_mypid'},
-                               $master->[$idx]->{'start_timeout'});
-      return $pid;
+      return sleep_until_file_created($master->[$idx]->{'path_mypid'},
+                                      $master->[$idx]->{'start_timeout'}, $pid);
     }
   }
 
@@ -1905,13 +1846,12 @@ sub mysqld_start ($$$$) {
                          $slave->[$idx]->{'path_myerr'},
                          $slave->[$idx]->{'path_myerr'}, "") )
     {
-      sleep_until_file_created($slave->[$idx]->{'path_mypid'},
-                               $master->[$idx]->{'start_timeout'});
-      return $pid;
+      return sleep_until_file_created($slave->[$idx]->{'path_mypid'},
+                                      $master->[$idx]->{'start_timeout'}, $pid);
     }
   }
 
-  mtr_error("Can't start mysqld FIXME");
+  return 0;
 }
 
 sub stop_masters_slaves () {
@@ -1944,7 +1884,13 @@ sub stop_masters () {
     }
   }
 
-  mtr_stop_mysqld_servers(\@args, 0);
+  if ( ! $master->[0]->{'ndbcluster'} )
+  {
+    ndbcluster_stop();
+    $master->[0]->{'ndbcluster'}= 1;
+  }
+
+  mtr_stop_mysqld_servers(\@args);
 }
 
 sub stop_slaves () {
@@ -1966,7 +1912,7 @@ sub stop_slaves () {
     }
   }
 
-  mtr_stop_mysqld_servers(\@args, 0);
+  mtr_stop_mysqld_servers(\@args);
 }
 
 
@@ -1992,17 +1938,39 @@ sub run_mysqltest ($$) {
   }
 
   my $cmdline_mysql=
-    "$exe_mysql --host=localhost --port=$master->[0]->{'path_myport'} " .
-    "--socket=$master->[0]->{'path_mysock'} --user=root --password=";
+    "$exe_mysql --host=localhost  --user=root --password= " .
+    "--port=$master->[0]->{'path_myport'} " .
+    "--socket=$master->[0]->{'path_mysock'}";
+
+  my $cmdline_mysql_client_test=
+    "$exe_mysql_client_test --no-defaults --testcase --user=root --silent " .
+    "--port=$master->[0]->{'path_myport'} " .
+    "--socket=$master->[0]->{'path_mysock'}";
+
+  my $cmdline_mysql_fix_system_tables=
+    "$exe_mysql_fix_system_tables --no-defaults --host=localhost --user=root --password= " .
+    "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
+    "--port=$master->[0]->{'path_myport'} " .
+    "--socket=$master->[0]->{'path_mysock'}";
+
+
 
   # FIXME really needing a PATH???
   # $ENV{'PATH'}= "/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$ENV{'PATH'}";
 
-  $ENV{'MYSQL'}=                    $exe_mysql;
+  $ENV{'MYSQL'}=                    $cmdline_mysql;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
-  $ENV{'MYSQL_BINLOG'}=             $exe_mysqlbinlog;
-  $ENV{'CLIENT_BINDIR'}=            $path_client_bindir;
-  $ENV{'TESTS_BINDIR'}=             $path_tests_bindir;
+  $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
+  $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
+  $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
+  $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
+
+  $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok;
+  $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
+  $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_backup_dir;
+  $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+  $ENV{'NDB_TOOLS_OUTPUT'}=         $file_ndb_testrun_log;
+  $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
   my $exe= $exe_mysqltest;
   my $args;

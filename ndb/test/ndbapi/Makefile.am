@@ -32,7 +32,8 @@ testTransactions \
 testDeadlock \
 test_event ndbapi_slow_select testReadPerf testLcp \
 testPartitioning \
-testBitfield
+testBitfield \
+DbCreate DbAsyncGenerator
 
 #flexTimedAsynch
 #testBlobs
@@ -73,6 +74,8 @@ testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
 testPartitioning_SOURCES = testPartitioning.cpp
 testBitfield_SOURCES = testBitfield.cpp
+DbCreate_SOURCES= bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp
+DbAsyncGenerator_SOURCES= bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 

@@ -700,6 +700,22 @@ static void make_sortkey(register SORTPARAM *param,
 #endif
 	  break;
 	}
+      case DECIMAL_RESULT:
+        {
+          my_decimal dec_buf, *dec_val= item->val_decimal(&dec_buf);
+          if ((maybe_null=item->null_value))
+          { 
+            bzero((char*)to, sort_field->length+1);
+            to++;
+            break;
+          }
+          if ((maybe_null=item->maybe_null))
+            *to++=1;
+          my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, (byte*)to,
+                            item->max_length - (item->decimals ? 1:0),
+                            item->decimals);
+         break;
+        }
       case REAL_RESULT:
 	{
 	  double value= item->val_real();
@@ -1209,6 +1225,12 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
 	sortorder->length=4;
 #endif
 	break;
+      case DECIMAL_RESULT:
+        sortorder->length=
+          my_decimal_get_binary_size(sortorder->item->max_length - 
+                                     (sortorder->item->decimals ? 1 : 0),
+                                     sortorder->item->decimals);
+        break;
       case REAL_RESULT:
 	sortorder->length=sizeof(double);
 	break;

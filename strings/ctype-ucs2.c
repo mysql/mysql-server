@@ -280,7 +280,7 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
   if (slen != tlen)
   {
-    int swap= 0;
+    int swap= 1;
     if (slen < tlen)
     {
       s= t;
@@ -291,7 +291,7 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
     for ( ; s < se ; s+= 2)
     {
       if (s[0] || s[1] != ' ')
-        return (((int)s[0] << 8) + (int) s[1] - (int) ' ') ^ swap;
+        return (s[0] == 0 && s[1] < ' ') ? -swap : swap;
     }
   }
   return 0;

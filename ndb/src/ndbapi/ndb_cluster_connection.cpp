@@ -87,11 +87,8 @@ const char *Ndb_cluster_connection::get_connectstring(char *buf,
 
 extern "C" pthread_handler_decl(run_ndb_cluster_connection_connect_thread, me)
 {
-  my_thread_init();
   g_run_connect_thread= 1;
   ((Ndb_cluster_connection_impl*) me)->connect_thread();
-  my_thread_end();
-  NdbThread_Exit(0);
   return me;
 }
 
@@ -508,7 +505,7 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
 					   CFG_CONNECTION_SERVER_PORT,
 					   m_impl.m_transporter_facade->get_registry()
 					     ->m_transporter_interface[i]
-					     .m_service_port,
+					     .m_s_service_port,
 					   &mgm_reply);
 
     ndb_mgm_destroy_configuration(props);

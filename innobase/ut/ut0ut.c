@@ -44,13 +44,13 @@ ut_get_high32(
 			/* out: a >> 32 */
 	ulint	a)	/* in: ulint */
 {
-#if SIZEOF_LONG == 4
-	UT_NOT_USED(a);
+	ib_longlong	i;
 
-	return 0;
-#else
-	return(a >> 32);
-#endif
+	i = (ib_longlong)a;
+
+	i = i >> 32;
+
+	return((ulint)i);
 }
 
 /************************************************************
@@ -416,7 +416,11 @@ ut_print_namel(
 {
 	const char*	s = name;
 	const char*	e = s + namelen;
+#ifdef UNIV_HOTBACKUP
+	int		q = '"';
+#else
 	int		q = mysql_get_identifier_quote_char(trx, name, namelen);
+#endif
 	if (q == EOF) {
 		fwrite(name, 1, namelen, f);
 		return;

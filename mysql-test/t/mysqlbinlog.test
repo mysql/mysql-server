@@ -95,5 +95,15 @@ select "--- --position --" as "";
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=118 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
+# Bug#7853 (mysqlbinlog does not accept input from stdin)
+--disable_query_log
+select "--- reading stdin --" as "";
+--enable_query_log
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec cat $MYSQL_TEST_DIR/std_data/trunc_binlog.000001 | $MYSQL_BINLOG --short-form - 
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec cat $MYSQL_TEST_DIR/std_data/trunc_binlog.000001 | $MYSQL_BINLOG --short-form --position=79 - 
+
 # clean up
 drop table t1, t2;

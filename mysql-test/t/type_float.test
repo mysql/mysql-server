@@ -84,6 +84,7 @@ drop table t1;
 #
 create table t1 (c20 char);
 insert into t1 values (5000.0);
+insert into t1 values (0.5e4);
 drop table t1;
 
 # Errors

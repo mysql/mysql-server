@@ -6,7 +6,6 @@
 
 # configurable parameters, make sure to change in mysqlcluterd as well
 port=@ndb_port@
-port_base=@ndb_port_base@
 fsdir=`pwd`
 # end configurable parameters
 
@@ -96,7 +95,7 @@ while test $# -gt 0; do
      port=`echo "$1" | sed -e "s;--port=;;"`
      ;;
     --port-base=*)
-     port_base=`echo "$1" | sed -e "s;--port-base=;;"`
+     $ECHO "--port-base option depricated. Ignored."
      ;;
     --ndb_mgm-extra-opts=*)
      NDB_MGM_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndb_mgm-extra-opts=;;"`
@@ -192,7 +191,6 @@ if [ $initial_ndb ] ; then
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
     -e s,"CHOOSE_FILESYSTEM","$fs_ndb",g \
     -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
-    -e s,"CHOOSE_PORT_TRANSPORTER","$port_base",g \
     < ndb/ndb_config_2_node.ini \
     > "$fs_ndb/config.ini"
 fi

@@ -1325,7 +1325,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
-	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
+	(!db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_PRINT("error",("!db_ok('%s')", local_db));
@@ -1346,7 +1346,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (thd)
     {
-      /* NOTE: CHARSET AND TZ REPL WILL BE REWRITTEN SHORTLY */
+#if MYSQL_VERSION_ID < 50003
       /*
         To make replication of charsets working in 4.1 we are writing values
         of charset related variables before every statement in the binlog,
@@ -1375,9 +1375,15 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 	if (e.write(file))
 	  goto err;
       }
+#endif
       /*
         We use the same ONE_SHOT trick for making replication of time zones 
         working in 4.1. Again in 5.0 we have better means for doing this.
+
+        TODO: we should do like we now do with charsets (no more ONE_SHOT;
+        logging in each event in a compact format). Dmitri says we can do:
+        if (time_zone_used) write the timezone to binlog (in a format to be
+        defined).
       */
       if (thd->time_zone_used &&
           thd->variables.time_zone != global_system_variables.time_zone)

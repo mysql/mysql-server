@@ -2,7 +2,7 @@
 # Various tests for SUM(DISTINCT ...)
 #
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 
 CREATE TABLE t1 (

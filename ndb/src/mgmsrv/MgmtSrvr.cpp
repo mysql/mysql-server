@@ -70,12 +70,7 @@ void *
 MgmtSrvr::logLevelThread_C(void* m)
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  my_thread_init();
   mgm->logLevelThreadRun();
-  
-  my_thread_end();
-  NdbThread_Exit(0);
-  /* NOTREACHED */
   return 0;
 }
 
@@ -83,12 +78,7 @@ void *
 MgmtSrvr::signalRecvThread_C(void *m) 
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  my_thread_init();
   mgm->signalRecvThreadRun();
-
-  my_thread_end();
-  NdbThread_Exit(0);
-  /* NOTREACHED */
   return 0;
 }
 
@@ -616,6 +606,26 @@ MgmtSrvr::start(BaseString &error_string)
     theFacade = 0;
     return false;
   }
+
+  TransporterRegistry *reg = theFacade->get_registry();
+  for(unsigned int i=0;i<reg->m_transporter_interface.size();i++) {
+    BaseString msg;
+    DBUG_PRINT("info",("Setting dynamic port %d->%d : %d",
+		       reg->get_localNodeId(),
+		       reg->m_transporter_interface[i].m_remote_nodeId,
+		       reg->m_transporter_interface[i].m_s_service_port
+		       )
+	       );
+    int res = setConnectionDbParameter((int)reg->get_localNodeId(),
+				       (int)reg->m_transporter_interface[i]
+				            .m_remote_nodeId,
+				       (int)CFG_CONNECTION_SERVER_PORT,
+				       reg->m_transporter_interface[i]
+				            .m_s_service_port,
+					 msg);
+    DBUG_PRINT("info",("Set result: %d: %s",res,msg.c_str()));
+  }
+
   
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
   
@@ -2793,17 +2803,18 @@ MgmtSrvr::setConnectionDbParameter(int node1,
     Uint32 n1,n2;
     iter.get(CFG_CONNECTION_NODE_1, &n1);
     iter.get(CFG_CONNECTION_NODE_2, &n2);
-    if(n1 == (unsigned)node1 && n2 == (unsigned)node2)
+    if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
+       || (n1 == (unsigned)node2 && n2 == (unsigned)node1))
       break;
   }
   if(!iter.valid()) {
     msg.assign("Unable to find connection between nodes");
-    return -1;
+    DBUG_RETURN(-2);
   }
   
   if(iter.get(param, &current_value) < 0) {
     msg.assign("Unable to get current value of parameter");
-    return -1;
+    DBUG_RETURN(-3);
   }
 
   ConfigValues::Iterator i2(_config->m_configValues->m_config, 
@@ -2811,16 +2822,16 @@ MgmtSrvr::setConnectionDbParameter(int node1,
 
   if(i2.set(param, (unsigned)value) == false) {
     msg.assign("Unable to set new value of parameter");
-    return -1;
+    DBUG_RETURN(-4);
   }
   
   if(iter.get(param, &new_value) < 0) {
     msg.assign("Unable to get parameter after setting it.");
-    return -1;
+    DBUG_RETURN(-5);
   }
 
   msg.assfmt("%u -> %u",current_value,new_value);
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -2828,7 +2839,7 @@ int
 MgmtSrvr::getConnectionDbParameter(int node1, 
 				   int node2,
 				   int param,
-				   unsigned *value,
+				   int *value,
 				   BaseString& msg){
   DBUG_ENTER("MgmtSrvr::getConnectionDbParameter");
 
@@ -2853,14 +2864,25 @@ MgmtSrvr::getConnectionDbParameter(int node1,
     return -1;
   }
   
-  if(iter.get(param, value) < 0) {
+  if(iter.get(param, (Uint32*)value) < 0) {
     msg.assign("Unable to get current value of parameter");
     return -1;
   }
 
-  msg.assfmt("%u",*value);
+  msg.assfmt("%d",*value);
   DBUG_RETURN(1);
 }
+
+void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
+{
+  theFacade->get_registry()->connect_server(sockfd);
+}
+
+int MgmtSrvr::set_connect_string(const char *str)
+{
+  return ndb_mgm_set_connectstring(m_config_retriever->get_mgmHandle(),str);
+}
+
 
 template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560

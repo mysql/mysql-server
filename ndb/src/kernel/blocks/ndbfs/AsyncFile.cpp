@@ -82,7 +82,6 @@ static int numAsyncFiles = 0;
 
 extern "C" void * runAsyncFile(void* arg)
 {
-  my_thread_init();
   ((AsyncFile*)arg)->run();
   return (NULL);
 }
@@ -219,7 +218,8 @@ AsyncFile::run()
       rmrfReq(request, (char*)theFileName.c_str(), request->par.rmrf.own_directory);
       break;
     case Request:: end:
-      closeReq(request);
+      if (theFd > 0)
+        closeReq(request);
       endReq();
       return;
     default:
@@ -239,6 +239,7 @@ void AsyncFile::openReq(Request* request)
 {  
   m_openedWithSync = false;
   m_syncFrequency = 0;
+  m_syncCount= 0;
 
   // for open.flags, see signal FSOPENREQ
 #ifdef NDB_WIN32
@@ -329,7 +330,6 @@ void AsyncFile::openReq(Request* request)
     } else {
 #endif
       m_openedWithSync = false;
-      m_syncCount = 0;
       m_syncFrequency = Global_syncFreq;
 #if 0
     }
@@ -656,6 +656,7 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
     }
 #endif
     
+    m_syncCount+= bytes_written;
     buf += bytes_written;
     size -= bytes_written;
     offset += bytes_written;
@@ -682,6 +683,10 @@ AsyncFile::closeReq(Request * request)
   hFile = INVALID_HANDLE_VALUE;
 #else
   if (-1 == ::close(theFd)) {
+#ifndef DBUG_OFF
+    if (theFd == -1)
+      abort();
+#endif
     request->error = errno;
   }
   theFd = -1;
@@ -700,7 +705,8 @@ bool AsyncFile::isOpen(){
 void
 AsyncFile::syncReq(Request * request)
 {
-  if(m_openedWithSync){
+  if(m_openedWithSync ||
+     m_syncCount == 0){
     return;
   }
 #ifdef NDB_WIN32
@@ -756,7 +762,6 @@ AsyncFile::appendReq(Request * request){
 
   if(m_syncFrequency != 0 && m_syncCount > m_syncFrequency){
     syncReq(request);
-    request->error = 0;
   }
 }
 
@@ -870,8 +875,6 @@ void AsyncFile::endReq()
 {
   // Thread is ended with return
   if (theWriteBuffer) NdbMem_Free(theWriteBuffer);
-  my_thread_end();
-  NdbThread_Exit(0);
 }
 
 

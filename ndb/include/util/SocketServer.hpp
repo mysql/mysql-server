@@ -83,7 +83,7 @@ public:
    *   bind & listen
    * Returns false if no success
    */
-  bool setup(Service *, unsigned short port, const char * pinterface = 0);
+  bool setup(Service *, unsigned short *port, const char * pinterface = 0);
   
   /**
    * start/stop the server

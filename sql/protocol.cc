@@ -735,6 +735,7 @@ bool Protocol_simple::store(const char *from, uint length,
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
 	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
@@ -751,6 +752,7 @@ bool Protocol_simple::store(const char *from, uint length,
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
 	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
@@ -810,6 +812,26 @@ bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 			(uint) (longlong10_to_str(from,buff,
 						  unsigned_flag ? 10 : -10)-
 				buff));
+}
+
+
+bool Protocol_simple::store_decimal(const my_decimal *d)
+{
+#ifndef DEBUG_OFF
+  DBUG_ASSERT(field_types == 0 ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
+  field_pos++;
+#endif
+  int buf_size= my_decimal_string_length(d);
+  char *buff= (char *)my_alloca(buf_size);
+  String str(buff, buf_size, &my_charset_bin);
+  if (my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str))
+  {
+    my_afree(buff);
+    return TRUE;
+  }
+  my_afree(buff);
+  return net_store_data(str.ptr(), str.length());
 }
 
 
@@ -1027,6 +1049,24 @@ bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
   return 0;
 }
 
+bool Protocol_prep::store_decimal(const my_decimal *d)
+{
+#ifndef DEBUG_OFF
+  DBUG_ASSERT(field_types == 0 ||
+              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
+  field_pos++;
+#endif
+  int buf_size= my_decimal_string_length(d);
+  char *buff= (char *)my_alloca(buf_size);
+  String str(buff, buf_size, &my_charset_bin);
+  if (my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str))
+  {
+    my_afree(buff);
+    return TRUE;
+  }
+  my_afree(buff);
+  return store(str.ptr(), str.length(), str.charset());
+}
 
 bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 {

@@ -100,6 +100,8 @@ static int  check_pseudo_thread_id(THD *thd, set_var *var);
 static bool set_log_bin(THD *thd, set_var *var);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
+static int check_completion_type(THD *thd, set_var *var);
+static void fix_completion_type(THD *thd, enum_var_type type);
 static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
@@ -149,6 +151,10 @@ sys_var_character_set_database	sys_character_set_database("character_set_databas
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
+sys_var_thd_ulong	sys_completion_type("completion_type",
+					 &SV::completion_type,
+					 check_completion_type,
+					 fix_completion_type);
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_collation_database sys_collation_database("collation_database");
 sys_var_collation_server sys_collation_server("collation_server");
@@ -352,6 +358,14 @@ sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
 #ifdef HAVE_REPLICATION
 sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
+sys_var_thd_ulong	sys_sync_replication("sync_replication",
+                                               &SV::sync_replication);
+sys_var_thd_ulong	sys_sync_replication_slave_id(
+						"sync_replication_slave_id",
+                                               &SV::sync_replication_slave_id);
+sys_var_thd_ulong	sys_sync_replication_timeout(
+						"sync_replication_timeout",
+                                               &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
@@ -404,6 +418,7 @@ sys_var_thd_bool
 sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
 sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
+sys_var_long_ptr sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
 #endif
 
 /* Time/date/datetime formats */
@@ -537,6 +552,7 @@ sys_var *sys_variables[]=
   &sys_collation_connection,
   &sys_collation_database,
   &sys_collation_server,
+  &sys_completion_type,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_date_format,
@@ -645,6 +661,9 @@ sys_var *sys_variables[]=
   &sys_storage_engine,
 #ifdef HAVE_REPLICATION
   &sys_sync_binlog_period,
+  &sys_sync_replication,
+  &sys_sync_replication_slave_id,
+  &sys_sync_replication_timeout,
 #endif
   &sys_sync_frm,
   &sys_table_cache_size,
@@ -676,6 +695,7 @@ sys_var *sys_variables[]=
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
   &sys_ndb_use_transactions,
+  &sys_ndb_cache_check_time,
 #endif
   &sys_unique_checks,
   &sys_updatable_views_with_limit,
@@ -714,6 +734,7 @@ struct show_var_st init_vars[]= {
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_collation_database.name,(char*) &sys_collation_database,     SHOW_SYS},
   {sys_collation_server.name,(char*) &sys_collation_server,         SHOW_SYS},
+  {sys_completion_type.name,  (char*) &sys_completion_type,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
@@ -857,6 +878,7 @@ struct show_var_st init_vars[]= {
   {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
+  {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
@@ -915,6 +937,9 @@ struct show_var_st init_vars[]= {
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+  {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
+  {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
+  {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
@@ -1128,6 +1153,21 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
   if (type == OPT_SESSION)
     thd->session_tx_isolation= ((enum_tx_isolation)
 				thd->variables.tx_isolation);
+}
+
+static void fix_completion_type(THD *thd __attribute__(unused), 
+				enum_var_type type __attribute__(unused)) {}
+
+static int check_completion_type(THD *thd, set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < 0 || val > 2)
+  {
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
+    return 1;
+  }
+  return 0;
 }
 
 
@@ -1507,7 +1547,7 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
   String str(buff, sizeof(buff), system_charset_info), *res;
 
@@ -1544,7 +1584,7 @@ err:
 bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 {
   bool not_used;
-  char buff[80], *error= 0;
+  char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
   uint error_len= 0;
   String str(buff, sizeof(buff), system_charset_info), *res;
 
@@ -1755,7 +1795,7 @@ bool sys_var_thd_date_time_format::update(THD *thd, set_var *var)
 
 bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String str(buff,sizeof(buff), system_charset_info), *res;
   DATE_TIME_FORMAT *format;
 
@@ -1859,7 +1899,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
@@ -1893,7 +1933,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
@@ -2032,9 +2072,15 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION)
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
 bool sys_var_character_set_server::check(THD *thd, set_var *var)
 {
+  /*
+    To be perfect we should fail even if we are a 5.0.3 slave, a 4.1 master,
+    and user wants to change our global character set variables. Because
+    replicating a 4.1 assumes those are not changed. But that's not easy to
+    do.
+  */
   if ((var->type == OPT_GLOBAL) &&
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
@@ -2139,7 +2185,7 @@ void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION)
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
 bool sys_var_collation_server::check(THD *thd, set_var *var)
 {
   if ((var->type == OPT_GLOBAL) &&
@@ -2513,8 +2559,15 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 {
-  /* We are using Time_zone object found during check() phase */
-  *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
+  /* We are using Time_zone object found during check() phase. */
+  if (var->type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.time_zone= var->save_result.time_zone;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.time_zone= var->save_result.time_zone;
   return 0;
 }
 
@@ -2526,27 +2579,25 @@ byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
     We can use ptr() instead of c_ptr() here because String contaning
     time zone name is guaranteed to be zero ended.
   */
-  return (byte *)((*get_tz_ptr(thd,type))->get_name()->ptr());
-}
-
-
-Time_zone** sys_var_thd_time_zone::get_tz_ptr(THD *thd, 
-                                              enum_var_type type)
-{
   if (type == OPT_GLOBAL)
-    return &global_system_variables.time_zone;
+    return (byte *)(global_system_variables.time_zone->get_name()->ptr());
   else
-    return &thd->variables.time_zone;
+    return (byte *)(thd->variables.time_zone->get_name()->ptr());
 }
 
 
 void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
 {
+ pthread_mutex_lock(&LOCK_global_system_variables);
  if (type == OPT_GLOBAL)
  {
    if (default_tz_name)
    {
      String str(default_tz_name, &my_charset_latin1);
+     /*
+       We are guaranteed to find this time zone since its existence
+       is checked during start-up.
+     */
      global_system_variables.time_zone=
        my_tz_find(&str, thd->lex->time_zone_tables_used);
    }
@@ -2555,6 +2606,7 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
  }
  else
    thd->variables.time_zone= global_system_variables.time_zone;
+ pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 
@@ -2938,7 +2990,7 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if ((!value->fixed && 
+  if ((!value->fixed &&
        value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
@@ -3077,7 +3129,7 @@ int set_var_password::update(THD *thd)
 
 bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
   String str(buff, sizeof(buff), &my_charset_latin1), *res;
 

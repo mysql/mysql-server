@@ -56,7 +56,7 @@ int
 sp_show_status_procedure(THD *thd, const char *wild);
 
 sp_head *
-sp_find_function(THD *thd, sp_name *name);
+sp_find_function(THD *thd, sp_name *name, bool cache_only = 0);
 
 int
 sp_create_function(THD *thd, sp_head *sp);
@@ -77,14 +77,15 @@ bool
 sp_function_exists(THD *thd, sp_name *name);
 
 
-// This is needed since we have to read the functions before we
-// do anything else.
+/*
+ *  For precaching of functions and procedures
+ */
 void
-sp_add_fun_to_lex(LEX *lex, sp_name *fun);
+sp_add_to_hash(HASH *h, sp_name *fun);
 void
-sp_merge_funs(LEX *dst, LEX *src);
+sp_merge_hash(HASH *dst, HASH *src);
 int
-sp_cache_functions(THD *thd, LEX *lex);
+sp_cache_routines(THD *thd, LEX *lex, int type);
 
 
 //

@@ -261,11 +261,12 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 bool opt_help= 0;
 bool opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
 
 /* Global variables */
@@ -291,6 +292,7 @@ my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
+ulong opt_ndb_cache_check_time= 0;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
@@ -371,6 +373,7 @@ const char *sql_mode_str="OFF";
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+my_decimal decimal_zero;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -2383,6 +2386,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   umask(((~my_umask) & 0666));
+  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
@@ -3298,12 +3302,14 @@ default_service_handling(char **argv,
 
   if (Service.got_service_option(argv, "install"))
   {
-    Service.Install(1, servicename, displayname, path_and_service, account_name);
+    Service.Install(1, servicename, displayname, path_and_service,
+                    account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "install-manual"))
   {
-    Service.Install(0, servicename, displayname, path_and_service, account_name);
+    Service.Install(0, servicename, displayname, path_and_service,
+                    account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "remove"))
@@ -3323,7 +3329,7 @@ int main(int argc, char **argv)
      application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */ 
   int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
-          "MySQLShutdown"), 10);
+                                                  "MySQLShutdown"), 10);
   
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -3357,7 +3363,8 @@ int main(int argc, char **argv)
     }
     else if (argc == 3) /* install or remove any optional service */
     {
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, "", NULL))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, "",
+                                    NULL))
 	return 0;
       if (Service.IsService(argv[2]))
       {
@@ -3375,39 +3382,30 @@ int main(int argc, char **argv)
 	return 0;
       }
     }
-    else if (argc >= 4)
+    else if (argc == 4 || argc == 5)
     {
-      const char *defaults_file = "--defaults-file";
-      const char *service = "--local-service";
-      char extra_opt[FN_REFLEN] = "";  
-      char *account_name = NULL;
-      char *option;
+      /*
+        This may seem strange, because we handle --local-service while
+        preserving 4.1's behavior of allowing any one other argument that is
+        passed to the service on startup. (The assumption is that this is
+        --defaults-file=file, but that was not enforced in 4.1, so we don't
+        enforce it here.)
+      */
+      const char *extra_opt= NullS;
+      const char *account_name = NullS;
       int index;
       for (index = 3; index < argc; index++)
       {
-        option= argv[index];
-        /* 
-          Install an optional service with optional config file
-          mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
-        */
-        if (strncmp(option, defaults_file, strlen(defaults_file)) == 0)
-        {
-          strmov(extra_opt, option);	  
-        }
+        if (!strcmp(argv[index], "--local-service"))
+          account_name= "NT AUTHORITY\\LocalService";
         else
-        /* 
-          Install an optional service as local service
-          mysqld --install-manual mysqldopt --local-service
-        */
-        if (strncmp(option, service, strlen(service)) == 0)
-        {
-          account_name=(char*)malloc(27);
-          strmov(account_name, "NT AUTHORITY\\LocalService\0");
-        }
+          extra_opt= argv[index];
       }
 
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
-        return 0;
+      if (argc == 4 || account_name)
+        if (!default_service_handling(argv, argv[2], argv[2], file_path,
+                                      extra_opt, account_name))
+          return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
@@ -4175,9 +4173,9 @@ enum options_mysqld
   OPT_ENGINE_CONDITION_PUSHDOWN,
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-  OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION,
+  OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_SKIP_SAFEMALLOC,
-  OPT_TEMP_POOL, OPT_TX_ISOLATION,
+  OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
   OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
@@ -4252,7 +4250,11 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
-  OPT_SYNC_FRM, OPT_SYNC_BINLOG, OPT_BDB_NOSYNC,
+  OPT_SYNC_FRM, OPT_SYNC_BINLOG,
+  OPT_SYNC_REPLICATION,
+  OPT_SYNC_REPLICATION_SLAVE_ID,
+  OPT_SYNC_REPLICATION_TIMEOUT,
+  OPT_BDB_NOSYNC,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
@@ -4364,6 +4366,10 @@ Disable with --skip-bdb (will save memory).",
   {"collation-server", OPT_DEFAULT_COLLATION, "Set the default collation.",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"completion-type", OPT_COMPLETION_TYPE, "Default completion type.",
+   (gptr*) &global_system_variables.completion_type,
+   (gptr*) &max_system_variables.completion_type, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, 2, 0, 1, 0},
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
    "Use concurrent insert with MyISAM. Disable with --skip-concurrent-insert.",
    (gptr*) &myisam_concurrent_insert, (gptr*) &myisam_concurrent_insert,
@@ -4705,6 +4711,10 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndb_optimized_node_selection,
    (gptr*) &opt_ndb_optimized_node_selection,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  { "ndb_cache_check_time", OPT_NDB_CACHE_CHECK_TIME,
+    "A dedicated thread is created to update cached commit count value at the given interval.",
+    (gptr*) &opt_ndb_cache_check_time, (gptr*) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
+    0, 0, LONG_TIMEOUT, 0, 1, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
@@ -5450,6 +5460,23 @@ The minimum value for this variable is 4096.",
    (gptr*) &sync_binlog_period,
    (gptr*) &sync_binlog_period, 0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1,
    0},
+#ifdef DOES_NOTHING_YET
+  {"sync-replication", OPT_SYNC_REPLICATION,
+   "Enable synchronous replication",
+   (gptr*) &global_system_variables.sync_replication,
+   (gptr*) &global_system_variables.sync_replication,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
+  {"sync-replication-slave-id", OPT_SYNC_REPLICATION_SLAVE_ID,
+   "Synchronous replication is wished for this slave",
+   (gptr*) &global_system_variables.sync_replication_slave_id,
+   (gptr*) &global_system_variables.sync_replication_slave_id,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
+  {"sync-replication-timeout", OPT_SYNC_REPLICATION_TIMEOUT,
+   "Synchronous replication timeout",
+   (gptr*) &global_system_variables.sync_replication_timeout,
+   (gptr*) &global_system_variables.sync_replication_timeout,
+   0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
+#endif
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},

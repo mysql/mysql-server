@@ -82,15 +82,15 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
 
 bool
 SocketServer::setup(SocketServer::Service * service, 
-		    unsigned short port, 
+		    unsigned short * port,
 		    const char * intface){
   DBUG_ENTER("SocketServer::setup");
-  DBUG_PRINT("enter",("interface=%s, port=%d", intface, port));
+  DBUG_PRINT("enter",("interface=%s, port=%u", intface, *port));
   struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(port);
+  servaddr.sin_port = htons(*port);
   
   if(intface != 0){
     if(Ndb_getInAddr(&servaddr.sin_addr, intface))
@@ -119,7 +119,20 @@ SocketServer::setup(SocketServer::Service * service,
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);
   }
-  
+
+  /* Get the port we bound to */
+  SOCKET_SIZE_TYPE sock_len = sizeof(servaddr);
+  if(getsockname(sock,(struct sockaddr*)&servaddr,&sock_len)<0) {
+    char msg[100];
+    if(!strerror_r(errno,msg,sizeof(msg)))
+      strcpy(msg,"Unknown");
+    ndbout_c("An error occurred while trying to find out what"
+	     " port we bound to. Error: %s",msg);
+    NDB_CLOSE_SOCKET(sock);
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("info",("bound to %u",ntohs(servaddr.sin_port)));
   if (listen(sock, m_maxSessions) == -1){
     DBUG_PRINT("error",("listen() - %d - %s",
 			errno, strerror(errno)));
@@ -131,6 +144,9 @@ SocketServer::setup(SocketServer::Service * service,
   i.m_socket = sock;
   i.m_service = service;
   m_services.push_back(i);
+
+  *port = ntohs(servaddr.sin_port);
+
   DBUG_RETURN(true);
 }
 
@@ -186,11 +202,7 @@ extern "C"
 void* 
 socketServerThread_C(void* _ss){
   SocketServer * ss = (SocketServer *)_ss;
-  
-  my_thread_init();
   ss->doRun();
-  my_thread_end();  
-  NdbThread_Exit(0);
   return 0;
 }
 
@@ -309,24 +321,26 @@ void*
 sessionThread_C(void* _sc){
   SocketServer::Session * si = (SocketServer::Session *)_sc;
 
-  my_thread_init();
   if(!transfer(si->m_socket)){
     si->m_stopped = true;
-    my_thread_end();
-    NdbThread_Exit(0);
     return 0;
   }
   
-  if(!si->m_stop){
-    si->m_stopped = false;
-    si->runSession();
-  } else {
-    NDB_CLOSE_SOCKET(si->m_socket);
+  /**
+   * may have m_stopped set if we're transforming a mgm
+   * connection into a transporter connection.
+   */
+  if(!si->m_stopped)
+  {
+    if(!si->m_stop){
+      si->m_stopped = false;
+      si->runSession();
+    } else {
+      NDB_CLOSE_SOCKET(si->m_socket);
+    }
   }
   
   si->m_stopped = true;
-  my_thread_end();
-  NdbThread_Exit(0);
   return 0;
 }
 

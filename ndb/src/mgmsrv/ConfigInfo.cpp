@@ -3132,8 +3132,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
   const Properties * node;
   require(ctx.m_config->get("Node", id1, &node));
+
   BaseString hostname(hostName1);
-  //  require(node->get("HostName", hostname));
   
   if (hostname.c_str()[0] == 0) {
     ctx.reportError("Hostname required on nodeid %d since it will "
@@ -3142,39 +3142,21 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   Uint32 port= 0;
+  const char * type1;
+  const char * type2;
+  const Properties * node2;
+
+  node->get("Type", &type1);
+  ctx.m_config->get("Node", id2, &node2);
+  node2->get("Type", &type2);
+
+  if(strcmp(type1, MGM_TOKEN)==0)
+    node->get("PortNumber",&port);
+  else if(strcmp(type2, MGM_TOKEN)==0)
+    node2->get("PortNumber",&port);
+
   if (!node->get("ServerPort", &port) &&
       !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
-    Uint32 adder= 0;
-    {
-      BaseString server_port_adder(hostname);
-      server_port_adder.append("_ServerPortAdder");
-      ctx.m_userProperties.get(server_port_adder.c_str(), &adder);
-      ctx.m_userProperties.put(server_port_adder.c_str(), adder+1, true);
-    }
-
-    Uint32 base= 0;
-    if (!ctx.m_userProperties.get("ServerPortBase", &base)){
-      if(!(ctx.m_userDefaults &&
-	   ctx.m_userDefaults->get("PortNumber", &base)) &&
-	 !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	base= strtoll(NDB_TCP_BASE_PORT,0,0);
-      //      ctx.reportError("Cannot retrieve base port number");
-      //      return false;
-      }
-      ctx.m_userProperties.put("ServerPortBase", base);
-    }
-    port= base + adder;
-    ctx.m_userProperties.put("ServerPort_", id1, port);
-  }
-
-  if(ctx.m_currentSection->contains("PortNumber")) {
-    ndbout << "PortNumber should no longer be specificied "
-	   << "per connection, please remove from config. "
-	   << "Will be changed to " << port << endl;
-    ctx.m_currentSection->put("PortNumber", port, true);
-  } 
-  else
-  {
     ctx.m_currentSection->put("PortNumber", port);
   }
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
@@ -3204,13 +3186,27 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
 {
   DBUG_ENTER("fixShmKey");
   {
+    static int last_signum= -1;
     Uint32 signum;
     if(!ctx.m_currentSection->get("Signum", &signum))
     {
       signum= OPT_NDB_SHM_SIGNUM_DEFAULT;
+      if (signum <= 0)
+      {
+	  ctx.reportError("Unable to set default parameter for [SHM]Signum"
+			  " please specify [SHM DEFAULT]Signum");
+	  return false;
+      }
       ctx.m_currentSection->put("Signum", signum);
       DBUG_PRINT("info",("Added Signum=%u", signum));
     }
+    if ( last_signum != (int)signum && last_signum >= 0 )
+    {
+      ctx.reportError("All shared memory transporters must have same [SHM]Signum defined."
+		      " Use [SHM DEFAULT]Signum");
+      return false;
+    }
+    last_signum= (int)signum;
   }
   {
     Uint32 id1= 0, id2= 0, key= 0;
