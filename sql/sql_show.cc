@@ -1214,7 +1214,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
            !(key_info->flags & HA_FULLTEXT)))
       {
         buff[0] = '(';
-        char* end=int10_to_str((long) key_part->length, buff + 1,10);
+        char* end=int10_to_str((long) key_part->length / 
+			       key_part->field->charset()->mbmaxlen,
+			       buff + 1,10);
         *end++ = ')';
         packet->append(buff,(uint) (end-buff));
       }
