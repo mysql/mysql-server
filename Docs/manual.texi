@@ -48933,6 +48933,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in boolean fulltext search, that caused MySQL to ignore queries of
+@code{ft_min_word_len} characters.
+@item
 Boolean fulltext search now supports "phrase searches".
 @item
 New configure option @code{--without-query-cache}. 
