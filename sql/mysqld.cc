@@ -2322,6 +2322,12 @@ The server will not act as a slave.");
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
   }
+  else if (opt_log_slave_updates)
+  {
+      sql_print_error("\
+Warning: you need to use --log-bin to make --log-slave-updates work. \
+Now disabling --log-slave-updates.");
+  }
 
   if (opt_bootstrap)
   {
