@@ -127,8 +127,8 @@ int mi_write(MI_INFO *info, byte *record)
         {
           if (local_lock_tree)
             rw_unlock(&share->key_root_lock[i]);
-            DBUG_PRINT("error",("Got error: %d on write",my_errno));
-            goto err;
+          DBUG_PRINT("error",("Got error: %d on write",my_errno));
+          goto err;
         }
       }
       if (local_lock_tree)
@@ -162,7 +162,8 @@ int mi_write(MI_INFO *info, byte *record)
 
 err:
   save_errno=my_errno;
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL)
+  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL ||
+      my_errno == HA_ERR_NULL_IN_SPATIAL)
   {
     if (info->bulk_insert)
     {

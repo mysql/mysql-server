@@ -26,7 +26,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "hash_filo.h"
 #ifdef HAVE_REPLICATION
 #include "sql_repl.h" //for tables_ok()
@@ -3357,15 +3356,17 @@ err:
 
 
 bool check_grant_column(THD *thd, GRANT_INFO *grant,
-			char*db_name, char *table_name,
+			char *db_name, char *table_name,
 			const char *name, uint length, uint show_tables)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
-
   ulong want_access= grant->want_privilege & ~grant->privilege;
+  DBUG_ENTER("check_grant_column");
+  DBUG_PRINT("enter", ("table: %s  want_access: %u", table_name, want_access));
+
   if (!want_access)
-    return 0;					// Already checked
+    DBUG_RETURN(0);				// Already checked
 
   rw_rdlock(&LOCK_grant);
 
@@ -3376,7 +3377,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
     grant->grant_table=
       table_hash_search(thd->host, thd->ip, db_name,
 			thd->priv_user,
-			table_name, 0);	/* purecov: inspected */
+			table_name, 0);         /* purecov: inspected */
     grant->version= grant_version;		/* purecov: inspected */
   }
   if (!(grant_table= grant->grant_table))
@@ -3386,13 +3387,13 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   if (grant_column && !(~grant_column->rights & want_access))
   {
     rw_unlock(&LOCK_grant);
-    return 0;
+    DBUG_RETURN(0);
   }
 #ifdef NOT_USED
   if (show_tables && (grant_column || grant->privilege & COL_ACLS))
   {
     rw_unlock(&LOCK_grant);			/* purecov: deadcode */
-    return 0;					/* purecov: deadcode */
+    DBUG_RETURN(0);				/* purecov: deadcode */
   }
 #endif
 
@@ -3409,7 +3410,7 @@ err:
              name,
              table_name);
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 

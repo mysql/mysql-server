@@ -160,7 +160,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_compatible_mode_str, (gptr*) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compact", OPT_COMPACT,
-   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --no-set-names --skip-disable-keys --skip-lock-tables",
+   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --no-set-names --skip-disable-keys --skip-add-locks",
    (gptr*) &opt_compact, (gptr*) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"complete-insert", 'c', "Use complete insert statements.", (gptr*) &cFlag,
@@ -1848,8 +1848,6 @@ static void dumpTable(uint numFields, char *table)
 err:
   if (query != query_buf)
     my_free(query, MYF(MY_ALLOW_ZERO_PTR));
-  if (order_by)
-    my_free(order_by, MYF(0));
   safe_exit(error);
   return;
 } /* dumpTable */
@@ -1967,7 +1965,7 @@ static int init_dumping(char *database)
         sprintf(qbuf,"SHOW CREATE DATABASE IF NOT EXISTS %s",
 		qdatabase);
 
-        if (mysql_query_with_error_report(sock, &dbinfo, qbuf))
+        if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
 	  fprintf(md_result_file,
@@ -2029,6 +2027,8 @@ static int dump_all_tables_in_db(char *database)
     numrows = getTableStructure(table, database);
     if (!dFlag && numrows > 0)
       dumpTable(numrows,table);
+    my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+    order_by= 0;
   }
   if (opt_xml)
   {
@@ -2130,6 +2130,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     numrows = getTableStructure(table_names[i], db);
     if (!dFlag && numrows > 0)
       dumpTable(numrows, table_names[i]);
+    my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+    order_by= 0;
   }
   if (was_views)
   {

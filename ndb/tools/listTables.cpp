@@ -161,13 +161,17 @@ list(const char * tabname,
     }
 }
 
-static const char* opt_connect_str= 0;
+enum ndb_show_tables_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static int _loops;
 static int _type;
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_show_tables"),
   { "database", 'd', "Name of database table is in",
     (gptr*) &_dbname, (gptr*) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },

@@ -3,7 +3,7 @@ select 1, 1.0, -1, "hello", NULL;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					1	8	1	1	N	32769	0	8
 def					1.0	5	3	3	N	32769	1	8
-def					-1	8	1	2	N	32769	0	8
+def					-1	8	2	2	N	32769	0	8
 def					hello	253	5	5	N	1	31	8
 def					NULL	6	0	0	Y	32896	0	63
 1	1.0	-1	hello	NULL

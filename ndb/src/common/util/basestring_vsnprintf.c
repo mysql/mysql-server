@@ -20,10 +20,12 @@
 #include <basestring_vsnprintf.h>
 #include <my_config.h>
 
+#ifdef _WINDOWS
+#define SNPRINTF_RETURN_TRUNC
+#define snprintf _snprintf
+#define vsnprintf _vsnprintf
+#endif
 
-/*
-  #define SNPRINTF_RETURN_TRUNC
-*/
 int
 basestring_snprintf(char *str, size_t size, const char *format, ...)
 {
@@ -35,16 +37,6 @@ basestring_snprintf(char *str, size_t size, const char *format, ...)
   return(ret);
 }
 
-#ifdef HAVE_SNPRINTF
-  #define BASESTRING_VSNPRINTF_FUNC(a,b,c,d) vsnprintf(a,b,c,d)
-#else
-  #define SNPRINTF_RETURN_TRUNC
-  /*  #define BASESTRING_VSNPRINTF_FUNC(a,b,c,d) my_vsnprintf(a,b,c,d)
-   *  we would like to use my_vsnprintf but it does not have enough features
-   *  Let's hope vsnprintf works anyways
-   */
-  #define BASESTRING_VSNPRINTF_FUNC(a,b,c,d) vsnprintf(a,b,c,d)
-#endif
 #ifdef SNPRINTF_RETURN_TRUNC
 static char basestring_vsnprintf_buf[16*1024];
 #endif
@@ -54,22 +46,22 @@ basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
   if (size == 0)
   {
 #ifdef SNPRINTF_RETURN_TRUNC
-    return BASESTRING_VSNPRINTF_FUNC(basestring_vsnprintf_buf,
-				     sizeof(basestring_vsnprintf_buf),
-				     format, ap);
+    return vsnprintf(basestring_vsnprintf_buf,
+		     sizeof(basestring_vsnprintf_buf),
+		     format, ap);
 #else
     char buf[1];
-    return BASESTRING_VSNPRINTF_FUNC(buf, 1, format, ap);
+    return vsnprintf(buf, 1, format, ap);
 #endif
   }
   {
-    int ret= BASESTRING_VSNPRINTF_FUNC(str, size, format, ap);
+    int ret= vsnprintf(str, size, format, ap);
 #ifdef SNPRINTF_RETURN_TRUNC
     if (ret == size-1 || ret == -1)
     {
-      ret= BASESTRING_VSNPRINTF_FUNC(basestring_vsnprintf_buf,
-				     sizeof(basestring_vsnprintf_buf),
-				     format, ap);
+      ret= vsnprintf(basestring_vsnprintf_buf,
+		     sizeof(basestring_vsnprintf_buf),
+		     format, ap);
     }
 #endif
     return ret;
