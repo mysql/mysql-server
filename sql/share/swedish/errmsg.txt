@@ -105,7 +105,7 @@
 "BLOB fält '%-.64s' kan inte ha ett DEFAULT-värde",
 "Felaktigt databasnamn '%-.64s'",
 "Felaktigt tabellnamn '%-.64s'",
-"Den angivna frågan skulle troligen ta mycket lång tid!  Kontrollera din WHERE och använd SET OPTION SQL_BIG_SELECTS=1 ifall du vill hantera stora joins",
+"Den angivna frågan skulle troligen ta mycket lång tid!  Kontrollera din WHERE och använd SET SQL_BIG_SELECTS=1 ifall du vill hantera stora joins",
 "Oidentifierat fel",
 "Okänd procedur: %s",
 "Felaktigt antal parametrar till procedur %s",
