@@ -770,10 +770,8 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
 
   for (; key_part != end && (int) key_length > 0 ; key_part++)
   {
-    uint offset=0;
     if (key_part->null_bit)
     {
-      offset=1;
       if (!(*buff++ = (*key_ptr == 0)))		// Store 0 if NULL
       {
 	key_length-= key_part->store_length;
@@ -783,7 +781,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
       }
       key_ptr++;
     }
-    buff=key_part->field->keypack(buff,key_ptr+offset,key_part->length);
+    buff=key_part->field->keypack(buff,key_ptr,key_part->length);
     key_ptr+=key_part->store_length;
     key_length-=key_part->store_length;
   }

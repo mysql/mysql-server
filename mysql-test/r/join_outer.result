@@ -33,12 +33,9 @@ grp	a	c	id	a	c	d
 NULL	NULL		NULL	NULL	NULL	NULL
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
-2	2	b	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
-NULL	NULL		NULL	NULL	NULL	NULL
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
 2	2	b	NULL	NULL	NULL	NULL

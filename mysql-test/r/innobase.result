@@ -1,0 +1,408 @@
+id	code	name
+1	1	Tim
+2	1	Monty
+3	2	David
+4	2	Erik
+5	3	Sasha
+6	3	Jeremy
+7	4	Matt
+id	code	name
+2	1	Monty
+3	2	David
+4	2	Erik
+5	3	Sasha
+6	3	Jeremy
+7	4	Matt
+8	1	Sinisa
+id	code	name
+3	2	David
+4	2	Erik
+5	3	Sasha
+6	3	Jeremy
+7	4	Matt
+8	1	Sinisa
+12	1	Ralph
+id	parent_id	level
+8	102	2
+9	102	2
+15	102	2
+id	parent_id	level
+1001	100	0
+1002	101	1
+1003	101	1
+1004	101	1
+1005	101	1
+1006	101	1
+1007	101	1
+1008	102	2
+1009	102	2
+1015	102	2
+1016	103	2
+1017	103	2
+1018	103	2
+1019	103	2
+1020	103	2
+1021	104	2
+1022	104	2
+1024	104	2
+1025	105	2
+1026	105	2
+1027	105	2
+1028	105	2
+1029	105	2
+1030	105	2
+1031	106	2
+1032	106	2
+1033	106	2
+1034	106	2
+1035	106	2
+1036	107	2
+1037	107	2
+1038	107	2
+1040	107	2
+1157	100	0
+1179	105	2
+1183	104	2
+1193	105	2
+1202	107	2
+1203	107	2
+id	parent_id	level
+1001	100	0
+1002	101	1
+1003	101	1
+1004	101	1
+1005	101	1
+1006	101	1
+1007	101	1
+1008	102	2
+1010	102	2
+1015	102	2
+1016	103	2
+1017	103	2
+1018	103	2
+1019	103	2
+1020	103	2
+1021	104	2
+1023	104	2
+1024	104	2
+1025	105	2
+1026	105	2
+1027	105	2
+1028	105	2
+1029	105	2
+1030	105	2
+1031	106	2
+1032	106	2
+1033	106	2
+1034	106	2
+1035	106	2
+1036	107	2
+1037	107	2
+1039	107	2
+1041	107	2
+1158	100	0
+1180	105	2
+1184	104	2
+1194	105	2
+1202	107	2
+1204	107	2
+id	parent_id	level
+1008	102	2
+1015	102	2
+1010	102	2
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ref	level	level	1	const	1	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ref	level	level	1	const	1	where used; Using index
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ref	level	level	1	const	1	where used
+level	id
+1	1002
+1	1003
+1	1004
+1	1005
+1	1006
+1	1007
+level	id	parent_id
+1	1002	101
+1	1003	101
+1	1004	101
+1	1005	101
+1	1006	101
+1	1007	101
+gesuchnr	benutzer_id
+1	1
+2	1
+a
+2
+a	b
+a	1
+a	2
+a	3
+a	4
+a	5
+b	2
+b	3
+b	4
+c	1
+c	2
+c	3
+d	1
+d	2
+d	5
+e	1
+k	1
+n	after rollback
+n	after commit
+4	after commit
+n	after commit
+4	after commit
+5	after commit
+n
+4
+5
+6
+afterbegin_id	afterbegin_nom
+1	hamdouni
+afterrollback_id	afterrollback_nom
+afterautocommit0_id	afterautocommit0_nom
+2	mysql
+afterrollback_id	afterrollback_nom
+id	val
+id	val
+pippo	12
+id	val
+ID	NAME
+1	Jochen
+_userid
+marc@anyware.co.uk
+_userid
+marc@anyware.co.uk
+user_id	name	phone	ref_email	detail
+10292	sanjeev	29153373	sansh777@hotmail.com	xxx
+10292	shirish	2333604	shirish@yahoo.com	ddsds
+10292	sonali	323232	sonali@bolly.com	filmstar
+user_id	name	phone	ref_email	detail
+10292	sanjeev	29153373	sansh777@hotmail.com	xxx
+10292	shirish	2333604	shirish@yahoo.com	ddsds
+10292	sonali	323232	sonali@bolly.com	filmstar
+user_id	name	phone	ref_email	detail
+10292	sanjeev	29153373	sansh777@hotmail.com	xxx
+10292	shirish	2333604	shirish@yahoo.com	ddsds
+10292	sonali	323232	sonali@bolly.com	filmstar
+10293	shirish	2333604	shirish@yahoo.com	ddsds
+user_id	name	phone	ref_email	detail
+10293	shirish	2333604	shirish@yahoo.com	ddsds
+user_id	name	phone	ref_email	detail
+10291	sanjeev	29153373	sansh777@hotmail.com	xxx
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t1	0	PRIMARY	1	a	A	NULL	NULL	NULL	
+t1	0	PRIMARY	2	b	A	0	NULL	NULL	
+t1	0	b	1	b	A	0	NULL	NULL	
+t1	0	c	1	c	A	0	NULL	NULL	
+t1	1	a	1	a	A	NULL	NULL	NULL	
+t1	1	a_2	1	a	A	NULL	NULL	NULL	
+col1	col2
+1	1
+2	3
+3	4
+4	4
+5	2
+col1	col2
+1	1
+2	3
+3	4
+4	7
+5	2
+col1	col2	co3
+1	1	0
+2	3	0
+3	4	0
+4	7	0
+5	2	0
+col1	col2	co3
+1	1	0
+2	9	0
+3	4	0
+4	7	0
+5	2	0
+a	b
+1	3
+2	3
+3	3
+a	b
+1	3
+2	3
+3	3
+a	b
+a	b
+1	3
+2	3
+3	3
+a	b
+1	3
+2	3
+3	3
+id	ggid	email	passwd
+1	test1		xxx
+id	ggid	email	passwd
+1	test1		xxx
+id	ggid	email	passwd
+2	test2		yyy
+user_name	password	subscribed	user_id	quota	weight	access_date	access_time	approved	dummy_primary_key
+user_0	somepassword	N	0	0	0	2000-09-07	23:06:59	2000-09-07 23:06:59	1
+user_1	somepassword	Y	1	1	1	2000-09-07	23:06:59	2000-09-07 23:06:59	2
+user_2	somepassword	N	2	2	1.4142135623731	2000-09-07	23:06:59	2000-09-07 23:06:59	3
+user_3	somepassword	Y	3	3	1.7320508075689	2000-09-07	23:06:59	2000-09-07 23:06:59	4
+user_4	somepassword	N	4	4	2	2000-09-07	23:06:59	2000-09-07 23:06:59	5
+id	parent_id	level
+8	102	2
+9	102	2
+15	102	2
+id	parent_id	level
+1001	100	0
+1003	101	1
+1004	101	1
+1008	102	2
+1024	102	2
+1017	103	2
+1022	104	2
+1024	104	2
+1028	105	2
+1029	105	2
+1030	105	2
+1031	106	2
+1032	106	2
+1033	106	2
+1203	107	2
+1202	107	2
+1020	103	2
+1157	100	0
+1193	105	2
+1040	107	2
+1002	101	1
+1015	102	2
+1006	101	1
+1034	106	2
+1035	106	2
+1016	103	2
+1007	101	1
+1036	107	2
+1018	103	2
+1026	105	2
+1027	105	2
+1183	104	2
+1038	107	2
+1025	105	2
+1037	107	2
+1021	104	2
+1019	103	2
+1005	101	1
+1179	105	2
+id	parent_id	level
+1002	100	0
+1004	101	1
+1005	101	1
+1009	102	2
+1025	102	2
+1018	103	2
+1023	104	2
+1025	104	2
+1029	105	2
+1030	105	2
+1031	105	2
+1032	106	2
+1033	106	2
+1034	106	2
+1204	107	2
+1203	107	2
+1021	103	2
+1158	100	0
+1194	105	2
+1041	107	2
+1003	101	1
+1016	102	2
+1007	101	1
+1035	106	2
+1036	106	2
+1017	103	2
+1008	101	1
+1037	107	2
+1019	103	2
+1027	105	2
+1028	105	2
+1184	104	2
+1039	107	2
+1026	105	2
+1038	107	2
+1022	104	2
+1020	103	2
+1006	101	1
+1180	105	2
+id	parent_id	level
+1009	102	2
+1025	102	2
+1016	102	2
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ref	level	level	1	const	1	where used; Using index
+level	id
+1	1004
+1	1005
+1	1003
+1	1007
+1	1008
+1	1006
+level	id	parent_id
+1	1004	101
+1	1005	101
+1	1003	101
+1	1007	101
+1	1008	101
+1	1006	101
+level	id
+1	1003
+1	1004
+1	1005
+1	1006
+1	1007
+1	1008
+id	parent_id	level
+1002	100	0
+1009	102	2
+1025	102	2
+1018	103	2
+1023	104	2
+1025	104	2
+1029	105	2
+1030	105	2
+1031	105	2
+1032	106	2
+1033	106	2
+1034	106	2
+1204	107	2
+1203	107	2
+1021	103	2
+1158	100	0
+1194	105	2
+1041	107	2
+1016	102	2
+1035	106	2
+1036	106	2
+1017	103	2
+1037	107	2
+1019	103	2
+1027	105	2
+1028	105	2
+1184	104	2
+1039	107	2
+1026	105	2
+1038	107	2
+1022	104	2
+1020	103	2
+1180	105	2
+count(*)
+1
+a
+1
+2
+3
