@@ -71,9 +71,12 @@ public:
   ~MYSQL_LOG();
   pthread_mutex_t* get_log_lock() { return &LOCK_log; }
   void set_index_file_name(const char* index_file_name = 0);
+  void init(enum_log_type log_type_arg);
   void open(const char *log_name,enum_log_type log_type,
 	    const char *new_name=0);
   void new_file(void);
+  bool open_index(int options);
+  void close_index();
   bool write(THD *thd, enum enum_server_command command,const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);

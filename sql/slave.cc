@@ -20,6 +20,7 @@
 #include <myisam.h>
 #include "mini_client.h"
 #include "slave.h"
+#include "sql_repl.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
 
@@ -441,6 +442,101 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
   return error;
 }
 
+void MASTER_INFO::close_virtual_master()
+{
+  vm_binlog.close_index();
+  end_io_cache(&vm_cache);
+  if(vm_fd >= 0)
+    {
+      my_close(vm_fd, MYF(0));
+      vm_fd = -1;
+    }
+}
+
+int MASTER_INFO::setup_virtual_master()
+{
+  vm_binlog.init(LOG_BIN);
+  vm_binlog.set_index_file_name(host);
+  if(vm_binlog.open_index(O_RDONLY))
+    {
+      sql_print_error("virtual master: could not open index file '%s': \
+ (%d)", host, my_errno);
+      return 1;
+    }
+
+  if(vm_binlog.find_first_log(&vm_linfo,log_file_name))
+    {
+      sql_print_error("virtual master: could not find first log");
+      return 1;
+    }
+  
+  if(open_log())
+    return 1;
+  
+  return 0;
+}
+
+int MASTER_INFO::open_log()
+{
+  const char* errmsg = "Unknown error";
+  if(vm_fd >= 0)
+    {
+      end_io_cache(&vm_cache);
+      my_close(vm_fd, MYF(0));
+    }
+
+  // if backup-up logs have relative paths, assume they are relative to
+  // the directory that has the log index, not cwd
+  char logname_buf[FN_REFLEN+1], *logname;
+  if(vm_linfo.log_file_name[0] == FN_LIBCHAR)
+    logname = vm_linfo.log_file_name;
+  else
+    {
+      char* end = strnmov(logname_buf, host,
+			  sizeof(logname_buf));
+      for(; *end != FN_LIBCHAR; --end); // we will always find it, first
+      // char of host is always FN_LIBCHAR for virtual master
+      
+      strncpy(end + 1, vm_linfo.log_file_name,
+	      sizeof(logname_buf) - (end - logname_buf));
+      logname = logname_buf;
+    }
+  
+  if((vm_fd = open_binlog(&vm_cache, logname, &errmsg)) < 0)
+    {
+      sql_print_error("virtual master: error opening binlog '%s': %s",
+		      vm_linfo.log_file_name, errmsg);
+      return 1;
+    }
+
+  strncpy(log_file_name, vm_linfo.log_file_name, sizeof(log_file_name));
+  return 0;
+}
+
+uint MASTER_INFO::read_event()
+{
+  for(;!(vm_ev = Log_event::read_log_event(&vm_cache, 0));)
+    {
+      if(!vm_cache.error) // eof - try next log
+	{
+	  switch(vm_binlog.find_next_log(&vm_linfo))
+	    {
+	    case LOG_INFO_EOF:
+	      return 0;
+	    case 0:
+	      if(open_log())
+		return packet_error;
+	      continue;
+	    default:
+	      sql_print_error("virtual master: could not read next log");
+	      return packet_error;
+	    }
+	}
+    }
+
+  return vm_ev->get_data_size() + LOG_EVENT_HEADER_LEN;
+}
+
 void end_master_info(MASTER_INFO* mi)
 {
   if(mi->fd >= 0)
@@ -450,6 +546,8 @@ void end_master_info(MASTER_INFO* mi)
       mi->fd = -1;
     }
   mi->inited = 0;
+  if(mi->virtual_master)
+    mi->close_virtual_master();
 }
 
 int init_master_info(MASTER_INFO* mi)
@@ -545,6 +643,7 @@ int init_master_info(MASTER_INFO* mi)
   }
   
   mi->inited = 1;
+  mi->virtual_master = (mi->host[0] == FN_LIBCHAR);
   // now change the cache from READ to WRITE - must do this
   // before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L,0,1);
@@ -742,6 +841,9 @@ static int safe_sleep(THD* thd, int sec)
 
 static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
 {
+  if(mi->virtual_master)
+    return 0;
+  
   char buf[FN_REFLEN + 10];
   int len;
   int binlog_flags = 0; // for now
@@ -795,6 +897,9 @@ command");
 
 static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
 {
+  if(mi->virtual_master)
+    return mi->read_event();
+  
   uint len = packet_error;
   // for convinience lets think we start by
   // being in the interrupted state :-)
@@ -860,16 +965,18 @@ point. If you are sure that your master is ok, run this query manually on the\
 
 static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
-  Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
-					     event_len);
+  Log_event * ev = (mi->virtual_master) ? mi->vm_ev :
+    Log_event::read_log_event((const char*)net->read_pos + 1,
+			      event_len) ;
   char llbuff[22];
   
   if (ev)
   {
     int type_code = ev->get_type_code();
-    if (ev->server_id == ::server_id || slave_skip_counter)
+    if ((!mi->virtual_master && ev->server_id == ::server_id)
+	|| slave_skip_counter)
     {
-      if(type_code == LOAD_EVENT)
+      if(type_code == LOAD_EVENT && !mi->virtual_master)
 	skip_load_data_infile(net);
 	
       mi->inc_pos(event_len);
@@ -971,6 +1078,14 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	  
     case LOAD_EVENT:
     {
+      if(mi->virtual_master)
+	{
+	  delete ev;
+	  sql_print_error("LOAD DATA INFILE does not yet work with virtual \
+master. Perform in manually, then restart slave with SET SQL_SKIP_COUNTER=1;\
+SLAVE START");
+	  return 1;
+	}  
       Load_log_event* lev = (Load_log_event*)ev;
       init_sql_alloc(&thd->mem_root, 8192,0);
       thd->db = rewrite_db((char*)lev->db);
@@ -993,7 +1108,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	// the table will be opened in mysql_load    
         if(table_rules_on && !tables_ok(thd, &tables))
 	{
-	  skip_load_data_infile(net);
+	  if(!mi->virtual_master)
+	    skip_load_data_infile(net);
 	}
 	else
 	{
@@ -1057,7 +1173,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       {
 	// we will just ask the master to send us /dev/null if we do not
 	// want to load the data :-)
-	skip_load_data_infile(net);
+	if(!mi->virtual_master)
+	  skip_load_data_infile(net);
       }
 	    
       thd->net.vio = 0; 
@@ -1293,9 +1410,21 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	      sql_print_error("Slave thread killed while reading event");
 	      goto err;
 	    }
+
+	  if(!event_len && glob_mi.virtual_master)
+	    {
+	      sql_print_error("Virtual master replication finished");
+	      goto err;
+	    }
 	  
 	  if (event_len == packet_error)
 	  {
+	    if(glob_mi.virtual_master)
+	      {
+		sql_print_error("Virtual master replication encountered \
+error while reading event, replication terminated");
+		goto err;
+	      }
 	    thd->proc_info = "Waiting to reconnect after a failed read";
 	    if(mysql->net.vio)
  	      vio_close(mysql->net.vio);
@@ -1403,6 +1532,8 @@ position %s",
 
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  if(mi->virtual_master)
+    return mi->setup_virtual_master();
   int slave_was_killed;
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
@@ -1432,6 +1563,9 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  if(mi->virtual_master)
+    return mi->setup_virtual_master();
+  
   int slave_was_killed;
   char llbuff[22];
 
