@@ -2305,8 +2305,6 @@ bool init_global_datetime_format(timestamp_type format_type,
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
-  my_umask=0660;		// Default umask for new files
-  my_umask_dir=0700;		// Default umask for new directories
   umask(((~my_umask) & 0666));
   tzset();			// Set tzname
 
