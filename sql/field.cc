@@ -1097,9 +1097,9 @@ String *Field_tiny::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
 
   if (unsigned_flag)
-    length= (uint) cs->l10tostr(cs,to,mlength, 10,(long) *((uchar*) ptr));
+    length= (uint) cs->long10_to_str(cs,to,mlength, 10,(long) *((uchar*) ptr));
   else
-    length= (uint) cs->l10tostr(cs,to,mlength,-10,(long) *((signed char*) ptr));
+    length= (uint) cs->long10_to_str(cs,to,mlength,-10,(long) *((signed char*) ptr));
   
   val_buffer->length(length);
   if (zerofill)
@@ -1340,9 +1340,9 @@ String *Field_short::val_str(String *val_buffer,
     shortget(j,ptr);
 
   if (unsigned_flag)
-    length=(uint) cs->l10tostr(cs, to, mlength, 10, (long) (uint16) j);
+    length=(uint) cs->long10_to_str(cs, to, mlength, 10, (long) (uint16) j);
   else
-    length=(uint) cs->l10tostr(cs, to, mlength,-10, (long) j);
+    length=(uint) cs->long10_to_str(cs, to, mlength,-10, (long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1577,7 +1577,7 @@ String *Field_medium::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
   long j= unsigned_flag ? (long) uint3korr(ptr) : sint3korr(ptr);
 
-  length=(uint) cs->l10tostr(cs,to,mlength,-10,j);
+  length=(uint) cs->long10_to_str(cs,to,mlength,-10,j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer); /* purecov: inspected */
@@ -1816,9 +1816,9 @@ String *Field_long::val_str(String *val_buffer,
     longget(j,ptr);
 
   if (unsigned_flag)
-    length=cs->l10tostr(cs,to,mlength, 10,(long) (uint32)j);
+    length=cs->long10_to_str(cs,to,mlength, 10,(long) (uint32)j);
   else
-    length=cs->l10tostr(cs,to,mlength,-10,(long) j);
+    length=cs->long10_to_str(cs,to,mlength,-10,(long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -2038,7 +2038,7 @@ String *Field_longlong::val_str(String *val_buffer,
 #endif
     longlongget(j,ptr);
 
-  length=(uint) cs->ll10tostr(cs,to,mlength,unsigned_flag ? 10 : -10, j);
+  length=(uint) cs->longlong10_to_str(cs,to,mlength,unsigned_flag ? 10 : -10, j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -3914,7 +3914,7 @@ int Field_string::store(longlong nr)
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  l=cs->longlong10_to_str(cs,buff,sizeof(buff),-10,nr);
   return Field_string::store(buff,(uint)l,cs);
 }
 
@@ -4093,7 +4093,7 @@ int Field_varstring::store(longlong nr)
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  l=cs->longlong10_to_str(cs,buff,sizeof(buff),-10,nr);
   return Field_varstring::store(buff,(uint)l,cs);
 }
 

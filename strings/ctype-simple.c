@@ -31,9 +31,10 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
   uchar *map= cs->sort_order;
   DBUG_ASSERT(len >= srclen);
   
+  len= min(len,srclen);
   for ( ; len > 0 ; len-- )
     *dest++= map[*src++];
-  return srclen;
+  return len;
 }
 
 int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
@@ -686,7 +687,7 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
   Assume len >= 1
 */
 
-int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+int my_long10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		     char *dst, uint len, int radix, long int val)
 {
   char buffer[66];
@@ -725,7 +726,7 @@ int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      char *dst, uint len, int radix, longlong val)
 {
   char buffer[65];

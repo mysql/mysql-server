@@ -254,7 +254,14 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
   return(str != str_end ? 1 : 0);
 }
 
-
+static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
+			    uchar * dest, uint len,
+			    const uchar *src, 
+			    uint srclen __attribute__((unused)))
+{
+  memcpy(dest,src,len= min(len,srclen));
+  return len;
+}
 
 static CHARSET_INFO my_charset_bin_st =
 {
@@ -271,7 +278,7 @@ static CHARSET_INFO my_charset_bin_st =
     NULL,			/* tab_from_uni  */
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
-    NULL,			/* strxnfrm      */
+    my_strnxfrm_bin,		/* strxnfrm      */
     my_like_range_simple,	/* like_range    */
     my_wildcmp_bin,		/* wildcmp       */
     1,				/* mbmaxlen      */
@@ -291,8 +298,8 @@ static CHARSET_INFO my_charset_bin_st =
     my_hash_sort_bin,		/* hash_sort     */
     255,			/* max_sort_char */
     my_snprintf_8bit,		/* snprintf      */
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
