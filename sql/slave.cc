@@ -2833,11 +2833,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       log files themselves.
     */
 
-    /*
-      TODO: when this is merged into 4.1, one needs to update queue_event() to
-      add a similar test for replicate_same_server_id, because in 4.1 the I/O
-      thread is also filtering events based on the server id.
-    */
     if ((ev->server_id == (uint32) ::server_id && !replicate_same_server_id) ||
 	(rli->slave_skip_counter && type_code != ROTATE_EVENT))
     {
@@ -3716,7 +3711,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
      direct master (an unsupported, useless setup!).
   */
 
-  if (uint4korr(buf + SERVER_ID_OFFSET) == ::server_id)
+  if ((uint4korr(buf + SERVER_ID_OFFSET) == ::server_id) &&
+      !replicate_same_server_id)
   {
     /*
       Do not write it to the relay log.
