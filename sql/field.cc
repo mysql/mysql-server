@@ -424,7 +424,7 @@ void Field_decimal::overflow(bool negative)
 }
 
 
-void Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   reg3 int i;
   uint tmp_dec;
@@ -459,7 +459,7 @@ void Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
 	if (!error)
 	  current_thd->cuted_fields++;
 	Field_decimal::overflow(1);
-	return;
+	return 1;
       }
     }
   }
@@ -485,7 +485,7 @@ void Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
     current_thd->cuted_fields++;
     // too big number, change to max or min number
     Field_decimal::overflow(decstr.sign && decstr.sign_char == '-');
-    return;
+    return 1;
   }
   char *to=ptr;
   for (i=(int) (field_length-tmp_dec-decstr.nr_length-decstr.extra - decstr.sign) ;
@@ -520,16 +520,17 @@ void Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
       }
     }
   }
+  return (error) ? 1 : 0;
 }
 
 
-void Field_decimal::store(double nr)
+int  Field_decimal::store(double nr)
 {
   if (unsigned_flag && nr < 0)
   {
     overflow(1);
     current_thd->cuted_fields++;
-    return;
+    return 1;
   }
   reg4 uint i,length;
   char fyllchar,*to;
@@ -548,6 +549,7 @@ void Field_decimal::store(double nr)
   {
     overflow(nr < 0.0);
     current_thd->cuted_fields++;
+    return 1;
   }
   else
   {
@@ -555,17 +557,18 @@ void Field_decimal::store(double nr)
     for (i=field_length-length ; i-- > 0 ;)
       *to++ = fyllchar;
     memcpy(to,buff,length);
+    return 0;
   }
 }
 
 
-void Field_decimal::store(longlong nr)
+int  Field_decimal::store(longlong nr)
 {
   if (unsigned_flag && nr < 0)
   {
     overflow(1);
     current_thd->cuted_fields++;
-    return;
+    return 1;
   }
   char buff[22];
   uint length=(uint) (longlong10_to_str(nr,buff,-10)-buff);
@@ -575,6 +578,7 @@ void Field_decimal::store(longlong nr)
   {
     overflow(test(nr < 0L));			/* purecov: inspected */
     current_thd->cuted_fields++;		/* purecov: inspected */
+    return 1;
   }
   else
   {
@@ -588,6 +592,7 @@ void Field_decimal::store(longlong nr)
       to[length]='.';
       bfill(to+length+1,dec,'0');
     }
+    return 0;
   }
 }
 
@@ -704,10 +709,11 @@ void Field_decimal::sql_type(String &res) const
 ** tiny int
 ****************************************************************************/
 
-void Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   String tmp_str(from,len,default_charset_info);
   long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  int error=0;
 
   if (unsigned_flag)
   {
@@ -715,14 +721,19 @@ void Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp=0; /* purecov: inspected */
       current_thd->cuted_fields++; /* purecov: inspected */
+      error = 1;
     }
     else if (tmp > 255)
     {
       tmp= 255;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    {
       current_thd->cuted_fields++;
+      error = 1;
+    }
   }
   else
   {
@@ -730,21 +741,28 @@ void Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp= -128;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (tmp >= 128)
     {
       tmp= 127;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    {
       current_thd->cuted_fields++;
+      error = 1;
+    }
   }
   ptr[0]= (char) tmp;
+  return error;
 }
 
 
-void Field_tiny::store(double nr)
+int  Field_tiny::store(double nr)
 {
+  int error=0;
   nr=rint(nr);
   if (unsigned_flag)
   {
@@ -752,11 +770,13 @@ void Field_tiny::store(double nr)
     {
       *ptr=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > 255.0)
     {
       *ptr=(char) 255;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       *ptr=(char) nr;
@@ -767,30 +787,36 @@ void Field_tiny::store(double nr)
     {
       *ptr= (char) -128;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > 127.0)
     {
       *ptr=127;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       *ptr=(char) nr;
   }
+  return error;
 }
 
-void Field_tiny::store(longlong nr)
+int  Field_tiny::store(longlong nr)
 {
+  int error=0;
   if (unsigned_flag)
   {
     if (nr < 0L)
     {
       *ptr=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > 255L)
     {
       *ptr= (char) 255;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       *ptr=(char) nr;
@@ -801,15 +827,18 @@ void Field_tiny::store(longlong nr)
     {
       *ptr= (char) -128;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > 127L)
     {
       *ptr=127;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       *ptr=(char) nr;
   }
+  return error;
 }
 
 
@@ -875,24 +904,30 @@ void Field_tiny::sql_type(String &res) const
 // Note:  Sometimes this should be fixed to use one strtol() to use
 // len and check for garbage after number.
 
-void Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   String tmp_str(from,len,default_charset_info);
   long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  int error=0;
   if (unsigned_flag)
   {
     if (tmp < 0)
     {
       tmp=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (tmp > (uint16) ~0)
     {
       tmp=(uint16) ~0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    {
       current_thd->cuted_fields++;
+      error = 1;
+    }
   }
   else
   {
@@ -900,14 +935,19 @@ void Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp= INT_MIN16;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (tmp > INT_MAX16)
     {
       tmp=INT_MAX16;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    {
       current_thd->cuted_fields++;
+      error = 1;
+    }
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -917,11 +957,13 @@ void Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     shortstore(ptr,(short) tmp);
+  return error;
 }
 
 
-void Field_short::store(double nr)
+int  Field_short::store(double nr)
 {
+  int error=0;
   int16 res;
   nr=rint(nr);
   if (unsigned_flag)
@@ -930,11 +972,13 @@ void Field_short::store(double nr)
     {
       res=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (double) (uint16) ~0)
     {
       res=(int16) (uint16) ~0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int16) (uint16) nr;
@@ -945,11 +989,13 @@ void Field_short::store(double nr)
     {
       res=INT_MIN16;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (double) INT_MAX16)
     {
       res=INT_MAX16;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int16) nr;
@@ -962,10 +1008,12 @@ void Field_short::store(double nr)
   else
 #endif
     shortstore(ptr,res);
+  return error;
 }
 
-void Field_short::store(longlong nr)
+int  Field_short::store(longlong nr)
 {
+  int error=0;
   int16 res;
   if (unsigned_flag)
   {
@@ -973,11 +1021,13 @@ void Field_short::store(longlong nr)
     {
       res=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (longlong) (uint16) ~0)
     {
       res=(int16) (uint16) ~0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int16) (uint16) nr;
@@ -988,11 +1038,13 @@ void Field_short::store(longlong nr)
     {
       res=INT_MIN16;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > INT_MAX16)
     {
       res=INT_MAX16;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int16) nr;
@@ -1005,6 +1057,7 @@ void Field_short::store(longlong nr)
   else
 #endif
     shortstore(ptr,res);
+  return error;
 }
 
 
@@ -1115,10 +1168,11 @@ void Field_short::sql_type(String &res) const
 // Note:  Sometimes this should be fixed to use one strtol() to use
 // len and check for garbage after number.
 
-void Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   String tmp_str(from,len,default_charset_info);
   long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  int error=0;
 
   if (unsigned_flag)
   {
@@ -1126,14 +1180,19 @@ void Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (tmp >= (long) (1L << 24))
     {
       tmp=(long) (1L << 24)-1L;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    {
       current_thd->cuted_fields++;
+      error = 1;
+    }
   }
   else
   {
@@ -1141,22 +1200,29 @@ void Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp= INT_MIN24;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (tmp > INT_MAX24)
     {
       tmp=INT_MAX24;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    {
       current_thd->cuted_fields++;
+      error = 1;
+    }
   }
 
   int3store(ptr,tmp);
+  return error;
 }
 
 
-void Field_medium::store(double nr)
+int  Field_medium::store(double nr)
 {
+  int error=0;
   nr=rint(nr);
   if (unsigned_flag)
   {
@@ -1164,12 +1230,14 @@ void Field_medium::store(double nr)
     {
       int3store(ptr,0);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr >= (double) (long) (1L << 24))
     {
       uint32 tmp=(uint32) (1L << 24)-1L;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       int3store(ptr,(uint32) nr);
@@ -1181,32 +1249,38 @@ void Field_medium::store(double nr)
       long tmp=(long) INT_MIN24;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (double) INT_MAX24)
     {
       long tmp=(long) INT_MAX24;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       int3store(ptr,(long) nr);
   }
+  return error;
 }
 
-void Field_medium::store(longlong nr)
+int  Field_medium::store(longlong nr)
 {
+  int error=0;
   if (unsigned_flag)
   {
     if (nr < 0L)
     {
       int3store(ptr,0);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr >= (longlong) (long) (1L << 24))
     {
       long tmp=(long) (1L << 24)-1L;;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       int3store(ptr,(uint32) nr);
@@ -1218,16 +1292,19 @@ void Field_medium::store(longlong nr)
       long tmp=(long) INT_MIN24;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (longlong) INT_MAX24)
     {
       long tmp=(long) INT_MAX24;
       int3store(ptr,tmp);
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       int3store(ptr,(long) nr);
   }
+  return error;
 }
 
 
@@ -1300,13 +1377,14 @@ void Field_medium::sql_type(String &res) const
 // Note:  Sometimes this should be fixed to use one strtol() to use
 // len and check for garbage after number.
 
-void Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   while (len && my_isspace(system_charset_info,*from))
   {
     len--; from++;
   }
   long tmp;
+  int error=0;
   String tmp_str(from,len,default_charset_info);
   errno=0;
   if (unsigned_flag)
@@ -1315,6 +1393,7 @@ void Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp=0;					// Set negative to 0
       errno=ERANGE;
+      error = 1;
     }
     else
       tmp=(long) strtoul(tmp_str.c_ptr(),NULL,10);
@@ -1322,7 +1401,10 @@ void Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   else
     tmp=strtol(tmp_str.c_ptr(),NULL,10);
   if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
+  {
     current_thd->cuted_fields++;
+    error = 1;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -1331,11 +1413,13 @@ void Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     longstore(ptr,tmp);
+  return error;
 }
 
 
-void Field_long::store(double nr)
+int  Field_long::store(double nr)
 {
+  int error=0;
   int32 res;
   nr=rint(nr);
   if (unsigned_flag)
@@ -1344,11 +1428,13 @@ void Field_long::store(double nr)
     {
       res=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (double) (ulong) ~0L)
     {
       res=(int32) (uint32) ~0L;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int32) (ulong) nr;
@@ -1359,11 +1445,13 @@ void Field_long::store(double nr)
     {
       res=(int32) INT_MIN32;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (double) INT_MAX32)
     {
       res=(int32) INT_MAX32;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int32) nr;
@@ -1376,11 +1464,13 @@ void Field_long::store(double nr)
   else
 #endif
     longstore(ptr,res);
+  return error;
 }
 
 
-void Field_long::store(longlong nr)
+int  Field_long::store(longlong nr)
 {
+  int error=0;
   int32 res;
   if (unsigned_flag)
   {
@@ -1388,11 +1478,13 @@ void Field_long::store(longlong nr)
     {
       res=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr >= (LL(1) << 32))
     {
       res=(int32) (uint32) ~0L;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int32) (uint32) nr;
@@ -1403,11 +1495,13 @@ void Field_long::store(longlong nr)
     {
       res=(int32) INT_MIN32;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr > (longlong) INT_MAX32)
     {
       res=(int32) INT_MAX32;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(int32) nr;
@@ -1420,6 +1514,7 @@ void Field_long::store(longlong nr)
   else
 #endif
     longstore(ptr,res);
+  return error;
 }
 
 
@@ -1528,7 +1623,7 @@ void Field_long::sql_type(String &res) const
 ** longlong int
 ****************************************************************************/
 
-void Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   while (len && my_isspace(system_charset_info,*from))
   {						// For easy error check
@@ -1536,6 +1631,7 @@ void Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   longlong tmp;
   String tmp_str(from,len,default_charset_info);
+  int error=0;
   errno=0;
   if (unsigned_flag)
   {
@@ -1543,6 +1639,7 @@ void Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp=0;					// Set negative to 0
       errno=ERANGE;
+      error = 1;
     }
     else
       tmp=(longlong) strtoull(tmp_str.c_ptr(),NULL,10);
@@ -1550,7 +1647,10 @@ void Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   else
     tmp=strtoll(tmp_str.c_ptr(),NULL,10);
   if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
+  {
     current_thd->cuted_fields++;
+    error = 1;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -1559,11 +1659,13 @@ void Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     longlongstore(ptr,tmp);
+  return error;
 }
 
 
-void Field_longlong::store(double nr)
+int  Field_longlong::store(double nr)
 {
+  int error=0;
   longlong res;
   nr=rint(nr);
   if (unsigned_flag)
@@ -1572,11 +1674,13 @@ void Field_longlong::store(double nr)
     {
       res=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr >= (double) ~ (ulonglong) 0)
     {
       res= ~(longlong) 0;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(longlong) (ulonglong) nr;
@@ -1587,11 +1691,13 @@ void Field_longlong::store(double nr)
     {
       res=(longlong) LONGLONG_MIN;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else if (nr >= (double) LONGLONG_MAX)
     {
       res=(longlong) LONGLONG_MAX;
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       res=(longlong) nr;
@@ -1604,10 +1710,11 @@ void Field_longlong::store(double nr)
   else
 #endif
     longlongstore(ptr,res);
+  return error;
 }
 
 
-void Field_longlong::store(longlong nr)
+int  Field_longlong::store(longlong nr)
 {
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1617,6 +1724,7 @@ void Field_longlong::store(longlong nr)
   else
 #endif
     longlongstore(ptr,nr);
+  return 0;
 }
 
 
@@ -1735,35 +1843,43 @@ void Field_longlong::sql_type(String &res) const
 ** single precision float
 ****************************************************************************/
 
-void Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   String tmp_str(from,len,default_charset_info);
   errno=0;
   Field_float::store(atof(tmp_str.c_ptr()));
   if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
+  {
     current_thd->cuted_fields++;
+    return 1;
+  }
+  return (errno) ? 1 : 0;
 }
 
 
-void Field_float::store(double nr)
+int  Field_float::store(double nr)
 {
   float j;
+  int error=0;
   if (dec < NOT_FIXED_DEC)
     nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
   if (unsigned_flag && nr < 0)
   {
     current_thd->cuted_fields++;
     nr=0;
+    error = 1;
   }
   if (nr < -FLT_MAX)
   {
     j= -FLT_MAX;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else if (nr > FLT_MAX)
   {
     j=FLT_MAX;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
     j= (float) nr;
@@ -1775,16 +1891,19 @@ void Field_float::store(double nr)
   else
 #endif
     memcpy_fixed(ptr,(byte*) &j,sizeof(j));
+  return error;
 }
 
 
-void Field_float::store(longlong nr)
+int  Field_float::store(longlong nr)
 {
+  int error=0;
   float j= (float) nr;
   if (unsigned_flag && j < 0)
   {
     current_thd->cuted_fields++;
     j=0;
+    error = 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1794,6 +1913,7 @@ void Field_float::store(longlong nr)
   else
 #endif
     memcpy_fixed(ptr,(byte*) &j,sizeof(j));
+  return error;
 }
 
 
@@ -1985,17 +2105,22 @@ void Field_float::sql_type(String &res) const
 ** double precision floating point numbers
 ****************************************************************************/
 
-void Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   String tmp_str(from,len,default_charset_info);
   errno=0;
+  int error=0;
   double j= atof(tmp_str.c_ptr());
   if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
+  {
     current_thd->cuted_fields++;
+    error = 1;
+  }
   if (unsigned_flag && j < 0)
   {
     current_thd->cuted_fields++;
     j=0;
+    error = 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2005,17 +2130,20 @@ void Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     doublestore(ptr,j);
+  return error;
 }
 
 
-void Field_double::store(double nr)
+int  Field_double::store(double nr)
 {
+  int error=0;
   if (dec < NOT_FIXED_DEC)
     nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
   if (unsigned_flag && nr < 0)
   {
     current_thd->cuted_fields++;
     nr=0;
+    error = 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2025,15 +2153,18 @@ void Field_double::store(double nr)
   else
 #endif
     doublestore(ptr,nr);
+  return error;
 }
 
 
-void Field_double::store(longlong nr)
+int  Field_double::store(longlong nr)
 {
   double j= (double) nr;
+  int error=0;
   if (unsigned_flag && j < 0)
   {
     current_thd->cuted_fields++;
+    error = 1;
     j=0;
   }
 #ifdef WORDS_BIGENDIAN
@@ -2044,6 +2175,7 @@ void Field_double::store(longlong nr)
   else
 #endif
     doublestore(ptr,j);
+  return error;
 }
 
 
@@ -2241,7 +2373,7 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 }
 
 
-void Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   long tmp=(long) str_to_timestamp(from,len);
 #ifdef WORDS_BIGENDIAN
@@ -2252,9 +2384,10 @@ void Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     longstore(ptr,tmp);
+  return 0;
 }
 
-void Field_timestamp::fill_and_store(char *from,uint len)
+void   Field_timestamp::fill_and_store(char *from,uint len)
 {
   uint res_length;
   if (len <= field_length)
@@ -2283,14 +2416,17 @@ void Field_timestamp::fill_and_store(char *from,uint len)
 }
 
 
-void Field_timestamp::store(double nr)
+int  Field_timestamp::store(double nr)
 {
+  int error=0;
   if (nr < 0 || nr > 99991231235959.0)
   {
     nr=0;					// Avoid overflow on buff
     current_thd->cuted_fields++;
+    error = 1;
   }
-  Field_timestamp::store((longlong) rint(nr));
+  error |= Field_timestamp::store((longlong) rint(nr));
+  return error;
 }
 
 
@@ -2331,7 +2467,7 @@ static longlong fix_datetime(longlong nr)
 }
 
 
-void Field_timestamp::store(longlong nr)
+int  Field_timestamp::store(longlong nr)
 {
   TIME l_time;
   time_t timestamp;
@@ -2359,6 +2495,7 @@ void Field_timestamp::store(longlong nr)
   else
 #endif
     longstore(ptr,(uint32) timestamp);
+  return 0;
 }
 
 
@@ -2580,12 +2717,16 @@ void Field_timestamp::set_time()
 ** Stored as a 3 byte unsigned int
 ****************************************************************************/
 
-void Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   TIME ltime;
   long tmp;
+  int error=0;
   if (str_to_time(from,len,&ltime))
+  {
     tmp=0L;
+    error = 1;
+  }
   else
   {
     if (ltime.month)
@@ -2595,26 +2736,31 @@ void Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
     {
       tmp=8385959;
       current_thd->cuted_fields++;
+      error = 1;
     }
   }
   if (ltime.neg)
     tmp= -tmp;
-  Field_time::store((longlong) tmp);
+  error |= Field_time::store((longlong) tmp);
+  return error;
 }
 
 
-void Field_time::store(double nr)
+int  Field_time::store(double nr)
 {
   long tmp;
+  int error=0;
   if (nr > 8385959.0)
   {
     tmp=8385959L;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else if (nr < -8385959.0)
   {
     tmp= -8385959L;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
   {
@@ -2625,24 +2771,29 @@ void Field_time::store(double nr)
     {
       tmp=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
   }
   int3store(ptr,tmp);
+  return error;
 }
 
 
-void Field_time::store(longlong nr)
+int  Field_time::store(longlong nr)
 {
   long tmp;
+  int error=0;
   if (nr > (longlong) 8385959L)
   {
     tmp=8385959L;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else if (nr < (longlong) -8385959L)
   {
     tmp= -8385959L;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
   {
@@ -2651,9 +2802,11 @@ void Field_time::store(longlong nr)
     {
       tmp=0;
       current_thd->cuted_fields++;
+      error = 1;
     }
   }
   int3store(ptr,tmp);
+  return error;
 }
 
 
@@ -2729,7 +2882,7 @@ void Field_time::sql_type(String &res) const
 ** Can handle 2 byte or 4 byte years!
 ****************************************************************************/
 
-void Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
+int  Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
   String tmp_str(from,len,default_charset_info);
   long nr= strtol(tmp_str.c_ptr(),NULL,10);
@@ -2738,7 +2891,7 @@ void Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
   {
     *ptr=0;
     current_thd->cuted_fields++;
-    return;
+    return 1;
   }
   else if (current_thd->count_cuted_fields && !test_if_int(from,len))
     current_thd->cuted_fields++;
@@ -2750,23 +2903,27 @@ void Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
       nr-= 1900;
   }
   *ptr= (char) (unsigned char) nr;
+  return 0;
 }
 
-void Field_year::store(double nr)
+int  Field_year::store(double nr)
 {
   if (nr < 0.0 || nr >= 2155.0)
-    Field_year::store((longlong) -1);
+  {
+    (void) Field_year::store((longlong) -1);
+    return 1;
+  }
   else
-    Field_year::store((longlong) nr);
+    return Field_year::store((longlong) nr);
 }
 
-void Field_year::store(longlong nr)
+int  Field_year::store(longlong nr)
 {
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
     *ptr=0;
     current_thd->cuted_fields++;
-    return;
+    return 1;
   }
   if (nr != 0 || field_length != 4)		// 0000 -> 0; 00 -> 2000
   {
@@ -2776,6 +2933,7 @@ void Field_year::store(longlong nr)
       nr-= 1900;
   }
   *ptr= (char) (unsigned char) nr;
+  return 0;
 }
 
 
@@ -2818,12 +2976,16 @@ void Field_year::sql_type(String &res) const
 ** Stored as a 4 byte unsigned int
 ****************************************************************************/
 
-void Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
+int  Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
 {
   TIME l_time;
   uint32 tmp;
+  int error=0;
   if (str_to_TIME(from,len,&l_time,1) == TIMESTAMP_NONE)
+  {
     tmp=0;
+    error = 1;
+  }
   else
     tmp=(uint32) l_time.year*10000L + (uint32) (l_time.month*100+l_time.day);
 #ifdef WORDS_BIGENDIAN
@@ -2834,18 +2996,21 @@ void Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
   else
 #endif
     longstore(ptr,tmp);
+  return error;
 }
 
 
-void Field_date::store(double nr)
+int  Field_date::store(double nr)
 {
   long tmp;
+  int error=0;
   if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
     nr=floor(nr/1000000.0);			// Timestamp to date
   if (nr < 0.0 || nr > 99991231.0)
   {
     tmp=0L;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
     tmp=(long) rint(nr);
@@ -2857,18 +3022,21 @@ void Field_date::store(double nr)
   else
 #endif
     longstore(ptr,tmp);
+  return error;
 }
 
 
-void Field_date::store(longlong nr)
+int  Field_date::store(longlong nr)
 {
   long tmp;
+  int error=0;
   if (nr >= LL(19000000000000) && nr < LL(99991231235959))
     nr=nr/LL(1000000);			// Timestamp to date
   if (nr < 0 || nr > LL(99991231))
   {
     tmp=0L;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
     tmp=(long) nr;
@@ -2880,6 +3048,7 @@ void Field_date::store(longlong nr)
   else
 #endif
     longstore(ptr,tmp);
+  return error;
 }
 
 
@@ -2975,35 +3144,45 @@ void Field_date::sql_type(String &res) const
 ** In number context: YYYYMMDD
 ****************************************************************************/
 
-void Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   TIME l_time;
   long tmp;
+  int error=0;
   if (str_to_TIME(from,len,&l_time,1) == TIMESTAMP_NONE)
+  {
     tmp=0L;
+    error = 1;
+  }
   else
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
   int3store(ptr,tmp);
+  return error;
 }
 
-void Field_newdate::store(double nr)
+int  Field_newdate::store(double nr)
 {
   if (nr < 0.0 || nr > 99991231235959.0)
-    Field_newdate::store((longlong) -1);
+  {
+    (void) Field_newdate::store((longlong) -1);
+    return 1;
+  }
   else
-    Field_newdate::store((longlong) rint(nr));
+    return Field_newdate::store((longlong) rint(nr));
 }
 
 
-void Field_newdate::store(longlong nr)
+int  Field_newdate::store(longlong nr)
 {
   int32 tmp;
+  int error=0;
   if (nr >= LL(100000000) && nr <= LL(99991231235959))
     nr=nr/LL(1000000);			// Timestamp to date
   if (nr < 0L || nr > 99991231L)
   {
     tmp=0;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
   {
@@ -3021,11 +3200,13 @@ void Field_newdate::store(longlong nr)
     {
       tmp=0L;					// Don't allow date to change
       current_thd->cuted_fields++;
+      error = 1;
     }
     else
       tmp= day + month*32 + (tmp/10000)*16*32;
   }
   int3store(ptr,(int32) tmp);
+  return error;
 }
 
 void Field_newdate::store_time(TIME *ltime,timestamp_type type)
@@ -3128,7 +3309,7 @@ void Field_newdate::sql_type(String &res) const
 ** Stored as a 8 byte unsigned int. Should sometimes be change to a 6 byte int.
 ****************************************************************************/
 
-void Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   longlong tmp=str_to_datetime(from,len,1);
 #ifdef WORDS_BIGENDIAN
@@ -3139,26 +3320,32 @@ void Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     longlongstore(ptr,tmp);
+  return 0;
 }
 
 
-void Field_datetime::store(double nr)
+int  Field_datetime::store(double nr)
 {
+  int error=0;
   if (nr < 0.0 || nr > 99991231235959.0)
   {
     nr=0.0;
     current_thd->cuted_fields++;
+    error = 1;
   }
-  Field_datetime::store((longlong) rint(nr));
+  error |= Field_datetime::store((longlong) rint(nr));
+  return error;
 }
 
 
-void Field_datetime::store(longlong nr)
+int  Field_datetime::store(longlong nr)
 {
+  int error=0;
   if (nr < 0 || nr > LL(99991231235959))
   {
     nr=0;
     current_thd->cuted_fields++;
+    error = 1;
   }
   else
     nr=fix_datetime(nr);
@@ -3170,6 +3357,7 @@ void Field_datetime::store(longlong nr)
   else
 #endif
     longlongstore(ptr,nr);
+  return error;
 }
 
 void Field_datetime::store_time(TIME *ltime,timestamp_type type)
@@ -3344,9 +3532,10 @@ void Field_datetime::sql_type(String &res) const
 
 	/* Copy a string and fill with space */
 
-void Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
+int  Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   field_charset=cs;
+  int error=0;
 #ifdef USE_TIS620
   if(!binary_flag) {
     ThNormalize((uchar *)ptr, field_length, (uchar *)from, length);
@@ -3372,30 +3561,32 @@ void Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 	if (!my_isspace(field_charset,*from))
 	{
 	  current_thd->cuted_fields++;
+	  error=1;
 	  break;
 	}
       }
     }
   }
 #endif /* USE_TIS620 */
+  return error;
 }
 
 
-void Field_string::store(double nr)
+int  Field_string::store(double nr)
 {
   char buff[MAX_FIELD_WIDTH],*end;
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  Field_string::store(buff,(uint) (end - buff), default_charset_info);
+  return Field_string::store(buff,(uint) (end - buff), default_charset_info);
 }
 
 
-void Field_string::store(longlong nr)
+int  Field_string::store(longlong nr)
 {
   char buff[22];
   char *end=longlong10_to_str(nr,buff,-10);
-  Field_string::store(buff,(uint) (end-buff), default_charset_info);
+  return Field_string::store(buff,(uint) (end-buff), default_charset_info);
 }
 
 
@@ -3554,8 +3745,9 @@ uint Field_string::max_packed_col_length(uint max_length)
 ****************************************************************************/
 
 
-void Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
+int  Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
+  int error=0;
   field_charset=cs;
 #ifdef USE_TIS620
   if(!binary_flag)
@@ -3572,27 +3764,29 @@ void Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     length=field_length;
     memcpy(ptr+2,from,field_length);
     current_thd->cuted_fields++;
+    error = 1;
   }
 #endif /* USE_TIS620 */
   int2store(ptr,length);
+  return error;
 }
 
 
-void Field_varstring::store(double nr)
+int  Field_varstring::store(double nr)
 {
   char buff[MAX_FIELD_WIDTH],*end;
   int width=min(field_length,DBL_DIG+5);
   sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
   end=strcend(buff,' ');
-  Field_varstring::store(buff,(uint) (end - buff), default_charset_info);
+  return Field_varstring::store(buff,(uint) (end - buff), default_charset_info);
 }
 
 
-void Field_varstring::store(longlong nr)
+int  Field_varstring::store(longlong nr)
 {
   char buff[22];
   char *end=longlong10_to_str(nr,buff,-10);
-  Field_varstring::store(buff,(uint) (end-buff), default_charset_info);
+  return Field_varstring::store(buff,(uint) (end-buff), default_charset_info);
 }
 
 
@@ -3877,7 +4071,7 @@ uint32 Field_blob::get_length(const char *pos)
 }
 
 
-void Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
+int  Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   field_charset=cs;
   if (!len)
@@ -3911,20 +4105,21 @@ void Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }
+  return 0;
 }
 
 
-void Field_blob::store(double nr)
+int  Field_blob::store(double nr)
 {
   value.set(nr);
-  Field_blob::store(value.ptr(),(uint) value.length(), default_charset_info);
+  return Field_blob::store(value.ptr(),(uint) value.length(), default_charset_info);
 }
 
 
-void Field_blob::store(longlong nr)
+int  Field_blob::store(longlong nr)
 {
   value.set(nr);
-  Field_blob::store(value.ptr(), (uint) value.length(), default_charset_info);
+  return Field_blob::store(value.ptr(), (uint) value.length(), default_charset_info);
 }
 
 
@@ -4071,7 +4266,7 @@ void Field_blob::get_key_image(char *buff,uint length, imagetype type)
 void Field_blob::set_key_image(char *buff,uint length)
 {
   length=uint2korr(buff);
-  Field_blob::store(buff+2,length, default_charset_info);
+  (void) Field_blob::store(buff+2,length, default_charset_info);
 }
 
 void Field_geom::get_key_image(char *buff,uint length, imagetype type)
@@ -4392,8 +4587,9 @@ uint find_enum(TYPELIB *lib,const char *x, uint length)
 ** (if there isn't a empty value in the enum)
 */
 
-void Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
+int  Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
+  int error=0;
   uint tmp=find_enum(typelib,from,length);
   if (!tmp)
   {
@@ -4413,29 +4609,34 @@ void Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
       {
 	tmp=0;
 	current_thd->cuted_fields++;
+	error=1;
       }
     }
     else
       current_thd->cuted_fields++;
   }
   store_type((ulonglong) tmp);
+  return error;
 }
 
 
-void Field_enum::store(double nr)
+int  Field_enum::store(double nr)
 {
-  Field_enum::store((longlong) nr);
+  return Field_enum::store((longlong) nr);
 }
 
 
-void Field_enum::store(longlong nr)
+int  Field_enum::store(longlong nr)
 {
+  int error=0;
   if ((uint) nr > typelib->count || nr == 0)
   {
     current_thd->cuted_fields++;
     nr=0;
+    error=1;
   }
   store_type((ulonglong) (uint) nr);
+  return error;
 }
 
 
@@ -4583,8 +4784,9 @@ ulonglong find_set(TYPELIB *lib,const char *x,uint length)
 }
 
 
-void Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
+int  Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 {
+  int error=0;
   ulonglong tmp=find_set(typelib,from,length);
   if (!tmp && length && length < 22)
   {
@@ -4600,23 +4802,30 @@ void Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
     tmp=strtoull(conv,&end,10);
     if (my_errno || end != conv+length ||
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
+    {
       tmp=0;
+      error=1;
+    }
     else
       current_thd->cuted_fields--;		// Remove warning from find_set
   }
   store_type(tmp);
+  return error;
 }
 
 
-void Field_set::store(longlong nr)
+int  Field_set::store(longlong nr)
 {
+  int error=0;
   if ((ulonglong) nr > (ulonglong) (((longlong) 1 << typelib->count) -
 				    (longlong) 1))
   {
     nr&= (longlong) (((longlong) 1 << typelib->count) - (longlong) 1);
     current_thd->cuted_fields++;
+    error=1;
   }
   store_type((ulonglong) nr);
+  return error;
 }
 
 
