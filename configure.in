@@ -40,12 +40,12 @@ do
   case $host_os in
     netware* | modesto*)
       echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err.linux \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err.linux $i/errmsg.txt $i/errmsg.sys" \
       >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
     *)
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
   esac
