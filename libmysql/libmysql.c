@@ -1846,6 +1846,16 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   field_count=   uint2korr(pos);   pos+= 2;
   param_count=   uint2korr(pos);   pos+= 2;
 
+  if (param_count != 0)
+  {
+    MYSQL_DATA *param_data;
+
+    /* skip parameters data: we don't support it yet */
+    if (!(param_data= (*mysql->methods->read_rows)(mysql, (MYSQL_FIELD*)0, 7)))
+      DBUG_RETURN(1);
+    free_rows(param_data);
+  }
+
   if (field_count != 0)
   {
     if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
@@ -2322,15 +2332,17 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
 {
   MYSQL *mysql= stmt->mysql;
   NET	*net= &mysql->net;
-  char buff[MYSQL_STMT_HEADER];
+  char buff[4 /* size of stmt id */ + 
+            5 /* execution flags */];
   DBUG_ENTER("execute");
   DBUG_PRINT("enter",("packet: %s, length :%d",packet ? packet :" ", length));
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if (cli_advanced_command(mysql, COM_EXECUTE, buff, 
-			    MYSQL_STMT_HEADER, packet, 
-			    length, 1) ||
+  buff[4]= (char) 0;                            /* no flags */
+  int4store(buff+5, 1);                         /* iteration count */
+  if (cli_advanced_command(mysql, COM_EXECUTE, buff, sizeof(buff),
+                           packet, length, 1) ||
       (*mysql->methods->read_query_result)(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);

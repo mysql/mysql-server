@@ -155,8 +155,16 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
-  /* TODO: send types of placeholders here */
-  return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
+  /*
+    Send types and names of placeholders to the client
+    XXX: fix this nasty upcast from List<Item_param> to List<Item>
+  */
+  return my_net_write(net, buff, sizeof(buff)) || 
+         (stmt->param_count &&
+          stmt->thd->protocol_simple.send_fields((List<Item> *)
+                                                 &stmt->lex->param_list, 0)) ||
+         net_flush(net);
+  return 0;
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -1113,9 +1121,12 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
+  uchar *packet_end= (uchar *) packet + packet_length - 1;
   Prepared_statement *stmt;
 
   DBUG_ENTER("mysql_stmt_execute");
+
+  packet+= 9;                               /* stmt_id + 5 bytes of flags */
   
   if (!(stmt= find_prepared_statement(thd, stmt_id, "execute", SEND_ERROR)))
     DBUG_VOID_RETURN;
@@ -1135,8 +1146,6 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
-    uchar *packet_end= (uchar *) packet + packet_length - 1;
-    packet+= 4;
     uchar *null_array= (uchar *) packet;
     if (setup_conversion_functions(stmt, (uchar **) &packet, packet_end) ||
         stmt->set_params(stmt, null_array, (uchar *) packet, packet_end)) 
