@@ -582,7 +582,8 @@ byte*
 page_parse_delete_rec_list(
 /*=======================*/
 			/* out: end of log record or NULL */
-	byte	type,	/* in: MLOG_LIST_END_DELETE or MLOG_LIST_START_DELETE */
+	byte	type,	/* in: MLOG_LIST_END_DELETE or
+			MLOG_LIST_START_DELETE */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page,	/* in: page or NULL */	

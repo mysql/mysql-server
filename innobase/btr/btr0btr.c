@@ -426,7 +426,8 @@ btr_page_free_for_ibuf(
 	flst_add_first(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		       page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, mtr);
 
-	ut_ad(flst_validate(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST, mtr));
+	ut_ad(flst_validate(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
+									mtr));
 }
 
 /******************************************************************

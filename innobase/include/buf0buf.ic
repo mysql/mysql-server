@@ -28,7 +28,6 @@ buf_block_peek_if_too_old(
 {
 	if (buf_pool->freed_page_clock >= block->freed_page_clock 
 				+ 1 + (buf_pool->curr_size / 1024)) {
-		
 		return(TRUE);
 	}
 
@@ -169,7 +168,7 @@ buf_block_get_space(
 	ut_ad(block);
 	ut_ad(block >= buf_pool->blocks);
 	ut_ad(block < buf_pool->blocks + buf_pool->max_size);
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 	
 	return(block->space);
@@ -187,7 +186,7 @@ buf_block_get_page_no(
 	ut_ad(block);
 	ut_ad(block >= buf_pool->blocks);
 	ut_ad(block < buf_pool->blocks + buf_pool->max_size);
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
 	
 	return(block->offset);
@@ -550,6 +549,8 @@ buf_page_hash_get(
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, block,
 			(block->space == space) && (block->offset == offset));
+	ut_a(block == NULL || block->state == BUF_BLOCK_FILE_PAGE);
+	
 	return(block);
 }
 
@@ -617,8 +618,8 @@ buf_page_release(
 
 	mutex_enter_fast(&(buf_pool->mutex));
 
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
-	ut_ad(block->buf_fix_count > 0);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->buf_fix_count > 0);
 
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
 

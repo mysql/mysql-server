@@ -82,6 +82,8 @@ scan_again:
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (block != NULL) {
+	        ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 		if (block->space == id
 		    && (block->buf_fix_count > 0 || block->io_fix != 0)) {
 
@@ -199,19 +201,16 @@ buf_LRU_search_and_free_block(
 	mutex_enter(&(buf_pool->mutex));
 	
 	freed = FALSE;
-	
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (block != NULL) {
-
+	        ut_a(block->in_LRU_list);
 		if (buf_flush_ready_for_replace(block)) {
-
 			if (buf_debug_prints) {
 				printf(
 				"Putting space %lu page %lu to free list\n",
 					block->space, block->offset);
 			}
-			
 			buf_LRU_block_remove_hashed_page(block);
 
 			mutex_exit(&(buf_pool->mutex));
@@ -223,25 +222,21 @@ buf_LRU_search_and_free_block(
 			if (block->frame) {
 				btr_search_drop_page_hash_index(block->frame);
 			}
-
 			mutex_enter(&(buf_pool->mutex));
 
 			ut_a(block->buf_fix_count == 0);
 
 			buf_LRU_block_free_hashed_page(block);
-
 			freed = TRUE;
 
 			break;
 		}
-
 		block = UT_LIST_GET_PREV(LRU, block);
 		distance++;
 
 		if (!freed && n_iterations <= 10
 		    && distance > 100 + (n_iterations * buf_pool->curr_size)
 					/ 10) {
-
 			buf_pool->LRU_flush_ended = 0;
 
 			mutex_exit(&(buf_pool->mutex));
@@ -249,15 +244,12 @@ buf_LRU_search_and_free_block(
 			return(FALSE);
 		}
 	}
-
 	if (buf_pool->LRU_flush_ended > 0) {
 		buf_pool->LRU_flush_ended--;
 	}
- 
-	if (!freed) {
+ 	if (!freed) {
 		buf_pool->LRU_flush_ended = 0;
 	}
-
 	mutex_exit(&(buf_pool->mutex));
 	
 	return(freed);
@@ -355,7 +347,11 @@ loop:
 	if (UT_LIST_GET_LEN(buf_pool->free) > 0) {
 		
 		block = UT_LIST_GET_FIRST(buf_pool->free);
+		ut_a(block->in_free_list);
 		UT_LIST_REMOVE(free, buf_pool->free, block);
+		block->in_free_list = FALSE;
+		ut_a(block->state != BUF_BLOCK_FILE_PAGE);
+	        ut_a(!block->in_LRU_list);
 
 		if (srv_use_awe) {
 			if (block->frame) {
@@ -466,13 +462,15 @@ buf_LRU_old_adjust_len(void)
 	ulint	old_len;
 	ulint	new_len;
 
-	ut_ad(buf_pool->LRU_old);
+	ut_a(buf_pool->LRU_old);
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(3 * (BUF_LRU_OLD_MIN_LEN / 8) > BUF_LRU_OLD_TOLERANCE + 5);
 
 	for (;;) {
 		old_len = buf_pool->LRU_old_len;
 		new_len = 3 * (UT_LIST_GET_LEN(buf_pool->LRU) / 8);
+
+		ut_a(buf_pool->LRU_old->in_LRU_list);
 
 		/* Update the LRU_old pointer if necessary */
 	
@@ -490,7 +488,7 @@ buf_LRU_old_adjust_len(void)
 							buf_pool->LRU_old);
 			buf_pool->LRU_old_len--;
 		} else {
-			ut_ad(buf_pool->LRU_old); /* Check that we did not
+			ut_a(buf_pool->LRU_old); /* Check that we did not
 						fall out of the LRU list */
 			return;
 		}
@@ -498,9 +496,8 @@ buf_LRU_old_adjust_len(void)
 }
 
 /***********************************************************************
-Initializes the old blocks pointer in the LRU list.
-This function should be called when the LRU list grows to
-BUF_LRU_OLD_MIN_LEN length. */
+Initializes the old blocks pointer in the LRU list. This function should be
+called when the LRU list grows to BUF_LRU_OLD_MIN_LEN length. */
 static
 void
 buf_LRU_old_init(void)
@@ -508,7 +505,7 @@ buf_LRU_old_init(void)
 {
 	buf_block_t*	block;
 
-	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN);
+	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN);
 
 	/* We first initialize all blocks in the LRU list as old and then use
 	the adjust function to move the LRU_old pointer to the right
@@ -517,6 +514,8 @@ buf_LRU_old_init(void)
 	block = UT_LIST_GET_FIRST(buf_pool->LRU);
 
 	while (block != NULL) {
+		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	        ut_a(block->in_LRU_list);
 		block->old = TRUE;
 		block = UT_LIST_GET_NEXT(LRU, block);
 	}
@@ -539,6 +538,9 @@ buf_LRU_remove_block(
 	ut_ad(block);
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 		
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->in_LRU_list);
+
 	/* If the LRU_old pointer is defined and points to just this block,
 	move it backward one step */
 
@@ -552,11 +554,12 @@ buf_LRU_remove_block(
 		(buf_pool->LRU_old)->old = TRUE;
 
 		buf_pool->LRU_old_len++;
-		ut_ad(buf_pool->LRU_old);
+		ut_a(buf_pool->LRU_old);
 	}
 
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, block);
+	block->in_LRU_list = FALSE;
 
 	if (srv_use_awe && block->frame) {
 		/* Remove from the list of mapped pages */
@@ -599,6 +602,8 @@ buf_LRU_add_block_to_end_low(
 	ut_ad(block);
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 	block->old = TRUE;
 
 	last_block = UT_LIST_GET_LAST(buf_pool->LRU);
@@ -609,7 +614,9 @@ buf_LRU_add_block_to_end_low(
 		block->LRU_position = buf_pool_clock_tic();
 	}			
 
+	ut_a(!block->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, block);
+	block->in_LRU_list = TRUE;
 
 	if (srv_use_awe && block->frame) {
 		/* Add to the list of mapped pages */
@@ -658,6 +665,9 @@ buf_LRU_add_block_low(
 	ut_ad(block);
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(!block->in_LRU_list);
+
 	block->old = old;
 	cl = buf_pool_clock_tic();
 
@@ -686,6 +696,8 @@ buf_LRU_add_block_low(
 
 		block->LRU_position = (buf_pool->LRU_old)->LRU_position;
 	}
+
+	block->in_LRU_list = TRUE;
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
@@ -755,8 +767,11 @@ buf_LRU_block_free_non_file_page(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(block);
 	
-	ut_ad((block->state == BUF_BLOCK_MEMORY)
+	ut_a((block->state == BUF_BLOCK_MEMORY)
 	      || (block->state == BUF_BLOCK_READY_FOR_USE));
+
+	ut_a(block->n_pointers == 0);
+	ut_a(!block->in_free_list);
 
 	block->state = BUF_BLOCK_NOT_USED;
 
@@ -765,6 +780,7 @@ buf_LRU_block_free_non_file_page(
 	memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif	
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
+	block->in_free_list = TRUE;
 
 	if (srv_use_awe && block->frame) {
 		/* Add to the list of mapped pages */
@@ -788,8 +804,7 @@ buf_LRU_block_remove_hashed_page(
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 	ut_ad(block);
 	
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
-
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->io_fix == 0);
 	ut_a(block->buf_fix_count == 0);
 	ut_a(ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) == 0);
@@ -802,6 +817,28 @@ buf_LRU_block_remove_hashed_page(
 	
  	buf_block_modify_clock_inc(block);
 		
+        if (block != buf_page_hash_get(block->space, block->offset)) {
+                fprintf(stderr,
+"InnoDB: Error: page %lu %lu not found from the hash table\n",
+                                 block->space,
+                                block->offset);
+                if (buf_page_hash_get(block->space, block->offset)) {
+                        fprintf(stderr,
+"InnoDB: From hash table we find block %lx of %lu %lu which is not %lx\n",
+                (ulint)buf_page_hash_get(block->space, block->offset),
+                        buf_page_hash_get(block->space, block->offset)->space,
+                        buf_page_hash_get(block->space, block->offset)->offset,
+                        (ulint)block);
+                }
+
+                buf_print();
+                buf_LRU_print();
+                buf_validate();
+                buf_LRU_validate();
+
+                ut_a(0);
+        }	
+
 	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
 			buf_page_address_fold(block->space, block->offset),
 			block);
@@ -819,7 +856,7 @@ buf_LRU_block_free_hashed_page(
 				be in a state where it can be freed */
 {
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-	ut_ad(block->state == BUF_BLOCK_REMOVE_HASH);
+	ut_a(block->state == BUF_BLOCK_REMOVE_HASH);
 
 	block->state = BUF_BLOCK_MEMORY;
 
