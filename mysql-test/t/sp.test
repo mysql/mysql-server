@@ -1943,6 +1943,18 @@ drop procedure bug5287|
 
 
 #
+# BUG#5307: Stored procedure allows statement after BEGIN ... END
+#
+create procedure bug5307()
+begin
+end; set @x = 3|
+
+call bug5307()|
+select @x|
+drop procedure bug5307|
+
+
+#
 # Some "real" examples
 #
 
