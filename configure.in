@@ -1238,7 +1238,7 @@ AC_CHECK_FUNCS(alarm bmove \
  cuserid fcntl fconvert  \
  getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
  perror pread realpath rename \
- socket strnlen madvise \
+ socket strnlen madvise mkstemp \
  strtol strtoul strtoull snprintf tempnam thr_setconcurrency \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror\
