@@ -262,8 +262,23 @@ int st_select_lex_unit::exec()
 	res= sl->join->reinit();
       else
       {
-	offset_limit_cnt= sl->offset_limit;
-	select_limit_cnt= sl->select_limit+sl->offset_limit;
+	if (sl != global_parameters)
+	{
+	  offset_limit_cnt= sl->offset_limit;
+	  select_limit_cnt= sl->select_limit+sl->offset_limit;
+	}
+	else
+	{
+	  offset_limit_cnt= 0;
+	  /*
+	    We can't use LIMIT at this stage if we are using ORDER BY for the
+	    whole query
+	  */
+	  if (sl->order_list.first)
+	    select_limit_cnt= HA_POS_ERROR;
+	  else
+	    select_limit_cnt= sl->select_limit+sl->offset_limit;
+	}
 	if (select_limit_cnt < sl->select_limit)
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
 
@@ -352,14 +367,11 @@ int st_select_lex_unit::exec()
     {
       ulong options= thd->options;
       thd->lex.current_select= fake_select_lex;
-      if (select_cursor->braces)
-      {
-	offset_limit_cnt= global_parameters->offset_limit;
-	select_limit_cnt= global_parameters->select_limit +
-	  global_parameters->offset_limit;
-	if (select_limit_cnt < global_parameters->select_limit)
-	  select_limit_cnt= HA_POS_ERROR;		// no limit
-      }
+      offset_limit_cnt= global_parameters->offset_limit;
+      select_limit_cnt= global_parameters->select_limit +
+	global_parameters->offset_limit;
+      if (select_limit_cnt < global_parameters->select_limit)
+	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	options&= ~OPTION_FOUND_ROWS;
       else if (found_rows_for_union && !describe)

@@ -1046,8 +1046,9 @@ t1	CREATE TABLE `t1` (
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
-Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 1
+select * from t1;
+a
+2
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
