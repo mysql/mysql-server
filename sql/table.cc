@@ -998,6 +998,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
 
 void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
 {
+  DBUG_ENTER("update_create_info_from_table");
   create_info->max_rows=table->max_rows;
   create_info->min_rows=table->min_rows;
   create_info->table_options=table->db_create_options;
@@ -1006,6 +1007,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->raid_type=table->raid_type;
   create_info->raid_chunks=table->raid_chunks;
   create_info->raid_chunksize=table->raid_chunksize;
+  DBUG_VOID_RETURN;
 }  
 
 int
