@@ -261,3 +261,20 @@ execute `ü`;
 set names default;
 
 
+# 
+# BUG#4368 "select * from t1 where a like ?" crashes server if a is in utf8
+# and ? is in latin1
+# Check that Item converting latin1 to utf8 (for LIKE function) is created
+# in memory of prepared statement.
+#
+
+create table t1 (a varchar(10)) charset=utf8;
+insert into t1 (a) values ('yahoo');
+set character_set_connection=latin1;
+prepare stmt from 'select a from t1 where a like ?';
+set @var='google';
+execute stmt using @var;
+execute stmt using @var;
+deallocate prepare stmt;
+drop table t1;
+
