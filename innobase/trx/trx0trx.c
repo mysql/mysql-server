@@ -1853,8 +1853,9 @@ trx_recover_for_mysql(
 	ut_ad(xid_list);
 	ut_ad(len);
 
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: Starting recovery for XA transactions...\n");
+		"  InnoDB: Starting recovery for XA transactions...\n");
 
 
 	/* We should set those transactions which are in
@@ -1876,14 +1877,14 @@ trx_recover_for_mysql(
 					trx->xid.bqual_length);
 
 			ut_print_timestamp(stderr);
-
 			fprintf(stderr,
-"InnoDB: Transaction %lu %lu in prepared state after recovery\n",
+"  InnoDB: Transaction %lu %lu in prepared state after recovery\n",
 				(ulong) ut_dulint_get_high(trx->id),
 				(ulong) ut_dulint_get_low(trx->id));
 
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"InnoDB: Transaction contains changes to %lu rows\n",
+"  InnoDB: Transaction contains changes to %lu rows\n",
 			(ulong)ut_conv_dulint_to_longlong(trx->undo_no));
 
 			count++;
@@ -1898,8 +1899,9 @@ trx_recover_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: %d transactions in prepare state after recovery\n",
+"  InnoDB: %d transactions in prepare state after recovery\n",
 		count);
 
 	return (count);			
