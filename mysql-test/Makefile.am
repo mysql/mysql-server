@@ -17,11 +17,12 @@
 
 ## Process this file with automake to create Makefile.in
 
-EXTRA_SCRIPTS = mysql-test-run.sh install_test_db.sh
-EXTRA_DIST = $(EXTRA_SCRIPTS) 
-testdir = $(prefix)/mysql-test
-test_SCRIPTS = mysql-test-run install_test_db
-CLEANFILES = $(test_SCRIPTS)
+benchdir_root=		$(prefix)
+testdir =	        $(benchdir_root)/mysql-test
+EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh
+EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
+test_SCRIPTS = 		mysql-test-run install_test_db
+CLEANFILES = 		$(test_SCRIPTS)
 
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
@@ -52,7 +53,7 @@ SUFFIXES = .sh
 .sh:
 	@RM@ -f $@ $@-t
 	@SED@ \
-	  -e 's!@''benchdir''@!$(benchdir)!g' \
+	  -e 's!@''testdir''@!$(testdir)!g' \
 	  -e 's!@''bindir''@!$(bindir)!g' \
 	  -e 's!@''scriptdir''@!$(bindir)!g' \
 	  -e 's!@''prefix''@!$(prefix)!g' \

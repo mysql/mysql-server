@@ -17,7 +17,8 @@
 
 ## Process this file with automake to create Makefile.in
 
-benchdir =		$(prefix)/sql-bench
+benchdir_root=		$(prefix)
+benchdir =		$(benchdir_root)/sql-bench
 bench_SCRIPTS =		test-ATIS test-connect test-create test-insert \
 			test-big-tables test-select test-wisconsin \
 			test-alter-table \

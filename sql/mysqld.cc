@@ -2355,7 +2355,7 @@ enum options {
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
 	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
-	       OPT_GEMINI_SKIP,
+	       OPT_GEMINI_SKIP
 };
 
 static struct option long_options[] = {
