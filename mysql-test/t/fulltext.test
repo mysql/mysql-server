@@ -85,8 +85,6 @@ CREATE TABLE t3 (
 
 --error 1210
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
---error 1210
-select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
 --error 1191
 select * from t2 where MATCH ticket AGAINST ('foobar');
 --error 1210

@@ -278,7 +278,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         }
       }
       /* update queue */
-      r=_mi_search(info, keyinfo, ftbw->word, ftbw->len,
+      r=_mi_search(info, keyinfo, ftbw->word, USE_WHOLE_KEY, /*ftbw->len,*/
                    SEARCH_BIGGER , keyroot);
       if (!r)
       {
