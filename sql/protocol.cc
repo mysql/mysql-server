@@ -40,9 +40,9 @@ bool Protocol::net_store_data(const char *from, uint length)
   return 0;
 }
 
-bool Protocol::convert_str(const char *from, uint length)
+inline bool Protocol::convert_str(const char *from, uint length)
 {
-  convert->store(packet, from, length);
+  return convert->store(packet, from, length);
 }
 #endif
 
