@@ -474,7 +474,8 @@ static const ulong index_type_flags[]=
   0,                         
 
   /* PRIMARY_KEY_INDEX */
-  HA_NOT_READ_PREFIX_LAST,
+  HA_NOT_READ_PREFIX_LAST | 
+  HA_ONLY_WHOLE_INDEX,
 
   /* PRIMARY_KEY_ORDERED_INDEX */
   /* 
@@ -485,7 +486,8 @@ static const ulong index_type_flags[]=
   HA_NOT_READ_PREFIX_LAST,
 
   /* UNIQUE_INDEX */
-  HA_NOT_READ_PREFIX_LAST,
+  HA_NOT_READ_PREFIX_LAST |
+  HA_ONLY_WHOLE_INDEX,
 
   /* UNIQUE_ORDERED_INDEX */
   HA_NOT_READ_PREFIX_LAST,
