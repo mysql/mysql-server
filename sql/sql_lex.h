@@ -216,6 +216,7 @@ public:
   uint with_sum_func;   /* sum function indicator and number of it */
   bool create_refs;
   bool dependent;	/* dependent from outer select subselect */
+  bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
 
   static void *operator new(size_t size)
@@ -475,6 +476,13 @@ typedef struct st_lex
   CHARSET_INFO *charset;
   char *help_arg;
   bool tmp_table_used;
+
+  inline void uncacheable()
+  {
+    safe_to_cache_query= 0;
+    current_select->uncacheable = 
+      current_select->master_unit()->uncacheable= 1;
+  }
 } LEX;
 
 

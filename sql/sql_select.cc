@@ -839,7 +839,6 @@ JOIN::reinit()
     exec_tmp_table1->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table1->file->delete_all_rows();
     free_io_cache(exec_tmp_table1);
-    memcpy(ref_pointer_array, items0, ref_pointer_array_size);
   }
   if (exec_tmp_table2)
   {
@@ -849,9 +848,6 @@ JOIN::reinit()
   }
   if (items0)
     memcpy(ref_pointer_array, items0, ref_pointer_array_size);
-
-  tmp_table_param.copy_funcs.empty();
-  tmp_table_param.copy_field= tmp_table_param.copy_field_end= 0;
 
   if (tmp_join)
     restore_tmp();
@@ -4824,7 +4820,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 static int
 do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 {
-  int error;
+  int error= 0;
   JOIN_TAB *join_tab;
   int (*end_select)(JOIN *, struct st_join_table *,bool);
   DBUG_ENTER("do_select");
@@ -8032,9 +8028,11 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
 				((sl->dependent)?"DEPENDENT SUBSELECT":
-				 "SUBSELECT")):
+				 (sl->uncacheable?"UNCACHEABLE SUBSELECT":
+				   "SUBSELECT"))):
 				((sl->dependent)?"DEPENDENT UNION":
-				 "UNION"))),
+				 sl->uncacheable?"UNCACHEABLE UNION":
+				  "UNION"))),
 			      result);
     if (res)
       break;

@@ -1798,7 +1798,7 @@ select_option:
 	      YYABORT;
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
-	| SQL_NO_CACHE_SYM { Lex->safe_to_cache_query=0; }
+	| SQL_NO_CACHE_SYM { Lex->uncacheable();; }
 	| SQL_CACHE_SYM    { Select->options|= OPTION_TO_QUERY_CACHE; }
 	| ALL		{}
 	;
@@ -2045,12 +2045,12 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    Lex->safe_to_cache_query=0;
+	    Lex->uncacheable();;
 	  }
 	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    Lex->safe_to_cache_query=0;
+	    Lex->uncacheable();;
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text
 	  {
@@ -2136,7 +2136,7 @@ simple_expr:
 	| ENCRYPT '(' expr ')'
 	  {
 	    $$= new Item_func_encrypt($3);
-	    Lex->safe_to_cache_query=0;
+	    Lex->uncacheable();;
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING ')'
@@ -2192,11 +2192,12 @@ simple_expr:
 	  {
     	    $$= get_system_var(OPT_SESSION, "last_insert_id", 14,
 			      "last_insert_id()");
+	    Lex->safe_to_cache_query= 0;
 	  }
 	| LAST_INSERT_ID '(' expr ')'
 	  {
 	    $$= new Item_func_set_last_insert_id($3);
-	    Lex->safe_to_cache_query=0;
+	    Lex->safe_to_cache_query= 0;
 	  }
 	| LEFT '(' expr ',' expr ')'
 	  { $$= new Item_func_left($3,$5); }
@@ -2272,9 +2273,9 @@ simple_expr:
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
 	| RAND '(' expr ')'
-	  { $$= new Item_func_rand($3); Lex->safe_to_cache_query=0;}
+	  { $$= new Item_func_rand($3); Lex->uncacheable();}
 	| RAND '(' ')'
-	  { $$= new Item_func_rand(); Lex->safe_to_cache_query=0;}
+	  { $$= new Item_func_rand(); Lex->uncacheable();}
 	| REPLACE '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_replace($3,$5,$7); }
 	| RIGHT '(' expr ',' expr ')'
@@ -2376,7 +2377,7 @@ simple_expr:
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
 	  {
 	    $$=new Item_func_benchmark($3,$5);
-	    Lex->safe_to_cache_query=0;
+	    Lex->uncacheable();
 	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
@@ -2874,7 +2875,7 @@ procedure_clause:
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
 	    if (add_proc_to_list(lex->thd, new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
-	    Lex->safe_to_cache_query=0;
+	    Lex->uncacheable();
 	  }
 	  '(' procedure_list ')';
 
@@ -2948,7 +2949,7 @@ into:
 	}
         | INTO select_var_list_init
 	{
-	  Lex->safe_to_cache_query=0;
+	  Lex->uncacheable();
 	}
         ;
 
