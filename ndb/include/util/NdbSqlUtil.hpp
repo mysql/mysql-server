@@ -150,7 +150,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Tinyunsigned:
     {
       if (size >= 1) {
@@ -165,7 +164,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Smallint:
     {
       if (size >= 1) {
@@ -180,7 +178,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Smallunsigned:
     {
       if (size >= 1) {
@@ -195,7 +192,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Mediumint:         // XXX fix these
     break;
   case Type::Mediumunsigned:
@@ -214,7 +210,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Unsigned:
     {
       if (size >= 1) {
@@ -229,7 +224,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Bigint:
     {
       if (size >= 2) {
@@ -246,7 +240,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Bigunsigned:
     {
       if (size >= 2) {
@@ -263,7 +256,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Float:
     {
       if (size >= 1) {
@@ -278,7 +270,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Double:
     {
       if (size >= 2) {
@@ -295,7 +286,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Decimal:
     break;
   case Type::Char:
@@ -310,7 +300,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       int k = memcmp(u1.v, u2.v, size << 2);
       return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
     }
-    break;
   case Type::Varchar:
     {
       /*
@@ -328,7 +317,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Binary:            // XXX fix these
     break;
   case Type::Varbinary:
@@ -352,7 +340,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   case Type::Timespec:          // XXX fix this
     break;
   case Type::Blob:              // XXX fix
@@ -371,7 +358,6 @@ NdbSqlUtil::cmp(Uint32 typeId, const Uint32* p1, const Uint32* p2, Uint32 full, 
       }
       return CmpUnknown;
     }
-    break;
   }
   return CmpError;
 }

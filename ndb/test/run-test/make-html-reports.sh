@@ -149,7 +149,7 @@ do
 	no=`trim $no`
 	res=`trim $res`
 	time=`trim $time`
-	res_dir="<a href=\"result-$run/$date/result.$no/\">log</a>"
+	res_dir="<a href=\"result.$no/\">log</a>"
 
 	ts=`time_spec $time`
 	res_txt=""

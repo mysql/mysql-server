@@ -24,10 +24,10 @@ printTUX_MAINT_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
   //const bool inOut = rbn & (1 << 15);
   const TuxMaintReq* const sig = (const TuxMaintReq*)theData;
   fprintf(output, " errorCode=%d\n", sig->errorCode);
-  fprintf(output, " table: id=%d", sig->tableId);
-  fprintf(output, " index: id=%d", sig->indexId);
-  fprintf(output, " fragment: id=%d\n", sig->fragId);
-  fprintf(output, " tuple: addr=0x%x version=%d\n", sig->tupAddr, sig->tupVersion);
+  fprintf(output, " table: id=%u", sig->tableId);
+  fprintf(output, " index: id=%u", sig->indexId);
+  fprintf(output, " fragment: id=%u\n", sig->fragId);
+  fprintf(output, " tuple: loc=%u.%u version=%u\n", sig->pageId, sig->pageOffset, sig->tupVersion);
   const Uint32 opCode = sig->opInfo & 0xFF;
   const Uint32 opFlag = sig->opInfo >> 8;
   switch (opCode ) {

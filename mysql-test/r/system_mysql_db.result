@@ -9,6 +9,11 @@ help_relation
 help_topic
 host
 tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
 user
 show create table db;
 Table	Create Table

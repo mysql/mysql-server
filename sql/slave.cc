@@ -1248,7 +1248,30 @@ be equal for replication to work";
     mysql_free_result(master_res);
   }
 
-  /* Add a timezones check here */
+  /*
+    Perform analogous check for time zone. Theoretically we also should
+    perform check here to verify that SYSTEM time zones are the same on
+    slave and master, but we can't rely on value of @@system_time_zone
+    variable (it is time zone abbreviation) since it determined at start
+    time and so could differ for slave and master even if they are really
+    in the same system time zone. So we are omiting this check and just
+    relying on documentation. Also according to Monty there are many users
+    who are using replication between servers in various time zones. Hence 
+    such check will broke everything for them. (And now everything will 
+    work for them because by default both their master and slave will have 
+    'SYSTEM' time zone).
+  */
+  if (!mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
+      (master_res= mysql_store_result(mysql)))
+  {
+    if ((master_row= mysql_fetch_row(master_res)) &&
+        strcmp(master_row[0], 
+               global_system_variables.time_zone->get_name()->ptr()))
+      errmsg= "The slave I/O thread stops because master and slave have \
+different values for the TIME_ZONE global variable. The values must \
+be equal for replication to work";
+    mysql_free_result(master_res);
+  }
 
   if (errmsg)
   {

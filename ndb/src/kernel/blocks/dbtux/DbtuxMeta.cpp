@@ -181,10 +181,9 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     // define the attribute
     DescEnt& descEnt = getDescEnt(indexPtr.p->m_descPage, indexPtr.p->m_descOff);
     DescAttr& descAttr = descEnt.m_descAttr[attrId];
+    descAttr.m_attrDesc = req->attrDescriptor;
     descAttr.m_primaryAttrId = req->primaryAttrId;
     descAttr.m_typeId = req->extTypeInfo & 0xFF;
-    descAttr.m_nullable = AttributeDescriptor::getNullable(req->attrDescriptor);
-    descAttr.pad1 = 0;
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
       debugOut << "Add frag " << fragPtr.i << " attr " << attrId << " " << descAttr << endl;
