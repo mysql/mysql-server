@@ -87,16 +87,15 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#ifdef _AIX41
+int initgroups(const char *,unsigned int);
+#endif
+
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-
-#ifdef _AIX41
-extern "C" int initgroups(const char *,int);
-#endif
-
 
   /* We can't handle floating point expections with threads, so disable
      this on freebsd
@@ -2462,7 +2461,7 @@ enum options {
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
-	       OPT_SKIP_STACK_TRACE
+	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS
 };
 
 static struct option long_options[] = {
@@ -2588,6 +2587,7 @@ static struct option long_options[] = {
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
+  {"skip-symlinks",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
@@ -3420,6 +3420,7 @@ static void get_options(int argc,char **argv)
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
+      my_disable_symlinks=1;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
       break;
     case (int) OPT_SAFE:
@@ -3475,6 +3476,9 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_SKIP_STACK_TRACE:
       test_flags|=TEST_NO_STACKTRACE;
+      break;
+    case (int) OPT_SKIP_SYMLINKS:
+      my_disable_symlinks=1;
       break;
     case (int) OPT_BIND_ADDRESS:
       if (optarg && isdigit(optarg[0]))

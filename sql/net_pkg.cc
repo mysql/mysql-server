@@ -140,7 +140,7 @@ net_printf(NET *net, uint errcode, ...)
 void
 send_ok(NET *net,ha_rows affected_rows,ulonglong id,const char *message)
 {
-  if(net->no_send_ok)
+  if (net->no_send_ok)				// hack for re-parsing queries
     return;
   
   char buff[MYSQL_ERRMSG_SIZE+10],*pos;

@@ -832,13 +832,13 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 
     int lock_retcode;
     pthread_mutex_lock(&LOCK_open);
-    if((lock_retcode = lock_table_name(thd, table)) < 0)
+    if ((lock_retcode = lock_table_name(thd, table)) < 0)
     {
       pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(-1);
     }
 
-    if(lock_retcode && wait_for_locked_table_names(thd, table))
+    if (lock_retcode && wait_for_locked_table_names(thd, table))
     {
       unlock_table_name(thd, table);
       pthread_mutex_unlock(&LOCK_open);
@@ -846,7 +846,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
     }
     pthread_mutex_unlock(&LOCK_open);
 
-    if(my_copy(src_path,
+    if (my_copy(src_path,
 	       fn_format(dst_path, dst_path,"",
 			 reg_ext, 4),
 	       MYF(MY_WME)))
@@ -860,7 +860,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
     // generate table will try to send OK which messes up the output
     // for the client
 
-    if(generate_table(thd, table, 0))
+    if (generate_table(thd, table, 0))
     {
       unlock_table_name(thd, table);
       thd->net.no_send_ok = save_no_send_ok;
@@ -921,7 +921,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
       // now we should be able to open the partially restored table
       // to finish the restore in the handler later on
-      if(!(table->table = reopen_name_locked_table(thd, table)))
+      if (!(table->table = reopen_name_locked_table(thd, table)))
         unlock_table_name(thd, table);
     }
 
@@ -1689,7 +1689,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
      alter table is to delete the new table so there
      is no need to log the changes to it.              */
   error = ha_recovery_logging(thd,false);
-  if(error)
+  if (error)
   {
     error = 1;
     goto err;

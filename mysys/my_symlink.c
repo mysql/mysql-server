@@ -18,6 +18,7 @@
 #include "mysys_priv.h"
 #include "mysys_err.h"
 #include <m_string.h>
+#include <errno.h>
 #ifdef HAVE_REALPATH
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -26,13 +27,16 @@
 /*
   Reads the content of a symbolic link
   If the file is not a symbolic link, return the original file name in to.
+  Returns: 0 if table was a symlink,
+           1 if table was a normal file
+	   -1 on error.
 */
 
 int my_readlink(char *to, const char *filename, myf MyFlags)
 {
 #ifndef HAVE_READLINK
   strmov(to,filename);
-  return 0;
+  return 1;
 #else
   int result=0;
   int length;
@@ -43,6 +47,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags)
     /* Don't give an error if this wasn't a symlink */
     if ((my_errno=errno) == EINVAL)
     {
+      result= 1;
       strmov(to,filename);
     }
     else
@@ -80,44 +85,6 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
   DBUG_RETURN(result);
 #endif /* HAVE_READLINK */
 }
-
-
-/*
-  Create a file and a symbolic link that points to this file
-  If linkname is a null pointer or equal to filename, we don't
-  create a link.
- */
-
-
-File my_create_with_symlink(const char *linkname, const char *filename,
-			    int createflags, int access_flags, myf MyFlags)
-{
-  File file;
-  int tmp_errno;
-  DBUG_ENTER("my_create_with_symlink");
-  if ((file=my_create(filename, createflags, access_flags, MyFlags)) >= 0)
-  {
-    /* Test if we should create a link */
-    if (linkname && strcmp(linkname,filename))
-    {
-      /* Delete old link/file */
-      if (MyFlags & MY_DELETE_OLD)
-	my_delete(linkname, MYF(0));
-      /* Create link */
-      if (my_symlink(filename, linkname, MyFlags))
-      {
-	/* Fail, remove everything we have done */
-	tmp_errno=my_errno;
-	my_close(file,MYF(0));
-	my_delete(filename, MYF(0));
-	file= -1;
-	my_errno=tmp_errno;
-      }
-    }
-  }
-  DBUG_RETURN(file);
-}
-
 
 /*
   Resolve all symbolic links in path
@@ -162,7 +129,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
       result= -1;
     }
   }
-  return result;
+  DBUG_RETURN(result);
 #else
   if (to != filename)
     strmov(to,filename);
