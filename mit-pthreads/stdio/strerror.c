@@ -36,13 +36,18 @@ static char sccsid[] = "@(#)strerror.c	5.6 (Berkeley) 5/4/91";
 #endif /* LIBC_SCCS and not lint */
 
 #include <string.h>
+#if defined(__NetBSD__)
+#include <errno.h>
+#endif
 
 char *
 strerror(num)
 	int num;
 {
+#if !defined(__NetBSD__)
 	extern int sys_nerr;
 	extern char *sys_errlist[];
+#endif
 #define	UPREFIX	"Unknown error: "
 	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
 	register unsigned int errnum;
@@ -51,7 +56,7 @@ strerror(num)
 
 	errnum = num;				/* convert to unsigned */
 	if (errnum < sys_nerr)
-		return(sys_errlist[errnum]);
+		return((char *)sys_errlist[errnum]);
 
 	/* Do this by hand, so we don't include stdio(3). */
 	t = tmp;
