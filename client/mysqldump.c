@@ -106,7 +106,14 @@ FILE  *md_result_file;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
-static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
+/*
+  Constant for detection default value of default_charset (if
+  default_charset equal to mysql_universal_client_charset, then it is
+  default value which assigned in very beginning on main())
+*/
+const static char *mysql_universal_client_charset=
+  MYSQL_UNIVERSAL_CLIENT_CHARSET;
+static char *default_charset;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
 
@@ -678,7 +685,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         Set charset to the default compiled value if it hasn't
         been reset yet by --default-character-set=xxx.
       */
-      if (default_charset == (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET)
+      if (default_charset == mysql_universal_client_charset)
         default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
       break;
     }
@@ -2403,6 +2410,7 @@ cleanup:
 int main(int argc, char **argv)
 {
   compatible_mode_normal_str[0]= 0;
+  default_charset= (char *)mysql_universal_client_charset;
 
   MY_INIT(argv[0]);
   if (get_options(&argc, &argv))
