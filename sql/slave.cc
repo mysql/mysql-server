@@ -1216,6 +1216,28 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       Rotate_log_event* rev = (Rotate_log_event*)ev;
       int ident_len = rev->ident_len;
       pthread_mutex_lock(&mi->lock);
+     /*
+       If the master is 4.0, he has an incompatible binlog format, which we
+       cannot read. We always can detect this in _fake_ Rotate events, where we
+       see zeros at the beginning of the expected binlog's filename (this is
+       because 4.0 _fake_ Rotate events have zeros in the 'log_pos' and 'flags'
+       parts of the event header).
+       Consider the following test as a sanity check, which must always pass,
+       and which has the good side effect of catching 4.0 masters.
+       Masters >= 4.0.14 will always send a fake Rotate event (even if the slave
+       asked for a position >4) so we are 100% sure to catch the problem.
+     */
+     if (!ident_len || !(rev->new_log_ident[0]))
+     {
+      sql_print_error("Slave: could not parse Rotate event; it *might* be \
+that your master's version is 4.0 or newer, which cannot be replicated by \
+3.23 slaves (in that case you need to upgrade your slave to 4.0 or newer)");
+       delete ev;
+       pthread_cond_broadcast(&mi->cond);
+       pthread_mutex_unlock(&mi->lock);
+       return 1;
+     }
+
       memcpy(mi->log_file_name, rev->new_log_ident,ident_len );
       mi->log_file_name[ident_len] = 0;
       mi->pos = 4; // skip magic number
