@@ -50,8 +50,8 @@ void free_defaults_internal(char ** argv){if (argv) free_defaults(argv);}
 char mysql_data_home[FN_REFLEN];
 char * get_mysql_data_home(){return mysql_data_home;};
 #define mysql_data_home mysql_data_home_internal
-#include "../sql/mysqld.cc"
 #include "lib_vio.c"
+#include "../sql/mysqld.cc"
 
 #define SCRAMBLE_LENGTH 8
 extern "C" {
@@ -600,7 +600,7 @@ void embedded_srv_init(void)
   }
 
   //printf(ER(ER_READY),my_progname,server_version,"");
-  printf("%s initialized.\n", server_version);
+  //printf("%s initialized.\n", server_version);
   fflush(stdout);
 
 
