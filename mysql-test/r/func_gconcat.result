@@ -14,18 +14,18 @@ insert into t1 values (3,9,"D","c");
 select grp,group_concat(c) from t1 group by grp;
 grp	group_concat(c)
 1	a
-2	b c
-3	E C D d d D
+2	b,c
+3	E,C,D,d,d,D
 select grp,group_concat(a,c) from t1 group by grp;
 grp	group_concat(a,c)
 1	1a
-2	2b 3c
-3	4E 5C 6D 7d 8d 9D
+2	2b,3c
+3	4E,5C,6D,7d,8d,9D
 select grp,group_concat("(",a,":",c,")") from t1 group by grp;
 grp	group_concat("(",a,":",c,")")
 1	(1:a)
-2	(2:b) (3:c)
-3	(4:E) (5:C) (6:D) (7:d) (8:d) (9:D)
+2	(2:b),(3:c)
+3	(4:E),(5:C),(6:D),(7:d),(8:d),(9:D)
 select grp,group_concat(c separator ",") from t1 group by grp;
 grp	group_concat(c separator ",")
 1	a
@@ -39,48 +39,48 @@ grp	group_concat(c separator "---->")
 select grp,group_concat(c order by c) from t1 group by grp;
 grp	group_concat(c order by c)
 1	a
-2	b c
-3	C D d d D E
+2	b,c
+3	C,D,d,d,D,E
 select grp,group_concat(c order by c desc) from t1 group by grp;
 grp	group_concat(c order by c desc)
 1	a
-2	c b
-3	E D d d D C
+2	c,b
+3	E,D,d,d,D,C
 select grp,group_concat(d order by a) from t1 group by grp;
 grp	group_concat(d order by a)
 1	a
-2	a b
-3	a b b d d c
+2	a,b
+3	a,b,b,d,d,c
 select grp,group_concat(d order by a desc) from t1 group by grp;
 grp	group_concat(d order by a desc)
 1	a
-2	b a
-3	c d d b b a
+2	b,a
+3	c,d,d,b,b,a
 select grp,group_concat(a order by a,d+c) from t1 group by grp;
 grp	group_concat(a order by a,d+c)
 1	1
-2	2 3
-3	4 5 6 7 8 9
+2	2,3
+3	4,5,6,7,8,9
 select grp,group_concat(c order by 1) from t1 group by grp;
 grp	group_concat(c order by 1)
 1	a
-2	b c
-3	C D d d D E
+2	b,c
+3	C,D,d,d,D,E
 select grp,group_concat(c order by "c") from t1 group by grp;
 grp	group_concat(c order by "c")
 1	a
-2	b c
-3	C D d d D E
+2	b,c
+3	C,D,d,d,D,E
 select grp,group_concat(distinct c order by c) from t1 group by grp;
 grp	group_concat(distinct c order by c)
 1	a
-2	b c
-3	C D E
+2	b,c
+3	C,D,E
 select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 grp	group_concat(distinct c order by c desc)
 1	a
-2	c b
-3	E D C
+2	c,b
+3	E,D,C
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
 grp	group_concat(c order by c separator ",")
 1	a
@@ -104,8 +104,8 @@ grp	group_concat(distinct c order by c desc separator ",")
 select grp,group_concat(c order by grp desc) from t1 group by grp order by grp;
 grp	group_concat(c order by grp desc)
 1	a
-2	c b
-3	D d d D C E
+2	c,b
+3	D,d,d,D,C,E
 select grp, group_concat(a separator "")+0 from t1 group by grp;
 grp	group_concat(a separator "")+0
 1	1
@@ -138,7 +138,7 @@ select grp,group_concat(c order by c) from t1 group by grp;
 grp	group_concat(c order by c)
 1	NULL
 2	b
-3	D D E
+3	D,D,E
 4	
 5	NULL
 set group_concat_max_len = 5;
@@ -146,7 +146,7 @@ select grp,group_concat(c) from t1 group by grp;
 grp	group_concat(c)
 1	NULL
 2	b
-3	E D D
+3	E,D,D
 4	
 5	NULL
 Warnings:
