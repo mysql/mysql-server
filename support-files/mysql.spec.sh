@@ -140,9 +140,9 @@ BuildMySQL() {
 # support assembler speedups.
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	CC=\"${MYSQL_BUILD_CC:-egcs}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O6 -fomit-frame-pointer}\" \
+	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O6}\" \
 	CXX=\"${MYSQL_BUILD_CXX:-egcs}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O6 -fomit-frame-pointer \
+	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O6 \
 	          -felide-constructors -fno-exceptions -fno-rtti}\" \
 	./configure \
  	    $* \
@@ -305,6 +305,7 @@ fi
 %attr(755, root, root) /usr/bin/mysql_setpermission
 %attr(755, root, root) /usr/bin/mysql_zap
 %attr(755, root, root) /usr/bin/mysqlbug
+%attr(755, root, root) /usr/bin/mysqltest
 %attr(755, root, root) /usr/bin/mysqlhotcopy
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
@@ -334,6 +335,19 @@ fi
 %attr(755, root, root) /usr/bin/mysqlbinlog
 
 %attr(644, root, man) %doc /usr/man/man1/mysql.1*
+%attr(644, root, man) %doc /usr/man/man1/mysql.1*
+%attr(644, root, man) %doc /usr/man/man1/isamchk.1*
+%attr(644, root, man) %doc /usr/man/man1/isamlog.1*
+%attr(644, root, man) %doc /usr/man/man1/mysql_zap.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqlaccess.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqladmin.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqld.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqld_multi.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqldump.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqlshow.1*
+%attr(644, root, man) %doc /usr/man/man1/perror.1*
+%attr(644, root, man) %doc /usr/man/man1/replace.1*
+%attr(644, root, man) %doc /usr/man/man1/safe_mysqld.1*
 
 %post shared
 /sbin/ldconfig
