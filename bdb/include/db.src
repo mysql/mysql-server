@@ -249,6 +249,11 @@ struct __db_dbt {
 #define	DB_REGION_MAGIC	0x120897	/* Environment magic number. */
 
 typedef enum {
+	DB_NOTICE_LOGFILE_CHANGED
+	/* DB_NOTICE_DISK_LOW */
+} db_notices;
+
+typedef enum {
 	DB_TXN_ABORT,
 	DB_TXN_BACKWARD_ROLL,
 	DB_TXN_FORWARD_ROLL,
@@ -267,6 +272,7 @@ struct __db_env {
 					/* Callbacks. */
 	void (*db_errcall) __P((const char *, char *));
 	void (*db_feedback) __P((DB_ENV *, int, int));
+	void (*db_noticecall) __P((DB_ENV *, db_notices));
 	void (*db_paniccall) __P((DB_ENV *, int));
 	int  (*db_recovery_init) __P((DB_ENV *));
 
@@ -395,6 +401,7 @@ struct __db_env {
 	int  (*set_feedback) __P((DB_ENV *, void (*)(DB_ENV *, int, int)));
 	int  (*set_flags) __P((DB_ENV *, u_int32_t, int));
 	int  (*set_mutexlocks) __P((DB_ENV *, int));
+	void (*set_noticecall) __P((DB_ENV *, void (*)(DB_ENV *, db_notices)));
 	int  (*set_paniccall) __P((DB_ENV *, void (*)(DB_ENV *, int)));
 	int  (*set_recovery_init) __P((DB_ENV *, int (*)(DB_ENV *)));
 	int  (*set_server) __P((DB_ENV *, char *, long, long, u_int32_t));

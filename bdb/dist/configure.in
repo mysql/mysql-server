@@ -68,6 +68,40 @@ dnl Process all options before using them.  This is necessary because there
 dnl are dependencies among them.
 AM_OPTIONS_SET
 
+# This is to determine what compiler is being used and to set options.
+# i.e.  SCO OpenServer 5.0.X and UnixWare 7.X.X
+# option, cache_name, variable
+AC_DEFUN(AC_SYS_COMPILER_FLAG,
+[
+  AC_MSG_CHECKING($1)
+  OLD_CFLAGS="[$]CFLAGS"
+  AC_CACHE_VAL(db_cv_option_$2,
+  [
+    CFLAGS="[$]OLD_CFLAGS $1"
+    AC_TRY_RUN([int main(){exit(0);}],db_cv_option_$2=yes,db_cv_option_$2=no,db_cv_option_$2=no)
+  ])
+
+  CFLAGS="[$]OLD_CFLAGS"
+  
+  if test x"[$]db_cv_option_$2" = "xyes" ; then
+    $3="[$]$3 $1"
+    AC_MSG_RESULT(yes)
+    $5
+  else
+    AC_MSG_RESULT(no)
+    $4
+  fi
+])
+
+
+# os, option, cache_name, variable
+AC_DEFUN(AC_SYS_OS_COMPILER_FLAG,
+[
+ if test "x$db_cv_sys_os" = "x$1" ; then
+    AC_SYS_COMPILER_FLAG($2,$3,$4)
+ fi
+])
+
 dnl This is where we handle stuff that autoconf can't handle: compiler,
 dnl preprocessor and load flags, libraries that the standard tests don't
 dnl look for.  The default optimization is -O.  We would like to set the
@@ -111,6 +145,55 @@ osf*)	   CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
 *qnx)	   AC_DEFINE(HAVE_QNX);;
 sco3.2v4*) CC=${CC-"cc -belf"}
 	   LIBS="-lsocket -lnsl_s $LIBS";;
+sco3.2v5*) if test "$GCC" != "yes"; then
+             CFLAGS="$CFLAGS"
+     	     LD='$(CC) $(CFLAGS)'
+	     LIBS="-lsocket -lnsl $LIBS"
+	     CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
+             case "$CFLAGS" in
+               *-belf*) 
+                 AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
+                 case "$LDFLAGS" in
+                   *-belf*) ;;
+                   *) echo "Adding -belf option to ldflags."
+                      LDFLAGS="$LDFLAGS -belf"
+                   ;;
+                 esac
+                 ])
+               ;;
+               *)
+                 AC_SYS_COMPILER_FLAG(-belf,sco_belf_option,CFLAGS,[],[
+                 case "$LDFLAGS" in
+                   *-belf*) ;;
+                   *)
+	             echo "Adding -belf option to ldflags."
+                     LDFLAGS="$LDFLAGS -belf"
+                   ;;
+                 esac
+                 ])
+               ;;
+             esac
+	   else
+	     CC="gcc"
+	     LIBS="-lsocket -lnsl $LIBS"
+	     CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
+	   fi
+	 ;;
+sysv5uw7*) LIBS="-lsocket -lnsl $LIBS"
+    if test "$GCC" != "yes"; then
+      # We are using built-in inline function
+      CC="cc -belf"
+      CXX="CC -belf"
+      CFLAGS="$CFLAGS -Kalloca -Kthread"
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+      LIBS="-Kthread -lsocket -lnsl $LIBS"
+    else
+      CFLAGS="$CFLAGS -Kalloca -pthread"
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+      CPPFLAGS="-D_THREAD_SAFE -pthread $CPPFLAGS"
+      LIBS="-pthread -lsocket -lnsl $LIBS"
+    fi
+  ;;
 sco*)	   CC=${CC-"cc -belf"}
 	   LIBS="-lsocket -lnsl $LIBS";;
 solaris*)  CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
@@ -340,7 +423,12 @@ fi
 
 dnl Test Server.
 dnl Include -lpthread if the library exists.
+SCOLIBS=$LIBS
 AC_CHECK_LIB(pthread, pthread_create, DBS_LIBS=-lpthread)
+case "$host_os" in
+sysv5uw7*) LIBS=$SCOLIBS;;
+sco3.2v5*) LIBS=$SCOLIBS;;
+esac
 
 dnl Checks for typedefs, structures, and system/compiler characteristics.
 AC_C_BIGENDIAN

@@ -22,7 +22,7 @@ struct __log_persist;	typedef struct __log_persist LOGP;
 
 #define	LG_MAX_DEFAULT		(10 * MEGABYTE)	/* 10 MB. */
 #define	LG_BSIZE_DEFAULT	(32 * 1024)	/* 32 KB. */
-#define	LG_BASE_REGION_SIZE	(60 * 1024)	/* 60 KB. */
+#define	LG_BASE_REGION_SIZE	(480 * 1024)	/* 480 KB. */
 
 /*
  * The per-process table that maps log file-id's to DB structures.
