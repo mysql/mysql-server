@@ -159,6 +159,9 @@ UNIQUE KEY `email` (`email`)
 INSERT INTO inscrit (pseudo,email) VALUES ('joce','test');
 INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
+SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce');
+pseudo
+joce
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
 Subselect returns more than 1 record
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
