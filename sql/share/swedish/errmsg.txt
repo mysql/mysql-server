@@ -231,7 +231,7 @@ character-set=latin1
 "Option '%s' användes två gånger",
 "Användare '%-.64s' har överskridit '%s' (nuvarande värde: %ld)",
 "Du har inte privlegiet '%-.128s' som behövs för denna operation",
-"Variabel '%-.64s' är en LOCAL variabel och kan inte ändrad med SET GLOBAL",
+"Variabel '%-.64s' är en SESSION variabel och kan inte ändrad med SET GLOBAL",
 "Variabel '%-.64s' är en GLOBAL variabel och bör sättas med SET GLOBAL",
 "Variabel '%-.64s' har inte ett DEFAULT-värde",
 "Variabel '%-.64s' kan inte sättas till '%-.64s'",
