@@ -1528,6 +1528,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_user_table");
+  LEX *lex= thd->lex;
   safe_mutex_assert_owner(&acl_cache->lock);
 
   if (combo.password.str && combo.password.str[0])
@@ -1600,8 +1601,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
       table->field[2]->store(password, password_len, &my_charset_latin1);
-    else if (!rights && !revoke_grant && thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
-	     !thd->lex->mqh.bits)
+    else if (!rights && !revoke_grant &&
+             lex->ssl_type == SSL_TYPE_NOT_SPECIFIED && !lex->mqh.bits)
     {
       DBUG_RETURN(0);
     }
@@ -1624,7 +1625,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
     /* We write down SSL related ACL stuff */
-    switch (thd->lex->ssl_type) {
+    switch (lex->ssl_type) {
     case SSL_TYPE_ANY:
       table->field[24]->store("ANY",3, &my_charset_latin1);
       table->field[25]->store("", 0, &my_charset_latin1);
@@ -1642,15 +1643,15 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[25]->store("", 0, &my_charset_latin1);
       table->field[26]->store("", 0, &my_charset_latin1);
       table->field[27]->store("", 0, &my_charset_latin1);
-      if (thd->lex->ssl_cipher)
-	table->field[25]->store(thd->lex->ssl_cipher,
-				strlen(thd->lex->ssl_cipher), &my_charset_latin1);
-      if (thd->lex->x509_issuer)
-	table->field[26]->store(thd->lex->x509_issuer,
-				strlen(thd->lex->x509_issuer), &my_charset_latin1);
-      if (thd->lex->x509_subject)
-	table->field[27]->store(thd->lex->x509_subject,
-				strlen(thd->lex->x509_subject), &my_charset_latin1);
+      if (lex->ssl_cipher)
+	table->field[25]->store(lex->ssl_cipher,
+				strlen(lex->ssl_cipher), &my_charset_latin1);
+      if (lex->x509_issuer)
+	table->field[26]->store(lex->x509_issuer,
+				strlen(lex->x509_issuer), &my_charset_latin1);
+      if (lex->x509_subject)
+	table->field[27]->store(lex->x509_subject,
+				strlen(lex->x509_subject), &my_charset_latin1);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
@@ -1662,7 +1663,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       break;
     }
 
-    USER_RESOURCES mqh= thd->lex->mqh;
+    USER_RESOURCES mqh= lex->mqh;
     if (mqh.bits & 1)
       table->field[28]->store((longlong) mqh.questions);
     if (mqh.bits & 2)
@@ -1704,19 +1705,19 @@ end:
     if (old_row_exists)
       acl_update_user(combo.user.str, combo.host.str,
                       combo.password.str, password_len,
-		      thd->lex->ssl_type,
-		      thd->lex->ssl_cipher,
-		      thd->lex->x509_issuer,
-		      thd->lex->x509_subject,
-		      &thd->lex->mqh,
+		      lex->ssl_type,
+		      lex->ssl_cipher,
+		      lex->x509_issuer,
+		      lex->x509_subject,
+		      &lex->mqh,
 		      rights);
     else
       acl_insert_user(combo.user.str, combo.host.str, password, password_len,
-		      thd->lex->ssl_type,
-		      thd->lex->ssl_cipher,
-		      thd->lex->x509_issuer,
-		      thd->lex->x509_subject,
-		      &thd->lex->mqh,
+		      lex->ssl_type,
+		      lex->ssl_cipher,
+		      lex->x509_issuer,
+		      lex->x509_subject,
+		      &lex->mqh,
 		      rights);
   }
   DBUG_RETURN(error);
