@@ -57,6 +57,7 @@ Docs/manual_letter.ps
 Docs/manual_toc.html
 Docs/my_sys.doc
 Docs/mysql.info
+Docs/tex.fmt
 Docs/texi2dvi.out
 INSTALL-SOURCE
 Logs/*
@@ -210,6 +211,7 @@ libmysqld/derror.cc
 libmysqld/errmsg.c
 libmysqld/examples/completion_hash.cc
 libmysqld/examples/completion_hash.h
+libmysqld/examples/link_sources
 libmysqld/examples/my_readline.h
 libmysqld/examples/mysql
 libmysqld/examples/mysql.cc
@@ -422,4 +424,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-Docs/tex.fmt

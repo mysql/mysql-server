@@ -2888,7 +2888,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
   *new_table_list=0;				// end result list
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
-    if (sl->order_list.first && sl->next)
+    if (sl->order_list.first && sl->next && !sl->braces)
     {
       net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
