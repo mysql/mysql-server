@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "2.1"
+#define MTEST_VERSION "2.2"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -2090,6 +2090,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       my_free(pass, MYF(MY_ALLOW_ZERO_PTR));
       pass= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
+      tty_password= 0;
     }
     else
       tty_password= 1;

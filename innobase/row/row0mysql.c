@@ -2243,14 +2243,17 @@ row_drop_table_for_mysql(
 	ulint		err;
 	const char*	table_name;
 	ulint		namelen;
+	char*		dir_path_of_temp_table	= NULL;
 	ibool		success;
 	ibool		locked_dictionary	= FALSE;
 	char*		quoted_name;
 	char*		sql;
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
+
 	static const char str1[] =
 	"PROCEDURE DROP_TABLE_PROC () IS\n"
 	"table_name CHAR;\n"
@@ -2509,7 +2512,21 @@ row_drop_table_for_mysql(
 
 		ut_error;
 	} else {
+		ibool		is_path;
+		const char*	name_or_path;
+
 		space_id = table->space;
+		
+		if (table->dir_path_of_temp_table != NULL) {
+			dir_path_of_temp_table =
+				mem_strdup(table->dir_path_of_temp_table);
+			is_path = TRUE;
+			name_or_path = dir_path_of_temp_table;
+		} else {
+			is_path = FALSE;
+			name_or_path = name;
+		}
+
 		dict_table_remove_from_cache(table);
 
 		if (dict_load_table(name) != NULL) {
@@ -2525,7 +2542,9 @@ row_drop_table_for_mysql(
 		wrong: we do not want to delete valuable data of the user */
 
 		if (err == DB_SUCCESS && space_id > 0) {
-			if (!fil_space_for_table_exists_in_mem(space_id, name,
+			if (!fil_space_for_table_exists_in_mem(space_id,
+								name_or_path,
+								is_path,
 								FALSE, TRUE)) {
 				err = DB_ERROR;
 
@@ -2549,6 +2568,10 @@ funct_exit:
 
 	if (locked_dictionary) {
 		row_mysql_unlock_data_dictionary(trx);	
+	}
+
+	if (dir_path_of_temp_table) {
+		mem_free(dir_path_of_temp_table);
 	}
 
 	que_graph_free(graph);
