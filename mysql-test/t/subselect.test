@@ -894,7 +894,7 @@ drop table t1;
 #
 # IN optimisation test results
 #
-create table t1 (s1 char(5), index s1(s1));
+create table t1 (s1 char(5) not null, index s1(s1));
 create table t2 (s1 char(5), index s1(s1));
 insert into t1 values ('a1'),('a2'),('a3');
 insert into t2 values ('a1'),('a2');
@@ -916,7 +916,20 @@ create table t3 (a int);
 insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
 explain extended select * from t3 where a >= all (select b from t2);
-
+select * from t3 where a >= some (select b from t2);
+explain extended select * from t3 where a >= some (select b from t2);
+select * from t3 where a >= all (select b from t2 group by 1);
+explain extended select * from t3 where a >= all (select b from t2 group by 1);
+select * from t3 where a >= some (select b from t2 group by 1);
+explain extended select * from t3 where a >= some (select b from t2 group by 1);
+select * from t3 where NULL >= any (select b from t2);
+explain extended select * from t3 where NULL >= any (select b from t2);
+select * from t3 where NULL >= any (select b from t2 group by 1);
+explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
+select * from t3 where NULL >= some (select b from t2);
+explain extended select * from t3 where NULL >= some (select b from t2);
+select * from t3 where NULL >= some (select b from t2 group by 1);
+explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
 #
 # optimized static ALL/ANY with grouping
 #
@@ -1341,3 +1354,66 @@ create table t1 (s1 int,s2 int);
 insert into t1 values (20,15);
 select * from t1 where  (('a',null) <=> (select 'a',s2 from t1 where s1 = 0));
 drop table t1;
+
+#
+# ALL/ANY with NULL
+#
+create table t1 (s1 int);
+insert into t1 values (1),(null);
+select * from t1 where s1 < all (select s1 from t1);
+select s1, s1 < all (select s1 from t1) from t1;
+drop table t1;
+
+#
+# reference on changable fields from subquery
+#
+CREATE TABLE t1 (
+  Code char(3) NOT NULL default '',
+  Name char(52) NOT NULL default '',
+  Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+  Region char(26) NOT NULL default '',
+  SurfaceArea float(10,2) NOT NULL default '0.00',
+  IndepYear smallint(6) default NULL,
+  Population int(11) NOT NULL default '0',
+  LifeExpectancy float(3,1) default NULL,
+  GNP float(10,2) default NULL,
+  GNPOld float(10,2) default NULL,
+  LocalName char(45) NOT NULL default '',
+  GovernmentForm char(45) NOT NULL default '',
+  HeadOfState char(60) default NULL,
+  Capital int(11) default NULL,
+  Code2 char(2) NOT NULL default ''
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('XXX','Xxxxx','Oceania','Xxxxxx',26.00,0,0,0,0,0,'Xxxxx','Xxxxx','Xxxxx',NULL,'XX');
+INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,68000,75.1,334.00,NULL,'Amerika Samoa','US Territory','George W. Bush',54,'AS');
+INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
+INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
+/*!40000 ALTER TABLE t1 ENABLE KEYS */;
+SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+drop table t1;
+
+#
+# Test cases for bug #7351:
+# quantified predicate with subquery returning empty result set
+#
+
+CREATE TABLE t1 ( f1 BIGINT );
+INSERT INTO t1 SET f1= NULL;
+INSERT INTO t1 SET f1= 1;
+CREATE TABLE t2 ( f1 BIGINT );
+
+SELECT f1 FROM t1
+  WHERE  f1 <> ALL ( SELECT f1 FROM t2 );
+
+INSERT INTO t2 VALUES (1), (2);
+
+SELECT f1 FROM t1
+  WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2 );
+
+SELECT f1 FROM t1
+  WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2
+                    UNION
+                    SELECT f1 FROM t2 WHERE f1 > 3);
+
+SELECT f1 FROM t1
+   WHERE f1 <> ALL ( SELECT SUM(f1) AS sf1 FROM t2 HAVING sf1 > 10000);

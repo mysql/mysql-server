@@ -25,7 +25,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include <m_ctype.h>
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
@@ -955,8 +954,9 @@ String *Item_func_left::val_str(String *str)
   if (res->length() <= (uint) length ||
       res->length() <= (char_pos= res->charpos(length)))
     return res;
-  str_value.set(*res, 0, char_pos);
-  return &str_value;
+
+  tmp_value.set(*res, 0, char_pos);
+  return &tmp_value;
 }
 
 
@@ -1185,21 +1185,29 @@ String *Item_func_substr_index::val_str(String *str)
 String *Item_func_ltrim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;					/* purecov: inspected */
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
+  char buff[MAX_FIELD_WIDTH], *ptr, *end;
+  String tmp(buff,sizeof(buff),system_charset_info);
+  String *res, *remove_str;
   uint remove_length;
   LINT_INIT(remove_length);
 
-  if (!remove_str || (remove_length=remove_str->length()) == 0 ||
+  res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  remove_str= &remove;                          /* Default value. */
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+
+  if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
     return res;
 
-  char *ptr=(char*) res->ptr();
-  char *end=ptr+res->length();
+  ptr= (char*) res->ptr();
+  end= ptr+res->length();
   if (remove_length == 1)
   {
     char chr=(*remove_str)[0];
@@ -1224,21 +1232,29 @@ String *Item_func_ltrim::val_str(String *str)
 String *Item_func_rtrim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0; /* purecov: inspected */
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
+  char buff[MAX_FIELD_WIDTH], *ptr, *end;
+  String tmp(buff, sizeof(buff), system_charset_info);
+  String *res, *remove_str;
   uint remove_length;
   LINT_INIT(remove_length);
 
-  if (!remove_str || (remove_length=remove_str->length()) == 0 ||
+  res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  remove_str= &remove;                          /* Default value. */
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+
+  if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
     return res;
 
-  char *ptr=(char*) res->ptr();
-  char *end=ptr+res->length();
+  ptr= (char*) res->ptr();
+  end= ptr+res->length();
 #ifdef USE_MB
   char *p=ptr;
   register uint32 l;
@@ -1297,22 +1313,31 @@ String *Item_func_rtrim::val_str(String *str)
 String *Item_func_trim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;					/* purecov: inspected */
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
+  char buff[MAX_FIELD_WIDTH], *ptr, *end;
+  const char *r_ptr;
+  String tmp(buff, sizeof(buff), system_charset_info);
+  String *res, *remove_str;
   uint remove_length;
   LINT_INIT(remove_length);
 
-  if (!remove_str || (remove_length=remove_str->length()) == 0 ||
+  res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  remove_str= &remove;                          /* Default value. */
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+
+  if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
     return res;
 
-  char *ptr=(char*) res->ptr();
-  char *end=ptr+res->length();
-  const char *r_ptr=remove_str->ptr();
+  ptr= (char*) res->ptr();
+  end= ptr+res->length();
+  r_ptr= remove_str->ptr();
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
@@ -1748,6 +1773,7 @@ void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
+    ref_pointer_array[el]=item;
     Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
     ref_pointer_array[el]= item;
@@ -2332,17 +2358,6 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
-inline int hexchar_to_int(char c)
-{
-  if (c <= '9' && c >= '0')
-    return c-'0';
-  c|=32;
-  if (c <= 'f' && c >= 'a')
-    return c-'a'+10;
-  return -1;
-}
-
-
   /* Convert given hex string to a binary string */
 
 String *Item_func_unhex::val_str(String *str)
@@ -2618,16 +2633,16 @@ String *Item_func_quote::val_str(String *str)
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the
-    old result in str
+    old result in arg
   */
-  if (str->realloc(new_length))
+  if (arg->realloc(new_length))
     goto null;
 
   /*
     As 'arg' and 'str' may be the same string, we must replace characters
     from the end to the beginning
   */
-  to= (char*) str->ptr() + new_length - 1;
+  to= (char*) arg->ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2655,10 +2670,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  str->length(new_length);
+  arg->length(new_length);
   str->set_charset(collation.collation);
   null_value= 0;
-  return str;
+  return arg;
 
 null:
   null_value= 1;

@@ -23,13 +23,14 @@
 #include <NdbOut.hpp>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
+#include <ndb/src/ndbapi/NdbBlobImpl.hpp>
 
 struct Bcol {
   bool m_nullable;
   unsigned m_inline;
   unsigned m_partsize;
   unsigned m_stripe;
-  char m_btname[NdbBlob::BlobTableNameSize];
+  char m_btname[NdbBlobImpl::BlobTableNameSize];
   Bcol(bool a, unsigned b, unsigned c, unsigned d) :
     m_nullable(a),
     m_inline(b),
@@ -153,6 +154,7 @@ testcase(char x)
     (g_opt.m_skip == 0 || strchr(g_opt.m_skip, x) == 0);
 }
 
+static Ndb_cluster_connection* g_ncc = 0;
 static Ndb* g_ndb = 0;
 static NdbDictionary::Dictionary* g_dic = 0;
 static NdbConnection* g_con = 0;
@@ -1254,7 +1256,7 @@ deleteScan(bool idx)
 static int
 testmain()
 {
-  g_ndb = new Ndb("TEST_DB");
+  g_ndb = new Ndb(g_ncc, "TEST_DB");
   CHK(g_ndb->init() == 0);
   CHK(g_ndb->waitUntilReady() == 0);
   g_dic = g_ndb->getDictionary();
@@ -1443,7 +1445,7 @@ testperf()
   if (! testcase('p'))
     return 0;
   DBG("=== perf test ===");
-  g_ndb = new Ndb("TEST_DB");
+  g_ndb = new Ndb(g_ncc, "TEST_DB");
   CHK(g_ndb->init() == 0);
   CHK(g_ndb->waitUntilReady() == 0);
   g_dic = g_ndb->getDictionary();
@@ -1853,10 +1855,13 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     strcat(b, "r");
     g_opt.m_skip = strdup(b);
   }
-  if (testmain() == -1 || testperf() == -1) {
+  g_ncc = new Ndb_cluster_connection();
+  if (g_ncc->connect(30) != 0 || testmain() == -1 || testperf() == -1) {
     ndbout << "line " << __LINE__ << " FAIL loop=" << g_loop << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+  delete g_ncc;
+  g_ncc = 0;
   return NDBT_ProgramExit(NDBT_OK);
 }
 

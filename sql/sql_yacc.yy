@@ -32,7 +32,6 @@
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_acl.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
@@ -335,8 +334,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	MAX_CONNECTIONS_PER_HOUR
 %token	MAX_QUERIES_PER_HOUR
 %token	MAX_UPDATES_PER_HOUR
+%token	MAX_USER_CONNECTIONS_SYM
 %token	MEDIUM_SYM
 %token	MIN_ROWS
+%token  MUTEX_SYM
 %token	NAMES_SYM
 %token	NAME_SYM
 %token	NATIONAL_SYM
@@ -676,7 +677,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_constraint constraint
+	opt_constraint constraint ident_or_empty
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -3238,7 +3239,7 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident
+	| ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
@@ -3247,7 +3248,7 @@ alter:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
-	    lex->name=$3.str;
+	    lex->name= $3;
 	  }
 	| ALTER PROCEDURE sp_name
 	  {
@@ -3290,6 +3291,10 @@ alter:
 	  opt_view_list AS select_init check_option
 	  {}
 	;
+
+ident_or_empty:
+	/* empty */  { $$= 0; }
+	| ident      { $$= $1.str; };
 
 alter_list:
 	| DISCARD TABLESPACE { Lex->alter_info.tablespace_op= DISCARD_TABLESPACE; }
@@ -5716,20 +5721,8 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE_SYM
-          { 
-            LEX *lex= Lex;
-            /*
-              For simplicity, let's forget about INSERT ... SELECT ... UPDATE
-              for a moment.
-            */
-	    if (lex->sql_command != SQLCOM_INSERT)
-            {
-	      yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-          }
-          KEY_SYM UPDATE_SYM update_list
+        | ON DUPLICATE_SYM	{ Lex->duplicates= DUP_UPDATE; }
+          KEY_SYM UPDATE_SYM insert_update_list
         ;
 
 /* Update rows in a table */
@@ -5765,16 +5758,28 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident_nospvar equal expr_or_default
+	update_list ',' update_elem
+	| update_elem;
+
+update_elem:
+	simple_ident_nospvar equal expr_or_default
 	{
-	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
+	  if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	    YYABORT;
-	}
-	| simple_ident_nospvar equal expr_or_default
-	  {
-	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
-	      YYABORT;
-	  };
+	};
+
+insert_update_list:
+	insert_update_list ',' insert_update_elem
+	| insert_update_elem;
+
+insert_update_elem:
+	simple_ident_nospvar equal expr_or_default
+	{
+	  LEX *lex= Lex;
+	  if (lex->update_list.push_back($1) || 
+	      lex->value_list.push_back($3))
+	    YYABORT;
+	};
 
 opt_low_priority:
 	/* empty */	{ $$= YYTHD->update_lock_default; }
@@ -5899,12 +5904,15 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                YYABORT;
            }
-	| OPEN_SYM TABLES opt_db wild
-	  {
-	    LEX *lex= Lex;
-	    lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
-	    lex->select_lex.db= $3;
-	  }
+        | OPEN_SYM TABLES ext_select_item_list opt_db wild_and_where
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_OPEN_TABLES;
+            lex->select_lex.db= $4;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
+              YYABORT;
+          }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
@@ -5980,22 +5988,30 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
-	| opt_var_type STATUS_SYM wild
+        | opt_var_type STATUS_SYM ext_select_item_list wild_and_where
           {
-	    THD *thd= YYTHD;
-	    thd->lex->sql_command= SQLCOM_SHOW_STATUS;
-	    thd->lex->option_type= (enum_var_type) $1;
-	  }	
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_STATUS;
+            lex->option_type= (enum_var_type) $1;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
+              YYABORT;
+          }
         | INNOBASE_SYM STATUS_SYM
           { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
+        | MUTEX_SYM STATUS_SYM
+          { Lex->sql_command = SQLCOM_SHOW_MUTEX_STATUS; }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-	| opt_var_type VARIABLES wild
-	  {
-	    THD *thd= YYTHD;
-	    thd->lex->sql_command= SQLCOM_SHOW_VARIABLES;
-	    thd->lex->option_type= (enum_var_type) $1;
-	  }
+        | opt_var_type  VARIABLES ext_select_item_list wild_and_where
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_VARIABLES;
+            lex->option_type= (enum_var_type) $1;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
+              YYABORT;
+          }
         | charset ext_select_item_list wild_and_where
           {
             LEX *lex= Lex;
@@ -6143,12 +6159,6 @@ opt_db:
 	/* empty */  { $$= 0; }
 	| from_or_in ident { $$= $2.str; };
 
-wild:
-	/* empty */
-	| LIKE TEXT_STRING_sys
-	  { Lex->wild=  new (YYTHD->mem_root) String($2.str, $2.length,
-                                                      system_charset_info); };
-
 opt_full:
 	/* empty */ { Lex->verbose=0; }
 	| FULL	    { Lex->verbose=1; };
@@ -6186,7 +6196,10 @@ ext_select_item_list:
         mysql_init_select(lex);
         lex->current_select->parsing_place= SELECT_LIST;
       }
-      /* empty */
+      ext_select_item_list2;
+
+ext_select_item_list2:
+      /* empty */        {}
       | select_item_list {};
 
 
@@ -6978,6 +6991,7 @@ keyword:
 	| MAX_CONNECTIONS_PER_HOUR	 {}
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
+	| MAX_USER_CONNECTIONS_SYM {}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
@@ -6989,6 +7003,7 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
+  | MUTEX_SYM   {}
 	| NAME_SYM              {}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
@@ -7802,18 +7817,23 @@ grant_option:
         | MAX_QUERIES_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.questions=$2;
-	  Lex->mqh.bits |= 1;
+	  Lex->mqh.specified_limits|= USER_RESOURCES::QUERIES_PER_HOUR;
 	}
         | MAX_UPDATES_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.updates=$2;
-	  Lex->mqh.bits |= 2;
+	  Lex->mqh.specified_limits|= USER_RESOURCES::UPDATES_PER_HOUR;
 	}
         | MAX_CONNECTIONS_PER_HOUR ULONG_NUM
         {
-	  Lex->mqh.connections=$2;
-	  Lex->mqh.bits |= 4;
+	  Lex->mqh.conn_per_hour= $2;
+	  Lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
 	}
+        | MAX_USER_CONNECTIONS_SYM ULONG_NUM
+        {
+          Lex->mqh.user_conn= $2;
+          Lex->mqh.specified_limits|= USER_RESOURCES::USER_CONNECTIONS;
+        }
         ;
 
 begin:

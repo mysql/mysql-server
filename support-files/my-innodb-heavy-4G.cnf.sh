@@ -177,7 +177,7 @@ default_table_type = MYISAM
 thread_stack = 192K
 
 # Set the default transaction isolation level. Levels available are:
-# READ-UNCOMMITED, READ-COMMITED, REPEATABLE-READ, SERIALIZABLE
+# READ-UNCOMMITTED, READ-COMMITTED, REPEATABLE-READ, SERIALIZABLE
 transaction_isolation = REPEATABLE-READ
 
 # Maximum size for internal (in-memory) temporary tables. If a table

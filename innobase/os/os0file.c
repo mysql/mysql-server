@@ -398,10 +398,19 @@ os_file_lock(
 	lk.l_start = lk.l_len = 0;
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 		fprintf(stderr,
-			"InnoDB: Unable to lock %s, error: %d", name, errno);
+			"InnoDB: Unable to lock %s, error: %d\n", name, errno);
+
+		if (errno == EAGAIN || errno == EACCES) {
+			fprintf(stderr,
+"InnoDB: Check that you do not already have another mysqld process\n"
+"InnoDB: using the same InnoDB data or log files.\n");
+		}
+
 		close(fd);
+
 		return(-1);
 	}
+
 	return(0);
 }
 #endif /* USE_FILE_LOCK */
@@ -1672,7 +1681,7 @@ os_file_set_size(
 	        }
 				
 		/* Print about progress for each 100 MB written */
-		if ((offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		if ((ib_longlong) (offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
 		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
 
 		        fprintf(stderr, " %lu00",
@@ -1845,6 +1854,7 @@ os_file_pread(
 	return(n_bytes);
 #else
 	{
+	off_t	ret_offset;
 	ssize_t	ret;
 	ulint	i;
 
@@ -1853,12 +1863,12 @@ os_file_pread(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = read(file, buf, (ssize_t)n);
@@ -1931,6 +1941,7 @@ os_file_pwrite(
         return(ret);
 #else
 	{
+	off_t	ret_offset;
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -1938,12 +1949,12 @@ os_file_pwrite(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = write(file, buf, (ssize_t)n);

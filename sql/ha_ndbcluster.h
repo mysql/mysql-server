@@ -302,7 +302,7 @@ class ha_ndbcluster: public handler
   uint8 table_cache_type();
     
  private:
-  int alter_table_name(const char *from, const char *to);
+  int alter_table_name(const char *to);
   int drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
@@ -389,7 +389,6 @@ class ha_ndbcluster: public handler
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
-  Ndb *m_ndb;
   void *m_table;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
@@ -433,6 +432,7 @@ class ha_ndbcluster: public handler
   NdbIndexScanOperation *m_multi_cursor;
   byte *m_multi_range_cursor_result_ptr;
   int setup_recattr(const NdbRecAttr*);
+  Ndb *get_ndb();
 };
 
 bool ndbcluster_init(void);

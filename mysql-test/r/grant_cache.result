@@ -59,7 +59,7 @@ Variable_name	Value
 Qcache_hits	0
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	0
+Qcache_not_cached	5
 select "user1";
 user1
 user1
@@ -71,7 +71,7 @@ Variable_name	Value
 Qcache_hits	0
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	1
+Qcache_not_cached	9
 select * from t1;
 a	b	c
 1	1	1
@@ -84,7 +84,7 @@ Variable_name	Value
 Qcache_hits	1
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	1
+Qcache_not_cached	12
 select a from t1 ;
 a
 1
@@ -97,7 +97,7 @@ Variable_name	Value
 Qcache_hits	2
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	1
+Qcache_not_cached	15
 select c from t1;
 c
 1
@@ -110,7 +110,7 @@ Variable_name	Value
 Qcache_hits	3
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	1
+Qcache_not_cached	18
 show grants for current_user();
 Grants for @localhost
 GRANT USAGE ON *.* TO ''@'localhost'
@@ -134,7 +134,7 @@ a	b	c	a
 1	1	1	test.t1
 2	2	2	test.t1
 select * from t2;
-ERROR 42000: select command denied to user 'mysqltest_2'@'localhost' for table 't2'
+ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table 't2'
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	6
@@ -143,12 +143,12 @@ Variable_name	Value
 Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	2
+Qcache_not_cached	22
 select "user3";
 user3
 user3
 select * from t1;
-ERROR 42000: select command denied to user 'mysqltest_3'@'localhost' for column 'b' in table 't1'
+ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for column 'b' in table 't1'
 select a from t1;
 a
 1
@@ -156,7 +156,7 @@ a
 select c from t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for column 'c' in table 't1'
 select * from t2;
-ERROR 42000: select command denied to user 'mysqltest_3'@'localhost' for table 't2'
+ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't2'
 select mysqltest.t1.c from test.t1,mysqltest.t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for column 'c' in table 't1'
 show status like "Qcache_queries_in_cache";
@@ -167,7 +167,7 @@ Variable_name	Value
 Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	7
+Qcache_not_cached	30
 select "user4";
 user4
 user4
@@ -197,7 +197,7 @@ Variable_name	Value
 Qcache_hits	8
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	8
+Qcache_not_cached	34
 set names binary;
 delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");

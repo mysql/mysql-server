@@ -40,7 +40,18 @@ static void callback(int result, NdbConnection* NdbObject, void* aObject);
 int main()
 {
   ndb_init();
-  Ndb* myNdb = new Ndb( "TEST_DB_2" );  // Object representing the database
+
+  Ndb_cluster_connection *cluster_connection=
+    new Ndb_cluster_connection(); // Object representing the cluster
+
+  if (cluster_connection->wait_until_ready(30,30))
+  {
+    std::cout << "Cluster was not ready within 30 secs." << std::endl;
+    exit(-1);
+  }
+
+  Ndb* myNdb = new Ndb( cluster_connection,
+			"TEST_DB_2" );  // Object representing the database
 
   NdbConnection*  myNdbConnection[2];   // For transactions
   NdbOperation*   myNdbOperation;       // For operations
@@ -88,6 +99,10 @@ int main()
     myNdb->closeTransaction(myNdbConnection[i]);
 
   delete myNdb;
+  delete cluster_connection;
+
+  ndb_end(0);
+  return 0;
 }
 
 /*

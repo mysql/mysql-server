@@ -18,6 +18,8 @@
 #include <ndb_version.h>
 #include <version.h>
 #include <basestring_vsnprintf.h>
+#include <NdbEnv.h>
+#include <NdbOut.hpp>
 
 Uint32 getMajor(Uint32 version) {
   return (version >> 16) & 0xFF;
@@ -68,6 +70,24 @@ struct NdbUpGradeCompatible {
 
 /*#define TEST_VERSION*/
 
+#define HAVE_NDB_SETVERSION
+#ifdef HAVE_NDB_SETVERSION
+Uint32 ndbOwnVersionTesting = 0;
+void
+ndbSetOwnVersion() {
+  char buf[256];
+  if (NdbEnv_GetEnv("NDB_SETVERSION", buf, sizeof(buf))) {
+    Uint32 _v1,_v2,_v3;
+    if (sscanf(buf, "%u.%u.%u", &_v1, &_v2, &_v3) == 3) {
+      ndbOwnVersionTesting = MAKE_VERSION(_v1,_v2,_v3);
+      ndbout_c("Testing: Version set to 0x%x",  ndbOwnVersionTesting);
+    }
+  }
+}
+#else
+void ndbSetOwnVersion() {}
+#endif
+
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(5,0,3), MAKE_VERSION(5,0,2), UG_Exact },
@@ -81,8 +101,6 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
   { MAKE_VERSION(3,5,4), MAKE_VERSION(3,5,3), UG_Exact },
   { 0, 0, UG_Null }
 };
-
-void ndbSetOwnVersion() {}
 
 #else /* testing purposes */
 
@@ -104,19 +122,6 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
 };
 
 
-Uint32 ndbOwnVersionTesting = 0;
-void
-ndbSetOwnVersion() {
-  char buf[256];
-  if (NdbEnv_GetEnv("NDB_SETVERSION", buf, sizeof(buf))) {
-    Uint32 _v1,_v2,_v3;
-    if (sscanf(buf, "%u.%u.%u", &_v1, &_v2, &_v3) == 3) {
-      ndbOwnVersionTesting = MAKE_VERSION(_v1,_v2,_v3);
-      ndbout_c("Testing: Version set to 0x%x",  ndbOwnVersionTesting);
-    }
-  }
-}
-
 #endif
 
 void ndbPrintVersion()
@@ -130,13 +135,13 @@ void ndbPrintVersion()
 Uint32
 ndbGetOwnVersion()
 {
-#ifndef TEST_VERSION
-  return NDB_VERSION_D;
-#else /* testing purposes */
+#ifdef HAVE_NDB_SETVERSION
   if (ndbOwnVersionTesting == 0)
     return NDB_VERSION_D;
   else
     return ndbOwnVersionTesting;
+#else
+  return NDB_VERSION_D;
 #endif
 }
 

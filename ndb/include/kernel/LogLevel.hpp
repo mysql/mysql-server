@@ -73,7 +73,7 @@ public:
   /**
    * Note level is valid as 0-15
    */
-  void setLogLevel(EventCategory ec, Uint32 level = 7);
+  int setLogLevel(EventCategory ec, Uint32 level = 7);
   
   /**
    * Get the loglevel (0-15) for a category
@@ -119,10 +119,14 @@ LogLevel::clear(){
 }
 
 inline
-void
+int
 LogLevel::setLogLevel(EventCategory ec, Uint32 level){
-  assert(ec >= 0 && (Uint32) ec < LOGLEVEL_CATEGORIES);
-  logLevelData[ec] = (Uint8)level;
+  if (ec >= 0 && (Uint32) ec < LOGLEVEL_CATEGORIES)
+  {
+    logLevelData[ec] = (Uint8)level;
+    return 0;
+  }
+  return 1;
 }
 
 inline

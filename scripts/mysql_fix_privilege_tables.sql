@@ -198,6 +198,11 @@ UPDATE user SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv w
 UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Execute_priv=Select_priv where user<>"" AND @hadCreateRoutinePriv = 0;
 
 #
+# Add max_user_connections resource limit 
+#
+ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
+
+#
 # Create some possible missing tables
 #
 CREATE TABLE IF NOT EXISTS procs_priv (

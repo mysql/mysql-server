@@ -1,3 +1,6 @@
+show variables variable_name where variable_name like "skip_show_database";
+variable_name
+skip_show_database
 grant all privileges on test.* to mysqltest_1@localhost;
 select * from information_schema.SCHEMATA where schema_name > 'm';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
@@ -321,11 +324,11 @@ show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE
-NULL	test	v0	select `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO
-NULL	test	v1	select `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO
-NULL	test	v2	select `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO
-NULL	test	v3	select `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO
-NULL	test	v4	select `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO
+NULL	test	v0	select sql_no_cache `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO
+NULL	test	v1	select sql_no_cache `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO
+NULL	test	v2	select sql_no_cache `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO
+NULL	test	v3	select sql_no_cache `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO
+NULL	test	v4	select sql_no_cache `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -608,6 +611,7 @@ Create_routine_priv	select,insert,update,references
 Alter_routine_priv	select,insert,update,references
 max_questions	select,insert,update,references
 max_connections	select,insert,update,references
+max_user_connections	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
@@ -661,3 +665,14 @@ select table_type from information_schema.tables
 where table_schema="mysql" and table_name="user";
 table_type
 BASE TABLE
+show open tables where `table` like "user";
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+show status variable_name where variable_name like "%database%";
+variable_name
+Com_show_databases
+show variables variable_name where variable_name like "%database%";
+variable_name
+character_set_database
+collation_database
+skip_show_database

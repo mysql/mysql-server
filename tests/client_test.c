@@ -705,10 +705,12 @@ static void verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-#ifndef EMBEDDED_LIBRARY
-  if (length)
+  if (length && field->length != length * cs->mbmaxlen)
+  {
+    fprintf(stderr, "Expected field length: %d,  got length: %d\n",
+            (int) (length * cs->mbmaxlen), (int) field->length);
     DIE_UNLESS(field->length == length * cs->mbmaxlen);
-#endif
+  }
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
 }
@@ -732,8 +734,8 @@ static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
 {
   ulonglong affected_rows= mysql_stmt_affected_rows(stmt);
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: `%lld` (expected: `%lld`)",
-            affected_rows, exp_count);
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
   DIE_UNLESS(affected_rows == exp_count);
 }
 
@@ -744,8 +746,8 @@ static void verify_affected_rows(ulonglong exp_count)
 {
   ulonglong affected_rows= mysql_affected_rows(mysql);
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: `%lld` (expected: `%lld`)",
-          affected_rows, exp_count);
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
   DIE_UNLESS(affected_rows == exp_count);
 }
 
@@ -778,8 +780,8 @@ static void execute_prepare_query(const char *query, ulonglong exp_count)
 
   affected_rows= mysql_stmt_affected_rows(stmt);
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: `%lld` (expected: `%lld`)",
-            affected_rows, exp_count);
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
 
   DIE_UNLESS(affected_rows == exp_count);
   mysql_stmt_close(stmt);
@@ -1015,7 +1017,8 @@ my_bool fetch_n(const char **query_list, unsigned query_count)
           fprintf(stderr,
                   "Got error reading rows from statement %d,\n"
                   "query is: %s,\n"
-                  "error message: %s", fetch - fetch_array, fetch->query,
+                  "error message: %s", (int) (fetch - fetch_array),
+                  fetch->query,
                   mysql_stmt_error(fetch->handle));
           error_count++;
         }
@@ -1261,6 +1264,56 @@ static void test_tran_innodb()
 }
 
 
+/* Test for BUG#7242 */
+
+static void test_prepare_insert_update()
+{
+  MYSQL_STMT *stmt;
+  int        rc;
+  int        i;
+  const char *testcase[]= {
+    "CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B))",
+    "INSERT t1 VALUES (1,2,10), (3,4,20)",
+    "INSERT t1 VALUES (5,6,30), (7,4,40), (8,9,60) ON DUPLICATE KEY UPDATE c=c+100",
+    "SELECT * FROM t1",
+    "INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0",
+    "SELECT * FROM t1",
+    "INSERT t1 VALUES (2,1,11), (7,4,40) ON DUPLICATE KEY UPDATE c=c+VALUES(a)",
+    NULL};
+  const char **cur_query;
+
+  myheader("test_prepare_insert_update");
+  
+  for (cur_query= testcase; *cur_query; cur_query++)
+  {
+    printf("\nRunning query: %s", *cur_query);
+    strmov(query, *cur_query);
+    stmt= mysql_simple_prepare(mysql, query);
+    check_stmt(stmt);
+
+    verify_param_count(stmt, 0);
+    rc= mysql_stmt_execute(stmt);
+
+    check_execute(stmt, rc);
+    /* try the last query several times */
+    if (!cur_query[1])
+    {
+      for (i=0; i < 3;i++)
+      {
+        printf("\nExecuting last statement again");
+        rc= mysql_stmt_execute(stmt);
+        check_execute(stmt, rc);
+        rc= mysql_stmt_execute(stmt);
+        check_execute(stmt, rc);
+      }
+    }
+    mysql_stmt_close(stmt);
+  }
+
+  rc= mysql_commit(mysql);
+  myquery(rc);
+}
+
 /* Test simple prepares of all DML statements */
 
 static void test_prepare_simple()
@@ -1286,7 +1339,8 @@ static void test_prepare_simple()
   mysql_stmt_close(stmt);
 
   /* update */
-  strmov(query, "UPDATE test_prepare_simple SET id=? WHERE id=? AND name= ?");
+  strmov(query, "UPDATE test_prepare_simple SET id=? "
+                "WHERE id=? AND CONVERT(name USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -1314,7 +1368,8 @@ static void test_prepare_simple()
   mysql_stmt_close(stmt);
 
   /* select */
-  strmov(query, "SELECT * FROM test_prepare_simple WHERE id=? AND name= ?");
+  strmov(query, "SELECT * FROM test_prepare_simple WHERE id=? "
+                "AND CONVERT(name USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -1343,7 +1398,7 @@ static void test_prepare_field_result()
 
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_field_result(int_c int, "
                          "var_c varchar(50), ts_c timestamp(14), "
-                         "char_c char(3), date_c date, extra tinyint)");
+                         "char_c char(4), date_c date, extra tinyint)");
   myquery(rc);
 
   /* insert */
@@ -1369,8 +1424,10 @@ static void test_prepare_field_result()
                        "t1", "test_prepare_field_result", current_db, 10, 0);
   verify_prepare_field(result, 3, "ts_c", "ts_c", MYSQL_TYPE_TIMESTAMP,
                        "t1", "test_prepare_field_result", current_db, 19, 0);
-  verify_prepare_field(result, 4, "char_c", "char_c", MYSQL_TYPE_STRING,
-                       "t1", "test_prepare_field_result", current_db, 3, 0);
+  verify_prepare_field(result, 4, "char_c", "char_c",
+                       (mysql_get_server_version(mysql) <= 50000 ?
+                        MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING),
+                       "t1", "test_prepare_field_result", current_db, 4, 0);
 
   verify_field_count(result, 5);
   mysql_free_result(result);
@@ -1423,6 +1480,7 @@ static void test_prepare()
   double     double_data, o_double_data;
   ulong      length[7], len;
   my_bool    is_null[7];
+  char	     llbuf[22];
   MYSQL_BIND bind[7];
 
   myheader("test_prepare");
@@ -1540,7 +1598,8 @@ static void test_prepare()
       fprintf(stdout, "\n\t tiny   : %d (%lu)", tiny_data, length[0]);
       fprintf(stdout, "\n\t short  : %d (%lu)", small_data, length[3]);
       fprintf(stdout, "\n\t int    : %d (%lu)", int_data, length[2]);
-      fprintf(stdout, "\n\t big    : %lld (%lu)", big_data, length[4]);
+      fprintf(stdout, "\n\t big    : %s (%lu)", llstr(big_data, llbuf),
+              length[4]);
 
       fprintf(stdout, "\n\t float  : %f (%lu)", real_data, length[5]);
       fprintf(stdout, "\n\t double : %f (%lu)", double_data, length[6]);
@@ -2106,7 +2165,8 @@ static void test_select()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  strmov(query, "SELECT * FROM test_select WHERE id= ? AND name=?");
+  strmov(query, "SELECT * FROM test_select WHERE id= ? "
+                "AND CONVERT(name USING utf8) =?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -2166,7 +2226,8 @@ static void test_ps_conj_select()
                           "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
   myquery(rc);
 
-  strmov(query, "select id1, value1 from t1 where id1= ? or value1= ?");
+  strmov(query, "select id1, value1 from t1 where id1= ? or "
+                "CONVERT(value1 USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -2245,7 +2306,8 @@ session_id  char(9) NOT NULL, \
                          "(\"abx\", 1, 2, 3, 2003-08-30)");
   myquery(rc);
 
-  strmov(query, "SELECT * FROM test_select WHERE session_id= ?");
+  strmov(query, "SELECT * FROM test_select WHERE "
+                "CONVERT(session_id USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -3085,7 +3147,8 @@ static void test_simple_delete()
   myquery(rc);
 
   /* insert by prepare */
-  strmov(query, "DELETE FROM test_simple_delete WHERE col1= ? AND col2= ? AND col3= 100");
+  strmov(query, "DELETE FROM test_simple_delete WHERE col1= ? AND "
+                "CONVERT(col2 USING utf8)= ? AND col3= 100");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -3386,7 +3449,7 @@ static void test_bind_result_ext()
   MYSQL_BIND bind[8];
   ulong      length[8];
   my_bool    is_null[8];
-
+  char	     llbuf[22];
   myheader("test_bind_result_ext");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
@@ -3460,7 +3523,7 @@ static void test_bind_result_ext()
     fprintf(stdout, "\n data (tiny)   : %d", t_data);
     fprintf(stdout, "\n data (short)  : %d", s_data);
     fprintf(stdout, "\n data (int)    : %d", i_data);
-    fprintf(stdout, "\n data (big)    : %lld", b_data);
+    fprintf(stdout, "\n data (big)    : %s", llstr(b_data, llbuf));
 
     fprintf(stdout, "\n data (float)  : %f", f_data);
     fprintf(stdout, "\n data (double) : %f", d_data);
@@ -5064,7 +5127,8 @@ static void test_multi_stmt()
 
   /* alter the table schema now */
   stmt1= mysql_simple_prepare(mysql, "DELETE FROM test_multi_table "
-                                     "WHERE id= ? AND name=?");
+                                     "WHERE id= ? AND "
+                                     "CONVERT(name USING utf8)=?");
   check_stmt(stmt1);
 
   verify_param_count(stmt1, 2);
@@ -5225,7 +5289,7 @@ static void test_manual_sample()
   affected_rows= mysql_stmt_affected_rows(stmt);
 
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: %lld", affected_rows);
+    fprintf(stdout, "\n total affected rows: %ld", (ulong) affected_rows);
   if (affected_rows != 1) /* validate affected rows */
   {
     fprintf(stderr, "\n invalid affected rows by MySQL");
@@ -5250,7 +5314,7 @@ static void test_manual_sample()
   affected_rows= mysql_stmt_affected_rows(stmt);
 
   if (!opt_silent)
-    fprintf(stdout, "\n total affected rows: %lld", affected_rows);
+    fprintf(stdout, "\n total affected rows: %ld", (ulong) affected_rows);
   if (affected_rows != 1) /* validate affected rows */
   {
     fprintf(stderr, "\n invalid affected rows by MySQL");
@@ -5406,9 +5470,9 @@ DROP TABLE IF EXISTS test_multi_tab";
       mysql_free_result(result);
     }
     else if (!opt_silent)
-      fprintf(stdout, "OK, %lld row(s) affected, %d warning(s)\n",
-              mysql_affected_rows(mysql_local),
-              mysql_warning_count(mysql_local));
+      fprintf(stdout, "OK, %ld row(s) affected, %ld warning(s)\n",
+              (ulong) mysql_affected_rows(mysql_local),
+              (ulong) mysql_warning_count(mysql_local));
 
     exp_value= (uint) mysql_affected_rows(mysql_local);
     if (rows[count] !=  exp_value)
@@ -5831,9 +5895,6 @@ static void test_subselect()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  rc= mysql_stmt_bind_result(stmt, bind);
-  check_execute(stmt, rc);
-
   id= 2;
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -6172,7 +6233,7 @@ static void test_pure_coverage()
   check_execute(stmt, rc);
 
   rc= mysql_stmt_bind_result(stmt, (MYSQL_BIND*)0);
-  check_execute(stmt, rc);
+  DIE_UNLESS(rc == 1);
 
   mysql_stmt_close(stmt);
 
@@ -6491,7 +6552,7 @@ static void test_ushort_bug()
   ulonglong  longlong_value;
   int        rc;
   uchar      tiny_value;
-
+  char       llbuf[22];
   myheader("test_ushort_bug");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_ushort");
@@ -6543,7 +6604,8 @@ static void test_ushort_bug()
   {
     fprintf(stdout, "\n ushort   : %d (%ld)", short_value, s_length);
     fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, l_length);
-    fprintf(stdout, "\n longlong : %lld (%ld)", longlong_value, ll_length);
+    fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
+            ll_length);
     fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
   }
 
@@ -6578,6 +6640,7 @@ static void test_sshort_bug()
   ulonglong  longlong_value;
   int        rc;
   uchar      tiny_value;
+  char       llbuf[22];
 
   myheader("test_sshort_bug");
 
@@ -6628,7 +6691,8 @@ static void test_sshort_bug()
   {
     fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
     fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
-    fprintf(stdout, "\n longlong : %lld (%ld)", longlong_value, ll_length);
+    fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
+            ll_length);
     fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
   }
 
@@ -6663,6 +6727,7 @@ static void test_stiny_bug()
   ulonglong  longlong_value;
   int        rc;
   uchar      tiny_value;
+  char       llbuf[22];
 
   myheader("test_stiny_bug");
 
@@ -6712,7 +6777,8 @@ static void test_stiny_bug()
   {
     fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
     fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
-    fprintf(stdout, "\n longlong : %lld  (%ld)", longlong_value, ll_length);
+    fprintf(stdout, "\n longlong : %s  (%ld)", llstr(longlong_value, llbuf),
+            ll_length);
     fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, t_length);
   }
 
@@ -6828,7 +6894,7 @@ static void test_field_misc()
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
                        "", "",              /* table and its org name */
-                       "", type_length*3, 0);   /* db name, length */
+                       "", type_length, 0);   /* db name, length */
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7304,7 +7370,7 @@ static void test_explain_bug()
   verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 192, 0);
+                       0, 0, "", 64, 0);
 
   verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
                        MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
@@ -7312,22 +7378,22 @@ static void test_explain_bug()
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 9, 0);
+                       0, 0, "", 3, 0);
 
   verify_prepare_field(result, 3, "Key", "COLUMN_KEY",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 9, 0);
+                       0, 0, "", 3, 0);
 
   verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 192, 0);
+                       0, 0, "", 64, 0);
 
   verify_prepare_field(result, 5, "Extra", "EXTRA",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 60, 0);
+                       0, 0, "", 20, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -11205,7 +11271,7 @@ static void test_bug5399()
 
   for (stmt= stmt_list; stmt != stmt_list + NUM_OF_USED_STMT; ++stmt)
   {
-    sprintf(buff, "select %d", stmt - stmt_list);
+    sprintf(buff, "select %d", (int) (stmt - stmt_list));
     *stmt= mysql_stmt_init(mysql);
     rc= mysql_stmt_prepare(*stmt, buff, strlen(buff));
     check_execute(*stmt, rc);
@@ -11394,7 +11460,7 @@ static void test_bug5194()
 
     if (!opt_silent)
       printf("Insert: query length= %d, row count= %d, param count= %lu\n",
-             strlen(query), nrows, mysql_stmt_param_count(stmt));
+             (int) strlen(query), nrows, mysql_stmt_param_count(stmt));
 
     /* bind the parameter array and execute the query */
     rc= mysql_stmt_bind_param(stmt, bind);
@@ -12059,6 +12125,68 @@ static void test_conversion()
   myquery(rc);
 }
 
+static void test_rewind(void)
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+  int rc = 0;
+  const char *stmt_text;
+  long unsigned int length=4, Data=0;
+  my_bool isnull=0;
+
+  myheader("test_rewind");
+
+  stmt_text= "CREATE TABLE t1 (a int)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "INSERT INTO t1 VALUES(2),(3),(4)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+
+  stmt_text= "SELECT * FROM t1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  bzero(&bind,sizeof(MYSQL_BIND));
+  bind.buffer_type= MYSQL_TYPE_LONG;
+  bind.buffer= (void *)&Data; /* this buffer won't be altered */
+  bind.length= &length;
+  bind.is_null= &isnull;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_stmt_bind_result(stmt, &bind);
+  DIE_UNLESS(rc == 0);
+
+  /* retreive all result sets till we are at the end */
+  while(!mysql_stmt_fetch(stmt))
+      printf("fetched result:%ld\n", Data);
+
+  DIE_UNLESS(rc != MYSQL_NO_DATA);
+
+  /* seek to the first row */
+  mysql_stmt_data_seek(stmt, 0);
+
+  /* now we should be able to fetch the results again */
+  /* but mysql_stmt_fetch returns MYSQL_NO_DATA */
+  while(!(rc= mysql_stmt_fetch(stmt)))
+      printf("fetched result after seek:%ld\n", Data);
+  
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  stmt_text= "DROP TABLE t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  rc= mysql_stmt_free_result(stmt);
+  rc= mysql_stmt_close(stmt);
+}
+
 
 static void test_truncation()
 {
@@ -12415,6 +12543,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 static struct my_tests_st my_tests[]= {
   { "client_query", client_query },
+  { "test_prepare_insert_update", test_prepare_insert_update},
 #if NOT_YET_WORKING
   { "test_drop_temp", test_drop_temp },
 #endif
@@ -12557,6 +12686,7 @@ static struct my_tests_st my_tests[]= {
   { "test_datetime_ranges", test_datetime_ranges },
   { "test_bug4172", test_bug4172 },
   { "test_conversion", test_conversion },
+  { "test_rewind", test_rewind },
   { "test_view", test_view },
   { "test_view_where", test_view_where },
   { "test_view_2where", test_view_2where },

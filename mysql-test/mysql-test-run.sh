@@ -4,6 +4,7 @@
 # Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
+# List of failed cases (--force) backported from 4.1 by Joerg
 # :-)
 
 #++
@@ -187,7 +188,7 @@ FAST_START=""
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
 SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
-MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
+MYSQLD_SRC_DIRS="strings mysys include extra regex myisam \
  myisammrg heap sql"
 MY_LOG_DIR="$MYSQL_TEST_DIR/var/log" 
 #
@@ -490,6 +491,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
      echo "Fatal error: Cannot find embedded server 'mysqltest'" 1>&2
      exit 1
    fi
+   TESTS_BINDIR="$BASEDIR/libmysqld/examples"
  else
    MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
    if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
@@ -499,6 +501,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
    else
      MYSQL_TEST="$BASEDIR/client/mysqltest"
    fi
+   TESTS_BINDIR="$BASEDIR/tests"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
@@ -515,7 +518,6 @@ if [ x$SOURCE_DIST = x1 ] ; then
  fi
 
  CLIENT_BINDIR="$BASEDIR/client"
- TESTS_BINDIR="$BASEDIR/tests"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
@@ -594,7 +596,8 @@ MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR TESTS_BINDIR
+export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
+export CLIENT_BINDIR TESTS_BINDIR CHARSETSDIR
 export NDB_TOOLS_DIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
@@ -948,7 +951,7 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --diskless --initial || exit 1
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || exit 1
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1352,7 +1355,7 @@ run_testcase ()
    result_file="$result_file$RESULT_EXT"
  fi
  if [ "$USE_MANAGER" = 1 ] ; then
-   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
  if $EXPR "$tname" '<' "$START_FROM" > /dev/null ; then
    #skip_test $tname

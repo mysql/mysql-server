@@ -26,7 +26,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "hash_filo.h"
 #ifdef HAVE_REPLICATION
 #include "sql_repl.h" //for tables_ok()
@@ -344,10 +343,19 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
         ptr = get_field(&mem, table->field[next_field++]);
         user.user_resource.updates=ptr ? atoi(ptr) : 0;
         ptr = get_field(&mem, table->field[next_field++]);
-        user.user_resource.connections=ptr ? atoi(ptr) : 0;
+        user.user_resource.conn_per_hour= ptr ? atoi(ptr) : 0;
         if (user.user_resource.questions || user.user_resource.updates ||
-            user.user_resource.connections)
+            user.user_resource.conn_per_hour)
           mqh_used=1;
+
+        if (table->fields >= 36)
+        {
+          /* Starting from 5.0.3 we have max_user_connections field */
+          ptr= get_field(&mem, table->field[next_field++]);
+          user.user_resource.user_conn= ptr ? atoi(ptr) : 0;
+        }
+        else
+          user.user_resource.user_conn= 0;
       }
       else
       {
@@ -935,12 +943,14 @@ static void acl_update_user(const char *user, const char *host,
 	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
       {
 	acl_user->access=privileges;
-	if (mqh->bits & 1)
+	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
-	if (mqh->bits & 2)
+	if (mqh->specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
 	  acl_user->user_resource.updates=mqh->updates;
-	if (mqh->bits & 4)
-	  acl_user->user_resource.connections=mqh->connections;
+	if (mqh->specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
+	  acl_user->user_resource.conn_per_hour= mqh->conn_per_hour;
+	if (mqh->specified_limits & USER_RESOURCES::USER_CONNECTIONS)
+	  acl_user->user_resource.user_conn= mqh->user_conn;
 	if (ssl_type != SSL_TYPE_NOT_SPECIFIED)
 	{
 	  acl_user->ssl_type= ssl_type;
@@ -1623,7 +1633,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (combo.password.str)			// If password given
       table->field[2]->store(password, password_len, system_charset_info);
     else if (!rights && !revoke_grant &&
-             lex->ssl_type == SSL_TYPE_NOT_SPECIFIED && !lex->mqh.bits)
+             lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
+             !lex->mqh.specified_limits)
     {
       DBUG_RETURN(0);
     }
@@ -1633,6 +1644,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   Field **tmp_field;
   ulong priv;
+  uint next_field;
   for (tmp_field= table->field+3, priv = SELECT_ACL;
        *tmp_field && (*tmp_field)->real_type() == FIELD_TYPE_ENUM &&
 	 ((Field_enum*) (*tmp_field))->typelib->count == 2 ;
@@ -1641,57 +1653,61 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (priv & rights)				 // set requested privileges
       (*tmp_field)->store(&what, 1, &my_charset_latin1);
   }
-  rights=get_access(table,3);
+  rights= get_access(table, 3, &next_field);
   DBUG_PRINT("info",("table->fields: %d",table->fields));
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
     /* We write down SSL related ACL stuff */
     switch (lex->ssl_type) {
     case SSL_TYPE_ANY:
-      table->field[24]->store("ANY",3, &my_charset_latin1);
-      table->field[25]->store("", 0, &my_charset_latin1);
-      table->field[26]->store("", 0, &my_charset_latin1);
-      table->field[27]->store("", 0, &my_charset_latin1);
+      table->field[next_field]->store("ANY", 3, &my_charset_latin1);
+      table->field[next_field+1]->store("", 0, &my_charset_latin1);
+      table->field[next_field+2]->store("", 0, &my_charset_latin1);
+      table->field[next_field+3]->store("", 0, &my_charset_latin1);
       break;
     case SSL_TYPE_X509:
-      table->field[24]->store("X509",4, &my_charset_latin1);
-      table->field[25]->store("", 0, &my_charset_latin1);
-      table->field[26]->store("", 0, &my_charset_latin1);
-      table->field[27]->store("", 0, &my_charset_latin1);
+      table->field[next_field]->store("X509", 4, &my_charset_latin1);
+      table->field[next_field+1]->store("", 0, &my_charset_latin1);
+      table->field[next_field+2]->store("", 0, &my_charset_latin1);
+      table->field[next_field+3]->store("", 0, &my_charset_latin1);
       break;
     case SSL_TYPE_SPECIFIED:
-      table->field[24]->store("SPECIFIED",9, &my_charset_latin1);
-      table->field[25]->store("", 0, &my_charset_latin1);
-      table->field[26]->store("", 0, &my_charset_latin1);
-      table->field[27]->store("", 0, &my_charset_latin1);
+      table->field[next_field]->store("SPECIFIED", 9, &my_charset_latin1);
+      table->field[next_field+1]->store("", 0, &my_charset_latin1);
+      table->field[next_field+2]->store("", 0, &my_charset_latin1);
+      table->field[next_field+3]->store("", 0, &my_charset_latin1);
       if (lex->ssl_cipher)
-	table->field[25]->store(lex->ssl_cipher,
-				strlen(lex->ssl_cipher), system_charset_info);
+        table->field[next_field+1]->store(lex->ssl_cipher,
+                                strlen(lex->ssl_cipher), system_charset_info);
       if (lex->x509_issuer)
-	table->field[26]->store(lex->x509_issuer,
-				strlen(lex->x509_issuer), system_charset_info);
+        table->field[next_field+2]->store(lex->x509_issuer,
+                                strlen(lex->x509_issuer), system_charset_info);
       if (lex->x509_subject)
-	table->field[27]->store(lex->x509_subject,
-				strlen(lex->x509_subject), system_charset_info);
+        table->field[next_field+3]->store(lex->x509_subject,
+                                strlen(lex->x509_subject), system_charset_info);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
     case SSL_TYPE_NONE:
-      table->field[24]->store("", 0, &my_charset_latin1);
-      table->field[25]->store("", 0, &my_charset_latin1);
-      table->field[26]->store("", 0, &my_charset_latin1);
-      table->field[27]->store("", 0, &my_charset_latin1);
+      table->field[next_field]->store("", 0, &my_charset_latin1);
+      table->field[next_field+1]->store("", 0, &my_charset_latin1);
+      table->field[next_field+2]->store("", 0, &my_charset_latin1);
+      table->field[next_field+3]->store("", 0, &my_charset_latin1);
       break;
     }
+    next_field+=4;
 
     USER_RESOURCES mqh= lex->mqh;
-    if (mqh.bits & 1)
-      table->field[28]->store((longlong) mqh.questions);
-    if (mqh.bits & 2)
-      table->field[29]->store((longlong) mqh.updates);
-    if (mqh.bits & 4)
-      table->field[30]->store((longlong) mqh.connections);
-    mqh_used = mqh_used || mqh.questions || mqh.updates || mqh.connections;
+    if (mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
+      table->field[next_field]->store((longlong) mqh.questions);
+    if (mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
+      table->field[next_field+1]->store((longlong) mqh.updates);
+    if (mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
+      table->field[next_field+2]->store((longlong) mqh.conn_per_hour);
+    if (table->fields >= 36 &&
+        (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
+      table->field[next_field+3]->store((longlong) mqh.user_conn);
+    mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
   }
   if (old_row_exists)
   {
@@ -2573,41 +2589,59 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
   }
 
-  if (columns.elements && !revoke_grant)
+  if (!revoke_grant)
   {
-    class LEX_COLUMN *column;
-    List_iterator <LEX_COLUMN> column_iter(columns);
-    int res;
+    if (columns.elements)
+    {
+      class LEX_COLUMN *column;
+      List_iterator <LEX_COLUMN> column_iter(columns);
+      int res;
 
-    if (open_and_lock_tables(thd, table_list))
-      DBUG_RETURN(TRUE);
-    
-    while ((column = column_iter++))
-    {
-      uint unused_field_idx= NO_CACHED_FIELD_INDEX;
-      if (!find_field_in_table(thd, table_list, column->column.ptr(),
-                               column->column.ptr(),
-                               column->column.length(), 0, 0, 0, 0,
-                               &unused_field_idx, FALSE))
+      if (open_and_lock_tables(thd, table_list))
+        DBUG_RETURN(TRUE);
+
+      while ((column = column_iter++))
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0),
-                 column->column.c_ptr(), table_list->alias);
-	DBUG_RETURN(TRUE);
+        uint unused_field_idx= NO_CACHED_FIELD_INDEX;
+        Field *f=find_field_in_table(thd, table_list, column->column.ptr(),
+                                     column->column.ptr(),
+                                     column->column.length(), 0, 1, 1, 0,
+                                     &unused_field_idx, FALSE);
+        if (f == (Field*)0)
+        {
+          my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                   column->column.c_ptr(), table_list->alias);
+          DBUG_RETURN(TRUE);
+        }
+        if (f == (Field *)-1)
+          DBUG_RETURN(TRUE);
+        column_priv|= column->rights;
       }
-      column_priv|= column->rights;
+      close_thread_tables(thd);
     }
-    close_thread_tables(thd);
-  }
-  else if (!(rights & CREATE_ACL) && !revoke_grant)
-  {
-    char buf[FN_REFLEN];
-    sprintf(buf,"%s/%s/%s.frm",mysql_data_home, table_list->db,
-	    table_list->real_name);
-    fn_format(buf,buf,"","",4+16+32);
-    if (access(buf,F_OK))
+    else
     {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
-      DBUG_RETURN(TRUE);
+      if (!(rights & CREATE_ACL))
+      {
+        char buf[FN_REFLEN];
+        sprintf(buf,"%s/%s/%s.frm",mysql_data_home, table_list->db,
+                table_list->real_name);
+        fn_format(buf,buf,"","",4+16+32);
+        if (access(buf,F_OK))
+        {
+          my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
+          DBUG_RETURN(TRUE);
+        }
+      }
+      if (table_list->grant.want_privilege)
+      {
+        char command[128];
+        get_privilege_desc(command, sizeof(command),
+                           table_list->grant.want_privilege);
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 command, thd->priv_user, thd->host_or_ip, table_list->alias);
+        DBUG_RETURN(-1);
+      }
     }
   }
 
@@ -3323,29 +3357,8 @@ err:
   rw_unlock(&LOCK_grant);
   if (!no_errors)				// Not a silent skip of table
   {
-    const char *command="";
-    if (want_access & SELECT_ACL)
-      command= "select";
-    else if (want_access & INSERT_ACL)
-      command= "insert";
-    else if (want_access & UPDATE_ACL)
-      command= "update";
-    else if (want_access & DELETE_ACL)
-      command= "delete";
-    else if (want_access & DROP_ACL)
-      command= "drop";
-    else if (want_access & CREATE_ACL)
-      command= "create";
-    else if (want_access & ALTER_ACL)
-      command= "alter";
-    else if (want_access & INDEX_ACL)
-      command= "index";
-    else if (want_access & GRANT_ACL)
-      command= "grant";
-    else if (want_access & CREATE_VIEW_ACL)
-      command= "create view";
-    else if (want_access & SHOW_VIEW_ACL)
-      command= "show create view";
+    char command[128];
+    get_privilege_desc(command, sizeof(command), want_access);
     my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
              command,
              thd->priv_user,
@@ -3357,15 +3370,17 @@ err:
 
 
 bool check_grant_column(THD *thd, GRANT_INFO *grant,
-			char*db_name, char *table_name,
+			char *db_name, char *table_name,
 			const char *name, uint length, uint show_tables)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
-
   ulong want_access= grant->want_privilege & ~grant->privilege;
+  DBUG_ENTER("check_grant_column");
+  DBUG_PRINT("enter", ("table: %s  want_access: %u", table_name, want_access));
+
   if (!want_access)
-    return 0;					// Already checked
+    DBUG_RETURN(0);				// Already checked
 
   rw_rdlock(&LOCK_grant);
 
@@ -3376,7 +3391,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
     grant->grant_table=
       table_hash_search(thd->host, thd->ip, db_name,
 			thd->priv_user,
-			table_name, 0);	/* purecov: inspected */
+			table_name, 0);         /* purecov: inspected */
     grant->version= grant_version;		/* purecov: inspected */
   }
   if (!(grant_table= grant->grant_table))
@@ -3386,13 +3401,13 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   if (grant_column && !(~grant_column->rights & want_access))
   {
     rw_unlock(&LOCK_grant);
-    return 0;
+    DBUG_RETURN(0);
   }
 #ifdef NOT_USED
   if (show_tables && (grant_column || grant->privilege & COL_ACLS))
   {
     rw_unlock(&LOCK_grant);			/* purecov: deadcode */
-    return 0;					/* purecov: deadcode */
+    DBUG_RETURN(0);				/* purecov: deadcode */
   }
 #endif
 
@@ -3409,7 +3424,7 @@ err:
              name,
              table_name);
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -3457,11 +3472,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
 err:
   rw_unlock(&LOCK_grant);
 err2:
-  const char *command= "";
-  if (want_access & SELECT_ACL)
-    command= "select";
-  else if (want_access & INSERT_ACL)
-    command= "insert";
+  char command[128];
+  get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
            command,
            thd->priv_user,
@@ -3816,8 +3828,10 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
     if ((want_access & GRANT_ACL) ||
-	(acl_user->user_resource.questions | acl_user->user_resource.updates |
-	 acl_user->user_resource.connections))
+	(acl_user->user_resource.questions ||
+         acl_user->user_resource.updates ||
+         acl_user->user_resource.conn_per_hour ||
+         acl_user->user_resource.user_conn))
     {
       global.append(" WITH",5);
       if (want_access & GRANT_ACL)
@@ -3826,8 +3840,10 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		      "MAX_QUERIES_PER_HOUR");
       add_user_option(&global, acl_user->user_resource.updates,
 		      "MAX_UPDATES_PER_HOUR");
-      add_user_option(&global, acl_user->user_resource.connections,
+      add_user_option(&global, acl_user->user_resource.conn_per_hour,
 		      "MAX_CONNECTIONS_PER_HOUR");
+      add_user_option(&global, acl_user->user_resource.user_conn,
+		      "MAX_USER_CONNECTIONS");
     }
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());
@@ -4834,7 +4850,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr());
+    my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
 }
 
