@@ -814,6 +814,7 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
+extern String null_string;
 extern HASH open_cache;
 extern TABLE *unused_tables;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
