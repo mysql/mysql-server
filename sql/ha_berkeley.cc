@@ -1548,7 +1548,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
     do_prev= 1;
   }
   if (key_len == key_info->key_length &&
-      !table->key_info[active_index].flags & HA_END_SPACE_KEY)
+      !(table->key_info[active_index].flags & HA_END_SPACE_KEY))
   {
     if (find_flag == HA_READ_AFTER_KEY)
       key_info->handler.bdb_return_if_eq= 1;
@@ -1646,7 +1646,7 @@ int ha_berkeley::index_next_same(byte * buf, const byte *key, uint keylen)
 		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   if (keylen == table->key_info[active_index].key_length &&
-      !table->key_info[active_index].flags & HA_END_SPACE_KEY)
+      !(table->key_info[active_index].flags & HA_END_SPACE_KEY))
     error=read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT_DUP),
 		   (char*) buf, active_index, &row, &last_key, 1);
   else

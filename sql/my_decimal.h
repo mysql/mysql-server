@@ -85,7 +85,7 @@ public:
   {
     len= DECIMAL_BUFF_LENGTH;
     buf= buffer;
-#if !defined(HAVE_purify) && !defined(DBUG_OFF)
+#if !defined (HAVE_purify) && !defined(DBUG_OFF)
     /* Set buffer to 'random' value to find wrong buffer usage */
     for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
       buffer[i]= i;
