@@ -251,7 +251,7 @@ static CHARSET_INFO my_charset_bin_st =
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
     NULL,			/* strxnfrm      */
-    NULL,			/* like_range    */
+    my_like_range_simple,	/* like_range    */
     my_wildcmp_bin,		/* wildcmp       */
     1,				/* mbmaxlen      */
     NULL,			/* ismbchar      */
