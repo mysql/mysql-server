@@ -78,11 +78,11 @@ my_bool	net_flush(NET *net);
   can't normally do this the client should have a bigger max_allowed_packet.
 */
 
-#if defined(__WIN__) || !defined(MYSQL_SERVER)
+#if (defined(__WIN__) || (!defined(MYSQL_SERVER) && !defined(MYSQL_INSTANCE_MANAGER)))
   /* The following is because alarms doesn't work on windows. */
 #define NO_ALARM
 #endif
-  
+   
 #ifndef NO_ALARM
 #include "my_pthread.h"
 void sql_print_error(const char *format,...);
@@ -665,6 +665,13 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
 }
 #endif /* NO_ALARM */
 
+/* 
+  If we are inside of the instance manageer, we need to simulate mysql
+  server for the following function.
+*/
+#ifdef MYSQL_INSTANCE_MANAGER
+#define MYSQL_SERVER
+#endif
 
 /*
   Reads one packet to net->buff + net->where_b
@@ -854,6 +861,9 @@ end:
   return(len);
 }
 
+#ifdef MYSQL_INSTANCE_MANAGER
+#undef MYSQL_SERVER
+#endif
 
 /*
   Read a packet from the client/server and return it without the internal

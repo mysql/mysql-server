@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef __GNUC__
-#pragma implementation 
+#pragma implementation
 #endif
 
 #include "options.h"
@@ -24,14 +24,22 @@
 #include <my_sys.h>
 #include <my_getopt.h>
 
+#include "priv.h"
 
 #define QUOTE2(x) #x
 #define QUOTE(x) QUOTE2(x)
-  
+
 char Options::run_as_service;
 const char *Options::log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
 const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
+const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
+const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
+const char *Options::default_admin_user= QUOTE(DEFAULT_USER);
+const char *Options::default_admin_password= QUOTE(DEFAULT_PASSWORD);
+const char *Options::bind_address= 0;              /* No default value */
+uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
+uint Options::port_number= DEFAULT_PORT;
 
 /*
   List of options, accepted by the instance manager.
@@ -42,9 +50,18 @@ enum options {
   OPT_LOG= 256,
   OPT_PID_FILE,
   OPT_SOCKET,
-  OPT_RUN_AS_SERVICE 
+  OPT_PASSWORD_FILE,
+  OPT_MYSQLD_PATH,
+  OPT_RUN_AS_SERVICE,
+  OPT_USER,
+  OPT_PASSWORD,
+  OPT_DEFAULT_ADMIN_USER,
+  OPT_DEFAULT_ADMIN_PASSWORD,
+  OPT_MONITORING_INTERVAL,
+  OPT_PORT,
+  OPT_BIND_ADDRESS
 };
-        
+
 static struct my_option my_long_options[] =
 {
   { "help", '?', "Display this help and exit.",
@@ -57,10 +74,47 @@ static struct my_option my_long_options[] =
   { "pid-file", OPT_PID_FILE, "Pid file to use.",
     (gptr *) &Options::pid_file_name, (gptr *) &Options::pid_file_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  
+
   { "socket", OPT_SOCKET, "Socket file to use for connection.",
     (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "bind_address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
+    (gptr *) &Options::bind_address, (gptr *) &Options::bind_address,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "port", OPT_PORT, "Port number to use for connections",
+    (gptr *) &Options::port_number, (gptr *) &Options::port_number,
+    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "password-file", OPT_PASSWORD_FILE, "Look for Instane Manager users"
+                                        " and passwords here.",
+    (gptr *) &Options::password_file_name,
+    (gptr *) &Options::password_file_name,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "default_mysqld_path", OPT_MYSQLD_PATH, "Where to look for MySQL"
+                                            " Server binary.",
+    (gptr *) &Options::default_mysqld_path, (gptr *) &Options::default_mysqld_path,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "default_admin_user", OPT_DEFAULT_ADMIN_USER, "Username to shutdown MySQL"
+                                           " instances.",
+                   (gptr *) &Options::default_admin_user,
+                   (gptr *) &Options::default_admin_user,
+                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "default_admin_password", OPT_DEFAULT_ADMIN_PASSWORD, "Password to"
+                                            "shutdown MySQL instances.",
+                   (gptr *) &Options::default_admin_password,
+                   (gptr *) &Options::default_admin_password,
+                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "monitoring_interval", OPT_MONITORING_INTERVAL, "Interval to monitor instances"
+                                            " in seconds.",
+                   (gptr *) &Options::monitoring_interval,
+                   (gptr *) &Options::monitoring_interval,
+                   0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.", (gptr *) &Options::run_as_service,
@@ -74,15 +128,26 @@ static struct my_option my_long_options[] =
 
 static void version()
 {
-  static const char mysqlmanager_version[] = "0.1-alpha";
-  printf("%s  Ver %s for %s on %s\n", my_progname, mysqlmanager_version,
+  printf("%s Ver %s for %s on %s\n", my_progname, mysqlmanager_version,
          SYSTEM_TYPE, MACHINE_TYPE);
 }
+
+
+static const char *default_groups[]= { "mysql", "manager", 0 };
+
 
 static void usage()
 {
   version();
+
+  printf("Copyright (C) 2003, 2004 MySQL AB\n"
+  "This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
+  "and you are welcome to modify and redistribute it under the GPL license\n");
+  printf("Usage: %s [OPTIONS] \n", my_progname);
+
   my_print_help(my_long_options);
+  print_defaults("my", default_groups);
+  my_print_variables(my_long_options);
 }
 
 C_MODE_START
@@ -107,9 +172,9 @@ get_one_option(int optid,
 C_MODE_END
 
 
-/* 
+/*
   - call load_defaults to load configuration file section
-  - call handle_options to assign defaults and command-line arguments 
+  - call handle_options to assign defaults and command-line arguments
   to the class members
   if either of these function fail, exit the program
   May not return.
@@ -117,6 +182,9 @@ C_MODE_END
 
 void Options::load(int argc, char **argv)
 {
+  /* config-file options are prepended to command-line ones */
+  load_defaults("my", default_groups, &argc, &argv);
+
   if (int rc= handle_options(&argc, &argv, my_long_options, get_one_option))
     exit(rc);
 }
