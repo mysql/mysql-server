@@ -717,3 +717,28 @@ drop table t1;
 #
 set @val:=6;
 select concat('value is: ', @val) union select 'some text';
+
+#
+# Enum merging test
+#
+CREATE TABLE t1 (
+  a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
+  b ENUM("one", "two") character set utf8,
+  c ENUM("one", "two")
+);
+show create table t1;
+insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
+create table t2 select NULL union select a from t1;
+show columns from t2;
+drop table t2;
+create table t2 select a from t1 union select NULL;
+show columns from t2;
+drop table t2;
+create table t2 select a from t1 union select a from t1;
+show columns from t2;
+drop table t2;
+-- error 1267
+create table t2 select a from t1 union select c from t1;
+create table t2 select a from t1 union select b from t1;
+show columns from t2;
+drop table t2, t1;
