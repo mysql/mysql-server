@@ -17,3 +17,9 @@ explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
 explain select @vv1:=i from t1 where i=@vv1;
 explain select * from t1 where i=@vv1;
 drop table t1,t2;
+
+# Check types of variables
+select @a:=10,   @b:=1,   @a > @b, @a < @b;
+select @a:="10", @b:="1", @a > @b, @a < @b;
+select @a:=10,   @b:=2,   @a > @b, @a < @b;
+select @a:="10", @b:="2", @a > @b, @a < @b;

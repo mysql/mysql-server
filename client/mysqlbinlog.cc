@@ -55,13 +55,11 @@ static ulonglong position = 0;
 static bool use_remote = 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static const char* table = 0;
 
 static void dump_local_log_entries(const char* logname);
 static void dump_remote_log_entries(const char* logname);
 static void dump_log_entries(const char* logname);
 static void dump_remote_file(NET* net, const char* fname);
-static void dump_remote_table(NET* net, const char* db, const char* table);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
 
@@ -96,8 +94,6 @@ static struct my_option my_long_options[] =
   {"short-form", 's', "Just show the queries, no extra info",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"table", 't', "Get raw table dump using COM_TABLE_DUMB", (gptr*) &table,
-   (gptr*) &table, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Connect to the remote server as username",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
@@ -252,35 +248,6 @@ static void dump_log_entries(const char* logname)
     dump_local_log_entries(logname);  
 }
 
-static void dump_remote_table(NET* net, const char* db, const char* table)
-{
-  char buf[1024];
-  char * p = buf;
-  uint table_len = (uint) strlen(table);
-  uint db_len = (uint) strlen(db);
-  if (table_len + db_len > sizeof(buf) - 2)
-    die("Buffer overrun");
-
-  *p++ = db_len;
-  memcpy(p, db, db_len);
-  p += db_len;
-  *p++ = table_len;
-  memcpy(p, table, table_len);
-
-  if (simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
-    die("Error sending the table dump command");
-
-  for (;;)
-  {
-    uint packet_len = my_net_read(net);
-    if (packet_len == 0) break; // end of file
-    if (packet_len == packet_error)
-      die("Error reading packet in table dump");
-    my_fwrite(result_file, (byte*)net->read_pos, packet_len, MYF(MY_WME));
-    fflush(result_file);
-  }
-}
-
 static int check_master_version(MYSQL* mysql)
 {
   MYSQL_RES* res = 0;
@@ -379,7 +346,7 @@ static void dump_remote_log_entries(const char* logname)
 }
 
 
-static int check_header(IO_CACHE* file)
+static int check_header(IO_CACHE* file, const char *fname)
 {
   byte header[BIN_LOG_HEADER_SIZE];
   byte buf[PROBE_HEADER_LEN];
@@ -390,7 +357,7 @@ static int check_header(IO_CACHE* file)
   if (my_b_read(file, header, sizeof(header)))
     die("Failed reading header;  Probably an empty file");
   if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
-    die("File is not a binary log file");
+    die("File %s is not a binary log file",fname);
   if (!my_b_read(file, buf, sizeof(buf)))
   {
     if (buf[4] == START_EVENT)
@@ -423,14 +390,14 @@ static void dump_local_log_entries(const char* logname)
     if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
 		      MYF(MY_WME | MY_NABP)))
       exit(1);
-    old_format = check_header(file);
+    old_format = check_header(file,logname);
   }
   else
   {
     if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       exit(1);
-    old_format = check_header(file);
+    old_format = check_header(file,"");
     if (position)
     {
       /* skip 'position' characters from stdout */
@@ -516,7 +483,7 @@ int main(int argc, char** argv)
   MY_INIT(argv[0]);
   parse_args(&argc, (char***)&argv);
 
-  if (!argc && !table)
+  if (!argc)
   {
     usage();
     return -1;
@@ -525,22 +492,9 @@ int main(int argc, char** argv)
   if (use_remote)
     mysql = safe_connect();
 
-  if (table)
-  {
-    if (!use_remote)
-      die("You must specify connection parameter to get table dump");
-    char* db = (char*) table;
-    char* tbl = (char*) strchr(table, '.');
-    if (!tbl)
-      die("You must use database.table syntax to specify the table");
-    *tbl++ = 0;
-    dump_remote_table(&mysql->net, db, tbl);
-  }
-  else
-  {
-    while (--argc >= 0)
-      dump_log_entries(*(argv++));
-  }
+  while (--argc >= 0)
+    dump_log_entries(*(argv++));
+
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   if (use_remote)

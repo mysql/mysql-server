@@ -803,31 +803,34 @@ create:
 	  };
 
 create2:
-	'(' field_list ')' opt_create_table_options create3 {}
-	| opt_create_table_options create3 {}
-        | select_for_create {}
+	'(' create2a {}
+	| opt_create_table_options create3 {};
+
+create2a:
+        field_list ')' opt_create_table_options create3 {}
+	|  create_select ')' { Select->braces= 1;} union_opt {}
         ;
 
 create3:
 	/* empty */ {}
-	| opt_duplicate opt_as select_for_create {}
+	| opt_duplicate opt_as     create_select
+          { Select->braces= 0;} opt_union {}
+	| opt_duplicate opt_as '(' create_select ')'
+          { Select->braces= 1;} union_opt {}
         ;
 
-select_for_create:
+create_select:
           SELECT_SYM
           {
 	    LEX *lex=Lex;
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+            switch(lex->sql_command) {
+              case SQLCOM_INSERT: lex->sql_command=SQLCOM_INSERT_SELECT; break;
+              case SQLCOM_REPLACE: lex->sql_command=SQLCOM_REPLACE_SELECT; break;
+            }
 	    mysql_init_select(lex);
           }
-          select_options select_item_list opt_select_from { Select->braces= 0;} opt_union 
-         |'(' SELECT_SYM
-          {
-	    LEX *lex=Lex;
-	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-	    mysql_init_select(lex);
-          }
-          select_options select_item_list opt_select_from ')' { Select->braces= 1;} union_opt 
+          select_options select_item_list opt_select_from
           ;
 
 opt_as:
@@ -1504,7 +1507,7 @@ select:
 select_init:
 	SELECT_SYM select_part2 { Select->braces= 0;	} opt_union
 	|
-	'(' SELECT_SYM 	select_part2 ')' { Select->braces= 1;} union_opt;
+	'(' SELECT_SYM select_part2 ')' { Select->braces= 1;} union_opt;
 
 
 select_part2:
@@ -2579,7 +2582,7 @@ opt_temporary:
 
 insert:
 	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option
-	opt_ignore insert2 
+	opt_ignore insert2
 	{
 	  set_lock_for_tables($3);
 	}
@@ -2590,7 +2593,7 @@ insert:
 replace:
 	REPLACE
 	{
-	  LEX *lex=Lex;	
+	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
 	}
@@ -2607,7 +2610,7 @@ insert_lock_option:
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; }
 	| DELAYED_SYM	{ $$= TL_WRITE_DELAYED; }
 	| HIGH_PRIORITY { $$= TL_WRITE; }
-	;	
+	;
 
 replace_lock_option:
 	opt_low_priority { $$= $1; }
@@ -2627,7 +2630,9 @@ insert_table:
 	};
 
 insert_field_spec:
-	opt_field_spec insert_values {}
+	insert_values {}
+	| '(' ')' insert_values {}
+	| '(' fields ')' insert_values {}
 	| SET
 	  {
 	    LEX *lex=Lex;
@@ -2651,29 +2656,9 @@ fields:
 
 insert_values:
 	VALUES	values_list  {}
-	| select_for_insert {}
+	|     create_select     { Select->braces= 0;} opt_union {}
+	| '(' create_select ')' { Select->braces= 1;} union_opt {}
         ;
-
-select_for_insert:
-          SELECT_SYM
-          {
-	    LEX *lex=Lex;
-	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
-				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
-	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-	    mysql_init_select(lex);
-          }
-          select_options select_item_list opt_select_from select_lock_type { Select->braces= 0;} opt_union 
-         |'(' SELECT_SYM
-          {
-	    LEX *lex=Lex;
-	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
-				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
-	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-	    mysql_init_select(lex);
-          }
-          select_options select_item_list opt_select_from select_lock_type ')' { Select->braces= 1;} union_opt 
-          ;
 
 values_list:
 	values_list ','  no_braces
