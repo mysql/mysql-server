@@ -3543,7 +3543,6 @@ static void set_options(void)
 #endif
   my_bind_addr = htonl( INADDR_ANY );
 }
-
 	/* Initiates DEBUG - but no debugging here ! */
 
 static void get_options(int argc,char **argv)
@@ -3893,7 +3892,7 @@ static void get_options(int argc,char **argv)
       else
       {
 	struct hostent *ent;
-	if (!optarg || !optarg[0])
+	if (optarg && optarg[0])
 	  ent=gethostbyname(optarg);
 	else
 	{
