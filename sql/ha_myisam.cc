@@ -898,7 +898,7 @@ int ha_myisam::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, (enum ha_rkey_function)find_flag);
+  int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -907,7 +907,7 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 			      uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=mi_rkey(file,buf,index, key, key_len, (enum ha_rkey_function)find_flag);
+  int error=mi_rkey(file,buf,index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
