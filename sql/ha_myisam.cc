@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -72,7 +72,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     fprintf(stderr,
             "Failed on my_net_write, writing to stderr instead: %s\n",
             msgbuf);
-  return;  
+  return;
 }
 
 extern "C" {
@@ -134,7 +134,7 @@ int ha_myisam::net_read_dump(NET* net)
       goto err;
     }
   }
-    
+
 err:
   return error;
 }
@@ -186,7 +186,7 @@ int ha_myisam::dump(THD* thd, int fd)
     my_net_write(net, "", 0);
     net_flush(net);
   }
-  
+
 err:
   my_free((gptr) buf, MYF(0));
   return error;
@@ -233,7 +233,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   int error ;
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
-  
+
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*)"check";
@@ -241,7 +241,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
   if (check_opt->quick)
     param.testflag |= T_FAST;
-  
+
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag|= T_STATISTICS;
   param.using_global_keycache = 1;
@@ -268,7 +268,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     }
   }
   if (!error)
-  { 
+  {
     if (share->state.changed)
     {
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
@@ -290,7 +290,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     mi_mark_crashed(file);
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
-  
+
   return error ? HA_CHECK_CORRUPT : HA_CHECK_OK;
 }
 
@@ -306,7 +306,7 @@ int ha_myisam::analyze(THD *thd)
   int error;
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
-  
+
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*)" analyze";
@@ -317,7 +317,7 @@ int ha_myisam::analyze(THD *thd)
 
   error = chk_key(&param, file);
   if (!error)
-  { 
+  {
     pthread_mutex_lock(&share->intern_lock);
 #ifndef HAVE_PREAD
     pthread_mutex_lock(&THR_LOCK_keycache);	// QQ; Has to be removed!
@@ -345,7 +345,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   param.op_name = (char*) "repair";
   param.testflag = (check_opt->flags | T_SILENT|T_FORCE_CREATE|T_REP_BY_SORT|
 		    T_STATISTICS);
-  if (check_opt->quick) 
+  if (check_opt->quick)
     param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   return repair(thd,param);
@@ -365,11 +365,11 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
   if (mi_test_if_sort_rep(file,file->state->records))
-    error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick); 
+    error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
   else
-    error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick); 
+    error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
   if (!error)
-  { 
+  {
     if (share->state.changed)
     {
       share->state.changed = 0;
@@ -400,7 +400,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
       if (param.out_flag & O_NEW_DATA)
 	error|=change_to_newfile(fixed_name,MI_NAME_DEXT,
 				 DATA_TMP_EXT, 0);
-      
+
       if (param.out_flag & O_NEW_INDEX)
 	error|=change_to_newfile(fixed_name,MI_NAME_IEXT,
 				 INDEX_TMP_EXT,0);
@@ -433,7 +433,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     thd->proc_info="creating index";
     myisamchk_init(&param);
     param.op_name = (char*) "recreating_index";
-    param.testflag = (T_SILENT | T_REP_BY_SORT | 
+    param.testflag = (T_SILENT | T_REP_BY_SORT |
 		      T_STATISTICS | T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
@@ -491,7 +491,7 @@ int ha_myisam::index_prev(byte * buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
-  
+
 int ha_myisam::index_first(byte * buf)
 {
   statistic_increment(ha_read_first_count,&LOCK_status);
@@ -626,7 +626,7 @@ int ha_myisam::delete_table(const char *name)
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
   return mi_lock_database(file,lock_type);
-}  
+}
 
 
 THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
@@ -833,8 +833,8 @@ int ha_myisam::create(const char *name, register TABLE *form,
 		   ((options & HA_OPTION_CHECKSUM) ? HA_CREATE_CHECKSUM : 0) |
 		   ((options & HA_OPTION_DELAY_KEY_WRITE) ?
 		    HA_CREATE_DELAY_KEY_WRITE : 0)));
-		  
-		  
+
+
   my_free((gptr) recinfo,MYF(0));
   DBUG_RETURN(error);
 }
@@ -904,15 +904,13 @@ int ha_myisam::ft_read(byte * buf)
 {
   int error;
 
-  thread_safe_increment(ha_read_next_count,&LOCK_status); // why ?
-  if (ft_handler)
-    ft_relevance=ft_read_next((FT_DOCLIST *) ft_handler,(char*) buf);
-  else
-    ft_relevance=0;
+  if (!ft_handler)
+    return -1;
 
-  error=((ft_relevance == 0) ? HA_ERR_END_OF_FILE :
-	 (ft_relevance >  0) ? 0 :
-	 (int) -ft_relevance);
+  thread_safe_increment(ha_read_next_count,&LOCK_status); // why ?
+
+  error=ft_read_next((FT_DOCLIST *) ft_handler,(char*) buf);
+
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }

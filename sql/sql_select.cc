@@ -476,6 +476,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     as in other cases the join is done before the sort.
     */
   if ((order || group) && join.join_tab[join.const_tables].type != JT_ALL &&
+      join.join_tab[join.const_tables].type != JT_FT &&   /* Beware! SerG */
       (order && simple_order || group && simple_group))
   {
     if (add_ref_to_table_cond(thd,&join.join_tab[join.const_tables]))
@@ -4281,7 +4282,7 @@ join_ft_read_first(JOIN_TAB *tab)
 #endif
   if ((error=table->file->ft_init(tab->ref.key,
 				  tab->ref.key_buff,
-				  tab->ref.key_length,TRUE)))
+				  tab->ref.key_length)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
@@ -4303,7 +4304,6 @@ join_ft_read_first(JOIN_TAB *tab)
       table->file->print_error(error,MYF(0));
       return 1;
     }
-    table->file->ft_close();
     return -1;
   }
   return 0;
@@ -4322,7 +4322,6 @@ join_ft_read_next(READ_RECORD *info)
       info->file->print_error(error,MYF(0));
       return 1;
     }
-    info->file->ft_close();
     return -1;
   }
   return 0;
@@ -4974,6 +4973,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
       }
     }
     else
+    if (tab->type != JT_FT) /* Beware! SerG */
     {
       /*
 	We have a ref on a const;  Change this to a range that filesort

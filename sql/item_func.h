@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -817,7 +817,7 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
-}; 
+};
 
 class Item_func_inet_aton : public Item_int_func
 {
@@ -830,22 +830,23 @@ public:
 
 
 /* SerG: for fulltext search */
+#include <ft_global.h>
 
 class Item_func_match :public Item_real_func
 {
 public:
-  // handler *File;
   List<Item> fields;
   TABLE *table;
   uint key;
-  bool auto_init_was_done;
+  bool first_call, join_key;
+  FT_DOCLIST *ft_handler;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-  fields(a), table(0)
-  {}                                           
-  ~Item_func_match() {}
+  fields(a), table(0), ft_handler(0)
+  {}
+  ~Item_func_match() { ft_close_search(ft_handler);
+                       if(join_key) table->file->ft_handler=0; }
   const char *func_name() const { return "match"; }
-  //optimize_type select_optimize() const { return OPTIMIZE_FT; }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
   bool fix_fields(THD *thd,struct st_table_list *tlist);
