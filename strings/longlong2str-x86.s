@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Optimized longlong2str function for Intel 80x86  (gcc/gas syntax) */
-/* Some set sequences are optimized for pentuimpro II */
+# Optimized longlong2str function for Intel 80x86  (gcc/gas syntax) 
+# Some set sequences are optimized for pentuimpro II 
 
 	.file	"longlong2str.s"
 	.version "1.01"
@@ -32,90 +32,90 @@ longlong2str:
 	pushl %esi
 	pushl %edi
 	pushl %ebx
-	movl 100(%esp),%esi	/* Lower part of val */
-	movl 104(%esp),%ebp	/* Higher part of val */
-	movl 108(%esp),%edi	/* get dst */
-	movl 112(%esp),%ebx	/* Radix */
+	movl 100(%esp),%esi	# Lower part of val 
+	movl 104(%esp),%ebp	# Higher part of val 
+	movl 108(%esp),%edi	# get dst 
+	movl 112(%esp),%ebx	# Radix 
 	movl %ebx,%eax
 	testl %eax,%eax
 	jge .L144
 
 	addl $36,%eax
 	cmpl $34,%eax
-	ja .Lerror		/* Wrong radix */
+	ja .Lerror		# Wrong radix 
 	testl %ebp,%ebp
 	jge .L146
-	movb $45,(%edi)		/* Add sign */
-	incl %edi		/* Change sign of val */
+	movb $45,(%edi)		# Add sign 
+	incl %edi		# Change sign of val 
 	negl %esi
 	adcl $0,%ebp
 	negl %ebp
 .L146:
-	negl %ebx		/* Change radix to positive */
+	negl %ebx		# Change radix to positive 
 	jmp .L148
-	.p2align 4,,7
+	.align 4
 .L144:
 	addl $-2,%eax
 	cmpl $34,%eax
-	ja .Lerror		/* Radix in range */
+	ja .Lerror		# Radix in range 
 
 .L148:
-	movl %esi,%eax		/* Test if zero (for easy loop) */
+	movl %esi,%eax		# Test if zero (for easy loop) 
 	orl %ebp,%eax
 	jne .L150
 	movb $48,(%edi)
 	incl %edi
 	jmp .L164
-	.p2align 4,,7
+	.align 4
 
 .L150:
-	leal 92(%esp),%ecx	/* End of buffer */
+	leal 92(%esp),%ecx	# End of buffer 
 	jmp  .L155
-	.p2align 4,,7
+	.align 4
 
 .L153:
-	/* val is stored in in ebp:esi */
+	# val is stored in in ebp:esi 
 
-	movl %ebp,%eax		/* High part of value */
+	movl %ebp,%eax		# High part of value 
 	xorl %edx,%edx
 	divl %ebx
 	movl %eax,%ebp
 	movl %esi,%eax
 	divl %ebx
-	movl %eax,%esi		/* quotent in ebp:esi */
-	movb _dig_vec(%edx),%al   /* al is faster than dl */
+	movl %eax,%esi		# quotent in ebp:esi 
+	movb _dig_vec(%edx),%al   # al is faster than dl 
 	decl %ecx
-	movb %al,(%ecx)		/* store value in buff */
-	.p2align 4,,7
+	movb %al,(%ecx)		# store value in buff 
+	.align 4
 .L155:
 	testl %ebp,%ebp
 	ja .L153
-	testl %esi,%esi		/* rest value */
+	testl %esi,%esi		# rest value 
 	jl .L153
-	je .L160		/* Ready */
+	je .L160		# Ready 
 	movl %esi,%eax
 	movl $_dig_vec,%ebp
-	.p2align 4,,7
+	.align 4
 
-.L154:				/* Do rest with integer precision */
+.L154:				# Do rest with integer precision 
 	cltd
 	divl %ebx
 	decl %ecx
-	movb (%edx,%ebp),%dl	/* bh is always zero as ebx=radix < 36 */
+	movb (%edx,%ebp),%dl	# bh is always zero as ebx=radix < 36 
 	testl %eax,%eax
 	movb %dl,(%ecx)
 	jne .L154
 
 .L160:
 	movl %ecx,%esi
-	leal 92(%esp),%ecx	/* End of buffer */
+	leal 92(%esp),%ecx	# End of buffer 
 	subl %esi,%ecx
 	rep
 	movsb
 
 .L164:
-	movl %edi,%eax		/* Pointer to end null */
-	movb $0,(%edi)		/* Store the end null */
+	movl %edi,%eax		# Pointer to end null 
+	movb $0,(%edi)		# Store the end null 
 
 .L165:
 	popl %ebx
@@ -126,7 +126,7 @@ longlong2str:
 	ret
 
 .Lerror:
-	xorl %eax,%eax		/* Wrong radix */
+	xorl %eax,%eax		# Wrong radix 
 	jmp .L165
 
 .Lfe3:

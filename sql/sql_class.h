@@ -102,6 +102,9 @@ public:
 
 /* character conversion tables */
 
+class CONVERT;
+CONVERT *get_convert_set(const char *name_ptr);
+
 class CONVERT
 {
   const uchar *from_map,*to_map;

@@ -64,7 +64,7 @@ class ha_berkeley: public handler
   ulong max_row_length(const byte *buf);
   int pack_row(DBT *row,const  byte *record, bool new_row);
   void unpack_row(char *record, DBT *row);
-  void ha_berkeley::unpack_key(char *record, DBT *key, uint index);
+  void unpack_key(char *record, DBT *key, uint index);
   DBT *create_key(DBT *key, uint keynr, char *buff, const byte *record,
 		  int key_length = MAX_KEY_LENGTH);
   DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *key_ptr,
@@ -156,13 +156,12 @@ class ha_berkeley: public handler
   void get_status();
   inline void get_auto_primary_key(byte *to)
   {
-    ulonglong tmp;
     pthread_mutex_lock(&share->mutex);
     share->auto_ident++;
     int5store(to,share->auto_ident);
     pthread_mutex_unlock(&share->mutex);
   }
-  longlong ha_berkeley::get_auto_increment();
+  longlong get_auto_increment();
 };
 
 extern bool berkeley_skip, berkeley_shared_data;

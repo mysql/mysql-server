@@ -110,8 +110,6 @@ static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
 
 bool berkeley_init(void)
 {
-  char buff[1024],*config[10], **conf_pos, *str_pos;
-  conf_pos=config; str_pos=buff;
   DBUG_ENTER("berkeley_init");
 
   if (!berkeley_tmpdir)
@@ -387,6 +385,7 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
 
 /* The following is not yet used; Should be used for fixed length keys */
 
+#ifdef NOT_YET
 static int
 berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
@@ -407,7 +406,7 @@ berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
   }
   return key->handler.bdb_return_if_eq;
 }
-
+#endif
 
 /* Compare key against row */
 
@@ -1901,7 +1900,6 @@ longlong ha_berkeley::get_auto_increment()
   {
     DBT row,old_key;
     bzero((char*) &row,sizeof(row));
-    uint key_len;
     KEY *key_info= &table->key_info[active_index];
 
     /* Reading next available number for a sub key */
@@ -1947,6 +1945,7 @@ longlong ha_berkeley::get_auto_increment()
 	 Analyzing, checking, and optimizing tables
 ****************************************************************************/
 
+#ifdef NOT_YET
 static void print_msg(THD *thd, const char *table_name, const char *op_name,
 		      const char *msg_type, const char *fmt, ...)
 {
@@ -1970,7 +1969,7 @@ static void print_msg(THD *thd, const char *table_name, const char *op_name,
 		   thd->packet.length()))
     thd->killed=1;
 }
-
+#endif
 
 int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
@@ -2025,14 +2024,14 @@ int ha_berkeley::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
 int ha_berkeley::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  char name_buff[FN_REFLEN];
-  int error;
-  DB *tmp_file;
   DBUG_ENTER("ha_berkeley::check");
 
   DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 
 #ifdef NOT_YET
+  char name_buff[FN_REFLEN];
+  int error;
+  DB *tmp_file;
   /*
     To get this to work we need to ensure that no running transaction is
     using the table. We also need to create a new environment without
@@ -2242,7 +2241,6 @@ void ha_berkeley::get_status()
 
 static int write_status(DB *status_block, char *buff, uint length)
 {
-  DB_TXN *trans;
   DBT row,key;
   int error;
   const char *key_buff="status";
@@ -2285,7 +2283,6 @@ static void update_status(BDB_SHARE *share, TABLE *table)
     }
     {
       char rec_buff[4+MAX_KEY*4], *pos=rec_buff;
-      const char *key_buff="status";
       int4store(pos,share->rows); pos+=4;
       for (uint i=0 ; i < table->keys ; i++)
       {

@@ -88,6 +88,9 @@ public:
 };
 
 
+int collect_string(String *element, element_count count,
+		   TREE_INFO *info);
+
 class field_str :public field_info
 {
   String      min_arg, max_arg;
@@ -129,6 +132,9 @@ public:
 	      ha_rows rows __attribute__((unused)))
   { return (String*) 0; }
 };
+
+
+int collect_real(double *element, element_count count, TREE_INFO *info);
 
 class field_real: public field_info
 {
@@ -174,6 +180,9 @@ public:
   { return (tree_walk_action) collect_real;}
 };
 
+int collect_longlong(longlong *element, element_count count,
+		     TREE_INFO *info);
+
 class field_longlong: public field_info
 {
   longlong min_arg, max_arg;
@@ -216,6 +225,8 @@ public:
   { return (tree_walk_action) collect_longlong;}
 };
 
+int collect_ulonglong(ulonglong *element, element_count count,
+		      TREE_INFO *info);
 
 class field_ulonglong: public field_info
 {
@@ -260,6 +271,10 @@ public:
   { return (tree_walk_action) collect_ulonglong; }
 };
 
+
+Procedure *proc_analyse_init(THD *thd, ORDER *param,
+			     select_result *result,
+			     List<Item> &field_list);
 
 class analyse: public Procedure
 {

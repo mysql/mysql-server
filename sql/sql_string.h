@@ -25,6 +25,13 @@
 #define NOT_FIXED_DEC			31
 #endif
 
+class String;
+int sortcmp(const String *a,const String *b);
+int stringcmp(const String *a,const String *b);
+String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
+int wild_case_compare(String &match,String &wild,char escape);
+int wild_compare(String &match,String &wild,char escape);
+
 class String
 {
   char *Ptr;

@@ -18,6 +18,10 @@
 /* logging of commands */
 /* TODO: Abort logging when we get an error in reading or writing log files */
 
+#ifdef __EMX__
+#include <io.h>
+#endif
+
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_repl.h"
