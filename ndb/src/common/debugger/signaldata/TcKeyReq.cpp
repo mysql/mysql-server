@@ -68,11 +68,8 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
     if(sig->getInterpretedFlag(requestInfo)){
       fprintf(output, "Interpreted ");
     }
-    if(sig->getDistributionGroupFlag(requestInfo)){
-      fprintf(output, "DGroup = %d ", sig->distrGroupHashValue);
-    }
     if(sig->getDistributionKeyFlag(sig->requestInfo)){
-      fprintf(output, "DKey = %d ", sig->distributionKeySize);
+      fprintf(output, " d-key");
     }
     fprintf(output, "\n");
   }

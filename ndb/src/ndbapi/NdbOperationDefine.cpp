@@ -350,7 +350,6 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 {
   NdbRecAttr* tRecAttr;
   if ((tAttrInfo != NULL) &&
-      (!tAttrInfo->m_indexOnly) && 
       (theStatus != Init)){
     if (theStatus != GetValue) {
       if (theInterpretIndicator == 1) {
@@ -396,10 +395,6 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   } else {
     if (tAttrInfo == NULL) {
       setErrorCodeAbort(4004);      
-      return NULL;
-    }//if
-    if (tAttrInfo->m_indexOnly){
-      setErrorCodeAbort(4208);
       return NULL;
     }//if
   }//if
