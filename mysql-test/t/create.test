@@ -318,6 +318,13 @@ select * from t2;
 
 drop table t1, t2;
 
+create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
+insert into t1 values ('','',0,0.0);
+describe t1;
+create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
+describe t2;
+drop table t1, t2;
+
 #
 # Bug #1209
 #
