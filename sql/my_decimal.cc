@@ -228,7 +228,7 @@ void dbug_print_decimal(const char *tag, const char *format, my_decimal *val)
     str.set("NULL", 4, &my_charset_bin);
   else
     my_decimal2string(0, val, 0, 0, 0, &str);
-  DBUG_PRINT(tag, (format, val));
+  DBUG_PRINT(tag, (format, (char*) str.ptr()));
 }
 
 #endif
