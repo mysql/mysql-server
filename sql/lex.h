@@ -293,6 +293,7 @@ static SYMBOL symbols[] = {
   { "NOT",		SYM(NOT),0,0},
   { "NULL",		SYM(NULL_SYM),0,0},
   { "NUMERIC",		SYM(NUMERIC_SYM),0,0},
+  { "NVARCHAR",		SYM(NVARCHAR_SYM),0,0},
   { "OFFSET",		SYM(OFFSET_SYM),0,0},
   { "OLD_PASSWORD",	SYM(OLD_PASSWORD),0,0},
   { "ON",		SYM(ON),0,0},
