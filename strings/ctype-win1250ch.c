@@ -416,7 +416,7 @@ static struct wordvalue doubles[] = {
 #define NEXT_CMP_VALUE(src, p, pass, value, len)			\
 	while (1) {							\
 		if (IS_END(p, src, len)) {				\
-			if (pass == 0) { p = src; pass++; }		\
+			if (pass == 0 && len > 0) { p= src; pass++; }	\
 			else { value = 0; break; }			\
 		}							\
 		value = ((pass == 0) ? _sort_order_win1250ch1[*p]	\
