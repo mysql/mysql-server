@@ -160,6 +160,7 @@ sys_var_str             sys_ft_boolean_syntax("ft_boolean_syntax",
                                          sys_update_ftb_syntax,
                                          sys_default_ftb_syntax,
                                          ft_boolean_syntax);
+sys_var_thd_ulong       sys_heuristic("heuristic", &SV::heuristic);
 sys_var_str             sys_init_connect("init_connect", 0,
                                          sys_update_init_connect,
                                          sys_default_init_connect,0);
@@ -262,6 +263,8 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    0, fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
+sys_var_thd_ulong       sys_plan_search_depth("plan_search_depth",
+                                              &SV::plan_search_depth);
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
@@ -488,6 +491,7 @@ sys_var *sys_variables[]=
   &sys_ft_boolean_syntax,
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
+  &sys_heuristic,
   &sys_identity,
   &sys_init_connect,
   &sys_init_slave,
@@ -536,6 +540,7 @@ sys_var *sys_variables[]=
   &sys_net_write_timeout,
   &sys_new_mode,
   &sys_old_passwords,
+  &sys_plan_search_depth,
   &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
@@ -812,6 +817,8 @@ struct show_var_st init_vars[]= {
   {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
   {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
+  {sys_heuristic.name,        (char*) &sys_heuristic,               SHOW_SYS},
+  {sys_plan_search_depth.name,(char*) &sys_plan_search_depth,       SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
 
