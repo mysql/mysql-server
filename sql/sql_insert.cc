@@ -368,7 +368,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
         if (error <= 0)
           thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      log_delayed);
+			      log_delayed, FALSE);
 	if (mysql_bin_log.write(&qinfo) && transactional_table)
 	  error=1;
       }
@@ -1364,7 +1364,7 @@ bool delayed_insert::handle_inserts(void)
         mysql_update_log.write(&thd,row->query, row->query_length);
       if (row->log_query & DELAYED_LOG_BIN && using_bin_log)
       {
-        Query_log_event qinfo(&thd, row->query, row->query_length,0);
+        Query_log_event qinfo(&thd, row->query, row->query_length,0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -1539,7 +1539,7 @@ void select_insert::send_error(uint errcode,const char *err)
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            table->file->has_transactions());
+                            table->file->has_transactions(), FALSE);
       mysql_bin_log.write(&qinfo);
     }
     if (!table->tmp_table)
@@ -1581,7 +1581,7 @@ bool select_insert::send_eof()
     if (!error)
       thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  table->file->has_transactions());
+			  table->file->has_transactions(), FALSE);
     mysql_bin_log.write(&qinfo);
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
