@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define MANAGER_CLIENT_VERSION "1.2"
+#define MANAGER_CLIENT_VERSION "1.3"
 
 #include <my_global.h>
 #include <mysql.h>
@@ -93,7 +93,7 @@ void usage()
   printf("Command-line client for MySQL manager daemon.\n\n");
   printf("Usage: %s [OPTIONS] < command_file\n", my_progname);
   my_print_help(my_long_options);
-  printf("  --no-defaults         Don't read default options from any options file.\n\n");
+  printf("  --no-defaults         Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
 
