@@ -1324,7 +1324,11 @@ mysql_execute_command(void)
       given and the table list says the query should not be replicated
     */
     if (table_rules_on && tables && !tables_ok(thd,tables))
+    {
+      /* we warn the slave SQL thread */
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       DBUG_VOID_RETURN;
+    }
 #ifndef TO_BE_DELETED
     /*
        This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
@@ -1339,13 +1343,7 @@ mysql_execute_command(void)
 #endif
   }
   
-  /*
-    Skip if we are in the slave thread, some table rules have been given
-    and the table list says the query should not be replicated
-  */
-  if ((lex->select_lex.next && create_total_list(thd,lex,&tables)) ||
-      (table_rules_on && tables && thd->slave_thread &&
-       !tables_ok(thd,tables)))
+  if (lex->select_lex.next && create_total_list(thd,lex,&tables))
     DBUG_VOID_RETURN;
   
   /*
@@ -2330,7 +2328,10 @@ mysql_execute_command(void)
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
+    }
 
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
@@ -2354,7 +2355,10 @@ mysql_execute_command(void)
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
+    }
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
     if (thd->locked_tables || thd->active_transaction())

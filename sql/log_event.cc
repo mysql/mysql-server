@@ -69,7 +69,8 @@ static void pretty_print_str(FILE* file, char* str, int len)
 
 inline int ignored_error_code(int err_code)
 {
-  return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
+  return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
+          (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
 }
 
 
