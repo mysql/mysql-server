@@ -24,11 +24,11 @@ if ASSEMBLER_x86
 ASRCS		= strings-x86.s longlong2str-x86.s
 CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c ctype.c strnlen.c
 else
-if ASSEMBLER_sparc
+if ASSEMBLER_sparc32
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
-ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strinstr-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s strxmov-sparc.s
-CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c ctype.c strnlen.c
+ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strinstr-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s
+CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c ctype.c strnlen.c strxmov.c
 else
 #no assembler
 ASRCS		=
@@ -75,8 +75,11 @@ clean-local:
 if ASSEMBLER
 # On Linux gcc can compile the assembly files
 %.o	: %.s
-	$(AS) -o $@ $<
+	$(AS) $(ASFLAGS) -o $@ $<
 endif
+
+str_test: str_test.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(srcdir)/str_test.c $(LDADD) $(LIBS)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

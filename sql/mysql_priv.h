@@ -311,9 +311,8 @@ void mysql_init_multi_delete(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
-pthread_handler_decl(handle_one_connection,arg);
-pthread_handler_decl(handle_bootstrap,arg);
-sig_handler end_thread_signal(int sig);
+extern "C" pthread_handler_decl(handle_one_connection,arg);
+extern "C" pthread_handler_decl(handle_bootstrap,arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
 void mysql_execute_command(void);
@@ -559,7 +558,7 @@ int write_record(TABLE *table,COPY_INFO *info);
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
-pthread_handler_decl(handle_manager, arg);
+extern "C" pthread_handler_decl(handle_manager, arg);
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
@@ -736,7 +735,7 @@ timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
-void unireg_abort(int exit_code);
+extern "C" void unireg_abort(int exit_code);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);

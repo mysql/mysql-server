@@ -414,8 +414,8 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
 int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
 
-pthread_handler_decl(handle_slave_io,arg);
-pthread_handler_decl(handle_slave_sql,arg);
+extern "C" pthread_handler_decl(handle_slave_io,arg);
+extern "C" pthread_handler_decl(handle_slave_sql,arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
 extern volatile int active_mi_in_use;

@@ -488,7 +488,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
           printf("Key %d  - Merging %u keys\n",sinfo->key+1, sinfo->keys);
         if (merge_many_buff(sinfo, keys, (uchar **)mergebuf,
 			    dynamic_element(&sinfo->buffpek, 0, BUFFPEK *),
-			    &maxbuffer, &sinfo->tempfile))
+			    (int*) &maxbuffer, &sinfo->tempfile))
         {
           got_error=1;
           continue;

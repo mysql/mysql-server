@@ -444,20 +444,20 @@ pthread_cond_t eventShutdown;
 #endif
 
 static void start_signal_handler(void);
-static void *signal_hand(void *arg);
+extern "C" static pthread_handler_decl(signal_hand, arg);
 static void set_options(void);
 static void get_options(int argc,char **argv);
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
-static pthread_handler_decl(handle_connections_sockets,arg);
-static pthread_handler_decl(kill_server_thread,arg);
+extern "C" static pthread_handler_decl(handle_connections_sockets,arg);
+extern "C" static pthread_handler_decl(kill_server_thread,arg);
 static int bootstrap(FILE *file);
 static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
-static pthread_handler_decl(handle_connections_namedpipes,arg);
+extern "C" static pthread_handler_decl(handle_connections_namedpipes,arg);
 #endif
-extern pthread_handler_decl(handle_slave,arg);
+extern "C" extern pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
 #endif
@@ -771,7 +771,7 @@ static void __cdecl kill_server(int sig_ptr)
 
 
 #ifdef USE_ONE_SIGNAL_HAND
-static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
+extern "C" static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
   SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
@@ -786,7 +786,7 @@ static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 #define sigset signal
 #endif
 
-static sig_handler print_signal_warning(int sig)
+extern "C" static sig_handler print_signal_warning(int sig)
 {
   if (!DBUG_IN_USE)
   {
@@ -812,7 +812,7 @@ void unireg_end(int signal_number __attribute__((unused)))
 }
 
 
-void unireg_abort(int exit_code)
+extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
   if (exit_code)
@@ -1162,7 +1162,7 @@ void close_connection(NET *net,uint errcode,bool lock)
 	/* Called when a thread is aborted */
 	/* ARGSUSED */
 
-sig_handler end_thread_signal(int sig __attribute__((unused)))
+extern "C" static sig_handler end_thread_signal(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
   DBUG_ENTER("end_thread_signal");
@@ -1253,7 +1253,7 @@ void flush_thread_cache()
 */
 
 #ifdef THREAD_SPECIFIC_SIGPIPE
-static sig_handler abort_thread(int sig __attribute__((unused)))
+extern "C" static sig_handler abort_thread(int sig __attribute__((unused)))
 {
   THD *thd=current_thd;
   DBUG_ENTER("abort_thread");
@@ -1327,7 +1327,7 @@ static void start_signal_handler(void)
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
 #endif
 
-static sig_handler handle_segfault(int sig)
+extern "C" static sig_handler handle_segfault(int sig)
 {
   THD *thd=current_thd;
   /*
@@ -1512,7 +1512,7 @@ static void start_signal_handler(void)
 /* This threads handles all signals and alarms */
 
 /* ARGSUSED */
-static void *signal_hand(void *arg __attribute__((unused)))
+extern "C" static void *signal_hand(void *arg __attribute__((unused)))
 {
   sigset_t set;
   int sig;
@@ -1640,7 +1640,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 
 
 /* ARGSUSED */
-static int my_message_sql(uint error, const char *str,
+extern "C" static int my_message_sql(uint error, const char *str,
 			  myf MyFlags __attribute__((unused)))
 {
   NET *net;
@@ -1674,7 +1674,7 @@ int uname(struct utsname *a)
 
 
 #ifdef __WIN__
-pthread_handler_decl(handle_shutdown,arg)
+extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
   SHUTDOWN_THD;
@@ -1702,7 +1702,7 @@ int __stdcall handle_kill(ulong ctrl_type)
 #endif
 
 #ifdef OS2
-pthread_handler_decl(handle_shutdown,arg)
+extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   SHUTDOWN_THD;
   my_thread_init();
@@ -2500,7 +2500,7 @@ inline void kill_broken_server()
 
 	/* Handle new connections and spawn new process to handle them */
 
-pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
+extern "C" pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 {
   my_socket sock,new_sock;
   uint error_count=0;
@@ -2707,7 +2707,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 
 
 #ifdef __NT__
-pthread_handler_decl(handle_connections_namedpipes,arg)
+extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 {
   HANDLE hConnectedPipe;
   BOOL fConnected;
@@ -3218,7 +3218,7 @@ struct my_option my_long_options[] =
    (gptr*) &report_port, (gptr*) &report_port, 0, GET_UINT, REQUIRED_ARG,
    MYSQL_PORT, 0, 0, 0, 0, 0},
   {"rpl-recovery-rank", OPT_RPL_RECOVERY_RANK, "Undocumented",
-   (gptr*) &rpl_recovery_rank, (gptr*) &rpl_recovery_rank, 0, GET_UINT,
+   (gptr*) &rpl_recovery_rank, (gptr*) &rpl_recovery_rank, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log", OPT_RELAY_LOG, "Undocumented",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
@@ -3910,7 +3910,7 @@ static void set_options(void)
 }
 
 
-static my_bool
+extern "C" static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {

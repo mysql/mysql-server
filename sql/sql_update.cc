@@ -688,7 +688,7 @@ void multi_update::send_error(uint errcode,const char *err)
 
 int multi_update::do_updates (bool from_send_error)
 {
-  int error = 0, counter = 0;
+  int local_error= 0, counter= 0;
 
   if (from_send_error)
   {
@@ -713,7 +713,7 @@ int multi_update::do_updates (bool from_send_error)
     TABLE *tmp_table=tmp_tables[counter];
     if (tmp_table->file->extra(HA_EXTRA_NO_CACHE))
     {
-      error=1;
+      local_error=1;
       break;
     }
     List<Item> list;
@@ -729,35 +729,36 @@ int multi_update::do_updates (bool from_send_error)
       tmp_table->used_keys&=field->part_of_key;
     }
     tmp_table->used_fields=tmp_table->fields;
-    error=0; list.pop(); // we get position some other way ...
-    error = tmp_table->file->rnd_init(1);
-    if (error) 
-      return error;
-    while (!(error=tmp_table->file->rnd_next(tmp_table->record[0])) &&
+    local_error=0;
+    list.pop();			// we get position some other way ...
+    local_error = tmp_table->file->rnd_init(1);
+    if (local_error) 
+      return local_error;
+    while (!(local_error=tmp_table->file->rnd_next(tmp_table->record[0])) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
       found++; 
-      error= table->file->rnd_pos(table->record[0],
-				  (byte*) (*(tmp_table->field))->ptr);
-      if (error)
-	return error;
+      local_error= table->file->rnd_pos(table->record[0],
+					(byte*) (*(tmp_table->field))->ptr);
+      if (local_error)
+	return local_error;
       table->status|= STATUS_UPDATED;
       store_record(table,1); 
-      error= fill_record(*fields_by_tables[counter + 1],list) ||
-	/* compare_record(table, query_id) || */
-	table->file->update_row(table->record[1],table->record[0]);
-      if (error)
+      local_error= (fill_record(*fields_by_tables[counter + 1],list) ||
+		    /* compare_record(table, query_id) || */
+		    table->file->update_row(table->record[1],table->record[0]));
+      if (local_error)
       {
-	table->file->print_error(error,MYF(0));
+	table->file->print_error(local_error,MYF(0));
 	break;
       }
       else
 	updated++;
     }
-    if (error == HA_ERR_END_OF_FILE)
-      error = 0;
+    if (local_error == HA_ERR_END_OF_FILE)
+      local_error = 0;
   }
-  return error;
+  return local_error;
 }
 
 
@@ -768,17 +769,17 @@ bool multi_update::send_eof()
   thd->proc_info="updating the  reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
-  int error = (num_updated) ? do_updates(false) : 0;   /* do_updates returns 0 if success */
+  int local_error = (num_updated) ? do_updates(false) : 0;
 
   /* reset used flags */
 #ifndef NOT_USED
   update_tables->table->no_keyread=0;
 #endif
-  if (error == -1)
-    error = 0;
-  thd->proc_info="end";
-  if (error)
-    send_error(error,"An error occured in multi-table update");
+  if (local_error == -1)
+    local_error= 0;
+  thd->proc_info= "end";
+  if (local_error)
+    send_error(local_error, "An error occured in multi-table update");
 
   /*
     Write the SQL statement to the binlog if we updated
@@ -799,14 +800,14 @@ bool multi_update::send_eof()
 
     if (mysql_bin_log.is_open() &&  mysql_bin_log.write(&qinfo) &&
 	!not_trans_safe)
-      error=1;  /* Log write failed: roll back the SQL statement */
+      local_error=1;  /* Log write failed: roll back the SQL statement */
 
     /* Commit or rollback the current SQL statement */ 
-    VOID(ha_autocommit_or_rollback(thd,error > 0));
+    VOID(ha_autocommit_or_rollback(thd, local_error > 0));
   }
   else
-    error=0; // this can happen only if it is end of file error
-  if (!error) // if the above log write did not fail ...
+    local_error= 0; // this can happen only if it is end of file error
+  if (!local_error) // if the above log write did not fail ...
   {
     char buff[80];
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
