@@ -598,7 +598,14 @@ row_sel_get_clust_rec(
 
 	clust_rec = btr_pcur_get_rec(&(plan->clust_pcur));
 
-	ut_ad(page_rec_is_user_rec(clust_rec));
+	if (!page_rec_is_user_rec(clust_rec)
+            || btr_pcur_get_low_match(&(plan->clust_pcur))
+	       < dict_index_get_n_unique(index)) {
+
+	       clust_rec = NULL;
+
+	       goto func_exit;
+	}
 
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
@@ -661,6 +668,7 @@ row_sel_get_clust_rec(
 	
 	row_sel_fetch_columns(index, clust_rec,
 					UT_LIST_GET_FIRST(plan->columns));
+func_exit:
 	*out_rec = clust_rec;
 
 	return(DB_SUCCESS);
@@ -2206,7 +2214,17 @@ row_sel_get_clust_rec_for_mysql(
 
 	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
 
-	ut_ad(page_rec_is_user_rec(clust_rec));
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
+
+	if (!page_rec_is_user_rec(clust_rec)
+	    || btr_pcur_get_low_match(prebuilt->clust_pcur)
+	       < dict_index_get_n_unique(clust_index)) {
+
+	       clust_rec = NULL;
+
+	       goto func_exit;
+	}
 
 	if (prebuilt->select_lock_type != LOCK_NONE) {
 		/* Try to place a lock on the index record */
@@ -2268,6 +2286,7 @@ row_sel_get_clust_rec_for_mysql(
 		}
 	}
 
+func_exit:
 	*out_rec = clust_rec;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
