@@ -23,7 +23,7 @@ a	b
 4	6
 alter table t1 add c int not null, add key (c,a);
 drop table t1;
-create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps";
+create table t1 (a int not null,b int not null, primary key (a)) type=memory comment="testing heaps";
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a > 0;
 select * from t1;

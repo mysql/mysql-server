@@ -23,6 +23,8 @@
 #include "sql_acl.h"
 #include "sql_select.h"
 
+static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
+
 /* Return 0 if row hasn't changed */
 
 static bool compare_record(TABLE *table, ulong query_id)
@@ -520,11 +522,12 @@ int multi_update::prepare(List<Item> &not_used_values)
 
 
 /*
-  Store first used table in main_table as this should be updated first
-  This is because we know that no row in this table will be read twice.
+  Initialize table for multi table
 
-  Create temporary tables to store changed values for all other tables
-  that are updated.
+  IMPLEMENTATION
+    - Update first table in join on the fly, if possible
+    - Create temporary tables to store changed values for all other tables
+      that are updated (and main_table if the above doesn't hold).
 */
 
 bool
@@ -538,51 +541,112 @@ multi_update::initialize_tables(JOIN *join)
   main_table=join->join_tab->table;
   trans_safe= transactional_tables= main_table->file->has_transactions();
   log_delayed= trans_safe || main_table->tmp_table != NO_TMP_TABLE;
-  table_to_update= (main_table->file->table_flags() & HA_NOT_MULTI_UPDATE) ? 
-    (TABLE *) 0 : main_table;
-  /* Create a temporary table for all tables after except main table */
+  table_to_update= 0;
+
+  /* Create a temporary table for keys to all tables, except main table */
   for (table_ref= update_tables; table_ref; table_ref=table_ref->next)
   {
     TABLE *table=table_ref->table;
-    if (table != table_to_update)
+    uint cnt= table_ref->shared;
+    List<Item> temp_fields= *fields_for_table[cnt];
+    ORDER     group;
+
+    if (table == main_table)			// First table in join
     {
-      uint cnt= table_ref->shared;
-      ORDER     group;
-      List<Item> temp_fields= *fields_for_table[cnt];
-      TMP_TABLE_PARAM *tmp_param= tmp_table_param+cnt;
-
-      /*
-	Create a temporary table to store all fields that are changed for this
-	table. The first field in the temporary table is a pointer to the
-	original row so that we can find and update it
-      */
-
-      /* ok to be on stack as this is not referenced outside of this func */
-      Field_string offset(table->file->ref_length, 0, "offset",
-			  table, 1);
-      if (temp_fields.push_front(new Item_field(((Field *) &offset))))
-	DBUG_RETURN(1);
-
-      /* Make an unique key over the first field to avoid duplicated updates */
-      bzero((char*) &group, sizeof(group));
-      group.asc= 1;
-      group.item= (Item**) temp_fields.head_ref();
-
-      tmp_param->quick_group=1;
-      tmp_param->field_count=temp_fields.elements;
-      tmp_param->group_parts=1;
-      tmp_param->group_length= table->file->ref_length;
-      if (!(tmp_tables[cnt]=create_tmp_table(thd,
-					     tmp_param,
-					     temp_fields,
-					     (ORDER*) &group, 0, 0, 0,
-					     TMP_TABLE_ALL_COLUMNS)))
-	DBUG_RETURN(1);
-      tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
+      if (safe_update_on_fly(join->join_tab, &temp_fields))
+      {
+	table_to_update= main_table;		// Update table on the fly
+	continue;
+      }
     }
+
+    TMP_TABLE_PARAM *tmp_param= tmp_table_param+cnt;
+
+    /*
+      Create a temporary table to store all fields that are changed for this
+      table. The first field in the temporary table is a pointer to the
+      original row so that we can find and update it
+    */
+
+    /* ok to be on stack as this is not referenced outside of this func */
+    Field_string offset(table->file->ref_length, 0, "offset",
+			table, 1);
+    if (temp_fields.push_front(new Item_field(((Field *) &offset))))
+      DBUG_RETURN(1);
+
+    /* Make an unique key over the first field to avoid duplicated updates */
+    bzero((char*) &group, sizeof(group));
+    group.asc= 1;
+    group.item= (Item**) temp_fields.head_ref();
+
+    tmp_param->quick_group=1;
+    tmp_param->field_count=temp_fields.elements;
+    tmp_param->group_parts=1;
+    tmp_param->group_length= table->file->ref_length;
+    if (!(tmp_tables[cnt]=create_tmp_table(thd,
+					   tmp_param,
+					   temp_fields,
+					   (ORDER*) &group, 0, 0, 0,
+					   TMP_TABLE_ALL_COLUMNS)))
+      DBUG_RETURN(1);
+    tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
   DBUG_RETURN(0);
 }
+
+/*
+  Check if table is safe to update on fly
+
+  SYNOPSIS
+    safe_update_on_fly
+    join_tab		How table is used in join
+    fields		Fields that are updated
+
+  NOTES
+    We can update the first table in join on the fly if we know that
+    a row in this tabel will never be read twice. This is true under
+    the folloing conditions:
+
+    - We are doing a table scan and the data is in a separate file (MyISAM) or
+      if we don't update a clustered key.
+
+    - We are doing a range scan and we don't update the scan key or
+      the primary key for a clustered table handler.
+
+  WARNING
+    This code is a bit dependent of how make_join_readinfo() works.
+
+  RETURN
+    0		Not safe to update
+    1		Safe to update
+*/
+
+static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
+{
+  TABLE *table= join_tab->table;
+  switch (join_tab->type) {
+  case JT_SYSTEM:
+  case JT_CONST:
+  case JT_EQ_REF:
+    return 1;					// At most one matching row
+  case JT_REF:
+    return !check_if_key_used(table, join_tab->ref.key, *fields);
+  case JT_ALL:
+    /* If range search on index */
+    if (join_tab->quick)
+      return !check_if_key_used(table, join_tab->quick->index,
+				*fields);
+    /* If scanning in clustered key */
+    if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+	table->primary_key < MAX_KEY)
+      return !check_if_key_used(table, table->primary_key, *fields);
+    return 1;
+  default:
+    break;					// Avoid compler warning
+  }
+  return 0;
+}
+
 
 
 multi_update::~multi_update()
