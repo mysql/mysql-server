@@ -2729,7 +2729,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
-                             thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER);
+                             test(thd->variables.sql_mode &
+                                  MODE_NO_AUTO_CREATE_USER));
     pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
@@ -2935,7 +2936,8 @@ bool mysql_procedure_grant(THD *thd, TABLE_LIST *table_list,
     pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
-                             thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER);
+                             test(thd->variables.sql_mode &
+                                  MODE_NO_AUTO_CREATE_USER));
     pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
@@ -3061,7 +3063,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
-                           thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
+                           test(thd->variables.sql_mode &
+                                MODE_NO_AUTO_CREATE_USER)))
       result= -1;
     else if (db)
     {
