@@ -1216,6 +1216,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
   tables.alias= tables.real_name= (char*)table_name;
+  tables.non_cachable_table= 1;	// just safety for table on stack
   /* Drop the table if 'overwrite' is true */
   if (overwrite && mysql_rm_table(thd,&tables,1,0)) /* drop if exists */
   {

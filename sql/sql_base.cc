@@ -156,6 +156,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     table_list.db= (char*) entry->table_cache_key;
     table_list.real_name= entry->real_name;
     table_list.grant.privilege=0;
+    table_list.non_cachable_table= 1;	// just safety for table on stack
     if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list,1))
       continue;
     /* need to check if we haven't already listed it */
@@ -1332,6 +1333,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
     table_list.real_name=(char*) name;
+    table_list.non_cachable_table= 1;	// just safety for table on stack
     safe_mutex_assert_owner(&LOCK_open);
 
     if ((error=lock_table_name(thd,&table_list)))
@@ -1886,7 +1888,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   char name_buff[NAME_LEN+1];
 
 
-  if (!thd->no_table_fix_fields_cache && item->cached_table)
+  if (item->cached_table)
   {
     /*
       This shortcut is used by prepared statements. We assuming that 
@@ -1939,6 +1941,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	if (find)
 	{
 	  (*where)= item->cached_table= tables;
+	  if (tables->non_cachable_table)
+	    item->cached_table= 0;
 	  if (find == WRONG_GRANT)
 	    return (Field*) 0;
 	  if (db || !thd->where)
@@ -1998,6 +2002,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       if (field == WRONG_GRANT)
 	return (Field*) 0;
       (*where)= item->cached_table= tables;
+      if (tables->non_cachable_table)
+	item->cached_table= 0;
       if (found)
       {
 	if (!thd->where)			// Returns first found
@@ -2405,15 +2411,13 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   {
     if (table->on_expr)
     {
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
       /* Make a join an a expression */
       thd->where="on clause";
       
       if (!table->on_expr->fixed &&
 	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
-	goto err;
+	DBUG_RETURN(1);
       thd->lex->current_select->cond_count++;
 
       /*
@@ -2425,12 +2429,16 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (!(*conds= and_conds(thd, *conds, table->on_expr, tables)))
-	  goto err;
+	if (stmt)
+	  thd->set_n_backup_item_arena(stmt, &backup);
+	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
+	if ((*conds) && !(*conds)->fixed &&
+	    (*conds)->fix_fields(thd, tables, conds))
+	  DBUG_RETURN(1);
       }
-      if (stmt)
-	thd->restore_backup_item_arena(stmt, &backup);
     }
     if (table->natural_join)
     {
@@ -2467,22 +2475,33 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       }
       thd->lex->current_select->cond_count+= cond_and->list.elements;
 
+      // to prevent natural join processing during PS re-execution
+      table->natural_join= 0;
+
       if (!table->outer_join)			// Not left join
       {
-	if (!(*conds= and_conds(thd, *conds, cond_and, tables)) ||
-	    (*conds && !(*conds)->fixed &&
-	     (*conds)->fix_fields(thd, tables, conds)))
-	  goto err;
+	*conds= and_conds(*conds, cond_and);
+	// fix_fields() should be made with temporary memory pool
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
+	if (*conds && !(*conds)->fixed)
+	{
+	  if ((*conds)->fix_fields(thd, tables, conds))
+	    DBUG_RETURN(1);
+	}
       }
       else
       {
-	table->on_expr= and_conds(thd, table->on_expr, cond_and, tables);
-	if (table->on_expr && !table->on_expr->fixed &&
-	    table->on_expr->fix_fields(thd, tables, &table->on_expr))
-	  goto err;
+	table->on_expr= and_conds(table->on_expr, cond_and);
+	// fix_fields() should be made with temporary memory pool
+	if (stmt)
+	  thd->restore_backup_item_arena(stmt, &backup);
+	if (table->on_expr && !table->on_expr->fixed)
+	{
+	  if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
+	   DBUG_RETURN(1);
+	}
       }
-      if (stmt)
-	thd->restore_backup_item_arena(stmt, &backup);
     }
   }
 

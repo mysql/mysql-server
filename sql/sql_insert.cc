@@ -82,16 +82,13 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.real_name= table_list.alias= table->table_name;
     table_list.table=table;
     table_list.grant=table->grant;
+    table_list.non_cachable_table= 1;
 
     thd->dupp_field=0;
-    thd->no_table_fix_fields_cache= 1;
     if (setup_tables(&table_list) ||
 	setup_fields(thd, 0, &table_list,fields,1,0,0))
-    {
-      thd->no_table_fix_fields_cache= 0;
       return -1;
-    }
-    thd->no_table_fix_fields_cache= 0;
+
     if (thd->dupp_field)
     {
       my_error(ER_FIELD_SPECIFIED_TWICE,MYF(0), thd->dupp_field->field_name);

@@ -987,6 +987,8 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   int error;
   DBUG_ENTER("mysql_stmt_prepare");
 
+  DBUG_PRINT("pquery", ("%s", packet));
+
   if (stmt == 0)
   {
     send_error(thd, ER_OUT_OF_RESOURCES);
@@ -1076,11 +1078,11 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
     DBUG_ASSERT(sl->join == 0);
     ORDER *order;
     /* Fix GROUP list */
-    for (order=(ORDER *)sl->group_list.first ; order ; order=order->next)
-      order->item= (Item **)(order+1);
+    for (order= (ORDER *)sl->group_list.first; order; order= order->next)
+      order->item= &order->item_ptr;
     /* Fix ORDER list */
-    for (order=(ORDER *)sl->order_list.first ; order ; order=order->next)
-      order->item= (Item **)(order+1);
+    for (order= (ORDER *)sl->order_list.first; order; order= order->next)
+      order->item= &order->item_ptr;
 
     /*
       TODO: When the new table structure is ready, then have a status bit 
@@ -1130,6 +1132,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   
   if (!(stmt= find_prepared_statement(thd, stmt_id, "execute", SEND_ERROR)))
     DBUG_VOID_RETURN;
+
+  DBUG_PRINT("equery:", ("%s", stmt->query));
 
   /* Check if we got an error when sending long data */
   if (stmt->get_longdata_error)

@@ -659,20 +659,20 @@ int mysqld_help(THD *thd, const char *mask)
   bzero((gptr)tables,sizeof(tables));
   tables[0].alias= tables[0].real_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
-  tables[0].db= (char*) "mysql";
   tables[0].next= &tables[1];
   tables[1].alias= tables[1].real_name= (char*) "help_category";
   tables[1].lock_type= TL_READ;
-  tables[1].db= (char*) "mysql";
   tables[1].next= &tables[2];
   tables[2].alias= tables[2].real_name= (char*) "help_relation";
   tables[2].lock_type= TL_READ;
-  tables[2].db= (char*) "mysql";
   tables[2].next=  &tables[3];
   tables[3].alias= tables[3].real_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
-  tables[3].db= (char*) "mysql";
   tables[3].next= 0;
+  tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
+  // just safety for table on stack
+  tables[0].non_cachable_table= tables[1].non_cachable_table=
+    tables[2].non_cachable_table= tables[3].non_cachable_table= 1;
   
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
