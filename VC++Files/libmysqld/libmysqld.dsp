@@ -130,7 +130,7 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /D "NDEBUG" /FR /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "EMBEDDED_LIBRARY" /D "USE_TLS" /D "__WIN__" /D "MYSQL_SERVER" /D LICENCE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /FD /D MYSQL_SEVER_SUFFIX=-pro /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "EMBEDDED_LIBRARY" /D "USE_TLS" /D "__WIN__" /D "MYSQL_SERVER" /D LICENSE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /FD /D MYSQL_SERVER_SUFFIX=-pro /c
 # SUBTRACT CPP /X /Fr
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
