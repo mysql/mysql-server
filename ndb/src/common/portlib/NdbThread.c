@@ -24,6 +24,10 @@
 
 /*#define USE_PTHREAD_EXTRAS*/
 
+#ifdef NDB_SHM_TRANSPORTER
+int g_ndb_shm_signum= 0;
+#endif
+
 struct NdbThread 
 { 
   pthread_t thread;
@@ -35,16 +39,21 @@ struct NdbThread
 static
 void*
 ndb_thread_wrapper(void* _ss){
+  DBUG_ENTER("ndb_thread_wrapper");
   void * ret;
   struct NdbThread * ss = (struct NdbThread *)_ss;
 #ifdef NDB_SHM_TRANSPORTER
-  sigset_t mask;
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGUSR1);
-  pthread_sigmask(SIG_BLOCK, &mask, 0);
+  if (g_ndb_shm_signum)
+  {
+    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, g_ndb_shm_signum);
+    pthread_sigmask(SIG_BLOCK, &mask, 0);
+  }
 #endif
   ret= (* ss->func)(ss->object);
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 
