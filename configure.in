@@ -11,7 +11,7 @@ AC_CANONICAL_SYSTEM
 # before we call AM_INIT_AUTOMAKE. Don't forget to also update the 
 # NDB lines below.
 #  -Brian
-sinclude(build/ac-macros/sanity.m4)
+sinclude(config/ac-macros/sanity.m4)
 AM_INIT_AUTOMAKE(mysql, 5.0.3-alpha)
 AM_CONFIG_HEADER(config.h)
 
@@ -37,23 +37,23 @@ MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 dnl Include m4 
-sinclude(build/ac-macros/alloca.m4)
-sinclude(build/ac-macros/check_cpu.m4)
-sinclude(build/ac-macros/character_sets.m4)
-sinclude(build/ac-macros/compiler_flag.m4)
-sinclude(build/ac-macros/ha_archive.m4)
-sinclude(build/ac-macros/ha_berkeley.m4)
-sinclude(build/ac-macros/ha_example.m4)
-sinclude(build/ac-macros/ha_innodb.m4)
-sinclude(build/ac-macros/ha_isam.m4)
-sinclude(build/ac-macros/ha_ndbcluster.m4)
-sinclude(build/ac-macros/ha_tina.m4)
-sinclude(build/ac-macros/large_file.m4)
-sinclude(build/ac-macros/misc.m4)
-sinclude(build/ac-macros/mysqlfs.m4)
-sinclude(build/ac-macros/openssl.m4)
-sinclude(build/ac-macros/readline.m4)
-sinclude(build/ac-macros/zlib.m4)
+sinclude(config/ac-macros/alloca.m4)
+sinclude(config/ac-macros/check_cpu.m4)
+sinclude(config/ac-macros/character_sets.m4)
+sinclude(config/ac-macros/compiler_flag.m4)
+sinclude(config/ac-macros/ha_archive.m4)
+sinclude(config/ac-macros/ha_berkeley.m4)
+sinclude(config/ac-macros/ha_example.m4)
+sinclude(config/ac-macros/ha_innodb.m4)
+sinclude(config/ac-macros/ha_isam.m4)
+sinclude(config/ac-macros/ha_ndbcluster.m4)
+sinclude(config/ac-macros/ha_tina.m4)
+sinclude(config/ac-macros/large_file.m4)
+sinclude(config/ac-macros/misc.m4)
+sinclude(config/ac-macros/mysqlfs.m4)
+sinclude(config/ac-macros/openssl.m4)
+sinclude(config/ac-macros/readline.m4)
+sinclude(config/ac-macros/zlib.m4)
 
 # Remember to add a directory sql/share/LANGUAGE
 AVAILABLE_LANGUAGES="\
