@@ -194,7 +194,7 @@
 "Errore di rete durante l'invio al master",
 "Impossibile trovare un indice FULLTEXT che corrisponda all'elenco delle colonne",
 "Impossibile eseguire il comando richiesto: tabelle sotto lock o transazione in atto",
-"Variabile di sistema '%-.64' sconosciuta",
+"Variabile di sistema '%-.64s' sconosciuta",
 "La tabella '%-.64s' e` segnalata come corrotta e deve essere riparata",
 "La tabella '%-.64s' e` segnalata come corrotta e l'ultima ricostruzione (automatica?) e` fallita",
 "Attenzione: Alcune delle modifiche alle tabelle non transazionali non possono essere ripristinate (roll back impossibile)",
