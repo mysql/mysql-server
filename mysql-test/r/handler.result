@@ -173,3 +173,21 @@ Unknown column 'W' in 'field list'
 handler t1 read a=(a);
 Wrong arguments to HANDLER ... READ
 drop table t1;
+create table t1 (a char(5));
+insert into t1 values ("Ok");
+handler t1 open as t;
+handler t read first;
+a
+Ok
+use mysql;
+handler t read first;
+a
+Ok
+handler t close;
+handler test.t1 open as t;
+handler t read first;
+a
+Ok
+handler t close;
+use test;
+drop table t1;

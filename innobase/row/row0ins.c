@@ -682,14 +682,6 @@ row_ins_foreign_check_on_constraint(
 			(DICT_FOREIGN_ON_DELETE_CASCADE
 			 | DICT_FOREIGN_ON_DELETE_SET_NULL))) {
 
-		/* No action is defined: return a foreign key error if
-		NO ACTION is not specified */
-
-		if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
-
-			return(DB_SUCCESS);
-		}
-
 		row_ins_foreign_report_err((char*)"Trying to delete",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
@@ -703,14 +695,6 @@ row_ins_foreign_check_on_constraint(
 
 		/* This is an UPDATE */
 			 
-		/* No action is defined: return a foreign key error if
-		NO ACTION is not specified */
-
-		if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
-
-			return(DB_SUCCESS);
-		}
-
 		row_ins_foreign_report_err((char*)"Trying to update",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);

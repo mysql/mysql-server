@@ -1,4 +1,4 @@
-#! /bin/sh                   
+#! /bin/sh
 
 # debug
 #set -x
@@ -29,7 +29,7 @@ rm -rf Makefile.in.bk
 make clean bin-dist
 
 # mark the build
-for file in *.tar.gz
+for file in *.tar.gz *.zip
 do
 	if (expr "$file" : "mysql-[1-9].*" > /dev/null)
 	then

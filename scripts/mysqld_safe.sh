@@ -115,7 +115,6 @@ else
   ledir=@libexecdir@
 fi
 
-safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 user=@MYSQLD_USER@
 niceness=0
 
@@ -155,6 +154,7 @@ then
 fi
 parse_arguments `$print_defaults --loose-verbose $defaults mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
+safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 
 if test ! -x $ledir/$MYSQLD
 then
