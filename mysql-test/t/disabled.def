@@ -10,11 +10,3 @@
 #
 ##############################################################################
 
-ndb_alter_table   : NDB team needs to fix
-ndb_autodiscover  : NDB team needs to fix
-ndb_autodiscover2 : NDB team needs to fix
-ndb_cache_multi   : NDB team needs to fix
-ndb_cache_multi2  : NDB team needs to fix
-ndb_multi         : NDB team needs to fix
-ndb_restore       : NDB team needs to fix
-
