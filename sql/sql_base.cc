@@ -866,13 +866,15 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
     }
   
   table->key_length=key_length;
-  table->version=refresh_version;
-  table->flush_version=flush_version;
+  table->version=0;
+  table->flush_version=0;
   if (!key_cache_inited)
     ha_key_cache();
   table->in_use = thd;
   check_unused();
   pthread_mutex_unlock(&LOCK_open);
+  table->next = thd->open_tables;
+  thd->open_tables = table;
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
