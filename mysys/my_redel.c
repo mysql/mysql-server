@@ -18,6 +18,7 @@
 #define USES_TYPES				/* sys/types is included */
 #include "mysys_priv.h"
 #include <my_dir.h>
+#include <m_string.h>
 #include "mysys_err.h"
 #if defined(HAVE_SYS_UTIME_H)
 #include <sys/utime.h>
@@ -30,21 +31,45 @@ struct utimbuf {
 };
 #endif
 
-	/* Rename with copy stat form old file */
-	/* Copy stats from old file to new file, deletes orginal and */
-	/* changes new file name to old file name */
+	/*
+	  Rename with copy stat form old file
+	  Copy stats from old file to new file, deletes orginal and
+	  changes new file name to old file name
+
+	  if MY_REDEL_MAKE_COPY is given, then the orginal file
+	  is renamed to org_name-'current_time'.BAK
+	*/
+
+#define REDEL_EXT ".BAK"
 
 int my_redel(const char *org_name, const char *tmp_name, myf MyFlags)
 {
+  int error=1;
   DBUG_ENTER("my_redel");
   DBUG_PRINT("my",("org_name: '%s' tmp_name: '%s'  MyFlags: %d",
 		   org_name,tmp_name,MyFlags));
 
-  if (my_copystat(org_name,tmp_name,MyFlags) < 0 ||
-      my_delete(org_name,MyFlags) ||
-      my_rename(tmp_name,org_name,MyFlags))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  if (my_copystat(org_name,tmp_name,MyFlags) < 0)
+    goto end;
+  if (MyFlags & MY_REDEL_MAKE_BACKUP)
+  {
+    char name_buff[FN_REFLEN+20];    
+    char ext[20];
+    ext[0]='-';
+    get_date(ext+1,2+4,(time_t) 0);
+    strmov(strend(ext),REDEL_EXT);
+    if (my_rename(org_name, fn_format(name_buff, org_name, "", ext, 2),
+		  MyFlags))
+      goto end;
+  }
+  else if (my_delete(org_name,MyFlags))
+      goto end;
+  if (my_rename(tmp_name,org_name,MyFlags))
+    goto end;
+
+  error=0;
+end:
+  DBUG_RETURN(error);
 } /* my_redel */
 
 

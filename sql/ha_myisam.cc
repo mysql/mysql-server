@@ -31,6 +31,13 @@
 #endif
 
 ulong myisam_sort_buffer_size;
+myisam_recover_types myisam_recover_type= HA_RECOVER_NONE;
+
+const char *myisam_recover_names[] =
+{ "NO","DEFAULT", "BACKUP"};
+TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names),"",
+				 myisam_recover_names};
+
 
 /*****************************************************************************
 ** MyISAM tables
@@ -76,6 +83,7 @@ extern "C" {
 void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
 {
   param->error_printed|=1;
+  param->out_flag|= O_DATA_LOST;
   va_list args;
   va_start(args, fmt);
   mi_check_print_msg(param, "error", fmt, args);
@@ -93,6 +101,7 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt,...)
 void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 {
   param->warning_printed=1;
+  param->out_flag|= O_DATA_LOST;
   va_list args;
   va_start(args, fmt);
   mi_check_print_msg(param, "warning", fmt, args);
@@ -187,15 +196,14 @@ err:
   return error;
 }
 
-int ha_myisam::open(const char *name, int mode, int test_if_locked)
+int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
   if (!(file=mi_open(fn_format(name_buff,name,"","",2 | 4), mode,
 		     test_if_locked)))
     return (my_errno ? my_errno : -1);
 
-  if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
-	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
+  if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(mi_extra(file,HA_EXTRA_NO_WAIT_LOCK));
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
@@ -447,7 +455,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
     optimize_done=1;
-    if (mi_test_if_sort_rep(file,file->state->records))
+    if (mi_test_if_sort_rep(file,file->state->records,0))
     {
       param.testflag|= T_STATISTICS;		// We get this for free
       thd->proc_info="Repairing by sorting";
@@ -506,7 +514,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     {
       /*
 	We have to close all instances of this file to ensure that we can
-	do the rename safely and that all threads are using the new version.
+	do the rename safely on all operating system and to ensure that
+	all threads are using the new version.
       */
       thd->proc_info="renaming file";
       VOID(pthread_mutex_lock(&LOCK_open));
@@ -515,11 +524,11 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
       if (param.out_flag & O_NEW_DATA)
 	error|=change_to_newfile(fixed_name,MI_NAME_DEXT,
-				 DATA_TMP_EXT, 0);
+				 DATA_TMP_EXT, 0, MYF(0));
 
       if (param.out_flag & O_NEW_INDEX)
 	error|=change_to_newfile(fixed_name,MI_NAME_IEXT,
-				 INDEX_TMP_EXT,0);
+				 INDEX_TMP_EXT, 0, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
   }

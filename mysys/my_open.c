@@ -97,6 +97,7 @@ int my_close(File fd, myf MyFlags)
   pthread_mutex_lock(&THR_LOCK_open);
   if ((err = close(fd)))
   {
+    DBUG_PRINT("error",("Got error %d on close",err));
     my_errno=errno;
     if (MyFlags & (MY_FAE | MY_WME))
       my_error(EE_BADCLOSE, MYF(ME_BELL+ME_WAITTANG),my_filename(fd),errno);

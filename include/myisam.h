@@ -273,9 +273,11 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define T_CREATE_MISSING_KEYS	T_TRUST_HEADER*2
 #define T_SAFE_REPAIR		T_CREATE_MISSING_KEYS*2
 #define T_AUTO_REPAIR   	T_SAFE_REPAIR*2
+#define T_BACKUP_DATA		T_AUTO_REPAIR*2
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2
+#define O_DATA_LOST	4
 
 /* these struct is used by my_check to tell it what to do */
 
@@ -359,7 +361,8 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name);
 int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick);
 int change_to_newfile(const char * filename, const char * old_ext,
-		      const char * new_ext, uint raid_chunks);
+		      const char * new_ext, uint raid_chunks,
+		      myf myflags);
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);
@@ -378,7 +381,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
-my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows);
+my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, my_bool force);
 
 #ifdef	__cplusplus
 }

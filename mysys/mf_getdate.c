@@ -23,6 +23,7 @@
 	/*
 	  If flag & 1 Return date and time
 	  If flag & 2 Return short date format YYMMDD
+	  if flag & 4 Return time in HHMMDD format.
 	  */
 
 
@@ -53,6 +54,11 @@ void get_date(register my_string to, int flag, time_t date)
 	     start_time->tm_mday);
    if (flag & 1)
      sprintf(strend(to)," %2d:%02d:%02d",
+	     start_time->tm_hour,
+	     start_time->tm_min,
+	     start_time->tm_sec);
+   else if (flag & 4)
+     sprintf(strend(to),"%02d%02d%02d",
 	     start_time->tm_hour,
 	     start_time->tm_min,
 	     start_time->tm_sec);

@@ -91,8 +91,7 @@ exit:
 }
 
 const char *del_exts[]=
-{".frm",".ISM",".ISD",".ISM",".HSH",".DAT",".MRG",".PSM",".MYI",".MYD", ".db",
- NullS};
+{".frm",".ISM",".ISD",".ISM",".HSH",".DAT",".MRG",".MYI",".MYD", ".db", ".BAK", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
