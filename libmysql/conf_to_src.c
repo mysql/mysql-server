@@ -65,7 +65,7 @@ main(int argc, char **argv)
 }
 
 void
-print_array(FILE *f, char *set, char *name, int n)
+print_array(FILE *f, const char *set, const char *name, int n)
 {
   int i;
   char val[100];

@@ -69,7 +69,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	my_default_record_cache_size &&
 	!table->file->fast_key_read() &&
 	(table->db_stat & HA_READ_ONLY ||
-	 table->reginfo.lock_type == TL_READ) &&
+	 table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
 	(ulonglong) table->reclength*(table->file->records+
 				      table->file->deleted) >
 	(ulonglong) MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&

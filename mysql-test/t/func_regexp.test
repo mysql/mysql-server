@@ -2,6 +2,7 @@
 # Some regexp tests
 #
 
+drop table if exists t1;
 create table t1 (s1 char(64),s2 char(64));
 
 insert into t1 values('aaa','aaa');
@@ -23,4 +24,21 @@ insert into t1 values('ghi','ghi[');
 
 select HIGH_PRIORITY s1 regexp s2 from t1;
 
+drop table t1;
+
+#
+# This test a bug in regexp on Alpha
+#
+
+create table t1 (xxx char(128));
+insert into t1 (xxx) values('this is a test of some long text to see what happens');
+select * from t1 where xxx regexp('is a test of some long text to');
+select * from t1 where xxx regexp('is a test of some long text to ');
+select * from t1 where xxx regexp('is a test of some long text to s');
+select * from t1 where xxx regexp('is a test of some long text to se');
+drop table t1;
+
+create table t1 (xxx char(128));
+insert into t1 (xxx) values('this is some text: to test - out.reg exp (22/45)');
+select * from t1 where xxx REGEXP '^this is some text: to test - out\\.reg exp [[(][0-9]+[/\\][0-9]+[])][ ]*$';
 drop table t1;
