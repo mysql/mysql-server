@@ -306,3 +306,17 @@ select * from t1;
 replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
 select * from t1;
 drop table t1, t2;
+
+-- error 1096
+SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT *);
+drop table if exists t;
+CREATE TABLE t (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t VALUES (1),(2);
+SELECT * FROM t WHERE id IN (SELECT 1);
+EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1);
+SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
+EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
+SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 3);
+SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
+drop table if exists t;
+
