@@ -1450,7 +1450,8 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
       if (flush_io_cache(file) || sync_binlog(file))
 	goto err;
 
-      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
+      if (opt_using_transactions &&
+          !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
       {
         /*
           LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
@@ -1598,6 +1599,14 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
     {
       Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
       /*
+        Imagine this is rollback due to net timeout, after all statements of
+        the transaction succeeded. Then we want a zero-error code in BEGIN.
+        In other words, if there was a really serious error code it's already
+        in the statement's events.
+        This is safer than thd->clear_error() against kills at shutdown.
+      */
+      qinfo.error_code= 0;
+      /*
         Now this Query_log_event has artificial log_pos 0. It must be adjusted
         to reflect the real position in the log. Not doing it would confuse the
 	slave: it would prevent this one from knowing where he is in the
@@ -1630,6 +1639,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
                             commit_or_rollback ? "COMMIT" : "ROLLBACK",
                             commit_or_rollback ? 6        : 8, 
                             TRUE);
+      qinfo.error_code= 0;
       qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
           sync_binlog(&log_file))
