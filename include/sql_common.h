@@ -15,9 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifndef _sql_common_h
-#define _sql_common_h
-
 extern const char	*unknown_sqlstate;
 
 #ifdef	__cplusplus
@@ -50,4 +47,3 @@ my_bool mysql_reconnect(MYSQL *mysql);
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
 #endif
 
-#endif /* _sql_common_h */

@@ -14,6 +14,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  This file is included by both libmysql.c (the MySQL client C API)
+  and the mysqld server to connect to another MYSQL server.
+
+  The differences for the two cases are:
+
+  - Things that only works for the client:
+  - Trying to automaticly determinate user name if not supplied to
+    mysql_real_connect()
+  - Support for reading local file with LOAD DATA LOCAL
+  - SHARED memory handling
+  - Protection against sigpipe
+  - Prepared statements
+  
+  - Things that only works for the server
+  - Alarm handling on connect
+  
+  In all other cases, the code should be idential for the client and
+  server.
+*/ 
+
 #include <my_global.h>
 
 #if defined(MYSQL_SERVER) || defined(HAVE_EXTERNAL_CLIENT)
@@ -207,10 +228,8 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
   my_bool testing_named_pipes=0;
   char *host= *arg_host, *unix_socket= *arg_unix_socket;
 
-#ifdef MYSQL_CLIENT
   if ( ! unix_socket || (unix_socket)[0] == 0x00)
     unix_socket = mysql_unix_port;
-#endif
   if (!host || !strcmp(host,LOCAL_HOST))
     host=LOCAL_HOST_NAMEDPIPE;
 
@@ -1285,7 +1304,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   /*
     Grab a socket and connect it to the server
   */
-#if defined(MYSQL_CLIENT) && defined(HAVE_SMEM)
+#ifdef HAVE_SMEM
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
       (!host || !strcmp(host,LOCAL_HOST)))
@@ -1314,22 +1333,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   } else
 #endif /* HAVE_SMEM */
 #if defined(HAVE_SYS_UN_H)
-    if (
-#ifdef MYSQL_CLIENT
-	(!mysql->options.protocol ||
+    if ((!mysql->options.protocol ||
 	 mysql->options.protocol == MYSQL_PROTOCOL_SOCKET)&&
 	(unix_socket || mysql_unix_port) &&
-#endif
-#ifdef MYSQL_SERVER
-	unix_socket &&
-#endif
 	(!host || !strcmp(host,LOCAL_HOST)))
     {
       host=LOCAL_HOST;
-#ifdef MYSQL_CLIENT
       if (!unix_socket)
 	unix_socket=mysql_unix_port;
-#endif
       host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
       DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
       if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
@@ -1361,18 +1372,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     else
 #elif defined(__WIN__)
     {
-#ifdef MYSQL_CLIENT
       if ((!mysql->options.protocol ||
 	   mysql->options.protocol == MYSQL_PROTOCOL_PIPE)&&
 	  ((unix_socket || !host && is_NT() ||
 	    host && !strcmp(host,LOCAL_HOST_NAMEDPIPE) ||! have_tcpip))&&
 	  (!net->vio))
-#elif MYSQL_SERVER
-      if ((unix_socket ||
-	   !host && is_NT() ||
-	   host && !strcmp(host,LOCAL_HOST_NAMEDPIPE) ||
-	   mysql->options.named_pipe || !have_tcpip))
-#endif
       {
 	sock=0;
 	if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
@@ -1408,10 +1412,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #endif
   {
     unix_socket=0;				/* This is not used */
-#ifdef MYSQL_CLIENT
     if (!port)
       port=mysql_port;
-#endif
     if (!host)
       host=LOCAL_HOST;
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
@@ -1859,24 +1861,26 @@ error:
 
 /* needed when we move MYSQL structure to a different address */
 
-#ifdef MYSQL_CLIENT /*should work in MYSQL_SERVER also, but doesn't */
 static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
 {
-  MYSQL *tmp, *tmp_prev;
   if (mysql->master == old_mysql)
     mysql->master = mysql;
   if (mysql->last_used_con == old_mysql)
     mysql->last_used_con = mysql;
   if (mysql->last_used_slave == old_mysql)
     mysql->last_used_slave = mysql;
-  for (tmp_prev = mysql, tmp = mysql->next_slave;
-       tmp != old_mysql;tmp = tmp->next_slave)
+#ifdef MYSQL_CLIENT /*should work in MYSQL_SERVER also, but doesn't */
   {
-    tmp_prev = tmp;
+    MYSQL *tmp, *tmp_prev;
+    for (tmp_prev = mysql, tmp = mysql->next_slave;
+	 tmp != old_mysql;tmp = tmp->next_slave)
+    {
+      tmp_prev = tmp;
+    }
+    tmp_prev->next_slave = mysql;
   }
-  tmp_prev->next_slave = mysql;
-}
 #endif /*MYSQL_CLIENT*/
+}
 
 my_bool mysql_reconnect(MYSQL *mysql)
 {
@@ -1897,9 +1901,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
   tmp_mysql.options=mysql->options;
   bzero((char*) &mysql->options,sizeof(mysql->options));
   tmp_mysql.rpl_pivot = mysql->rpl_pivot;
-#ifdef MYSQL_SERVER
-  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&mysql->net.read_timeout);
-#endif
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag))
@@ -1913,9 +1914,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
-#ifdef MYSQL_CLIENT /*rpl000010 fails if #ifdef-s were removed*/
   mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */
-#endif
   net_clear(&mysql->net);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
