@@ -1,2 +1,1 @@
-SUBDIRS = src ndbapi
-#SUBDIRS = src tools ndbapi run-test
+SUBDIRS = src tools ndbapi run-test
