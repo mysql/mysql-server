@@ -64,7 +64,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
       info->update= 0;
       DBUG_RETURN(my_errno);
     }
-    if (!(keyinfo->flag & HA_NOSAME))
+    if (!(keyinfo->flag & HA_NOSAME) || (keyinfo->flag & HA_END_SPACE_KEY))
       memcpy(info->lastkey, key, (size_t) keyinfo->length);
   }
   memcpy(record, pos, (size_t) share->reclength);

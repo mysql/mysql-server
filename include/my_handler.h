@@ -57,6 +57,13 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   { length=mi_uint2korr((key)+1); (key)+=3; length_pack=3; } \
 }
 
+#define store_key_length_inc(key,length) \
+{ if ((length) < 255) \
+  { *(key)++=(length); } \
+  else \
+  { *(key)=255; mi_int2store((key)+1,(length)); (key)+=3; } \
+}
+
 extern int mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			   my_bool, my_bool);
 extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,

@@ -106,7 +106,8 @@ typedef struct my_collation_handler_st
   int     (*strnncoll)(struct charset_info_st *,
 		       const uchar *, uint, const uchar *, uint, my_bool);
   int     (*strnncollsp)(struct charset_info_st *,
-		       const uchar *, uint, const uchar *, uint);
+                         const uchar *, uint, const uchar *, uint,
+                         my_bool diff_if_only_endspace_difference);
   int     (*strnxfrm)(struct charset_info_st *,
 		      uchar *, uint, const uchar *, uint);
   my_bool (*like_range)(struct charset_info_st *,
@@ -259,7 +260,8 @@ extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
 				const uchar *, uint, my_bool);
 
 extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, uint,
-				const uchar *, uint);
+                                  const uchar *, uint,
+                                  my_bool diff_if_only_endspace_difference);
 
 extern void my_hash_sort_simple(CHARSET_INFO *cs,
 				const uchar *key, uint len,

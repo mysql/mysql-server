@@ -1210,3 +1210,15 @@ show status like "Innodb_rows_deleted";
 show status like "Innodb_rows_inserted";
 show status like "Innodb_rows_read";
 show status like "Innodb_rows_updated";
+#
+# Test varchar
+#
+
+#let $default=`select @@storage_engine`;
+#set storage_engine=INNODB;
+#source include/varchar.inc;
+#eval set storage_engine=$default;
+
+# InnoDB specific varchar tests
+--error 1074
+create table t1 (v varchar(16384)) engine=innodb;

@@ -71,6 +71,9 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
     a_length		Length of 'a'
     b			Second string to compare
     b_length		Length of 'b'
+    diff_if_only_endspace_difference
+		        Set to 1 if the strings should be regarded as different
+                        if they only difference in end space
 
   IMPLEMENTATION
     If one string is shorter as the other, then we space extend the other
@@ -89,10 +92,16 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
 */
 
 int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length, 
-			  const uchar *b, uint b_length)
+			  const uchar *b, uint b_length,
+                          my_bool diff_if_only_endspace_difference)
 {
   const uchar *map= cs->sort_order, *end;
   uint length;
+  int res;
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
 
   end= a + (length= min(a_length, b_length));
   while (a < end)
@@ -100,9 +109,12 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
     if (map[*a++] != map[*b++])
       return ((int) map[a[-1]] - (int) map[b[-1]]);
   }
+  res= 0;
   if (a_length != b_length)
   {
     int swap= 0;
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -113,6 +125,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
       a_length= b_length;
       a= b;
       swap= -1;					/* swap sign of result */
+      res= -res;
     }
     for (end= a + a_length-length; a < end ; a++)
     {
@@ -120,7 +133,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
 	return ((int) *a - (int) ' ') ^ swap;
     }
   }
-  return 0;
+  return res;
 }
 
 
@@ -218,14 +231,19 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 			 ulong *nr1, ulong *nr2)
 {
   register uchar *sort_order=cs->sort_order;
-  const uchar *pos = key;
+  const uchar *end= key + len;
   
-  key+= len;
+  /*
+    Remove end space. We have to do this to be able to compare
+    'A ' and 'A' as identical
+  */
+  while (end > key && end[-1] == ' ')
+    end--;
   
-  for (; pos < (uchar*) key ; pos++)
+  for (; key < (uchar*) end ; key++)
   {
     nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
-	     ((uint) sort_order[(uint) *pos])) + (nr1[0] << 8);
+	     ((uint) sort_order[(uint) *key])) + (nr1[0] << 8);
     nr2[0]+=3;
   }
 }
@@ -996,8 +1014,10 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     }
     if (*ptr == w_many)				/* '%' in SQL */
     {
-      *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
+      /* Calculate length of keys */
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+                    res_length);
+      *max_length= res_length;
       do
       {
 	*min_str++= 0;
@@ -1007,10 +1027,10 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     }
     *min_str++= *max_str++ = *ptr;
   }
-  *min_length= *max_length = (uint) (min_str - min_org);
 
+ *min_length= *max_length = (uint) (min_str - min_org);
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+    *min_str++= *max_str++ = ' ';      /* Because if key compression */
   return 0;
 }
 
