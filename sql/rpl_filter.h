@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef __RPL_FILTER_H__
-#define __RPL_FILTER_H__
+#ifndef RPL_FILTER_H
+#define RPL_FILTER_H
 
 #include "mysql.h"
 #include "my_list.h"
@@ -107,4 +107,7 @@ private:
   I_List<i_string_pair> rewrite_db;
 };
 
-#endif // __TABLE_FILTER_H__
+extern Rpl_filter *rpl_filter;
+extern Rpl_filter *binlog_filter;
+
+#endif // RPL_FILTER_H
