@@ -456,7 +456,7 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
     nx_errno = ER_BAD_HOST_ERROR;
     goto err;
   }
-
+  mysql->net.timeout=slave_net_timeout;
   safe_connect(thd, mysql, mi);
   if (slave_killed(thd))
     goto err;
@@ -1297,6 +1297,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     goto err;
   }
   
+  mysql->net = thd->net;
   thd->proc_info = "connecting to master";
 #ifndef DBUG_OFF  
   sql_print_error("Slave thread initialized");
