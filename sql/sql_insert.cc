@@ -184,6 +184,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="init";
   thd->used_tables=0;
   values= its++;
+
+  if (duplic == DUP_UPDATE && !table->insert_values)
+  {
+    /* it should be allocated before Item::fix_fields() */
+    table->insert_values=alloc_root(&table->mem_root, table->rec_buff_length);
+    if (!table->insert_values)
+      goto abort;
+  }
+
   if (check_insert_fields(thd,table,fields,*values,1) ||
       setup_tables(insert_table_list) ||
       setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
@@ -248,7 +257,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (fields.elements || !value_count)
     {
-      restore_record(table,2);			// Get empty record
+      restore_record(table,default_values);	// Get empty record
       if (fill_record(fields,*values)|| thd->net.report_error ||
 	  check_null_fields(thd,table))
       {
@@ -264,9 +273,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     else
     {
       if (thd->used_tables)			// Column used in values()
-	restore_record(table,2);		// Get empty record
+	restore_record(table,default_values);	// Get empty record
       else
-	table->record[0][0]=table->record[2][0]; // Fix delete marker
+	table->record[0][0]=table->default_values[0]; // Fix delete marker
       if (fill_record(table->field,*values) ||  thd->net.report_error)
       {
 	if (values_list.elements != 1 && ! thd->net.report_error)
@@ -333,7 +342,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       thd->insert_id(id);			// For update log
     else if (table->next_number_field)
       id=table->next_number_field->val_int();	// Return auto_increment value
-    
+
     transactional_table= table->file->has_transactions();
     log_delayed= (transactional_table || table->tmp_table);
     if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
@@ -383,7 +392,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     char buff[160];
     if (duplic == DUP_IGNORE)
       sprintf(buff,ER(ER_INSERT_INFO),info.records,
-	      (lock_type == TL_WRITE_DELAYED) ? 0 : 
+	      (lock_type == TL_WRITE_DELAYED) ? 0 :
 	      info.records-info.copied,
 	      thd->cuted_fields);
     else
@@ -392,12 +401,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex.select_lex);
+  table->insert_values=0;
   DBUG_RETURN(0);
 
 abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
   free_underlaid_joins(thd, &thd->lex.select_lex);
+  table->insert_values=0;
   DBUG_RETURN(-1);
 }
 
@@ -482,7 +493,8 @@ int write_record(TABLE *table,COPY_INFO *info)
            that matches, is updated. If update causes a conflict again,
            an error is returned
         */
-        restore_record(table,1);
+        store_record(table,insert_values);
+        restore_record(table,record[1]);
         if (fill_record(*info->update_fields,*info->update_values))
           goto err;
         if ((error=table->file->update_row(table->record[1],table->record[0])))
@@ -1349,7 +1361,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (check_insert_fields(thd,table,*fields,values,1))
     DBUG_RETURN(1);
 
-  restore_record(table,2);			// Get empty record
+  restore_record(table,default_values);			// Get empty record
   table->next_number_field=table->found_next_number_field;
   thd->count_cuted_fields=1;			// calc cuted fields
   thd->cuted_fields=0;
@@ -1480,7 +1492,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   table->next_number_field=table->found_next_number_field;
 
-  restore_record(table,2);			// Get empty record
+  restore_record(table,default_values);			// Get empty record
   thd->count_cuted_fields=1;			// count warnings
   thd->cuted_fields=0;
   if (info.handle_duplicates == DUP_IGNORE ||

@@ -238,7 +238,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.log_delayed= log_delayed;
     read_info.set_io_cache_arg((void*) &lf_info);
   }
-  restore_record(table,2);
+  restore_record(table,default_values);
 
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0L;
