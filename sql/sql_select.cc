@@ -211,6 +211,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
+  select->join= this;
   union_part= (unit->first_select()->next_select() != 0);
   
   /* Check that all tables, fields, conds and order are ok */
@@ -974,6 +975,21 @@ JOIN::cleanup(THD *thd)
   delete select;
   delete_dynamic(&keyuse);
   delete procedure;
+  for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
+       unit != 0;
+       unit= unit->next_unit())
+    for (SELECT_LEX *sl= unit->first_select();
+	 sl != 0;
+	 sl= sl->next_select())
+    {
+      if (sl->join)
+      {
+	int err= sl->join->cleanup(thd);
+	if (err)
+	  error= err;
+	sl->join= 0;
+      }
+    }
   return error;
 }
 
