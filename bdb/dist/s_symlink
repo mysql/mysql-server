@@ -2,6 +2,7 @@
 #	$Id: s_symlink,v 1.28 2002/08/18 21:15:45 bostic Exp $
 
 echo 'Creating Berkeley DB source tree symbolic links...'
+. ./RELEASE
 
 build()
 {

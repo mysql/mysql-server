@@ -4,6 +4,8 @@
 d=..
 echo 'Updating Berkeley DB source tree permissions...'
 
+. ./RELEASE
+
 run()
 {
 	echo "	$1 ($2)"
