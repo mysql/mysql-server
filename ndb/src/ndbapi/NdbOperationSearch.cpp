@@ -251,6 +251,17 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	} else if ((tOpType == ReadRequest) || (tOpType == DeleteRequest) ||
 		   (tOpType == ReadExclusive)) {
 	  theStatus = GetValue;
+          // create blob handles automatically
+          if (tOpType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
+            for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
+              NdbColumnImpl* c = m_currentTable->m_columns[i];
+              assert(c != 0);
+              if (c->getBlobType()) {
+                if (getBlobHandle(theNdbCon, c) == NULL)
+                  return -1;
+              }
+            }
+          }
 	  return 0;
 	} else if ((tOpType == InsertRequest) || (tOpType == WriteRequest)) {
 	  theStatus = SetValue;
@@ -495,5 +506,26 @@ LastWordLabel:
     }//if
   }//if
 
+  return 0;
+}
+
+int
+NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
+{
+  assert(m_accessTable != 0 && m_accessTable->m_sizeOfKeysInWords != 0);
+  assert(m_accessTable->m_sizeOfKeysInWords == size);
+  unsigned pos = 0;
+  while (pos < 8 && pos < size) {
+    data[pos++] = theKEYINFOptr[pos];
+  }
+  NdbApiSignal* tSignal = theFirstKEYINFO;
+  unsigned n = 0;
+  while (pos < size) {
+    if (n == 20) {
+      tSignal = tSignal->next();
+      n = 0;
+    }
+    data[pos++] = tSignal->getDataPtrSend()[3 + n++];
+  }
   return 0;
 }

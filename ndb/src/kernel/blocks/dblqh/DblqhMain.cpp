@@ -1227,6 +1227,18 @@ Dblqh::sendAddFragReq(Signal* signal)
       tuxreq->fragOff = addfragptr.p->lh3DistrBits;
       tuxreq->tableType = addfragptr.p->tableType;
       tuxreq->primaryTableId = addfragptr.p->primaryTableId;
+      // pointer to index fragment in TUP
+      tuxreq->tupIndexFragPtrI =
+        addfragptr.p->addfragStatus == AddFragRecord::WAIT_TWO_TUX ?
+        fragptr.p->tupFragptr[0] : fragptr.p->tupFragptr[1];
+      // pointers to table fragments in TUP and ACC
+      FragrecordPtr tFragPtr;
+      tFragPtr.i = fragptr.p->tableFragptr;
+      ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
+      tuxreq->tupTableFragPtrI[0] = tFragPtr.p->tupFragptr[0];
+      tuxreq->tupTableFragPtrI[1] = tFragPtr.p->tupFragptr[1];
+      tuxreq->accTableFragPtrI[0] = tFragPtr.p->accFragptr[0];
+      tuxreq->accTableFragPtrI[1] = tFragPtr.p->accFragptr[1];
       sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ,
           signal, TuxFragReq::SignalLength, JBB);
       return;

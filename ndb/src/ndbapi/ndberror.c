@@ -418,8 +418,14 @@ ErrorBundle ErrorCodes[] = {
   { 4259, AE, "Invalid set of range scan bounds" },
   { 4260, UD, "NdbScanFilter: Operator is not defined in NdbScanFilter::Group"},
   { 4261, UD, "NdbScanFilter: Column is NULL"},
-  { 4262, UD, "NdbScanFilter: Condition is out of bounds"}
-  
+  { 4262, UD, "NdbScanFilter: Condition is out of bounds"},
+  { 4263, IE, "Invalid blob attributes or invalid blob parts table" },
+  { 4264, AE, "Invalid usage of blob attribute" },
+  { 4265, AE, "Method is not valid in current blob state" },
+  { 4266, AE, "Invalid blob seek position" },
+  { 4267, IE, "Corrupted blob value" },
+  { 4268, IE, "Error in blob head update forced rollback of transaction" },
+  { 4268, IE, "Unknown blob error" }
 };
 
 static

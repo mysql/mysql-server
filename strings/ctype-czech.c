@@ -242,11 +242,15 @@ while (1)						\
 
 static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
 			      const uchar * s1, uint len1, 
-			      const uchar * s2, uint len2)
+			      const uchar * s2, uint len2,
+                              my_bool s2_is_prefix)
 {
   int v1, v2;
   const uchar * p1, * p2, * store1, * store2;
   int pass1 = 0, pass2 = 0;
+
+  if (s2_is_prefix && len1 > len2)
+    len1=len2;
 
   p1 = s1;	p2 = s2;
   store1 = s1;	store2 = s2;
@@ -276,7 +280,7 @@ int my_strnncollsp_czech(CHARSET_INFO * cs,
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_czech(cs,s,slen,t,tlen);
+  return my_strnncoll_czech(cs,s,slen,t,tlen,0);
 }
 
 
@@ -595,6 +599,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */

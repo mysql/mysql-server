@@ -418,6 +418,7 @@ CHARSET_INFO my_charset_latin1=
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     cs_to_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -528,7 +529,8 @@ uchar combo2map[]={
 
 static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 				  const uchar *a, uint a_length,
-				  const uchar *b, uint b_length)
+				  const uchar *b, uint b_length,
+                                  my_bool b_is_prefix)
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;
@@ -561,7 +563,7 @@ static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
     A simple test of string lengths won't work -- we test to see
     which string ran out first
   */
-  return ((a < a_end || a_extend) ? 1 :
+  return ((a < a_end || a_extend) ? (b_is_prefix ? 0 : 1) :
 	  (b < b_end || b_extend) ? -1 : 0);
 }
 
@@ -699,6 +701,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   to_lower_latin1,
   to_upper_latin1,
   sort_order_latin1_de,
+  NULL,					/* contractions */
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
@@ -726,6 +729,7 @@ CHARSET_INFO my_charset_latin1_bin=
   to_lower_latin1,
   to_upper_latin1,
   sort_order_latin1_de,
+  NULL,					/* contractions */
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */

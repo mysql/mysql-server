@@ -370,12 +370,15 @@ AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
 
+ndb_cxxflags_fix=
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  # ndb cannot be compiled with -fno-implicit-templaces
+  ndb_cxxflags_fix=-fimplicit-templates
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -2892,22 +2895,20 @@ if test X"$have_ndbcluster" = Xyes
 then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
+  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
   if test "$with_debug" = "yes"
   then
     # Medium debug.
     NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_DEBUG_LOC)"
   elif test "$with_debug" = "full"
   then
     NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_DEBUG_LOC)"
   else
     NDB_DEFS="-DNDEBUG"
-    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_RELEASE_LOC)"
   fi
-fi
 
 AC_SUBST([NDB_DEFS])
+AC_SUBST([ndb_cxxflags_fix])
 
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
@@ -2920,22 +2921,23 @@ then
 fi
 AC_SUBST([ndb_transporter_opt_objs])
 
+ndb_opt_subdirs=
 ndb_bin_am_ldflags="-static"
 if test X"$have_ndb_test" = Xyes
 then
-  ndb_opt_test_subdirs="test"
+  ndb_opt_subdirs="test"
+  ndb_bin_am_ldflags=""
+fi
+if test X"$have_ndb_docs" = Xyes
+then
+  ndb_opt_subdirs="$ndb_opt_subdirs docs"
   ndb_bin_am_ldflags=""
 fi
 AC_SUBST([ndb_bin_am_ldflags])
-AC_SUBST([ndb_opt_test_subdirs])
-
-AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
-
-# Output results
-AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
-   ndb/docs/Makefile dnl
-   ndb/Makefile ndb/include/Makefile dnl
+AC_SUBST([ndb_opt_subdirs])
+AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/docs/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile dnl
@@ -2976,7 +2978,14 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
    ndb/test/ndbapi/Makefile dnl
    ndb/test/ndbapi/bank/Makefile dnl
    ndb/test/tools/Makefile dnl
-   ndb/test/run-test/Makefile dnl
+   ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   )
+fi
+
+AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
+
+# Output results
+AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
  bdb/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
@@ -2989,15 +2998,14 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
- support-files/MacOSX/Makefile mysql-test/Makefile mysql-test/ndb/Makefile dnl
+ support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
- cmd-line-utils/readline/Makefile dnl
- , , [
-  test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
- ])
+ cmd-line-utils/readline/Makefile)
+ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+ AC_OUTPUT
 
 rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 echo

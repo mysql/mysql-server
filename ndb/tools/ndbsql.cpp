@@ -33,6 +33,12 @@
 #include <ctype.h>
 #include <wctype.h>
 
+#ifndef SQL_BLOB
+#define SQL_BLOB                30
+#endif
+#ifndef SQL_CLOB
+#define SQL_CLOB                40
+#endif
 
 /**************************************************************************
  * ------------------------------------------------------------------------
@@ -211,8 +217,10 @@ SQLINTEGER display_length(SQLSMALLINT coltype, SQLINTEGER collen,
   switch (coltype) {
   case SQL_VARCHAR:
   case SQL_CHAR:
-    //case SQL_BLOB:
-    //case SQL_CLOB:
+  case SQL_VARBINARY:
+  case SQL_BINARY:
+  case SQL_BLOB:
+  case SQL_CLOB:
   case SQL_BIT:
     //case SQL_REF:
     //case SQL_BIT_VARYING:

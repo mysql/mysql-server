@@ -39,6 +39,7 @@ struct Opt {
   NdbDictionary::Object::FragmentType m_fragtype;
   const char* m_index;
   unsigned m_loop;
+  bool m_nologging;
   unsigned m_rows;
   unsigned m_scanrd;
   unsigned m_scanex;
@@ -54,6 +55,7 @@ struct Opt {
     m_fragtype(NdbDictionary::Object::FragUndefined),
     m_index(0),
     m_loop(1),
+    m_nologging(false),
     m_rows(1000),
     m_scanrd(240),
     m_scanex(240),
@@ -82,6 +84,7 @@ printhelp()
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
     << "  -loop N       loop count full suite forever=0 [" << d.m_loop << "]" << endl
+    << "  -nologging    create tables in no-logging mode" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -scanrd N     scan read parallelism [" << d.m_scanrd << "]" << endl
     << "  -scanex N     scan exclusive parallelism [" << d.m_scanex << "]" << endl
@@ -476,7 +479,7 @@ tt1 = {
   "TT1", 5, tt1col, 4, tt1itab
 };
 
-// tt2 + tt2x1 tt2x2 tt2x3
+// tt2 + tt2x1 tt2x2 tt2x3 tt2x4
 
 static const Col
 tt2col[] = {
@@ -505,6 +508,14 @@ tt2x3col[] = {
   { 1, tt2col[4] }
 };
 
+static const ICol
+tt2x4col[] = {
+  { 0, tt2col[4] },
+  { 1, tt2col[3] },
+  { 2, tt2col[2] },
+  { 3, tt2col[1] }
+};
+
 static const ITab
 tt2x1 = {
   "TT2X1", 2, tt2x1col
@@ -521,15 +532,21 @@ tt2x3 = {
 };
 
 static const ITab
+tt2x4 = {
+  "TT2X4", 4, tt2x4col
+};
+
+static const ITab
 tt2itab[] = {
   tt2x1,
   tt2x2,
-  tt2x3
+  tt2x3,
+  tt2x4
 };
 
 static const Tab
 tt2 = {
-  "TT2", 5, tt2col, 3, tt2itab
+  "TT2", 5, tt2col, 4, tt2itab
 };
 
 // all tables
@@ -824,6 +841,9 @@ createtable(Par par)
   NdbDictionary::Table t(tab.m_name);
   if (par.m_fragtype != NdbDictionary::Object::FragUndefined) {
     t.setFragmentType(par.m_fragtype);
+  }
+  if (par.m_nologging) {
+    t.setLogging(false);
   }
   for (unsigned k = 0; k < tab.m_cols; k++) {
     const Col& col = tab.m_col[k];
@@ -2204,7 +2224,6 @@ pkupdateindexbuild(Par par)
 {
   if (par.m_no == 0) {
     CHK(createindex(par) == 0);
-    CHK(invalidateindex(par) == 0);
   } else {
     CHK(pkupdate(par) == 0);
   }
@@ -2495,6 +2514,7 @@ tbusybuild(Par par)
   RUNSTEP(par, pkinsert, MT);
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, pkupdateindexbuild, MT);
+    RUNSTEP(par, invalidateindex, MT);
     RUNSTEP(par, readverify, MT);
     RUNSTEP(par, dropindex, ST);
   }
@@ -2502,9 +2522,28 @@ tbusybuild(Par par)
 }
 
 static int
-ttiming(Par par)
+ttimebuild(Par par)
 {
-  Tmr t0, t1, t2;
+  Tmr t1;
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
+  for (unsigned i = 0; i < par.m_subloop; i++) {
+    RUNSTEP(par, pkinsert, MT);
+    t1.on();
+    RUNSTEP(par, createindex, ST);
+    t1.off(par.m_totrows);
+    RUNSTEP(par, invalidateindex, MT);
+    RUNSTEP(par, dropindex, ST);
+  }
+  LL1("build index - " << t1.time());
+  return 0;
+}
+
+static int
+ttimemaint(Par par)
+{
+  Tmr t1, t2;
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
@@ -2513,16 +2552,13 @@ ttiming(Par par)
     t1.on();
     RUNSTEP(par, pkupdate, MT);
     t1.off(par.m_totrows);
-    t0.on();
     RUNSTEP(par, createindex, ST);
     RUNSTEP(par, invalidateindex, MT);
-    t0.off(par.m_totrows);
     t2.on();
     RUNSTEP(par, pkupdate, MT);
     t2.off(par.m_totrows);
     RUNSTEP(par, dropindex, ST);
   }
-  LL1("build index - " << t0.time());
   LL1("update - " << t1.time());
   LL1("update indexed - " << t2.time());
   LL1("overhead - " << t2.over(t1));
@@ -2553,7 +2589,8 @@ tcaselist[] = {
   TCase("b", tpkops, "pk operations and scan reads"),
   TCase("c", tmixedops, "pk operations and scan operations"),
   TCase("d", tbusybuild, "pk operations and index build"),
-  TCase("t", ttiming, "time index build and maintenance"),
+  TCase("t", ttimebuild, "time index build"),
+  TCase("u", ttimemaint, "time index maintenance"),
   TCase("z", tdrop, "drop test tables")
 };
 
@@ -2690,6 +2727,10 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
         g_opt.m_loop = atoi(argv[0]);
         continue;
       }
+    }
+    if (strcmp(arg, "-nologging") == 0) {
+      g_opt.m_nologging = true;
+      continue;
     }
     if (strcmp(arg, "-rows") == 0) {
       if (++argv, --argc > 0) {

@@ -16,6 +16,7 @@ USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
+MYSQL_TCP_PORT=@MYSQL_TCP_PORT@; export MYSQL_TCP_PORT
 
 # For query_cache test
 case `uname` in
@@ -1438,7 +1439,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    ./ndb/ndbcluster --small --discless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     export NDB_CONNECTSTRING=`cat Ndb.cfg`
   else
     export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"

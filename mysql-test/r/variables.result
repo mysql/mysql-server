@@ -217,7 +217,7 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
 set unknown_variable=1;
 ERROR HY000: Unknown system variable 'unknown_variable'
 set max_join_size="hello";
-ERROR 42000: Wrong argument type to variable 'max_join_size'
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
 set storage_engine=UNKNOWN_TABLE_TYPE;
 ERROR 42000: Unknown table engine 'UNKNOWN_TABLE_TYPE'
 set storage_engine=INNODB, big_tables=2;
@@ -427,12 +427,12 @@ select @a, @b;
 @a	@b
 2	1
 set @@global.global.key_buffer_size= 1;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
 set GLOBAL global.key_buffer_size= 1;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
 SELECT @@global.global.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
 SELECT @@global.session.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1

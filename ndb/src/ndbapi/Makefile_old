@@ -51,8 +51,8 @@ SOURCES = \
         NdbRecAttr.cpp  \
         NdbUtil.cpp \
         NdbReceiver.cpp \
-        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp \
-	NdbSchemaCon.cpp NdbSchemaOp.cpp
+        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp
+	NdbBlob.cpp
 
 include $(NDB_TOP)/Epilogue.mk
 

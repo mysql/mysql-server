@@ -529,11 +529,15 @@ static uint thai2sortable(uchar *tstr, uint len)
 static
 int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
                         const uchar * s1, uint len1, 
-                        const uchar * s2, uint len2)
+                        const uchar * s2, uint len2,
+                        my_bool s2_is_prefix)
 {
   uchar	buf[80] ;
   uchar *tc1, *tc2;
   int i;
+
+  if (s2_is_prefix && len1 > len2)
+    len1= len2;
 
   tc1= buf;
   if ((len1 + len2 +2) > (int) sizeof(buf))
@@ -958,9 +962,10 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     to_lower_tis620,
     to_upper_tis620,
     sort_order_tis620,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */
@@ -984,9 +989,10 @@ CHARSET_INFO my_charset_tis620_bin=
     to_lower_tis620,
     to_upper_tis620,
     sort_order_tis620,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
