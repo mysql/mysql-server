@@ -7852,7 +7852,7 @@ static void my_hash_sort_any_uca(CHARSET_INFO *cs,
                                  const uchar *s, uint slen,
                                  ulong *n1, ulong *n2)
 {
-  return my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
+  my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
 }
 
 static int my_strnxfrm_any_uca(CHARSET_INFO *cs, 
@@ -7889,7 +7889,7 @@ static void my_hash_sort_ucs2_uca(CHARSET_INFO *cs,
                                   const uchar *s, uint slen,
                                   ulong *n1, ulong *n2)
 {
-  return my_hash_sort_uca(cs, &my_ucs2_uca_scanner_handler, s, slen, n1, n2); 
+  my_hash_sort_uca(cs, &my_ucs2_uca_scanner_handler, s, slen, n1, n2); 
 }
 
 static int my_strnxfrm_ucs2_uca(CHARSET_INFO *cs, 
