@@ -31,7 +31,6 @@
 
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
-HASH assign_cache;
 
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			     const char *name, const char *alias,
