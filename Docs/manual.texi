@@ -1312,8 +1312,8 @@ MySQL 4.0 is now available in alpha version for download from
 @uref{http://www.mysql.com/} and our mirrors.
 
 Main new features of MySQL 4.0 are geared towards our existing
-business and community users, enhancing MySQL (TM) as the
-solution for mission-critical, heavy load database systems.
+business and community users, enhancing MySQL as the solution
+for mission-critical, heavy load database systems.
 Other new features target the users of embedded databases.
 
 @menu
@@ -28837,65 +28837,120 @@ A few are reserved because MySQL needs them and is
 @c But remove the non alphanumeric entries by hand first.
 @c Updated after 3.23.4 990928 by David
 
+@c List reserved words updated for 4.0.x 011019 by Arjen.
+@c Note: alphabetically sorted, and UPPERCASE as per manual convention!
 @multitable @columnfractions .25 .25 .25 .25
-@item @code{action} @tab @code{add} @tab @code{aggregate} @tab @code{all}
-@item @code{alter} @tab @code{after} @tab @code{and} @tab @code{as}
-@item @code{asc} @tab @code{avg} @tab @code{avg_row_length} @tab @code{auto_increment}
-@item @code{between} @tab @code{bigint} @tab @code{bit} @tab @code{binary}
-@item @code{blob} @tab @code{bool} @tab @code{both} @tab @code{by}
-@item @code{cascade} @tab @code{case} @tab @code{char} @tab @code{character}
-@item @code{change} @tab @code{check} @tab @code{checksum} @tab @code{column}
-@item @code{columns} @tab @code{comment} @tab @code{constraint} @tab @code{create}
-@item @code{cross} @tab @code{current_date} @tab @code{current_time} @tab @code{current_timestamp}
-@item @code{data} @tab @code{database} @tab @code{databases} @tab @code{date}
-@item @code{datetime} @tab @code{day} @tab @code{day_hour} @tab @code{day_minute}
-@item @code{day_second} @tab @code{dayofmonth} @tab @code{dayofweek} @tab @code{dayofyear}
-@item @code{dec} @tab @code{decimal} @tab @code{default} @tab @code{delayed}
-@item @code{delay_key_write} @tab @code{delete} @tab @code{desc} @tab @code{describe}
-@item @code{distinct} @tab @code{distinctrow} @tab @code{double} @tab @code{drop}
-@item @code{end} @tab @code{else} @tab @code{escape} @tab @code{escaped}
-@item @code{enclosed} @tab @code{enum} @tab @code{explain} @tab @code{exists}
-@item @code{fields} @tab @code{file} @tab @code{first} @tab @code{float}
-@item @code{float4} @tab @code{float8} @tab @code{flush} @tab @code{foreign}
-@item @code{from} @tab @code{for} @tab @code{full} @tab @code{function}
-@item @code{global} @tab @code{grant} @tab @code{grants} @tab @code{group}
-@item @code{having} @tab @code{heap} @tab @code{high_priority} @tab @code{hour}
-@item @code{hour_minute} @tab @code{hour_second} @tab @code{hosts} @tab @code{identified}
-@item @code{ignore} @tab @code{in} @tab @code{index} @tab @code{infile}
-@item @code{inner} @tab @code{insert} @tab @code{insert_id} @tab @code{int}
-@item @code{integer} @tab @code{interval} @tab @code{int1} @tab @code{int2}
-@item @code{int3} @tab @code{int4} @tab @code{int8} @tab @code{into}
-@item @code{if} @tab @code{is} @tab @code{isam} @tab @code{join}
-@item @code{key} @tab @code{keys} @tab @code{kill} @tab @code{last_insert_id}
-@item @code{leading} @tab @code{left} @tab @code{length} @tab @code{like}
-@item @code{lines} @tab @code{limit} @tab @code{load} @tab @code{local}
-@item @code{lock} @tab @code{logs} @tab @code{long} @tab @code{longblob}
-@item @code{longtext} @tab @code{low_priority} @tab @code{max} @tab @code{max_rows}
-@item @code{match} @tab @code{mediumblob} @tab @code{mediumtext} @tab @code{mediumint}
-@item @code{middleint} @tab @code{min_rows} @tab @code{minute} @tab @code{minute_second}
-@item @code{modify} @tab @code{month} @tab @code{monthname} @tab @code{myisam}
-@item @code{natural} @tab @code{numeric} @tab @code{no} @tab @code{not}
-@item @code{null} @tab @code{on} @tab @code{optimize} @tab @code{option}
-@item @code{optionally} @tab @code{or} @tab @code{order} @tab @code{outer}
-@item @code{outfile} @tab @code{pack_keys} @tab @code{partial} @tab @code{password}
-@item @code{precision} @tab @code{primary} @tab @code{procedure} @tab @code{process}
-@item @code{processlist} @tab @code{privileges} @tab @code{read} @tab @code{real}
-@item @code{references} @tab @code{reload} @tab @code{regexp} @tab @code{rename}
-@item @code{replace} @tab @code{restrict} @tab @code{returns} @tab @code{revoke}
-@item @code{rlike} @tab @code{row} @tab @code{rows} @tab @code{second}
-@item @code{select} @tab @code{set} @tab @code{show} @tab @code{shutdown}
-@item @code{smallint} @tab @code{soname} @tab @code{sql_big_tables} @tab @code{sql_big_selects}
-@item @code{sql_low_priority_updates} @tab @code{sql_log_off} @tab @code{sql_log_update} @tab @code{sql_select_limit}
-@item @code{sql_small_result} @tab @code{sql_big_result} @tab @code{sql_warnings} @tab @code{straight_join}
-@item @code{starting} @tab @code{status} @tab @code{string} @tab @code{table}
-@item @code{tables} @tab @code{temporary} @tab @code{terminated} @tab @code{text}
-@item @code{then} @tab @code{time} @tab @code{timestamp} @tab @code{tinyblob}
-@item @code{tinytext} @tab @code{tinyint} @tab @code{trailing} @tab @code{to}
-@item @code{type} @tab @code{use} @tab @code{using} @tab @code{unique}
-@item @code{unlock} @tab @code{unsigned} @tab @code{update} @tab @code{usage}
-@item @code{values} @tab @code{varchar} @tab @code{variables} @tab @code{varying}
-@item @code{varbinary} @tab @code{with} @tab @code{write} @tab @code{when}
-@item @code{where} @tab @code{year} @tab @code{year_month} @tab @code{zerofill}
+@item @code{ABS} @tab @code{ACOS} @tab @code{ACTION} @tab @code{ADD}
+@item @code{ADDDATE} @tab @code{AFTER} @tab @code{AGAINST} @tab @code{AGGREGATE}
+@item @code{ALL} @tab @code{ALTER} @tab @code{ANALYZE} @tab @code{AND}
+@item @code{AS} @tab @code{ASC} @tab @code{ASCII} @tab @code{ASIN}
+@item @code{ATAN} @tab @code{ATAN2} @tab @code{AUTOCOMMIT} @tab @code{AUTO_INCREMENT}
+@item @code{AVG} @tab @code{AVG_ROW_LENGTH} @tab @code{BACKUP} @tab @code{BDB}
+@item @code{BEGIN} @tab @code{BENCHMARK} @tab @code{BERKELEYDB} @tab @code{BETWEEN}
+@item @code{BIGINT} @tab @code{BIN} @tab @code{BINARY} @tab @code{BINLOG}
+@item @code{BIT} @tab @code{BIT_AND} @tab @code{BIT_COUNT} @tab @code{BIT_OR}
+@item @code{BLOB} @tab @code{BOOL} @tab @code{BOOLEAN} @tab @code{BOTH}
+@item @code{BY} @tab @code{CASCADE} @tab @code{CASE} @tab @code{CEILING}
+@item @code{CHANGE} @tab @code{CHANGED} @tab @code{CHAR} @tab @code{CHARACTER}
+@item @code{CHARACTER_LENGTH} @tab @code{CHAR_LENGTH} @tab @code{CHECK} @tab @code{CHECKSUM}
+@item @code{CIPHER} @tab @code{CLOSE} @tab @code{COALESCE} @tab @code{COLUMN}
+@item @code{COLUMNS} @tab @code{COMMENT} @tab @code{COMMIT} @tab @code{COMMITTED}
+@item @code{COMPRESSED} @tab @code{CONCAT} @tab @code{CONCAT_WS} @tab @code{CONCURRENT}
+@item @code{CONNECTION_ID} @tab @code{CONSTRAINT} @tab @code{CONV} @tab @code{COS}
+@item @code{COT} @tab @code{COUNT} @tab @code{CREATE} @tab @code{CROSS}
+@item @code{CURDATE} @tab @code{CURRENT_DATE} @tab @code{CURRENT_TIME} @tab @code{CURRENT_TIMESTAMP}
+@item @code{CURTIME} @tab @code{DATA} @tab @code{DATABASE} @tab @code{DATABASES}
+@item @code{DATE} @tab @code{DATETIME} @tab @code{DATE_ADD} @tab @code{DATE_FORMAT}
+@item @code{DATE_SUB} @tab @code{DAY} @tab @code{DAYNAME} @tab @code{DAYOFMONTH}
+@item @code{DAYOFWEEK} @tab @code{DAYOFYEAR} @tab @code{DAY_HOUR} @tab @code{DAY_MINUTE}
+@item @code{DAY_SECOND} @tab @code{DEC} @tab @code{DECIMAL} @tab @code{DECODE}
+@item @code{DEFAULT} @tab @code{DEGREES} @tab @code{DELAYED} @tab @code{DELAY_KEY_WRITE}
+@item @code{DELETE} @tab @code{DESC} @tab @code{DESCRIBE} @tab @code{DIRECTORY}
+@item @code{DISABLE} @tab @code{DISTINCT} @tab @code{DISTINCTROW} @tab @code{DOUBLE}
+@item @code{DROP} @tab @code{DUMPFILE} @tab @code{DYNAMIC} @tab @code{ELSE}
+@item @code{ELT} @tab @code{ENABLE} @tab @code{ENCLOSED} @tab @code{ENCODE}
+@item @code{ENCRYPT} @tab @code{END} @tab @code{ENUM} @tab @code{ESCAPE}
+@item @code{ESCAPED} @tab @code{EVENTS} @tab @code{EXISTS} @tab @code{EXP}
+@item @code{EXPLAIN} @tab @code{EXPORT_SET} @tab @code{EXTENDED} @tab @code{EXTRACT}
+@item @code{FAST} @tab @code{FIELD} @tab @code{FIELDS} @tab @code{FILE}
+@item @code{FIND_IN_SET} @tab @code{FIRST} @tab @code{FIXED} @tab @code{FLOAT}
+@item @code{FLOAT4} @tab @code{FLOAT8} @tab @code{FLOOR} @tab @code{FLUSH}
+@item @code{FOR} @tab @code{FOREIGN} @tab @code{FORMAT} @tab @code{FOUND_ROWS}
+@item @code{FROM} @tab @code{FROM_DAYS} @tab @code{FROM_UNIXTIME} @tab @code{FULL}
+@item @code{FULLTEXT} @tab @code{FUNCTION} @tab @code{GET_LOCK} @tab @code{GLOBAL}
+@item @code{GRANT} @tab @code{GRANTS} @tab @code{GREATEST} @tab @code{GROUP}
+@item @code{GROUP_UNIQUE_USERS} @tab @code{HANDLER} @tab @code{HAVING} @tab @code{HEAP}
+@item @code{HEX} @tab @code{HIGH_PRIORITY} @tab @code{HOSTS} @tab @code{HOUR}
+@item @code{HOUR_MINUTE} @tab @code{HOUR_SECOND} @tab @code{IDENTIFIED} @tab @code{IF}
+@item @code{IFNULL} @tab @code{IGNORE} @tab @code{IN} @tab @code{INDEX}
+@item @code{INDEXES} @tab @code{INET_ATON} @tab @code{INET_NTOA} @tab @code{INFILE}
+@item @code{INNER} @tab @code{INNOBASE} @tab @code{INNODB} @tab @code{INSERT}
+@item @code{INSERT_ID} @tab @code{INSERT_METHOD} @tab @code{INSTR} @tab @code{INT}
+@item @code{INT1} @tab @code{INT2} @tab @code{INT3} @tab @code{INT4}
+@item @code{INT8} @tab @code{INTEGER} @tab @code{INTERVAL} @tab @code{INTO}
+@item @code{IS} @tab @code{ISAM} @tab @code{ISNULL} @tab @code{ISOLATION}
+@item @code{ISSUER} @tab @code{JOIN} @tab @code{KEY} @tab @code{KEYS}
+@item @code{KILL} @tab @code{LAST} @tab @code{LAST_INSERT_ID} @tab @code{LCASE}
+@item @code{LEADING} @tab @code{LEAST} @tab @code{LEFT} @tab @code{LENGTH}
+@item @code{LEVEL} @tab @code{LIKE} @tab @code{LIMIT} @tab @code{LINES}
+@item @code{LOAD} @tab @code{LOAD_FILE} @tab @code{LOCAL} @tab @code{LOCATE}
+@item @code{LOCK} @tab @code{LOCKS} @tab @code{LOG} @tab @code{LOG10}
+@item @code{LOGS} @tab @code{LONG} @tab @code{LONGBLOB} @tab @code{LONGTEXT}
+@item @code{LOWER} @tab @code{LOW_PRIORITY} @tab @code{LPAD} @tab @code{LTRIM}
+@item @code{MAKE_SET} @tab @code{MASTER} @tab @code{MASTER_CONNECT_RETRY} @tab @code{MASTER_HOST}
+@item @code{MASTER_LOG_FILE} @tab @code{MASTER_LOG_POS} @tab @code{MASTER_LOG_SEQ} @tab @code{MASTER_PASSWORD}
+@item @code{MASTER_PORT} @tab @code{MASTER_POS_WAIT} @tab @code{MASTER_SERVER_ID} @tab @code{MASTER_USER}
+@item @code{MATCH} @tab @code{MAX} @tab @code{MAX_ROWS} @tab @code{MD5}
+@item @code{MEDIUM} @tab @code{MEDIUMBLOB} @tab @code{MEDIUMINT} @tab @code{MEDIUMTEXT}
+@item @code{MERGE} @tab @code{MID} @tab @code{MIDDLEINT} @tab @code{MIN}
+@item @code{MINUTE} @tab @code{MINUTE_SECOND} @tab @code{MIN_ROWS} @tab @code{MOD}
+@item @code{MODE} @tab @code{MODIFY} @tab @code{MONTH} @tab @code{MONTHNAME}
+@item @code{MRG_MYISAM} @tab @code{MYISAM} @tab @code{NATIONAL} @tab @code{NATURAL}
+@item @code{NCHAR} @tab @code{NEW} @tab @code{NEXT} @tab @code{NO}
+@item @code{NOT} @tab @code{NOW} @tab @code{NULL} @tab @code{NULLIF}
+@item @code{NUMERIC} @tab @code{OCT} @tab @code{OCTET_LENGTH} @tab @code{ON}
+@item @code{OPEN} @tab @code{OPTIMIZE} @tab @code{OPTION} @tab @code{OPTIONALLY}
+@item @code{OR} @tab @code{ORD} @tab @code{ORDER} @tab @code{OUTER}
+@item @code{OUTFILE} @tab @code{PACK_KEYS} @tab @code{PARTIAL} @tab @code{PASSWORD}
+@item @code{PERIOD_ADD} @tab @code{PERIOD_DIFF} @tab @code{PI} @tab @code{POSITION}
+@item @code{POW} @tab @code{POWER} @tab @code{PRECISION} @tab @code{PREV}
+@item @code{PRIMARY} @tab @code{PRIVILEGES} @tab @code{PROCEDURE} @tab @code{PROCESS}
+@item @code{PROCESSLIST} @tab @code{PURGE} @tab @code{QUARTER} @tab @code{QUICK}
+@item @code{RADIANS} @tab @code{RAID0} @tab @code{RAID_CHUNKS} @tab @code{RAID_CHUNKSIZE}
+@item @code{RAID_TYPE} @tab @code{RAND} @tab @code{READ} @tab @code{REAL}
+@item @code{REFERENCES} @tab @code{REGEXP} @tab @code{RELEASE_LOCK} @tab @code{RELOAD}
+@item @code{RENAME} @tab @code{REPAIR} @tab @code{REPEAT} @tab @code{REPEATABLE}
+@item @code{REPLACE} @tab @code{REQUIRE} @tab @code{RESET} @tab @code{RESTORE}
+@item @code{RESTRICT} @tab @code{RETURNS} @tab @code{REVERSE} @tab @code{REVOKE}
+@item @code{RIGHT} @tab @code{RLIKE} @tab @code{ROLLBACK} @tab @code{ROUND}
+@item @code{ROW} @tab @code{ROWS} @tab @code{ROW_FORMAT} @tab @code{RPAD}
+@item @code{RTRIM} @tab @code{SECOND} @tab @code{SEC_TO_TIME} @tab @code{SELECT}
+@item @code{SERIALIZABLE} @tab @code{SESSION} @tab @code{SESSION_USER} @tab @code{SET}
+@item @code{SHARE} @tab @code{SHOW} @tab @code{SHUTDOWN} @tab @code{SIGN}
+@item @code{SIN} @tab @code{SLAVE} @tab @code{SMALLINT} @tab @code{SONAME}
+@item @code{SOUNDEX} @tab @code{SPACE} @tab @code{SQL_AUTO_IS_NULL} @tab @code{SQL_BIG_RESULT}
+@item @code{SQL_BIG_SELECTS} @tab @code{SQL_BIG_TABLES} @tab @code{SQL_BUFFER_RESULT} @tab @code{SQL_CALC_FOUND_ROWS}
+@item @code{SQL_LOG_BIN} @tab @code{SQL_LOG_OFF} @tab @code{SQL_LOG_UPDATE} @tab @code{SQL_LOW_PRIORITY_UPDATES}
+@item @code{SQL_MAX_JOIN_SIZE} @tab @code{SQL_QUOTE_SHOW_CREATE} @tab @code{SQL_SAFE_UPDATES} @tab @code{SQL_SELECT_LIMIT}
+@item @code{SQL_SLAVE_SKIP_COUNTER} @tab @code{SQL_SMALL_RESULT} @tab @code{SQL_WARNINGS} @tab @code{SQRT}
+@item @code{SSL} @tab @code{START} @tab @code{STARTING} @tab @code{STATUS}
+@item @code{STD} @tab @code{STDDEV} @tab @code{STOP} @tab @code{STRAIGHT_JOIN}
+@item @code{STRCMP} @tab @code{STRING} @tab @code{STRIPED} @tab @code{SUBDATE}
+@item @code{SUBJECT} @tab @code{SUBSTRING} @tab @code{SUBSTRING_INDEX} @tab @code{SUM}
+@item @code{SYSDATE} @tab @code{SYSTEM_USER} @tab @code{TABLE} @tab @code{TABLES}
+@item @code{TAN} @tab @code{TEMPORARY} @tab @code{TERMINATED} @tab @code{TEXT}
+@item @code{THEN} @tab @code{TIME} @tab @code{TIMESTAMP} @tab @code{TIME_FORMAT}
+@item @code{TIME_TO_SEC} @tab @code{TINYBLOB} @tab @code{TINYINT} @tab @code{TINYTEXT}
+@item @code{TO} @tab @code{TO_DAYS} @tab @code{TRAILING} @tab @code{TRANSACTION}
+@item @code{TRIM} @tab @code{TRUNCATE} @tab @code{TYPE} @tab @code{UCASE}
+@item @code{UNCOMMITTED} @tab @code{UNION} @tab @code{UNIQUE} @tab @code{UNIQUE_USERS}
+@item @code{UNIX_TIMESTAMP} @tab @code{UNLOCK} @tab @code{UNSIGNED} @tab @code{UPDATE}
+@item @code{UPPER} @tab @code{USAGE} @tab @code{USE} @tab @code{USER}
+@item @code{USING} @tab @code{VALUES} @tab @code{VARBINARY} @tab @code{VARCHAR}
+@item @code{VARIABLES} @tab @code{VARYING} @tab @code{VERSION} @tab @code{WEEK}
+@item @code{WEEKDAY} @tab @code{WHEN} @tab @code{WHERE} @tab @code{WITH}
+@item @code{WORK} @tab @code{WRITE} @tab @code{X509} @tab @code{YEAR}
+@item @code{YEARWEEK} @tab @code{YEAR_MONTH} @tab @code{ZEROFILL}
 @end multitable
 
 The following symbols (from the table above) are disallowed by ANSI SQL
@@ -48102,8 +48157,8 @@ helped to make MySQL what it is today.
 @node Developers, Contributors, Credits, Credits
 @appendixsec Developers at MySQL AB
 
-These are the developers that are or have been employed by MySQL AB
-to work on MySQL, roughly in the order they started to work with us.
+These are the developers that are or have been employed by @code{MySQL AB}
+to work on @code{MySQL}, roughly in the order they started to work with us.
 Following each developer is a small list of the tasks that the developer is
 responsible for, or the accomplishments they have made.
 
@@ -48262,19 +48317,13 @@ Proofreading and editing this fine manual.
 @code{DELETE ... ORDER BY ...}.
 @end itemize
 
-@item John Dean
-@itemize @bullet
-@item
-The new MySQL GUI client.
-@end itemize
-
 @item Indrek Siitan
 @itemize @bullet
 @item
 Designer/programmer of our web interface.
 @end itemize
 
-@item Jorge del Condo
+@item Jorge del Conde
 @itemize @bullet
 @item
 @code{MyCC} @code{MySQL Control Center}.
