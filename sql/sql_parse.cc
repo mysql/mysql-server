@@ -60,7 +60,7 @@ const char *command_name[]={
 bool volatile abort_slave = 0;
 
 #ifdef HAVE_OPENSSL
-extern VioSSLAcceptorFd* ssl_acceptor_fd;
+extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 #ifdef __WIN__
@@ -424,9 +424,7 @@ check_connections(THD *thd)
     DBUG_PRINT("info", ("Agreed to change IO layer to SSL") );
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    VioSocket*	vio_socket = my_reinterpret_cast(VioSocket*)(net->vio);
-    VioSSL*	vio_ssl =    ssl_acceptor_fd->accept(vio_socket);
-    net->vio =               my_reinterpret_cast(NetVio*) (vio_ssl);
+    net->vio = sslaccept(ssl_acceptor_fd, net->vio);
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)

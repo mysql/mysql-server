@@ -31,6 +31,7 @@
 #include <winsock.h>
 #endif
 #include <global.h>
+#include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>
 #include <m_string.h>
@@ -39,7 +40,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <violite.h>
 #include <assert.h>
 
 extern "C" {
