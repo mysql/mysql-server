@@ -3201,6 +3201,45 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   thd->derived_tables= table;
   table_list->select_lex->options |= OPTION_SCHEMA_TABLE;
   lex->safe_to_cache_query= 0;
+
+  if (table_list->schema_table_reformed) // show command
+  {
+    SELECT_LEX *sel= lex->current_select;
+    uint i= 0;
+    Item *item;
+    Field_translator *transl;
+
+    if (table_list->field_translation)
+    {
+      Field_translator *end= table_list->field_translation +
+        sel->item_list.elements;
+      for (transl= table_list->field_translation; transl < end; transl++)
+      {
+        if (!transl->item->fixed &&
+            transl->item->fix_fields(thd, table_list, &transl->item))
+          DBUG_RETURN(1);
+      }
+      DBUG_RETURN(0);
+    }
+    List_iterator_fast<Item> it(sel->item_list);
+    if (!(transl=
+          (Field_translator*)(thd->current_arena->
+                              alloc(sel->item_list.elements *
+                                    sizeof(Field_translator)))))
+    {
+      DBUG_RETURN(1);
+    }
+    while ((item= it++))
+    {
+      char *name= item->name;
+      transl[i].item= item;
+      if (!item->fixed && item->fix_fields(thd, table_list, &transl[i].item))
+        DBUG_RETURN(1);
+      transl[i++].name= name;
+    }
+    table_list->field_translation= transl;
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -3233,8 +3272,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                   information_schema_name.length, 0);
   make_lex_string(thd, &table, schema_table->table_name,
                   strlen(schema_table->table_name), 0);
-  if (!sel->item_list.elements &&          /* Handle old syntax */
-      schema_table->old_format(thd, schema_table) ||
+  if (schema_table->old_format(thd, schema_table) ||      /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
                               0, 0, TL_READ, (List<String> *) 0,
                               (List<String> *) 0))
