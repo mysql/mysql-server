@@ -10,6 +10,22 @@ insert into t1 values(2);
 create table t1(n int);
 drop table t1;
 select * from t1;
+
+#now test for a bug in drop database - it is important that the name
+#of the table is the same as the name of the database - in the original
+#code this triggered a bug
+drop database if exists foo;
+create database foo;
+drop database if exists foo;
+create database foo;
+create table foo.foo (n int);
+insert into foo.foo values (4);
+select * from foo.foo;
+drop database if exists foo;
+create database foo;
+drop database foo;
+
+# test drop/create database and FLUSH TABLES WITH READ LOCK
 drop database if exists foo;
 flush tables with read lock;
 --error 1209
@@ -23,3 +39,5 @@ drop database foo;
 unlock tables;
 drop database foo;
 show databases;
+
+
