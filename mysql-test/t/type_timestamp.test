@@ -236,9 +236,10 @@ drop table t1;
 
 #
 # Test for TIMESTAMP columns which are able to store NULLs
-# (Auto-set property should work for them and NULL values
-#  should be OK as default values)
 #
+
+# Unlike for default TIMESTAMP fields we don't interpret first field
+# in this table as TIMESTAMP with DEFAULT NOW() ON UPDATE NOW() properties.
 create table t1 (a timestamp null, b timestamp null);
 show create table t1;
 insert into t1 values (NULL, NULL);
@@ -247,6 +248,16 @@ insert into t1 values ();
 select * from t1;
 drop table t1;
 
+# But explicit auto-set properties still should be OK.
+create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
+show create table t1;
+insert into t1 values (NULL, NULL);
+SET TIMESTAMP=1000000018;
+insert into t1 values ();
+select * from t1;
+drop table t1;
+
+# It is also OK to specify NULL as default explicitly for such fields.
 create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
 show create table t1;
 insert into t1 values (NULL, NULL);
