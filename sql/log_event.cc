@@ -2092,11 +2092,12 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
     */
     break;
  case BINLOG_FORMAT_323_GEQ_57 : 
-    /* Can distinguish, based on the value of 'created' */
-    if (!created) 
-      break;
-    /* otherwise this was generated at master startup*/  
-    close_temporary_tables(thd);
+    /*
+      Can distinguish, based on the value of 'created',
+      which was generated at master startup.
+    */
+    if (created)
+      close_temporary_tables(thd);
     break;
   default :
     /* this case is impossible */
