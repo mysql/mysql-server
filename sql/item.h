@@ -603,6 +603,7 @@ public:
     item(it) 
   {}
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+  Item **storage() {return &item;}
 };
 
 /*

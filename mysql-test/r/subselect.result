@@ -810,7 +810,7 @@ a	t1.a in (select t2.a from t2)
 explain SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	Using index
-2	DEPENDENT SUBQUERY	t2	index	NULL	a	5	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	a	a	5	NULL	3	Using where; Using index
 drop table t1,t2;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
@@ -1062,7 +1062,7 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
@@ -1070,7 +1070,7 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 drop table t1;
 CREATE TABLE `t1` (
 `i` int(11) NOT NULL default '0',
@@ -1099,3 +1099,9 @@ id	name
 2	lenka
 1	lenka
 drop table t1,t2;
+create table t1 (a int, unique index indexa (a));
+insert into t1 values (-1), (-4), (-2), (NULL);
+select -10 IN (select a from t1 FORCE INDEX (indexa));
+-10 IN (select a from t1 FORCE INDEX (indexa))
+NULL
+drop table t1;

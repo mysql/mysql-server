@@ -183,6 +183,7 @@ public:
 
   friend class Item_asterisk_remover;
   friend class Item_ref_null_helper;
+  friend class Item_is_not_null_test;
 };
 
 /* ALL/ANY/SOME subselect */

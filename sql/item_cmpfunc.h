@@ -648,6 +648,7 @@ class Item_func_in :public Item_int_func
 
 class Item_func_isnull :public Item_bool_func
 {
+protected:
   longlong cached_value;
 public:
   Item_func_isnull(Item *a) :Item_bool_func(a) {}
@@ -656,11 +657,11 @@ public:
   void fix_length_and_dec()
   {
     decimals=0; max_length=1; maybe_null=0;
-    Item_func_isnull::update_used_tables();
+    update_used_tables();
   }
   const char *func_name() const { return "isnull"; }
   /* Optimize case of not_null_column IS NULL */
-  void update_used_tables()
+  virtual void update_used_tables()
   {
     if (!args[0]->maybe_null)
     {
@@ -679,6 +680,22 @@ public:
   }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
 };
+
+/* Functions used by HAVING for rewriting IN subquery */
+
+class Item_in_subselect;
+class Item_is_not_null_test :public Item_func_isnull
+{
+  Item_in_subselect* owner;
+public:
+  Item_is_not_null_test(Item_in_subselect* ow, Item *a)
+    :Item_func_isnull(a), owner(ow)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "is_not_null_test"; }
+  void update_used_tables();
+};
+
 
 class Item_func_isnotnull :public Item_bool_func
 {
