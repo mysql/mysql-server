@@ -750,3 +750,32 @@ SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 id
 4
 DROP TABLE t1;
+SET NAMES latin1;
+CREATE TABLE t1 (
+id int unsigned NOT NULL auto_increment,
+list_id smallint unsigned NOT NULL,
+term text NOT NULL,
+PRIMARY KEY(id),
+INDEX(list_id, term(19))
+) TYPE=MyISAM CHARSET=utf8;
+Warnings:
+Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
+INSERT INTO t1 set list_id = 1, term = "testétest";
+INSERT INTO t1 set list_id = 1, term = "testetest";
+INSERT INTO t1 set list_id = 1, term = "testètest";
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testétest");
+id	term
+1	testétest
+2	testetest
+3	testètest
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testetest");
+id	term
+1	testétest
+2	testetest
+3	testètest
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testètest");
+id	term
+1	testétest
+2	testetest
+3	testètest
+DROP TABLE t1;
