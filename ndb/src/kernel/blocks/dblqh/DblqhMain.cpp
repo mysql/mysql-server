@@ -7703,6 +7703,9 @@ void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
   jam();
   scanptr.i = scan_ptr_i;
   c_scanRecordPool.getPtr(scanptr);
+
+  fragptr.i = tcConnectptr.p->fragmentptr;
+  ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
   finishScanrec(signal);
   releaseScanrec(signal);
   tcConnectptr.p->transactionState = TcConnectionrec::IDLE;
@@ -8574,7 +8577,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   tFragPtr.i = fragptr.p->tableFragptr;
   ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
   scanptr.p->fragPtrI = fragptr.p->tableFragptr;
-
+  
   /**
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
@@ -8583,10 +8586,10 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   Uint32 stop = (idx ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
   stop += start;
   Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
-
+    
   if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
     jam();
-
+    
     if(scanPrio == 0){
       jam();
       return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
@@ -8597,16 +8600,15 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
      */
     scanptr.p->scanState = ScanRecord::IN_QUEUE;
     LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-				      tFragPtr.p->m_queuedScans);
+				      fragptr.p->m_queuedScans);
     queue.add(scanptr);
     return ZOK;
   }
   
-
   scanptr.p->scanNumber = free;
   tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
-
-  LocalDLList<ScanRecord> active(c_scanRecordPool, tFragPtr.p->m_activeScans);
+  
+  LocalDLList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
   active.add(scanptr);
   if(scanptr.p->scanKeyinfoFlag){
     jam();
@@ -8666,12 +8668,8 @@ void Dblqh::finishScanrec(Signal* signal)
 {
   release_acc_ptr_list(scanptr.p);
 
-  FragrecordPtr tFragPtr;
-  tFragPtr.i = scanptr.p->fragPtrI;
-  ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
-
   LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-				    tFragPtr.p->m_queuedScans);
+				    fragptr.p->m_queuedScans);
   
   if(scanptr.p->scanState == ScanRecord::IN_QUEUE){
     jam();
@@ -8689,9 +8687,13 @@ void Dblqh::finishScanrec(Signal* signal)
     ndbrequire(tmp.p == scanptr.p);
   }
   
-  LocalDLList<ScanRecord> scans(c_scanRecordPool, tFragPtr.p->m_activeScans);
+  LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
   scans.release(scanptr);
   
+  FragrecordPtr tFragPtr;
+  tFragPtr.i = scanptr.p->fragPtrI;
+  ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
+
   const Uint32 scanNumber = scanptr.p->scanNumber;
   ndbrequire(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
   ScanRecordPtr restart;
@@ -8718,7 +8720,7 @@ void Dblqh::finishScanrec(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   restart.p->scanNumber = scanNumber;
   restart.p->scanState = ScanRecord::WAIT_ACC_SCAN;
-  
+
   queue.remove(restart);
   scans.add(restart);
   if(restart.p->scanKeyinfoFlag){
