@@ -297,7 +297,8 @@ enum enum_parsing_place
 {
   NO_MATTER,
   IN_HAVING,
-  SELECT_LIST
+  SELECT_LIST,
+  IN_WHERE
 };
 
 struct st_table;
@@ -376,6 +377,7 @@ int delete_precheck(THD *thd, TABLE_LIST *tables);
 int insert_precheck(THD *thd, TABLE_LIST *tables, bool update);
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
+Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
 #include "opt_range.h"
 
