@@ -135,7 +135,7 @@ FOUND_ROWS()
 1
 execute stmt1;
 FOUND_ROWS()
-0
+1
 deallocate prepare stmt1;
 drop table t1;
 create table t1 
