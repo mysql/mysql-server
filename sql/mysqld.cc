@@ -433,7 +433,7 @@ pthread_attr_t connection_attrib;
 #include <process.h>
 #if !defined(EMBEDDED_LIBRARY)
 HANDLE hEventShutdown;
-static char *event_name;
+static char shutdown_event_name[40];
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
 #endif
@@ -998,6 +998,7 @@ static void set_root(const char *path)
     sql_perror("chroot");
     unireg_abort(1);
   }
+  my_setwd("/", MYF(0));
 #endif
 }
 
@@ -2316,6 +2317,14 @@ bool default_service_handling(char **argv,
 
 int main(int argc, char **argv)
 {
+
+  /* When several instances are running on the same machine, we
+     need to have an  unique  named  hEventShudown  through the
+     application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
+  */ 
+  int2str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
+          "MySQLShutdown"), 10);
+  
   if (Service.GetOS())	/* true NT family */
   {
     char file_path[FN_REFLEN];
@@ -2330,10 +2339,9 @@ int main(int argc, char **argv)
       if (Service.IsService(argv[1]))
       {
         /* start an optional service */
-        event_name=		argv[1];
-	load_default_groups[0]= argv[1];
+        load_default_groups[0]= argv[1];
         start_mode= 1;
-        Service.Init(event_name, mysql_service);
+        Service.Init(argv[1], mysql_service);
         return 0;
       }
     }
@@ -2352,9 +2360,8 @@ int main(int argc, char **argv)
 	use_opt_args=1;
 	opt_argc=argc;
 	opt_argv=argv;
-	event_name= argv[2];
 	start_mode= 1;
-	Service.Init(event_name, mysql_service);
+	Service.Init(argv[2], mysql_service);
 	return 0;
       }
     }
@@ -2374,7 +2381,6 @@ int main(int argc, char **argv)
     {
       /* start the default service */
       start_mode= 1;
-      event_name= "MySqlShutdown";
       Service.Init(MYSQL_SERVICENAME, mysql_service);
       return 0;
     }
