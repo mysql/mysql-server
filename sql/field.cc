@@ -3831,7 +3831,9 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
   if (binary_flag)
     return memcmp(a_ptr,b_ptr,field_length);
   else
-    return my_sortcmp(field_charset,a_ptr,b_ptr,field_length);
+    return my_strnncoll(field_charset,
+			(const uchar*)a_ptr,field_length,
+			(const uchar*)b_ptr,field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)
@@ -3907,7 +3909,9 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(field_charset, a,a_length, b,b_length);
+  return my_strnncoll(field_charset,
+		      (const uchar*)a,a_length,
+		      (const uchar*)b,b_length);
 }
 
 
@@ -3924,7 +3928,9 @@ int Field_string::pack_cmp(const char *b, uint length)
     int cmp= memcmp(ptr,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(field_charset, ptr,a_length, b, b_length);
+  return my_strnncoll(field_charset,
+		     (const uchar*)ptr,a_length,
+		     (const uchar*)b, b_length);
 }
 
 
@@ -4033,7 +4039,9 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
   if (binary_flag)
     diff=memcmp(a_ptr+2,b_ptr+2,min(a_length,b_length));
   else
-    diff=my_sortcmp(field_charset, a_ptr+2,b_ptr+2,min(a_length,b_length));
+    diff=my_strnncoll(field_charset,
+		      (const uchar*)a_ptr+2,min(a_length,b_length),
+		      (const uchar*)b_ptr+2,min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -4134,7 +4142,9 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(field_charset, a,a_length, b,b_length);
+  return my_strnncoll(field_charset,
+		     (const uchar *)a,a_length,
+		     (const uchar *)b,b_length);
 }
 
 int Field_varstring::pack_cmp(const char *b, uint key_length)
@@ -4155,7 +4165,9 @@ int Field_varstring::pack_cmp(const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(field_charset, a,a_length, b,b_length);
+  return my_strnncoll(field_charset,
+		     (const uchar *)a,a_length,
+		     (const uchar *)b,b_length);
 }
 
 uint Field_varstring::packed_col_length(const char *ptr, uint length)
@@ -4382,7 +4394,9 @@ int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
   if (binary_flag)
     diff=memcmp(a,b,min(a_length,b_length));
   else
-    diff=my_sortcmp(field_charset, a,b,min(a_length,b_length));
+    diff=my_strnncoll(field_charset,
+		      (const uchar*)a,min(a_length,b_length),
+		      (const uchar*)b,min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -4631,7 +4645,9 @@ int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(field_charset, a,a_length, b,b_length);
+  return my_strnncoll(field_charset,
+		     (const uchar *)a,a_length,
+		     (const uchar *)b,b_length);
 }
 
 
@@ -4657,7 +4673,9 @@ int Field_blob::pack_cmp(const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(field_charset, a,a_length, b,b_length);
+  return my_strnncoll(field_charset,
+		     (const uchar *)a,a_length,
+		     (const uchar *)b,b_length);
 }
 
 /* Create a packed key that will be used for storage from a MySQL row */
