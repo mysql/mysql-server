@@ -916,7 +916,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   thd->proc_info="creating table";
 
+  if (thd->sql_mode & MODE_NO_DIR_IN_CREATE)
+    create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
+
   if (rea_create_table(thd, path, create_info, fields, key_count,
 		       key_info_buffer))
   {

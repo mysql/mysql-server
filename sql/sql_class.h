@@ -129,7 +129,7 @@ public:
   }
   void set_max_size(ulong max_size_arg);
   void signal_update() { pthread_cond_broadcast(&update_cond);}
-  void wait_for_update(THD* thd);
+  void wait_for_update(THD* thd, bool master_or_slave);
   void set_need_start_event() { need_start_event = 1; }
   void init(enum_log_type log_type_arg,
 	    enum cache_type io_cache_type_arg,
@@ -146,7 +146,7 @@ public:
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache, bool commit_or_rollback);
 
   /*
     v stands for vector
@@ -561,7 +561,6 @@ public:
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
-  uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool       last_cuted_field;
@@ -581,7 +580,6 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
-  my_off_t   log_pos;
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -965,7 +963,6 @@ typedef struct st_sort_buffer {
   char **buff;
   SORT_FIELD *sortorder;
 } SORT_BUFFER;
-
 
 /* Structure for db & table in sql_yacc */
 

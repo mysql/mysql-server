@@ -505,6 +505,7 @@ public:
   Item_empty_string(const char *header,uint length) :Item_string("",0,
   							&my_charset_bin)
     { name=(char*) header; max_length=length;}
+  void make_field(Send_field *field);
 };
 
 class Item_return_int :public Item_int
