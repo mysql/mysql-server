@@ -29,8 +29,8 @@ print STDERR "Adding PARA inside ENTRY...\n";
 $data =~ s{<entry>(.+?)</entry>}
           {<entry><para>$1</para></entry>}gs;
 
-@apx = ("Users", "MySQL-customer-usage", "Credits", "News",
-        "Porting", "GPL-license", "LGPL-license", "Placeholder");
+@apx = ("Users", "MySQL-customer-usage", "News",
+        "GPL-license", "LGPL-license");
 
 foreach $apx (@apx) {
   print STDERR "Removing appendix $apx...\n";

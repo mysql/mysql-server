@@ -48608,6 +48608,12 @@ Added boolean fulltext search code. It should be considered early alpha.
 
 @itemize @bullet
 @item
+Added boolean fulltext search code.
+It should be considered early alpha.
+@item
+Added variables @code{ft_min_word_len}, @code{ft_max_word_len}, and
+@code{ft_max_word_len_for_sort}.
+@item
 Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
 @code{mysqltest} test program) which use @code{libmysqld}.
@@ -49100,9 +49106,6 @@ Fixed a bug when using @code{MATCH} in @code{HAVING} clause.
 Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
 Added @code{--mysql-version} to @code{safe_mysqld}
-@item
-Added variables @code{ft_min_word_len}, @code{ft_max_word_len}, and
-@code{ft_max_word_len_for_sort}.
 @item
 Changed @code{INNOBASE} to @code{InnoDB} (because the @code{INNOBASE}
 name was already used). All @code{configure} options and @code{mysqld}
