@@ -251,6 +251,9 @@ public:
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
+  // assumes .frm file must exist, and you must have already called
+  // generate_table() - it will just copy the data file and run repair
+  
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
   virtual void deactivate_non_unique_index(ha_rows rows) {}
   virtual bool activate_all_index(THD *thd) {return 0;}
