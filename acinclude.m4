@@ -1210,10 +1210,12 @@ AC_DEFUN(AC_SYS_LARGEFILE_FLAGS,
 changequote(, )dnl
 	   hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
 changequote([, ])dnl
-	     if test "$GCC" = yes; then
-	       ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__
-	     fi
-	     ;;
+	      if test "$GCC" = yes; then
+	        if $CC -v 2>&1 | grep 'version 2.95' > /dev/null 2>&1; then
+		  ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__
+		fi
+	      fi
+	      ;;
 	   # IRIX 6.2 and later require cc -n32.
 changequote(, )dnl
 	   irix6.[2-9]* | irix6.1[0-9]* | irix[7-9].* | irix[1-9][0-9]*)

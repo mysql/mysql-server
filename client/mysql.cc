@@ -1269,12 +1269,10 @@ You can turn off this feature to get a quicker startup with -A\n\n");
 	/* for gnu readline */
 
 #ifndef HAVE_INDEX
-#ifdef	__cplusplus
 extern "C" {
-#endif
-extern char *index(const char *,pchar c),*rindex(const char *,pchar);
+extern char *index(const char *,int c),*rindex(const char *,int);
 
-char *index(const char *s,pchar c)
+char *index(const char *s,int c)
 {
   for (;;)
   {
@@ -1283,7 +1281,7 @@ char *index(const char *s,pchar c)
   }
 }
 
-char *rindex(const char *s,pchar c)
+char *rindex(const char *s,int c)
 {
   reg3 char *t;
 
@@ -1291,9 +1289,7 @@ char *rindex(const char *s,pchar c)
   do if (*s == (char) c) t = (char*) s; while (*s++);
   return (char*) t;
 }
-#ifdef	__cplusplus
 }
-#endif
 #endif
 #endif /* HAVE_READLINE */
 
