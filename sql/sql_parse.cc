@@ -2628,7 +2628,8 @@ mysql_execute_command(THD *thd)
 				       lex->create_list,
 				       lex->key_list,
 				       select_lex->item_list,
-				       lex->duplicates)))
+				       lex->duplicates,
+				       lex->ignore)))
         {
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
@@ -2768,7 +2769,7 @@ create_error:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, &lex->alter_info);
+			       lex->duplicates, lex->ignore, &lex->alter_info);
       }
       break;
     }
@@ -2933,7 +2934,7 @@ create_error:
                                select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
                                select_lex->select_limit,
-                               lex->duplicates));
+                               lex->duplicates, lex->ignore));
     /* mysql_update return 2 if we need to switch to multi-update */
     if (result != 2)
       break;
@@ -2954,7 +2955,7 @@ create_error:
                               &lex->value_list,
                               select_lex->where,
                               select_lex->options,
-                              lex->duplicates, unit, select_lex);
+                              lex->duplicates, lex->ignore, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
@@ -2965,8 +2966,7 @@ create_error:
       break;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
-                      (lex->value_list.elements ?
-                       DUP_UPDATE : lex->duplicates));
+                      lex->duplicates, lex->ignore);
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
     break;
@@ -2997,8 +2997,7 @@ create_error:
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
                                              &lex->update_list, &lex->value_list,
-                                             lex->duplicates,
-                                             lex->duplicates == DUP_IGNORE)))
+                                             lex->duplicates, lex->ignore)))
       {
         /*
           insert/replace from SELECT give its SELECT_LEX for SELECT,
@@ -3194,8 +3193,8 @@ create_error:
 	goto error;
     }
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, (bool) lex->local_file,
-		    lex->lock_option, lex->duplicates == DUP_IGNORE);
+                    lex->duplicates, lex->ignore, (bool) lex->local_file,
+		    lex->lock_option);
     break;
   }
 
@@ -4331,7 +4330,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables; tables= tables->next_global)
   {
-    if (tables->derived || tables->schema_table ||
+    if (tables->derived || tables->schema_table || tables->belong_to_view ||
         (tables->table && (int)tables->table->tmp_table) ||
         my_tz_check_n_skip_implicit_tables(&tables,
                                            thd->lex->time_zone_tables_used))
@@ -6043,7 +6042,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, &alter_info));
+				DUP_ERROR, 0, &alter_info));
 }
 
 
@@ -6061,7 +6060,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, alter_info));
+				DUP_ERROR, 0, alter_info));
 }
 
 

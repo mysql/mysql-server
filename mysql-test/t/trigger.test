@@ -53,6 +53,7 @@ select @a;
 drop trigger t1.trg;
 drop table t1;
 
+# PS doesn't work with multi-row statements
 --disable_ps_protocol
 # Before update trigger
 # (In future we will achieve this via proper error handling in triggers)

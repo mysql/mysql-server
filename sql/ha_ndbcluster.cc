@@ -2375,6 +2375,7 @@ void ha_ndbcluster::print_results()
       break;
     }
     case NdbDictionary::Column::Undefined:
+    case NdbDictionary::Column::Bit:
       my_snprintf(buf, sizeof(buf), "Unknown type: %d", col->getType());
       break;
     }
@@ -2782,7 +2783,7 @@ void ha_ndbcluster::info(uint flag)
       if ((my_errno= check_ndb_connection()))
         DBUG_VOID_RETURN;
       Ndb *ndb= get_ndb();
-      Uint64 rows;
+      Uint64 rows= 100;
       if (current_thd->variables.ndb_use_exact_count)
 	ndb_get_table_statistics(ndb, m_tabname, &rows, 0);
       records= rows;
