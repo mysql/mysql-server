@@ -4266,7 +4266,7 @@ ER_SLAVE_THREAD
 ER_TOO_MANY_USER_CONNECTIONS 42000 
 	dan "Brugeren %-.64s har allerede mere end 'max_user_connections' aktive forbindelser"
 	nla "Gebruiker %-.64s heeft reeds meer dan 'max_user_connections' actieve verbindingen"
-	eng "User %-.64s has already more than 'max_user_connections' active connections"
+	eng "User %-.64s already has more than 'max_user_connections' active connections"
 	est "Kasutajal %-.64s on juba rohkem ühendusi kui lubatud 'max_user_connections' muutujaga"
 	fre "L'utilisateur %-.64s possède déjà plus de 'max_user_connections' connections actives"
 	ger "Benutzer '%-.64s' hat mehr als max_user_connections aktive Verbindungen"
@@ -4764,7 +4764,7 @@ ER_SLAVE_WAS_RUNNING
 	spa "Slave ya está funcionando"
 	swe "Slaven har redan startat"
 ER_SLAVE_WAS_NOT_RUNNING  
-	eng "Slave has already been stopped"
+	eng "Slave already has been stopped"
 	ger "Slave wurde bereits angehalten"
 	por "O slave já está parado"
 	spa "Slave ya fué parado"
