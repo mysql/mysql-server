@@ -455,6 +455,21 @@ os_fast_mutex_lock(
 }
 
 /**************************************************************
+Releases ownership of a fast mutex. */
+
+void
+os_fast_mutex_unlock(
+/*=================*/
+	os_fast_mutex_t*	fast_mutex)	/* in: mutex to release */
+{
+#ifdef __WIN__
+	LeaveCriticalSection(fast_mutex);
+#else
+	pthread_mutex_unlock(fast_mutex);
+#endif
+}
+
+/**************************************************************
 Frees a mutex object. */
 
 void

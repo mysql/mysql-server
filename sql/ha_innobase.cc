@@ -1472,7 +1472,9 @@ ha_innobase::write_row(
 			The lock is released at each SQL statement's
 			end. */
 
+			srv_conc_enter_innodb(prebuilt->trx);
 			error = row_lock_table_autoinc_for_mysql(prebuilt);
+			srv_conc_exit_innodb();
 
 			if (error != DB_SUCCESS) {
 			
@@ -1523,7 +1525,9 @@ ha_innobase::write_row(
 
 	        	auto_inc = table->next_number_field->val_int();
 
+			srv_conc_enter_innodb(prebuilt->trx);
 			error = row_lock_table_autoinc_for_mysql(prebuilt);
+			srv_conc_exit_innodb();
 
 			if (error != DB_SUCCESS) {
 			
@@ -2803,6 +2807,8 @@ ha_innobase::delete_table(
 
 	srv_active_wake_master_thread();
 
+  	trx_commit_for_mysql(trx);
+
   	trx_free_for_mysql(trx);
 
 	error = convert_error_code_to_mysql(error);
@@ -2856,6 +2862,7 @@ innobase_drop_database(
 
 	srv_active_wake_master_thread();
 
+  	trx_commit_for_mysql(trx);
   	trx_free_for_mysql(trx);
 
 	error = convert_error_code_to_mysql(error);
@@ -2908,6 +2915,7 @@ ha_innobase::rename_table(
 
 	srv_active_wake_master_thread();
 
+  	trx_commit_for_mysql(trx);
   	trx_free_for_mysql(trx);
 
 	error = convert_error_code_to_mysql(error);
