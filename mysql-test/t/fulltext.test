@@ -73,11 +73,12 @@ CREATE TABLE t3 (
 );
 
 --error 1210
-select * from t2 having MATCH inhalt AGAINST (t1.id);
+select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
 --error 1210
-select * from t2 having MATCH ticket AGAINST ('foobar');
+select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
+--error 1191
+select * from t2 where MATCH ticket AGAINST ('foobar');
 --error 1210
-select * from t2,t3 having MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
+select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
 
 drop table t1,t2,t3;
-
