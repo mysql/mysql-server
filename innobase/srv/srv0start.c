@@ -550,8 +550,9 @@ innobase_start_or_create_for_mysql(void)
 	  return(DB_ERROR);
 	}
 
+	/*
 	printf("srv_unix set to %lu\n", srv_unix_file_flush_method);
-
+	*/
 	os_aio_use_native_aio = srv_use_native_aio;
 
 	err = srv_boot();
