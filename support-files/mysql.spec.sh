@@ -360,7 +360,7 @@ fi
 %attr(755, root, root) /usr/bin/mysqlbug
 %attr(755, root, root) /usr/bin/mysqltest
 %attr(755, root, root) /usr/bin/mysqlhotcopy
-%attr(755, root, root) /usr/bin/mysql_explain
+%attr(755, root, root) /usr/bin/mysql_explain_log
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
