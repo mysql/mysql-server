@@ -1,0 +1,34 @@
+show tables;
+Tables_in_mysql
+columns_priv
+db
+func
+host
+tables_priv
+user
+show tables;
+Tables_in_test
+grant ALL on *.* to test@localhost identified by "gambling";
+grant ALL on *.* to test@127.0.0.1 identified by "gambling";
+show tables;
+Tables_in_mysql
+columns_priv
+db
+func
+host
+tables_priv
+user
+show tables;
+Tables_in_test
+update mysql.user set password=old_password("gambling2") where user="test";
+flush privileges;
+show tables;
+Tables_in_mysql
+columns_priv
+db
+func
+host
+tables_priv
+user
+show tables;
+Tables_in_test
