@@ -298,7 +298,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(tables_list, 0) ||
+  if (setup_tables(tables_list) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -1014,7 +1014,7 @@ JOIN::reinit()
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   
-  if (setup_tables(tables_list, 1))
+  if (setup_tables(tables_list))
     DBUG_RETURN(1);
   
   /* Reset of sum functions */
@@ -4985,8 +4985,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			     tmp_from_field, group != 0,not_all_columns);
 	  if (!new_field)
 	    goto err;					// Should be OOM
-	  if (param->all_nulls)
-	    new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
 	  tmp_from_field++;
 	  *(reg_field++)= new_field;
 	  reclength+=new_field->pack_length();
@@ -5022,8 +5020,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  goto err;				// Got OOM
 	continue;				// Some kindf of const item
       }
-      if (param->all_nulls)
-	new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
       if (type == Item::SUM_FUNC_ITEM)
 	((Item_sum *) item)->result_field= new_field;
       tmp_from_field++;

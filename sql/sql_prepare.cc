@@ -679,7 +679,7 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
 #endif
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(1);
-  if (setup_tables(table_list, 0) ||
+  if (setup_tables(table_list) ||
       setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
       setup_conds(thd, table_list, &conds) || thd->net.report_error)      
     DBUG_RETURN(1);
