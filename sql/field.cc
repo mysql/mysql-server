@@ -287,7 +287,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 bool Field::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),tmp2,*res;
+  String tmp(buff,sizeof(buff),my_charset_latin1),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
     return 1;
@@ -297,7 +297,7 @@ bool Field::get_date(TIME *ltime,bool fuzzydate)
 bool Field::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),tmp2,*res;
+  String tmp(buff,sizeof(buff),my_charset_latin1),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
       str_to_time(res->ptr(),res->length(),ltime))
     return 1;
@@ -404,6 +404,12 @@ void Field_decimal::overflow(bool negative)
 
 int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 {
+  String l1from;
+
+  l1from.copy(from,len,cs,my_charset_latin1);
+  from=l1from.ptr();
+  len=l1from.length();
+
   const char *end= from+len;
   /* The pointer where the field value starts (i.e., "where to write") */
   char *to=ptr;
@@ -463,7 +469,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     tmp_dec++;
 
   /* skip pre-space */
-  while (from != end && my_isspace(system_charset_info,*from))
+  while (from != end && my_isspace(my_charset_latin1,*from))
     from++;
   if (from == end)
   {
@@ -500,13 +506,13 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   for (; from!=end && *from == '0'; from++) ;	// Read prezeros
   pre_zeros_end=int_digits_from=from;      
   /* Read non zero digits at the left of '.'*/
-  for (; from != end && my_isdigit(system_charset_info, *from) ; from++) ;
+  for (; from != end && my_isdigit(my_charset_latin1, *from) ; from++) ;
   int_digits_end=from;
   if (from!=end && *from == '.')		// Some '.' ?
     from++;
   frac_digits_from= from;
   /* Read digits at the right of '.' */
-  for (;from!=end && my_isdigit(system_charset_info, *from); from++) ;
+  for (;from!=end && my_isdigit(my_charset_latin1, *from); from++) ;
   frac_digits_end=from;
   // Some exponentiation symbol ?
   if (from != end && (*from == 'e' || *from == 'E'))
@@ -522,7 +528,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
       exponents will become small (e.g. 1e4294967296 will become 1e0, and the 
       field will finally contain 1 instead of its max possible value).
     */
-    for (;from!=end && my_isdigit(system_charset_info, *from); from++)
+    for (;from!=end && my_isdigit(my_charset_latin1, *from); from++)
     {
       exponent=10*exponent+(*from-'0');
       if (exponent>MAX_EXPONENT)
@@ -540,7 +546,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   if (current_thd->count_cuted_fields)
   {
     // Skip end spaces
-    for (;from != end && my_isspace(system_charset_info, *from); from++) ;
+    for (;from != end && my_isspace(my_charset_latin1, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
       current_thd->cuted_fields++; 
@@ -849,12 +855,13 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
 			       String *val_ptr)
 {
   char *str;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   for (str=ptr ; *str == ' ' ; str++) ;
   uint tmp_length=(uint) (str-ptr);
   if (field_length < tmp_length)		// Error in data
     val_ptr->length(0);
   else
-    val_ptr->set((const char*) str,field_length-tmp_length,default_charset_info);
+    val_ptr->copy((const char*) str,field_length-tmp_length,my_charset_latin1,cs);
   return val_ptr;
 }
 
@@ -871,9 +878,9 @@ int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
   for (end=a_ptr+field_length;
        a_ptr != end &&
 	 (*a_ptr == *b_ptr ||
-	  ((my_isspace(system_charset_info,*a_ptr)  || *a_ptr == '+' || 
+	  ((my_isspace(my_charset_latin1,*a_ptr)  || *a_ptr == '+' || 
             *a_ptr == '0') &&
-	   (my_isspace(system_charset_info,*b_ptr) || *b_ptr == '+' || 
+	   (my_isspace(my_charset_latin1,*b_ptr) || *b_ptr == '+' || 
             *b_ptr == '0')));
        a_ptr++,b_ptr++)
   {
@@ -901,7 +908,7 @@ void Field_decimal::sort_string(char *to,uint length)
   char *str,*end;
   for (str=ptr,end=ptr+length;
        str != end &&
-	 ((my_isspace(system_charset_info,*str) || *str == '+' ||
+	 ((my_isspace(my_charset_latin1,*str) || *str == '+' ||
 	   *str == '0')) ;
        str++)
     *to++=' ';
@@ -913,7 +920,7 @@ void Field_decimal::sort_string(char *to,uint length)
     *to++=1;					// Smaller than any number
     str++;
     while (str != end)
-      if (my_isdigit(system_charset_info,*str))
+      if (my_isdigit(my_charset_latin1,*str))
 	*to++= (char) ('9' - *str++);
       else
 	*to++= *str++;
@@ -1091,7 +1098,7 @@ longlong Field_tiny::val_int(void)
 String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,5*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1330,7 +1337,7 @@ longlong Field_short::val_int(void)
 String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,7*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1574,7 +1581,7 @@ longlong Field_medium::val_int(void)
 String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,10*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -1810,7 +1817,7 @@ longlong Field_long::val_int(void)
 String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,12*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -2035,7 +2042,7 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs=current_thd->thd_charset;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   uint length;
   uint mlength=max(field_length+1,22*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -4269,7 +4276,7 @@ uint Field_varstring::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
-void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
+void Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,imagetype type)
 {
   length-= HA_KEY_BLOB_LENGTH;
   uint f_length=uint2korr(ptr);
@@ -4283,10 +4290,10 @@ void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
 #endif
 }
 
-void Field_varstring::set_key_image(char *buff,uint length)
+void Field_varstring::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
 {
   length=uint2korr(buff);			// Real length is here
-  (void) Field_varstring::store(buff+2, length, default_charset_info);
+  (void) Field_varstring::store(buff+2, length, cs);
 }
 
 
@@ -4432,14 +4439,14 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_blob::store(double nr)
 {
-  value.set(nr,2,current_thd->thd_charset);
+  value.set(nr,2,current_thd->variables.thd_charset);
   return Field_blob::store(value.ptr(),(uint) value.length(), value.charset());
 }
 
 
 int Field_blob::store(longlong nr)
 {
-  value.set(nr,current_thd->thd_charset);
+  value.set(nr,current_thd->variables.thd_charset);
   return Field_blob::store(value.ptr(), (uint) value.length(), value.charset());
 }
 
@@ -4535,7 +4542,7 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 
 /* The following is used only when comparing a key */
 
-void Field_blob::get_key_image(char *buff,uint length, imagetype type)
+void Field_blob::get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type)
 {
   length-= HA_KEY_BLOB_LENGTH;
   uint32 blob_length= get_length(ptr);
@@ -4570,14 +4577,14 @@ void Field_blob::get_key_image(char *buff,uint length, imagetype type)
   memcpy(buff+2,blob,length);
 }
 
-void Field_blob::set_key_image(char *buff,uint length)
+void Field_blob::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
 {
   length=uint2korr(buff);
-  (void) Field_blob::store(buff+2,length, default_charset_info);
+  (void) Field_blob::store(buff+2,length,cs);
 }
 
 
-void Field_geom::get_key_image(char *buff,uint length, imagetype type)
+void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs, imagetype type)
 {
   length-=HA_KEY_BLOB_LENGTH;
   ulong blob_length=get_length(ptr);
@@ -4596,7 +4603,7 @@ void Field_geom::get_key_image(char *buff,uint length, imagetype type)
   return;
 }
 
-void Field_geom::set_key_image(char *buff,uint length)
+void Field_geom::set_key_image(char *buff,uint length,CHARSET_INFO *cs)
 {
 }
 

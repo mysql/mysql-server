@@ -898,14 +898,14 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 		 TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff),current_thd->thd_charset);
+  String s(buff, sizeof(buff),current_thd->variables.thd_charset);
 
   if (info->found)
     info->str->append(',');
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element, info->item->decimals, current_thd->thd_charset);
+  s.set(*element, info->item->decimals, current_thd->variables.thd_charset);
   info->str->append(s);
   info->str->append('\'');
   return 0;

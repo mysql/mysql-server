@@ -937,7 +937,7 @@ static TYPELIB option_types={array_elements(default_options)-1,
 
 static int add_init_command(struct st_mysql_options *options, const char *cmd)
 {
-  char **ptr, *tmp;
+  char *tmp;
 
   if (!options->init_commands)
   {
@@ -947,7 +947,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   }
 
   if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
-      insert_dynamic(options->init_commands, &tmp))
+      insert_dynamic(options->init_commands, (gptr)&tmp))
   {
     my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
     return 1;
@@ -2623,8 +2623,13 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
     if (mysql->options.init_commands)
     {
-      delete_dynamic(mysql->options.init_commands);
-      my_free((char*)mysql->options.init_commands,MYF(MY_WME));
+      DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
+      char **ptr= (char**)init_commands->buffer;
+      char **end= ptr + init_commands->elements;
+      for (; ptr<end; ptr++)
+	my_free(*ptr,MYF(MY_WME));
+      delete_dynamic(init_commands);
+      my_free((char*)init_commands,MYF(MY_WME));
     }
 #ifdef HAVE_OPENSSL
     mysql_ssl_free(mysql);

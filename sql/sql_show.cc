@@ -713,7 +713,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
       {
         byte *pos;
         uint flags=field->flags;
-        String type(tmp,sizeof(tmp),current_thd->thd_charset);
+        String type(tmp,sizeof(tmp),current_thd->variables.thd_charset);
         uint col_access;
         bool null_default_value=0;
 

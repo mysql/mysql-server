@@ -34,6 +34,8 @@
 #include <ft_global.h>
 #include <assert.h>
 
+#define mysqld_charset my_charset_latin1
+
 #ifndef DBUG_OFF
 #define ONE_THREAD
 #endif
@@ -981,7 +983,7 @@ static void set_user(const char *user)
   {
     // allow a numeric uid to be used
     const char *pos;
-    for (pos=user; my_isdigit(system_charset_info,*pos); pos++) ;
+    for (pos=user; my_isdigit(mysqld_charset,*pos); pos++) ;
     if (*pos)					// Not numeric id
     {
       fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
@@ -4373,7 +4375,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     val= p--;
-    while (my_isspace(system_charset_info, *p) && p > argument)
+    while (my_isspace(mysqld_charset, *p) && p > argument)
       *p-- = 0;
     if (p == argument)
     {
@@ -4383,7 +4385,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     *val= 0;
     val+= 2;
-    while (*val && my_isspace(system_charset_info, *val))
+    while (*val && my_isspace(mysqld_charset, *val))
       *val++;
     if (!*val)
     {
@@ -4525,7 +4527,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     have_symlink=SHOW_OPTION_DISABLED;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (argument && my_isdigit(system_charset_info, argument[0]))
+    if (argument && my_isdigit(mysqld_charset, argument[0]))
     {
       my_bind_addr = (ulong) inet_addr(argument);
     }
@@ -4938,8 +4940,8 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       j=pos;
       while (j != end)
       {
-	if (my_toupper(system_charset_info,*i++) !=
-            my_toupper(system_charset_info,*j++))
+	if (my_toupper(mysqld_charset,*i++) !=
+            my_toupper(mysqld_charset,*j++))
 	  goto skipp;
       }
       found_int=bit;

@@ -929,7 +929,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   {
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
-    String tmp(buff1,sizeof(buff1),default_charset_info),*res;
+    String tmp(buff1,sizeof(buff1),value->charset()),*res;
     uint length,offset,min_length,max_length;
 
     if (!field->optimize_range(param->real_keynr[key_part->key]))
@@ -1043,7 +1043,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length,
-		       key_part->image_type);
+		       field->charset(),key_part->image_type);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);
 
@@ -2793,7 +2793,7 @@ static void
 print_key(KEY_PART *key_part,const char *key,uint used_length)
 {
   char buff[1024];
-  String tmp(buff,sizeof(buff),default_charset_info);
+  String tmp(buff,sizeof(buff),NULL);
 
   for (uint length=0;
        length < used_length ;
@@ -2813,7 +2813,8 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
     }
     field->set_key_image((char*) key,key_part->part_length -
 			 ((field->type() == FIELD_TYPE_BLOB) ?
-			  HA_KEY_BLOB_LENGTH : 0));
+			  HA_KEY_BLOB_LENGTH : 0),
+			 field->charset());
     field->val_str(&tmp,&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
   }

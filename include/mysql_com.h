@@ -57,6 +57,7 @@ enum enum_server_command
 #define BLOB_FLAG	16		/* Field is a blob */
 #define UNSIGNED_FLAG	32		/* Field is unsigned */
 #define ZEROFILL_FLAG	64		/* Field is zerofill */
+#define BINARY_FLAG	128		/* Field is binary   */
 
 /* The following are only sent to new clients */
 #define ENUM_FLAG	256		/* field is an enum */
@@ -292,11 +293,11 @@ int get_password_length(my_bool force_old_scramble);
 char get_password_version(const char* password);
 void create_random_string(int length,struct rand_struct *rand_st,char* target);
 my_bool validate_password(const char* password, const char* message,
-        ulong* salt);
+        unsigned long* salt);
 void password_hash_stage1(char *to, const char *password);
 void password_hash_stage2(char *to,const char *salt);
 void password_crypt(const char* from,char* to, const char* password,int length);
-void get_hash_and_password(ulong* salt, unsigned char  pversion,char* hash,
+void get_hash_and_password(unsigned long* salt, unsigned char  pversion,char* hash,
      unsigned char* bin_password);
 void get_salt_from_password(unsigned long *res,const char *password);
 void create_key_from_old_password(const char* password,char* key);

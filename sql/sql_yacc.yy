@@ -361,6 +361,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_SYM
 %token	UNCOMMITTED_SYM
 %token	UNDERSCORE_CHARSET
+%token	UNICODE_SYM
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
@@ -380,6 +381,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  ERRORS
 %token  WARNINGS
 
+%token	ASCII_SYM
 %token	BIGINT
 %token	BLOB_SYM
 %token	CHAR_SYM
@@ -1257,10 +1259,19 @@ opt_db_default_character_set:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
+	| ASCII_SYM			{ Lex->charset=my_charset_latin1; }
 	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
+	| UNICODE_SYM
+	{
+	  if (!(Lex->charset=get_charset_by_name("ucs2",MYF(0))))
+	  {
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"ucs2");
+	    YYABORT;
+	  }
+	}
+	| COLLATE_SYM charset_name	{ Lex->charset=$2; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
-
 
 opt_primary:
 	/* empty */
@@ -2014,6 +2025,7 @@ simple_expr:
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
           { Select->add_ftfunc_to_list((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
+	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,my_charset_bin); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
@@ -3588,13 +3600,13 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING { $$ = new Item_string($1.str,$1.length,YYTHD->thd_charset); }
+	TEXT_STRING { $$ = new Item_string($1.str,$1.length,YYTHD->variables.thd_charset); }
 	| UNDERSCORE_CHARSET TEXT_STRING { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING
 	{ ((Item_string*) $1)->append($2.str,$2.length); };
 
 text_string:
-	TEXT_STRING	{ $$=  new String($1.str,$1.length,YYTHD->thd_charset); }
+	TEXT_STRING	{ $$=  new String($1.str,$1.length,YYTHD->variables.thd_charset); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -3721,6 +3733,7 @@ keyword:
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
 	| ANY_SYM		{}
+	| ASCII_SYM		{}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
@@ -3872,6 +3885,7 @@ keyword:
 	| TYPE_SYM		{}
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
+	| UNICODE_SYM		{}
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
