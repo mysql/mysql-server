@@ -181,10 +181,14 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     }
     else if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
     {
-      uint tmp_length=uint2korr(pos); pos+=2;
+      /* Length of key-part used with mi_rkey() always 2 */
+      uint tmp_length=uint2korr(pos);
+      k_length-= 2+length;
       set_if_smaller(length,tmp_length);
       store_key_length_inc(key,length);
-      k_length-=2;
+      memcpy((byte*) key, pos+2,(size_t) length);
+      key+= length;
+      continue;
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {						/* Numerical column */

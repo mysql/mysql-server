@@ -24,8 +24,8 @@ VIO_NS_BEGIN
 #define this_ssl_context	my_static_cast(SSL_CTX*)(this->ssl_context_)
 typedef unsigned char*		ssl_data_ptr_t;
 
-static bool	ssl_algorithms_added	= false;
-static bool	ssl_error_strings_loaded= false;
+static bool	ssl_algorithms_added	= FALSE;
+static bool	ssl_error_strings_loaded= FALSE;
 static int	verify_depth = 0;
 static int	verify_error = X509_V_OK;
 

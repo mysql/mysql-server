@@ -61,7 +61,7 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
                         @DEFS@
 
-#getopt1.o:		@THREAD_LOBJECTS@
+libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \
@@ -75,20 +75,31 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 # I hope this always does the right thing. Otherwise this is only test programs
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 
+#
+# The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)
+# which automaticly removes the object files you use to compile a final program
+#
+
 test_thr_alarm: thr_alarm.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/thr_alarm.c $(LDADD) $(LIBS)
+	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c
+	$(LINK) $(FLAGS) -DMAIN ./test_thr_alarm.c $(LDADD) $(LIBS)
+	$(RM) ./test_thr_alarm.*
 
 test_thr_lock: thr_lock.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/thr_lock.c $(LDADD) $(LIBS)
+	$(CP) $(srcdir)/thr_lock.c test_thr_lock.c
+	$(LINK) $(FLAGS) -DMAIN ./test_thr_lock.c $(LDADD) $(LIBS)
+	$(RM) ./test_thr_lock.*
+
+test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
+	$(CP) $(srcdir)/my_vsnprintf.c test_vsnprintf.c
+	$(LINK) $(FLAGS) -DMAIN ./test_vsnprintf.c $(LDADD) $(LIBS)
+	$(RM) test_vsnprintf.*
 
 test_dir: test_dir.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
 
 test_charset: test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
-
-test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/my_vsnprintf.c $(LDADD) $(LIBS)
 
 test_hash: test_hash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)

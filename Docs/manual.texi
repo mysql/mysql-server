@@ -1972,6 +1972,9 @@ Apart from the following links, you can find and download a lot of
 @c @item @uref{http://www.devshed.com/resource/advanced/mysql/index.html, A
 @c beginner's tutorial of how to start using @strong{MySQL}}
 
+@item @uref{http://www.4t2.com/mysql. German MySQL maling list}
+Information about the German MySQL mailing list.
+
 @item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}@*
 Beginners @strong{MySQL} Tutorial on how to install and set up
 @strong{MySQL} on a Windows machine.
@@ -2069,7 +2072,6 @@ organization.
 @item @uref{http://www.xnot.com/kmysql}@*
 KDE @strong{MySQL} client.
 
-
 @c EMAIL: bilhaut_f@mail.cpod.fr (Frédérik Bilhaut)
 @item @uref{http://www.penguinpowered.com/~kmysql}@*
 KMySQL is a database client for KDE that primarily supports @strong{MySQL}.
@@ -2090,6 +2092,14 @@ A free report writer in Java
 @item @uref{http://www.javaframework.de}@*
 MySQLExport - Export of @strong{MySQL} create statements and data in a lot of
 different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
+
+@item @uref{http://dlabs.4t2.com, M2D}
+A MySQL-ADmin-client for windows. It supports administration of
+MySQL-Databases, creating of new DBs and tables, editing etc.
+
+@item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,
+Mascon home page}.
+Mascon is a powerful Win32 GUI for the administering MySQL server databases. 
 @end itemize
 
 @subheading Distributions that Include MySQL
@@ -2628,6 +2638,9 @@ mailing list name rather than @code{mysql}.  For example, to subscribe to or
 unsubscribe from the @code{myodbc} list, send a message to
 @email{myodbc-subscribe@@lists.mysql.com} or
 @email{myodbc-unsubscribe@@lists.mysql.com}.
+
+There is also a german mailing list. You can find information about this
+at: @uref{http://www.4t2.com/mysql}.
 
 @cindex net etiquette
 @cindex mailing lists, archive location
@@ -6896,58 +6909,39 @@ We have tested @strong{MySQL} on Alpha with our benchmarks + test suite and
 it appears to work nicely.  The main thing we haven't yet had time to test
 is how things works with many concurrent users.
 
-When we compiled @strong{MySQL} we where using SuSE 6.3, kernel 2.2.13-SMP,
-egcs 1.1.2, and libc-2.1.2-28.
+When we compiled the standard @strong{MySQL} binary we are using SuSE 6.4,
+kernel 2.2.13-SMP, Compaq C compiler (V6.2-504) and Compaq C++ compiler
+(V6.3-005) on a Comaq DS20 machine with an Alpha EV6 processor
 
-We used the following configure line:
+You can find the above compilers at
+@uref{http://www.support.compaq.com/alpha-tools}). By using these compilers,
+instead of gcc, we get about 9-14 % better performance with @strong{MySQL}.
+
+Note that the configure line optimized the binary for the current CPU; This
+means you can only use our binary if you have an Alpha EV6 processor.
+We also compile staticly to avoid library problems.
+
+@example
+CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client --with-mysqld-ldflags=-non_shared --with-client-ldflags=-non_shared
+@end example
+
+If you want to use egcs the following configure line worked for us:
 
 @example
 CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
-If you have access to Compaq's C compiler, the following configure line
-will give you about 9 % more performance:
-@example
-CC=ccc CFLAGS="-fast -O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -mcpu=ev6 -Wa,-mev6" CXXLDFLAGS='/usr/lib/compaq/libots-2.2.7/libots.so /usr/lib/compaq/cpml-5.0.0/libcpml_ev6.a' ./configure --prefix=/usr/local/mysql --disable-shared
-@end example
-
-Note that the last example assumes your are using an Alpha EV6 processor.
-
 Some known problems when running @strong{MySQL} on Linux-Alpha:
 
 @itemize @bullet
 @item
-If you create many files ( > 10000) in one directory (as done by the
-@code{test-create} in the @strong{MySQL} benchmarks, mysqld may report
-the error @code{Can't create/write to file '...' (Errcode: 12)}. This
-is probably a bug in the Linux-Alpha kernel.
-@item
 Debugging threaded applications like @strong{MySQL} will not work with
 @code{gdb 4.18}.  You should download and use gdb 5.0 instead!
 @item
-If you try linking mysqld staticly, the resulting image will core dump
-at start.  In other words, @strong{DON'T} use
-@code{--with-mysqld-ldflags=-all-static}
+If you try linking mysqld staticly when using gcc, the resulting image
+will core dump at start.  In other words, @strong{DON'T} use
+@code{--with-mysqld-ldflags=-all-static} with gcc
 @end itemize
-
-We don't yet know if the following old information is still relevant, so we
-leave this here until we have had time to test Linux-Alpha properly.
-
-If you have problems with signals (@strong{MySQL} dies unexpectedly
-under high load) you may have found an OS bug with threads and
-signals. In this case you can tell @strong{MySQL} not to use signals by
-configuring with:
-
-@example
-shell> CFLAGS=-DDONT_USE_THR_ALARM \
-       CXXFLAGS=-DDONT_USE_THR_ALARM \
-       ./configure ...
-@end example
-
-This doesn't affect the performance of @strong{MySQL}, but has the side
-effect that you can't kill clients that are ``sleeping'' on a connection with
-@code{mysqladmin kill} or @code{mysqladmin shutdown}.  Instead, the client
-will die when it issues its next command.
 
 @node MKLinux, Qube2, Linux-Alpha, Linux
 @subsubsection MkLinux Notes
@@ -30808,13 +30802,32 @@ problems if you have values > 127 in the column!
 
 @cindex ADO program
 @item ADO
-When you access @strong{MyODBC} through ADO, @strong{MyODBC} doesn't
-return a result for @code{SQLRowCount} for a query.  We have tried to
-track this down and according to ODBC logs, @strong{MyODBC} returns the
-correct answer but the ADO client only gets -1 back from the ODBC
-manager.  Because of this we can only assume this is a bug in ADO.
+When you are coding with the ADO API and @strong{MyODBC} you need to put
+attention in some default properties that aren't supported by the
+@strong{MySQL} server.  For example using the @code{CursorLocation
+Property} as @code{adUseServer} will return for the @code{RecordCount
+Property} a result of -1. To have the right value, you need to set this
+property to @code{adUseClient}, like is showing in the VB code below:
 
-The only known workaround is to use a @code{SELECT COUNT(*)} statement
+@example
+Dim myconn As New ADODB.Connection
+Dim myrs As New Recordset
+Dim mySQL As String
+Dim myrows As Long
+
+myconn.Open "DSN=MyODBCsample"
+mySQL = "SELECT * from user"
+myrs.Source = mySQL
+Set myrs.ActiveConnection = myconn
+myrs.CursorLocation = adUseClient
+myrs.Open
+myrows = myrs.RecordCount
+
+myrs.Close
+myconn.Close
+@end example
+
+Another workaround is to use a @code{SELECT COUNT(*)} statement
 for a similar query to get the correct row count.
 
 @cindex Borland Buidler 4 program
@@ -37705,7 +37718,7 @@ Fernandez Herrero.
 @itemize @bullet
 @item Graphical clients
 @itemize @bullet
-@item @uref{http://www.ideit.com/products/dbvis: DbVisualizer}
+@item @uref{http://www.ideit.com/products/dbvis, DbVisualizer}
 Freeware JDBC client to graphically visualize the data and structure
 of several databases simultaneously. By Innovative-IT Development AB.
 
@@ -38530,6 +38543,17 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.28, News-3.23.27, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
+@item
+Fixed bug when using a multi-part keys where the first part was of type
+@code{TEXT} or @code{BLOB}.
+@item
+@code{DROP} of temporary tables wasn't stored in the update/binary log.
+@item
+Fixed bug where @code{SELECT DISTINCT * ... LIMIT #} only returned 1 row.
+@item
+Fixed a bug in the assembler code in strstr for sparc and cleaned up
+the global.h header file to avoid a problem with bad aliasing with
+the compiler submitted with RedHat 7.0. (Reported by Trond Eivind Glomsrød)
 @item
 Fixed the @code{--skip-networking} works properly on NT.
 @item
@@ -43045,6 +43069,9 @@ Allow users to change startup options without taking down the server.
 Help for all commands from the client.
 @item
 Secure connections (with SSL).
+@item
+Extend the optimizer to be able to optimize some
+@code{ORDER BY key_name DESC} queries.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
@@ -43185,8 +43212,7 @@ Function @code{CASE}.
 Many more variables for @code{show status}.  Counts for:
 @code{INSERT}/@code{DELETE}/@code{UPDATE} statements. Records reads and
 updated.  Selects on 1 table and selects with joins.  Mean number of
-tables in select. Key buffer read/write hits (logical and real).
-@code{ORDER BY}, @code{GROUP BY}, temporary tables created.
+tables in select. Number of @code{ORDER BY} and @code{GROUP BY} queries.
 @item
 If you abort @code{mysql} in the middle of a query, you should open
 another connection and kill the old running query.

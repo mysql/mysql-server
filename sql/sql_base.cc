@@ -1687,6 +1687,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
     if (!table_name || !strcmp(table_name,tables->name))
     {
       Field **ptr=table->field,*field;
+      thd->used_tables|=table->map;
       while ((field = *ptr++))
       {
 	Item_field *item= new Item_field(field);

@@ -79,7 +79,10 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   {
     char *db=table->db ? table->db : thd->db;
     if (!close_temporary_table(thd, db, table->real_name))
+    {
+      some_tables_deleted=1;			// Log query
       continue;					// removed temporary table
+    }
 
     abort_locked_tables(thd,db,table->real_name);
     while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
