@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -32,6 +32,7 @@
 struct file_info {
   long process;
   int  filenr,id;
+  uint rnd;
   my_string name,show_name,record;
   MI_INFO *isam;
   bool closed,used;
@@ -70,13 +71,14 @@ static void printf_log(const char *str,...);
 static bool cmp_filename(struct file_info *file_info,my_string name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
-  recover=0,prefix_remove=0,opt_processes=0;
+  recover=0,prefix_remove=0,opt_processes=0,opt_myisam_with_debug=0;
 static my_string log_filename=0,filepath=0,write_filename=0,record_pos_file=0;
 static ulong com_count[10][3],number_of_commands=(ulong) ~0L,
 	     isamlog_process;
 static my_off_t isamlog_filepos,start_offset=0,record_pos= HA_OFFSET_ERROR;
 static const char *command_name[]=
-{"open","write","update","delete","close","extra","lock","re-open","delete-all", NullS};
+{"open","write","update","delete","close","extra","lock","re-open",
+ "delete-all", NullS};
 
 
 int main(int argc, char **argv)
@@ -91,11 +93,11 @@ int main(int argc, char **argv)
   max_files=(set_maximum_open_files(min(max_files,8))-6)/2;
 
   if (update)
-    printf("Trying to %s isamfiles according to log '%s'\n",
+    printf("Trying to %s MyISAM files according to log '%s'\n",
 	   (recover ? "recover" : "update"),log_filename);
   error= examine_log(log_filename,argv);
   if (update && ! error)
-    puts("isamfile:s updated successfully");
+    puts("Tables updated successfully");
   total_count=total_error=total_recover=0;
   for (i=first=0 ; command_name[i] ; i++)
   {
@@ -134,7 +136,7 @@ static void get_options(register int *argc, register char ***argv)
   char option;
 
   help=0;
-  usage="Usage: %s [-?iruvIV] [-c #] [-f #] [-F filepath/] [-o #] [-R file recordpos] [-w write_file] [log-filename [table ...]] \n";
+  usage="Usage: %s [-?iruvDIV] [-c #] [-f #] [-F filepath/] [-o #] [-R file recordpos] [-w write_file] [log-filename [table ...]] \n";
   pos="";
 
   while (--*argc > 0 && *(pos = *(++*argv)) == '-' ) {
@@ -199,6 +201,9 @@ static void get_options(register int *argc, register char ***argv)
 	update=1;
 	recover++;
 	break;
+      case 'D':
+	opt_myisam_with_debug=1;
+	break;
       case 'P':
 	opt_processes=1;
 	break;
@@ -246,7 +251,7 @@ static void get_options(register int *argc, register char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 1.2 for %s at %s\n",my_progname,SYSTEM_TYPE,
+	printf("%s  Ver 1.3 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	puts("By Monty, for your professional use\n");
 	if (version)
@@ -261,7 +266,7 @@ static void get_options(register int *argc, register char ***argv)
 	puts("         -o \"offset\"         -p # \"remove # components from path\"");
 	puts("         -r \"recover\"        -R \"file recordposition\"");
 	puts("         -u \"update\"         -v \"verbose\"   -w \"write file\"");
-	puts("         -P \"processes\"");
+	puts("         -D \"myisam compileled with DBUG\"   -P \"processes\"");
 	puts("\nOne can give a second and a third '-v' for more verbose.");
 	puts("Normaly one does a update (-u).");
 	puts("If a recover is done all writes and all possibly updates and deletes is done\nand errors are only counted.");
@@ -365,14 +370,16 @@ static int examine_log(my_string file_name, char **table_names)
     case MI_LOG_OPEN:
       if (!table_names[0])
       {
-	com_count[command][0]--;			/* Must be counted explicite */
+	com_count[command][0]--;		/* Must be counted explicite */
 	if (result)
 	  com_count[command][1]--;
       }
 
       if (curr_file_info)
-	printf("\nWarning: %s is opened twice with same process and filenumber\n",
+      {
+	printf("\nWarning: %s is opened with same process and filenumber\nMaybe you should use the -P option ?\n",
 	       curr_file_info->show_name);
+      }
       if (my_b_read(&cache,(byte*) head,2))
 	goto err;
       file_info.name=0;
@@ -389,7 +396,7 @@ static int examine_log(my_string file_name, char **table_names)
 	for (pos=file_info.name; pos=strchr(pos,'\\') ; pos++)
 	  *pos= '/';
 
- 	pos=file_info.name;
+	pos=file_info.name;
 	for (i=0 ; i < prefix_remove ; i++)
 	{
 	  char *next;
@@ -446,6 +453,10 @@ static int examine_log(my_string file_name, char **table_names)
 	  goto end;
 	files_open++;
 	file_info.closed=0;
+	if (opt_myisam_with_debug)
+	  file_info.isam->s->rnd= 0;
+	else
+	  file_info.isam->s->rnd= isamlog_process;
       }
       VOID(tree_insert(&tree,(gptr) &file_info,0));
       if (file_info.used)
@@ -482,10 +493,12 @@ static int examine_log(my_string file_name, char **table_names)
 	if (mi_extra(curr_file_info->isam,
 		     (int) extra_command) != (int) result)
 	{
+	  fflush(stdout);
 	  VOID(fprintf(stderr,
 		       "Warning: error %d, expected %d on command %s at %s\n",
 		       my_errno,result,command_name[command],
 		       llstr(isamlog_filepos,llbuff)));
+	  fflush(stderr);
 	}
       }
       break;
@@ -628,9 +641,11 @@ static int examine_log(my_string file_name, char **table_names)
 		   command_name[command],result);
       break;
     default:
+      fflush(stdout);
       VOID(fprintf(stderr,
 		   "Error: found unknown command %d in logfile, aborted\n",
 		   command));
+      fflush(stderr);
       goto end;
     }
   }
@@ -643,12 +658,16 @@ static int examine_log(my_string file_name, char **table_names)
   DBUG_RETURN(0);
 
  err:
+  fflush(stdout);
   VOID(fprintf(stderr,"Got error %d when reading from logfile\n",my_errno));
+  fflush(stderr);
   goto end;
  com_err:
+  fflush(stdout);
   VOID(fprintf(stderr,"Got error %d, expected %d on command %s at %s\n",
 	       my_errno,result,command_name[command],
 	       llstr(isamlog_filepos,llbuff)));
+  fflush(stderr);
  end:
   end_key_cache();
   delete_tree(&tree);
@@ -792,6 +811,7 @@ static int close_some_file(TREE *tree)
 		 (void*) &access_param,left_root_right));
   if (!access_param.found)
     return 1;			/* No open file that is possibly to close */
+  access_param.found->rnd=access_param.found->isam->s->rnd;
   if (mi_close(access_param.found->isam))
     return 1;
   access_param.found->closed=1;
@@ -811,6 +831,7 @@ static int reopen_closed_file(TREE *tree, struct file_info *fileinfo)
   if (!(fileinfo->isam= mi_open(name,O_RDWR,HA_OPEN_WAIT_IF_LOCKED)))
     return 1;
   fileinfo->closed=0;
+  fileinfo->isam->s->rnd=fileinfo->rnd;
   re_open_count++;
   return 0;
 }

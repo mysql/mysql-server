@@ -45,6 +45,7 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
   MI_INFO *mi;
   int err;
   byte *buf=((search_flag == HA_READ_KEY_EXACT) ? record: 0);
+  LINT_INIT(key_buff);
 
   if (_myrg_init_queue(info,inx,search_flag))
     return my_errno;

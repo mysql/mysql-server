@@ -31,6 +31,7 @@ int nisam_update(register N_INFO *info, const byte *oldrec, const byte *newrec)
   uchar old_key[N_MAX_KEY_BUFF],*new_key;
   DBUG_ENTER("nisam_update");
 
+  LINT_INIT(save_errno);
   if (!(info->update & HA_STATE_AKTIV))
   {
     my_errno=HA_ERR_KEY_NOT_FOUND;
@@ -54,7 +55,7 @@ int nisam_update(register N_INFO *info, const byte *oldrec, const byte *newrec)
       info->s->base.max_key_file_length -
       info->s->blocksize* INDEX_BLOCK_MARGIN *info->s->state.keys)
   {
-    my_errno=HA_ERR_INDEX_FILE_FULL;
+    save_errno=HA_ERR_INDEX_FILE_FULL;
     goto err_end;
   }
 
@@ -108,12 +109,9 @@ err:
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | HA_STATE_AKTIV |
 		 key_changed);
  err_end:
-  nisam_log_record(LOG_UPDATE,info,newrec,info->lastpos,my_errno);
+  nisam_log_record(LOG_UPDATE,info,newrec,info->lastpos,save_errno);
   VOID(_nisam_writeinfo(info,1));
   allow_break();				/* Allow SIGHUP & SIGINT */
-  if (save_errno == HA_ERR_KEY_NOT_FOUND)
-    my_errno=HA_ERR_CRASHED;
-  else
-    my_errno=save_errno;
+  my_errno=(save_errno == HA_ERR_KEY_NOT_FOUND) ? HA_ERR_CRASHED : save_errno;
   DBUG_RETURN(-1);
 } /* nisam_update */

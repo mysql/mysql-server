@@ -412,7 +412,6 @@ net_real_write(NET *net,const char *packet,ulong len)
 
 static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
 {
-  char buff[1024];
   ALARM alarm_buff;
   uint retry_count=0;
   if (!thr_alarm_in_use(alarmed))

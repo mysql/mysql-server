@@ -388,7 +388,6 @@ int ha_berkeley::close(void)
 
 bool ha_berkeley::fix_rec_buff_for_blob(ulong length)
 {
-  uint extra;
   if (! rec_buff || length > alloced_rec_buff_length)
   {
     byte *newptr;
@@ -663,7 +662,7 @@ int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
 				    const byte * new_row, DBT *prim_key)
 {
   DBT row, old_key;
-  int error,new_error;
+  int error;
   DBUG_ENTER("update_primary_key");
 
   if (primary_key_changed)
@@ -705,9 +704,8 @@ int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
 
 int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 {
-  DBT row, prim_key, key, old_prim_key;
+  DBT prim_key, key, old_prim_key;
   int error;
-  uint keynr;
   DB_TXN *sub_trans;
   bool primary_key_changed;
   DBUG_ENTER("update_row");
@@ -1242,7 +1240,7 @@ THR_LOCK_DATA **ha_berkeley::store_lock(THD *thd, THR_LOCK_DATA **to,
 static int create_sub_table(const char *table_name, const char *sub_name,
 			    DBTYPE type, int flags)
 {
-  int error,error2;
+  int error;
   DB *file;
   DBUG_ENTER("create_sub_table");
   DBUG_PRINT("enter",("sub_name: %s",sub_name));

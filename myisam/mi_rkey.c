@@ -39,13 +39,13 @@ int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 
   if (raw_key)
   {
-  if (key_len == 0)
-    key_len=USE_WHOLE_KEY;
-  key_buff=info->lastkey+info->s->base.max_key_length;
-  pack_key_length=_mi_pack_key(info,(uint) inx,key_buff,(uchar*) key,key_len);
-  info->last_rkey_length=pack_key_length;
-  DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,share->keyinfo[inx].seg,
-				   key_buff,pack_key_length););
+    if (key_len == 0)
+      key_len=USE_WHOLE_KEY;
+    key_buff=info->lastkey+info->s->base.max_key_length;
+    pack_key_length=_mi_pack_key(info,(uint) inx,key_buff,(uchar*) key,key_len);
+    info->last_rkey_length=pack_key_length;
+    DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,share->keyinfo[inx].seg,
+				     key_buff,pack_key_length););
   }
   else
   {

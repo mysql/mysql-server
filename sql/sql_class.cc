@@ -553,11 +553,11 @@ bool select_dump::send_data(List<Item> &items)
   }
   while ((item=li++))
   {
-    Item_result result_type=item->result_type();
     res=item->str_result(&tmp);
-    if (!res)
+    if (!res)					// If NULL
     {
-      if (my_b_write(&cache,(byte*) "",1)) goto err;	// NULL
+      if (my_b_write(&cache,(byte*) "",1))
+	goto err;
     }
     else if (my_b_write(&cache,(byte*) res->ptr(),res->length()))
     {
