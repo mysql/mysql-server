@@ -2374,12 +2374,24 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   TIME time;
-  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  LEX *lex= thd->lex;
+  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_column_record");
   if (res)
   {
-    DBUG_RETURN(1);
+    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS)
+    {
+      /*
+        I.e. we are in SELECT FROM INFORMATION_SCHEMA.COLUMS
+        rather than in SHOW COLUMNS
+      */ 
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+      thd->clear_error();
+      res= 0;
+    }
+    DBUG_RETURN(res);
   }
 
   TABLE *show_table= tables->table;
@@ -2745,7 +2757,23 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_stat_record");
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (thd->lex->orig_sql_command != SQLCOM_SHOW_KEYS)
+    {
+      /*
+        I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
+        rather than in SHOW KEYS
+      */ 
+      if (!tables->view)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     thd->net.last_errno, thd->net.last_error);
+      thd->clear_error();
+      res= 0;
+    }
+    DBUG_RETURN(res);
+  }
+  else if (!tables->view)
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->key_info;
@@ -2868,7 +2896,15 @@ static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
 					 const char *file_name)
 {
   DBUG_ENTER("get_schema_constraints_record");
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  else if (!tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -2925,7 +2961,15 @@ static int get_schema_key_column_usage_record(THD *thd,
 {
   DBUG_ENTER("get_schema_key_column_usage_record");
   CHARSET_INFO *cs= system_charset_info;
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  else if (!tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
