@@ -2970,6 +2970,14 @@ timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
     return TIMESTAMP_AUTO_SET_ON_INSERT;
   case TIMESTAMP_UN_FIELD:
     return TIMESTAMP_AUTO_SET_ON_UPDATE;
+  case TIMESTAMP_OLD_FIELD:
+    /*
+      Altough we can have several such columns in legacy tables this
+      function should be called only for first of them (i.e. the one
+      having auto-set property).
+    */
+    DBUG_ASSERT(table->timestamp_field == this);
+    /* Fall-through */
   case TIMESTAMP_DNUN_FIELD:
     return TIMESTAMP_AUTO_SET_ON_BOTH;
   default:
