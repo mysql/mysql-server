@@ -940,7 +940,7 @@ int show_binlog_events(THD* thd)
   if (mysql_bin_log.is_open())
   {
     LEX_MASTER_INFO *lex_mi = &thd->lex.mi;
-    uint event_count, limit_start, limit_end;
+    ha_rows event_count, limit_start, limit_end;
     my_off_t pos = lex_mi->pos;
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;

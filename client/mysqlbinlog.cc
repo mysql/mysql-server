@@ -210,7 +210,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     print_version();
     exit(0);
   case '?':
-  default:
     usage();
     exit(0);
   }
