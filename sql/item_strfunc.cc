@@ -2412,14 +2412,22 @@ String *Item_load_file::val_str(String *str)
   String *file_name;
   File file;
   MY_STAT stat_info;
+  char path[FN_REFLEN];
   DBUG_ENTER("load_file");
 
-  if (!(file_name= args[0]->val_str(str)) ||
+  if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      !(current_thd->master_access & FILE_ACL) ||
+      || !(current_thd->master_access & FILE_ACL)
 #endif
-      !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_WME)))
+      )
     goto err;
+
+  (void) fn_format(path, file_name->c_ptr(), mysql_real_data_home, "",
+		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
+
+  if (!my_stat(path, &stat_info, MYF(MY_WME)))
+    goto err;
+
   if (!(stat_info.st_mode & S_IROTH))
   {
     /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
@@ -2723,11 +2731,17 @@ String *Item_func_compress::val_str(String *str)
    compress(compress(compress(...)))
    I.e. zlib give number 'at least'..
   */
-  ulong new_size= (ulong)((res->length()*120)/100)+12;
+  ulong new_size= res->length() + res->length() / 5 + 12;
 
-  buffer.realloc((uint32)new_size + 4 + 1);
+  // Will check new_size overflow: new_size <= res->length()
+  if (((uint32) new_size <= res->length()) || 
+      buffer.realloc((uint32) new_size + 4 + 1))
+  {
+    null_value= 1;
+    return 0;
+  }
+
   Byte *body= ((Byte*)buffer.ptr()) + 4;
-
 
   // As far as we have checked res->is_empty() we can use ptr()
   if ((err= compress(body, &new_size,

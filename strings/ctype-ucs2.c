@@ -1345,10 +1345,10 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
     }
     if (ptr[0] == '\0' && ptr[1] == w_one)	/* '_' in SQL */
     {
-      *min_str++= (char) cs->min_sort_char >> 8;
-      *min_str++= (char) cs->min_sort_char & 255;
-      *max_str++= (char) cs->max_sort_char >> 8;
-      *max_str++= (char) cs->max_sort_char & 255;
+      *min_str++= (char) (cs->min_sort_char >> 8);
+      *min_str++= (char) (cs->min_sort_char & 255);
+      *max_str++= (char) (cs->max_sort_char >> 8);
+      *max_str++= (char) (cs->max_sort_char & 255);
       continue;
     }
     if (ptr[0] == '\0' && ptr[1] == w_many)	/* '%' in SQL */
@@ -1358,8 +1358,8 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
       do {
         *min_str++ = 0;
 	*min_str++ = 0;
-	*max_str++ = (char) cs->max_sort_char >>8;
-	*max_str++ = (char) cs->max_sort_char & 255;
+	*max_str++ = (char) (cs->max_sort_char >> 8);
+	*max_str++ = (char) (cs->max_sort_char & 255);
       } while (min_str + 1 < min_end);
       return 0;
     }

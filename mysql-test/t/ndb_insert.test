@@ -443,13 +443,20 @@ begin;
 
 #
 # Insert duplicate rows, inside transaction
-# 
+# since failing inserts rollbacks whole transaction
+# all select count (except second) return same value
+#
+SELECT COUNT(*) FROM t1;
+INSERT INTO t1 VALUES 
+(2001,2001,2001),(2002,2002,2002),(2003,2003,2003),(2004,2004,2004),(2005,2005,2005);
+SELECT COUNT(*) FROM t1;
 --error 1062
 INSERT INTO t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
-
+SELECT COUNT(*) FROM t1;
 commit;
+SELECT COUNT(*) FROM t1;
 
 #
 # Insert duplicate rows using "insert .. select" 
