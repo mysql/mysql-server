@@ -2136,8 +2136,7 @@ mysql_execute_command(THD *thd)
     if (grant_option)
     {
       /* Check that the first table has CREATE privilege */
-      bool error= check_grant(thd, CREATE_ACL, tables, 0, 1, 0);
-      if (error)
+      if (check_grant(thd, CREATE_ACL, tables, 0, 1, 0))
 	goto error;
     }
     if (strlen(tables->real_name) > NAME_LEN)
@@ -2638,14 +2637,14 @@ unsent_create_error:
   {
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
-
     TABLE_LIST *target_tbl;
     uint table_count;
     multi_delete *result;
+
     if ((res= multi_delete_precheck(thd, tables, &table_count)))
       break;
 
-    // condition will be TRUE on SP re esexcuting
+    /* condition will be TRUE on SP re-excuting */
     if (select_lex->item_list.elements != 0)
       select_lex->item_list.empty();
     if (add_item_to_list(thd, new Item_null()))
@@ -3387,18 +3386,18 @@ error:
     0 - OK
     1 - access denied, error is sent to client
 */
-int check_one_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables)
+
+int check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
 					 
 {
   if (check_access(thd, privilege, tables->db, &tables->grant.privilege,0,0))
     return 1;
 
-  // Show only 1 table for check_grant
+  /* Show only 1 table for check_grant */
   if (grant_option && check_grant(thd, privilege, tables, 0, 1, 0))
     return 1;
 
-  // check rights on tables of subselect (if exists)
+  /* Check rights on tables of subselect (if exists) */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= tables->next))
   {
@@ -3851,6 +3850,7 @@ void mysql_init_multi_delete(LEX *lex)
   When you modify mysql_parse(), you may need to mofify
   mysql_test_parse_for_slave() in this same file.
 */
+
 void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
@@ -4928,14 +4928,15 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
 
   SYNOPSIS
     multi_update_precheck()
-    thd		- thread handler
-    tables	- global table list
+    thd		Thread handler
+    tables	Global table list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   Error (message is sent to user)
+    -1  Error (message is not sent to user)
 */
+
 int multi_update_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("multi_update_precheck");
@@ -5016,14 +5017,14 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
 
   SYNOPSIS
     multi_delete_precheck()
-    thd		- thread handler
-    tables	- global table list
-    table_count	- pointer to table counter
+    thd			Thread handler
+    tables		Global table list
+    table_count		Pointer to table counter
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   error (message is sent to user)
+    -1  error (message is not sent to user)
 */
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
 {
@@ -5083,14 +5084,15 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
 
   SYNOPSIS
     multi_delete_precheck()
-    thd		- thread handler
-    tables	- global table list
+    thd		Thread handler
+    tables	Global table list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   Error (message is sent to user)
+    -1  Error (message is not sent to user)
 */
+
 int insert_select_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("insert_select_precheck");
@@ -5109,14 +5111,15 @@ int insert_select_precheck(THD *thd, TABLE_LIST *tables)
 
   SYNOPSIS
     update_precheck()
-    thd		- thread handler
-    tables	- global table list
+    thd		Thread handler
+    tables	Global table list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   Error (message is sent to user)
+    -1  Error (message is not sent to user)
 */
+
 int update_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("update_precheck");
@@ -5135,20 +5138,21 @@ int update_precheck(THD *thd, TABLE_LIST *tables)
 
   SYNOPSIS
     delete_precheck()
-    thd		- thread handler
-    tables	- global table list
+    thd		Thread handler
+    tables	Global table list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   error (message is sent to user)
+    -1  error (message is not sent to user)
 */
+
 int delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("delete_precheck");
   if (check_one_table_access(thd, DELETE_ACL, tables))
     DBUG_RETURN(1);
-  // Set privilege for the WHERE clause
+  /* Set privilege for the WHERE clause */
   tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
   DBUG_RETURN(0);
 }
@@ -5159,14 +5163,15 @@ int delete_precheck(THD *thd, TABLE_LIST *tables)
 
   SYNOPSIS
     insert_precheck()
-    thd		- thread handler
-    tables	- global table list
+    thd		Thread handler
+    tables	Global table list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   error (message is sent to user)
+    -1  error (message is not sent to user)
 */
+
 int insert_precheck(THD *thd, TABLE_LIST *tables, bool update)
 {
   LEX *lex= thd->lex;
@@ -5192,15 +5197,16 @@ int insert_precheck(THD *thd, TABLE_LIST *tables, bool update)
 
   SYNOPSIS
     create_table_precheck()
-    thd			- thread handler
-    tables		- global table list
-    create_table	- table which will be created
+    thd			Thread handler
+    tables		Global table list
+    create_table	Table which will be created
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    0   OK
+    1   Error (message is sent to user)
+    -1  Error (message is not sent to user)
 */
+
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table)
 {

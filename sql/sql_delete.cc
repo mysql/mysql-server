@@ -254,9 +254,9 @@ cleanup:
 */
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
-  TABLE_LIST *delete_table_list=
-    (TABLE_LIST*)thd->lex->select_lex.table_list.first;
-  DBUG_ENTER(" mysql_prepare_delete");
+  TABLE_LIST *delete_table_list= ((TABLE_LIST*) thd->lex->
+				  select_lex.table_list.first);
+  DBUG_ENTER("mysql_prepare_delete");
 
   if (setup_conds(thd, delete_table_list, conds) || 
       setup_ftfuncs(&thd->lex->select_lex))
@@ -267,6 +267,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
   }
+  DBUG_RETURN(0);
 }
 
 
