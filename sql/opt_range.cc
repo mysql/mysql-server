@@ -2409,7 +2409,11 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
   if (!quick)
     return 0;
   if (cp_buffer_from_ref(ref))
-    return quick; /* empty range */
+  {
+    if (current_thd->fatal_error)
+      return 0;					// End of memory
+    return quick;				// empty range
+  }
 
   QUICK_RANGE *range= new QUICK_RANGE();
   if (!range)

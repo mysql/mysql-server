@@ -34,7 +34,7 @@ protected:
   Item **args,*tmp_arg[2];
 public:
   uint arg_count;
-  table_map used_tables_cache;
+  table_map used_tables_cache, not_null_tables_cache;
   bool const_item_cache;
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
@@ -97,6 +97,7 @@ public:
   bool fix_fields(THD *,struct st_table_list *);
   void make_field(Send_field *field);
   table_map used_tables() const;
+  table_map not_null_tables() const;
   void update_used_tables();
   bool eq(const Item *item, bool binary_cmp) const;
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
@@ -588,7 +589,8 @@ public:
   void split_sum_func(List<Item> &fields);
   void update_used_tables()
   {
-    item->update_used_tables() ; Item_func::update_used_tables();
+    item->update_used_tables();
+    Item_func::update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&=  item->const_item();
   }
@@ -597,6 +599,7 @@ public:
   {
     maybe_null=0; max_length=3;
     used_tables_cache|= item->used_tables();
+    not_null_tables_cache&= item->not_null_tables();
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
@@ -736,6 +739,7 @@ public:
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
+  table_map not_null_tables() const { return 0; }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -969,6 +973,7 @@ public:
   }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
+  table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd,struct st_table_list *tlist);
   bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }
