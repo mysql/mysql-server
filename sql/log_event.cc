@@ -1059,9 +1059,9 @@ bool Query_log_event::write(IO_CACHE* file)
       sees unknown Q_CATALOG_NZ_CODE; so it will not be able to read
       Q_AUTO_INCREMENT*, Q_CHARSET and so replication will fail silently in
       various ways. Documented that you should not mix alpha/beta versions if
-      they are not exactly the same version, with example of 5.0.2<->5.0.3 and
-      5.0.3<->5.0.4. If replication is from older to new, the new won't find
-      the catalog and will have the same problems.
+      they are not exactly the same version, with example of 5.0.3->5.0.2 and
+      5.0.4->5.0.3. If replication is from older to new, the new will
+      recognize Q_CATALOG_CODE and have no problem.
       */
   }
   if (auto_increment_increment != 1)
@@ -1195,6 +1195,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   uint8 common_header_len, post_header_len;
   char *start;
   const char *end;
+  bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
   common_header_len= description_event->common_header_len;
@@ -1286,11 +1287,17 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos+= time_zone_len+1;
       break;
     }
+    case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      if ((catalog_len= *pos))
+        catalog= (char*) pos+1;                           // Will be copied later
+      pos+= catalog_len+2; // leap over end 0
+      catalog_nz= 0; // catalog has end 0 in event
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
  code: %u), skipping the rest of them", (uint) *(pos-1)));
-      pos= (const uchar*) end;                         // Break look
+      pos= (const uchar*) end;                         // Break loop
     }
   }
   
@@ -1300,10 +1307,19 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
-    memcpy(start, catalog, catalog_len);
-    catalog= start;
-    start+= catalog_len;
-    *start++= 0;
+    if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
+    {
+      memcpy(start, catalog, catalog_len);
+      catalog= start;
+      start+= catalog_len;
+      *start++= 0;
+    }
+    else
+    {
+      memcpy(start, catalog, catalog_len+1); // copy end 0
+      catalog= start;
+      start+= catalog_len+1;
+    }
   }
   if (time_zone_len)
   {
