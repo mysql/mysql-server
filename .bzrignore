@@ -307,3 +307,4 @@ bdb/include/db_ext.h
 bdb/include/mutex_ext.h
 mit-pthreads/syscall.S
 mit-pthreads/config.flags
+stamp-h.in
