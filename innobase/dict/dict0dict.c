@@ -29,7 +29,14 @@ Created 1/8/1996 Heikki Tuuri
 
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
-rw_lock_t	dict_foreign_key_check_lock;
+rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
+					this in X-mode, implicit or backround
+					operations purge, rollback, foreign
+					key checks reserve this in S-mode; we
+					cannot trust that MySQL protects
+					implicit or background operations
+					from dropping a table: this is our
+					mechanism */
 
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
 					creating a table or index object */
@@ -509,9 +516,8 @@ dict_init(void)
 
 	UT_LIST_INIT(dict_sys->table_LRU);
 
-	rw_lock_create(&dict_foreign_key_check_lock);
-	rw_lock_set_level(&dict_foreign_key_check_lock,
-						SYNC_FOREIGN_KEY_CHECK);
+	rw_lock_create(&dict_operation_lock);
+	rw_lock_set_level(&dict_operation_lock, SYNC_DICT_OPERATION);
 }
 
 /**************************************************************************
@@ -1851,14 +1857,14 @@ loop:
 
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
-static
+
 char*
 dict_accept(
 /*========*/
 			/* out: if string was accepted, the pointer
 			is moved after that, else ptr is returned */
 	char*	ptr,	/* in: scan from this */
-	const char* string,	/* in: accept only this string as the next
+	const char* string,/* in: accept only this string as the next
 			non-whitespace string */
 	ibool*	success)/* out: TRUE if accepted */
 {

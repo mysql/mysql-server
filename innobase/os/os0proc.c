@@ -19,6 +19,23 @@ Created 9/30/1995 Heikki Tuuri
 #include "ut0mem.h"
 
 /********************************************************************
+Converts the current process id to a number. It is not guaranteed that the
+number is unique. In Linux returns the 'process number' of the current
+thread. That number is the same as one sees in 'top', for example. In Linux
+the thread id is not the same as one sees in 'top'. */
+
+ulint
+os_proc_get_number(void)
+/*====================*/
+{
+#ifdef __WIN__
+	return((ulint)GetCurrentProcessId());
+#else
+	return((ulint)getpid());
+#endif
+}
+
+/********************************************************************
 Allocates non-cacheable memory. */
 
 void*

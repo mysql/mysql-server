@@ -331,6 +331,11 @@ buf_page_print(
 						index->table_name,
 						index->name);
 		}
+	} else if (fil_page_get_type(read_buf) == FIL_PAGE_INODE) {
+		fprintf(stderr, "InnoDB: Page may be an 'inode' page\n");
+	} else if (fil_page_get_type(read_buf) == FIL_PAGE_IBUF_FREE_LIST) {
+		fprintf(stderr,
+		"InnoDB: Page may be an insert buffer free list page\n");
 	}
 }
 
@@ -350,6 +355,8 @@ buf_block_init(
 	block->modify_clock = ut_dulint_zero;
 	
 	block->file_page_was_freed = FALSE;
+
+	block->check_index_page_at_flush = FALSE;
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
@@ -614,6 +621,29 @@ buf_page_peek_block(
 	mutex_exit(&(buf_pool->mutex));
 
 	return(block);
+}
+
+/************************************************************************
+Resets the check_index_page_at_flush field of a page if found in the buffer
+pool. */
+
+void
+buf_reset_check_index_page_at_flush(
+/*================================*/
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: page number */
+{
+	buf_block_t*	block;
+
+	mutex_enter_fast(&(buf_pool->mutex));
+
+	block = buf_page_hash_get(space, offset);
+
+	if (block) {
+		block->check_index_page_at_flush = FALSE;
+	}
+	
+	mutex_exit(&(buf_pool->mutex));
 }
 
 /************************************************************************
@@ -1185,6 +1215,8 @@ buf_page_init(
 	block->space 		= space;
 	block->offset 		= offset;
 
+	block->check_index_page_at_flush = FALSE;
+	
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 	block->lock_mutex	= NULL;
 	

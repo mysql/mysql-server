@@ -453,7 +453,9 @@ static
 ibool
 row_purge_parse_undo_rec(
 /*=====================*/
-				/* out: TRUE if purge operation required */
+				/* out: TRUE if purge operation required:
+				NOTE that then the CALLER must s-unlock
+				dict_operation_lock! */
 	purge_node_t*	node,	/* in: row undo node */
 	ibool*		updated_extern,
 				/* out: TRUE if an externally stored field
@@ -493,18 +495,20 @@ row_purge_parse_undo_rec(
 	    	return(FALSE);
 	}
 	
+	/* Prevent DROP TABLE etc. from running when we are doing the purge
+	for this row */
+
+	rw_lock_s_lock(&dict_operation_lock);
  	mutex_enter(&(dict_sys->mutex));
 
 	node->table = dict_table_get_on_id_low(table_id, thr_get_trx(thr));
-
-	rw_lock_x_lock(&(purge_sys->purge_is_running));
 
  	mutex_exit(&(dict_sys->mutex));
 	
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
 
-		rw_lock_x_unlock(&(purge_sys->purge_is_running));
+		rw_lock_s_unlock(&dict_operation_lock);
 
 		return(FALSE);
 	}
@@ -514,7 +518,7 @@ row_purge_parse_undo_rec(
 	if (clust_index == NULL) {
 		/* The table was corrupt in the data dictionary */
 
-		rw_lock_x_unlock(&(purge_sys->purge_is_running));
+		rw_lock_s_unlock(&dict_operation_lock);
 
 		return(FALSE);
 	}
@@ -573,6 +577,8 @@ row_purge(
 	} else {
 		purge_needed = row_purge_parse_undo_rec(node, &updated_extern,
 									thr);
+		/* If purge_needed == TRUE, we must also remember to unlock
+		dict_operation_lock! */
 	}
 
 	if (purge_needed) {
@@ -594,7 +600,7 @@ row_purge(
 			btr_pcur_close(&(node->pcur));
 		}
 
-		rw_lock_x_unlock(&(purge_sys->purge_is_running));		
+		rw_lock_s_unlock(&dict_operation_lock);		
 	}
 
 	/* Do some cleanup */

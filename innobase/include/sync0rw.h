@@ -335,7 +335,8 @@ ibool
 rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/* in: rw-lock */
-	ulint		lock_type);	/* in: lock type */
+	ulint		lock_type);	/* in: lock type: RW_LOCK_SHARED,
+					RW_LOCK_EX */
 /**********************************************************************
 Checks if somebody has locked the rw-lock in the specified mode. */
 

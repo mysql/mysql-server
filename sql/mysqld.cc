@@ -3879,7 +3879,7 @@ static void set_options(void)
 
   /* Set default values for some variables */
   global_system_variables.table_type=DB_TYPE_MYISAM;
-  global_system_variables.tx_isolation=ISO_READ_COMMITTED;
+  global_system_variables.tx_isolation=ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulong) HA_POS_ERROR;
   max_system_variables.select_limit= (ulong) HA_POS_ERROR;
   global_system_variables.max_join_size= (ulong) HA_POS_ERROR;
@@ -4351,7 +4351,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     global_system_variables.tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
 					   ISO_SERIALIZABLE :
-					   ISO_READ_COMMITTED);
+					   ISO_REPEATABLE_READ);
     break;
   }
   case OPT_MASTER_PASSWORD:
