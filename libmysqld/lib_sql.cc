@@ -138,15 +138,6 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     stmt->mem_root= mysql->field_alloc;
   }
 
-  if (!(stmt->bind= 
-	(MYSQL_BIND *) alloc_root(&stmt->mem_root,
-				  sizeof(MYSQL_BIND)*stmt->field_count)))
-  {
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    return 1;
-  }
-  stmt->params= NULL; // we don't need parameter's buffer in embedded library
-
   return 0;
 }
 
@@ -180,7 +171,7 @@ static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_ENTER("emb_stmt_execute");
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
-  thd->client_parameters= stmt->params;
+  thd->client_params= stmt->params;
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
 			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
       || emb_mysql_read_query_result(stmt->mysql))
@@ -192,6 +183,11 @@ static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
+MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
+{
+  return emb_read_rows(stmt->mysql, 0, 0);
+}
+
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
@@ -201,7 +197,8 @@ MYSQL_METHODS embedded_methods=
   emb_fetch_lengths, 
   emb_list_fields,
   emb_read_prepare_result,
-  emb_stmt_execute
+  emb_stmt_execute,
+  emb_read_binary_rows
 };
 
 C_MODE_END
@@ -526,6 +523,43 @@ bool Protocol::write()
   return false;
 }
 
+bool Protocol_prep::write()
+{
+  MYSQL_ROWS *cur;
+  MYSQL_DATA *data= thd->data;
+
+  if (!data)
+  {
+    if (!(data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+					MYF(MY_WME | MY_ZEROFILL))))
+      return true;
+    
+    alloc= &data->alloc;
+    init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
+    alloc->min_malloc=sizeof(MYSQL_ROWS);
+    data->rows=0;
+    data->fields=field_count;
+    data->prev_ptr= &data->data;
+    thd->data= data;
+  }
+
+  data->rows++;
+  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+packet->length())))
+  {
+    my_error(ER_OUT_OF_RESOURCES,MYF(0));
+    return true;
+  }
+  cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
+  memcpy(cur->data, packet->ptr(), packet->length());
+
+  *data->prev_ptr= cur;
+  data->prev_ptr= &cur->next;
+  next_field=cur->data;
+  next_mysql_field= thd->mysql->fields;
+
+  return false;
+}
+
 void
 send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 {
@@ -623,3 +657,85 @@ bool Protocol::convert_str(const char *from, uint length)
   return false;
 }
 #endif
+
+bool setup_params_data(st_prep_stmt *stmt)
+{                                       
+  THD *thd= stmt->thd;
+  List<Item> &params= thd->lex.param_list;
+  List_iterator<Item> param_iterator(params);
+  Item_param *param;
+  ulong param_no= 0;
+  MYSQL_BIND *client_param= thd->client_params;
+
+  DBUG_ENTER("setup_params_data");
+
+  for (;(param= (Item_param *)param_iterator++); client_param++)
+  {       
+    setup_param_functions(param, client_param->buffer_type);
+    if (!param->long_data_supplied)
+    {
+      if (client_param->is_null)
+        param->maybe_null= param->null_value= 1;
+      else
+      {
+	uchar *buff= (uchar*)client_param->buffer;
+        param->maybe_null= param->null_value= 0;
+        param->setup_param_func(param,&buff);
+      }
+    }
+    param_no++;
+  }
+  DBUG_RETURN(0);
+}
+
+bool setup_params_data_withlog(st_prep_stmt *stmt)
+{                                       
+  THD *thd= stmt->thd;
+  List<Item> &params= thd->lex.param_list;
+  List_iterator<Item> param_iterator(params);
+  Item_param *param;
+  MYSQL_BIND *client_param= thd->client_params;
+
+  DBUG_ENTER("setup_params_data");
+
+  String str, *res, *query= new String(stmt->query->alloced_length());  
+  query->copy(*stmt->query);
+  
+  ulong param_no= 0;  
+  uint32 length= 0;
+
+  for (;(param= (Item_param *)param_iterator++); client_param++)
+  {       
+    setup_param_functions(param, client_param->buffer_type);
+    if (param->long_data_supplied)
+      res= param->query_val_str(&str);       
+    
+    else
+    {
+      if (client_param->is_null)
+      {
+        param->maybe_null= param->null_value= 1;
+        res= &null_string;
+      }
+      else
+      {
+	uchar *buff= (uchar*)client_param->buffer;
+        param->maybe_null= param->null_value= 0;
+        param->setup_param_func(param,&buff);
+        res= param->query_val_str(&str);
+      }
+    }
+    if (query->replace(param->pos_in_query+length, 1, *res))
+      DBUG_RETURN(1);
+    
+    length+= res->length()-1;
+    param_no++;
+  }
+  
+  if (alloc_query(stmt->thd, (char *)query->ptr(), query->length()+1))
+    DBUG_RETURN(1);
+  
+  query->free();
+  DBUG_RETURN(0);
+}
+

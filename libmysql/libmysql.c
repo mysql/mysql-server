@@ -1601,15 +1601,6 @@ my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   }
   stmt->field_count=  (uint) field_count;
   stmt->param_count=  (ulong) param_count;
-  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
-						sizeof(MYSQL_BIND)*
-                                                (stmt->param_count + 
-                                                 stmt->field_count))))
-  {
-    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-  stmt->bind= stmt->params + stmt->param_count;
 
   DBUG_RETURN(0);
 }
@@ -1660,6 +1651,15 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
     DBUG_RETURN(0);
   }
 
+  if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
+						sizeof(MYSQL_BIND)*
+                                                (stmt->param_count + 
+                                                 stmt->field_count))))
+  {
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+  stmt->bind= stmt->params + stmt->param_count;
   stmt->state= MY_ST_PREPARE;
   stmt->mysql= mysql;
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
@@ -3080,7 +3080,7 @@ no_data:
   Read all rows of data from server  (binary format)
 */
 
-static MYSQL_DATA *read_binary_rows(MYSQL_STMT *stmt)
+MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;
@@ -3176,7 +3176,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   }
   result->methods= mysql->methods;
   stmt->result_buffered= 1;
-  if (!(result->data= read_binary_rows(stmt)))
+  if (!(result->data= (*stmt->mysql->methods->read_binary_rows)(stmt)))
   {
     my_free((gptr) result,MYF(0));
     DBUG_RETURN(0);
