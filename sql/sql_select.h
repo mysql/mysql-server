@@ -311,7 +311,7 @@ void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item **func_ptr);
 bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
-uint find_shortest_key(TABLE *table, key_map usable_keys);
+uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 
 /* functions from opt_sum.cc */
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
