@@ -1545,11 +1545,11 @@ preferences, etc) that no installation in the PC.
 
 @emph{Professional MySQL Programming}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281, Barnes and Noble}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861005164, Barnes and Noble}
 @item Publisher @tab            Wrox Press, Inc.
 @item Authors   @tab            N/A
-@item Pub Date  @tab            July 2000
-@item ISBN      @tab            1861004281
+@item Pub Date  @tab            Late 2001
+@item ISBN      @tab            1861005164
 @item Pages     @tab            1000
 @item Price     @tab            $49.99
 @end multitable
