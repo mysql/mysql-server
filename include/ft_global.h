@@ -32,7 +32,7 @@ extern "C" {
 typedef struct st_ft_info FT_INFO;
 struct _ft_vft {
   int       (*read_next)(FT_INFO *, char *);
-  float     (*find_relevance)(FT_INFO *, my_off_t, byte *);
+  float     (*find_relevance)(FT_INFO *, byte *, uint);
   void      (*close_search)(FT_INFO *);
   float     (*get_relevance)(FT_INFO *);
   void      (*reinit_search)(FT_INFO *);
