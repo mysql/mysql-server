@@ -2100,9 +2100,9 @@ row_sel_convert_mysql_key_to_innobase(
 
 		/* Calculate data length and data field total length */
 
-		if (type == DATA_BLOB || ( type == DATA_VARCHAR &&
+		if (type == DATA_BLOB ||
 			dtype_get_mysql_type(dfield_get_type(dfield))
-					== DATA_MYSQL_TRUE_VARCHAR)) {
+					== DATA_MYSQL_TRUE_VARCHAR) {
 
 			/* The key field is a column prefix of a BLOB,
 			TEXT, OR TRUE VARCHAR type column */
