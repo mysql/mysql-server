@@ -28955,7 +28955,7 @@ A few are reserved because MySQL needs them and is
 @c START_OF_RESERVED_WORDS
 
 @multitable @columnfractions .25 .25 .25 .25
-@c Reserved word list updated Thu Oct 18 21:44:01 2001 by jcole.
+@c Reserved word list updated Tue Nov  6 08:50:27 2001 by arjen.
 @c To regenerate, use Support/update-reserved-words.pl.
 
 @item @code{ADD}                     @tab @code{ALL}                     
@@ -28963,86 +28963,85 @@ A few are reserved because MySQL needs them and is
 @item @code{AND}                     @tab @code{AS}                      
  @tab @code{ASC}                     @tab @code{BETWEEN}                 
 @item @code{BIGINT}                  @tab @code{BINARY}                  
- @tab @code{BINLOG}                  @tab @code{BLOB}                    
-@item @code{BOTH}                    @tab @code{BY}                      
- @tab @code{CASCADE}                 @tab @code{CASE}                    
-@item @code{CHANGE}                  @tab @code{CHARACTER}               
- @tab @code{COLUMN}                  @tab @code{CONSTRAINT}              
-@item @code{CREATE}                  @tab @code{CROSS}                   
- @tab @code{CURRENT_DATE}            @tab @code{CURRENT_TIME}            
-@item @code{CURRENT_TIMESTAMP}       @tab @code{DATABASE}                
- @tab @code{DATABASES}               @tab @code{DAY_HOUR}                
-@item @code{DAY_MINUTE}              @tab @code{DAY_SECOND}              
- @tab @code{DECIMAL}                 @tab @code{DEFAULT}                 
-@item @code{DELAYED}                 @tab @code{DELETE}                  
- @tab @code{DESC}                    @tab @code{DISTINCTROW}             
-@item @code{DOUBLE}                  @tab @code{DROP}                    
- @tab @code{ELSE}                    @tab @code{ENCLOSED}                
-@item @code{ESCAPED}                 @tab @code{EVENTS}                  
- @tab @code{EXISTS}                  @tab @code{EXPLAIN}                 
-@item @code{FIELDS}                  @tab @code{FLOAT}                   
- @tab @code{FOR}                     @tab @code{FOREIGN}                 
-@item @code{FROM}                    @tab @code{FULLTEXT}                
- @tab @code{GRANT}                   @tab @code{GROUP}                   
-@item @code{HAVING}                  @tab @code{HIGH_PRIORITY}           
- @tab @code{HOUR_MINUTE}             @tab @code{HOUR_SECOND}             
-@item @code{IF}                      @tab @code{IGNORE}                  
- @tab @code{IN}                      @tab @code{INDEX}                   
-@item @code{INFILE}                  @tab @code{INNER}                   
- @tab @code{INSERT}                  @tab @code{INSERT_ID}               
-@item @code{INTEGER}                 @tab @code{INTERVAL}                
- @tab @code{INTO}                    @tab @code{IS}                      
-@item @code{JOIN}                    @tab @code{KEY}                     
- @tab @code{KEYS}                    @tab @code{KILL}                    
-@item @code{LAST_INSERT_ID}          @tab @code{LEADING}                 
- @tab @code{LEFT}                    @tab @code{LIKE}                    
-@item @code{LIMIT}                   @tab @code{LINES}                   
- @tab @code{LOAD}                    @tab @code{LOCK}                    
-@item @code{LONG}                    @tab @code{LONGBLOB}                
- @tab @code{LONGTEXT}                @tab @code{LOW_PRIORITY}            
-@item @code{MASTER_LOG_SEQ}          @tab @code{MASTER_SERVER_ID}        
- @tab @code{MATCH}                   @tab @code{MEDIUMBLOB}              
-@item @code{MEDIUMTEXT}              @tab @code{MIDDLEINT}               
- @tab @code{MINUTE_SECOND}           @tab @code{NATURAL}                 
-@item @code{NOT}                     @tab @code{NULL}                    
- @tab @code{NUMERIC}                 @tab @code{ON}                      
-@item @code{OPTIMIZE}                @tab @code{OPTION}                  
- @tab @code{OPTIONALLY}              @tab @code{OR}                      
-@item @code{ORDER}                   @tab @code{OUTER}                   
- @tab @code{OUTFILE}                 @tab @code{PARTIAL}                 
-@item @code{PRECISION}               @tab @code{PRIMARY}                 
- @tab @code{PRIVILEGES}              @tab @code{PROCEDURE}               
-@item @code{PURGE}                   @tab @code{READ}                    
- @tab @code{REAL}                    @tab @code{REFERENCES}              
-@item @code{RENAME}                  @tab @code{REPLACE}                 
- @tab @code{REQUIRE}                 @tab @code{RESTRICT}                
-@item @code{RETURNS}                 @tab @code{REVOKE}                  
- @tab @code{RIGHT}                   @tab @code{RLIKE}                   
-@item @code{SELECT}                  @tab @code{SET}                     
- @tab @code{SHOW}                    @tab @code{SMALLINT}                
-@item @code{SONAME}                  @tab @code{SQL_AUTO_IS_NULL}        
- @tab @code{SQL_BIG_RESULT}          @tab @code{SQL_BIG_SELECTS}         
-@item @code{SQL_BIG_TABLES}          @tab @code{SQL_BUFFER_RESULT}       
- @tab @code{SQL_CALC_FOUND_ROWS}     @tab @code{SQL_LOG_BIN}             
-@item @code{SQL_LOG_OFF}             @tab @code{SQL_LOG_UPDATE}          
- @tab @code{SQL_LOW_PRIORITY_UPDATES} @tab @code{SQL_SAFE_UPDATES}        
-@item @code{SQL_SELECT_LIMIT}        @tab @code{SQL_SLAVE_SKIP_COUNTER}  
- @tab @code{SQL_SMALL_RESULT}        @tab @code{SQL_WARNINGS}            
-@item @code{SSL}                     @tab @code{STARTING}                
- @tab @code{STRAIGHT_JOIN}           @tab @code{TABLE}                   
-@item @code{TABLES}                  @tab @code{TERMINATED}              
- @tab @code{THEN}                    @tab @code{TINYBLOB}                
-@item @code{TINYINT}                 @tab @code{TINYTEXT}                
- @tab @code{TO}                      @tab @code{TRAILING}                
-@item @code{UNION}                   @tab @code{UNIQUE}                  
- @tab @code{UNLOCK}                  @tab @code{UNSIGNED}                
-@item @code{UPDATE}                  @tab @code{USAGE}                   
- @tab @code{USE}                     @tab @code{USING}                   
-@item @code{VALUES}                  @tab @code{VARBINARY}               
- @tab @code{VARCHAR}                 @tab @code{VARYING}                 
-@item @code{WHEN}                    @tab @code{WHERE}                   
- @tab @code{WITH}                    @tab @code{WRITE}                   
-@item @code{YEAR_MONTH}              @tab @code{ZEROFILL}                
+ @tab @code{BLOB}                    @tab @code{BOTH}                    
+@item @code{BY}                      @tab @code{CASCADE}                 
+ @tab @code{CASE}                    @tab @code{CHANGE}                  
+@item @code{CHARACTER}               @tab @code{COLUMN}                  
+ @tab @code{CONSTRAINT}              @tab @code{CREATE}                  
+@item @code{CROSS}                   @tab @code{CURRENT_DATE}            
+ @tab @code{CURRENT_TIME}            @tab @code{CURRENT_TIMESTAMP}       
+@item @code{DATABASE}                @tab @code{DATABASES}               
+ @tab @code{DAY_HOUR}                @tab @code{DAY_MINUTE}              
+@item @code{DAY_SECOND}              @tab @code{DECIMAL}                 
+ @tab @code{DEFAULT}                 @tab @code{DELAYED}                 
+@item @code{DELETE}                  @tab @code{DESC}                    
+ @tab @code{DISTINCTROW}             @tab @code{DOUBLE}                  
+@item @code{DROP}                    @tab @code{ELSE}                    
+ @tab @code{ENCLOSED}                @tab @code{ESCAPED}                 
+@item @code{EXISTS}                  @tab @code{EXPLAIN}                 
+ @tab @code{FIELDS}                  @tab @code{FLOAT}                   
+@item @code{FOR}                     @tab @code{FOREIGN}                 
+ @tab @code{FROM}                    @tab @code{FULLTEXT}                
+@item @code{GRANT}                   @tab @code{GROUP}                   
+ @tab @code{HAVING}                  @tab @code{HIGH_PRIORITY}           
+@item @code{HOUR_MINUTE}             @tab @code{HOUR_SECOND}             
+ @tab @code{IF}                      @tab @code{IGNORE}                  
+@item @code{IN}                      @tab @code{INDEX}                   
+ @tab @code{INFILE}                  @tab @code{INNER}                   
+@item @code{INSERT}                  @tab @code{INSERT_ID}               
+ @tab @code{INTEGER}                 @tab @code{INTERVAL}                
+@item @code{INTO}                    @tab @code{IS}                      
+ @tab @code{JOIN}                    @tab @code{KEY}                     
+@item @code{KEYS}                    @tab @code{KILL}                    
+ @tab @code{LAST_INSERT_ID}          @tab @code{LEADING}                 
+@item @code{LEFT}                    @tab @code{LIKE}                    
+ @tab @code{LIMIT}                   @tab @code{LINES}                   
+@item @code{LOAD}                    @tab @code{LOCK}                    
+ @tab @code{LONG}                    @tab @code{LONGBLOB}                
+@item @code{LONGTEXT}                @tab @code{LOW_PRIORITY}            
+ @tab @code{MASTER_LOG_SEQ}          @tab @code{MASTER_SERVER_ID}        
+@item @code{MATCH}                   @tab @code{MEDIUMBLOB}              
+ @tab @code{MEDIUMTEXT}              @tab @code{MIDDLEINT}               
+@item @code{MINUTE_SECOND}           @tab @code{NATURAL}                 
+ @tab @code{NOT}                     @tab @code{NULL}                    
+@item @code{NUMERIC}                 @tab @code{ON}                      
+ @tab @code{OPTIMIZE}                @tab @code{OPTION}                  
+@item @code{OPTIONALLY}              @tab @code{OR}                      
+ @tab @code{ORDER}                   @tab @code{OUTER}                   
+@item @code{OUTFILE}                 @tab @code{PARTIAL}                 
+ @tab @code{PRECISION}               @tab @code{PRIMARY}                 
+@item @code{PRIVILEGES}              @tab @code{PROCEDURE}               
+ @tab @code{PURGE}                   @tab @code{READ}                    
+@item @code{REAL}                    @tab @code{REFERENCES}              
+ @tab @code{RENAME}                  @tab @code{REPLACE}                 
+@item @code{REQUIRE}                 @tab @code{RESTRICT}                
+ @tab @code{RETURNS}                 @tab @code{REVOKE}                  
+@item @code{RIGHT}                   @tab @code{RLIKE}                   
+ @tab @code{SELECT}                  @tab @code{SET}                     
+@item @code{SHOW}                    @tab @code{SMALLINT}                
+ @tab @code{SONAME}                  @tab @code{SQL_AUTO_IS_NULL}        
+@item @code{SQL_BIG_RESULT}          @tab @code{SQL_BIG_SELECTS}         
+ @tab @code{SQL_BIG_TABLES}          @tab @code{SQL_BUFFER_RESULT}       
+@item @code{SQL_CALC_FOUND_ROWS}     @tab @code{SQL_LOG_BIN}             
+ @tab @code{SQL_LOG_OFF}             @tab @code{SQL_LOG_UPDATE}          
+@item @code{SQL_LOW_PRIORITY_UPDATES} @tab @code{SQL_SAFE_UPDATES}        
+ @tab @code{SQL_SELECT_LIMIT}        @tab @code{SQL_SLAVE_SKIP_COUNTER}  
+@item @code{SQL_SMALL_RESULT}        @tab @code{SQL_WARNINGS}            
+ @tab @code{SSL}                     @tab @code{STARTING}                
+@item @code{STRAIGHT_JOIN}           @tab @code{TABLE}                   
+ @tab @code{TABLES}                  @tab @code{TERMINATED}              
+@item @code{THEN}                    @tab @code{TINYBLOB}                
+ @tab @code{TINYINT}                 @tab @code{TINYTEXT}                
+@item @code{TO}                      @tab @code{TRAILING}                
+ @tab @code{UNION}                   @tab @code{UNIQUE}                  
+@item @code{UNLOCK}                  @tab @code{UNSIGNED}                
+ @tab @code{UPDATE}                  @tab @code{USAGE}                   
+@item @code{USE}                     @tab @code{USING}                   
+ @tab @code{VALUES}                  @tab @code{VARBINARY}               
+@item @code{VARCHAR}                 @tab @code{VARYING}                 
+ @tab @code{WHEN}                    @tab @code{WHERE}                   
+@item @code{WITH}                    @tab @code{WRITE}                   
+ @tab @code{YEAR_MONTH}              @tab @code{ZEROFILL}                
 
 @end multitable
 
