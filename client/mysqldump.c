@@ -426,7 +426,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V': print_version(); exit(0);
   case 'X':
     opt_xml = 1;
-    opt_disable_keys=0;
+    extended_insert= opt_drop= opt_lock= 
+      opt_disable_keys= opt_autocommit= opt_create_db= 0;
     break;
   case 'I':
   case '?':
@@ -1153,7 +1154,7 @@ static void dumpTable(uint numFields, char *table)
 	  safe_exit(EX_CONSCHECK);
 	  return;
 	}
-	if (extended_insert && !opt_xml)
+	if (extended_insert)
 	{
 	  ulong length = lengths[i];
 	  if (i == 0)
@@ -1238,7 +1239,7 @@ static void dumpTable(uint numFields, char *table)
       if (opt_xml)
         fprintf(md_result_file, "\t</row>\n");
 
-      if (extended_insert && !opt_xml)
+      if (extended_insert)
       {
 	ulong row_length;
 	dynstr_append(&extended_row,")");
@@ -1251,15 +1252,12 @@ static void dumpTable(uint numFields, char *table)
 	}
         else
         {
-	  if (row_break && !opt_xml)
+	  if (row_break)
 	    fputs(";\n", md_result_file);
 	  row_break=1;				/* This is first row */
 
-	  if (!opt_xml)
-	  {
-	    fputs(insert_pat,md_result_file);
-	    fputs(extended_row.str,md_result_file);
-	  }
+          fputs(insert_pat,md_result_file);
+          fputs(extended_row.str,md_result_file);
 	  total_length = row_length+init_length;
         }
       }
@@ -1394,9 +1392,9 @@ static int init_dumping(char *database)
         char qbuf[128];
         MYSQL_ROW row;
         MYSQL_RES *dbinfo;
-	
+
         sprintf(qbuf,"SHOW CREATE DATABASE WITH IF NOT EXISTS %s",database);
-        
+
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
@@ -1420,7 +1418,7 @@ static int init_dumping(char *database)
 	                                        (opt_quoted ? "`" : ""));
     }
   }
-  if (extended_insert && !opt_xml)
+  if (extended_insert)
     if (init_dynamic_string(&extended_row, "", 1024, 1024))
       exit(EX_EOM);
   return 0;
@@ -1683,15 +1681,15 @@ MASTER_LOG_POS=%s ;\n",row[0],row[1]);
     if (mysql_query(sock, "COMMIT"))
     {
       my_printf_error(0, "Error: Couldn't execute 'COMMIT': %s",
-  	      MYF(0), mysql_error(sock));
-    }		      
+	      MYF(0), mysql_error(sock));
+    }
   }
   dbDisconnect(current_host);
   write_footer(md_result_file);
   if (md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-  if (extended_insert & !opt_xml)
+  if (extended_insert)
     dynstr_free(&extended_row);
   my_end(0);
   return(first_error);
