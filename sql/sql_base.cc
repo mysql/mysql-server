@@ -1615,16 +1615,24 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
       table_list->table		table
 */
 
-TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
+TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
+		   bool multiopen)
 {
   TABLE *table;
   bool refresh;
   DBUG_ENTER("open_ltable");
 
   thd->proc_info="Opening table";
-  while (!(table=open_table(thd,table_list->db,
-			    table_list->real_name,table_list->alias,
-			    &refresh)) && refresh) ;
+  if (table_list->next && multiopen)
+  {
+    while (open_tables(thd,table_list) && refresh) ;
+    table= table_list->table;
+  }
+  else
+    while (!(table= open_table(thd,table_list->db,
+			       table_list->real_name,table_list->alias,
+			       &refresh)) && refresh) ;
+  
   if (table)
   {
 #if defined( __WIN__) || defined(OS2)

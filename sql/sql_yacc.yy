@@ -1631,8 +1631,9 @@ select_init:
 select_part2:
 	{
 	  LEX *lex=Lex;
-	  lex->lock_option=TL_READ;
-	   mysql_init_select(lex);
+	  if (lex->select == &lex->select_lex)
+	    lex->lock_option= TL_READ; /* Only for global SELECT */
+	  mysql_init_select(lex);
 	}
 	select_options select_item_list select_into select_lock_type;
 
