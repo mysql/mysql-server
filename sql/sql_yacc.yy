@@ -5034,6 +5034,11 @@ internal_variable_name:
 	}
 	| ident '.' ident
 	  {
+            if (check_reserved_words(&$1))
+            {
+              net_printf(YYTHD, ER_SYNTAX_ERROR);
+              YYABORT;
+            }
 	    sys_var *tmp=find_sys_var($3.str, $3.length);
 	    if (!tmp)
 	      YYABORT;
