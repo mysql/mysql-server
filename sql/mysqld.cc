@@ -3389,6 +3389,7 @@ Starts the MySQL server\n");
   --init-file=file	Read SQL commands from this file at startup\n\
   -L, --language=...	Client error messages in given language. May be\n\
 			given as a full path\n\
+  --local-infile=[1|0]  Enable/disable LOAD DATA LOCAL INFILE\n\
   -l, --log[=file]	Log connections and queries to file\n\
   --log-bin[=file]      Log queries in new binary format (for replication)\n\
   --log-bin-index=file  File that holds the names for last binary log files\n\
