@@ -71,6 +71,7 @@ public:
 
 protected:
   Transporter(TransporterRegistry &,
+	      TransporterType,
 	      const char *lHostName,
 	      const char *rHostName, 
 	      int r_port,
@@ -127,6 +128,7 @@ protected:
 
 protected:
   bool m_connected;     // Are we connected
+  TransporterType m_type;
 
   TransporterRegistry &m_transporter_registry;
   void *get_callback_obj() { return m_transporter_registry.callbackObj; };

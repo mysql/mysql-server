@@ -72,7 +72,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
                                  NodeId rNodeId,
                                  bool chksm, bool signalId,
                                  Uint32 _reportFreq) :
-  Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
+  Transporter(t_reg, tt_TCP_TRANSPORTER,
+	      lHostName, rHostName, r_port, lNodeId, rNodeId,
 	      0, false, chksm, signalId),
   m_sendBuffer(sendBufSize)
 {
