@@ -6,5 +6,7 @@
 #define pthread_ssize_t int
 #define pthread_time_t long
 #define pthread_off_t long
-#define pthread_va_list void *
+#ifdef NOT_USED		/* Removed by monty becasue of conflicts on Linux */
+#define pthread_va_list char *
+#endif
 #endif

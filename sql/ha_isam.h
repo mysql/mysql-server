@@ -26,20 +26,21 @@
 class ha_isam: public handler
 {
   N_INFO *file;
+  /* We need this as table_flags() may change after open() */
+  ulong int_table_flags;
 
  public:
-  ha_isam(TABLE *table): handler(table), file(0)
+  ha_isam(TABLE *table)
+    :handler(table), file(0),
+    int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		    HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
+		    HA_NOT_DELETE_WITH_CACHE)
   {}
   ~ha_isam() {}
   const char *table_type() const { return "ISAM"; }
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
-  ulong table_flags() const
-  {
-    return (HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-	    HA_KEY_READ_WRONG_STR | HA_DUPP_POS | HA_NOT_DELETE_WITH_CACHE |
-	    ((table->db_record_offset) ? 0 : HA_REC_NOT_IN_SEQ));
-  }
+  ulong table_flags() const { return int_table_flags; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return N_MAXKEY; }
   uint max_key_parts()     const { return N_MAXKEY_SEG; }

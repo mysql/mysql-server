@@ -1,4 +1,8 @@
-Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@mysql.com)
+Changes done to this distrubtion (pthreads-1_60_beta6) by Monty
+(monty@mysql.com)
+
+02.06.20
+- Added support for semaphores.
 
 02.05.07
 - Hacked some files to get it to compile (not work) with glibc 2.2
