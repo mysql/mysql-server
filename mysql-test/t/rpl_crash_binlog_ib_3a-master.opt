@@ -1,0 +1,1 @@
+--innodb-safe-binlog --crash-binlog-innodb=2
