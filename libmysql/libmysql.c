@@ -102,8 +102,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
 {
-  mysql_once_init();
-  return 0;
+  return (int) mysql_once_init();
 }
 
 void STDCALL mysql_server_end()
@@ -1436,7 +1435,8 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
 MYSQL * STDCALL
 mysql_init(MYSQL *mysql)
 {
-  mysql_once_init();
+  if (mysql_once_init())
+    return 0;
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
@@ -1476,15 +1476,20 @@ mysql_init(MYSQL *mysql)
     This function is called by mysql_init() and indirectly called
     by mysql_query(), so one should never have to call this from an
     outside program.
+
+  RETURN
+    0  ok
+    1  could not initialize environment (out of memory or thread keys)
 */
 
-void mysql_once_init(void)
+int mysql_once_init(void)
 {
   if (!mysql_client_init)
   {
     mysql_client_init=1;
     org_my_init_done=my_init_done;
-    my_init();					/* Will init threads */
+    if (my_init())				/* Will init threads */
+      return 1;
     init_client_errs();
     if (!mysql_port)
     {
@@ -1518,9 +1523,14 @@ void mysql_once_init(void)
   }
 #ifdef THREAD
   else
-    my_thread_init();         /* Init if new thread */
+  {
+    if (my_thread_init())         /* Init if new thread */
+      return 1;
+  }
 #endif
+  return 0;
 }
+
 
 /**************************************************************************
   Fill in SSL part of MYSQL structure and set 'use_ssl' flag.

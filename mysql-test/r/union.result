@@ -3,7 +3,7 @@ CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
-select a,b from t1 union select a,b from t2;
+select a,b from t1 union distinct select a,b from t2;
 a	b
 1	a
 2	b
@@ -423,3 +423,7 @@ create temporary table t1 select a from t1 union select a from t2;
 create table t1 select a from t1 union select a from t2;
 INSERT TABLE 't1' isn't allowed in FROM table list
 drop table t1,t2;
+select length(version()) > 1 as `*` UNION select 2;
+*
+1
+2

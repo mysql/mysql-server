@@ -4014,5 +4014,6 @@ optional_order_or_limit:
 
 union_option:
 	/* empty */ {}
+	| DISTINCT {}
 	| ALL { Lex->union_option=1; }
 	;

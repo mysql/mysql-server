@@ -3273,6 +3273,8 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     }
     result->send_eof();				// Should be safe
   }
+  /* Update results for FOUND_ROWS */
+  join->thd->limit_found_rows= join->thd->examined_row_count= 0;
   DBUG_RETURN(0);
 }
 
