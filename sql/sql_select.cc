@@ -1876,7 +1876,7 @@ Cursor::fetch(ulong num_rows)
     /* free cursor memory */
     free_items(free_list);
     free_list= 0;
-    free_root(&mem_root, MYF(0));
+    free_root(&main_mem_root, MYF(0));
   }
   return error;
 }
