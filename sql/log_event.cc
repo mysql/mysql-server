@@ -2142,10 +2142,12 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
 int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 {
   Item *it= 0;
-  CHARSET_INFO *charset= log_cs;
+  CHARSET_INFO *charset= 0;
   LEX_STRING user_var_name;
   user_var_name.str= name;
   user_var_name.length= name_len;
+  double real_val;
+  longlong int_val;
 
   if (type != ROW_RESULT)
     init_sql_alloc(&thd->mem_root, 8192,0);
@@ -2158,12 +2160,16 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
   {
     switch (type) {
     case REAL_RESULT:
-      double real_val;
       float8get(real_val, val);
       it= new Item_real(real_val);
+      val= (char*) &real_val;		// Pointer to value in native format
+      val_len= sizeof(real_val);
       break;
     case INT_RESULT:
-      it= new Item_int((longlong) uint8korr(val));
+      int_val= (longlong) uint8korr(val);
+      it= new Item_int(int_val);
+      val= (char*) &int_val;		// Pointer to value in native format
+      val_len= sizeof(int_val);
       break;
     case STRING_RESULT:
       it= new Item_string(val, val_len, charset);
