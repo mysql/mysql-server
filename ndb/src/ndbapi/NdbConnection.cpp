@@ -1477,6 +1477,17 @@ from other transactions.
       theGlobalCheckpointId = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
+
+
+      if (m_abortOption == IgnoreError && theError.code != 0){
+	/**
+	 * There's always a TCKEYCONF when using IgnoreError
+	 */
+#ifdef VM_TRACE
+	ndbout_c("Not completing transaction 2");
+#endif
+	return -1;
+      }
 /**********************************************************************/
 // We sent the transaction with Commit flag set and received a CONF with
 // no Commit flag set. This is clearly an anomaly.
@@ -1720,6 +1731,16 @@ NdbConnection::OpCompleteFailure()
     if (theSimpleState == 1) {
       theCommitStatus = NdbConnection::Aborted;
     }//if
+    if (m_abortOption == IgnoreError){
+      /**
+       * There's always a TCKEYCONF when using IgnoreError
+       */
+#ifdef VM_TRACE
+      ndbout_c("Not completing transaction");
+#endif
+      return -1;
+    }
+    
     return 0;	// Last operation received
   } else if (tNoComp > tNoSent) {
     setOperationErrorCodeAbort(4113);	// Too many operations, 
