@@ -1751,6 +1751,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
   RETURN
     0  - ok
     -1 - error
+    1  - error reported to user
 
   NOTE
     The lock will automaticly be freed by close_thread_tables()

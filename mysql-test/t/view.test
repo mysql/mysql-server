@@ -1125,3 +1125,13 @@ create view v1 as select x ();
 select * from v1;
 drop view v1;
 drop function x;
+
+#
+# VIEW with collation
+#
+create table t2 (col1 char collate latin1_german2_ci);
+create view v2 as select col1 collate latin1_german1_ci from t2;
+show create view v2;
+show create view v2;
+drop view v2;
+drop table t2;

@@ -1183,3 +1183,13 @@ x ()
 5
 drop view v1;
 drop function x;
+create table t2 (col1 char collate latin1_german2_ci);
+create view v2 as select col1 collate latin1_german1_ci from t2;
+show create view v2;
+Table	Create Table
+v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+show create view v2;
+Table	Create Table
+v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+drop view v2;
+drop table t2;

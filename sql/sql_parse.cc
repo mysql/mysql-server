@@ -2136,7 +2136,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_DO:
     if (all_tables &&
 	((res= check_table_access(thd, SELECT_ACL, all_tables, 0)) ||
-		   (res= open_and_lock_tables(thd, all_tables))))
+         (res= open_and_lock_tables(thd, all_tables))))
 	break;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2400,7 +2400,6 @@ mysql_execute_command(THD *thd)
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
-	res= -1;				// If error
         if ((result= new select_create(create_table,
 				       &lex->create_info,
 				       lex->create_list,
