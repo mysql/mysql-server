@@ -1360,6 +1360,14 @@ String *Item_func_password::val_str(String *str)
   return str;
 }
 
+char *Item_func_password::alloc(THD *thd, const char *password)
+{
+  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+  if (buff)
+    make_scrambled_password(buff, password);
+  return buff;
+}
+
 /* Item_func_old_password */
 
 String *Item_func_old_password::val_str(String *str)
@@ -1372,6 +1380,14 @@ String *Item_func_old_password::val_str(String *str)
   make_scrambled_password_323(tmp_value, res->c_ptr());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
   return str;
+}
+
+char *Item_func_old_password::alloc(THD *thd, const char *password)
+{
+  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+  if (buff)
+    make_scrambled_password_323(buff, password);
+  return buff;
 }
 
 

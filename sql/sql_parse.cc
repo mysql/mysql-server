@@ -195,11 +195,8 @@ end:
   RETURN VALUE
     0  OK; thd->user, thd->master_access, thd->priv_user, thd->db and
        thd->db_access are updated; OK is sent to client;
-    1  access denied or internal error; error is sent to client
-       Note, that this return semantics differs from check_connection,
-       which returns -1 if message was already sent.
-   -1  acl entry for this user contains old scramble, but passwd contains
-       new one, error is not sent to client
+   -1  access denied or handshake error; error is sent to client;
+   >0  error, not sent to client
 */
 
 static int check_user(THD *thd, enum enum_server_command command, 
@@ -208,87 +205,129 @@ static int check_user(THD *thd, enum enum_server_command command,
 {
   DBUG_ENTER("check_user");
 
+  if (passwd_len != 0 &&
+      passwd_len != SCRAMBLE_LENGTH &&
+      passwd_len != SCRAMBLE_LENGTH_323)
+    DBUG_RETURN(ER_HANDSHAKE_ERROR);
+
   /*
     Why this is set here? - probably to reset current DB to 'no database
     selected' in case of 'change user' failure.
   */
   thd->db= 0;
   thd->db_length= 0;
-
+  
+  char buff[NAME_LEN + 1]; /* to conditionally save db */
+  
   USER_RESOURCES ur;
   int res= acl_getroot(thd, &ur, passwd, passwd_len,
                        protocol_version == 9 ||
                        !(thd->client_capabilities & CLIENT_LONG_PASSWORD));
-  if (res == 0 && !(thd->master_access & NO_ACCESS)) // authentification is OK 
+  if (res == -1)
   {
-    DBUG_PRINT("info",
-               ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
-                "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                "Access: %u  db: '%s'",
-                thd->client_capabilities, thd->max_client_packet_length,
-                thd->host_or_ip, thd->user, thd->priv_user,
-                passwd_len ? "yes": "no",
-                thd->master_access, thd->db ? thd->db : "*none*"));
-
-    if (check_count)
+    /*
+      This happens when client (new) sends password scrambled with
+      scramble(), but database holds old value (scrambled with
+      scramble_323()). Here we please client to send scrambled_password
+      in old format.
+    */
+    /* save db because network buffer is to hold new packet */
+    if (db)
     {
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
-      bool count_ok= thread_count < max_connections + delayed_insert_threads ||
-                     thd->master_access & SUPER_ACL;
-      VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      if (!count_ok)
-      {                                         // too many connections 
-        send_error(thd, ER_CON_COUNT_ERROR);
-        DBUG_RETURN(1);
-      }
+      strmake(buff, db, NAME_LEN);
+      db= buff;
     }
-
-    /* Why logging is performed before all checks've passed? */
-    mysql_log.write(thd,command,
-                    (thd->priv_user == thd->user ?
-                     (char*) "%s@%s on %s" :
-                     (char*) "%s@%s as anonymous on %s"),
-                    thd->user, thd->host_or_ip,
-                    db ? db : (char*) "");
-
-    /* Why is it set here? */
-    thd->db_access=0;
-
-    /* Don't allow user to connect if he has done too many queries */
-    if ((ur.questions || ur.updates || ur.connections) &&
-        get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
-      DBUG_RETURN(1);
-    if (thd->user_connect && thd->user_connect->user_resources.connections &&
-        check_for_max_user_connections(thd, thd->user_connect))
-      DBUG_RETURN(1);
-
-    /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
-    if (db && db[0])
+    NET *net= &thd->net;
+    if (my_net_write(net, thd->scramble_323, SCRAMBLE_LENGTH_323 + 1) ||
+        net_flush(net) ||
+        my_net_read(net) != SCRAMBLE_LENGTH_323 + 1) // We have to read very
+    {                                                // specific packet size
+      inc_host_errors(&thd->remote.sin_addr);
+      DBUG_RETURN(ER_HANDSHAKE_ERROR);
+    }
+    /* Final attempt to check the user based on reply */
+    /* So as passwd is short, errcode is always >= 0 */
+    res= acl_getroot(thd, &ur, (char *) net->read_pos, SCRAMBLE_LENGTH_323,
+                     false);
+  }
+  /* here res is always >= 0 */
+  if (res == 0)
+  {
+    if (!(thd->master_access & NO_ACCESS)) // authentification is OK 
     {
-      if (mysql_change_db(thd, db))
+      DBUG_PRINT("info",
+                 ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
+                  "Login user: '%s' Priv_user: '%s'  Using password: %s "
+                  "Access: %u  db: '%s'",
+                  thd->client_capabilities, thd->max_client_packet_length,
+                  thd->host_or_ip, thd->user, thd->priv_user,
+                  passwd_len ? "yes": "no",
+                  thd->master_access, thd->db ? thd->db : "*none*"));
+
+      if (check_count)
       {
-        if (thd->user_connect)
-          decrease_user_connections(thd->user_connect);
-        DBUG_RETURN(1);
+        VOID(pthread_mutex_lock(&LOCK_thread_count));
+        bool count_ok= thread_count < max_connections + delayed_insert_threads
+                       || thd->master_access & SUPER_ACL;
+        VOID(pthread_mutex_unlock(&LOCK_thread_count));
+        if (!count_ok)
+        {                                         // too many connections 
+          send_error(thd, ER_CON_COUNT_ERROR);
+          DBUG_RETURN(-1);
+        }
       }
+
+      /* Why logging is performed before all checks've passed? */
+      mysql_log.write(thd,command,
+                      (thd->priv_user == thd->user ?
+                       (char*) "%s@%s on %s" :
+                       (char*) "%s@%s as anonymous on %s"),
+                      thd->user, thd->host_or_ip,
+                      db ? db : (char*) "");
+
+      /* Why is it set here? */
+      thd->db_access=0;
+
+      /* Don't allow user to connect if he has done too many queries */
+      if ((ur.questions || ur.updates || ur.connections) &&
+          get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
+        DBUG_RETURN(1);
+      if (thd->user_connect && thd->user_connect->user_resources.connections &&
+          check_for_max_user_connections(thd, thd->user_connect))
+        DBUG_RETURN(1);
+
+      /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
+      if (db && db[0])
+      {
+        if (mysql_change_db(thd, db))
+        {
+          if (thd->user_connect)
+            decrease_user_connections(thd->user_connect);
+          DBUG_RETURN(-1);
+        }
+      }
+      else
+        send_ok(thd);
+      thd->password= test(passwd_len);          // remember for error messages 
+      /* Ready to handle queries */
+      DBUG_RETURN(0);
     }
-    else
-      send_ok(thd);
-    thd->password= test(passwd_len);            // remember for error messages 
-    /* Ready to handle queries */
   }
-  else if (res != -1)                           // authentication failure
+  else if (res == 2) // client gave short hash, server has long hash
   {
-    net_printf(thd, ER_ACCESS_DENIED_ERROR,
-               thd->user,
-               thd->host_or_ip,
-               passwd_len ? ER(ER_YES) : ER(ER_NO));
-    mysql_log.write(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                    thd->user,
-                    thd->host_or_ip,
-                    passwd_len ? ER(ER_YES) : ER(ER_NO));
+    net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+    mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    DBUG_RETURN(-1);
   }
-  DBUG_RETURN(res);
+  net_printf(thd, ER_ACCESS_DENIED_ERROR,
+             thd->user,
+             thd->host_or_ip,
+             passwd_len ? ER(ER_YES) : ER(ER_NO));
+  mysql_log.write(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                  thd->user,
+                  thd->host_or_ip,
+                  passwd_len ? ER(ER_YES) : ER(ER_NO));
+  DBUG_RETURN(-1);
 }
 
 /*
@@ -492,60 +531,6 @@ static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 
 
 /*
-    Perform check for scrambled password, re-request scrambled password
-    from client if necessary. See also help for check_user.
-  SYNOPSIS
-    authenticate()
-  RETURN VALUE
-     0  success, OK sent to client
-    -1  error, sent to client
-   > 0  error, not sent to client
-*/
-
-static
-int
-authenticate(THD  *thd, enum enum_server_command command,
-             const char *passwd, uint passwd_len, const char *db,
-             bool check_count)
-{
-  if (passwd_len != 0 &&
-      passwd_len != SCRAMBLE_LENGTH &&
-      passwd_len != SCRAMBLE_LENGTH_323)
-    return 1;
-  int res= check_user(thd, COM_CONNECT, passwd, passwd_len, db, check_count);
-  if (res < 0)
-  {
-    /*
-      This happens when client (new) sends password scrambled with
-      scramble(), but database holds old value (scrambled with
-      scramble_323()). Here we please client to send scrambled_password
-      in old format.
-    */
-    char buff[NAME_LEN + 1];
-    /* save db because network buffer is to hold new packet */
-    if (db)
-    {
-      strmake(buff, db, NAME_LEN);
-      db= buff;
-    }
-    NET *net= &thd->net;
-    if (my_net_write(net, thd->scramble_323, SCRAMBLE_LENGTH_323 + 1) ||
-        net_flush(net) ||
-        my_net_read(net) != SCRAMBLE_LENGTH_323 + 1) // We have to read very
-    {                                                // specific packet size
-      inc_host_errors(&thd->remote.sin_addr);
-      return ER_HANDSHAKE_ERROR;
-    }
-    /* Final attempt to check the user based on reply */
-    /* So as passwd is short, errcode is always sent to user and res >= 0 */
-    res= check_user(thd, COM_CONNECT, (char *) net->read_pos,
-          SCRAMBLE_LENGTH_323, db, check_count); 
-  }
-  return res > 0 ? -1 : 0;
-}
-
-
-/*
     Perform handshake, authorize client and update thd ACL variables.
   SYNOPSIS
     check_connection()
@@ -643,7 +628,7 @@ check_connection(THD *thd)
 
     /*
       Old clients does not understand long scrambles, but can ignore packet
-      tail: that's why first part of scramble is placed here, and second
+      tail: that's why first part of the scramble is placed here, and second
       part at the end of packet.
     */
     end= strmake(end, thd->scramble_323, SCRAMBLE_LENGTH_323) + 1;
@@ -760,17 +745,23 @@ check_connection(THD *thd)
 
   char *user= end;
   char *passwd= strend(user)+1;
-  uint passwd_len= strlen(passwd);
-
-  char *db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
-    passwd+passwd_len+1 : 0;
+  char *db= passwd;
+  /* 
+    Old clients send null-terminated string as password; new clients send
+    the size (1 byte) + string (not null-terminated). Hence in case of empty
+    password both send '\0'.
+  */
+  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
+    *passwd++ : strlen(passwd);
+  db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
+    db + passwd_len + 1 : 0;
 
   if (thd->user)
     x_free(thd->user);
   thd->user= my_strdup(user, MYF(0));
   if (!thd->user)
     return(ER_OUT_OF_RESOURCES);
-  return authenticate(thd, COM_CONNECT, passwd, passwd_len, db, true);
+  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
 }
 
 
@@ -1137,8 +1128,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(com_other, &LOCK_status);
     char *user= (char*) packet;
     char *passwd= strend(user)+1;
-    uint passwd_len= strlen(passwd);
-    char *db= passwd + passwd_len + 1;
+    /* 
+      Old clients send null-terminated string ('\0' for empty string) for
+      password.  New clients send the size (1 byte) + string (not null
+      terminated, so also '\0' for empty string).
+    */
+    char *db= passwd;
+    uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
+      *passwd++ : strlen(passwd);
+    db+= passwd_len + 1;
 
     /* Small check for incomming packet */
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
@@ -1163,7 +1161,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
 
-    int res= authenticate(thd, COM_CHANGE_USER, passwd, passwd_len, db, false);
+    int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, false);
 
     if (res)
     {

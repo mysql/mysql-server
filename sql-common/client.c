@@ -1823,7 +1823,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
   if (user && user[0])
-    strmake(end,user,32);			/* Max user name */
+    strmake(end,user,USERNAME_LENGTH);          /* Max user name */
   else
     read_user_name((char*) end);
 
@@ -1835,21 +1835,25 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   end= strend(end) + 1;
   if (passwd[0])
   {
-    /* Write NULL-terminated scrambled password: */
-    end= mysql->server_capabilities & CLIENT_SECURE_CONNECTION ?
-      scramble(end, mysql->scramble, passwd) :
-      scramble_323(end, mysql->scramble_323, passwd,
-                   (my_bool) (mysql->protocol_version == 9));
+    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+    {
+      *end++= SCRAMBLE_LENGTH;
+      scramble(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH;
+    }
+    else
+      end= scramble_323(end, mysql->scramble_323, passwd,
+                   (my_bool) (mysql->protocol_version == 9)) + 1;
   }
   else
-    *end= '\0';                                 /* empty password */
+    *end++= '\0';                               /* empty password */
 
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end=strmake(end+1,db,NAME_LEN);
-    mysql->db=my_strdup(db,MYF(MY_WME));
-    db=0;
+    end= strmake(end, db, NAME_LEN) + 1;
+    mysql->db= my_strdup(db,MYF(MY_WME));
+    db= 0;
   }
   /* Write authentication package */
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))

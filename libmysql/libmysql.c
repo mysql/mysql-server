@@ -619,16 +619,20 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* write scrambled password according to server capabilities */
   if (passwd[0])
   {
-    /* Write NULL-terminated scrambled password: */
-    end= mysql->server_capabilities & CLIENT_SECURE_CONNECTION ?
-      scramble(end, mysql->scramble, passwd) :
-      scramble_323(end, mysql->scramble_323, passwd,
-                   (my_bool) (mysql->protocol_version == 9));
+    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+    {
+      *end++= SCRAMBLE_LENGTH;
+      scramble(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH;
+    }
+    else
+      end= scramble_323(end, mysql->scramble_323, passwd,
+                   (my_bool) (mysql->protocol_version == 9)) + 1;
   }
   else
-    *end= '\0';                                 // empty password
+    *end++= '\0';                               // empty password
   /* Add database if needed */
-  end=strmov(end+1,db ? db : "");
+  end= strmov(end, db ? db : "") + 1;
 
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);

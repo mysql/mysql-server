@@ -51,7 +51,7 @@ static byte* acl_entry_get_key(acl_entry *entry,uint *length,
   return (byte*) entry->key;
 }
 
-#define ACL_KEY_LENGTH (sizeof(long)+NAME_LEN+17)
+#define ACL_KEY_LENGTH (sizeof(long)+NAME_LEN+USERNAME_LENGTH+1)
 
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
@@ -208,7 +208,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 
   DBUG_PRINT("info",("user table fields: %d, password length: %d",
 		     table->fields, table->field[2]->field_length));
-  if (table->field[2]->field_length < 41 && !use_old_passwords)
+  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH &&
+      !use_old_passwords)
   {
     sql_print_error("mysql.user table is not updated to new password format; "
                     "Disabling new password usage until "
@@ -516,6 +517,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
  RETURN VALUE
     0  success: thread data and mqh are updated
     1  user not found or authentification failure
+    2  user found, has long (4.1.1) salt, but passwd is in old (3.23) format.
    -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
 */
 
@@ -564,6 +566,9 @@ acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         else if (passwd_len == SCRAMBLE_LENGTH &&
                  user_i->salt_len == SCRAMBLE_LENGTH_323)
           res= -1;
+        else if (passwd_len == SCRAMBLE_LENGTH_323 &&
+                 user_i->salt_len == SCRAMBLE_LENGTH)
+          res= 2;
         /* linear search complete: */
         break;
       }
