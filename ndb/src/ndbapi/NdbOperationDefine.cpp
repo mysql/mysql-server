@@ -116,7 +116,7 @@ NdbOperation::readTuple(NdbOperation::LockMode lm)
     return readTupleExclusive();
     break;
   case LM_CommittedRead:
-    return readTuple();
+    return committedRead();
     break;
   default:
     return -1;
@@ -191,18 +191,24 @@ NdbOperation::readTupleExclusive()
 int
 NdbOperation::simpleRead()
 {
+  /**
+   * Currently/still disabled
+   */
+  return readTuple();
+#if 0
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
     theOperationType = ReadRequest;
     theSimpleIndicator = 1;
     theErrorLine = tErrorLine++;
-    theLockMode = LM_CommittedRead;
+    theLockMode = LM_Read;
     return 0;
   } else {
     setErrorCode(4200);
     return -1;
   }//if
+#endif
 }//NdbOperation::simpleRead()
 
 /*****************************************************************************
