@@ -407,11 +407,6 @@ QUICK_SELECT::~QUICK_SELECT()
   }
 }
 
-int QUICK_SELECT::init()
-{
-  return error=file->index_init(index);
-}
-
 QUICK_RANGE::QUICK_RANGE()
   :min_key(0),max_key(0),min_length(0),max_length(0),
    flag(NO_MIN_RANGE | NO_MAX_RANGE)
