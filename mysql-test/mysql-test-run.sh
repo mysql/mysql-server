@@ -19,6 +19,8 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
+LC_COLLATE=C
+export LC_COLLATE
 PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$PATH
 MASTER_40_ARGS="--rpl-recovery-rank=1 --init-rpl-role=master"
 
