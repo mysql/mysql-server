@@ -171,6 +171,7 @@ bool Item::get_time(TIME *ltime)
 CHARSET_INFO * Item::default_charset() const
 {
   return current_thd->db_charset;
+}
 
 
 Item *

@@ -484,12 +484,6 @@ set p = p+2;
 end;
 end while;
 end;
-call ip(200);
-select * from primes where i=45 or i=100 or i=199;
-i	p
-45	211
-100	557
-199	1229
 drop table primes;
 drop procedure opp;
 drop procedure ip;

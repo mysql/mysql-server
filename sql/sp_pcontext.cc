@@ -61,13 +61,17 @@ sp_pcontext::grow()
 sp_pvar_t *
 sp_pcontext::find_pvar(LEX_STRING *name)
 {
-  String n(name->str, name->length, default_charset_info);
   uint i = m_i;
 
   while (i-- > 0)
   {
-    if (stringcmp(&n, m_pvar[i].name->const_string()) == 0)
+    if (my_strncasecmp(system_charset_info,
+		       name->str,
+		       m_pvar[i].name->const_string()->ptr(),
+		       name->length) == 0)
+    {
       return m_pvar + i;
+    }
   }
   return NULL;
 }

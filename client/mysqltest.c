@@ -1536,7 +1536,7 @@ int do_while(struct st_query* q)
 
 int do_delimiter(char *p)
 {
-  while (*p && my_isspace(system_charset_info,*p))
+  while (*p && my_isspace(charset_info,*p))
     p++;
   if (!*p)
     die("Missing delimiter character\n");
