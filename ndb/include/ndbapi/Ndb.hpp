@@ -571,7 +571,7 @@
          NdbTransaction::executeAsynchPrepare and either
          Ndb::sendPreparedTransactions or Ndb::sendPollNdb).
 
-   More about how transactions are send the NDB Kernel is 
+   More about how transactions are sent the NDB Kernel is 
    available in section @ref secAdapt.
 */
 #endif
@@ -682,10 +682,10 @@
   
    For each of these "sent" transactions, there are three 
    possible states:
-   -# Waiting to be transfered to NDB Kernel.
-   -# Has been transfered to the NDB Kernel and is currently 
+   -# Waiting to be transferred to NDB Kernel.
+   -# Has been transferred to the NDB Kernel and is currently 
       being processed.
-   -# Has been transfered to the NDB Kernel and has 
+   -# Has been transferred to the NDB Kernel and has 
       finished processing.
       Now it is waiting for a call to a poll method.  
       (When the poll method is invoked, 
@@ -765,12 +765,16 @@
 
 
    @section secNdbKernelConnection   Selecting Transaction Coordinator 
-   The default method is round robin, 
-   where each new set of transactions
+
+   The default method is to select the transaction coordinator (TC) as being
+   the "closest" DB node.  There is a heuristics for closeness based on
+   the type of transporter connection. In order of closest first, we have
+   SCI, SHM, TCP/IP (localhost), and TCP/IP (remote host). If there are several
+   connections available with the same "closeness", they will each be 
+   selected in a round robin fashion for every transaction. Optionally
+   one may set the methos for  TC selection round robin over all available
+   connections, where each new set of transactions
    is placed on the next DB node.
-   The application chooses a TC for a number of transactions
-   and then lets the next TC (on the next DB node) carry out
-   the next set of transactions.
    
    The application programmer can however hint the NDB API which 
    transaction coordinator to use
@@ -835,19 +839,8 @@
    means that the transaction encountering timeout
    should be rolled back and restarted.
 
-   @section secHint                 Hints and performance
 
-   NDB API can be hinted to select a particular transaction coordinator.
-   The default method is round robin where each set of new transactions 
-   is placed on the next NDB kernel node. 
-   By providing a distribution key (usually the primary key
-   of the mostly used table of the transaction) for a record
-   the transaction will be placed on the node where the primary replica
-   of that record resides. 
-   Note that this is only a hint, the system can
-   be under reconfiguration and then the NDB API 
-   will use select the transaction coordinator without using 
-   this hint.
+   @section secHint                 Hints and performance
 
    Placing the transaction coordinator close
    to the actual data used in the transaction can in many cases
