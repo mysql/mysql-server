@@ -2515,9 +2515,10 @@ simple_expr:
 	| NOW_SYM '(' expr ')'
 	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
-	  { $$= new Item_func_password($3); }
-        | PASSWORD '(' expr ',' expr ')'
-          { $$= new Item_func_password($3,$5); }
+	  {
+            $$= use_old_passwords ?  (Item *) new Item_func_old_password($3) :
+              (Item *) new Item_func_password($3);
+          }
 	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
@@ -4604,13 +4605,22 @@ text_or_password:
 	  {
 	    if (!$3.length)
 	      $$=$3.str;
-	    else
+	    else if (use_old_passwords)
 	    {
-	      char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	      make_scrambled_password(buff,$3.str,use_old_passwords,
-				      &YYTHD->rand);
+	      char *buff= (char *)
+                YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+              if (buff)
+                make_scrambled_password_323(buff, $3.str);
 	      $$=buff;
 	    }
+            else
+            {
+	      char *buff= (char *)
+                YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+              if (buff)
+                make_scrambled_password(buff, $3.str);
+	      $$=buff;
+            }
 	  }
           ;
 
@@ -4918,14 +4928,24 @@ grant_user:
 	   $$=$1; $1->password=$4;
 	   if ($4.length)
 	   {
-	     char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	     if (buff)
-	     {
-	       make_scrambled_password(buff,$4.str,use_old_passwords,
-				       &YYTHD->rand);
-	       $1->password.str=buff;
-	       $1->password.length=HASH_PASSWORD_LENGTH;
-	     }
+             if (use_old_passwords)
+             {
+               char *buff= 
+                 (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+               if (buff)
+                 make_scrambled_password_323(buff, $4.str);
+               $1->password.str= buff;
+               $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+             }
+             else
+             {
+               char *buff= 
+                 (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+               if (buff)
+                 make_scrambled_password(buff, $4.str);
+               $1->password.str= buff;
+               $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+             }
 	  }
 	}
 	| user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
