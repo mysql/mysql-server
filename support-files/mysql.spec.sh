@@ -352,9 +352,9 @@ fi
 %files bench
 %attr(-, root, root) /usr/share/sql-bench
 
-%changelog
+%changelog 
 
-* Fri Aug 18 2000
+* Fri Aug 18 2000 Tim Smith <tim@mysql.com>
 
 - Added separate libmysql_r directory; now both a threaded
   and non-threaded library is shipped.

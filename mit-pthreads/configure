@@ -12,8 +12,7 @@ if test ! -d obj ; then
 fi
 
 if test -n "$1" ; then
-  exec $config "$@"
+  sh $config "$@"
 else
-  exec $config
+  sh $config
 fi
-
