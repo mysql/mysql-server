@@ -49,6 +49,9 @@ typedef struct unicase_info_st {
 #define MY_CS_INDEX     4      /* sets listed in the Index file  */
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 
+#define MY_CHARSET_UNDEFINED 0
+#define MY_CHARSET_CURRENT (default_charset_info->number)
+
 
 typedef struct my_uni_idx_st {
   uint16 from;
@@ -112,18 +115,12 @@ typedef struct charset_info_st
   char    max_sort_char; /* For LIKE optimization */
 } CHARSET_INFO;
 
-/* strings/ctype.c */
+
 extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *system_charset_info;
-extern CHARSET_INFO *find_compiled_charset(uint cs_number);
-extern CHARSET_INFO *find_compiled_charset_by_name(const char *name);
-extern CHARSET_INFO  compiled_charsets[];
-extern CHARSET_INFO  all_charsets[256];
-extern uint compiled_charset_number(const char *name);
-extern const char *compiled_charset_name(uint charset_number);
+extern CHARSET_INFO *all_charsets[256];
+extern my_bool init_compiled_charsets(myf flags);
 
-#define MY_CHARSET_UNDEFINED 0
-#define MY_CHARSET_CURRENT (default_charset_info->number)
 
 /* declarations for simple charsets */
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *, uint); 
@@ -153,185 +150,6 @@ extern int my_strcasecmp_mb(CHARSET_INFO * cs,const char *, const char *);
 extern int my_strncasecmp_mb(CHARSET_INFO * cs,const char *, const char *t, uint);
 #endif
 
-#ifdef HAVE_CHARSET_big5
-/* declarations for the big5 character set */
-extern uchar ctype_big5[], to_lower_big5[], to_upper_big5[], sort_order_big5[];
-extern int     my_strnncoll_big5(CHARSET_INFO *,const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_big5(CHARSET_INFO *,uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_big5(CHARSET_INFO *,const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-extern int     ismbchar_big5(CHARSET_INFO *, const char *, const char *);
-extern my_bool ismbhead_big5(CHARSET_INFO *, uint);
-extern int     mbcharlen_big5(CHARSET_INFO *, uint);
-int my_mb_wc_big5(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
-int my_wc_mb_big5(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
-#endif
-
-#ifdef HAVE_CHARSET_czech
-/* declarations for the czech character set */
-extern uchar ctype_czech[], to_lower_czech[], to_upper_czech[], sort_order_czech[];
-extern int     my_strnncoll_czech(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_czech(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_czech(CHARSET_INFO *, 
-                          const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-#endif
-
-
-#ifdef HAVE_CHARSET_win1250ch
-/* declarations for the win1250ch character set */
-extern uchar ctype_win1250ch[];
-extern uchar to_lower_win1250ch[];
-extern uchar to_upper_win1250ch[];
-extern uchar sort_order_win1250ch[];
-extern int     my_strnncoll_win1250ch(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_win1250ch(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_win1250ch(CHARSET_INFO *, 
-                          const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-#endif
-
-
-#ifdef HAVE_CHARSET_euc_kr
-/* declarations for the euc_kr character set */
-extern uchar ctype_euc_kr[], to_lower_euc_kr[], to_upper_euc_kr[], sort_order_euc_kr[];
-extern int     ismbchar_euc_kr(CHARSET_INFO *, const char *, const char *);
-extern my_bool ismbhead_euc_kr(CHARSET_INFO *, uint);
-extern int     mbcharlen_euc_kr(CHARSET_INFO *, uint);
-int my_mb_wc_euc_kr(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
-int my_wc_mb_euc_kr(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
-#endif
-
-#ifdef HAVE_CHARSET_gb2312
-/* declarations for the gb2312 character set */
-extern uchar ctype_gb2312[], to_lower_gb2312[], to_upper_gb2312[], sort_order_gb2312[];
-extern int     ismbchar_gb2312(CHARSET_INFO *, const char *, const char *);
-extern my_bool ismbhead_gb2312(CHARSET_INFO *, uint);
-extern int     mbcharlen_gb2312(CHARSET_INFO *, uint);
-int my_mb_wc_gb2312(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
-int my_wc_mb_gb2312(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
-#endif
-
-#ifdef HAVE_CHARSET_gbk
-/* declarations for the gbk character set */
-extern uchar ctype_gbk[], to_lower_gbk[], to_upper_gbk[], sort_order_gbk[];
-extern int     my_strnncoll_gbk(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_gbk(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_gbk(CHARSET_INFO *, const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-extern int     ismbchar_gbk(CHARSET_INFO *, const char *, const char *);
-extern my_bool ismbhead_gbk(CHARSET_INFO *, uint);
-extern int     mbcharlen_gbk(CHARSET_INFO *, uint);
-int my_mb_wc_gbk(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
-int my_wc_mb_gbk(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
-#endif
-
-#ifdef HAVE_CHARSET_latin1_de
-/* declarations for the latin1_de character set */
-extern uchar ctype_latin1_de[], to_lower_latin1_de[], to_upper_latin1_de[], sort_order_latin1_de[];
-extern int     my_strnncoll_latin1_de(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_latin1_de(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_latin1_de(CHARSET_INFO *, const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-#endif
-
-#ifdef HAVE_CHARSET_sjis
-/* declarations for the sjis character set */
-extern uchar ctype_sjis[], to_lower_sjis[], to_upper_sjis[], sort_order_sjis[];
-extern int     my_strnncoll_sjis(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_sjis(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_sjis(CHARSET_INFO *, const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-extern int     ismbchar_sjis(CHARSET_INFO *, const char *, const char *);
-extern my_bool ismbhead_sjis(CHARSET_INFO *, uint);
-extern int     mbcharlen_sjis(CHARSET_INFO *, uint);
-int my_mb_wc_sjis(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
-int my_wc_mb_sjis(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
-#endif
-
-#ifdef HAVE_CHARSET_tis620
-/* declarations for the tis620 character set */
-extern uchar ctype_tis620[], to_lower_tis620[], to_upper_tis620[], sort_order_tis620[];
-extern int     my_strnncoll_tis620(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
-extern int     my_strnxfrm_tis620(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
-extern my_bool my_like_range_tis620(CHARSET_INFO *, const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-#endif
-
-#ifdef HAVE_CHARSET_ujis
-/* declarations for the ujis character set */
-extern uchar ctype_ujis[], to_lower_ujis[], to_upper_ujis[], sort_order_ujis[];
-extern int     ismbchar_ujis(CHARSET_INFO *, const char *, const char *);
-extern my_bool ismbhead_ujis(CHARSET_INFO *, uint);
-extern int     mbcharlen_ujis(CHARSET_INFO *, uint);
-int my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
-int my_wc_mb_euc_jp(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
-#endif
-
-#ifdef HAVE_CHARSET_utf8
-
-extern uchar ctype_utf8[];
-extern uchar to_lower_utf8[];
-extern uchar to_upper_utf8[];
-
-int my_strnncoll_utf8(CHARSET_INFO *cs,
-                      const uchar *s, uint s_len, const uchar *t, uint t_len);
-
-int my_strnxfrm_utf8(CHARSET_INFO *cs,
-        uchar *dest, uint destlen, const uchar *src, uint srclen);
-
-int my_ismbchar_utf8(CHARSET_INFO *cs, const char *b, const char *e);
-my_bool my_ismbhead_utf8(CHARSET_INFO * cs, uint ch);
-int my_mbcharlen_utf8(CHARSET_INFO *cs, uint c);
-
-void my_caseup_str_utf8(CHARSET_INFO * cs, char * s);
-void my_casedn_str_utf8(CHARSET_INFO *cs, char * s);
-void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint len);
-void my_casedn_utf8(CHARSET_INFO *cs, char *s, uint len);
-
-int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t);
-int my_strncasecmp_utf8(CHARSET_INFO *cs, const char *s,const char *t,uint l);
-
-int my_utf8_uni (CHARSET_INFO *cs, my_wc_t *p, const uchar *s, const uchar *e);
-int my_uni_utf8 (CHARSET_INFO *cs, my_wc_t wc, uchar *b, uchar *e);
-
-uint my_hash_caseup_utf8(struct charset_info_st *cs, const byte *key, uint len);
-void my_hash_sort_utf8(struct charset_info_st *cs, const uchar *key, uint len, ulong *nr1, ulong *nr2); 
-   
-#endif
-
-
-#ifdef HAVE_CHARSET_ucs2
-
-extern uchar ctype_ucs2[];
-extern uchar to_lower_ucs2[];
-extern uchar to_upper_ucs2[];
-
-int my_strnncoll_ucs2(CHARSET_INFO *cs,
-                      const uchar *s, uint s_len, const uchar *t, uint t_len);
-
-int my_strnxfrm_ucs2(CHARSET_INFO *cs,
-        uchar *dest, uint destlen, const uchar *src, uint srclen);
-
-int my_ismbchar_ucs2(CHARSET_INFO *cs, const char *b, const char *e);
-my_bool my_ismbhead_ucs2(CHARSET_INFO * cs, uint ch);
-int my_mbcharlen_ucs2(CHARSET_INFO *cs, uint c);
-
-void my_caseup_str_ucs2(CHARSET_INFO * cs, char * s);
-void my_casedn_str_ucs2(CHARSET_INFO *cs, char * s);
-void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint len);
-void my_casedn_ucs2(CHARSET_INFO *cs, char *s, uint len);
-
-int my_strcasecmp_ucs2(CHARSET_INFO *cs, const char *s, const char *t);
-int my_strncasecmp_ucs2(CHARSET_INFO *cs, const char *s,const char *t,uint l);
-
-int my_ucs2_uni (CHARSET_INFO *cs, my_wc_t *p, const uchar *s, const uchar *e);
-int my_uni_ucs2 (CHARSET_INFO *cs, my_wc_t wc, uchar *b, uchar *e);
-
-uint my_hash_caseup_ucs2(struct charset_info_st *cs, const byte *key, uint len);
-void my_hash_sort_ucs2(struct charset_info_st *cs, const uchar *key, uint len, ulong *nr1, ulong *nr2); 
-   
-#endif
 
 
 #define	_U	01	/* Upper case */

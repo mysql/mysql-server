@@ -1403,7 +1403,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   String packet2(buff,sizeof(buff),default_charset_info);
   List<Item> field_list;
   CONVERT *convert=thd->variables.convert_set;
-  CHARSET_INFO *cs;
+  CHARSET_INFO **cs;
   DBUG_ENTER("mysqld_show_charsets");
 
   field_list.push_back(new Item_empty_string("Name",30));
@@ -1416,16 +1416,16 @@ int mysqld_show_charsets(THD *thd, const char *wild)
 
   for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
   {
-    if (!cs->name)
+    if (!cs[0])
       continue;
     if (!(wild && wild[0] &&
-	  wild_case_compare(system_charset_info,cs->name,wild)))
+	  wild_case_compare(system_charset_info,cs[0]->name,wild)))
     {
       packet2.length(0);
-      net_store_data(&packet2,convert,cs->name);
-      net_store_data(&packet2,(uint32) cs->number);
-      net_store_data(&packet2,(uint32) cs->strxfrm_multiply);
-      net_store_data(&packet2,(uint32) cs->mbmaxlen ? cs->mbmaxlen : 1);
+      net_store_data(&packet2,convert,cs[0]->name);
+      net_store_data(&packet2,(uint32) cs[0]->number);
+      net_store_data(&packet2,(uint32) cs[0]->strxfrm_multiply);
+      net_store_data(&packet2,(uint32) cs[0]->mbmaxlen ? cs[0]->mbmaxlen : 1);
 
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
          goto err;

@@ -685,4 +685,40 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
   }
 }
 
+
+CHARSET_INFO my_charset_tis620 =
+{
+    18,			/* number */
+    MY_CS_COMPILED,	/* state      */
+    "tis620",		/* name */
+    "",			/* comment    */
+    ctype_tis620,
+    to_lower_tis620,
+    to_upper_tis620,
+    sort_order_tis620,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    4,			/* strxfrm_multiply */
+    my_strnncoll_tis620,
+    my_strnxfrm_tis620,
+    my_like_range_tis620,
+    0,			/* mbmaxlen  */
+    NULL,		/* ismbchar  */
+    NULL,		/* ismbhead  */
+    NULL,		/* mbcharlen */
+    my_mb_wc_8bit,	/* mb_wc   */
+    my_wc_mb_8bit,	/* wc_mb   */
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    NULL,		/* tosort      */
+    my_strcasecmp_8bit,
+    my_strncasecmp_8bit,
+    NULL,		/* hash_caseup */
+    NULL,		/* hash_sort   */
+    0
+};
+
+
 #endif
