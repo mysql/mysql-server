@@ -33,32 +33,32 @@ Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
 Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
 
 bool
-BackupFile::Twiddle(AttributeS* attr, Uint32 arraySize){
+BackupFile::Twiddle(const AttributeDesc* attr_desc, AttributeData* attr_data, Uint32 arraySize){
 
   if(m_hostByteOrder)
     return true;
   
   if(arraySize == 0){
-    arraySize = attr->Desc->arraySize;
+    arraySize = attr_desc->arraySize;
   }
   
-  switch(attr->Desc->size){
+  switch(attr_desc->size){
   case 8:
     
     return true;
   case 16:
     for(unsigned i = 0; i<arraySize; i++){
-      attr->Data.u_int16_value[i] = Twiddle16(attr->Data.u_int16_value[i]);
+      attr_data->u_int16_value[i] = Twiddle16(attr_data->u_int16_value[i]);
     }
     return true;
   case 32:
     for(unsigned i = 0; i<arraySize; i++){
-      attr->Data.u_int32_value[i] = Twiddle32(attr->Data.u_int32_value[i]);
+      attr_data->u_int32_value[i] = Twiddle32(attr_data->u_int32_value[i]);
     }
     return true;
   case 64:
     for(unsigned i = 0; i<arraySize; i++){
-      attr->Data.u_int64_value[i] = Twiddle64(attr->Data.u_int64_value[i]);
+      attr_data->u_int64_value[i] = Twiddle64(attr_data->u_int64_value[i]);
     }
     return true;
   default:
@@ -208,7 +208,7 @@ TableS::TableS(NdbTableImpl* tableImpl)
   m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
 
-  for (Uint32 i = 0; i < tableImpl->getNoOfColumns(); i++)
+  for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
 }
 
@@ -246,56 +246,112 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 }
 
 // Constructor
-RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md)
-  : m_metaData(md) 
+RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)())
+  : m_metaData(md), free_data_callback(_free_data_callback)
 {
   debug << "RestoreDataIterator constructor" << endl;
   setDataFile(md, 0);
+
+  m_buffer_sz = 64*1024;
+  m_buffer = malloc(m_buffer_sz);
+  m_buffer_ptr = m_buffer;
+  m_buffer_data_left = 0;
 }
 
-RestoreDataIterator::~RestoreDataIterator(){
+RestoreDataIterator::~RestoreDataIterator()
+{
+  if (m_buffer)
+    free(m_buffer);
 }
+
+TupleS & TupleS::operator=(const TupleS& tuple)
+{
+  prepareRecord(*tuple.m_currentTable);
+
+  if (allAttrData) {
+    allAttrData= new AttributeData[getNoOfAttributes()];
+    memcpy(allAttrData, tuple.allAttrData, getNoOfAttributes()*sizeof(AttributeData));
+  }
+  
+  return *this;
+};
+int TupleS::getNoOfAttributes() const {
+  if (m_currentTable == 0)
+    return 0;
+  return m_currentTable->getNoOfAttributes();
+};
+
+const TableS * TupleS::getTable() const {
+  return m_currentTable;
+};
+
+const AttributeDesc * TupleS::getDesc(int i) const {
+  return m_currentTable->allAttributesDesc[i];
+}
+
+AttributeData * TupleS::getData(int i) const{
+  return &(allAttrData[i]);
+};
 
 bool
 TupleS::prepareRecord(const TableS & tab){
+  if (allAttrData) {
+    delete [] allAttrData;
+    m_currentTable= 0;
+  }
+  
+  allAttrData = new AttributeData[tab.getNoOfAttributes()];
+  
+  if (allAttrData == 0)
+    return false;
+  
   m_currentTable = &tab;
-  for(int i = 0; i<allAttributes.size(); i++) {
-    if(allAttributes[i] != NULL)
-      delete allAttributes[i];
-  }
-  allAttributes.clear();
-  AttributeS * a;
-  for(int i = 0; i<tab.getNoOfAttributes(); i++){
-    a = new AttributeS;
-    if(a == NULL) {
-      ndbout_c("Restore: Failed to allocate memory");
-      return false;
-    }
-    a->Desc = tab[i];
-    allAttributes.push_back(a);
-  }
+  
   return true;
 }
 
-const TupleS *
-RestoreDataIterator::getNextTuple(int  & res) {
-  TupleS * tup = new TupleS();
-  if(tup == NULL) {
-    ndbout_c("Restore: Failed to allocate memory");
-    res = -1;
-    return NULL;
-  }
-  if(!tup->prepareRecord(* m_currentTable)) {
-    res =-1;
-    return NULL;
-  }
-    
+Uint32 RestoreDataIterator::get_buffer_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb, FILE *stream)
+{
+  Uint32 sz = size*nmemb;
+  if (sz > m_buffer_data_left) {
 
+    if (free_data_callback)
+      (*free_data_callback)();
+
+    memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
+
+    size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, stream);
+    m_buffer_data_left += r;
+    m_buffer_ptr = m_buffer;
+
+    if (sz > m_buffer_data_left)
+      sz = size * (m_buffer_data_left / size);
+  }
+
+  *p_buf_ptr = m_buffer_ptr;
+
+  m_buffer_ptr = ((char*)m_buffer_ptr)+sz;
+  m_buffer_data_left -= sz;
+
+  return sz/size;
+}
+
+Uint32 RestoreDataIterator::fread_buffer(void *ptr, Uint32 size, Uint32 nmemb, FILE *stream)
+{
+  void *buf_ptr;
+  Uint32 r = get_buffer_ptr(&buf_ptr, size, nmemb, stream);
+  memcpy(ptr, buf_ptr, r*size);
+
+  return r;
+}
+
+const TupleS *
+RestoreDataIterator::getNextTuple(int  & res)
+{
   Uint32  dataLength = 0;
   // Read record length
-  if (fread(&dataLength, sizeof(dataLength), 1, m_file) != 1){
+  if (fread_buffer(&dataLength, sizeof(dataLength), 1, m_file) != 1){
     err << "getNextTuple:Error reading length  of data part" << endl;
-    delete tup;
     res = -1;
     return NULL;
   } // if
@@ -309,34 +365,34 @@ RestoreDataIterator::getNextTuple(int  & res) {
     // End of this data fragment
     debug << "End of fragment" << endl;
     res = 0;
-    delete tup;
     return NULL;
   } // if
-  
-  tup->createDataRecord(dataLenBytes);
+
   // Read tuple data
-  if (fread(tup->getDataRecord(), 1, dataLenBytes, m_file) != dataLenBytes) {
+  void *_buf_ptr;
+  if (get_buffer_ptr(&_buf_ptr, 1, dataLenBytes, m_file) != dataLenBytes) {
     err << "getNextTuple:Read error: " << endl;
-    delete tup;
     res = -1;
     return NULL;
   }
   
-  Uint32 * ptr = tup->getDataRecord();
+  Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
   ptr += m_currentTable->m_nullBitmaskSize;
 
   for(int i = 0; i < m_currentTable->m_fixedKeys.size(); i++){
-    assert(ptr < tup->getDataRecord() + dataLength);
-    
+    assert(ptr < buf_ptr + dataLength);
+ 
     const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
-    AttributeS * attr = tup->allAttributes[attrId];
 
-    const Uint32 sz = attr->Desc->getSizeInWords();
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
 
-    attr->Data.null = false;
-    attr->Data.void_value = ptr;
+    const Uint32 sz = attr_desc->getSizeInWords();
 
-    if(!Twiddle(attr))
+    attr_data->null = false;
+    attr_data->void_value = ptr;
+
+    if(!Twiddle(attr_desc, attr_data))
       {
 	res = -1;
 	return NULL;
@@ -345,17 +401,19 @@ RestoreDataIterator::getNextTuple(int  & res) {
   }
 
   for(int i = 0; i<m_currentTable->m_fixedAttribs.size(); i++){
-    assert(ptr < tup->getDataRecord() + dataLength);
+    assert(ptr < buf_ptr + dataLength);
 
     const Uint32 attrId = m_currentTable->m_fixedAttribs[i]->attrId;
-    AttributeS * attr = tup->allAttributes[attrId];
 
-    const Uint32 sz = attr->Desc->getSizeInWords();
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
 
-    attr->Data.null = false;
-    attr->Data.void_value = ptr;
+    const Uint32 sz = attr_desc->getSizeInWords();
 
-    if(!Twiddle(attr))
+    attr_data->null = false;
+    attr_data->void_value = ptr;
+
+    if(!Twiddle(attr_desc, attr_data))
       {
 	res = -1;
 	return NULL;
@@ -366,19 +424,21 @@ RestoreDataIterator::getNextTuple(int  & res) {
 
   for(int i = 0; i<m_currentTable->m_variableAttribs.size(); i++){
     const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
-    AttributeS * attr = tup->allAttributes[attrId];
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
     
-    if(attr->Desc->m_column->getNullable()){
-      const Uint32 ind = attr->Desc->m_nullBitIndex;
+    if(attr_desc->m_column->getNullable()){
+      const Uint32 ind = attr_desc->m_nullBitIndex;
       if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
-			  tup->getDataRecord(),ind)){
-	attr->Data.null = true;
-	attr->Data.void_value = NULL;
+			  buf_ptr,ind)){
+	attr_data->null = true;
+	attr_data->void_value = NULL;
 	continue;
       }
     }
 
-    assert(ptr < tup->getDataRecord() + dataLength);
+    assert(ptr < buf_ptr + dataLength);
 
     typedef BackupFormat::DataFile::VariableData VarData;
     VarData * data = (VarData *)ptr;
@@ -386,15 +446,15 @@ RestoreDataIterator::getNextTuple(int  & res) {
     Uint32 id = ntohl(data->Id);
     assert(id == attrId);
     
-    attr->Data.null = false;
-    attr->Data.void_value = &data->Data[0];
+    attr_data->null = false;
+    attr_data->void_value = &data->Data[0];
 
     /**
      * Compute array size
      */
-    const Uint32 arraySize = (4 * sz) / (attr->Desc->size / 8);
-    assert(arraySize >= attr->Desc->arraySize);
-    if(!Twiddle(attr, attr->Desc->arraySize))
+    const Uint32 arraySize = (4 * sz) / (attr_desc->size / 8);
+    assert(arraySize >= attr_desc->arraySize);
+    if(!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
       {
 	res = -1;
 	return NULL;
@@ -405,7 +465,7 @@ RestoreDataIterator::getNextTuple(int  & res) {
 
   m_count ++;  
   res = 0;
-  return tup;
+  return &m_tuple;
 } // RestoreDataIterator::getNextTuple
 
 BackupFile::BackupFile(){
@@ -558,7 +618,7 @@ RestoreDataIterator::readFragmentHeader(int & ret)
   
   debug << "RestoreDataIterator::getNextFragment" << endl;
   
-  if (fread(&Header, sizeof(Header), 1, m_file) != 1){
+  if (fread_buffer(&Header, sizeof(Header), 1, m_file) != 1){
     ret = 0;
     return false;
   } // if
@@ -581,6 +641,12 @@ RestoreDataIterator::readFragmentHeader(int & ret)
     return false;
   }
   
+  if(!m_tuple.prepareRecord(*m_currentTable))
+  {
+    ret =-1;
+    return false;
+  }
+
   info << "_____________________________________________________" << endl
        << "Restoring data in table: " << m_currentTable->getTableName() 
        << "(" << Header.TableId << ") fragment " 
@@ -588,6 +654,7 @@ RestoreDataIterator::readFragmentHeader(int & ret)
   
   m_count = 0;
   ret = 0;
+
   return true;
 } // RestoreDataIterator::getNextFragment
 
@@ -596,7 +663,7 @@ bool
 RestoreDataIterator::validateFragmentFooter() {
   BackupFormat::DataFile::FragmentFooter footer;
   
-  if (fread(&footer, sizeof(footer), 1, m_file) != 1){
+  if (fread_buffer(&footer, sizeof(footer), 1, m_file) != 1){
     err << "getFragmentFooter:Error reading fragment footer" << endl;
     return false;
   } 
@@ -787,14 +854,14 @@ RestoreLogIterator::getNextLogEntry(int & res) {
 
     const Uint32 sz = ah->getDataSize();
     if(sz == 0){
-      attr->Data.null = true;
-      attr->Data.void_value = NULL;
+      attr->Data->null = true;
+      attr->Data->void_value = NULL;
     } else {
-      attr->Data.null = false;
-      attr->Data.void_value = ah->getDataPtr();
+      attr->Data->null = false;
+      attr->Data->void_value = ah->getDataPtr();
     }
     
-    Twiddle(attr);
+    Twiddle(attr->Desc, attr->Data);
     m_logEntry.m_values.push_back(attr);
     
     ah = ah->getNext();
@@ -803,4 +870,86 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   m_count ++;
   res = 0;
   return &m_logEntry;
+}
+
+NdbOut &
+operator<<(NdbOut& ndbout, const AttributeS& attr){
+  const AttributeData & data = *(attr.Data);
+  const AttributeDesc & desc = *(attr.Desc);
+
+  if (data.null)
+  {
+    ndbout << "<NULL>";
+    return ndbout;
+  }
+  
+  NdbRecAttr tmprec;
+  tmprec.setup(desc.m_column, (char *)data.void_value);
+  ndbout << tmprec;
+
+  return ndbout;
+}
+
+// Print tuple data
+NdbOut& 
+operator<<(NdbOut& ndbout, const TupleS& tuple)
+{
+  ndbout << tuple.getTable()->getTableName() << "; ";
+  for (int i = 0; i < tuple.getNoOfAttributes(); i++) 
+  {
+    AttributeData * attr_data = tuple.getData(i);
+    const AttributeDesc * attr_desc = tuple.getDesc(i);
+    const AttributeS attr = {attr_desc, attr_data};
+    debug << i << " " << attr_desc->m_column->getName();
+    ndbout << attr;
+    
+    if (i != (tuple.getNoOfAttributes() - 1))
+      ndbout << delimiter << " ";
+  } // for
+  return ndbout;
+}
+
+// Print tuple data
+NdbOut& 
+operator<<(NdbOut& ndbout, const LogEntry& logE)
+{
+  switch(logE.m_type)
+  {
+  case LogEntry::LE_INSERT:
+    ndbout << "INSERT " << logE.m_table->getTableName() << " ";
+    break;
+  case LogEntry::LE_DELETE:
+    ndbout << "DELETE " << logE.m_table->getTableName() << " ";
+    break;
+  case LogEntry::LE_UPDATE:
+    ndbout << "UPDATE " << logE.m_table->getTableName() << " ";
+    break;
+  default:
+    ndbout << "Unknown log entry type (not insert, delete or update)" ;
+  }
+  
+  for (int i = 0; i < logE.m_values.size();i++) 
+  {
+    const AttributeS * attr = logE.m_values[i];
+    ndbout << attr->Desc->m_column->getName() << "=";
+    ndbout << (* attr);
+    if (i < (logE.m_values.size() - 1))
+      ndbout << ", ";
+  }
+  return ndbout;
+}
+
+
+NdbOut & 
+operator<<(NdbOut& ndbout, const TableS & table){
+  ndbout << endl << "Table: " << table.getTableName() << endl;
+  for (int j = 0; j < table.getNoOfAttributes(); j++) 
+  {
+    const AttributeDesc * desc = table[j];
+    ndbout << desc->m_column->getName() << ": " << desc->m_column->getType();
+    ndbout << " key: "  << desc->m_column->getPrimaryKey();
+    ndbout << " array: " << desc->arraySize;
+    ndbout << " size: " << desc->size << endl;
+  } // for
+  return ndbout;
 }

@@ -18,12 +18,15 @@
 #define RESTORE_H
 
 #include <ndb_global.h>
+#include <NdbOut.hpp>
 #include <BackupFormat.hpp>
 #include <NdbApi.hpp>
 #include "myVector.hpp"
 
 #include <ndb_version.h>
 #include <version.h>
+
+static const char * delimiter = ";"; // Delimiter in file dump
 
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
@@ -82,26 +85,30 @@ public:
 
 struct AttributeS {
   const AttributeDesc * Desc;
-  AttributeData Data;
+  AttributeData * Data;
 };
 
 class TupleS {
 private:
   friend class RestoreDataIterator;
   
-  const TableS * m_currentTable;
-  myVector<AttributeS*> allAttributes;
-  Uint32 * dataRecord;
+  const TableS *m_currentTable;
+  AttributeData *allAttrData;
   bool prepareRecord(const TableS &);
   
 public:
-  TupleS() {dataRecord = NULL;};
-  ~TupleS() {if(dataRecord != NULL) delete [] dataRecord;};
-  int getNoOfAttributes() const { return allAttributes.size(); };  
-  const TableS * getTable() const { return m_currentTable;};
-  const AttributeS * operator[](int i) const { return allAttributes[i];};
-  Uint32 * getDataRecord() { return dataRecord;};
-  void createDataRecord(Uint32 bytes) { dataRecord = new Uint32[bytes];};
+  TupleS() {};
+  ~TupleS()
+  {
+    if (allAttrData)
+      delete [] allAttrData;
+  };
+  TupleS(const TupleS& tuple); // disable copy constructor
+  TupleS & operator=(const TupleS& tuple);
+  int getNoOfAttributes() const;
+  const TableS * getTable() const;
+  const AttributeDesc * getDesc(int i) const;
+  AttributeData * getData(int i) const;
 }; // class TupleS
 
 class TableS {
@@ -206,7 +213,7 @@ public:
   const char * getFilename() const { return m_fileName;}
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
-  bool Twiddle(AttributeS * attr, Uint32 arraySize = 0);
+  bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
 };
 
 class RestoreMetaData : public BackupFile {
@@ -243,20 +250,28 @@ public:
 
 class RestoreDataIterator : public BackupFile {
   const RestoreMetaData & m_metaData;
-
   Uint32 m_count;
-  TupleS  m_tuple;
   const TableS* m_currentTable;
+  TupleS m_tuple;
+
+  void * m_buffer;
+  void * m_buffer_ptr;
+  Uint32 m_buffer_sz;
+  Uint32 m_buffer_data_left;
+  void (* free_data_callback)();
 public:
 
   // Constructor
-  RestoreDataIterator(const RestoreMetaData &);
+  RestoreDataIterator(const RestoreMetaData &, void (* free_data_callback)());
   ~RestoreDataIterator();
   
   // Read data file fragment header
   bool readFragmentHeader(int & res);
   bool validateFragmentFooter();
-  
+
+  Uint32 get_buffer_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb, FILE *stream);
+  Uint32 fread_buffer(void *ptr, Uint32 size, Uint32 nmemb, FILE *stream);
+
   const TupleS *getNextTuple(int & res);
 };
 
@@ -285,6 +300,11 @@ public:
   
   const LogEntry * getNextLogEntry(int & res);
 };
+
+NdbOut& operator<<(NdbOut& ndbout, const TableS&);
+NdbOut& operator<<(NdbOut& ndbout, const TupleS&);
+NdbOut& operator<<(NdbOut& ndbout, const LogEntry&);
+NdbOut& operator<<(NdbOut& ndbout, const RestoreMetaData&);
 
 #endif
 
