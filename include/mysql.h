@@ -119,7 +119,8 @@ typedef struct st_mysql_data {
 struct st_mysql_options {
   unsigned int connect_timeout,client_flag;
   unsigned int port;
-  char *host,*init_command,*user,*password,*unix_socket,*db;
+  char *host,*user,*password,*unix_socket,*db;
+  struct st_dynamic_array *init_commands;
   char *my_cnf_file,*my_cnf_group, *charset_dir, *charset_name;
   char *ssl_key;				/* PEM key file */
   char *ssl_cert;				/* PEM cert file */
