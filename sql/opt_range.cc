@@ -393,7 +393,7 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
   else
     bzero((char*) &alloc,sizeof(alloc));
   file=head->file;
-  error=file->index_init(index);
+  // error=file->index_init(index);
   record=head->record[0];
 }
 
@@ -403,12 +403,15 @@ QUICK_SELECT::~QUICK_SELECT()
   free_root(&alloc,MYF(0));
 }
 
+int QUICK_SELECT::init()
+{
+  return error=file->index_init(index);
+}
 
 QUICK_RANGE::QUICK_RANGE()
   :min_key(0),max_key(0),min_length(0),max_length(0),
    flag(NO_MIN_RANGE | NO_MAX_RANGE)
 {}
-
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
 {
