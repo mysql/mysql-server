@@ -30,6 +30,28 @@ select * from mysqltest.mysqltest;
 drop database if exists mysqltest;
 --disable_info
 create database mysqltest;
+
+#
+# drop many tables - bug#3891
+# we'll do it in mysqltest db, to be able to use longer table names
+# (tableN instead on tN)
+#
+use mysqltest;
+--error 1051
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28;
+
+--error 1051
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28, table29, table30;
+
+use test;
 drop database mysqltest;
 
 # test drop/create database and FLUSH TABLES WITH READ LOCK
