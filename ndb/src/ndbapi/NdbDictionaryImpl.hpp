@@ -76,8 +76,10 @@ public:
   Uint32 m_attrSize;            // element size (size when arraySize==1)
   Uint32 m_arraySize;           // length or length+2 for Var* types
   Uint32 m_keyInfoPos;
+  // TODO: use bits in attr desc 2
   bool getInterpretableType() const ;
   bool getCharType() const;
+  bool getStringType() const;
   bool getBlobType() const;
 
   /**
@@ -467,6 +469,17 @@ NdbColumnImpl::getCharType() const {
           m_type == NdbDictionary::Column::Varchar ||
           m_type == NdbDictionary::Column::Text ||
           m_type == NdbDictionary::Column::Longvarchar);
+}
+
+inline
+bool 
+NdbColumnImpl::getStringType() const {
+  return (m_type == NdbDictionary::Column::Char ||
+          m_type == NdbDictionary::Column::Varchar ||
+          m_type == NdbDictionary::Column::Longvarchar ||
+          m_type == NdbDictionary::Column::Binary ||
+          m_type == NdbDictionary::Column::Varbinary ||
+          m_type == NdbDictionary::Column::Longvarbinary);
 }
    
 inline
