@@ -327,7 +327,7 @@ bool Field::send_binary(Protocol *protocol)
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),charset());
-  val_str(&tmp,&tmp);
+  val_str(&tmp);
   return protocol->store(tmp.ptr(), tmp.length(), tmp.charset());
 }
 
@@ -396,8 +396,8 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 bool Field::get_date(TIME *ltime,uint fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
-  if (!(res=val_str(&tmp,&tmp2)) ||
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
+  if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) <=
       TIMESTAMP_DATETIME_ERROR)
     return 1;
@@ -407,8 +407,8 @@ bool Field::get_date(TIME *ltime,uint fuzzydate)
 bool Field::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
-  if (!(res=val_str(&tmp,&tmp2)) ||
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
+  if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
     return 1;
   return 0;
@@ -3119,8 +3119,8 @@ String *Field_timestamp::val_str(String *val_buffer,
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    val_ptr->set("0000-00-00 00:00:00", 19, &my_charset_bin);
-    return val_ptr;
+    val_buffer->set("0000-00-00 00:00:00", 19, &my_charset_bin);
+    return val_buffer;
   }
   val_buffer->set_charset(&my_charset_bin);	// Safety
   time_arg=(time_t) temp;
@@ -5788,7 +5788,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
     orig_field->move_field(diff);		// Points now at default_values
     bool is_null=orig_field->is_real_null();
-    orig_field->val_str(&tmp,&tmp);
+    orig_field->val_str(&tmp);
     orig_field->move_field(-diff);		// Back to record[0]
     if (!is_null)
     {

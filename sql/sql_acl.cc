@@ -505,7 +505,7 @@ static ulong get_access(TABLE *form, uint fieldnr)
 	 ((Field_enum*) (*pos))->typelib->count == 2 ;
        pos++ , bit<<=1)
   {
-    (*pos)->val_str(&res,&res);
+    (*pos)->val_str(&res);
     if (my_toupper(&my_charset_latin1, res[0]) == 'Y')
       access_bits|= bit;
   }
@@ -1787,7 +1787,7 @@ public:
 	String *res,column_name;
 	GRANT_COLUMN *mem_check;
 	/* As column name is a string, we don't have to supply a buffer */
-	res=col_privs->field[4]->val_str(&column_name,&column_name);
+	res=col_privs->field[4]->val_str(&column_name);
 	ulong priv= (ulong) col_privs->field[6]->val_int();
 	if (!(mem_check = new GRANT_COLUMN(*res,
 					   fix_rights_for_column(priv))))
@@ -1990,7 +1990,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	privileges&= ~rights;
 	table->field[6]->store((longlong)
 			       get_rights_for_column(privileges));
-	table->field[4]->val_str(&column_name,&column_name);
+	table->field[4]->val_str(&column_name);
 	grant_column = column_hash_search(g_t,
 					  column_name.ptr(),
 					  column_name.length());

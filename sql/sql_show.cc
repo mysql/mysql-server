@@ -735,11 +735,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           */
           protocol->store("CURRENT_TIMESTAMP", system_charset_info);
         }
-        else if (field->unireg_check != Field::NEXT_NUMBER && 
+        else if (field->unireg_check != Field::NEXT_NUMBER &&
                  !field->is_null())
         {                                               // Not null by default
           type.set(tmp, sizeof(tmp), field->charset());
-          field->val_str(&type,&type);
+          field->val_str(&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
@@ -1298,10 +1298,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type,&type);
+        field->val_str(&type);
 	if (type.length())
 	{
-   	  String def_val;
+	  String def_val;
 	  /* convert to system_charset_info == utf8 */
 	  def_val.copy(type.ptr(), type.length(), field->charset(),
 		       system_charset_info);
