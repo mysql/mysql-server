@@ -1400,7 +1400,7 @@ bool MYSQL_LOG::append(Log_event* ev)
     pthread_mutex_unlock(&LOCK_index);
   }
 
-err:  
+err:
   pthread_mutex_unlock(&LOCK_log);
   signal_update();				// Safe as we don't call close
   DBUG_RETURN(error);
@@ -1548,16 +1548,15 @@ inline bool sync_binlog(IO_CACHE *cache)
   Write an event to the binary log
 */
 
-bool MYSQL_LOG::write(Log_event* event_info)
+bool MYSQL_LOG::write(Log_event *event_info)
 {
-  THD *thd=event_info->thd;
-  bool error=1;
-  bool should_rotate = 0;
-  DBUG_ENTER("MYSQL_LOG::write(event)");
-  
+  THD *thd= event_info->thd;
+  bool error= 1;
+  DBUG_ENTER("MYSQL_LOG::write(Log_event *)");
+
   pthread_mutex_lock(&LOCK_log);
 
-  /* 
+  /*
      In most cases this is only called if 'is_open()' is true; in fact this is
      mostly called if is_open() *was* true a few instructions before, but it
      could have changed since.
@@ -1567,7 +1566,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
     const char *local_db= event_info->get_db();
     IO_CACHE *file= &log_file;
 #ifdef HAVE_REPLICATION
-    /* 
+    /*
        In the future we need to add to the following if tests like
        "do the involved tables match (to be implemented)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
@@ -1734,10 +1733,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
     {
       if (flush_io_cache(file) || sync_binlog(file))
 	goto err;
-
-      /* check automatic rotation; */
-      DBUG_PRINT("info",("max_size: %lu",max_size));      
-      should_rotate= (my_b_tell(file) >= (my_off_t) max_size); 
     }
     error=0;
 
@@ -1751,28 +1746,39 @@ err:
       write_error=1;
     }
     if (file == &log_file)
-      signal_update();
-    if (should_rotate)
     {
-      pthread_mutex_lock(&LOCK_index);
-      new_file(0); // inside mutex
-      pthread_mutex_unlock(&LOCK_index);
+      signal_update();
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
     }
   }
 
   pthread_mutex_unlock(&LOCK_log);
 
-#ifdef HAVE_REPLICATION
-  if (should_rotate && expire_logs_days)
-  {
-    long purge_time= time(0) - expire_logs_days*24*60*60;
-    if (purge_time >= 0)
-      error= purge_logs_before_date(purge_time);
-  }
-#endif
   DBUG_RETURN(error);
 }
 
+void MYSQL_LOG::rotate_and_purge(uint flags)
+{
+  if (!prepared_xids &&             // see new_file() for the explanation
+      ((flags & RP_FORCE_ROTATE) ||
+       (my_b_tell(&log_file) >= (my_off_t) max_size)))
+  {
+    if (flags & RP_LOCK_LOG_IS_ALREADY_LOCKED)
+      pthread_mutex_lock(&LOCK_index);
+    new_file(!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED));
+    if (flags & RP_LOCK_LOG_IS_ALREADY_LOCKED)
+      pthread_mutex_unlock(&LOCK_index);
+#ifdef HAVE_REPLICATION
+    // QQ why do we need #ifdef here ???
+    if (expire_logs_days)
+    {
+      long purge_time= time(0) - expire_logs_days*24*60*60;
+      if (purge_time >= 0)
+        purge_logs_before_date(purge_time);
+    }
+#endif
+  }
+}
 
 uint MYSQL_LOG::next_file_id()
 {
@@ -1797,24 +1803,20 @@ uint MYSQL_LOG::next_file_id()
     - The thing in the cache is always a complete transaction
     - 'cache' needs to be reinitialized after this functions returns.
 
-  TODO
-      fix it to become atomic - either the complete cache is added to binlog
-      or nothing (other storage engines rely on this, doing a ROLLBACK)
-
   IMPLEMENTATION
     - To support transaction over replication, we wrap the transaction
       with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
-      We want to write a BEGIN/ROLLBACK block when a non-transactional table was
-      updated in a transaction which was rolled back. This is to ensure that the
-      same updates are run on the slave.
+      We want to write a BEGIN/ROLLBACK block when a non-transactional table
+      was updated in a transaction which was rolled back. This is to ensure
+      that the same updates are run on the slave.
 */
 
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 {
-  bool should_rotate= 0, error= 0;
+  bool error= 0;
   VOID(pthread_mutex_lock(&LOCK_log));
-  DBUG_ENTER("MYSQL_LOG::write(cache");
-  
+  DBUG_ENTER("MYSQL_LOG::write(THD *, IO_CACHE *)");
+
   if (likely(is_open()))                       // Should always be true
   {
     uint length;
@@ -1869,24 +1871,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     }
     signal_update();
     DBUG_PRINT("info",("max_size: %lu",max_size));
-    if (should_rotate= (my_b_tell(&log_file) >= (my_off_t) max_size))
-    {
-      pthread_mutex_lock(&LOCK_index);
-      new_file(0); // inside mutex
-      pthread_mutex_unlock(&LOCK_index);
-    }
-
+    rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
-
-#ifdef HAVE_REPLICATION
-  if (should_rotate && expire_logs_days)
-  {
-    long purge_time= time(0) - expire_logs_days*24*60*60;
-    if (purge_time >= 0)
-      error= purge_logs_before_date(purge_time);
-  }
-#endif
 
   DBUG_RETURN(error);
 
@@ -2993,6 +2980,7 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
   if (thread_safe_dec_and_test(prepared_xids, &LOCK_prep_xids))
     pthread_cond_signal(&COND_prep_xids);
+  rotate_and_purge(0);     // in case ::write() was not able to rotate
 }
 
 int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)

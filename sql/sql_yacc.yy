@@ -630,7 +630,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  VARCHAR
 %token  VARIABLES
 %token  VARIANCE_SYM
-%token  VARIANCE_SYM
 %token  VARYING
 %token  VIEW_SYM
 %token  WARNINGS
