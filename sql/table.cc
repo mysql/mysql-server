@@ -1604,7 +1604,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
           expression will not be moved to WHERE condition (i.e. will be clean
           correctly for PS/SP)
         */
-        on_expr= and_conds(tbl->on_expr, where);
+        tbl->on_expr= and_conds(tbl->on_expr, where);
         break;
       }
     }
