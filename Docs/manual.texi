@@ -1117,16 +1117,11 @@ Work against software patents
 @end menu
 
 This manual is currently available in Texinfo, plain text, Info, HTML,
-PostScript and PDF versions.  Because of their size, PostScript and PDF
-versions are not included with the main @strong{MySQL} distribution, but
-are available for separate download at
-@uref{http://www.mysql.com/}.
-
-The primary document is the Texinfo file. The HTML version is produced
-automatically using a modified version of @code{texi2html}. The plain
-text and Info versions are produced with @code{makeinfo}. The Postscript
-version is produced using @code{texi2dvi} and @code{dvips}. The PDF
-version is produced with @code{pdftex}.
+PostScript and PDF versions.  The primary document is the Texinfo file. 
+The HTML version is produced automatically using a modified version of 
+@code{texi2html}. The plain text and Info versions are produced with
+ @code{makeinfo}. The Postscript version is produced using @code{texi2dvi} 
+and @code{dvips}. The PDF version is produced with @code{pdftex}.
 
 This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, and Paul DuBois. For other contributors,
@@ -1567,8 +1562,8 @@ can be used to determine how the optimizer resolves a query.
 @node Stability, Year 2000 compliance, Features, Introduction
 @section How stable is MySQL?
 
-This section addresses the questions, ``How stable is
-@strong{MySQL}?'' and, ``Can I depend on @strong{MySQL} in this project?''
+This section addresses the questions ``How stable is
+@strong{MySQL}?'', and ``Can I depend on @strong{MySQL} in this project?''
 We will try to clarify some issues and to answer some of the more
 important questions that seem to concern many people.  This section has been
 put together from information gathered from the mailing list (which is very
@@ -2486,7 +2481,7 @@ version of @strong{MySQL} before posting!  Anyone should be able to repeat the
 bug by just using 'mysql test < script' on the included test case or run
 the shell / perl script that is included in the bug report.  All bugs
 posted on this list will be corrected or documented in the next @strong{MySQL}
-release!  If there are only small code changes involved, to correct this
+release!  If there are only small code changes involved to correct this
 problem, we will also post a patch that fixes the problem.
 
 Remember that it is possible to respond to a message containing too much
@@ -2629,7 +2624,7 @@ sorry.  After all, it should be easier for you to provide an example that
 uses your actual situation and it is by all means better for us.  In case you
 have data you don't want to show to others, you can use @code{ftp} to
 transfer it to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  If the data
-are really top secret and you don't want to show them even to us, then go ahead
+is really top secret and you don't want to show them even to us, then go ahead
 and provide an example using other names, but please regard this as the last
 choice.
 
@@ -2884,7 +2879,7 @@ programs in the @file{client} directory is GPL. Each file has a header
 that shows which copyright is used for that file.
 
 @item The client library and the (GNU @code{getopt}) library are covered
-by the ``GNU LIBRARY GENERAL PUBLIC LICENSE''.
+by the ``GNU LIBRARY GENERAL PUBLIC LICENSE''. @xref{LGPL license}.
 
 @item Some parts of the source (the @code{regexp} library) are covered
 by a Berkeley-style copyright.
@@ -2927,7 +2922,7 @@ license. See the documentation for that version for more information.
 
 This section describes some situations illustrating whether or not you
 must license the @strong{MySQL} server.  Generally these examples
-involve providing @strong{MySQL} as an integrated part of a product.
+involve providing @strong{MySQL} as an integral part of a product.
 
 Note that a single @strong{MySQL} license covers any number of CPUs and
 @code{mysqld} servers on a machine! There is no artificial limit on the number
@@ -2946,23 +2941,27 @@ are several cases to consider:
 @item
 Does your application require @strong{MySQL} to function properly?
 
+@item
 If your product requires @strong{MySQL}, you need a license for any
 machine that runs the @code{mysqld} server.  For example, if you've
 designed your application around @strong{MySQL}, then you've really made
 a commercial product that requires the engine, so you need a license.
 
+@item
 If your application does not require @strong{MySQL}, you need not obtain
 a license.  For example, if using @strong{MySQL} just adds some new optional
 features to your product (such as adding logging to a database if
 @strong{MySQL} is used rather than logging to a text file), it should
 fall within normal use, and a license would not be required.
 
+@item
 In other words, you need a license if you sell a product designed
 specifically for use with @strong{MySQL} or that requires the
 @strong{MySQL} server to function at all.  This is true whether or not
 you provide @strong{MySQL} for your client as part of your product
 distribution.
 
+@item
 It also depends on what you're doing for the client.  Do you plan to
 provide your client with detailed instructions on installing
 @strong{MySQL} with your software?  Then your product may be contingent
@@ -2985,7 +2984,7 @@ they have some problem with their @strong{MySQL} installation, their ISP
 will be able to solve the problem for them (in some cases with the help
 from the @strong{MySQL} development team).
 
-All ISPs that wants to keep themself up to date should subscribe
+All ISPs that want to keep themselves up-to-date should subscribe
 to our announce mailing list so that they can be aware of fatal issues
 that may be relevant for their @strong{MySQL} installations.
 
@@ -3250,7 +3249,7 @@ extended email support you have already helped the further development
 of @strong{MySQL}.
 
 @item
-Typical questions that are covered by extended email support are:
+Typical situations that are covered by extended email support are:
 
 @itemize @minus
 @item
@@ -3272,8 +3271,8 @@ We will provide hints on optimizing @code{mysqld} for your situation.
 
 @item
 You are allowed to influence the priority of items on the @strong{MySQL}
-TODO. This will ensure that the features you really need will be implemented
-sooner than they might be otherwise.
+TODO List. @xref{TODO}. This will ensure that the features you really need
+will be implemented sooner than they might be otherwise.
 @end itemize
 
 @node Login support, Extended login support, Extended email support, Support
@@ -3343,7 +3342,7 @@ to be able to create a binary distribution.
 If you can provide accommodations and pay for traveler fares, you can even
 get a @strong{MySQL} developer to visit you and offer you help with your
 troubles. Extended login support entitles you to one personal
-encounter per year, but we are as always very flexible towards our customers!
+encounter per year, but we are always very flexible towards our customers!
 @end itemize
 
 @node Installing, Compatibility, Licensing and Support, Top
@@ -4305,11 +4304,16 @@ The basic commands you must execute to install and use a @strong{MySQL}
 binary distribution are:
 
 @example
-shell> gunzip < mysql-VERSION-OS.tar.gz | tar xvf -
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+shell> cd /usr/local
+shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
 shell> ln -s mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
-shell> bin/safe_mysqld &
+shell> chown -R mysql /usr/local/mysql
+shell> chgrp -R mysql /usr/local/mysql
+shell> bin/safe_mysqld --user=mysql &
 @end example
 
 You can add new users using the @code{bin/mysql_setpermission} script if
@@ -4340,10 +4344,30 @@ the type of operating system for which the distribution is intended (e.g.,
 @code{pc-linux-gnu-i586}).
 
 @item
+Add a user and group for @code{mysqld} to run as:
+
+@example
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+@end example
+
+These commands add the @code{mysql} group, and the @code{mysql} user.  The
+syntax for @code{useradd} and @code{groupadd} may differ slightly on different
+Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
+wish to call the user and group something else instead of @code{mysql}.
+
+@item
+Change into the intended installation directory:
+
+@example
+shell> cd /usr/local
+@end example
+
+@item
 Unpack the distribution and create the installation directory:
 
 @example
-shell> gunzip < mysql-VERSION-OS.tar.gz | tar xvf -
+shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
 shell> ln -s mysql-VERSION-OS mysql
 @end example
 
@@ -4388,7 +4412,7 @@ $MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
 @end example
 
 Change the path to reflect the location where @code{mysql} actually is
-stored on your system.  If you do not do this, you will get a @code{broken
+stored on your system.  If you do not do this, you will get a @code{Broken
 pipe} error when you run @code{mysqlaccess}.
 
 @item
@@ -4401,6 +4425,19 @@ shell> scripts/mysql_install_db
 Note that @strong{MySQL} versions older than 3.22.10 started the
 @strong{MySQL} server when you run @code{mysql_install_db}.  This is no
 longer true!
+
+@item
+Change ownership of the installation directory to the user which you will
+run @code{mysqld} as:
+
+@example
+shell> chown -R mysql /usr/local/mysql
+shell> chgrp -R mysql /usr/local/mysql
+@end example
+
+The first command changes the @code{owner} attribute of the files to the 
+@code{mysql} user, and the second changes the @code{group} attribute to
+the @code{mysql} group.
 
 @item
 If you want to install support for the Perl @code{DBI}/@code{DBD} interface,
@@ -4421,7 +4458,7 @@ and test your distribution.
 You can start the @strong{MySQL} server with the following command:
 
 @example
-shell> bin/safe_mysqld &
+shell> bin/safe_mysqld --user=mysql &
 @end example
 
 @xref{Post-installation}.
@@ -4437,8 +4474,9 @@ file. The @strong{MySQL} RPMs are currently being built on a RedHat 5.2
 system but should work on other versions of Linux that support @code{rpm} and
 use @code{glibc}.
 
-If you have problems with an RPM file, for example @code{Sorry, the host
-'xxxx' could not be looked up}, see @ref{Binary notes-Linux}.
+If you have problems with an RPM file, for example, if you receive the error 
+``@code{Sorry, the host 'xxxx' could not be looked up}'', see 
+@ref{Binary notes-Linux}.
 
 The RPM files you may want to use are:
 
@@ -4446,7 +4484,7 @@ The RPM files you may want to use are:
 @item @code{MySQL-VERSION.i386.rpm}
 
 The @strong{MySQL} server.  You will need this unless you only want to
-connect to another @strong{MySQL} server running on another machine.
+connect to a @strong{MySQL} server running on another machine.
 
 @item @code{MySQL-client-VERSION.i386.rpm}
 
@@ -4727,14 +4765,20 @@ reports}.
 @subsection Quick installation overview
 
 The basic commands you must execute to install a @strong{MySQL} source
-distribution are (from an unpacked @code{tar} file):
+distribution are:
 
 @example
-shell> configure
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+shell> gunzip < mysql-VERSION.tar.gz | tar -xvf -
+shell> cd mysql-VERSION
+shell> ./configure --prefix=/usr/local/mysql
 shell> make
 shell> make install
 shell> scripts/mysql_install_db
-shell> /usr/local/mysql/bin/safe_mysqld &
+shell> chown -R mysql /usr/local/mysql
+shell> chgrp -R mysql /usr/local/mysql
+shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
 @end example
 
 If you start from a source RPM, then do the following.
@@ -4767,24 +4811,41 @@ archives and have names like @file{mysql-VERSION.tar.gz}, where
 @code{VERSION} is a number like @value{mysql_version}.
 
 @item
+Add a user and group for @code{mysqld} to run as:
+
+@example
+shell> groupadd mysql
+shell> useradd -g mysql mysql
+@end example
+
+These commands add the @code{mysql} group, and the @code{mysql} user.  The
+syntax for @code{useradd} and @code{groupadd} may differ slightly on different
+Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
+wish to call the user and group something else instead of @code{mysql}.
+
+@item
 Unpack the distribution into the current directory:
 @example
-shell> gunzip < mysql-VERSION.tar.gz | tar xvf -
+shell> gunzip < /path/to/mysql-VERSION.tar.gz | tar xvf -
 @end example
+
 This command creates a directory named @file{mysql-VERSION}.
 
 @item
 Change into the top-level directory of the unpacked distribution:
+
 @example
 shell> cd mysql-VERSION
 @end example
 
 @item
 Configure the release and compile everything:
+
 @example
 shell> ./configure --prefix=/usr/local/mysql
 shell> make
 @end example
+
 When you run @code{configure}, you might want to specify some options.
 Run @code{./configure --help} for a list of options.
 @ref{configure options, , @code{configure} options}, discusses some of the
@@ -4802,14 +4863,17 @@ a number of common problems.
 
 @item
 Install everything:
+
 @example
 shell> make install
 @end example
+
 You might need to run this command as @code{root}.
 
 @item
 Create the @strong{MySQL} grant tables (necessary only if you haven't
 installed @strong{MySQL} before):
+
 @example
 shell> scripts/mysql_install_db
 @end example
@@ -4817,6 +4881,19 @@ shell> scripts/mysql_install_db
 Note that @strong{MySQL} versions older than 3.22.10 started the
 @strong{MySQL} server when you run @code{mysql_install_db}.  This is no
 longer true!
+
+@item
+Change ownership of the installation to the user which you will run
+@code{mysqld} as:
+
+@example
+shell> chown -R mysql /usr/local/mysql
+shell> chgrp -R mysql /usr/local/mysql
+@end example
+
+The first command changes the @code{owner} attribute of the files to the 
+@code{mysql} user, and the second changes the @code{group} attribute to
+the @code{mysql} group.
 
 @item
 If you want to install support for the Perl @code{DBI}/@code{DBD} interface,
@@ -4833,12 +4910,8 @@ start}.
 After everything has been installed, you should initialize and test your
 distribution.
 
-You can start the @strong{MySQL} server with the following command,
-where @code{BINDIR} is the directory in which @code{safe_mysqld} is
-installed (@file{/usr/local/bin} by default):
-
 @example
-shell> BINDIR/safe_mysqld &
+shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
 @end example
 
 If that command fails immediately with @code{mysqld daemon ended} then you can
@@ -7757,7 +7830,6 @@ for installation from a source distribution:
 @example
 shell> ./scripts/mysql_install_db
 shell> cd mysql_installation_directory
-* Command-line options::        Command-line options
 shell> ./bin/safe_mysqld &
 @end example
 
@@ -8148,7 +8220,7 @@ shell> tail host_name.err
 shell> tail host_name.log
 @end example
 
-If you find in the log file something like: the following:
+If you find something like the following in the log file:
 @example
 000729 14:50:10  bdb:  Recovery function for LSN 1 27595 failed
 000729 14:50:10  bdb:  warning: ./test/t1.db: No such file or directory
@@ -9652,7 +9724,7 @@ shell> replace " #" " --" -- text-file-with-funny-comments.sql
 @node Standards, Commit-rollback, Missing functions, Compatibility
 @section What standards does MySQL follow?
 
-Entry level SQL92. ODBC level 0-2.
+Entry level SQL92. ODBC levels 0-2.
 
 @node Commit-rollback,  , Standards, Compatibility
 @section How to cope without @code{COMMIT}/@code{ROLLBACK}
@@ -9813,7 +9885,7 @@ system.  This section describes how it works.
 Anyone using @strong{MySQL} on a computer connected to the Internet
 should read this section to avoid the most common security mistakes.
 
-In discussing ``security'' we emphasize the necessity of fully protecting the
+In discussing ``security'', we emphasize the necessity of fully protecting the
 entire server host (not simply the @strong{MySQL} server) against all types
 of applicable attacks: eavesdropping, altering, playback and Denial of
 Service. We do not cover all aspects of availability and fault tolerance
@@ -9831,7 +9903,7 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 @itemize @bullet
 @item
 DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
-mysql.user DATABASE!  The encrypted password is the real password in
+mysql.user TABLE!  The encrypted password is the real password in
 @strong{MySQL}; If you know this for one user you can easily login as
 him if you have access to his 'host'.
 
