@@ -3398,7 +3398,7 @@ row_check_table_for_mysql(
 	/* We validate also the whole adaptive hash index for all tables
 	at every CHECK TABLE */
 
-	if (!btr_search_validate(index)) {
+	if (!btr_search_validate()) {
 
 		ret = DB_ERROR;
 	}

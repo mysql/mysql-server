@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,23 +23,34 @@
 #include <my_global.h>
 #include <my_pthread.h>
 
+
 C_MODE_START
 
 pthread_handler_decl(listener, arg);
 
 C_MODE_END
 
-class Thread_repository;
+class Thread_registry;
+class Options;
+class User_map;
+class Instance_map;
 
 struct Listener_thread_args
 {
-  Thread_repository &thread_repository;
-  const char *socket_file_name;
+  Thread_registry &thread_registry;
+  const Options &options;
+  const User_map &user_map;
+  Instance_map &instance_map;
 
-  Listener_thread_args(Thread_repository &thread_repository_arg,
-                       const char *socket_file_name_arg) :
-    thread_repository(thread_repository_arg),
-    socket_file_name(socket_file_name_arg) {}
+  Listener_thread_args(Thread_registry &thread_registry_arg,
+                       const Options &options_arg,
+                       const User_map &user_map_arg,
+                       Instance_map &instance_map_arg) :
+    thread_registry(thread_registry_arg)
+    ,options(options_arg)
+    ,user_map(user_map_arg)
+    ,instance_map(instance_map_arg)
+  {}
 };
 
-#endif
+#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
