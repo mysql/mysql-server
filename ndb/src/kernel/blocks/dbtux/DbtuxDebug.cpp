@@ -98,7 +98,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
   strcpy(par.m_path, ".");
   par.m_side = 2;
   par.m_parent = NullTupLoc;
-  printNode(signal, frag, out, tree.m_root, par);
+  printNode(frag, out, tree.m_root, par);
   out.m_out->flush();
   if (! par.m_ok) {
     if (debugFile == 0) {
@@ -114,7 +114,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
 }
 
 void
-Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
+Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
 {
   if (loc == NullTupLoc) {
     par.m_depth = 0;
@@ -122,7 +122,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
   }
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  selectNode(signal, node, loc);
+  selectNode(node, loc);
   out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];
@@ -132,7 +132,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     cpar[i].m_side = i;
     cpar[i].m_depth = 0;
     cpar[i].m_parent = loc;
-    printNode(signal, frag, out, node.getLink(i), cpar[i]);
+    printNode(frag, out, node.getLink(i), cpar[i]);
     if (! cpar[i].m_ok) {
       par.m_ok = false;
     }
@@ -178,16 +178,19 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     out << "occupancy " << node.getOccup() << " of interior node";
     out << " less than min " << tree.m_minOccup << endl;
   }
-  // check missed half-leaf/leaf merge
+#ifdef dbtux_totally_groks_t_trees
+  // check missed semi-leaf/leaf merge
   for (unsigned i = 0; i <= 1; i++) {
     if (node.getLink(i) != NullTupLoc &&
         node.getLink(1 - i) == NullTupLoc &&
-        node.getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
+        // our semi-leaf seems to satify interior minOccup condition
+        node.getOccup() < tree.m_minOccup) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << "missed merge with child " << i << endl;
     }
   }
+#endif
   // check inline prefix
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];

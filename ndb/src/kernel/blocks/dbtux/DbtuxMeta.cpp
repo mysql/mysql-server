@@ -211,11 +211,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       // make these configurable later
       tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
       tree.m_prefSize = MAX_TTREE_PREF_SIZE;
-#ifdef dbtux_min_occup_less_max_occup
       const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
-#else
-      const unsigned maxSlack = 0;
-#endif
       // size up to and including first 2 entries
       const unsigned pref = tree.getSize(AccPref);
       if (! (pref <= tree.m_nodeSize)) {
