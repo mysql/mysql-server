@@ -1037,6 +1037,15 @@ void Item_func_substr::fix_length_and_dec()
 }
 
 
+void Item_func_substr_index::fix_length_and_dec()
+{ 
+  max_length= args[0]->max_length;
+  if (collation.set(args[0]->collation, args[1]->collation) ||
+      (collation.derivation == DERIVATION_NONE))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+}
+
+
 String *Item_func_substr_index::val_str(String *str)
 {
   String *res =args[0]->val_str(str);
@@ -1053,6 +1062,8 @@ String *Item_func_substr_index::val_str(String *str)
   uint delimeter_length=delimeter->length();
   if (!res->length() || !delimeter_length || !count)
     return &empty_string;		// Wrong parameters
+
+  res->set_charset(collation.collation);
 
 #ifdef USE_MB
   if (use_mb(res->charset()))
