@@ -2874,37 +2874,31 @@ bs:
 
 
 double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *nptr, uint l, char **endptr)
+			   char *nptr, uint length, char **endptr)
 {
   char     buf[256];
   double   res;
   register char *b=buf;
   register const char *s=nptr;
-  register const char *e=nptr+l;
+  register const char *end;
   my_wc_t  wc;
   int      cnv;
   
-  if((l+1)>sizeof(buf))
-  {
-    if (endptr)
-      *endptr=(char*)nptr;
-    my_errno=ERANGE;
-    return 0;
-  }
-  
-  while ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
+  /* Cut too long strings */
+  if (length >= sizeof(buf))
+    length= sizeof(buf)-1;
+  end=nptr+length;
+ 
+  while ((cnv=cs->mb_wc(cs,&wc,s,end)) > 0)
   {
     s+=cnv;
-    if (wc < 128)
-    {
-      *b++=wc;
-    }
-    else
-      break;
+    if (wc > (int) (uchar) 'e' || !wc)
+      break;					/* Can't be part of double */
+    *b++=wc;
   }
-  *b='\0';
+  *b= 0;
   
-  res=strtod(buf,endptr);
+  res=strtod(buf, endptr);
   if (endptr)
     *endptr=(char*) (*endptr-buf+nptr);
   return res;

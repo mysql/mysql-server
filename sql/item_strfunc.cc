@@ -54,7 +54,8 @@ double Item_str_func::val()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntod(res->charset(),res->ptr(),res->length(),NULL) : 0.0;
+  return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
+			  NULL) : 0.0;
 }
 
 longlong Item_str_func::val_int()

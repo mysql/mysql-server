@@ -344,7 +344,7 @@ public:
   enum Type type() const { return STRING_ITEM; }
   double val()
   { 
-    return my_strntod(str_value.charset(), str_value.ptr(),
+    return my_strntod(str_value.charset(), (char*) str_value.ptr(),
 		      str_value.length(), (char**) 0);
   }
   longlong val_int()
@@ -598,7 +598,11 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return cached_field_type; }
   double val()
-  { return null_value ? 0.0 : my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),NULL); }
+  {
+    return (null_value ? 0.0 :
+	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
+		       str_value.length(),NULL));
+  }
   longlong val_int()
   { return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10); }
   String *val_str(String*);
