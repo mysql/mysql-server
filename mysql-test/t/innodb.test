@@ -998,7 +998,7 @@ CREATE TABLE t1 (
   `id` int(10) unsigned NOT NULL auto_increment,
   `id_object` int(10) unsigned default '0',
   `id_version` int(10) unsigned NOT NULL default '1',
-  label varchar(100) NOT NULL default '',
+  `label` varchar(100) NOT NULL default '',
   `description` text,
   PRIMARY KEY  (`id`),
   KEY `id_object` (`id_object`),
@@ -1016,8 +1016,8 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
 
-SELECT t2.id, t1.label FROM t2 INNER JOIN
-(SELECT t1.id_object as id_object FROM t1 WHERE t1.label LIKE '%test%') AS lbl 
+SELECT t2.id, t1.`label` FROM t2 INNER JOIN
+(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl 
 ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
 drop table t1,t2;
 
