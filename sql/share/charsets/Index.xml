@@ -125,11 +125,11 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="koi8_ru">
+<charset name="koi8_r">
   <family>Cyrillic</family>
   <alias>koi8-ru</alias>
   <alias>cskoi8r</alias>
-  <collation name="koi8_ru"	id="7"	order="Russian"	flag="primary"/>
+  <collation name="koi8_r"	id="7"	order="Russian"	flag="primary"/>
 </charset>
 
 <charset name="swe7">
@@ -229,10 +229,10 @@ To make maintaining easier please:
   <collation name="latvian1"	id="42"	order="Latvian"/>
 </charset>
 
-<charset name="koi8_ukr">
+<charset name="koi8_u">
   <family>Cyrillic</family>
   <alias>koi8-u</alias>
-  <collation name="koi8_ukr"	id="22"	order="Ukranian"	flag="primary"/>
+  <collation name="koi8_u"	id="22"	order="Ukranian"	flag="primary"/>
 </charset>
 
 <charset name="gb2312">
