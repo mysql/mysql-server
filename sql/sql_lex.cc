@@ -879,7 +879,7 @@ int yylex(void *arg, void *yythd)
       }
       yySkip();
       return (SET_VAR);
-    case MY_LEX_COLON:			// optional line terminator
+    case MY_LEX_SEMICOLON:			// optional line terminator
       if (yyPeek())
       {
         THD* thd= (THD*)yythd;
