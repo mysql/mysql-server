@@ -173,8 +173,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     }
     lex->select = select_lex;
   }
-#endif DISABLED_UNTIL_REWRITTEN_IN_4_1
-
+#endif /* DISABLED_UNTIL_REWRITTEN_IN_4_1 */
   if (select_lex->next)
     res=mysql_union(thd,lex,result);
   else
