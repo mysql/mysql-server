@@ -1067,7 +1067,7 @@ trx_undo_report_row_operation(
 		undo_page = buf_page_get_gen(undo->space, page_no,
 						RW_X_LATCH, undo->guess_page,
 						BUF_GET,
-						IB__FILE__, __LINE__,
+						__FILE__, __LINE__,
 						&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
