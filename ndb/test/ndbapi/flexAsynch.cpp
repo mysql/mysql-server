@@ -145,6 +145,7 @@ tellThreads(StartType what)
 
 NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
+  ndb_init();
   ThreadNdb*            pThreadData;
   int                   tLoops=0, i;
   int                   returnValue = NDBT_OK;

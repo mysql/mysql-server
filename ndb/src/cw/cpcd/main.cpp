@@ -28,12 +28,12 @@
 
 #include "common.hpp"
 
-static char *work_dir = CPCD_DEFAULT_WORK_DIR;
+static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
 static int port = CPCD_DEFAULT_TCP_PORT;
 static int use_syslog = 0;
-static char *logfile = NULL;
-static char *config_file = CPCD_DEFAULT_CONFIG_FILE;
-static char *user = 0;
+static const char *logfile = NULL;
+static const char *config_file = CPCD_DEFAULT_CONFIG_FILE;
+static const char *user = 0;
 
 static struct getargs args[] = {
   { "work-dir", 'w', arg_string, &work_dir, 

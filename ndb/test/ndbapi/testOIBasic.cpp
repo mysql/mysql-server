@@ -28,6 +28,7 @@
 #include <NdbCondition.h>
 #include <NdbThread.h>
 #include <NdbTick.h>
+#include <my_sys.h>
 
 // options
 
@@ -37,6 +38,8 @@ struct Opt {
   const char* m_bound;
   const char* m_case;
   bool m_core;
+  const char* m_csname;
+  CHARSET_INFO* m_cs;
   bool m_dups;
   NdbDictionary::Object::FragmentType m_fragtype;
   unsigned m_idxloop;
@@ -59,6 +62,8 @@ struct Opt {
     m_bound("01234"),
     m_case(0),
     m_core(false),
+    m_csname("latin1_bin"),
+    m_cs(0),
     m_dups(false),
     m_fragtype(NdbDictionary::Object::FragUndefined),
     m_idxloop(4),
@@ -94,6 +99,7 @@ printhelp()
     << "  -bound xyz    use only these bound types 0-4 [" << d.m_bound << "]" << endl
     << "  -case abc     only given test cases (letters a-z)" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
+    << "  -csname S     charset (collation) of non-pk char column [" << d.m_csname << "]" << endl
     << "  -dups         allow duplicate tuples from index scan [" << d.m_dups << "]" << endl
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
@@ -979,10 +985,14 @@ createtable(Par par)
   for (unsigned k = 0; k < tab.m_cols; k++) {
     const Col& col = tab.m_col[k];
     NdbDictionary::Column c(col.m_name);
-    c.setPrimaryKey(col.m_pk);
     c.setType(col.m_type);
     c.setLength(col.m_length);
+    c.setPrimaryKey(col.m_pk);
     c.setNullable(col.m_nullable);
+    if (c.getCharset()) { // test if char type
+      if (! col.m_pk)
+        c.setCharset(par.m_cs);
+    }
     t.addColumn(c);
   }
   con.m_dic = con.m_ndb->getDictionary();
@@ -2236,9 +2246,8 @@ pkreadfast(Par par, unsigned count)
     keyrow.calc(par, i);
     CHK(keyrow.selrow(par) == 0);
     NdbRecAttr* rec;
-    CHK(con.getValue((Uint32)0, rec) == 0);
-    CHK(con.executeScan() == 0);
     // get 1st column
+    CHK(con.getValue((Uint32)0, rec) == 0);
     CHK(con.execute(Commit) == 0);
     con.closeTransaction();
   }
@@ -3150,6 +3159,10 @@ runtest(Par par)
   LL1("start");
   if (par.m_seed != 0)
     srandom(par.m_seed);
+  assert(par.m_csname != 0);
+  CHARSET_INFO* cs;
+  CHK((cs = get_charset_by_name(par.m_csname, MYF(0))) != 0 || (cs = get_charset_by_csname(par.m_csname, MY_CS_PRIMARY, MYF(0))) != 0);
+  par.m_cs = cs;
   Con con;
   CHK(con.connect() == 0);
   par.m_con = &con;
@@ -3201,6 +3214,7 @@ runtest(Par par)
 
 NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
 {
+  ndb_init();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (*arg != '-') {
@@ -3231,6 +3245,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
     if (strcmp(arg, "-core") == 0) {
       g_opt.m_core = true;
       continue;
+    }
+    if (strcmp(arg, "-csname") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_csname = strdup(argv[0]);
+        continue;
+      }
     }
     if (strcmp(arg, "-dups") == 0) {
       g_opt.m_dups = true;

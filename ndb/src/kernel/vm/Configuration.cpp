@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
+#include <LocalConfig.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -105,7 +105,6 @@ Configuration::init(int argc, const char** argv){
   }
   // check for depricated flag '-i'
 
-  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
@@ -186,7 +185,7 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::fetch_configuration(){
+Configuration::fetch_configuration(LocalConfig &local_config){
   /**
    * Fetch configuration from management server
    */
@@ -194,21 +193,22 @@ Configuration::fetch_configuration(){
     delete m_config_retriever;
   }
 
-  m_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_DB);
-  m_config_retriever->setConnectString(_connectString ? _connectString : "");
-  if(m_config_retriever->init() == -1 ||
-     m_config_retriever->do_connect() == -1){
-    
+  m_mgmd_port= 0;
+  m_mgmd_host= 0;
+  m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
+  if(m_config_retriever->do_connect() == -1){    
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
-    
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
     */
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could connect to ndb_mgmd", s);
   }
   
+  m_mgmd_port= m_config_retriever->get_mgmd_port();
+  m_mgmd_host= m_config_retriever->get_mgmd_host();
+
   ConfigRetriever &cr= *m_config_retriever;
   
   if((globalData.ownId = cr.allocNodeId()) == 0){
@@ -418,6 +418,11 @@ Configuration::setRestartOnErrorInsert(int i){
   m_restartOnErrorInsert = i;
 }
 
+const char *
+Configuration::getConnectString() const {
+  return _connectString;
+}
+
 char *
 Configuration::getConnectStringCopy() const {
   if(_connectString != 0)
@@ -506,7 +511,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 tmp;
-    if(!ndb_mgm_get_int_parameter(&db, LogLevel::MIN_LOGLEVEL_ID+j, &tmp)){
+    if(!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp)){
       m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
     }
   }

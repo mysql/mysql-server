@@ -299,6 +299,11 @@ while test $# -gt 0; do
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --small-bench)
+      DO_SMALL_BENCH=1
+      DO_BENCH=1
+      NO_SLAVE=1
+      ;;
     --bench)
       DO_BENCH=1
       NO_SLAVE=1
@@ -1547,7 +1552,13 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    if [ "$DO_BENCH" = 1 ]
+    then
+      NDBCLUSTER_OPTS=""
+    else
+      NDBCLUSTER_OPTS="--small"
+    fi
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
   else
     USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
@@ -1581,9 +1592,14 @@ if [ "$DO_BENCH" = 1 ]
 then
   start_master
 
+  if [ "$DO_SMALL_BENCH" = 1 ]
+  then
+    EXTRA_BENCH_ARGS="--small-test --small-tables"
+  fi
+
   if [ ! -z "$USE_NDBCLUSTER" ]
   then
-    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb"
+    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb $EXTRA_BENCH_ARGS"
   fi 
 
   BENCHDIR=$BASEDIR/sql-bench/
@@ -1591,7 +1607,7 @@ then
   cd $BENCHDIR
   if [ -z "$1" ]
   then
-    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
+    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS --log
   else
     if [ -x "./$1" ]
     then
