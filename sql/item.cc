@@ -569,19 +569,19 @@ void Item_varbinary::make_field(Send_field *tmp_field)
 ** pack data in buffer for sending
 */
 
-bool Item::send(String *packet)
+bool Item::send(THD *thd, String *packet)
 {
   char buff[MAX_FIELD_WIDTH];
+  CONVERT *convert;
   String s(buff,sizeof(buff)),*res;
   if (!(res=val_str(&s)))
     return net_store_null(packet);
-  CONVERT *convert;
-  if ((convert=current_thd->convert_set))
+  if ((convert=thd->convert_set))
     return convert->store(packet,res->ptr(),res->length());
   return net_store_data(packet,res->ptr(),res->length());
 }
 
-bool Item_null::send(String *packet)
+bool Item_null::send(THD *thd, String *packet)
 {
   return net_store_null(packet);
 }

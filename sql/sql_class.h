@@ -385,7 +385,9 @@ public:
   }
   inline char *strdup(const char *str)
   { return strdup_root(&mem_root,str); }
-  inline char *memdup(const char *str, unsigned int size)
+  inline char *strmake(const char *str, uint size)
+  { return strmake_root(&mem_root,str,size); }
+  inline char *memdup(const char *str, uint size)
   { return memdup_root(&mem_root,str,size); }
 };
 

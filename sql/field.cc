@@ -248,7 +248,7 @@ void Field::copy_from_tmp(int row_offset)
 }
 
 
-bool Field::send(String *packet)
+bool Field::send(THD *thd, String *packet)
 {
   if (is_null())
     return net_store_null(packet);
@@ -256,7 +256,7 @@ bool Field::send(String *packet)
   String tmp(buff,sizeof(buff));
   val_str(&tmp,&tmp);
   CONVERT *convert;
-  if ((convert=current_thd->convert_set))
+  if ((convert=thd->convert_set))
     return convert->store(packet,tmp.ptr(),tmp.length());
   return net_store_data(packet,tmp.ptr(),tmp.length());
 }

@@ -56,7 +56,7 @@ public:
   virtual bool save_in_field(Field *field);
   virtual void save_org_in_field(Field *field)
     { (void) save_in_field(field); }
-  virtual bool send(String *str);
+  virtual bool send(THD *thd, String *str);
   virtual bool eq(const Item *) const;
   virtual Item_result result_type () const { return REAL_RESULT; }
   virtual enum Type type() const =0;
@@ -118,7 +118,7 @@ public:
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
-  bool send(String *str_arg) { return result_field->send(str_arg); }
+  bool send(THD *thd, String *str_arg) { return result_field->send(thd,str_arg); }
   void make_field(Send_field *field);
   bool fix_fields(THD *,struct st_table_list *);
   bool save_in_field(Field *field);
@@ -149,7 +149,7 @@ public:
   bool save_in_field(Field *field);
   enum Item_result result_type () const
   { return STRING_RESULT; }
-  bool send(String *str);
+  bool send(THD *thd, String *str);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -346,7 +346,7 @@ public:
   {  
     return (null_value=(*ref)->get_date(ltime,fuzzydate));
   }
-  bool send(String *tmp)		{ return (*ref)->send(tmp); }
+  bool send(THD *thd, String *tmp)	{ return (*ref)->send(thd, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *,struct st_table_list *);
   bool save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }

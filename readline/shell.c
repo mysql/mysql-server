@@ -26,6 +26,7 @@
 #  include <config.h>
 #endif
 
+#include <stdio.h>
 #include <sys/types.h>
 
 #if defined (HAVE_UNISTD_H)

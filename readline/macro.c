@@ -90,7 +90,7 @@ static int current_macro_index;
    It is a linked list of string/index for each saved macro. */
 struct saved_macro {
   struct saved_macro *next;
-  char *string;
+  const char *string;
   int sindex;
 };
 
@@ -100,11 +100,10 @@ static struct saved_macro *macro_list = (struct saved_macro *)NULL;
 /* Set up to read subsequent input from STRING.
    STRING is free ()'ed when we are done with it. */
 void
-_rl_with_macro_input (string)
-     char *string;
+_rl_with_macro_input (const char *string)
 {
   _rl_push_executing_macro ();
-  _rl_executing_macro = string;
+  _rl_executing_macro = (char*) string;
   executing_macro_index = 0;
 }
 
@@ -155,7 +154,7 @@ _rl_pop_executing_macro ()
   if (macro_list)
     {
       macro = macro_list;
-      _rl_executing_macro = macro_list->string;
+      _rl_executing_macro = (char*) macro_list->string;
       executing_macro_index = macro_list->sindex;
       macro_list = macro_list->next;
       free (macro);
@@ -206,8 +205,8 @@ _rl_kill_kbd_macro ()
    definition to the end of the existing macro, and start by
    re-executing the existing macro. */
 int
-rl_start_kbd_macro (ignore1, ignore2)
-     int ignore1, ignore2;
+rl_start_kbd_macro (int count __attribute__((unused)),
+		    int key __attribute__((unused)))
 {
   if (_rl_defining_kbd_macro)
     {
@@ -231,8 +230,7 @@ rl_start_kbd_macro (ignore1, ignore2)
    A numeric argument says to execute the macro right now,
    that many times, counting the definition as the first time. */
 int
-rl_end_kbd_macro (count, ignore)
-     int count, ignore;
+rl_end_kbd_macro (int count, int ignore __attribute__((unused)))
 {
   if (_rl_defining_kbd_macro == 0)
     {
@@ -251,8 +249,7 @@ rl_end_kbd_macro (count, ignore)
 /* Execute the most recently defined keyboard macro.
    COUNT says how many times to execute it. */
 int
-rl_call_last_kbd_macro (count, ignore)
-     int count, ignore;
+rl_call_last_kbd_macro (int count, int key __attribute__((unused)))
 {
   if (current_macro == 0)
     _rl_abort_internal ();

@@ -60,7 +60,7 @@ extern UNDO_LIST *rl_undo_list;
 
 /* The data structure for mapping textual names to code addresses. */
 typedef struct _funmap {
-  char *name;
+  const char *name;
   Function *function;
 } FUNMAP;
 
@@ -286,7 +286,7 @@ extern int rl_translate_keyseq __P((char *, char *, int *));
 extern char *rl_untranslate_keyseq __P((int));
 
 extern Function *rl_named_function __P((char *));
-extern Function *rl_function_of_keyseq __P((char *, Keymap, int *));
+extern Function *rl_function_of_keyseq __P((const char *, Keymap, int *));
 
 extern void rl_list_funmap_names __P((void));
 extern char **rl_invoking_keyseqs_in_map __P((Function *, Keymap));
@@ -296,7 +296,7 @@ extern void rl_function_dumper __P((int));
 extern void rl_macro_dumper __P((int));
 extern void rl_variable_dumper __P((int));
 
-extern int rl_read_init_file __P((char *));
+extern int rl_read_init_file __P((const char *));
 extern int rl_parse_and_bind __P((char *));
 
 /* Functions for manipulating keymaps. */
@@ -306,14 +306,14 @@ extern Keymap rl_make_keymap __P((void));
 extern void rl_discard_keymap __P((Keymap));
 
 extern Keymap rl_get_keymap_by_name __P((char *));
-extern char *rl_get_keymap_name __P((Keymap));
+extern const char *rl_get_keymap_name __P((Keymap));
 extern void rl_set_keymap __P((Keymap));
 extern Keymap rl_get_keymap __P((void));
 extern void rl_set_keymap_from_edit_mode __P((void));
-extern char *rl_get_keymap_name_from_edit_mode __P((void));
+extern const char *rl_get_keymap_name_from_edit_mode __P((void));
 
 /* Functions for manipulating the funmap, which maps command names to functions. */
-extern int rl_add_funmap_entry __P((char *, Function *));
+extern int rl_add_funmap_entry __P((const char *, Function *));
 extern void rl_initialize_funmap __P((void));
 extern char **rl_funmap_names __P((void));
 
@@ -351,7 +351,7 @@ extern void rl_save_prompt __P((void));
 extern void rl_restore_prompt __P((void));
 
 /* Modifying text. */
-extern int rl_insert_text __P((char *));
+extern int rl_insert_text __P((const char *));
 extern int rl_delete_text __P((int, int));
 extern int rl_kill_text __P((int, int));
 extern char *rl_copy_text __P((int, int));
@@ -392,9 +392,9 @@ extern int maybe_replace_line __P((void));
 extern int rl_complete_internal __P((int));
 extern void rl_display_match_list __P((char **, int, int));
 
-extern char **completion_matches __P((char *, CPFunction *));
-extern char *username_completion_function __P((char *, int));
-extern char *filename_completion_function __P((char *, int));
+extern char **completion_matches __P((const char *, CPFunction *));
+extern char *username_completion_function __P((const char *, int));
+extern char *filename_completion_function __P((const char *, int));
 
 /* **************************************************************** */
 /*								    */
@@ -403,11 +403,11 @@ extern char *filename_completion_function __P((char *, int));
 /* **************************************************************** */
 
 /* The version of this incarnation of the readline library. */
-extern char *rl_library_version;
+extern const char *rl_library_version;
 
 /* The name of the calling program.  You should initialize this to
    whatever was in argv[0].  It is used when parsing conditionals. */
-extern char *rl_readline_name;
+extern const char *rl_readline_name;
 
 /* The prompt readline uses.  This is set from the argument to
    readline (), and should not be assigned to directly. */
@@ -506,12 +506,12 @@ extern CPPFunction *rl_attempted_completion_function;
 /* The basic list of characters that signal a break between words for the
    completer routine.  The initial contents of this variable is what
    breaks words in the shell, i.e. "n\"\\'`@$>". */
-extern char *rl_basic_word_break_characters;
+extern const char *rl_basic_word_break_characters;
 
 /* The list of characters that signal a break between words for
    rl_complete_internal.  The default list is the contents of
    rl_basic_word_break_characters.  */
-extern char *rl_completer_word_break_characters;
+extern const char *rl_completer_word_break_characters;
 
 /* List of characters which can be used to quote a substring of the line.
    Completion occurs on the entire substring, and within the substring   
@@ -520,7 +520,7 @@ extern char *rl_completer_word_break_characters;
 extern char *rl_completer_quote_characters;
 
 /* List of quote characters which cause a word break. */
-extern char *rl_basic_quote_characters;
+extern const char *rl_basic_quote_characters;
 
 /* List of characters that need to be quoted in filenames by the completer. */
 extern char *rl_filename_quote_characters;

@@ -79,7 +79,7 @@ print "Total time: " .
 exit(0);
 
 #
-# Insert records in the table.  Delete table when test is finnished
+# Insert records in the table.  Delete table when test is finished
 #
 
 sub test_insert

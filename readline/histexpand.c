@@ -87,7 +87,7 @@ char history_comment_char = '\0';
 
 /* The list of characters which inhibit the expansion of text if found
    immediately following history_expansion_char. */
-char *history_no_expand_chars = " \t\n\r=";
+const char *history_no_expand_chars = " \t\n\r=";
 
 /* If set to a non-zero value, single quotes inhibit history expansion.
    The default is 0. */
@@ -342,7 +342,8 @@ hist_error(s, start, current, errtype)
       char *s;
       int start, current, errtype;
 {
-  char *temp, *emsg;
+  char *temp;
+  const char *emsg;
   int ll, elen;
 
   ll = current - start;

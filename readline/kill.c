@@ -82,8 +82,7 @@ static int rl_kill_ring_length;
 /* How to say that you only want to save a certain amount
    of kill material. */
 int
-rl_set_retained_kills (num)
-     int num;
+rl_set_retained_kills (int num __attribute__((unused)))
 {
   return 0;
 }
@@ -285,8 +284,8 @@ rl_backward_kill_line (direction, ignore)
 
 /* Kill the whole line, no matter where point is. */
 int
-rl_kill_full_line (count, ignore)
-     int count, ignore;
+rl_kill_full_line (int count __attribute__((unused)),
+		   int ignore __attribute__((unused)))
 {
   rl_begin_undo_group ();
   rl_point = 0;
@@ -302,8 +301,7 @@ rl_kill_full_line (count, ignore)
 /* This does what C-w does in Unix.  We can't prevent people from
    using behaviour that they expect. */
 int
-rl_unix_word_rubout (count, key)
-     int count, key;
+rl_unix_word_rubout (int count, int key __attribute__((unused)))
 {
   int orig_point;
 
@@ -336,8 +334,8 @@ rl_unix_word_rubout (count, key)
    into the line at all, and if you aren't, then you know what you are
    doing. */
 int
-rl_unix_line_discard (count, key)
-     int count, key;
+rl_unix_line_discard (int count __attribute__((unused)),
+		      int key __attribute__((unused)))
 {
   if (rl_point == 0)
     ding ();
@@ -374,16 +372,16 @@ region_kill_internal (delete)
 
 /* Copy the text in the region to the kill ring. */
 int
-rl_copy_region_to_kill (count, ignore)
-     int count, ignore;
+rl_copy_region_to_kill (int count __attribute__((unused)),
+			int key __attribute__((unused)))
 {
   return (region_kill_internal (0));
 }
 
 /* Kill the text between the point and mark. */
 int
-rl_kill_region (count, ignore)
-     int count, ignore;
+rl_kill_region (int count __attribute__((unused)),
+		int key __attribute__((unused)))
 {
   int r;
 
@@ -445,8 +443,8 @@ rl_copy_backward_word (count, key)
   
 /* Yank back the last killed text.  This ignores arguments. */
 int
-rl_yank (count, ignore)
-     int count, ignore;
+rl_yank (int count __attribute__((unused)),
+	 int key __attribute__((unused)))
 {
   if (rl_kill_ring == 0)
     {
@@ -464,8 +462,8 @@ rl_yank (count, ignore)
    delete that text from the line, rotate the index down, and
    yank back some other text. */
 int
-rl_yank_pop (count, key)
-     int count, key;
+rl_yank_pop (int count __attribute__((unused)),
+	     int key __attribute__((unused)))
 {
   int l, n;
 

@@ -81,7 +81,7 @@ extern char *xmalloc (), *xrealloc ();
    in words, or 1 if it is. */
 
 int _rl_allow_pathname_alphabetic_chars = 0;
-static char *pathname_alphabetic_chars = "/-_=~.#$";
+static const char *pathname_alphabetic_chars = "/-_=~.#$";
 
 int
 alphabetic (c)
@@ -113,15 +113,15 @@ _rl_abort_internal ()
 }
 
 int
-rl_abort (count, key)
-     int count, key;
+rl_abort (int count __attribute__((unused)),
+	  int key __attribute__((unused)))
 {
   return (_rl_abort_internal ());
 }
 
 int
-rl_tty_status (count, key)
-     int count, key;
+rl_tty_status (int count __attribute__((unused)),
+	       int key __attribute__((unused)))
 {
 #if defined (TIOCSTAT)
   ioctl (1, TIOCSTAT, (char *)0);
@@ -170,8 +170,8 @@ rl_extend_line_buffer (len)
 
 /* A function for simple tilde expansion. */
 int
-rl_tilde_expand (ignore, key)
-     int ignore, key;
+rl_tilde_expand (int ignore __attribute__((unused)),
+		 int key __attribute__((unused)))
 {
   register int start, end;
   char *homedir, *temp;

@@ -95,7 +95,7 @@ extern int rl_display_fixed;
 VFunction *rl_completion_display_matches_hook = (VFunction *)NULL;
 
 /* Forward declarations for functions defined and used in this file. */
-char *filename_completion_function ();
+char *filename_completion_function (const char *text, int state);
 char **completion_matches ();
 
 #if defined (VISIBLE_STATS)
@@ -186,15 +186,15 @@ int rl_completion_query_items = 100;
 /* The basic list of characters that signal a break between words for the
    completer routine.  The contents of this variable is what breaks words
    in the shell, i.e. " \t\n\"\\'`@$><=" */
-char *rl_basic_word_break_characters = " \t\n\"\\'`@$><=;|&{(";
+const char *rl_basic_word_break_characters = " \t\n\"\\'`@$><=;|&{(";
 
 /* List of basic quoting characters. */
-char *rl_basic_quote_characters = "\"'";
+const char *rl_basic_quote_characters = "\"'";
 
 /* The list of characters that signal a break between words for
    rl_complete_internal.  The default list is the contents of
    rl_basic_word_break_characters.  */
-char *rl_completer_word_break_characters = (char *)NULL;
+const char *rl_completer_word_break_characters = (char *)NULL;
 
 /* List of characters which can be used to quote a substring of the line.
    Completion occurs on the entire substring, and within the substring
@@ -513,7 +513,7 @@ print_filename (to_print, full_pathname)
 static char *
 rl_quote_filename (s, rtype, qcp)
      char *s;
-     int rtype;
+     int rtype __attribute__((unused));
      char *qcp;
 {
   char *r;
@@ -1356,9 +1356,7 @@ rl_complete_internal (what_to_do)
      when there are no more matches.
  */
 char **
-completion_matches (text, entry_function)
-     char *text;
-     CPFunction *entry_function;
+completion_matches (const char *text, CPFunction *entry_function)
 {
   /* Number of slots in match_list. */
   int match_list_size;
@@ -1403,9 +1401,7 @@ completion_matches (text, entry_function)
    TEXT contains a partial username preceded by a random
    character (usually `~').  */
 char *
-username_completion_function (text, state)
-     char *text;
-     int state;
+username_completion_function (const char *text, int state)
 {
 #if defined (__GO32__) || defined (__WIN__) || defined (__OPENNT)
   return (char *)NULL;
@@ -1460,9 +1456,7 @@ username_completion_function (text, state)
    because of all the pathnames that must be followed when looking up the
    completion for a command. */
 char *
-filename_completion_function (text, state)
-     char *text;
-     int state;
+filename_completion_function (const char *text, int state)
 {
   static DIR *directory = (DIR *)NULL;
   static char *filename = (char *)NULL;
@@ -1639,8 +1633,7 @@ filename_completion_function (text, state)
    hit the end of the match list, we restore the original unmatched text,
    ring the bell, and reset the counter to zero. */
 int
-rl_menu_complete (count, ignore)
-     int count, ignore;
+rl_menu_complete (int count, int ignore __attribute__((unused)))
 {
   Function *our_func;
   int matching_filenames, found_quote;

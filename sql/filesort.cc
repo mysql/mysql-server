@@ -37,15 +37,13 @@ if (my_b_write((file),(byte*) (from),param->ref_length)) \
 	/* functions defined in this file */
 
 static char **make_char_array(register uint fields, uint length, myf my_flag);
+static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffer_file, uint count);
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
-			     uchar * *sort_keys,
-			     BUFFPEK *buffpek,uint *maxbuffer,
+			     uchar * *sort_keys, IO_CACHE *buffer_file,
 			     IO_CACHE *tempfile,IO_CACHE *indexfile);
 static int write_keys(SORTPARAM *param,uchar * *sort_keys,
-		      uint count,BUFFPEK *buffpek,
-		      IO_CACHE *tempfile);
-static void make_sortkey(SORTPARAM *param,uchar *to,
-			 byte *ref_pos);
+		      uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
+static void make_sortkey(SORTPARAM *param,uchar *to, byte *ref_pos);
 static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       BUFFPEK *buffpek,
 		       uint maxbuffer,IO_CACHE *tempfile,
@@ -70,11 +68,12 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 ha_rows *examined_rows)
 {
   int error;
-  uint memavl,old_memavl,maxbuffer,skr;
+  ulong memavl;
+  uint maxbuffer,skr;
   BUFFPEK *buffpek;
   ha_rows records;
   uchar **sort_keys;
-  IO_CACHE tempfile,*selected_records_file,*outfile;
+  IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
@@ -84,8 +83,10 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   outfile= table->io_cache;
   my_b_clear(&tempfile);
-  buffpek= (BUFFPEK *) NULL; sort_keys= (uchar **) NULL; error= 1;
-  maxbuffer=1;
+  my_b_clear(&buffpek_pointers);
+  buffpek=0;
+  sort_keys= (uchar **) NULL;
+  error= 1;
   bzero((char*) &param,sizeof(param));
   param.ref_length= table->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
@@ -136,51 +137,34 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   memavl=sortbuff_size;
   while (memavl >= MIN_SORT_MEMORY)
   {
-    if ((ulonglong) (records+1)*(param.sort_length+sizeof(char*))+sizeof(BUFFPEK)*10 <
-	(ulonglong) memavl)
-      param.keys=(uint) records+1;
-    else
-    {
-      maxbuffer=1;
-      do
-      {
-	skr=maxbuffer;
-	if (memavl < sizeof(BUFFPEK)*maxbuffer)
-	{
-	  my_error(ER_OUT_OF_SORTMEMORY,MYF(ME_ERROR+ME_WAITTANG));
-	  goto err;
-	}
-	param.keys=(memavl-sizeof(BUFFPEK)*maxbuffer)/
-	  (param.sort_length+sizeof(char*));
-      }
-      while ((maxbuffer= (uint) (records/param.keys+1)) != skr);
-    }
-    if ((sort_keys= (uchar **) make_char_array(param.keys,param.sort_length,
+    ulong old_memavl;
+    ulong keys= memavl/(param.sort_length+sizeof(char*));
+    param.keys=(uint) min(records+1, keys);
+    if ((sort_keys= (uchar **) make_char_array(param.keys, param.sort_length,
 					       MYF(0))))
-      if ((buffpek = (BUFFPEK*) my_malloc((uint) sizeof(BUFFPEK)*
-					  (maxbuffer+10),
-					  MYF(0))))
-	break;
-      else
-	my_free((gptr) sort_keys,MYF(0));
+      break;
     old_memavl=memavl;
     if ((memavl=memavl/4*3) < MIN_SORT_MEMORY && old_memavl > MIN_SORT_MEMORY)
       memavl=MIN_SORT_MEMORY;
   }
-  param.keys--;
-  maxbuffer+=10;			/* Some extra range */
-
   if (memavl < MIN_SORT_MEMORY)
   {
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),sortbuff_size);
     goto err;
   }
+  if (open_cached_file(&buffpek_pointers,mysql_tmpdir,TEMP_PREFIX,
+		       DISK_BUFFER_SIZE, MYF(MY_WME)))
+    goto err;
+
+  param.keys--;
   param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
-  if ((records=find_all_keys(&param,select,sort_keys,buffpek,&maxbuffer,
+  if ((records=find_all_keys(&param,select,sort_keys, &buffpek_pointers,
 			     &tempfile, selected_records_file)) ==
       HA_POS_ERROR)
     goto err;
+  maxbuffer= my_b_tell(&buffpek_pointers)/sizeof(*buffpek);
+
   if (maxbuffer == 0)			// The whole set is in memory
   {
     if (save_index(&param,sort_keys,(uint) records))
@@ -188,6 +172,9 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
+    if (!(buffpek=read_buffpek_from_file(&buffpek_pointers, maxbuffer)))
+      goto err;
+    close_cached_file(&buffpek_pointers);
 	/* Open cached file if it isn't open */
     if (! my_b_inited(outfile) &&
 	open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
@@ -195,8 +182,13 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
       goto err;
     reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
 
+    /*
+      Use also the space previously used by string pointers in sort_buffer
+      for temporary key storage.
+    */
     param.keys=((param.keys*(param.sort_length+sizeof(char*))) /
 		param.sort_length-1);
+    maxbuffer--;				// Offset from 0
     if (merge_many_buff(&param,(uchar*) sort_keys,buffpek,&maxbuffer,
 			&tempfile))
       goto err;
@@ -219,6 +211,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   x_free((gptr) sort_keys);
   x_free((gptr) buffpek);
   close_cached_file(&tempfile);
+  close_cached_file(&buffpek_pointers);
   if (my_b_inited(outfile))
   {
     if (flush_io_cache(outfile))
@@ -263,11 +256,33 @@ static char **make_char_array(register uint fields, uint length, myf my_flag)
 } /* make_char_array */
 
 
+	/* Read all buffer pointers into memory */
+
+static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
+{
+  ulong length;
+  BUFFPEK *tmp;
+  DBUG_ENTER("read_buffpek_from_file");
+  tmp=(BUFFPEK*) my_malloc(length=sizeof(BUFFPEK)*count, MYF(MY_WME));
+  if (tmp)
+  {
+    if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
+	my_b_read(buffpek_pointers, (char*) tmp, length))
+    {
+      my_free((char*) tmp, MYF(0));
+      tmp=0;
+    }      
+  }
+  DBUG_RETURN(tmp);
+}  
+
+
+
 	/* Search after sort_keys and place them in a temp. file */
 
 static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 			     uchar **sort_keys,
-			     BUFFPEK *buffpek, uint *maxbuffer,
+			     IO_CACHE *buffpek_pointers,
 			     IO_CACHE *tempfile, IO_CACHE *indexfile)
 {
   int error,flag,quick_select;
@@ -349,9 +364,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     {
       if (idx == param->keys)
       {
-	if (indexpos >= *maxbuffer ||
-	    write_keys(param,sort_keys,idx,buffpek+indexpos,tempfile))
-	      DBUG_RETURN(HA_POS_ERROR);
+	if (write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
+	  DBUG_RETURN(HA_POS_ERROR);
 	idx=0; indexpos++;
 	if (param->ref_length == param->sort_length &&
 	    my_b_tell(tempfile)/param->sort_length >= param->max_rows)
@@ -373,11 +387,9 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     file->print_error(error,MYF(ME_ERROR | ME_WAITTANG)); /* purecov: inspected */
     DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
   }
-  if (indexpos)
-    if (indexpos >= *maxbuffer ||
-	write_keys(param,sort_keys,idx,buffpek+indexpos,tempfile))
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
-  *maxbuffer=indexpos;
+  if (indexpos &&
+      write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
+    DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
   DBUG_RETURN(my_b_inited(tempfile) ?
 	      (ha_rows) (my_b_tell(tempfile)/param->sort_length) :
 	      idx);
@@ -387,9 +399,10 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	/* Skriver en buffert med nycklar till filen */
 
 static int write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
-		      BUFFPEK *buffpek, IO_CACHE *tempfile)
+		      IO_CACHE *buffpek_pointers, IO_CACHE *tempfile)
 {
   uint sort_length;
+  BUFFPEK buffpek;
   DBUG_ENTER("write_keys");
 
   sort_length=param->sort_length;
@@ -401,15 +414,20 @@ static int write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile,mysql_tmpdir,TEMP_PREFIX,DISK_BUFFER_SIZE,
 			MYF(MY_WME)))
-    DBUG_RETURN(1);				/* purecov: inspected */
-  buffpek->file_pos=my_b_tell(tempfile);
+    goto err;					/* purecov: inspected */
+  buffpek.file_pos=my_b_tell(tempfile);
   if ((ha_rows) count > param->max_rows)
     count=(uint) param->max_rows;		/* purecov: inspected */
-  buffpek->count=(ha_rows) count;
+  buffpek.count=(ha_rows) count;
   for (uchar **end=sort_keys+count ; sort_keys != end ; sort_keys++)
     if (my_b_write(tempfile,(byte*) *sort_keys,(uint) sort_length))
-      DBUG_RETURN(1);
+      goto err;
+  if (my_b_write(buffpek_pointers, (char*) &buffpek, sizeof(buffpek)))
+    goto err;
   DBUG_RETURN(0);
+
+err:
+  DBUG_RETURN(1);
 } /* write_keys */
 
 

@@ -1173,7 +1173,7 @@ if (!$opt_skip_delete)
   }
 
   $end_time=new Benchmark;
-  print "Time for delete_all ($count): " .
+  print "Time for delete_range ($count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
   if ($opt_lock_tables)
@@ -1209,6 +1209,7 @@ print "Insert into table with $keys keys and with a primary key with $seg parts\
 # Make keys on the most important types
 @types=(0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1);	# A 1 for each char field
 push(@fields,"field1 tinyint not null");
+push(@fields,"field_search tinyint not null");
 push(@fields,"field2 mediumint not null");
 push(@fields,"field3 smallint not null");
 push(@fields,"field4 char(16) not null");
@@ -1228,9 +1229,10 @@ for ($i= 1 ; $i <= $seg ; $i++)
 }
 substr($query,-1)=")";
 push (@keys,$query);
+push (@keys,"index index2 (field_search)");
 
 #Create other keys
-for ($i=2 ; $i <= $keys ; $i++)
+for ($i=3 ; $i <= $keys ; $i++)
 {
   push(@keys,"index index$i (field$i)");
 }
@@ -1256,11 +1258,11 @@ if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value
   $res=$query;
   for ($i=0; $i < $many_keys_loop_count; $i++)
   {
+    $id= $i & 127;
     $rand=$random[$i];
-    $tmp="(" . ($i & 127) . ",$rand," . ($i & 32766) .
-      ",'ABCDEF$rand',0,";
+    $tmp="($id,$id,$rand," . ($i & 32766) . ",'ABCDEF$rand',0,";
 
-    for ($j=5; $j <= $fields ; $j++)
+    for ($j=6; $j <= $fields ; $j++)
     {
       $tmp.= ($types[$j] == 0) ? "$rand," : "'$rand',";
     }
@@ -1281,11 +1283,12 @@ else
 {
   for ($i=0; $i < $many_keys_loop_count; $i++)
   {
+    $id= $i & 127;
     $rand=$random[$i];
-    $query="insert into bench1 values (" . ($i & 127) . ",$rand," . ($i & 32767) .
+    $query="insert into bench1 values ($id,$id,$rand," . ($i & 32767) .
       ",'ABCDEF$rand',0,";
 
-    for ($j=5; $j <= $fields ; $j++)
+    for ($j=6; $j <= $fields ; $j++)
     {
       $query.= ($types[$j] == 0) ? "$rand," : "'$rand',";
     }
@@ -1324,8 +1327,8 @@ print "Testing update of keys\n";
 $loop_time=new Benchmark;
 for ($i=0 ; $i< 256; $i++)
 {
-  $dbh->do("update bench1 set field5=1 where field1=$i")
-    or die "Got error $DBI::errstr with query: update bench1 set field5=1 where field1=$i\n";
+  $dbh->do("update bench1 set field5=1 where field_search=$i")
+    or die "Got error $DBI::errstr with query: update bench1 set field5=1 where field_search=$i\n";
 }
 $end_time=new Benchmark;
 print "Time for update_of_primary_key_many_keys (256): " .
@@ -1366,27 +1369,29 @@ $count=0;
 for ($i=0 ; $i < 128 ; $i++)
 {
   $count++;
-  $dbh->do("delete from bench1 where field1 = $i") or die $DBI::errstr;
+  $dbh->do("delete from bench1 where field_search = $i") or die $DBI::errstr;
 }
 
 $end_time=new Benchmark;
 print "Time for delete_big_many_keys ($count): " .
 timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
+if ($opt_lock_tables)
+{
+  $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
+}
+
 print "Deleting everything from table\n";
 $count=1;
 if ($opt_fast)
 {
-  $dbh->do("delete from bench1") or die $DBI::errstr;
+  $query= ($limits->{'truncate_table'} ? "truncate table bench1" :
+	     "delete from bench1");
+  $dbh->do($query) or die $DBI::errstr;
 }
 else
 {
   $dbh->do("delete from bench1 where field1 > 0") or die $DBI::errstr;
-}
-
-if ($opt_lock_tables)
-{
-  $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
 }
 
 $end_time=new Benchmark;

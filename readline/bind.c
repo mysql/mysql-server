@@ -108,7 +108,7 @@ Keymap rl_binding_keymap;
 /* Forward declarations */
 void rl_set_keymap_from_edit_mode ();
 
-static int _rl_read_init_file ();
+static int _rl_read_init_file (const char *filename, int include_level);
 static int glean_key_from_name ();
 static int substring_member_of_array ();
 
@@ -570,10 +570,7 @@ rl_named_function (string)
    type of the object pointed to.  One of ISFUNC (function), ISKMAP (keymap),
    or ISMACR (macro). */
 Function *
-rl_function_of_keyseq (keyseq, map, type)
-     char *keyseq;
-     Keymap map;
-     int *type;
+rl_function_of_keyseq (const char *keyseq, Keymap map, int *type)
 {
   register int i;
 
@@ -629,7 +626,7 @@ rl_function_of_keyseq (keyseq, map, type)
 static char *last_readline_init_file = (char *)NULL;
 
 /* The file we're currently reading key bindings from. */
-static char *current_readline_init_file;
+static const char *current_readline_init_file;
 static int current_readline_init_include_level;
 static int current_readline_init_lineno;
 
@@ -685,8 +682,8 @@ _rl_read_file (filename, sizep)
 
 /* Re-read the current keybindings file. */
 int
-rl_re_read_init_file (count, ignore)
-     int count, ignore;
+rl_re_read_init_file (int count __attribute__((unused)),
+		      int ignore __attribute__((unused)))
 {
   int r;
   r = rl_read_init_file ((char *)NULL);
@@ -702,8 +699,7 @@ rl_re_read_init_file (count, ignore)
    If the file existed and could be opened and read, 0 is returned,
    otherwise errno is returned. */
 int
-rl_read_init_file (filename)
-     char *filename;
+rl_read_init_file (const char *filename)
 {
   /* Default the filename. */
   if (filename == 0)
@@ -722,9 +718,7 @@ rl_read_init_file (filename)
 }
 
 static int
-_rl_read_init_file (filename, include_level)
-     char *filename;
-     int include_level;
+_rl_read_init_file (const char *filename, int include_level)
 {
   register int i;
   char *buffer, *openname, *line, *end;
@@ -797,7 +791,7 @@ _rl_init_file_error (msg)
 /* Conditionals. */
 
 /* Calling programs set this to have their argv[0]. */
-char *rl_readline_name = "other";
+const char *rl_readline_name = "other";
 
 /* Stack of previous values of parsing_conditionalized_out. */
 static unsigned char *if_stack = (unsigned char *)NULL;
@@ -881,7 +875,7 @@ parser_if (args)
 /* Invert the current parser state if there is anything on the stack. */
 static int
 parser_else (args)
-     char *args;
+char *args __attribute__((unused));
 {
   register int i;
 
@@ -906,7 +900,7 @@ parser_else (args)
    _rl_parsing_conditionalized_out from the stack. */
 static int
 parser_endif (args)
-     char *args;
+char *args __attribute__((unused));
 {
   if (if_stack_depth)
     _rl_parsing_conditionalized_out = if_stack[--if_stack_depth];
@@ -919,7 +913,8 @@ static int
 parser_include (args)
      char *args;
 {
-  char *old_init_file, *e;
+  const char *old_init_file;
+  char *e;
   int old_line_number, old_include_level, r;
 
   if (_rl_parsing_conditionalized_out)
@@ -943,7 +938,7 @@ parser_include (args)
   
 /* Associate textual names with actual functions. */
 static struct {
-  char *name;
+  const char *name;
   Function *function;
 } parser_directives [] = {
   { "if", parser_if },
@@ -1233,7 +1228,7 @@ rl_parse_and_bind (string)
    false. */
 
 static struct {
-  char *name;
+  const char *name;
   int *value;
 } boolean_varlist [] = {
 #if defined (PAREN_MATCHING)
@@ -1384,7 +1379,7 @@ rl_variable_bind (name, value)
    For example, `Space' returns ' '. */
 
 typedef struct {
-  char *name;
+  const char *name;
   int value;
 } assoc_list;
 
@@ -1418,7 +1413,7 @@ glean_key_from_name (name)
 
 /* Auxiliary functions to manage keymaps. */
 static struct {
-  char *name;
+  const char *name;
   Keymap map;
 } keymap_names[] = {
   { "emacs", emacs_standard_keymap },
@@ -1446,7 +1441,7 @@ rl_get_keymap_by_name (name)
   return ((Keymap) NULL);
 }
 
-char *
+const char *
 rl_get_keymap_name (map)
      Keymap map;
 {
@@ -1482,7 +1477,7 @@ rl_set_keymap_from_edit_mode ()
 #endif /* VI_MODE */
 }
 
-char *
+const char *
 rl_get_keymap_name_from_edit_mode ()
 {
   if (rl_editing_mode == emacs_mode)
@@ -1780,8 +1775,8 @@ rl_function_dumper (print_readably)
    rl_outstream.  If an explicit argument is given, then print
    the output in such a way that it can be read back in. */
 int
-rl_dump_functions (count, key)
-     int count, key;
+rl_dump_functions (int count __attribute__((unused)),
+		   int key __attribute__((unused)))
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");
@@ -1865,8 +1860,8 @@ rl_macro_dumper (print_readably)
 }
 
 int
-rl_dump_macros (count, key)
-     int count, key;
+rl_dump_macros (int count __attribute__((unused)),
+		int key __attribute__((unused)))
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");
@@ -1880,7 +1875,7 @@ rl_variable_dumper (print_readably)
      int print_readably;
 {
   int i;
-  char *kname;
+  const char *kname;
 
   for (i = 0; boolean_varlist[i].name; i++)
     {
@@ -1955,8 +1950,8 @@ rl_variable_dumper (print_readably)
    rl_outstream.  If an explicit argument is given, then print
    the output in such a way that it can be read back in. */
 int
-rl_dump_variables (count, key)
-     int count, key;
+rl_dump_variables (int count __attribute__((unused)),
+		   int key __attribute__((unused)))
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");

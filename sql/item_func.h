@@ -898,7 +898,10 @@ public:
   const char *func_name() const { return "match_nl"; }
   double val();
   int ft_handler_init(const byte *query, uint querylen, bool presort)
-   { ft_handler=table->file->ft_init_ext(FT_NL,key, query, querylen, presort); }
+   {
+     ft_handler=table->file->ft_init_ext(FT_NL,key, query, querylen, presort);
+     return 0;
+   }
 };
 
 class Item_func_match_bool :public Item_func_match
@@ -908,6 +911,9 @@ public:
   const char *func_name() const { return "match_bool"; }
   double val();
   int ft_handler_init(const byte *query, uint querylen, bool presort)
-   { ft_handler=table->file->ft_init_ext(FT_BOOL,key, query, querylen, presort); }
+   {
+     ft_handler=table->file->ft_init_ext(FT_BOOL,key, query, querylen, presort);
+     return 0;
+   }
 };
 

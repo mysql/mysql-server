@@ -292,7 +292,7 @@ bool select_send::send_data(List<Item> &items)
   Item *item;
   while ((item=li++))
   {
-    if (item->send(packet))
+    if (item->send(thd, packet))
     {
       packet->free();				// Free used
       my_error(ER_OUT_OF_RESOURCES,MYF(0));

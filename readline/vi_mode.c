@@ -98,7 +98,7 @@ extern int rl_vi_check ();
 static int _rl_vi_doing_insert;
 
 /* Command keys which do movement for xxx_to commands. */
-static char *vi_motion = " hl^$0ftFt;,%wbeWBE|";
+static const char *vi_motion = " hl^$0ftFt;,%wbeWBE|";
 
 /* Keymap used for vi replace characters.  Created dynamically since
    rarely used. */
@@ -126,7 +126,7 @@ static int _rl_vi_last_key_before_insert;
 static int vi_redoing;
 
 /* Text modification commands.  These are the `redoable' commands. */
-static char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
+static const char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
 
 /* Arrays for the saved marks. */
 static int vi_mark_chars[27];
