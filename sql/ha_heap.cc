@@ -33,92 +33,12 @@ const char **ha_heap::bas_ext() const
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
-  uint key,parts,mem_per_row=0;
-  ulong max_rows;
-  HP_KEYDEF *keydef;
-  HA_KEYSEG *seg;
-
-  for (key=parts=0 ; key < table->keys ; key++)
+  if (!(file= heap_open(name, mode)) && my_errno == ENOENT)
   {
-    parts+=table->key_info[key].key_parts;
-    if (table->key_info[key].algorithm == HA_KEY_ALG_BTREE)
-      parts++; /* additional HA_KEYTYPE_END keyseg */
+    if (!create(name, table, NULL))
+      file= heap_open(name, mode);
   }
-
-  if (!(keydef=(HP_KEYDEF*) my_malloc(table->keys*sizeof(HP_KEYDEF)+
-				      parts*sizeof(HA_KEYSEG),MYF(MY_WME))))
-    return my_errno;
-  seg=my_reinterpret_cast(HA_KEYSEG*) (keydef+table->keys);
-  for (key=0 ; key < table->keys ; key++)
-  {
-    KEY *pos=table->key_info+key;
-    KEY_PART_INFO *key_part=     pos->key_part;
-    KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
-
-    mem_per_row+= (pos->key_length + (sizeof(char*) * 2));
-
-    keydef[key].keysegs=   (uint) pos->key_parts;
-    keydef[key].flag=      (pos->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL));
-    keydef[key].seg=       seg;
-    keydef[key].algorithm= pos->algorithm == HA_KEY_ALG_UNDEF ? 
-					HA_KEY_ALG_HASH : pos->algorithm;
-
-    for (; key_part != key_part_end ; key_part++, seg++)
-    {
-      uint flag= key_part->key_type;
-      Field *field= key_part->field;
-      if (pos->algorithm == HA_KEY_ALG_BTREE)
-      {
-	seg->type= field->key_type();
-      }
-      else
-      {
-	if (!f_is_packed(flag) &&
-	    f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
-	    !(flag & FIELDFLAG_BINARY))
-	  seg->type= (int) HA_KEYTYPE_TEXT;
-	else
-	  seg->type= (int) HA_KEYTYPE_BINARY;
-      }
-      seg->start=   (uint) key_part->offset;
-      seg->length=  (uint) key_part->length;
-      seg->flag =   0;
-      seg->charset= field->binary() ? NULL : ((Field_str*)field)->charset();
-      if (field->null_ptr)
-      {
-	seg->null_bit= field->null_bit;
-	seg->null_pos= (uint) (field->null_ptr-
-			       (uchar*) table->record[0]);
-      }
-      else
-      {
-	seg->null_bit= 0;
-	seg->null_pos= 0;
-      }
-    }
-    if (pos->algorithm == HA_KEY_ALG_BTREE)
-    {
-      /* additional HA_KEYTYPE_END keyseg */
-      seg->type=     HA_KEYTYPE_END;
-      seg->length=   sizeof(byte*);
-      seg->flag=     0;
-      seg->null_bit= 0;
-      seg++;
-    }
-  }
-  mem_per_row += MY_ALIGN(table->reclength+1, sizeof(char*));
-  max_rows = (ulong) (max_heap_table_size / mem_per_row);
-  file=heap_open(name,mode,
-		 table->keys,keydef,
-		 table->reclength,
-		 ((table->max_rows < max_rows && table->max_rows) ? 
-		  table->max_rows : max_rows),
-		 table->min_rows);
-  my_free((gptr) keydef,MYF(0));
-  if (file)
-    info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
-  ref_length=sizeof(HEAP_PTR);
-  return (!file ? errno : 0);
+  return (file ? 0 : 1);
 }
 
 int ha_heap::close(void)
@@ -274,7 +194,6 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
   return to;
 }
 
-
 /*
   We have to ignore ENOENT entries as the HEAP table is created on open and
   not when doing a CREATE on the table.
@@ -290,7 +209,6 @@ int ha_heap::rename_table(const char * from, const char * to)
 {
   return heap_rename(from,to);
 }
-
 
 ha_rows ha_heap::records_in_range(int inx,
 				  const byte *start_key,uint start_key_len,
@@ -315,10 +233,92 @@ ha_rows ha_heap::records_in_range(int inx,
   }
 }
 
-
-int ha_heap::create(const char *name, TABLE *form, HA_CREATE_INFO *create_info)
-
+int ha_heap::create(const char *name, TABLE *table, HA_CREATE_INFO *create_info)
 {
+  uint key, parts, mem_per_row= 0;
+  ulong max_rows;
+  HP_KEYDEF *keydef;
+  HA_KEYSEG *seg;
   char buff[FN_REFLEN];
-  return heap_create(fn_format(buff,name,"","",4+2));
+  int error;
+
+  for (key= parts= 0; key < table->keys; key++)
+  {
+    parts+= table->key_info[key].key_parts;
+    if (table->key_info[key].algorithm == HA_KEY_ALG_BTREE)
+      parts++; /* additional HA_KEYTYPE_END keyseg */
+  }
+
+  if (!(keydef= (HP_KEYDEF*) my_malloc(table->keys * sizeof(HP_KEYDEF) +
+				       parts * sizeof(HA_KEYSEG), MYF(MY_WME))))
+    return my_errno;
+  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + table->keys);
+  for (key= 0; key < table->keys; key++)
+  {
+    KEY *pos= table->key_info+key;
+    KEY_PART_INFO *key_part=     pos->key_part;
+    KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
+
+    mem_per_row+= (pos->key_length + (sizeof(char*) * 2));
+
+    keydef[key].keysegs=   (uint) pos->key_parts;
+    keydef[key].flag=      (pos->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL));
+    keydef[key].seg=       seg;
+    keydef[key].algorithm= pos->algorithm == HA_KEY_ALG_UNDEF ? 
+					HA_KEY_ALG_HASH : pos->algorithm;
+
+    for (; key_part != key_part_end; key_part++, seg++)
+    {
+      uint flag=    key_part->key_type;
+      Field *field= key_part->field;
+      if (pos->algorithm == HA_KEY_ALG_BTREE)
+      {
+	seg->type= field->key_type();
+      }
+      else
+      {
+	if (!f_is_packed(flag) &&
+	    f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
+	    !(flag & FIELDFLAG_BINARY))
+	  seg->type= (int) HA_KEYTYPE_TEXT;
+	else
+	  seg->type= (int) HA_KEYTYPE_BINARY;
+      }
+      seg->start=   (uint) key_part->offset;
+      seg->length=  (uint) key_part->length;
+      seg->flag =   0;
+      seg->charset= field->binary() ? NULL : ((Field_str*)field)->charset();
+      if (field->null_ptr)
+      {
+	seg->null_bit= field->null_bit;
+	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
+      }
+      else
+      {
+	seg->null_bit= 0;
+	seg->null_pos= 0;
+      }
+    }
+    if (pos->algorithm == HA_KEY_ALG_BTREE)
+    {
+      /* additional HA_KEYTYPE_END keyseg */
+      seg->type=     HA_KEYTYPE_END;
+      seg->length=   sizeof(byte*);
+      seg->flag=     0;
+      seg->null_bit= 0;
+      seg++;
+    }
+  }
+  mem_per_row+= MY_ALIGN(table->reclength + 1, sizeof(char*));
+  max_rows= (ulong) (max_heap_table_size / mem_per_row);
+  error= heap_create(fn_format(buff,name,"","",4+2),
+		     table->keys,keydef, table->reclength,
+		     ((table->max_rows < max_rows && table->max_rows) ? 
+		     table->max_rows : max_rows),
+		     table->min_rows);
+  my_free((gptr) keydef, MYF(0));
+  if (file)
+    info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+  ref_length= sizeof(HEAP_PTR);
+  return (error);
 }
