@@ -664,7 +664,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
-  if (share->state.key_map != ((ulonglong) 1L << share->base.keys)-1)
+  if (share->state.key_map != set_bits(ulonglong, share->base.keys))
   {
     const char *save_proc_info=thd->proc_info;
     thd->proc_info="Creating index";
