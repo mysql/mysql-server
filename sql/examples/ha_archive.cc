@@ -29,7 +29,7 @@
   This example was written as a test case for a customer who needed
   a storage engine without indexes that could compress data very well.
   So, welcome to a completely compressed storage engine. This storage
-  engine only does inserts. No replace or updates. All reads are 
+  engine only does inserts. No replace, deletes, or updates. All reads are 
   complete table scans. Compression is done through gzip (bzip compresses
   better, but only marginally, if someone asks I could add support for
   it too, but beaware that it costs a lot more in CPU time then gzip).
@@ -53,7 +53,7 @@
   to be any faster. For writes it is always a bit slower then MyISAM. It has no
   internal limits though for row length.
 
-  Examples between MyISAM and Archive.
+  Examples between MyISAM (packed) and Archive.
 
   Table with 76695844 identical rows:
   29680807 a_archive.ARZ
@@ -75,6 +75,8 @@
    See if during an optimize you can make the table smaller.
    Talk to the gzip guys, come up with a writable format so that updates are doable
      without switching to a block method.
+   Add optional feature so that rows can be flushed at interval (which will cause less
+   compression but may speed up ordered searches).
 
     -Brian
 */
@@ -143,14 +145,14 @@ static ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table)
     share->table_name=tmp_name;
     fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     strmov(share->table_name,table_name);
-    if (my_hash_insert(&archive_open_tables, (byte*) share))
-      goto error;
     /* 
-      It is expensive to open and close the data files and since you can'thave
-      a gzip file that can be both read and written we keep two files open
-      that are shared amoung all open tables.
+      It is expensive to open and close the data files and since you can't have
+      a gzip file that can be both read and written we keep a writer open
+      that is shared amoung all open tables.
     */
-    if ((share->archive_write = gzopen(share->data_file_name, "ab")) == NULL)
+    if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
+      goto error;
+    if (my_hash_insert(&archive_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
     if (pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST))
@@ -188,7 +190,7 @@ static int free_share(ARCHIVE_SHARE *share)
     pthread_mutex_destroy(&share->mutex);
     my_free((gptr) share, MYF(0));
     if (gzclose(share->archive_write) == Z_ERRNO)
-      rc = -1;
+      rc= -1;
   }
   pthread_mutex_unlock(&archive_mutex);
 
@@ -214,12 +216,15 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_archive::open");
 
-  if (!(share = get_share(name, table)))
+  if (!(share= get_share(name, table)))
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
-  if ((archive = gzopen(share->data_file_name, "rb")) == NULL)
+  if ((archive= gzopen(share->data_file_name, "rb")) == NULL)
+  {
+    (void)free_share(share); //We void since we already have an error
     DBUG_RETURN(-1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -227,7 +232,7 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
 
 /*
   Closes the file. We first close this storage engines file handle to the
-  archive and then remove our referece count to the table (and possibly
+  archive and then remove our reference count to the table (and possibly
   free it as well).
   */
 int ha_archive::close(void)
@@ -261,23 +266,32 @@ int ha_archive::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *creat
   size_t written;
   DBUG_ENTER("ha_archive::create");
 
-  if ((create_file = my_create(fn_format(name_buff,name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+  if ((create_file= my_create(fn_format(name_buff,name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
                                O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
     DBUG_RETURN(-1);
-  if ((archive = gzdopen(create_file, "ab")) == NULL)
+  if ((archive= gzdopen(create_file, "ab")) == NULL)
+  {
+    delete_table(name);
     DBUG_RETURN(-1);
-  version = ARCHIVE_VERSION;
-  written = gzwrite(archive, &version, sizeof(version));
+  }
+  version= ARCHIVE_VERSION;
+  written= gzwrite(archive, &version, sizeof(version));
   if (written == 0 || written != sizeof(version))
+  {
+    delete_table(name);
     DBUG_RETURN(-1);
-  gzclose(archive);
-  (void)my_close(create_file,MYF(0));
+  }
+  if (gzclose(archive))
+  {
+    delete_table(name);
+    DBUG_RETURN(-1);
+  }
 
   DBUG_RETURN(0);
 }
 
 /* 
-  Looop at ha_archive::open() for an explanation of the row format.
+  Look at ha_archive::open() for an explanation of the row format.
   Here we just write out the row.
 */
 int ha_archive::write_row(byte * buf)
@@ -289,7 +303,7 @@ int ha_archive::write_row(byte * buf)
   statistic_increment(ha_write_count,&LOCK_status);
   if (table->timestamp_default_now)
     update_timestamp(buf+table->timestamp_default_now-1);
-  written = gzwrite(share->archive_write, buf, table->reclength);
+  written= gzwrite(share->archive_write, buf, table->reclength);
   share->dirty= true;
   if (written == 0 || written != table->reclength)
     DBUG_RETURN(-1);
@@ -300,7 +314,7 @@ int ha_archive::write_row(byte * buf)
     uint32 size= (*field)->get_length();
 
     (*field)->get_ptr(&ptr);
-    written = gzwrite(share->archive_write, ptr, (unsigned)size);
+    written= gzwrite(share->archive_write, ptr, (unsigned)size);
     if (written == 0 || written != size)
       DBUG_RETURN(-1);
   }
@@ -318,10 +332,15 @@ int ha_archive::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_archive::rnd_init");
   int read; // gzread() returns int, and we use this to check the header
+
   /* We rewind the file so that we can read from the beginning if scan */
   if(scan)
+  {
+    records= 0;
     if (gzrewind(archive))
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  }
+
   /* 
     If dirty, we lock, and then reset/flush the data.
     I found that just calling gzflush() doesn't always work.
@@ -331,12 +350,17 @@ int ha_archive::rnd_init(bool scan)
     pthread_mutex_lock(&share->mutex);
     if (share->dirty == true)
     {
+/* I was having problems with OSX, but it worked for 10.3 so I am wrapping this with and ifdef */
+#ifdef BROKEN_GZFLUSH
       gzclose(share->archive_write);
-      if ((share->archive_write = gzopen(share->data_file_name, "ab")) == NULL)
+      if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
       {
         pthread_mutex_unlock(&share->mutex);
         DBUG_RETURN(-1);
       }
+#else
+      gzflush(share->archive_write, Z_SYNC_FLUSH);
+#endif
       share->dirty= false;
     }
     pthread_mutex_unlock(&share->mutex);
@@ -346,10 +370,13 @@ int ha_archive::rnd_init(bool scan)
     At the moment we just check the size of version to make sure the header is 
     intact.
   */
-  read= gzread(archive, &version, sizeof(version));
-  if (read == 0 || read != sizeof(version))
-    DBUG_RETURN(-1);
-  records = 0;
+  if (scan)
+  {
+    read= gzread(archive, &version, sizeof(version));
+    if (read == 0 || read != sizeof(version))
+      DBUG_RETURN(-1);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -358,14 +385,14 @@ int ha_archive::rnd_init(bool scan)
   This is the method that is used to read a row. It assumes that the row is 
   positioned where you want it.
 */
-int ha_archive::read_row(byte *buf)
+int ha_archive::get_row(byte *buf)
 {
   int read; // Bytes read, gzread() returns int
   char *last;
   size_t total_blob_length= 0;
-  DBUG_ENTER("ha_archive::read_row");
+  DBUG_ENTER("ha_archive::get_row");
 
-  read = gzread(archive, buf, table->reclength);
+  read= gzread(archive, buf, table->reclength);
 
   /* If we read nothing we are at the end of the file */
   if (read == 0)
@@ -381,14 +408,13 @@ int ha_archive::read_row(byte *buf)
 
   /* Adjust our row buffer if we need be */
   buffer.alloc(total_blob_length);
-  last = (char *)buffer.ptr();
+  last= (char *)buffer.ptr();
 
-  /* Loopp through our blobs and read them */
+  /* Loop through our blobs and read them */
   for (Field_blob **field=table->blob_field; *field ; field++)
   {
-    /* Need to setup buffer tomorrow so that it is sued to contain all blobs */
     size_t size= (*field)->get_length();
-    read = gzread(archive, last, size);
+    read= gzread(archive, last, size);
     if (read == 0 || read != size)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
     (*field)->set_ptr(size, last);
@@ -407,8 +433,8 @@ int ha_archive::rnd_next(byte *buf)
   int rc;
 
   statistic_increment(ha_read_rnd_next_count,&LOCK_status);
-  current_position = gztell(archive);
-  rc = read_row(buf);
+  current_position= gztell(archive);
+  rc= get_row(buf);
   if (!(HA_ERR_END_OF_FILE == rc))
     records++;
 
@@ -438,10 +464,10 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(ha_read_rnd_count,&LOCK_status);
-  current_position = ha_get_ptr(pos, ref_length);
+  current_position= ha_get_ptr(pos, ref_length);
   z_off_t seek= gzseek(archive, current_position, SEEK_SET);
 
-  DBUG_RETURN(read_row(buf));
+  DBUG_RETURN(get_row(buf));
 }
 
 /******************************************************************************
@@ -511,9 +537,11 @@ int ha_archive::index_last(byte * buf)
 void ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
+
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
   if (records < 2) 
-    records = 2;
+    records= 2;
+
   DBUG_VOID_RETURN;
 }
 
