@@ -2369,8 +2369,9 @@ void Query_cache::pack_cache()
   {
     do
     {
+      Query_cache_block *next=block->pnext;
       ok = move_by_type(&border, &before, &gap, block);
-      block = block->pnext;
+      block = next;
     } while (ok && block != first_block);
 
     if (border != 0)
