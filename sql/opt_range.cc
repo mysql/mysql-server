@@ -1539,7 +1539,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
     {
       swap(SEL_ARG *,key1,key2);
     }
-    else if (!(key1=key1->clone_tree()))
+    if (key1->use_count > 0 || !(key1=key1->clone_tree()))
       return 0;					// OOM
   }
 
@@ -1608,10 +1608,10 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	  SEL_ARG *next=key2->next;		// Keys are not overlapping
 	  if (key2_shared)
 	  {
-	    SEL_ARG *tmp= new SEL_ARG(*key2);	// Must make copy
-	    if (!tmp)
+	    SEL_ARG *cpy= new SEL_ARG(*key2);	// Must make copy
+	    if (!cpy)
 	      return 0;				// OOM
-	    key1=key1->insert(tmp);
+	    key1=key1->insert(cpy);
 	    key2->increment_use_count(key1->use_count+1);
 	  }
 	  else
@@ -1847,8 +1847,17 @@ SEL_ARG::find_range(SEL_ARG *key)
 
 
 /*
-** Remove a element from the tree
-** This also frees all sub trees that is used by the element
+  Remove a element from the tree
+
+  SYNOPSIS
+    tree_delete()
+    key		Key that is to be deleted from tree (this)
+    
+  NOTE
+    This also frees all sub trees that is used by the element
+
+  RETURN
+    root of new tree (with key deleted)
 */
 
 SEL_ARG *
@@ -1856,7 +1865,10 @@ SEL_ARG::tree_delete(SEL_ARG *key)
 {
   enum leaf_color remove_color;
   SEL_ARG *root,*nod,**par,*fix_par;
-  root=this; this->parent= 0;
+  DBUG_ENTER("tree_delete");
+
+  root=this;
+  this->parent= 0;
 
   /* Unlink from list */
   if (key->prev)
@@ -1903,7 +1915,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   }
 
   if (root == &null_element)
-    return 0;					// Maybe root later
+    DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
   test_rb_tree(root,root->parent);
@@ -1911,7 +1923,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   root->use_count=this->use_count;		// Fix root counters
   root->elements=this->elements-1;
   root->maybe_flag=this->maybe_flag;
-  return root;
+  DBUG_RETURN(root);
 }
 
 

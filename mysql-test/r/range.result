@@ -314,3 +314,24 @@ a	b
 15	1
 47	1
 DROP TABLE t1;
+CREATE TABLE t1 (
+id int( 11 ) unsigned NOT NULL AUTO_INCREMENT ,
+line int( 5 ) unsigned NOT NULL default '0',
+columnid int( 3 ) unsigned NOT NULL default '0',
+owner int( 3 ) unsigned NOT NULL default '0',
+ordinal int( 3 ) unsigned NOT NULL default '0',
+showid smallint( 6 ) unsigned NOT NULL default '1',
+tableid int( 1 ) unsigned NOT NULL default '1',
+content int( 5 ) unsigned NOT NULL default '188',
+PRIMARY KEY ( owner, id ) ,
+KEY menu( owner, showid, columnid ) ,
+KEY `COLUMN` ( owner, columnid, line ) ,
+KEY `LINES` ( owner, tableid, content, id ) ,
+KEY recount( owner, line ) 
+) ENGINE = MYISAM;
+INSERT into t1 (owner,id,columnid,line) values (11,15,15,1),(11,13,13,5);
+SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner=11 AND ((columnid IN ( 15, 13, 14 ) AND line IN ( 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 31 )) OR (columnid IN ( 13, 14 ) AND line IN ( 15 ))) LIMIT 0 , 30;
+id	columnid	tableid	content	showid	line	ordinal
+13	13	1	188	1	5	0
+15	15	1	188	1	1	0
+drop table t1;
