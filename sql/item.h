@@ -278,6 +278,10 @@ public:
     return FALSE;
   }
 
+  inline int save_in_field(Field *field, bool no_conversions)
+  {
+    return this_item()->save_in_field(field, no_conversions);
+  }
 };
 
 
