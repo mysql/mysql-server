@@ -47523,8 +47523,8 @@ The following are a list of the limitations with @code{TEMPORARY TABLES}.
 
 @itemize @bullet
 @item
-A temporary table can only be of type @code{HEAP}, @code{ISAM} or
-@code{MyISAM}.
+A temporary table can only be of type @code{HEAP}, @code{ISAM},
+@code{MyISAM} or @code{InnoDB}.
 @item
 You can't use temporary tables more than once in the same query.
 For example, the following doesn't work.
