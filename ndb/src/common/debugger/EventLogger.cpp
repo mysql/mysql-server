@@ -624,7 +624,8 @@ EventLogger::getText(int type,
 	       "%sTrans. Count = %u, Commit Count = %u, "
 	       "Read Count = %u, Simple Read Count = %u,\n"
 	       "Write Count = %u, AttrInfo Count = %u, "
-	       "Concurrent Operations = %u, Abort Count = %u", 
+	       "Concurrent Operations = %u, Abort Count = %u\n"
+	       " Scans: %u Range scans: %u", 
 	       theNodeId,
 	       theData[1], 
 	       theData[2], 
@@ -633,7 +634,9 @@ EventLogger::getText(int type,
 	       theData[5], 
 	       theData[6], 
 	       theData[7], 
-	       theData[8]);
+	       theData[8],
+	       theData[9],
+	       theData[10]);
     break;
   case EventReport::OperationReportCounters:
     ::snprintf(m_text, sizeof(m_text),
