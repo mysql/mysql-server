@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_COERCIBLE;
+  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -67,7 +67,7 @@ Item::Item(THD *thd, Item &item):
   unsigned_flag(item.unsigned_flag),
   with_sum_func(item.with_sum_func),
   fixed(item.fixed),
-  coercibility(item.coercibility)
+  collation(item.collation)
 {
   next=thd->free_list;			// Put in free list
   thd->free_list= this;
@@ -183,12 +183,12 @@ CHARSET_INFO * Item::default_charset() const
   return current_thd->variables.collation_connection;
 }
 
-bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
-		       CHARSET_INFO *cs2, enum coercion co2)
+bool Item::set_charset(CHARSET_INFO *cs1, Derivation co1,
+		       CHARSET_INFO *cs2, Derivation co2)
 {
   if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
   {
-    set_charset(&my_charset_bin, COER_NOCOLL);
+    set_charset(&my_charset_bin, DERIVATION_NONE);
     return 0;
   }
 
@@ -207,7 +207,7 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
   {
     if (cs1 != cs2)
     {
-      if (co1 == COER_EXPLICIT)
+      if (co1 == DERIVATION_EXPLICIT)
       {
         return 1;
       }
@@ -216,7 +216,7 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
         CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
         if (!bin)
 	  return 1;
-        set_charset(bin, COER_NOCOLL);
+        set_charset(bin, DERIVATION_NONE);
       }
     }
     else
@@ -228,7 +228,7 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
-  coercibility= COER_IMPLICIT;
+  set_charset(DERIVATION_IMPLICIT);
   fixed= 1; // This item is not needed in fix_fields
 }
 
@@ -237,7 +237,7 @@ Item_field::Item_field(THD *thd, Item_field &item):
   Item_ident(thd, item),
   field(item.field),
   result_field(item.result_field)
-{ coercibility= COER_IMPLICIT; }
+{ set_charset(DERIVATION_IMPLICIT); }
 
 void Item_field::set_field(Field *field_par)
 {
@@ -249,7 +249,7 @@ void Item_field::set_field(Field *field_par)
   field_name=field_par->field_name;
   db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset(), COER_IMPLICIT);
+  set_charset(field_par->charset(), DERIVATION_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const
@@ -1100,7 +1100,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
-  coercibility= COER_COERCIBLE;
+  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
 }
 
 longlong Item_varbinary::val_int()

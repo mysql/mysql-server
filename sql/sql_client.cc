@@ -18,7 +18,7 @@
   This files defines some MySQL C API functions that are server specific
 */
 
-#include <mysql_priv.h>
+#include "mysql_priv.h"
 
 /*
   Function called by my_net_init() to set some check variables
