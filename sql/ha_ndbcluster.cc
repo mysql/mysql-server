@@ -2375,11 +2375,10 @@ void ha_ndbcluster::print_results()
       break;
     }
     case NdbDictionary::Column::Undefined:
-    case NdbDictionary::Column::Bit:
       my_snprintf(buf, sizeof(buf), "Unknown type: %d", col->getType());
       break;
     }
-
+    
 print_value:
     DBUG_PRINT("value", ("%u,%s: %s", f, col->getName(), buf));
   }
