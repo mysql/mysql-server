@@ -209,7 +209,7 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
-   "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
+   "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Faster repair by not modifying the data file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -360,7 +360,7 @@ static void usage(void)
   -f, --force         Restart with '-r' if there are any errors in the table.\n\
 		      States will be updated as with '--update-state'\n\
   -i, --information   Print statistics information about table that is checked\n\
-  -m, --medium-check  Faster than extended-check, but only finds 99.99% of\n\
+  -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases\n\
   -U  --update-state  Mark tables as crashed if you find any errors\n\
   -T, --read-only     Don't mark table as checked\n");
