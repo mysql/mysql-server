@@ -426,7 +426,6 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
     my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
 		"Could not find slave event in log '%s'",
 		(char*)log_file_name);
-    delete ev;
     return 0;
   }
 

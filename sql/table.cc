@@ -1100,13 +1100,12 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
 {
   Field *field=table->field[fieldnr];
-  char buff[MAX_FIELD_WIDTH];
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff));
   field->val_str(&str,&str);
   uint length=str.length();
-  if (!length)
+  if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
-  char *to= (char*) alloc_root(mem,length+1);
   memcpy(to,str.ptr(),(uint) length);
   to[length]=0;
   return to;
