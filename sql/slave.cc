@@ -1421,7 +1421,7 @@ not always make sense; please check the manual before using it).";
     We don't test equality of global collation_database either as it's is
     going to be deprecated (made read-only) in 4.1 very soon.
     The test is only relevant if master < 5.0.3 (we'll test only if it's older
-    than the 5 branch; < 5.0.4 were alpha...), as >= 5.0.4 master stores
+    than the 5 branch; < 5.0.3 was alpha...), as >= 5.0.3 master stores
     charset info in each binlog event.
     We don't do it for 3.23 because masters <3.23.50 hang on
     SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50). So finally we
