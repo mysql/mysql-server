@@ -663,6 +663,20 @@ time_t str_to_timestamp(const char *str,uint length)
 }
 
 
+/*
+  Convert a string to datetime.
+
+  SYNOPSIS
+    str_to_datetime()
+    str             String to parse (see str_to_TIME() synopsis)
+    length          Length of str
+    fuzzy_date      Flags (see str_to_TIME() synopsis)
+
+  RETURN
+    -1              if error
+    datetime value  otherwise
+*/
+
 longlong str_to_datetime(const char *str,uint length, uint fuzzy_date)
 {
   TIME l_time;
