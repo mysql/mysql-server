@@ -802,7 +802,7 @@ size is pushed up to 8 million terabytes (2 ^ 63 bytes).
 Note, however, that operating systems have their own file size
 limits. Here are some examples:
 
-@multitable @columnfractions .25 .45
+@multitable @columnfractions .30 .50
 @item @strong{Operating System} @tab @strong{File Size Limit}
 @item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
 @item Linux-Alpha               @tab 8T (?)
@@ -1866,7 +1866,8 @@ in the client.
 @subsection MySQL 4.1, The Following Development Release
 
 Internally, through a new .frm file format for table definitions,
-MySQL Server 4.0 lays the foundation for the new features of MySQL Server 4.1,
+MySQL Server 4.0 lays the foundation for the new features of
+MySQL Server 4.1 onwards,
 such as @code{nested subqueries}, @code{stored procedures}, and
 @code{foreign key integrity rules}, which form the top of the
 wish list for many of our customers. Along with those, we will
@@ -3197,8 +3198,8 @@ deletes the corresponding customer from a customer table when all his
 transactions are deleted.
 
 The planned update language will be able to handle stored procedures.
-Our aim is to have stored procedures implemented in MySQL Server 4.1.
-We are also looking at triggers.
+Our aim is to have stored procedures implemented in MySQL Server around
+version 4.1. We are also looking at triggers.
 
 
 @node ANSI diff Foreign Keys, ANSI diff Views, ANSI diff Triggers, Differences from ANSI
@@ -3292,7 +3293,7 @@ to backup or restore individual tables.
 
 @cindex views
 
-It is planned to implement views in MySQL Server around Version 4.1.
+It is planned to implement views in MySQL Server around version 4.1.
 
 Views are mostly useful for letting users access a set of relations as one
 table (in read-only mode).  Many SQL databases don't allow one to update
@@ -4509,7 +4510,7 @@ the following additional type attributes:
 @end itemize
 @item mSQL2
 @code{mSQL} column types correspond to the MySQL types shown below:
-@multitable @columnfractions .15 .65
+@multitable @columnfractions .15 .70
 @item @code{mSQL} @strong{type} @tab @strong{Corresponding MySQL type}
 @item @code{CHAR(len)} @tab @code{CHAR(len)}
 @item @code{TEXT(len)} @tab @code{TEXT(len)}. @code{len} is the maximal length.
@@ -6010,7 +6011,7 @@ A binary distribution is installed by unpacking it at the installation
 location you choose (typically @file{/usr/local/mysql}) and creates the
 following directories in that location:
 
-@multitable @columnfractions .15 .40
+@multitable @columnfractions .15 .45
 @item @strong{Directory} @tab @strong{Contents of directory}
 @item @file{bin}         @tab Client programs and the @code{mysqld} server
 @item @file{data}        @tab Log files, databases
@@ -6025,7 +6026,7 @@ A source distribution is installed after you configure and compile it.  By
 default, the installation step installs files under @file{/usr/local}, in the
 following subdirectories:
 
-@multitable @columnfractions .15 .40
+@multitable @columnfractions .15 .45
 @item @strong{Directory} @tab @strong{Contents of directory}
 @item @file{bin}         @tab Client programs and scripts
 @item @file{include/mysql}  @tab Include (header) files
@@ -6832,7 +6833,7 @@ the compiler you are using:
 
 @tindex CXXFLAGS environment variable
 @tindex environment variable, CXXFLAGS
-@multitable @columnfractions .20 .80
+@multitable @columnfractions .19 .81
 @item @strong{Compiler} @tab @strong{Recommended options}
 @item gcc 2.7.2.1 @tab
 CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors"
@@ -13069,7 +13070,7 @@ mysql> CREATE TABLE event (name VARCHAR(20), date DATE,
 As with the @code{pet} table, it's easiest to load the initial records
 by creating a tab-delimited text file containing the information:
 
-@multitable @columnfractions .10 .15 .10 .30
+@multitable @columnfractions .10 .15 .10 .35
 @item @strong{name} @tab @strong{date} @tab @strong{type} @tab @strong{remark}
 @item Fluffy @tab 1995-05-15 @tab litter @tab 4 kittens, 3 female, 1 male
 @item Buffy @tab 1993-06-23 @tab litter @tab 5 puppies, 2 female, 3 male
@@ -14369,7 +14370,7 @@ server and for clients from option files.
 MySQL reads default options from the following files on Unix:
 
 @tindex .my.cnf file
-@multitable @columnfractions .35 .45
+@multitable @columnfractions .35 .50
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{/etc/my.cnf} @tab Global options
 @item @code{DATADIR/my.cnf} @tab Server-specific options
@@ -14387,7 +14388,7 @@ before it processes any command-line arguments.)
 
 MySQL reads default options from the following files on Windows:
 
-@multitable @columnfractions .35 .45
+@multitable @columnfractions .35 .50
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{windows-system-directory\my.ini} @tab Global options
 @item @code{C:\my.cnf} @tab Global options
@@ -15291,7 +15292,7 @@ The rules used to do this are described in @ref{Request access}.
 Scope fields are strings, declared as shown below; the default value for
 each is the empty string:
 
-@multitable @columnfractions .15 .15 .6
+@multitable @columnfractions .20 .15 .65
 @item @strong{Field name} @tab @strong{Type}     @tab @strong{Notes}
 @item @code{Host}         @tab @code{CHAR(60)}   @tab
 @item @code{User}         @tab @code{CHAR(16)}   @tab
@@ -15309,7 +15310,7 @@ value of @code{'N'} or @code{'Y'}, and the default value is @code{'N'}.
 In the @code{tables_priv} and @code{columns_priv} tables, the privilege
 fields are declared as @code{SET} fields:
 
-@multitable @columnfractions .15 .15 .50
+@multitable @columnfractions .15 .15 .55
 @item @strong{Table name}
  @tab @strong{Field name}
  @tab @strong{Possible set elements}
@@ -15404,7 +15405,7 @@ MySQL are shown below, along with the table column name associated
 with each privilege in the grant tables and the context in which the
 privilege applies:
 
-@multitable @columnfractions .15 .20 .30
+@multitable @columnfractions .15 .20 .35
 @item @strong{Privilege}   @tab @strong{Column}      @tab @strong{Context}
 @item @strong{select}      @tab @code{Select_priv}   @tab tables
 @item @strong{insert}      @tab @code{Insert_priv}   @tab tables
@@ -19242,7 +19243,7 @@ STATUS}, but provides a lot of information about each table. You can
 also get this list using the @code{mysqlshow --status db_name} command.
 The following columns are returned:
 
-@multitable @columnfractions .20 .65
+@multitable @columnfractions .20 .70
 @item @strong{Column} @tab @strong{Meaning}
 @item @code{Name} @tab Name of the table.
 @item @code{Type} @tab Type of table. @xref{Table types}.
@@ -19932,7 +19933,7 @@ If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
-@multitable @columnfractions .10 .15 .70
+@multitable @columnfractions .9 .14 .72
 @item @strong{Value} @tab @strong{Alias} @tab @strong{Comment}
 @item 0 @tab OFF @tab Don't cache or retrieve results.
 @item 1 @tab ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
@@ -20621,7 +20622,7 @@ table with @code{myisamchk -dvv table_name}.
 
 @menu
 * Server-Side Overview::        Overview of the Server-Side Scripts and Utilities
-* safe_mysqld::                 @code{safe_mysqld}, the Wrapper Around @code{mysqld}
+* safe_mysqld::                 @code{safe_mysqld}, The Wrapper Around @code{mysqld}
 * mysqld_multi::                @code{mysqld_multi}, Program for Managing Multiple MySQL Servers
 * myisampack::                  @code{myisampack}, The MySQL Compressed Read-only Table Generator
 * mysqld-max::                  @code{mysqld-max}, An Extended @code{mysqld} Server
@@ -20645,7 +20646,7 @@ All MySQL clients that communicate with the server using the
 @tindex environment variable, @code{MYSQL_PWD}
 @tindex @code{MYSQL_DEBUG} environment variable
 @tindex environment variable, @code{MYSQL_DEBUG}
-@multitable @columnfractions .25 .55
+@multitable @columnfractions .25 .60
 @item @strong{Name} @tab @strong{Description}
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
 @item @code{MYSQL_TCP_PORT}  @tab The default TCP/IP port
@@ -20756,7 +20757,7 @@ shell> replace a b b a -- file1 file2 ...
 
 
 @node safe_mysqld, mysqld_multi, Server-Side Overview, Server-Side Scripts
-@subsection @code{safe_mysqld}, the Wrapper Around @code{mysqld}
+@subsection @code{safe_mysqld}, The Wrapper Around @code{mysqld}
 
 @cindex tools, safe_mysqld
 @cindex scripts
@@ -21574,7 +21575,7 @@ All MySQL clients that communicate with the server using the
 @tindex environment variable, @code{MYSQL_PWD}
 @tindex @code{MYSQL_DEBUG} environment variable
 @tindex environment variable, @code{MYSQL_DEBUG}
-@multitable @columnfractions .25 .55
+@multitable @columnfractions .25 .60
 @item @strong{Name} @tab @strong{Description}
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
 @item @code{MYSQL_TCP_PORT}  @tab The default TCP/IP port
@@ -23041,7 +23042,7 @@ command. @xref{RESET}.
 You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .38 .62
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{binlog-do-db=database_name} @tab
@@ -23635,7 +23636,7 @@ Example: @code{server-id=3}
 
 The following table describes the options you can use for the @strong{MASTER}:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .38 .62
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{log-bin=filename} @tab
@@ -23680,7 +23681,7 @@ Example: @code{binlog-ignore-db=accounting}
 
 The following table describes the options you can use for the @strong{SLAVE}:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .38 .62
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{master-host=host} @tab
@@ -23880,7 +23881,7 @@ the read.
 Replication can be controlled through the SQL interface. Below is the
 summary of commands:
 
-@multitable @columnfractions .40 .60
+@multitable @columnfractions .45 .55
 @item @strong{Command} @tab @strong{Description}
 
 @item @code{SLAVE START}
@@ -24787,7 +24788,7 @@ For example, (run on the same NT 4.0 machine):
 
 In the above test MySQL was run with a 8M index cache.
 
-We have gather some more benchmark results at
+We have gathered some more benchmark results at
 @uref{http://www.mysql.com/information/benchmarks.html}.
 
 Note that Oracle is not included because they asked to be removed. All
@@ -27986,7 +27987,7 @@ introduced quoting of identifiers (database, table, and column names)
 with @samp{`}. @samp{"} will also work to quote identifiers if you run
 in ANSI mode. @xref{ANSI mode}.
 
-@multitable @columnfractions .15 .15 .65
+@multitable @columnfractions .15 .15 .70
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
 @item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/} or @samp{.}.
 @item Table @tab 64 @tab Any character that is allowed in a file name, except @samp{/} or @samp{.}.
@@ -28243,104 +28244,196 @@ A few are reserved because MySQL needs them and is
 
 @c START_OF_RESERVED_WORDS
 
-@multitable @columnfractions .25 .25 .25 .25
-@item @strong{Word} @tab @strong{Word} @tab @strong{Word} @tab @strong{Word}
-@c Reserved word list updated Fri Dec  7 10:49:17 2001 by arjen.
+@multitable @columnfractions .33 .33 .34
+@item @strong{Word} @tab @strong{Word} @tab @strong{Word}
+@c Reserved word list updated Wed May  1 10:50:08 2002 by arjen.
 @c To regenerate, use Support/update-reserved-words.pl.
 
-@item @code{ADD}                     @tab @code{ALL}
- @tab @code{ALTER}                   @tab @code{ANALYZE}
-@item @code{AND}                     @tab @code{AS}
- @tab @code{ASC}                     @tab @code{AUTO_INCREMENT}
-@item @code{BDB}                     @tab @code{BERKELEYDB}
- @tab @code{BETWEEN}                 @tab @code{BIGINT}
-@item @code{BINARY}                  @tab @code{BLOB}
- @tab @code{BOTH}                    @tab @code{BY}
-@item @code{CASCADE}                 @tab @code{CASE}
- @tab @code{CHANGE}                  @tab @code{CHAR}
-@item @code{CHARACTER}               @tab @code{COLUMN}
- @tab @code{COLUMNS}                 @tab @code{CONSTRAINT}
-@item @code{CREATE}                  @tab @code{CROSS}
- @tab @code{CURRENT_DATE}            @tab @code{CURRENT_TIME}
-@item @code{CURRENT_TIMESTAMP}       @tab @code{DATABASE}
- @tab @code{DATABASES}               @tab @code{DAY_HOUR}
-@item @code{DAY_MINUTE}              @tab @code{DAY_SECOND}
- @tab @code{DEC}                     @tab @code{DECIMAL}
-@item @code{DEFAULT}                 @tab @code{DELAYED}
- @tab @code{DELETE}                  @tab @code{DESC}
-@item @code{DESCRIBE}                @tab @code{DISTINCT}
- @tab @code{DISTINCTROW}             @tab @code{DOUBLE}
-@item @code{DROP}                    @tab @code{ELSE}
- @tab @code{ENCLOSED}                @tab @code{ESCAPED}
-@item @code{EXISTS}                  @tab @code{EXPLAIN}
- @tab @code{FIELDS}                  @tab @code{FLOAT}
-@item @code{FOR}                     @tab @code{FOREIGN}
- @tab @code{FROM}                    @tab @code{FULLTEXT}
-@item @code{FUNCTION}                @tab @code{GRANT}
- @tab @code{GROUP}                   @tab @code{HAVING}
-@item @code{HIGH_PRIORITY}           @tab @code{HOUR_MINUTE}
- @tab @code{HOUR_SECOND}             @tab @code{IF}
-@item @code{IGNORE}                  @tab @code{IN}
- @tab @code{INDEX}                   @tab @code{INFILE}
-@item @code{INNER}                   @tab @code{INNODB}
- @tab @code{INSERT}                  @tab @code{INSERT_ID}
-@item @code{INT}                     @tab @code{INTEGER}
- @tab @code{INTERVAL}                @tab @code{INTO}
-@item @code{IS}                      @tab @code{JOIN}
- @tab @code{KEY}                     @tab @code{KEYS}
-@item @code{KILL}                    @tab @code{LAST_INSERT_ID}
- @tab @code{LEADING}                 @tab @code{LEFT}
-@item @code{LIKE}                    @tab @code{LIMIT}
- @tab @code{LINES}                   @tab @code{LOAD}
-@item @code{LOCK}                    @tab @code{LONG}
- @tab @code{LONGBLOB}                @tab @code{LONGTEXT}
-@item @code{LOW_PRIORITY}            @tab @code{MASTER_LOG_SEQ}
- @tab @code{MASTER_SERVER_ID}        @tab @code{MATCH}
-@item @code{MEDIUMBLOB}              @tab @code{MEDIUMINT}
- @tab @code{MEDIUMTEXT}              @tab @code{MIDDLEINT}
-@item @code{MINUTE_SECOND}           @tab @code{MRG_MYISAM}
- @tab @code{NATURAL}                 @tab @code{NOT}
-@item @code{NULL}                    @tab @code{NUMERIC}
- @tab @code{ON}                      @tab @code{OPTIMIZE}
-@item @code{OPTION}                  @tab @code{OPTIONALLY}
- @tab @code{OR}                      @tab @code{ORDER}
-@item @code{OUTER}                   @tab @code{OUTFILE}
- @tab @code{PARTIAL}                 @tab @code{PRECISION}
-@item @code{PRIMARY}                 @tab @code{PRIVILEGES}
- @tab @code{PROCEDURE}               @tab @code{PURGE}
-@item @code{READ}                    @tab @code{REAL}
- @tab @code{REFERENCES}              @tab @code{REGEXP}
-@item @code{RENAME}                  @tab @code{REPLACE}
- @tab @code{REQUIRE}                 @tab @code{RESTRICT}
-@item @code{RETURNS}                 @tab @code{REVOKE}
- @tab @code{RIGHT}                   @tab @code{RLIKE}
-@item @code{SELECT}                  @tab @code{SET}
- @tab @code{SHOW}                    @tab @code{SMALLINT}
-@item @code{SONAME}                  @tab @code{SQL_AUTO_IS_NULL}
- @tab @code{SQL_BIG_RESULT}          @tab @code{SQL_BIG_SELECTS}
-@item @code{SQL_BIG_TABLES}          @tab @code{SQL_BUFFER_RESULT}
- @tab @code{SQL_CALC_FOUND_ROWS}     @tab @code{SQL_LOG_BIN}
-@item @code{SQL_LOG_OFF}             @tab @code{SQL_LOG_UPDATE}
- @tab @code{SQL_LOW_PRIORITY_UPDATES} @tab @code{SQL_MAX_JOIN_SIZE}
-@item @code{SQL_QUOTE_SHOW_CREATE}   @tab @code{SQL_SAFE_UPDATES}
- @tab @code{SQL_SELECT_LIMIT}        @tab @code{SQL_SLAVE_SKIP_COUNTER}
-@item @code{SQL_SMALL_RESULT}        @tab @code{SQL_WARNINGS}
- @tab @code{SSL}                     @tab @code{STARTING}
-@item @code{STRAIGHT_JOIN}           @tab @code{STRIPED}
- @tab @code{TABLE}                   @tab @code{TABLES}
-@item @code{TERMINATED}              @tab @code{THEN}
- @tab @code{TINYBLOB}                @tab @code{TINYINT}
-@item @code{TINYTEXT}                @tab @code{TO}
- @tab @code{TRAILING}                @tab @code{UNION}
-@item @code{UNIQUE}                  @tab @code{UNLOCK}
- @tab @code{UNSIGNED}                @tab @code{UPDATE}
-@item @code{USAGE}                   @tab @code{USE}
- @tab @code{USING}                   @tab @code{VALUES}
-@item @code{VARBINARY}               @tab @code{VARCHAR}
- @tab @code{VARYING}                 @tab @code{WHEN}
-@item @code{WHERE}                   @tab @code{WITH}
- @tab @code{WRITE}                   @tab @code{YEAR_MONTH}
-@item @code{ZEROFILL}
+@item @code{ADD}                     
+ @tab @code{ALL}                     
+ @tab @code{ALTER}                   
+@item @code{ANALYZE}                 
+ @tab @code{AND}                     
+ @tab @code{AS}                      
+@item @code{ASC}                     
+ @tab @code{AUTO_INCREMENT}          
+ @tab @code{BDB}                     
+@item @code{BERKELEYDB}              
+ @tab @code{BETWEEN}                 
+ @tab @code{BIGINT}                  
+@item @code{BINARY}                  
+ @tab @code{BLOB}                    
+ @tab @code{BOTH}                    
+@item @code{BY}                      
+ @tab @code{CASCADE}                 
+ @tab @code{CASE}                    
+@item @code{CHANGE}                  
+ @tab @code{CHAR}                    
+ @tab @code{CHARACTER}               
+@item @code{COLUMN}                  
+ @tab @code{COLUMNS}                 
+ @tab @code{CONSTRAINT}              
+@item @code{CREATE}                  
+ @tab @code{CROSS}                   
+ @tab @code{CURRENT_DATE}            
+@item @code{CURRENT_TIME}            
+ @tab @code{CURRENT_TIMESTAMP}       
+ @tab @code{DATABASE}                
+@item @code{DATABASES}               
+ @tab @code{DAY_HOUR}                
+ @tab @code{DAY_MINUTE}              
+@item @code{DAY_SECOND}              
+ @tab @code{DEC}                     
+ @tab @code{DECIMAL}                 
+@item @code{DEFAULT}                 
+ @tab @code{DELAYED}                 
+ @tab @code{DELETE}                  
+@item @code{DESC}                    
+ @tab @code{DESCRIBE}                
+ @tab @code{DISTINCT}                
+@item @code{DISTINCTROW}             
+ @tab @code{DOUBLE}                  
+ @tab @code{DROP}                    
+@item @code{ELSE}                    
+ @tab @code{ENCLOSED}                
+ @tab @code{ESCAPED}                 
+@item @code{EXISTS}                  
+ @tab @code{EXPLAIN}                 
+ @tab @code{FIELDS}                  
+@item @code{FLOAT}                   
+ @tab @code{FOR}                     
+ @tab @code{FOREIGN}                 
+@item @code{FROM}                    
+ @tab @code{FULLTEXT}                
+ @tab @code{FUNCTION}                
+@item @code{GRANT}                   
+ @tab @code{GROUP}                   
+ @tab @code{HAVING}                  
+@item @code{HIGH_PRIORITY}           
+ @tab @code{HOUR_MINUTE}             
+ @tab @code{HOUR_SECOND}             
+@item @code{IF}                      
+ @tab @code{IGNORE}                  
+ @tab @code{IN}                      
+@item @code{INDEX}                   
+ @tab @code{INFILE}                  
+ @tab @code{INNER}                   
+@item @code{INNODB}                  
+ @tab @code{INSERT}                  
+ @tab @code{INSERT_ID}               
+@item @code{INT}                     
+ @tab @code{INTEGER}                 
+ @tab @code{INTERVAL}                
+@item @code{INTO}                    
+ @tab @code{IS}                      
+ @tab @code{JOIN}                    
+@item @code{KEY}                     
+ @tab @code{KEYS}                    
+ @tab @code{KILL}                    
+@item @code{LAST_INSERT_ID}          
+ @tab @code{LEADING}                 
+ @tab @code{LEFT}                    
+@item @code{LIKE}                    
+ @tab @code{LIMIT}                   
+ @tab @code{LINES}                   
+@item @code{LOAD}                    
+ @tab @code{LOCK}                    
+ @tab @code{LONG}                    
+@item @code{LONGBLOB}                
+ @tab @code{LONGTEXT}                
+ @tab @code{LOW_PRIORITY}            
+@item @code{MASTER_SERVER_ID}        
+ @tab @code{MATCH}                   
+ @tab @code{MEDIUMBLOB}              
+@item @code{MEDIUMINT}               
+ @tab @code{MEDIUMTEXT}              
+ @tab @code{MIDDLEINT}               
+@item @code{MINUTE_SECOND}           
+ @tab @code{MRG_MYISAM}              
+ @tab @code{NATURAL}                 
+@item @code{NOT}                     
+ @tab @code{NULL}                    
+ @tab @code{NUMERIC}                 
+@item @code{ON}                      
+ @tab @code{OPTIMIZE}                
+ @tab @code{OPTION}                  
+@item @code{OPTIONALLY}              
+ @tab @code{OR}                      
+ @tab @code{ORDER}                   
+@item @code{OUTER}                   
+ @tab @code{OUTFILE}                 
+ @tab @code{PARTIAL}                 
+@item @code{PRECISION}               
+ @tab @code{PRIMARY}                 
+ @tab @code{PRIVILEGES}              
+@item @code{PROCEDURE}               
+ @tab @code{PURGE}                   
+ @tab @code{READ}                    
+@item @code{REAL}                    
+ @tab @code{REFERENCES}              
+ @tab @code{REGEXP}                  
+@item @code{RENAME}                  
+ @tab @code{REPLACE}                 
+ @tab @code{REQUIRE}                 
+@item @code{RESTRICT}                
+ @tab @code{RETURNS}                 
+ @tab @code{REVOKE}                  
+@item @code{RIGHT}                   
+ @tab @code{RLIKE}                   
+ @tab @code{SELECT}                  
+@item @code{SET}                     
+ @tab @code{SHOW}                    
+ @tab @code{SMALLINT}                
+@item @code{SONAME}                  
+ @tab @code{SQL_AUTO_IS_NULL}        
+ @tab @code{SQL_BIG_RESULT}          
+@item @code{SQL_BIG_SELECTS}         
+ @tab @code{SQL_BIG_TABLES}          
+ @tab @code{SQL_BUFFER_RESULT}       
+@item @code{SQL_CALC_FOUND_ROWS}     
+ @tab @code{SQL_LOG_BIN}             
+ @tab @code{SQL_LOG_OFF}             
+@item @code{SQL_LOG_UPDATE}          
+ @tab @code{SQL_LOW_PRIORITY_UPDATES} 
+ @tab @code{SQL_MAX_JOIN_SIZE}       
+@item @code{SQL_QUOTE_SHOW_CREATE}   
+ @tab @code{SQL_SAFE_UPDATES}        
+ @tab @code{SQL_SELECT_LIMIT}        
+@item @code{SQL_SLAVE_SKIP_COUNTER}  
+ @tab @code{SQL_SMALL_RESULT}        
+ @tab @code{SQL_WARNINGS}            
+@item @code{SSL}                     
+ @tab @code{STARTING}                
+ @tab @code{STRAIGHT_JOIN}           
+@item @code{STRIPED}                 
+ @tab @code{TABLE}                   
+ @tab @code{TABLES}                  
+@item @code{TERMINATED}              
+ @tab @code{THEN}                    
+ @tab @code{TINYBLOB}                
+@item @code{TINYINT}                 
+ @tab @code{TINYTEXT}                
+ @tab @code{TO}                      
+@item @code{TRAILING}                
+ @tab @code{UNION}                   
+ @tab @code{UNIQUE}                  
+@item @code{UNLOCK}                  
+ @tab @code{UNSIGNED}                
+ @tab @code{UPDATE}                  
+@item @code{USAGE}                   
+ @tab @code{USE}                     
+ @tab @code{USING}                   
+@item @code{VALUES}                  
+ @tab @code{VARBINARY}               
+ @tab @code{VARCHAR}                 
+@item @code{VARYING}                 
+ @tab @code{WHEN}                    
+ @tab @code{WHERE}                   
+@item @code{WITH}                    
+ @tab @code{WRITE}                   
+ @tab @code{YEAR_MONTH}              
+@item @code{ZEROFILL}                
+
 @end multitable
 
 @c END_OF_RESERVED_WORDS
@@ -30399,7 +30492,7 @@ The default return type of @code{IF()} (which may matter when it is
 stored into a temporary table) is calculated in MySQL Version
 3.23 as follows:
 
-@multitable @columnfractions .45 .15
+@multitable @columnfractions .50 .20
 @item @strong{Expression} @tab @strong{Return value}
 @item expr2 or expr3 returns string @tab string
 @item expr2 or expr3 returns a floating-point value @tab floating-point
@@ -31921,7 +32014,7 @@ interval from the date.
 The following table shows how the @code{type} and @code{expr} arguments
 are related:
 
-@multitable @columnfractions .25 .40
+@multitable @columnfractions .25 .45
 @item @code{type} @strong{value} @tab @strong{Expected} @code{expr} @strong{format}
 @item @code{SECOND}        @tab @code{SECONDS}
 @item @code{MINUTE}        @tab @code{MINUTES}
@@ -32539,7 +32632,7 @@ SSL support. @xref{Secure connections}.
 
 The encryption key to use is chosen the following way:
 
-@multitable @columnfractions .20 .65
+@multitable @columnfractions .25 .65
 @item @strong{Argument} @tab @strong{Description}
 @item Only one argument @tab
 The first key from @code{des-key-file} is used.
@@ -33876,7 +33969,7 @@ thread (with @code{KILL thread_id}), or someone executes @code{FLUSH TABLES}.
 The following status variables provide information about @code{INSERT
 DELAYED} commands:
 
-@multitable @columnfractions .30 .50
+@multitable @columnfractions .30 .55
 @item @strong{Variable} @tab @strong{Meaning}
 @item @code{Delayed_insert_threads} @tab Number of handler threads
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}
@@ -35029,7 +35122,7 @@ implemented in MySQL Version 3.23 and above.
 
 The different table types are:
 
-@multitable @columnfractions .25 .75
+@multitable @columnfractions .25 .70
 @item @strong{Table type} @tab @strong{Description}
 @item BDB or Berkeley_db @tab Transaction-safe tables with page locking. @xref{BDB}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
@@ -35051,7 +35144,7 @@ The other table options are used to optimise the behavior of the
 table. In most cases, you don't have to specify any of them.
 The options work for all table types, if not otherwise indicated:
 
-@multitable @columnfractions .25 .75
+@multitable @columnfractions .25 .70
 @item @strong{Option} @tab @strong{Description}
 @item @code{AUTO_INCREMENT} @tab The next @code{AUTO_INCREMENT} value you want to set for your table (MyISAM).
 @item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for large tables with variable size records.
@@ -35809,7 +35902,7 @@ rolled back are not stored.  @xref{Binary log}.
 The following commands automatically end a transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
-@multitable @columnfractions .20 .20 .20
+@multitable @columnfractions .25 .25 .25
 @item @strong{Command}      @tab @strong{Command}   @tab @strong{Command}
 @item @code{ALTER TABLE}    @tab @code{BEGIN}       @tab @code{CREATE INDEX}
 @item @code{DROP DATABASE}  @tab @code{DROP TABLE}  @tab @code{RENAME TABLE}
@@ -37809,7 +37902,7 @@ parameter format: @code{set-variable = innodb... = 123}, others
 
 The meanings of the configuration parameters are the following:
 
-@multitable @columnfractions .30 .70
+@multitable @columnfractions .35 .65
 @item @strong{Option} @tab @strong{Description}
 @item @code{innodb_data_home_dir} @tab
 The common part of the directory path for all InnoDB data files.
@@ -41117,7 +41210,7 @@ only if you use @code{mysql_list_fields()}.
 The type of the field.
 The @code{type} value may be one of the following:
 
-@multitable @columnfractions .30 .50
+@multitable @columnfractions .35 .55
 @item @strong{Type value}                @tab @strong{Type description}
 @item @code{FIELD_TYPE_TINY}            @tab @code{TINYINT} field
 @item @code{FIELD_TYPE_SHORT}           @tab @code{SMALLINT} field
@@ -41163,7 +41256,7 @@ value of this variable is zero.
 Different bit-flags for the field.  The @code{flags} value may have zero
 or more of the following bits set:
 
-@multitable @columnfractions .30 .45
+@multitable @columnfractions .35 .55
 @item @strong{Flag value}         @tab @strong{Flag description}
 @item @code{NOT_NULL_FLAG}       @tab Field can't be @code{NULL}
 @item @code{PRI_KEY_FLAG}        @tab Field is part of a primary key
@@ -41197,7 +41290,7 @@ if (field->flags & NOT_NULL_FLAG)
 You may use the following convenience macros to determine the boolean
 status of the @code{flags} value:
 
-@multitable @columnfractions .25 .50
+@multitable @columnfractions .25 .55
 @item @strong{Flag status} @tab @strong{Description}
 @item @code{IS_NOT_NULL(flags)} @tab True if this field is defined as @code{NOT NULL}
 @item @code{IS_PRI_KEY(flags)}  @tab True if this field is a primary key
@@ -41219,7 +41312,7 @@ The functions available in the C API are listed below and are described in
 greater detail in the next section.
 @xref{C API functions}.
 
-@multitable @columnfractions .30 .70
+@multitable @columnfractions .32 .68
 @item @strong{Function} @tab @strong{Description}
 
 @item @strong{mysql_affected_rows()} @tab
@@ -42956,7 +43049,7 @@ argument is the value for the option. If the option is an integer, then
 
 Possible options values:
 
-@multitable @columnfractions .40 .25 .35
+@multitable @columnfractions .42 .20 .38
 @item @strong{Option} @tab @strong{Argument type} @tab @strong{Function}
 @item @code{MYSQL_OPT_CONNECT_TIMEOUT} @tab @code{unsigned int *} @tab Connect timeout in seconds.
 @item @code{MYSQL_OPT_COMPRESS} @tab Not used @tab Use the compressed client/server protocol.
@@ -42972,7 +43065,7 @@ Note that the group @code{client} is always read if you use
 
 The specified group in the option file may contain the following options:
 
-@multitable @columnfractions .20 .60
+@multitable @columnfractions .25 .60
 @item @strong{Option} @tab @strong{Description}
 @item @code{connect-timeout} @tab Connect timeout in seconds. On Linux this timeout is also used for waiting for the first answer from the server.
 @item @code{compress} @tab Use the compressed client/server protocol.
@@ -43163,7 +43256,7 @@ parameter determines the type of the connection.
 The value of @code{client_flag} is usually 0, but can be set to a combination
 of the following flags in very special circumstances:
 
-@multitable @columnfractions .30 .70
+@multitable @columnfractions .30 .65
 @item @strong{Flag name}       @tab @strong{Flag description}
 @item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
 @item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
@@ -44184,7 +44277,7 @@ client/server version.  To change an old threaded application to use the
 embedded library, you normally only have to add calls to the following
 functions:
 
-@multitable @columnfractions .25 .65
+@multitable @columnfractions .25 .70
 @item @strong{Function} @tab @strong{When to call}
 @item @code{mysql_server_init()} @tab Should be called before any other MySQL function is called, preferably early in the @code{main()} function.
 @item @code{mysql_server_end()} @tab Should be called before your program exits.
@@ -45851,7 +45944,7 @@ to do an automatic reconnection.
 You normally can get the following error codes in this case
 (which one you get is OS-dependent):
 
-@multitable @columnfractions .35 .60
+@multitable @columnfractions .35 .65
 @item @strong{Error code} @tab @strong{Description}
 @item @code{CR_SERVER_GONE_ERROR} @tab The client couldn't send a question to the
 server.
