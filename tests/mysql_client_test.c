@@ -12740,6 +12740,48 @@ static void test_bug8378()
   mysql_close(lmysql);
 }
 
+
+static void test_bug8722()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *stmt_text;
+
+  myheader("test_bug8722");
+  /* Prepare test data */
+  stmt_text= "drop table if exists t1, v1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "CREATE TABLE t1 (c1 varchar(10), c2 varchar(10), c3 varchar(10),"
+                             " c4 varchar(10), c5 varchar(10), c6 varchar(10),"
+                             " c7 varchar(10), c8 varchar(10), c9 varchar(10),"
+                             "c10 varchar(10))";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "INSERT INTO t1 VALUES (1,2,3,4,5,6,7,8,9,10)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  stmt_text= "CREATE VIEW v1 AS SELECT * FROM t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  /* Note: if you uncomment following block everything works fine */
+/*
+  rc= mysql_query(mysql, "sellect * from v1");
+  myquery(rc);
+  mysql_free_result(mysql_store_result(mysql));
+*/
+
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "select * from v1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+  stmt_text= "drop table if exists t1, v1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -12962,6 +13004,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8330", test_bug8330 },
   { "test_bug7990", test_bug7990 },
   { "test_bug8378", test_bug8378 },
+  { "test_bug8722", test_bug8722 },
   { 0, 0 }
 };
 
