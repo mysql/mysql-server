@@ -3565,10 +3565,9 @@ purge:
 	;
 
 purge_options:
-	LOGS_SYM
-	purge_option
-	| MASTER_SYM LOGS_SYM
-	purge_option;
+	LOGS_SYM purge_option
+	| MASTER_SYM LOGS_SYM purge_option
+	;
 
 purge_option:
         TO_SYM TEXT_STRING
@@ -3586,7 +3585,8 @@ purge_option:
 	  Item *tmp= new Item_func_unix_timestamp($2);
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
 	  Lex->purge_time= tmp->val_int();
-	};
+	}
+	;
 
 /* kill threads */
 
@@ -3596,7 +3596,6 @@ kill:
 	  LEX *lex=Lex;
 	  if ($2->check_cols(1) || $2->fix_fields(lex->thd, 0, &$2))
 	  {
-
 	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
 	  }

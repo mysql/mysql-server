@@ -679,6 +679,19 @@ err:
   DBUG_RETURN(error);
 }
 
+/*
+  Update log index_file
+*/
+
+int MYSQL_LOG::update_log_index(LOG_INFO* log_info)
+{
+  if (copy_up_file_and_fill(&index_file, log_info->index_file_start_offset))
+    return LOG_INFO_IO;
+
+  // now update offsets in index file for running threads
+  adjust_linfo_offsets(log_info->index_file_start_offset);
+  return 0;
+}
 
 /*
   Remove all logs before the given log from disk and from the index file.
@@ -731,15 +744,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     If we get killed -9 here, the sysadmin would have to edit
     the log index file after restart - otherwise, this should be safe
   */
-
-  if (copy_up_file_and_fill(&index_file, log_info.index_file_start_offset))
-  {
-    error= LOG_INFO_IO;
-    goto err;
-  }
-
-  // now update offsets in index file for running threads
-  adjust_linfo_offsets(log_info.index_file_start_offset);
+  error= update_log_index(&log_info);
 
 err:
   pthread_mutex_unlock(&LOCK_index);
@@ -789,11 +794,10 @@ int MYSQL_LOG::purge_logs_before_date(THD* thd, time_t purge_time)
 	 !log_in_use(log_info.log_file_name))
   {
     /* It's not fatal even if we can't delete a log file */
-    if (my_stat(log_info.log_file_name, &stat_area, MYF(0)) &&
-	stat_area.st_mtime < purge_time)
-      my_delete(log_info.log_file_name, MYF(0));
-    else
+    if (!my_stat(log_info.log_file_name, &stat_area, MYF(0)) ||
+	stat_area.st_mtime >= purge_time)
       break;
+    my_delete(log_info.log_file_name, MYF(0));
     if (find_next_log(&log_info, 0))
       break;
   }
@@ -802,15 +806,7 @@ int MYSQL_LOG::purge_logs_before_date(THD* thd, time_t purge_time)
     If we get killed -9 here, the sysadmin would have to edit
     the log index file after restart - otherwise, this should be safe
   */
-
-  if (copy_up_file_and_fill(&index_file, log_info.index_file_start_offset))
-  {
-    error= LOG_INFO_IO;
-    goto err;
-  }
-
-  // now update offsets in index file for running threads
-  adjust_linfo_offsets(log_info.index_file_start_offset);
+  error= update_log_index(&log_info);
 
 err:
   pthread_mutex_unlock(&LOCK_index);
@@ -1235,7 +1231,7 @@ err:
   }
 
   pthread_mutex_unlock(&LOCK_log);
-  if (should_rotate && ~expire_logs_days)
+  if (should_rotate && expire_logs_days)
   {
     long purge_time= time(0) - expire_logs_days*24*60*60;
     if (purge_time >= 0)
