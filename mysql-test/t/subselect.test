@@ -986,3 +986,13 @@ CREATE TABLE t2 (code char(5) NOT NULL default '',UNIQUE KEY code (code)) TYPE=M
 INSERT INTO t2 VALUES ('1'),('1226'),('1245'),('1862'),('18623'),('1874'),('1967'),('6');
 select c.number as phone,(select p.code from t2 p where c.number like concat(p.code, '%') order by length(p.code) desc limit 1) as code from t1 c;
 drop table t1, t2;
+
+#
+# fix_fields() in add_ref_to_table_cond()
+#
+CREATE TABLE t1(COLA FLOAT NOT NULL,COLB FLOAT NOT NULL,COLC VARCHAR(20) DEFAULT NULL,PRIMARY KEY (COLA, COLB));
+CREATE TABLE t2(COLA FLOAT NOT NULL,COLB FLOAT NOT NULL,COLC CHAR(1) NOT NULL,PRIMARY KEY (COLA));
+INSERT INTO t1 VALUES (1,1,'1A3240'), (1,2,'4W2365');
+INSERT INTO t2 VALUES (100, 200, 'C');
+SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
+DROP TABLE t1, t2;
