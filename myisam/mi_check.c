@@ -2116,7 +2116,7 @@ static int sort_ft_key_read(SORT_INFO *sort_info, void *key)
 {
   int error;
   MI_INFO *info;
-  FT_WORD *wptr;
+  FT_WORD *wptr=0;
   DBUG_ENTER("sort_ft_key_read");
 
   info=sort_info->info;
@@ -2125,6 +2125,7 @@ static int sort_ft_key_read(SORT_INFO *sort_info, void *key)
   {
     do
     {
+      my_free((char*) wptr, MYF(MY_ALLOW_ZERO_PTR));
       if ((error=sort_get_next_record(sort_info)))
         DBUG_RETURN(error);
       if (!(wptr=_mi_ft_parserecord(info,sort_info->key,key,sort_info->record)))
