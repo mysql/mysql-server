@@ -63,6 +63,7 @@ private:
 			       Vector<BaseString>& blocks);
 
 public:
+  void executeTrace(int processId, const char* parameters, bool all);
   void executeLogIn(int processId, const char* parameters, bool all);
   void executeLogOut(int processId, const char* parameters, bool all);
   void executeLogOff(int processId, const char* parameters, bool all);
