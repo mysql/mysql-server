@@ -91,7 +91,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
   LOAD_FILE_INFO lf_info;
-  char * db = table_list->db ? table_list->db : thd->db;
+  char *db = table_list->db;			// This is never null
+  /* If no current database, use database where table is located */
+  char *tdb= thd->db ? thd->db : db;
   bool transactional_table, log_delayed;
   DBUG_ENTER("mysql_load");
 
@@ -173,10 +175,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ex->file_name+=dirname_length(ex->file_name);
 #endif
     if (!dirname_length(ex->file_name) &&
-	strlen(ex->file_name)+strlen(mysql_data_home)+strlen(thd->db)+3 <
+	strlen(ex->file_name)+strlen(mysql_data_home)+strlen(tdb)+3 <
 	FN_REFLEN)
     {
-      (void) sprintf(name,"%s/%s/%s",mysql_data_home,thd->db,ex->file_name);
+      (void) sprintf(name,"%s/%s/%s",mysql_data_home,tdb,ex->file_name);
       unpack_filename(name,name);		/* Convert to system format */
     }
     else

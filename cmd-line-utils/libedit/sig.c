@@ -115,9 +115,9 @@ sig_init(EditLine *el)
 #undef	_DO
 	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
-#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(sig_t))
+#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(libedit_sig_t))
 
-	el->el_signal = (sig_t *) el_malloc(SIGSIZE);
+	el->el_signal = (el_signal_t) el_malloc(SIGSIZE);
 	if (el->el_signal == NULL)
 		return (-1);
 	for (i = 0; sighdl[i] != -1; i++)
@@ -157,7 +157,7 @@ sig_set(EditLine *el)
 	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
 	for (i = 0; sighdl[i] != -1; i++) {
-		sig_t s;
+		libedit_sig_t s;
 		/* This could happen if we get interrupted */
 		if ((s = signal(sighdl[i], sig_handler)) != sig_handler)
 			el->el_signal[i] = s;

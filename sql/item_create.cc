@@ -103,10 +103,13 @@ Item *create_func_cot(Item* a)
 			   new Item_func_tan(a));
 }
 
+
+#ifdef HAVE_COMPRESS
 Item *create_func_crc32(Item* a)
 {
   return new Item_func_crc32(a);
 }
+#endif
 
 Item *create_func_date_format(Item* a,Item *b)
 {

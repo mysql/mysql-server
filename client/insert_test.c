@@ -16,7 +16,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "my_global.h"
 #include "mysql.h"
 
 #define INSERT_QUERY "insert into test (name,num) values ('item %d', %d)"
