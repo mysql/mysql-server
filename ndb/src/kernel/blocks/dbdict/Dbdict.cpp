@@ -2868,7 +2868,6 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     jam();
     c_opCreateTable.release(alterTabPtr);
     parseRecord.tablePtr.p->tabState = TableRecord::NOT_DEFINED;
-    releaseTableObject(parseRecord.tablePtr.i, false);
     alterTableRef(signal, req, 
 		  (AlterTableRef::ErrorCode) parseRecord.errorCode, 
 		  aParseRecord);
@@ -3054,7 +3053,6 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
 	jam();
 	c_opCreateTable.release(alterTabPtr);
 	parseRecord.tablePtr.p->tabState = TableRecord::NOT_DEFINED;
-	releaseTableObject(parseRecord.tablePtr.i, false);
 	alterTabRef(signal, req, 
 		    (AlterTableRef::ErrorCode) parseRecord.errorCode, 
 		    aParseRecord);
