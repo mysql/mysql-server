@@ -780,7 +780,8 @@ void Query_log_event::pack_info(Protocol *protocol)
   if (!(buf= my_malloc(9 + db_len + q_len, MYF(MY_WME))))
     return;
   pos= buf;    
-  if (db && db_len)
+  if (!(flags & LOG_EVENT_SUPPRESS_USE_F) 
+      && db && db_len)
   {
     pos= strmov(buf, "use `");
     memcpy(pos, db, db_len);
@@ -872,9 +873,12 @@ int Query_log_event::write_data(IO_CACHE* file)
 
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
-				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
-	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+				 ulong query_length, bool using_trans,
+				 bool suppress_use)
+  :Log_event(thd_arg, 
+	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
+	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
+	     using_trans),
    data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
    error_code(thd_arg->killed ?
@@ -949,14 +953,20 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 
   bool different_db= 1;
 
-  if (db && last_db)
+  if (!(flags & LOG_EVENT_SUPPRESS_USE_F))
   {
-    if (different_db= memcmp(last_db, db, db_len + 1))
-      memcpy(last_db, db, db_len + 1);
+    if (db && last_db) 
+    {
+      if (different_db= memcmp(last_db, db, db_len + 1))
+        memcpy(last_db, db, db_len + 1);
+    }
+    
+    if (db && db[0] && different_db) 
+    {
+      fprintf(file, "use %s;\n", db);
+    }
   }
-  
-  if (db && db[0] && different_db)
-    fprintf(file, "use %s;\n", db);
+
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
   *end++='\n';

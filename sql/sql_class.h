@@ -1092,6 +1092,12 @@ public:
   void end_statement();
 };
 
+#define tmp_disable_binlog(A)       \
+  ulong save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG;
+
+#define reenable_binlog(A)          (A)->options= save_options;
+
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1
 #define SYSTEM_THREAD_SLAVE_IO 2
@@ -1235,6 +1241,7 @@ class select_insert :public select_result_interceptor {
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
+  virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
@@ -1262,7 +1269,8 @@ public:
     create_info(create_info_par), lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &values);
+  void store_values(List<Item> &values);
+  void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
 };

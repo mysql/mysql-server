@@ -240,3 +240,12 @@ SELECT * FROM t1;
 pseudo	date
 ZoomZip	1101106546
 DROP TABLE t1;
+create table t1(a char(2)) engine=memory;
+insert into t1 values (NULL), (NULL);
+delete from t1 where a is null;
+insert into t1 values ('2'), ('3');
+select * from t1;
+a
+3
+2
+drop table t1;
