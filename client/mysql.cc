@@ -24,6 +24,7 @@
  *   Jani Tolonen <jani@mysql.com>
  *   Matt Wagner  <mwagner@mysql.com>
  *   Jeremy Cole  <jcole@mysql.com>
+ *   Tonu Samuel  <tonu@mysql.com>
  *
  **/
 
@@ -1232,6 +1233,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       }
     }
   }
+  /* FIXME: free() on small chunks is sloooowwww. glibc bug */
   if (field_names) {
     for (i=0; field_names[i]; i++) {
       for (j=0; field_names[i][j]; j++) {
@@ -2219,7 +2221,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath);
+		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (safe_updates)
   {
