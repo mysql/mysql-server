@@ -24,7 +24,6 @@ INCLUDES += \
               -I../blocks/dbtux
 
 LDADD +=  \
-              $(top_srcdir)/ndb/src/mgmapi/libmgmapi.la \
               ../blocks/cmvmi/libcmvmi.a \
               ../blocks/dbacc/libdbacc.a \
               ../blocks/dbdict/libdbdict.a \
@@ -47,6 +46,7 @@ LDADD +=  \
               $(top_srcdir)/ndb/src/common/debugger/libtrace.la     \
               $(top_srcdir)/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
               $(top_srcdir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
+              $(top_srcdir)/ndb/src/mgmapi/libmgmapi.la \
               $(top_srcdir)/ndb/src/common/portlib/unix/libportlib.la      \
               $(top_srcdir)/ndb/src/common/logger/liblogger.la       \
               $(top_srcdir)/ndb/src/common/util/libgeneral.la 

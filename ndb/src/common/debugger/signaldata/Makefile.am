@@ -23,7 +23,7 @@ libsignaldataprint_la_SOURCES = \
           FailRep.cpp DisconnectRep.cpp SignalDroppedRep.cpp \
           SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp \
 	  UtilLock.cpp TuxMaint.cpp TupAccess.cpp AccLock.cpp \
-          LqhTrans.cpp
+          LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am

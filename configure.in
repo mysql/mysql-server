@@ -2878,6 +2878,7 @@ AC_SUBST(mgmapiincludedir)
 	-I\$(top_srcdir)/ndb/include/kernel \
 	-I\$(top_srcdir)/ndb/include/transporter \
 	-I\$(top_srcdir)/ndb/include/debugger \
+	-I\$(top_srcdir)/ndb/include/mgmapi \
 	-I\$(top_srcdir)/ndb/include/mgmcommon \
         -I\$(top_srcdir)/ndb/include/ndbapi \
         -I\$(top_srcdir)/ndb/include/util \
@@ -2888,6 +2889,7 @@ AC_SUBST(mgmapiincludedir)
 	-I\$(top_srcdir)/ndb/include/kernel \
 	-I\$(top_srcdir)/ndb/include/transporter \
 	-I\$(top_srcdir)/ndb/include/debugger \
+	-I\$(top_srcdir)/ndb/include/mgmapi \
 	-I\$(top_srcdir)/ndb/include/mgmcommon \
         -I\$(top_srcdir)/ndb/include/ndbapi \
         -I\$(top_srcdir)/ndb/include/util \

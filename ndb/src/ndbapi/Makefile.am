@@ -21,10 +21,9 @@ libndbapi_la_SOURCES_loc = \
         NdbOperationInt.cpp     \
         NdbOperationDefine.cpp  \
         NdbOperationExec.cpp    \
-        NdbScanReceiver.cpp     \
         NdbResultSet.cpp        \
         NdbCursorOperation.cpp  \
-        NdbScanOperation.cpp    NdbScanFilter.cpp \
+        NdbScanReceiver.cpp NdbScanOperation.cpp    NdbScanFilter.cpp \
         NdbIndexOperation.cpp   \
         NdbEventOperation.cpp   \
         NdbEventOperationImpl.cpp   \
@@ -39,6 +38,8 @@ libndbapi_la_SOURCES_loc = \
 libndbapi_la_SOURCES = $(libndbapi_la_SOURCES_loc)
 libNDB_API_la_SOURCES = $(libndbapi_la_SOURCES_loc)
 
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
+
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
 
@@ -47,9 +48,10 @@ libNDB_API_la_LIBADD =  \
               $(top_srcdir)/ndb/src/common/debugger/libtrace.la     \
               $(top_srcdir)/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
               $(top_srcdir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
+              $(top_srcdir)/ndb/src/mgmapi/libMGM_API.la \
               $(top_srcdir)/ndb/src/common/portlib/unix/libportlib.la      \
               $(top_srcdir)/ndb/src/common/logger/liblogger.la       \
-              $(top_srcdir)/ndb/src/common/util/libgeneral.la 
+              $(top_srcdir)/ndb/src/common/util/libgeneral.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
