@@ -33594,12 +33594,12 @@ in data file) matching @code{WHERE} condition. It is faster than
 
 The last form closes the table, opened with @code{HANDLER ... OPEN}.
 
-@code{HANDLER} is somewhat low-level statement, for example it does not
-provide consistency. That is @code{HANDLER ... OPEN} does @strong{NOT}
-takes a snapshot of the table, and does @strong{NOT} locks the table. The
-above means,  that after @code{HANDLER ... OPEN} table data can be
-modified (by this or other thread) and these modifications may appear only
-partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
+@code{HANDLER} is somewhat of a low-level statement, for example it does
+not provide consistency,  that is @code{HANDLER ... OPEN} does @strong{NOT}
+take a snapshot of the table, and does @strong{NOT} lock the table. This
+means that after a @code{HANDLER ... OPEN} is issued, table data can be
+modified (by this or an other thread) and these modifications may only
+partially appear in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
 
 
 @node INSERT, INSERT DELAYED, HANDLER, Data Manipulation
