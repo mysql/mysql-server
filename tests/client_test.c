@@ -9397,6 +9397,41 @@ static void test_bug3035()
   mysql_real_query(mysql, stmt_text, strlen(stmt_text));
 }
 
+static void test_union2()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+
+  myheader("test_union2");
+ 
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"CREATE TABLE t1(col1 INT,\
+                                         col2 VARCHAR(40),	\
+                                         col3 SMALLINT,\
+                                         col4 TIMESTAMP)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql,
+			     "select col1 FROM t1 where col1=1 union distinct \
+select col1 FROM t1 where col1=2");
+  check_stmt(stmt);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt,rc);
+    assert(0 == my_process_stmt_result(stmt));
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -9676,6 +9711,7 @@ int main(int argc, char **argv)
     test_derived();	    /* derived table with parameter BUG#3020 */
     test_xjoin();	    /* complex join test */
     test_bug3035();         /* inserts of INT32_MAX/UINT32_MAX */
+    test_union2();	    /* repeatable execution of union (Bug #3577) */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
