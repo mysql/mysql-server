@@ -705,6 +705,7 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included)
     rli->group_relay_log_pos = BIN_LOG_HEADER_SIZE;
     strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
             sizeof(rli->group_relay_log_name)-1);
+    rli->notify_group_relay_log_name_update();
   }
 
   /* Store where we are in the new file for the execution thread */
