@@ -94,7 +94,7 @@ public:
   enum_field_types field_type() const { return FIELD_TYPE_STRING; }
   void set(double nr) { str_value.set(nr, 2, my_thd_charset); }
   void set(longlong nr) { str_value.set(nr, my_thd_charset); }
-  void set(const char *str, uint length) { str_value.copy(str,length); }
+  void set(const char *str, uint length) { str_value.copy(str,length, my_thd_charset); }
   double val() { return atof(str_value.ptr()); }
   longlong val_int() { return strtoll(str_value.ptr(),NULL,10); }
   String *val_str(String*)

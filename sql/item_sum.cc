@@ -106,7 +106,7 @@ Item_sum_int::val_str(String *str)
     return 0;
   char buff[21];
   uint length= (uint) (longlong10_to_str(nr,buff,-10)-buff);
-  str->copy(buff,length);
+  str->copy(buff,length,thd_charset());
   return str;
 }
 

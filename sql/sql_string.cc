@@ -117,7 +117,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff));
+    return copy(buff, (uint32) strlen(buff), my_charset_latin1);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -182,7 +182,7 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff));
+  return copy(buff,(uint32) strlen(buff), my_charset_latin1);
 #endif
 }
 
@@ -208,13 +208,14 @@ bool String::copy(const String &str)
   return FALSE;
 }
 
-bool String::copy(const char *str,uint32 arg_length)
+bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 {
   if (alloc(arg_length))
     return TRUE;
   if ((str_length=arg_length))
     memcpy(Ptr,str,arg_length);
   Ptr[arg_length]=0;
+  str_charset=cs;
   return FALSE;
 }
 

@@ -887,7 +887,7 @@ public:
   inline bool copy()
   { char *tmp;
     get_ptr(&tmp);
-    if (value.copy(tmp,get_length()))
+    if (value.copy(tmp,get_length(),charset()))
     {
       Field_blob::reset();
       return 1;

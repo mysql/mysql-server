@@ -4302,7 +4302,7 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 	}
       }
 #endif /* USE_TIS620 */
-      value.copy(from,len);
+      value.copy(from,len,charset());
       from=value.ptr();
 #ifdef USE_TIS620
       my_free(th_ptr,MYF(MY_ALLOW_ZERO_PTR));
