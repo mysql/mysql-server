@@ -2718,7 +2718,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables ; tables=tables->next)
   {
-    if (tables->derived)
+    if (tables->derived || (tables->table && (int)tables->table->tmp_table))
       continue;
     if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
 	thd->db)
@@ -2736,7 +2736,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 	found=1;
       }
     }
-    else if (tables->db && check_access(thd,want_access,tables->db,&tables->grant.privilege,
+    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors))
       return TRUE;
   }
