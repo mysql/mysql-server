@@ -1,9 +1,11 @@
 ## Process this file with automake to create Makefile.in
 
-# This requires gnu cp at distribution time.
 dist-hook:
-	for lang in @AVAILABLE_LANGUAGES@ charsets; \
-	do cp -a $(srcdir)/$$lang $(distdir); done
+	for dir in charsets @AVAILABLE_LANGUAGES@; do \
+	  test -d $(distdir)/$$dir || mkdir $(distdir)/$$dir; \
+	  $(INSTALL_DATA) $(srcdir)/$$dir/*.* $(distdir)/$$dir; \
+	done; \
+	$(INSTALL_DATA) $(srcdir)/charsets/Index $(distdir)/charsets; \
 
 all: @AVAILABLE_LANGUAGES_ERRORS@
 

@@ -37,13 +37,13 @@ dist-hook:
 		 $(distdir)/Results $(distdir)/Results-linux \
 		 $(distdir)/Results-win32 \
 		 $(distdir)/limits $(distdir)/Comments
-	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(distdir)/Data
-	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(distdir)/Data
-	$(INSTALL_DATA) $(srcdir)/Results/*-* $(distdir)/
-	$(INSTALL_DATA) $(srcdir)/Results-linux/*-* $(distdir)/
-	$(INSTALL_DATA) $(srcdir)/Results-win32/*-* $(distdir)/
-	$(INSTALL_DATA) $(srcdir)/limits/*.* $(distdir)/
-	$(INSTALL_DATA) $(srcdir)/Comments/*.* $(distdir)/
+	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(distdir)/Data/ATIS
+	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(distdir)/Data/Wisconsin
+	$(INSTALL_DATA) $(srcdir)/Results/*-* $(distdir)/Results
+	$(INSTALL_DATA) $(srcdir)/Results-linux/*-* $(distdir)/Results-linux
+	$(INSTALL_DATA) $(srcdir)/Results-win32/*-* $(distdir)/Results-win32
+	$(INSTALL_DATA) $(srcdir)/limits/*.* $(distdir)/limits
+	$(INSTALL_DATA) $(srcdir)/Comments/*.* $(distdir)/Comments
 
 install-data-local:
 	$(mkinstalldirs) \
