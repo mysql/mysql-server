@@ -176,30 +176,17 @@ private:
   NdbIndexOperation(Ndb* aNdb);
   ~NdbIndexOperation();
 
-  void closeScan();
-
   int receiveTCINDXREF(NdbApiSignal* aSignal);
-
-  // Overloaded method from NdbOperation
-  void setLastFlag(NdbApiSignal* signal, Uint32 lastFlag);
-
-  // Overloaded methods from NdbCursorOperation
-  int executeCursor(int ProcessorId);
 
   // Overloaded methods from NdbCursorOperation
   int indxInit(const class NdbIndexImpl* anIndex,
 	       const class NdbTableImpl* aTable, 
 	       NdbConnection* myConnection);
 
-  int equal_impl(const class NdbColumnImpl*, const char* aValue, Uint32 len);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
 
   // Private attributes
   const NdbIndexImpl* m_theIndex;
-  const NdbTableImpl* m_thePrimaryTable;
-  Uint32 m_theIndexDefined[NDB_MAX_ATTRIBUTES_IN_INDEX][3];
-  Uint32 m_theIndexLen;	  	 // Length of the index in words
-  Uint32 m_theNoOfIndexDefined;  // The number of index attributes
 };
 
 #endif
