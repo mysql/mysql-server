@@ -2378,6 +2378,17 @@ int main(int argc, char **argv)
   if (init_thread_environment())
     unireg_abort(1);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
+  {
+    /* Retrieve used stack size;  Needed for checking stack overflows */
+    size_t stack_size;
+    pthread_attr_getstacksize(&connection_attrib, &stack_size);
+    if (global_system_variables.log_warnings && stack_size != thread_stack)
+    {
+      sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
+		      thread_stack, stack_size);
+      thread_stack= stack_size;
+    }
+  }
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   select_thread=pthread_self();
