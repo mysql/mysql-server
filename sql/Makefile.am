@@ -111,7 +111,7 @@ sql_yacc.cc:	sql_yacc.yy
 sql_yacc.h:	sql_yacc.yy
 
 sql_yacc.o:	sql_yacc.cc sql_yacc.h
-		@echo "Note: The folloing compile may take a long time."
+		@echo "Note: The following compile may take a long time."
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
