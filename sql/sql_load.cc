@@ -299,7 +299,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  which is nonsense.
 	*/
 	read_info.end_io_cache();
-        Delete_file_log_event d(thd, log_delayed);
+        Delete_file_log_event d(thd, db, log_delayed);
         mysql_bin_log.write(&d);
       }
     }
@@ -331,7 +331,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache(); // make sure last block gets logged
       if (lf_info.wrote_create_file)
       {
-        Execute_load_log_event e(thd, log_delayed);
+        Execute_load_log_event e(thd, db, log_delayed);
         mysql_bin_log.write(&e);
       }
     }

@@ -12,6 +12,10 @@
 
 source include/master-slave.inc;
 
+connection slave;
+reset master;
+connection master;
+
 create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 
@@ -27,6 +31,16 @@ sync_with_master;
 
 select * from t1;
 select * from t3;
+# We want to be sure that LOAD DATA is in the slave's binlog.
+# But we can't simply read this binlog, because the file_id is uncertain (would
+# cause test failures). So instead, we test if the binlog looks long enough to
+# contain LOAD DATA. That is, I (Guilhem) have done SHOW BINLOG EVENTS on my
+# machine, saw that the last event is 'create table t3' and is at position 898
+# when things go fine. If LOAD DATA was not logged, the binlog would be shorter
+# than 898 bytes and there would be an error in SHOW BINLOG EVENTS. Of course,
+# if someone changes the content of '../../std_data/rpl_loaddata2.dat', 898 will
+# have to be changed too.
+show binlog events from 898;
 
 connection master;
 
@@ -38,6 +52,9 @@ create table t1(a int, b int, unique(b));
 save_master_pos;
 connection slave;
 sync_with_master;
+
+# See if slave stops when there's a duplicate entry for key error in LOAD DATA
+
 insert into t1 values(1,10);
 
 connection master;
