@@ -33252,7 +33252,7 @@ a query if the optimiser joins the tables in non-optimal order.
 @item
 The @code{LIMIT} clause can be used to constrain the number of rows returned
 by the @code{SELECT} statement.  @code{LIMIT} takes one or two numeric
-arguments.
+arguments.  The arguments must be integer constants.
 
 If two arguments are given, the first specifies the offset of the first row to
 return, the second specifies the maximum number of rows to return.
