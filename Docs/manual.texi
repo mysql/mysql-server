@@ -2627,7 +2627,7 @@ sorry.  After all, it should be easier for you to provide an example that
 uses your actual situation and it is by all means better for us.  In case you
 have data you don't want to show to others, you can use @code{ftp} to
 transfer it to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  If the data
-is really top secret and you don't want to show them even to us, then go ahead
+are really top secret and you don't want to show them even to us, then go ahead
 and provide an example using other names, but please regard this as the last
 choice.
 
@@ -35880,15 +35880,16 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.24
 @itemize @bullet
 @item
-Added mysqld variable @code{created_tmp_disk_tables}.
+Added @code{mysqld} variable @code{created_tmp_disk_tables}.
 @item
-To make it possibly to reliable dump and restore tables with
-@code{TIMESTAMP(X)} columns, @strong{MySQL} now reports columns with X
+To make it possible to reliably dump and restore tables with
+@code{TIMESTAMP(X)} columns, @strong{MySQL} now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
-Changed sort order for latin1 as it was before 3.23.22.  Any table with
-@code{CHAR} columns that may have characters > ASCII 128 created or
-modified with 3.23.22 must be repaired!
+Changed sort order for latin1 as it was before @strong{MySQL} 3.23.22.
+Any table with @code{CHAR} columns that may have characters with ASCII
+values greater than 128 that was created or modified with 3.23.22 must
+be repaired!
 @item
 Fixed small memory leak introduced from 3.23.22 when creating a
 temporary table.
@@ -35903,35 +35904,36 @@ Restored the win1251 character set (it's now only marked deprecated).
 @itemize @bullet
 @item
 Changed sort order for 'German';  All tables created with 'German' sortorder
-must be repaired with @code{REPAIR TABLE} or myisamchk before use!
+must be repaired with @code{REPAIR TABLE} or @code{myisamchk} before use!
 @item
 Added option @code{--core-file} to @code{mysqld} to get a core file on
-Linux if mysqld dies on the SIGSEGV signal.
+Linux if @code{mysqld} dies on the SIGSEGV signal.
 @item
-@strong{MySQL} client 'mysql' now starts with option --no-named-commands
-(-g) by default. This option can be disabled with --enable-named-commands
-(-G). This may cause incompatibility problems in some cases, for example
-in SQL scripts that use named commands without a semicolon, etc. !
-Long format commands still work from the first line.
+@strong{MySQL} client @code{mysql} now starts with option
+@code{--no-named-commands} (@code{-g}) by default. This option can be
+disabled with @code{--enable-named-commands} (@code{-G}). This may cause
+incompatibility problems in some cases, for example, in SQL scripts that
+use named commands without a semicolon, etc. !  Long format commands
+still work from the first line.
 @item
-Fixed a problem when using many pending @code{DROP TABLE} statement at
+Fixed a problem when using many pending @code{DROP TABLE} statements at
 the same time.
 @item
 Optimizer didn't use keys properly when using @code{LEFT JOIN} on an
 empty table.
 @item
-Added shorter help text when invoking @code{mysqld} with wrong options.
+Added shorter help text when invoking @code{mysqld} with incorrect options.
 @item
-Fixed not fatal @code{free()} bug in mysqlimport.
+Fixed non-fatal @code{free()} bug in @code{mysqlimport}.
 @item
 Fixed bug in @code{MyISAM} index handling of
 @code{DECIMAL}/@code{NUMERIC} keys.
 @item
-Fixed a bug in concurrent insert in @code{MyISAM} tables; In some context
+Fixed a bug in concurrent insert in @code{MyISAM} tables; In some contexts,
 usage of @code{MIN(key_part)} or @code{MAX(key_part)} returned an empty set.
 @item
-Updated mysqlhotcopy to use the new @code{FLUSH TABLES table_list} syntax. Only
-tables which are being backed up are flushed now.
+Updated @code{mysqlhotcopy} to use the new @code{FLUSH TABLES table_list}
+syntax. Only tables which are being backed up are flushed now.
 @item
 Changed behavior of @code{--enable-thread-safe-client} so
 that both non-threaded (@code{-lmysqlclient}) and threaded
@@ -35941,7 +35943,7 @@ against a threaded @code{-lmysqlclient} will need to link against
 @item
 Added atomic @code{RENAME} command.
 @item
-Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ..)}.
+Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ...)}.
 @item
 Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
 @code{INSERT ... SELECT...} on empty tables to create non-unique indexes
@@ -35965,16 +35967,16 @@ that don't have the @code{pthread_rwlock_rdlock} code.
 When deleting rows with a non-unique key in a HEAP table, all rows weren't
 always deleted.
 @item
-Fixed bug in range optimizer for HEAP tables when one did search on part index.
+Fixed bug in range optimizer for HEAP tables for searches on a part index.
 @item
 Fixed that @code{SELECT} on part keys works with BDB tables.
 @item
-Fixed that @code{INSERT INTO bdb_table  ... SELECT} works with BDB tables.
+Fixed @code{INSERT INTO bdb_table  ... SELECT} to work with BDB tables.
 @item
-Check table now updates key statistics for the table.
+@code{CHECK TABLE} now updates key statistics for the table.
 @item
 @code{ANALYZE TABLE} will now only update tables that have been changed
-since last @code{ANALYZE}. Note that this is a new feature and tables
+since thee last @code{ANALYZE}. Note that this is a new feature and tables
 will not be marked to be analyzed until they are updated in any way with
 3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
 to update the key distribution.
@@ -35982,7 +35984,7 @@ to update the key distribution.
 Fixed some minor privilege problems with @code{CHECK}, @code{ANALYZE},
 @code{REPAIR} and @code{SHOW CREATE} commands.
 @item
-Added @code{CHANGE MASTER TO} command
+Added @code{CHANGE MASTER TO} command.
 @item
 Added @code{FAST}, @code{QUICK} @code{EXTENDED} check types to
 @code{CHECK TABLES}.
@@ -35991,16 +35993,18 @@ Changed @code{myisamchk} so that @code{--fast} and
 @code{--check-changed-tables} are also honored with @code{--sort-index} and
 @code{--analyze}.
 @item
-Fixed fatal bug in @code{LOAD TABLE FROM MASTER} that did not lock the table during index re-build
+Fixed fatal bug in @code{LOAD TABLE FROM MASTER} that did not lock the
+table during index re-build.
 @item
-@code{LOAD DATA INFILE} broke replication if the database was excluded from replication
+@code{LOAD DATA INFILE} broke replication if the database was excluded
+from replication.
 @item
-More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}
+More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}.
 @item
-@code{SLAVE STOP} now will not return until the slave thread actually exits
+@code{SLAVE STOP} now will not return until the slave thread actually exits.
 @item
 Full text search via the @code{MATCH} function and @code{FULLTEXT} index type.
-(For MyISAM files).  This made @code{FULLTEXT} is reserved word.
+(For MyISAM files).  This makes @code{FULLTEXT} a reserved word.
 @end itemize
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
@@ -36017,8 +36021,8 @@ The log generated by @code{--slow-query-log} didn't contain the whole queries.
 Fixed that open transactions in BDB tables are rolled back if the
 connection is closed unexpectedly.
 @item
-Added workaround for a bug in gcc 2.96 (intel) and gcc 2.9 (Ia64) in
-gen_lex_hash.c.
+Added workaround for a bug in @code{gcc} 2.96 (intel) and @code{gcc} 2.9
+(Ia64) in @code{gen_lex_hash.c}.
 @item
 Fixed memory leak in the client library when using @code{host=..} in the
 @code{my.cnf} file.
@@ -36033,7 +36037,7 @@ Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added option
 @item
 Added @code{ANALYZE table_name} to update key statistics for tables.
 @item
-Changed binary items @code{0x...} to be default regarded as an integer.
+Changed binary items @code{0x...} to be regarded as integers by default.
 @item
 Fix for SCO and @code{SHOW PROCESSLIST}.
 @item
@@ -36042,14 +36046,15 @@ Added @code{auto-rehash} on reconnect for the @code{mysql} client.
 Fixed a newly introduced bug in @code{MyISAM}, where the index file couldn't
 get bigger than 64M.
 @item
-Added @code{SHOW MASTER STATUS} and @code{SHOW SLAVE STATUS}
+Added @code{SHOW MASTER STATUS} and @code{SHOW SLAVE STATUS}.
 @end itemize
 
 @node News-3.23.21, News-3.23.20, News-3.23.22, News-3.23.x
 @appendixsubsec Changes in release 3.23.21
 @itemize @bullet
 @item
-Added @code{mysql_character_set_name(MYSQL *mysql)} function to the MySQL API.
+Added @code{mysql_character_set_name(MYSQL *mysql)} function to the
+@strong{MySQL} C API.
 @item
 Made the update log @code{ASCII 0} safe.
 @item
@@ -36067,7 +36072,7 @@ Fixed @code{chown} warning in @code{safe_mysqld}.
 @item
 Fixed a bug in @code{ORDER BY} that was introduced in 3.23.19.
 @item
-Only optimize the @code{DELETE FROM table_name} to do a drop+create of
+Only optimize the @code{DELETE FROM tbl_name} to do a drop+create of
 the table if we are in @code{AUTOCOMMIT} mode.  (Needed for BDB tables).
 @item
 Added extra checks to avoid index corruption when the @code{ISAM}/@code{MyISAM}
@@ -36090,7 +36095,7 @@ a feature.
 @appendixsubsec Changes in release 3.23.20
 @itemize @bullet
 @item
-Fixed bug in 3.23.19; @code{DELETE FROM table_name} removed the .frm file.
+Fixed bug in 3.23.19; @code{DELETE FROM tbl_name} removed the .frm file.
 @end itemize
 
 @node News-3.23.19, News-3.23.18, News-3.23.20, News-3.23.x
