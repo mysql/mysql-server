@@ -181,6 +181,23 @@ static int find_keyword(LEX *lex, uint len, bool function)
   return 0;
 }
 
+/*
+  Check if name is a keyword
+
+  SYNOPSIS
+    is_keyword()
+    name      checked name
+    len       length of checked name
+
+  RETURN VALUES
+    0         name is a keyword
+    1         name isn't a keyword
+*/
+
+bool is_keyword(const char *name, uint len)
+{
+  return get_hash_symbol(name,len,0)!=0;
+}
 
 /* make a copy of token before ptr and set yytoklen */
 
@@ -419,7 +436,6 @@ inline static uint int_token(const char *str,uint length)
   while (*cmp && *cmp++ == *str++) ;
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
 }
-
 
 /*
   yylex remember the following states from the following yylex()
