@@ -17,12 +17,14 @@ INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
                -I$(top_srcdir)/ndb/src/mgmapi \
                -I$(top_srcdir)/ndb/src/common/mgmcommon
 
-LDADD_LOC = $(top_srcdir)/ndb/src/.libs/libndbclient.a \
+LDADD_LOC = $(top_srcdir)/ndb/src/libndbclient.la \
 	    $(top_srcdir)/ndb/src/common/editline/libeditline.a \
 	    @TERMCAP_LIB@
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
+
+AM_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

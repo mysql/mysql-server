@@ -1,4 +1,4 @@
-pkglib_LIBRARIES = liberror.a
+noinst_LIBRARIES = liberror.a
 
 liberror_a_SOURCES = TimeModule.cpp \
 	ErrorReporter.cpp \
