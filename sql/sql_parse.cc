@@ -1958,6 +1958,20 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
+  if (lex->time_zone_tables_used)
+  {
+    TABLE_LIST *tmp;
+    if ((tmp= my_tz_get_table_list(thd, &lex->query_tables_last)) ==
+        &fake_time_zone_tables_list)
+    {
+      send_error(thd, 0);
+      DBUG_RETURN(-1);
+    }
+    lex->time_zone_tables_used= tmp;
+    if (!all_tables)
+      all_tables= tmp;
+  }
+
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
@@ -2393,11 +2407,11 @@ mysql_execute_command(THD *thd)
       if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
       {
         TABLE_LIST *tab;
-        for (tab= select_tables; tab; tab= tab->next)
+        for (tab= select_tables; tab; tab= tab->next_local)
         {
-          if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
-                                      merge_list.first,
-                                      select_tables->db, tab->real_name))
+          if (find_table_in_local_list((TABLE_LIST*) lex->create_info.
+                                       merge_list.first,
+                                       select_tables->db, tab->real_name))
           {
             net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
             goto create_error;
@@ -3767,7 +3781,7 @@ purposes internal to the MySQL server", MYF(0));
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
 	  res= 0;
@@ -4699,7 +4713,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     new_field->sql_type= FIELD_TYPE_BLOB;
     sprintf(warn_buff, ER(ER_AUTO_CONVERT), field_name, "CHAR",
 	    (cs == &my_charset_bin) ? "BLOB" : "TEXT");
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_AUTO_CONVERT,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
 		 warn_buff);
     /* fall through */
   case FIELD_TYPE_BLOB:

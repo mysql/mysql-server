@@ -1031,6 +1031,10 @@ public:
     return 0;
 #endif
   }
+  inline bool only_prepare()
+  {
+    return command == COM_PREPARE;
+  }
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);

@@ -483,7 +483,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
         my_b_tell(&thd->transaction.trans_log))
     {
-      if (error= wait_if_global_read_lock(thd, 0, 0))
+      if ((error= wait_if_global_read_lock(thd, 0, 0)))
       {
         /*
           Note that ROLLBACK [TO SAVEPOINT] does not have this test; it's

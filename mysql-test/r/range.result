@@ -257,6 +257,11 @@ explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
 1	SIMPLE	t1	ALL	i1	NULL	NULL	NULL	4	Range checked for each record (index map: 0x1)
+explain select * from t1 force index(i1), t2 force index(j1) where 
+(t1.key1 <t2.keya + 1) and t2.keya=3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
+1	SIMPLE	t1	ALL	i1	NULL	NULL	NULL	4	Range checked for each record (index map: 0x1)
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a int(11) default NULL,
@@ -533,8 +538,7 @@ count(*)
 0
 drop table t1;
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
-insert into t1(x) values (0xfffffffffffffff0);
-insert into t1(x) values (0xfffffffffffffff1);
+insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
 select * from t1;
 x
 18446744073709551600
@@ -554,6 +558,9 @@ count(*)
 select count(*) from t1 where x = -16;
 count(*)
 0
+explain select count(*) from t1 where x > -16;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	8	NULL	1	Using where; Using index
 select count(*) from t1 where x > -16;
 count(*)
 1

@@ -143,13 +143,7 @@ public:
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup()
-  {
-    DBUG_ENTER("Item::cleanup");
-    DBUG_PRINT("info", ("Type: %d", (int)type()));
-    fixed=0;
-    DBUG_VOID_RETURN;
-  }
+  virtual void cleanup();
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   /*

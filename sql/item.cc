@@ -105,6 +105,15 @@ void Item::print_item_w_name(String *str)
 }
 
 
+void Item::cleanup()
+{
+  DBUG_ENTER("Item::cleanup");
+  DBUG_PRINT("info", ("Item: 0x%lx", this));
+  DBUG_PRINT("info", ("Type: %d", (int)type()));
+  fixed=0;
+  DBUG_VOID_RETURN;
+}
+
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
@@ -1397,9 +1406,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
       if (!tmp)
 	return -1;
-      else if (!refer)
+      if (!refer)
 	return 1;
-      else if (tmp == not_found_field && refer == (Item **)not_found_item)
+      if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	if (upward_lookup)
 	{
@@ -1903,7 +1912,7 @@ bool Item::send(Protocol *protocol, String *buffer)
 {
   bool result;
   enum_field_types type;
-  LINT_INIT(result);
+  LINT_INIT(result);                     // Will be set if null_value == 0
 
   switch ((type=field_type())) {
   default:

@@ -713,7 +713,7 @@ typedef struct st_lex
   */
   bool empty_field_list_on_rset;
 
-  st_lex()
+  st_lex() :result(0)
   {
     bzero((char *)&spfuns, sizeof(spfuns));
   }

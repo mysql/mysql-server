@@ -22,7 +22,8 @@
    can read files produced by 3.23, 4.x, 5.0 servers. 
 
    Can read binlogs from 3.23/4.x/5.0 and relay logs from 4.x/5.0.
-   Should be able to read any file of these categories, even with --position.
+   Should be able to read any file of these categories, even with
+   --start-position.
    An important fact: the Format_desc event of the log is at most the 3rd event
    of the log; if it is the 3rd then there is this combination:
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
@@ -323,8 +324,8 @@ int Load_log_processor::process(Append_block_log_event *ae)
 
   /*
     There is no Create_file event (a bad binlog or a big
-    --position). Assuming it's a big --position, we just do nothing and
-    print a warning.
+    --start-position). Assuming it's a big --start-position, we just do
+    nothing and print a warning.
   */
   fprintf(stderr,"Warning: ignoring Append_block as there is no \
 Create_file event for file_id: %u\n",ae->file_id);
@@ -356,18 +357,27 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
                   my_off_t pos)
 {
   char ll_buff[21];
+  Log_event_type ev_type= ev->get_type_code();
   DBUG_ENTER("process_event");
 
+  /*
+    Format events are not concerned by --offset and such, we always need to
+    read them to be able to process the wanted events.
+  */
   if ((rec_count >= offset) &&
-      ((my_time_t)(ev->when) >= start_datetime))
+      ((my_time_t)(ev->when) >= start_datetime) ||
+      (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
-    /*
-      We have found an event after start_datetime, from now on print
-      everything (in case the binlog has timestamps increasing and decreasing,
-      we do this to avoid cutting the middle).
-    */
-    start_datetime= 0;
-    offset= 0; // print everything and protect against cycling rec_count
+    if (ev_type != FORMAT_DESCRIPTION_EVENT)
+    {
+      /*
+        We have found an event after start_datetime, from now on print
+        everything (in case the binlog has timestamps increasing and
+        decreasing, we do this to avoid cutting the middle).
+      */
+      start_datetime= 0;
+      offset= 0; // print everything and protect against cycling rec_count
+    }
     if (((my_time_t)(ev->when) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
@@ -377,7 +387,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
     if (!short_form)
       fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
     
-    switch (ev->get_type_code()) {
+    switch (ev_type) {
     case QUERY_EVENT:
       if (one_database)
       {
@@ -431,7 +441,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
       Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
       /*
 	if ce is 0, it probably means that we have not seen the Create_file
-	event (a bad binlog, or most probably --position is after the
+	event (a bad binlog, or most probably --start-position is after the
 	Create_file event). Print a warning comment.
       */
       if (ce)
@@ -853,6 +863,8 @@ could be out of memory");
   for (;;)
   {
     const char *error_msg;
+    Log_event *ev;
+
     len = net_safe_read(mysql);
     if (len == packet_error)
     {
@@ -865,10 +877,9 @@ could be out of memory");
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
-    Log_event *ev = Log_event::read_log_event((const char*) net->read_pos + 1 ,
-					      len - 1, &error,
-                                              description_event);
-    if (!ev)
+    if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
+                                        len - 1, &error_msg,
+                                        description_event)))
     {
       fprintf(stderr, "Could not construct log event object\n");
       error= 1;
@@ -970,10 +981,10 @@ static void check_header(IO_CACHE* file,
 {
   byte header[BIN_LOG_HEADER_SIZE];
   byte buf[PROBE_HEADER_LEN];
+  my_off_t tmp_pos, pos;
 
   *description_event= new Format_description_log_event(3);
-  my_off_t tmp_pos;
-  my_off_t pos = my_b_tell(file);
+  pos= my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
   if (my_b_read(file, header, sizeof(header)))
     die("Failed reading header;  Probably an empty file");
@@ -981,16 +992,17 @@ static void check_header(IO_CACHE* file,
     die("File is not a binary log file");
 
   /*
-    Imagine we are running with --position=1000. We still need to know the
-    binlog format's. So we still need to find, if there is one, the Format_desc
-    event, or to know if this is a 3.23 binlog. So we need to first read the
-    first events of the log, those around offset 4.
-    Even if we are reading a 3.23 binlog from the start (no --position): we need
-    to know the header length (which is 13 in 3.23, 19 in 4.x) to be able to
-    successfully print the first event (Start_log_event_v3). So even in this
-    case, we need to "probe" the first bytes of the log *before* we do a real
-    read_log_event(). Because read_log_event() needs to know the header's length
-    to work fine.
+    Imagine we are running with --start-position=1000. We still need
+    to know the binlog format's. So we still need to find, if there is
+    one, the Format_desc event, or to know if this is a 3.23
+    binlog. So we need to first read the first events of the log,
+    those around offset 4.  Even if we are reading a 3.23 binlog from
+    the start (no --start-position): we need to know the header length
+    (which is 13 in 3.23, 19 in 4.x) to be able to successfully print
+    the first event (Start_log_event_v3). So even in this case, we
+    need to "probe" the first bytes of the log *before* we do a real
+    read_log_event(). Because read_log_event() needs to know the
+    header's length to work fine.
   */
   for(;;)
   {
@@ -1002,23 +1014,25 @@ static void check_header(IO_CACHE* file,
 Could not read entry at offset %lu : Error in log format or read error",
             tmp_pos); 
       /*
-        Otherwise this is just EOF : this log currently contains 0-2 events.
-        Maybe it's going to be filled in the next milliseconds; then we are
-        going to have a problem if this a 3.23 log (imagine we are locally
-        reading a 3.23 binlog which is being written presently): we won't know
-        it in read_log_event() and will fail().
-        Similar problems could happen with hot relay logs if --position is used
-        (but a --position which is posterior to the current size of the log).
-        These are rare problems anyway (reading a hot log + when we read the
-        first events there are not all there yet + when we read a bit later
-        there are more events + using a strange --position).
+        Otherwise this is just EOF : this log currently contains 0-2
+        events.  Maybe it's going to be filled in the next
+        milliseconds; then we are going to have a problem if this a
+        3.23 log (imagine we are locally reading a 3.23 binlog which
+        is being written presently): we won't know it in
+        read_log_event() and will fail().  Similar problems could
+        happen with hot relay logs if --start-position is used (but a
+        --start-position which is posterior to the current size of the log).
+        These are rare problems anyway (reading a hot log + when we
+        read the first events there are not all there yet + when we
+        read a bit later there are more events + using a strange
+        --start-position).
       */
       break;
     }
     else
     {
       DBUG_PRINT("info",("buf[4]=%d", buf[4]));
-      /* always test for a Start_v3, even if no --position */
+      /* always test for a Start_v3, even if no --start-position */
       if (buf[4] == START_EVENT_V3)       /* This is 3.23 or 4.x */
       {
         if (uint4korr(buf + EVENT_LEN_OFFSET) < 
@@ -1030,7 +1044,7 @@ Could not read entry at offset %lu : Error in log format or read error",
         }
         break;
       }
-      else if (tmp_pos>=position)
+      else if (tmp_pos >= start_position)
         break;
       else if (buf[4] == FORMAT_DESCRIPTION_EVENT) /* This is 5.0 */
       {

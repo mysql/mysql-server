@@ -137,7 +137,6 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
-  arena= thd->current_arena;
 
   if (check_stack_overrun(thd, (gptr)&res))
     return 1;
@@ -872,7 +871,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
         result= RES_REDUCE;
-        goto end;
+        goto err;
       }
     }
   }
