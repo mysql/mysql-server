@@ -236,6 +236,18 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
     return NULL;
   }
   conv->str_value.copy();
+  /* 
+    The above line executes str_value.realloc() internally,
+    which alligns Alloced_length using ALLIGN_SIZE.
+    In the case of Item_string::str_value we don't want
+    Alloced_length to be longer than str_length.
+    Otherwise, some functions like Item_func_concat::val_str()
+    try to reuse str_value as a buffer for concatenation result
+    for optimization purposes, so our string constant become
+    corrupted. See bug#8785 for more details.
+    Let's shrink Alloced_length to str_length to avoid this problem.
+  */
+  conv->str_value.shrink_to_length();
   return conv;
 }
 
