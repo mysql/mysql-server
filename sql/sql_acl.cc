@@ -61,6 +61,7 @@ public:
   uint hostname_length;
   char *user,*password;
   ulong salt[2];
+  char *ssl_type, *ssl_cipher, *ssl_issuer, *ssl_subject;
 };
 
 class ACL_DB :public ACL_ACCESS
@@ -199,6 +200,10 @@ int  acl_init(bool dont_read_acl_tables)
     update_hostname(&user.host,get_field(&mem, table,0));
     user.user=get_field(&mem, table,1);
     user.password=get_field(&mem, table,2);
+    user.ssl_type=get_field(&mem, table,17);
+    user.ssl_cipher=get_field(&mem, table,18);
+    user.ssl_issuer=get_field(&mem, table,19);
+    user.ssl_subject=get_field(&mem, table,20);
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
     {
@@ -2312,7 +2317,7 @@ uint get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
 static const char *command_array[]=
 {"SELECT", "INSERT","UPDATE","DELETE","CREATE", "DROP","RELOAD","SHUTDOWN",
  "PROCESS","FILE","GRANT","REFERENCES","INDEX","ALTER"};
-static int command_lengths[]={6,6,6,6,6,4,6,8,7,4,5,9,5,5};
+static int command_lengths[]={6,6,6,6,6,4,6,8,7,4,5,10,5,5};
 
 int mysql_show_grants(THD *thd,LEX_USER *lex_user) 
 {
@@ -2320,7 +2325,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   int  error = 0;
   ACL_USER *acl_user; ACL_DB *acl_db;
   char buff[1024];
-  DBUG_ENTER("mysql_grant");
+  DBUG_ENTER("mysql_show_grants");
 
   LINT_INIT(acl_user);
   if (!initialized)
@@ -2411,6 +2416,30 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       global.append(passd_buff);
       global.append('\'');
     }
+/* SSL grant stuff */
+    DBUG_PRINT("info",("acl_user->ssl_type=%s",acl_user->ssl_type));
+    DBUG_PRINT("info",("acl_user->ssl_cipher=%s",acl_user->ssl_cipher));
+    DBUG_PRINT("info",("acl_user->ssl_subject=%s",acl_user->ssl_subject));
+    DBUG_PRINT("info",("acl_user->ssl_issuer=%s",acl_user->ssl_issuer));
+    if(acl_user->ssl_type) {
+      if(!strcmp(acl_user->ssl_type,"ssl"))
+        global.append(" REQUIRE SSL",12);
+      else if(!strcmp(acl_user->ssl_type,"x509"))       
+      {
+        global.append(" REQUIRE X509 ",14);
+	if(acl_user->ssl_issuer) {
+          global.append("SUBJECT \"",9);
+          global.append(acl_user->ssl_issuer,strlen(acl_user->ssl_issuer));
+          global.append("\"",1);
+	}
+	if(acl_user->ssl_subject) {
+          global.append("ISSUER \"",8);
+          global.append(acl_user->ssl_subject,strlen(acl_user->ssl_subject));
+          global.append("\"",1);
+	}
+      }
+    }
+
     if (want_access & GRANT_ACL)
       global.append(" WITH GRANT OPTION",18); 
     thd->packet.length(0);

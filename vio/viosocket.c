@@ -143,6 +143,7 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
   DBUG_ENTER("vio_blocking");
   DBUG_PRINT("enter", ("set_blocking_mode: %d", (int) set_blocking_mode));
 
+#if !defined(HAVE_OPENSSL)
 #if !defined(___WIN__) && !defined(__EMX__)
 #if !defined(NO_FCNTL_NONBLOCK)
 
@@ -178,6 +179,8 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
       r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg, sizeof(arg));
   }
 #endif /* !defined(__WIN__) && !defined(__EMX__) */
+#endif /* !defined (HAVE_OPENSSL) */ 
+  DBUG_PRINT("exit", ("return %d", r));
   DBUG_RETURN(r);
 }
 

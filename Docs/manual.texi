@@ -23299,6 +23299,7 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
     TO user_name [IDENTIFIED BY 'password']
         [, user_name [IDENTIFIED BY 'password'] ...]
+    [REQUIRE @{SSL|X509@} [ISSUER issuer] [SUBJECT subject]]
     [WITH GRANT OPTION]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
@@ -29453,6 +29454,15 @@ The port the master is listening on. If not set, the compiled setting of
 The number of seconds the slave thread will sleep before retrying to
 connect to the master in case the master goes down or the connection is
 lost.  Default is 60.  (Example: @code{master-connect-retry=60})
+
+@item @code{master-ssl} @tab
+Turn SSL on (Example: @code{master-ssl})
+
+@item @code{master-ssl-key} @tab
+Master SSL keyfile name (Example: @code{master-ssl-key=SSL/master-key.pem})
+
+@item @code{master-ssl-cert} @tab
+Master SSL certificate file name (Example: @code{master-ssl-key=SSL/master-cert.pem})
 
 @item @code{master-info-file=filename} @tab
 The location of the file that remembers where we left off on the master
