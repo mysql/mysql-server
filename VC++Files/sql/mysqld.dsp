@@ -28,7 +28,7 @@ CFG=mysqld - Win32 Release
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -52,7 +52,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_release/mysqld-opt.exe"
 # SUBTRACT LINK32 /debug
@@ -78,7 +78,7 @@ LINK32=link.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug.lib ..\lib_debug\vio.lib ..\lib_debug\isam.lib ..\lib_debug\merge.lib ..\lib_debug\mysys.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap.lib ..\lib_debug\bdb.lib ..\lib_debug\innodb.lib /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"../client_debug/mysqld.exe" /pdbtype:sept
 
@@ -105,7 +105,7 @@ LINK32=link.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\dbug.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /debug /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-nt.exe"
 # SUBTRACT LINK32 /pdb:none /debug
@@ -133,7 +133,7 @@ LINK32=link.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\zlib.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-nt.exe"
 # SUBTRACT BASE LINK32 /pdb:none /debug
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys-max.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\zlib.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-max-nt.exe"
@@ -162,7 +162,7 @@ LINK32=link.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /pdb:none /debug /machine:I386 /out:"../client_release/mysqld-opt.exe"
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys-max.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_release/mysqld-max.exe"
 # SUBTRACT LINK32 /debug
@@ -464,8 +464,6 @@ SOURCE=.\item_func.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
 
-# ADD CPP /I "../zlib"
-
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
 
 # ADD CPP /G5 /I "../zlib"
@@ -662,6 +660,10 @@ SOURCE=.\mini_client.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\myisammrg\myrg_rnext_same.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\mysqld.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -776,6 +778,10 @@ SOURCE=.\procedure.cpp
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\protocol.cpp
 # End Source File
 # Begin Source File
 

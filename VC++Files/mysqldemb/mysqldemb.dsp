@@ -25,7 +25,7 @@ CFG=mysqldemb - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysqldemb - Win32 Release"
@@ -41,14 +41,14 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FD /c
+# ADD CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo
 
@@ -65,14 +65,14 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /Zi /Od /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /Zi /Od /I "../zlib" /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "_DEBUG"
 # ADD RSC /l 0x416 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo
 
@@ -168,7 +168,15 @@ SOURCE=..\sql\item_func.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\item_row.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\item_strfunc.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\item_subselect.cpp
 # End Source File
 # Begin Source File
 
@@ -216,10 +224,6 @@ SOURCE=..\sql\mini_client.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql\net_pkg.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\net_serv.cpp
 # End Source File
 # Begin Source File
@@ -241,6 +245,10 @@ SOURCE=..\libmysql\password.c
 # Begin Source File
 
 SOURCE=..\sql\procedure.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\protocol.cpp
 # End Source File
 # Begin Source File
 
@@ -288,7 +296,15 @@ SOURCE=..\sql\sql_delete.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\sql_derived.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\sql_do.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\sql_error.cpp
 # End Source File
 # Begin Source File
 
@@ -317,6 +333,10 @@ SOURCE=..\sql\sql_map.cpp
 # Begin Source File
 
 SOURCE=..\sql\sql_parse.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\sql_prepare.cpp
 # End Source File
 # Begin Source File
 
