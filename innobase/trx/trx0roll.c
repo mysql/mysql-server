@@ -331,10 +331,11 @@ trx_savept_take(
 /***********************************************************************
 Rollback or clean up transactions which have no user session. If the
 transaction already was committed, then we clean up a possible insert
-undo log. If the transaction was not yet committed, then we roll it back. */
+undo log. If the transaction was not yet committed, then we roll it back. 
+Note: this is done in a background thread */
 
-void
-trx_rollback_or_clean_all_without_sess(void)
+void *
+trx_rollback_or_clean_all_without_sess(void *i)
 /*========================================*/
 {
 	mem_heap_t*	heap;
@@ -362,7 +363,7 @@ trx_rollback_or_clean_all_without_sess(void)
 		fprintf(stderr,
 		"InnoDB: Starting rollback of uncommitted transactions\n");
 	} else {		
-		return;
+		os_thread_exit(i);
 	}
 loop:
 	heap = mem_heap_create(512);
@@ -371,9 +372,15 @@ loop:
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
-	while (trx && (trx->sess || (trx->conc_state == TRX_NOT_STARTED))) {
+	while (trx) {
 
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
+		if ((trx->sess || (trx->conc_state == TRX_NOT_STARTED))) {
+			trx = UT_LIST_GET_NEXT(trx_list, trx);
+		} else if (trx->conc_state == TRX_PREPARED) {
+			trx->sess = trx_dummy_sess;
+		} else {
+			break;
+		}
 	}
 	
 	mutex_exit(&kernel_mutex);
@@ -384,10 +391,11 @@ loop:
 
  		mem_heap_free(heap);
 		
-		return;
+		os_thread_exit(i);
 	}
 
 	trx->sess = trx_dummy_sess;
+
 	
 	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {	
 		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
@@ -486,6 +494,8 @@ loop:
 	mem_heap_free(heap);
 
 	goto loop;
+
+	os_thread_exit(i); /* not reached */
 }
 	
 /***********************************************************************

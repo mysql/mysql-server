@@ -80,6 +80,7 @@ extern "C" {
 #include "../innobase/include/fsp0fsp.h"
 #include "../innobase/include/sync0sync.h"
 #include "../innobase/include/fil0fil.h"
+#include "../innobase/include/xa.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -148,6 +149,14 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
+
+/*********************************************************************
+Commits a transaction in an InnoDB database. */
+
+void
+innobase_commit_low(
+/*================*/
+	trx_t*	trx);	/* in: transaction handle */
 
 struct show_var_st innodb_status_variables[]= {
   {"buffer_pool_pages_data",
@@ -1336,7 +1345,7 @@ innobase_commit(
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
 	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 	        
-		/* We were instructed to commit the whole transaction, or
+ 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
 		innobase_commit_low(trx);
@@ -1473,6 +1482,39 @@ innobase_rollback(
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
+
+	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+}
+
+/*********************************************************************
+Rolls back a transaction */
+
+int
+innobase_rollback_trx(
+/*==================*/
+			/* out: 0 or error number */
+	trx_t*	trx)	/*  in: transaction */
+{
+	int	error = 0;
+
+	DBUG_ENTER("innobase_rollback_trx");
+	DBUG_PRINT("trans", ("aborting transaction"));
+
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
+        if (trx->auto_inc_lock) {
+		/* If we had reserved the auto-inc lock for some table (if
+		we come here to roll back the latest SQL statement) we
+		release it now before a possibly lengthy rollback */
+		
+		row_unlock_table_autoinc_for_mysql(trx);
+	}
+
+	error = trx_rollback_for_mysql(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -5756,4 +5798,158 @@ innobase_query_is_replace(void)
 }
 }
 
+/***********************************************************************
+This function is used to prepare X/Open XA distributed transaction   */
+
+int innobase_xa_prepare(
+/*====================*/
+			/* out: 0 or error number */
+	THD*	thd,	/* in: handle to the MySQL thread of the user
+			whose XA transaction should be prepared */
+	bool	all)	/* in: TRUE - commit transaction
+			FALSE - the current SQL statement ended */
+{
+	int error = 0;
+        trx_t* trx;
+
+        trx = check_trx_exists(thd);
+
+	/* TODO: Get X/Open XA Transaction Identification from MySQL*/
+	memset(&trx->xid, 0, sizeof(trx->xid));
+	trx->xid.formatID = -1;
+
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
+	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
+
+		fprintf(stderr,
+"InnoDB: Error: thd->transaction.all.innodb_active_trans == 0\n"
+"InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
+	}
+
+	if (all || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+	        
+ 		/* We were instructed to prepare the whole transaction, or
+		this is an SQL statement end and autocommit is on */
+
+		error = trx_prepare_for_mysql(trx);
+	} else {
+	        /* We just mark the SQL statement ended and do not do a
+		transaction prepare */
+
+		if (trx->auto_inc_lock) {
+			/* If we had reserved the auto-inc lock for some
+			table in this SQL statement we release it now */
+		  	
+			row_unlock_table_autoinc_for_mysql(trx);
+		}
+		/* Store the current undo_no of the transaction so that we
+		know where to roll back if we have to roll back the next
+		SQL statement */
+
+		trx_mark_sql_stat_end(trx);
+	}
+
+	/* Tell the InnoDB server that there might be work for utility
+	threads: */
+
+	srv_active_wake_master_thread();
+
+        return error;
+}
+
+/***********************************************************************
+This function is used to recover X/Open XA distributed transactions   */
+
+int innobase_xa_recover(
+				/* out: number of prepared transactions 
+				stored in xid_list */
+	XID*    xid_list, 	/* in/out: prepared transactions */
+	uint	len)		/* in: number of slots in xid_list */
+/*====================*/
+{
+	if (len == 0 || xid_list == NULL) {
+		return 0;
+	}
+
+	return (trx_recover_for_mysql(xid_list, len));
+}
+
+/***********************************************************************
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state */
+
+int innobase_commit_by_xid(
+/*=======================*/
+			/* out: 0 or error number */
+	XID*	xid)	/*  in: X/Open XA Transaction Identification */
+{
+	trx_t*	trx;
+
+	trx = trx_get_trx_by_xid(xid);
+
+	if (trx) {
+		innobase_commit_low(trx);
+		
+		return(XA_OK);
+	} else {
+		return(XAER_NOTA);
+	}
+}
+
+/***********************************************************************
+This function is used to rollback one X/Open XA distributed transaction
+which is in the prepared state */
+
+int innobase_rollback_by_xid(
+			/* out: 0 or error number */
+	XID	*xid)	/* in : X/Open XA Transaction Idenfification */
+{
+	trx_t*	trx;
+
+	trx = trx_get_trx_by_xid(xid);
+
+	if (trx) {
+		return(innobase_rollback_trx(trx));
+	} else {
+		return(XAER_NOTA);
+	}
+}
+
+/***********************************************************************
+This function is used to test commit/rollback of XA transactions */
+
+int innobase_xa_end(
+/*================*/
+	THD*	thd)	/* in: MySQL thread handle of the user for whom
+			transactions should be recovered */
+{
+        DBUG_ENTER("innobase_xa_end");
+
+	XID trx_list[100];
+	int trx_num, trx_num_max = 100;
+	int i;
+	XID xid;
+
+	while(trx_num = innobase_xa_recover(trx_list, trx_num_max)) {
+
+		for(i=0;i < trx_num; i++) {
+			xid = trx_list[i];
+
+			if ( i % 2) {
+				innobase_commit_by_xid(&xid);
+			} else {
+				innobase_rollback_by_xid(&xid);
+			}
+		}
+	}
+
+	free(trx_list);
+
+	DBUG_RETURN(0);
+}
 #endif /* HAVE_INNOBASE_DB */
