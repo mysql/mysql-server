@@ -164,3 +164,11 @@ PENDING/2000-10-25.01
 PENDING/2000-10-25.02
 support-files/mysql-3.23.27-beta.spec
 .gdb_history
+mysql-test/r/3.23/sel000004.result.reject
+mysql-test/var/lib/mysql-bin.006
+mysql-test/var/lib/test/elt_ck1.frm
+mysql-test/var/lib/test/elt_ck1.MYD
+mysql-test/var/lib/test/elt_ck1.MYI
+mysql-test/var/lib/test/elt_ck2.frm
+mysql-test/var/lib/test/elt_ck2.MYD
+mysql-test/var/lib/test/elt_ck2.MYI
