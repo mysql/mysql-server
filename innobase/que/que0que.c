@@ -668,15 +668,15 @@ does nothing! */
 void
 que_thr_handle_error(
 /*=================*/
-	que_thr_t*	thr __attribute((unused)),
+	que_thr_t*	thr __attribute__((unused)),
 				/* in: query thread */
-	ulint		err_no __attribute((unused)),
+	ulint		err_no __attribute__((unused)),
 				/* in: error number */
-	byte*		err_str __attribute((unused)),
+	byte*		err_str __attribute__((unused)),
 				/* in, own: error string or NULL; NOTE: the
 				function will take care of freeing of the
 				string! */
-	ulint		err_len __attribute((unused)))
+	ulint		err_len __attribute__((unused)))
 				/* in: error string length */	
 {
 	/* Does nothing */
