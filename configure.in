@@ -2199,7 +2199,9 @@ AC_ARG_WITH(extra-charsets,
 
 AC_MSG_CHECKING("character sets")
 
-if test "$extra_charsets" = none; then
+if test "$extra_charsets" = no; then
+  CHARSETS=""
+elif test "$extra_charsets" = none; then
   CHARSETS=""
 elif test "$extra_charsets" = complex; then
   CHARSETS=`/bin/ls -1 $srcdir/strings/ctype-*.c | \
