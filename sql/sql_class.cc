@@ -207,7 +207,6 @@ void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
-  variables.client_collation= default_charset_info;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   options= thd_startup_options;

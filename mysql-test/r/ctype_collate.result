@@ -40,26 +40,26 @@ A
 a
 AD
 ad
-AE
 ae
+AE
 AF
 af
-B
 b
+B
 SS
 ss
-U
 u
+U
 UE
 ue
-Ü
-ü
 Y
 y
+ü
+Ü
 Z
 z
-Å
 å
+Å
 Ä
 ä
 ß
@@ -69,26 +69,26 @@ A
 a
 AD
 ad
-AE
 ae
+AE
 AF
 af
-B
 b
+B
 SS
 ss
-U
 u
+U
 UE
 ue
-Ü
-ü
 Y
 y
+ü
+Ü
 Z
 z
-Å
 å
+Å
 Ä
 ä
 ß
@@ -100,23 +100,23 @@ a
 å
 AD
 ad
-AE
-ae
 Ä
+ae
+AE
 ä
-AF
 af
-B
+AF
 b
-SS
-ss
+B
 ß
+ss
+SS
 U
 u
-UE
 ue
-Ü
+UE
 ü
+Ü
 Y
 y
 Z
@@ -129,23 +129,23 @@ AD
 ad
 AE
 ae
-AF
 af
+AF
 Ä
 ä
 Å
 å
-B
 b
-SS
+B
 ss
+SS
 ß
 U
 u
 UE
 ue
-Ü
 ü
+Ü
 Y
 y
 Z
@@ -187,26 +187,26 @@ A
 a
 AD
 ad
-AE
 ae
+AE
 AF
 af
-B
 b
+B
 SS
 ss
-U
 u
+U
 UE
 ue
-Ü
-ü
 Y
 y
+ü
+Ü
 Z
 z
-Å
 å
+Å
 Ä
 ä
 ß
@@ -218,23 +218,23 @@ a
 å
 AD
 ad
-AE
-ae
 Ä
+ae
+AE
 ä
-AF
 af
-B
+AF
 b
-SS
-ss
+B
 ß
+ss
+SS
 U
 u
-UE
 ue
-Ü
+UE
 ü
+Ü
 Y
 y
 Z
@@ -247,23 +247,23 @@ AD
 ad
 AE
 ae
-AF
 af
+AF
 Ä
 ä
 Å
 å
-B
 b
-SS
+B
 ss
+SS
 ß
 U
 u
 UE
 ue
-Ü
 ü
+Ü
 Y
 y
 Z
@@ -511,59 +511,59 @@ SHOW FIELDS FROM  t1;
 Field	Type	Collation	Null	Key	Default	Extra
 latin1_f	char(32)	latin1_bin	YES		NULL	
 SET CHARACTER SET 'latin1';
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_swedish_ci
+collation_client	latin1_swedish_ci
 SET CHARACTER SET latin1;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_swedish_ci
-SHOW VARIABLES LIKE 'client_collation';
+collation_client	latin1_swedish_ci
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_swedish_ci
+collation_client	latin1_swedish_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
 SET CHARACTER SET latin1 COLLATE latin1_bin;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_bin
+collation_client	latin1_bin
 SET CHARACTER SET LATIN1 COLLATE Latin1_Bin;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_bin
+collation_client	latin1_bin
 SET CHARACTER SET 'latin1' COLLATE 'latin1_bin';
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_bin
+collation_client	latin1_bin
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
 SET CHARACTER SET koi8r;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	koi8r_general_ci
+collation_client	koi8r_general_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
 SET CHARACTER SET koi8r COLLATE koi8r_bin;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	koi8r_bin
+collation_client	koi8r_bin
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
 SET CHARACTER SET koi8r COLLATE DEFAULT;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	koi8r_general_ci
+collation_client	koi8r_general_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1
 SET CHARACTER SET DEFAULT;
-SHOW VARIABLES LIKE 'client_collation';
+SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-client_collation	latin1_swedish_ci
+collation_client	latin1_swedish_ci
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 charset('a')	collation('a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	3	1

@@ -314,7 +314,7 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
-my_bool	opt_console= 0;
+my_bool	opt_console= 0, opt_bdb, opt_innodb;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -442,6 +442,7 @@ const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *sql_mode_str="OFF";
 ulong rpl_recovery_rank=0;
+my_bool relay_log_purge=1;
 
 my_string mysql_unix_port=NULL, opt_mysql_tmpdir=NULL;
 MY_TMPDIR mysql_tmpdir_list;
@@ -2092,9 +2093,9 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   if (!(default_charset_info= get_charset_by_name(sys_charset.value, MYF(MY_WME))))
     return 1;
-  global_system_variables.result_collation= default_charset_info;
-  global_system_variables.client_collation= default_charset_info;
-  global_system_variables.literal_collation= default_charset_info;
+  global_system_variables.collation_results= default_charset_info;
+  global_system_variables.collation_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
 
   charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
@@ -2208,7 +2209,7 @@ static int init_server_components()
     {
       long purge_time= time(0) - expire_logs_days*24*60*60;
       if (purge_time >= 0)
-	mysql_bin_log.purge_logs_before_date(current_thd, purge_time);
+	mysql_bin_log.purge_logs_before_date(purge_time);
     }
 #endif
   }
@@ -3400,7 +3401,7 @@ enum options
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,
   OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
-  OPT_BDB_LOCK,                OPT_BDB_SKIP,
+  OPT_BDB_LOCK,                OPT_BDB,
   OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
   OPT_MASTER_HOST,             OPT_MASTER_USER,
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
@@ -3430,7 +3431,7 @@ enum options
   OPT_INNODB_FLUSH_METHOD,
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_SAFE_SHOW_DB,
-  OPT_INNODB_SKIP, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -3457,7 +3458,7 @@ enum options
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
-  OPT_MAX_JOIN_SIZE, OPT_MAX_SORT_LENGTH,
+  OPT_MAX_JOIN_SIZE, OPT_MAX_LENGTH_FOR_SORT_DATA, OPT_MAX_SORT_LENGTH,
   OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
   OPT_MAX_ERROR_COUNT, OPT_MAX_PREP_STMT,
@@ -3468,7 +3469,7 @@ enum options
   OPT_OPEN_FILES_LIMIT,
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_MIN_RES_UNIT, OPT_QUERY_CACHE_SIZE,
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
-  OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
+  OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT, OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
@@ -3529,8 +3530,10 @@ struct my_option my_long_options[] =
    (gptr*) &berkeley_tmpdir, (gptr*) &berkeley_tmpdir, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_BERKELEY_DB */
-  {"skip-bdb", OPT_BDB_SKIP, "Don't use berkeley db (will save memory)",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"bdb", OPT_BDB, "Enable Berkeley DB (if this version of MySQL supports it). \
+Disable with --skip-bdb (will save memory)",
+   (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
   {"big-tables", OPT_BIG_TABLES,
    "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3885,8 +3888,10 @@ struct my_option my_long_options[] =
    "Start without grant tables. This gives all users FULL ACCESS to all tables!",
    (gptr*) &opt_noacl, (gptr*) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"skip-innodb", OPT_INNODB_SKIP, "Don't use Innodb (will save memory)",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
+Disable with --skip-innodb (will save memory)",
+   (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -4159,6 +4164,11 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.max_join_size,
    (gptr*) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
    ~0L, 1, ~0L, 0, 1, 0},
+   {"max_length_for_sort_data", OPT_MAX_LENGTH_FOR_SORT_DATA,
+    "Max number of bytes in sorted records",
+    (gptr*) &global_system_variables.max_length_for_sort_data,
+    (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
+    REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
   {"max_prepared_statements", OPT_MAX_PREP_STMT,
    "Max number of prepared_statements for a thread",
    (gptr*) &global_system_variables.max_prep_stmt_count,
@@ -4272,6 +4282,11 @@ struct my_option my_long_options[] =
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
 #ifdef HAVE_REPLICATION
+  {"relay_log_purge", OPT_RELAY_LOG_PURGE,
+   "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
+   (gptr*) &relay_log_purge,
+   (gptr*) &relay_log_purge, 0, GET_BOOL, NO_ARG,
+   1, 0, 1, 0, 1, 0},
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
    "Max space to use for all relay logs",
    (gptr*) &relay_log_space_limit,
@@ -4575,9 +4590,9 @@ static void set_options(void)
 		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
-  global_system_variables.result_collation= default_charset_info;
-  global_system_variables.client_collation= default_charset_info;
-  global_system_variables.literal_collation= default_charset_info;
+  global_system_variables.collation_results= default_charset_info;
+  global_system_variables.collation_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
@@ -5016,16 +5031,32 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     berkeley_shared_data=1;
     break;
 #endif /* HAVE_BERKELEY_DB */
-  case OPT_BDB_SKIP:
+  case OPT_BDB:
 #ifdef HAVE_BERKELEY_DB
-    berkeley_skip=1;
-    have_berkeley_db=SHOW_OPTION_DISABLED;
+    if (opt_bdb)
+    {
+      berkeley_skip=0;
+      have_berkeley_db=SHOW_OPTION_YES;
+    }
+    else
+    {
+      berkeley_skip=1;
+      have_berkeley_db=SHOW_OPTION_DISABLED;
+    }
 #endif
     break;
-  case OPT_INNODB_SKIP:
+  case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
-    innodb_skip=1;
-    have_innodb=SHOW_OPTION_DISABLED;
+    if (opt_innodb)
+    {
+      innodb_skip=0;
+      have_innodb=SHOW_OPTION_YES;
+    }
+    else
+    {
+      innodb_skip=1;
+      have_innodb=SHOW_OPTION_DISABLED;
+    }
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:

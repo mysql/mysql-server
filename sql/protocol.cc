@@ -724,7 +724,7 @@ bool Protocol_simple::store(const char *from, uint length,
 bool Protocol_simple::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= this->thd->variables.result_collation;
+  CHARSET_INFO *tocs= this->thd->variables.collation_results;
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||

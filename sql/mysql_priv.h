@@ -721,7 +721,7 @@ extern ulong max_binlog_size, rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days;
-
+extern my_bool relay_log_purge;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version,dropping_tables;
 extern uint delay_key_write_options;

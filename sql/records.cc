@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -22,6 +23,8 @@
 static int rr_quick(READ_RECORD *info);
 static int rr_sequential(READ_RECORD *info);
 static int rr_from_tempfile(READ_RECORD *info);
+static int rr_unpack_from_tempfile(READ_RECORD *info);
+static int rr_unpack_from_buffer(READ_RECORD *info);
 static int rr_from_pointers(READ_RECORD *info);
 static int rr_from_cache(READ_RECORD *info);
 static int init_rr_cache(READ_RECORD *info);
@@ -41,8 +44,16 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   info->table=table;
   info->file= table->file;
   info->forms= &info->table;		/* Only one table */
-  info->record=table->record[0];
-  info->ref_length=table->file->ref_length;
+  if (table->sort.addon_field)
+  {
+    info->rec_buf= table->sort.addon_buf;
+    info->ref_length= table->sort.addon_length;
+  }
+  else
+  {
+    info->record= table->record[0];
+    info->ref_length= table->file->ref_length;
+  }
   info->select=select;
   info->print_error=print_error;
   info->ignore_not_found_rows= 0;
@@ -51,11 +62,12 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   if (select && my_b_inited(&select->file))
     tempfile= &select->file;
   else
-    tempfile= table->io_cache;
+    tempfile= table->sort.io_cache;
   if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
   {
     DBUG_PRINT("info",("using rr_from_tempfile"));
-    info->read_record=rr_from_tempfile;
+    info->read_record= (table->sort.addon_field ?
+                        rr_unpack_from_tempfile : rr_from_tempfile);
     info->io_cache=tempfile;
     reinit_io_cache(info->io_cache,READ_CACHE,0L,0,0);
     info->ref_pos=table->file->ref;
@@ -85,13 +97,15 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     DBUG_PRINT("info",("using rr_quick"));
     info->read_record=rr_quick;
   }
-  else if (table->record_pointers)
+  else if (table->sort.record_pointers)
   {
     DBUG_PRINT("info",("using record_pointers"));
     table->file->rnd_init(0);
-    info->cache_pos=table->record_pointers;
-    info->cache_end=info->cache_pos+ table->found_records*info->ref_length;
-    info->read_record= rr_from_pointers;
+    info->cache_pos=table->sort.record_pointers;
+    info->cache_end=info->cache_pos+ 
+                    table->sort.found_records*info->ref_length;
+    info->read_record= (table->sort.addon_field ?
+                        rr_unpack_from_buffer : rr_from_pointers);
   }
   else
   {
@@ -112,7 +126,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 
 
 void end_read_record(READ_RECORD *info)
-{					/* free cache if used */
+{                   /* free cache if used */
   if (info->cache)
   {
     my_free_lock((char*) info->cache,MYF(0));
@@ -120,6 +134,19 @@ void end_read_record(READ_RECORD *info)
   }
   if (info->table)
   {
+    TABLE *table= info->table;
+    if (table->sort.record_pointers)
+    {
+      my_free((gptr) table->sort.record_pointers,MYF(0));
+      table->sort.record_pointers=0;
+    }
+    if (table->sort.addon_buf)
+    {
+      my_free((char *) table->sort.addon_buf, MYF(0));
+      my_free((char *) table->sort.addon_field, MYF(MY_ALLOW_ZERO_PTR));
+      table->sort.addon_buf=0;
+      table->sort.addon_field=0;
+    }
     (void) info->file->extra(HA_EXTRA_NO_CACHE);
     (void) info->file->rnd_end();
     info->table=0;
@@ -200,6 +227,34 @@ tryNext:
 } /* rr_from_tempfile */
 
 
+/*
+  Read a result set record from a temporary file after sorting
+
+  SYNOPSIS
+    rr_unpack_from_tempfile()
+    info                Reference to the context including record descriptors
+
+  DESCRIPTION
+    The function first reads the next sorted record from the temporary file.
+    into a buffer. If a success it calls a callback function that unpacks 
+    the fields values use in the result set from this buffer into their
+    positions in the regular record buffer.
+
+  RETURN
+     0 - Record successfully read.
+    -1 - There is no record to be read anymore. 
+*/
+
+static int rr_unpack_from_tempfile(READ_RECORD *info)
+{
+  if (my_b_read(info->io_cache, info->rec_buf, info->ref_length))
+    return -1;
+  TABLE *table= info->table;
+  (*table->sort.unpack)(table->sort.addon_field, info->rec_buf);
+
+  return 0;
+}
+
 static int rr_from_pointers(READ_RECORD *info)
 {
   int tmp;
@@ -228,6 +283,34 @@ tryNext:
   return tmp;
 }
 
+/*
+  Read a result set record from a buffer after sorting
+
+  SYNOPSIS
+    rr_unpack_from_buffer()
+    info                   Reference to the context including record descriptors
+
+  DESCRIPTION
+    The function first reads the next sorted record from the sort buffer.
+    If a success it calls a callback function that unpacks 
+    the fields values use in the result set from this buffer into their
+    positions in the regular record buffer.
+
+  RETURN
+     0 - Record successfully read.
+    -1 - There is no record to be read anymore. 
+*/
+
+static int rr_unpack_from_buffer(READ_RECORD *info)
+{
+  if (info->cache_pos == info->cache_end)
+    return -1;                      /* End of buffer */
+  TABLE *table= info->table;
+  (*table->sort.unpack)(table->sort.addon_field, info->cache_pos);
+  info->cache_pos+= info->ref_length;
+
+  return 0;
+}
 	/* cacheing of records from a database */
 
 static int init_rr_cache(READ_RECORD *info)

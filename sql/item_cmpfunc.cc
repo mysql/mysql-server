@@ -1781,6 +1781,43 @@ longlong Item_func_isnull::val_int()
   return args[0]->is_null() ? 1: 0;
 }
 
+longlong Item_is_not_null_test::val_int()
+{
+  DBUG_ENTER("Item_is_not_null_test::val_int");
+  if (!used_tables_cache)
+  {
+    owner->was_null|= (!cached_value);
+    DBUG_PRINT("info", ("cached :%d", cached_value));
+    DBUG_RETURN(cached_value);
+  }
+  if (args[0]->is_null())
+  {
+    DBUG_PRINT("info", ("null"))
+    owner->was_null|= 1;
+    DBUG_RETURN(0);
+  }
+  else
+    DBUG_RETURN(1);
+}
+
+/* Optimize case of not_null_column IS NULL */
+void Item_is_not_null_test::update_used_tables()
+{
+  if (!args[0]->maybe_null)
+  {
+    used_tables_cache= 0;			/* is always true */
+    cached_value= (longlong) 1;
+  }
+  else
+  {
+    args[0]->update_used_tables();
+    if (!(used_tables_cache=args[0]->used_tables()))
+    {
+      /* Remember if the value is always NULL or never NULL */
+      cached_value= (longlong) !args[0]->is_null();
+    }
+  }
+}
 
 longlong Item_func_isnotnull::val_int()
 {
@@ -1870,7 +1907,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     {
       const char* tmp = first + 1;
       for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-      canDoTurboBM = tmp == last;
+      canDoTurboBM = (tmp == last) && !use_mb(args[0]->charset());
     }
 
     if (canDoTurboBM)

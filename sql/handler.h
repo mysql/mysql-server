@@ -117,6 +117,11 @@
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
 #define HA_MAX_REC_LENGTH	65535
 
+/* Table caching type */
+#define HA_CACHE_TBL_NONTRANSACT 0
+#define HA_CACHE_TBL_ASKTRANSACT 1
+#define HA_CACHE_TBL_TRANSACT    2
+
 enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
 	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
@@ -343,6 +348,16 @@ public:
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
 				     enum thr_lock_type lock_type)=0;
+
+  /* Type of table for caching query */
+  virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
+  /* 
+    Is query with this cable cachable (have sense only for ASKTRANSACT 
+    tables)
+  */
+  static bool caching_allowed(THD* thd, char* table_key, 
+			      uint key_length, uint8 cahe_type);
+
 };
 
 	/* Some extern variables used with handlers */

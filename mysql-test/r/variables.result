@@ -156,9 +156,9 @@ show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
 set character set cp1251_koi8;
-show variables like "client_collation";
+show variables like "collation_client";
 Variable_name	Value
-client_collation	cp1251_bulgarian_ci
+collation_client	cp1251_bulgarian_ci
 select @@timestamp>0;
 @@timestamp>0
 1
@@ -185,7 +185,7 @@ set SESSION query_cache_size=10000;
 Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set GLOBAL table_type=DEFAULT;
 Variable 'table_type' doesn't have a default value
-set client_collation=UNKNOWN_CHARACTER_SET;
+set collation_client=UNKNOWN_CHARACTER_SET;
 Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set global autocommit=1;
 Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL

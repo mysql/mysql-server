@@ -41,7 +41,9 @@ int main(int argc, char **argv)
 
   mysql_init(&mysql);
 #ifdef HAVE_OPENSSL
-  mysql_ssl_set(&mysql,"../SSL/MySQL-client-key.pem","../SSL/MySQL-client-cert.pem","../SSL/MySQL-ca-cert.pem","../SSL/");
+  mysql_ssl_set(&mysql,"../SSL/MySQL-client-key.pem",
+    "../SSL/MySQL-client-cert.pem",
+    "../SSL/MySQL-ca-cert.pem", 0, 0);
 #endif
   if (!(sock = mysql_real_connect(&mysql,"127.0.0.1",0,0,argv[1],3306,NULL,0)))
   {
@@ -49,7 +51,6 @@ int main(int argc, char **argv)
     perror("");
     exit(1);
   }
-  printf("Cipher:%s\n",mysql_ssl_cipher(&mysql));
   count = 0;
   num = atoi(argv[2]);
   while (count < num)
@@ -62,7 +63,7 @@ int main(int argc, char **argv)
     }
     if (!(res=mysql_store_result(sock)))
     {
-      fprintf(stderr,"Couldn't get result from query failed\n",
+      fprintf(stderr,"Couldn't get result from query failed (%s)\n",
 	      mysql_error(sock));
       exit(1);
     }

@@ -475,7 +475,7 @@ If thd is not in the autocommit state, this function also starts a new
 transaction for thd if there is no active trx yet, and assigns a consistent
 read view to it if there is no read view yet. */
 
-my_bool
+bool
 innobase_query_caching_of_table_permitted(
 /*======================================*/
 				/* out: TRUE if permitted, FALSE if not;
@@ -916,11 +916,11 @@ innobase_commit_low(
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
-                                        = active_mi->rli.master_log_name;
+                                        = active_mi->rli.group_master_log_name;
                 trx->mysql_master_log_pos = ((ib_longlong)
-					 (active_mi->rli.master_log_pos +
-					  active_mi->rli.event_len +
-					  active_mi->rli.pending));
+					 (active_mi->rli.group_master_log_pos +
+					  active_mi->rli.event_len
+                                          ));
         }
 #endif /* HAVE_REPLICATION */
         trx_commit_for_mysql(trx);

@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "13.5";
+const char *VER= "14.0";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -108,6 +108,7 @@ extern "C" {
 #include "completion_hash.h"
 
 #define PROMPT_CHAR '\\'
+#define DEFAULT_DELIMITER ";"
 
 typedef struct st_status
 {
@@ -137,8 +138,8 @@ static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
-            *current_prompt=0,
-	    *default_charset= (char*) MYSQL_CHARSET;
+            *current_prompt=0, *delimiter_str= 0,
+            *default_charset= (char*) MYSQL_CHARSET;
 static char *histfile;
 static String glob_buffer,old_buffer;
 static String processed_prompt;
@@ -160,6 +161,8 @@ static char pager[FN_REFLEN], outfile[FN_REFLEN];
 static FILE *PAGER, *OUTFILE;
 static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
+static char delimiter[16]= DEFAULT_DELIMITER;
+static uint delimiter_length= 1;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -187,7 +190,7 @@ static int com_quit(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
            com_notee(String *str, char*),
-           com_prompt(String *str, char*);
+           com_prompt(String *str, char*), com_delimiter(String *str, char*);
 
 #ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -255,7 +258,8 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
-
+  { "delimiter", 'd', com_delimiter,    1,
+    "Set query delimiter. " },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -312,7 +316,8 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
-
+  
+  delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
 			     "mysql> ",MYF(MY_WME));
@@ -482,6 +487,8 @@ static struct my_option my_long_options[] =
 #endif
   {"database", 'D', "Database to use.", (gptr*) &current_db,
    (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"delimiter", OPT_DELIMITER, "Delimiter to be used.", (gptr*) &delimiter_str,
+   (gptr*) &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
@@ -641,6 +648,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_CHARSETS_DIR:
     strmov(mysql_charsets_dir, argument);
     charsets_dir = mysql_charsets_dir;
+    break;
+  case OPT_DELIMITER:
+    if (argument == disabled_my_option)
+      strmov(delimiter, DEFAULT_DELIMITER);
+    else
+      strmake(delimiter, argument, sizeof(delimiter) - 1);
+    delimiter_length= strlen(delimiter);
+    delimiter_str= delimiter;
     break;
   case OPT_LOCAL_INFILE:
     using_opt_local_infile=1;
@@ -925,7 +940,7 @@ static COMMANDS *find_command (char *name,char cmd_char)
   {
     while (my_isspace(charset_info,*name))
       name++;
-    if (strchr(name,';') || strstr(name,"\\g"))
+    if (strstr(name, delimiter) || strstr(name, "\\g"))
       return ((COMMANDS *) 0);
     if ((end=strcont(name," \t")))
     {
@@ -958,7 +973,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
                      bool *ml_comment)
 {
   uchar inchar;
-  char buff[80],*pos,*out;
+  char buff[80], *pos, *out;
   COMMANDS *com;
 
   if (!line[0] && buffer.is_empty())
@@ -987,7 +1002,9 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }
 #endif
     if (!*ml_comment && inchar == '\\')
-    {					// mSQL or postgreSQL style command ?
+    {
+      // Found possbile one character command like \c
+
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
       if (*in_string || inchar == 'N')	// \N is short for NULL
@@ -1004,9 +1021,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	  return 1;				// Quit
 	if (com->takes_params)
 	{
-	  for (pos++ ; *pos && *pos != ';' ; pos++) ;	// Remove parameters
+	  for (pos++ ;
+	       *pos && (*pos != *delimiter ||
+			!is_prefix(pos + 1, delimiter + 1)) ; pos++)
+	    ;	// Remove parameters
 	  if (!*pos)
 	    pos--;
+	  else 
+	    pos+= delimiter_length - 1; // Point at last delim char
 	}
 	out=line;
       }
@@ -1020,31 +1042,37 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	continue;
       }
     }
-    else if (!*ml_comment && inchar == ';' && !*in_string)
-    {						// ';' is end of command
+
+    else if (!*ml_comment && (*pos == *delimiter &&
+			      is_prefix(pos + 1, delimiter + 1)) &&
+	     !*in_string)
+    {					
+      uint old_delimiter_length= delimiter_length;
       if (out != line)
-	buffer.append(line,(uint) (out-line));	// Add this line
-      if ((com=find_command(buffer.c_ptr(),0)))
+	buffer.append(line, (uint) (out - line));	// Add this line
+      if ((com= find_command(buffer.c_ptr(), 0)))
       {
-	if ((*com->func)(&buffer,buffer.c_ptr()) > 0)
+	if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
 	  return 1;				// Quit
       }
       else
       {
-	int error=com_go(&buffer,0);
+	int error= com_go(&buffer, 0);
 	if (error)
 	{
 	  return error < 0 ? 0 : 1;		// < 0 is not fatal
 	}
       }
       buffer.length(0);
-      out=line;
+      out= line;
+      pos+= old_delimiter_length - 1;
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
 			      inchar == '-' && pos[1] == '-' &&
 			      my_isspace(charset_info,pos[2]))))
       break;					// comment to end of line
-    else if (!*in_string && inchar == '/' && *(pos+1) == '*' && *(pos+2) != '!')
+    else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
+	     *(pos+2) != '!')
     {
       pos++;
       *ml_comment= 1;
@@ -2355,6 +2383,26 @@ static int com_source(String *buffer, char *line)
 
 	/* ARGSUSED */
 static int
+com_delimiter(String *buffer __attribute__((unused)), char *line)
+{
+  char buff[256], *tmp;
+
+  strmake(buff, line, sizeof(buff) - 1);
+  tmp= get_arg(buff, 0);
+
+  if (!tmp || !*tmp)
+  {
+    put_info("DELIMITER must be followed by a 'delimiter' character or string",
+	     INFO_ERROR);
+    return 0;
+  }
+  strmake(delimiter, tmp, sizeof(delimiter) - 1);
+  delimiter_length= strlen(delimiter);
+  return 0;
+}
+
+	/* ARGSUSED */
+static int
 com_use(String *buffer __attribute__((unused)), char *line)
 {
   char *tmp;
@@ -2416,16 +2464,15 @@ com_use(String *buffer __attribute__((unused)), char *line)
 
 char *get_arg(char *line, my_bool get_next_arg)
 {
-  char *ptr;
+  char *ptr, *start;
   my_bool quoted= 0, valid_arg= 0;
-  uint count= 0;
   char qtype= 0;
 
   ptr= line;
   if (get_next_arg)
   {
-    for (; ptr && *ptr; ptr++);
-    if ((ptr + 1) && *(ptr + 1))
+    for (; *ptr; ptr++) ;
+    if (*(ptr + 1))
       ptr++;
   }
   else
@@ -2448,18 +2495,12 @@ char *get_arg(char *line, my_bool get_next_arg)
     quoted= 1;
     ptr++;
   }
-  for (; ptr && *ptr; ptr++, count++)
+  for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\') // escaped character
+    if (*ptr == '\\' && ptr[1]) // escaped character
     {
-      // jump over the backslash
-      char *tmp_ptr, tmp_buff[256];
-      tmp_ptr= strmov(tmp_buff, (ptr - count));
-      tmp_ptr-= (strlen(tmp_buff) - count);
-      strmov(tmp_ptr, (ptr + 1));
-      strmov(line, tmp_buff);
-      ptr= line;
-      ptr+= count;
+      // Remove the backslash
+      strmov(ptr, ptr+1);
     }
     else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
@@ -2467,10 +2508,8 @@ char *get_arg(char *line, my_bool get_next_arg)
       break;
     }
   }
-  for (ptr-= count; ptr && *ptr; ptr++)
-    if (!my_isspace(charset_info, *ptr))
-      valid_arg= 1;
-  return valid_arg ? ptr - count : '\0';
+  valid_arg= ptr != start;
+  return valid_arg ? start : NullS;
 }
 
 
@@ -2512,7 +2551,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
-			  connect_flag))
+			  connect_flag | CLIENT_MULTI_QUERIES))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
@@ -2615,6 +2654,7 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
   tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
+  tee_fprintf(stdout, "Using delimiter:\t%s\n", delimiter);
   tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
