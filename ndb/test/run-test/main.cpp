@@ -211,7 +211,7 @@ started:
 		  (result == 0 ? "OK" : "FAILED"), result);
 
     if(g_report_file != 0){
-      fprintf(g_report_file, "%s %s ; %d ; %d ; %d\n",
+      fprintf(g_report_file, "%s %s ; %d ; %d ; %ld\n",
 	      test_case.m_command.c_str(),
 	      test_case.m_args.c_str(),
 	      test_no, result, elapsed);
@@ -447,7 +447,6 @@ setup_config(atrt_config& config){
       proc.m_proc.m_owner = "atrt";  
       proc.m_proc.m_group = "group";    
       proc.m_proc.m_cwd.assign(dir).append("/run/");
-      proc.m_proc.m_env.assfmt("LD_LIBRARY_PATH=%s/lib/mysql", dir.c_str());
       proc.m_proc.m_stdout = "log.out";
       proc.m_proc.m_stderr = "2>&1";
       proc.m_proc.m_runas = proc.m_host->m_user;
@@ -460,7 +459,7 @@ setup_config(atrt_config& config){
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndb_mgmd");
 	proc.m_proc.m_args = "-n -c initconfig.txt";
 	proc.m_proc.m_cwd.appfmt("%d.ndb_mgmd", index);
-	connect_string.appfmt(";host=%s:%d", 
+	connect_string.appfmt("host=%s:%d;", 
 			      proc.m_hostname.c_str(), proc.m_ndb_mgm_port);
       } else if(split1[0] == "ndb"){
 	proc.m_type = atrt_process::NDB_DB;
@@ -502,10 +501,10 @@ setup_config(atrt_config& config){
 
   // Setup connect string
   for(size_t i = 0; i<config.m_processes.size(); i++){
-    config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=nodeid=%d%s", 
-                                              i+1, connect_string.c_str());
+    config.m_processes[i].m_proc.m_env.assfmt("NDB_CONNECTSTRING=%s", 
+                                              connect_string.c_str());
   }
- 
+  
  end:
   fclose(f);
   return result;
@@ -791,6 +790,10 @@ update_status(atrt_config& config, int){
 		       proc.m_proc.m_id,
 		       proc.m_hostname.c_str(),
 		       proc.m_proc.m_path.c_str());
+	for(size_t j = 0; j<h_procs.size(); j++){
+	  g_logger.error("found: %d %s", h_procs[j].m_id, 
+			 h_procs[j].m_path.c_str());
+	}
 	return false;
       }
     }
