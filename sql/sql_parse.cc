@@ -554,7 +554,13 @@ check_connections(THD *thd)
   {
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout);
+    if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
+    {
+      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
+			   pkt_len));
+      inc_host_errors(&thd->remote.sin_addr);
+      return(ER_HANDSHAKE_ERROR);    
+    }
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
