@@ -2420,7 +2420,17 @@ void
 MgmtSrvr::backupCallback(BackupEvent & event)
 {
   m_lastBackupEvent = event;
-  theWaitState = NO_WAIT;
+  switch(event.Event){
+  case BackupEvent::BackupFailedToStart:
+  case BackupEvent::BackupAborted:
+  case BackupEvent::BackupCompleted:
+    theWaitState = NO_WAIT;
+    break;
+  case BackupEvent::BackupStarted:
+    if(theWaitState == WAIT_BACKUP_STARTED)
+      theWaitState = NO_WAIT;
+  }
+  return;
 }
 
 
