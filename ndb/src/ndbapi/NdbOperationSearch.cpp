@@ -118,6 +118,25 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     theTupleKeyDefined[i][2] = true;
 
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+    {
+      /***************************************************************************
+       *	Check if the pointer of the value passed is aligned on a 4 byte 
+       *      boundary. If so only assign the pointer to the internal variable 
+       *      aValue. If it is not aligned then we start by copying the value to 
+       *      tempData and use this as aValue instead.
+       *****************************************************************************/
+      const int attributeSize = sizeInBytes;
+      const int slack = sizeInBytes & 3;
+      
+      if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
+	memcpy(&tempData[0], aValue, attributeSize);
+	aValue = (char*)&tempData[0];
+	if(slack != 0) {
+	  char * tmp = (char*)&tempData[0];
+	  memset(&tmp[attributeSize], 0, (4 - slack));
+	}//if
+      }//if
+    }
     const char* aValueToWrite = aValue;
 
     CHARSET_INFO* cs = tAttrInfo->m_cs;
@@ -170,24 +189,9 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       theTupKeyLen = theTupKeyLen + tAttrLenInWords;
     }//if
 #endif
-    /***************************************************************************
-     *	Check if the pointer of the value passed is aligned on a 4 byte 
-     *      boundary. If so only assign the pointer to the internal variable 
-     *      aValue. If it is not aligned then we start by copying the value to 
-     *      tempData and use this as aValue instead.
-     *****************************************************************************/
-    const int attributeSize = sizeInBytes;
-    const int slack = sizeInBytes & 3;
+
     int tDistrKey = tAttrInfo->m_distributionKey;
     int tDistrGroup = tAttrInfo->m_distributionGroup;
-    if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
-      memcpy(&tempData[0], aValue, attributeSize);
-      aValue = (char*)&tempData[0];
-      if(slack != 0) {
-	char * tmp = (char*)&tempData[0];
-	memset(&tmp[attributeSize], 0, (4 - slack));
-      }//if
-    }//if
     OperationType tOpType = theOperationType;
     if ((tDistrKey != 1) && (tDistrGroup != 1)) {
       ;
