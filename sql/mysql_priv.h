@@ -799,6 +799,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
 extern double log_10[32];
+extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
 extern ulong created_tmp_tables, created_tmp_disk_tables, bytes_sent;
@@ -958,6 +959,8 @@ timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
+void make_truncated_value_warning(THD *thd, const char *str_val,
+				  uint str_length, timestamp_type time_type);
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);

@@ -1033,7 +1033,7 @@ void Item_func_substr::fix_length_and_dec()
   }
   if (arg_count == 3 && args[2]->const_item())
   {
-    int32 length= (int32) args[2]->val_int() * default_charset_info->mbmaxlen;
+    int32 length= (int32) args[2]->val_int() * collation.collation->mbmaxlen;
     if (length <= 0)
       max_length=0; /* purecov: inspected */
     else
@@ -2241,7 +2241,7 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
-int inline hexchar_to_int(char c)
+inline int hexchar_to_int(char c)
 {
   if (c <= '9' && c >= '0')
     return c-'0';
@@ -2721,7 +2721,7 @@ String *Item_func_uuid::val_str(String *str)
   {
     ulong tmp=sql_rnd_with_mutex();
     uchar mac[6];
-    int i;
+    unsigned int i;
     if (my_gethwaddr(mac))
     {
       /*
@@ -2754,7 +2754,14 @@ String *Item_func_uuid::val_str(String *str)
     tv++;
   }
   else
-    nanoseq=0;
+  {
+    if (nanoseq)
+    {
+      tv-=nanoseq;
+      nanoseq=0;
+    }
+    DBUG_ASSERT(tv > uuid_time);
+  }
   uuid_time=tv;
   pthread_mutex_unlock(&LOCK_uuid_generator);
 
