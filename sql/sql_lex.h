@@ -587,7 +587,7 @@ typedef struct st_lex
   List<LEX_COLUMN>    columns;
   List<Key>	      key_list;
   List<create_field>  create_list;
-  List<Item>	      *insert_list,field_list,value_list;
+  List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item_param>    param_list;
