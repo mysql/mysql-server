@@ -185,8 +185,10 @@ public:
   //Uint32 m_indexVersion;
   Uint32 m_errorCode;
   Uint32 m_errorLine;
-  Uint32 m_errorNode;
-
+  union {
+    Uint32 m_errorNode;
+    Uint32 masterNodeId;
+  };
 public:
   DropIndxConf* getConf() {
     return &m_conf;
