@@ -309,7 +309,7 @@ public:
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache);
+  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
   /*
     v stands for vector

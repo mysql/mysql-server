@@ -101,10 +101,9 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(9)
-master-bin.000001	253	Xid	1	#	COMMIT /* xid=59 */
-master-bin.000001	280	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	96	Query	1	#	use `test`; insert into t1 values(9)
+master-bin.000001	184	Xid	1	#	COMMIT /* xid=59 */
+master-bin.000001	211	Query	1	#	use `test`; insert into t2 select * from t1
 delete from t1;
 delete from t2;
 reset master;
@@ -113,21 +112,19 @@ begin;
 insert into t2 select * from t1;
 show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(10)
-master-bin.000001	254	Xid	1	#	COMMIT /* xid=65 */
-master-bin.000001	281	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	96	Query	1	#	use `test`; insert into t1 values(10)
+master-bin.000001	185	Xid	1	#	COMMIT /* xid=65 */
+master-bin.000001	212	Query	1	#	use `test`; insert into t2 select * from t1
 insert into t1 values(11);
 commit;
 show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(10)
-master-bin.000001	254	Xid	1	#	COMMIT /* xid=65 */
-master-bin.000001	281	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	376	Query	1	#	use `test`; BEGIN
-master-bin.000001	445	Query	1	#	use `test`; insert into t1 values(11)
-master-bin.000001	534	Xid	1	#	COMMIT /* xid=67 */
+master-bin.000001	96	Query	1	#	use `test`; insert into t1 values(10)
+master-bin.000001	185	Xid	1	#	COMMIT /* xid=65 */
+master-bin.000001	212	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	307	Query	1	#	use `test`; BEGIN
+master-bin.000001	376	Query	1	#	use `test`; insert into t1 values(11)
+master-bin.000001	465	Xid	1	#	COMMIT /* xid=67 */
 alter table t2 engine=INNODB;
 delete from t1;
 delete from t2;

@@ -7,6 +7,7 @@
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
+reset master;
 
 create table t1 (a int) engine=bdb;
 create table t2 (a int) engine=innodb;
@@ -17,6 +18,7 @@ begin;
 insert t2 values (5);
 commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
+--replace_result "xid=891" "xid=318" "xid=11" "xid=318" "xid=18" "xid=318"
 show binlog events from 96;
 reset master;
 drop table t1,t2;
