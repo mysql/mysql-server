@@ -337,7 +337,7 @@ MySQL language reference
 * LOAD DATA::                   @code{LOAD DATA INFILE} syntax
 * UPDATE::                      @code{UPDATE} syntax
 * USE::                         @code{USE} syntax
-* FLUSH::                       @code{Flush} syntax (clearing caches)
+* FLUSH::                       @code{FLUSH} syntax (clearing caches)
 * KILL::                        @code{KILL} syntax
 * SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
 * EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
@@ -35368,7 +35368,7 @@ replication between a master and many slaves.
 We are not adding any more new features that are likely to break any
 old code in @strong{MySQL} 3.23, so we recommend that you use this
 version.  The replication and BerkeleyDB code is still under development,
-though, so 3.23 is not relesed as a stable version yet.
+though, so 3.23 is not released as a stable version yet.
 
 @menu
 * News-3.23.23::                Changes in release 3.23.23
