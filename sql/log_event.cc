@@ -572,7 +572,7 @@ Load_log_event::Load_log_event(IO_CACHE* file, time_t when, uint32 server_id):
 }
 
 Load_log_event::Load_log_event(const char* buf, int event_len):
-  Log_event(when,0,0,server_id),data_buf(0),num_fields(0),fields(0),
+  Log_event(buf),data_buf(0),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
 {
