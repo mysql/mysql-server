@@ -182,7 +182,7 @@ uint calc_hashnr_caseup(const byte *key, uint len)
 #endif
 
 
-#ifndef __SUNPRO_C				/* SUNPRO can't handle this */
+#if !defined(__SUNPRO_C) && !defined(__USLC__) && !defined(__sgi) /* broken compilers */
 inline
 #endif
 unsigned int rec_hashnr(HASH *hash,const byte *record)
