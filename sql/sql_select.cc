@@ -2480,7 +2480,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->send_records=(ha_rows) 0;
   join->group=0;
   join->do_send_rows = 1;
-  join->row_limit=join->thd->select_limit;
+  join->row_limit=join->unit->select_limit_cnt;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -7119,7 +7119,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
-  thd->offset_limit=0;
+  join->unit->offset_limit_cnt= 0;
   if (thd->lex.select == select_lex)
   {
     field_list.push_back(new Item_empty_string("table",NAME_LEN));

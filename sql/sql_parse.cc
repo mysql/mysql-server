@@ -1809,7 +1809,7 @@ mysql_execute_command(void)
       tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
-      thd->select_limit=HA_POS_ERROR;
+      unit->select_limit_cnt= HA_POS_ERROR;
       if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
 	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
@@ -2776,7 +2776,7 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command=  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit= lex->select->master_union()->select_limit_cnt=
+  lex->select->select_limit= lex->select->master_unit()->select_limit_cnt=
     HA_POS_ERROR;
   lex->auxilliary_table_list= lex->select_lex.table_list;
   lex->select->init_query();
