@@ -55,7 +55,7 @@ SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
 SELECT (SELECT 1), a;
-ERROR 42S22: Unknown column 'a' in 'checking transformed subquery'
+ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 a
 1
@@ -999,7 +999,9 @@ drop table t1, t2;
 CREATE TABLE `t1` (`i` int(11) NOT NULL default '0',PRIMARY KEY  (`i`)) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
-ERROR HY000: Invalid use of group function
+select * from t1;
+i
+1
 drop table t1;
 CREATE TABLE t1 (a int(1));
 EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
@@ -1084,7 +1086,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) NOT NULL default '0',
-  `(SELECT a)` bigint(20) default NULL
+  `(SELECT a)` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
@@ -1102,7 +1104,7 @@ a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) default NULL
+  `a` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int);
@@ -1186,11 +1188,12 @@ PRIMARY KEY  (`i`)
 ) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
-ERROR HY000: Invalid use of group function
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
-ERROR HY000: Invalid use of group function
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
 ERROR 42S02: Unknown table 't' in field list
+select * from t1;
+i
+1
 drop table t1;
 CREATE TABLE t1 (
 id int(11) default NULL
