@@ -211,6 +211,8 @@ enum ha_base_keytype {
 #define HA_ERR_WRONG_TABLE_DEF	 143
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
+#define HA_ERR_LOCK_WAIT_TIMEOUT 146    
+#define HA_ERR_LOCK_TABLE_FULL   147
 
 	/* Other constants */
 

@@ -199,6 +199,11 @@ sub new
   {
     $limits{'max_text_size'}	= 8000; # Limit in Innobase
   }
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /type=gemini/i)
+  {
+    $limits{'working_blobs'}	= 0; # Blobs not implemented yet
+  }
 
   return $self;
 }

@@ -1377,7 +1377,7 @@ INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1008,"tucked",311,23
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1009,"gems",447,2374834,9872392);
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1010,"clinker",512,786542,76234234);
 
-create temporary table tmp select * from t3;
+create temporary table tmp type = myisam select * from t3;
 
 insert into t3 select * from tmp;
 insert into tmp select * from t3;

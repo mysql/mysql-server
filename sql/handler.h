@@ -72,6 +72,7 @@
 #define HA_DROP_BEFORE_CREATE	(HA_PRIMARY_KEY_IN_READ_INDEX*2)
 #define HA_NOT_READ_AFTER_KEY	(HA_DROP_BEFORE_CREATE*2)
 #define HA_NOT_DELETE_WITH_CACHE (HA_NOT_READ_AFTER_KEY*2)
+#define HA_NO_TEMP_TABLES       (HA_NOT_DELETE_WITH_CACHE*2)
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */
@@ -310,6 +311,17 @@ public:
 				     enum thr_lock_type lock_type)=0;
 };
 
+#ifdef HAVE_GEMINI_DB
+struct st_gemini
+{
+  void           *context;
+  unsigned long   savepoint;
+  bool            needSavepoint;
+  uint            tx_isolation;
+  uint            lock_count;
+};
+#endif
+
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
@@ -337,4 +349,4 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
-
+int ha_commit_rename(THD *thd);
