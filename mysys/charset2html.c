@@ -81,7 +81,7 @@ static void print_cs(CHARSET_INFO *cs)
     printf("<TR bgcolor=#%s>",clr ? "DDDDDD" : "EEEE99");
     printf("<TD>%02X",ch[i].cod);
     printf("<TD>%04X",ch[i].uni);
-    printf("<TD>%d",ch[i].srt);
+    printf("<TD>%02X",ch[i].srt);
     
     printf("<TD>%s%s%s%s%s%s%s%s",
     		ch[i].ctp & _U ? "U" : "",
