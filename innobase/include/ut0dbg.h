@@ -35,7 +35,11 @@ extern ulint*	ut_dbg_null_ptr;
 	   	fprintf(stderr,\
        "\nInnoDB: We intentionally generate a memory trap.\n");\
                 fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
+       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"\
+       "InnoDB: If you get repeated assertion failures or crashes, even\n"\
+       "InnoDB: immediately after the mysqld startup, there may be\n"\
+       "InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"\
+       "InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n");\
 		ut_dbg_stop_threads = TRUE;\
 		dbg_i = *(ut_dbg_null_ptr);\
 	   	if (dbg_i) {\
@@ -66,7 +70,11 @@ format characters */
 	   	fprintf(stderr,\
        "\nInnoDB: We intentionally generate a memory trap.\n");\
                 fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
+       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"\
+       "InnoDB: If you get repeated assertion failures or crashes, even\n"\
+       "InnoDB: immediately after the mysqld startup, there may be\n"\
+       "InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"\
+       "InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n");\
 		ut_dbg_stop_threads = TRUE;\
 		dbg_i = *(ut_dbg_null_ptr);\
 	   	if (dbg_i) {\
@@ -90,7 +98,11 @@ format characters */
 	   fprintf(stderr,\
 		   "InnoDB: We intentionally generate a memory trap.\n");\
            fprintf(stderr,\
-            "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
+            "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"\
+       "InnoDB: If you get repeated assertion failures or crashes, even\n"\
+       "InnoDB: immediately after the mysqld startup, there may be\n"\
+       "InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"\
+       "InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n");\
 	   ut_dbg_stop_threads = TRUE;\
 	   dbg_i = *(ut_dbg_null_ptr);\
 	   printf("%lu", dbg_i);\
