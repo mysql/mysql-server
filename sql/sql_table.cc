@@ -327,18 +327,28 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   }
 
   /* Create keys */
+
   List_iterator<Key> key_iterator(keys);
   uint key_parts=0,key_count=keys.elements;
-  bool primary_key=0,unique_key=0;
+  List<Key> keys_in_order;			// Add new keys here
+  Key *primary_key=0;
+  bool unique_key=0;
   Key *key;
   uint tmp;
   tmp=min(file->max_keys(), MAX_KEY);
-
   if (key_count > tmp)
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
     DBUG_RETURN(-1);
   }
+
+  /*
+    Check keys;
+    Put PRIMARY KEY first, then UNIQUE keys and other keys last
+    This will make checking for duplicated keys faster and ensure that
+    primary keys are prioritized.
+  */
+
   while ((key=key_iterator++))
   {
     tmp=max(file->max_key_parts(),MAX_REF_PARTS);
@@ -353,17 +363,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_RETURN(-1);
     }
     key_parts+=key->columns.elements;
-  }
-  key_info_buffer=key_info=(KEY*) sql_calloc(sizeof(KEY)*key_count);
-  key_part_info=(KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO)*key_parts);
-  if (!key_info_buffer || ! key_part_info)
-    DBUG_RETURN(-1);				// Out of memory
-
-  key_iterator.rewind();
-  for (; (key=key_iterator++) ; key_info++)
-  {
-    uint key_length=0;
-    key_part_spec *column;
     if (key->type == Key::PRIMARY)
     {
       if (primary_key)
@@ -371,10 +370,39 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	my_error(ER_MULTIPLE_PRI_KEY,MYF(0));
 	DBUG_RETURN(-1);
       }
-      primary_key=1;
+      primary_key=key;
     }
     else if (key->type == Key::UNIQUE)
+    {
       unique_key=1;
+      if (keys_in_order.push_front(key))
+	DBUG_RETURN(-1);
+    }
+    else if (keys_in_order.push_back(key))
+      DBUG_RETURN(-1);
+  }
+  if (primary_key)
+  {
+    if (keys_in_order.push_front(primary_key))
+      DBUG_RETURN(-1);
+  }
+  else if (!unique_key && (file->option_flag() & HA_REQUIRE_PRIMARY_KEY))
+  {
+    my_error(ER_REQUIRES_PRIMARY_KEY,MYF(0));
+    DBUG_RETURN(-1);
+  }
+
+  key_info_buffer=key_info=(KEY*) sql_calloc(sizeof(KEY)*key_count);
+  key_part_info=(KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO)*key_parts);
+  if (!key_info_buffer || ! key_part_info)
+    DBUG_RETURN(-1);				// Out of memory
+
+  List_iterator<Key> key_iterator_in_order(keys_in_order);
+  for (; (key=key_iterator_in_order++) ; key_info++)
+  {
+    uint key_length=0;
+    key_part_spec *column;
+
     key_info->flags= (key->type == Key::MULTIPLE) ? 0 :
                      (key->type == Key::FULLTEXT) ? HA_FULLTEXT : HA_NOSAME;
     key_info->key_parts=(uint8) key->columns.elements;
@@ -506,12 +534,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (auto_increment > 0)
   {
     my_error(ER_WRONG_AUTO_KEY,MYF(0));
-    DBUG_RETURN(-1);
-  }
-  if (!primary_key && !unique_key &&
-      (file->option_flag() & HA_REQUIRE_PRIMARY_KEY))
-  {
-    my_error(ER_REQUIRES_PRIMARY_KEY,MYF(0));
     DBUG_RETURN(-1);
   }
 
