@@ -141,13 +141,13 @@ Instance_map::~Instance_map()
 
 int Instance_map::lock()
 {
-  pthread_mutex_lock(&LOCK_instance_map);
+  return pthread_mutex_lock(&LOCK_instance_map);
 }
 
 
 int Instance_map::unlock()
 {
-  pthread_mutex_unlock(&LOCK_instance_map);
+  return pthread_mutex_unlock(&LOCK_instance_map);
 }
 
 
