@@ -810,6 +810,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
       goto error;
     }
     (void)write_meta_file(meta_file, rows_recorded, TRUE);
+    my_close(meta_file,MYF(0));
     rc= 0;
   }
 
