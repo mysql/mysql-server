@@ -7132,17 +7132,17 @@ If you want to use the @code{MySQL-Max} RPM, you must first
 install the standard @code{MySQL} RPM.
 
 @item
-If you want to configure @code{mysqld} with some extra feature that are NOT in
-the standard binary distributions.  Here is a list of the most common
-extra options that you may want to use:
+If you want to configure @code{mysqld} with some extra features that are 
+NOT in the standard binary distributions.  Here is a list of the most 
+common extra options that you may want to use:
 
-@itemize @bullet
-@item --with-berkeley-db
-@item --with-innodb
-@item --with-raid
-@item --with-libwrap
-@item --with-named-z-lib  (This is done for some of the binaries)
-@item --with-debug[=full]
+@itemize
+@item @code{--with-berkeley-db}
+@item @code{--with-innodb}
+@item @code{--with-raid}
+@item @code{--with-libwrap}
+@item @code{--with-named-z-lib  (This is done for some of the binaries)}
+@item @code{--with-debug[=full]}
 @end itemize
 
 @item
@@ -21722,27 +21722,64 @@ by executing @code{mysqladmin --help}.
 
 The current @code{mysqladmin} supports the following commands:
 
-@multitable @columnfractions .3 .7
-@item create databasename @tab Create a new database.
-@item drop databasename  @tab Delete a database and all its tables.
-@item extended-status @tab Gives an extended status message from the server.
-@item flush-hosts @tab Flush all cached hosts.
-@item flush-logs @tab Flush all logs.
-@item flush-tables @tab Flush all tables.
-@item flush-privileges @tab Reload grant tables (same as reload).
-@item kill id,id,...  @tab Kill mysql threads.
-@item password @tab New-password. Change old password to new-password.
-@item ping @tab Check if @code{mysqld} is alive.
-@item processlist @tab Show list of active threads in server.
-@item reload @tab Reload grant tables.
-@item refresh @tab Flush all tables and close and open logfiles.
-@item shutdown @tab Take server down.
-@item slave-start @tab Start slave replication thread.
-@item slave-stop @tab Stop slave replication thread.
-@item status @tab Gives a short status message from the server.
-@item variables @tab Prints variables available.
-@item version @tab Get version info from server.
-@end multitable
+@table @code
+@item create databasename
+Create a new database.
+
+@item drop databasename
+Delete a database and all its tables.
+
+@item extended-status
+Gives an extended status message from the server.
+
+@item flush-hosts
+Flush all cached hosts.
+
+@item flush-logs
+Flush all logs.
+
+@item flush-tables
+Flush all tables.
+
+@item flush-privileges
+Reload grant tables (same as reload).
+
+@item kill id,id,...
+Kill mysql threads.
+
+@item password
+Set a new password. Change old password to new-password.
+
+@item ping
+Check if mysqld is alive.
+
+@item processlist
+Show list of active threads in server.
+
+@item reload
+Reload grant tables.
+
+@item refresh
+Flush all tables and close and open logfiles.
+
+@item shutdown
+Take server down.
+
+@item slave-start
+Start slave replication thread.
+
+@item slave-stop
+Stop slave replication thread.
+
+@item status
+Gives a short status message from the server.
+
+@item variables
+Prints variables available.
+
+@item version
+Get version info from server.
+@end table
 
 All commands can be shortened to their unique prefix.  For example:
 
@@ -23126,7 +23163,7 @@ Updates to a database with a different name than the original (Example:
 Tells the slave server not to start the slave on the startup.  The user
 can start it later with @code{SLAVE START}.
 
-@item @code{slave_read_timeout=#}
+@item @code{slave_read_timeout=#} @tab
 Number of seconds to wait for more data from the master before aborting
 the read.
 @end multitable
@@ -23527,7 +23564,7 @@ it is a bug, read below on how to report it.
 If a query on that succeeded on the master refuses to run on the slave, and
 a full database resync ( the proper thing to do ) does not seem feasible,
 try the following:
-@itemize bullet
+@itemize @minus
 @item
 First see if there is some stray record in the way. Understand how it got
 there, then delete it and run @code{SLAVE START}
@@ -23592,7 +23629,7 @@ a log of all updates on the slave.
 Save all evidence before resetting the replication. If we have no or only
 sketchy information, it would take us a while to track down the problem. The
 evidence you should collect is:
-@itemize @bullet
+@itemize @minus
 @item
 All binary logs on the master
 @item
