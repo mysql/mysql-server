@@ -3730,8 +3730,8 @@ int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
 
 
 
-extern "C" byte* ndb_tables_get_key(const char *entry, uint *length,
-				   my_bool not_used __attribute__((unused)))
+extern "C" byte* tables_get_key(const char *entry, uint *length,
+				my_bool not_used __attribute__((unused)))
 {
   *length= strlen(entry);
   return (byte*) entry;
@@ -3739,43 +3739,49 @@ extern "C" byte* ndb_tables_get_key(const char *entry, uint *length,
 
 
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
-			  const char *wild, bool dir)
+			  const char *wild, bool dir, List<char> *files)
 {
   uint i;
-  NdbDictionary::Dictionary::List list;
   Ndb* ndb;
   char name[FN_REFLEN];
-  HASH ndb_tables;
-  DBUG_ENTER("ndbcluster_list_tables");
+  HASH ndb_tables, ok_tables;
+  NdbDictionary::Dictionary::List list;
+  DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   if (dir)
-    DBUG_RETURN(0); // Discover of databases not yet discovered
+    DBUG_RETURN(0); // Discover of databases not yet supported
 
-  if (hash_init(&ndb_tables, system_charset_info,32,0,0,
-		(hash_get_key)ndb_tables_get_key,0,0))
-  {
-    DBUG_PRINT("info", ("Failed to init HASH ndb_tables"));
-    DBUG_RETURN(-1);
-  }
-
-  /* List tables in NDB Cluster kernel    */  
+  // List tables in NDB
   NDBDICT *dict= ndb->getDictionary();
   if (dict->listObjects(list, 
 			NdbDictionary::Object::UserTable) != 0)
     ERR_RETURN(dict->getNdbError());
 
+  if (hash_init(&ndb_tables, system_charset_info,list.count,0,0,
+		(hash_get_key)tables_get_key,0,0))
+  {
+    DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
+    DBUG_RETURN(-1);
+  }
+
+  if (hash_init(&ok_tables, system_charset_info,32,0,0,
+		(hash_get_key)tables_get_key,0,0))
+  {
+    DBUG_PRINT("error", ("Failed to init HASH ok_tables"));
+    hash_free(&ndb_tables);
+    DBUG_RETURN(-1);
+  }  
+
   for (i= 0 ; i < list.count ; i++)
   {
     NdbDictionary::Dictionary::List::Element& t= list.elements[i];
-    DBUG_PRINT("discover", ("%d, %s/%s", t.id, t.database, t.name));     
-    if (my_hash_insert(&ndb_tables, (byte*)thd->strdup(t.name)))
-       continue;
+    DBUG_PRINT("info", ("Found %s/%s in NDB", t.database, t.name));     
 
-    // Only discover files that fullfill wildcard
+    // Apply wildcard to list of tables in NDB
     if (wild)
     {
       if (lower_case_table_names)
@@ -3786,66 +3792,97 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       else if (wild_compare(t.name,wild,0))
 	continue;
     }
-
-    // Discover the file if it does not already exists on disk    
-    (void)strxnmov(name, FN_REFLEN, 
-		   mysql_data_home,"/",t.database,"/",t.name,reg_ext,NullS);
-    DBUG_PRINT("discover", ("Check access for %s", name));
-    if (access(name, F_OK))
-    {	
-      DBUG_PRINT("discover", ("Table %s need disocver", name));
-      pthread_mutex_lock(&LOCK_open);
-      ha_create_table_from_engine(thd, t.database, t.name, true);
-      pthread_mutex_unlock(&LOCK_open);      
-    }
+    DBUG_PRINT("info", ("Inserting %s into ndb_tables hash", t.name));     
+    my_hash_insert(&ndb_tables, (byte*)thd->strdup(t.name));
   }
 
-  /*
-    Find all .ndb files in current dir and check 
-    if they still exists in NDB
-  */
-  char *ext;
-  MY_DIR *dirp;
-  FILEINFO *file;
-  
-  if (!(dirp= my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
-    DBUG_RETURN(-1);
-
-  for (i= 0; i < (uint)dirp->number_off_files; i++)
+  char *file_name;
+  List_iterator<char> it(*files);
+  List<char> delete_list;
+  while ((file_name=it++))
   {
-    file= dirp->dir_entry+i;
+    DBUG_PRINT("info", ("%s", file_name));     
+    if (hash_search(&ndb_tables, file_name, strlen(file_name)))
     {
-      ext= fn_ext(file->name);
-      if(!my_strcasecmp(system_charset_info, ext, ha_ndb_ext))
-      {
-	DBUG_PRINT("discover", ("Found file: %s", file->name));
-	*ext= 0;
+      DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name));
+      // File existed in NDB and as frm file, put in ok_tables list
+      my_hash_insert(&ok_tables, (byte*)file_name);
+      continue;
+    }
+    
+    // File is not in NDB, check for .ndb file with this name
+    (void)strxnmov(name, FN_REFLEN, 
+		   mysql_data_home,"/",db,"/",file_name,ha_ndb_ext,NullS);
+    DBUG_PRINT("info", ("Check access for %s", name));
+    if (access(name, F_OK))
+    {
+      DBUG_PRINT("info", ("%s did not exist on disk", name));     
+      // .ndb file did not exist on disk, another table type
+      continue;
+    }
 
-	if (hash_search(&ndb_tables, file->name, strlen(file->name)))
-	  continue;
-
-	DBUG_PRINT("discover", ("File didn't exist in ndb_tables list"));
-
-	// Verify that handler agrees table is gone.
-	if (ndbcluster_table_exists(thd, db, file->name) == 0)
-	{
-	  DBUG_PRINT("discover", ("Remove table %s/%s",db, file->name ));
-	  // Delete the table and all related files
-	  TABLE_LIST table_list;
-	  bzero((char*) &table_list,sizeof(table_list));
-	  table_list.db= (char*) db;
-	  table_list.real_name=(char*)file->name;
-	  (void)mysql_rm_table_part2_with_lock(thd, &table_list, 
-					       /* if_exists */ true, 
-					       /* drop_temporary */ false, 
-					       /* dont_log_query*/ true);
-	}
-      }      
+    DBUG_PRINT("info", ("%s existed on disk", name));     
+    // The .ndb file exists on disk, but it's not in list of tables in ndb
+    // Verify that handler agrees table is gone.
+    if (ndbcluster_table_exists(thd, db, file_name) == 0)    
+    {
+      DBUG_PRINT("info", ("NDB says %s does not exists", file_name));     
+      it.remove();
+      // Put in list of tables to remove from disk
+      delete_list.push_back(thd->strdup(file_name));
     }
   }
 
+  // Check for new files to discover
+  DBUG_PRINT("info", ("Checking for new files to discover"));       
+  List<char> create_list;
+  for (i= 0 ; i < ndb_tables.records ; i++)
+  {
+    file_name= hash_element(&ndb_tables, i);
+    if (!hash_search(&ok_tables, file_name, strlen(file_name)))
+    {
+      DBUG_PRINT("info", ("%s must be discovered", file_name));       
+      // File is in list of ndb tables and not in ok_tables
+      // This table need to be created
+      create_list.push_back(thd->strdup(file_name));
+    }
+  }
+
+  // Lock mutex before deleting and creating frm files
+  pthread_mutex_lock(&LOCK_open);
+
+  if (!global_read_lock)
+  {
+    // Delete old files
+    List_iterator_fast<char> it3(delete_list);
+    while ((file_name=it3++))
+    {  
+      DBUG_PRINT("info", ("Remove table %s/%s",db, file_name ));
+      // Delete the table and all related files
+      TABLE_LIST table_list;
+      bzero((char*) &table_list,sizeof(table_list));
+      table_list.db= (char*) db;
+      table_list.real_name=(char*)file_name;
+      (void)mysql_rm_table_part2(thd, &table_list, 
+				 /* if_exists */ true, 
+				 /* drop_temporary */ false, 
+				 /* dont_log_query*/ true);
+    }
+  }
+
+  // Create new files
+  List_iterator_fast<char> it2(create_list);
+  while ((file_name=it2++))
+  {  
+    DBUG_PRINT("info", ("Table %s need discovery", name));
+    ha_create_table_from_engine(thd, db, file_name, true);    
+    files->push_back(thd->strdup(file_name)); 
+  }
+
+  pthread_mutex_unlock(&LOCK_open);      
+  
+  hash_free(&ok_tables);
   hash_free(&ndb_tables);
-  my_dirend(dirp);
   DBUG_RETURN(0);    
 }
 
