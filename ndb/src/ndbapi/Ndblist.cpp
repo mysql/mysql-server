@@ -29,24 +29,31 @@
 void
 Ndb::checkFailedNode()
 {
-  for (NodeId i = 0; i < theNoOfDBnodes; i ++){
+  DBUG_ENTER("Ndb::checkFailedNode");
+  DBUG_PRINT("enter", ("theNoOfDBnodes: %d"));
+
+  DBUG_ASSERT(theNoOfDBnodes < MAX_NDB_NODES);
+  for (int i = 0; i < theNoOfDBnodes; i++){
     const NodeId node_id = theDBnodes[i];
+    DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
-    NdbConnection * tNdbCon = theConnectionArray[node_id];
+    DBUG_ASSERT(node_id < MAX_NDB_NODES);    
     if (the_release_ind[node_id] == 1){
 
       /**
        * Release all connections in idle list (for node)
        */
+      NdbConnection * tNdbCon = theConnectionArray[node_id];
       theConnectionArray[node_id] = NULL;
       while (tNdbCon != NULL) {
         NdbConnection* tempNdbCon = tNdbCon;
         tNdbCon = tNdbCon->next();
         releaseNdbCon(tempNdbCon);
-      }//while      
+      }
       the_release_ind[node_id] = 0;
-    }//if
-  }//for
+    }
+  }
+  DBUG_VOID_RETURN;
 }
 
 #if 0
