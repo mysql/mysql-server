@@ -67,7 +67,7 @@ Configuration::init(int argc, const char** argv){
       "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd", "" },
     { "daemon", 'd', arg_flag, &_deamon, "Start ndbd as daemon", "" },
     { "initial", 'i', arg_flag, &_initial,
-      "Perform initial start of ndbd, e.g. clean file system. Consult documentation before using this", "" },
+      "Perform initial start of ndbd, including cleaning the file system. Consult documentation before using this", "" },
 
     { "connect-string", 'c', arg_string, &_connect_str,
       "Set connect string for connecting to ndb_mgmd. <constr>=\"host=<hostname:port>[;nodeid=<id>]\". Overides specifying entries in NDB_CONNECTSTRING and config file",
