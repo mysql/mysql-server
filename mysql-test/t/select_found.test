@@ -9,6 +9,8 @@ select SQL_CALC_FOUND_ROWS * from t1;
 select found_rows();
 select SQL_CALC_FOUND_ROWS * from t1 limit 1;
 select found_rows();
+select SQL_BUFFER_RESULT SQL_CALC_FOUND_ROWS * from t1 limit 1;
+select found_rows();
 select SQL_CALC_FOUND_ROWS * from t1 order by b desc limit 1;
 select found_rows();
 select SQL_CALC_FOUND_ROWS distinct b from t1 limit 1;
