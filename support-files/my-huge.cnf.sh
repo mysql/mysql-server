@@ -48,7 +48,7 @@ thread_concurrency = 8
 
 # Replication Master Server (default)
 # binary logging is required for replication
-log-bin
+log-bin=mysql-bin
 
 # required unique id between 1 and 2^32 - 1
 # defaults to 1 if master-host is not set
@@ -108,7 +108,7 @@ server-id	= 1
 #master-port     =  <port>
 #
 # binary logging - not required for slaves, but recommended
-#log-bin
+#log-bin=mysql-bin
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		
