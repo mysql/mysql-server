@@ -55,7 +55,6 @@ TODO:
 #include "mysys_err.h"
 static void my_aiowait(my_aio_result *result);
 #endif
-#include <assert.h>
 #include <errno.h>
 
 #ifdef THREAD

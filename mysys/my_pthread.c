@@ -23,7 +23,6 @@
 #include <signal.h>
 #include <m_string.h>
 #include <thr_alarm.h>
-#include <assert.h>
 
 #if (defined(__BSD__) || defined(_BSDI_VERSION)) && !defined(HAVE_mit_thread)
 #define SCHED_POLICY SCHED_RR
