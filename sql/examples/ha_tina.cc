@@ -43,6 +43,9 @@ TODO:
 #endif
 
 #include "mysql_priv.h"
+
+#ifdef HAVE_CSV_DB
+
 #include "ha_tina.h"
 #include <sys/mman.h>
 
@@ -844,3 +847,5 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_i
 
   DBUG_RETURN(0);
 }
+
+#endif /* enable CSV */
