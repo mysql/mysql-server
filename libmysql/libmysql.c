@@ -1509,7 +1509,7 @@ ulong STDCALL mysql_thread_id(MYSQL *mysql)
 
 const char * STDCALL mysql_character_set_name(MYSQL *mysql)
 {
-  return mysql->charset->name;
+  return mysql->charset->csname;
 }
 
 
