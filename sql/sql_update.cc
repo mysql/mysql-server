@@ -38,15 +38,15 @@ static bool compare_record(TABLE *table, ulong query_id)
   if (memcmp(table->null_flags,
 	     table->null_flags+table->rec_buff_length,
 	     table->null_bytes))
-    return 1;					// Diff in NULL value
+    return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
     if ((*ptr)->query_id == query_id &&
 	(*ptr)->cmp_binary_offset(table->rec_buff_length))
-      return 1;
+      return TRUE;
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -86,21 +86,21 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
-int mysql_update(THD *thd,
-                 TABLE_LIST *table_list,
-                 List<Item> &fields,
-		 List<Item> &values,
-                 COND *conds,
-                 uint order_num, ORDER *order,
-		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates)
+bool mysql_update(THD *thd,
+                  TABLE_LIST *table_list,
+                  List<Item> &fields,
+                  List<Item> &values,
+                  COND *conds,
+                  uint order_num, ORDER *order,
+                  ha_rows limit,
+                  enum enum_duplicates handle_duplicates)
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   bool          ignore_err= (thd->lex->duplicates == DUP_IGNORE);
+  bool          res;
   int		error=0;
-  int           res;
   uint		used_index;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
@@ -111,13 +111,14 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
+  SELECT_LEX    *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if ((error= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(error);
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(TRUE);
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -132,8 +133,8 @@ int mysql_update(THD *thd,
                    table_list->grant.want_privilege :
                    table->grant.want_privilege);
 #endif
-  if ((error= mysql_prepare_update(thd, table_list, &conds, order_num, order)))
-    DBUG_RETURN(error);
+  if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
+    DBUG_RETURN(TRUE);
 
   old_used_keys= table->used_keys;		// Keys used in WHERE
   /*
@@ -151,20 +152,20 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
 #endif
   {
-    thd->lex->select_lex.no_wrap_view_item= 1;
+    select_lex->no_wrap_view_item= 1;
     res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
-    thd->lex->select_lex.no_wrap_view_item= 0;
+    select_lex->no_wrap_view_item= 0;
     if (res)
-      DBUG_RETURN(-1);				/* purecov: inspected */
+      DBUG_RETURN(TRUE);			/* purecov: inspected */
   }
   if (table_list->view && check_fields(thd, fields))
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (table->timestamp_field)
   {
@@ -182,8 +183,8 @@ int mysql_update(THD *thd,
 #endif
   if (setup_fields(thd, 0, table_list, values, 0, 0, 0))
   {
-    free_underlaid_joins(thd, &thd->lex->select_lex);
-    DBUG_RETURN(-1);				/* purecov: inspected */
+    free_underlaid_joins(thd, select_lex);
+    DBUG_RETURN(TRUE);				/* purecov: inspected */
   }
 
   // Don't count on usage of 'only index' when calculating which key to use
@@ -193,13 +194,13 @@ int mysql_update(THD *thd,
       (select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
-    free_underlaid_joins(thd, &thd->lex->select_lex);
+    free_underlaid_joins(thd, select_lex);
     if (error)
     {
-      DBUG_RETURN(-1);				// Error in where
+      DBUG_RETURN(TRUE);				// Error in where
     }
     send_ok(thd);				// No matching records
-    DBUG_RETURN(0);
+    DBUG_RETURN(FALSE);
   }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -212,7 +213,7 @@ int mysql_update(THD *thd,
       goto err;
     }
   }
-  init_ftfuncs(thd, &thd->lex->select_lex, 1);
+  init_ftfuncs(thd, select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   
   if (select && select->quick)
@@ -361,8 +362,9 @@ int mysql_update(THD *thd,
     if (!(select && select->skip_record()))
     {
       store_record(table,record[1]);
-      if (fill_record(fields,values, 0) || thd->net.report_error)
+      if (fill_record(thd, fields, values, 0))
 	break; /* purecov: inspected */
+
       found++;
 
       if (table->triggers)
@@ -455,10 +457,8 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
-  free_underlaid_joins(thd, &thd->lex->select_lex);
-  if (error >= 0)
-    send_error(thd,thd->killed_errno()); /* purecov: inspected */
-  else
+  free_underlaid_joins(thd, select_lex);
+  if (error < 0)
   {
     char buff[80];
     sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
@@ -472,18 +472,18 @@ int mysql_update(THD *thd,
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
   free_io_cache(table);
-  DBUG_RETURN(0);
+  DBUG_RETURN(error >= 0 || thd->net.report_error);
 
 err:
   delete select;
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, select_lex);
   if (table->key_read)
   {
     table->key_read=0;
     table->file->extra(HA_EXTRA_NO_KEYREAD);
   }
   thd->abort_on_warning= 0;
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 /*
@@ -498,11 +498,10 @@ err:
     order		- ORDER BY clause list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    FALSE OK
+    TRUE  error
 */
-int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
+bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   TABLE *table= table_list->table;
@@ -526,16 +525,16 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
       setup_order(thd, select_lex->ref_pointer_array,
 		  table_list, all_fields, all_fields, order) ||
       setup_ftfuncs(select_lex))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   /* Check that we are not using table that we are updating in a sub select */
   if (unique_table(table_list, table_list->next_global))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -568,11 +567,11 @@ static table_map get_table_map(List<Item> *items)
     thd         thread handler
 
   RETURN
-    0   OK
-    -1  Error
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_multi_update_prepare(THD *thd)
+bool mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   ulong opened_tables;
@@ -589,7 +588,7 @@ int mysql_multi_update_prepare(THD *thd)
   /* open tables and create derived ones, but do not lock and fill them */
   if (open_tables(thd, table_list, & table_count) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+    DBUG_RETURN(TRUE);
   /*
     Ensure that we have update privilege for all tables and columns in the
     SET part
@@ -618,7 +617,7 @@ int mysql_multi_update_prepare(THD *thd)
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
        lex->select_lex.no_wrap_view_item= 0,
        res))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   for (tl= table_list; tl ; tl= tl->next_local)
   {
@@ -631,7 +630,7 @@ int mysql_multi_update_prepare(THD *thd)
 
   if (update_view && check_fields(thd, *fields))
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   tables_for_update= get_table_map(fields);
@@ -657,7 +656,7 @@ int mysql_multi_update_prepare(THD *thd)
       if (!tl->updatable || check_key_in_view(thd, tl))
       {
         my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
-        DBUG_RETURN(-1);
+        DBUG_RETURN(TRUE);
       }
 
       /*
@@ -668,7 +667,7 @@ int mysql_multi_update_prepare(THD *thd)
                                                          tl->real_name))
       {
         my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->real_name);
-        DBUG_RETURN(-1);
+        DBUG_RETURN(TRUE);
       }
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
       tl->lock_type= lex->multi_lock_option;
@@ -687,7 +686,7 @@ int mysql_multi_update_prepare(THD *thd)
   opened_tables= thd->status_var.opened_tables;
   /* now lock and fill tables */
   if (lock_tables(thd, table_list, table_count))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1);
+    DBUG_RETURN(TRUE);
 
   /*
     we have to re-call fixfields for fixed items, because lock maybe
@@ -718,12 +717,12 @@ int mysql_multi_update_prepare(THD *thd)
          res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
          lex->select_lex.no_wrap_view_item= 0,
          res))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1);
-  DBUG_RETURN (0);
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN (FALSE);
 }
 
 
@@ -731,25 +730,25 @@ int mysql_multi_update_prepare(THD *thd)
   Setup multi-update handling and call SELECT to do the join
 */
 
-int mysql_multi_update(THD *thd,
-		       TABLE_LIST *table_list,
-		       List<Item> *fields,
-		       List<Item> *values,
-		       COND *conds,
-		       ulong options,
-		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+bool mysql_multi_update(THD *thd,
+                        TABLE_LIST *table_list,
+                        List<Item> *fields,
+                        List<Item> *values,
+                        COND *conds,
+                        ulong options,
+                        enum enum_duplicates handle_duplicates,
+                        SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
-  int res;
+  bool res;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res= mysql_multi_update_prepare(thd)))
-    DBUG_RETURN(res);
+  if (mysql_multi_update_prepare(thd))
+    DBUG_RETURN(TRUE);
 
   if (!(result= new multi_update(thd, table_list, fields, values,
 				 handle_duplicates)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   thd->no_trans_update= 0;
   thd->abort_on_warning= test(thd->variables.sql_mode &
@@ -766,7 +765,7 @@ int mysql_multi_update(THD *thd,
 		    result, unit, select_lex);
   delete result;
   thd->abort_on_warning= 0;
-  DBUG_RETURN(res);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -804,7 +803,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   if (!tables_to_update)
   {
-    my_error(ER_NO_TABLES_USED, MYF(0));
+    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -1016,7 +1015,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
   case JT_SYSTEM:
   case JT_CONST:
   case JT_EQ_REF:
-    return 1;					// At most one matching row
+    return TRUE;				// At most one matching row
   case JT_REF:
     return !check_if_key_used(table, join_tab->ref.key, *fields);
   case JT_ALL:
@@ -1027,11 +1026,11 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->primary_key < MAX_KEY)
       return !check_if_key_used(table, table->primary_key, *fields);
-    return 1;
+    return TRUE;
   default:
     break;					// Avoid compler warning
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -1090,8 +1089,10 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
-      if (fill_record(*fields_for_table[offset], *values_for_table[offset], 0))
+      if (fill_record(thd, *fields_for_table[offset],
+                      *values_for_table[offset], 0))
 	DBUG_RETURN(1);
+
       found++;
       if (compare_record(table, thd->query_id))
       {
@@ -1134,7 +1135,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       int error;
       TABLE *tmp_table= tmp_tables[offset];
-      fill_record(tmp_table->field+1, *values_for_table[offset], 1);
+      fill_record(thd, tmp_table->field+1, *values_for_table[offset], 1);
       found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,
@@ -1160,7 +1161,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
-  ::send_error(thd,errcode,err);
+  my_error(errcode, MYF(0), err);
 
   /* If nothing updated return */
   if (!updated)
@@ -1353,8 +1354,7 @@ bool multi_update::send_eof()
     /* Safety: If we haven't got an error before (should not happen) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
-    ::send_error(thd);
-    return 1;
+    return TRUE;
   }
 
 
@@ -1364,5 +1364,5 @@ bool multi_update::send_eof()
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::send_ok(thd, (ulong) thd->row_count_func,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
-  return 0;
+  return FALSE;
 }

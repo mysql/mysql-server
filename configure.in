@@ -480,7 +480,7 @@ if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
 # Solaris
-elif $PS -p $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
 # BSD style
@@ -3063,9 +3063,15 @@ AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
 
 
+if test X"$ndb_port" = Xdefault
+then
+  ndb_port="1186"
+fi
+AC_SUBST([ndb_port])
+
 if test X"$ndb_port_base" = Xdefault
 then
-  ndb_port_base="2200"
+  ndb_port_base="2202"
 fi
 AC_SUBST([ndb_port_base])
 
@@ -3104,7 +3110,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
    ndb/src/common/mgmcommon/Makefile dnl
-   ndb/src/common/editline/Makefile dnl
    ndb/src/kernel/Makefile dnl
    ndb/src/kernel/error/Makefile dnl
    ndb/src/kernel/blocks/Makefile dnl
@@ -3156,7 +3161,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
- tests/Makefile Docs/Makefile support-files/Makefile dnl
+ tests/Makefile Docs/Makefile Docs/Images/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl

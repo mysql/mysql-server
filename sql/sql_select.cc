@@ -205,9 +205,9 @@ static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
   This handles SELECT with and without UNION
 */
 
-int handle_select(THD *thd, LEX *lex, select_result *result)
+bool handle_select(THD *thd, LEX *lex, select_result *result)
 {
-  int res;
+  bool res;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
@@ -232,11 +232,14 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   }
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->net.report_error));
-  if (thd->net.report_error || res < 0)
+  res|= thd->net.report_error;
+  if (unlikely(res))
   {
-    result->send_error(0, NullS);
+    /*
+      If we have real error reported erly then this will be ignored
+    */
+    result->send_error(ER_UNKNOWN_ERROR, NullS);
     result->abort();
-    res= 1;					// Error sent to client
   }
   DBUG_RETURN(res);
 }
@@ -374,7 +377,8 @@ JOIN::prepare(Item ***rref_pointer_array,
       }
       if (flag == 3)
       {
-	my_error(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,MYF(0));
+	my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
+                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
 	DBUG_RETURN(-1);
       }
     }
@@ -401,21 +405,22 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       if (!test_if_subpart(procedure->group,group_list))
       {						/* purecov: inspected */
-	my_message(0,"Can't handle procedures with differents groups yet",
-		   MYF(0));			/* purecov: inspected */
+	my_message(ER_DIFF_GROUPS_PROC, ER(ER_DIFF_GROUPS_PROC),
+                   MYF(0));                     /* purecov: inspected */
 	goto err;				/* purecov: inspected */
       }
     }
 #ifdef NOT_NEEDED
     else if (!group_list && procedure->flags & PROC_GROUP)
     {
-      my_message(0,"Select must have a group with this procedure",MYF(0));
+      my_message(ER_NO_GROUP_FOR_PROC, MYF(0));
       goto err;
     }
 #endif
     if (order && (procedure->flags & PROC_NO_SORT))
     {						/* purecov: inspected */
-      my_message(0,"Can't use order with this procedure",MYF(0)); /* purecov: inspected */
+      my_message(ER_ORDER_WITH_PROC, ER(ER_ORDER_WITH_PROC),
+                 MYF(0));                       /* purecov: inspected */
       goto err;					/* purecov: inspected */
     }
   }
@@ -1221,6 +1226,12 @@ JOIN::exec()
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
 
+  if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
+      get_schema_tables_result(curr_join))
+  {
+    DBUG_VOID_RETURN;
+  }
+
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -1803,7 +1814,7 @@ Cursor::fetch(ulong num_rows)
 
     if (thd->killed)                            /* Aborted by user */
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      my_message(ER_SERVER_SHUTDOWN, ER(ER_SERVER_SHUTDOWN), MYF(0));
       return -1;
     }
 
@@ -1877,7 +1888,7 @@ Cursor::fetch(ulong num_rows)
       thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
     }
     else
-      send_error(thd, ER_OUT_OF_RESOURCES);
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     /* free cursor memory */
     free_items(free_list);
     free_list= 0;
@@ -1939,7 +1950,7 @@ Cursor::~Cursor()
 /*********************************************************************/
 
 
-int
+bool
 mysql_select(THD *thd, Item ***rref_pointer_array,
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
@@ -1947,7 +1958,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	     select_result *result, SELECT_LEX_UNIT *unit,
 	     SELECT_LEX *select_lex)
 {
-  int err;
+  bool err;
   bool free_join= 1;
   DBUG_ENTER("mysql_select");
 
@@ -1955,7 +1966,10 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   if (select_lex->join != 0)
   {
     join= select_lex->join;
-    // is it single SELECT in derived table, called in derived table creation
+    /*
+      is it single SELECT in derived table, called in derived table
+      creation
+    */
     if (select_lex->linkage != DERIVED_TABLE_TYPE ||
 	(select_options & SELECT_DESCRIBE))
     {
@@ -1964,7 +1978,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	//here is EXPLAIN of subselect or derived table
 	if (join->change_result(result))
 	{
-	  DBUG_RETURN(-1);
+	  DBUG_RETURN(TRUE);
 	}
       }
       else
@@ -1983,7 +1997,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   else
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
     if (join->prepare(rref_pointer_array, tables, wild_num,
@@ -2031,10 +2045,8 @@ err:
   {
     thd->proc_info="end";
     err= join->cleanup();
-    if (thd->net.report_error)
-      err= -1;
     delete join;
-    DBUG_RETURN(err);
+    DBUG_RETURN(err || thd->net.report_error);
   }
   DBUG_RETURN(join->error);
 }
@@ -2128,6 +2140,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
     s->dependent= tables->dep_tables;
     s->key_dependent= 0;
+    if (tables->schema_table)
+      table->file->records= 2;
 
     s->on_expr_ref= &tables->on_expr;
     if (*s->on_expr_ref)
@@ -2191,7 +2205,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
-        my_error(ER_WRONG_OUTER_JOIN,MYF(0));
+        my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         DBUG_RETURN(1);
       }
       s->key_dependent= s->dependent;
@@ -2935,14 +2949,14 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       Item_func *arg0=(Item_func *)(func->arguments()[0]),
                 *arg1=(Item_func *)(func->arguments()[1]);
       if (arg1->const_item()  &&
-          ((functype == Item_func::GE_FUNC && arg1->val()> 0) ||
-           (functype == Item_func::GT_FUNC && arg1->val()>=0))  &&
+          ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
+           (functype == Item_func::GT_FUNC && arg1->val_real() >=0))  &&
            arg0->type() == Item::FUNC_ITEM            &&
            arg0->functype() == Item_func::FT_FUNC)
         cond_func=(Item_func_match *) arg0;
       else if (arg0->const_item() &&
-               ((functype == Item_func::LE_FUNC && arg0->val()> 0) ||
-                (functype == Item_func::LT_FUNC && arg0->val()>=0)) &&
+               ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
+                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)) &&
                 arg1->type() == Item::FUNC_ITEM          &&
                 arg1->functype() == Item_func::FT_FUNC)
         cond_func=(Item_func_match *) arg1;
@@ -5613,7 +5627,8 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,MYF(0));
+      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
+                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);
     }
   }
@@ -7723,7 +7738,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	blob_count,group_null_items;
   bool	using_unique_constraint=0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char	*tmpname,path[FN_REFLEN];
+  char	*tmpname,path[FN_REFLEN], filename[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
   Field **reg_field, **from_field, **blob_field;
@@ -7745,14 +7760,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix,
-	    current_pid, temp_pool_slot);
+    sprintf(filename, "%s_%lx_%i", tmp_file_prefix,
+            current_pid, temp_pool_slot);
   else // if we run out of slots or we are not using tempool
-    sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
+    sprintf(filename,"%s%lx_%lx_%x",tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
 
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, path);
+  sprintf(path, "%s%s", mysql_tmpdir, filename);
 
   if (group)
   {
@@ -9753,9 +9769,6 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     Item *item= *group->item;
     item->save_org_in_field(group->field);
-#ifdef EMBEDDED_LIBRARY
-    join->thd->net.last_errno= 0;
-#endif
     /* Store in the used key if the field was 0 */
     if (item->maybe_null)
       group->buff[-1]=item->null_value ? 1 : 0;
@@ -10716,7 +10729,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_error(ER_OUTOFMEMORY,MYF(0));
+      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(0));
       error=0;
       goto err;
     }
@@ -11167,24 +11180,53 @@ cp_buffer_from_ref(TABLE_REF *ref)
 *****************************************************************************/
 
 /*
-  Find order/group item in requested columns and change the item to point at
-  it. If item doesn't exists, add it first in the field list
-  Return 0 if ok.
+  Resolve an ORDER BY or GROUP BY column reference.
+
+  SYNOPSIS
+    find_order_in_list()
+    thd		      [in]     Pointer to current thread structure
+    ref_pointer_array [in/out] All select, group and order by fields
+    tables            [in]     List of tables to search in (usually FROM clause)
+    order             [in]     Column reference to be resolved
+    fields            [in]     List of fields to search in (usually SELECT list)
+    all_fields        [in/out] All select, group and order by fields
+    is_group_field    [in]     True if order is a GROUP field, false if
+                               ORDER by field
+
+  DESCRIPTION
+    Given a column reference (represented by 'order') from a GROUP BY or ORDER
+    BY clause, find the actual column it represents. If the column being
+    resolved is from the GROUP BY clause, the procedure searches the SELECT
+    list 'fields' and the columns in the FROM list 'tables'. If 'order' is from
+    the ORDER BY clause, only the SELECT list is being searched.
+
+    If 'order' is resolved to an Item, then order->item is set to the found
+    Item. If there is no item for the found column (that is, it was resolved
+    into a table field), order->item is 'fixed' and is added to all_fields and
+    ref_pointer_array.
+
+  RETURN
+    0 if OK
+    1 if error occurred
 */
 
 static int
-find_order_in_list(THD *thd, Item **ref_pointer_array,
-		   TABLE_LIST *tables,ORDER *order, List<Item> &fields,
-		   List<Item> &all_fields)
+find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+                   ORDER *order, List<Item> &fields, List<Item> &all_fields,
+                   bool is_group_field)
 {
-  Item *it= *order->item;
-  if (it->type() == Item::INT_ITEM)
+  Item *order_item= *order->item; /* The item from the GROUP/ORDER caluse. */
+  Item::Type order_item_type;
+  Item **select_item; /* The corresponding item from the SELECT clause. */
+  Field *from_field;  /* The corresponding field from the FROM clause. */
+
+  if (order_item->type() == Item::INT_ITEM)
   {						/* Order by position */
-    uint count= (uint) it->val_int();
+    uint count= (uint) order_item->val_int();
     if (!count || count > fields.elements)
     {
-      my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0), it->full_name(), thd->where);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0),
+               order_item->full_name(), thd->where);
       return 1;
     }
     order->item= ref_pointer_array + count - 1;
@@ -11193,46 +11235,77 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     order->counter_used= 1;
     return 0;
   }
+  /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   uint counter;
   bool unaliased;
-  Item **item= find_item_in_list(it, fields, &counter,
+  select_item= find_item_in_list(order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND, &unaliased);
-  if (!item)
-    return 1;
+  if (!select_item)
+    return 1; /* Some error occured. */
 
-  if (item != (Item **)not_found_item)
+
+  /* Check whether the resolved field is not ambiguos. */
+  if (select_item != not_found_item)
   {
     /*
       If we have found field not by its alias in select list but by its
       original field name, we should additionaly check if we have conflict
       for this name (in case if we would perform lookup in all tables).
     */
-    if (unaliased && !it->fixed && it->fix_fields(thd, tables, order->item))
+    if (unaliased && !order_item->fixed && order_item->fix_fields(thd, tables, order->item))
       return 1;
 
-    order->item= ref_pointer_array + counter;
-    order->in_field_list=1;
-    return 0;
+    /* Lookup the current GROUP field in the FROM clause. */
+    order_item_type= order_item->type();
+    if (is_group_field &&
+        order_item_type == Item::FIELD_ITEM || order_item_type == Item::REF_ITEM)
+    {
+      Item **view_ref= NULL;
+      from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
+                                       view_ref, IGNORE_ERRORS, TRUE);
+      if(!from_field)
+       from_field= (Field*) not_found_field;
+    }
+    else
+      from_field= (Field*) not_found_field;
+
+    if (from_field == not_found_field ||
+        from_field && from_field != view_ref_found &&
+        (*select_item)->type() == Item::FIELD_ITEM &&
+        ((Item_field*) (*select_item))->field->eq(from_field))
+      /*
+        If there is no such field in the FROM clause, or it is the same field as
+        the one found in the SELECT clause, then use the Item created for the
+        SELECT field. As a result if there was a derived field that 'shadowed'
+        a table field with the same name, the table field will be chosen over
+        the derived field.
+      */
+    {
+      order->item= ref_pointer_array + counter;
+      order->in_field_list=1;
+      return 0;
+    }
   }
 
   order->in_field_list=0;
   /*
-    We check it->fixed because Item_func_group_concat can put
+    We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
 
     'it' reassigned in if condition because fix_field can change it.
   */
-  if (!it->fixed &&
-      (it->fix_fields(thd, tables, order->item) ||
-       (it= *order->item)->check_cols(1) ||
+  if (!order_item->fixed &&
+      (order_item->fix_fields(thd, tables, order->item) ||
+       (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
     return 1;					// Wrong field 
   uint el= all_fields.elements;
-  all_fields.push_front(it);		        // Add new field to field list
-  ref_pointer_array[el]= it;
+  all_fields.push_front(order_item);		        // Add new field to field list
+  ref_pointer_array[el]= order_item;
   order->item= ref_pointer_array + el;
   return 0;
 }
+
 
 /*
   Change order to point at item in select list. If item isn't a number
@@ -11246,7 +11319,7 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   for (; order; order=order->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
-			   all_fields))
+			   all_fields, FALSE))
       return 1;
   }
   return 0;
@@ -11298,13 +11371,12 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   for (; order; order=order->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
-			   all_fields))
+			   all_fields, TRUE))
       return 1;
     (*order->item)->marker=1;		/* Mark found */
     if ((*order->item)->with_sum_func)
     {
-      my_printf_error(ER_WRONG_GROUP_FIELD, ER(ER_WRONG_GROUP_FIELD),MYF(0),
-		      (*order->item)->full_name());
+      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*order->item)->full_name());
       return 1;
     }
   }
@@ -11319,9 +11391,7 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
 	  !item->const_item())
       {
-	my_printf_error(ER_WRONG_FIELD_WITH_GROUP,
-			ER(ER_WRONG_FIELD_WITH_GROUP),
-			MYF(0),item->full_name());
+	my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), item->full_name());
 	return 1;
       }
     }
@@ -12675,10 +12745,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 }
 
 
-int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
+bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
   DBUG_ENTER("mysql_explain_union");
-  int res= 0;
+  bool res= 0;
   SELECT_LEX *first= unit->first_select();
 
   for (SELECT_LEX *sl= first;
@@ -12729,9 +12799,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			first->options | thd->options | SELECT_DESCRIBE,
 			result, unit, first);
   }
-  if (res > 0 || thd->net.report_error)
-    res= -1; // mysql_explain_select do not report error
-  DBUG_RETURN(res);
+  DBUG_RETURN(res || thd->net.report_error);
 }
 
 
@@ -12818,8 +12886,16 @@ void st_table_list::print(THD *thd, String *str)
     {
       append_identifier(thd, str, db, db_length);
       str->append('.');
-      append_identifier(thd, str, real_name, real_name_length);
-      cmp_name= real_name;
+      if (schema_table)
+      {
+        append_identifier(thd, str, alias, strlen(alias));
+        cmp_name= alias;
+      }
+      else
+      {
+        append_identifier(thd, str, real_name, real_name_length);
+        cmp_name= real_name;
+      }
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias))
     {
@@ -12942,17 +13018,17 @@ void st_select_lex::print(THD *thd, String *str)
     res		new select_result object
 
   RETURN
-    0 - OK
-    -1 - error
+    FALSE - OK
+    TRUE  - error
 */
 
-int JOIN::change_result(select_result *res)
+bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
   if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }

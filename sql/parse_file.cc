@@ -668,7 +668,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 						 parameter->offset))))
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
-		     parameter->name.str, line);
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
 	  break;
@@ -680,7 +680,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 					  (base + parameter->offset))))
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
-		     parameter->name.str, line);
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
 	  break;
@@ -690,7 +690,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	  if (!(eol= strchr(ptr, '\n')))
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
-		     parameter->name.str, line);
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
           {
@@ -708,7 +708,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	  if (ptr[PARSE_FILE_TIMESTAMPLENGTH] != '\n')
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
-		     parameter->name.str, line);
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
 	  memcpy(val->str, ptr, PARSE_FILE_TIMESTAMPLENGTH);
@@ -748,7 +748,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 
       list_err_w_message:
 	  my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
-		     parameter->name.str, line);
+                   parameter->name.str, line);
       list_err:
 	  DBUG_RETURN(TRUE);
 	}
@@ -761,8 +761,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	// skip unknown parameter
 	if (!(ptr= strchr(ptr, '\n')))
 	{
-	  my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0),
-		   line);
+	  my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0), line);
 	  DBUG_RETURN(TRUE);
 	}
 	ptr++;

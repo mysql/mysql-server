@@ -284,7 +284,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   if (error)
-    my_error(ER_FILSORT_ABORT,MYF(ME_ERROR+ME_WAITTANG));
+    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT),
+               MYF(ME_ERROR+ME_WAITTANG));
   else
     statistic_add(thd->status_var.filesort_rows,
 		  (ulong) records, &LOCK_status);
@@ -707,7 +708,7 @@ static void make_sortkey(register SORTPARAM *param,
 	}
       case REAL_RESULT:
 	{
-	  double value=item->val();
+	  double value= item->val_real();
 	  if ((maybe_null=item->null_value))
 	  {
 	    bzero((char*) to,sort_field->length+1);

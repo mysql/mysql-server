@@ -490,8 +490,8 @@ int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 
 void table_rule_ent_hash_to_str(String* s, HASH* h);
 void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
-int show_master_info(THD* thd, MASTER_INFO* mi);
-int show_binlog_info(THD* thd);
+bool show_master_info(THD* thd, MASTER_INFO* mi);
+bool show_binlog_info(THD* thd);
 
 /* See if the query uses any tables that should not be replicated */
 int tables_ok(THD* thd, TABLE_LIST* tables);
@@ -508,8 +508,8 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
-const char *rewrite_db(const char* db);
-const char *print_slave_db_safe(const char* db);
+const char *rewrite_db(const char* db, uint *new_db_len);
+const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);

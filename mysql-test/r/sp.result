@@ -1746,10 +1746,20 @@ drop table if exists t3|
 create procedure bug4904()
 begin
 declare continue handler for sqlstate 'HY000' begin end;
-create table t2 as select * from t;
+create table t2 as select * from t3;
+end|
+call bug4904()|
+ERROR 42S02: Table 'test.t3' doesn't exist
+drop procedure bug4904|
+create table t3 (s1 char character set latin1, s2 char character set latin2)|
+create procedure bug4904 ()
+begin
+declare continue handler for sqlstate 'HY000' begin end;
+select s1 from t3 union select s2 from t3; 
 end|
 call bug4904()|
 drop procedure bug4904|
+drop table t3|
 create procedure bug336(out y int)
 begin
 declare x int;

@@ -77,7 +77,7 @@ int ha_isammrg::write_row(byte * buf)
 
 int ha_isammrg::update_row(const byte * old_data, byte * new_data)
 {
-  statistic_increment(current_thd->status_var.ha_update_count, &LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   return !mrg_update(file,old_data,new_data) ? 0 : my_errno ? my_errno : -1;
@@ -85,7 +85,7 @@ int ha_isammrg::update_row(const byte * old_data, byte * new_data)
 
 int ha_isammrg::delete_row(const byte * buf)
 {
-  statistic_increment(current_thd->status_var.ha_delete_count, &LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
   return !mrg_delete(file,buf) ? 0 : my_errno ? my_errno : -1;
 }
 
@@ -128,7 +128,7 @@ int ha_isammrg::rnd_init(bool scan)
 
 int ha_isammrg::rnd_next(byte *buf)
 {
-  statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
   int error=mrg_rrnd(file, buf, ~(mrg_off_t) 0);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -137,7 +137,8 @@ int ha_isammrg::rnd_next(byte *buf)
 
 int ha_isammrg::rnd_pos(byte * buf, byte *pos)
 {
-  statistic_increment(current_thd->status_var.ha_read_rnd_count, &LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
+		      &LOCK_status);
   int error=mrg_rrnd(file, buf, (ulong) my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : -1;

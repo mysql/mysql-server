@@ -759,6 +759,7 @@ ndb/tools/ndb_drop_table
 ndb/tools/ndb_select_all
 ndb/tools/ndb_select_count
 ndb/tools/ndb_show_tables
+ndb/tools/ndb_test_platform
 ndb/tools/ndb_waiter
 pull.log
 regex/re

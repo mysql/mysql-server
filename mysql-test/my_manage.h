@@ -52,8 +52,6 @@ int my_vsnprintf_(char *to, size_t n, const char* value, ...);
 #define TRY_MAX                 5
 
 #ifdef __WIN__
-#define PATH_MAX _MAX_PATH
-#define NAME_MAX _MAX_FNAME
 #define kill(A,B) TerminateProcess((HANDLE)A,0)
 #define NOT_NEED_PID 0
 #define MASTER_PID   1

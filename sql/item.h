@@ -32,6 +32,7 @@ class Item_field;
 
 enum Derivation
 {
+  DERIVATION_IGNORABLE= 4,
   DERIVATION_COERCIBLE= 3,
   DERIVATION_IMPLICIT= 2,
   DERIVATION_NONE= 1,
@@ -99,6 +100,7 @@ public:
   {
     switch(derivation)
     {
+      case DERIVATION_IGNORABLE: return "IGNORABLE";
       case DERIVATION_COERCIBLE: return "COERCIBLE";
       case DERIVATION_IMPLICIT:  return "IMPLICIT";
       case DERIVATION_EXPLICIT:  return "EXPLICIT";
@@ -186,7 +188,7 @@ public:
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
-  virtual double val()=0;
+  virtual double val_real()=0;
   virtual longlong val_int()=0;
   /*
     Return string representation of this item object.
@@ -217,7 +219,7 @@ public:
   virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
-  virtual double  val_result() { return val(); }
+  virtual double  val_result() { return val_real(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
   /* bit map of tables used by item */
@@ -362,10 +364,10 @@ public:
   // the item in the frame
   enum Type type() const;
 
-  inline double val()
+  inline double val_real()
   {
     Item *it= this_item();
-    double ret= it->val();
+    double ret= it->val_real();
     Item::null_value= it->null_value;
     return ret;
   }
@@ -526,7 +528,7 @@ public:
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String*);
   double val_result();
@@ -577,10 +579,11 @@ public:
     max_length= 0;
     name= name_par ? name_par : (char*) "NULL";
     fixed= 1;
+    collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *str);
   int save_in_field(Field *field, bool no_conversions);
@@ -669,7 +672,7 @@ public:
   enum Type type() const { return item_type; }
   enum_field_types field_type() const { return param_type; }
 
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String*);
   bool get_time(TIME *tm);
@@ -726,7 +729,7 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   String *val_str(String*);
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
@@ -755,7 +758,7 @@ public:
   Item_uint(const char *str_arg, uint length);
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
-  double val()
+  double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
@@ -784,7 +787,7 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
-  double val() { DBUG_ASSERT(fixed == 1); return value; }
+  double val_real() { DBUG_ASSERT(fixed == 1); return value; }
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
@@ -855,7 +858,7 @@ public:
     fixed= 1;
   }
   enum Type type() const { return STRING_ITEM; }
-  double val()
+  double val_real()
   {
     DBUG_ASSERT(fixed == 1);
     int err;
@@ -945,7 +948,7 @@ class Item_varbinary :public Item
 public:
   Item_varbinary(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
-  double val()
+  double val_real()
     { DBUG_ASSERT(fixed == 1); return (double) Item_varbinary::val_int(); }
   longlong val_int();
   bool basic_const_item() const { return 1; }
@@ -997,7 +1000,7 @@ public:
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
-  double val()
+  double val_real()
   {
     double tmp=(*ref)->val_result();
     null_value=(*ref)->null_value;
@@ -1062,7 +1065,7 @@ public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
 		       const char *table_name_par, const char *field_name_par):
     Item_ref(item, table_name_par, field_name_par), owner(master) {}
-  double val();
+  double val_real();
   longlong val_int();
   String* val_str(String* s);
   bool get_date(TIME *ltime, uint fuzzydate);
@@ -1130,7 +1133,7 @@ public:
   enum Type type() const { return COPY_STR_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return cached_field_type; }
-  double val()
+  double val_real()
   {
     int err;
     return (null_value ? 0.0 :
@@ -1358,7 +1361,7 @@ public:
   Item_cache_int(): Item_cache() {}
   
   void store(Item *item);
-  double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   String* val_str(String *str)
   {
@@ -1376,7 +1379,7 @@ public:
   Item_cache_real(): Item_cache() {}
 
   void store(Item *item);
-  double val() { DBUG_ASSERT(fixed == 1); return value; }
+  double val_real() { DBUG_ASSERT(fixed == 1); return value; }
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
@@ -1398,7 +1401,7 @@ public:
   Item_cache_str(): Item_cache() { }
   
   void store(Item *item);
-  double val();
+  double val_real();
   longlong val_int();
   String* val_str(String *) { DBUG_ASSERT(fixed == 1); return value; }
   enum Item_result result_type() const { return STRING_RESULT; }
@@ -1430,7 +1433,7 @@ public:
   {
     illegal_method_call((const char*)"make_field");
   };
-  double val()
+  double val_real()
   {
     illegal_method_call((const char*)"val");
     return 0;
@@ -1481,7 +1484,7 @@ public:
 
   Item_result result_type () const { return item_type; }
   enum Type type() const { return TYPE_HOLDER; }
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String*);
   bool join_types(THD *thd, Item *);

@@ -43,17 +43,17 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 
 int start_slave(THD* thd, MASTER_INFO* mi, bool net_report);
 int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report);
-int change_master(THD* thd, MASTER_INFO* mi);
-int show_binlog_events(THD* thd);
+bool change_master(THD* thd, MASTER_INFO* mi);
+bool show_binlog_events(THD* thd);
 int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2);
 int reset_slave(THD *thd, MASTER_INFO* mi);
 int reset_master(THD* thd);
-int purge_master_logs(THD* thd, const char* to_log);
-int purge_master_logs_before_date(THD* thd, time_t purge_time);
+bool purge_master_logs(THD* thd, const char* to_log);
+bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool log_in_use(const char* log_name);
 void adjust_linfo_offsets(my_off_t purge_offset);
-int show_binlogs(THD* thd);
+bool show_binlogs(THD* thd);
 extern int init_master_info(MASTER_INFO* mi);
 void kill_zombie_dump_threads(uint32 slave_server_id);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);

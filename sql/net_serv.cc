@@ -96,7 +96,7 @@ extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #define update_statistics(A) A
 #else
 #define update_statistics(A)
-#define thd_increment_bytes_sent()
+#define thd_increment_bytes_sent(N)
 #endif
 
 #define TEST_BLOCKING		8

@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 --enable_warnings
 
 ################################################
@@ -472,5 +472,11 @@ system rm var/master-data/test/t9.frm ;
 # MySQL Server will have been restarted because it has a 
 # ndb_autodiscover2-master.opt file.
 
+create table t10 (
+  a int not null primary key,
+  b blob
+) engine=ndb;
 
+insert into t10 values (1, 'kalle');
 
+--exec $NDB_TOOLS_DIR/ndb_drop_table -d test `$NDB_TOOLS_DIR/ndb_show_tables | grep BLOB` > /dev/null 2>&1 || true
