@@ -2382,6 +2382,16 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     }
     goto err;
   }
+  /*
+    We have an open file descriptor to the .info file; we need to close it
+    or Windows will refuse to delete the file in my_delete().
+  */
+  if (fd >= 0)
+  {
+    my_close(fd, MYF(0));
+    end_io_cache(&file);
+    fd= -1;
+  }
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
   (void) my_delete(fname, MYF(MY_WME));
