@@ -32,7 +32,7 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 			    int *err);
 static void init_variables(const struct my_option *options);
-static int setval(const struct my_option *opts, char *argument,
+static int setval(const struct my_option *opts,char *argument,
 		  my_bool set_maximum_value);
 
 /*
@@ -315,8 +315,8 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (!optend) /* No argument -> enable option */
 	      *((my_bool*) optp->value)= (my_bool) 1;
-	    else /* If argument differs from 0, enable option, else disable */
-	      *((my_bool*) optp->value)= (my_bool) atoi(optend) != 0;
+            else
+              argument= optend;
 	  }
 	}
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
@@ -362,18 +362,24 @@ int handle_options(int *argc, char ***argv,
 		  /* This is in effect a jump out of the outer loop */
 		  optend= (char*) " ";
 		}
-		else if (optp->arg_type == REQUIRED_ARG)
+		else
 		{
 		  /* Check if there are more arguments after this one */
-		  if (!*++pos)
+		  if (!pos[1])
 		  {
-		    if (my_getopt_print_errors)
-		      fprintf(stderr,
-			      "%s: option '-%c' requires an argument\n",
-			      progname, optp->id);
-		    return EXIT_ARGUMENT_REQUIRED;
+                    if (optp->var_type == GET_BOOL && optp->arg_type == OPT_ARG)
+                    {
+                      *((my_bool*) optp->value)= (my_bool) 1;
+                      get_one_option(optp->id, optp, argument);
+                      continue;
+                    }
+                    if (my_getopt_print_errors)
+                      fprintf(stderr,
+                              "%s: option '-%c' requires an argument\n",
+                              progname, optp->id);
+                    return EXIT_ARGUMENT_REQUIRED;
 		  }
-		  argument= *pos;
+		  argument= *++pos;
 		  (*argc)--;
 		  /* the other loop will break, because *optend + 1 == 0 */
 		}
@@ -445,6 +451,9 @@ static int setval(const struct my_option *opts, char *argument,
       return EXIT_NO_PTR_TO_VARIABLE;
 
     switch (opts->var_type) {
+    case GET_BOOL: /* If argument differs from 0, enable option, else disable */
+      *((my_bool*) result_pos)= (my_bool) atoi(argument) != 0;
+      break;
     case GET_INT:
     case GET_UINT:           /* fall through */
       *((int*) result_pos)= (int) getopt_ll(argument, opts, &err);
