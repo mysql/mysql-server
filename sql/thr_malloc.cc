@@ -23,6 +23,7 @@ extern "C" {
   void sql_alloc_error_handler(void)
   {
     current_thd->fatal_error=1; /* purecov: inspected */
+    sql_print_error(ER(ER_OUT_OF_RESOURCES));
   }
 }
 
@@ -37,10 +38,6 @@ gptr sql_alloc(uint Size)
 {
   MEM_ROOT *root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   char *ptr= (char*) alloc_root(root,Size);
-  if (!ptr)
-  {
-    sql_print_error(ER(ER_OUT_OF_RESOURCES));
-  }
   return ptr;
 }
 

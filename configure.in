@@ -1709,10 +1709,10 @@ CHARSET_COMP_CS_INIT="$CHARSET_COMP_CS_INIT
   {
     0,          /* end-of-list marker */
     NullS,
-    \"\",
-    \"\",
-    \"\",
-    \"\",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
     0,
     NULL,
     NULL,

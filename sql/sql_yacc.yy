@@ -488,7 +488,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	query verb_clause create change select drop insert replace insert2
 	insert_values update delete show describe load alter optimize flush
 	begin commit rollback slave master_def master_defs
-	repair analyze check field_list field_list_item field_spec kill
+	repair analyze check rename
+	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
@@ -504,6 +505,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
+	table_to_table_list table_to_table
 	END_OF_INPUT
 
 %type <NONE>
@@ -539,6 +541,7 @@ verb_clause:
 	| lock
 	| kill
 	| optimize
+	| rename
         | repair
 	| replace
 	| revoke
@@ -1078,6 +1081,7 @@ opt_place:
 opt_to:
 	/* empty */	{}
 	| TO_SYM	{}
+	| AS		{}
 
 slave:
 	SLAVE START_SYM
@@ -1133,6 +1137,24 @@ optimize:
 	   if (!add_table_to_list($3, NULL))
 	     YYABORT;
 	}
+
+rename:
+	RENAME table_or_tables
+	{
+	   Lex->sql_command=SQLCOM_RENAME_TABLE;
+	}
+	table_to_table_list
+
+table_to_table_list:
+	table_to_table
+	| table_to_table_list ',' table_to_table
+
+table_to_table:
+	table_ident TO_SYM table_ident
+	{ if (add_table_to_list($1,NULL,TL_IGNORE) ||
+	      add_table_to_list($3,NULL,TL_IGNORE))
+	     YYABORT;
+ 	}
 
 /*
 ** Select : retrieve data from table

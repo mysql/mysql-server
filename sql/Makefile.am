@@ -66,7 +66,7 @@ mysqld_SOURCES =	sql_lex.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_isam.cc ha_isammrg.cc ha_heap.cc \
 			ha_myisam.cc ha_myisammrg.cc ha_berkeley.cc \
-			sql_db.cc sql_table.cc sql_crypt.cc \
+			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc \

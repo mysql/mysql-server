@@ -55,7 +55,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
   char *file_name;
   DBUG_ENTER("mysqld_show_dbs");
 
-  field->name=(char*) sql_alloc(20+ (wild ? strlen(wild)+4: 0));
+  field->name=(char*) thd->alloc(20+ (wild ? strlen(wild)+4: 0));
   field->max_length=NAME_LEN;
   end=strmov(field->name,"Database");
   if (wild && wild[0])
@@ -92,7 +92,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   char *file_name;
   DBUG_ENTER("mysqld_show_tables");
 
-  field->name=(char*) sql_alloc(20+strlen(db)+(wild ? strlen(wild)+4:0));
+  field->name=(char*) thd->alloc(20+strlen(db)+(wild ? strlen(wild)+4:0));
   end=strxmov(field->name,"Tables_in_",db,NullS);
   if (wild && wild[0])
     strxmov(end," (",wild,")",NullS);
@@ -170,7 +170,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       if (check_grant(thd,TABLE_ACLS,&table_list,1))
 	continue;
     }
-    if (files->push_back(sql_strdup(file->name)))
+    if (files->push_back(thd->strdup(file->name)))
     {
       my_dirend(dirp);
       DBUG_RETURN(-1);
@@ -868,12 +868,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	thread_info *thd_info=new thread_info;
 
 	thd_info->thread_id=tmp->thread_id;
-	thd_info->user=sql_strdup(tmp->user ? tmp->user : (tmp->system_thread ?
+	thd_info->user=thd->strdup(tmp->user ? tmp->user : (tmp->system_thread ?
 				  "system user" : "unauthenticated user"));
-	thd_info->host=sql_strdup(tmp->host ? tmp->host : (tmp->ip ? tmp->ip :
+	thd_info->host=thd->strdup(tmp->host ? tmp->host : (tmp->ip ? tmp->ip :
 				   (tmp->system_thread ? "none" : "connecting host")));
 	if ((thd_info->db=tmp->db))		// Safe test
-	  thd_info->db=sql_strdup(thd_info->db);
+	  thd_info->db=thd->strdup(thd_info->db);
 	thd_info->command=(int) tmp->command;
 	if (tmp->mysys_var)
 	  pthread_mutex_lock(&tmp->mysys_var->mutex);
@@ -902,7 +902,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	  uint length=strlen(tmp->query);
 	  if (length > max_query_length)
 	    length=max_query_length;
-	  thd_info->query=(char*) sql_memdup(tmp->query,length+1);
+	  thd_info->query=(char*) thd->memdup(tmp->query,length+1);
 	  thd_info->query[length]=0;
 	}
 	thread_infos.append(thd_info);
