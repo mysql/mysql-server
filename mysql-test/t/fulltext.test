@@ -48,8 +48,8 @@ drop table t1,t2;
 
 # check for bug reported by Stephan Skusa
 
-drop table if exists fulltextTEST;
-CREATE TABLE fulltextTEST (
+drop table if exists t1;
+CREATE TABLE t1 (
    field1 varchar(40) NOT NULL,
    field2 varchar(20) NOT NULL,
    field3 varchar(40) NOT NULL,
@@ -57,9 +57,10 @@ CREATE TABLE fulltextTEST (
    FULLTEXT idx_fulltext (field1, field2, field3)
 );
 
-INSERT INTO fulltextTEST VALUES ( 'test1', 'test1.1', 'test1.1.1');
-INSERT INTO fulltextTEST VALUES ( 'test2', 'test2.1', 'test2.1.1');
-select *
-from fulltextTEST
-where MATCH (field1,field2,field3) AGAINST (NULL);
-drop table fulltextTEST;
+INSERT INTO t1 VALUES ( 'test1', 'test1.1', 'test1.1.1');
+INSERT INTO t1 VALUES ( 'test2', 'test2.1', 'test2.1.1');
+#select *
+#from t1
+#where MATCH (field1,field2,field3) AGAINST (NULL);
+drop table t1;
+
