@@ -503,17 +503,20 @@ int start_slave(THD* thd , bool net_report)
     return 1;
   pthread_mutex_lock(&LOCK_slave);
   if(!slave_running)
-    if(glob_mi.inited && glob_mi.host && server_id_supplied)
-      {
-	pthread_t hThread;
-	if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-	  {
-	    err = "cannot create slave thread";
-	  }
-      }
-    else
-      err = "Master host not set, master info not initialized, or server id \
-not configured";
+    {
+      if(init_master_info(&glob_mi))
+	err = "Could not initialize master info";
+      else if(server_id_supplied && *glob_mi.host)
+	{
+	  pthread_t hThread;
+	  if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
+	    {
+	      err = "cannot create slave thread";
+	    }
+	}
+      else
+	err = "Master host not set, or server id not configured";
+    }
   else
     err =  "Slave already running";
 
@@ -578,7 +581,7 @@ void reset_slave()
   if(my_stat(fname, &stat_area, MYF(0)))
     if(my_delete(fname, MYF(MY_WME)))
         return;
-
+  end_master_info(&glob_mi);
   if(slave_was_running)
     start_slave(0,0);
 }

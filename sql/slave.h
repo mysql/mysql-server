@@ -26,7 +26,6 @@ typedef struct st_master_info
   {
     pthread_mutex_destroy(&lock);
   }
-  
   inline void inc_pending(ulonglong val)
   {
     pending += val;
@@ -81,7 +80,9 @@ int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
 
+void end_slave(); // clean up
 int init_master_info(MASTER_INFO* mi);
+void end_master_info(MASTER_INFO* mi);
 extern bool opt_log_slave_updates ;
 pthread_handler_decl(handle_slave,arg);
 extern bool volatile abort_loop, abort_slave;
