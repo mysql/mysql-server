@@ -3245,32 +3245,32 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   {
     short data= (short)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
-    int2store(buffer, data);
+    shortstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
     int32 data= (int32)my_strntol(&my_charset_latin1,value,length,10,NULL,
 				  &err);
-    int4store(buffer, data);
+    longstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong data= my_strntoll(&my_charset_latin1,value,length,10,NULL,&err);
-    int8store(buffer, data);
+    longlongstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
     float data = (float)my_strntod(&my_charset_latin1,value,length,NULL,&err);
-    float4store(buffer, data);
+    floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
     double data= my_strntod(&my_charset_latin1,value,length,NULL,&err);
-    float8store(buffer, data);
+    doublestore(buffer, data);
     break;
   }
   case MYSQL_TYPE_TINY_BLOB:
