@@ -1,1 +1,1 @@
---binlog-ignore-db=test innodb
+--binlog-ignore-db=test
