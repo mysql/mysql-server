@@ -666,7 +666,7 @@ innobase_init(void)
 
 	  DBUG_RETURN(1);
 	}
-	(void) hash_init(&innobase_open_tables,32,0,0,
+	(void) hash_init(&innobase_open_tables,system_charset_info,32,0,0,
 			 (hash_get_key) innobase_get_key,0,0);
 	pthread_mutex_init(&innobase_mutex,MY_MUTEX_INIT_FAST);
   	DBUG_RETURN(0);

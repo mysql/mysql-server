@@ -2325,7 +2325,8 @@ static void var_from_env(const char* name, const char* def_val)
 static void init_var_hash()
 {
   VAR* v;
-  if (hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (hash_init(&var_hash, system_charset_info, 
+                1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");

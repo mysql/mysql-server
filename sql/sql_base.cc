@@ -50,7 +50,7 @@ static byte *cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,
+  VOID(hash_init(&open_cache,system_charset_info,
 		 table_cache_size+16,0,0,cache_key,
 		 (void (*)(void*)) free_cache_entry,0));
   mysql_rm_tmp_tables();

@@ -269,7 +269,8 @@ static void free_user(struct user_conn *uc)
 
 void init_max_user_conn(void) 
 {
-  (void) hash_init(&hash_user_connections,max_connections,0,0,
+  (void) hash_init(&hash_user_connections,system_charset_info,max_connections,
+		   0,0,
 		   (hash_get_key) get_key_conn, (void (*)(void*)) free_user,
 		   0);
 }

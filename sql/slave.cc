@@ -470,7 +470,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 
 void init_table_rule_hash(HASH* h, bool* h_inited)
 {
-  hash_init(h, TABLE_RULE_HASH_SIZE,0,0,
+  hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
 	    (hash_get_key) get_table_key,
 	    (void (*)(void*)) free_table_ent, 0);
   *h_inited = 1;

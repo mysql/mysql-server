@@ -1655,7 +1655,8 @@ static void init_user_hash()
   FILE* f;
   char buf[80];
   int line_num=1;
-  if (hash_init(&user_hash,1024,0,0,get_user_key,manager_user_free,MYF(0)))
+  if (hash_init(&user_hash,system_charset_info,1024,0,0,
+                get_user_key,manager_user_free,MYF(0)))
     die("Could not initialize user hash");
   if (!(f=fopen(manager_pw_file,"r")))
     die("Could not open password file '%s'", manager_pw_file);
@@ -1693,7 +1694,8 @@ static void init_pid_file()
 static void init_globals()
 {
   pthread_attr_t thr_attr;
-  if (hash_init(&exec_hash,1024,0,0,get_exec_key,manager_exec_free,MYF(0)))
+  if (hash_init(&exec_hash,system_charset_info,1024,0,0,
+                get_exec_key,manager_exec_free,MYF(0)))
     die("Exec hash initialization failed");
   if (!one_thread)
   {
