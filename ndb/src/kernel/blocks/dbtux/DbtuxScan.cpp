@@ -742,7 +742,9 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   if (scan.m_state == ScanOp::Locked) {
     jam();
     // version of a tuple locked by us cannot disappear (assert only)
+#ifdef dbtux_wl_1942_is_done
     ndbassert(false);
+#endif
     AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Unlock;
