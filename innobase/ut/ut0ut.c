@@ -82,10 +82,17 @@ ut_usectime(
 	ulint*	sec,	/* out: seconds since the Epoch */
 	ulint*	ms)	/* out: microseconds since the Epoch+*sec */
 {
+#ifdef __WIN__
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	*sec = (ulint) st.wSecond;
+	*ms  = (ulint) st.wMilliseconds;
+#else
 	struct timeval	tv;
 	gettimeofday(&tv,NULL);
 	*sec = (ulint) tv.tv_sec;
 	*ms  = (ulint) tv.tv_usec;
+#endif
 }
 
 /**************************************************************

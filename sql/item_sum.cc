@@ -1234,7 +1234,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
   {
     Field* f = *field;
     int len = *lengths++;
-    int res = f->cmp(key1, key2);
+    int res = f->cmp((char *) key1, (char *) key2);
     if (res)
       return res;
     key1 += len;
@@ -1688,7 +1688,7 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
     {
       int res;
       uint offset= (uint) (field->ptr - record);
-      if ((res= field->cmp(key1 + offset, key2 + offset)))
+      if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
 	return res;
     }
   }
@@ -1722,7 +1722,7 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     {
       int res;
       uint offset= (uint) (field->ptr - record);
-      if ((res= field->cmp(key1 + offset, key2 + offset)))
+      if ((res= field->cmp((char *) key1 + offset, (char *) key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
   }
