@@ -5684,7 +5684,7 @@ and that provides output about what is happening.
 
 @item
 If your client programs are using threads, you need to also compile a
-thread safe version of the @strong{MySQL} client library with the
+thread-safe version of the @strong{MySQL} client library with the
 @code{--with-thread-safe-client} configure options. This will create a
 @code{libmysqlclient_r} library with which you should link your threaded
 applications. @xref{Thread-safe clients}.
@@ -7619,7 +7619,7 @@ the IBM C compiler).
 
 If you are using @code{gcc} or @code{egcs} to compile @strong{MySQL}, you
 @strong{MUST} use the @code{-fno-exceptions} flag, as the exception
-handling in @code{gcc}/@code{egcs} is not thread-safe!  (This is tested with
+handling in @code{gcc}/@code{egcs} is not thread safe!  (This is tested with
 @code{egcs} 1.1.).  There are also some known problems with IBM's assembler,
 which may cause it to generate bad code when used with gcc.
 
@@ -30322,7 +30322,7 @@ function @code{xxx()} is called once for each row.  After all rows have been
 processed, the deinitialization function @code{xxx_deinit()} is called so it
 can perform any required cleanup.
 
-All functions must be thread-safe (not just the main function,
+All functions must be thread safe (not just the main function,
 but the initialization and deinitialization functions as well). This means
 that you are not allowed to allocate any global or static variables that
 change!  If you need memory, you should allocate it in @code{xxx_init()}
@@ -30718,7 +30718,7 @@ if any of the function arguments can return @code{NULL} by checking the
 arguments @code{maybe_null} variable.
 @end enumerate
 
-All functions must be thread-safe.
+All functions must be thread safe.
 
 For string functions, there are some additional considerations to be aware of:
 @itemize @bullet
@@ -30838,28 +30838,28 @@ use ODBC)
 
 The problem in this case is that some other program is using ODBC and
 because of how Windows is designed, you cannot in this case install new
-ODBC drivers with Microsoft's ODBC setup program. :( The solution to this
-is to reboot your computer in ``safe mode`` (You can choose this by
+ODBC drivers with Microsoft's ODBC setup program. The solution to this
+is to reboot your computer in ``safe mode`` (Choose this by
 pressing F8 just before your machine starts Windows during rebooting),
-install @strong{MyODBC} and reboot to normal mode.
+install @strong{MyODBC}, and reboot to normal mode:
 
 @itemize @bullet
 @item
-To make a connection to an Unix box from a Windows box, with an ODBC
+To make a connection to a Unix box from a Windows box, with an ODBC
 application (one that doesn't support @strong{MySQL} natively), you must
 first install @strong{MyODBC} on the Windows machine.
 @item
 The user and Windows machine must have the access privileges to the
-@strong{MySQL} server the Unix machine.  This is set up with the @code{GRANT}
+@strong{MySQL} server on the Unix machine.  This is set up with the @code{GRANT}
 command. @xref{GRANT,,@code{GRANT}}.
 @item
 You must create an ODBC DSN entry as follows:
 
-@itemize @bullet
+@itemize @minus
 @item
 Open the Control Panel on the Windows machine.
 @item
-Double click the ODBC Data Sources 32 bits icon.
+Double-click the ODBC Data Sources 32 bits icon.
 @item
 Click the tab User DSN.
 @item
@@ -30877,13 +30877,13 @@ Now start your application and select the ODBC driver with the DSN you
 specified in the ODBC administrator.
 @end itemize
 
-Notice that there are other configuration options in the screen of
+Notice that there are other configuration options on the screen of
 @strong{MySQL} (trace, don't prompt on connect, etc) that you can try if
 you run into problems.
 
 @cindex ODBC, administrator
 @node ODBC administrator, ODBC Problems, Which ODBC OS, ODBC
-@section How to fill in the various fields in the ODBC administrator program
+@section How to Fill in the Various Fields in the ODBC Administrator Program
 
 There are three possibilities for specifying the server name on
 Windows95:
@@ -30908,7 +30908,7 @@ For example:
 Configure the PC to use DNS.
 @end itemize
 
-Example of how to fill in the @code{ODBC setup}
+Example of how to fill in the @code{ODBC setup}:
 @example
 Windows DSN name:   test
 Description:        This is my test database
@@ -30923,7 +30923,7 @@ The value for the @code{Windows DSN name} field is any name that is unique
 in your Windows ODBC setup.
 
 You don't have to specify values for the @code{Server}, @code{User},
-@code{Password} or @code{Port} fields in the ODBC setup screen.
+@code{Password}, or @code{Port} fields in the ODBC setup screen.
 However, if you do, the values will be used as the defaults later when
 you attempt to make a connection.  You have the option of changing the
 values at that time.
@@ -30937,17 +30937,17 @@ You can use all options that are usable by @code{mysql_options()}.
 @xref{mysql_options, , @code{mysql_options}}.
 
 @node ODBC Problems, MyODBC clients, ODBC administrator, ODBC
-@section How to report problems with MyODBC
+@section How to Report Problems with MyODBC
 
 @strong{MyODBC} has been tested with Access, Admndemo.exe, C++-Builder,
 Borland Builder 4, Centura Team Developer (formerly Gupta SQL/Windows),
 ColdFusion (on Solaris and NT with svc pack 5), Crystal Reports,
 DataJunction, Delphi, ERwin, Excel, iHTML, FileMaker Pro, FoxPro, Notes
 4.5/4.6, SBSS, Perl DBD-ODBC, Paradox, Powerbuilder, Powerdesigner 32
-bit, VC++ and Visual Basic.
+bit, VC++, and Visual Basic.
 
 If you know of any other applications that work with @strong{MyODBC}, please
-mail @email{myodbc@@lists.mysql.com} about this!
+send mail to @email{myodbc@@lists.mysql.com} about this!
 
 With some programs you may get an error like:
 @code{Another user has modifies the record that you have modified}. In most
@@ -30959,18 +30959,18 @@ Add a primary key for the table if there isn't one already.
 @item
 Add a timestamp column if there isn't one already.
 @item
-Only use double float fields. Some programs may fails when they comparing
+Only use double float fields. Some programs may fail when they compare
 single floats.
 @end itemize
 
 If the above doesn't help, you should do a @code{MyODBC} trace file and
-from this try to figure out why things goes wrong.
+try to figure out why things go wrong.
 
 @node MyODBC clients, ODBC and last_insert_id, ODBC Problems, ODBC
-@section Programs known to work with MyODBC
+@section Programs Known to Work with MyODBC
 
 Most programs should work with @strong{MyODBC}, but for each of those
-listed below, we have tested it ourselves or gotten confirmation from
+listed below, we have tested it ourselves or received confirmation from
 some user that it works:
 
 @table @asis
@@ -30983,10 +30983,9 @@ To make Access work:
 @item
 If you are using Access 2000, you should get and install the newest
 Microsoft MDAC (@code{Microsoft Data Access Components}) from
-@uref{http://www.microsoft.com/data}.  This will fix the bug in Access
-that when you export data to @strong{MySQL}, the table and column names
+@uref{http://www.microsoft.com/data}.  This will fix the following bug in Access: when you export data to @strong{MySQL}, the table and column names
 aren't specified.  Another way to around this bug is to upgrade to
-MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together provides a
+MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together provide a
 workaround for this bug!
 
 Note that if you are using @strong{MySQL} Version 3.22, you must to apply the
@@ -30996,7 +30995,7 @@ this problem.
 Set the ``Return matching rows'' MyODBC option field when connecting to
 @strong{MySQL}.
 @item
-You should have a primary key in the table;  If not, new or updated rows
+You should have a primary key in the table. If not, new or updated rows
 may show up as @code{#Deleted#}.
 @item
 You should have a timestamp in all tables you want to be able to update.
@@ -31008,13 +31007,13 @@ The symptom usually is that new or updated rows may show up as @code{#Deleted#}
 or that you can't find or update rows.
 @item
 If you still get the error @code{Another user has changed your data} after
-adding a @code{TIMESTAMP} column the following trick may help you:
+adding a @code{TIMESTAMP} column, the following trick may help you:
 
 Don't use @code{table} data sheet view. Create instead a form with the
 fields you want, and use that @code{form} data sheet view.  You should
 set the @code{DefaultValue} property for the @code{TIMESTAMP} column to
 @code{NOW()}.  It may be a good idea to hide the @code{TIMESTAMP} column
-from the view to not confuse your users.
+from view so your users are not confused.
 @item
 Access on NT will report @code{BLOB} columns as @code{OLE OBJECTS}. If
 you want to have @code{MEMO} columns instead, you should change the
@@ -31065,7 +31064,7 @@ for a similar query to get the correct row count.
 @cindex Borland Buidler 4 program
 @item Borland Builder 4
 When you start a query you can use the property @code{Active} or use the
-method @code{Open}.  Note that @code{Active} will start by automatically issue
+method @code{Open}.  Note that @code{Active} will start by automatically issuing
 a @code{SELECT * FROM ...} query that may not be a good thing if your tables
 are big!
 @item ColdFusion (On Unix)
@@ -31073,15 +31072,15 @@ The following information is taken from the ColdFusion documentation:
 
 Use the following information to configure ColdFusion Server for Linux
 to use the unixODBC driver with @strong{MyODBC} for @strong{MySQL} data
-sources.  Allaire has verified that @strong{MyODBC} version 2.50.26
-works with @strong{MySQL} version 3.22.27 and ColdFusion for Linux. (Any
-newer version should also work). You can download @strong{MyODBC} at
+sources.  Allaire has verified that @strong{MyODBC} Version 2.50.26
+works with @strong{MySQL} Version 3.22.27 and ColdFusion for Linux. (Any
+newer version should also work.) You can download @strong{MyODBC} at
 @uref{http://www.mysql.com/downloads/api-myodbc.html}
 
 @cindex ColdFusion program
-ColdFusion 4.5.1 allows you to us the ColdFusion Administrator to add
+ColdFusion Version 4.5.1 allows you to us the ColdFusion Administrator to add
 the @strong{MySQL} data source. However, the driver is not included with
-ColdFusion 4.5.1. Before the @strong{MySQL} driver will appear in the ODBC
+ColdFusion Version 4.5.1. Before the @strong{MySQL} driver will appear in the ODBC
 datasources drop-down list, you must build and copy the @strong{MyODBC} driver
 to @file{/opt/coldfusion/lib/libmyodbc.so}.
 
@@ -31115,16 +31114,16 @@ exact types for each column.
 @cindex Word program
 @item Word
 
-To retrieve data from @strong{MySQL}to Word/Excel documents, you need to
+To retrieve data from @strong{MySQL} to Word/Excel documents, you need to
 use the @code{MyODBC} driver and the Add-in Microsoft Query help.
 
-For example, create a db with a table with 2 columns text.
+For example, create a db with a table containing 2 columns of text:
 
 @itemize @bullet
 @item
-Insert rows using the mysql client command line tool.
+Insert rows using the mysql client command-line tool.
 @item
-Create a DSN file using the MyODBC driver e.g. my for the db above.
+Create a DSN file using the MyODBC driver, for example, my for the db above.
 @item
 Open the Word application.
 @item
@@ -31160,13 +31159,13 @@ Click OK and you see the rows in your Word document.
 Test program for ODBC.
 @cindex Delphi program
 @item Delphi
-You must use DBE 3.2 or newer.  Set the `Don't optimize column width'
+You must use DBE Version 3.2 or newer.  Set the `Don't optimize column width'
 option field when connecting to @strong{MySQL}.
 
 Also, here is some potentially useful Delphi code that sets up both an
 ODBC entry and a BDE entry for @strong{MyODBC} (the BDE entry requires a BDE
-Alias Editor which may be had for free at a Delphi Super Page near
-you.):  (Thanks to Bryan Brunton @email{bryan@@flesherfab.com} for this)
+Alias Editor that is free at a Delphi Super Page near
+you. (Thanks to Bryan Brunton @email{bryan@@flesherfab.com} for this):
 
 @example
 fReg:= TRegistry.Create;
@@ -31207,7 +31206,7 @@ fReg:= TRegistry.Create;
 
 @cindex C++Builder
 @item C++Builder
-Tested with BDE 3.0. The only known problem is that when the table
+Tested with BDE Version 3.0. The only known problem is that when the table
 schema changes, query fields are not updated. BDE, however, does not seem
 to recognize primary keys, only the index PRIMARY, though this has not
 been a problem.
@@ -31215,7 +31214,7 @@ been a problem.
 @item Visual Basic
 To be able to update a table, you must define a primary key for the table.
 
-Visual Basic with ADO can't handle big integers;  This means that some queries
+Visual Basic with ADO can't handle big integers. This means that some queries
 like @code{SHOW PROCESSLIST} will not work properly.  The fix is to set
 add the option @code{OPTION=16834} in the ODBC connect string or set
 the @code{Change BIGINT columns to INT} option in the MyODBC connect screen.
@@ -31223,7 +31222,7 @@ the @code{Change BIGINT columns to INT} option in the MyODBC connect screen.
 
 @cindex AUTO-INCREMENT, ODBC
 @node ODBC and last_insert_id, MyODBC bug report, MyODBC clients, ODBC
-@section How to get the value of an @code{AUTO_INCREMENT} column in ODBC
+@section How to Get the Value of an @code{AUTO_INCREMENT} Column in ODBC
 
 A common problem is how to get the value of an automatically generated ID
 from an @code{INSERT}. With ODBC, you can do something like this (assuming
@@ -31242,7 +31241,7 @@ INSERT INTO foo2 (id,text) VALUES(LAST_INSERT_ID(),'text');
 @end example
 
 For the benefit of some ODBC applications (at least Delphi and Access),
-the following query can be used to find a newly-inserted row:
+the following query can be used to find a newly inserted row:
 @example
 SELECT * FROM tbl_name WHERE auto IS NULL;
 @end example
@@ -31251,7 +31250,7 @@ SELECT * FROM tbl_name WHERE auto IS NULL;
 @cindex problems, ODBC
 @cindex MyODBC, reporting problems
 @node MyODBC bug report,  , ODBC and last_insert_id, ODBC
-@section Reporting problems with MyODBC
+@section Reporting Problems with MyODBC
 
 If you encounter difficulties with @strong{MyODBC}, you should start by
 making a log file from the ODBC manager (the log you get when requesting
@@ -31261,7 +31260,7 @@ connect/configure screen.  The log will be written to file
 @file{C:\myodbc.log}.  Note that you must use @code{MYSQL.DLL} and not
 @code{MYSQL2.DLL} for this option to work!
 
-Check the queries that MyODBC sends to the @strong{MySQL} server; You
+Check the queries that MyODBC sends to the @strong{MySQL} server. You
 should be able to find this by searching after the string
 @code{>mysql_real_query} in the @file{myodbc.log} file.
 
@@ -31269,14 +31268,14 @@ You should also try duplicating the queries in the @code{mysql} monitor
 or @code{admndemo} to find out if the error is MyODBC or @strong{MySQL}.
 
 If you find out something is wrong, please only send the relevant rows
-(max 40 rows) to the @email{myodbc@@lists.mysql.com}.  Please never
+(max 40 rows) to @email{myodbc@@lists.mysql.com}.  Please never
 send the whole MyODBC or ODBC log file!
 
 If you are unable to find out what's wrong, the last option is to
 make an archive (tar or zip) that contains a MyODBC log file, the ODBC
-log file and a README file that explains the problem.  You can send this
+log file, and a README file that explains the problem.  You can send this
 to @uref{ftp://support.mysql.com/pub/mysql/secret}.  Only we at MySQL AB
-will have access to the files you upload and we will be very discrete
+will have access to the files you upload, and we will be very discrete
 with the data!
 
 If you can create a program that also shows this problem, please
@@ -31289,7 +31288,7 @@ Remember that the more information you can supply to us, the more
 likely it is that we can fix the problem!
 
 @node Common programs, Problems, ODBC, Top
-@chapter Using MySQL with some common programs
+@chapter Using MySQL with Some Common Programs
 
 @menu
 * Apache::                      Using @strong{MySQL} with Apache
@@ -31322,7 +31321,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @cindex problems, common errors
 @cindex errors, common
 @node Problems, Common problems, Common programs, Top
-@chapter Problems and common errors
+@chapter Problems and Common Errors
 
 @menu
 * What is crashing::            How to determine what is causing problems
@@ -31350,20 +31349,20 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @end menu
 
 @node What is crashing, Crashing, Problems, Problems
-@section How to determine what is causing problems
+@section How to Determine What Is Causing Problems
 
 When you run into problems, the first thing you should do is to find out
-which program / piece of equipment is causing problems.
+which program / piece of equipment is causing problems:
 
 @itemize @bullet
 @item
 If you have one of the following symptoms, then it is probably a hardware
-(like memory, motherboard, CPU, or harddisk) or kernel problem:
-@itemize @bullet
+(like memory, motherboard, CPU, or hard disk) or kernel problem:
+@itemize @minus
 @item
 The keyboard doesn't work.  This can normally be checked by pressing
-Caps Lock;  If the Caps Lock light doesn't change you have to replace
-your keyboard.  (Before doing this, you should, however, try to reboot
+Caps Lock. If the Caps Lock light doesn't change you have to replace
+your keyboard.  (Before doing this, you should try to reboot
 your computer and check all cables to the keyboard.)
 @item
 The mouse pointer doesn't move.
@@ -31378,7 +31377,7 @@ NEVER be able to take down your system).
 
 In this case you should start by checking all your cables and run some
 diagnostic tool to check your hardware!
-You should also check if there are any patches, updates or service
+You should also check if there are any patches, updates, or service
 packs for your operating system that could likely solve your problems.
 Check also that all your libraries (like glibc) are up to date.
 
@@ -31390,7 +31389,7 @@ logging into your machine from another machine and execute
 @code{kbd_mode -a} on it.
 
 @item
-Please examine your system log file, (/var/log/messages or similar) for
+Please examine your system log file (/var/log/messages or similar) for
 reasons for your problems.  If you think the problem is in @strong{MySQL}
 then you should also examine @strong{MySQL}'s log files. @xref{Update log}.
 
@@ -31398,33 +31397,33 @@ then you should also examine @strong{MySQL}'s log files. @xref{Update log}.
 If you don't think you have hardware problems, you should try to find
 out which program is causing problems.
 
-Try using @code{top}, @code{ps}, @code{taskmanager} or some similar program,
-to check which program is taking all CPU, or is locking the machine.
+Try using @code{top}, @code{ps}, @code{taskmanager}, or some similar program,
+to check which program is taking all CPU or is locking the machine.
 
 @item
-Check with @code{top}, @code{df} or a similar programs if you are out of
-memory, disk space, open files or some other critical resource.
+Check with @code{top}, @code{df}, or a similar program if you are out of
+memory, disk space, open files, or some other critical resource.
 
 @item
-If the problem is some runaway process, you can always try to kill if. If it
-doesn't want to die, this is probably a bug in the operating system.
+If the problem is some runaway process, you can always try to kill it. If it
+doesn't want to die, there is probably a bug in the operating system.
 @end itemize
 
 If after you have examined all other possibilities and you have
 concluded that it's the @strong{MySQL} server or a @strong{MySQL} client
 that is causing the problem, it's time to do a bug report for our
-mailing list or our support team.  In the bug report, try to describe
-very detailed how the system is behaving and what you think is
+mailing list or our support team.  In the bug report, try to give a
+very detailed description of how the system is behaving and what you think is
 happening. You should also state why you think it's @strong{MySQL} that
-is causing the problems.  Take in consideration all the situations in
+is causing the problems.  Take into consideration all the situations in
 this chapter. State any problems exactly how they appear when you
-examine your system.. Use the 'cut and paste' method for any output
+examine your system. Use the 'cut and paste' method for any output
 and/or error messages from programs and/or log files!
 
-Try to describe very detailed which program is not working and all
-symptoms you see!  We have in the past got many bug reports that just
-states "the system doesn't work".  This doesn't provide us with any
-information of what could be the problem.
+Try to describe in detail which program is not working and all
+symptoms you see!  We have in the past received many bug reports that just
+state "the system doesn't work".  This doesn't provide us with any
+information about what could be the problem.
 
 If a program fails, it's always useful to know:
 
@@ -31435,41 +31434,41 @@ Has the program in question made a segmentation fault (core dumped)?
 Is the program taking the whole CPU? Check with @code{top}. Let the
 program run for a while, it may be evaluating something heavy.
 @item
-If it's the @code{mysqld} server that is causing problems; Can you
-do @code{mysqladmin -u root ping}, or @code{mysqladmin -u root processlist}?
+If it's the @code{mysqld} server that is causing problems, can you
+do @code{mysqladmin -u root ping} or @code{mysqladmin -u root processlist}?
 @item
-What does a client program say (try with @code{mysql} for example)
+What does a client program say (try with @code{mysql}, for example)
 when you try to connect to the @strong{MySQL} server?
 Does the client jam?  Do you get any output from the program?
 @end itemize
 
-When send a bug report, you should of course follow the outlines
+When sending a bug report, you should of follow the outlines
 described in this manual. @xref{Asking questions}.
 
 @cindex crash, repeated
 @node Crashing, Link errors, What is crashing, Problems
-@section What to do if MySQL keeps crashing
+@section What to Do if MySQL Keeps Crashing
 
 All @strong{MySQL} versions are tested on many platforms before they are
-released.  This doesn't mean that there isn't any bugs in
-@strong{MySQL}, but that if there are bugs they are very few and can be
+released.  This doesn't mean that there aren't any bugs in
+@strong{MySQL}, but it means if there are bugs, they are very few and can be
 hard to find.  If you have a problem, it will always help if you try to
-find out exactly what crashes your system as you will have a much better
+find out exactly what crashes your system, as you will have a much better
 chance of getting this fixed quickly.
 
-First you should try to find out whether the problem is that the
+First, you should try to find out whether the problem is that the
 @code{mysqld} daemon dies or whether your problem has to do with your
 client.  You can check how long your @code{mysqld} server has been up by
 executing @code{mysqladmin version}.  If @code{mysqld} has died, you may
 find the reason for this in the file
 @file{mysql-data-directory/'hostname'.err}.
 
-Many crashes of @strong{MySQL} is caused by corrupted index / data
+Many crashes of @strong{MySQL} are caused by corrupted index / data
 files.  @strong{MySQL} will update the data on disk, with the
 @code{write()} system call, after every SQL statement and before the
-client is notified about the result (this is not true if you are running
-with @code{delayed_key_writes}, in which case only the data is written).
-This means that the data is safe even if mysqld crashes as the OS will
+client is notified about the result. (This is not true if you are running
+with @code{delayed_key_writes}, in which case only the data is written.)
+This means that the data is safe even if mysqld crashes, as the OS will
 ensure that the not flushed data is written to disk.  You can force
 @strong{MySQL} to sync everything to disk after every SQL command by
 starting @code{mysqld} with @code{--flush}.
@@ -31489,7 +31488,7 @@ without locking the table properly.
 @item
 If you are running many @code{mysqld} servers on the same data on a
 system that doesn't support good file system locks (normally handled by
-the @code{lockd} deamon.) or if you are running
+the @code{lockd} deamon ) or if you are running
 multiple servers with @code{--skip-locking}
 @item
 You have a crashed index/data file that contains very wrong data that
@@ -31508,21 +31507,21 @@ the following things:
 @itemize @bullet
 @item
 Take down the @code{mysqld} daemon with @code{mysqladmin shutdown}, run
-@code{myisamchk --silent --force */*.MYI} on all tables and restart the
+@code{myisamchk --silent --force */*.MYI} on all tables, and restart the
 @code{mysqld} daemon.  This will ensure that you are running from a clean
 state.  @xref{Maintenance}.
 
 @item
 Use @code{mysqld --log} and try to determine from the information in the log
-whether or not some specific query kills the server. 95% of all bugs are
+whether or not some specific query kills the server. About 95% of all bugs are
 related to a particular query!  Normally this is one of the last queries in
 the log file just before @strong{MySQL} restarted.
 
 You may be able to verify this using the following procedure:
 
-@itemize @bullet
+@itemize @minus
 @item
-Take down the @strong{MySQL} daemon (with @code{mysqladmin shutdown})
+Take down the @strong{MySQL} daemon (with @code{mysqladmin shutdown}).
 @item
 Make a backup of files in the @strong{MySQL} database directory.
 (As the server is stopped, you can just copy the files to some other
@@ -31531,7 +31530,7 @@ directory)
 Check the tables with @code{myisamchk -s */*.MYI} to verify that all
 tables are correct.  If any table is corrupted, repair it with
 @code{myisamchk -r path-to-table.MYI}.  You should take the backup
-before checking the tables as the problem could be related to corrupted
+before checking the tables, as the problem could be related to corrupted
 tables.
 @item
 Remove (or move away) any old log files from the @strong{MySQL} data directory.
@@ -31543,15 +31542,15 @@ If @code{mysqld} now dies, you have two options:
 @itemize @bullet
 @item
 First take a backup of your backup database. (Just copy the file(s)
-somewhere again). This is because we want to keep the original start
+somewhere again.) This is because we want to keep the original start
 situation untouched. Start a mysqld process on the other backup database
 (you can do this with option @code{--datadir=/path/to/backup/}).
 @item
 Just restore the backup on your original database and restart @code{mysqld}.
 You will not any lose information, because you have the @code{log-update} file.
 @end itemize
-@item
 
+@item
 Now you can test if the problem is a specific update statement by executing
 @code{mysql database_name < path-to-log-update-file}.
 
@@ -31559,8 +31558,8 @@ You can also use the script @code{mysql_find_rows} to just execute some of the
 update statements if you want to narrow down the problem.
 
 If mysqld now crashes, then you have something repeatable
-available. Please mail @email{bugs@@lists.mysql.com}, or
-@email{developers@@mysql.com}, or (if you are a support customer) to
+available. Please send mail to @email{bugs@@lists.mysql.com} or
+@email{developers@@mysql.com} or (if you are a support customer) to
 @email{support@@mysql.com} about the problem and the @strong{MySQL} team
 will fix it as soon as possible.
 @end itemize
@@ -31568,7 +31567,7 @@ will fix it as soon as possible.
 @item
 Have you tried the benchmarks?  They should test @strong{MySQL} rather well.
 You can also add code that simulates your application!  The benchmarks can be
-found in the @file{bench} directory in the source distribution, or, for a
+found in the @file{bench} directory in the source distribution or, for a
 binary distribution, in the @file{sql-bench} directory under your
 @strong{MySQL} installation directory.
 
@@ -31637,7 +31636,7 @@ up
 info local
 @end example
 
-With gdb you can also examine which threads there exists with @code{info
+With gdb you can also examine which threads exist with @code{info
 threads} and switch to a specific thread with @code{thread #}, where
 @code{#} is the thread id.
 @end enumerate
@@ -31652,11 +31651,11 @@ than usual.  Because @strong{MySQL} works for many people, it may be that the
 crash results from something that exists only on your computer (for example,
 an error that is related to your particular system libraries).
 @item
-If you have a problem with table with dynamic-length rows and you are
-not using @code{BLOB/TEXT} columns (but only @code{VARCHAR} columns) you
+If you have a problem with tables with dynamic-length rows and you are
+not using @code{BLOB/TEXT} columns (but only @code{VARCHAR} columns), you
 can try to change all @code{VARCHAR} to @code{CHAR} with @code{ALTER
-TABLE}.  This will force @strong{MySQL} to use fixed-size rows.  Fixed
-size rows take a little extra space, but are much more tolerant to
+TABLE}.  This will force @strong{MySQL} to use fixed-size rows. 
+Fixed-size rows take a little extra space, but are much more tolerant to
 corruption!
 
 The current dynamic row code has been in use at MySQL AB for at least 3
@@ -31668,10 +31667,10 @@ prone to errors, so it may be a good idea to try the above to see if it helps!
 @cindex errors, linking
 @cindex problems, linking
 @node Link errors, Common errors, Crashing, Problems
-@section Problems when linking with the MySQL client library
+@section Problems When Linking with the MySQL Client Library
 
 If you are linking your program and you get errors for unreferenced
-symbols that starts with @code{mysql_}, like the following:
+symbols that start with @code{mysql_}, like the following:
 
 @example
 /tmp/ccFKsdPa.o: In function `main':
@@ -31689,51 +31688,51 @@ If you get @code{undefined reference} errors for the @code{compress} function,
 add @code{-lgz} @strong{LAST} on your link line and try again!
 
 If you get @code{undefined reference} errors for functions that should
-exist on your system, like @code{connect}, check the man page, for the
+exist on your system, like @code{connect}, check the man page for the
 function in question, for which libraries you should add to the link
 line!
 
-If you get @code{undefined reference} errors for functions that doesn't
+If you get @code{undefined reference} errors for functions that don't
 exist on your system, like the following:
 
 @example
 mf_format.o(.text+0x201): undefined reference to `__lxstat'
 @end example
 
-It usually means that your library is compiled on a system that is not
+it usually means that your library is compiled on a system that is not
 100 % compatible with yours.  In this case you should download the
 latest @strong{MySQL} source distribution and compile this yourself.
 @xref{Installing source}.
 
 If you are trying to run a program and you then get errors for
-unreferenced symbols that starts with @code{mysql_} or that the
+unreferenced symbols that start with @code{mysql_} or that the
 @code{mysqlclient} library can't be found, this means that your system
 can't find the share @code{libmysqlclient.so} library.
 
-The fix for this is to either tell your system to search after shared
+The fix for this is to tell your system to search after shared
 libraries where the library is located by one of the following methods:
 
 @itemize @bullet
 @item
-Add the path to directory where you have @code{libmysqlclient.so} the
+Add the path to the directory where you have @code{libmysqlclient.so} the
 @code{LD_LIBRARY_PATH} environment variable.
 @item
-Add the path to directory where you have @code{libmysqlclient.so} the
+Add the path to the directory where you have @code{libmysqlclient.so} the
 @code{LD_LIBRARY} environment variable.
 @item
 Copy @code{libmysqlclient.so} to some place that is searched by your system,
-like @file{/lib} and update the shared library information by executing
+like @file{/lib}, and update the shared library information by executing
 @code{ldconfig}.
 @end itemize
 
-Another way to solve this problem is to link your program staticly, with
+Another way to solve this problem is to link your program statically, with
 @code{-static}, or by removing the dynamic @strong{MySQL} libraries
-before linking your code. In the second case you should of course be
-sure that no other programs is using the dynamic libraries!
+before linking your code. In the second case you should be
+sure that no other programs are using the dynamic libraries!
 
 @cindex errors, list of
 @node Common errors, Full disk, Link errors, Problems
-@section Some common errors when using MySQL
+@section Some Common Errors When Using MySQL
 
 @menu
 * Gone away::                   @code{MySQL server has gone away} error
@@ -31751,7 +31750,7 @@ sure that no other programs is using the dynamic libraries!
 @end menu
 
 @node Gone away, Can not connect to server, Common errors, Common errors
-@subsection @code{MySQL server has gone away} error
+@subsection @code{MySQL server has gone away} Error
 
 This section also covers the related @code{Lost connection to server
 during query} error.
@@ -31759,7 +31758,7 @@ during query} error.
 The most common reason for the @code{MySQL server has gone away} error
 is that the server timed out and closed the connection. By default, the
 server closes the connection after 8 hours if nothing has happened. You
-can change the time limit with by setting the @code{wait_timeout} variable when
+can change the time limit by setting the @code{wait_timeout} variable when
 you start mysqld.
 
 You can check that the @strong{MySQL} hasn't died by executing
@@ -31793,7 +31792,7 @@ return a big result row!
 
 A @strong{MySQL} client on Unix can connect to the @code{mysqld} server in two
 different ways: Unix sockets, which connect through a file in the file
-system (default @file{/tmp/mysqld.sock}), or TCP/IP, which connects
+system (default @file{/tmp/mysqld.sock}) or TCP/IP, which connects
 through a port number.  Unix sockets are faster than TCP/IP but can only
 be used when connecting to a server on the same computer.  Unix sockets
 are used if you don't specify a hostname or if you specify the special
@@ -31803,7 +31802,7 @@ On Windows you can connect only with TCP/IP if the @code{mysqld} server
 is running on Win95/Win98. If it's running on NT, you can also connect
 with named pipes.  The name of the named pipe is @strong{MySQL}.  If you
 don't give a hostname when connecting to @code{mysqld}, a @strong{MySQL} client
-will first try to connect to the named pipe and if this doesn't work it
+will first try to connect to the named pipe, and if this doesn't work it
 will connect to the TCP/IP port.  You can force the use of named pipes
 on Windows by using @code{.} as the hostname.
 
@@ -31864,7 +31863,8 @@ shell> ./configure --with-unix-socket-path=/path/to/socket
 You can also start @code{safe_mysqld} with the
 @code{--socket=/path/to/socket} option and set the environment variable
 @code{MYSQL_UNIX_PORT} to the socket pathname before starting your
-@strong{MySQL} clients.  @item You have started the @code{mysqld} server with
+@strong{MySQL} clients.  
+@item You have started the @code{mysqld} server with
 the @code{--socket=/path/to/socket} option.  If you change the socket
 pathname for the server, you must also notify the @strong{MySQL} clients
 about the new path. You can do this by setting the environment variable
@@ -31882,12 +31882,12 @@ server.  @xref{Crashing}.
 @end itemize
 
 If you get the error message @code{Can't connect to MySQL server on
-some_hostname}, you can try the following things to find out what is the
-problem:
+some_hostname}, you can try the following things to find out what the
+problem is :
 
 @itemize @bullet
 @item
-Check if the server up by doing @code{telnet your-host-name
+Check if the server is up by doing @code{telnet your-host-name
 tcp-ip-port-number} and press @code{RETURN} a couple of times.  If there
 is a @strong{MySQL} server running on this port you should get a
 responses that includes the version number of the running @strong{MySQL}
@@ -31904,7 +31904,7 @@ Check that your @code{mysqld} server is not started with the
 @end itemize
 
 @node Blocked host, Too many connections, Can not connect to server, Common errors
-@subsection @code{Host '...' is blocked} error
+@subsection @code{Host '...' is blocked} Error
 
 If you get an error like this:
 
@@ -31913,7 +31913,7 @@ Host 'hostname' is blocked because of many connection errors.
 Unblock with 'mysqladmin flush-hosts'
 @end example
 
-This means that @code{mysqld} has gotten a lot (@code{max_connect_errors})
+this means that @code{mysqld} has gotten a lot (@code{max_connect_errors})
 of connect requests from the host @code{'hostname'} that have been interrupted
 in the middle. After @code{max_connect_errors} failed requests, @code{mysqld}
 assumes that something is wrong (like an attack from a cracker), and
@@ -31933,7 +31933,7 @@ host.  If your TCP/IP connections aren't working, it won't do you any good to
 increase the value of the @code{max_connect_errors} variable!
 
 @node Too many connections, Out of memory, Blocked host, Common errors
-@subsection @code{Too many connections} error
+@subsection @code{Too many connections} Error
 
 If you get the error @code{Too many connections} when you try to connect
 to @strong{MySQL}, this means that there is already @code{max_connections}
@@ -31946,7 +31946,7 @@ Note that @code{mysqld} actually allows (@code{max_connections}+1)
 clients to connect.  The last connection is reserved for a user with the
 @strong{process} privilege.  By not giving this privilege to normal
 users (they shouldn't need this), an administrator with this privilege
-can login and use @code{SHOW PROCESSLIST} to find out what could be
+can log in and use @code{SHOW PROCESSLIST} to find out what could be
 wrong. @xref{SHOW}.
 
 The maximum number of connects @strong{MySQL} is depending on how good
@@ -31955,7 +31955,7 @@ able to support 500-1000 simultaneous connections, depending on how much
 RAM you have and what your clients are doing.
 
 @node Out of memory, Packet too large, Too many connections, Common errors
-@subsection @code{Out of memory} error
+@subsection @code{Out of memory} Error
 
 If you issue a query and get something like the following error:
 
@@ -31965,7 +31965,7 @@ mysql: needed 8136 byte (8k), memory in use: 12481367 bytes (12189k)
 ERROR 2008: MySQL client ran out of memory
 @end example
 
-Note that the error refers to the @strong{MySQL} client @code{mysql}. The
+note that the error refers to the @strong{MySQL} client @code{mysql}. The
 reason for this error is simply that the client does not have enough memory to
 store the whole result.
 
@@ -31976,7 +31976,7 @@ to retrieve the result set.  This places less of a load on the client (but
 more on the server).
 
 @node Packet too large, Communication errors, Out of memory, Common errors
-@subsection @code{Packet too large} error
+@subsection @code{Packet too large} Error
 
 When a @strong{MySQL} client or the @code{mysqld} server gets a packet bigger
 than @code{max_allowed_packet} bytes, it issues a @code{Packet too large}
@@ -31996,57 +31996,57 @@ option.
 @cindex aborted connection
 @cindex connection, aborted
 @node Communication errors, Full table, Packet too large, Common errors
-@subsection Communication errors / Aborted connection
+@subsection Communication Errors / Aborted Connection
 
 If you find the error @code{Aborted connection} in the @code{hostname.err}
-log file this could be because on of the following reasons:
+log file, this could be because of one of the following reasons:
 
 @itemize @bullet
 @item
 The client had been sleeping more than @code{wait_timeout} without doing
 any requests. @xref{SHOW VARIABLES}.
 @item
-The client program ended abruptly in the middle of the transfer
+The client program ended abruptly in the middle of the transfer.
 @item
-The client program did not call @code{mysql_close()} before exit
+The client program did not call @code{mysql_close()} before exit.
 @item
 Usage of duplex Ethernet protocol, both half and full with
 Linux. Many Linux Ethernet drivers have this bug. You should test
-for this bug by transferring a huge file via ftp between these tow
-machines. If a transfer goes in burst-pause-burst-pause .. mode then
+for this bug by transferring a huge file via ftp between these two
+machines. If a transfer goes in burst-pause-burst-pause ... mode then
 you are experiencing a Linux duplex syndrome. The only solution to
 this problem is switching of both half and full duplexing on hubs
-and switches
+and switches.
 @item
 Some problem with the thread library that causes interrupts on reads.
 @item
-Badly configured TCP/IP
+Badly configured TCP/IP.
 @item
-Faulty Ethernets or hubs or switches, cables .. This can be diagnosed
-properly only by replacing hardware
+Faulty Ethernets or hubs or switches, cables ... This can be diagnosed
+properly only by replacing hardware.
 @end itemize
 
 @cindex table is full
 @node Full table, Cannot create, Communication errors, Common errors
-@subsection @code{The table is full} error
+@subsection @code{The table is full} Error
 
 This error occurs in older @strong{MySQL} versions when an in-memory temporary
 table becomes larger than @code{tmp_table_size} bytes. To avoid this
 problem, you can use the @code{-O tmp_table_size=#} option to
-@code{mysqld} to increase the temporary table size, or use the SQL
+@code{mysqld} to increase the temporary table size or use the SQL
 option @code{SQL_BIG_TABLES} before you issue the problematic
 query. @xref{SET OPTION, , @code{SET OPTION}}.
 
 You can also start @code{mysqld} with the @code{--big-tables} option.
 This is exactly the same as using @code{SQL_BIG_TABLES} for all queries.
 
-In @strong{MySQL} Version 3.23 in-memory temporary tables will automatically be
+In @strong{MySQL} Version 3.23, in-memory temporary tables will automatically be
 converted to a disk-based @code{MyISAM} table after the table size gets
 bigger than @code{tmp_table_size}.
 
 @cindex can't create/write to file
 @node Cannot create, Commands out of sync, Full table, Common errors
-@subsection @code{Can't create/write to file} error.
+@subsection @code{Can't create/write to file} Error
 
 If you get an error for some queries of type:
 
@@ -32055,8 +32055,8 @@ Can't create/write to file '\\sqla3fe_0.ism'.
 @end example
 
 this means that @strong{MySQL} can't create a temporary file for the
-result set in the given temporary directory (the above error is a
-typical error message on windows, the Unix error message is similar) .
+result set in the given temporary directory. (The above error is a
+typical error message on Windows, and the Unix error message is similar.)
 The fix is to start mysqld with @code{--tmpdir=path} or to add to your option
 file:
 
@@ -32069,7 +32069,7 @@ assuming that the @file{c:\\temp} directory exists. @xref{Option files}.
 
 @cindex commands out of sync
 @node Commands out of sync, Ignoring user, Cannot create, Common errors
-@subsection @code{Commands out of sync} error in client
+@subsection @code{Commands out of sync} Error in Client
 
 If you get @code{Commands out of sync; You can't run this command now}
 in your client code, you are calling client functions in the wrong order!
@@ -32080,13 +32080,13 @@ It can also happen if you try to execute two queries that return data without
 a @code{mysql_use_result()} or @code{mysql_store_result()} in between.
 
 @node Ignoring user, Cannot find table, Commands out of sync, Common errors
-@subsection @code{Ignoring user} error
+@subsection @code{Ignoring user} Error
 
 If you get the following error:
 
 @code{Found wrong password for user: 'some_user@@some_host'; Ignoring user}
 
-This means that when @code{mysqld} was started or when it reloaded the
+this means that when @code{mysqld} was started or when it reloaded the
 permissions tables, it found an entry in the @code{user} table with
 an invalid password.  As a result, the entry is simply ignored by the
 permission system.
@@ -32121,7 +32121,7 @@ mysql> update user set password=PASSWORD('your password')
 @end itemize
 
 @node Cannot find table,  , Ignoring user, Common errors
-@subsection @code{Table 'xxx' doesn't exist} error
+@subsection @code{Table 'xxx' doesn't exist} Error
 
 If you get the error @code{Table 'xxx' doesn't exist} or @code{Can't
 find file: 'xxx' (errno: 2)}, this means that no table exists
@@ -32138,10 +32138,10 @@ You can check which tables you have in the current database with
 @cindex full disk
 @cindex disk full
 @node Full disk, Multiple sql commands, Common errors, Problems
-@section How MySQL handles a full disk
+@section How MySQL Handles a Full Disk
 
 @noindent
-When a disk full condition occurs, @strong{MySQL} does the following:
+When a disk-full condition occurs, @strong{MySQL} does the following:
 
 @itemize @bullet
 @item
@@ -32163,14 +32163,14 @@ To continue, you only have to free enough disk space to insert all records.
 To abort the thread, you must send a @code{mysqladmin kill} to the thread.
 The thread will be aborted the next time it checks the disk (in 1 minute).
 @item
-Note that other threads may be waiting for the table that caused the ``disk
-full'' condition.  If you have several ``locked'' threads, killing the one
-thread that is waiting on the disk full condition will allow the other
+Note that other threads may be waiting for the table that caused the disk
+full condition.  If you have several ``locked'' threads, killing the one
+thread that is waiting on the disk-full condition will allow the other
 threads to continue.
 @end itemize
 
 @node Multiple sql commands, Temporary files, Full disk, Problems
-@section How to run SQL commands from a text file
+@section How to Run SQL Commands from a Text File
 
 The @code{mysql} client typically is used interactively, like this:
 
@@ -32198,7 +32198,7 @@ shell> mysql < text_file
 @xref{Programs}.
 
 @node Temporary files, Problems with mysql.sock, Multiple sql commands, Problems
-@section Where MySQL stores temporary files
+@section Where MySQL Stores Temporary Files
 
 @strong{MySQL} uses the value of the @code{TMPDIR} environment variable as
 the pathname of the directory in which to store temporary files.  If you don't
@@ -32209,7 +32209,7 @@ set @code{TMPDIR} to point to a directory in a file system where you have
 enough space!  You can also set the temporary directory using the
 @code{--tmpdir} option to @code{mysqld}.
 
-@strong{MySQL} creates all temporary files as ``hidden files''. This ensures
+@strong{MySQL} creates all temporary files as hidden files. This ensures
 that the temporary files will be removed if @code{mysqld} is terminated.  The
 disadvantage of using hidden files is that you will not see a big temporary
 file that fills up the file system in which the temporary file directory is
@@ -32236,7 +32236,7 @@ the original table.
 @cindex @code{mysql.sock}, protection
 @cindex deletion, @code{mysql.sock}
 @node  Problems with mysql.sock, Error Access denied, Temporary files, Problems
-@section How to protect @file{/tmp/mysql.sock} from being deleted
+@section How to Protect @file{/tmp/mysql.sock} from Being Deleted
 
 If you have problems with the fact that anyone can delete the
 @strong{MySQL} communication socket @file{/tmp/mysql.sock}, you can,
@@ -32257,17 +32257,17 @@ If the last permission bit is @code{t}, the bit is set.
 @cindex problems, access denied errors
 @cindex access denied errors
 @node Error Access denied, Changing MySQL user, Problems with mysql.sock, Problems
-@section @code{Access denied} error
+@section @code{Access denied} Error
 
-@xref{Privileges}. And especially see @ref{Access denied}.
+@xref{Privileges} and especially see @ref{Access denied}.
 
 @cindex starting, @code{mysqld}
 @cindex @code{mysqld}, starting
 @node Changing MySQL user, Resetting permissions, Error Access denied, Problems
-@section How to run MySQL as a normal user
+@section How to Run MySQL As a Normal User
 
 The @strong{MySQL} server @code{mysqld} can be started and run by any user.
-In order to change @code{mysqld} to run as Unix user @code{user_name}, you must
+In order to change @code{mysqld} to run as a Unix user @code{user_name}, you must
 do the following:
 
 @enumerate
@@ -32292,7 +32292,7 @@ you.
 Start the server as user @code{user_name}, or, if you are using
 @strong{MySQL} Version 3.22 or later, start @code{mysqld} as the Unix @code{root}
 user and use the @code{--user=user_name} option.  @code{mysqld} will switch
-to run as Unix user @code{user_name} before accepting any connections.
+to run as the Unix user @code{user_name} before accepting any connections.
 
 @item
 If you are using the @code{mysql.server} script to start @code{mysqld} when
@@ -32315,7 +32315,7 @@ to the client program.
 
 Note that accessing @strong{MySQL} as @code{root}, by supplying @code{-u
 root} on the command line, has @emph{nothing} to do with @strong{MySQL} running
-as the Unix @code{root} user, or, indeed, as other Unix user. The access
+as the Unix @code{root} user, or, indeed, as another Unix user. The access
 permissions and user names of @strong{MySQL} are completely separate from
 Unix user names. The only connection with Unix user names is that if you
 don't provide a @code{-u} option when you invoke a client program, the client
@@ -32331,16 +32331,16 @@ root db_name} and do whatever he likes.
 @cindex passwords, resetting
 @cindex root user, password resetting
 @node Resetting permissions, File permissions , Changing MySQL user, Problems
-@section How to reset a forgotten password.
+@section How to Reset a Forgotten Password
 
 If you have forgotten the @code{root} user password for @strong{MySQL}, you
-can restore it with the following procedure.
+can restore it with the following procedure:
 
 @enumerate
 @item
 Take down the mysqld server by sending a @code{kill} (not @code{kill
 -9}) to the @code{mysqld} server.  The pid is stored in a @code{.pid}
-file which is normally in the @strong{MySQL} database directory:
+file, which is normally in the @strong{MySQL} database directory:
 
 @example
 kill `cat /mysql-data-directory/hostname.pid`
@@ -32369,7 +32369,7 @@ error until you have executed @code{FLUSH PRIVILEGES}.
 @cindex error mesaages, can't find file
 @cindex files, not found message
 @node File permissions , Not enough file handles, Resetting permissions, Problems
-@section Problems with file permissions
+@section Problems with File Permissions
 
 If you have problems with file permissions, for example, if @code{mysql}
 issues the following error message when you create a table:
@@ -32380,7 +32380,7 @@ ERROR: Can't find file: 'path/with/filename.frm' (Errcode: 13)
 
 @tindex UMASK environment variable
 @tindex Environment variable, UMASK
-Then the environment variable @code{UMASK} might be set incorrectly when
+then the environment variable @code{UMASK} might be set incorrectly when
 @code{mysqld} starts up.  The default umask value is @code{0660}. You can
 change this behavior by starting @code{safe_mysqld} as follows:
 
@@ -32393,7 +32393,7 @@ shell> /path/to/safe_mysqld &
 @tindex UMASK_DIR environment variable
 @tindex Environment variable, UMASK_DIR
 By default @strong{MySQL} will create database and @code{RAID}
-directories with permission type 0700.  You can modify this behaviour by
+directories with permission type 0700.  You can modify this behavior by
 setting the @code{UMASK_DIR} variable. If you set this, new
 directories are created with the combined @code{UMASK} and
 @code{UMASK_DIR}. For example, if you want to give group access to
@@ -32412,10 +32412,10 @@ with a zero.
 @xref{Environment variables}.
 
 @node Not enough file handles, Using DATE, File permissions , Problems
-@section File not found
+@section File Not Found
 
 If you get @code{ERROR '...' not found (errno: 23)}, @code{Can't open
-file: ... (errno: 24)} or any other error with @code{errno 23} or
+file: ... (errno: 24)}, or any other error with @code{errno 23} or
 @code{errno 24} from @strong{MySQL}, it means that you haven't allocated
 enough file descriptors for @strong{MySQL}.  You can use the
 @code{perror} utility to get a description of what the error number
@@ -32430,7 +32430,7 @@ Too many open files
 
 The problem here is that @code{mysqld} is trying to keep open too many
 files simultaneously.  You can either tell @code{mysqld} not to open so
-many files at once, or increase the number of file descriptors
+many files at once or increase the number of file descriptors
 available to @code{mysqld}.
 
 To tell @code{mysqld} to keep open fewer files at a time, you can make the
@@ -32459,7 +32459,7 @@ limits!  In this case you should start @code{safe_mysqld} with @code{sh}!
 @cindex DATE columns, problems
 @cindex problems, @code{DATE} columns
 @node Using DATE, Timezone problems, Not enough file handles, Problems
-@section Problems using @code{DATE} columns
+@section Problems Using @code{DATE} Columns
 
 The format of a @code{DATE} value is @code{'YYYY-MM-DD'}. According to ANSI
 SQL, no other format is allowed. You should use this format in @code{UPDATE}
@@ -32473,7 +32473,7 @@ mysql> SELECT * FROM tbl_name WHERE date >= '1997-05-05';
 As a convenience, @strong{MySQL} automatically converts a date to a number if
 the date is used in a numeric context (and vice versa). It is also smart
 enough to allow a ``relaxed'' string form when updating and in a @code{WHERE}
-clause that compares a date to a @code{TIMESTAMP}, @code{DATE} or a
+clause that compares a date to a @code{TIMESTAMP}, @code{DATE}, or a
 @code{DATETIME} column.  (Relaxed form means that any punctuation character
 may be used as the separator between parts. For example, @code{'1998-08-15'}
 and @code{'1998#08#15'} are equivalent.) @strong{MySQL} can also convert a
@@ -32483,7 +32483,7 @@ makes sense as a date.
 The special date @code{'0000-00-00'} can be stored and retrieved as
 @code{'0000-00-00'.} When using a @code{'0000-00-00'} date through
 @strong{MyODBC}, it will automatically be converted to @code{NULL} in
-@strong{MyODBC} 2.50.12 and above, because ODBC can't handle this kind of
+@strong{MyODBC} Version 2.50.12 and above, because ODBC can't handle this kind of
 date.
 
 Because @strong{MySQL} performs the conversions described above, the following
@@ -32526,11 +32526,11 @@ the server.
 @tindex TZ environment variable
 @tindex Environment variable, TZ
 @node Timezone problems, Case sensitivity, Using DATE, Problems
-@section Timezone problems
+@section Time Zone Problems
 
 If you have a problem with @code{SELECT NOW()} returning values in GMT and
 not your local time, you have to set the @code{TZ} environment variable to
-your current timezone.  This should be done for the environment in which
+your current time zone.  This should be done for the environment in which
 the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 @xref{Environment variables}.
 
@@ -32539,7 +32539,7 @@ the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 @cindex Chinese
 @cindex Big5 Chinese character encoding
 @node Case sensitivity, Problems with NULL, Timezone problems, Problems
-@section Case sensitivity in searches
+@section Case Sensitivity in Searches
 
 By default, @strong{MySQL} searches are case-insensitive (although there are
 some character sets that are never case insensitive, such as @code{czech}).
@@ -32568,7 +32568,7 @@ order of big5 encoding characters is based on the order of ASCII codes.
 @cindex @code{NULL} values, vs. empty values
 @tindex NULL
 @node Problems with NULL, Problems with alias, Case sensitivity, Problems
-@section Problems with @code{NULL} values
+@section Problems with @code{NULL} Values
 
 The concept of the @code{NULL} value is a common source of confusion for
 newcomers to SQL, who often think that @code{NULL} is the same thing as an
@@ -32646,8 +32646,8 @@ current date and time is inserted.  If you insert @code{NULL} into an
 @section Problems with @code{alias}
 
 You can use an alias to refer to a column in the @code{GROUP BY},
-@code{ORDER BY} or in the @code{HAVING} part.  Aliases can also be used
-to give columns more better names:
+@code{ORDER BY}, or in the @code{HAVING} part.  Aliases can also be used
+to give columns better names:
 
 @example
 SELECT SQRT(a*b) as rt FROM table_name GROUP BY rt HAVING rt > 0;
@@ -32655,7 +32655,7 @@ SELECT id,COUNT(*) AS cnt FROM table_name GROUP BY id HAVING cnt > 0;
 SELECT id AS "Customer identity" FROM table_name;
 @end example
 
-Note that you ANSI SQL doesn't allow you to refer to an alias in a
+Note that ANSI SQL doesn't allow you to refer to an alias in a
 @code{WHERE} clause.  This is because when the @code{WHERE} code is
 executed the column value may not yet be determined. For example, the
 following query is @strong{illegal}:
@@ -32672,7 +32672,7 @@ decide which rows from the result set should be used.
 @cindex rows, deleting
 @cindex tables, deleting rows
 @node Deleting from related tables, No matching rows, Problems with alias, Problems
-@section Deleting rows from related tables
+@section Deleting Rows from Related Tables
 
 As @strong{MySQL} doesn't support sub-selects or use of more than one table
 in the @code{DELETE} statement, you should use the following approach to
@@ -32684,7 +32684,7 @@ delete rows from 2 related tables:
 @item
 @code{DELETE} the rows in the main table based on the same condition.
 @item
-@code{DELETE FROM related_table WHERE related_column IN (selected_rows)}
+@code{DELETE FROM related_table WHERE related_column IN (selected_rows)}.
 @end enumerate
 
 If the total number of characters in the query with
@@ -32699,11 +32699,11 @@ number of arguments in the @code{IN} clause.
 @cindex no matching rows
 @cindex rows, matching problems
 @node No matching rows, ALTER TABLE problems, Deleting from related tables, Problems
-@section Solving problems with no matching rows
+@section Solving Problems with No Matching Rows
 
-If you have a complicated query with many tables that doesn't return any
-rows, you should use the following procedure to find out what is wrong
-with your query:
+If you have a complicated query that has many tables and that doesn't
+return any rows, you should use the following procedure to find out what
+is wrong with your query:
 
 @enumerate
 @item
@@ -32718,13 +32718,13 @@ Remove one table at a time from the query until it returns some rows.
 If the tables are big, it's a good idea to use @code{LIMIT 10} with the query.
 
 @item
-Do a @code{SELECT} for the column that should have matched a row,
-against the table that was last removed from the query.
+Do a @code{SELECT} for the column that should have matched a row against
+the table that was last removed from the query.
 
 @item
 If you are comparing @code{FLOAT} or @code{DOUBLE} columns with numbers that
 have decimals, you can't use @code{=}!  This problem is common in most
-computer languages because floating-point values are not exact values.
+computer languages because floating-point values are not exact values:
 
 @example
 mysql> SELECT * FROM table_name WHERE float_column=3.5;
@@ -32738,7 +32738,7 @@ In most cases, changing the @code{FLOAT} to a @code{DOUBLE} will fix this!
 If you still can't figure out what's wrong, create a minimal test that can
 be run with @code{mysql test < query.sql} that shows your problems.
 You can create a test file with @code{mysqldump --quick database tables > query.sql}. Open the file in an editor, remove some insert lines (if there are
-too many of these) and add your select statement at the end of the file.
+too many of these), and add your select statement at the end of the file.
 
 Test that you still have your problem by doing:
 
@@ -32760,11 +32760,11 @@ If @code{ALTER TABLE} dies with an error like this:
 Error on rename of './database/name.frm' to './database/B-a.frm' (Errcode: 17)
 @end example
 
-The problem may be that @strong{MySQL} has crashed in a previous @code{ALTER
+the problem may be that @strong{MySQL} has crashed in a previous @code{ALTER
 TABLE} and there is an old table named @file{A-something} or
 @file{B-something} lying around.  In this case, go to the @strong{MySQL} data
 directory and delete all files that have names starting with @code{A-} or
-@code{B-}.  (You may want to move them elsewhere instead of deleting them).
+@code{B-}.  (You may want to move them elsewhere instead of deleting them.)
 
 @code{ALTER TABLE} works the following way:
 
@@ -32778,7 +32778,7 @@ directory and delete all files that have names starting with @code{A-} or
 
 If something goes wrong with the renaming operation, @strong{MySQL} tries to
 undo the changes.  If something goes seriously wrong (this shouldn't happen,
-of course), @strong{MySQL} may leave the old table as @file{B-xxx} but a
+of course), @strong{MySQL} may leave the old table as @file{B-xxx}, but a
 simple rename should get your data back.
 
 @cindex reordering, columns
@@ -32786,10 +32786,10 @@ simple rename should get your data back.
 @cindex changing, column order
 @cindex tables, changing column order
 @node Change column order,  , ALTER TABLE problems, Problems
-@section How to change the order of columns in a table
+@Section How To Change the Order of Columns in a Table
 
 The whole point of SQL is to abstract the application from the data
-storage format.  You should always specify the order in wish you wish to
+storage format.  You should always specify the order in which you wish to
 retrieve your data.  For example:
 
 @example
@@ -32806,7 +32806,7 @@ will return columns in the order @code{col_name1}, @code{col_name3}, @code{col_n
 
 You should @strong{NEVER}, in an application, use @code{SELECT *} and
 retrieve the columns based on their position, because the order in which columns are
-returned @strong{CANNOT} be guaranteed over time; A simple change to
+returned @strong{CANNOT} be guaranteed over time. A simple change to
 your database may cause your application to fail rather dramatically.
 
 If you want to change the order of columns anyway, you can do it as follows:
@@ -32818,16 +32818,16 @@ Create a new table with the columns in the right order.
 Execute
 @code{INSERT INTO new_table SELECT fields-in-new_table-order FROM old_table}.
 @item
-Drop or rename @code{old_table}
+Drop or rename @code{old_table}.
 @item
-@code{ALTER TABLE new_table RENAME old_table}
+@code{ALTER TABLE new_table RENAME old_table}.
 @end enumerate
 
 @cindex problems, solving
 @cindex solving, problems
 @cindex databases, replicating
 @node Common problems, Clients, Problems, Top
-@chapter Solving some common problems with MySQL
+@chapter Solving Some Common Problems with MySQL
 
 @cindex replication
 @menu
@@ -32842,7 +32842,7 @@ Drop or rename @code{old_table}
 @cindex database replication
 @cindex replication, database
 @node Log Replication, Backup, Common problems, Common problems
-@section Database replication with update log
+@section Database Replication with Update Log
 
 Now that master-slave internal replication is available starting in
 Version 3.23.15, this is the recommended way. @xref{Replication}.
@@ -32851,13 +32851,13 @@ However, it is still possible to replicate a database by using the
 update log. @xref{Update log}. This requires one database that acts as a
 master (to which data changes are made) and one or more other databases
 that act as slaves. To update a slave, just run @code{mysql <
-update_log}.  Supply host, user and password options that are
+update_log}.  Supply host, user, and password options that are
 appropriate for the slave database, and use the update log from the
 master database as input.
 
 If you never delete anything from a table, you can use a @code{TIMESTAMP}
 column to find out which rows have been inserted or changed in the table
-since the last replication (by comparing to the time when you did the
+since the last replication (by comparing the time when you did the
 replication last time) and only copy these rows to the mirror.
 
 It is possible to make a two-way updating system using both the update
@@ -32884,7 +32884,7 @@ mirror if needed. @code{LAST_INSERT_ID()} is also safe to use.
 @cindex databases, backups
 @cindex backups
 @node Backup, Update log, Log Replication, Common problems
-@section Database backups
+@section Database Backups
 
 Because @strong{MySQL} tables are stored as files, it is easy to do a
 backup. To get a consistent backup, do a @code{LOCK TABLES} on the
@@ -32893,8 +32893,8 @@ read lock; this allows other threads to continue to query the tables while
 you are making a copy of the files in the database directory. If you want to
 make a SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
 
-Another way to backup a database is to use the @code{mysqldump} program:
-@xref{mysqldump}.
+Another way to back up a database is to use the @code{mysqldump} program:
+@xref{mysqldump}:
 
 @enumerate
 @item
@@ -32904,8 +32904,8 @@ Do a full backup of your databases:
 shell> mysqldump --tab=/path/to/some/dir --opt --full
 @end example
 
-You can also simply copy all table files (@file{*.frm}, @file{*.MYD} and
-@file{*.MYI} files), as long as the server isn't updating anything.
+You can also simply copy all table files (@file{*.frm}, @file{*.MYD}, and
+@file{*.MYI} files) as long as the server isn't updating anything.
 The script @code{mysqlhotcopy} does use this method.
 
 @item
@@ -32921,7 +32921,7 @@ If you have to restore something, try to recover your tables using
 @code{myisamchk -r} first.  That should work in 99.9% of all cases.  If
 @code{myisamchk} fails, try the following procedure:
 (This will only work if you have started @strong{MySQL} with
-@code{--log-update}. @xref{Update log}.)
+@code{--log-update}. @xref{Update log}):
 
 @enumerate
 @item
@@ -32945,20 +32945,20 @@ a unique key value.
 @cindex update log
 @cindex files, update log
 @node Update log, Binary log, Backup, Common problems
-@section The update log
+@section The Update Log
 
 When started with the @code{--log-update[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that update
-data. If no file name is given, it defaults to the name of the host
-machine, If file name is given, but it doesn't contain a path the file
+data. If no filename is given, it defaults to the name of the host
+machine. If a filename is given, but it doesn't contain a path, the file
 is written in the data directory. If file_name doesn't have an
 extension, @code{mysqld} will create log file names of type
 @code{file_name.#}, where @code{#} is a number that is incremented each
-time you execute @code{mysqladmin refresh} or @code{mysqladmin
-flush-logs}, the @code{FLUSH LOGS} statement, or restart the server.
+time you execute @code{mysqladmin refresh}, execute @code{mysqladmin
+flush-logs}, execute the @code{FLUSH LOGS} statement, or restart the server.
 
 @strong{NOTE:} For the above scheme to work, you should NOT create
-own files with the same file name as the update log + some extensions
+your own files with the same filename as the update log + some extensions
 that may be regarded as a number, in the directory used by the update log!
 
 If you use the @code{--log} or @code{-l} options, @code{mysqld} writes a
@@ -33001,31 +33001,31 @@ and the crash.
 @cindex binary log
 @cindex files, binary log
 @node Binary log, Slow query log, Update log, Common problems
-@section The binary log
+@section The Binary Log
 
 In the future we expect the binary log to replace the update log!
 
 The binary log contains all information that is available in the update
-log in a more efficient format. It also contains information of how long
-time every query that updated the database took.
+log in a more efficient format. It also contains information about how long
+every query that updated the database took.
 
-The binary log is also used when you are replication a slave from a master.
+The binary log is also used when you are replicating a slave from a master.
 @xref{Replication}.
 
 When started with the @code{--log-bin[=file_name]} option, @code{mysqld}
 writes a log file containing all SQL commands that update data. If no
 file name is given, it defaults to the name of the host machine followed
-by @code{-bin}., If file name is given, but it doesn't contain a path the
+by @code{-bin}. If file name is given, but it doesn't contain a path, the
 file is written in the data directory.
 
-To the binary log file name mysqld will append an extensions that is a
+To the binary log filename mysqld will append an extension that is a
 number that is incremented each time you execute @code{mysqladmin
-refresh} or @code{mysqladmin flush-logs}, the @code{FLUSH LOGS}
+refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
 statement or restart the server.
 
-To be able to know which different binary log files that has been used
-@code{mysqld} will also create a binary log index file which will
-contain name of all used binary log files. By default this is has the
+To be able to know which different binary log files have been used,
+@code{mysqld} will also create a binary log index file that
+contains the name of all used binary log files. By default this has the
 same name as the binary log file, with the extension @code{'.index'}.
 You can change the name of the binary log index file with the
 @code{--log-bin-index=[filename]} option.
@@ -33043,7 +33043,7 @@ as follows:
 mysqlbinlog log-file | mysql -h server_name
 @end example
 
-You can also use @file{mysqlbinlog} program to read the binary log
+You can also use the @file{mysqlbinlog} program to read the binary log
 direct from a remote mysql server!
 
 @code{mysqlbinlog --help} will give you more information of how to use
@@ -33052,7 +33052,7 @@ this program!
 @cindex slow query log
 @cindex files, slow query log
 @node Slow query log, Multiple servers, Binary log, Common problems
-@section The slow query log
+@section The Slow Query Log
 
 When started with the @code{--log-slow-queries[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that took
@@ -33060,7 +33060,7 @@ more than @code{long_query_time} to execute. The time to get the initial
 table locks are not counted as execution time.
 
 If no file name is given, it defaults to the name of the host machine
-suffixed with @code{-slow.log}. If a file name is given, but doesn't
+suffixed with @code{-slow.log}. If a filename is given, but doesn't
 contain a path, the file is written in the data directory.
 
 The slow query log can be used to find queries that takes a long time to
@@ -33081,7 +33081,7 @@ to the master database. @xref{Log Replication}.
 @cindex servers, multiple
 @cindex running, multiple servers
 @node Multiple servers,  , Slow query log, Common problems
-@section Running multiple MySQL servers on the same machine
+@section Running Multiple MySQL Servers on the Same Machine
 
 There are circumstances when you might want to run multiple servers on the same
 machine.  For example, you might want to test a new @strong{MySQL} release
@@ -33108,7 +33108,7 @@ default port number and socket file pathname, and the @code{--prefix} value
 should specify an installation directory different than the one under which
 the existing @strong{MySQL} installation is located.
 
-You can check the socket and port used by any currently-executing
+You can check the socket and port used by any currently executing
 @strong{MySQL} server with this command:
 
 @example
@@ -33124,7 +33124,7 @@ You should also edit the initialization script for your machine (probably
 
 You don't have to recompile a new @strong{MySQL} server just to start with
 a different port and socket.  You can change the port and socket to be used
-by specifying them at runtime as options to @code{safe_mysqld}:
+by specifying them at run time as options to @code{safe_mysqld}:
 
 @example
 shell> /path/to/safe_mysqld --socket=file_name --port=port_number
@@ -33132,7 +33132,7 @@ shell> /path/to/safe_mysqld --socket=file_name --port=port_number
 
 If you run the new server on the same database directory as another
 server with logging enabled, you should also specify the name of the log
-files to @code{safe_mysqld} with @code{--log}, @code{--log-update} or
+files to @code{safe_mysqld} with @code{--log}, @code{--log-update}, or
 @code{--log-slow-queries}.  Otherwise, both servers may be trying to
 write to the same log file.
 
@@ -33158,7 +33158,7 @@ when connecting to the @strong{MySQL} server.
 
 @item
 If your are using the @strong{MySQL} perl DBD module you can read the options
-from the @strong{MySQL} option files. @xref{Option files}.
+from the @strong{MySQL} option files. @xref{Option files}:
 
 @example
 $dsn = "DBI:mysql:test;mysql_read_default_group=client;"
@@ -33188,7 +33188,7 @@ home directory. @xref{Option files}.
 @cindex buffer sizes, client
 @cindex library, @code{mysqlclient}
 @node Clients, Comparisons, Common problems, Top
-@chapter MySQL client tools and APIs
+@chapter MySQL Client Tools and APIs
 
 @menu
 * C::                           @strong{MySQL} C API
@@ -33246,11 +33246,11 @@ The @strong{MySQL} server shrinks each communication buffer to
 the buffer associated with a connection is not decreased until the connection
 is closed, at which time client memory is reclaimed.
 
-For programming with threads, consult the 'how to make a thread safe
+For programming with threads, consult the 'how to make a thread-safe
 client' chapter. @xref{Thread-safe clients}.
 
 @node C API datatypes, C API function overview, C, Clients
-@section C API datatypes
+@section C API Datatypes
 @table @code
 
 @tindex MYSQL C type
@@ -33276,7 +33276,7 @@ values may contain null bytes internally.)  Rows are obtained by calling
 @tindex MYSQL_FIELD C type
 @item MYSQL_FIELD
 This structure contains information about a field, such as the field's
-name, type and size. Its members are described in more detail below.
+name, type, and size. Its members are described in more detail below.
 You may obtain the @code{MYSQL_FIELD} structures for each field by
 calling @code{mysql_fetch_field()} repeatedly.  Field values are not part of
 this structure; they are contained in a @code{MYSQL_ROW} structure.
@@ -33292,7 +33292,7 @@ within a row, beginning at zero.
 @tindex my_ulonglong values, printing
 @item my_ulonglong
 The type used for the number of rows and for @code{mysql_affected_rows()},
-@code{mysql_num_rows()} and @code{mysql_insert_id()}. This type provides a
+@code{mysql_num_rows()}, and @code{mysql_insert_id()}. This type provides a
 range of @code{0} to @code{1.84e19}.
 
 On some systems, attempting to print a value of type @code{my_ulonglong}
@@ -33373,21 +33373,22 @@ or more of the following bits set:
 @item @code{NOT_NULL_FLAG}       @tab Field can't be @code{NULL}
 @item @code{PRI_KEY_FLAG}        @tab Field is part of a primary key
 @item @code{UNIQUE_KEY_FLAG}     @tab Field is part of a unique key
-@item @code{MULTIPLE_KEY_FLAG}   @tab Field is part of a non-unique key.
+@item @code{MULTIPLE_KEY_FLAG}   @tab Field is part of a non-unique key
 @item @code{UNSIGNED_FLAG}       @tab Field has the @code{UNSIGNED} attribute
 @item @code{ZEROFILL_FLAG}       @tab Field has the @code{ZEROFILL} attribute
 @item @code{BINARY_FLAG}         @tab Field has the @code{BINARY} attribute
-@item @code{AUTO_INCREMENT_FLAG} @tab Field has the @code{AUTO_INCREMENT} attribute
+@item @code{AUTO_INCREMENT_FLAG} @tab Field has the @code{AUTO_INCREMENT} 
+attribute
 @item @code{ENUM_FLAG}           @tab Field is an @code{ENUM} (deprecated)
 @item @code{BLOB_FLAG}           @tab Field is a @code{BLOB} or @code{TEXT} (deprecated)
 @item @code{TIMESTAMP_FLAG}      @tab Field is a @code{TIMESTAMP} (deprecated)
 @end multitable
 
-Use of the @code{BLOB_FLAG}, @code{ENUM_FLAG} and @code{TIMESTAMP_FLAG} flags
-is deprecated because they indicate the type of a field rather than an
-attribute of its type.  It is preferable to test @code{field->type} against
-@code{FIELD_TYPE_BLOB}, @code{FIELD_TYPE_ENUM} or @code{FIELD_TYPE_TIMESTAMP}
-instead.
+Use of the @code{BLOB_FLAG}, @code{ENUM_FLAG}, and @code{TIMESTAMP_FLAG}
+flags is deprecated because they indicate the type of a field rather
+than an attribute of its type.  It is preferable to test
+@code{field->type} against @code{FIELD_TYPE_BLOB},
+@code{FIELD_TYPE_ENUM}, or @code{FIELD_TYPE_TIMESTAMP} instead.
 
 @noindent
 The example below illustrates a typical use of the @code{flags} value:
@@ -33413,16 +33414,16 @@ The number of decimals for numeric fields.
 @cindex C API, functions
 @cindex functions, C API
 @node C API function overview, C API functions, C API datatypes, Clients
-@section C API function overview
+@section C API Function Overview
 
 The functions available in the C API are listed below and are described in
 greater detail in the next section.
-@xref{C API functions}.
+@xref{C API functions}:
 
 @multitable @columnfractions .3 .7
 @item @strong{mysql_affected_rows()} @tab
-Returns the number of rows affected by the last @code{UPDATE}, @code{DELETE} or
-@code{INSERT} query.
+Returns the number of rows affected by the last @code{UPDATE},
+@code{DELETE}, or @code{INSERT} query.
 
 @item @strong{mysql_close()} @tab
 Closes a server connection.
@@ -33432,7 +33433,7 @@ Connects to a @strong{MySQL} server. This function is deprecated; use
 @code{mysql_real_connect()} instead.
 
 @item @strong{mysql_change_user()} @tab
-Change user and database on an open connection.
+Changes user and database on an open connection.
 
 @item @code{mysql_character_set_name()} @tab
 Returns the name of the default character set for the connection.
@@ -33523,7 +33524,7 @@ Returns the ID generated for an @code{AUTO_INCREMENT} column by the previous
 query.
 
 @item @strong{mysql_kill()} @tab
-Kill a given thread.
+Kills a given thread.
 
 @item @strong{mysql_list_dbs()} @tab
 Returns database names matching a simple regular expression.
@@ -33544,7 +33545,7 @@ Returns the number of columns in a result set.
 Returns the number of rows in a result set.
 
 @item @strong{mysql_options()} @tab
-Set connect options for @code{mysql_connect()}.
+Sets connect options for @code{mysql_connect()}.
 
 @item @strong{mysql_ping()} @tab
 Checks whether or not the connection to the server is working, reconnecting
@@ -33576,7 +33577,7 @@ Selects a database.
 Shuts down the database server.
 
 @item @strong{mysql_start_slave()} @tab
-Starts slave replication thread
+Starts slave replication thread.
 
 @item @strong{mysql_stat()} @tab
 Returns the server status as a string.
@@ -33585,7 +33586,7 @@ Returns the server status as a string.
 Retrieves a complete result set to the client.
 
 @item @strong{mysql_stop_slave()} @tab
-Stops slave replication thread
+Stops slave replication thread.
 
 @item @strong{mysql_thread_id()} @tab
 Returns the current thread ID.
@@ -33599,7 +33600,7 @@ Initiates a row-by-row result set retrieval.
 
 To connect to the server, call @code{mysql_init()} to initialize a
 connection handler, then call @code{mysql_real_connect()} with that
-handler (along with other information such as the hostname, user name
+handler (along with other information such as the hostname, user name,
 and password).  Upon connection, @code{mysql_real_connect()} sets the
 @code{reconnect} flag (part of the MYSQL structure) to a value of
 @code{1}. This flag indicates, in the event that a query cannot be
@@ -33620,7 +33621,7 @@ by calling @code{mysql_affected_rows()}.
 
 For @code{SELECT} queries, you retrieve the selected rows as a result set.
 (Note that some statements are @code{SELECT}-like in that they return rows.
-These include @code{SHOW}, @code{DESCRIBE} and @code{EXPLAIN}.  They should
+These include @code{SHOW}, @code{DESCRIBE}, and @code{EXPLAIN}.  They should
 be treated the same way as @code{SELECT} statements.)
 
 There are two ways for a client to process result sets.  One way is to
@@ -33697,7 +33698,7 @@ recently invoked function that can succeed or fail, allowing you to determine
 when an error occurred and what it was.
 
 @node C API functions, Perl, C API function overview, Clients
-@section C API function descriptions
+@section C API Function Descriptions
 
 @menu
 * mysql_affected_rows::         @code{mysql_affected_rows()}
@@ -33798,13 +33799,13 @@ A string representation of the error may be obtained by calling
 
 Returns the number of rows affected (changed) by the last @code{UPDATE},
 @code{DELETE} or @code{INSERT} query. May be called immediately after
-@code{mysql_query()} for @code{UPDATE}, @code{DELETE} or @code{INSERT}
+@code{mysql_query()} for @code{UPDATE}, @code{DELETE}, or @code{INSERT}
 statements.  For @code{SELECT} statements, @code{mysql_affected_rows()}
 works like @code{mysql_num_rows()}.
 
 @code{mysql_affected_rows()} is currently implemented as a macro.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An integer greater than zero indicates the number of rows affected or
 retrieved.  Zero indicates that no records matched the @code{WHERE} clause in
@@ -33835,7 +33836,7 @@ Closes a previously opened connection.  @code{mysql_close()} also deallocates
 the connection handle pointed to by @code{mysql} if the handle was allocated
 automatically by @code{mysql_init()} or @code{mysql_connect()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 None.
 
@@ -33880,7 +33881,7 @@ that you can't retrieve an error message if the connection fails.  (To
 get error information from @code{mysql_errno()} or @code{mysql_error()},
 you must provide a valid @code{MYSQL} pointer.)
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Same as for @code{mysql_real_connect()}.
 
@@ -33933,7 +33934,7 @@ The @strong{MySQL} server doesn't implement this command (probably an old server
 @item ER_ACCESS_DENIED_ERROR
 The user or password was wrong.
 @item ER_BAD_DB_ERROR
-The database didn't exists.
+The database didn't exist.
 @item ER_DBACCESS_DENIED_ERROR
 The user did not have access rights to the database.
 @item ER_WRONG_DB_NAME
@@ -33960,7 +33961,7 @@ if (mysql_change_user(&mysql, "user", "password", "new_database"))
 
 Returns the default character set for the current connection.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The default character set
 
@@ -33980,7 +33981,7 @@ Creates the database named by the @code{db} parameter.
 This function is deprecated.  It is preferable to use @code{mysql_query()}
 to issue a SQL @code{CREATE DATABASE} statement instead.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if the database was created successfully. Non-zero if an error
 occurred.
@@ -34026,7 +34027,7 @@ result set structure contains the entire result of the query, so
 The offset should be a value in the range from 0 to
 @code{mysql_num_rows(result)-1}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 None.
 
@@ -34045,7 +34046,7 @@ Fred Fish debug library. To use this function, you must compile the client
 library to support debugging.
 @xref{Debugging server}. @xref{Debugging client}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 None.
 
@@ -34073,7 +34074,7 @@ Drops the database named by the @code{db} parameter.
 This function is deprecated.  It is preferable to use @code{mysql_query()}
 to issue a SQL @code{DROP DATABASE} statement instead.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if the database was dropped successfully. Non-zero if an error
 occurred.
@@ -34162,7 +34163,7 @@ functions provide the same information, their use is preferred over
 information, because @code{mysql_eof()} returns only a boolean value whereas
 the error functions indicate a reason for the error when one occurs.)
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if no error occurred. Non-zero if the end of the result set has been
 reached.
@@ -34219,7 +34220,7 @@ Server error message numbers are listed in @file{mysqld_error.h}. In the
 @strong{MySQL} source distribution you can find a complete list of
 error messages and error numbers in the file @file{Docs/mysqld_error.txt}.
 
-@subsubheading Return values:
+@subsubheading Return Values
 
 An error code value. Zero if no error occurred.
 
@@ -34256,7 +34257,7 @@ recompiling the @strong{MySQL} client library. Currently you can choose
 error messages in several different languages.
 @xref{Languages}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A character string that describes the error.  An empty string if no error
 occurred.
@@ -34302,7 +34303,7 @@ should be made configurable sometime.) Once you've retrieved the result set,
 @code{field->max_length} contains the length of the largest value for this
 column in the specific query.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The @code{MYSQL_FIELD} structure for the current column. @code{NULL}
 if no columns are left.
@@ -34333,7 +34334,7 @@ Returns an array of all @code{MYSQL_FIELD} structures for a result set.
 Each structure provides the field definition for one column of the result
 set.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An array of @code{MYSQL_FIELD} structures for all columns of a result set.
 
@@ -34369,7 +34370,7 @@ this function to retrieve the definition for an arbitrary column.  The value
 of @code{fieldnr} should be in the range from 0 to
 @code{mysql_num_fields(result)-1}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The @code{MYSQL_FIELD} structure for the specified column.
 
@@ -34410,7 +34411,7 @@ The length for empty columns and for columns containing @code{NULL} values is
 zero.  To see how to distinguish these two cases, see the description for
 @code{mysql_fetch_row()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An array of unsigned long integers representing the size of each column (not
 including any terminating null characters).
@@ -34467,7 +34468,7 @@ The lengths of the field values in the row may be obtained by calling
 the pointer for the field value.  If the pointer is @code{NULL}, the field
 is @code{NULL}; otherwise the field is empty.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_ROW} structure for the next row.  @code{NULL} if
 there are no more rows to retrieve or if an error occurred.
@@ -34507,7 +34508,7 @@ while ((row = mysql_fetch_row(result)))
 
 @code{unsigned int mysql_field_count(MYSQL *mysql)}
 
-If you are using a version of @strong{MySQL} earlier than 3.22.24, you
+If you are using a version of @strong{MySQL} earlier than Version 3.22.24, you
 should use @code{unsigned int mysql_num_fields(MYSQL *mysql)} instead.
 
 @subsubheading Description
@@ -34525,7 +34526,7 @@ may be done.
 
 @xref{NULL mysql_store_result, , @code{NULL mysql_store_result()}}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An unsigned integer representing the number of fields in a result set.
 
@@ -34587,7 +34588,7 @@ associated with that offset.
 
 To seek to the beginning of a row, pass an @code{offset} value of zero.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The previous value of the field cursor.
 
@@ -34606,7 +34607,7 @@ Returns the position of the field cursor used for the last
 @code{mysql_fetch_field()}. This value can be used as an argument to
 @code{mysql_field_seek()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The current offset of the field cursor.
 
@@ -34626,7 +34627,7 @@ Frees the memory allocated for a result set by @code{mysql_store_result()},
 with a result set, you must free the memory it uses by calling
 @code{mysql_free_result()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 None.
 
@@ -34643,7 +34644,7 @@ None.
 
 Returns a string that represents the client library version.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A character string that represents the @strong{MySQL} client library version.
 
@@ -34661,7 +34662,7 @@ None.
 Returns a string describing the type of connection in use, including the
 server host name.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A character string representing the server host name and the connection type.
 
@@ -34678,7 +34679,7 @@ None.
 
 Returns the protocol version used by current connection.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An unsigned integer representing the protocol version used by the current
 connection.
@@ -34696,7 +34697,7 @@ None.
 
 Returns a string that represents the server version number.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A character string that represents the server version number.
 
@@ -34734,7 +34735,7 @@ Note that @code{mysql_info()} returns a non-@code{NULL} value for the
 @code{INSERT ... VALUES} statement only if multiple value lists are
 specified in the statement.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A character string representing additional information about the most
 recently executed query.  @code{NULL} if no information is available for the
@@ -34753,12 +34754,12 @@ None.
 
 Allocates or initializes a @code{MYSQL} object suitable for
 @code{mysql_real_connect()}.  If @code{mysql} is a @code{NULL} pointer, the
-function allocates, initializes and returns a new object.  Otherwise the
+function allocates, initializes, and returns a new object.  Otherwise the
 object is initialized and the address of the object is returned.  If
 @code{mysql_init()} allocates a new object, it will be freed when
 @code{mysql_close()} is called to close the connection.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An initialized @code{MYSQL*} handle.  @code{NULL} if there was
 insufficient memory to allocate a new object.
@@ -34788,7 +34789,7 @@ contains the most recently generated @code{AUTO_INCREMENT} value, and is
 not reset between queries because the value of that function is maintained
 in the server.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The value of the @code{AUTO_INCREMENT} field that was updated by the previous
 query.  Returns zero if there was no previous query on the connection or if
@@ -34807,7 +34808,7 @@ None.
 
 Asks the server to kill the thread specified by @code{pid}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero for success.  Non-zero if an error occurred.
 
@@ -34841,7 +34842,7 @@ databases [LIKE wild]}.
 
 You must free the result set with @code{mysql_free_result()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_RES} result set for success.  @code{NULL} if an error occurred.
 
@@ -34880,7 +34881,7 @@ instead of @code{mysql_list_fields()}.
 
 You must free the result set with @code{mysql_free_result()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_RES} result set for success.  @code{NULL} if an error occurred.
 
@@ -34911,7 +34912,7 @@ a @code{SHOW PROCESSLIST} query.
 
 You must free the result set with @code{mysql_free_result()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_RES} result set for success.  @code{NULL} if an error occurred.
 
@@ -34945,7 +34946,7 @@ tables [LIKE wild]}.
 
 You must free the result set with @code{mysql_free_result()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_RES} result set for success.  @code{NULL} if an error occurred.
 
@@ -34993,7 +34994,7 @@ example shown below illustrates how this may be done.
 
 @xref{NULL mysql_store_result, , @code{NULL mysql_store_result()}}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 An unsigned integer representing the number of fields in a result set.
 
@@ -35057,7 +35058,7 @@ called immediately.  If you use @code{mysql_use_result()},
 @code{mysql_num_rows()} will not return the correct value until all the rows
 in the result set have been retrieved.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The number of rows in the result set.
 
@@ -35121,7 +35122,7 @@ Note that @code{timeout} has been replaced by @code{connect_timeout}, but
 
 For more information about option files, see @ref{Option files}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero for success.  Non-zero if you used an unknown option.
 
@@ -35159,7 +35160,7 @@ This function can be used by clients that remain idle for a long while,
 to check whether or not the server has closed the connection and reconnect
 if necessary.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if the server is alive. Non-zero if an error occurred.
 
@@ -35194,7 +35195,7 @@ If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
 @xref{mysql_field_count, @code{mysql_field_count}}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if the query was successful. Non-zero if an error occurred.
 
@@ -35258,7 +35259,7 @@ allows the database administrator to set up the @strong{MySQL} privilege
 system in such a way that users get different privileges depending on whether
 or not they have specified a password.
 
-Note: Do not attempt to encrypt the password before calling
+NOTE: Do not attempt to encrypt the password before calling
 @code{mysql_real_connect()}; password encryption is handled automatically by
 the client API.
 
@@ -35288,13 +35289,13 @@ of the following flags in very special circumstances:
 @item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
 @item @code{CLIENT_IGNORE_SPACE} $tab Allow spaces after function names. Makes all functions names reserved words.
 @item @code{CLIENT_INTERACTIVE} @tab Allow @code{interactive_timeout} seconds (instead of @code{wait_timeout} seconds) of inactivity before closing the connection.
-@item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC; It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
+@item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
 @item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes
 @item @code{CLIENT_SSL}		@tab Use SSL (encrypted protocol).
 @end multitable
 @end itemize
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL*} connection handle if the connection was successful,
 @code{NULL} if the connection was unsuccessful.  For a successful connection,
@@ -35380,7 +35381,7 @@ Encodes the string in @code{from} to an escaped SQL string, taking into
 account the current charset of the connection, that can be sent to the
 server in a SQL statement, places the result in @code{to}, and adds a
 terminating null byte.  Characters encoded are @code{NUL} (ASCII 0),
-@samp{\n}, @samp{\r}, @samp{\}, @samp{'}, @samp{"} and Control-Z
+@samp{\n}, @samp{\r}, @samp{\}, @samp{'}, @samp{"}, and Control-Z
 (@pxref{Literals}).
 
 The string pointed to by @code{from} must be @code{length} bytes long.  You
@@ -35417,7 +35418,7 @@ The @code{strmov()} function used in the example is included in the
 @code{mysqlclient} library and works like @code{strcpy()} but returns a
 pointer to the terminating null of the first parameter.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The length of the value placed into @code{to}, not including the
 terminating null character.
@@ -35448,7 +35449,7 @@ If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
 @xref{mysql_field_count, @code{mysql_field_count}}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if the query was successful. Non-zero if an error occurred.
 
@@ -35479,7 +35480,7 @@ connected user must have the @strong{reload} privilege.
 This function is deprecated.  It is preferable to use @code{mysql_query()}
 to issue a SQL @code{FLUSH PRIVILEGES} statement instead.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero for success.  Non-zero if an error occurred.
 
@@ -35513,7 +35514,7 @@ or to @code{mysql_row_seek()}.  This value is not simply a row number; if you
 want to seek to a row within a result set using a row number, use
 @code{mysql_data_seek()} instead.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The previous value of the row cursor.  This value may be passed to a
 subsequent call to @code{mysql_row_seek()}.
@@ -35536,7 +35537,7 @@ Returns the current position of the row cursor for the last
 You should use @code{mysql_row_tell()} only after @code{mysql_store_result()},
 not after @code{mysql_use_result()}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The current offset of the row cursor.
 
@@ -35559,7 +35560,7 @@ explicit database specifier.
 @code{mysql_select_db()} fails unless the connected user can be authenticated
 as having permission to use the database.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero for success.  Non-zero if an error occurred.
 
@@ -35584,10 +35585,10 @@ An unknown error occurred.
 
 @subsubheading Description
 
-Asks the database server to shutdown. The connected user must have
+Asks the database server to shut down. The connected user must have
 @strong{shutdown} privileges.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero for success.  Non-zero if an error occurred.
 
@@ -35614,9 +35615,9 @@ An unknown error occurred.
 
 Returns a character string containing information similar to that provided by
 the @code{mysqladmin status} command.  This includes uptime in seconds and
-the number of running threads, questions, reloads and open tables.
+the number of running threads, questions, reloads, and open tables.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A character string describing the server status. @code{NULL} if an
 error occurred.
@@ -35643,7 +35644,7 @@ An unknown error occurred.
 @subsubheading Description
 
 You must call @code{mysql_store_result()} or @code{mysql_use_result()}
-for every query which successfully retrieves data (@code{SELECT},
+for every query that successfully retrieves data (@code{SELECT},
 @code{SHOW}, @code{DESCRIBE}, @code{EXPLAIN}).
 
 If you want to know if the query should return a result set or not, you can
@@ -35655,19 +35656,19 @@ allocates a @code{MYSQL_RES} structure, and places the result into this
 structure.
 
 @code{mysql_store_results()} returns a null pointer if the query didn't return
-a result sets (If the query was, for example, an @code{INSERT} statement).
+a result set (if the query was, for example, an @code{INSERT} statement).
 
-@code{mysql_store_results()} returns also null pointer if reading of the
+@code{mysql_store_results()} also returns a null pointer if reading of the
 result set failed. You can check if you got an error by checking if
 @code{mysql_error()} doesn't return a null pointer, if
-@code{mysql_errno()} returns <> 0 or if @code{mysql_field_count()}
+@code{mysql_errno()} returns <> 0, or if @code{mysql_field_count()}
 returns <> 0.
 
 An empty result set is returned if there are no rows returned.  (An empty
 result set differs from a null pointer as a return value.)
 
 Once you have called @code{mysql_store_result()} and got a result back
-which isn't a null pointer, you may call @code{mysql_num_rows()} to find
+that isn't a null pointer, you may call @code{mysql_num_rows()} to find
 out how many rows are in the result set.
 
 You can call @code{mysql_fetch_row()} to fetch rows from the result set,
@@ -35679,7 +35680,7 @@ set.
 
 @xref{NULL mysql_store_result, , @code{NULL mysql_store_result()}}.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_RES} result structure with the results. @code{NULL} if
 an error occurred.
@@ -35712,9 +35713,9 @@ an argument to @code{mysql_kill()} to kill the thread.
 
 If the connection is lost and you reconnect with @code{mysql_ping()}, the
 thread ID will change.  This means you should not get the thread ID and store
-it for later, you should get it when you need it.
+it for later. You should get it when you need it.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 The thread ID of the current connection.
 
@@ -35730,7 +35731,7 @@ None.
 @subsubheading Description
 
 You must call @code{mysql_store_result()} or @code{mysql_use_result()} for
-every query which successfully retrieves data (@code{SELECT}, @code{SHOW},
+every query that successfully retrieves data (@code{SELECT}, @code{SHOW},
 @code{DESCRIBE}, @code{EXPLAIN}).
 
 @code{mysql_use_result()} initiates a result set retrieval but does not
@@ -35755,7 +35756,7 @@ query. The C API will give the error @code{Commands out of sync; You can't
 run this command now} if you forget to do this!
 
 You may not use @code{mysql_data_seek()}, @code{mysql_row_seek()},
-@code{mysql_row_tell()}, @code{mysql_num_rows()} or
+@code{mysql_row_tell()}, @code{mysql_num_rows()}, or
 @code{mysql_affected_rows()} with a result returned from
 @code{mysql_use_result()}, nor may you issue other queries until the
 @code{mysql_use_result()} has finished.  (However, after you have fetched all
@@ -35765,7 +35766,7 @@ fetched.)
 You must call @code{mysql_free_result()} once you are done with the result
 set.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 A @code{MYSQL_RES} result structure. @code{NULL} if an error occurred.
 
@@ -35787,7 +35788,7 @@ An unknown error occurred.
 @tindex @code{mysql_query()}
 @tindex @code{mysql_store_result()}
 @node NULL mysql_store_result, Query results, mysql_use_result, C API functions
-@subsection Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL?}
+@subsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
 
 It is possible for @code{mysql_store_result()} to return @code{NULL}
 following a successful call to @code{mysql_query()}.  When this happens, it
@@ -35802,8 +35803,8 @@ large).
 The data couldn't be read (an error occurred on the connection).
 
 @item
-The query returned no data (for example, it was an @code{INSERT}, @code{UPDATE}
-or @code{DELETE}).
+The query returned no data (for example, it was an @code{INSERT},
+@code{UPDATE}, or @code{DELETE}).
 @end itemize
 
 You can always check whether or not the statement should have produced a
@@ -35820,7 +35821,7 @@ You can test for an error by calling @code{mysql_error()} or
 
 @cindex queries, C API results
 @node Query results, Getting unique ID, NULL mysql_store_result, C API functions
-@subsection What results can I get from a query?
+@subsection What Results Can I Get From a Query?
 
 In addition to the result set returned by a query, you can also get the
 following information:
@@ -35828,7 +35829,7 @@ following information:
 @itemize @bullet
 @item
 @code{mysql_affected_rows()} returns the number of rows affected by the last
-query when doing an @code{INSERT}, @code{UPDATE} or @code{DELETE}. An
+query when doing an @code{INSERT}, @code{UPDATE}, or @code{DELETE}. An
 exception is that if @code{DELETE} is used without a @code{WHERE} clause, the
 table is re-created empty, which is much faster! In this case,
 @code{mysql_affected_rows()} returns zero for the number of records
@@ -35859,7 +35860,7 @@ for the format of the string that it returns.  @code{mysql_info()} returns a
 @cindex ID, unique
 @cindex tables, unique ID for last row
 @node Getting unique ID, C API linking problems, Query results, C API functions
-@subsection How can I get the unique ID for the last inserted row?
+@subsection How Can I Get the Unique ID for the Last Inserted Row?
 
 If you insert a record in a table containing a column that has the
 @code{AUTO_INCREMENT} attribute, you can get the most recently generated
@@ -35899,7 +35900,7 @@ INSERT INTO foo2 (id,text)
 @cindex linking, problems
 @cindex C API, linking problems
 @node C API linking problems, Thread-safe clients, Getting unique ID, C API functions
-@subsection Problems linking with the C API
+@subsection Problems Linking with the C API
 
 When linking with the C API, the following errors may occur on some systems:
 
@@ -35918,27 +35919,27 @@ adding @code{-lm} to the end of the compile/link line.
 @cindex clients, thread-safe
 @cindex thread-safe clients
 @node Thread-safe clients,  , C API linking problems, C API functions
-@subsection How to make a thread-safe client
+@subsection How to Make a Thread-safe Client
 
-The client library is ``almost'' thread-safe. The biggest problem is
+The client library is almost thread safe. The biggest problem is 
 that the subroutines in @file{net.c} that read from sockets are not
-interrupt-safe.  This was done with the thought that you might want to
+interrupt safe.  This was done with the thought that you might want to
 have your own alarm that can break a long read to a server.  If you
-install an interrupt handlers for the @code{SIGPIPE} interrupt,
+install interrupt handlers for the @code{SIGPIPE} interrupt,
 the socket handling should be thread safe.
 
-In the older binaries we distribute on our web site, the client
-libraries are not normally compiled with the thread safe option (the
-windows binaries are, however, by default compiled to be thread safe).
-Newer binary distributions should, however, have both a normal and a
-threadsafe client library.
+In the older binaries we distribute on our Web site, the client
+libraries are not normally compiled with the thread-safe option (the
+windows binaries are by default compiled to be thread safe).
+Newer binary distributions should have both a normal and a
+thread-safe client library.
 
 To get a really thread-safe client where you can interrupt the client
 from other threads and set timeouts when talking with the MySQL server,
-you should use the @code{-lmysys}, @code{-lstring} and @code{-ldbug}
+you should use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug}
 libraries and the @code{net_serv.o} code that the server uses.
 
-If you don't need interrupts or timeouts you can just compile a tread
+If you don't need interrupts or timeouts, you can just compile a tread
 safe client library @code{(mysqlclient_r)} and use this.  @xref{C,,
 MySQL C API}.  In this case you don't have to worry about the
 @code{net_serv.o} object file or the other @strong{MySQL} libraries.
@@ -35949,28 +35950,28 @@ If you are using routines from the @code{mysys} library, the only thing
 you must remember is to call @code{my_init()} first!
 
 All functions except @code{mysql_real_connect()} are by default
-thread-safe.  The following notes describe how to compile a thread-safe
+thread safe.  The following notes describe how to compile a thread safe
 client library and use it in a thread-safe manner.  (The notes below for
 @code{mysql_real_connect()} actually apply to @code{mysql_connect()} as
 well, but because @code{mysql_connect()} is deprecated, you should be
 using @code{mysql_real_connect()} anyway.)
 
-To make @code{mysql_real_connect()} thread-safe, you must recompile the
+To make @code{mysql_real_connect()} thread safe, you must recompile the
 client library with this command:
 
 @example
 shell> ./configure --with-thread-safe-client
 @end example
 
-This will create a thread safe client library @code{libmysqlclient_r}.
-@code{--with-thread-safe-client}.  This library is is thread safe per
+This will create a thread-safe client library @code{libmysqlclient_r}.
+@code{--with-thread-safe-client}.  This library is thread safe per
 connection.  You can let two threads share the same connection as long
 as you do the following:
 
-@table @asis
+@table @bullet
 @item
 Two threads can't send a query to the @strong{MySQL} at the same time on
-the same connection.  In particular you have to ensure that between a
+the same connection.  In particular, you have to ensure that between a
 @code{mysql_query()} and @code{mysql_store_result()} no other thread is using
 the same connection.
 @item
@@ -35994,7 +35995,7 @@ establish and release a mutex lock.
 @end table
 
 You may get some errors because of undefined symbols when linking your
-client with @code{mysqlclient_r};  In most cases this is because you haven't
+client with @code{mysqlclient_r}. In most cases this is because you haven't
 included the thread libraries on the link/compile line.
 
 @cindex APIs, Perl
@@ -36023,7 +36024,7 @@ without change. You need a DataBase Driver (DBD) defined for each
 database type. For @strong{MySQL}, this driver is called
 @code{DBD::mysql}.
 
-For more information on the Perl5 DBI, please visit the @code{DBI} web
+For more information on the Perl5 DBI, please visit the @code{DBI} Web
 page and read the documentation:
 @example
 @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
@@ -36039,10 +36040,10 @@ Installation instructions for @strong{MySQL} Perl support are given in
 
 @cindex @code{DBI} Perl module
 @node Perl DBI Class, DBI-info, DBI with DBD, Perl
-@subsection The @code{DBI} interface
+@subsection The @code{DBI} Interface
 
 @noindent
-@strong{Portable DBI methods}
+@strong{Portable DBI Methods}
 
 @multitable @columnfractions .3 .7
 @item @code{connect} @tab Establishes a connection to a database server.
@@ -36065,11 +36066,11 @@ Installation instructions for @strong{MySQL} Perl support are given in
 @end multitable
 
 @noindent
-@strong{MySQL-specific methods}
+@strong{MySQL-specific Methods}
 
 @multitable @columnfractions .3 .7
 @item @code{insertid} @tab The latest @code{AUTO_INCREMENT} value.
-@item @code{is_blob} @tab Which column are @code{BLOB} values.
+@item @code{is_blob} @tab Which columns are @code{BLOB} values.
 @item @code{is_key} @tab Which columns are keys.
 @item @code{is_num} @tab Which columns are numeric.
 @item @code{is_pri_key} @tab Which columns are primary keys.
@@ -36100,7 +36101,7 @@ Return value (often a row count)
 @end table
 
 @noindent
-@strong{Portable DBI methods}
+@strong{Portable DBI Methods}
 
 @table @code
 
@@ -36124,7 +36125,7 @@ respectively. If you don't specify a hostname, it defaults to
 @code{'localhost'}. If you don't specify a port number, it defaults to the
 default @strong{MySQL} port (@value{default_port}).
 
-As of @code{Msql-Mysql-modules} version 1.2009,
+As of @code{Msql-Mysql-modules} Version 1.2009,
 the @code{$data_source} value allows certain modifiers:
 
 @table @code
@@ -36139,7 +36140,7 @@ option, the default group becomes the @code{[group_name]} group.
 
 @item mysql_compression=1
 Use compressed communication between the client and server (@strong{MySQL}
-3.22.3 or later).
+Version 3.22.3 or later).
 
 @item mysql_socket=/path/to/socket
 Specify the pathname of the Unix socket that is used to connect
@@ -36159,7 +36160,7 @@ $dbh = DBI->connect("DBI:mysql:$database"
 @end example
 
 This call will read options defined for the @code{[client]} group in the
-option file.  If you wanted to do the same thing, but use options specified
+option file.  If you wanted to do the same thing but use options specified
 for the @code{[perl]} group as well, you could use this:
 
 @example
@@ -36183,10 +36184,10 @@ $rc = $dbh->disconnect;
 @findex prepare() DBI method
 @item prepare($statement)
 Prepares a SQL statement for execution by the database engine
-and returns a statement handle @code{($sth)} which you can use to invoke
+and returns a statement handle @code{($sth)}, which you can use to invoke
 the @code{execute} method.
 Typically you handle @code{SELECT} statements (and @code{SELECT}-like statements
-such as @code{SHOW}, @code{DESCRIBE} and @code{EXPLAIN}) by means of
+such as @code{SHOW}, @code{DESCRIBE}, and @code{EXPLAIN}) by means of
 @code{prepare} and @code{execute}.
 Example:
 @example
@@ -36216,8 +36217,8 @@ $rv = $sth->execute
 The @code{do} method prepares and executes a SQL statement and returns the
 number of rows affected.  If no rows are affected, @code{do} returns
 @code{"0E0"}, which Perl treats as zero but regards as true.  This method is
-generally used for non-@code{SELECT} statements which cannot be prepared in
-advance (due to driver limitations) or which do not need to executed more
+generally used for non-@code{SELECT} statements that cannot be prepared in
+advance (due to driver limitations) or that do not need to be executed more
 than once (inserts, deletes, etc.). Example:
 @example
 $rv = $dbh->do($statement)
@@ -36225,7 +36226,7 @@ $rv = $dbh->do($statement)
 @end example
 
 Generally the 'do' statement is MUCH faster (and is preferable)
-than prepare/execute for statements that doesn't contain parameters.
+than prepare/execute for statements that don't contain parameters.
 
 @findex DBI->quote()
 @findex quote() DBI method
@@ -36331,7 +36332,7 @@ This attribute indicates
 the number of fields returned by a @code{SELECT} or @code{SHOW FIELDS}
 statement.  You may use this for checking whether a statement returned a
 result: A zero value indicates a non-@code{SELECT} statement like
-@code{INSERT}, @code{DELETE} or @code{UPDATE}.
+@code{INSERT}, @code{DELETE}, or @code{UPDATE}.
 Example:
 @example
 $nr_of_fields = $sth->@{NUM_OF_FIELDS@};
@@ -36372,7 +36373,8 @@ append mode and output for @emph{all} traced handles is written to that
 file.  Example:
 @example
 DBI->trace(2);                # trace everything
-DBI->trace(2,"/tmp/dbi.out"); # trace everything to /tmp/dbi.out
+DBI->trace(2,"/tmp/dbi.out"); # trace everything to 
+                              # /tmp/dbi.out
 $dth->trace(2);               # trace this database handle
 $sth->trace(2);               # trace this statement handle
 @end example
@@ -36387,13 +36389,13 @@ environment variable.  Setting it to a numeric value is equivalent to calling
 @end table
 
 @noindent
-@strong{MySQL-specific methods}
+@strong{MySQL-specific Methods}
 
 The methods shown below are @strong{MySQL}-specific and not part of the
 @code{DBI} standard.  Several of them are now deprecated:
 @code{is_blob}, @code{is_key}, @code{is_num}, @code{is_pri_key},
 @code{is_not_null}, @code{length}, @code{max_length}, and @code{table}.
-Where @code{DBI}-standard alternatives exist, they are noted below.
+Where @code{DBI}-standard alternatives exist, they are noted below:
 
 @table @code
 @findex DBI->@{insertid@}
@@ -36513,7 +36515,7 @@ $types = $sth->@{type@};
 
 @cindex @code{DBI/DBD}
 @node DBI-info,  , Perl DBI Class, Perl
-@subsection More @code{DBI}/@code{DBD} information
+@subsection More @code{DBI}/@code{DBD} Information
 
 You can use the @code{perldoc} command to get more information about
 @code{DBI}.
@@ -36527,13 +36529,13 @@ perldoc DBD::mysql
 You can also use the @code{pod2man}, @code{pod2html}, etc., tools to
 translate to other formats.
 
-And of course you can find the latest @code{DBI} information at
-the @code{DBI} web page:
+You can find the latest @code{DBI} information at
+the @code{DBI} Web page:
 @example
 @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
 @end example
 
-@cindex Eiffel wrapper
+@cindex Eiffel Wrapper
 @cindex wrappers, Eiffel
 @node Eiffel, Java, Perl, Clients
 @section MySQL Eiffel wrapper
@@ -36547,14 +36549,14 @@ You can also find this at:
 @cindex Java connectivity
 @cindex JDBC
 @node Java, PHP, Eiffel, Clients
-@section MySQL Java connectivity (JDBC)
+@section MySQL Java Connectivity (JDBC)
 
 There are 2 supported JDBC drivers for @strong{MySQL} (the mm driver and
 the Reisin JDBC driver).  You can find a copy of the mm driver at
 @uref{http://www.mysql.com/Downloads/Contrib/} and the Reisin driver at
 @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp} For
-documentation consult any JDBC documentation and the drivers own
-documentation for @strong{MySQL} specific features.
+documentation consult any JDBC documentation and the driver's own
+documentation for @strong{MySQL}-specific features.
 
 @cindex PHP API
 @node PHP, Cplusplus, Java, Clients
@@ -37272,7 +37274,7 @@ may sometimes produce bizarre results.
 For example, search for the word "search" will produce no results in the
 above example. Word "search" is present in more than half of rows, and
 as, such, is effectively treated as stopword (that is, with semantical value
-zero). It is, really, the desired behaviour - natural language query
+zero). It is, really, the desired behavior - natural language query
 should not return every second row in 1GB table.
 
 The word that select 50% of rows has low ability to locate relevant
@@ -37296,7 +37298,7 @@ values in configuration files take precedence over values in environment
 variables.
 
 In many cases its preferable to use a configure file instead of environment
-variables to modify the behaviour of @strong{MySQL}. @xref{Option files}.
+variables to modify the behavior of @strong{MySQL}. @xref{Option files}.
 
 @tindex CCX environment variable
 @tindex Environment variable, CCX
@@ -41777,7 +41779,7 @@ Linux machines.
 Changed @code{typedef 'string'} to @code{typedef 'my_string'} for better
 portability.
 @item
-You can now kill threads that are waiting on a disk full condition.
+You can now kill threads that are waiting on a disk-full condition.
 @item
 Fixed some problems with UDF functions.
 @item
@@ -44443,7 +44445,7 @@ threads have to wait for data.  If the user thread packages are
 integrated in the standard libs (FreeBSD and BSDI threads) the thread
 package requires less overhead than thread packages that have to map all
 unsafe calls (MIT-pthreads, FSU Pthreads and RTS threads).  In some
-environments (for example, SCO), all system calls are thread-safe so the
+environments (for example, SCO), all system calls are thread safe so the
 mapping can be done very easily (FSU Pthreads on SCO).  Downside: All
 mapped calls take a little time and it's quite tricky to be able to
 handle all situations. There are usually also some system calls that are
@@ -44461,7 +44463,7 @@ somewhat expensive.
 Kernel threads. Thread switching is handled by the thread library or the
 kernel and is very fast. Everything is done in one process, but on some
 systems, @code{ps} may show the different threads. If one thread aborts, the
-whole process aborts. Most system calls are thread-safe and should
+whole process aborts. Most system calls are thread safe and should
 require very little overhead.  Solaris, HP-UX, AIX and OSF1 have kernel
 threads.
 @end itemize
