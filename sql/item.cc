@@ -1474,6 +1474,10 @@ double Item_string::val_real()
                   &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
+    /*
+      We can use str_value.ptr() here as Item_string is gurantee to put an
+      end \0 here.
+    */
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
@@ -4902,7 +4906,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     int intp2= max_length - min(decimals, NOT_FIXED_DEC - 1);
     /* can't be overflow because it work only for decimals (no strings) */
     int dec_length= max(intp1, intp2) + decimals;
-    max_length= max(max_length, max(item_length, dec_length));
+    max_length= max(max_length, (uint) max(item_length, dec_length));
     /*
       we can't allow decimals to be NOT_FIXED_DEC, to prevent creation
       decimal with max precision (see Field_new_decimal constcuctor)
@@ -4929,8 +4933,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   maybe_null|= item->maybe_null;
   get_full_info(item);
-  DBUG_PRINT("info:", ("become type %d len %d, dec %d",
-                       fld_type, max_length, decimals));
+  DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u",
+                      (int) fld_type, max_length, (uint) decimals));
   DBUG_RETURN(FALSE);
 }
 

@@ -186,6 +186,7 @@ ulong convert_month_to_period(ulong month)
   NOTE
     See description of str_to_datetime() for more information.
 */
+
 timestamp_type
 str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
                           uint flags)
@@ -199,7 +200,7 @@ str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
                                      (MODE_INVALID_DATES |
                                       MODE_NO_ZERO_DATE))),
                            &was_cut);
-  if (was_cut)
+  if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
     make_truncated_value_warning(current_thd, str, length, ts_type,  NullS);
   return ts_type;
 }
