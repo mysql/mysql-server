@@ -167,9 +167,10 @@ recv_sys_empty_hash(void)
 	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 256);
 }
 
+#ifndef UNIV_LOG_DEBUG
 /************************************************************
 Frees the recovery system. */
-
+static
 void
 recv_sys_free(void)
 /*===============*/
@@ -186,6 +187,7 @@ recv_sys_free(void)
 
 	mutex_exit(&(recv_sys->mutex));
 }
+#endif /* !UNIV_LOG_DEBUG */
 
 /************************************************************
 Truncates possible corrupted or extra records from a log group. */
@@ -343,7 +345,7 @@ Copies a log segment from the most up-to-date log group to the other log
 groups, so that they all contain the latest log data. Also writes the info
 about the latest checkpoint to the groups, and inits the fields in the group
 memory structs to up-to-date values. */
-
+static
 void
 recv_synchronize_groups(
 /*====================*/
@@ -1767,10 +1769,11 @@ recv_calc_lsn_on_data_add(
 	return(ut_dulint_add(lsn, lsn_len));
 }
 
+#ifdef UNIV_LOG_DEBUG
 /***********************************************************
 Checks that the parser recognizes incomplete initial segments of a log
 record as incomplete. */
-
+static
 void
 recv_check_incomplete_log_recs(
 /*===========================*/
@@ -1788,6 +1791,7 @@ recv_check_incomplete_log_recs(
 							&page_no, &body));
 	}
 }		
+#endif /* UNIV_LOG_DEBUG */
 
 /***********************************************************
 Prints diagnostic info of corrupt log. */

@@ -189,7 +189,7 @@ static const char* default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
 #endif
 
 #ifdef __NT__
-static char szPipeName [512];
+static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
@@ -580,7 +580,7 @@ static void close_connections(void)
     DBUG_PRINT( "quit", ("Closing named pipes") );
      
     /* Create connection to the handle named pipe handler to break the loop */
-    if ((temp = CreateFile(szPipeName,
+    if ((temp = CreateFile(pipe_name,
 			   GENERIC_READ | GENERIC_WRITE,
 			   0,
 			   NULL,
@@ -588,7 +588,7 @@ static void close_connections(void)
 			   0,
 			   NULL )) != INVALID_HANDLE_VALUE)
     {
-      WaitNamedPipe(szPipeName, 1000);
+      WaitNamedPipe(pipe_name, 1000);
       DWORD dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
       SetNamedPipeHandleState(temp, &dwMode, NULL, NULL);
       CancelIo(temp);
@@ -1173,12 +1173,14 @@ static void server_init(void)
   if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    strxnmov(szPipeName, sizeof(szPipeName), "\\\\.\\pipe\\",
-                                             unix_socket, NullS);
-    ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
-    ZeroMemory( &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
-    if ( !InitializeSecurityDescriptor(&sdPipeDescriptor,
-				       SECURITY_DESCRIPTOR_REVISION) )
+    
+    pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
+    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
+	     unix_socket, NullS);
+    bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity) );
+    bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
+    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
+				      SECURITY_DESCRIPTOR_REVISION) )
     {
       sql_perror("Can't start server : Initialize security descriptor");
       unireg_abort(1);
@@ -1191,16 +1193,16 @@ static void server_init(void)
     saPipeSecurity.nLength = sizeof( SECURITY_ATTRIBUTES );
     saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
     saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe = CreateNamedPipe(szPipeName,
-				 PIPE_ACCESS_DUPLEX,
-				 PIPE_TYPE_BYTE |
-				 PIPE_READMODE_BYTE |
-				 PIPE_WAIT,
-				 PIPE_UNLIMITED_INSTANCES,
-				 (int) global_system_variables.net_buffer_length,
-				 (int) global_system_variables.net_buffer_length,
-				 NMPWAIT_USE_DEFAULT_WAIT,
-				 &saPipeSecurity )) == INVALID_HANDLE_VALUE)
+    if ((hPipe= CreateNamedPipe(pipe_name,
+				PIPE_ACCESS_DUPLEX,
+				PIPE_TYPE_BYTE |
+				PIPE_READMODE_BYTE |
+				PIPE_WAIT,
+				PIPE_UNLIMITED_INSTANCES,
+				(int) global_system_variables.net_buffer_length,
+				(int) global_system_variables.net_buffer_length,
+				NMPWAIT_USE_DEFAULT_WAIT,
+				&saPipeSecurity)) == INVALID_HANDLE_VALUE)
       {
 	LPVOID lpMsgBuf;
 	int error=GetLastError();
@@ -3075,7 +3077,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     if (!fConnected)
     {
       CloseHandle( hPipe );
-      if ((hPipe = CreateNamedPipe(szPipeName,
+      if ((hPipe = CreateNamedPipe(pipe_name,
 				   PIPE_ACCESS_DUPLEX,
 				   PIPE_TYPE_BYTE |
 				   PIPE_READMODE_BYTE |
@@ -3093,7 +3095,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     }
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
-    if ((hPipe = CreateNamedPipe(szPipeName,
+    if ((hPipe = CreateNamedPipe(pipe_name,
 				 PIPE_ACCESS_DUPLEX,
 				 PIPE_TYPE_BYTE |
 				 PIPE_READMODE_BYTE |

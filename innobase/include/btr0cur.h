@@ -365,17 +365,6 @@ btr_cur_parse_update_in_place(
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page);	/* in: page or NULL */
-/***************************************************************
-Parses a redo log record of updating a record, but not in-place. */
-
-byte*
-btr_cur_parse_opt_update(
-/*=====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a clustered
 index record. */
