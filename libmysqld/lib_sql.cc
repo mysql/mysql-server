@@ -45,7 +45,7 @@ C_MODE_START
 static my_bool  org_my_init_done;
 my_bool         server_inited;
 
-static my_bool STDCALL
+static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check)
@@ -103,7 +103,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   return result;
 }
 
-static MYSQL_DATA * STDCALL 
+static MYSQL_DATA *
 emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
 	      unsigned int fields __attribute__((unused)))
 {
@@ -126,12 +126,12 @@ emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
   return result;
 }
 
-static MYSQL_FIELD * STDCALL emb_list_fields(MYSQL *mysql)
+static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
 {
   return mysql->fields;
 }
 
-static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   THD *thd= (THD*)mysql->thd;
   if (mysql->net.last_errno)
@@ -159,7 +159,8 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
+static void emb_fetch_lengths(ulong *to, MYSQL_ROW column,
+			      unsigned int field_count)
 { 
   MYSQL_ROW end;
 
@@ -167,7 +168,7 @@ static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int 
     *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
 }
 
-static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
+static my_bool emb_mysql_read_query_result(MYSQL *mysql)
 {
   if (mysql->net.last_errno)
     return -1;
@@ -178,7 +179,7 @@ static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
   return 0;
 }
 
-static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
+static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
   THD *thd= (THD*)stmt->mysql->thd;
@@ -205,7 +206,7 @@ MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
   return emb_read_rows(stmt->mysql, 0, 0);
 }
 
-int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
+int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   MYSQL_DATA *data= ((THD*)mysql->thd)->data;
   if (!data || !data->data)
@@ -225,7 +226,7 @@ int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
   return 0;
 }
 
-static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
+static void emb_free_embedded_thd(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   if (thd->data)
@@ -234,18 +235,25 @@ static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
   delete thd;
 }
 
-static const char * STDCALL emb_read_statistic(MYSQL *mysql)
+static const char * emb_read_statistic(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   return thd->net.last_error;
 }
+
+
+static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
+{
+  return mysql_store_result(mysql);
+}
+
 
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
   emb_advanced_command,
   emb_read_rows,
-  mysql_store_result,
+  emb_mysql_store_result,
   emb_fetch_lengths, 
   emb_list_fields,
   emb_read_prepare_result,
