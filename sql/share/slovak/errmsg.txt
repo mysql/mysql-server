@@ -318,3 +318,4 @@ character-set=latin2
 "Undeclared variable: %s"
 "Wrong number of FETCH variables"
 "No data to FETCH"
+"Duplicate %s: %s"

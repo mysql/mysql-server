@@ -59,6 +59,28 @@ delete from t1;
 # Now for multiple statements...
 delimiter |;
 
+# Empty statement
+create procedure empty()
+begin
+end|
+
+call empty()|
+drop procedure empty|
+
+# Scope test. This is legal (warnings might be possible in the future,
+# but for the time being, we just accept it).
+create procedure scope(a int, b float)
+begin
+  declare b int;
+  declare c float;
+
+  begin
+    declare c int;
+  end;
+end|
+
+drop procedure scope|
+
 # Two statements.
 create procedure two(x1 char(16), x2 char(16), y int)
 begin
@@ -313,7 +335,7 @@ hmm: while x > 0 do
   set x = x-1;
   leave hmm;
   insert into test.t1 values ("x", x);
-end while hmm|
+end while|
 
 call d(3)|
 select * from t1|
@@ -391,6 +413,23 @@ call h(17)|
 select * from t1|
 delete from t1|
 drop procedure h|
+
+
+# It's actually possible to LEAVE a BEGIN-END block
+create procedure i(x int)
+foo:
+begin
+  if x = 0 then
+    leave foo;
+  end if;
+  insert into test.t1 values ("i", x);
+end foo|
+
+call i(0)|
+call i(3)|
+select * from t1|
+delete from t1|
+drop procedure i|
 
 
 # SELECT INTO local variables
@@ -543,6 +582,8 @@ create procedure hndlr1(val int)
 begin
   declare x int default 0;
   declare foo condition for 1146;
+  declare bar condition for sqlstate '42S98';        # Just for testing syntax
+  declare zip condition for sqlstate value '42S99';  # Just for testing syntax
   declare continue handler for foo set x = 1;
 
   insert into test.t666 values ("hndlr1", val);   # Non-existing table
@@ -561,7 +602,7 @@ begin
   declare x int default 0;
 
   begin
-    declare exit handler for '42S02' set x = 1;
+    declare exit handler for sqlstate '42S02' set x = 1;
 
     insert into test.t666 values ("hndlr2", val); # Non-existing table
   end;
@@ -864,7 +905,7 @@ begin
         set s = s+1;
       end;
     end if;
-  end loop again;
+  end loop;
 end|
 
 create procedure ip(m int unsigned)

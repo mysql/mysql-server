@@ -74,6 +74,11 @@ create procedure foo()
 foo: loop
   iterate bar;
 end loop|
+--error 1285
+create procedure foo()
+foo: begin
+  iterate foo;
+end|
 
 # Redefining label
 --error 1286 
@@ -297,6 +302,33 @@ end|
 --error 1305
 call p()|
 drop procedure p|
+
+--error 1307
+create procedure p(in x int, x char(10))
+begin
+end|
+--error 1307
+create function p(x int, x char(10))
+begin
+end|
+--error 1307
+create procedure p()
+begin
+  declare x float;
+  declare x int;
+end|
+--error 1307
+create procedure p()
+begin
+  declare c condition for 1064;
+  declare c condition for 1065;
+end|
+--error 1307
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare c cursor for select field from t1;
+end|
 
 drop table t1|
 

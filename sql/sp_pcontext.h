@@ -42,6 +42,7 @@ typedef struct sp_label
 {
   char *name;
   uint ip;			// Instruction index
+  my_bool isbegin;		// For ITERATE error checking
 } sp_label_t;
 
 typedef struct sp_cond_type
@@ -57,6 +58,11 @@ typedef struct sp_cond
   sp_cond_type_t *val;
 } sp_cond_t;
 
+typedef struct sp_scope
+{
+  uint vars, conds, curs;
+} sp_scope_t;
+
 class sp_pcontext : public Sql_alloc
 {
   sp_pcontext(const sp_pcontext &); /* Prevent use of these */
@@ -69,6 +75,13 @@ class sp_pcontext : public Sql_alloc
   // Free memory
   void
   destroy();
+
+  // For error checking of duplicate things
+  void
+  push_scope();
+
+  void
+  pop_scope();
 
   //
   // Parameters and variables
@@ -130,7 +143,7 @@ class sp_pcontext : public Sql_alloc
 
   // Find by name
   sp_pvar_t *
-  find_pvar(LEX_STRING *name);
+  find_pvar(LEX_STRING *name, my_bool scoped=0);
 
   // Find by index
   sp_pvar_t *
@@ -182,7 +195,7 @@ class sp_pcontext : public Sql_alloc
   }
 
   sp_cond_type_t *
-  find_cond(LEX_STRING *name);
+  find_cond(LEX_STRING *name, my_bool scoped=0);
 
   //
   // Handlers
@@ -208,7 +221,7 @@ class sp_pcontext : public Sql_alloc
   push_cursor(LEX_STRING *name);
 
   my_bool
-  find_cursor(LEX_STRING *name, uint *poff);
+  find_cursor(LEX_STRING *name, uint *poff, my_bool scoped=0);
 
   inline void
   pop_cursor(uint num)
@@ -233,6 +246,7 @@ private:
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
   DYNAMIC_ARRAY m_cursor;	// Cursors
+  DYNAMIC_ARRAY m_scopes;	// For error checking
 
   List<sp_label_t> m_label;	// The label list
 
