@@ -573,7 +573,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Item **refer= (Item **)not_found_item;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
-      if (cursel->linkage != DERIVED_TABLE_TYPE)
+      if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
 	for (SELECT_LEX *sl=cursel->outer_select();
 	     sl;
 	     sl= sl->outer_select())
