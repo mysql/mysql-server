@@ -78,7 +78,11 @@ void sql_element_free(void *ptr);
 // The following is used to decide if MySQL should use table scanning
 // instead of reading with keys.  The number says how many evaluation of the
 // WHERE clause is comparable to reading one extra row from a table.
-#define TIME_FOR_COMPARE 5	// 5 compares == one read
+#define TIME_FOR_COMPARE   5	// 5 compares == one read
+// Number of rows in a reference table when refereed through a not unique key.
+// This value is only used when we don't know anything about the key
+// distribution.
+#define MATCHING_ROWS_IN_OTHER_TABLE 10	
 
 /* Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used) */
 #define KEY_DEFAULT_PACK_LENGTH 8

@@ -180,11 +180,7 @@ void ha_myisammrg::info(uint flag)
   mean_rec_length=info.reclength;
   block_size=0;
   update_time=0;
-#if SIZEOF_OFF_T > 4
   ref_length=6;					// Should be big enough
-#else
-  ref_length=4;
-#endif
 }
 
 
@@ -228,6 +224,16 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 int ha_myisammrg::create(const char *name, register TABLE *form,
 			 HA_CREATE_INFO *create_info)
 {
-  char buff[FN_REFLEN];
-  return myrg_create(fn_format(buff,name,"","",2+4+16),0);
+  char buff[FN_REFLEN],**table_names,**pos;
+  TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
+  DBUG_ENTER("ha_myisammrg::create");
+
+  if (!(table_names= (char**) sql_alloc((create_info->merge_list.elements+1)*
+					sizeof(char*))))
+    DBUG_RETURN(1);
+  for (pos=table_names ; tables ; tables=tables->next)
+    *pos++= tables->real_name;
+  *pos=0;
+  DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
+			  (const char **) table_names, (my_bool) 0));
 }

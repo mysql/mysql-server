@@ -33,14 +33,15 @@ class ha_heap: public handler
   const char *table_type() const { return "HEAP"; }
   const char **bas_ext() const;
   ulong option_flag() const
-  { return (HA_READ_RND_SAME+HA_NO_INDEX+HA_BINARY_KEYS+HA_WRONG_ASCII_ORDER+
-	    HA_KEYPOS_TO_RNDPOS+HA_NO_BLOBS+HA_REC_NOT_IN_SEQ); }
+  { return (HA_READ_RND_SAME | HA_NO_INDEX | HA_ONLY_WHOLE_INDEX | 
+	    HA_WRONG_ASCII_ORDER | HA_KEYPOS_TO_RNDPOS | HA_NO_BLOBS |
+	    HA_REC_NOT_IN_SEQ); }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return HA_MAX_REC_LENGTH; }
-  virtual double scan_time() { return (double) (records+deleted) / 100.0; }
-  virtual double read_time(ha_rows rows) { return (double) rows / 100.0; }
+  virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
+  virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
   virtual bool fast_key_read() { return 1;}
 
   int open(const char *name, int mode, int test_if_locked);

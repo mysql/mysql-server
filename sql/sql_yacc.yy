@@ -262,6 +262,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_RETURNS_SYM
 %token	UDF_SONAME_SYM
 %token	UDF_SYM
+%token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
 %token	USE_SYM
@@ -712,6 +713,18 @@ create_table_option:
 	| RAID_TYPE EQ raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKS EQ ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKSIZE EQ ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| UNION_SYM EQ '(' table_list ')'
+	  {
+	    /* Move the union list to the merge_list */
+	    LEX *lex=Lex;
+	    TABLE_LIST *table_list= (TABLE_LIST*) lex->table_list.first;
+	    lex->create_info.merge_list= lex->table_list;
+	    lex->create_info.merge_list.elements--;
+	    lex->create_info.merge_list.first= (byte*) (table_list->next);
+	    lex->table_list.elements=1;
+	    lex->table_list.next= (byte**) &(table_list->next);
+	    table_list->next=0;
+	  }
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }

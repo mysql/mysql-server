@@ -22,22 +22,21 @@
 
 int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
 {
-  MYRG_TABLE *table;
-  MI_INFO *mi;
-  byte *key_buff;
-  uint pack_key_length;
   int err;
+  MI_INFO *mi;
 
-  /* at first, do rnext for the table found before */
-  err=mi_rprev(info->current_table->table,NULL,inx);
-  if (err == HA_ERR_END_OF_FILE)
+  /* at first, do rprev for the table found before */
+  if ((err=mi_rprev(info->current_table->table,NULL,inx)))
   {
-    queue_remove(&(info->by_key),0);
-    if (!info->by_key.elements)
-      return HA_ERR_END_OF_FILE;
+    if (err == HA_ERR_END_OF_FILE)
+    {
+      queue_remove(&(info->by_key),0);
+      if (!info->by_key.elements)
+	return HA_ERR_END_OF_FILE;
+    }
+    else
+      return err;
   }
-  else if (err)
-    return err;
   else
   {
     /* Found here, adding to queue */
@@ -46,28 +45,8 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
   }
 
   /* next, let's finish myrg_rkey's initial scan */
-  table=info->last_used_table+1;
-  if (table < info->end_table)
-  {
-    mi=info->last_used_table->table;
-    key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
-    pack_key_length=mi->last_rkey_length;
-    for (; table < info->end_table ; table++)
-    {
-      mi=table->table;
-      err=_mi_rkey(mi,NULL,inx,key_buff,pack_key_length,
-		   HA_READ_KEY_OR_PREV,FALSE);
-      info->last_used_table=table;
-
-      if (err == HA_ERR_KEY_NOT_FOUND)
-        continue;
-      if (err)
-        return err;
-
-      /* Found here, adding to queue */
-      queue_insert(&(info->by_key),(byte *)table);
-    }
-  }
+  if ((err=_myrg_finish_scan(info, inx, HA_READ_KEY_OR_PREV)))
+    return err;
 
   /* now, mymerge's read_prev is as simple as one queue_top */
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
