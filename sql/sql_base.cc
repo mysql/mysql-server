@@ -2293,7 +2293,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
       thd->used_tables|=table->map;
       while ((field = *ptr++))
       {
-	Item_field *item= new Item_field(field, 0);
+	Item_field *item= new Item_field(field);
 	if (!found++)
 	  (void) it->replace(item);		// Replace '*'
 	else
@@ -2365,7 +2365,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (!(*conds=and_conds(*conds, table->on_expr)))
+	if (!(*conds= and_conds(*conds, table->on_expr, tables)))
 	  DBUG_RETURN(1);
 	table->on_expr=0;
       }
@@ -2373,9 +2373,9 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     if (table->natural_join)
     {
       /* Make a join of all fields with have the same name */
-      TABLE *t1=table->table;
-      TABLE *t2=table->natural_join->table;
-      Item_cond_and *cond_and=new Item_cond_and();
+      TABLE *t1= table->table;
+      TABLE *t2= table->natural_join->table;
+      Item_cond_and *cond_and= new Item_cond_and();
       if (!cond_and)				// If not out of memory
 	DBUG_RETURN(1);
       cond_and->top_level_item();
@@ -2390,10 +2390,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 			     t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {
-	    // fix_fields() call will be made for tmp by cond_and->fix_fields
-	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i], 1),
-					       new Item_field(t2->field[j],
-							      1));
+	    Item_func_eq *tmp= new Item_func_eq(new Item_field(t1->field[i]),
+						new Item_field(t2->field[j]));
 	    if (!tmp)
 	      DBUG_RETURN(1);
 	    /* Mark field used for table cache */
@@ -2405,18 +2403,22 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	  }
 	}
       }
-      //cond_and->used_tables_cache= t1->map | t2->map;
       thd->lex->current_select->cond_count+= cond_and->list.elements;
-      if (cond_and->fix_fields(thd, tables, (Item**)&cond_and) ||
-	  cond_and->check_cols(1))
-	DBUG_RETURN(1);
+
       if (!table->outer_join)			// Not left join
       {
-	if (!(*conds=and_conds(*conds, cond_and)))
+	if (!(*conds= and_conds(*conds, cond_and, tables)) ||
+	    (*conds && !(*conds)->fixed &&
+	     (*conds)->fix_fields(thd, tables, conds)))
 	  DBUG_RETURN(1);
       }
       else
-	table->on_expr=and_conds(table->on_expr,cond_and);
+      {
+	table->on_expr= and_conds(table->on_expr, cond_and, tables);
+	if (table->on_expr && !table->on_expr->fixed &&
+	    table->on_expr->fix_fields(thd, tables, &table->on_expr))
+	  DBUG_RETURN(1);
+      }
     }
   }
   DBUG_RETURN(test(thd->net.report_error));

@@ -1050,7 +1050,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
-      field_list.push_back(new Item_field(field, 1));
+      field_list.push_back(new Item_field(field));
   }
   restore_record(table,default_values);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))

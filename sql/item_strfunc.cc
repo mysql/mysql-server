@@ -74,9 +74,10 @@ longlong Item_str_func::val_int()
   int err;
   String *res;
   res=val_str(&str_value);
-  return res ?
-    my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL, &err) :
-    (longlong) 0;
+  return (res ?
+	  my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL,
+		      &err) :
+	  (longlong) 0);
 }
 
 

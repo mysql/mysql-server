@@ -88,7 +88,7 @@ public:
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
   virtual const char *func_name() const { return "?"; }
   virtual Item *result_item(Field *field)
-    { return new Item_field(field, 1);}
+    { return new Item_field(field);}
   table_map used_tables() const { return ~(table_map) 0; } /* Not used */
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }

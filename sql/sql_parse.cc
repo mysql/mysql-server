@@ -4031,11 +4031,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
   if (default_value)
   {
-    if (default_value->fix_fields(thd, 0, &default_value))
-    {
-      DBUG_RETURN(1);
-    }
     /*
+      Default value should be literal => basic constants =>
+      no need fix_fields()
+
       We allow specifying value for first TIMESTAMP column 
       altough it is silently ignored. This should be fixed in 4.1
       (by proper warning or real support for default values)

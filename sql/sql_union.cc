@@ -229,12 +229,9 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Field **field;
       for (field= table->field; *field; field++)
       {
-	Item_field *item= new Item_field(*field, 1);
-	if (item_list.push_back(item))
+	Item_field *item= new Item_field(*field);
+	if (!item || item_list.push_back(item))
 	  DBUG_RETURN(-1);
-#ifndef DBUG_OFF
-	item->double_fix= 0;
-#endif
       }
     }
   }
@@ -463,4 +460,17 @@ int st_select_lex_unit::cleanup()
 void st_select_lex_unit::reinit_exec_mechanism()
 {
   prepared= optimized= executed= 0;
+#ifndef DBUG_OFF
+  List_iterator_fast<Item> it(item_list);
+  Item_field *field;
+  while ((field= (Item_field *)it++))
+  {
+    /*
+      we can't cleanup here, because it broke link to temporary table field,
+      but have to drop fixed flag to allow next fix_field of this field
+      during re-executing
+    */
+    field->fixed= 0;
+  }
+#endif
 }

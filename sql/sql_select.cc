@@ -321,9 +321,9 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->where="having clause";
     thd->allow_sum_func=1;
     select_lex->having_fix_field= 1;
-    bool having_fix_rc= !having->fixed &&
-      (having->fix_fields(thd, tables_list, &having) ||
-       having->check_cols(1));
+    bool having_fix_rc= (!having->fixed &&
+			 (having->fix_fields(thd, tables_list, &having) ||
+			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -525,7 +525,7 @@ JOIN::optimize()
   }
 #endif
 
-  conds= optimize_cond(thd, conds,&cond_value);
+  conds= optimize_cond(thd, conds, &cond_value);
   if (thd->net.report_error)
   {
     error= 1;
@@ -1431,10 +1431,13 @@ JOIN::exec()
 	{
 	  if (!(curr_table->select->cond=
 		new Item_cond_and(curr_table->select->cond,
-				  sort_table_cond)) ||
-	      curr_table->select->cond->fix_fields(thd, tables_list,
-						   &curr_table->select->cond))
+				  sort_table_cond)))
 	    DBUG_VOID_RETURN;
+	  /*
+	    Item_cond_and do not need fix_fields for execution, its parameters
+	    are fixed or do not need fix_fields, too
+	  */
+	  curr_table->select->cond->quick_fix_field();
 	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
@@ -3533,7 +3536,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  {
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
-	    sel->cond=and_conds(sel->cond,tab->on_expr);
+	    sel->cond=and_conds(sel->cond, tab->on_expr, 0);
 	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
@@ -5016,7 +5019,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-	  ((Item_sum*) item)->args[i]= new Item_field(new_field, 1);
+	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
 	}
       }
     }
@@ -6798,8 +6801,14 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
       case 1:
 	return new_cond->argument_list()->head();
       default:
-	if (new_cond->fix_fields(current_thd, 0, (Item**)&new_cond))
-	  return (COND*) 0;
+	/*
+	  Item_cond_and do not need fix_fields for execution, its parameters
+	  are fixed or do not need fix_fields, too
+	*/
+	new_cond->quick_fix_field();
+	new_cond->used_tables_cache=
+	  ((Item_cond_and*) cond)->used_tables_cache &
+	  tables;
 	return new_cond;
       }
     }
@@ -6817,8 +6826,12 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      if (new_cond->fix_fields(current_thd, 0, (Item**)&new_cond))
-	return (COND*) 0;
+      /*
+	Item_cond_and do not need fix_fields for execution, its parameters
+	are fixed or do not need fix_fields, too
+      */
+      new_cond->quick_fix_field();
+      new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
       new_cond->top_level_item();
       return new_cond;
     }
@@ -7324,7 +7337,7 @@ static bool fix_having(JOIN *join, Item **having)
     else					// This should never happen
       if (!(table->select->cond= new Item_cond_and(table->select->cond,
 						   sort_table_cond)) ||
-	  table->select->cond->fix_fields(join->thd, join->tanles_list,
+	  table->select->cond->fix_fields(join->thd, join->tables_list,
 					  &table->select->cond))
 	return 1;
     table->select_cond=table->select->cond;
@@ -7945,12 +7958,13 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   order->in_field_list=0;
   Item *it= *order->item;
   /*
-    we check it->fixed because Item_func_group_concat can put
-    arguments for which fix_fields already was called
+    We check it->fixed because Item_func_group_concat can put
+    arguments for which fix_fields already was called.
+
+    'it' reassigned in if condition because fix_field can change it.
   */
   if (!it->fixed &&
       (it->fix_fields(thd, tables, order->item) ||
-       //'it' ressigned because fix_field can change it
        (it= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
     return 1;					// Wrong field 
@@ -8603,7 +8617,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
 	  item_field= ((Item_sum*) item)->result_item(field);
 	else
-	  item_field= (Item*) new Item_field(field, 1);
+	  item_field= (Item*) new Item_field(field);
 	if (!item_field)
 	  return TRUE;				// Fatal error
 	item_field->name= item->name;		/*lint -e613 */
@@ -8778,7 +8792,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].
 			      fieldnr-1];
     Item *value=join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field, 1), value));
+    cond->add(new Item_func_equal(new Item_field(field), value));
   }
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);

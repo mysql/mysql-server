@@ -113,7 +113,7 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
 	if (arg->type() == Item::FIELD_ITEM)
 	  ((Item_field*) arg)->field= result_field_tmp++;
 	else
-	  sum_item->args[i]= new Item_field(result_field_tmp++, 1);
+	  sum_item->args[i]= new Item_field(result_field_tmp++);
       }
     }
   }
