@@ -358,32 +358,6 @@ os_file_handle_error(
 	return(FALSE);	
 }
 
-#if !defined(__WIN__) && !defined(UNIV_HOTBACKUP)
-/********************************************************************
-Obtain an exclusive lock on a file. */
-static
-int
-os_file_lock(
-/*=========*/
-				/* out: 0 on success */
-	int		fd,	/* in: file descriptor */
-	const char*	name)	/* in: file name */
-{
-	struct flock lk;
-	lk.l_type = F_WRLCK;
-	lk.l_whence = SEEK_SET;
-	lk.l_start = lk.l_len = 0;
-	if (fcntl(fd, F_SETLK, &lk) == -1) {
-		fprintf(stderr,
-			"InnoDB: Unable to lock %s", name);
-		perror (": fcntl");
-		close(fd);
-		return(-1);
-	}
-	return 0;
-}
-#endif /* !defined(__WIN__) && !defined(UNIV_HOTBACKUP) */
-
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
 
@@ -504,11 +478,6 @@ try_again:
 		if (retry) {
 			goto try_again;
 		}
-#ifndef UNIV_HOTBACKUP
-	} else if (os_file_lock(file, name)) {
-		*success = FALSE;
-		file = -1;
-#endif
 	} else {
 		*success = TRUE;
 	}
@@ -603,11 +572,6 @@ os_file_create_simple_no_error_handling(
 	
 	if (file == -1) {
 		*success = FALSE;
-#ifndef UNIV_HOTBACKUP
-	} else if (os_file_lock(file, name)) {
-		*success = FALSE;
-		file = -1;
-#endif
 	} else {
 		*success = TRUE;
 	}
@@ -808,11 +772,6 @@ try_again:
 		if (retry) {
 			goto try_again;
 		}
-#ifndef UNIV_HOTBACKUP
-	} else if (os_file_lock(file, name)) {
-		*success = FALSE;
-		file = -1;
-#endif
 	} else {
 		*success = TRUE;
 	}
