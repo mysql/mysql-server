@@ -86,7 +86,7 @@ void print_cached_tables(void)
     }
   }
   if (count != unused)
-    printf("Unused_links (%d) dosen't match open_cache: %d\n", count,unused);
+    printf("Unused_links (%d) doesn't match open_cache: %d\n", count,unused);
   printf("\nCurrent refresh version: %ld\n",refresh_version);
   if (hash_check(&open_cache))
     printf("Error: File hash table is corrupted\n");

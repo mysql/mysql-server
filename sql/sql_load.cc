@@ -224,7 +224,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else
       error=read_sep_field(thd,info,table,fields,read_info,*enclosed);
     if (table->file->extra(HA_EXTRA_NO_CACHE) ||
-	table->file->activate_all_index((ha_rows) 0))
+	table->file->activate_all_index(thd))
       error=1; /* purecov: inspected */
       
     table->time_stamp=save_time_stamp;

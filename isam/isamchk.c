@@ -1401,7 +1401,7 @@ int extend;
   }
   else if (record_checksum != intern_record_checksum && info->s->state.keys)
   {
-    print_error("Keypointers and records dosen't match");
+    print_error("Keypointers and records don't match");
     error=1;
   }
   if (used+empty+del_length != info->s->state.data_file_length)
