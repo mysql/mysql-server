@@ -1009,8 +1009,13 @@ char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
 }
 
 /**************************************************************************
- ** Help functions for recover
- *************************************************************************/
+Open data file with or without RAID
+We can't use dup() here as the data file descriptors need to have different 
+active seek-positions.
+
+The argument file_to_dup is here for the future if there would on some OS
+exist a dup()-like call that would give us two different file descriptors.
+*************************************************************************/
 
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup)
 {
@@ -1026,11 +1031,8 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup)
   }
   else
 #endif
-    if (file_to_dup >= 0)
-      info->dfile=my_dup(file_to_dup,MYF(MY_WME));
-    else
-      info->dfile=my_open(share->data_file_name, share->mode | O_SHARE,
-			  MYF(MY_WME));
+    info->dfile=my_open(share->data_file_name, share->mode | O_SHARE,
+			MYF(MY_WME));
   return info->dfile >= 0 ? 0 : 1;
 }
 
