@@ -354,3 +354,8 @@ show open tables where `table` like "user";
 show status variable_name where variable_name like "%database%";
 # test for 'show variables ... where'
 show variables variable_name where variable_name like "%database%";
+
+#
+# Bug #7981:SHOW GLOBAL STATUS crashes server
+#
+show global status like "Threads_running";
