@@ -3766,20 +3766,10 @@ purposes internal to the MySQL server", MYF(0));
   case SQLCOM_ALTER_FUNCTION:
     {
       res= -1;
-      uint newname_len= 0;
-      if (lex->name)
-	newname_len= strlen(lex->name);
-      if (newname_len > NAME_LEN)
-      {
-	net_printf(thd, ER_TOO_LONG_IDENT, lex->name);
-	goto error;
-      }
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	res= sp_update_procedure(thd, lex->spname,
-				 lex->name, newname_len, &lex->sp_chistics);
+	res= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
       else
-	res= sp_update_function(thd, lex->spname,
-				lex->name, newname_len,	&lex->sp_chistics);
+	res= sp_update_function(thd, lex->spname, &lex->sp_chistics);
       switch (res)
       {
       case SP_OK:

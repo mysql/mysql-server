@@ -990,9 +990,9 @@ show create procedure chistics|
 call chistics()|
 select * from t1|
 delete from t1|
-alter procedure chistics sql security invoker name chistics2|
-show create procedure chistics2|
-drop procedure chistics2|
+alter procedure chistics sql security invoker|
+show create procedure chistics|
+drop procedure chistics|
 
 create function chistics() returns int
     language sql
@@ -1004,11 +1004,11 @@ create function chistics() returns int
 show create function chistics|
 # Call it, just to make sure.
 select chistics()|
-alter function chistics name chistics2
+alter function chistics
    no sql
    comment 'Characteristics function test'|
-show create function chistics2|
-drop function chistics2|
+show create function chistics|
+drop function chistics|
 
 
 # Check mode settings
@@ -2268,8 +2268,8 @@ create procedure bar(x char(16), y int)
  insert into test.t1 values (x, y)|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
-alter procedure bar name bar2 comment "2222222222" sql security definer|
-alter procedure bar2 name bar comment "3333333333"|
+alter procedure bar comment "2222222222" sql security definer|
+alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'

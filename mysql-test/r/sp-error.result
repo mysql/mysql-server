@@ -235,9 +235,6 @@ ERROR 24000: Cursor is not open
 drop procedure p|
 alter procedure bar3 sql security invoker|
 ERROR 42000: PROCEDURE test.bar3 does not exist
-alter procedure bar3 name
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
-ERROR 42000: Identifier name 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' is too long
 drop table t1|
 drop table if exists t1|
 create table t1 (val int, x float)|

@@ -307,9 +307,6 @@ drop procedure p|
 
 --error 1305
 alter procedure bar3 sql security invoker|
---error 1059
-alter procedure bar3 name
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
 
 drop table t1|
 
