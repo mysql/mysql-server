@@ -50,7 +50,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_insert.cc sql_lex.cc \
 	sql_list.cc sql_manager.cc sql_map.cc sql_parse.cc \
-	sql_rename.cc sql_repl.cc sql_select.cc sql_show.cc \
+	sql_rename.cc sql_repl.cc sql_select.cc sql_do.cc sql_show.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc
