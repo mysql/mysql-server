@@ -18,3 +18,11 @@ chmod()
 {
   #echo "chmod $1 $2"
 }
+
+# useful trick to find auto-generated files
+#cmp()
+#{
+#  echo "==>> CMP $1 $2" >/dev/tty
+#  /usr/bin/cmp "$1" "$2"
+#}
+
