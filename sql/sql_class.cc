@@ -145,8 +145,7 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 
   init();
   /* Initialize sub structures */
-  bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
-  bzero((char*) &warn_root,sizeof(warn_root));
+  clear_alloc_root(&transaction.mem_root);
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
@@ -331,7 +330,7 @@ THD::~THD()
   dbug_sentry = THD_SENTRY_GONE;
 #endif  
   /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
-  init_alloc_root(&stmt_backup.mem_root, 0, 0);
+  clear_alloc_root(&stmt_backup.mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -1185,10 +1184,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
 Statement::Statement(THD *thd)
   :id(++thd->statement_id_counter),
-  query_id(thd->query_id),
   set_query_id(1),
   allow_sum_func(0),
-  command(thd->command),
   lex(&main_lex),
   query(0),
   query_length(0),
@@ -1207,10 +1204,8 @@ Statement::Statement(THD *thd)
 
 Statement::Statement()
   :id(0),
-  query_id(0),                                  /* initialized later */
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
-  command(COM_SLEEP),                           /* initialized later */ 
   lex(&main_lex),
   query(0),                                     /* these two are set */ 
   query_length(0),                              /* in alloc_query() */
@@ -1229,15 +1224,11 @@ Statement::Type Statement::type() const
 void Statement::set_statement(Statement *stmt)
 {
   id=             stmt->id;
-  query_id=       stmt->query_id;
   set_query_id=   stmt->set_query_id;
   allow_sum_func= stmt->allow_sum_func;
-  command=        stmt->command;
   lex=            stmt->lex;
   query=          stmt->query;
   query_length=   stmt->query_length;
-  free_list=      stmt->free_list;
-  mem_root=       stmt->mem_root;
 }
 
 

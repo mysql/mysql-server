@@ -435,15 +435,6 @@ public:
    ulong id;
 
   /*
-    Id of current query. Statement can be reused to execute several queries
-    query_id is global in context of the whole MySQL server.
-    ID is automatically generated from mutex-protected counter.
-    It's used in handler code for various purposes: to check which columns
-    from table are necessary for this select, to check if it's necessary to
-    update auto-updatable fields (like auto_increment and timestamp).
-  */
-  ulong query_id;
-  /*
     - if set_query_id=1, we set field->query_id for all fields. In that case 
     field list can not contain duplicates.
   */
@@ -461,11 +452,6 @@ public:
     See item_sum.cc for details.
   */
   bool allow_sum_func;
-  /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
-    first byte of the packet in do_command()
-  */
-  enum enum_server_command command;
 
   LEX *lex;                                     // parse tree descriptor
   /*
@@ -676,6 +662,11 @@ public:
   uint dbug_sentry; // watch out for memory corruption
 #endif
   struct st_my_thread_var *mysys_var;
+  /*
+    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    first byte of the packet in do_command()
+  */
+  enum enum_server_command command;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /*
@@ -751,6 +742,15 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
+  /*
+    Id of current query. Statement can be reused to execute several queries
+    query_id is global in context of the whole MySQL server.
+    ID is automatically generated from mutex-protected counter.
+    It's used in handler code for various purposes: to check which columns
+    from table are necessary for this select, to check if it's necessary to
+    update auto-updatable fields (like auto_increment and timestamp).
+  */
+  ulong	     query_id;
   ulong	     warn_id, version, options, thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */

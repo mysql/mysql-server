@@ -620,14 +620,13 @@ int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
+void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 			List<Item> &values, ulong counter);
-void setup_param_functions(Item_param *param, uchar param_type);
 
 /* sql_error.cc */
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,

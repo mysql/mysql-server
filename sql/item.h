@@ -375,9 +375,9 @@ public:
   bool get_time(TIME *tm);
   void reset() {}
 #ifndef EMBEDDED_LIBRARY
-  void (*setup_param_func)(Item_param *param, uchar **pos);
+  void (*set_param_func)(Item_param *param, uchar **pos);
 #else
-  void (*setup_param_func)(Item_param *param, uchar **pos, ulong data_len);
+  void (*set_param_func)(Item_param *param, uchar **pos, ulong data_len);
 #endif
   enum Item_result result_type () const
   { return item_result_type; }

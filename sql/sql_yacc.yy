@@ -4478,11 +4478,17 @@ text_string:
 param_marker:
         '?'
         {
-	  LEX *lex=Lex;
-          if (YYTHD->command == COM_PREPARE)
+          THD *thd=YYTHD;
+	  LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
           {
-            lex->param_list.push_back($$=new Item_param((uint)(lex->tok_start-(uchar *)YYTHD->query)));
-            lex->param_count++;
+            Item_param *item= new Item_param((uint) (lex->tok_start -
+                                                     (uchar *) thd->query));
+            if (!($$= item) || lex->param_list.push_back(item))
+            {
+	      send_error(thd, ER_OUT_OF_RESOURCES);
+	      YYABORT;
+            }
           }
           else
           {
