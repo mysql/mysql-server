@@ -32,7 +32,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "mem0pool.h"
 #include "sync0sync.h"
-#include "sync0ipm.h"
 #include "thr0loc.h"
 #include "que0que.h"
 #include "srv0que.h"
