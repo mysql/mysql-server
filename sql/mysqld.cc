@@ -487,6 +487,7 @@ static void close_connections(void)
   }
 #endif
   end_thr_alarm();			 // Don't allow alarms
+  end_slave();
 
   /* First signal all threads that it's time to die */
 
@@ -694,7 +695,6 @@ void clean_up(bool print_message)
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
-  end_slave();
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
