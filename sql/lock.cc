@@ -21,6 +21,46 @@
   before getting internal locks.  If we do it in the other order, the status
   information is not up to date when called from the lock handler.
 
+  GENERAL DESCRIPTION OF LOCKING
+
+  When not using LOCK TABLES:
+
+  - For each SQL statement mysql_lock_tables() is called for all involved
+    tables.
+    - mysql_lock_tables() will call
+      table_handler->external_lock(thd,locktype) for each table.
+      This is followed by a call to thr_multi_lock() for all tables.
+
+  - When statement is done, we call mysql_unlock_tables().
+    This will call thr_multi_unlock() followed by
+    table_handler->external_lock(thd, F_UNLCK) for each table.
+
+  - Note that mysql_unlock_tables() may be called several times as
+    MySQL in some cases can free some tables earlier than others.
+
+  - The above is true both for normal and temporary tables.
+
+  - Temporary non transactional tables are never passed to thr_multi_lock()
+    and we never call external_lock(thd, F_UNLOCK) on these.
+
+  When using LOCK TABLES:
+
+  - LOCK TABLE will call mysql_lock_tables() for all tables.
+    mysql_lock_tables() will call
+    table_handler->external_lock(thd,locktype) for each table.
+    This is followed by a call to thr_multi_lock() for all tables.
+
+  - For each statement, we will call table_handler->start_stmt(THD)
+    to inform the table handler that we are using the table.
+
+    The tables used can only be tables used in LOCK TABLES or a
+    temporary table.
+
+  - When statement is done, we will call ha_commit_stmt(thd);
+
+  - When calling UNLOCK TABLES we call mysql_unlock_tables() for all
+    tables used in LOCK TABLES
+
 TODO:
   Change to use my_malloc() ONLY when using LOCK TABLES command or when
   we are forced to use mysql_lock_merge.
@@ -206,7 +246,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
     sql_lock->lock_count= found;
   }
 
-  /* Then to the same for the external locks */
+  /* Then do the same for the external locks */
   /* Move all write locked tables first */
   TABLE **table=sql_lock->table;
   for (i=found=0 ; i < sql_lock->table_count ; i++)

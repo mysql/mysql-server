@@ -657,7 +657,15 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 }
 
 
-/* Deactive all not unique index that can be recreated fast */
+/*
+  Deactive all not unique index that can be recreated fast
+
+  SYNOPSIS
+    deactivate_non_unique_index()
+    rows		Rows to be inserted
+			0 if we don't know
+			HA_POS_ERROR if we want to disable all keys
+*/
 
 void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 {
@@ -670,9 +678,12 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
       else
       {
-        mi_disable_non_unique_index(file,rows);
+	/* Only disable old index if the table was empty */
+	if (file->state->records == 0)
+	  mi_disable_non_unique_index(file,rows);
         ha_myisam::extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
 			     current_thd->variables.bulk_insert_buff_size);
+	table->bulk_insert= 1;
       }
     }
     enable_activate_all_index=1;
@@ -690,6 +701,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   DBUG_ENTER("activate_all_index");
 
   mi_extra(file, HA_EXTRA_BULK_INSERT_END, 0);
+  table->bulk_insert= 0;
   if (enable_activate_all_index &&
      share->state.key_map != set_bits(ulonglong, share->base.keys))
   {
@@ -958,7 +970,9 @@ int ha_myisam::delete_table(const char *name)
 
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
-  return mi_lock_database(file,lock_type);
+  if (!table->tmp_table)
+    return mi_lock_database(file,lock_type);
+  return 0;
 }
 
 
@@ -1193,6 +1207,10 @@ longlong ha_myisam::get_auto_increment()
     ha_myisam::info(HA_STATUS_AUTO);
     return auto_increment_value;
   }
+
+  if (table->bulk_insert)
+    mi_extra(file, HA_EXTRA_BULK_INSERT_FLUSH,
+	     (void*) &table->next_number_index);
 
   longlong nr;
   int error;

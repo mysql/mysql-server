@@ -40,6 +40,15 @@ select a,t>0,c,i from t1;
 drop table t1;
 
 #
+# Test problem with bulk insert and auto_increment on second part keys
+#
+
+create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id));
+insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
+select * from t1;
+drop table t1;
+
+#
 # Test of mysqld crash with fully qualified column names
 #
 
