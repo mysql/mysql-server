@@ -16,6 +16,8 @@ Created 9/8/1995 Heikki Tuuri
 #include <windows.h>
 #endif
 
+#include "srv0srv.h"
+
 /*********************************************************************
 Returns the thread identifier of current thread. */
 
@@ -70,6 +72,15 @@ os_thread_create(
 				thread_id);
 	ut_a(thread);
 
+	if (srv_set_thread_priorities) {
+
+	        /* Set created thread priority the same as a normal query
+	        in MYSQL: we try to prevent starvation of threads by
+	        assigning same priority QUERY_PRIOR to all */
+
+	        ut_a(SetThreadPriority(thread, srv_query_thread_priority));
+	}
+
 	return(thread);
 #else
 	int		ret;
@@ -81,6 +92,11 @@ os_thread_create(
 	ret = pthread_create(&pthread, &attr, start_f, arg);
 
 	pthread_attr_destroy(&attr);
+
+	if (srv_set_thread_priorities) {
+	
+	        my_pthread_setprio(pthread, srv_query_thread_priority);
+	}
 
 	return(pthread);
 #endif

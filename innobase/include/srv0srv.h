@@ -48,6 +48,9 @@ extern dulint	srv_archive_recovery_limit_lsn;
 
 extern ulint	srv_lock_wait_timeout;
 
+extern ibool    srv_set_thread_priorities;
+extern int      srv_query_thread_priority;
+
 /*-------------------------------------------*/
 extern ulint	srv_n_spin_wait_rounds;
 extern ulint	srv_spin_wait_delay;

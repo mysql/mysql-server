@@ -396,6 +396,14 @@ lock_release_off_kernel(
 /*====================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
+Resets all locks, both table and record locks, on a table to be dropped.
+No lock is allowed to be a wait lock. */
+
+void
+lock_reset_all_on_table(
+/*====================*/
+	dict_table_t*	table);	/* in: table to be dropped */
+/*************************************************************************
 Calculates the fold value of a page file address: used in inserting or
 searching for a lock in the hash table. */
 UNIV_INLINE

@@ -282,7 +282,11 @@ struct trx_struct{
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current
 					SQL statement in MySQL */
-	UT_LIST_NODE_T(trx_t) 
+        ibool           ignore_duplicates_in_insert;
+                                        /* in an insert roll back only insert
+                                        of the latest row in case
+                                        of a duplicate key error */
+	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	/*------------------------------*/
 	mutex_t		undo_mutex;	/* mutex protecting the fields in this

@@ -35,19 +35,20 @@ Innobase */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
-/* The following must be declared here so that we can handle SAFE_MUTEX */
-pthread_mutex_t innobase_mutex;
-
 #include "ha_innobase.h"
+
+/* We must declare this here because we undef SAFE_MUTEX below */
+pthread_mutex_t innobase_mutex;
 
 /* Store MySQL definition of 'byte': in Linux it is char while Innobase
 uses unsigned char */
 typedef byte	mysql_byte;
 
-#define INSIDE_HA_INNOBASE_CC
 #ifdef SAFE_MUTEX
 #undef pthread_mutex_t
 #endif
+
+#define INSIDE_HA_INNOBASE_CC
 
 /* Include necessary Innobase headers */
 extern "C" {
@@ -96,6 +97,8 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 ulong	innobase_active_counter	= 0;
 
 char*	innobase_home 	= NULL;
+
+char    innodb_dummy_stmt_trx_handle = 'D';
 
 static HASH 	innobase_open_tables;
 
@@ -198,12 +201,13 @@ check_trx_exists(
 		thd->transaction.all.innobase_tid = trx;
 
 		/* The execution of a single SQL statement is denoted by
-		a 'transaction' handle which is a NULL pointer: Innobase
+		a 'transaction' handle which is a dummy pointer: Innobase
 		remembers internally where the latest SQL statement
 		started, and if error handling requires rolling back the
 		latest statement, Innobase does a rollback to a savepoint. */
 
-		thd->transaction.stmt.innobase_tid = NULL;
+		thd->transaction.stmt.innobase_tid =
+		                  (void*)&innodb_dummy_stmt_trx_handle;
 	}
 
 	return(trx);
@@ -272,10 +276,14 @@ innobase_parse_data_file_paths_and_sizes(void)
 		size = strtoul(str, &endp, 10);
 
 		str = endp;
-		if (*str != 'M') {
+
+		if ((*str != 'M') && (*str != 'G')) {
 			size = size / (1024 * 1024);
-		} else {
+		} else if (*str == 'G') {
+		        size = size * 1024;
 			str++;
+		} else {
+		        str++;
 		}
 
 		if (size == 0) {
@@ -318,10 +326,14 @@ innobase_parse_data_file_paths_and_sizes(void)
 		size = strtoul(str, &endp, 10);
 
 		str = endp;
-		if (*str != 'M') {
+
+		if ((*str != 'M') && (*str != 'G')) {
 			size = size / (1024 * 1024);
-		} else {
+		} else if (*str == 'G') {
+		        size = size * 1024;
 			str++;
+		} else {
+		        str++;
 		}
 
 		srv_data_file_names[i] = path;
@@ -418,6 +430,13 @@ innobase_init(void)
 	bool		ret;
 
   	DBUG_ENTER("innobase_init");
+
+	if (specialflag & SPECIAL_NO_PRIOR) {
+	        srv_set_thread_priorities = FALSE;
+	} else {
+	        srv_set_thread_priorities = TRUE;
+	        srv_query_thread_priority = QUERY_PRIOR;
+	}
 
 	/* Use current_dir if no paths are set */
 	current_dir[0]=FN_CURLIB;
@@ -557,8 +576,9 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
-	if (trx_handle) {
+	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		trx_commit_for_mysql(trx);
+		trx_mark_sql_stat_end(trx);
 	} else {
 		trx_mark_sql_stat_end(trx);
 	}
@@ -585,9 +605,7 @@ innobase_rollback(
 			/* out: 0 or error number */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose transaction should be rolled back */
-	void*	trx_handle)/* in: Innobase trx handle or NULL: NULL means
-			that the current SQL statement should be rolled
-			back */
+	void*	trx_handle)/* in: Innobase trx handle or a dummy stmt handle */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -597,10 +615,11 @@ innobase_rollback(
 
 	trx = check_trx_exists(thd);
 
-	if (trx_handle) {
+	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		error = trx_rollback_for_mysql(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
+		trx_mark_sql_stat_end(trx);
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error));
@@ -618,7 +637,8 @@ innobase_close_connection(
 			whose transaction should be rolled back */
 {
 	if (NULL != thd->transaction.all.innobase_tid) {
-
+	        trx_rollback_for_mysql((trx_t*)
+				(thd->transaction.all.innobase_tid));
 		trx_free_for_mysql((trx_t*)
 				(thd->transaction.all.innobase_tid));
 	}
@@ -725,6 +745,8 @@ ha_innobase::open(
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
+
+	last_query_id = (ulong)-1;
 
 	if (!(share=get_share(name)))
 	  DBUG_RETURN(1);
@@ -1229,6 +1251,11 @@ ha_innobase::write_row(
     		update_timestamp(record + table->time_stamp - 1);
     	}
 
+	if (last_query_id != user_thd->query_id) {
+	        prebuilt->sql_stat_start = TRUE;
+                last_query_id = user_thd->query_id;
+	}
+
   	if (table->next_number_field && record == table->record[0]) {
 	        /* Set the 'in_update_remember_pos' flag to FALSE to
 	        make sure all columns are fetched in the select done by
@@ -1255,7 +1282,16 @@ ha_innobase::write_row(
 		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
 	}
 
+	if (user_thd->lex.sql_command == SQLCOM_INSERT
+	    && user_thd->lex.duplicates == DUP_IGNORE) {
+	        prebuilt->trx->ignore_duplicates_in_insert = TRUE;
+        } else {
+	        prebuilt->trx->ignore_duplicates_in_insert = FALSE;
+	}
+
 	error = row_insert_for_mysql((byte*) record, prebuilt);
+
+	prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 
 	error = convert_error_code_to_mysql(error);
 
@@ -1441,6 +1477,11 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
+	if (last_query_id != user_thd->query_id) {
+	        prebuilt->sql_stat_start = TRUE;
+                last_query_id = user_thd->query_id;
+	}
+
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
 	} else {
@@ -1484,6 +1525,11 @@ ha_innobase::delete_row(
 	int		error = 0;
 
 	DBUG_ENTER("ha_innobase::delete_row");
+
+	if (last_query_id != user_thd->query_id) {
+	        prebuilt->sql_stat_start = TRUE;
+                last_query_id = user_thd->query_id;
+	}
 
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);
@@ -1589,6 +1635,11 @@ ha_innobase::index_read(
 
   	DBUG_ENTER("index_read");
   	statistic_increment(ha_read_key_count, &LOCK_status);
+
+	if (last_query_id != user_thd->query_id) {
+	        prebuilt->sql_stat_start = TRUE;
+                last_query_id = user_thd->query_id;
+	}
 
 	index = prebuilt->index;
 
@@ -2622,7 +2673,6 @@ ha_innobase::update_table_comment(
   return(str);
 }
 
-
 /****************************************************************************
  Handling the shared INNOBASE_SHARE structure that is needed to provide table
  locking.
@@ -2697,12 +2747,18 @@ ha_innobase::store_lock(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	if (lock_type == TL_READ_WITH_SHARED_LOCKS) {
-		/* This is a SELECT ... IN SHARE MODE */
+	if (lock_type == TL_READ_WITH_SHARED_LOCKS ||
+	    lock_type == TL_READ_NO_INSERT) {
+		/* This is a SELECT ... IN SHARE MODE, or
+		we are doing a complex SQL statement like
+		INSERT INTO ... SELECT ... and the logical logging
+		requires the use of a locking read */
+
 		prebuilt->select_lock_type = LOCK_S;
 	} else {
 		/* We set possible LOCK_X value in external_lock, not yet
 		here even if this would be SELECT ... FOR UPDATE */
+
 		prebuilt->select_lock_type = LOCK_NONE;
 	}
 

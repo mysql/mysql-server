@@ -87,6 +87,9 @@ ibool	srv_archive_recovery	= 0;
 dulint	srv_archive_recovery_limit_lsn;
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
+
+ibool   srv_set_thread_priorities = TRUE;
+int     srv_query_thread_priority = 0;
 /*-------------------------------------------*/
 ulint	srv_n_spin_wait_rounds	= 20;
 ulint	srv_spin_wait_delay	= 5;
@@ -1837,6 +1840,8 @@ srv_master_thread(
 	ulint		n_pages_flushed;
 	ulint		n_bytes_archived;
 	ulint		i;
+	time_t          last_flush_time;
+	time_t          current_time;
 	
 	UT_NOT_USED(arg);
 
@@ -1861,6 +1866,12 @@ loop:
 	for (i = 0; i < 10; i++) {
 		os_thread_sleep(1000000);
 
+		/* We flush the log once in a second even if no commit
+		is issued or the we have specified in my.cnf no flush
+		at transaction commit */
+
+		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+
 		if (srv_activity_count == old_activity_count) {
 
 			if (srv_print_thread_releases) {
@@ -1877,10 +1888,19 @@ loop:
 
 	n_pages_purged = 1;
 
+	last_flush_time = time(NULL);
+
 	while (n_pages_purged) {
-		n_pages_purged = trx_purge();
 		/* TODO: replace this by a check if we are running
 							out of file space! */
+		n_pages_purged = trx_purge();
+
+		current_time = time(NULL);
+
+		if (difftime(current_time, last_flush_time) > 1) {
+		        log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+			last_flush_time = current_time;
+		}
 	}
 
 background_loop:
