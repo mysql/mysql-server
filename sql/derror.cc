@@ -24,15 +24,43 @@ static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages);
 static void init_myfunc_errs(void);
 
-	/* Read messages from errorfile */
+/*
+  Read messages from errorfile.
+
+  SYNOPSIS
+    init_errmessage()
+
+  DESCRIPTION
+    This function can be called multiple times to reload the messages.
+
+  RETURN
+    FALSE       OK
+    TRUE        Error
+*/
 
 bool init_errmessage(void)
 {
+  const char **errmsgs;
   DBUG_ENTER("init_errmessage");
 
-  if (read_texts(ERRMSG_FILE,&my_errmsg[ERRMAPP],ER_ERROR_MESSAGES))
+  /*
+    Get a pointer to the old error messages pointer array.
+    read_texts() tries to free it.
+  */
+  errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
+
+  /* Read messages from file. */
+  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1))
     DBUG_RETURN(TRUE);
-  errmesg=my_errmsg[ERRMAPP];		/* Init global variabel */
+
+  /* Register messages for use with my_error(). */
+  if (my_error_register(errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
+  {
+    x_free((gptr) errmsgs);
+    DBUG_RETURN(TRUE);
+  }
+
+  errmesg= errmsgs;		        /* Init global variabel */
   init_myfunc_errs();			/* Init myfunc messages */
   DBUG_RETURN(FALSE);
 }
@@ -148,20 +176,20 @@ static void init_myfunc_errs()
   init_glob_errs();			/* Initiate english errors */
   if (!(specialflag & SPECIAL_ENGLISH))
   {
-    globerrs[EE_FILENOTFOUND % ERRMOD]	= ER(ER_FILE_NOT_FOUND);
-    globerrs[EE_CANTCREATEFILE % ERRMOD]= ER(ER_CANT_CREATE_FILE);
-    globerrs[EE_READ % ERRMOD]		= ER(ER_ERROR_ON_READ);
-    globerrs[EE_WRITE % ERRMOD]		= ER(ER_ERROR_ON_WRITE);
-    globerrs[EE_BADCLOSE % ERRMOD]	= ER(ER_ERROR_ON_CLOSE);
-    globerrs[EE_OUTOFMEMORY % ERRMOD]	= ER(ER_OUTOFMEMORY);
-    globerrs[EE_DELETE % ERRMOD]	= ER(ER_CANT_DELETE_FILE);
-    globerrs[EE_LINK % ERRMOD]		= ER(ER_ERROR_ON_RENAME);
-    globerrs[EE_EOFERR % ERRMOD]	= ER(ER_UNEXPECTED_EOF);
-    globerrs[EE_CANTLOCK % ERRMOD]	= ER(ER_CANT_LOCK);
-    globerrs[EE_DIR % ERRMOD]		= ER(ER_CANT_READ_DIR);
-    globerrs[EE_STAT % ERRMOD]		= ER(ER_CANT_GET_STAT);
-    globerrs[EE_GETWD % ERRMOD]		= ER(ER_CANT_GET_WD);
-    globerrs[EE_SETWD % ERRMOD]		= ER(ER_CANT_SET_WD);
-    globerrs[EE_DISK_FULL % ERRMOD]	= ER(ER_DISK_FULL);
+    EE(EE_FILENOTFOUND)   = ER(ER_FILE_NOT_FOUND);
+    EE(EE_CANTCREATEFILE) = ER(ER_CANT_CREATE_FILE);
+    EE(EE_READ)           = ER(ER_ERROR_ON_READ);
+    EE(EE_WRITE)          = ER(ER_ERROR_ON_WRITE);
+    EE(EE_BADCLOSE)       = ER(ER_ERROR_ON_CLOSE);
+    EE(EE_OUTOFMEMORY)    = ER(ER_OUTOFMEMORY);
+    EE(EE_DELETE)         = ER(ER_CANT_DELETE_FILE);
+    EE(EE_LINK)           = ER(ER_ERROR_ON_RENAME);
+    EE(EE_EOFERR)         = ER(ER_UNEXPECTED_EOF);
+    EE(EE_CANTLOCK)       = ER(ER_CANT_LOCK);
+    EE(EE_DIR)            = ER(ER_CANT_READ_DIR);
+    EE(EE_STAT)           = ER(ER_CANT_GET_STAT);
+    EE(EE_GETWD)          = ER(ER_CANT_GET_WD);
+    EE(EE_SETWD)          = ER(ER_CANT_SET_WD);
+    EE(EE_DISK_FULL)      = ER(ER_DISK_FULL);
   }
 }
