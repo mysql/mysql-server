@@ -2290,16 +2290,20 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	DBUG_RETURN(-1);
 #endif
       Field **ptr=table->field,*field;
+      TABLE *natural_join_table;
       thd->used_tables|=table->map;
+      if (table->outer_join || 
+          !tables->natural_join ||
+          tables->natural_join->table->outer_join)
+        natural_join_table= NULL;
+      else
+        natural_join_table= tables->natural_join->table;
       while ((field = *ptr++))
       {
         /* Skip duplicate field names if NATURAL JOIN is used */
-        if (table->outer_join ||
-            !tables->natural_join || 
-            tables->natural_join->table->outer_join ||
-            !find_field_in_table(thd, tables->natural_join->table,
-                                 field->field_name, strlen(field->field_name),
-                                 0, 0))
+        if (!natural_join_table ||
+            !find_field_in_table(thd, natural_join_table, field->field_name, 
+                                 strlen(field->field_name), 0, 0))
         {
           Item_field *item= new Item_field(field);
           if (!found++)
