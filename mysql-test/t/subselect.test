@@ -892,9 +892,11 @@ DROP TABLE t1, t2;
 #
 # UNION unlocking test
 #
+--disable_warnings
 create table t1 (a int) type=innodb;
 create table t2 (a int) type=innodb;
 create table t3 (a int) type=innodb;
+--enable_warnings
 insert into t1 values (1),(2),(3),(4);
 insert into t2 values (10),(20),(30),(40);
 insert into t3 values (1),(2),(10),(50);
