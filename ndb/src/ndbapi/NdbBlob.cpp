@@ -975,7 +975,7 @@ NdbBlob::deletePartsUnknown(Uint32 part)
         setErrorCode(tOp);
         return -1;
       }
-      tOp->m_abortOption = IgnoreError;
+      tOp->m_abortOption = AO_IgnoreError;
       n++;
     }
     DBG("deletePartsUnknown: executeNoBlobs [in] bat=" << bat);
@@ -1223,7 +1223,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
         return -1;
       }
       if (isWriteOp()) {
-        tOp->m_abortOption = IgnoreError;
+        tOp->m_abortOption = AO_IgnoreError;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
@@ -1269,7 +1269,7 @@ NdbBlob::preExecute(ExecType anExecType, bool& batch)
         return -1;
       }
       if (isWriteOp()) {
-        tOp->m_abortOption = IgnoreError;
+        tOp->m_abortOption = AO_IgnoreError;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately

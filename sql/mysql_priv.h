@@ -410,7 +410,6 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
-#include "tztime.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -428,7 +427,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 bool mysql_multi_update_prepare(THD *thd);
 bool mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
-bool insert_select_precheck(THD *thd, TABLE_LIST *tables);
 bool update_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
@@ -436,6 +434,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
+#include "sql_acl.h"
+#include "tztime.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -1318,6 +1318,23 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+}
+
+
+/*
+  SYNOPSYS
+    hexchar_to_int()
+    convert a hex digit into number
+*/
+
+inline int hexchar_to_int(char c)
+{
+  if (c <= '9' && c >= '0')
+    return c-'0';
+  c|=32;
+  if (c <= 'f' && c >= 'a')
+    return c-'a'+10;
+  return -1;
 }
 
 

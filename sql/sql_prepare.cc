@@ -68,7 +68,6 @@ Long data handling:
 ***********************************************************************/
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
@@ -1387,7 +1386,7 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
 {
   int res;
   LEX *lex= stmt->lex;
-  if ((res= insert_select_precheck(stmt->thd, tables)))
+  if ((res= insert_precheck(stmt->thd, tables)))
     return res;
   TABLE_LIST *first_local_table=
     (TABLE_LIST *)lex->select_lex.table_list.first;
@@ -1584,6 +1583,27 @@ static bool init_param_array(Prepared_statement *stmt)
 }
 
 
+/* Init statement before execution */
+
+static void cleanup_stmt_for_execute(Prepared_statement *stmt)
+{
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  SELECT_LEX *sl= lex->all_selects_list;
+
+  for (; sl; sl= sl->next_select_in_list())
+  {
+    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
+	 tables;
+	 tables= tables->next)
+    {
+      if (tables->table)
+        tables->table->insert_values= 0;
+    }
+  }
+}
+
+
 /*
   Given a query string with parameter markers, create a Prepared Statement
   from it and send PS info back to the client.
@@ -1678,6 +1698,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 
   if (!error)
     error= check_prepared_statement(stmt, test(name));
+  cleanup_stmt_for_execute(stmt);
 
   /* restore to WAIT_PRIOR: QUERY_PRIOR is set inside alloc_query */
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2038,6 +2059,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
+  cleanup_stmt_for_execute(stmt);
   thd->cleanup_after_query();
 
   if (stmt->state == Item_arena::PREPARED)

@@ -308,6 +308,7 @@ enum ha_base_keytype {
 #define HA_ERR_NO_SUCH_TABLE     155  /* The table does not exist in engine */
 #define HA_ERR_TABLE_EXIST       156  /* The table existed in storage engine */
 #define HA_ERR_NO_CONNECTION     157  /* Could not connect to storage engine */
+#define HA_ERR_NULL_IN_SPATIAL   158  /* NULLs are not supported in spatial index */
 
 	/* Other constants */
 

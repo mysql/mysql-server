@@ -188,8 +188,11 @@ copy_dir_files()
        print_debug "Creating directory '$arg'"
        mkdir $BASE/$arg
      fi
-    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
-             README INSTALL* LICENSE
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.dsp \
+             README INSTALL* LICENSE *.inc *.test *.result \
+	     *.pem Moscow_leap des_key_file *.dat *.000001 \
+	     *.require *.opt
+
     do
       if [ -f $i ]
       then
@@ -244,10 +247,15 @@ do
 done
 
 #
+# Create project files for ndb
+#
+make -C $SOURCE/ndb windoze
+
+#
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase
+for i in bdb innobase mysql-test ndb
 do
   copy_dir_dirs $i
 done

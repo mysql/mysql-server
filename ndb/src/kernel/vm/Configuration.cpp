@@ -46,7 +46,13 @@ extern "C" {
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
-static const char* opt_connect_str= 0;
+enum ndbd_options {
+  NDB_STD_OPTS_OPTIONS,
+  OPT_INITIAL,
+  OPT_NODAEMON
+};
+
+NDB_STD_OPTS_VARS;
 static int _daemon, _no_daemon, _initial, _no_start;
 /**
  * Arguments to NDB process
@@ -54,7 +60,7 @@ static int _daemon, _no_daemon, _initial, _no_start;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbd"),
-  { "initial", 256,
+  { "initial", OPT_INITIAL,
     "Perform initial start of ndbd, including cleaning the file system. "
     "Consult documentation before using this",
     (gptr*) &_initial, (gptr*) &_initial, 0,
@@ -66,7 +72,7 @@ static struct my_option my_long_options[] =
   { "daemon", 'd', "Start ndbd as daemon (default)",
     (gptr*) &_daemon, (gptr*) &_daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "nodaemon", 257,
+  { "nodaemon", OPT_NODAEMON,
     "Do not start ndbd as daemon, provided for testing purposes",
     (gptr*) &_no_daemon, (gptr*) &_no_daemon, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -281,19 +287,19 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   memset(buf2, 0,sizeof(buf2));
 #ifdef NDB_WIN32
   char* szFilePart;
-  if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart)
-     || (::GetFileAttributes(alloc_path)&FILE_ATTRIBUTE_READONLY)) 
+  if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
+     (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY))
 #else
-    if((::realpath(path, buf2) == NULL)||
+  if((::realpath(path, buf2) == NULL)||
        (::access(buf2, W_OK) != 0))
 #endif
-      {
-	ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
-      }
-
+  {
+    ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
+  }
+  
   if (strcmp(&buf2[strlen(buf2) - 1], DIR_SEPARATOR))
     strcat(buf2, DIR_SEPARATOR);
-
+  
   return strdup(buf2);
 }
 
@@ -561,7 +567,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       noOfDBNodes++; // No of NDB processes
       
       if(nodeId > MAX_NDB_NODES){
-	snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
+		  BaseString::snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
 		 MAX_NDB_NODES);
 	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
       }
@@ -609,8 +615,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
-  if (noOfMetaTables > MAX_TABLES)
-    noOfMetaTables= MAX_TABLES;
+  Uint32 noOfMetaTablesDict= noOfMetaTables;
+  if (noOfMetaTablesDict > MAX_TABLES)
+    noOfMetaTablesDict= MAX_TABLES;
 
   {
     /**
@@ -619,8 +626,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_DICT_ATTRIBUTE, 
 	    noOfAttributes);
 
-    cfg.put(CFG_DICT_TABLE, 
-	    noOfMetaTables);
+    cfg.put(CFG_DICT_TABLE,
+	    noOfMetaTablesDict);
   }
 
 

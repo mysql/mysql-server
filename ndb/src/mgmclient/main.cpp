@@ -56,9 +56,13 @@ handler(int sig){
   }
 }
 
+enum ndb_mgm_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char default_prompt[]= "ndb_mgm> ";
 static unsigned _try_reconnect;
-static char *opt_connect_str= 0;
 static const char *prompt= default_prompt;
 static char *opt_execute_str= 0;
 

@@ -394,8 +394,8 @@ void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
     else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
+      ref_pointer_array[el]= item;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-      new_item->collation.set(item->collation);
       fields.push_front(item);
       ref_pointer_array[el]= item;
       thd->change_item_tree(arg, new_item);
@@ -855,9 +855,25 @@ longlong Item_func_neg::val_int()
 
 void Item_func_neg::fix_length_and_dec()
 {
+  enum Item_result arg_result= args[0]->result_type();
+  enum Item::Type  arg_type= args[0]->type();
   decimals=args[0]->decimals;
   max_length=args[0]->max_length;
   hybrid_type= REAL_RESULT;
+  
+  /*
+    We need to account for added '-' in the following cases:
+    A) argument is a real or integer positive constant - in this case 
+    argument's max_length is set to actual number of bytes occupied, and not 
+    maximum number of bytes real or integer may require. Note that all 
+    constants are non negative so we don't need to account for removed '-'.
+    B) argument returns a string.
+  */
+  if (arg_result == STRING_RESULT || 
+      (arg_type == REAL_ITEM && ((Item_real*)args[0])->value >= 0) ||
+      (arg_type == INT_ITEM && ((Item_int*)args[0])->value > 0))
+    max_length++;
+
   if (args[0]->result_type() == INT_RESULT)
   {
     /*
@@ -1742,7 +1758,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg))
+      if (!(*arg)->fixed && 
+          (*arg)->fix_fields(thd, tables, arg))
 	DBUG_RETURN(1);
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;

@@ -227,7 +227,7 @@ typedef struct
   int alloced;
 } VAR;
 
-#ifdef __NETWARE__
+#if defined(__NETWARE__) || defined(__WIN__)
 /*
   Netware doesn't proved environment variable substitution that is done
   by the shell in unix environments. We do this in the following function:
@@ -4609,6 +4609,9 @@ static char *subst_env_var(const char *str)
 */
 
 #undef popen                                    /* Remove wrapper */
+#ifdef __WIN__ 
+#define popen _popen                           /* redefine for windows */
+#endif
 
 FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
 {
