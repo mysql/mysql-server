@@ -1831,3 +1831,29 @@ Warnings:
 Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select test.up.a AS `a`,test.up.b AS `b` from test.t1 up where exists(select 1 AS `Not_used` from test.t1 where (test.t1.a = test.up.a))
 drop table t1;
+DROP TABLE IF EXISTS t1, t2, t3;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+Note	1051	Unknown table 't3'
+CREATE TABLE t1 ( a int, b int );
+CREATE TABLE t2 ( c int, d int );
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+abc	b
+1	2
+2	3
+3	4
+INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t2;
+c	d
+1	2
+2	3
+3	4
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t3;
+abc	b
+1	2
+2	3
+3	4
+DROP TABLE t1, t2, t3;
