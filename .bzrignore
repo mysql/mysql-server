@@ -277,6 +277,7 @@ help.h
 include/my_config.h
 include/my_global.h
 include/mysql_version.h
+include/readline/*.h
 include/readline/readline.h
 include/widec.h
 innobase/autom4te-2.53.cache/output.0
@@ -347,6 +348,7 @@ libmysqld/item_buff.cc
 libmysqld/item_cmpfunc.cc
 libmysqld/item_create.cc
 libmysqld/item_func.cc
+libmysqld/item_geofunc.cc
 libmysqld/item_row.cc
 libmysqld/item_strfunc.cc
 libmysqld/item_sum.cc
@@ -503,6 +505,7 @@ scripts/make_win_src_distribution
 scripts/msql2mysql
 scripts/mysql_config
 scripts/mysql_convert_table_format
+scripts/mysql_create_system_tables
 scripts/mysql_explain_log
 scripts/mysql_find_rows
 scripts/mysql_fix_extensions
@@ -616,4 +619,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-include/readline/*.h

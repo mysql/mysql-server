@@ -1457,6 +1457,16 @@ int mysql_store_result_for_lazy(MYSQL_RES **result)
   return 0;
 }
 
+static void print_help_item(MYSQL_ROW *cur, int num_name, int num_cat, char *last_char)
+{
+  char ccat= (*cur)[num_cat][0];
+  if (*last_char != ccat)
+  {
+    put_info(ccat == 'Y' ? "categories :" : "topics :", INFO_INFO);
+    *last_char= ccat;
+  }
+  tee_fprintf(PAGER, "   %s\n", (*cur)[num_name]);
+}
 
 static int com_server_help(String *buffer __attribute__((unused)),
 			   char *line __attribute__((unused)), char *help_arg)
@@ -1465,14 +1475,15 @@ static int com_server_help(String *buffer __attribute__((unused)),
   const char *server_cmd= buffer->ptr();
   char cmd_buf[100];
   MYSQL_RES *result;
+  MYSQL_FIELD *fields;
   int error;
-
+  
   if (help_arg[0] != '\'')
   {
     (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
     server_cmd= cmd_buf;
   }
-
+  
   if (!status.batch)
   {
     old_buffer= *buffer;
@@ -1482,15 +1493,16 @@ static int com_server_help(String *buffer __attribute__((unused)),
   if (!connected && reconnect())
     return 1;
 
-  if ((error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd))))
-    return error;
-  if ((error= mysql_store_result_for_lazy(&result)))
+  if ((error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd))) ||
+      (error= mysql_store_result_for_lazy(&result)))
     return error;
 
   if (result)
   {
-    ulonglong num_rows= mysql_num_rows(result);
-    if (num_rows == 1)
+    unsigned int num_fields= mysql_num_fields(result);
+    my_ulonglong num_rows= mysql_num_rows(result);
+    fields= mysql_fetch_fields(result);
+    if (num_fields==3 && num_rows==1)
     {
       if (!(cur= mysql_fetch_row(result)))
       {
@@ -1499,46 +1511,45 @@ static int com_server_help(String *buffer __attribute__((unused)),
       }
 
       init_pager();
-      if (cur[1][0] == 'Y')
-      {
-	tee_fprintf(PAGER, "Help topic \'%s\'\n", cur[0]);
-	tee_fprintf(PAGER, "%s\n", cur[2]);
-	tee_fprintf(PAGER, "For help on specific function please type 'help <function>'\nwhere function is one of next:\n%s\n", cur[3]);
-      }
-      else
-      {
-	tee_fprintf(PAGER, "Name: \'%s\'\n\n", cur[0]);
-	tee_fprintf(PAGER, "Description:\n%s\n\n", cur[2]);
-	if (cur[3])
-	  tee_fprintf(PAGER, "Examples:\n%s\n", cur[3]);
-      }
+      tee_fprintf(PAGER,   "Name: \'%s\'\n", cur[0]);
+      tee_fprintf(PAGER,   "Description:\n%s", cur[1]);
+      if (cur[2] && *((char*)cur[2]))
+	tee_fprintf(PAGER, "Examples:\n%s", cur[2]);
+      tee_fprintf(PAGER,   "\n");
       end_pager();
     }
-    else if (num_rows > 1)
+    else if (num_fields >= 2 && num_rows)
     {
-      put_info("Many help items for your request exist", INFO_INFO);
-      put_info("For more specific request please type 'help <item>' where item is one of next:", INFO_INFO);
-
       init_pager();
-      char last_char= '_';
-      while ((cur= mysql_fetch_row(result)))
+      char last_char;
+      
+      int num_name, num_cat;
+      if (num_fields == 2)
       {
-	if (cur[1][0]!=last_char)
-	{
-	  put_info("-------------------------------------------", INFO_INFO);
-	  put_info(cur[1][0] == 'Y' ? 
-		   "categories:" : "functions:", INFO_INFO);
-	  put_info("-------------------------------------------", INFO_INFO);
-	}
-	last_char= cur[1][0];
-	tee_fprintf(PAGER, "%s\n", cur[0]);
+	put_info("Many help items for your request exist", INFO_INFO);
+	put_info("For more specific request please type 'help <item>' where item is one of next", INFO_INFO);
+	num_name= 0;
+	num_cat= 1;
+	last_char= '_';
       }
+      else if ((cur= mysql_fetch_row(result)))
+      {
+	tee_fprintf(PAGER, "You asked help about help category: \"%s\"\n", cur[0]);
+	put_info("For a more information type 'help <item>' where item is one of the following", INFO_INFO);
+	num_name= 1;
+	num_cat= 2;
+	print_help_item(&cur,1,2,&last_char);
+      }
+      
+      while ((cur= mysql_fetch_row(result)))
+	print_help_item(&cur,num_name,num_cat,&last_char);
       tee_fprintf(PAGER, "\n");
       end_pager();
     }
     else
     {
-      put_info("\nNothing found\n", INFO_INFO);
+      put_info("\nNothing found", INFO_INFO);
+      put_info("Please try to run 'help contents' for list of all accessible topics\n", INFO_INFO);
     }
   }
 

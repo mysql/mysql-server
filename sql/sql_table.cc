@@ -481,7 +481,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     if (!sql_field->charset)
       sql_field->charset = create_info->table_charset ?
-			   create_info->table_charset : thd->db_charset;
+			   create_info->table_charset :
+			   thd->variables.character_set_database;
     
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
