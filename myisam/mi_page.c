@@ -24,14 +24,16 @@
 	/* Fetch a key-page in memory */
 
 uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
-			 my_off_t page, uchar *buff, int return_buffer)
+			 my_off_t page, int level, 
+                         uchar *buff, int return_buffer)
 {
   uchar *tmp;
   uint page_size;
   DBUG_ENTER("_mi_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld",page));
 
-  tmp=(uchar*) key_cache_read(info->s->kfile,page,(byte*) buff,
+  tmp=(uchar*) key_cache_read(*info->s->keycache,
+                             info->s->kfile, page, level, (byte*) buff,
 			     (uint) keyinfo->block_length,
 			     (uint) keyinfo->block_length,
 			     return_buffer);
@@ -61,7 +63,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
 	/* Write a key-page on disk */
 
 int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
-		      my_off_t page, uchar *buff)
+		      my_off_t page, int level, uchar *buff)
 {
   reg3 uint length;
   DBUG_ENTER("_mi_write_keypage");
@@ -92,7 +94,8 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     length=keyinfo->block_length;
   }
 #endif
-  DBUG_RETURN((key_cache_write(info->s->kfile,page,(byte*) buff,length,
+  DBUG_RETURN((key_cache_write(*info->s->keycache,
+                         info->s->kfile,page, level, (byte*) buff,length,
 			 (uint) keyinfo->block_length,
 			 (int) ((info->lock_type != F_UNLCK) ||
 				info->s->delay_key_write))));
@@ -101,7 +104,8 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 	/* Remove page from disk */
 
-int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos)
+int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
+                int level)
 {
   my_off_t old_link;
   char buff[8];
@@ -112,7 +116,8 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos)
   info->s->state.key_del[keyinfo->block_size]=pos;
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
-  DBUG_RETURN(key_cache_write(info->s->kfile,pos,buff,
+  DBUG_RETURN(key_cache_write(*info->s->keycache,
+                              info->s->kfile, pos , level, buff,
 			      sizeof(buff),
 			      (uint) keyinfo->block_length,
 			      (int) (info->lock_type != F_UNLCK)));
@@ -121,7 +126,7 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos)
 
 	/* Make new page on disk */
 
-my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo)
+my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo, int level)
 {
   my_off_t pos;
   char buff[8];
@@ -140,7 +145,8 @@ my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo)
   }
   else
   {
-    if (!key_cache_read(info->s->kfile,pos,
+    if (!key_cache_read(*info->s->keycache,
+                        info->s->kfile, pos, level,
 			buff,
 			(uint) sizeof(buff),
 			(uint) keyinfo->block_length,0))

@@ -76,7 +76,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     DBUG_RETURN(1);                             /* Search at upper levels */
   }
 
-  if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,info->buff,
+  if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
                                test(!(nextflag & SEARCH_SAVE_BUFF)))))
     goto err;
   DBUG_DUMP("page",(byte*) buff,mi_getint(buff));
@@ -119,7 +119,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (pos != info->last_keypage)
   {
     uchar *old_buff=buff;
-    if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,info->buff,
+    if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
                                  test(!(nextflag & SEARCH_SAVE_BUFF)))))
       goto err;
     keypos=buff+(keypos-old_buff);
@@ -1108,7 +1108,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (info->buff_used)
   {
     if (!_mi_fetch_keypage(info,keyinfo,info->last_search_keypage,
-                           info->buff,0))
+                           DFLT_INIT_HITS,info->buff,0))
       DBUG_RETURN(-1);
     info->buff_used=0;
   }
@@ -1177,7 +1177,7 @@ int _mi_search_first(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   do
   {
-    if (!_mi_fetch_keypage(info,keyinfo,pos,info->buff,0))
+    if (!_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,0))
     {
       info->lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(-1);
@@ -1220,7 +1220,7 @@ int _mi_search_last(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   buff=info->buff;
   do
   {
-    if (!_mi_fetch_keypage(info,keyinfo,pos,buff,0))
+    if (!_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,buff,0))
     {
       info->lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(-1);

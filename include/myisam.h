@@ -408,6 +408,9 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, ulonglong key_map,
 int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows);
 void mi_flush_bulk_insert(MI_INFO *info, uint inx);
 void mi_end_bulk_insert(MI_INFO *info);
+int mi_assign_to_keycache(MI_INFO *info, ulonglong key_map, 
+                          KEY_CACHE_VAR *key_cache, 
+                          pthread_mutex_t *assign_lock);
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
 
 #ifdef	__cplusplus
