@@ -35,11 +35,11 @@ int mi_delete_all_rows(MI_INFO *info)
   if (_mi_mark_file_changed(info))
     goto err;
 
-  state->state.records=info->state->records=info->state->del=state->split=0;
+  info->state->records=info->state->del=state->split=0;
   state->dellink = HA_OFFSET_ERROR;
   state->sortkey=  (ushort) ~0;
   info->state->key_file_length=share->base.keystart;
-  state->state.data_file_length=info->state->data_file_length=0;
+  info->state->data_file_length=0;
   info->state->empty=info->state->key_empty=0;
   state->checksum=0;
 

@@ -24,16 +24,3 @@ create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
 insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23),(27);
 delete from t1 where a=27;
 drop table t1;
-CREATE TABLE t1 (a INT);
-INSERT INTO  t1 VALUES (1), (2), (3);
-LOCK TABLES t1 WRITE;
-DELETE FROM t1;
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
-SELECT * FROM t1;
-a
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-drop table if exists t1;
