@@ -491,15 +491,6 @@ void init_parser()
   memset(&var_reg,0, sizeof(var_reg));
 }
 
-int hex_val(int c)
-{
-  if (isdigit(c))
-    return c - '0';
-  else if ((c = tolower(c)) >= 'a' && c <= 'f')
-    return c - 'a' + 10;
-  else
-    return -1;
-}
 
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 {
@@ -1547,56 +1538,6 @@ int do_while(struct st_query* q)
     *++block_ok = 1;
   var_free(&v);
   return 0;
-}
-
-
-int safe_copy_unescape(char* dest, char* src, int size)
-{
-  register char* p_dest = dest, *p_src = src;
-  register int c, val;
-  enum { ST_NORMAL, ST_ESCAPED, ST_HEX2} state = ST_NORMAL ;
-
-  size--; /* just to make life easier */
-
-  for (; p_dest - size < dest && p_src - size < src &&
-       (c = *p_src) != '\n' && c; ++p_src)
-  {
-    switch(state) {
-    case ST_NORMAL:
-      if (c == '\\')
-	state = ST_ESCAPED;
-      else
-	*p_dest++ = c;
-      break;
-    case ST_ESCAPED:
-      if ((val = hex_val(c)) > 0)
-      {
-	*p_dest = val;
-	state = ST_HEX2;
-      }
-      else
-      {
-	state = ST_NORMAL;
-	*p_dest++ = c;
-      }
-      break;
-    case ST_HEX2:
-      if ((val = hex_val(c)) > 0)
-      {
-	*p_dest = (*p_dest << 4) + val;
-	p_dest++;
-      }
-      else
-	*p_dest++ = c;
-
-      state = ST_NORMAL;
-      break;
-
-    }
-  }
-
-  *p_dest = 0;
-  return (p_dest - dest);
 }
 
 
