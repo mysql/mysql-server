@@ -326,7 +326,7 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   /* We can't anymore send an error to the client */
   thd->net.report_error= 0;
   thd->net.no_send_error= 1;
-  DBUG_PRINT("info", ("OK sent, so no more error sendong allowed"));
+  DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
   DBUG_VOID_RETURN;
 }
@@ -388,7 +388,7 @@ send_eof(THD *thd, bool no_flush)
 	VOID(net_flush(net));
     }
     thd->net.no_send_error= 1;
-    DBUG_PRINT("info", ("EOF sent, so no more error sendong allowed"));
+    DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_VOID_RETURN;
 }
