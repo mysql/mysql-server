@@ -270,11 +270,8 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not alter database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
-  {
-    error= -1;
+  if ((error=wait_if_global_read_lock(thd,0)))
     goto exit2;
-  }
 
   /* Check directory */
   (void)sprintf(path,"%s/%s/%s", mysql_data_home, db, MY_DB_OPT_FILE);
@@ -307,7 +304,7 @@ exit:
   start_waiting_global_read_lock(thd);
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
-  DBUG_RETURN(error);
+  DBUG_RETURN(error ? -1 : 0); /* -1 to delegate send_error() */
 }
 
 
