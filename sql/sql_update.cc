@@ -385,7 +385,7 @@ int mysql_update(THD *thd,
 
 err:
   delete select;
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (table->key_read)
   {
     table->key_read=0;

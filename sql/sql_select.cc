@@ -444,8 +444,8 @@ JOIN::optimize()
   optimized= 1;
 
   // Ignore errors of execution if option IGNORE present
-  if (thd->lex.duplicates == DUP_IGNORE)
-    thd->lex.current_select->no_error= 1;
+  if (thd->lex->duplicates == DUP_IGNORE)
+    thd->lex->current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
@@ -2256,7 +2256,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
   if (!(key_fields=(KEY_FIELD*)
 	thd->alloc(sizeof(key_fields[0])*
-		   (thd->lex.current_select->cond_count+1)*2)))
+		   (thd->lex->current_select->cond_count+1)*2)))
     return TRUE; /* purecov: inspected */
   and_level=0; end=key_fields;
   if (cond)

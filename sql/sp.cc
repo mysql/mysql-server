@@ -192,7 +192,7 @@ db_create_routine(THD *thd, int type,
     ret= SP_OPEN_TABLE_FAILED;
   else
   {
-    restore_record(table, 2);	// Get default values for fields
+    restore_record(table, default_values); // Get default values for fields
     strxmov(creator, thd->user, "@", thd->host_or_ip, NullS);
 
     table->field[0]->store(name, namelen, system_charset_info);

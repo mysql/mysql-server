@@ -56,9 +56,9 @@ Item::Item():
     command => we should check thd->lex.current_select on zero (thd->lex
     can be uninitialised)
   */
-  if (thd->lex.current_select &&
-      thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
-    thd->lex.current_select->select_items++;
+  if (thd->lex->current_select &&
+      thd->lex->current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
+    thd->lex->current_select->select_items++;
 }
 
 /*

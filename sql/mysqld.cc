@@ -255,6 +255,16 @@ my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 volatile bool mqh_used = 0;
+
+uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
+uint delay_key_write_options, protocol_version;
+uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
+
+ulong back_log, connect_timeout, concurrency;
+ulong server_id, thd_startup_options;
+ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
+ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
+ulong open_files_limit, max_binlog_size;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
@@ -1816,8 +1826,8 @@ extern "C" int my_message_sql(uint error, const char *str,
       thd->lex.current_select equel to zero if lex structure is not inited
       (not query command (COM_QUERY))
     */
-    if (thd->lex.current_select &&
-	thd->lex.current_select->no_error && !thd->is_fatal_error)
+    if (thd->lex->current_select &&
+	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
       DBUG_PRINT("error", ("above error converted to warning"));
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);

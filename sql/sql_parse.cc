@@ -1073,7 +1073,7 @@ bool do_command(THD *thd)
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
   */
-  thd->lex.current_select= 0;
+  thd->lex->current_select= 0;
 
   packet=0;
   old_timeout=net->read_timeout;
@@ -2275,7 +2275,6 @@ mysql_execute_command(THD *thd)
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2301,7 +2300,6 @@ mysql_execute_command(THD *thd)
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2340,7 +2338,6 @@ mysql_execute_command(THD *thd)
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2941,13 +2938,13 @@ mysql_execute_command(THD *thd)
       res= -1;
 #endif
     break;
+    }
   case SQLCOM_DROP_USER:
   {
     if (check_access(thd, GRANT_ACL,"mysql",0,1))
       break;
     if (!(res= mysql_drop_user(thd, lex->users_list)))
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -2963,7 +2960,6 @@ mysql_execute_command(THD *thd)
       break;
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
     {
-      mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -3074,7 +3070,6 @@ mysql_execute_command(THD *thd)
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        mysql_update_log.write(thd, thd->query, thd->query_length);
         if (mysql_bin_log.is_open())
         {
           Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
