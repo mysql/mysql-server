@@ -104,11 +104,11 @@ sub main
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
 
     # remove readline, bdb subdirs and update 'configure'
-    my @extra_fat= ('cmd-line-utils/readline', 'bdb');
+    my @extra_fat= ('bdb', 'cmd-line-utils/readline');
 
     foreach my $fat (@extra_fat)
     {
-	&trim_the_fat($fat);
+        &trim_the_fat($fat);
     }
 
     # fix file copyrights
@@ -146,28 +146,30 @@ sub main
 ####
 sub trim_the_fat
 {
-	my $the_fat= shift;
+        my $the_fat= shift;
+        my $cwd= getcwd();
 
-	system("rm -rf $destdir/${the_fat}");
-	if ($win_flag)
-	{
-		chdir("$destdir") or die "Unable to change directory to $destdir!: $!\n";
-	}
-	else
-	{
-		chdir("$destdir");
-		unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
-		open(CONFIGURE,"<configure.in") or die "Unable to open configure.in for read: $!\n";
-		undef $/;
-		my $configure= <CONFIGURE>;
-		close(CONFIGURE);
-		$configure=~ s|${the_fat}/Makefile dnl\n?||g;
-		open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
-		print CONFIGURE $configure;
-		close(CONFIGURE);
-		`autoconf`;
-		die "'./configure' was not produced!" unless (-f "configure")
-	}
+        system("rm -rf $destdir/${the_fat}");
+        if ($win_flag)
+        {
+                chdir("$destdir") or die "Unable to change directory to $destdir!: $!\n";
+        }
+        else
+        {
+                chdir("$destdir");
+                unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
+                open(CONFIGURE,"<configure.in") or die "Unable to open configure.in for read: $!\n";
+                undef $/;
+                my $configure= <CONFIGURE>;
+                close(CONFIGURE);
+                $configure=~ s|${the_fat}/Makefile dnl\n?||g;
+                open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
+                print CONFIGURE $configure;
+                close(CONFIGURE);
+                `autoconf`;
+                die "'./configure' was not produced!" unless (-f "configure");
+                chdir("$cwd");
+        }
 }
 
 
