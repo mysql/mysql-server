@@ -32,9 +32,6 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int* count_rows,
 	     NdbOperation::LockMode lock);
 
-enum ndb_select_count_options {
-  NDB_STD_OPTS_OPTIONS
-};
 NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
@@ -54,16 +51,12 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-static void print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
 static void usage()
 {
   char desc[] = 
     "tabname1 ... tabnameN\n"\
     "This program will count the number of records in tables\n";
-  print_version();
+  ndb_std_print_version();
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -71,18 +64,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch (optid) {
-  case '#':
-    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_select_count.trace");
-    break;
-  case 'V':
-    print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  }
-  return 0;
+  return ndb_std_get_one_option(optid, opt, argument ? argument :
+				"d:t:O,/tmp/ndb_select_count.trace");
 }
 
 int main(int argc, char** argv){
