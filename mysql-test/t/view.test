@@ -1045,3 +1045,13 @@ drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
 show create view `v 1`;
 drop view `v 1`;
+
+#
+# Removing database with .frm archives
+#
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create view mysqltest.v1 as select a from mysqltest.t1;
+alter view mysqltest.v1 as select b from mysqltest.t1;
+alter view mysqltest.v1 as select a from mysqltest.t1;
+drop database mysqltest;
