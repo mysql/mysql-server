@@ -188,7 +188,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 /* -------------------------------------------------------------------- */
 bool Dbtup::addfragtotab(Tablerec* const regTabPtr, Uint32 fragId, Uint32 fragIndex) 
 {
-  for (Uint32 i = 0; i < (2 * NO_OF_FRAG_PER_NODE); i++) {
+  for (Uint32 i = 0; i < (2 * MAX_FRAG_PER_NODE); i++) {
     ljam();
     if (regTabPtr->fragid[i] == RNIL) {
       ljam();
@@ -202,7 +202,7 @@ bool Dbtup::addfragtotab(Tablerec* const regTabPtr, Uint32 fragId, Uint32 fragIn
 
 void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* const regTabPtr) 
 {
-  for (Uint32 i = 0; i < (2 * NO_OF_FRAG_PER_NODE); i++) {
+  for (Uint32 i = 0; i < (2 * MAX_FRAG_PER_NODE); i++) {
     ljam();
     if (regTabPtr->fragid[i] == fragId) {
       ljam();
@@ -456,7 +456,7 @@ void Dbtup::releaseFragoperrec(FragoperrecPtr fragOperPtr)
 
 void Dbtup::deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId) 
 {
-  for (Uint32 i = 0; i < (2 * NO_OF_FRAG_PER_NODE); i++) {
+  for (Uint32 i = 0; i < (2 * MAX_FRAG_PER_NODE); i++) {
     ljam();
     if (regTabPtr->fragid[i] == fragId) {
       ljam();
@@ -515,7 +515,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId)
   Uint32 fragIndex = RNIL;
   Uint32 fragId = RNIL;
   Uint32 i = 0;
-  for (i = 0; i < (2 * NO_OF_FRAG_PER_NODE); i++) {
+  for (i = 0; i < (2 * MAX_FRAG_PER_NODE); i++) {
     ljam();
     if (tabPtr.p->fragid[i] != RNIL) {
       ljam();
