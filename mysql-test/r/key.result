@@ -222,3 +222,16 @@ explain select 1 from t1 where id =2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	id	id	4	const	1	Using where; Using index
 drop table t1;
+CREATE TABLE t1 (numeropost mediumint(8) unsigned NOT NULL default '0', numreponse int(10) unsigned NOT NULL auto_increment, PRIMARY KEY (numeropost,numreponse), UNIQUE KEY numreponse (numreponse));
+INSERT INTO t1 (numeropost,numreponse) VALUES ('1','1'),('1','2'),('2','3'),('2','4');
+SELECT numeropost FROM t1 WHERE numreponse='1';
+numeropost
+1
+EXPLAIN SELECT numeropost FROM t1 WHERE numreponse='1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	numreponse	numreponse	4	const	1	Using index
+FLUSH TABLES;
+SELECT numeropost FROM t1 WHERE numreponse='1';
+numeropost
+1
+drop table t1;
