@@ -292,7 +292,7 @@ DATABASE()
 select ENCRYPT("test") from t1;
 ENCRYPT("test")
 select LAST_INSERT_ID() from t1;
-last_insert_id()
+LAST_INSERT_ID()
 select RAND() from t1;
 RAND()
 select UNIX_TIMESTAMP() from t1;

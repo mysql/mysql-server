@@ -93,7 +93,7 @@ explain extended select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache 345 AS `@@IDENTITY`,345 AS `last_insert_id()`,345 AS `@@identity`
+Note	1003	select high_priority no_cache 345 AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,345 AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=ON;
 show variables like 'concurrent_insert';
