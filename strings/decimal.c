@@ -1362,6 +1362,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
     *buf0++=0;
 
   len1=(i=ROUND_UP(prec1))+ROUND_UP(2*frac2+scale_incr+1);
+  set_if_bigger(len1, 3);
   if (!(tmp1=my_alloca(len1*sizeof(dec1))))
     return E_DEC_OOM;
   memcpy(tmp1, buf1, i*sizeof(dec1));
