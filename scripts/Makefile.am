@@ -121,6 +121,7 @@ SUFFIXES = .sh
 	  -e 's!@''CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
 	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
+	  -e 's!@''ZLIB_LIBS''@!@ZLIB_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \
 	  -e 's!@''WRAPLIBS''@!@WRAPLIBS@!' \
 	  -e 's!@''innodb_system_libs''@!@innodb_system_libs@!' \
