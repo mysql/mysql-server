@@ -2057,7 +2057,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_hash_sort_utf8
 };
 
-static MY_CHARSET_HANDLER my_charset_handler=
+MY_CHARSET_HANDLER my_charset_utf8_handler=
 {
     NULL,		/* init */
     my_ismbchar_utf8,
@@ -2109,7 +2109,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
-    &my_charset_handler,
+    &my_charset_utf8_handler,
     &my_collation_ci_handler
 };
 
@@ -2137,13 +2137,12 @@ CHARSET_INFO my_charset_utf8_bin=
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
-    &my_charset_handler,
+    &my_charset_utf8_handler,
     &my_collation_mb_bin_handler
 };
 
 
 #ifdef MY_TEST_UTF8
-
 #include <stdio.h>
 
 static void test_mb(CHARSET_INFO *cs, uchar *s)
