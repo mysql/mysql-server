@@ -2533,7 +2533,8 @@ error:
 
     save_priv	In this we store global and db level grants for the table
 		Note that we don't store db level grants if the global grants
-		is enough to satisfy the request.
+                is enough to satisfy the request and the global grants contains
+                a SELECT grant.
 ****************************************************************************/
 
 bool
