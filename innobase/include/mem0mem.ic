@@ -606,7 +606,7 @@ mem_strdupq(
 	char*		dst;
 	char*		d;
 	const char*	s	= str;
-	int		len	= strlen(str) + 3;
+	size_t		len	= strlen(str) + 3;
 	/* calculate the number of quote characters in the string */
 	while((s = strchr(s, q)) != NULL) {
 		s++;

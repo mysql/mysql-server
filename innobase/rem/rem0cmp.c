@@ -321,7 +321,9 @@ cmp_data_data_slow(
 		&& dtype_get_charset_coll(cur_type->prtype) !=
 				data_mysql_latin1_swedish_charset_coll)) {
 
-		return(cmp_whole_field(cur_type, data1, len1, data2, len2));
+		return(cmp_whole_field(cur_type,
+					data1, (unsigned) len1,
+					data2, (unsigned) len2));
 	}
 	
 	/* Compare then the fields */
@@ -527,8 +529,9 @@ cmp_dtuple_rec_with_match(
 
 			ret = cmp_whole_field(
 				cur_type,
-				dfield_get_data(dtuple_field), dtuple_f_len,
-				rec_b_ptr, rec_f_len);
+				dfield_get_data(dtuple_field),
+				(unsigned) dtuple_f_len,
+				rec_b_ptr, (unsigned) rec_f_len);
 
 			if (ret != 0) {
 				cur_bytes = 0;
@@ -851,8 +854,8 @@ cmp_rec_rec_with_match(
 				data_mysql_latin1_swedish_charset_coll)) {
 
 			ret = cmp_whole_field(cur_type,
-						rec1_b_ptr, rec1_f_len,
-						rec2_b_ptr, rec2_f_len);
+					rec1_b_ptr, (unsigned) rec1_f_len,
+					rec2_b_ptr, (unsigned) rec2_f_len);
 			if (ret != 0) {
 				cur_bytes = 0;
 
