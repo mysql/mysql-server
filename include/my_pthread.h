@@ -702,7 +702,6 @@ static inline bool thread_safe_dec_and_test(ulong V, pthread_mutex_t *L)
   a regular function somewhere in mysys/  ?
   for now it's only used in c++ code, so there's no need to bother
 */
-#warning "No thread_safe_dec_and_test() for this architecture"
 #endif
 #endif /* HAVE_ATOMIC_ADD */
 #ifdef SAFE_STATISTICS
