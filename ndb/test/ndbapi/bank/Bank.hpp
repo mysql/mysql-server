@@ -118,6 +118,9 @@ private:
   int incCurrTime(Uint64 &value);
   int getCurrTime(Uint64 &time);
 
+  int prepareReadSystemValueOp(NdbConnection*, SystemValueId sysValId, Uint64 &time);
+  int prepareGetCurrTimeOp(NdbConnection*, Uint64 &time);
+
   int createTables();
   int createTable(const char* tabName);
 
