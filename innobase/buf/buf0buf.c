@@ -385,9 +385,6 @@ buf_block_init(
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
-
-	rw_lock_create(&(block->read_lock));
-	rw_lock_set_level(&(block->read_lock), SYNC_NO_ORDER_CHECK);
 	
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_create(&(block->debug_latch));
@@ -484,7 +481,7 @@ buf_pool_init(
 	frame = ut_align(buf_pool->frame_mem, UNIV_PAGE_SIZE);
 
 	buf_pool->frame_zero = frame;
-	buf_pool->high_end = frame + UNIV_PAGE_SIZE * curr_size;
+	buf_pool->high_end = frame + UNIV_PAGE_SIZE * n_frames;
 
 	if (srv_use_awe) {
 		/*----------------------------------------*/
@@ -1099,8 +1096,26 @@ loop:
 	} else if (rw_latch == RW_NO_LATCH) {
 
 		if (must_read) {
-			rw_lock_x_lock(&(block->read_lock));
-			rw_lock_x_unlock(&(block->read_lock));
+		        /* Let us wait until the read operation
+			completes */
+
+		        for (;;) {
+			        mutex_enter(&(buf_pool->mutex));
+
+		                if (block->io_fix == BUF_IO_READ) {
+
+				        mutex_exit(&(buf_pool->mutex));
+				  
+				        /* Sleep 20 milliseconds */
+
+				        os_thread_sleep(20000);
+				} else {
+				  
+				       mutex_exit(&(buf_pool->mutex));
+
+				       break;
+				}
+			}
 		}
 
 		fix_type = MTR_MEMO_BUF_FIX;
@@ -1523,8 +1538,6 @@ buf_page_init_for_read(
 	is completed. The x-lock is cleared by the io-handler thread. */
 	
 	rw_lock_x_lock_gen(&(block->lock), BUF_IO_READ);
-
-	rw_lock_x_lock_gen(&(block->read_lock), BUF_IO_READ);
 	
  	mutex_exit(&(buf_pool->mutex));
 
@@ -1747,9 +1760,7 @@ buf_page_io_complete(
 		buf_pool->n_pend_reads--;
 		buf_pool->n_pages_read++;
 
-
 		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
-		rw_lock_x_unlock_gen(&(block->read_lock), BUF_IO_READ);
 
 		if (buf_debug_prints) {
 			printf("Has read ");

@@ -693,14 +693,6 @@ struct buf_block_struct{
 					record lock hash table */
 	rw_lock_t	lock;		/* read-write lock of the buffer
 					frame */
-	rw_lock_t	read_lock;	/* rw-lock reserved when a page read
-					to the frame is requested; a thread
-					can wait for this rw-lock if it wants
-					to wait for the read to complete;
-					the usual way is to wait for lock,
-					but if the thread just wants a
-					bufferfix and no latch on the page,
-					then it can wait for this rw-lock */
 	buf_block_t*	hash;		/* node used in chaining to the page
 					hash table */
 	ibool		check_index_page_at_flush;
