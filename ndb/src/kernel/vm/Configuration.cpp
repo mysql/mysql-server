@@ -154,6 +154,7 @@ Configuration::Configuration()
   _daemonMode = false;
   m_config_retriever= 0;
   m_clusterConfig= 0;
+  m_clusterConfigIter= 0;
 }
 
 Configuration::~Configuration(){
@@ -363,6 +364,8 @@ Configuration::setupConfiguration(){
   
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
+  if(m_clusterConfigIter)
+    ndb_mgm_destroy_iterator(m_clusterConfigIter);
   m_clusterConfigIter = ndb_mgm_create_configuration_iterator
     (p, CFG_SECTION_NODE);
 
