@@ -37,6 +37,7 @@ char server_inited;
 
 C_MODE_START
 #include <mysql.h>
+#undef ER
 #include "errmsg.h"
 #include <sql_common.h>
 
@@ -55,12 +56,13 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
+  NET *net= &mysql->net;
 
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
-    strmov(thd->net.last_error,
-	   ER(thd->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    strmov(net->last_error,
+	   ER(net->last_errno=CR_COMMANDS_OUT_OF_SYNC));
     return 1;
   }
 
@@ -76,12 +78,12 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  if ((mysql->net.last_errno= thd->net.last_errno))
+  if ((net->last_errno= thd->net.last_errno))
   {
-    memcpy(mysql->net.last_error, thd->net.last_error, 
-	   sizeof(mysql->net.last_error));
-    memcpy(mysql->net.sqlstate, thd->net.sqlstate, 
-	   sizeof(mysql->net.sqlstate));
+    memcpy(net->last_error, net->last_error, 
+	   sizeof(net->last_error));
+    memcpy(net->sqlstate, thd->net.sqlstate, 
+	   sizeof(net->sqlstate));
   }
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
