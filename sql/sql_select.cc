@@ -3288,7 +3288,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item_result_field **copy_func;
   MI_COLUMNDEF *recinfo;
-  uint temp_pool_slot;
+  uint temp_pool_slot=MY_BIT_NONE;
 
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  allow_distinct_limit: %d  group: %d",
@@ -3297,18 +3297,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   statistic_increment(created_tmp_tables, &LOCK_status);
 
-  if(use_temp_pool) {
+  if (use_temp_pool)
     temp_pool_slot = bitmap_set_next(temp_pool, TEMP_POOL_SIZE);
-    if(temp_pool_slot != MY_BIT_NONE) // we got a slot
-      sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix, 
-              current_pid, temp_pool_slot);
-    else // if we run out of slots in the pool, fall back to old behavior
-      sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
-              thd->thread_id, thd->tmp_table++);
-  } else {
+
+  if (temp_pool_slot != MY_BIT_NONE) // we got a slot
+    sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix, 
+	    current_pid, temp_pool_slot);
+  else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
-  };
 
   if (group)
   {

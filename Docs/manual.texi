@@ -2990,18 +2990,21 @@ carefully and make sure that all the information described here is included
 in your report.
 
 @cindex bug reports, email address
-If you can make a test case that clearly shows the bug, you should post
-it to the @email{bugs@@lists.mysql.com} list. Note that on this list you
-should only post a full, repeatable bug report using the @code{mysqlbug}
-script. If you are running on Windows, you should include a
-description of the operating system and the @strong{MySQL} version.
-Preferably, you should test the problem using the latest stable or development
-version of @strong{MySQL} before posting!  Anyone should be able to repeat the
-bug by just using ``@code{mysql test < script}'' on the included test case or
-run the shell or perl script that is included in the bug report.  All bugs
-posted on this list will be corrected or documented in the next @strong{MySQL}
-release!  If there are only small code changes involved to correct this
-problem, we will also post a patch that fixes the problem.
+The normal plase to report bugs and problems is
+@email{mysql@@lists.mysql.com}. If you can make a test case that clearly
+shows the bug, you should post it to the @email{bugs@@lists.mysql.com}
+list. Note that on this list you should only post a full, repeatable bug
+report using the @code{mysqlbug} script. If you are running on Windows,
+you should include a description of the operating system and the
+@strong{MySQL} version.  Preferably, you should test the problem using
+the latest stable or development version of @strong{MySQL} before
+posting!  Anyone should be able to repeat the bug by just using
+``@code{mysql test < script}'' on the included test case or run the
+shell or perl script that is included in the bug report.  All bugs
+posted on the @code{bugs} list will be corrected or documented in the next
+@strong{MySQL} release!  If there are only small code changes involved
+to correct this problem, we will also post a patch that fixes the
+problem.
 
 Remember that it is possible to respond to a message containing too much
 information, but not to one containing too little.  Often people omit facts
@@ -3036,7 +3039,7 @@ It is most helpful when a good description of the problem is included in the
 bug report.  That is, a good example of all the things you did that led to
 the problem and the problem itself exactly described.  The best reports are
 those that include a full example showing how to reproduce the bug or
-problem.
+problem. @xref{Reproducable test case}.
 
 If a program produces an error message, it is very important to include the
 message in your report! If we try to search for something from the archives
@@ -3089,6 +3092,11 @@ message(s) and also a few lines of context around the offending code in the
 file where the error occurred.
 
 @item
+If @code{mysqld} died, you should also report query that crashed
+@code{mysqld}. You can usually find this out by running @code{mysqld} with
+logging enabled. @xref{Using log files}.
+
+@item
 If any database table is related to the problem, include the output from
 @code{mysqldump --no-data db_name tbl_name1 tbl_name2 ...}.  This is very easy
 to do and is a powerful way to get information about any table in a database
@@ -3121,14 +3129,26 @@ mysql> SHOW STATUS;
 @end example
 
 @item
-If a bug or problem occurs while running @strong{MySQL}, try to provide an
+If a bug or problem occurs while running @strong{mysqld}, try to provide an
 input script that will reproduce the anomaly. This script should include any
 necessary source files. The more closely the script can reproduce your
-situation, the better.
+situation, the better. If you can make a repeatable test case, you should
+post this to @email{bugs@@lists.mysql.com} for a high priority treatment!
 
 If you can't provide a script, you should at least include the output
 from @code{mysqladmin variables extended-status processlist} in your mail to
 provide some information of how your system is performing!
+
+@item
+If you can't produce a test case in a few rows, or if the test table
+is too big to be mailed to the mailing list (more than 10 rows), you should
+dump your tables using @code{mysqldump} and create a @file{README} file
+that describes your problem.
+
+Create a compressed archive of your files using
+@code{tar} and @code{gzip} or @code{zip}, and use @code{ftp}
+to transfer the archive to @uref{ftp://support.mysql.com/pub/mysql/secret/}.
+Then send a short description of the problem to @email{bugs@@lists.mysql.com}.
 
 @item
 If you think that @strong{MySQL} produces a strange result from a query,
@@ -3156,17 +3176,6 @@ options to programs like @code{mysqld} and @code{mysql}, and to the
 @code{configure} script, are often keys to answers and are very relevant!
 It is never a bad idea to include them anyway!  If you use any modules, such
 as Perl or PHP, please include the version number(s) of those as well.
-
-@item
-If you can't produce a test case in a few rows, or if the test table
-is too big to be mailed to the mailing list (more than 10 rows), you should
-dump your tables using @code{mysqldump} and create a @file{README} file
-that describes your problem.
-
-Create a compressed archive of your files using
-@code{tar} and @code{gzip} or @code{zip}, and use @code{ftp}
-to transfer the archive to @uref{ftp://support.mysql.com/pub/mysql/secret/}.
-Then send a short description of the problem to @email{mysql@@lists.mysql.com}.
 
 @item
 If your question is related to the privilege system, please include the
@@ -31850,6 +31859,15 @@ operating system must support dynamic loading.  The @strong{MySQL} source
 distribution includes a file @file{sql/udf_example.cc} that defines 5 new
 functions.  Consult this file to see how UDF calling conventions work.
 
+For mysqld to be able to use UDF functions, you should configure MySQL
+with @code{--with-mysqld-ldflags=-rdynamic} The reason is that to on
+many platforms you can load a dynamic library (with @code{dlopen()})
+from a static linked program, which you would get if you are using
+@code{--with-mysqld-ldflags=-all-static} If you want to use an UDF that
+needs to access symbols from mysqld (like the @code{methaphone} example
+in @file{sql/udf_example.cc} that uses @code{default_charset_info}), you must
+link the program with @code{-rdynamic}.  (see @code{man dlopen}).
+
 For each function that you want to use in SQL statements, you should define
 corresponding C (or C++) functions.  In the discussion below, the name
 ``xxx'' is used for an example function name.  To distinquish between SQL and
@@ -32178,6 +32196,9 @@ characters in its arguments, divided by the sum of the length of its arguments.
 @item
 @code{myfunc_int()} returns the sum of the length of its arguments.
 @item
+@code{sequence([const int])} returns an sequence starting from the given
+number or 1 if no number has been given.
+@item
 @code{lookup()} returns the IP number for a hostname.
 @item
 @code{reverse_lookup()} returns the hostname for an IP number.
@@ -32333,6 +32354,9 @@ can be done on row-by-row or @code{GROUP BY} level.
 
 We have created an example procedure in @strong{MySQL} Version 3.23 to
 show you what can be done.
+
+Additionally we recommend you to take a look at 'mylua', which you can find in the Contrib directory. @xref{Contrib}.  Which this you can use the LUA
+language to load a procedure at runtime into @code{mysqld}.
 
 @menu
 * procedure analyse::           Procedure analyse
@@ -34595,6 +34619,21 @@ a unique key value.
 If you get performance problems in making backups on your system, you can
 solve this by setting up replication and do the backups on the slave
 instead of on the master. @xref{Replication Intro}.
+
+If you are using a Veritas file system, you can do:
+
+@enumerate
+@item 
+Execute in a client (perl ?) @code{FLUSH TABLES WITH READ LOCK}
+@item
+Fork a shell or execute in another client @code{mount vxfs snapshot}.
+@item
+Execute in the first client @code{UNLOCK TABLES}
+@item
+Copy files from snapshot
+@item
+Unmount snapshot
+@end enumerate
 
 @cindex multiple servers
 @cindex servers, multiple
@@ -39965,6 +40004,16 @@ MySQL ActiveX Object for directly accessing your MySQL servers from IIS/ASP,
 VB, VC++ skipping the slower ODBC methods. Fully updateble, multithreaded with full support
 for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.com/}.
 
+@item @uref{http://www.fastflow.it/mylua/, MyLUA home page}
+How to use the LUA language to write @code{MySQL} @code{PROCEDURE} that can
+be loaded runtime.
+@itemize @bullet
+@item @uref{http://www.mysql.com/Downloads/Contrib/lua-4.0.tar.gz, Lua 4.0}
+LUA 4.0
+@item @uref{http://www.mysql.com/Downloads/Contrib/mylua-3.23.32.1.tar.gz, mylua-3.23.32.1.tar.gz}
+Patch for MySQL 3.23.32 to use LUA 4.0.  By Cristian Giussani.
+@end itemize
+
 @end itemize
 
 @appendixsec  Clients
@@ -41002,6 +41051,14 @@ not yet 100 % confident in this code.
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
+@item
+Fixed core-dump bug when using @code{GROUP BY} on an @code{ALIAS}, where
+the @code{ALIAS} was the same as an existing column name.
+@item
+Added @code{SEQUENCE()} as an example UDF function.
+@item
+Changed @code{mysql_install_db} to use @code{BINARY} for @code{CHAR}
+columns in the privilege tables.
 @item
 Changed @code{TRUNCATE table_name} to @code{TRUNCATE TABLE table_name}
 to use the same syntax as Oracle.  Until 4.0 we will also allow
@@ -46653,25 +46710,35 @@ Execute @code{resolve_stack_dump -s /tmp/mysqld.sym -n mysqld.stack}.
 
 This will print out where @code{mysqld} died. If this doesn't help you
 find out why @code{mysqld} died, you should make a bug report and include
-the output from the above commend with the bug report. @xref{Bug reports}.
+the output from the above commend with the bug report.
+
+Note however that in most cases it will not help us to just have a stack
+trace to find the reason for the problem.  To be able to locate the bug
+or provide a workaround, we would in most cases need to know the query
+that killed @code{mysqld} and preferable a test case so that we can
+repeat the problem!  @xref{Bug reports}.
 @end enumerate
 
 @node Using log files, Reproducable test case, Using stack trace, Debugging server
 @appendixsubsec Using log files to find cause of errors in mysqld
 
-If @code{mysqld} dies or hangs, you should start @code{mysqld} with
-@code{--log}.  When @code{mysqld} dies again, you can check in the log
-file for the query that killed @code{mysqld}.  Note that before starting
-@code{mysqld} with @code{--log} you should check all your tables with
-@code{myisamchk}.  @xref{Maintenance}.
+Note that before starting @code{mysqld} with @code{--log} you should
+check all your tables with @code{myisamchk}.  @xref{Maintenance}.
 
-If you are using a log file, @code{mysqld --log}, you should check the
-'hostname' log files, that you can find in the database directory, for
-any queries that could cause a problem. Try the command @code{EXPLAIN}
-on all @code{SELECT} statements that takes a long time to ensure that
-mysqld are using indexes properly. @xref{EXPLAIN, , @code{EXPLAIN}}. You
-should also test complicated queries that didn't complete within the
-@code{mysql} command line tool.
+If @code{mysqld} dies or hangs, you should start @code{mysqld} with
+@code{--log}.  When @code{mysqld} dies again, you can examine the end of
+the log file for the query that killed @code{mysqld}.
+
+If you are using @code{--log} without a file name, the log is stored in
+the database directory as 'hostname'.log In most cases it's the last
+query in the log file that killed @code{mysqld}, but if possible you
+should verify this by restarting @code{mysqld} and executing the found
+query from the @code{mysql} command line tools. If this works, you
+should also test all complicated queries that didn't complete.
+
+You can also try the command @code{EXPLAIN} on all @code{SELECT}
+statements that takes a long time to ensure that mysqld are using
+indexes properly. @xref{EXPLAIN, , @code{EXPLAIN}}.
 
 You can find the queries that take a long time to execute by starting
 @code{mysqld} with @code{--log-slow-queries}. @xref{Slow query log}.
