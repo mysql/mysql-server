@@ -110,10 +110,10 @@ select a,b from t1 where a=@arg00;
 set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
-select a,b from t1;
+select a,b from t1 order by a;
 set @arg00=0;
 execute stmt1 using @arg01, @arg00;
-select a,b from t1;
+select a,b from t1 order by a;
 
 ## update with subquery and several parameters
 set @arg00=23;
@@ -134,7 +134,7 @@ prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-select a,b from t1 ;
+select a,b from t1 order by a;
 drop table t2 ;
 
 ## update with parameters in limit
@@ -202,7 +202,7 @@ set @arg01=1 ;
 prepare stmt1 from 'insert into t1 set a=?, b=''sechs''
                     on duplicate key update a=a + ?, b=concat(b,''modified'') ';
 execute stmt1 using @arg00, @arg01;
-select * from t1;
+select * from t1 order by a;
 set @arg00=81 ;
 set @arg01=1 ;
 --error 1062
@@ -221,17 +221,17 @@ set @updated="updated" ;
 insert into t1 values(1000,'x1000_1') ;
 insert into t1 values(@1000,@x1000_2),(@1000,@x1000_3)
                on duplicate key update a = a + @100, b = concat(b,@updated) ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
 prepare stmt1 from ' insert into t1 values(?,?),(?,?)
                on duplicate key update a = a + ?, b = concat(b,?) ';
 execute stmt1 using @1000, @x1000_2, @1000, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
 execute stmt1 using @1000, @x1000_2, @1100, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 
 ## replace
