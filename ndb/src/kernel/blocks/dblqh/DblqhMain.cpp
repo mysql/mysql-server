@@ -8386,9 +8386,6 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanNumber = ~0;
   scanptr.p->scanApiOpPtr = scanFragReq->clientOpPtr;
 
-  ndbout << "batch_size = " << scanptr.p->batch_size;
-  ndbout << " first_batch_size = " << scanptr.p->scanConcurrentOperations;
-  ndbout << endl;
   if ((scanptr.p->scanConcurrentOperations == 0) ||
       (scanptr.p->scanConcurrentOperations > scanptr.p->batch_size)) {
     jam();

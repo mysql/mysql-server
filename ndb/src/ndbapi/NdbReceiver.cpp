@@ -20,6 +20,7 @@
 #include <NdbRecAttr.hpp>
 #include <AttributeHeader.hpp>
 #include <NdbConnection.hpp>
+#include <TransporterFacade.hpp>
 
 NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
@@ -96,6 +97,10 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
                                   Uint32& batch_byte_size,
                                   Uint32& first_batch_size)
 {
+  TransporterFacade *tp= TransporterFacade::instance();
+  Uint32 max_scan_batch_size= tp->get_scan_batch_size();
+  Uint32 max_batch_byte_size= tp->get_batch_byte_size();
+  Uint32 max_batch_size= tp->get_batch_size();
   Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
   NdbRecAttr *rec_attr= theFirstRecAttr;
   while (rec_attr != NULL) {
@@ -112,19 +117,19 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
    * no more than MAX_SCAN_BATCH_SIZE is sent from all nodes in total per
    * batch.
    */
-  batch_byte_size= SCAN_BATCH_SIZE;
-  if (SCAN_BATCH_SIZE * parallelism > MAX_SCAN_BATCH_SIZE) {
-    batch_byte_size= MAX_SCAN_BATCH_SIZE / parallelism;
+  batch_byte_size= max_batch_byte_size;
+  if (batch_byte_size * parallelism > max_scan_batch_size) {
+    batch_byte_size= max_scan_batch_size / parallelism;
   }
   batch_size= batch_byte_size / tot_size;
-#ifdef VM_TRACE
-  ndbout << "batch_byte_size = " << batch_byte_size << " batch_size = ";
-  ndbout << batch_size << "tot_size = " << tot_size << endl;
-#endif
   if (batch_size == 0) {
     batch_size= 1;
-  } else if (batch_size > MAX_PARALLEL_OP_PER_SCAN) {
-    batch_size= MAX_PARALLEL_OP_PER_SCAN;
+  } else {
+    if (batch_size > max_batch_size) {
+      batch_size= max_batch_size;
+    } else if (batch_size > MAX_PARALLEL_OP_PER_SCAN) {
+      batch_size= MAX_PARALLEL_OP_PER_SCAN;
+    }
   }
   first_batch_size= batch_size;
   return;
