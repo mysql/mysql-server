@@ -65,3 +65,13 @@ create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 select * from t2 where b="world";
 drop table t1,t2;
+
+#
+# Test types after CREATE ... SELECT
+#
+
+create table t1(x varchar(50) );
+create table t2 select x from t1 where 1=2;
+describe t1;
+describe t2;
+drop table t1,t2;

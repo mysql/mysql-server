@@ -68,3 +68,12 @@ select * from t2 where b="world";
 a	B
 3	world
 drop table t1,t2;
+create table t1(x varchar(50) );
+create table t2 select x from t1 where 1=2;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+x	char(50)	YES		NULL	
+drop table t1,t2;
