@@ -320,6 +320,13 @@ public:
   uint32 db_len;
   uint16 error_code;
   ulong thread_id;
+  /* 
+     For events created by Query_log_event::exec_event (and
+     Load_log_event::exec_event()) we need the *original* thread id, to be able
+     to log the event with the original (=master's) thread id (fix for
+     BUG#1686).
+  */
+  ulong slave_proxy_id;
 #ifndef MYSQL_CLIENT
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
@@ -390,6 +397,7 @@ protected:
 
 public:
   ulong thread_id;
+  ulong slave_proxy_id;
   uint32 table_name_len;
   uint32 db_len;
   uint32 fname_len;
