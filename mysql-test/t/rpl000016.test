@@ -74,7 +74,8 @@ drop table if exists t3;
 create table t3 (n int);
 while ($1)
 {
- insert into t3 values(4);
+#eval means expand $ expressions
+ eval insert into t3 values($1 + 4);
  dec $1;
 }
 show master logs;
@@ -88,7 +89,7 @@ show slave status;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock
 lock tables t3 read;
-select count(*) from t3 where n = 4;
+select count(*) from t3 where n >= 4;
 unlock tables;
 #clean up
 connection master;
