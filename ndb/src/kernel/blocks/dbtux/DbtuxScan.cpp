@@ -275,7 +275,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       jam();
       const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandle node(frag);
-      selectNode(signal, node, loc);
+      selectNode(node, loc);
       unlinkScan(node, scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
@@ -364,7 +364,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_state == ScanOp::First) {
     jam();
     // search is done only once in single range scan
-    scanFirst(signal, scanPtr);
+    scanFirst(scanPtr);
 #ifdef VM_TRACE
     if (debugFlags & DebugScan) {
       debugOut << "First scan " << scanPtr.i << " " << scan << endl;
@@ -374,7 +374,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_state == ScanOp::Next) {
     jam();
     // look for next
-    scanNext(signal, scanPtr);
+    scanNext(scanPtr);
   }
   // for reading tuple key in Current or Locked state
   Data pkData = c_dataBuffer;
@@ -680,7 +680,7 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
  * by scanNext.
  */
 void
-Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
+Dbtux::scanFirst(ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -698,7 +698,7 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   }
   // search for scan start position
   TreePos treePos;
-  searchToScan(signal, frag, c_dataBuffer, scan.m_boundCnt[0], treePos);
+  searchToScan(frag, c_dataBuffer, scan.m_boundCnt[0], treePos);
   if (treePos.m_loc == NullTupLoc) {
     // empty tree
     jam();
@@ -710,13 +710,13 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   scan.m_state = ScanOp::Next;
   // link the scan to node found
   NodeHandle node(frag);
-  selectNode(signal, node, treePos.m_loc);
+  selectNode(node, treePos.m_loc);
   linkScan(node, scanPtr);
 }
 
 /*
  * Move to next entry.  The scan is already linked to some node.  When
- * we leave, if any entry was found, it will be linked to a possibly
+ * we leave, if an entry was found, it will be linked to a possibly
  * different node.  The scan has a position, and a direction which tells
  * from where we came to this position.  This is one of:
  *
@@ -725,9 +725,12 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
  * 2 - up from root (the scan ends)
  * 3 - left to right within node (at end proceed to right child)
  * 4 - down from parent (proceed to left child)
+ *
+ * If an entry was found, scan direction is 3.  Therefore tree
+ * re-organizations need not worry about scan direction.
  */
 void
-Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
+Dbtux::scanNext(ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -736,22 +739,8 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     debugOut << "Next in scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  if (scan.m_state == ScanOp::Locked) {
-    jam();
-    // version of a tuple locked by us cannot disappear (assert only)
-#ifdef dbtux_wl_1942_is_done
-    ndbassert(false);
-#endif
-    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-    lockReq->returnCode = RNIL;
-    lockReq->requestInfo = AccLockReq::Unlock;
-    lockReq->accOpPtr = scan.m_accLockOp;
-    EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
-    jamEntry();
-    ndbrequire(lockReq->returnCode == AccLockReq::Success);
-    scan.m_accLockOp = RNIL;
-    scan.m_state = ScanOp::Current;
-  }
+  // cannot be moved away from tuple we have locked
+  ndbrequire(scan.m_state != ScanOp::Locked);
   // set up index keys for this operation
   setKeyAttrs(frag);
   // unpack upper bound into c_dataBuffer
@@ -767,7 +756,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   TreePos pos = scan.m_scanPos;
   // get and remember original node
   NodeHandle origNode(frag);
-  selectNode(signal, origNode, pos.m_loc);
+  selectNode(origNode, pos.m_loc);
   ndbrequire(islinkScan(origNode, scanPtr));
   // current node in loop
   NodeHandle node = origNode;
@@ -784,7 +773,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     }
     if (node.m_loc != pos.m_loc) {
       jam();
-      selectNode(signal, node, pos.m_loc);
+      selectNode(node, pos.m_loc);
     }
     if (pos.m_dir == 4) {
       // coming down from parent proceed to left child
@@ -832,7 +821,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
           break;
         }
         // can we see it
-        if (! scanVisible(signal, scanPtr, ent)) {
+        if (! scanVisible(scanPtr, ent)) {
           jam();
           continue;
         }
@@ -864,6 +853,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   scan.m_scanPos = pos;
   // relink
   if (scan.m_state == ScanOp::Current) {
+    ndbrequire(pos.m_match == true && pos.m_dir == 3);
     ndbrequire(pos.m_loc == node.m_loc);
     if (origNode.m_loc != node.m_loc) {
       jam();
@@ -894,7 +884,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
  * which are not analyzed or handled yet.
  */
 bool
-Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
+Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
 {
   const ScanOp& scan = *scanPtr.p;
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
