@@ -226,17 +226,6 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 #define FIELD_TYPE_INTERVAL    MYSQL_TYPE_ENUM
 #define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY
 
-#if TO_BE_INCLUDED_LATER
-/* For bind applications, to indicate unsigned buffers */
-#define MYSQL_TYPE_UTINY     -10
-#define MYSQL_TYPE_USHORT    -9
-#define MYSQL_TYPE_ULONG     -8
-#define MYSQL_TYPE_UFLOAT    -7
-#define MYSQL_TYPE_UDOUBLE   -6
-#define MYSQL_TYPE_ULONGLONG -5
-#define MYSQL_TYPE_UINT24    -4
-#endif
-
 /* options for mysql_set_option */
 enum enum_mysql_set_option
 {

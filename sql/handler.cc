@@ -32,10 +32,16 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_EXAMPLE_DB
+#include "examples/ha_example.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #else
 #define innobase_query_caching_of_table_permitted(X,Y,Z) 1
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
 #endif
 #include <myisampack.h>
 #include <errno.h>
@@ -48,7 +54,7 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_read_key_count, ha_read_next_count, ha_read_prev_count,
       ha_read_first_count, ha_read_last_count,
       ha_commit_count, ha_rollback_count,
-      ha_read_rnd_count, ha_read_rnd_next_count;
+      ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -76,6 +82,12 @@ struct show_table_type_st sys_table_types[]=
    "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
   {"BERKELEYDB",&have_berkeley_db,
    "Alias for BDB", DB_TYPE_BERKELEY_DB},
+  {"NDBCLUSTER", &have_ndbcluster,
+   "Clustered, fault tolerant memory based tables", DB_TYPE_NDBCLUSTER},
+  {"NDB", &have_ndbcluster,
+   "Alias for NDBCLUSTER", DB_TYPE_NDBCLUSTER},
+  {"EXAMPLE",&have_example_db,
+   "Example storage engine", DB_TYPE_EXAMPLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -172,6 +184,14 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_INNODB:
     return new ha_innobase(table);
 #endif
+#ifdef HAVE_EXAMPLE_DB
+  case DB_TYPE_EXAMPLE_DB:
+    return new ha_example(table);
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  case DB_TYPE_NDBCLUSTER:
+    return new ha_ndbcluster(table);
+#endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
   default:					// should never happen
@@ -216,6 +236,18 @@ int ha_init()
       opt_using_transactions=1;
   }
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+  {
+    if (ndbcluster_init())
+    {
+      have_ndbcluster= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+    else
+      opt_using_transactions=1;
+  }
+#endif
   return error;
 }
 
@@ -243,6 +275,10 @@ int ha_panic(enum ha_panic_function flag)
   if (have_innodb == SHOW_OPTION_YES)
     error|=innobase_end();
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error|=ndbcluster_end();
+#endif
   return error;
 } /* ha_panic */
 
@@ -252,6 +288,10 @@ void ha_drop_database(char* path)
   if (have_innodb == SHOW_OPTION_YES)
     innobase_drop_database(path);
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    ndbcluster_drop_database(path);
+#endif
 }
 
 void ha_close_connection(THD* thd)
@@ -259,6 +299,10 @@ void ha_close_connection(THD* thd)
 #ifdef HAVE_INNOBASE_DB
   if (have_innodb == SHOW_OPTION_YES)
     innobase_close_connection(thd);
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    ndbcluster_close_connection(thd);
 #endif
 }
 
@@ -419,6 +463,19 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     }
+#ifdef HAVE_NDBCLUSTER_DB
+    if (trans->ndb_tid)
+    {
+      if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
+      {
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+        error=1;
+      }
+      if (trans == &thd->transaction.all)
+        operation_done= transaction_commited= 1;
+      trans->ndb_tid=0;
+    }
+#endif
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -472,6 +529,18 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+#ifdef HAVE_NDBCLUSTER_DB
+    if (trans->ndb_tid)
+    {
+      if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
+      {
+        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+        error=1;
+      }
+      trans->ndb_tid = 0;
+      operation_done=1;
+    }
+#endif
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -1153,8 +1222,10 @@ bool handler::caching_allowed(THD* thd, char* table_key,
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
 
-	/* Initiates table-file and calls apropriate database-creator */
-	/* Returns 1 if something got wrong */
+/*
+  Initiates table-file and calls apropriate database-creator
+  Returns 1 if something got wrong
+*/
 
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info)
@@ -1170,7 +1241,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   {
     update_create_info_from_table(create_info, &table);
     if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
-      table.file->delete_table(name);		// Needed for BDB tables
+      table.file->delete_table(name);
   }
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
@@ -1289,3 +1360,163 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;
 }
+
+
+/*
+  Try to discover one table from handler(s)
+*/
+
+int ha_discover(const char* dbname, const char* name,
+               const void** frmblob, uint* frmlen)
+{
+  int error= 1; // Table does not exist in any handler
+  DBUG_ENTER("ha_discover");
+  DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_discover(dbname, name, frmblob, frmlen);
+#endif
+  if (!error)
+    statistic_increment(ha_discover_count,&LOCK_status);
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Read first row between two ranges.
+  Store ranges for future calls to read_range_next
+
+  SYNOPSIS
+    read_range_first()
+    start_key		Start key. Is 0 if no min range
+    end_key		End key.  Is 0 if no max range
+    sorted		Set to 1 if result should be sorted per key
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_range_first(const key_range *start_key,
+			      const key_range *end_key,
+			      bool sorted)
+{
+  int result;
+  DBUG_ENTER("handler::read_range_first");
+
+  end_range= 0;
+  if (end_key)
+  {
+    end_range= &save_end_range;
+    save_end_range= *end_key;
+    key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
+				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  }
+  range_key_part= table->key_info[active_index].key_part;
+
+
+  if (!start_key)			// Read first record
+    result= index_first(table->record[0]);
+  else
+    result= index_read(table->record[0],
+		       start_key->key,
+		       start_key->length,
+		       start_key->flag);
+  if (result)
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND ||
+		 result == HA_ERR_END_OF_FILE) ? HA_ERR_END_OF_FILE :
+		result);
+
+  DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+}
+
+
+/*
+  Read next row between two ranges.
+
+  SYNOPSIS
+    read_range_next()
+    eq_range		Set to 1 if start_key == end_key
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_range_next(bool eq_range)
+{
+  int result;
+  DBUG_ENTER("handler::read_range_next");
+
+  if (eq_range)
+    result= index_next_same(table->record[0],
+			    end_range->key,
+			    end_range->length);
+  else
+    result= index_next(table->record[0]);
+  if (result)
+    DBUG_RETURN(result);
+  DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+}
+
+
+/*
+  Compare if found key is over max-value
+
+  SYNOPSIS
+    compare_key
+    range		key to compare to row
+ 
+  NOTES
+    For this to work, the row must be stored in table->record[0]
+
+  RETURN
+    0			Key is equal to range or 'range' == 0 (no range)
+   -1			Key is less than range
+    1			Key is larger than range
+*/
+
+int handler::compare_key(key_range *range)
+{
+  KEY_PART_INFO *key_part= range_key_part;
+  uint store_length;
+
+  if (!range)
+    return 0;					// No max range
+
+  for (const char *key= (const char*) range->key, *end=key+range->length;
+       key < end;
+       key+= store_length, key_part++)
+  {
+    int cmp;
+    store_length= key_part->store_length;
+    if (key_part->null_bit)
+    {
+      if (*key)
+      {
+	if (!key_part->field->is_null())
+	  return 1;
+	continue;
+      }
+      else if (key_part->field->is_null())
+	return 0;
+      key++;					// Skip null byte
+      store_length--;
+    }
+    if ((cmp=key_part->field->key_cmp((byte*) key, key_part->length)) < 0)
+      return -1;
+    if (cmp > 0)
+      return 1;
+  }
+  return key_compare_result_on_equal;
+}
+
+

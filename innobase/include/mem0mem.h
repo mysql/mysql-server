@@ -271,6 +271,59 @@ mem_realloc(
 	ulint   n,	/* in: desired number of bytes */
 	char*  	file_name,/* in: file name where called */
 	ulint 	line);  /* in: line where called */
+
+/**************************************************************************
+Duplicates a NUL-terminated string. */
+UNIV_INLINE
+char*
+mem_strdup(
+/*=======*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str);	/* in: string to be copied */
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string. */
+UNIV_INLINE
+char*
+mem_strdupl(
+/*========*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	ulint		len);	/* in: length of str, in bytes */
+
+/**************************************************************************
+Makes a NUL-terminated quoted copy of a NUL-terminated string. */
+UNIV_INLINE
+char*
+mem_strdupq(
+/*========*/
+				/* out, own: a quoted copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	char		q);	/* in: quote character */
+
+/**************************************************************************
+Duplicates a NUL-terminated string, allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdup(
+/*============*/
+				/* out, own: a copy of the string */
+	mem_heap_t* heap,	/* in: memory heap where string is allocated */
+	const char* str);	/* in: string to be copied */
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string,
+allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdupl(
+/*=============*/
+				/* out, own: a copy of the string */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str,	/* in: string to be copied */
+	ulint		len);	/* in: length of str, in bytes */
+
 #ifdef MEM_PERIODIC_CHECK
 /**********************************************************************
 Goes through the list of all allocated mem blocks, checks their magic

@@ -76,6 +76,8 @@ delete from mysql.db where user='mysqltest_1';
 delete from mysql.tables_priv where user='mysqltest_1';
 delete from mysql.columns_priv where user='mysqltest_1';
 flush privileges;
+show grants for mysqltest_1@localhost;
+ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host 'localhost'
 create table t1 (a int);
 GRANT select,update,insert on t1 to mysqltest_1@localhost;
 GRANT select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@localhost;

@@ -838,7 +838,7 @@ bool Protocol_simple::store(Field *field)
   String str(buff,sizeof(buff), &my_charset_bin);
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   if (tocs && !my_charset_same(field->charset(), tocs) &&
       (field->charset() != &my_charset_bin) &&
       (tocs != &my_charset_bin))

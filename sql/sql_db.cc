@@ -461,13 +461,18 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 
   tot_list_next= &tot_list;
 
-  for (uint idx=2 ;
+  for (uint idx=0 ;
        idx < (uint) dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
     char *extension;
     DBUG_PRINT("info",("Examining: %s", file->name));
+
+    /* skiping . and .. */
+    if (file->name[0] == '.' && (!file->name[1] ||
+       (file->name[1] == '.' &&  !file->name[2])))
+      continue;
 
     /* Check if file is a raid directory */
     if ((my_isdigit(&my_charset_latin1, file->name[0]) ||
@@ -550,7 +555,12 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
   */
-  if (!found_other_files)
+  if (found_other_files)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), org_path, EEXIST);
+    DBUG_RETURN(-1);
+  }
+  else
   {
     char tmp_path[FN_REFLEN], *pos;
     char *path= tmp_path;

@@ -71,7 +71,7 @@ static HA_ERRORS ha_errlist[]=
   { 136,"No more room in index file" },
   { 137,"No more records (read after end of file)" },
   { 138,"Unsupported extension used for table" },
-  { 139,"Too big row (>= 16 M)"},
+  { 139,"Too big row"},
   { 140,"Wrong create options"},
   { 141,"Duplicate unique key or constraint on write or update"},
   { 142,"Unknown character set used"},

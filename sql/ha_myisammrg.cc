@@ -271,12 +271,6 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
   return myrg_extra(file, operation, (void*) &cache_size);
 }
 
-
-int ha_myisammrg::reset(void)
-{
-  return myrg_extra(file,HA_EXTRA_RESET,0);
-}
-
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
 {
   return myrg_lock_database(file,lock_type);

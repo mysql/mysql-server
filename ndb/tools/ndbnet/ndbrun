@@ -1,0 +1,33 @@
+#! /bin/sh
+
+# just for autotest for now
+
+case $# in
+1)	script=$1 ;;
+*)	echo "usage: $0 script"; exit 1 ;;
+esac
+
+case $NDB_TOP in
+/*)	;;
+*)	echo "$0: NDB_TOP not defined" >&2; exit 1 ;;
+esac
+
+case $script in
+/*)	;;
+*)	for d in $NDB_TOP $NDB_TOP/test $NDB_TOP/test/ndbnet; do
+		if [ -f $d/$script ]; then
+			script=$d/$script
+			break
+		fi
+	done ;;
+esac
+
+if [ ! -f $script ]; then
+    echo "$0: $script: script not found" >&2; exit 1
+fi
+
+PERL5LIB=$NDB_TOP/lib/perl5:$PERL5LIB; export PERL5LIB
+
+perl -cw $script || exit 1
+perl $script
+exit $?

@@ -406,8 +406,8 @@ long my_strntol_ucs2(CHARSET_INFO *cs,
   int      cnv;
   my_wc_t  wc;
   register unsigned int cutlim;
-  register ulong cutoff;
-  register ulong res;
+  register uint32 cutoff;
+  register uint32 res;
   register const uchar *s= (const uchar*) nptr;
   register const uchar *e= (const uchar*) nptr+l;
   const uchar *save;
@@ -446,8 +446,8 @@ bs:
   overflow = 0;
   res = 0;
   save = s;
-  cutoff = ((ulong)~0L) / (unsigned long int) base;
-  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  cutoff = ((uint32)~0L) / (uint32) base;
+  cutlim = (uint) (((uint32)~0L) % (uint32) base);
   
   do {
     if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
@@ -467,7 +467,7 @@ bs:
         overflow = 1;
       else
       {
-        res *= (ulong) base;
+        res *= (uint32) base;
         res += wc;
       }
     }
@@ -496,16 +496,16 @@ bs:
   
   if (negative)
   {
-    if (res > (ulong) LONG_MIN)
+    if (res > (uint32) INT_MIN32)
       overflow = 1;
   }
-  else if (res > (ulong) LONG_MAX)
+  else if (res > INT_MAX32)
     overflow = 1;
   
   if (overflow)
   {
     err[0]=ERANGE;
-    return negative ? LONG_MIN : LONG_MAX;
+    return negative ? INT_MIN32 : INT_MAX32;
   }
   
   return (negative ? -((long) res) : (long) res);
@@ -521,8 +521,8 @@ ulong my_strntoul_ucs2(CHARSET_INFO *cs,
   int      cnv;
   my_wc_t  wc;
   register unsigned int cutlim;
-  register ulong cutoff;
-  register ulong res;
+  register uint32 cutoff;
+  register uint32 res;
   register const uchar *s= (const uchar*) nptr;
   register const uchar *e= (const uchar*) nptr+l;
   const uchar *save;
@@ -561,8 +561,8 @@ bs:
   overflow = 0;
   res = 0;
   save = s;
-  cutoff = ((ulong)~0L) / (unsigned long int) base;
-  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  cutoff = ((uint32)~0L) / (uint32) base;
+  cutlim = (uint) (((uint32)~0L) % (uint32) base);
   
   do
   {
@@ -583,7 +583,7 @@ bs:
         overflow = 1;
       else
       {
-        res *= (ulong) base;
+        res *= (uint32) base;
         res += wc;
       }
     }
@@ -613,11 +613,10 @@ bs:
   if (overflow)
   {
     err[0]=(ERANGE);
-    return ((ulong)~0L);
+    return (~(uint32) 0);
   }
   
   return (negative ? -((long) res) : (long) res);
-  
 }
 
 

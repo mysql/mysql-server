@@ -40,7 +40,7 @@ class ha_heap: public handler
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_READ_RND_SAME | HA_NO_INDEX | HA_KEYPOS_TO_RNDPOS |
+    return (HA_READ_RND_SAME | HA_FAST_KEY_READ | HA_KEYPOS_TO_RNDPOS |
 	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ);
   }
   ulong index_flags(uint inx) const
@@ -58,7 +58,6 @@ class ha_heap: public handler
   double scan_time() { return (double) (records+deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)
   { return (double) rows /  20.0+1; }
-  virtual bool fast_key_read() { return 1;}
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
@@ -81,7 +80,6 @@ class ha_heap: public handler
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
   ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,

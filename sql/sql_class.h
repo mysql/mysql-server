@@ -721,7 +721,10 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
-
+    uint ndb_lock_count;
+#ifdef HAVE_NDBCLUSTER_DB
+    void* ndb;
+#endif
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query
@@ -927,7 +930,8 @@ public:
   {
 #ifdef USING_TRANSACTIONS    
     return (transaction.all.bdb_tid != 0 ||
-	    transaction.all.innodb_active_trans != 0);
+	    transaction.all.innodb_active_trans != 0 ||
+	    transaction.all.ndb_tid != 0);
 #else
     return 0;
 #endif
