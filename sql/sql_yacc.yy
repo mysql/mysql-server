@@ -3003,7 +3003,13 @@ opt_table_sym:
  
 /* Show things */
 
-show:	SHOW { Lex->wild=0;} show_param;
+show:	SHOW 
+	{ 
+	  LEX *lex=Lex;
+	  lex->wild=0;
+	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
+	}
+	show_param;
 
 show_param:
 	DATABASES wild
@@ -3116,10 +3122,11 @@ show_param:
 	    lex->grant_user=$3;
 	    lex->grant_user->password.str=NullS;
 	  }
-	| CREATE DATABASE ident
+	| CREATE DATABASE opt_if_not_exists ident
 	  {
 	    Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
-	    Lex->name=$3.str;
+	    Lex->create_info.options=$3;
+	    Lex->name=$4.str;
 	  }
         | CREATE TABLE_SYM table_ident
           {
