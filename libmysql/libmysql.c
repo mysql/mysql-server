@@ -58,11 +58,18 @@
 #endif
 
 #include <sql_common.h>
+#include "client_settings.h"
 
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
 ulong		net_read_timeout=  NET_READ_TIMEOUT;
 ulong		net_write_timeout= NET_WRITE_TIMEOUT;
+
+
+#ifdef EMBEDDED_LIBRARY
+#undef net_flush
+my_bool	net_flush(NET *net);
+#endif
 
 #if defined(MSDOS) || defined(__WIN__)
 /* socket_errno is defined in my_global.h for all platforms */
@@ -84,19 +91,6 @@ sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
-
-/*
-  Initialize the MySQL library
-
-  SYNOPSIS
-    mysql_once_init()
-
-  NOTES
-    Can't be static on NetWare
-    This function is called by mysql_init() and indirectly called
-    by mysql_real_query(), so one should never have to call this from an
-    outside program.
-*/
 
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
@@ -145,7 +139,7 @@ void mysql_once_init(void)
 #endif
 }
 
-
+#ifndef EMBEDDED_LIBRARY
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
@@ -162,6 +156,8 @@ void STDCALL mysql_server_end()
   else
     mysql_thread_end();
 }
+
+#endif /*EMBEDDED_LIBRARY*/
 
 my_bool STDCALL mysql_thread_init()
 {
@@ -183,17 +179,6 @@ void STDCALL mysql_thread_end()
   Let the user specify that we don't want SIGPIPE;  This doesn't however work
   with threaded applications as we can have multiple read in progress.
 */
-
-#if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0
-#define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
-#define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
-#else
-#define init_sigpipe_variables
-#define set_sigpipe(mysql)
-#define reset_sigpipe(mysql)
-#endif
-
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port,
 			 const char* user,
@@ -855,7 +840,6 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
   mysql->next_slave = slave;
   return 0;
 }
-
 
 /**************************************************************************
   Return next field of the query results
@@ -1762,39 +1746,6 @@ static void store_param_type(NET *net, uint type)
   net->write_pos+=2;
 }
 
-/*
-  Store the length of parameter data
-  (Same function as in sql/net_pkg.cc)
-*/
-
-char *
-net_store_length(char *pkg, ulong length)
-{
-  uchar *packet=(uchar*) pkg;
-  if (length < 251)
-  {
-    *packet=(uchar) length;
-    return (char*) packet+1;
-  }
-  /* 251 is reserved for NULL */
-  if (length < 65536L)
-  {
-    *packet++=252;
-    int2store(packet,(uint) length);
-    return (char*) packet+2;
-  }
-  if (length < 16777216L)
-  {
-    *packet++=253;
-    int3store(packet,(ulong) length);
-    return (char*) packet+3;
-  }
-  *packet++=254;
-  int8store(packet, (ulonglong) length);
-  return (char*) packet+9;
-}
-
-
 /****************************************************************************
   Functions to store parameter data from a prepared statement.
 
@@ -1994,8 +1945,9 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if (advanced_command(mysql, COM_EXECUTE, buff, MYSQL_STMT_HEADER, packet,
-		       length, 1) ||
+  if ((*mysql->methods->advanced_command)(mysql, COM_EXECUTE, buff, 
+					  MYSQL_STMT_HEADER, packet, 
+					  length, 1) ||
       mysql_read_query_result(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -2287,8 +2239,9 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
       Note that we don't get any ok packet from the server in this case
       This is intentional to save bandwidth.
     */
-    if (advanced_command(mysql, COM_LONG_DATA, extra_data,
-			 MYSQL_LONG_DATA_HEADER, data, length, 1))
+    if ((*mysql->methods->advanced_command)(mysql, COM_LONG_DATA, extra_data,
+					    MYSQL_LONG_DATA_HEADER, data, 
+					    length, 1))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error,
 		      mysql->net.last_errno, mysql->net.sqlstate);
