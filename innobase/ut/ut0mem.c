@@ -106,7 +106,7 @@ ut_malloc_low(
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
-		printf("%lu\n", *ut_mem_null_ptr);	
+		if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
 	}		
 
 	if (set_to_zero) {
@@ -195,6 +195,49 @@ ut_free_all_mem(void)
 }
 
 /**************************************************************************
+Make a quoted copy of a string. */
+
+char*
+ut_strcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src)	/* in: null-terminated string */
+{
+	while (*src) {
+		if ((*dest++ = *src++) == q) {
+			*dest++ = q;
+		}
+	}
+
+	return(dest);
+}
+
+/**************************************************************************
+Make a quoted copy of a fixed-length string. */
+
+char*
+ut_memcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src,	/* in: string to be quoted */
+	ulint		len)	/* in: length of src */
+{
+	const char*	srcend = src + len;
+
+	while (src < srcend) {
+		if ((*dest++ = *src++) == q) {
+			*dest++ = q;
+		}
+	}
+
+	return(dest);
+}
+
+/**************************************************************************
 Catenates two strings into newly allocated memory. The memory must be freed
 using mem_free. */
 
@@ -215,9 +258,7 @@ ut_str_catenate(
 	str = mem_alloc(len1 + len2 + 1);
 
 	ut_memcpy(str, str1, len1);
-	ut_memcpy(str + len1, str2, len2);
-
-	str[len1 + len2] = '\0';
+	ut_memcpy(str + len1, str2, len2 + 1);
 
 	return(str);
 }

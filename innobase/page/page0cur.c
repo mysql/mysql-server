@@ -479,6 +479,7 @@ page_cur_insert_rec_write_log(
 	ulint	i;
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
+	ut_ad(rec_size == rec_get_size(insert_rec));
 
 	log_ptr = mlog_open(mtr, 30 + MLOG_BUF_MARGIN);
 
@@ -630,8 +631,8 @@ page_cur_parse_insert_rec(
 		return(NULL);
 	}
 
-	extra_info_yes = end_seg_len & 0x1;
-	end_seg_len = end_seg_len / 2;
+	extra_info_yes = end_seg_len & 0x1UL;
+	end_seg_len >>= 1;
 
 	if (end_seg_len >= UNIV_PAGE_SIZE) {
 		recv_sys->found_corrupt_log = TRUE;
@@ -694,7 +695,7 @@ page_cur_parse_insert_rec(
 		mismatch_index = rec_get_size(cursor_rec) - end_seg_len;
 	} 
 	
-	if (mismatch_index + end_seg_len < 1024) {
+	if (mismatch_index + end_seg_len < sizeof buf1) {
 		buf = buf1;
 	} else {
 		buf = mem_alloc(mismatch_index + end_seg_len);
@@ -726,7 +727,7 @@ page_cur_parse_insert_rec(
 
 	page_cur_rec_insert(&cursor, buf + origin_offset, mtr);
 
-	if (mismatch_index + end_seg_len >= 1024) {
+	if (buf != buf1) {
 
 		mem_free(buf);
 	}

@@ -3298,12 +3298,9 @@ create_index(
 
 			field = form->field[j];
 
-			if (strlen(field->field_name)
-			    == strlen(key_part->field->field_name)
-			    && 0 == ut_cmp_in_lower_case(
+			if (0 == ut_cmp_in_lower_case(
 					(char*)field->field_name,
-					(char*)key_part->field->field_name,
-					strlen(field->field_name))) {
+					(char*)key_part->field->field_name)) {
 				/* Found the corresponding column */
 
 				break;

@@ -568,8 +568,7 @@ static
 void
 row_ins_foreign_report_add_err(
 /*===========================*/
-	que_thr_t*	thr,		/* in: query thread whose run_node
-					is an insert node */
+	trx_t*		trx,		/* in: transaction */
 	dict_foreign_t*	foreign,	/* in: foreign key constraint */
 	rec_t*		rec,		/* in: a record in the parent table:
 					it does not match entry because we
@@ -582,7 +581,7 @@ row_ins_foreign_report_add_err(
 	mutex_enter(&dict_foreign_err_mutex);
 	ut_sprintf_timestamp(buf);
 	sprintf(buf + strlen(buf), " Transaction:\n");
-	trx_print(buf + strlen(buf), thr_get_trx(thr));			
+	trx_print(buf + strlen(buf), trx);
 	sprintf(buf + strlen(buf),
 "Foreign key constraint fails for table %.500s:\n",
 				foreign->foreign_table_name);
@@ -661,15 +660,10 @@ row_ins_foreign_check_on_constraint(
 	the MySQL query cache for table */
 
 	ut_a(ut_strlen(table->name) < 998);
-	
-	ut_memcpy(table_name_buf, table->name, ut_strlen(table->name) + 1);
+	strcpy(table_name_buf, table->name);
 
-	ptr = table_name_buf;
-
-	while (*ptr != '/') {
-		ptr++;
-	}
-
+	ptr = strchr(table_name_buf, '/');
+	ut_a(ptr);
 	*ptr = '\0';
 	
 	/* We call a function in ha_innodb.cc */
@@ -1200,11 +1194,6 @@ run_again:
 					break;
 				}
 
-/*				printf(
-"FOREIGN: Found matching record from %s %s\n",
-		check_index->table_name, check_index->name);
-				rec_print(rec);
-*/
 				if (check_ref) {			
 					err = DB_SUCCESS;
 
@@ -1244,7 +1233,7 @@ run_again:
 			if (check_ref) {			
 				err = DB_NO_REFERENCED_ROW;
 				row_ins_foreign_report_add_err(
-						thr, foreign, rec, entry);
+					thr_get_trx(thr), foreign, rec, entry);
 			} else {
 				err = DB_SUCCESS;
 			}
@@ -1260,7 +1249,7 @@ next_rec:
 			if (check_ref) {			
 				rec = btr_pcur_get_rec(&pcur);
 				row_ins_foreign_report_add_err(
-						thr, foreign, rec, entry);
+					thr_get_trx(thr), foreign, rec, entry);
 				err = DB_NO_REFERENCED_ROW;
 			} else {
 				err = DB_SUCCESS;
@@ -2167,15 +2156,8 @@ row_ins_step(
 error_handling:
 	trx->error_state = err;
 
-	if (err == DB_SUCCESS) {
-		/* Ok: do nothing */
-
-	} else if (err == DB_LOCK_WAIT) {
-
-		return(NULL);
-	} else {
-		/* SQL error detected */
-
+	if (err != DB_SUCCESS) {
+		/* err == DB_LOCK_WAIT or SQL error detected */
 		return(NULL);
 	}
 

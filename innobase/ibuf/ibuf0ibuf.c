@@ -102,9 +102,10 @@ pages, as long as it obeys the access order rules. */
 #define IBUF_POOL_SIZE_PER_MAX_SIZE	2
 
 /* The insert buffer control structure */
-ibuf_t*	ibuf	= NULL;
+ibuf_t*	ibuf			= NULL;
 
-ulint	ibuf_rnd = 986058871;
+static
+ulint	ibuf_rnd		= 986058871;
 
 ulint	ibuf_flush_count	= 0;
 
@@ -113,9 +114,9 @@ ulint	ibuf_flush_count	= 0;
 #define IBUF_COUNT_N_PAGES	10000
 
 /* Buffered entry counts for file pages, used in debugging */
-ulint*	ibuf_counts[IBUF_COUNT_N_SPACES];
+static ulint*	ibuf_counts[IBUF_COUNT_N_SPACES];
 
-ibool	ibuf_counts_inited	= FALSE;
+static ibool	ibuf_counts_inited	= FALSE;
 
 /* The start address for an insert buffer bitmap page bitmap */
 #define IBUF_BITMAP		PAGE_DATA
@@ -129,15 +130,18 @@ ibool	ibuf_counts_inited	= FALSE;
 
 /* Number of bits describing a single page */
 #define IBUF_BITS_PER_PAGE	4
+#if IBUF_BITS_PER_PAGE % 2
+# error "IBUF_BITS_PER_PAGE must be an even number!"
+#endif
 
 /* The mutex used to block pessimistic inserts to ibuf trees */
-mutex_t	ibuf_pessimistic_insert_mutex;
+static mutex_t	ibuf_pessimistic_insert_mutex;
 
 /* The mutex protecting the insert buffer structs */
-mutex_t	ibuf_mutex;
+static mutex_t	ibuf_mutex;
 
 /* The mutex protecting the insert buffer bitmaps */
-mutex_t	ibuf_bitmap_mutex;
+static mutex_t	ibuf_bitmap_mutex;
 
 /* The area in pages from which contract looks for page numbers for merge */
 #define	IBUF_MERGE_AREA			8
@@ -2506,16 +2510,13 @@ ibuf_merge_or_delete_for_page(
 	dtuple_t*	entry;
 	dtuple_t*	search_tuple;
 	rec_t*		ibuf_rec;
-	ibool		closed;
 	buf_block_t*	block;
 	page_t*		bitmap_page;
 	ibuf_data_t*	ibuf_data;
-	ibool		success;
 	ulint		n_inserts;
+#ifdef UNIV_IBUF_DEBUG
 	ulint		volume;
-	ulint		old_bits;
-	ulint		new_bits;
-	dulint		max_trx_id;
+#endif
 	ibool		corruption_noticed	= FALSE;
 	mtr_t		mtr;
 	char		err_buf[500];
@@ -2605,12 +2606,14 @@ ibuf_merge_or_delete_for_page(
 	}
 
 	n_inserts = 0;
+#ifdef UNIV_IBUF_DEBUG
 	volume = 0;
+#endif
 loop:
 	mtr_start(&mtr);
 
 	if (page) {
-		success = buf_page_get_known_nowait(RW_X_LATCH, page,
+		ibool success = buf_page_get_known_nowait(RW_X_LATCH, page,
 					BUF_KEEP_OLD,
 					IB__FILE__, __LINE__,
 					&mtr);
@@ -2667,7 +2670,7 @@ loop:
 			keep the latch to the ibuf_rec page until the
 			insertion is finished! */
 
-			max_trx_id = page_get_max_trx_id(
+			dulint	max_trx_id = page_get_max_trx_id(
 						buf_frame_align(ibuf_rec));
 	
 			page_update_max_trx_id(page, max_trx_id);
@@ -2686,9 +2689,8 @@ loop:
 		n_inserts++;
 		
 		/* Delete the record from ibuf */
-		closed = ibuf_delete_rec(space, page_no, &pcur, search_tuple,
-									&mtr);
-		if (closed) {
+		if (ibuf_delete_rec(space, page_no, &pcur, search_tuple,
+								&mtr)) {
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
@@ -2717,10 +2719,9 @@ reset_bit:
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no,
 					IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 	if (page) {
-		old_bits = ibuf_bitmap_page_get_bits(bitmap_page, page_no,
-						IBUF_BITMAP_FREE, &mtr);
-		new_bits = ibuf_index_page_calc_free(page);
-
+		ulint old_bits = ibuf_bitmap_page_get_bits(bitmap_page,
+				page_no, IBUF_BITMAP_FREE, &mtr);
+		ulint new_bits = ibuf_index_page_calc_free(page);
 #ifdef UNIV_IBUF_DEBUG
 		/* printf("Old bits %lu new bits %lu max size %lu\n", old_bits,
 			new_bits,

@@ -288,7 +288,6 @@ fil_node_create(
 {
 	fil_node_t*	node;
 	fil_space_t*	space;
-	char*		name2;
 	fil_system_t*	system		= fil_system;
 
 	ut_a(system);
@@ -299,11 +298,7 @@ fil_node_create(
 
 	node = mem_alloc(sizeof(fil_node_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	node->name = name2;
+	node->name = mem_strdup(name);
 	node->open = FALSE;
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
@@ -626,7 +621,6 @@ fil_space_create(
 	ulint	purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_space_t*	space;	
-	char*		name2;
 	fil_system_t*	system = fil_system;
 	
 	ut_a(system);
@@ -642,11 +636,7 @@ fil_space_create(
 
 	space = mem_alloc(sizeof(fil_space_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	space->name = name2;
+	space->name = mem_strdup(name);
 	space->id = id;
 	space->purpose = purpose;
 	space->size = 0;

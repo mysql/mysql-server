@@ -39,7 +39,6 @@ dict_get_first_table_name_in_db(
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	char*		table_name;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -91,9 +90,7 @@ loop:
 
 		/* We found one */
 
-		table_name = mem_alloc(len + 1);
-		ut_memcpy(table_name, field, len);
-		table_name[len] = '\0';
+		char*	table_name = mem_strdupl(field, len);
 		
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -122,7 +119,6 @@ dict_print(void)
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	char		table_name[10000];
 	mtr_t		mtr;
 	
 	mutex_enter(&(dict_sys->mutex));
@@ -156,14 +152,14 @@ loop:
 
 		/* We found one */
 
-		ut_memcpy(table_name, field, len);
-		table_name[len] = '\0';
-			
+		char*	table_name = mem_strdupl(field, len);
+
 		btr_pcur_store_position(&pcur, &mtr);
 
 		mtr_commit(&mtr);
-		
+
 		table = dict_table_get_low(table_name);
+		mem_free(table_name);
 
 		if (table == NULL) {
 			fprintf(stderr, "InnoDB: Failed to load table %s\n",
@@ -205,7 +201,6 @@ dict_load_columns(
 	byte*		field;
 	ulint		len;
 	byte*		buf;
-	char*		name_buf;
 	char*		name;
 	ulint		mtype;
 	ulint		prtype;
@@ -256,12 +251,7 @@ dict_load_columns(
 			dict_table_get_first_index(sys_columns), 4))->name));
 
 		field = rec_get_nth_field(rec, 4, &len);
-
-		name_buf = mem_heap_alloc(heap, len + 1);
-		ut_memcpy(name_buf, field, len);
-		name_buf[len] = '\0';
-
-		name = name_buf;
+		name = mem_heap_strdupl(heap, field, len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		mtype = mach_read_from_4(field);
@@ -304,7 +294,6 @@ dict_load_fields(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	char*		col_name;
 	ulint		pos_and_prefix_len;
 	ulint		prefix_len;
 	rec_t*		rec;
@@ -383,11 +372,8 @@ dict_load_fields(
 
 		field = rec_get_nth_field(rec, 4, &len);
 
-		col_name = mem_heap_alloc(heap, len + 1);
-		ut_memcpy(col_name, field, len);
-		col_name[len] = '\0';
-		
-		dict_mem_index_add_field(index, col_name, 0, prefix_len);
+		dict_mem_index_add_field(index,
+			mem_heap_strdupl(heap, field, len), 0, prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
@@ -492,10 +478,7 @@ dict_load_indexes(
 			dict_table_get_first_index(sys_indexes), 4))->name));
 		
 		field = rec_get_nth_field(rec, 4, &name_len);
-
-		name_buf = mem_heap_alloc(heap, name_len + 1);
-		ut_memcpy(name_buf, field, name_len);
-		name_buf[name_len] = '\0';
+		name_buf = mem_heap_strdupl(heap, field, name_len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		n_fields = mach_read_from_4(field);
@@ -544,7 +527,7 @@ dict_load_indexes(
 		if (is_sys_table
 		    && ((type & DICT_CLUSTERED)
 		        || ((table == dict_sys->sys_tables)
-		            && (name_len == ut_strlen("ID_IND"))
+		            && (name_len == (sizeof "ID_IND") - 1)
 			    && (0 == ut_memcmp(name_buf, (char*)"ID_IND",
 							name_len))))) {
 
@@ -593,7 +576,6 @@ dict_load_table(
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	char*		buf;
 	ulint		space;
 	ulint		n_cols;
 	ulint		err;
@@ -674,15 +656,13 @@ dict_load_table(
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 		ut_error;
-	
+#if 0 /* clustered tables have not been implemented yet */
 		field = rec_get_nth_field(rec, 6, &len);
 		table->mix_id = mach_read_from_8(field);
 
 		field = rec_get_nth_field(rec, 8, &len);
-		buf = mem_heap_alloc(heap, len);
-		ut_memcpy(buf, field, len);
-
-		table->cluster_name = buf;
+		table->cluster_name = mem_heap_strdupl(heap, field, len);
+#endif
 	}
 
 	if ((table->type == DICT_TABLE_CLUSTER)
@@ -751,7 +731,6 @@ dict_load_table_on_id(
 	byte*		field;
 	ulint		len;	
 	dict_table_t*	table;
-	char*		name;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -814,13 +793,8 @@ dict_load_table_on_id(
 		
 	/* Now we get the table name from the record */
 	field = rec_get_nth_field(rec, 1, &len);
-
-	name = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(name, field, len);
-	name[len] = '\0';
-	
 	/* Load the table definition to memory */
-	table = dict_load_table(name);
+	table = dict_load_table(mem_heap_strdupl(heap, field, len));
 	
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -867,7 +841,6 @@ dict_load_foreign_cols(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	char*		col_name;
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
@@ -912,21 +885,13 @@ dict_load_foreign_cols(
 		ut_a(i == mach_read_from_4(field));
 
 		field = rec_get_nth_field(rec, 4, &len);
-
-		col_name = mem_heap_alloc(foreign->heap, len + 1);
-		ut_memcpy(col_name, field, len);
-		col_name[len] = '\0';
-
-		foreign->foreign_col_names[i] = col_name;
+		foreign->foreign_col_names[i] =
+			mem_heap_strdupl(foreign->heap, field, len);
 
 		field = rec_get_nth_field(rec, 5, &len);
+		foreign->referenced_col_names[i] =
+			mem_heap_strdupl(foreign->heap, field, len);
 
-		col_name = mem_heap_alloc(foreign->heap, len + 1);
-		ut_memcpy(col_name, field, len);
-		col_name[len] = '\0';
-
-		foreign->referenced_col_names[i] = col_name;
-		
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
 
@@ -1023,23 +988,15 @@ dict_load_foreign(
 	foreign->type = foreign->n_fields >> 24;
 	foreign->n_fields = foreign->n_fields & 0xFFFFFF;
 	
-	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(id) + 1);
-				
-	ut_memcpy(foreign->id, id, ut_strlen(id) + 1);
+	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field(rec, 3, &len);
-							
-	foreign->foreign_table_name = mem_heap_alloc(foreign->heap, 1 + len);
-				
-	ut_memcpy(foreign->foreign_table_name, field, len);
-	foreign->foreign_table_name[len] = '\0';	
+	foreign->foreign_table_name =
+		mem_heap_strdupl(foreign->heap, field, len);
 	
 	field = rec_get_nth_field(rec, 4, &len);
-							
-	foreign->referenced_table_name = mem_heap_alloc(foreign->heap,
-								1 + len);
-	ut_memcpy(foreign->referenced_table_name, field, len);
-	foreign->referenced_table_name[len] = '\0';	
+	foreign->referenced_table_name =
+		mem_heap_strdupl(foreign->heap, field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1153,10 +1110,7 @@ loop:
 
 	/* Now we get a foreign key constraint id */
 	field = rec_get_nth_field(rec, 1, &len);
-
-	id = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(id, field, len);
-	id[len] = '\0';
+	id = mem_heap_strdupl(heap, field, len);
 	
 	btr_pcur_store_position(&pcur, &mtr);
 

@@ -532,8 +532,8 @@ opt_search_plan_for_table(
 	ulint		best_goodness;
 	ulint		best_last_op = 0; /* remove warning */
 	ulint		mix_id_pos;
-	que_node_t*	index_plan[128];
-	que_node_t*	best_index_plan[128];
+	que_node_t*	index_plan[256];
+	que_node_t*	best_index_plan[256];
 
 	plan = sel_node_get_nth_plan(sel_node, i);
 

@@ -366,7 +366,6 @@ Writes a buffer to a log file group. */
 void
 log_group_write_buf(
 /*================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	byte*		buf,		/* in: buffer */
 	ulint		len,		/* in: buffer len; must be divisible
@@ -551,7 +550,7 @@ extern log_t*	log_sys;
 					highest bit is set to 1 if this is the
 					first log block in a log flush write
 					segment */
-#define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000
+#define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000UL
 					/* mask used to get the highest bit in
 					the preceding field */
 #define	LOG_BLOCK_HDR_DATA_LEN	4	/* number of bytes of log written to

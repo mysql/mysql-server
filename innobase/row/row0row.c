@@ -568,18 +568,13 @@ row_get_clust_rec(
 
 	found = row_search_on_row_ref(&pcur, mode, table, ref, mtr);
 
-	clust_rec = btr_pcur_get_rec(&pcur);
+	clust_rec = found ? btr_pcur_get_rec(&pcur) : NULL;
 
 	mem_heap_free(heap);
 
 	btr_pcur_close(&pcur);
 
 	*clust_index = dict_table_get_first_index(table);
-
-	if (!found) {
-
-		return(NULL);
-	}
 
 	return(clust_rec);
 }

@@ -301,8 +301,7 @@ trx_savepoint_for_mysql(
 
 	savep = mem_alloc(sizeof(trx_named_savept_t));
 
-	savep->name = mem_alloc(1 + ut_strlen(savepoint_name));
-	ut_memcpy(savep->name, savepoint_name, 1 + ut_strlen(savepoint_name));
+	savep->name = mem_strdup(savepoint_name);
 
 	savep->savept = trx_savept_take(trx);
 

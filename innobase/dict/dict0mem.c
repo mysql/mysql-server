@@ -49,9 +49,7 @@ dict_mem_table_create(
 
 	table->heap = heap;
 	
-	str = mem_heap_alloc(heap, 1 + ut_strlen(name));
-
-	ut_strcpy(str, name);
+	str = mem_heap_strdup(heap, name);
 
 	table->type = DICT_TABLE_ORDINARY;
 	table->name = str;
@@ -146,7 +144,6 @@ dict_mem_table_add_col(
 	ulint		len,	/* in: length */
 	ulint		prec)	/* in: precision */
 {
-	char*		str;
 	dict_col_t*	col;
 	dtype_t*	type;
 	
@@ -154,15 +151,11 @@ dict_mem_table_add_col(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	
 	table->n_def++;
-	
+
 	col = dict_table_get_nth_col(table, table->n_def - 1);	
 
-	str = mem_heap_alloc(table->heap, 1 + ut_strlen(name));
-
-	ut_strcpy(str, name);
-
 	col->ind = table->n_def - 1;
-	col->name = str;
+	col->name = mem_heap_strdup(table->heap, name);
 	col->table = table;
 	col->ord_part = 0;
 
@@ -188,7 +181,6 @@ dict_mem_index_create(
 	ulint	type,		/* in: DICT_UNIQUE, DICT_CLUSTERED, ... ORed */
 	ulint	n_fields)	/* in: number of fields */
 {
-	char*		str;
 	dict_index_t*	index;
 	mem_heap_t*	heap;
 	
@@ -199,13 +191,9 @@ dict_mem_index_create(
 
 	index->heap = heap;
 	
-	str = mem_heap_alloc(heap, 1 + ut_strlen(index_name));
-
-	ut_strcpy(str, index_name);
-
 	index->type = type;
 	index->space = space;
-	index->name = str;
+	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
 	index->table = NULL;
 	index->n_def = 0;

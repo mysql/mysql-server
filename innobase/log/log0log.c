@@ -1015,7 +1015,7 @@ log_io_complete(
 		return;
 	}
 
-	if ((ulint)group & 0x1) {
+	if ((ulint)group & 0x1UL) {
 		/* It was a checkpoint write */
 		group = (log_group_t*)((ulint)group - 1);
 
@@ -1070,7 +1070,6 @@ static
 void
 log_group_file_header_flush(
 /*========================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	ulint		nth_file,	/* in: header to the nth file in the
 					log file space */
@@ -1079,9 +1078,6 @@ log_group_file_header_flush(
 {
 	byte*	buf;
 	ulint	dest_offset;
-	
-	UT_NOT_USED(type);
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1136,7 +1132,6 @@ Writes a buffer to a log file group. */
 void
 log_group_write_buf(
 /*================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	byte*		buf,		/* in: buffer */
 	ulint		len,		/* in: buffer len; must be divisible
@@ -1177,7 +1172,7 @@ loop:
 	   						&& write_header) {
 		/* We start to write a new log file instance in the group */
 
-		log_group_file_header_flush(type, group,
+		log_group_file_header_flush(group,
 				next_offset / group->file_size, start_lsn);
 	}
 
@@ -1396,7 +1391,7 @@ loop:
 	/* Do the write to the log files */
 
 	while (group) {
-		log_group_write_buf(LOG_FLUSH, group,
+		log_group_write_buf(group,
 			log_sys->buf + area_start,
 			area_end - area_start,
 			ut_dulint_align_down(log_sys->written_to_all_lsn,
@@ -2137,11 +2132,11 @@ void
 log_archived_file_name_gen(
 /*=======================*/
 	char*	buf,	/* in: buffer where to write */
-	ulint	id,	/* in: group id */
+	ulint	id __attribute__((unused)),
+			/* in: group id;
+			currently we only archive the first group */
 	ulint	file_no)/* in: file number */
 {
-	UT_NOT_USED(id);	/* Currently we only archive the first group */
-	
 	sprintf(buf, "%sib_arch_log_%010lu", srv_arch_dir, file_no);
 }
 

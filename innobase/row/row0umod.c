@@ -95,14 +95,11 @@ row_undo_mod_clust_low(
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	big_rec_t*	dummy_big_rec;
-	dict_index_t*	index;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	ibool		success;
 
-	index = dict_table_get_first_index(node->table);
-	
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
@@ -317,13 +314,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	if (!found) {
 		/* Not found */
 
-		/* FIXME: remove printfs in the final version */
-
-		/* printf(
-		"--UNDO MOD: Record not found from page %lu index %s\n",
-			buf_frame_get_page_no(btr_cur_get_rec(btr_cur)),
-			index->name); */
-
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 
@@ -421,7 +411,6 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				DB_OUT_OF_FILE_SPACE */
 	ulint		mode,	/* in: search mode: BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
-	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr,	/* in: query thread */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry)	/* in: index entry */
@@ -430,15 +419,12 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	upd_t*		update;
-	rec_t*		rec;
 	ulint		err		= DB_SUCCESS;
 	ibool		found;
 	big_rec_t*	dummy_big_rec;
 	mtr_t		mtr;
 	char           	err_buf[1000];
 
-	UT_NOT_USED(node);
-	
 	log_free_check();
 	mtr_start(&mtr);
 	
@@ -463,15 +449,13 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	} else {
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-		rec = btr_cur_get_rec(btr_cur);
-
 	        err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						btr_cur, FALSE, thr, &mtr);
 	        ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(100);
 
 		update = row_upd_build_sec_rec_difference_binary(index, entry,
-								rec, heap);
+					btr_cur_get_rec(btr_cur), heap);
 	        if (upd_get_n_fields(update) == 0) {
 
 			/* Do nothing */
@@ -566,11 +550,11 @@ row_undo_mod_del_mark_sec(
 		
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
 						BTR_MODIFY_LEAF,
-						node, thr, index, entry);
+						thr, index, entry);
 		if (err == DB_FAIL) {
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
 						BTR_MODIFY_TREE,
-						node, thr, index, entry);
+						thr, index, entry);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -649,12 +633,12 @@ row_undo_mod_upd_exist_sec(
 							node->update, NULL);
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
 						BTR_MODIFY_LEAF,
-						node, thr, index, entry);
+						thr, index, entry);
 			if (err == DB_FAIL) {
 				err =
 				   row_undo_mod_del_unmark_sec_and_undo_update(
 						BTR_MODIFY_TREE,
-						node, thr, index, entry);
+						thr, index, entry);
 			}
 
 			if (err != DB_SUCCESS) {
@@ -745,7 +729,7 @@ row_undo_mod(
 	if (node->table == NULL) {
 		found = FALSE;
 	} else {
-	  	found = row_undo_search_clust_to_pcur(node, thr);
+		found = row_undo_search_clust_to_pcur(node);
 	}
 
 	if (!found) {

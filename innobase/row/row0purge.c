@@ -91,7 +91,6 @@ row_purge_remove_clust_if_poss_low(
 				/* out: TRUE if success, or if not found, or
 				if modified after the delete marking */
 	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr,	/* in: query thread */
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	dict_index_t*	index;
@@ -100,8 +99,6 @@ row_purge_remove_clust_if_poss_low(
 	ibool		success;
 	ulint		err;
 	mtr_t		mtr;
-
-	UT_NOT_USED(thr);
 
 	index = dict_table_get_first_index(node->table);
 	
@@ -156,23 +153,20 @@ static
 void
 row_purge_remove_clust_if_poss(
 /*===========================*/
-	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr)	/* in: query thread */
+	purge_node_t*	node)	/* in: row purge node */
 {
 	ibool	success;
 	ulint	n_tries	= 0;
 	
 /*	printf("Purge: Removing clustered record\n"); */
 
-	success = row_purge_remove_clust_if_poss_low(node, thr,
-							BTR_MODIFY_LEAF);
+	success = row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF);
 	if (success) {
 
 		return;
 	}
 retry:
-	success = row_purge_remove_clust_if_poss_low(node, thr,
-							BTR_MODIFY_TREE);
+	success = row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_TREE);
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
 	and restart with more file space */
@@ -196,7 +190,6 @@ row_purge_remove_sec_if_poss_low(
 /*=============================*/
 				/* out: TRUE if success or if not found */
 	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr,	/* in: query thread */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry */
 	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
@@ -211,8 +204,6 @@ row_purge_remove_sec_if_poss_low(
 	mtr_t		mtr;
 	mtr_t*		mtr_vers;
 	
-	UT_NOT_USED(thr);
-
 	log_free_check();
 	mtr_start(&mtr);
 	
@@ -284,7 +275,6 @@ void
 row_purge_remove_sec_if_poss(
 /*=========================*/
 	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr,	/* in: query thread */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry)	/* in: index entry */
 {
@@ -293,14 +283,14 @@ row_purge_remove_sec_if_poss(
 	
 /*	printf("Purge: Removing secondary record\n"); */
 
-	success = row_purge_remove_sec_if_poss_low(node, thr, index, entry,
+	success = row_purge_remove_sec_if_poss_low(node, index, entry,
 							BTR_MODIFY_LEAF);
 	if (success) {
 
 		return;
 	}
 retry:
-	success = row_purge_remove_sec_if_poss_low(node, thr, index, entry,
+	success = row_purge_remove_sec_if_poss_low(node, index, entry,
 							BTR_MODIFY_TREE);
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -324,14 +314,13 @@ static
 void
 row_purge_del_mark(
 /*===============*/
-	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr)	/* in: query thread */
+	purge_node_t*	node)	/* in: row purge node */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
 	dict_index_t*	index;
 	
-	ut_ad(node && thr);
+	ut_ad(node);
 
 	heap = mem_heap_create(1024);
 
@@ -341,14 +330,14 @@ row_purge_del_mark(
 		/* Build the index entry */
 		entry = row_build_index_entry(node->row, index, heap);
 
-		row_purge_remove_sec_if_poss(node, thr, index, entry);
+		row_purge_remove_sec_if_poss(node, index, entry);
 
 		node->index = dict_table_get_next_index(node->index);
 	}
 
 	mem_heap_free(heap);	
 
-	row_purge_remove_clust_if_poss(node, thr);
+	row_purge_remove_clust_if_poss(node);
 }
 	
 /***************************************************************
@@ -358,8 +347,7 @@ static
 void
 row_purge_upd_exist_or_extern(
 /*==========================*/
-	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr)	/* in: query thread */
+	purge_node_t*	node)	/* in: row purge node */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -375,7 +363,7 @@ row_purge_upd_exist_or_extern(
 	ulint		i;
 	mtr_t		mtr;
 	
-	ut_ad(node && thr);
+	ut_ad(node);
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
@@ -392,7 +380,7 @@ row_purge_upd_exist_or_extern(
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, index, heap);
 
-			row_purge_remove_sec_if_poss(node, thr, index, entry);
+			row_purge_remove_sec_if_poss(node, index, entry);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
@@ -519,7 +507,7 @@ row_purge_parse_undo_rec(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	node->table = dict_table_get_on_id_low(table_id, thr_get_trx(thr));
+	node->table = dict_table_get_on_id_low(table_id, trx);
 	
 	mutex_exit(&(dict_sys->mutex));
 
@@ -609,12 +597,12 @@ row_purge(
 				dict_table_get_first_index(node->table));
 
 		if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
-			row_purge_del_mark(node, thr);
+			row_purge_del_mark(node);
 
 		} else if (updated_extern
 			    || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
-			row_purge_upd_exist_or_extern(node, thr);
+			row_purge_upd_exist_or_extern(node);
 		}
 
 		if (node->found_clust) {

@@ -95,6 +95,7 @@ mlog_parse_initial_log_record(
 	}
 
 	*type = (byte)((ulint)*ptr & ~MLOG_SINGLE_REC_FLAG);
+	ut_ad(*type <= MLOG_BIGGEST_TYPE);
 
 	ptr++;
 
@@ -171,13 +172,13 @@ mlog_parse_nbytes(
 	}
 
 	if (type == MLOG_1BYTE) {
-		if (val > 0xFF) {
+		if (val > 0xFFUL) {
 			recv_sys->found_corrupt_log = TRUE;
 
 			return(NULL);
 		}
 	} else if (type == MLOG_2BYTES) {
-		if (val > 0xFFFF) {
+		if (val > 0xFFFFUL) {
 			recv_sys->found_corrupt_log = TRUE;
 
 			return(NULL);
@@ -234,7 +235,7 @@ mlog_write_ulint(
 		mach_write_to_4(ptr, val);
 	}
 
-	log_ptr = mlog_open(mtr, 30);
+	log_ptr = mlog_open(mtr, 11 + 2 + 5);
 	
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
@@ -276,7 +277,7 @@ mlog_write_dulint(
 
 	mach_write_to_8(ptr, val);
 
-	log_ptr = mlog_open(mtr, 30);
+	log_ptr = mlog_open(mtr, 11 + 2 + 9);
 	
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {

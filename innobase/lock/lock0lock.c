@@ -4592,7 +4592,6 @@ lock_clust_rec_modify_check_and_lock(
 	dict_index_t*	index,	/* in: clustered index */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	trx_t*	trx;
 	ulint	err;
 	
 	if (flags & BTR_NO_LOCKING_FLAG) {
@@ -4601,8 +4600,6 @@ lock_clust_rec_modify_check_and_lock(
 	}
 
 	ut_ad(index->type & DICT_CLUSTERED);
-
-	trx = thr_get_trx(thr);
 
 	lock_mutex_enter_kernel();
 

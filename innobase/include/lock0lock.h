@@ -526,12 +526,12 @@ extern lock_sys_t*	lock_sys;
 #define	LOCK_X		5	/* exclusive */
 #define	LOCK_AUTO_INC	6	/* locks the auto-inc counter of a table
 				in an exclusive mode */
-#define LOCK_MODE_MASK	0xF	/* mask used to extract mode from the
+#define LOCK_MODE_MASK	0xFUL	/* mask used to extract mode from the
 				type_mode field in a lock */
 /* Lock types */
 #define LOCK_TABLE	16	/* these type values should be so high that */
 #define	LOCK_REC	32	/* they can be ORed to the lock mode */
-#define LOCK_TYPE_MASK	0xF0	/* mask used to extract lock type from the
+#define LOCK_TYPE_MASK	0xF0UL	/* mask used to extract lock type from the
 				type_mode field in a lock */
 /* Waiting lock flag */
 #define LOCK_WAIT	256	/* this wait bit should be so high that
