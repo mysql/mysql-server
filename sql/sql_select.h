@@ -124,10 +124,13 @@ class TMP_TABLE_PARAM {
   KEY *keyinfo;
   ha_rows end_write_records;
   uint	copy_field_count,field_count,sum_func_count,func_count;
+  uint  hidden_field_count;
   uint	group_parts,group_length;
   uint	quick_group;
+  bool  using_indirect_summary_function;
 
-  TMP_TABLE_PARAM() :copy_field(0), group_parts(0), group_length(0) {}
+  TMP_TABLE_PARAM() :copy_field(0), group_parts(0), group_length(0)
+  {}
   ~TMP_TABLE_PARAM()
   {
     cleanup();
@@ -178,7 +181,8 @@ TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			bool allow_distinct_limit, uint select_options);
 void free_tmp_table(THD *thd, TABLE *entry);
-void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields);
+void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
+		       bool reset_with_sum_func);
 bool setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item_result_field **func_ptr);

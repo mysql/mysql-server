@@ -35,7 +35,8 @@ select a from t3 order by a desc limit 300,10;
 # The following should give errors
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
 
-drop table if exists t1,t2,t3,t4;
+# Because of windows, it's important that we drop the merge tables first!
+drop table if exists t4,t3,t1,t2;
 
 create table t1 (c char(10)) type=myisam;
 create table t2 (c char(10)) type=myisam;
@@ -70,6 +71,12 @@ INSERT INTO t1 VALUES (11,20),(13,43),(15,11),(17,22),(19,37);
 INSERT INTO t2 VALUES (12,25),(14,31),(16,42),(18,27),(10,30);
 
 SELECT * from t3 where incr in (1,2,3,4) order by othr;
+alter table t3 UNION=(t1);
+select count(*) from t3;
+alter table t3 UNION=(t1,t2);
+select count(*) from t3;
+alter table t3 TYPE=MYISAM;
+select count(*) from t3;
 drop table t3,t2,t1;
 
 #

@@ -1443,10 +1443,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for loggin
-  error=copy_data_between_tables(table,new_table,create_list,handle_duplicates,
-				 order, &copied,&deleted);
+  copied=deleted=0;
+  if (!new_table->is_view)
+    error=copy_data_between_tables(table,new_table,create_list,
+				   handle_duplicates,
+				   order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
-  thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
+  thd->count_cuted_fields=0;			// Don`t calc cuted fields
   new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)
