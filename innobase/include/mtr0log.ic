@@ -1,0 +1,187 @@
+/******************************************************
+Mini-transaction logging routines
+
+(c) 1995 Innobase Oy
+
+Created 12/7/1995 Heikki Tuuri
+*******************************************************/
+
+#include "mach0data.h"
+#include "ut0lst.h"
+#include "buf0buf.h"
+
+/************************************************************
+Opens a buffer to mlog. It must be closed with mlog_close. */
+UNIV_INLINE
+byte*
+mlog_open(
+/*======*/
+			/* out: buffer, NULL if log mode MTR_LOG_NONE */
+	mtr_t*	mtr,	/* in: mtr */
+	ulint	size)	/* in: buffer size in bytes */
+{
+	dyn_array_t*	mlog;
+
+	mtr->modifications = TRUE;
+
+	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE) {
+
+		return(NULL);
+	}
+
+	mlog = &(mtr->log);
+
+	return(dyn_array_open(mlog, size));
+}
+
+/************************************************************
+Closes a buffer opened to mlog. */
+UNIV_INLINE
+void
+mlog_close(
+/*=======*/
+	mtr_t*	mtr,	/* in: mtr */
+	byte*	ptr)	/* in: buffer space from ptr up was not used */
+{
+	dyn_array_t*	mlog;
+
+	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
+
+	mlog = &(mtr->log);
+
+	dyn_array_close(mlog, ptr);
+}
+
+/************************************************************
+Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+UNIV_INLINE
+void
+mlog_catenate_ulint(
+/*================*/
+	mtr_t*	mtr,	/* in: mtr */
+	ulint	val,	/* in: value to write */
+	ulint	type)	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+{
+	dyn_array_t*	mlog;
+	byte*		ptr;
+
+	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE) {
+
+		return;
+	}
+
+	mlog = &(mtr->log);
+
+	ut_ad(MLOG_1BYTE == 1);
+	ut_ad(MLOG_2BYTES == 2);
+	ut_ad(MLOG_4BYTES == 4);
+
+	ptr = dyn_array_push(mlog, type);
+
+	if (type == MLOG_4BYTES) {
+		mach_write_to_4(ptr, val);
+	} else if (type == MLOG_2BYTES) {
+		mach_write_to_2(ptr, val);
+	} else {
+		ut_ad(type == MLOG_1BYTE);
+		mach_write_to_1(ptr, val);
+ 	}
+}
+
+/************************************************************
+Catenates a compressed ulint to mlog. */
+UNIV_INLINE
+void
+mlog_catenate_ulint_compressed(
+/*===========================*/
+	mtr_t*	mtr,	/* in: mtr */
+	ulint	val)	/* in: value to write */
+{
+	byte*	log_ptr;
+
+	log_ptr = mlog_open(mtr, 10);
+
+	/* If no logging is requested, we may return now */
+	if (log_ptr == NULL) {
+
+		return;
+	}
+
+	log_ptr += mach_write_compressed(log_ptr, val);
+
+	mlog_close(mtr, log_ptr);
+}
+
+/************************************************************
+Catenates a compressed dulint to mlog. */
+UNIV_INLINE
+void
+mlog_catenate_dulint_compressed(
+/*============================*/
+	mtr_t*	mtr,	/* in: mtr */
+	dulint	val)	/* in: value to write */
+{
+	byte*	log_ptr;
+
+	log_ptr = mlog_open(mtr, 15);
+
+	/* If no logging is requested, we may return now */
+	if (log_ptr == NULL) {
+
+		return;
+	}
+
+	log_ptr += mach_dulint_write_compressed(log_ptr, val);
+
+	mlog_close(mtr, log_ptr);
+}
+
+/************************************************************
+Writes the initial part of a log record. */
+UNIV_INLINE
+byte*
+mlog_write_initial_log_record_fast(
+/*===============================*/
+			/* out: new value of log_ptr */
+	byte*	ptr,	/* in: pointer to (inside) a buffer frame holding the
+			file page where modification is made */
+	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
+	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	buf_block_t*	block;
+	ulint		space;
+	ulint		offset;
+
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
+							MTR_MEMO_PAGE_X_FIX));
+	ut_ad(type <= MLOG_BIGGEST_TYPE);
+	ut_ad(ptr && log_ptr);
+
+	block = buf_block_align(ptr);
+
+	space = buf_block_get_space(block);
+	offset = buf_block_get_page_no(block);
+
+	mach_write_to_1(log_ptr, type);
+	log_ptr++;	
+	log_ptr += mach_write_compressed(log_ptr, space);
+	log_ptr += mach_write_compressed(log_ptr, offset);
+
+	mtr->n_log_recs++;
+
+#ifdef UNIV_LOG_DEBUG
+/*	printf("Adding to mtr log record type %lu space %lu page no %lu\n",
+						type, space, offset); */
+#endif
+
+#ifdef UNIV_DEBUG
+	/* We now assume that all x-latched pages have been modified! */
+
+	if (!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY)) {
+
+		mtr_memo_push(mtr, block, MTR_MEMO_MODIFY);
+	}
+#endif
+	return(log_ptr);
+}	

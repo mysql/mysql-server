@@ -1,0 +1,10 @@
+include ..\include\makefile.i
+
+log.lib: log0log.obj log0recv.obj
+	lib -out:..\libs\log.lib log0log.obj log0recv.obj
+
+log0log.obj: log0log.c
+	$(CCOM) $(CFL) -c log0log.c
+
+log0recv.obj: log0recv.c
+	$(CCOM) $(CFL) -c log0recv.c

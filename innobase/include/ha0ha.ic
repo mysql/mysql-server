@@ -1,0 +1,280 @@
+/************************************************************************
+The hash table with external chains
+
+(c) 1994-1997 Innobase Oy
+
+Created 8/18/1994 Heikki Tuuri
+*************************************************************************/
+
+#include "ut0rnd.h"
+#include "mem0mem.h"
+
+/* The hash table external chain node */
+
+typedef struct ha_node_struct ha_node_t;
+
+struct ha_node_struct {
+	ha_node_t* next; /* next chain node or NULL if none */
+	void*	data;	/* pointer to the data */
+	ulint	fold;	/* fold value for the data */
+};
+
+/***************************************************************
+Deletes a hash node. */
+
+void
+ha_delete_hash_node(
+/*================*/
+	hash_table_t*	table,		/* in: hash table */
+	ha_node_t*	del_node);	/* in: node to be deleted */
+
+/**********************************************************************
+Gets a hash node data. */
+UNIV_INLINE
+void*
+ha_node_get_data(
+/*=============*/
+				/* out: pointer to the data */
+	ha_node_t*	node)	/* in: hash chain node */
+{
+	return(node->data);
+}
+
+/**********************************************************************
+Sets hash node data. */
+UNIV_INLINE
+void
+ha_node_set_data(
+/*=============*/
+	ha_node_t*	node,	/* in: hash chain node */
+	void*		data)	/* in: pointer to the data */
+{
+	node->data = data;
+}
+
+/**********************************************************************
+Gets the next node in a hash chain. */
+UNIV_INLINE
+ha_node_t*
+ha_chain_get_next(
+/*==============*/
+				/* out: next node, NULL if none */
+	hash_table_t*	table,	/* in: hash table */
+	ha_node_t*	node)	/* in: hash chain node */
+{
+	ut_ad(table);
+
+	return(node->next);
+}
+
+/**********************************************************************
+Gets the first node in a hash chain. */
+UNIV_INLINE
+ha_node_t*
+ha_chain_get_first(
+/*===============*/
+				/* out: first node, NULL if none */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: fold value determining the chain */
+{
+	return(hash_get_nth_cell(table, hash_calc_hash(fold, table))->node);
+}
+
+/*****************************************************************
+Looks for an element in a hash table. */
+UNIV_INLINE
+ha_node_t*
+ha_search(
+/*======*/
+				/* out: pointer to the first hash table node
+				in chain having the fold number, NULL if not
+				found */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: folded value of the searched data */
+{
+	ha_node_t*	node;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		if (node->fold == fold) {
+
+			return(node);
+		}
+
+		node = ha_chain_get_next(table, node);
+	}
+
+	return(NULL);
+}
+
+/*****************************************************************
+Looks for an element in a hash table. */
+UNIV_INLINE
+void*
+ha_search_and_get_data(
+/*===================*/
+				/* out: pointer to the data of the first hash
+				table node in chain having the fold number,
+				NULL if not found */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: folded value of the searched data */
+{
+	ha_node_t*	node;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		if (node->fold == fold) {
+
+			return(node->data);
+		}
+
+		node = ha_chain_get_next(table, node);
+	}
+
+	return(NULL);
+}
+
+/*****************************************************************
+Returns the next matching hash table node in chain. */
+UNIV_INLINE
+ha_node_t*
+ha_next(
+/*====*/
+				/* out: pointer to the next hash table node
+				in chain with the fold value, NULL if not
+				found */
+	hash_table_t*	table,	/* in: hash table */
+	ha_node_t*	node)	/* in: hash table node */
+{
+	ulint	fold;
+
+	fold = node->fold;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_chain_get_next(table, node);
+
+	while (node) {
+		if (node->fold == fold) {
+
+			return(node);
+		}
+
+		node = ha_chain_get_next(table, node);
+	}
+
+	return(NULL);
+}
+
+/*************************************************************
+Looks for an element when we know the pointer to the data. */
+UNIV_INLINE
+ha_node_t*
+ha_search_with_data(
+/*================*/
+				/* out: pointer to the hash table node, NULL
+				if not found in the table */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold,	/* in: folded value of the searched data */
+	void*		data)	/* in: pointer to the data */
+{
+	ha_node_t*	node;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		if (node->data == data) {
+
+			return(node);
+		}
+
+		node = ha_chain_get_next(table, node);
+	}
+
+	return(NULL);
+}
+
+/*************************************************************
+Looks for an element when we know the pointer to the data, and updates
+the pointer to data, if found. */
+UNIV_INLINE
+void
+ha_search_and_update_if_found(
+/*==========================*/
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold,	/* in: folded value of the searched data */
+	void*		data,	/* in: pointer to the data */
+	void*		new_data)/* in: new pointer to the data */
+{
+	ha_node_t*	node;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_search_with_data(table, fold, data);
+
+	if (node) {
+		node->data = new_data;
+	}
+}
+
+/*************************************************************
+Looks for an element when we know the pointer to the data, and deletes
+it from the hash table, if found. */
+UNIV_INLINE
+ibool
+ha_search_and_delete_if_found(
+/*==========================*/
+				/* out: TRUE if found */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold,	/* in: folded value of the searched data */
+	void*		data)	/* in: pointer to the data */
+{
+	ha_node_t*	node;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_search_with_data(table, fold, data);
+
+	if (node) {
+		ha_delete_hash_node(table, node);
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*****************************************************************
+Reserves the necessary hash table mutex and inserts an entry into the hash
+table. */
+UNIV_INLINE
+ibool
+ha_insert_for_fold_mutex(
+/*=====================*/
+				/* out: TRUE if succeed, FALSE if no more
+				memory could be allocated */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold,	/* in: folded value of data; if a node with
+				the same fold value already exists, it is
+				updated to point to the same data, and no new
+				node is created! */
+	void*		data)	/* in: data, must not be NULL */
+{
+	ibool	ret;
+
+	hash_mutex_enter(table, fold);
+
+	ret = ha_insert_for_fold(table, fold, data);
+
+	hash_mutex_exit(table, fold);
+
+	return(ret);
+}

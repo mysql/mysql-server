@@ -149,7 +149,7 @@ then
   fi
 fi
 
-USER=""
+USER_OPTION=""
 if test -w /
 then
   USER_OPTION="--user=$user"

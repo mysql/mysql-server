@@ -393,8 +393,12 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         net_store_data(packet, option_buff+1,
                        (ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1));
       }
-      net_store_data(packet, table->comment);
-
+      {
+	char *comment=table->file->update_table_comment(table->comment);
+	net_store_data(packet, comment);
+	if (comment != table->comment)
+	  my_free(comment,MYF(0));
+      }
       close_thread_tables(thd,0);
     }
     if (my_net_write(&thd->net,(char*) packet->ptr(),
@@ -784,7 +788,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
-    if(ptr != table->field)
+    if (ptr != table->field)
       packet->append(",\n", 2);
 
     uint flags = field->flags;
@@ -792,7 +796,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     append_identifier(thd,packet,field->field_name);
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
-    if(type.ptr() != tmp)
+    if (type.ptr() != tmp)
       type.set(tmp, sizeof(tmp));
 
     field->sql_type(type);
@@ -812,7 +816,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         type.set(tmp,sizeof(tmp));
         field->val_str(&type,&type);
         packet->append('\'');
-	if(type.length())
+	if (type.length())
           append_unescaped(packet, type.c_ptr());
         packet->append('\'');
       }
@@ -835,15 +839,15 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(",\n  ", 4);
 
     KEY_PART_INFO *key_part= key_info->key_part;
-    if(i == primary_key)
+    if (i == primary_key)
       packet->append("PRIMARY ", 8);
-    else if(key_info->flags & HA_NOSAME)
+    else if (key_info->flags & HA_NOSAME)
       packet->append("UNIQUE ", 7);
-    else if(key_info->flags & HA_FULLTEXT)
+    else if (key_info->flags & HA_FULLTEXT)
       packet->append("FULLTEXT ", 9);
     packet->append("KEY ", 4);
 
-    if(i != primary_key)
+    if (i != primary_key)
      append_identifier(thd,packet,key_info->name);
 
     packet->append(" (", 2);
@@ -877,14 +881,14 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   char buff[128];
   char* p;
 
-  if(table->min_rows)
+  if (table->min_rows)
   {
     packet->append(" MIN_ROWS=");
     p = longlong10_to_str(table->min_rows, buff, 10);
     packet->append(buff, (uint) (p - buff));
   }
 
-  if(table->max_rows)
+  if (table->max_rows)
   {
     packet->append(" MAX_ROWS=");
     p = longlong10_to_str(table->max_rows, buff, 10);
@@ -899,6 +903,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" DELAY_KEY_WRITE=1",18);
+  table->file->append_create_info(packet);
   if (table->comment && table->comment[0])
   {
     packet->append(" COMMENT='", 10);

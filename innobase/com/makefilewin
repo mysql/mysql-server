@@ -1,0 +1,12 @@
+include ..\include\makefile.i
+
+com.lib: com0com.obj com0shm.obj
+	lib -out:..\libs\com.lib com0com.obj com0shm.obj
+
+com0com.obj: com0com.c
+	$(CCOM) $(CFL) -c com0com.c
+
+com0shm.obj: com0shm.c
+	$(CCOM) $(CFL) -c com0shm.c
+
+

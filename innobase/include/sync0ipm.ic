@@ -1,0 +1,182 @@
+/******************************************************
+A fast mutex for interprocess synchronization.
+mutex_t can be used only within single process,
+but ip_mutex_t also between processes.
+
+(c) 1995 Innobase Oy
+
+Created 9/30/1995 Heikki Tuuri
+*******************************************************/
+
+/* An extra structure created in the private address space of each process
+which creates or opens the ip mutex. */
+
+struct ip_mutex_hdl_struct {
+	ip_mutex_t*	ip_mutex;	/* pointer to ip mutex */
+	os_event_t	released;	/* event which signals that the mutex
+					is released; this is obtained from
+					create or open of an ip mutex */
+	os_mutex_t	exclude;	/* os mutex obtained when ip mutex is
+					created or opened */
+};
+
+
+UNIV_INLINE
+ulint
+ip_mutex_get_waiters(
+volatile ip_mutex_t*	ipm);
+UNIV_INLINE
+void
+ip_mutex_set_waiters(
+volatile ip_mutex_t*	ipm,
+	ulint		flag);
+UNIV_INLINE
+mutex_t*
+ip_mutex_get_mutex(
+	ip_mutex_t*	ipm);
+
+
+/******************************************************************
+Accessor functions for ip mutex. */
+UNIV_INLINE
+ulint
+ip_mutex_get_waiters(
+volatile ip_mutex_t*	ipm)
+{
+	return(ipm->waiters);
+}
+UNIV_INLINE
+void
+ip_mutex_set_waiters(
+volatile ip_mutex_t*	ipm,
+	ulint		flag)
+{
+	ipm->waiters = flag;
+}
+UNIV_INLINE
+mutex_t*
+ip_mutex_get_mutex(
+	ip_mutex_t*	ipm)
+{
+	return(&(ipm->mutex));
+}
+
+/******************************************************************
+Reserves an ip mutex. */
+UNIV_INLINE
+ulint
+ip_mutex_enter(
+/*===========*/
+					/* out: 0 if success, 
+					SYNC_TIME_EXCEEDED if timeout */
+	ip_mutex_hdl_t*	ip_mutex_hdl,	/* in: pointer to ip mutex handle */
+	ulint		time)		/* in: maximum time to wait, in
+					microseconds, or 
+					SYNC_INFINITE_TIME */
+{
+	mutex_t*	mutex;
+	os_event_t	released;
+	os_mutex_t	exclude;
+	ip_mutex_t*	ip_mutex;
+	ulint		loop_count;
+	ulint		ret;
+
+	ip_mutex = ip_mutex_hdl->ip_mutex;
+	released = ip_mutex_hdl->released;
+	exclude = ip_mutex_hdl->exclude;
+
+	mutex = ip_mutex_get_mutex(ip_mutex);
+
+	loop_count = 0;
+loop:
+	loop_count++;
+	ut_ad(loop_count < 15);
+
+	if (mutex_enter_nowait(mutex) == 0) {
+		/* Succeeded! */
+
+		return(0);
+	}
+	
+	ip_mutex_system_call_count++;
+
+	os_event_reset(released);
+
+	/* Order is important here: FIRST reset event, then set waiters */
+	ip_mutex_set_waiters(ip_mutex, 1);
+
+	if (mutex_enter_nowait(mutex) == 0) {
+		/* Succeeded! */
+
+		return(0);
+	}
+
+	if (time == SYNC_INFINITE_TIME) {
+		time = OS_SYNC_INFINITE_TIME;
+	}
+
+	/* Suspend to wait for release */
+
+	ip_mutex_system_call_count++;
+
+	ret = os_event_wait_time(released, time);
+
+	ip_mutex_system_call_count++;
+
+	os_mutex_enter(exclude);
+	ip_mutex_system_call_count++;
+	os_mutex_exit(exclude);
+
+	if (ret != 0) {
+		ut_a(ret == OS_SYNC_TIME_EXCEEDED);
+
+		return(SYNC_TIME_EXCEEDED);
+	}
+
+	goto loop;
+}
+
+/******************************************************************
+Releases an ip mutex. */
+UNIV_INLINE
+void
+ip_mutex_exit(
+/*==========*/
+	ip_mutex_hdl_t*	ip_mutex_hdl)	/* in: pointer to ip mutex handle */
+{
+	mutex_t*	mutex;
+	os_event_t	released;
+	os_mutex_t	exclude;
+	ip_mutex_t*	ip_mutex;
+
+	ip_mutex = ip_mutex_hdl->ip_mutex;
+	released = ip_mutex_hdl->released;
+	exclude = ip_mutex_hdl->exclude;
+
+	mutex = ip_mutex_get_mutex(ip_mutex);
+
+	mutex_exit(mutex);
+
+	if (ip_mutex_get_waiters(ip_mutex) != 0) {
+		
+		ip_mutex_set_waiters(ip_mutex, 0);
+
+		/* Order is important here: FIRST reset waiters, 
+		then set event */
+
+		ip_mutex_system_call_count++;
+		os_mutex_enter(exclude);					
+
+		/* The use of the exclude mutex seems to prevent some
+		kind of a convoy problem in the test tsproc.c. We do
+		not know why. */
+
+		ip_mutex_system_call_count++;
+
+		os_event_set(released);
+	
+		ip_mutex_system_call_count++;
+
+		os_mutex_exit(exclude);
+	}
+}

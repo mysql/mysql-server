@@ -1,0 +1,196 @@
+/******************************************************************
+Various utilities
+
+(c) 1994, 1995 Innobase Oy
+
+Created 5/30/1994 Heikki Tuuri
+*******************************************************************/
+
+/**********************************************************
+Calculates the minimum of two ulints. */
+UNIV_INLINE
+ulint
+ut_min(
+/*===*/
+			/* out: minimum */
+	ulint    n1,	/* in: first number */
+	ulint    n2)	/* in: second number */
+{
+	return((n1 <= n2) ? n1 : n2);
+}
+
+/**********************************************************
+Calculates the maximum of two ulints. */
+UNIV_INLINE
+ulint
+ut_max(
+/*===*/
+			/* out: maximum */
+	ulint    n1,	/* in: first number */
+	ulint    n2)	/* in: second number */
+{
+	return((n1 <= n2) ? n2 : n1);
+}
+
+/********************************************************************
+Calculates minimum of two ulint-pairs. */
+UNIV_INLINE
+void
+ut_pair_min(
+/*========*/
+	ulint*	a,	/* out: more significant part of minimum */
+	ulint*	b,	/* out: less significant part of minimum */
+	ulint	a1,	/* in: more significant part of first pair */
+	ulint	b1,	/* in: less significant part of first pair */
+	ulint	a2,	/* in: more significant part of second pair */
+	ulint	b2)	/* in: less significant part of second pair */
+{	
+	if (a1 == a2) {
+		*a = a1;
+		*b = ut_min(b1, b2);
+	} else if (a1 < a2) {
+		*a = a1;
+		*b = b1;
+	} else {
+		*a = a2;
+		*b = b2;
+	}
+}
+
+/**********************************************************
+Compares two ulints. */
+UNIV_INLINE
+int
+ut_ulint_cmp(
+/*=========*/
+			/* out: 1 if a > b, 0 if a == b, -1 if a < b */
+	ulint	a,	/* in: ulint */
+	ulint	b)	/* in: ulint */
+{
+	if (a < b) {
+		return(-1);
+	} else if (a == b) {
+		return(0);
+	} else {
+		return(1);
+	}
+}
+
+/***********************************************************
+Compares two pairs of ulints. */
+UNIV_INLINE
+int
+ut_pair_cmp(
+/*========*/
+			/* out: -1 if a < b, 0 if a == b, 1 if a > b */ 
+	ulint	a1,	/* in: more significant part of first pair */
+	ulint	a2,	/* in: less significant part of first pair */
+	ulint	b1,	/* in: more significant part of second pair */
+	ulint	b2)	/* in: less significant part of second pair */
+{
+	if (a1 > b1) {
+		return(1);
+	} else if (a1 < b1) {
+		return(-1);
+	} else if (a2 > b2) {
+		return(1);
+	} else if (a2 < b2) {
+		return(-1);
+	} else {
+		return(0);
+	}
+}
+
+/*****************************************************************
+Calculates fast the remainder when divided by a power of two. */
+UNIV_INLINE
+ulint
+ut_2pow_remainder(
+/*==============*/	/* out: remainder */
+	ulint	n,	/* in: number to be divided */
+	ulint	m)	/* in: divisor; power of 2 */
+{
+	ut_ad(0x80000000 % m == 0);
+
+	return(n & (m - 1));
+}
+
+/*****************************************************************
+Calculates fast a value rounded to a multiple of a power of 2. */
+UNIV_INLINE
+ulint
+ut_2pow_round(
+/*==========*/		/* out: value of n rounded down to nearest
+			multiple of m */
+	ulint	n,	/* in: number to be rounded */
+	ulint	m)	/* in: divisor; power of 2 */
+{
+	ut_ad(0x80000000 % m == 0);
+
+	return(n & ~(m - 1));
+}
+
+/*****************************************************************
+Calculates fast the 2-logarithm of a number, rounded upward to an
+integer. */
+UNIV_INLINE
+ulint
+ut_2_log(
+/*=====*/
+			/* out: logarithm in the base 2, rounded upward */
+	ulint	n)	/* in: number != 0 */
+{
+	ulint	res;
+
+	res = 0;
+
+	ut_ad(n > 0);
+
+	n = n - 1;
+
+	for (;;) {
+		n = n / 2;
+
+		if (n == 0) {
+			break;
+		}
+
+		res++;
+	}
+
+	return(res + 1);
+}
+
+/*****************************************************************
+Calculates 2 to power n. */
+UNIV_INLINE
+ulint
+ut_2_exp(
+/*=====*/
+			/* out: 2 to power n */
+	ulint	n)	/* in: number */
+{
+	return(1 << n);
+}
+
+/*****************************************************************
+Calculates fast the number rounded up to the nearest power of 2. */
+UNIV_INLINE
+ulint
+ut_2_power_up(
+/*==========*/
+			/* out: first power of 2 which is >= n */
+	ulint	n)	/* in: number != 0 */
+{
+	ulint	res;
+
+	res = 1;
+
+	ut_ad(n > 0);
+
+	while (res < n) {
+		res = res * 2;
+	}
+
+	return(res);
+}

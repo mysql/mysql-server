@@ -1,0 +1,57 @@
+/***********************************************************************
+Memory primitives
+
+(c) 1994, 1995 Innobase Oy
+
+Created 5/30/1994 Heikki Tuuri
+************************************************************************/
+
+UNIV_INLINE
+void*
+ut_memcpy(void* dest, void* sour, ulint n)
+{
+	return(memcpy(dest, sour, n)); 
+}
+
+UNIV_INLINE
+void*
+ut_memmove(void* dest, void* sour, ulint n)
+{
+	return(memmove(dest, sour, n));
+}
+
+UNIV_INLINE
+int
+ut_memcmp(void* str1, void* str2, ulint n)
+{
+	return(memcmp(str1, str2, n));
+}
+
+UNIV_INLINE
+void
+ut_free(void* ptr)
+{
+	free(ptr);
+}
+
+UNIV_INLINE
+char*
+ut_strcpy(char* dest, char* sour)
+{
+	return(strcpy(dest, sour));
+}
+
+UNIV_INLINE
+ulint
+ut_strlen(char* str)
+{
+	return(strlen(str));
+}
+
+UNIV_INLINE
+int
+ut_strcmp(void* str1, void* str2)
+{
+	return(strcmp((char*)str1, (char*)str2));
+}
+

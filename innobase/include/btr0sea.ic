@@ -1,0 +1,65 @@
+/************************************************************************
+The index tree adaptive search
+
+(c) 1996 Innobase Oy
+
+Created 2/17/1996 Heikki Tuuri
+*************************************************************************/
+
+#include "dict0mem.h"
+#include "btr0cur.h"
+#include "buf0buf.h"
+
+/*************************************************************************
+Updates the search info. */
+
+void
+btr_search_info_update_slow(
+/*========================*/
+	btr_search_t*	info,	/* in: search info */
+	btr_cur_t*	cursor);/* in: cursor which was just positioned */
+
+/************************************************************************
+Returns search info for an index. */
+UNIV_INLINE
+btr_search_t*
+btr_search_get_info(
+/*================*/
+				/* out: search info; search mutex reserved */
+	dict_index_t*	index)	/* in: index */
+{
+	ut_ad(index);
+
+	return(index->search_info);
+}
+
+/*************************************************************************
+Updates the search info. */
+UNIV_INLINE
+void
+btr_search_info_update(
+/*===================*/
+	dict_index_t*	index,	/* in: index of the cursor */
+	btr_cur_t*	cursor)	/* in: cursor which was just positioned */
+{
+	btr_search_t*	info;
+
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED)
+			&& !rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+
+	info = btr_search_get_info(index);
+
+	info->hash_analysis++;
+
+	if (info->hash_analysis < BTR_SEARCH_HASH_ANALYSIS) {
+
+		/* Do nothing */
+
+		return;
+
+	}
+
+	ut_ad(cursor->flag != BTR_CUR_HASH);
+
+	btr_search_info_update_slow(info, cursor);
+}

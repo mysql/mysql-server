@@ -1,18 +1,18 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
    && Innobase Oy
-   
+
    -This file is modified from ha_berkeley.h of MySQL distribution-
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -20,10 +20,6 @@
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
-
-/* Store the MySQL bool type definition to this defined type:
-inside ha_innobase we use the Innobase definition of the bool type! */
-typedef bool	mysql_bool;
 
 /* This file defines the Innobase handler: the interface between MySQL and
 Innobase */
@@ -39,10 +35,8 @@ typedef struct st_innobase_share {
 /* The class defining a handle to an Innobase table */
 class ha_innobase: public handler
 {
-  	void*	innobase_table_handle;	/* (dict_table_t*) pointer to a table
-					in Innobase data dictionary cache */
 	void*	innobase_prebuilt;	/* (row_prebuilt_t*) prebuilt
-					structs in Innobase, used to save
+					struct in Innobase, used to save
 					CPU */
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
@@ -51,9 +45,6 @@ class ha_innobase: public handler
 	INNOBASE_SHARE  *share;
 
   	gptr 		alloc_ptr;
-	byte*		rec_buff;	/* buffer used in converting
-					rows from MySQL format
-					to Innobase format */
   	byte*		upd_buff;	/* buffer used in updates */
   	byte*		key_val_buff;	/* buffer used in converting
   					search key values from MySQL format
@@ -62,12 +53,15 @@ class ha_innobase: public handler
 					'ref' buffer of the handle, if any */
   	ulong 		int_option_flag;
   	uint 		primary_key;
+	ulong		start_of_scan;	/* this is set to 1 when we are
+					starting a table scan but have not
+					yet fetched any row, else 0 */
 	uint		last_dup_key;
 
 	uint		last_match_mode;/* match mode of the latest search:
-					ROW_SEL_EXACT or
-					ROW_SEL_EXACT_PREFIX or undefined */
-	
+					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
+					or undefined */
+
 	ulong max_row_length(const byte *buf);
 
 	uint store_key_val_for_row(uint keynr, char* buff, const byte* record);
@@ -78,16 +72,16 @@ class ha_innobase: public handler
 	/* Init values for the class: */
  public:
   	ha_innobase(TABLE *table): handler(table),
-		rec_buff(0),
     		int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
 		    HA_REC_NOT_IN_SEQ |
 		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
-		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_NO_BLOBS |
+		    HA_LONGLONG_KEYS | HA_NULL_KEY |
 		    HA_NOT_EXACT_COUNT |
 		    HA_NO_WRITE_DELAYED |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE),
-    		last_dup_key((uint) -1)
+    		last_dup_key((uint) -1),
+    		start_of_scan(0)
   	{
   	}
   	~ha_innobase() {}
@@ -145,6 +139,8 @@ class ha_innobase: public handler
   	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 
+        char* update_table_comment(const char* comment);
+
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
 };
@@ -157,7 +153,7 @@ extern long innobase_lock_scan_time;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
 extern long innobase_log_file_size, innobase_log_buffer_size;
 extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
-extern long innobase_file_io_threads;
+extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern bool innobase_flush_log_at_trx_commit, innobase_log_archive,
@@ -168,6 +164,7 @@ extern TYPELIB innobase_lock_typelib;
 bool innobase_init(void);
 bool innobase_end(void);
 bool innobase_flush_logs(void);
+uint innobase_get_free_space(void);
 
 int innobase_commit(THD *thd, void* trx_handle);
 int innobase_rollback(THD *thd, void* trx_handle);
