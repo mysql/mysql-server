@@ -6,6 +6,13 @@ dirty_close master;
 connection master1;
 select get_lock("lock",2);
 select release_lock("lock");
+let $1=2000;
+while ($1)
+{
+  do get_lock("lock",2);
+  do release_lock("lock");
+  dec $1;
+}
 save_master_pos;
 connection slave;
 sync_with_master;

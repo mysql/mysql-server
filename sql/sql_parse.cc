@@ -1100,6 +1100,29 @@ mysql_execute_command(void)
   SELECT_LEX *select_lex = lex->select;
   DBUG_ENTER("mysql_execute_command");
 
+  if (thd->slave_thread)
+  {
+    /* 
+      Skip if we are in the slave thread, some table rules have been
+      given and the table list says the query should not be replicated
+    */
+    if (table_rules_on && tables && !tables_ok(thd,tables))
+      DBUG_VOID_RETURN;
+#ifndef TO_BE_DELETED
+    /*
+       This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
+       masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
+       as DO RELEASE_LOCK()
+    */
+    if (lex->sql_command == SQLCOM_SELECT)
+    {
+      lex->sql_command = SQLCOM_DO;
+      lex->insert_list = &lex->item_list;
+    }
+#endif
+  }
+  
+  thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   /*
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
