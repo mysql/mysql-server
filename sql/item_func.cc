@@ -1830,6 +1830,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
   if (Item_func::fix_fields(thd,tables) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
+  entry->type= cached_result_type;
   entry->update_query_id=thd->query_id;
   return 0;
 }
