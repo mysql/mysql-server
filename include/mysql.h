@@ -384,8 +384,8 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 */
 
 int simple_command(MYSQL *mysql,enum enum_server_command command,
-		   const char *arg, ulong length, my_bool skipp_check);
-ulong net_safe_read(MYSQL* mysql);
+		   const char *arg, unsigned long length, my_bool skipp_check);
+unsigned long net_safe_read(MYSQL* mysql);
 
 #ifdef	__cplusplus
 }

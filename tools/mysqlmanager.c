@@ -39,8 +39,7 @@
 #include <errno.h>
 
 #define MANAGER_VERSION "1.0"
-#define MANAGER_GREETING "MySQL Server Management Daemon v." ## \
- MANAGER_VERSION
+#define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0"
 
 #define LOG_ERR  1
 #define LOG_WARN 2
@@ -218,23 +217,23 @@ struct manager_exec
   int num_args;
 };
 
-#define HANDLE_DECL(com) static int handle_ ## com (struct manager_thd* thd,\
+#define HANDLE_DECL(com) static int com (struct manager_thd* thd,\
  char* args_start,char* args_end)
 
-#define HANDLE_NOARG_DECL(com) static int handle_ ## com \
+#define HANDLE_NOARG_DECL(com) static int com \
   (struct manager_thd* thd, char* __attribute__((unused)) args_start,\
  char* __attribute__((unused)) args_end)
 
 
-HANDLE_NOARG_DECL(ping);
-HANDLE_NOARG_DECL(quit);
-HANDLE_NOARG_DECL(help);
-HANDLE_NOARG_DECL(shutdown);
-HANDLE_DECL(def_exec);
-HANDLE_DECL(start_exec);
-HANDLE_DECL(stop_exec);
-HANDLE_DECL(set_exec_con);
-HANDLE_NOARG_DECL(show_exec);
+HANDLE_NOARG_DECL(handle_ping);
+HANDLE_NOARG_DECL(handle_quit);
+HANDLE_NOARG_DECL(handle_help);
+HANDLE_NOARG_DECL(handle_shutdown);
+HANDLE_DECL(handle_def_exec);
+HANDLE_DECL(handle_start_exec);
+HANDLE_DECL(handle_stop_exec);
+HANDLE_DECL(handle_set_exec_con);
+HANDLE_NOARG_DECL(handle_show_exec);
 
 struct manager_cmd commands[] =
 {
@@ -375,20 +374,20 @@ static struct manager_cmd* lookup_cmd(char* s,int len)
   return 0;
 }
 
-HANDLE_NOARG_DECL(ping)
+HANDLE_NOARG_DECL(handle_ping)
 {
   client_msg(thd->vio,MSG_OK,"Server management daemon is alive");
   return 0;
 }
 
-HANDLE_NOARG_DECL(quit)
+HANDLE_NOARG_DECL(handle_quit)
 {
   client_msg(thd->vio,MSG_OK,"Goodbye");
   thd->finished=1;
   return 0;
 }
 
-HANDLE_NOARG_DECL(help)
+HANDLE_NOARG_DECL(handle_help)
 {
   struct manager_cmd* cmd = commands;
   Vio* vio = thd->vio;
@@ -401,7 +400,7 @@ HANDLE_NOARG_DECL(help)
   return 0;
 }
 
-HANDLE_NOARG_DECL(shutdown)
+HANDLE_NOARG_DECL(handle_shutdown)
 {
   client_msg(thd->vio,MSG_OK,"Shutdown started, goodbye");
   thd->finished=1;
@@ -414,7 +413,7 @@ HANDLE_NOARG_DECL(shutdown)
   return 0;
 }
 
-HANDLE_DECL(set_exec_con)
+HANDLE_DECL(handle_set_exec_con)
 {
   int num_args;
   const char* error=0;
@@ -461,7 +460,7 @@ err:
   return 1;
 }
 
-HANDLE_DECL(start_exec)
+HANDLE_DECL(handle_start_exec)
 {
   int num_args;
   struct manager_exec* e;
@@ -509,7 +508,7 @@ err:
   return 1;
 }
 
-HANDLE_DECL(stop_exec)
+HANDLE_DECL(handle_stop_exec)
 {
   int num_args;
   struct timespec abstime;
@@ -564,7 +563,7 @@ err:
   return 1;
 }
 
-HANDLE_DECL(def_exec)
+HANDLE_DECL(handle_def_exec)
 {
   struct manager_exec* e=0,*old_e;
   const char* error=0;
@@ -597,7 +596,7 @@ err:
   return 1;
 }
 
-HANDLE_NOARG_DECL(show_exec)
+HANDLE_NOARG_DECL(handle_show_exec)
 {
   uint i;
   client_msg_pre(thd->vio,MSG_INFO,"Exec_def\tPid\tExit_status\tCon_info\
@@ -809,19 +808,19 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
   pthread_mutex_unlock(&lock_log);
 }
 
-#define LOG_MSG_FUNC(type,TYPE) inline static void log_ ## type  \
+#define LOG_MSG_FUNC(type,TYPE) inline static void type  \
  (const char* fmt,...) { \
   va_list args; \
   va_start(args,fmt); \
-  log_msg(fmt,LOG_ ## TYPE,args);\
+  log_msg(fmt,TYPE,args);\
  }
 
-LOG_MSG_FUNC(err,ERR)
-LOG_MSG_FUNC(warn,WARN)
-LOG_MSG_FUNC(info,INFO)
+LOG_MSG_FUNC(log_err,LOG_ERR)
+LOG_MSG_FUNC(log_warn,LOG_WARN)
+LOG_MSG_FUNC(log_info,LOG_INFO)
 
 #ifndef DBUG_OFF
-LOG_MSG_FUNC(debug,DEBUG)
+LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
 void log_debug(char* __attribute__((unused)) fmt,...) {}
 #endif
