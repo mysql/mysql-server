@@ -2227,7 +2227,11 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0,0};
+const char *load_default_groups[]= { 
+#ifdef HAVE_NDBCLUSTER_DB
+  "mysql_cluster",
+#endif
+  "mysqld","server",MYSQL_BASE_VERSION,0,0};
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
@@ -3950,6 +3954,7 @@ enum options_mysqld
   OPT_INNODB, OPT_ISAM,
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
+  OPT_NDB_USE_LOCAL_QUERY_CACHE,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4409,6 +4414,12 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_use_exact_count,
    (gptr*) &global_system_variables.ndb_use_exact_count,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb_use_local_query_cache", OPT_NDB_USE_LOCAL_QUERY_CACHE,
+   "Use local query cache, note that this cache will _not_ "
+   "be invalidated if data is updated through other mysql servers",
+   (gptr*) &global_system_variables.ndb_use_local_query_cache,
+   (gptr*) &global_system_variables.ndb_use_local_query_cache,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
