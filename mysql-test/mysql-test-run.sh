@@ -344,7 +344,11 @@ SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 #--
 wait_for_server_start ()
 {
-   $MYSQLADMIN --no-defaults -u $DBUSER --silent -O connect_timeout=10 -w2 --host=$hostname --port=$1  ping >/dev/null 2>&1
+   $MYSQLADMIN --no-defaults -u $DBUSER --silent -O connect_timeout=10 -w3 --host=$hostname --port=$1  ping >/dev/null 2>&1
+   exit_code=$?
+   if [ $exit_code != 0 ]; then
+	echo "Error: Could not start $2, exit code $exit_code";
+   fi
 }
 
 prompt_user ()
@@ -553,7 +557,7 @@ start_master()
     else	    
       $MYSQLD $master_args  >> $MASTER_MYERR 2>&1 &
     fi  
-  wait_for_server_start $MASTER_MYPORT
+  wait_for_server_start $MASTER_MYPORT master
   MASTER_RUNNING=1
 }
 
@@ -610,7 +614,7 @@ start_slave()
     else
       $SLAVE_MYSQLD $slave_args  >> $SLAVE_MYERR 2>&1 &
     fi
-    wait_for_server_start $SLAVE_MYPORT
+    wait_for_server_start $SLAVE_MYPORT slave
     SLAVE_RUNNING=1
 }
 
