@@ -14,6 +14,7 @@
 #  along with this program; if not, write to the Free Software 
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
+if PLATFORM_NETWARE
 INCLUDES =			-I$(srcdir)/../include -I../include -I..
 bin_PROGRAMS =			mysqld_safe mysql_install_db mysql_test_run libmysql
 mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
@@ -21,6 +22,7 @@ mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
 mysql_test_run_SOURCES=		mysql_test_run.c my_manage.c
 libmysql_SOURCES=		libmysqlmain.c
 libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a
+endif
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
