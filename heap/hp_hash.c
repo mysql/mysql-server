@@ -371,8 +371,9 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (my_strnncoll(seg->charset,(uchar*) rec1+seg->start,seg->length,
-		       (uchar*) rec2+seg->start,seg->length))
+      if (seg->charset->coll->strnncollsp(seg->charset,
+      					  (uchar*) rec1+seg->start,seg->length,
+					  (uchar*) rec2+seg->start,seg->length))
 	return 1;
     }
     else
@@ -404,8 +405,9 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (my_strnncoll(seg->charset,(uchar*) rec+seg->start, seg->length,
-		       (uchar*) key, seg->length))
+      if (seg->charset->coll->strnncollsp(seg->charset,
+					  (uchar*) rec+seg->start, seg->length,
+					  (uchar*) key, seg->length))
 	return 1;
     }
     else

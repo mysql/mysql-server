@@ -328,3 +328,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
 2	UNION	t1	ref	b	b	5	const	1	Using where
 drop table t1,t2;
+create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
+create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
+create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references users(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references groups(id) );
+insert into t1 (user_name) values ('Tester');
+insert into t2 (group_name) values ('Group A');
+insert into t2 (group_name) values ('Group B');
+insert into t3 (user_id, group_id) values (1,1);
+select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
+is_in_group	user_name	group_name	id
+1	Tester	Group A	1
+0	Tester	Group A	NULL
+0	Tester	Group B	NULL
+drop table t1, t2, t3;

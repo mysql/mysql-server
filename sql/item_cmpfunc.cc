@@ -151,15 +151,17 @@ void Item_bool_func2::fix_length_and_dec()
     uint strong= 0;
     uint weak= 0;
 
-    if ((args[0]->derivation() < args[1]->derivation()) && 
-	!my_charset_same(args[0]->charset(), args[1]->charset()) &&
-        (args[0]->charset()->state & MY_CS_UNICODE))
+    if ((args[0]->collation.derivation < args[1]->collation.derivation) && 
+	!my_charset_same(args[0]->collation.collation, 
+			 args[1]->collation.collation) &&
+        (args[0]->collation.collation->state & MY_CS_UNICODE))
     {
       weak= 1;
     }
-    else if ((args[1]->derivation() < args[0]->derivation()) && 
-	     !my_charset_same(args[0]->charset(), args[1]->charset()) &&
-             (args[1]->charset()->state & MY_CS_UNICODE))
+    else if ((args[1]->collation.derivation < args[0]->collation.derivation) && 
+	     !my_charset_same(args[0]->collation.collation,
+			      args[1]->collation.collation) &&
+             (args[1]->collation.collation->state & MY_CS_UNICODE))
     {
       strong= 1;
     }
@@ -172,15 +174,15 @@ void Item_bool_func2::fix_length_and_dec()
         String tmp, cstr;
         String *ostr= args[weak]->val_str(&tmp);
         cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
-		  args[strong]->charset());
+		  args[strong]->collation.collation);
         conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-			      args[weak]->derivation());
+			      args[weak]->collation.derivation);
 	((Item_string*)conv)->str_value.copy();
       }
       else
       {
-	conv= new Item_func_conv_charset(args[weak],args[strong]->charset());
-        conv->collation.set(args[weak]->derivation());
+	conv= new Item_func_conv_charset(args[weak],args[strong]->collation.collation);
+        conv->collation.set(args[weak]->collation.derivation);
       }
       args[weak]= conv ? conv : args[weak];
     }
@@ -725,13 +727,13 @@ Item_func_ifnull::val_str(String *str)
   if (!args[0]->null_value)
   {
     null_value=0;
-    res->set_charset(charset());
+    res->set_charset(collation.collation);
     return res;
   }
   res=args[1]->val_str(str);
   if ((null_value=args[1]->null_value))
     return 0;
-  res->set_charset(charset());
+  res->set_charset(collation.collation);
   return res;
 }
 
@@ -750,12 +752,12 @@ Item_func_if::fix_length_and_dec()
   if (null1)
   {
     cached_result_type= arg2_type;
-    set_charset(args[2]->charset());
+    collation.set(args[2]->collation.collation);
   }
   else if (null2)
   {
     cached_result_type= arg1_type;
-    set_charset(args[1]->charset());
+    collation.set(args[1]->collation.collation);
   }
   else
   {
@@ -767,7 +769,7 @@ Item_func_if::fix_length_and_dec()
     }
     else
     {
-      set_charset(&my_charset_bin);	// Number
+      collation.set(&my_charset_bin);	// Number
     }
   }
 }
@@ -797,7 +799,7 @@ Item_func_if::val_str(String *str)
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
   if (res)
-    res->set_charset(charset());
+    res->set_charset(collation.collation);
   null_value=arg->null_value;
   return res;
 }
@@ -1182,7 +1184,7 @@ void in_string::set(uint pos,Item *item)
   if (!str->charset())
   {
     CHARSET_INFO *cs;
-    if (!(cs= item->charset()))
+    if (!(cs= item->collation.collation))
       cs= &my_charset_bin;		// Should never happen for STR items
     str->set_charset(cs);
   }
@@ -1260,7 +1262,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
 {
   switch (item->result_type()) {
   case STRING_RESULT:
-    return new cmp_item_sort_string(item->charset());
+    return new cmp_item_sort_string(item->collation.collation);
     break;
   case INT_RESULT:
     return new cmp_item_int;
@@ -1839,7 +1841,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     We could also do boyer-more for non-const items, but as we would have to
     recompute the tables for each row it's not worth it.
   */
-  if (args[1]->const_item() && !use_strnxfrm(charset()) &&
+  if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
       !(specialflag & SPECIAL_NO_NEW_FUNC))
   {
     String* res2 = args[1]->val_str(&tmp_value2);
@@ -1860,7 +1862,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     {
       const char* tmp = first + 1;
       for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-      canDoTurboBM = (tmp == last) && !use_mb(args[0]->charset());
+      canDoTurboBM = (tmp == last) && !use_mb(args[0]->collation.collation);
     }
 
     if (canDoTurboBM)
