@@ -1228,6 +1228,7 @@ public:
      */
     int dropTable(const char * name);
     
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Alter defined table given defined Table instance
      * @param table Table to alter
@@ -1237,7 +1238,6 @@ public:
      */
     int alterTable(const Table &table);
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Invalidate cached table object
      * @param name  Name of table to invalidate

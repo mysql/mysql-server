@@ -517,7 +517,8 @@ ErrorBundle ErrorCodes[] = {
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
   { 4269, IE, "No connection to ndb management server" },
   { 4270, IE, "Unknown blob error" },
-  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" }
+  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
+  { 4271, AE, "Invalid index object, not retrieved via getIndex()" }
 };
 
 static
