@@ -3327,7 +3327,6 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   HANDLE event_connect_answer= 0;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
   ulong connect_number= 1;
-  my_bool error_allow;
   char tmp[63];
   char *suffix_pos;
   char connect_number_char[22], *p;

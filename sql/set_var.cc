@@ -2412,8 +2412,9 @@ int set_var_password::update(THD *thd)
  Functions to handle table_type
 ****************************************************************************/
 
+/* Based upon sys_var::check_enum() */
+
 bool sys_var_thd_table_type::check(THD *thd, set_var *var)
-  /* Based upon sys_var::check_enum() */
 {
   char buff[80];
   const char *value;
@@ -2436,6 +2437,7 @@ err:
   return 1;    
 }
 
+
 byte *sys_var_thd_table_type::value_ptr(THD *thd, enum_var_type type,
 					LEX_STRING *base)
 {
@@ -2443,8 +2445,9 @@ byte *sys_var_thd_table_type::value_ptr(THD *thd, enum_var_type type,
   val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
         thd->variables.*offset);
   const char *table_type= ha_get_table_type((enum db_type)val);
-  return (byte *)table_type;
+  return (byte *) table_type;
 }
+
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
 {
@@ -2454,6 +2457,7 @@ void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
     thd->variables.*offset= (ulong) (global_system_variables.*offset);
 }
 
+
 bool sys_var_thd_table_type::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
@@ -2462,6 +2466,7 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
     thd->variables.*offset= var->save_result.ulong_value;
   return 0;
 }
+
 
 /****************************************************************************
  Functions to handle sql_mode

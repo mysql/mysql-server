@@ -264,10 +264,10 @@ character-set=latin1
 "Z_BUF_ERROR: Não suficiente espaço no buffer emissor para zlib (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
 "Z_DATA_ERROR: Dados de entrada está corrupto para zlib",
 "%d linha(s) foi(foram) cortada(s) por group_concat()",
-"Record count is fewer than the column count at row %ld";
-"Record count is more than the column count at row %ld";
-"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
-"Data truncated, out of range for column '%s' at row %ld";
+"Record count is fewer than the column count at row %ld",
+"Record count is more than the column count at row %ld",
+"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld",
+"Data truncated, out of range for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
 "Usando engine de armazenamento %s para tabela '%s'",
 "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'",

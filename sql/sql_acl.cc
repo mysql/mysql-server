@@ -2548,7 +2548,6 @@ my_bool grant_init(THD *org_thd)
     {
       if (hostname_requires_resolving(mem_check->host))
       {
-	char buff[MAX_FIELD_WIDTH];
 	sql_print_error("Warning: 'tables_priv' entry '%s %s@%s' "
 			"ignored in --skip-name-resolve mode.",
 			mem_check->tname, mem_check->user, 
