@@ -721,15 +721,39 @@ double Item_func_case::val()
 bool
 Item_func_case::fix_fields(THD *thd,TABLE_LIST *tables)
 {
-
   if (first_expr && first_expr->fix_fields(thd,tables) ||
       else_expr && else_expr->fix_fields(thd,tables))
     return 1;
   if (Item_func::fix_fields(thd,tables))
     return 1;
+  if (first_expr)
+  {
+    used_tables_cache|=(first_expr)->used_tables();
+    const_item_cache&= (first_expr)->const_item();
+  }
+  if (else_expr)
+  {
+    used_tables_cache|=(else_expr)->used_tables();
+    const_item_cache&= (else_expr)->const_item();
+  }
   if (!else_expr || else_expr->maybe_null)
     maybe_null=1;				// The result may be NULL
   return 0;
+}
+
+void Item_func_case::update_used_tables()
+{
+  Item_func::update_used_tables();
+  if (first_expr)
+  {
+    used_tables_cache|=(first_expr)->used_tables();
+    const_item_cache&= (first_expr)->const_item();
+  }
+  if (else_expr)
+  {
+    used_tables_cache|=(else_expr)->used_tables();
+    const_item_cache&= (else_expr)->const_item();
+  }
 }
 
 
@@ -750,6 +774,7 @@ void Item_func_case::fix_length_and_dec()
   }
 }
 
+/* TODO:  Fix this so that it prints the whole CASE expression */
 
 void Item_func_case::print(String *str)
 {
