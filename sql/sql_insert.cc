@@ -1736,12 +1736,6 @@ bool mysql_insert_select_prepare(THD *thd)
     DBUG_RETURN(TRUE);
 
   /*
-    setup was done in mysql_prepare_insert_check_table, but we have to mark
-    first local table
-  */
-  if (first_select_table)
-    first_select_table->setup_is_done= 1;
-  /*
     exclude first table from leaf tables list, because it belong to
     INSERT
   */
