@@ -174,7 +174,7 @@ Logger::addHandler(const BaseString &logstring) {
   logstring.split(logdest, ";");
 
   for(i = 0; i < logdest.size(); i++) {
-    DBUG_PRINT("info",("adding: %s",logdest[i]));
+    DBUG_PRINT("info",("adding: %s",logdest[i].c_str()));
 
     Vector<BaseString> v_type_args;
     logdest[i].split(v_type_args, ":", 2);

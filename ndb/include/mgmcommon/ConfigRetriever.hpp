@@ -72,6 +72,7 @@ public:
 
   Uint32 get_mgmd_port() const;
   const char *get_mgmd_host() const;
+  const char *get_connectstring(char *buf, int buf_sz) const;
 
   Uint32 get_configuration_nodeid() const;
 private:
