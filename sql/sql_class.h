@@ -815,11 +815,52 @@ public:
   void abort();
 };
 
+#include <myisam.h>
+
+/* Param to create temporary tables when doing SELECT:s */
+
+class TMP_TABLE_PARAM :public Sql_alloc
+{
+ public:
+  List<Item> copy_funcs;
+  List<Item> save_copy_funcs;
+  List_iterator_fast<Item> copy_funcs_it;
+  Copy_field *copy_field, *copy_field_end;
+  Copy_field *save_copy_field, *save_copy_field_end;
+  byte	    *group_buff;
+  Item	    **items_to_copy;			/* Fields in tmp table */
+  MI_COLUMNDEF *recinfo,*start_recinfo;
+  KEY *keyinfo;
+  ha_rows end_write_records;
+  uint	field_count,sum_func_count,func_count;
+  uint  hidden_field_count;
+  uint	group_parts,group_length,group_null_parts;
+  uint	quick_group;
+  bool  using_indirect_summary_function;
+
+  TMP_TABLE_PARAM()
+    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
+    group_length(0), group_null_parts(0)
+  {}
+  ~TMP_TABLE_PARAM()
+  {
+    cleanup();
+  }
+  inline void cleanup(void)
+  {
+    if (copy_field)				/* Fix for Intel compiler */
+    {
+      delete [] copy_field;
+      copy_field=0;
+    }
+  }
+};
+
 class select_union :public select_result {
  public:
   TABLE *table;
   COPY_INFO info;
-  TMP_TABLE_PARAM *tmp_table_param;
+  TMP_TABLE_PARAM tmp_table_param;
   bool not_describe;
 
   select_union(TABLE *table_par);

@@ -82,7 +82,7 @@ bool select_union::send_data(List<Item> &values)
     if (thd->net.last_errno == ER_RECORD_FILE_FULL)
     {
       thd->clear_error(); // do not report user about table overflow
-      if (create_myisam_from_heap(thd, table, tmp_table_param,
+      if (create_myisam_from_heap(thd, table, &tmp_table_param,
 				  info.last_errno, 0))
 	return 1;
     }
@@ -186,8 +186,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     goto err;
 
   union_result->not_describe=1;
-  if (!(union_result->tmp_table_param=(TMP_TABLE_PARAM *)thd->memdup((char *)&tmp_table_param, sizeof(TMP_TABLE_PARAM))))
-    goto err;
+  union_result->tmp_table_param=tmp_table_param;
 
   /*
     The following piece of code is placed here solely for the purpose of 

@@ -1281,16 +1281,10 @@ JOIN::cleanup(THD *thd)
       JOIN_TAB *tab, *end;
       for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
       {
-	if (tab->select)
-	{
-	  delete tab->select;
-	  tab->select=0;
-	}
-	if (tab->quick)
-	{
-	  delete tab->quick;
-	  tab->quick=0;
-	}
+	delete tab->select;
+	delete tab->quick;
+	tab->select=0;
+	tab->quick=0;
 	x_free(tab->cache.buff);
 	tab->cache.buff= 0;
       }
@@ -3292,16 +3286,10 @@ join_free(JOIN *join, bool full)
     {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
-	if (tab->select)
-	{
-	  delete tab->select;
-	  tab->select=0;
-	}
-	if (tab->quick)
-	{
-	  delete tab->quick;
-	  tab->quick=0;
-	}
+	delete tab->select;
+	delete tab->quick;
+	tab->select=0;
+	tab->quick=0;
 	x_free(tab->cache.buff);
 	tab->cache.buff= 0;
 	if (tab->table)
