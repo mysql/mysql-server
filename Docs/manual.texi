@@ -42911,7 +42911,7 @@ Ecommerce site that is selling computers.
 
 @item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
 
-@item @uref{http://www.jammconsulting.com/, JAMM Consulting, Inc.}
+@item @uref{http://www.jammconsulting.com/, JAMM Consulting Inc.}
 
 @end itemize
 
