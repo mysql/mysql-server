@@ -367,38 +367,38 @@ print " for order_by_big ($small_loop_count:$rows): " .
 
 $loop_time=new Benchmark;
 $estimated=$rows=0;
-for ($i=1 ; $i <= $small_loop_count ; $i++)
+for ($i=1 ; $i <= $range_loop_count ; $i++)
 {
-  $start=$opt_loop_count/$small_loop_count*$i;
+  $start=$opt_loop_count/$range_loop_count*$i;
   $end=$start+$i;
   $rows+=fetch_all_rows($dbh,"select dummy1 from bench1 where id>=$start and id <= $end order by id",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
-					 $small_loop_count));
+					 $range_loop_count));
 }
 if ($estimated)
 { print "Estimated time"; }
 else
 { print "Time"; }
-print " for order_by_key ($small_loop_count:$rows): " .
+print " for order_by_key ($range_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 $loop_time=new Benchmark;
 $estimated=$rows=0;
-for ($i=1 ; $i <= $small_loop_count ; $i++)
+for ($i=1 ; $i <= $range_loop_count ; $i++)
 {
-  $start=$opt_loop_count/$small_loop_count*$i;
-  $end=$start+$small_loop_count;
+  $start=$opt_loop_count/$range_loop_count*$i;
+  $end=$start+$range_loop_count;
   $rows+=fetch_all_rows($dbh,"select id2 from bench1 where id3>=$start and id3 <= $end order by id3",1);
   $end_time=new Benchmark;
   last if ($estimated=predict_query_time($loop_time,$end_time,\$i,$i,
-					 $small_loop_count));
+					 $range_loop_count));
 }
 if ($estimated)
 { print "Estimated time"; }
 else
 { print "Time"; }
-print " for order_by_key2_diff ($small_loop_count:$rows): " .
+print " for order_by_key2_diff ($range_loop_count:$rows): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 #
