@@ -3,6 +3,7 @@
 # Script to create Solaris packages
 #
 $INTERACTIVE= 0;
+$hostname= `hostname`;
 $find = "/usr/bin/find";
 $pkgproto = "/usr/bin/pkgproto";
 $pkgmk = "/usr/bin/pkgmk -o";
@@ -19,7 +20,7 @@ $fullname or die "No package name was specified";
 
 $fullname =~ s,/+$,,;             # Remove ending slash if any
 
-$pkgdir = `cd ../pkgs; pwd`;
+$pkgdir= `cd ../$hostname; pwd`;
 $pwd = `pwd`;
 if ($pwd =~ '\/usr\/local') {
         $pwd = $`;
@@ -74,7 +75,7 @@ $os =~ '\.';
 $os = "sol$'";
 chomp $os;
 $default{"basedir"}= "/usr/local";
-$default{"packagename"}= $fullname;
+$default{"packagename"}= $fullname . '.pkg';
 
 # Check for correctness of guessed values by userinput
 
@@ -138,7 +139,7 @@ system ("(cd /var/spool/pkg; rm -rf $pkg)");
 unlink $pkginfo;
 unlink $prototype;
 system ("mv /tmp/${packagename}.gz $pkgdir");
-print "Done. (~/packaging/pkgs/$packagename.gz)\n";
+print "Done. (~/$hostname/$packagename.gz)\n";
 # The subroutines
 sub chkvar {
   print "\n";
