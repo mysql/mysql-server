@@ -1,0 +1,27 @@
+# Testcase for BUG#4551
+# The bug was that when the table was TEMPORARY, it was not deleted if
+# the CREATE SELECT failed (the code intended too, but it actually
+# didn't). And as the CREATE TEMPORARY TABLE was not written to the
+# binlog if it was a transactional table, it resulted in an
+# inconsistency between binlog and the internal list of temp tables.
+
+-- source include/have_innodb.inc
+drop table if exists t1, t2;
+CREATE TABLE t1 ( a int );
+INSERT INTO t1 VALUES (1),(2),(1);
+--error 1062;
+CREATE TABLE t2 ( PRIMARY KEY (a) ) TYPE=INNODB SELECT a FROM t1;
+--error 1146;
+select * from t2;
+--error 1062;
+CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) TYPE=INNODB SELECT a FROM t1;
+--error 1146;
+select * from t2;
+--error 1062;
+CREATE TABLE t2 ( PRIMARY KEY (a) ) TYPE=MYISAM SELECT a FROM t1;
+--error 1146;
+select * from t2;
+--error 1062;
+CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) TYPE=MYISAM SELECT a FROM t1;
+--error 1146;
+select * from t2;
