@@ -105,8 +105,12 @@ public:
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
 
+#ifndef MYSQL_CLIENT  
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock);
+#else // avoid having to link mysqlbinlog against libpthread
+  static Log_event* read_log_event(IO_CACHE* file);
+#endif  
   static Log_event* read_log_event(const char* buf, int event_len);
 
 #ifndef MYSQL_CLIENT

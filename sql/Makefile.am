@@ -27,7 +27,6 @@ INCLUDES =		@MT_INCLUDES@ \
 			-I$(srcdir) -I../include -I.. -I.
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
-bin_PROGRAMS	=	mysqlbinlog
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
 gen_lex_hash_LDFLAGS =        @NOINST_LDFLAGS@
@@ -83,9 +82,6 @@ mysqld_SOURCES =	sql_lex.cc \
 			md5.c stacktrace.c
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
-mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
-			mini_client_errors.c violite.c password.c
-mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) # $(mysqld_LDADD)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
