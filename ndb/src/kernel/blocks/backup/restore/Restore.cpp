@@ -104,8 +104,9 @@ int
 RestoreMetaData::loadContent() 
 {
   Uint32 noOfTables = readMetaTableList();
-  if(noOfTables == 0)
-    return -3;
+  if(noOfTables == 0) {
+    return 1;
+  }
   for(Uint32 i = 0; i<noOfTables; i++){
     if(!readMetaTableDesc()){
       return 0;
@@ -201,187 +202,45 @@ RestoreMetaData::readGCPEntry() {
   return true;
 }
 
+TableS::TableS(NdbTableImpl* tableImpl)
+  : m_dictTable(tableImpl)
+{
+  m_dictTable = tableImpl;
+  m_noOfNullable = m_nullBitmaskSize = 0;
 
-struct tmpTableS {
-  Uint32 tableId;
-  Uint32 schemaVersion;
-  Uint32 noOfAttributes;
-}; // tmpTableS
-
-static const
-SimpleProperties::SP2StructMapping
-RestoreTabMap[] = {
-  // Map the basic stuff to begin with
-  DTIMAP(tmpTableS, TableId, tableId),
-  DTIMAP(tmpTableS, TableVersion, schemaVersion),
-  DTIMAP(tmpTableS, NoOfAttributes, noOfAttributes),
-  
-  DTIBREAK(AttributeName)
-}; // RestoreTabMap
-
-static const Uint32
-TabMapSize = sizeof(RestoreTabMap) 
-  / sizeof(SimpleProperties::SP2StructMapping);
-
-/**
- * Use a temporary struct to keep variables in AttributeDesc private
- *     and DTIMAP requires all Uint32
- */
-struct tmpAttrS {
-  // Just the basic needed stuff is yet implemented
-  char name[AttrNameLenC];
-  Uint32 attrId;
-  Uint32 type;
-  Uint32 nullable;
-  Uint32 key;
-  Uint32 size;
-  Uint32 arraySize;
-};
-
-static const
-SimpleProperties::SP2StructMapping
-RestoreAttrMap[] = {
-  // Map the most basic properties 
-  DTIMAP(tmpAttrS, AttributeId, attrId),
-  DTIMAP(tmpAttrS, AttributeType, type),
-  DTIMAP(tmpAttrS, AttributeNullableFlag, nullable),
-  DTIMAP(tmpAttrS, AttributeKeyFlag, key),
-  DTIMAP(tmpAttrS, AttributeSize, size),
-  DTIMAP(tmpAttrS, AttributeArraySize, arraySize),
-  DTIBREAK(AttributeEnd)
-}; // RestoreAttrMap
-static const Uint32
-AttrMapSize = sizeof(RestoreAttrMap) 
-  / sizeof(SimpleProperties::SP2StructMapping);
+  for (Uint32 i = 0; i < tableImpl->getNoOfColumns(); i++)
+    createAttr(tableImpl->getColumn(i));
+}
 
 // Parse dictTabInfo buffer and pushback to to vector storage 
-// Using SimpleProperties (here we don't need ntohl, ref:ejonore)
 bool
 RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 {
-  SimplePropertiesLinearReader it(data, len);
-  SimpleProperties::UnpackStatus spStatus;
-  
-  // Parse table name
-  if (it.getKey() != DictTabInfo::TableName) {
-    err << "readMetaTableDesc getKey table name error" << endl;
-    return false;
-  } // if
-
-  char tableName[MAX_TAB_NAME_SIZE*2]; // * 2 for db and schema.-.  
-  it.getString(tableName);
-
-  if (strlen(tableName) == 0) {
-    err << "readMetaTableDesc getString table name error" << endl;
-    return false;
-  } // if
-
-  TableS * table = new TableS(tableName);
-  if(table == NULL) {
-    return false;
-  }
-
-  table->setBackupVersion(m_fileHeader.NdbVersion);
-  tmpTableS tmpTable;
-  spStatus = SimpleProperties::unpack(it, &tmpTable, 
-				      RestoreTabMap, TabMapSize, true, true);
-  if ((spStatus != SimpleProperties::Break) ||
-      it.getKey() != DictTabInfo::AttributeName) {
-    err << "readMetaTableDesc sp.unpack error" << endl;
-    delete table;
-    return false;
-  } // if
-
-  debug << "Parsed table id " << tmpTable.tableId << endl;
-  table->setTableId(tmpTable.tableId);
-  debug << "Parsed table #attr " << tmpTable.noOfAttributes << endl;
-  debug << "Parsed table schema version not used " << endl;
-
-  for (Uint32 i = 0; i < tmpTable.noOfAttributes; i++) {
-    if (it.getKey() != DictTabInfo::AttributeName) {
-      err << "readMetaTableDesc error " << endl;
-      delete table;
-      return false;
-    } // if
-
-    tmpAttrS tmpAttr;
-    if(it.getValueLen() > AttrNameLenC){
-      err << "readMetaTableDesc attribute name too long??" << endl;
-      delete table;
-      return false;
-    }
-    it.getString(tmpAttr.name);
-
-    spStatus = SimpleProperties::unpack(it, &tmpAttr, RestoreAttrMap, 
-					AttrMapSize, true, true);
-    if ((spStatus != SimpleProperties::Break) ||
-	(it.getKey() != DictTabInfo::AttributeEnd)) {
-      err << "readMetaTableDesc sp unpack attribute " << i << " error" 
-	  << endl;
-      delete table;
-      return false;
-    } // if
-    
-    debug << "Creating attribute " << i << " " << tmpAttr.name << endl;
-    
-    bool thisNullable = (bool)(tmpAttr.nullable); // Really not needed (now)
-    KeyType thisKey = (KeyType)(tmpAttr.key); // These are identical (right now)
-    // Convert attribute size from enum to Uint32
-    // The static consts are really enum taking the value in DictTabInfo
-    // e.g. 3 is not ...0011 but rather ...0100 
-    //TODO: rather do a switch if the constants should change
-    Uint32 thisSize = 1 << tmpAttr.size;
-    // Convert attribute type to AttrType
-    AttrType thisType;
-    switch (tmpAttr.type) {
-    case 0: // SignedType
-      thisType = Signed;
-      break;
-    case 1: // UnSignedType
-      thisType = UnSigned;
-      break;
-    case 2: // FloatingPointType
-      thisType = Float;
-      break;
-    case 3: // StringType:
-      debug << "String type detected " << endl;
-      thisType = String;
-      break;
-    default:
-      // What, default to unsigned?
-      thisType = UnSigned;
-      break;
-    } // switch
-    /*    ndbout_c << "  type: " << thisType << " size: " << thisSize <<" arraySize: "
-	     << tmpAttr.arraySize << " nullable: " << thisNullable << " key: " 
-	     << thisKey << endl;
-    */
-    table->createAttr(tmpAttr.name, thisType, 
-		     thisSize, tmpAttr.arraySize, 
-		     thisNullable, thisKey);
-    if (!it.next()) {
-      break;
-      // Check number of created attributes and compare with expected
-      //ndbout << "readMetaTableDesc expecting more attributes" << endl;
-      //return false;
-    } // if
-  } // for 
-  
-  debug << "Pushing table " << tableName << endl;
-  debug << "   with " << table->getNoOfAttributes() << " attributes" << endl;
-  allTables.push_back(table);
-
   NdbTableImpl* tableImpl = 0;
   int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len, false);
 
   if (ret != 0) {
-    err << "parseTableInfo " << tableName << " failed" << endl;
+    err << "parseTableInfo " << " failed" << endl;
     return false;
   }
   if(tableImpl == 0)
     return false;
-  debug << "parseTableInfo " << tableName << " done" << endl;
-  table->m_dictTable = tableImpl;
+
+  debug << "parseTableInfo " << tableImpl->getName() << " done" << endl;
+
+  TableS * table = new TableS(tableImpl);
+  if(table == NULL) {
+    return false;
+  }
+  table->setBackupVersion(m_fileHeader.NdbVersion);
+
+  debug << "Parsed table id " << table->getTableId() << endl;
+  debug << "Parsed table #attr " << table->getNoOfAttributes() << endl;
+  debug << "Parsed table schema version not used " << endl;
+
+  debug << "Pushing table " << table->getTableName() << endl;
+  debug << "   with " << table->getNoOfAttributes() << " attributes" << endl;
+  allTables.push_back(table);
 
   return true;
 }
@@ -509,7 +368,7 @@ RestoreDataIterator::getNextTuple(int  & res) {
     const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
     AttributeS * attr = tup->allAttributes[attrId];
     
-    if(attr->Desc->nullable){
+    if(attr->Desc->m_column->getNullable()){
       const Uint32 ind = attr->Desc->m_nullBitIndex;
       if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
 			  tup->getDataRecord(),ind)){
@@ -755,44 +614,39 @@ RestoreDataIterator::validateFragmentFooter() {
   return true;
 } // RestoreDataIterator::getFragmentFooter
 
-void TableS::createAttr(const char* name, 
-			const AttrType type, 
-			const unsigned int size, // in bytes
-			const unsigned int arraySize, 
-			const bool nullable,
-			const KeyType key)
+AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
+  : m_column(c)
 {
-  AttributeDesc desc;
+  size = c->getSize()*8;
+  arraySize = c->getLength();
+}
 
-  strncpy(desc.name, name, AttrNameLenC);
-  desc.type = type;
-  desc.size = size;
-  desc.arraySize = arraySize;
-  desc.nullable = nullable;
-  desc.key = key;
-  desc.attrId = allAttributesDesc.size();
-
-  AttributeDesc * d = new AttributeDesc(desc);
+void TableS::createAttr(NdbDictionary::Column *column)
+{
+  AttributeDesc * d = new AttributeDesc(column);
   if(d == NULL) {
     ndbout_c("Restore: Failed to allocate memory");
     abort();
   }
-  d->m_table = this;
+  d->attrId = allAttributesDesc.size();
   allAttributesDesc.push_back(d);
 
-  if(desc.key != NoKey /* && not variable */){
+  if(d->m_column->getPrimaryKey() /* && not variable */)
+  {
     m_fixedKeys.push_back(d);
     return;
   }
-  if(!nullable){
+
+  if(!d->m_column->getNullable())
+  {
     m_fixedAttribs.push_back(d);
     return;
   }
-  if(nullable){
-    d->m_nullBitIndex = m_noOfNullable; 
-    m_noOfNullable++;
-    m_nullBitmaskSize = (m_noOfNullable + 31) / 32;
-  }
+
+  /* Nullable attr*/
+  d->m_nullBitIndex = m_noOfNullable; 
+  m_noOfNullable++;
+  m_nullBitmaskSize = (m_noOfNullable + 31) / 32;
   m_variableAttribs.push_back(d);
 } // TableS::createAttr
 

@@ -103,6 +103,11 @@ NdbDictionary::Column::getLength() const{
   return m_impl.m_length;
 }
 
+int 
+NdbDictionary::Column::getSize() const{
+  return m_impl.m_attrSize;
+}
+
 void 
 NdbDictionary::Column::setNullable(bool val){
   m_impl.m_nullable = val;
@@ -796,4 +801,75 @@ NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 const struct NdbError & 
 NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();
+}
+
+NdbOut& operator <<(NdbOut& ndbout, const NdbDictionary::Column::Type type)
+{
+  switch(type){
+  case NdbDictionary::Column::Bigunsigned:
+    ndbout << "[Bigunsigned]";
+    break;
+  case NdbDictionary::Column::Unsigned:
+    ndbout << "[Unsigned]";
+    break;
+  case NdbDictionary::Column::Smallunsigned:
+    ndbout << "[Smallunsigned]";
+    break;
+  case NdbDictionary::Column::Tinyunsigned:
+    ndbout << "[Tinyunsigned]";
+    break;
+  case NdbDictionary::Column::Bigint:
+    ndbout << "[Bigint]";
+    break;
+  case NdbDictionary::Column::Int:
+    ndbout << "[Int]";
+    break;
+  case NdbDictionary::Column::Smallint:
+    ndbout << "[Smallint]";
+    break;
+  case NdbDictionary::Column::Tinyint:
+    ndbout << "[Tinyint]";
+    break;
+  case NdbDictionary::Column::Char:
+    ndbout << "[Char]";
+    break;
+  case NdbDictionary::Column::Varchar:
+    ndbout << "[Varchar]";
+    break;
+  case NdbDictionary::Column::Float:
+    ndbout << "[Float]";
+    break;
+  case NdbDictionary::Column::Double:
+    ndbout << "[Double]";
+    break;
+  case NdbDictionary::Column::Mediumint:
+    ndbout << "[Mediumint]";
+    break;
+  case NdbDictionary::Column::Mediumunsigned:
+    ndbout << "[Mediumunsigend]";
+    break;
+  case NdbDictionary::Column::Binary:
+    ndbout << "[Binary]";
+    break;
+  case NdbDictionary::Column::Varbinary:
+    ndbout << "[Varbinary]";
+    break;
+  case NdbDictionary::Column::Decimal:
+    ndbout << "[Decimal]";
+    break;
+  case NdbDictionary::Column::Timespec:
+    ndbout << "[Timespec]";
+    break;
+  case NdbDictionary::Column::Blob:
+    ndbout << "[Blob]";
+    break;
+  case NdbDictionary::Column::Undefined:
+    ndbout << "[Undefined]";
+    break;
+  default:
+    ndbout << "[Unknown type]";
+    break;
+  }
+
+  return ndbout;
 }

@@ -31,8 +31,6 @@ libndbapi_la_SOURCES = \
         NdbEventOperationImpl.cpp   \
         NdbApiSignal.cpp        \
         NdbRecAttr.cpp  \
-        NdbSchemaCon.cpp        \
-        NdbSchemaOp.cpp \
         NdbUtil.cpp \
         NdbReceiver.cpp \
         NdbDictionary.cpp \
