@@ -35,7 +35,7 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext" };
 
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
-                        DYNAMIC_ARRAY *keyuse);
+				 DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 				JOIN_TAB *join_tab,
                                 uint tables,COND *conds,table_map table_map);

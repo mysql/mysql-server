@@ -46888,6 +46888,11 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+Fixed in when using the following construct:
+@code{SELECT ... WHERE key=@@var_name OR $key=@@var_name2}
+@item
+Restrict InnoDB keys to 500 bytes.
+@item
 InnoDB now supports @code{NULL} in keys.
 @item
 Fixed shutdown problem on HPUX. (Introduced in 3.23.46)
