@@ -113,9 +113,14 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
+  String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag);
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  bool eq(Field *field) { return ptr == field->ptr && null_ptr == field->null_ptr; }
+  bool eq(Field *field)
+  {
+    return (ptr == field->ptr && null_ptr == field->null_ptr &&
+            null_bit == field->null_bit);
+  }
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual void reset(void) { bzero(ptr,pack_length()); }
@@ -184,11 +189,10 @@ public:
   virtual bool can_be_compared_as_longlong() const { return FALSE; }
   virtual void free() {}
   virtual Field *new_field(MEM_ROOT *root, struct st_table *new_table);
-  virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table)
-  {
-    return new_field(root, new_table);
-  }
-  inline void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
+  virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                               char *new_ptr, uchar *new_null_ptr,
+                               uint new_null_bit);
+  virtual void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
   {
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
   }
@@ -994,7 +998,9 @@ public:
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
   Field *new_field(MEM_ROOT *root, struct st_table *new_table);
-  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table);
+  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                       char *new_ptr, uchar *new_null_ptr,
+                       uint new_null_bit);
 };
 
 
@@ -1199,11 +1205,7 @@ public:
   Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
             enum utype unireg_check_arg, const char *field_name_arg,
-            struct st_table *table_arg)
-    : Field(ptr_arg, len_arg >> 3, null_ptr_arg, null_bit_arg,
-            unireg_check_arg, field_name_arg, table_arg),
-        bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7)
-    { }
+            struct st_table *table_arg);
   enum_field_types type() const { return FIELD_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
   uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
@@ -1235,6 +1237,9 @@ public:
   field_cast_enum field_cast_type() { return FIELD_CAST_BIT; }
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
+  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                       char *new_ptr, uchar *new_null_ptr,
+                       uint new_null_bit);
 };
 
   

@@ -329,6 +329,27 @@ bool Field::field_cast_compatible(Field::field_cast_enum type)
 }
 
 
+/*
+  Interpret field value as an integer but return the result as a string.
+
+  This is used for printing bit_fields as numbers while debugging
+*/
+
+String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag)
+{
+  CHARSET_INFO *cs= &my_charset_bin;
+  uint length= 21;
+  longlong value= val_int();
+  if (val_buffer->alloc(length))
+    return 0;
+  length= (uint) cs->cset->longlong10_to_str(cs, (char*) val_buffer->ptr(),
+                                             length, unsigned_flag ? 10 : -10,
+                                             value);
+  val_buffer->length(length);
+  return val_buffer;
+}
+
+
 /****************************************************************************
 ** Functions for the base classes
 ** This is an unpacked number.
@@ -499,6 +520,22 @@ Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table)
   tmp->reset_fields();
   return tmp;
 }
+
+
+Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
+                            char *new_ptr, uchar *new_null_ptr,
+                            uint new_null_bit)
+{
+  Field *tmp;
+  if ((tmp= new_field(root, new_table)))
+  {
+    tmp->ptr=      new_ptr;
+    tmp->null_ptr= new_null_ptr;
+    tmp->null_bit= new_null_bit;
+  }
+  return tmp;
+}
+
 
 /****************************************************************************
   Field_null, a field that always return NULL
@@ -5116,12 +5153,20 @@ Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table)
 
 
 Field *Field_varstring::new_key_field(MEM_ROOT *root,
-                                      struct st_table *new_table)
+                                      struct st_table *new_table,
+                                      char *new_ptr, uchar *new_null_ptr,
+                                      uint new_null_bit)
 {
-  Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table);
-  /* Keys length prefixes are always packed with 2 bytes */
-  if (res)
+  Field_varstring *res;
+  if ((res= (Field_varstring*) Field::new_key_field(root,
+                                                    new_table,
+                                                    new_ptr,
+                                                    new_null_ptr,
+                                                    new_null_bit)))
+  {
+    /* Keys length prefixes are always packed with 2 bytes */
     res->length_bytes= 2;
+  }
   return res;
 }
 
@@ -6210,6 +6255,43 @@ bool Field_num::eq_def(Field *field)
   11          one byte for 'd'
 */
 
+Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
+                     uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
+                     enum utype unireg_check_arg, const char *field_name_arg,
+                     struct st_table *table_arg)
+  : Field(ptr_arg, len_arg >> 3, null_ptr_arg, null_bit_arg,
+          unireg_check_arg, field_name_arg, table_arg),
+    bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7)
+{
+  /*
+    Ensure that Field::eq() can distinguish between two different bit fields.
+    (two bit fields that are not null, may have same ptr and null_ptr)
+  */
+  if (!null_ptr_arg)
+    null_bit= bit_ofs_arg;
+}
+
+
+Field *Field_bit::new_key_field(MEM_ROOT *root,
+                                struct st_table *new_table,
+                                char *new_ptr, uchar *new_null_ptr,
+                                uint new_null_bit)
+{
+  Field_bit *res;
+  if ((res= (Field_bit*) Field::new_key_field(root, new_table,
+                                              new_ptr, new_null_ptr,
+                                              new_null_bit)))
+  {
+    /* Move bits normally stored in null_pointer to new_ptr */
+    res->bit_ptr= (uchar*) new_ptr;
+    res->bit_ofs= 0;
+    if (bit_len)
+      res->ptr++;                               // Store rest of data here
+  }
+  return res;
+}
+
+
 void Field_bit::make_field(Send_field *field)
 {
   /* table_cache_key is not set for temp tables */
@@ -6331,7 +6413,7 @@ int Field_bit::key_cmp(const byte *str, uint length)
   {
     int flag;
     uchar bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
-    if ((flag= (int) (bits - *str)))
+    if ((flag= (int) (bits - *(uchar*) str)))
       return flag;
     str++;
     length--;
@@ -6425,6 +6507,11 @@ void create_field::create_length_to_internal_length(void)
     /* Pack_length already calculated in sql_parse.cc */
     length*= charset->mbmaxlen;
     key_length= pack_length;
+    break;
+  case MYSQL_TYPE_BIT:
+    pack_length= calc_pack_length(sql_type, length);
+    /* We need one extra byte to store the bits we save among the null bits */
+    key_length= pack_length+ test(length & 7);
     break;
   default:
     key_length= pack_length= calc_pack_length(sql_type, length);

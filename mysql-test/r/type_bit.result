@@ -321,6 +321,12 @@ select a+0, b+0, c+0 from t1 where a = 4 and b = 0 limit 2;
 a+0	b+0	c+0
 4	0	3
 4	0	23
+select a+0, b+0, c+0 from t1 where a = 4 and b = 1;
+a+0	b+0	c+0
+4	1	100
+select a+0, b+0, c+0 from t1 where a = 4 and b = 1 and c=100;
+a+0	b+0	c+0
+4	1	100
 select a+0, b+0, c+0 from t1 order by b desc;
 a+0	b+0	c+0
 2	1	4
