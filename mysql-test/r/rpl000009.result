@@ -49,21 +49,48 @@ show databases;
 Database
 mysql
 test
+create database foo;
+create table foo.t1(n int, s char(20));
+insert into foo.t1 values (1, 'original foo.t1');
+create table foo.t3(n int, s char(20));
+insert into foo.t3 values (1, 'original foo.t3');
+create database foo2;
+create table foo2.t1(n int, s char(20));
+insert into foo2.t1 values (1, 'original foo2.t1');
+create database bar;
+create table bar.t1(n int, s char(20));
+insert into bar.t1 values (1, 'original bar.t1');
+create table bar.t3(n int, s char(20));
+insert into bar.t3 values (1, 'original bar.t3');
 load data from master;
 show databases;
 Database
 bar
 foo
+foo2
 mysql
 test
 use foo;
 show tables;
 Tables_in_foo
+t1
+t3
+select * from t1;
+n	s
+1	original foo.t1
+use foo2;
+show tables;
+Tables_in_foo2
+t1
+select * from t1;
+n	s
+1	original foo2.t1
 use bar;
 show tables;
 Tables_in_bar
 t1
 t2
+t3
 select * from bar.t1;
 n	s
 1	one bar
@@ -74,6 +101,9 @@ n	s
 11	eleven bar
 12	twelve bar
 13	thirteen bar
+select * from bar.t3;
+n	s
+1	original bar.t3
 insert into bar.t1 values (4, 'four bar');
 select * from bar.t1;
 n	s
@@ -81,5 +111,23 @@ n	s
 2	two bar
 3	three bar
 4	four bar
+insert into bar.t1 values(10, 'should be there');
+flush tables;
+load data from master;
+Error on delete of './bar/t1.MYI' (Errcode: 13)
+select * from bar.t1;
+n	s
+1	one bar
+2	two bar
+3	three bar
+4	four bar
+10	should be there
+load table bar.t1 from master;
+Table 't1' already exists
+drop table bar.t1;
+load table bar.t1 from master;
+start slave;
 drop database bar;
 drop database foo;
+drop database foo;
+drop database foo2;

@@ -384,9 +384,9 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 int mysql_table_dump(THD* thd, const char* db,
 		     const char* tbl_name, int fd = -1);
 
-/* retrieve non-exitent table from master */
+/* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		       MASTER_INFO* mi, MYSQL* mysql);
+		       MASTER_INFO* mi, MYSQL* mysql, bool overwrite);
 
 int show_master_info(THD* thd, MASTER_INFO* mi);
 int show_binlog_info(THD* thd);
