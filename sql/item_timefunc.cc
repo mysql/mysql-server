@@ -56,7 +56,7 @@ static bool get_interval_info(const char *str,uint length,uint count,
   {
     longlong value;
     for (value=0; str != end && isdigit(*str) ; str++)
-      value=value*10LL + (long) (*str - '0');
+      value=value*LL(10) + (long) (*str - '0');
     values[i]= value;
     while (str != end && !isdigit(*str))
       str++;
@@ -1015,9 +1015,9 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
       days--;
       sec+=3600*LL(24);
     }
-    ltime->second=sec % 60;
-    ltime->minute=sec/60 % 60;
-    ltime->hour=sec/3600;
+    ltime->second= (uint)(sec % 60);
+    ltime->minute= (uint)(sec/60 % 60);
+    ltime->hour=   (uint)(sec/3600);
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
     if ((ulonglong) daynr >= 3652424) // Day number from year 0 to 9999-12-31
       goto null_date;
