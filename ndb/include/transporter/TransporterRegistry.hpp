@@ -116,7 +116,7 @@ public:
    */
   bool connect_server(NDB_SOCKET_TYPE sockfd);
 
-  int TransporterRegistry::connect_client(NdbMgmHandle h);
+  bool connect_client(NdbMgmHandle *h);
 
   /**
    * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
@@ -128,7 +128,7 @@ public:
    * Given a connected NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle h);
+  NDB_SOCKET_TYPE connect_ndb_mgmd(NdbMgmHandle *h);
 
   /**
    * Remove all transporters

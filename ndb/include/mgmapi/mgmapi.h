@@ -994,7 +994,7 @@ extern "C" {
    *
    * @note the socket is now able to be used as a transporter connection
    */
-  NDB_SOCKET_TYPE ndb_mgm_convert_to_transporter(NdbMgmHandle handle);
+  NDB_SOCKET_TYPE ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
 
   /**
    * Get the node id of the mgm server we're connected to
