@@ -644,6 +644,7 @@ protected:
   bool fake_base; 
 public:
   char* block;
+  const char *event_buf;
   uint block_len;
   uint file_id;
   bool inited_from_old;
@@ -663,7 +664,10 @@ public:
 #endif  
   
   Create_file_log_event(const char* buf, int event_len, bool old_format);
-  ~Create_file_log_event() {}
+  ~Create_file_log_event()
+  {
+    my_free((char*) event_buf, MYF(MY_ALLOW_ZERO_PTR));
+  }
 
   Log_event_type get_type_code()
   {
