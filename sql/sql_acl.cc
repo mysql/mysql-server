@@ -2285,11 +2285,20 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
 			    (!db ? rights : 0), revoke_grant,
 			    create_new_users)))
       result= -1;
-    else
+    else if (db)
     {
-      if (db && replace_db_table(tables[1].table, db, *Str, rights & DB_ACLS,
-				 revoke_grant))
+      ulong db_rights= rights & DB_ACLS;
+      if (db_rights  == rights)
+      {
+	if (replace_db_table(tables[1].table, db, *Str, db_rights,
+			     revoke_grant))
+	  result= -1;
+      }
+      else
+      {
+	net_printf(&thd->net,ER_WRONG_USAGE,"DB GRANT","GLOBAL PRIVILEGEY");
 	result= -1;
+      }
     }
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
