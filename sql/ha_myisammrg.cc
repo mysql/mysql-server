@@ -199,19 +199,13 @@ void ha_myisammrg::position(const byte *record)
   ha_store_ptr(ref, ref_length, (my_off_t) position);
 }
 
-ha_rows ha_myisammrg::records_in_range(int inx,
-				    const byte *start_key,uint start_key_len,
-				    enum ha_rkey_function start_search_flag,
-				    const byte *end_key,uint end_key_len,
-				    enum ha_rkey_function end_search_flag)
+
+ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
+                                       key_range *max_key)
 {
-  return (ha_rows) myrg_records_in_range(file,
-				       inx,
-				       start_key,start_key_len,
-				       start_search_flag,
-				       end_key,end_key_len,
-				       end_search_flag);
+  return (ha_rows) myrg_records_in_range(file, (int) inx, min_key, max_key);
 }
+
 
 void ha_myisammrg::info(uint flag)
 {
@@ -269,12 +263,6 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return myrg_extra(file, operation, (void*) &cache_size);
-}
-
-
-int ha_myisammrg::reset(void)
-{
-  return myrg_extra(file,HA_EXTRA_RESET,0);
 }
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)

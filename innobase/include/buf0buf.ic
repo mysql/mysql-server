@@ -11,10 +11,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "mtr0mtr.h"
 
-extern ulint		buf_dbg_counter; /* This is used to insert validation
-					operations in execution in the
-					debug version */
-					
 /************************************************************************
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
@@ -215,14 +211,14 @@ buf_block_align(
 
 		ut_print_timestamp(stderr);	
 		fprintf(stderr,
-"  InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, end at %lx\n"
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n"
 "InnoDB: Probable reason is database corruption or memory\n"
 "InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
 "InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
 "InnoDB: how to force recovery.\n",
- 			(long)ptr, (long)frame_zero,
-					(long)(buf_pool->high_end));
+ 			ptr, frame_zero,
+			buf_pool->high_end);
 		ut_error;
 	}
 	
@@ -251,14 +247,14 @@ buf_frame_align(
 
 		ut_print_timestamp(stderr);	
 		fprintf(stderr,
-"  InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, end at %lx\n"
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n"
 "InnoDB: Probable reason is database corruption or memory\n"
 "InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
 "InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
 "InnoDB: how to force recovery.\n",
- 			(long)ptr, (long)(buf_pool->frame_zero),
-					(long)(buf_pool->high_end));
+ 			ptr, buf_pool->frame_zero,
+			buf_pool->high_end);
 		ut_error;
 	}
 
@@ -589,7 +585,7 @@ buf_page_get_release_on_io(
 
 	frame = buf_page_get_gen(space, offset, rw_latch, guess,
 				BUF_GET_IF_IN_POOL,
-				IB__FILE__, __LINE__,
+				__FILE__, __LINE__,
 				mtr);
 	if (frame != NULL) {
 

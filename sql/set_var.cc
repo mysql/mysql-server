@@ -59,6 +59,9 @@
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -102,8 +105,10 @@ static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
+static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
+static void fix_server_id(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
@@ -202,10 +207,13 @@ sys_var_long_ptr	sys_max_connections("max_connections",
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
 sys_var_thd_ulong       sys_max_insert_delayed_threads("max_insert_delayed_threads",
-						       &SV::max_insert_delayed_threads);
+						       &SV::max_insert_delayed_threads,
+                                                       check_max_delayed_threads,
+                                                       fix_max_connections);
 sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
 						&SV::max_insert_delayed_threads,
-						0, fix_max_connections);
+                                                check_max_delayed_threads,
+                                                fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
@@ -236,6 +244,8 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
+sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
+                                                    &myisam_data_pointer_size);
 sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
 sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
@@ -253,6 +263,10 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    0, fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
+sys_var_thd_ulong       sys_optimizer_prune_level("optimizer_prune_level",
+                                                  &SV::optimizer_prune_level);
+sys_var_thd_ulong       sys_optimizer_search_depth("optimizer_search_depth",
+                                                   &SV::optimizer_search_depth);
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
@@ -299,7 +313,7 @@ sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
 sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
-sys_var_long_ptr	sys_server_id("server_id",&server_id);
+sys_var_long_ptr	sys_server_id("server_id", &server_id, fix_server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
 #ifdef HAVE_REPLICATION
@@ -433,9 +447,7 @@ sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 /* Global read-only variable describing server license */
-sys_var_const_str		sys_license("license", LICENSE);
-
-
+sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
 
 /*
@@ -515,6 +527,7 @@ sys_var *sys_variables[]=
   &sys_max_tmp_tables,
   &sys_max_user_connections,
   &sys_max_write_lock_count,
+  &sys_myisam_data_pointer_size,
   &sys_myisam_max_extra_sort_file_size,
   &sys_myisam_max_sort_file_size,
   &sys_myisam_repair_threads,
@@ -526,6 +539,8 @@ sys_var *sys_variables[]=
   &sys_net_write_timeout,
   &sys_new_mode,
   &sys_old_passwords,
+  &sys_optimizer_prune_level,
+  &sys_optimizer_search_depth,
   &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
@@ -635,6 +650,7 @@ struct show_var_st init_vars[]= {
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
+  {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
@@ -693,7 +709,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
-  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_BOOL},
+  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
@@ -714,6 +730,7 @@ struct show_var_st init_vars[]= {
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
+  {sys_myisam_data_pointer_size.name, (char*) &sys_myisam_data_pointer_size, SHOW_SYS},
   {sys_myisam_max_extra_sort_file_size.name,
    (char*) &sys_myisam_max_extra_sort_file_size,
    SHOW_SYS},
@@ -733,6 +750,10 @@ struct show_var_st init_vars[]= {
   {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
   {sys_old_passwords.name,    (char*) &sys_old_passwords,           SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
+  {sys_optimizer_prune_level.name, (char*) &sys_optimizer_prune_level,
+   SHOW_SYS},
+  {sys_optimizer_search_depth.name,(char*) &sys_optimizer_search_depth,
+   SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
@@ -842,7 +863,7 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   uint new_length= (var ? var->value->str_value.length() : 0);
   if (!old_value)
     old_value= (char*) "";
-  if (!(res= my_strdup_with_length(old_value, new_length, MYF(0))))
+  if (!(res= my_strdup_with_length((byte*)old_value, new_length, MYF(0))))
     return 1;
   /*
     Replace the old value in such a way that the any thread using
@@ -902,7 +923,7 @@ static bool sys_update_ftb_syntax(THD *thd, set_var * var)
 
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 {
-  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+  strmake(ft_boolean_syntax, def_ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
 }
 
@@ -1085,6 +1106,20 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 }
 
 
+static int check_max_delayed_threads(THD *thd, set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (var->type != OPT_GLOBAL && val != 0 &&
+      val != (longlong) global_system_variables.max_insert_delayed_threads)
+  {
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
+    return 1;
+  }
+  return 0;
+}
+
+
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
   resize_thr_alarm(max_connections + 
@@ -1108,6 +1143,13 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type)
                         thd->variables.trans_alloc_block_size,
                         thd->variables.trans_prealloc_size);
 }
+
+
+static void fix_server_id(THD *thd, enum_var_type type)
+{
+  server_id_supplied = 1;
+}
+
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
@@ -1268,11 +1310,11 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
 
-  if ((ulonglong) tmp > max_system_variables.*offset)
+  if (tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
   if (option_limits)
-    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
+    tmp= getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
@@ -2554,6 +2596,36 @@ int set_var::check(THD *thd)
 }
 
 
+/*
+  Check variable, but without assigning value (used by PS)
+
+  SYNOPSIS
+    set_var::light_check()
+    thd		thread handler
+
+  RETURN VALUE
+    0	ok
+    1	ERROR, message sent (normally no variables was updated)
+    -1  ERROR, message not sent
+*/
+int set_var::light_check(THD *thd)
+{
+  if (var->check_type(type))
+  {
+    my_error(type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE,
+	     MYF(0),
+	     var->name);
+    return -1;
+  }
+  if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
+    return 1;
+
+  if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
+    return -1;
+  return 0;
+}
+
+
 int set_var::update(THD *thd)
 {
   if (!value)
@@ -2578,6 +2650,28 @@ int set_var_user::check(THD *thd)
   */
   return (user_var_item->fix_fields(thd, 0, (Item**) 0) ||
 	  user_var_item->check()) ? -1 : 0;
+}
+
+
+/*
+  Check variable, but without assigning value (used by PS)
+
+  SYNOPSIS
+    set_var_user::light_check()
+    thd		thread handler
+
+  RETURN VALUE
+    0	ok
+    1	ERROR, message sent (normally no variables was updated)
+    -1  ERROR, message not sent
+*/
+int set_var_user::light_check(THD *thd)
+{
+  /*
+    Item_func_set_user_var can't substitute something else on its place =>
+    0 can be passed as last argument (reference on item)
+  */
+  return (user_var_item->fix_fields(thd, 0, (Item**) 0));
 }
 
 

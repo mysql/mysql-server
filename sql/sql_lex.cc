@@ -24,8 +24,6 @@
 #include "sp.h"
 #include "sp_head.h"
 
-LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
-
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -869,13 +867,15 @@ int yylex(void *arg, void *yythd)
       }
       yySkip();
       return (SET_VAR);
-    case MY_LEX_COLON:			// optional line terminator
+    case MY_LEX_SEMICOLON:			// optional line terminator
       if (yyPeek())
       {
-        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_STATEMENTS)
+        THD* thd= (THD*)yythd;
+        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
+            (thd->command != COM_PREPARE))
         {
           lex->found_colon=(char*)lex->ptr;
-          ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
           return(END_OF_INPUT);
         }
@@ -995,6 +995,7 @@ void st_select_lex_unit::init_query()
   fake_select_lex= 0;
   cleaned= 0;
   item_list.empty();
+  describe= 0;
   found_rows_for_union= 0;
 }
 
@@ -1009,9 +1010,12 @@ void st_select_lex::init_query()
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;
   cond_count= with_wild= 0;
+  conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_having_items= 0;
   prep_where= 0;
+  explicit_limit= 0;
+  first_execution= 1;
 }
 
 void st_select_lex::init_select()
@@ -1411,7 +1415,9 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
-  return item_list.push_back(item);
+  DBUG_ENTER("st_select_lex::add_item_to_list");
+  DBUG_PRINT("info", ("Item: %p", item));
+  DBUG_RETURN(item_list.push_back(item));
 }
 
 
@@ -1497,12 +1503,12 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Statement *stmt= thd->current_statement ? thd->current_statement : thd;
+  Item_arena *arena= thd->current_arena ? thd->current_arena : thd;
   return (ref_pointer_array= 
-	  (Item **)stmt->alloc(sizeof(Item*) *
-			       (item_list.elements +
-				select_n_having_items +
-				order_group_num)* 5)) == 0;
+          (Item **)arena->alloc(sizeof(Item*) *
+                                (item_list.elements +
+                                 select_n_having_items +
+                                 order_group_num)* 5)) == 0;
 }
 
 
@@ -1520,7 +1526,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 */
 bool st_select_lex_unit::check_updateable(char *db, char *table)
 {
-  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     if (sl->check_updateable(db, table))
       return 1;
   return 0;
@@ -1605,10 +1611,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
   if (!thd)
     thd= current_thd;
 
-  if ((select_limit != thd->variables.select_limit &&
-       this == &thd->lex->select_lex) ||
-      (select_limit != HA_POS_ERROR && this != &thd->lex->select_lex) ||
-      offset_limit != 0L)
+  if (explicit_limit)
   {
     str->append(" limit ", 7);
     char buff[20];
@@ -1644,6 +1647,75 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
     sl->options&= ~OPTION_FOUND_ROWS;
 }
 
+
+/*
+  Unlink first table from global table list and first table from outer select
+  list (lex->select_lex)
+
+  SYNOPSIS
+    unlink_first_table()
+    tables		Global table list
+    global_first	Save first global table here
+    local_first		Save first local table here
+
+  NORES
+   global_first & local_first are used to save result for link_first_table_back
+
+  RETURN
+    global list without first table
+
+*/
+TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
+				       TABLE_LIST **global_first,
+				       TABLE_LIST **local_first)
+{
+  *global_first= tables;
+  *local_first= (TABLE_LIST*)select_lex.table_list.first;
+  /*
+    Exclude from global table list
+  */
+  tables= tables->next;
+  /*
+    and from local list if it is not the same
+  */
+  select_lex.table_list.first= ((&select_lex != all_selects_list) ?
+				(byte*) (*local_first)->next :
+				(byte*) tables);
+  (*global_first)->next= 0;
+  return tables;
+}
+
+
+/*
+  Link table back that was unlinked with unlink_first_table()
+
+  SYNOPSIS
+    link_first_table_back()
+    tables		Global table list
+    global_first	Saved first global table
+    local_first		Saved first local table
+
+  RETURN
+    global list
+*/
+TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
+					  TABLE_LIST *global_first,
+					  TABLE_LIST *local_first)
+{
+  global_first->next= tables;
+  if (&select_lex != all_selects_list)
+  {
+    /*
+      we do not touch local table 'next' field => we need just
+      put the table in the list
+    */
+    select_lex.table_list.first= (byte*) local_first;
+  }
+  else
+    select_lex.table_list.first= (byte*) global_first;
+  return global_first;
+}
+
 /*
   There are st_select_lex::add_table_to_list & 
   st_select_lex::set_lock_for_tables are in sql_parse.cc
@@ -1651,6 +1723,7 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
   st_select_lex::print is in sql_select.h
 
   st_select_lex_unit::prepare, st_select_lex_unit::exec,
-  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism,
+  st_select_lex_unit::change_result
   are in sql_union.cc
 */

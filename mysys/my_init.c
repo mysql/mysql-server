@@ -353,13 +353,15 @@ static my_bool win32_init_tcp_ip()
 
 
 #ifdef __NETWARE__
-/****************************************************************************
-  Do basic initialisation for netware needed by most programs
-****************************************************************************/
+/*
+  Basic initialisation for netware
+*/
 
 static void netware_init()
 {
   char cwd[PATH_MAX], *name;
+
+  DBUG_ENTER("netware_init");
 
   /* init only if we are not a client library */
   if (my_progname)
@@ -398,5 +400,7 @@ static void netware_init()
       }
     }
   }
+
+  DBUG_VOID_RETURN;
 }
 #endif /* __NETWARE__ */

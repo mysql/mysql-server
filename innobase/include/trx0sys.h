@@ -258,7 +258,7 @@ replication has proceeded. */
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	char*		file_name,/* in: MySQL log file name */
+	const char*	file_name,/* in: MySQL log file name */
 	ib_longlong	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */
@@ -270,8 +270,9 @@ the magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
+#ifdef UNIV_HOTBACKUP
 /*********************************************************************
-Prints to stdout the MySQL binlog info in the system header if the
+Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
 
 void
@@ -279,6 +280,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
 	byte*	page);	/* in: buffer containing the trx system header page,
 			i.e., page number TRX_SYS_PAGE_NO in the tablespace */
+#endif /* UNIV_HOTBACKUP */
 /*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */

@@ -92,12 +92,26 @@ public:
 	utype unireg_check_arg, const char *field_name_arg,
 	struct st_table *table_arg);
   virtual ~Field() {}
+  /* Store functions returns 1 on overflow and -1 on fatal error */
   virtual int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr)=0;
   virtual void store_time(TIME *ltime,timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
+  inline String *val_str(String *str) { return val_str(str, str); }
+  /*
+     val_str(buf1, buf2) gets two buffers and should use them as follows:
+     if it needs a temp buffer to convert result to string - use buf1
+       example Field_tiny::val_str()
+     if the value exists as a string already - use buf2
+       example Field_string::val_str()
+     consequently, buf2 may be created as 'String buf;' - no memory
+     will be allocated for it. buf1 will be allocated to hold a
+     value if it's too small. Using allocated buffer for buf2 may result in
+     an unnecessary free (and later, may be an alloc).
+     This trickery is used to decrease a number of malloc calls.
+  */
   virtual String *val_str(String*,String *)=0;
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
@@ -199,7 +213,8 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type)
+  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs,
+			     imagetype type)
     { get_image(buff,length,cs); }
   virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
     { set_image(buff,length,cs); }

@@ -26,7 +26,7 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
-class Statement;
+class Item_arena;
 
 /* base class for subselects */
 
@@ -36,8 +36,8 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* prepared statement, or 0 */
-  Statement *stmt;
+  /* Item_arena used or 0 */
+  Item_arena *arena;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* unit of subquery */
@@ -140,7 +140,7 @@ public:
   void fix_length_and_dec();
 
   uint cols();
-  Item* el(uint i) { return (Item*)row[i]; }
+  Item* el(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
   bool null_inside();
@@ -290,6 +290,7 @@ public:
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str)= 0;
+  virtual int change_item(Item_subselect *si, select_subselect *result)= 0;
 };
 
 
@@ -313,6 +314,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
+  int change_item(Item_subselect *si, select_subselect *result);
 };
 
 
@@ -332,6 +334,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
+  int change_item(Item_subselect *si, select_subselect *result);
 };
 
 
@@ -360,6 +363,7 @@ public:
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   void print (String *str);
+  int change_item(Item_subselect *si, select_subselect *result);
 };
 
 

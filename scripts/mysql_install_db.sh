@@ -10,6 +10,8 @@
 in_rpm=0
 windows=0
 defaults=""
+tmp_file=/tmp/mysql_install_db.$$
+
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
       defaults="$1"; shift
@@ -200,15 +202,30 @@ if test "$in_rpm" -eq 0 -a "$windows" -eq 0
 then
   echo "Installing all prepared tables"
 fi
-if (
-   $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows 
-   if test -n "$fill_help_tables"
-   then
-     cat $fill_help_tables
-   fi
-) | eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
-         --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
+mysqld_install_cmd_line="$mysqld $defaults $mysqld_opt --bootstrap \
+--skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb \
+--skip-bdb $args"
+if $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows \
+   | eval "$mysqld_install_cmd_line" 
 then
+  if test -n "$fill_help_tables"
+  then
+    if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+    then
+      echo "Fill help tables"
+    fi
+    echo "use mysql;" > $tmp_file
+    cat $tmp_file $fill_help_tables | eval "$mysqld_install_cmd_line"
+    res=$?
+    rm $tmp_file
+    if test $res != 0
+    then
+      echo ""
+      echo "WARNING: HELP FILES ARE NOT COMPLETELY INSTALLED!"
+      echo "The \"HELP\" command might not work properly"
+      echo ""
+    fi
+  fi
   if test "$in_rpm" = 0 -a "$windows" = 0
   then
     echo ""
@@ -250,7 +267,7 @@ then
   fi
   exit 0
 else
-  echo "Installation of grant tables failed!"
+  echo "Installation of system tables failed!"
   echo
   echo "Examine the logs in $ldata for more information."
   echo "You can also try to start the mysqld daemon with:"

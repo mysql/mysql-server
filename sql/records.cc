@@ -80,7 +80,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     if (!table->sort.addon_field &&
         ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
-	!table->file->fast_key_read() &&
+	!(table->file->table_flags() & HA_FAST_KEY_READ) &&
 	(table->db_stat & HA_READ_ONLY ||
 	 table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
 	(ulonglong) table->reclength*(table->file->records+

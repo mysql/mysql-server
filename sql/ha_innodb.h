@@ -89,7 +89,7 @@ class ha_innobase: public handler
 	  int_table_flags(HA_REC_NOT_IN_SEQ |
 			  HA_KEYPOS_TO_RNDPOS |
 			  HA_LASTKEY_ORDER |
-			  HA_NULL_KEY |
+			  HA_NULL_KEY | HA_FAST_KEY_READ |
 			  HA_BLOB_KEY |
 			  HA_CAN_SQL_HANDLER |
 			  HA_NOT_EXACT_COUNT |
@@ -123,7 +123,8 @@ class ha_innobase: public handler
 				whose size is > MAX_KEY_LENGTH */
   	uint max_key_length() const { return((MAX_KEY_LENGTH <= 3500) ?
 					  MAX_KEY_LENGTH : 3500);}
-  	bool fast_key_read()	 { return 1;}
+  	uint max_key_part_length() { return((MAX_KEY_LENGTH <= 3500) ?
+					  MAX_KEY_LENGTH : 3500);}
 	const key_map *keys_to_use_for_scanning() { return &key_map_full; }
   	bool has_transactions()  { return 1;}
 
@@ -161,16 +162,11 @@ class ha_innobase: public handler
         int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);
   	int extra(enum ha_extra_function operation);
-  	int reset(void);
   	int external_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd);
 
   	void position(byte *record);
-  	ha_rows records_in_range(int inx,
-			   const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
+  	ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
 	ha_rows estimate_number_of_rows();
 
   	int create(const char *name, register TABLE *form,

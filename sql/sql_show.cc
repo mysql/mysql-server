@@ -181,7 +181,7 @@ int mysqld_show_storage_engines(THD *thd)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_storage_engines");
 
-  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Engine",10));
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
 
@@ -422,7 +422,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(system_charset_info,file->name,wild))
+	  if (wild_case_compare(files_charset_info, file->name, wild))
 	    continue;
 	}
 	else if (wild_compare(file->name,wild,0))
@@ -436,7 +436,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.db= (char*) db;
       table_list.real_name=file->name;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd,TABLE_ACLS,&table_list,1,1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
         continue;
     }
 #endif
@@ -471,7 +471,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
-  field_list.push_back(item=new Item_empty_string("Type",10));
+  field_list.push_back(item=new Item_empty_string("Engine",10));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Row_format",10));
   item->maybe_null=1;
@@ -735,11 +735,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           */
           protocol->store("CURRENT_TIMESTAMP", system_charset_info);
         }
-        else if (field->unireg_check != Field::NEXT_NUMBER && 
+        else if (field->unireg_check != Field::NEXT_NUMBER &&
                  !field->is_null())
         {                                               // Not null by default
           type.set(tmp, sizeof(tmp), field->charset());
-          field->val_str(&type,&type);
+          field->val_str(&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
@@ -1207,7 +1207,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
-  String type(tmp, sizeof(tmp),&my_charset_bin);
+  String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
   uint primary_key;
   KEY *key_info;
@@ -1254,7 +1254,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       type.set(tmp, sizeof(tmp),&my_charset_bin);
 
     field->sql_type(type);
-    packet->append(type.ptr(),type.length());
+    packet->append(type.ptr(), type.length(), system_charset_info);
 
     if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
     {
@@ -1298,10 +1298,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type,&type);
+        field->val_str(&type);
 	if (type.length())
 	{
-   	  String def_val;
+	  String def_val;
 	  /* convert to system_charset_info == utf8 */
 	  def_val.copy(type.ptr(), type.length(), field->charset(),
 		       system_charset_info);
@@ -1313,7 +1313,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
       else
-        packet->append(tmp,0);
+        packet->append(tmp);
     }
 
     if (!foreign_db_mode && !limited_mysql_mode &&
@@ -1597,10 +1597,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         if (tmp->query)
         {
-	  /* query_length is always set before tmp->query */
+	  /* 
+            query_length is always set to 0 when we set query = NULL; see
+	    the comment in sql_class.h why this prevents crashes in possible
+            races with query_length
+          */
           uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->memdup(tmp->query,length+1);
-          thd_info->query[length]=0;
+          thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
         thread_infos.append(thd_info);
       }
@@ -1845,6 +1848,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         end= strend(pos);
         break;
       }
+      case SHOW_DOUBLE:
+      {
+        end= buff + sprintf(buff, "%f", *(double*) value);
+        break;
+      }
 #ifdef HAVE_OPENSSL
 	/* First group - functions relying on CTX */
       case SHOW_SSL_CTX_SESS_ACCEPT:
@@ -2021,6 +2029,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
 #endif /* HAVE_OPENSSL */
       case SHOW_KEY_CACHE_LONG:
+      case SHOW_KEY_CACHE_CONST_LONG:
 	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
 	end= int10_to_str(*(long*) value, buff, 10);
         break;

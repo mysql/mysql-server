@@ -1708,23 +1708,13 @@ pars_get_lex_chars(
 }
 
 /*****************************************************************
-Instructs the lexical analyzer to stop when it receives the EOF integer. */
-
-int
-yywrap(void)
-/*========*/
-		/* out: returns TRUE */
-{
-	return(1);
-}
-
-/*****************************************************************
 Called by yyparse on error. */
 
 void
 yyerror(
 /*====*/
-        char*	s __attribute__((unused))) /* in: error message string */
+	const char*	s __attribute__((unused)))
+				/* in: error message string */
 {
 	ut_ad(s);
 
@@ -1739,14 +1729,12 @@ Parses an SQL string returning the query graph. */
 que_t*
 pars_sql(
 /*=====*/
-			/* out, own: the query graph */
-	char*	str)	/* in: SQL string */
+				/* out, own: the query graph */
+	const char*	str)	/* in: SQL string */
 {
 	sym_node_t*	sym_node;
 	mem_heap_t*	heap;
 	que_t*		graph;
-	ulint		len;
-	char*		buf;
 
 	ut_ad(str);
 
@@ -1758,12 +1746,8 @@ pars_sql(
 #endif /* UNIV_SYNC_DEBUG */
 	pars_sym_tab_global = sym_tab_create(heap);
 
-	len = ut_strlen(str);
-	buf = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(buf, str, len + 1);
-
-	pars_sym_tab_global->sql_string = buf;
-	pars_sym_tab_global->string_len = len;
+	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
+	pars_sym_tab_global->string_len = strlen(str);
 	pars_sym_tab_global->next_char_pos = 0;
 	
 	yyparse();

@@ -37,8 +37,6 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   bool 		using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, log_delayed, safe_update, const_cond; 
   ha_rows	deleted;
-  TABLE_LIST    *delete_table_list= (TABLE_LIST*) 
-    thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_delete");
 
   if ((open_and_lock_tables(thd, table_list)))
@@ -47,15 +45,9 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
-  if (setup_conds(thd, delete_table_list, &conds) || 
-      setup_ftfuncs(&thd->lex->select_lex))
-    DBUG_RETURN(-1);
-  if (find_real_table_in_list(table_list->next, 
-			      table_list->db, table_list->real_name))
-  {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
-  }
+
+  if ((error= mysql_prepare_delete(thd, table_list, &conds)))
+    DBUG_RETURN(error);
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
@@ -249,6 +241,45 @@ cleanup:
     thd->row_count_func= deleted;
     send_ok(thd,deleted);
     DBUG_PRINT("info",("%d records deleted",deleted));
+  }
+       DBUG_RETURN(0);
+}
+
+
+/*
+  Prepare items in DELETE statement
+
+  SYNOPSIS
+    mysql_prepare_delete()
+    thd			- thread handler
+    table_list		- global table list
+    conds		- conditions
+
+  RETURN VALUE
+    0  - OK
+    1  - error (message is sent to user)
+    -1 - error (message is not sent to user)
+*/
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
+{
+  TABLE_LIST *delete_table_list= ((TABLE_LIST*) thd->lex->
+				  select_lex.table_list.first);
+  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  DBUG_ENTER("mysql_prepare_delete");
+
+  if (setup_conds(thd, delete_table_list, conds) || 
+      setup_ftfuncs(select_lex))
+    DBUG_RETURN(-1);
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
+  if (thd->current_arena && select_lex->first_execution)
+  {
+    select_lex->prep_where= select_lex->where;
+    select_lex->first_execution= 0;
   }
   DBUG_RETURN(0);
 }

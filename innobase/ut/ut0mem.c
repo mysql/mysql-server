@@ -107,7 +107,7 @@ ut_malloc_low(
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
-		printf("%lu\n", (ulong) *ut_mem_null_ptr);
+		if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
 	}		
 
 	if (set_to_zero) {
@@ -232,77 +232,44 @@ ut_free_all_mem(void)
 }
 
 /**************************************************************************
-Catenates two strings into newly allocated memory. The memory must be freed
-using mem_free. */
+Make a quoted copy of a string. */
 
 char*
-ut_str_catenate(
-/*============*/
-			/* out, own: catenated null-terminated string */
-	char*	str1,	/* in: null-terminated string */
-	char*	str2)	/* in: null-terminated string */
+ut_strcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src)	/* in: null-terminated string */
 {
-	ulint	len1;
-	ulint	len2;
-	char*	str;
-
-	len1 = ut_strlen(str1);
-	len2 = ut_strlen(str2);
-
-	str = mem_alloc(len1 + len2 + 1);
-
-	ut_memcpy(str, str1, len1);
-	ut_memcpy(str + len1, str2, len2);
-
-	str[len1 + len2] = '\0';
-
-	return(str);
-}
-
-/**************************************************************************
-Checks if a null-terminated string contains a certain character. */
-
-ibool
-ut_str_contains(
-/*============*/
-	char*	str,	/* in: null-terminated string */
-	char	c)	/* in: character */
-{
-	ulint	len;
-	ulint	i;
-
-	len = ut_strlen(str);
-
-	for (i = 0; i < len; i++) {
-		if (str[i] == c) {
-
-			return(TRUE);
+	while (*src) {
+		if ((*dest++ = *src++) == q) {
+			*dest++ = q;
 		}
 	}
 
-	return(FALSE);
+	return(dest);
 }
 
 /**************************************************************************
-Return a copy of the given string. The returned string must be freed
-using mem_free. */
+Make a quoted copy of a fixed-length string. */
 
 char*
-ut_strdup(
-/*======*/
-			/* out, own: cnull-terminated string */
-	char*	str)	/* in: null-terminated string */
+ut_memcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src,	/* in: string to be quoted */
+	ulint		len)	/* in: length of src */
 {
-	ulint	len;
-	char*	copy;
+	const char*	srcend = src + len;
 
-	len = ut_strlen(str);
+	while (src < srcend) {
+		if ((*dest++ = *src++) == q) {
+			*dest++ = q;
+		}
+	}
 
-	copy = mem_alloc(len + 1);
-
-	ut_memcpy(copy, str, len);
-
-	copy[len] = 0;
-
-	return(copy);
+	return(dest);
 }

@@ -193,7 +193,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ACTION
 %token	AGGREGATE_SYM
 %token	ALL
-%token	AND
+%token	AND_SYM
 %token	AS
 %token	ASC
 %token	AUTO_INC
@@ -329,6 +329,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NAME_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
+%token  NDBCLUSTER_SYM
 %token	NEW_SYM
 %token	NCHAR_SYM
 %token	NCHAR_STRING
@@ -342,7 +343,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
-%token	OR
+%token	OR_SYM
 %token	OR_OR_CONCAT
 %token	ORDER_SYM
 %token  OUT_SYM
@@ -617,8 +618,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token  BEFORE_SYM
 %left   SET_VAR
-%left	OR_OR_CONCAT OR XOR
-%left	AND
+%left	OR_OR_CONCAT OR_SYM XOR
+%left	AND_SYM
 %left	BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left	EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
 %left	'|'
@@ -646,7 +647,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape opt_constraint
+	opt_escape opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -781,7 +782,7 @@ END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
-	',' '!' '{' '}' '&' '|' AND OR OR_OR_CONCAT BETWEEN_SYM CASE_SYM
+	',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_CONCAT BETWEEN_SYM CASE_SYM
 	THEN_SYM WHEN_SYM DIV_SYM MOD_SYM
 %%
 
@@ -976,11 +977,7 @@ create:
 	  THD *thd= YYTHD;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!lex->select_lex.add_table_to_list(thd,$5,
-						 ($2 &
-						  HA_LEX_CREATE_TMP_TABLE ?
-						  &tmp_table_alias :
-						  (LEX_STRING*) 0),
+	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
 						 (using_update_log ?
 						  TL_READ_NO_INSERT:
@@ -1014,7 +1011,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 
-	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
+	    lex->key_list.push_back(new Key($2,$4.str, $5, 0, lex->col_list));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -2217,7 +2214,6 @@ merge_insert_types:
 
 opt_select_from:
 	opt_limit_clause {}
-	| FROM DUAL_SYM {}
 	| select_from select_lock_type;
 
 udf_func_type:
@@ -2240,7 +2236,7 @@ field_list_item:
          ;
 
 column_def:
-	  field_spec check_constraint
+	  field_spec opt_check_constraint
 	| field_spec references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
@@ -2251,26 +2247,34 @@ key_def:
 	key_type opt_ident key_alg '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new Key($1,$2, $3, lex->col_list));
+	    lex->key_list.push_back(new Key($1,$2, $3, 0, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3:$1;
-	    lex->key_list.push_back(new Key($2, key_name, $4, lex->col_list));
+	    lex->key_list.push_back(new Key($2, key_name, $4, 0,
+				    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new foreign_key($4, lex->col_list,
+	    lex->key_list.push_back(new foreign_key($4 ? $4:$1, lex->col_list,
 				    $8,
 				    lex->ref_list,
 				    lex->fk_delete_opt,
 				    lex->fk_update_opt,
 				    lex->fk_match_option));
+	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4 : $1,
+					    HA_KEY_ALG_UNDEF, 1,
+					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
+	| constraint opt_check_constraint
+	  {
+	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint check_constraint
 	  {
@@ -2278,14 +2282,23 @@ key_def:
 	  }
 	;
 
-check_constraint:
+opt_check_constraint:
 	/* empty */
-	| CHECK_SYM expr
+	| check_constraint
+	;
+
+check_constraint:
+	CHECK_SYM expr
 	;
 
 opt_constraint:
 	/* empty */		{ $$=(char*) 0; }
-	| CONSTRAINT opt_ident	{ $$=$2; };
+	| constraint		{ $$= $1; }
+	;
+
+constraint:
+	CONSTRAINT opt_ident	{ $$=$2; }
+	;
 
 field_spec:
 	field_ident
@@ -2504,10 +2517,29 @@ attribute:
           { Lex->on_update_value= new Item_func_now_local(); }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
-	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
-	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
-	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
-	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
+	  { 
+	    LEX *lex=Lex;
+	    lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
+	  }
+	| opt_primary KEY_SYM 
+	  {
+	    LEX *lex=Lex;
+	    lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
+	  }
+	| UNIQUE_SYM	  
+	  {
+	    LEX *lex=Lex;
+	    lex->type|= UNIQUE_FLAG; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
+	  }
+	| UNIQUE_SYM KEY_SYM 
+	  {
+	    LEX *lex=Lex;
+	    lex->type|= UNIQUE_KEY_FLAG; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
+	  }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
 	| BINARY { Lex->type|= BINCMP_FLAG; }
 	| COLLATE_SYM collation_name
@@ -2754,17 +2786,15 @@ alter:
 	  lex->create_list.empty();
 	  lex->key_list.empty();
 	  lex->col_list.empty();
-	  lex->drop_list.empty();
-	  lex->alter_list.empty();
           lex->select_lex.init_order();
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.default_table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-          lex->alter_keys_onoff=LEAVE_AS_IS;
-	  lex->tablespace_op=NO_TABLESPACE_OP;
-          lex->simple_alter=1;
+	  lex->alter_info.clear();          
+	  lex->alter_info.is_simple= 1;
+	  lex->alter_info.flags= 0;
 	}
 	alter_list
 	{}
@@ -2807,22 +2837,34 @@ alter:
 	;
 
 alter_list:
-	| DISCARD TABLESPACE { Lex->tablespace_op=DISCARD_TABLESPACE; }
-	| IMPORT TABLESPACE { Lex->tablespace_op=IMPORT_TABLESPACE; }
+	| DISCARD TABLESPACE { Lex->alter_info.tablespace_op= DISCARD_TABLESPACE; }
+	| IMPORT TABLESPACE { Lex->alter_info.tablespace_op= IMPORT_TABLESPACE; }
         | alter_list_item
 	| alter_list ',' alter_list_item;
 
 add_column:
-	ADD opt_column { Lex->change=0; };
+	ADD opt_column 
+	{
+	  LEX *lex=Lex;
+	  lex->change=0; 
+	  lex->alter_info.flags|= ALTER_ADD_COLUMN; 
+	};
 
 alter_list_item:
-	add_column column_def opt_place { Lex->simple_alter=0; }
-	| ADD key_def { Lex->simple_alter=0; }
-	| add_column '(' field_list ')'      { Lex->simple_alter=0; }
+	add_column column_def opt_place { Lex->alter_info.is_simple= 0; }
+	| ADD key_def 
+	  { 
+	    LEX *lex=Lex;
+	    lex->alter_info.is_simple= 0; 
+	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
+	  }
+	| add_column '(' field_list ')'      { Lex->alter_info.is_simple= 0; }
 	| CHANGE opt_column field_ident
 	  {
 	     LEX *lex=Lex;
-	     lex->change= $3.str; lex->simple_alter=0;
+	     lex->change= $3.str; 
+	     lex->alter_info.is_simple= 0;
+	     lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
           field_spec opt_place
         | MODIFY_SYM opt_column field_ident
@@ -2832,7 +2874,8 @@ alter_list_item:
             lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
-            lex->simple_alter=0;
+            lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
           }
           type opt_attribute
           {
@@ -2850,43 +2893,51 @@ alter_list_item:
 	| DROP opt_column field_ident opt_restrict
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
-					    $3.str)); lex->simple_alter=0;
+	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
+	    			                               $3.str)); 
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_DROP_COLUMN;
 	  }
-	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
+	| DROP FOREIGN KEY_SYM opt_ident { Lex->alter_info.is_simple= 0; }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						    primary_key_name));
-	    lex->simple_alter=0;
+	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+				               primary_key_name));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_DROP_INDEX;
 	  }
 	| DROP key_or_index field_ident
 	  {
 	    LEX *lex=Lex;
-	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						    $3.str));
-	    lex->simple_alter=0;
+	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+					                       $3.str));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_DROP_INDEX;
 	  }
-	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
-	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
+	| DISABLE_SYM KEYS { Lex->alter_info.keys_onoff= DISABLE; }
+	| ENABLE_SYM KEYS  { Lex->alter_info.keys_onoff= ENABLE; }
 	| ALTER opt_column field_ident SET DEFAULT signed_literal
 	  {
 	    LEX *lex=Lex;
-	    lex->alter_list.push_back(new Alter_column($3.str,$6));
-	    lex->simple_alter=0;
+	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,$6));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
 	| ALTER opt_column field_ident DROP DEFAULT
 	  {
 	    LEX *lex=Lex;
-	    lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0));
-	    lex->simple_alter=0;
+	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,
+                                                                  (Item*) 0));
+	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
 	| RENAME opt_to table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
 	  {
@@ -2907,10 +2958,20 @@ alter_list_item:
 	      lex->create_info.default_table_charset= $5;
 	    lex->create_info.used_fields|= (HA_CREATE_USED_CHARSET |
 					    HA_CREATE_USED_DEFAULT_CHARSET);
-	    lex->simple_alter= 0;
+	    lex->alter_info.is_simple= 0;
 	  }
-        | create_table_options_space_separated { Lex->simple_alter=0; }
-	| order_clause         { Lex->simple_alter=0; };
+        | create_table_options_space_separated 
+	  {
+	    LEX *lex=Lex;
+	    lex->alter_info.is_simple= 0; 
+	    lex->alter_info.flags|= ALTER_OPTIONS;
+	  }
+	| order_clause         
+	  {
+	    LEX *lex=Lex;
+	    lex->alter_info.is_simple= 0; 
+	    lex->alter_info.flags|= ALTER_ORDER;
+	  };
 
 opt_column:
 	/* empty */	{}
@@ -3323,17 +3384,19 @@ select_part2:
 
 select_into:
 	opt_limit_clause {}
-	| FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
-                           clause, and DUAL is system table without fields.
-                           Is "SELECT 1 FROM DUAL" any better than
-                           "SELECT 1" ? Hmmm :) */
         | into
 	| select_from
 	| into select_from
 	| select_from into;
 
 select_from:
-	FROM join_table_list where_clause group_clause having_clause opt_order_clause opt_limit_clause procedure_clause;
+	  FROM join_table_list where_clause group_clause having_clause
+	       opt_order_clause opt_limit_clause procedure_clause
+        | FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
+                           clause, and DUAL is system table without fields.
+                           Is "SELECT 1 FROM DUAL" any better than
+                           "SELECT 1" ? Hmmm :) */
+	;
 
 select_options:
 	/* empty*/
@@ -3466,14 +3529,14 @@ expr_expr:
           {
             $$= new Item_func_not(new Item_in_subselect($1, $4));
           }
-	| expr BETWEEN_SYM no_and_expr AND expr
+	| expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
-	| expr NOT BETWEEN_SYM no_and_expr AND expr
+	| expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| expr OR_OR_CONCAT expr { $$= or_or_concat(YYTHD, $1,$3); }
-	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
+	| expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
+	| expr AND_SYM expr	{ $$= new Item_cond_and($1,$3); }
 	| expr SOUNDS_SYM LIKE expr
 	  {
 	    $$= new Item_func_eq(new Item_func_soundex($1),
@@ -3514,14 +3577,14 @@ expr_expr:
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
-	no_in_expr BETWEEN_SYM no_and_expr AND expr
+	no_in_expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
-	| no_in_expr NOT BETWEEN_SYM no_and_expr AND expr
+	| no_in_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
-	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
+	| no_in_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
+	| no_in_expr AND_SYM expr	{ $$= new Item_cond_and($1,$3); }
 	| no_in_expr SOUNDS_SYM LIKE expr
 	  {
 	    $$= new Item_func_eq(new Item_func_soundex($1),
@@ -3572,12 +3635,12 @@ no_and_expr:
           {
             $$= new Item_func_not(new Item_in_subselect($1, $4));
           }
-	| no_and_expr BETWEEN_SYM no_and_expr AND expr
+	| no_and_expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
-	| no_and_expr NOT BETWEEN_SYM no_and_expr AND expr
+	| no_and_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
-	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
+	| no_and_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_and_expr SOUNDS_SYM LIKE expr
 	  {
@@ -4711,9 +4774,7 @@ opt_limit_clause_init:
 	  LEX *lex= Lex;
 	  SELECT_LEX *sel= lex->current_select;
           sel->offset_limit= 0L;
-          sel->select_limit= (&lex->select_lex == sel) ?
-	    Lex->thd->variables.select_limit :	/* primary SELECT */
-	    HA_POS_ERROR;			/* subquery */
+          sel->select_limit= HA_POS_ERROR;
 	}
 	| limit_clause {}
 	;
@@ -4733,18 +4794,21 @@ limit_options:
             SELECT_LEX *sel= Select;
             sel->select_limit= $1;
             sel->offset_limit= 0L;
+	    sel->explicit_limit= 1;
 	  }
 	| ULONG_NUM ',' ULONG_NUM
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $3;
 	    sel->offset_limit= $1;
+	    sel->explicit_limit= 1;
 	  }
 	| ULONG_NUM OFFSET_SYM ULONG_NUM
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $1;
 	    sel->offset_limit= $3;
+	    sel->explicit_limit= 1;
 	  }
 	;
 
@@ -4756,21 +4820,27 @@ delete_limit_clause:
 	  lex->current_select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
-	{ Select->select_limit= (ha_rows) $2; };
+	{
+	  SELECT_LEX *sel= Select;
+	  sel->select_limit= (ha_rows) $2;
+	  sel->explicit_limit= 1;
+	};
 
 ULONG_NUM:
-	NUM	    { $$= strtoul($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulong) strtoll($1.str,NULL,10); }
-	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
-	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
-	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };
+	NUM	        { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| REAL_NUM 	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| FLOAT_NUM	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	;
 
 ulonglong_num:
-	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
-	| ULONGLONG_NUM { $$= strtoull($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
-	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
-	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); };
+	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| LONG_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| REAL_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| FLOAT_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	;
 
 procedure_clause:
 	/* empty */
@@ -4921,9 +4991,9 @@ drop:
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
-	     lex->drop_list.empty();
-	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						     $3.str));
+	     lex->alter_info.drop_list.empty();
+	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
+                                                                $3.str));
 	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
 							TL_OPTION_UPDATING))
 	      YYABORT;
@@ -5320,8 +5390,8 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
-	  TEXT_STRING_sys AND MASTER_LOG_POS_SYM EQ ulonglong_num
-	  AND MASTER_SERVER_ID_SYM EQ
+	  TEXT_STRING_sys AND_SYM MASTER_LOG_POS_SYM EQ ulonglong_num
+	  AND_SYM MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
           {
 	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
@@ -5858,8 +5928,8 @@ literal:
 	| TIMESTAMP text_literal { $$ = $2; };
 
 NUM_literal:
-	NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
-	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
+	NUM		{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
+	| LONG_NUM	{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
@@ -6138,7 +6208,6 @@ keyword:
 	| DIRECTORY_SYM		{}
 	| DISCARD		{}
 	| DO_SYM		{}
-	| DUAL_SYM		{}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
@@ -6220,6 +6289,7 @@ keyword:
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
+	| NDBCLUSTER_SYM	{}
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
 	| NO_SYM		{}
@@ -6718,7 +6788,7 @@ grant_privilege:
 
 opt_and:
 	/* empty */	{}
-	| AND		{}
+	| AND_SYM	{}
 	;
 
 require_list:

@@ -2,7 +2,7 @@ drop table if exists t0, t1, t2, t3,t4;
 create table t0
 (
 key1 int not null, 
-INDEX i1(key1),
+INDEX i1(key1)
 );
 alter table t0 add key2 int not null, add index i2(key2);
 alter table t0 add key3 int not null, add index i3(key3);
@@ -217,7 +217,7 @@ key3  int not null,
 index i1a (key1a, key1b),
 index i1b (key1b, key1a),
 index i2_1(key2, key2_1),
-index i2_2(key2, key2_1),  
+index i2_2(key2, key2_1)
 );
 insert into t4 select key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 from t0;
 select * from t4 where key1a = 3 or key1b = 4;
@@ -280,6 +280,7 @@ union select * from t1 where key1<4 or key3=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using where
 2	UNION	t1	index_merge	i1,i3	i1,i3	4,4	NULL	5	Using where
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 explain select * from (select * from t1 where key1 = 3 or key2 =3) as Z where key8 >5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
