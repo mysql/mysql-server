@@ -351,8 +351,9 @@ class Item_func_case :public Item_func
   int first_expr_num, else_expr_num;
   enum Item_result cached_result_type;
   String tmp_value;
-  bool first_expr_is_binary;
   uint ncases;
+  Item_result cmp_type;
+  DTCollation cmp_collation;
 public:
   Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
     :Item_func(), first_expr_num(-1), else_expr_num(-1),
