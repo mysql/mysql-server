@@ -26,7 +26,7 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
-class Statement;
+class Item_arena;
 
 /* base class for subselects */
 
@@ -36,8 +36,8 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* prepared statement, or 0 */
-  Statement *stmt;
+  /* Item_arena used or 0 */
+  Item_arena *arena;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* unit of subquery */

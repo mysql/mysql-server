@@ -405,8 +405,6 @@ public:
   enum olap_type olap;
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
-  List<Item>          item_list_copy; /* For SPs */
-  byte                *table_list_first_copy; /* For SPs */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   /* 
@@ -435,6 +433,11 @@ public:
   uint cond_count;      /* number of arguments of and/or/xor in where/having */
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
+  /* 
+    PS or SP cond natural joins was alredy processed with permanent
+    arena and all additional items which we need alredy stored in it
+  */
+  bool conds_processed_with_permanent_arena;
 
   ulong table_join_options;
   uint in_sum_expr;
@@ -445,6 +448,7 @@ public:
   bool having_fix_field;
   /* explicit LIMIT clause was used */
   bool explicit_limit;
+  bool first_execution; /* first execution in SP or PS */
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning

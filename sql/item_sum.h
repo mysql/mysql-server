@@ -23,6 +23,8 @@
 
 #include <my_tree.h>
 
+class Item_arena;
+
 class Item_sum :public Item_result_field
 {
 public:
@@ -93,7 +95,7 @@ public:
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
   bool save_args_for_prepared_statements(THD *);
-  bool save_args(Statement* stmt);
+  bool save_args(Item_arena* stmt);
 
   bool walk (Item_processor processor, byte *argument);
 };

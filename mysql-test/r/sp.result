@@ -1305,3 +1305,13 @@ test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINE
 drop procedure bar|
 drop table t1;
 drop table t2;
+create procedure p1 () select (select s1 from t1) from t1;
+create table t1 (s1 int);
+call p1();
+(select s1 from t1)
+insert into t1 values (1);
+call p1();
+(select s1 from t1)
+1
+drop procedure p1;
+drop table t1;

@@ -70,7 +70,7 @@ sp_name *
 sp_name_current_db_new(THD *thd, LEX_STRING name);
 
 
-class sp_head : public Sql_alloc
+class sp_head :private Item_arena
 {
   sp_head(const sp_head &);	/* Prevent use of these */
   void operator=(sp_head &);
@@ -206,9 +206,7 @@ public:
 
 private:
 
-  MEM_ROOT m_mem_root;		// My own mem_root
   MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
-  Item *m_free_list;		// Where the items go
   THD *m_thd;			// Set if we have reset mem_root
   char *m_thd_db;		// Original thd->db pointer
 

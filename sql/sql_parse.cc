@@ -4182,12 +4182,14 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	  query_cache_end_of_result(thd);
 	}
       }
+      lex->unit.cleanup();
     }
     else
     {
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
       query_cache_abort(&thd->net);
+      lex->unit.cleanup();
       if (thd->lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
