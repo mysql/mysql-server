@@ -1202,13 +1202,13 @@ static sig_handler handle_segfault(int sig)
   fprintf(stderr,"\
 mysqld got signal %d;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
-or one of the libraries it was linked agaist is corrupt, improperly built,\n\
+or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 	  sig);
   fprintf(stderr, "\
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
-and this may fail\n\n");
+and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%ld\n", keybuff_size);
   fprintf(stderr, "record_buffer=%ld\n", my_default_record_cache_size);
   fprintf(stderr, "sort_buffer=%ld\n", sortbuff_size);
@@ -1219,15 +1219,15 @@ and this may fail\n\n");
 key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
 bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
 			     sortbuff_size) * max_connections)/ 1024);
-  fprintf(stderr, "Hope that's ok, if not, decrease some variables in the equation\n\n");
+  fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
   
 #if defined(HAVE_LINUXTHREADS)
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
     fprintf(stderr, "\
 You seem to be running 32-bit Linux and have %d concurrent connections.\n\
-If you have not changed STACK_SIZE in LinuxThreads and build the binary \n\
-yourself, LinuxThreads is quite likely to steal a part of global heap for\n\
+If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
+yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
 the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 	    thread_count);
   }
@@ -1251,12 +1251,12 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "\n
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the values shown above may be invalid\n\n",
+bad corruption, the values shown above may be invalid.\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
 The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
-information that should help you find out what is causing the crash\n");
+information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
 

@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.10"
+#define MTEST_VERSION "1.11"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -90,7 +90,7 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
-static int port = 0, opt_big_test=0;
+static int port = 0, opt_big_test=0, opt_compress=0;
 static uint start_lineno, *lineno;
 const char* manager_user="root",*manager_host="localhost";
 char *manager_pass=0;
@@ -264,11 +264,11 @@ static uint out_length;
 static int eval_result = 0;
 
 /* Disable functions that only exist in MySQL 4.0 */
-#if MYSQL_VERSION_ID < 40000
-static void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
-static void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
-static int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
-static int mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
+#if MYSQL_VERSION_ID < 40000 || defined(EMBEDDED_LIBRARY)
+void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
+void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
+int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
+int mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
@@ -1255,6 +1255,8 @@ int do_connect(struct st_query* q)
 
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
+  if (opt_compress)
+    mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   if (con_sock)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
@@ -1594,6 +1596,7 @@ struct option long_options[] =
   {"debug",       optional_argument, 0, '#'},
   {"database",    required_argument, 0, 'D'},
   {"big-test",	  no_argument,	     0, 'B'},
+  {"compress",	  no_argument,	     0, 'C'},
   {"help",        no_argument,       0, '?'},
   {"host",        required_argument, 0, 'h'},
   {"manager-user",required_argument, 0, OPT_MANAGER_USER},
@@ -1643,6 +1646,7 @@ void usage()
   -p[password], --password[=...]\n\
                            Password to use when connecting to server.\n\
   -B, --big-test	   Define BIG_TEST to 1\n\
+  -C, --compress	   Use the compressed server/client protocol\n\
   -D, --database=...       Database to use.\n\
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
@@ -1665,8 +1669,8 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  while((c = getopt_long(argc, argv, "h:p::u:BP:D:S:R:x:t:T:#:?rvVq",
-			 long_options, &option_index)) != EOF)
+  while ((c = getopt_long(argc, argv, "h:p::u:BCP:D:S:R:x:t:T:#:?rvVq",
+			  long_options, &option_index)) != EOF)
     {
       switch(c)	{
       case '#':
@@ -1718,6 +1722,9 @@ int parse_args(int argc, char **argv)
       case 'B':
         opt_big_test=1;
         break;
+      case 'C':
+	opt_compress=1;
+	break;
       case 'P':
 	port = atoi(optarg);
 	break;
@@ -2112,6 +2119,8 @@ int main(int argc, char** argv)
 #endif
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
+  if (opt_compress)
+    mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");
