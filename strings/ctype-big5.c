@@ -6293,6 +6293,7 @@ static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
   my_strnncoll_big5,
   my_strnncollsp_big5,
   my_strnxfrm_big5,
+  my_strnxfrmlen_simple,
   my_like_range_big5,
   my_wildcmp_mb,
   my_strcasecmp_mb,
