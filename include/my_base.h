@@ -263,6 +263,7 @@ enum ha_base_keytype {
 #define MBR_EQUAL       8192
 #define MBR_DATA        16384
 #define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
+#define SEARCH_NULL_ARE_NOT_EQUAL 65536	/* NULL in keys are not equal */
 
 	/* bits in opt_flag */
 #define QUICK_USED	1
