@@ -729,14 +729,17 @@ dict_drop_index_tree(
 /***********************************************************************
 Truncates the index tree associated with a row in SYS_INDEXES table. */
 
-void
+ulint
 dict_truncate_index_tree(
 /*=====================*/
+				/* out: new root page number, or
+				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
 	rec_t*		rec,	/* in: record in the clustered index of
 				SYS_INDEXES table */
 	mtr_t*		mtr)	/* in: mtr having the latch
-				on the record page */
+				on the record page. The mtr may be
+				committed and restarted in this call. */
 {
 	ulint		root_page_no;
 	ulint		space;
@@ -761,7 +764,10 @@ dict_truncate_index_tree(
 	if (root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
 
-		return;
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
+			" a missing index of table %s!\n", table->name);
+		return(FIL_NULL);
 	}
 
 	ptr = rec_get_nth_field_old(rec,
@@ -775,7 +781,10 @@ dict_truncate_index_tree(
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
-		return;
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
+			" a missing .ibd file of table %s!\n", table->name);
+		return(FIL_NULL);
 	}
 
 	ptr = rec_get_nth_field_old(rec,
@@ -801,6 +810,20 @@ dict_truncate_index_tree(
 				space, root_page_no, RW_X_LATCH, mtr));
 
 	btr_free_root(space, root_page_no, mtr);
+	/* We will temporarily write FIL_NULL to the PAGE_NO field
+	in SYS_INDEXES, so that the database will not get into an
+	inconsistent state in case it crashes between the mtr_commit()
+	below and the following mtr_commit() call. */
+	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+							FIL_NULL, mtr);
+
+	/* We will need to commit the mini-transaction in order to avoid
+	deadlocks in the btr_create() call, because otherwise we would
+	be freeing and allocating pages in the same mini-transaction. */
+	mtr_commit(mtr);
+	/* mtr_commit() will invalidate rec. */
+	rec = NULL;
+	mtr_start(mtr);
 
 	/* Find the index corresponding to this SYS_INDEXES record. */
 	for (index = UT_LIST_GET_FIRST(table->indexes);
@@ -814,11 +837,17 @@ dict_truncate_index_tree(
 	root_page_no = btr_create(type, space, index_id, comp, mtr);
 	if (index) {
 		index->tree->page = root_page_no;
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Index %lu %lu of table %s is missing\n"
+			"InnoDB: from the data dictionary during TRUNCATE!\n",
+			ut_dulint_get_high(index_id),
+			ut_dulint_get_low(index_id),
+			table->name);
 	}
 
-	page_rec_write_index_page_no(rec,
-				DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				root_page_no, mtr);
+	return(root_page_no);
 }
 
 /*************************************************************************

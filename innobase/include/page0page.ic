@@ -788,12 +788,15 @@ page_mem_free(
 	page_rec_set_next(rec, free);
 	page_header_set_ptr(page, PAGE_FREE, rec);
 
+#if 0	/* It's better not to destroy the user's data. */
+
 	/* Clear the data bytes of the deleted record in order to improve
 	the compression ratio of the page and to make it easier to read
 	page dumps in corruption reports.  The extra bytes of the record
 	cannot be cleared, because page_mem_alloc() needs them in order
 	to determine the size of the deleted record. */
 	memset(rec, 0, rec_offs_data_size(offsets));
+#endif
 
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
 
