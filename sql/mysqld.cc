@@ -296,7 +296,7 @@ char opt_ndb_constrbuf[1024];
 unsigned opt_ndb_constrbuf_len;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
-const char *opt_ndb_mgmd_host;
+const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
@@ -4178,7 +4178,7 @@ enum options_mysqld
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_NDB_USE_EXACT_COUNT,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
-  OPT_NDB_MGMD_HOST, OPT_NDB_NODEID,
+  OPT_NDB_MGMD, OPT_NDB_NODEID,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4673,10 +4673,10 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndb_connectstring,
    (gptr*) &opt_ndb_connectstring,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-mgmd-host", OPT_NDB_MGMD_HOST,
+  {"ndb-mgmd-host", OPT_NDB_MGMD,
    "Set host and port for ndb_mgmd. Syntax: hostname[:port]",
-   (gptr*) &opt_ndb_mgmd_host,
-   (gptr*) &opt_ndb_mgmd_host,
+   (gptr*) &opt_ndb_mgmd,
+   (gptr*) &opt_ndb_mgmd,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-nodeid", OPT_NDB_NODEID,
    "Nodeid for this mysqlserver in the cluster.",
@@ -6522,16 +6522,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
 #ifdef HAVE_NDBCLUSTER_DB
-  case OPT_NDB_MGMD_HOST:
+  case OPT_NDB_MGMD:
   case OPT_NDB_NODEID:
   {
-    const char *tmp="";
-    if (optid == OPT_NDB_NODEID)
-      tmp= "nodeid=";
     int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
 			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
 			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-			 tmp, argument);
+			 optid == OPT_NDB_NODEID ? "nodeid=" : "",
+			 argument);
     opt_ndb_constrbuf_len+= len;
   }
   /* fall through to add the connectstring to the end
@@ -6543,6 +6541,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
 		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
 		  opt_ndb_connectstring);
+    else
+      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
     opt_ndbcluster_connectstring= opt_ndb_constrbuf;
     break;
 #endif
