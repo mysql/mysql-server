@@ -508,14 +508,7 @@ multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       counter++;
     }
   }
-  /*
-    
-    There are (SELECT_LEX*) pointer conversion here global union parameters
-    can't be used in multiupdate
-
-    TODO: check is thd->lex.current_select == &thd->lex.select_lex?
-  */
-  init_ftfuncs(thd, (SELECT_LEX*)thd->lex.current_select, 1);
+  init_ftfuncs(thd, thd->lex.current_select->select_lex(), 1);
   error = 0; // Timestamps do not need to be restored, so far ...
   DBUG_RETURN(0);
 }

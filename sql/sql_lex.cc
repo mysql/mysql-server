@@ -21,6 +21,7 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
+#include <assert.h>
 
 LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
 
@@ -1043,17 +1044,23 @@ void st_select_lex_node::exclude()
   */
 }
 
+st_select_lex* st_select_lex_node::select_lex()
+{
+  DBUG_ENTER("st_select_lex_node::select_lex (never should be called)");
+  DBUG_ASSERT(1);
+  DBUG_RETURN(0);
+}
+
 bool st_select_lex_node::add_item_to_list(Item *item)
 {
   return 1;
 }
 
-bool  st_select_lex_node::add_group_to_list(Item *item, bool asc)
+bool st_select_lex_node::add_group_to_list(Item *item, bool asc)
 {
   return 1; 
 }
 
-//why compiler/linker do not allow make it inline?
 bool st_select_lex_node::add_order_to_list(Item *item, bool asc)
 { 
   return add_to_list(order_list,item,asc);
@@ -1062,6 +1069,47 @@ bool st_select_lex_node::add_order_to_list(Item *item, bool asc)
 bool st_select_lex_node::add_ftfunc_to_list(Item_func_match *func)
 {
   return 1;
+}
+
+/*
+  st_select_lex_node::mark_as_dependent mark all st_select_lex struct from 
+  this to 'last' as dependent
+
+  SYNOPSIS
+    last - pointer to last st_select_lex struct, before wich all 
+           st_select_lex have to be marked as dependent
+
+  NOTE
+    'last' should be reachable from this st_select_lex_node
+
+*/
+
+void st_select_lex_node::mark_as_dependent(SELECT_LEX *last)
+{
+  /*
+    Mark all selects from resolved to 1 before select where was
+    found table as depended (of select where was found table)
+  */
+  for (SELECT_LEX_NODE *s= this;
+       s &&s != last;
+       s= s->outer_select())
+    if( !s->dependent )
+    {
+      // Select is dependent of outer select
+      s->dependent= 1;
+      if (s->linkage != GLOBAL_OPTIONS_TYPE)
+      { 
+	//s is st_select_lex*
+
+	s->master_unit()->dependent= 1;
+	//Tables will be reopened many times
+	for (TABLE_LIST *tbl=
+	       s->get_table_list();
+	     tbl;
+	     tbl= tbl->next)
+	  tbl->shared= 1;
+      }
+    }
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
@@ -1168,6 +1216,10 @@ st_select_lex* st_select_lex_unit::outer_select()
   return (st_select_lex*) master;
 }
 
+st_select_lex* st_select_lex::select_lex()
+{
+  return this;
+}
 
 bool st_select_lex::add_item_to_list(Item *item)
 {

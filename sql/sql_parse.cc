@@ -2927,7 +2927,7 @@ mysql_init_query(THD *thd)
 void
 mysql_init_select(LEX *lex)
 {
-  SELECT_LEX *select_lex= (SELECT_LEX *)lex->current_select;
+  SELECT_LEX *select_lex= lex->current_select->select_lex();
   DBUG_ASSERT(select_lex->linkage != GLOBAL_OPTIONS_TYPE);
   select_lex->init_select();
   select_lex->master_unit()->select_limit= select_lex->select_limit= 
@@ -2964,7 +2964,7 @@ mysql_new_select(LEX *lex, bool move_down)
     
   select_lex->master_unit()->global_parameters= select_lex;
   DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
-  select_lex->include_global(((SELECT_LEX*)lex->current_select)->
+  select_lex->include_global(lex->current_select->select_lex()->
 			     next_select_in_list_addr());
   lex->current_select= select_lex;
   return 0;

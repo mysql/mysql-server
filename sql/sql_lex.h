@@ -217,6 +217,7 @@ public:
   void include_global(st_select_lex_node **plink);
   void exclude();
 
+  virtual st_select_lex* select_lex();
   virtual bool add_item_to_list(Item *item);
   bool add_order_to_list(Item *item, bool asc);
   virtual bool add_group_to_list(Item *item, bool asc);
@@ -238,7 +239,8 @@ public:
 					thr_lock_type flags= TL_UNLOCK,
 					List<String> *use_index= 0,
 					List<String> *ignore_index= 0);
-  
+
+  void mark_as_dependent(st_select_lex *last);
 private:
   void fast_exclude();
 };
@@ -346,6 +348,8 @@ public:
   bool set_braces(bool value);
   bool inc_in_sum_expr();
   uint get_in_sum_expr();
+
+  st_select_lex* select_lex();
   bool add_item_to_list(Item *item);
   bool add_group_to_list(Item *item, bool asc);
   bool add_ftfunc_to_list(Item_func_match *func);

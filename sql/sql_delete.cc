@@ -285,11 +285,7 @@ multi_delete::initialize_tables(JOIN *join)
 				     table->file->ref_length,
 				     MEM_STRIP_BUF_SIZE);
   }
-  /*
-    There are (SELECT_LEX*) pointer conversion here global union parameters
-    can't be used in multidelete
-  */
-  init_ftfuncs(thd, (SELECT_LEX*)thd->lex.current_select, 1);
+  init_ftfuncs(thd, thd->lex.current_select->select_lex(), 1);
 }
 
 

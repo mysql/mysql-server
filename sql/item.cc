@@ -463,27 +463,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  Mark all selects from resolved to 1 before select where was 
 	  found table as depended (of select where was found table)
 	*/
-	for (SELECT_LEX_NODE *s= thd->lex.current_select;
-	     s && s != last;
-	     s= s->outer_select())
-	{
-	  if( !s->dependent)
-	  {
-	    // Select is depended of outer select
-	    s->dependent= 1;
-	    if (s->linkage != GLOBAL_OPTIONS_TYPE)
-	    { 
-              //s is st_select_lex*
-	      
-	      s->master_unit()->dependent= 1;
-	      //Tables will be reopened many times
-	      for (TABLE_LIST *tbl= s->get_table_list();
-		   tbl;
-		   tbl= tbl->next)
-		tbl->shared= 1;
-	    }
-	  }
-	}
+	thd->lex.current_select->mark_as_dependent(last);
       }
     } 
     else if (!tmp)
@@ -867,30 +847,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else
       {
 	depended_from= last;
-	/*
-	  Mark all selects from resolved to 1 before select where was
-	  found table as depended (of select where was found table)
-	*/
-	for (SELECT_LEX_NODE *s= thd->lex.current_select;
-	     s &&s != last;
-	     s= s->outer_select())
-	  if( !s->dependent )
-	  {
-	    // Select is depended of outer select
-	    s->dependent= 1;
-	    if (s->linkage != GLOBAL_OPTIONS_TYPE)
-	    { 
-              //s is st_select_lex*
-
-	      s->master_unit()->dependent= 1;
-	      //Tables will be reopened many times
-	      for (TABLE_LIST *tbl=
-		     s->get_table_list();
-		   tbl;
-		   tbl= tbl->next)
-		tbl->shared= 1;
-	    }
-	  }
+	thd->lex.current_select->mark_as_dependent(last);
       }
     }
     else if (!ref)
