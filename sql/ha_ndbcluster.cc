@@ -212,6 +212,7 @@ Thd_ndb::~Thd_ndb()
 {
   if (ndb)
     delete ndb;
+  ndb= 0;
 }
 
 inline
@@ -2683,8 +2684,6 @@ void ha_ndbcluster::info(uint flag)
         DBUG_VOID_RETURN;
       Ndb *ndb= get_ndb();
       Uint64 rows;
-      if(ndb_get_table_statistics(ndb, m_tabname, &rows, 0) == 0){
-      Uint64 rows= 100;
       if (current_thd->variables.ndb_use_exact_count)
 	ndb_get_table_statistics(ndb, m_tabname, &rows, 0);
       records= rows;
@@ -3675,14 +3674,15 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (check_ndb_connection())
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
 
-  dict= m_ndb->getDictionary();
+  Ndb *ndb= get_ndb();
+  dict= ndb->getDictionary();
   if (!(orig_tab= dict->getTable(m_tabname)))
     ERR_RETURN(dict->getNdbError());
 
   m_table= (void *)orig_tab;
   // Change current database to that of target table
   set_dbname(to);
-  m_ndb->setDatabaseName(m_dbname);
+  ndb->setDatabaseName(m_dbname);
   if (!(result= alter_table_name(new_tabname)))
   {
     // Rename .ndb file
