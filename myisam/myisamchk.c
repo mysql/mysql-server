@@ -196,7 +196,7 @@ static struct my_option my_long_options[] =
   {"keys-used", 'k',
    "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
    (gptr*) &check_param.keys_in_use, (gptr*) &check_param.keys_in_use, 0,
-   GET_LL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
+   GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
