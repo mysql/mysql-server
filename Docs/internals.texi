@@ -2406,9 +2406,6 @@ of correspondence between the BLOB and the INT types. There isn't -- a
 BLOB's preceding length is not four bytes long (the size of an INT).
 @*
 
-(NOTE TO SELF: BLOB storage has not been fully addressed here.)
-@*
-
 @strong{TINYBLOB}
 @itemize @bullet
 @item
@@ -4744,8 +4741,7 @@ bmove_upp.c  --  bmove.c variant, starting with last byte
 @item
 bzero.c  --  something like bfill with an argument of 0 
 @item
-conf_to_src.c  --  reading a configuration file (NOTE TO SELF ? what's
-this doing here?)
+conf_to_src.c  --  reading a configuration file
 @item
 ctype*.c  --  string handling programs for each char type MySQL
 handles 
