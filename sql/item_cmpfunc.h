@@ -647,7 +647,6 @@ class Item_func_in :public Item_int_func
   ~Item_func_in() { delete array; delete in_item; }
   optimize_type select_optimize() const
     { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }
-  Item *key_item() const { return args[0]; }
   void print(String *str);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }

@@ -228,7 +228,7 @@ void ha_myisammrg::info(uint flag)
 #endif
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
-  table->keys_in_use= set_bits(key_map, table->keys);
+  table->keys_in_use.set_prefix(table->keys);
   table->db_options_in_use    = info.options;
   table->is_view=1;
   mean_rec_length=info.reclength;

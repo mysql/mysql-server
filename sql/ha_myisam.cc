@@ -705,20 +705,21 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 
   DBUG_ENTER("ha_myisam::preload_keys");
 
-  /* Check validity of the index references */ 
+  /* Check validity of the index references */
   if (table_list->use_index)
   {
-    key_map kmap= get_key_map_from_key_list(table, table_list->use_index);
-    if (kmap == ~(key_map) 0)
+    key_map kmap;
+    get_key_map_from_key_list(&kmap, table, table_list->use_index);
+    if (kmap.is_set_all())
     {
       errmsg= thd->net.last_error;
       error= HA_ADMIN_FAILED;
       goto err;
     }
-    if (kmap)
-      map= kmap;
+    if (!kmap.is_clear_all())
+      map= kmap.to_ulonglong();
   }
-  
+
   mi_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
            (void *) &thd->variables.preload_buff_size);
 
@@ -731,16 +732,16 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
     case HA_ERR_OUT_OF_MEM:
       errmsg= "Failed to allocate buffer";
       break;
-    default: 
+    default:
       char buf[ERRMSGSIZE+20];
-      my_snprintf(buf, ERRMSGSIZE, 
+      my_snprintf(buf, ERRMSGSIZE,
                   "Failed to read from index file (errno: %d)", my_errno);
       errmsg= buf;
     }
     error= HA_ADMIN_FAILED;
     goto err;
   }
-  
+
   DBUG_RETURN(HA_ADMIN_OK);
 
  err:
@@ -1022,9 +1023,10 @@ void ha_myisam::info(uint flag)
     ref_length=info.reflength;
     table->db_options_in_use    = info.options;
     block_size=myisam_block_size;
-    table->keys_in_use= (set_bits(key_map, table->keys) &
-			 (key_map) info.key_map);
-    table->keys_for_keyread= table->keys_in_use & ~table->read_only_keys;
+    table->keys_in_use.set_prefix(table->keys);
+    table->keys_in_use.intersect(info.key_map);
+    table->keys_for_keyread= table->keys_in_use;
+    table->keys_for_keyread.subtract(table->read_only_keys);
     table->db_record_offset=info.record_offset;
     if (table->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,

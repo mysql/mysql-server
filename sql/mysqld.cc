@@ -2161,7 +2161,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
       init_global_datetime_format(DATETIME_FORMAT_TYPE, 1))
     return 1;
 
-  if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
+  if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
   return 0;
 }
@@ -3571,7 +3571,7 @@ enum options_mysqld
   OPT_CONNECT_TIMEOUT, OPT_DELAYED_INSERT_TIMEOUT,
   OPT_DELAYED_INSERT_LIMIT, OPT_DELAYED_QUEUE_SIZE,
   OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_FT_STOPWORD_FILE,
+  OPT_FT_MAX_WORD_LEN, OPT_FT_QUERY_EXPANSION_LIMIT, OPT_FT_STOPWORD_FILE,
   OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
   OPT_KEY_BUFFER_SIZE, OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
@@ -4213,10 +4213,10 @@ replicating a LOAD DATA INFILE command.",
     "The maximum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,
     REQUIRED_ARG, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0},
-  { "ft_max_word_len_for_sort", OPT_FT_MAX_WORD_LEN_FOR_SORT,
-    "The maximum length of the word for repair_by_sorting. Longer words are included the slow way. The lower this value, the more words will be put in one sort bucket.",
-    (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0, GET_ULONG,
-    REQUIRED_ARG, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
+  { "ft_query_expansion_limit", OPT_FT_QUERY_EXPANSION_LIMIT,
+    "Number of best matches to use for query expansion",
+    (gptr*) &ft_query_expansion_limit, (gptr*) &ft_query_expansion_limit, 0, GET_ULONG,
+    REQUIRED_ARG, 20, 0, 1000, 0, 1, 0},
   { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
     "Use stopwords from this file instead of built-in list.",
     (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,

@@ -291,3 +291,4 @@ character-set=latin2
 "It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
 "SQL thread is not to be started so UNTIL options are ignored"
 "Incorrect index name '%-.100s'",
+"Column '%-.64s' cannot be part of FULLTEXT index"

@@ -21,13 +21,6 @@
 #include "ftdefs.h"
 #include <math.h>
 
-/**************************************************************
-   This is to make ft-code to ignore keyseg.length at all     *
-   and to index the whole VARCHAR/BLOB instead...             */
-#undef set_if_smaller
-#define set_if_smaller(A,B)                          /* no op */
-/**************************************************************/
-
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
 			     FT_SEG_ITERATOR *ftsi)
 {
@@ -88,7 +81,6 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
   {
     ftsi->len=uint2korr(ftsi->pos);
     ftsi->pos+=2;				 /* Skip VARCHAR length */
-    set_if_smaller(ftsi->len,ftsi->seg->length);
     DBUG_RETURN(1);
   }
   if (ftsi->seg->flag & HA_BLOB_PART)
@@ -96,7 +88,6 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
     ftsi->len=_mi_calc_blob_length(ftsi->seg->bit_start,ftsi->pos);
     memcpy_fixed((char*) &ftsi->pos, ftsi->pos+ftsi->seg->bit_start,
 		 sizeof(char*));
-    set_if_smaller(ftsi->len,ftsi->seg->length);
     DBUG_RETURN(1);
   }
   ftsi->len=ftsi->seg->length;
@@ -106,7 +97,8 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 
 /* parses a document i.e. calls ft_parse for every keyseg */
 
-uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
+uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
+                  const byte *record, my_bool with_alloc)
 {
   FT_SEG_ITERATOR ftsi;
   DBUG_ENTER("_mi_ft_parse");
@@ -117,21 +109,19 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
   while (_mi_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len))
+      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
-			     byte *keybuf __attribute__((unused)),
-			     const byte *record)
+FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
 {
   TREE ptree;
   DBUG_ENTER("_mi_ft_parserecord");
 
   bzero((char*) &ptree, sizeof(ptree));
-  if (_mi_ft_parse(&ptree, info, keynr, record))
+  if (_mi_ft_parse(&ptree, info, keynr, record,0))
     DBUG_RETURN(NULL);
 
   DBUG_RETURN(ft_linearize(&ptree));
@@ -208,9 +198,9 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   int cmp, cmp2;
   DBUG_ENTER("_mi_ft_update");
 
-  if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, keybuf, oldrec)))
+  if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, oldrec)))
     goto err0;
-  if (!(new_word=newlist=_mi_ft_parserecord(info, keynr, keybuf, newrec)))
+  if (!(new_word=newlist=_mi_ft_parserecord(info, keynr, newrec)))
     goto err1;
 
   error=0;
@@ -258,7 +248,7 @@ int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   FT_WORD *wlist;
   DBUG_ENTER("_mi_ft_add");
 
-  if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
+  if ((wlist=_mi_ft_parserecord(info, keynr, record)))
   {
     error=_mi_ft_store(info,keynr,keybuf,wlist,pos);
     my_free((char*) wlist,MYF(0));
@@ -277,7 +267,7 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   DBUG_ENTER("_mi_ft_del");
   DBUG_PRINT("enter",("keynr: %d",keynr));
 
-  if ((wlist=_mi_ft_parserecord(info, keynr, keybuf, record)))
+  if ((wlist=_mi_ft_parserecord(info, keynr, record)))
   {
     error=_mi_ft_erase(info,keynr,keybuf,wlist,pos);
     my_free((char*) wlist,MYF(0));
@@ -305,3 +295,53 @@ uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
   memcpy(buf+HA_FT_WLEN+2,wptr->pos,wptr->len);
   DBUG_RETURN(_mi_make_key(info,keynr,(uchar*) keybuf,buf,filepos));
 }
+
+/*
+  convert key value to ft2
+*/
+uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key)
+{
+  my_off_t root;
+  DYNAMIC_ARRAY *da=info->ft1_to_ft2;
+  MI_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
+  uchar *key_ptr=dynamic_array_ptr(da, 0), *end;
+  uint length, key_length;
+  DBUG_ENTER("_mi_ft_convert_to_ft2");
+
+  /* we'll generate one pageful at once, and insert the rest one-by-one */
+  /* calculating the length of this page ...*/
+  length=(keyinfo->block_length-2) / keyinfo->keylength;
+  set_if_smaller(length, da->elements);
+  length=length * keyinfo->keylength;
+
+  get_key_full_length_rdonly(key_length, key);
+  while (_mi_ck_delete(info, keynr, key, key_length) == 0)
+    /* nothing to do here.
+       _mi_ck_delete() will populate info->ft1_to_ft2 with deleted keys
+     */;
+
+  /* creating pageful of keys */
+  mi_putint(info->buff,length+2,0);
+  memcpy(info->buff+2, key_ptr, length);
+  info->buff_used=info->page_changed=1;           /* info->buff is used */
+  if ((root= _mi_new(info,keyinfo)) == HA_OFFSET_ERROR ||
+      _mi_write_keypage(info,keyinfo,root,info->buff))
+    DBUG_RETURN(-1);
+
+  /* inserting the rest of key values */
+  end=dynamic_array_ptr(da, da->elements);
+  for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
+    if(_mi_ck_real_write_btree(info, keyinfo, key_ptr, 0, &root, SEARCH_SAME))
+      DBUG_RETURN(-1);
+
+  /* now, writing the word key entry */
+  ft_intXstore(key+key_length, -da->elements);
+  _mi_dpointer(info, key+key_length+HA_FT_WLEN, root);
+
+  DBUG_RETURN(_mi_ck_real_write_btree(info,
+                                     info->s->keyinfo+keynr,
+                                     key, 0,
+                                     &info->s->state.key_root[keynr],
+                                     SEARCH_SAME));
+}
+

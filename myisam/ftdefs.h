@@ -21,9 +21,14 @@
 #include "fulltext.h"
 #include <m_ctype.h>
 #include <my_tree.h>
+#include <queues.h>
+#include <assert.h>
 
-#define HYPHEN_IS_DELIM
-#define HYPHEN_IS_CONCAT     /* not used for now */
+#define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
+#define misc_word_char(X)	((X)=='\'')
+#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
+
+#define FT_MAX_WORD_LEN_FOR_SORT 20
 
 #define COMPILE_STOPWORDS_IN
 
@@ -107,8 +112,8 @@ int is_stopword(char *word, uint len);
 
 uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 
-byte ft_get_word(byte **, byte *, FT_WORD *, FTB_PARAM *);
-byte ft_simple_get_word(byte **, byte *, FT_WORD *);
+byte ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *, FTB_PARAM *);
+byte ft_simple_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;
@@ -121,13 +126,15 @@ void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, byte *, int);
+int ft_parse(TREE *, byte *, int, my_bool);
 FT_WORD * ft_linearize(TREE *);
-FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
-uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record);
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
+uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *, my_bool);
+
+FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, uint, byte *);
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint);
 
 extern const struct _ft_vft _ft_vft_nlq;
-FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, my_bool);
 int ft_nlq_read_next(FT_INFO *, char *);
 float ft_nlq_find_relevance(FT_INFO *, byte *, uint);
 void ft_nlq_close_search(FT_INFO *);
@@ -136,10 +143,10 @@ my_off_t ft_nlq_get_docid(FT_INFO *);
 void ft_nlq_reinit_search(FT_INFO *);
 
 extern const struct _ft_vft _ft_vft_boolean;
-FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint, my_bool);
 int ft_boolean_read_next(FT_INFO *, char *);
 float ft_boolean_find_relevance(FT_INFO *, byte *, uint);
 void ft_boolean_close_search(FT_INFO *);
 float ft_boolean_get_relevance(FT_INFO *);
 my_off_t ft_boolean_get_docid(FT_INFO *);
 void ft_boolean_reinit_search(FT_INFO *);
+

@@ -23,16 +23,21 @@
 #include <signal.h>
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
-#include <my_bitmap.h>
+#include <sql_bitmap.h>
 #include <assert.h>
 
 #ifdef __EMX__
 #undef write  /* remove pthread.h macro definition for EMX */
 #endif
 
-typedef ulonglong table_map;		/* Used for table bits in join */
-typedef ulong key_map;			/* Used for finding keys */
-typedef ulong key_part_map;		/* Used for finding key parts */
+/* TODO convert all these three maps to Bitmap classes */
+typedef ulonglong table_map;          /* Used for table bits in join */
+typedef Bitmap<64> key_map;           /* Used for finding keys */
+typedef ulong key_part_map;           /* Used for finding key parts */
+
+/* useful constants */
+extern const key_map key_map_empty;
+extern const key_map key_map_full;
 
 #include "mysql_com.h"
 #include <violite.h>
@@ -647,8 +652,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
 			  find_item_error_report_type report_error);
-key_map get_key_map_from_key_list(TABLE *table, 
-				  List<String> *index_list);
+void get_key_map_from_key_list(key_map *map, TABLE *table,
+                               List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);
@@ -656,7 +661,7 @@ bool setup_tables(TABLE_LIST *tables);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
-		 List<Item> &item, bool set_query_id, 
+		 List<Item> &item, bool set_query_id,
 		 List<Item> *sum_func_list, bool allow_sum_func);
 void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);

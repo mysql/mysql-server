@@ -305,7 +305,7 @@ static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
 static QUICK_SELECT *get_quick_select(PARAM *param,uint index,
 				      SEL_ARG *key_tree);
 #ifndef DBUG_OFF
-static void print_quick(QUICK_SELECT *quick,key_map needed_reg);
+static void print_quick(QUICK_SELECT *quick,const key_map* needed_reg);
 #endif
 static SEL_TREE *tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -364,7 +364,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 
 SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
 {
-  quick_keys=0; needed_reg=0;
+  quick_keys.clear_all(); needed_reg.clear_all();
   my_b_clear(&file);
 }
 
@@ -590,17 +590,17 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   double scan_time;
   DBUG_ENTER("test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-		      (ulong) keys_to_use, (ulong) prev_tables,
+		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
 
   delete quick;
   quick=0;
-  needed_reg=0; quick_keys=0;
+  needed_reg.clear_all(); quick_keys.clear_all();
   if (!cond || (specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
       !limit)
     DBUG_RETURN(0); /* purecov: inspected */
   if (!((basflag= head->file->table_flags()) & HA_KEYPOS_TO_RNDPOS) &&
-      keys_to_use == (uint) ~0 || !keys_to_use)
+      keys_to_use.is_set_all() || keys_to_use.is_clear_all())
     DBUG_RETURN(0);				/* Not smart database */
   records=head->file->records;
   if (!records)
@@ -616,14 +616,14 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
   DBUG_PRINT("info",("Time to scan table: %g", read_time));
 
-  keys_to_use&=head->keys_in_use_for_query;
-  if (keys_to_use)
+  keys_to_use.intersect(head->keys_in_use_for_query);
+  if (!keys_to_use.is_clear_all())
   {
     MEM_ROOT *old_root,alloc;
     SEL_TREE *tree;
     KEY_PART *key_parts;
     PARAM param;
-   
+
     /* set up parameter that is passed to all functions */
     param.thd= thd;
     param.baseflag=basflag;
@@ -650,7 +650,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     for (idx=0 ; idx < head->keys ; idx++)
     {
-      if (!(keys_to_use & ((key_map) 1L << idx)))
+      if (!keys_to_use.is_set(idx))
 	continue;
       KEY *key_info= &head->key_info[idx];
       if (key_info->flags & HA_FULLTEXT)
@@ -666,7 +666,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	key_parts->null_bit= key_info->key_part[part].null_bit;
 	if (key_parts->field->type() == FIELD_TYPE_BLOB)
 	  key_parts->part_length+=HA_KEY_BLOB_LENGTH;
-        key_parts->image_type = 
+        key_parts->image_type =
           (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
       }
       param.real_keynr[param.keys++]=idx;
@@ -697,11 +697,11 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	    uint keynr= param.real_keynr[idx];
 	    if ((*key)->type == SEL_ARG::MAYBE_KEY ||
 		(*key)->maybe_flag)
-	        needed_reg|= (key_map) 1 << keynr;
+	        needed_reg.set_bit(keynr);
 
 	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
-		head->used_keys & ((table_map) 1 << keynr) &&
+		head->used_keys.is_set(keynr) &&
 		(head->file->index_flags(keynr) & HA_KEY_READ_ONLY))
 	    {
 	      /*
@@ -744,7 +744,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
     thd->no_errors=0;
   }
-  DBUG_EXECUTE("info",print_quick(quick,needed_reg););
+  DBUG_EXECUTE("info",print_quick(quick,&needed_reg););
   /*
     Assume that if the user is using 'limit' we will only need to scan
     limit rows if we are using a key
@@ -2128,7 +2128,7 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
   if (records != HA_POS_ERROR)
   {
     uint key=param->real_keynr[idx];
-    param->table->quick_keys|= (key_map) 1 << key;
+    param->table->quick_keys.set_bit(key);
     param->table->quick_rows[key]=records;
     param->table->quick_key_parts[key]=param->max_key_part+1;
   }
@@ -2854,7 +2854,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
       fputc('/',DBUG_FILE);
     if (field->real_maybe_null())
     {
-      length++;				// null byte is not in part_length 
+      length++;				// null byte is not in part_length
       if (*key++)
       {
 	fwrite("NULL",sizeof(char),4,DBUG_FILE);
@@ -2870,17 +2870,18 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
   }
 }
 
-static void print_quick(QUICK_SELECT *quick,key_map needed_reg)
+static void print_quick(QUICK_SELECT *quick,const key_map* needed_reg)
 {
   QUICK_RANGE *range;
+  char buf[MAX_KEY/8+1];
   DBUG_ENTER("print_param");
   if (! _db_on_ || !quick)
     DBUG_VOID_RETURN;
 
   List_iterator<QUICK_RANGE> li(quick->ranges);
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: %lu):\n",
-	  quick->index, (ulong) needed_reg);
+  fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: 0x%s):\n",
+	  quick->index, needed_reg->print(buf));
   while ((range=li++))
   {
     if (!(range->flag & NO_MIN_RANGE))

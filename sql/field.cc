@@ -181,7 +181,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   :ptr(ptr_arg),null_ptr(null_ptr_arg),
    table(table_arg),table_name(table_arg ? table_arg->table_name : 0),
    field_name(field_name_arg),
-   query_id(0),key_start(0),part_of_key(0),part_of_sortkey(0),
+   query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
    field_length(length_arg),null_bit(null_bit_arg),abs_offset(0)
 {

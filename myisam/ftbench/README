@@ -1,0 +1,43 @@
+1. should be run from myisam/ftbench/
+2. myisam/ftdefs.h should NOT be locked (bk get, not bk edit!)
+3. there should be ./data/ subdir with test collections, files:
+     test1.d
+     test1.q
+     test1.r
+     test2.d
+     test2.q
+     test2.r
+   where test1, test2, etc - are arbitrary test names
+
+  *.[dq] files contain documents/queries one item per line.
+
+   *.r files have the structure:
+   1 16 .....blablabla
+   1 09 .....blablabla
+   2 116 .....blablabla
+   ...
+
+  that is /^\d+\s+\d+/
+  and are sorted by the first number (not necessarily by the second)
+   
+4. there should be ./t/ subdir with test directories
+
+  ./t
+  ./t/BEST/
+  ./t/testdir1/
+  ./t/testdir2/
+  ...
+
+  there *must* be ./t/BEST/ subdir or a symlink to one of other dirs in ./t
+  all other names (besides BEST) can be arbitrary
+
+  all test results are compared with BEST results.
+  
+  test directories may contain ftdefs.h, my.cnf, ft_mode
+  (the last one is used as in ... MATCH ... AGAINST ("..." $ft_mode) ...)
+  NOTE: all *.out files in test directories will NOT be overwritten!
+  delete them to re-test
+
+5. run ./ft-test-run.sh
+6. go make some coffee
+
