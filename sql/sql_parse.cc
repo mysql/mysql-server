@@ -2078,10 +2078,20 @@ mysql_execute_command(THD *thd)
         res= mysql_create_like_table(thd, tables, &lex->create_info, 
                                      (Table_ident *)lex->name); 
       else
+      {
+	List_iterator<create_field> fields(lex->create_list);
+	create_field *field;
+	while ((field= fields++))
+	{
+	  if (!field->charset)
+	    field->charset= lex->create_info.table_charset;
+	  field->create_length_to_internal_length();
+	}
         res= mysql_create_table(thd,tables->db ? tables->db : thd->db,
 			         tables->real_name, &lex->create_info,
 			         lex->create_list,
 			         lex->key_list,0,0,0); // do logging
+      }
       if (!res)
 	send_ok(thd);
     }
@@ -3791,7 +3801,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
-    if (new_field->length < MAX_FIELD_WIDTH || default_value)
+    if (new_field->length <= MAX_FIELD_CHARLENGTH || default_value)
       break;
     /* Convert long CHAR() and VARCHAR columns to TEXT or BLOB */
     new_field->sql_type= FIELD_TYPE_BLOB;
@@ -3957,13 +3967,13 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
   }
 
-  if (new_field->length >= MAX_FIELD_WIDTH ||
+  if (new_field->length > MAX_FIELD_CHARLENGTH ||
       (!new_field->length && !(new_field->flags & BLOB_FLAG) &&
        type != FIELD_TYPE_STRING && 
        type != FIELD_TYPE_VAR_STRING && type != FIELD_TYPE_GEOMETRY))
   {
     net_printf(thd,ER_TOO_BIG_FIELDLENGTH,field_name,
-	       MAX_FIELD_WIDTH-1);		/* purecov: inspected */
+	       MAX_FIELD_CHARLENGTH);		/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   type_modifier&= AUTO_INCREMENT_FLAG;

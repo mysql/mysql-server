@@ -58,7 +58,12 @@
 #endif
 #define MAX_HOSTNAME  61			/* len+1 in mysql.user */
 
-#define MAX_FIELD_WIDTH 256			/* Max column width +1 */
+#define MAX_MBWIDTH		3		/* Max multibyte sequence */
+#define MAX_FIELD_CHARLENGTH	255
+/* Max column width +1 */
+#define MAX_FIELD_WIDTH		(MAX_FIELD_CHARLENGTH*MAX_MBWIDTH+1)
+
+
 #define MAX_TABLES	(sizeof(table_map)*8-2)	/* Max tables in join */
 #define OUTER_REF_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-2))
 #define RAND_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-1))
