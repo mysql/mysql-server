@@ -6841,7 +6841,7 @@ static void test_logs()
   fprintf(stdout, "\n name  : %s(%ld)", data, length);
 
   myassert(id == 9876);  
-  myassert(length == 19);//Due to VARCHAR(20)
+  myassert(length == 19); /* Due to VARCHAR(20) */
   myassert(strcmp(data,"MySQL - Open Source")==0); 
 
   rc = mysql_fetch(stmt);
