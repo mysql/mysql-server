@@ -16166,8 +16166,8 @@ Access denied for user: 'root@@localhost' (Using password: YES)
 It means that you are using a wrong password. @xref{Passwords}.
 
 If you have forgot the root password, you can restart @code{mysqld} with
-@code{--skip-grant-tables} to change the password. You can find more
-about this option later on in this manual section.
+@code{--skip-grant-tables} to change the password.
+@xref{Resetting permissions}.
 
 If you get the above error even if you haven't specified a password,
 this means that you a wrong password in some @code{my.ini}
@@ -36676,7 +36676,7 @@ unless you know what you are doing!
 
 @item
 The minimum length of words to be indexed is defined by the MySQL
-variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
+variable @code{ft_min_word_len}. @xref{SHOW VARIABLES}.
 Change it to the value you prefer, and rebuild your @code{FULLTEXT} indexes.
 (This variable is only available from MySQL version 4.0.)
 
@@ -47134,7 +47134,7 @@ with a zero.
 
 @menu
 * Crashing::                    What To Do If MySQL Keeps Crashing
-* Resetting permissions::       How to Reset a Forgotten Password
+* Resetting permissions::       How to Reset a Forgotten Root Password
 * Full disk::                   How MySQL Handles a Full Disk
 * Temporary files::             Where MySQL Stores Temporary Files
 * Problems with mysql.sock::    How to Protect @file{/tmp/mysql.sock} from Being Deleted
@@ -47330,43 +47330,68 @@ it helps!
 
 
 @node Resetting permissions, Full disk, Crashing, Administration Issues
-@appendixsubsec How to Reset a Forgotten Password
+@appendixsubsec How to Reset a Forgotten Root Password
 
 @cindex passwords, forgotten
 @cindex passwords, resetting
 @cindex root user, password resetting
 
-If you have forgotten the @code{root} user password for MySQL, you
-can restore it with the following procedure:
+If you never set a @code{root} password for MySQL, then the server will
+not require a password at all for connecting as @code{root}. It is
+recommended to always set a password for each user. @xref{Security}.
+
+If you have set a @code{root} password, but forgot what it was, you can
+set a new password with the following procedure:
 
 @enumerate
 @item
 Take down the @code{mysqld} server by sending a @code{kill} (not @code{kill
 -9}) to the @code{mysqld} server.  The pid is stored in a @file{.pid}
 file, which is normally in the MySQL database directory:
-
 @example
-kill `cat /mysql-data-directory/hostname.pid`
+shell> kill `cat /mysql-data-directory/hostname.pid`
 @end example
-
-You must be either the Unix @code{root} user or the same user the server
+You must be either the Unix @code{root} user or the same user @code{mysqld}
 runs as to do this.
-
 @item
 Restart @code{mysqld} with the @code{--skip-grant-tables} option.
 @item
-Connect to the @code{mysqld} server with @code{mysql -h hostname mysql} and change
-the password with a @code{GRANT} command. @xref{GRANT,,@code{GRANT}}.
-You can also do this with
-@code{mysqladmin -h hostname -u user password 'new password'}
+Set a new password with the @code{mysqladmin password} command:
+@example
+shell> mysqladmin -u root password 'mynewpassword'
+@end example
 @item
-Load the privilege tables with: @code{mysqladmin -h hostname
-flush-privileges} or with the SQL command @code{FLUSH PRIVILEGES}.
+Now you can either stop @code{mysqld} and restart it normally,
+or just load the privilege tables with:
+@example
+shell> mysqladmin -h hostname flush-privileges
+@end example
+@item
+After this, you should be able to connect using the new password.
 @end enumerate
 
-Note that after you started @code{mysqld} with @code{--skip-grant-tables},
-any usage of @code{GRANT} commands will give you an @code{Unknown command}
-error until you have executed @code{FLUSH PRIVILEGES}.
+Alternatively, you can set the new password using the @code{mysql} client:
+@enumerate
+@item
+Take down and restart @code{mysqld} with the @code{--skip-grant-tables}
+option as described above.
+@item
+Connect to the @code{mysqld} server with:
+@example
+shell> mysql -u root mysql
+@end example
+@item
+Issue the following commands in the @code{mysql} client:
+@example
+mysql> UPDATE user SET Password=PASSWORD('mynewpassword')
+    ->             WHERE User='root';
+mysql> FLUSH PRIVILEGES;
+@end example
+@item
+After this, you should be able to connect using the new password.
+@item
+You can now stop @code{mysqld} and restart it normally.
+@end enumerate
 
 
 @node Full disk, Temporary files, Resetting permissions, Administration Issues
