@@ -437,7 +437,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   Connect fields with tables and create list of tables that are updated
 */
 
-int multi_update::prepare(List<Item> &not_used_values)
+int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;
@@ -531,7 +531,6 @@ int multi_update::prepare(List<Item> &not_used_values)
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
-  init_ftfuncs(thd,1);
   DBUG_RETURN(thd->fatal_error != 0);
 }
 
@@ -575,7 +574,7 @@ multi_update::initialize_tables(JOIN *join)
 
       /* ok to be on stack as this is not referenced outside of this func */
       Field_string offset(table->file->ref_length, 0, "offset",
-			  table, 1);
+			  table, my_charset_bin);
       if (temp_fields.push_front(new Item_field(((Field *) &offset))))
 	DBUG_RETURN(1);
 
@@ -591,8 +590,9 @@ multi_update::initialize_tables(JOIN *join)
       if (!(tmp_tables[cnt]=create_tmp_table(thd,
 					     tmp_param,
 					     temp_fields,
-					     (ORDER*) &group, 0, 0, 0,
-					     TMP_TABLE_ALL_COLUMNS)))
+					     (ORDER*) &group, 0, 0,
+					     TMP_TABLE_ALL_COLUMNS,
+					     HA_POS_ERROR)))
 	DBUG_RETURN(1);
       tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
     }
@@ -682,7 +682,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
       {
-	if (create_myisam_from_heap(table, tmp_table_param + offset, error, 1))
+	if (create_myisam_from_heap(thd, table, tmp_table_param + offset,
+				    error, 1))
 	{
 	  do_update=0;
 	  DBUG_RETURN(1);			// Not a table_is_full error
@@ -697,7 +698,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
 
   /* If nothing updated return */
   if (!updated)
@@ -869,7 +870,7 @@ bool multi_update::send_eof()
     /* Safety: If we haven't got an error before (should not happen) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
-    ::send_error(&thd->net);
+    ::send_error(thd);
     return 1;
   }
 
@@ -880,7 +881,7 @@ bool multi_update::send_eof()
   {
     query_cache_invalidate3(thd, update_tables, 1);
   }
-  ::send_ok(&thd->net,
+  ::send_ok(thd,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
   return 0;

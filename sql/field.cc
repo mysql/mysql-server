@@ -1577,12 +1577,12 @@ void Field_medium::sql_type(String &res) const
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   char *end;
-  while (len && my_isspace(system_charset_info,*from))
+  while (len && my_isspace(cs,*from))
   {
     len--; from++;
   }
   long tmp;
-  String tmp_str(from,len);
+  String tmp_str(from, len, cs);
   from= tmp_str.c_ptr();			// Add end null if needed
   int error= 0;
   errno=0;
@@ -1602,6 +1602,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   if (errno ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len)))
+  {
     current_thd->cuted_fields++;
     error= 1;
   }
@@ -1826,12 +1827,12 @@ void Field_long::sql_type(String &res) const
 int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   char *end;
-  while (len && my_isspace(system_charset_info,*from))
+  while (len && my_isspace(cs,*from))
   {						// For easy error check
     len--; from++;
   }
   longlong tmp;
-  String tmp_str(from,len);
+  String tmp_str(from, len, cs);
   from= tmp_str.c_ptr();			// Add end null if needed
   int error= 0;
   errno=0;

@@ -2070,7 +2070,7 @@ mysql_execute_command(THD *thd)
       walk->lock_type= auxi->lock_type;
       auxi->table_list=  walk;		// Remember corresponding table
     }
-    if (add_item_to_list(new Item_null()))
+    if (add_item_to_list(thd, new Item_null()))
     {
       res= -1;
       break;
@@ -2927,7 +2927,7 @@ void create_select_for_variable(const char *var_name)
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  add_item_to_list(get_system_var(OPT_SESSION, tmp));
+  add_item_to_list(lex->thd, get_system_var(OPT_SESSION, tmp));
   DBUG_VOID_RETURN;
 }
 
@@ -2992,14 +2992,13 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 ** Return 0 if ok
 ******************************************************************************/
 
-bool add_field_to_list(char *field_name, enum_field_types type,
+bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
 		       char *change, TYPELIB *interval, CHARSET_INFO *cs)
 {
   register create_field *new_field;
-  THD	*thd=current_thd;
   LEX  *lex= &thd->lex;
   uint allowed_type_modifier=0;
   char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -3304,7 +3303,7 @@ add_proc_to_list(THD* thd, Item *item)
   ORDER *order;
   Item	**item_ptr;
 
-  if (!(order = (ORDER *) sql_alloc(sizeof(ORDER)+sizeof(Item*))))
+  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
     return 1;
   item_ptr = (Item**) (order+1);
   *item_ptr= item;
@@ -3351,12 +3350,12 @@ static void remove_escape(char *name)
 ****************************************************************************/
 
 
-bool add_to_list(SQL_LIST &list,Item *item,bool asc)
+bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 {
   ORDER *order;
   Item	**item_ptr;
   DBUG_ENTER("add_to_list");
-  if (!(order = (ORDER *) sql_alloc(sizeof(ORDER)+sizeof(Item*))))
+  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
     DBUG_RETURN(1);
   item_ptr = (Item**) (order+1);
   *item_ptr=item;
@@ -3369,7 +3368,8 @@ bool add_to_list(SQL_LIST &list,Item *item,bool asc)
 }
 
 
-TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
+TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
+					     Table_ident *table,
 					     LEX_STRING *alias,
 					     bool updating,
 					     thr_lock_type flags,
@@ -3377,7 +3377,6 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
 					     List<String> *ignore_index)
 {
   register TABLE_LIST *ptr;
-  THD	*thd=current_thd;
   char *alias_str;
   DBUG_ENTER("add_table_to_list");
 

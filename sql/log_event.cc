@@ -1194,9 +1194,15 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   sql_ex.empty_flags = 0;
 
   switch (handle_dup) {
-  case DUP_IGNORE: sql_ex.opt_flags |= IGNORE_FLAG; break;
-  case DUP_REPLACE: sql_ex.opt_flags |= REPLACE_FLAG; break;
-  case DUP_ERROR: break;	
+  case DUP_IGNORE:
+    sql_ex.opt_flags |= IGNORE_FLAG;
+    break;
+  case DUP_REPLACE:
+    sql_ex.opt_flags |= REPLACE_FLAG;
+    break;
+  case DUP_UPDATE:				// Impossible here
+  case DUP_ERROR:
+    break;	
   }
 
   if (!ex->field_term->length())

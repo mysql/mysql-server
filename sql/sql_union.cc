@@ -81,7 +81,8 @@ bool select_union::send_data(List<Item> &values)
     if (thd->net.last_errno == ER_RECORD_FILE_FULL)
     {
       thd->clear_error(); // do not report user about table overflow
-      if (create_myisam_from_heap(table, tmp_table_param, info.last_errno, 0))
+      if (create_myisam_from_heap(thd, table, tmp_table_param,
+				  info.last_errno, 0))
 	return 1;
     }
     else
@@ -150,10 +151,9 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   tmp_table_param.field_count=item_list.elements;
   if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
 				(ORDER*) 0, !union_option,
-				1, 0,
-				(first_select()->options | thd->options |
-				 TMP_TABLE_ALL_COLUMNS),
-				this)))
+				1, (first_select()->options | thd->options |
+				    TMP_TABLE_ALL_COLUMNS),
+				HA_POS_ERROR)))
     goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);

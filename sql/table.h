@@ -118,7 +118,8 @@ struct st_table {
   table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
   ulong		version,flush_version;
   uchar		*null_flags;
-  IO_CACHE	*io_cache;		/* If sorted trough filebyte		*record_pointers;	/* If sorted in memory */
+  IO_CACHE	*io_cache;		/* If sorted trough filebyte */
+  byte		*record_pointers;	/* If sorted in memory */
   ha_rows	found_records;		/* How many records in sort */
   ORDER		*group;
   ha_rows	quick_rows[MAX_KEY];
