@@ -12803,6 +12803,7 @@ static struct my_tests_st my_tests[]= {
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
   { "test_bug8330", test_bug8330 },
+  { "test_bug7990", test_bug7990 },
   { 0, 0 }
 };
 
