@@ -181,3 +181,5 @@ mysql-test/mysql-test-run
 BitKeeper/tmp/gone
 mysqld.S
 mysqld.sym
+.snprj/*
+sql-bench/output/*

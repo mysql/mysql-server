@@ -520,7 +520,7 @@ extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     binlog_cache_size, max_binlog_cache_size;
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates;
-extern bool opt_sql_bin_update;
+extern bool opt_sql_bin_update, opt_safe_show_db;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
 extern byte last_ref[MAX_REFLENGTH];		/* Index ref of keys */
