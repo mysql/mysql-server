@@ -1,6 +1,4 @@
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
+drop table if exists t1, t2;
 create table t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);
 insert into t1 values (1,1,"a","a");
 insert into t1 values (2,2,"b","a");
@@ -155,25 +153,28 @@ show warnings;
 Level	Code	Message
 Warning	1258	1 line(s) was(were) cut by group_concat()
 set group_concat_max_len = 1024;
-drop table if exists T_URL;
-Warnings:
-Note	1051	Unknown table 'T_URL'
-create table T_URL ( URL_ID int(11), URL varchar(80));
-drop table if exists T_REQUEST;
-Warnings:
-Note	1051	Unknown table 'T_REQUEST'
-create table T_REQUEST ( REQ_ID int(11), URL_ID int(11));
-insert into T_URL values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
-insert into T_REQUEST values (1,4), (5,4), (5,5);
-select REQ_ID, Group_Concat(URL) as URL from T_URL, T_REQUEST where 
-T_REQUEST.URL_ID = T_URL.URL_ID group by REQ_ID;
-REQ_ID	URL
-1	www.host.com
-5	www.host.com,www.google.com,www.help.com
-drop table T_URL;
-drop table T_REQUEST;
 select group_concat(sum(a)) from t1 group by grp;
 ERROR HY000: Invalid use of group function
 select grp,group_concat(c order by 2) from t1 group by grp;
 ERROR 42S22: Unknown column '2' in 'group statement'
+drop table t1;
+create table t1 ( URL_ID int(11), URL varchar(80));
+create table t2 ( REQ_ID int(11), URL_ID int(11));
+insert into t1 values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
+insert into t2 values (1,4), (5,4), (5,5);
+select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
+t2.URL_ID = t1.URL_ID group by REQ_ID;
+REQ_ID	URL
+1	X
+5	X,X,X
+drop table t1;
+drop table t2;
+create table t1 (id int, name varchar(16));
+insert into t1 values (1,'longername'),(1,'evenlongername');
+select ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'without distinct: how it should be' from t1;
+without distinct: how it should be
+1:longername,1:evenlongername
+select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
+with distinct: cutoff at length of shortname
+1:longername,1:evenlongername
 drop table t1;

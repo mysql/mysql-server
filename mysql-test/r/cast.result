@@ -44,10 +44,10 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select cast("2001-1-1" as date) = "2001-01-01";
 cast("2001-1-1" as date) = "2001-01-01"
-0
+1
 select cast("2001-1-1" as datetime) = "2001-01-01 00:00:00";
 cast("2001-1-1" as datetime) = "2001-01-01 00:00:00"
-0
+1
 select cast("1:2:3" as TIME) = "1:02:03";
 cast("1:2:3" as TIME) = "1:02:03"
 0

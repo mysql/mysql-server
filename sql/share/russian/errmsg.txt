@@ -9,7 +9,7 @@
 "ДА",
 "Невозможно создать файл '%-.64s' (ошибка: %d)",
 "Невозможно создать таблицу '%-.64s' (ошибка: %d)",
-"Невозможно создать базу данных '%-.64s'. (ошибка: %d)",
+"Невозможно создать базу данных '%-.64s' (ошибка: %d)",
 "Невозможно создать базу данных '%-.64s'. База данных уже существует",
 "Невозможно удалить базу данных '%-.64s'. Такой базы данных нет",
 "Ошибка при удалении базы данных (невозможно удалить '%-.64s', ошибка: %d)",
@@ -268,3 +268,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

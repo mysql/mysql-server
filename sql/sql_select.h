@@ -27,8 +27,10 @@
 typedef struct keyuse_t {
   TABLE *table;
   Item	*val;				/* or value if no field */
-  uint	key,keypart;
   table_map used_tables;
+  uint	key, keypart, optimize;
+  key_map   keypart_map;
+  ha_rows   ref_table_rows;
 } KEYUSE;
 
 class store_key;
@@ -73,7 +75,7 @@ typedef struct st_join_cache {
 */
 
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
-		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT};
+		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL};
 
 class JOIN;
 
@@ -85,6 +87,7 @@ typedef struct st_join_table {
   QUICK_SELECT	*quick;
   Item		*on_expr;
   const char	*info;
+  byte		*null_ref_key;
   int		(*read_first_record)(struct st_join_table *tab);
   int		(*next_select)(JOIN *,struct st_join_table *,bool);
   READ_RECORD	read_record;
@@ -137,12 +140,14 @@ class JOIN :public Sql_alloc
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;
-  List<Item_buff> group_fields;
+  List<Item_buff> group_fields, group_fields_cache;
   TABLE    *tmp_table;
   // used to store 2 possible tmp table of SELECT
   TABLE    *exec_tmp_table1, *exec_tmp_table2;
   THD	   *thd;
   Item_sum  **sum_funcs, ***sum_funcs_end;
+  /* second copy of sumfuncs (for queries with 2 temporary tables */
+  Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Procedure *procedure;
   Item	    *having;
   Item      *tmp_having; // To store Having when processed temporary table
@@ -196,7 +201,7 @@ class JOIN :public Sql_alloc
     send_records(0), found_records(0), examined_rows(0),
     exec_tmp_table1(0), exec_tmp_table2(0),
     thd(thd_arg),
-    sum_funcs(0),
+    sum_funcs(0),sum_funcs2(0),
     procedure(0),
     having(0), tmp_having(0),
     select_options(select_options_arg),

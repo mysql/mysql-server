@@ -395,7 +395,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       }
       else
       {
-        if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+	if (!strpos[14])
+	  charset= &my_charset_bin;
+	else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
 	  charset= (outparam->table_charset ? outparam->table_charset: 
 		  default_charset_info);
       }

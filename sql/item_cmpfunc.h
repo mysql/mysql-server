@@ -35,6 +35,8 @@ class Arg_comparator: public Sql_alloc
   Arg_comparator *comparators;   // used only for compare_row()
 
 public:
+  DTCollation cmp_collation;
+
   Arg_comparator() {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
 
@@ -112,13 +114,10 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
-  DTCollation cmp_collation;
 
 public:
   Item_bool_func2(Item *a,Item *b):
-    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1)
-    { cmp_collation.set(0,DERIVATION_NONE);}
-  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref);
+    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
@@ -129,8 +128,6 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  virtual bool binary() const 
-  { return test(cmp_collation.collation->state & MY_CS_BINSORT); }
 
   static Item_bool_func2* eq_creator(Item *a, Item *b);
   static Item_bool_func2* ne_creator(Item *a, Item *b);
@@ -603,42 +600,26 @@ public:
 
 class Item_func_in :public Item_int_func
 {
-  Item *item;
   in_vector *array;
   cmp_item *in_item;
   bool have_null;
   DTCollation cmp_collation;
  public:
-  Item_func_in(Item *a,List<Item> &list)
-    :Item_int_func(list), item(a), array(0), in_item(0), have_null(0)
+  Item_func_in(List<Item> &list)
+    :Item_int_func(list), array(0), in_item(0), have_null(0)
   {
-    allowed_arg_cols= item->cols();
+    allowed_arg_cols= args[0]->cols();
   }
   longlong val_int();
-  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
-  {
-    // We do not check item->cols(), because allowed_arg_cols assigned from it
-    bool res=(item->fix_fields(thd, tlist, &item) ||
-	      Item_func::fix_fields(thd, tlist, ref));
-    with_sum_func= with_sum_func || item->with_sum_func;
-    return res;
-  }
   void fix_length_and_dec();
-  ~Item_func_in() { delete item; delete array; delete in_item; }
+  ~Item_func_in() { delete array; delete in_item; }
   optimize_type select_optimize() const
     { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }
-  Item *key_item() const { return item; }
+  Item *key_item() const { return args[0]; }
   void print(String *str);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
-  void update_used_tables();
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   bool nulls_in_row();
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_int_func::set_outer_resolving();
-  }
 };
 
 /* Functions used by where clause */

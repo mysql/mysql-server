@@ -31,8 +31,11 @@
 #include <ft_global.h>
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
-			      "MAYBE_REF","ALL","range","index","fulltext" };
+			      "MAYBE_REF","ALL","range","index","fulltext",
+			      "ref_or_null"
+};
 
+static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 				 DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
@@ -106,6 +109,8 @@ static int join_read_prev_same(READ_RECORD *info);
 static int join_read_prev(READ_RECORD *info);
 static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
+static int join_read_always_key_or_null(JOIN_TAB *tab);
+static int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
@@ -137,6 +142,7 @@ static ORDER *create_distinct_group(THD *thd, ORDER *order,
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
+static bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 static bool alloc_group_fields(JOIN *join,ORDER *group);
 // Create list for using with tempory table
 static bool change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
@@ -436,6 +442,9 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  // Ignore errors of execution if option IGNORE present
+  if (thd->lex.duplicates == DUP_IGNORE)
+    thd->lex.current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
@@ -1114,12 +1123,12 @@ JOIN::exec()
 	  DBUG_VOID_RETURN;
 	curr_join->exec_tmp_table2= exec_tmp_table2;
       }
-      if (group_list)
+      if (curr_join->group_list)
       {
 	thd->proc_info= "Creating sort index";
 	if (create_sort_index(thd, curr_join->join_tab, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR) ||
-	    alloc_group_fields(curr_join, curr_join->group_list))
+	    make_group_fields(this, curr_join))
 	{
 	  DBUG_VOID_RETURN;
 	}
@@ -1128,6 +1137,20 @@ JOIN::exec()
       
       thd->proc_info="Copying to group table";
       tmp_error= -1;
+      if (curr_join != this)
+      {
+	if (sum_funcs2)
+	{
+	  curr_join->sum_funcs= sum_funcs2;
+	  curr_join->sum_funcs_end= sum_funcs_end2; 
+	}
+	else
+	{
+	  curr_join->alloc_func_list();
+	  sum_funcs2= curr_join->sum_funcs;
+	  sum_funcs_end2= curr_join->sum_funcs_end;
+	}
+      }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 					1) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
@@ -1186,7 +1209,10 @@ JOIN::exec()
   if (curr_join->group || curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
-    alloc_group_fields(curr_join, curr_join->group_list);
+    if (make_group_fields(this, curr_join))
+    {
+      DBUG_VOID_RETURN;
+    }
     if (!items3)
     {
       if (!items0)
@@ -1456,8 +1482,9 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
-  uint i,table_count,const_count,found_ref,refs,key,const_ref,eq_part;
-  table_map found_const_table_map,all_table_map;
+  uint i,table_count,const_count,key;
+  table_map found_const_table_map, all_table_map, found_ref, refs;
+  key_map const_ref, eq_part;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   KEYUSE *keyuse,*start_keyuse;
@@ -1475,7 +1502,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   join->best_ref=stat_vector;
 
   stat_end=stat+table_count;
-  found_const_table_map=all_table_map=0;
+  found_const_table_map= all_table_map=0;
   const_count=0;
 
   for (s=stat,i=0 ; tables ; s++,tables=tables->next,i++)
@@ -1632,16 +1659,17 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  key=keyuse->key;
 	  s->keys|= (key_map) 1 << key;		// QQ: remove this ?
 
-	  refs=const_ref=eq_part=0;
+	  refs=const_ref=0;
+	  eq_part=0;
 	  do
 	  {
-	    if (keyuse->val->type() != Item::NULL_ITEM)
+	    if (keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
 	    {
 	      if (!((~found_const_table_map) & keyuse->used_tables))
 		const_ref|= (key_map) 1 << keyuse->keypart;
 	      else
 		refs|=keyuse->used_tables;
-	      eq_part|= (uint) 1 << keyuse->keypart;
+	      eq_part|= (key_map) 1 << keyuse->keypart;
 	    }
 	    keyuse++;
 	  } while (keyuse->table == table && keyuse->key == key);
@@ -1700,8 +1728,6 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if (s->worst_seeks < 2.0)			// Fix for small tables
       s->worst_seeks=2.0;
 
-    /* if (s->type == JT_EQ_REF)
-      continue; */
     if (s->const_keys)
     {
       ha_rows records;
@@ -1752,7 +1778,10 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   join->found_const_table_map=found_const_table_map;
 
   if (join->const_tables != join->tables)
+  {
+    optimize_keyuse(join, keyuse_array);
     find_best_combination(join,all_table_map & ~join->const_table_map);
+  }
   else
   {
     memcpy((gptr) join->best_positions,(gptr) join->positions,
@@ -1774,13 +1803,26 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 typedef struct key_field_t {		// Used when finding key fields
   Field		*field;
   Item		*val;			// May be empty if diff constant
-  uint		level,const_level;	// QQ: Remove const_level
+  uint		level;
+  uint		optimize;
   bool		eq_func;
-  bool		exists_optimize;
 } KEY_FIELD;
 
+/* Values in optimize */
+#define KEY_OPTIMIZE_EXISTS		1
+#define KEY_OPTIMIZE_REF_OR_NULL	2
 
-/* merge new key definitions to old ones, remove those not used in both */
+/*
+  Merge new key definitions to old ones, remove those not used in both
+
+  This is called for OR between different levels
+
+  To be able to do 'ref_or_null' we merge a comparison of a column
+  and 'column IS NULL' to one test.  This is useful for sub select queries
+  that are internally transformed to something like:
+
+  SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL 
+*/
 
 static KEY_FIELD *
 merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
@@ -1802,20 +1844,46 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
       {
 	if (new_fields->val->used_tables())
 	{
+	  /*
+	    If the value matches, we can use the key reference.
+	    If not, we keep it until we have examined all new values
+	  */
 	  if (old->val->eq(new_fields->val, old->field->binary()))
 	  {
-	    old->level=old->const_level=and_level;
-	    old->exists_optimize&=new_fields->exists_optimize;
+	    old->level= and_level;
+	    old->optimize= ((old->optimize & new_fields->optimize &
+			     KEY_OPTIMIZE_EXISTS) |
+			    ((old->optimize | new_fields->optimize) &
+			     KEY_OPTIMIZE_REF_OR_NULL));
 	  }
 	}
-	else if (old->val->eq(new_fields->val, old->field->binary()) &&
-		 old->eq_func && new_fields->eq_func)
+	else if (old->eq_func && new_fields->eq_func &&
+		 old->val->eq(new_fields->val, old->field->binary()))
+		 
 	{
-	  old->level=old->const_level=and_level;
-	  old->exists_optimize&=new_fields->exists_optimize;
+	  old->level= and_level;
+	  old->optimize= ((old->optimize & new_fields->optimize &
+			   KEY_OPTIMIZE_EXISTS) |
+			  ((old->optimize | new_fields->optimize) &
+			   KEY_OPTIMIZE_REF_OR_NULL));
 	}
-	else					// Impossible; remove it
+	else if (old->eq_func && new_fields->eq_func &&
+		 (old->val->is_null() || new_fields->val->is_null()))
 	{
+	  /* field = expression OR field IS NULL */
+	  old->level= and_level;
+	  old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
+	  /* Remember the NOT NULL value */
+	  if (old->val->is_null())
+	    old->val= new_fields->val;
+	}
+	else
+	{
+	  /*
+	    We are comparing two different const.  In this case we can't
+	    use a key-lookup on this so it's better to remove the value
+	    and let the range optimzier handle it
+	  */
 	  if (old == --first_free)		// If last item
 	    break;
 	  *old= *first_free;			// Remove old value
@@ -1827,7 +1895,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
   /* Remove all not used items */
   for (KEY_FIELD *old=start ; old != first_free ;)
   {
-    if (old->level != and_level && old->const_level != and_level)
+    if (old->level != and_level)
     {						// Not used in all levels
       if (old == --first_free)
 	break;
@@ -1840,32 +1908,53 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 }
 
 
+/*
+  Add a possible key to array of possible keys if it's usable as a key
+
+  SYNPOSIS
+    add_key_field()
+    key_fields			Pointer to add key, if usable
+    and_level			And level, to be stored in KEY_FIELD
+    field			Field used in comparision
+    eq_func			True if we used =, <=> or IS NULL
+    value			Value used for comparison with field
+				Is NULL for BETWEEN and IN    
+    usable_tables		Tables which can be used for key optimization
+
+  NOTES
+    If we are doing a NOT NULL comparison on a NOT NULL field in a outer join
+    table, we store this to be able to do not exists optimization later.
+
+  RETURN
+    *key_fields is incremented if we stored a key in the array
+*/
+
 static void
 add_key_field(KEY_FIELD **key_fields,uint and_level,
 	      Field *field,bool eq_func,Item *value,
 	      table_map usable_tables)
 {
-  bool exists_optimize=0;
+  uint exists_optimize= 0;
   if (!(field->flags & PART_KEY_FLAG))
   {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || !value || value->type() != Item::NULL_ITEM ||
 	!field->table->maybe_null || field->null_ptr)
       return;					// Not a key. Skip it
-    exists_optimize=1;
+    exists_optimize= KEY_OPTIMIZE_EXISTS;
   }
   else
   {
     table_map used_tables=0;
-    if (value && (used_tables=value->used_tables()) &
-	(field->table->map | RAND_TABLE_BIT))
+    if (value && ((used_tables=value->used_tables()) &
+		  (field->table->map | RAND_TABLE_BIT)))
       return;
     if (!(usable_tables & field->table->map))
     {
       if (!eq_func || !value || value->type() != Item::NULL_ITEM ||
 	  !field->table->maybe_null || field->null_ptr)
 	return;					// Can't use left join optimize
-      exists_optimize=1;
+      exists_optimize= KEY_OPTIMIZE_EXISTS;
     }
     else
     {
@@ -1880,20 +1969,23 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 	return;					// Can't be used as eq key
       }
 
-      /* Save the following cases:
-	 Field op constant
-	 Field LIKE constant where constant doesn't start with a wildcard
-	 Field = field2 where field2 is in a different table
-	 Field op formula
-	 Field IS NULL
-	 Field IS NOT NULL
+      /*
+	Save the following cases:
+	Field op constant
+	Field LIKE constant where constant doesn't start with a wildcard
+	Field = field2 where field2 is in a different table
+	Field op formula
+	Field IS NULL
+	Field IS NOT NULL
       */
       stat[0].key_dependent|=used_tables;
       if (value->const_item())
 	stat[0].const_keys |= possible_keys;
 
-      /* We can't always use indexes when comparing a string index to a
-	 number. cmp_type() is checked to allow compare of dates to numbers */
+      /*
+	We can't always use indexes when comparing a string index to a
+	number. cmp_type() is checked to allow compare of dates to numbers
+      */
       if (!eq_func ||
 	  field->result_type() == STRING_RESULT &&
 	  value->result_type() != STRING_RESULT &&
@@ -1902,11 +1994,11 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     }
   }
   /* Store possible eq field */
-  (*key_fields)->field=field;
-  (*key_fields)->eq_func=eq_func;
-  (*key_fields)->val=value;
-  (*key_fields)->level=(*key_fields)->const_level=and_level;
-  (*key_fields)->exists_optimize=exists_optimize;
+  (*key_fields)->field=		field;
+  (*key_fields)->eq_func=	eq_func;
+  (*key_fields)->val=		value;
+  (*key_fields)->level=		and_level;
+  (*key_fields)->optimize=	exists_optimize;
   (*key_fields)++;
 }
 
@@ -1926,12 +2018,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       while ((item=li++))
 	add_key_fields(stat,key_fields,and_level,item,usable_tables);
       for (; org_key_fields != *key_fields ; org_key_fields++)
-      {
-	if (org_key_fields->const_level == org_key_fields->level)
-	  org_key_fields->const_level=org_key_fields->level= *and_level;
-	else
-	  org_key_fields->const_level= *and_level;
-      }
+	org_key_fields->level= *and_level;
     }
     else
     {
@@ -1959,9 +2046,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     break;
   case Item_func::OPTIMIZE_KEY:
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
-	// field from outer query can't be used as key
-	!((Item_field*) (cond_func->key_item()->real_item()))
-	->depended_from)
+	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->key_item()->real_item()))
 		    ->field,
@@ -1973,9 +2058,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 		     cond_func->functype() == Item_func::EQUAL_FUNC);
 
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
-	// field from outer query can't be used as key
-	!((Item_field*) (cond_func->arguments()[0]->real_item()))
-	->depended_from)
+	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
     {
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
@@ -1985,9 +2068,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     }
     if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	cond_func->functype() != Item_func::LIKE_FUNC &&
-	// field from outer query can't be used as key
-	!((Item_field*) (cond_func->arguments()[1]->real_item()))
-	->depended_from)
+	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->arguments()[1])->real_item())
@@ -2000,9 +2081,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
   case Item_func::OPTIMIZE_NULL:
     /* column_name IS [NOT] NULL */
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
-	// field from outer query can't be used as key
-	!((Item_field*) (cond_func->arguments()[0]->real_item()))
-	->depended_from)
+	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
@@ -2036,7 +2115,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
   TABLE *form= field->table;
   KEYUSE keyuse;
 
-  if (key_field->eq_func && !key_field->exists_optimize)
+  if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
     for (uint key=0 ; key < form->keys ; key++)
     {
@@ -2054,7 +2133,9 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.val =  key_field->val;
 	  keyuse.key =  key;
 	  keyuse.keypart=part;
+	  keyuse.keypart_map= (key_part_map) 1 << part;
 	  keyuse.used_tables=key_field->val->used_tables();
+	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
 	  VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 	}
       }
@@ -2138,16 +2219,23 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 }
 
+
 static int
 sort_keyuse(KEYUSE *a,KEYUSE *b)
 {
+  int res;
   if (a->table->tablenr != b->table->tablenr)
     return (int) (a->table->tablenr - b->table->tablenr);
   if (a->key != b->key)
     return (int) (a->key - b->key);
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
-  return test(a->used_tables) - test(b->used_tables);	// Place const first
+  // Place const values before other ones
+  if ((res= test(a->used_tables) - test(b->used_tables)))
+    return res;
+  /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
+  return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
+		(b->optimize & KEY_OPTIMIZE_REF_OR_NULL));
 }
 
 
@@ -2163,31 +2251,28 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		    SELECT_LEX *select_lex)
 {
   uint	and_level,i,found_eq_constant;
+  KEY_FIELD *key_fields,*end;
 
+  if (!(key_fields=(KEY_FIELD*)
+	thd->alloc(sizeof(key_fields[0])*
+		   (thd->lex.current_select->cond_count+1)*2)))
+    return TRUE; /* purecov: inspected */
+  and_level=0; end=key_fields;
+  if (cond)
+    add_key_fields(join_tab,&end,&and_level,cond,normal_tables);
+  for (i=0 ; i < tables ; i++)
   {
-    KEY_FIELD *key_fields,*end;
-
-    if (!(key_fields=(KEY_FIELD*)
-	  thd->alloc(sizeof(key_fields[0])*
-		     (thd->lex.current_select->cond_count+1)*2)))
-      return TRUE; /* purecov: inspected */
-    and_level=0; end=key_fields;
-    if (cond)
-      add_key_fields(join_tab,&end,&and_level,cond,normal_tables);
-    for (i=0 ; i < tables ; i++)
+    if (join_tab[i].on_expr)
     {
-      if (join_tab[i].on_expr)
-      {
-	add_key_fields(join_tab,&end,&and_level,join_tab[i].on_expr,
-		       join_tab[i].table->map);
-      }
+      add_key_fields(join_tab,&end,&and_level,join_tab[i].on_expr,
+		     join_tab[i].table->map);
     }
-    if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
-      return TRUE;
-    /* fill keyuse with found key parts */
-    for (KEY_FIELD *field=key_fields ; field != end ; field++)
-      add_key_part(keyuse,field);
   }
+  if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+    return TRUE;
+  /* fill keyuse with found key parts */
+  for (KEY_FIELD *field=key_fields ; field != end ; field++)
+    add_key_part(keyuse,field);
 
   if (select_lex->ftfunc_list->elements)
   {
@@ -2195,9 +2280,10 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
 
   /*
-    Remove ref if there is a keypart which is a ref and a const.
-    Remove keyparts without previous keyparts.
     Special treatment for ft-keys.
+    Remove the following things from KEYUSE:
+    - ref if there is a keypart which is a ref and a const.
+    - keyparts without previous keyparts.
   */
   if (keyuse->elements)
   {
@@ -2215,8 +2301,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
       if (!use->used_tables)
-	use->table->const_key_parts[use->key] |=
-	  (key_part_map) 1 << use->keypart;
+	use->table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)
       {
 	if (use->key == prev->key && use->table == prev->table)
@@ -2243,6 +2328,41 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     keyuse->elements=i;
   }
   return FALSE;
+}
+
+/*
+  Update some values in keyuse for faster find_best_combination() loop
+*/
+
+static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
+{
+  KEYUSE *end,*keyuse= dynamic_element(keyuse_array, 0, KEYUSE*);
+
+  for (end= keyuse+ keyuse_array->elements ; keyuse < end ; keyuse++)
+  {
+    table_map map;
+    /*
+      If we find a ref, assume this table matches a proportional
+      part of this table.
+      For example 100 records matching a table with 5000 records
+      gives 5000/100 = 50 records per key
+      Constant tables are ignored.
+      To avoid bad matches, we don't make ref_table_rows less than 100.
+    */
+    keyuse->ref_table_rows= ~(table_map) 0;	// If no ref
+    if (keyuse->used_tables &
+	(map= (keyuse->used_tables & ~join->const_table_map &
+	       ~OUTER_REF_TABLE_BIT)))
+    {
+      uint tablenr;
+      for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
+      if (map == 1)			// Only one table
+      {
+	TABLE *tmp_table=join->all_tables[tablenr];
+	keyuse->ref_table_rows= max(tmp_table->file->records, 100);
+      }
+    }
+  }
 }
 
 
@@ -2331,7 +2451,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	uint max_key_part=0;
 
 	/* Test how we can use keys */
-	rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  /* Assumed records/key */
+	rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
 	for (keyuse=s->keyuse ; keyuse->table == table ;)
 	{
 	  key_map found_part=0;
@@ -2339,44 +2459,27 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  uint key=keyuse->key;
 	  KEY *keyinfo=table->key_info+key;
           bool ft_key=(keyuse->keypart == FT_KEYPART);
+	  uint found_ref_or_null= 0;
 
+	  /* Calculate how many key segments of the current key we can use */
 	  start_key=keyuse;
 	  do
 	  {
             uint keypart=keyuse->keypart;
+	    uint found_part_ref_or_null= KEY_OPTIMIZE_REF_OR_NULL;
 	    do
 	    {
-              if (!ft_key)
-              {
-		table_map map;
-		if (!(rest_tables & keyuse->used_tables))
-		{
-		  found_part|= (key_part_map) 1 << keypart;
-		  found_ref|= keyuse->used_tables;
-		}
-		/*
-		  If we find a ref, assume this table matches a proportional
-		  part of this table.
-		  For example 100 records matching a table with 5000 records
-		  gives 5000/100 = 50 records per key
-		  Constant tables are ignored and to avoid bad matches,
-		  we don't make rec less than 100.
-		*/
-		if (keyuse->used_tables &
-		    (map=(keyuse->used_tables & ~join->const_table_map &
-			  ~OUTER_REF_TABLE_BIT)))
-		{
-		  uint tablenr;
-		  for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
-		  if (map == 1)			// Only one table
-		  {
-		    TABLE *tmp_table=join->all_tables[tablenr];
-		    if (rec > tmp_table->file->records && rec > 100)
-		      rec=max(tmp_table->file->records,100);
-		  }
-		}
+	      if (!(rest_tables & keyuse->used_tables) &&
+		  !(found_ref_or_null & keyuse->optimize))
+	      {
+		found_part|=keyuse->keypart_map;
+		found_ref|= keyuse->used_tables;
+		if (rec > keyuse->ref_table_rows)
+		  rec= keyuse->ref_table_rows;
+		found_part_ref_or_null&= keyuse->optimize;
               }
 	      keyuse++;
+	      found_ref_or_null|= found_part_ref_or_null;
 	    } while (keyuse->table == table && keyuse->key == key &&
 		     keyuse->keypart == keypart);
 	  } while (keyuse->table == table && keyuse->key == key);
@@ -2386,8 +2489,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  */
           if (!found_part && !ft_key)
 	    continue;				// Nothing usable found
-	  if (rec == 0)
-	    rec=1L;				// Fix for small tables
+	  if (rec < MATCHING_ROWS_IN_OTHER_TABLE)
+	    rec= MATCHING_ROWS_IN_OTHER_TABLE;	// Fix for small tables
 
           /*
 	    ft-keys require special treatment
@@ -2406,7 +2509,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  /*
 	    Check if we found full key
 	  */
-	  if (found_part == PREV_BITS(uint,keyinfo->key_parts))
+	  if (found_part == PREV_BITS(uint,keyinfo->key_parts) &&
+	      !found_ref_or_null)
 	  {				/* use eq key */
 	    max_key_part= (uint) ~0;
 	    if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
@@ -2459,7 +2563,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	      Set tmp to (previous record count) * (records / combination)
 	    */
 	    if ((found_part & 1) &&
-		!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX))
+		(!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX) ||
+		 found_part == PREV_BITS(uint,keyinfo->key_parts)))
 	    {
 	      max_key_part=max_part_bit(found_part);
 	      /*
@@ -2508,6 +2613,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    set_if_bigger(tmp,1.0);
 		  }
 		  records=(ulong) tmp;
+		}
+		if (found_ref_or_null)
+		{
+		  /* We need to do two key searches to find key */
+		  tmp*= 2.0;
+		  records*= 2.0;
 		}
 	      }
 	      if (table->used_keys & ((key_map) 1 << key))
@@ -2758,9 +2869,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   TABLE *table;
   KEY *keyinfo;
 
-  /*
-    Use best key from find_best
-  */
+  /*  Use best key from find_best */
   table=j->table;
   key=keyuse->key;
   keyinfo=table->key_info+key;
@@ -2776,14 +2885,22 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   else
   {
     keyparts=length=0;
+    uint found_part_ref_or_null= 0;
+    /*
+      Calculate length for the used key
+      Stop if there is a missing key part or when we find second key_part
+      with KEY_OPTIMIZE_REF_OR_NULL
+    */
     do
     {
-      if (!((~used_tables) & keyuse->used_tables))
+      if (!(~used_tables & keyuse->used_tables))
       {
-	if (keyparts == keyuse->keypart)
+	if (keyparts == keyuse->keypart &&
+	    !(found_part_ref_or_null & keyuse->optimize))
 	{
 	  keyparts++;
-	  length+=keyinfo->key_part[keyuse->keypart].store_length;
+	  length+= keyinfo->key_part[keyuse->keypart].store_length;
+	  found_part_ref_or_null|= keyuse->optimize;
 	}
       }
       keyuse++;
@@ -2806,8 +2923,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   j->ref.key_err=1;
   keyuse=org_keyuse;
 
-  store_key **ref_key=j->ref.key_copy;
-  byte *key_buff=j->ref.key_buff;
+  store_key **ref_key= j->ref.key_copy;
+  byte *key_buff=j->ref.key_buff, *null_ref_key= 0;
   if (ftkey)
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
@@ -2835,9 +2952,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
                            maybe_null ?  (char*) key_buff : 0,
                            keyinfo->key_part[i].length, keyuse->val);
 	if (thd->is_fatal_error)
-	{
 	  return TRUE;
-	}
 	tmp.copy();
       }
       else
@@ -2845,17 +2960,25 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 				  keyuse,join->const_table_map,
 				  &keyinfo->key_part[i],
 				  (char*) key_buff,maybe_null);
+      /* Remmeber if we are going to use REF_OR_NULL */
+      if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
+	null_ref_key= key_buff;
       key_buff+=keyinfo->key_part[i].store_length;
     }
   } /* not ftkey */
   *ref_key=0;				// end_marker
-  if (j->type == JT_FT)  /* no-op */;
-  else if (j->type == JT_CONST)
-    j->table->const_table=1;
+  if (j->type == JT_FT)
+    return 0;
+  if (j->type == JT_CONST)
+    j->table->const_table= 1;
   else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY))
-	    != HA_NOSAME) ||
-	   keyparts != keyinfo->key_parts)
-    j->type=JT_REF;				/* Must read with repeat */
+	    != HA_NOSAME) || keyparts != keyinfo->key_parts ||
+	   null_ref_key)
+  {
+    /* Must read with repeat */
+    j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
+    j->null_ref_key= null_ref_key;
+  }
   else if (ref_key == j->ref.key_copy)
   {
     /*
@@ -3166,6 +3289,7 @@ make_join_readinfo(JOIN *join, uint options)
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
       break;
+    case JT_REF_OR_NULL:
     case JT_REF:
       table->status=STATUS_NO_RECORD;
       if (tab->select)
@@ -3176,13 +3300,21 @@ make_join_readinfo(JOIN *join, uint options)
       delete tab->quick;
       tab->quick=0;
       table->file->index_init(tab->ref.key);
-      tab->read_first_record= join_read_always_key;
-      tab->read_record.read_record= join_read_next_same;
       if (table->used_keys & ((key_map) 1 << tab->ref.key) &&
 	  !table->no_keyread)
       {
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
+      }
+      if (tab->type == JT_REF)
+      {
+	tab->read_first_record= join_read_always_key;
+	tab->read_record.read_record= join_read_next_same;
+      }
+      else
+      {
+	tab->read_first_record= join_read_always_key_or_null;
+	tab->read_record.read_record= join_read_next_same_or_null;
       }
       break;
     case JT_FT:
@@ -5194,6 +5326,40 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
   The different ways to read a record
   Returns -1 if row was not found, 0 if row was found and 1 on errors
 *****************************************************************************/
+
+/* Help function when we get some an error from the table handler */
+
+static int report_error(TABLE *table, int error)
+{
+  if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
+  {
+    table->status= STATUS_GARBAGE;
+    return -1;					// key not found; ok
+  }
+  /*
+    Locking reads can legally return also these errors, do not
+    print them to the .err log
+  */
+  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+    sql_print_error("Got error %d when reading table '%s'",
+		    error, table->path);
+  table->file->print_error(error,MYF(0));
+  return 1;
+}
+
+
+static int safe_index_read(JOIN_TAB *tab)
+{
+  int error;
+  TABLE *table= tab->table;
+  if ((error=table->file->index_read(table->record[0],
+				     tab->ref.key_buff,
+				     tab->ref.key_length, HA_READ_KEY_EXACT)))
+    return report_error(table, error);
+  return 0;
+}
+
+
 static int
 join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 {
@@ -5248,10 +5414,7 @@ join_read_system(JOIN_TAB *tab)
 					   table->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
-      {
-	table->file->print_error(error,MYF(0));
-	return 1;
-      }
+	return report_error(table, error);
       table->null_row=1;			// This is ok.
       empty_record(table);			// Make empty record
       return -1;
@@ -5285,15 +5448,7 @@ join_read_const(JOIN_TAB *tab)
       table->null_row=1;
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
-      {
-	/* Locking reads can legally return also these errors, do not
-	   print them to the .err log */
-	if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	  sql_print_error("read_const: Got error %d when reading table %s",
-			error, table->path);
-	table->file->print_error(error,MYF(0));
-	return 1;
-      }
+	return report_error(table, error);
       return -1;
     }
     store_record(table,record[1]);
@@ -5326,12 +5481,7 @@ join_read_key(JOIN_TAB *tab)
 				  tab->ref.key_buff,
 				  tab->ref.key_length,HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND)
-    {
-      sql_print_error("read_key: Got error %d when reading table '%s'",error,
-		      table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
+      return report_error(table, error);
   }
   table->null_row=0;
   return table->status ? -1 : 0;
@@ -5351,17 +5501,12 @@ join_read_always_key(JOIN_TAB *tab)
 				     tab->ref.key_length,HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("read_const: Got error %d when reading table %s",error,
-		      table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
+      return report_error(table, error);
     return -1; /* purecov: inspected */
   }
   return 0;
 }
+
 
 /*
   This function is used when optimizing away ORDER BY in 
@@ -5381,13 +5526,7 @@ join_read_last_key(JOIN_TAB *tab)
 					  tab->ref.key_length)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("read_const: Got error %d when reading table %s",error,
-		      table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
+      return report_error(table, error);
     return -1; /* purecov: inspected */
   }
   return 0;
@@ -5414,18 +5553,13 @@ join_read_next_same(READ_RECORD *info)
 					  tab->ref.key_length)))
   {
     if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("read_next: Got error %d when reading table %s",error,
-		      table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
+      return report_error(table, error);
     table->status= STATUS_GARBAGE;
     return -1;
   }
   return 0;
 }
+
 
 static int
 join_read_prev_same(READ_RECORD *info)
@@ -5435,23 +5569,9 @@ join_read_prev_same(READ_RECORD *info)
   JOIN_TAB *tab=table->reginfo.join_tab;
 
   if ((error=table->file->index_prev(table->record[0])))
-  {
-    if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("read_next: Got error %d when reading table %s",error,
-		      table->path);
-      table->file->print_error(error,MYF(0));
-      error= 1;
-    }
-    else
-    {
-      table->status= STATUS_GARBAGE;
-      error= -1;
-    }
-  }
-  else if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
-		   tab->ref.key_length))
+    return report_error(table, error);
+  if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
+	      tab->ref.key_length))
   {
     table->status=STATUS_NOT_FOUND;
     error= -1;
@@ -5488,6 +5608,7 @@ join_init_read_record(JOIN_TAB *tab)
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
+
 static int
 join_read_first(JOIN_TAB *tab)
 {
@@ -5505,17 +5626,10 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  error=tab->table->file->index_first(tab->table->record[0]);
-  if (error)
+  if ((error=tab->table->file->index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("read_first_with_key: Got error %d when reading table",
-		      error);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
+      report_error(table, error);
     return -1;
   }
   return 0;
@@ -5525,22 +5639,12 @@ join_read_first(JOIN_TAB *tab)
 static int
 join_read_next(READ_RECORD *info)
 {
-  int error=info->file->index_next(info->record);
-  if (error)
-  {
-    if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error(
-		    "read_next_with_key: Got error %d when reading table %s",
-		      error, info->table->path);
-      info->file->print_error(error,MYF(0));
-      return 1;
-    }
-    return -1;
-  }
+  int error;
+  if ((error=info->file->index_next(info->record)))
+    return report_error(info->table, error);
   return 0;
 }
+
 
 static int
 join_read_last(JOIN_TAB *tab)
@@ -5559,19 +5663,8 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  error=tab->table->file->index_last(tab->table->record[0]);
-  if (error)
-  {
-    if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("read_last_with_key: Got error %d when reading table",
-		      error, table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
-    return -1;
-  }
+  if ((error= tab->table->file->index_last(tab->table->record[0])))
+    return report_error(table, error);
   return 0;
 }
 
@@ -5579,20 +5672,9 @@ join_read_last(JOIN_TAB *tab)
 static int
 join_read_prev(READ_RECORD *info)
 {
-  int error=info->file->index_prev(info->record);
-  if (error)
-  {
-    if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error(
-		  "read_prev_with_key: Got error %d when reading table: %s",
-		      error,info->table->path);
-      info->file->print_error(error,MYF(0));
-      return 1;
-    }
-    return -1;
-  }
+  int error;
+  if ((error= info->file->index_prev(info->record)))
+    return report_error(info->table, error);
   return 0;
 }
 
@@ -5609,39 +5691,54 @@ join_ft_read_first(JOIN_TAB *tab)
 #endif
   table->file->ft_init();
 
-  error=table->file->ft_read(table->record[0]);
-  if (error)
-  {
-    if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("ft_read_first: Got error %d when reading table %s",
-                      error, table->path);
-      table->file->print_error(error,MYF(0));
-      return 1;
-    }
-    return -1;
-  }
+  if ((error= table->file->ft_read(table->record[0])))
+    return report_error(table, error);
   return 0;
 }
 
 static int
 join_ft_read_next(READ_RECORD *info)
 {
-  int error=info->file->ft_read(info->table->record[0]);
-  if (error)
-  {
-    if (error != HA_ERR_END_OF_FILE)
-    {
-      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
-	sql_print_error("ft_read_next: Got error %d when reading table %s",
-                      error, info->table->path);
-      info->file->print_error(error,MYF(0));
-      return 1;
-    }
-    return -1;
-  }
+  int error;
+  if ((error= info->file->ft_read(info->table->record[0])))
+    return report_error(info->table, error);
   return 0;
+}
+
+
+/*
+  Reading of key with key reference and one part that may be NULL
+*/
+
+static int
+join_read_always_key_or_null(JOIN_TAB *tab)
+{
+  int res;
+
+  /* First read according to key which is NOT NULL */
+  *tab->null_ref_key=0;
+  if ((res= join_read_always_key(tab)) >= 0)
+    return res;
+
+  /* Then read key with null value */
+  *tab->null_ref_key= 1;
+  return safe_index_read(tab);
+}
+
+
+static int
+join_read_next_same_or_null(READ_RECORD *info)
+{
+  int error;
+  if ((error= join_read_next_same(info)) >= 0)
+    return error;
+  JOIN_TAB *tab= info->table->reginfo.join_tab;
+
+  /* Test if we have already done a read after null key */
+  if (*tab->null_ref_key)
+    return -1;					// All keys read
+  *tab->null_ref_key= 1;			// Read null key
+  return safe_index_read(tab);
 }
 
 
@@ -6371,10 +6468,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   }
 
   ref_key= -1;
-  if (tab->ref.key >= 0)			// Constant range in WHERE
+  /* Test if constant range in WHERE */
+  if (tab->ref.key >= 0)
   {
     ref_key=	   tab->ref.key;
     ref_key_parts= tab->ref.key_parts;
+    if (tab->type == JT_REF_OR_NULL)
+      DBUG_RETURN(0);
   }
   else if (select && select->quick)		// Range found by opt_range
   {
@@ -7561,6 +7661,37 @@ calc_group_buffer(JOIN *join,ORDER *group)
   join->tmp_table_param.group_null_parts=null_parts;
 }
 
+/*
+  alloc group fields or take prepared (chached)
+
+  SYNOPSYS
+    make_group_fields()
+    main_join - join of current select
+    curr_join - current join (join of current select or temporary copy of it)
+
+  RETURN
+    0 - ok
+    1 - failed
+*/
+
+static bool
+make_group_fields(JOIN *main_join, JOIN *curr_join)
+{
+    if (main_join->group_fields_cache.elements)
+    {
+      curr_join->group_fields= main_join->group_fields_cache;
+      curr_join->sort_and_group= 1;
+    }
+    else
+    {
+      if (alloc_group_fields(curr_join, curr_join->group_list))
+      {
+	return (1);
+      }
+      main_join->group_fields_cache= curr_join->group_fields;
+    }
+    return (0);
+}
 
 /*
   Get a list of buffers for saveing last group
@@ -7587,6 +7718,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
 static int
 test_if_group_changed(List<Item_buff> &list)
 {
+  DBUG_ENTER("test_if_group_changed");
   List_iterator<Item_buff> li(list);
   int idx= -1,i;
   Item_buff *buff;
@@ -7596,7 +7728,8 @@ test_if_group_changed(List<Item_buff> &list)
     if (buff->cmp())
       idx=i;
   }
-  return idx;
+  DBUG_PRINT("info", ("idx: %d", idx));
+  DBUG_RETURN(idx);
 }
 
 

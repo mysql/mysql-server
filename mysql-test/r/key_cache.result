@@ -1,0 +1,43 @@
+SET @save_key_buffer=@@key_buffer_size;
+SELECT @@key_buffer_size, @@small.key_buffer_size;
+@@key_buffer_size	@@small.key_buffer_size
+2097152	131072
+SET @@global.key_buffer_size=16*1024*1024;
+SET @@global.default.key_buffer_size=16*1024*1024;
+SET @@global.default.key_buffer_size=16*1024*1024;
+SET @@global.small.key_buffer_size=1*1024*1024;
+SET @@global.medium.key_buffer_size=4*1024*1024;
+SET @@global.medium.key_buffer_size=0;
+SET @@global.medium.key_buffer_size=0;
+SHOW VARIABLES like "key_buffer_size";
+Variable_name	Value
+key_buffer_size	16777216
+SELECT @@key_buffer_size;
+@@key_buffer_size
+16777216
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+16777216
+SELECT @@global.default.key_buffer_size;
+@@global.default.key_buffer_size
+16777216
+SELECT @@global.default.`key_buffer_size`;
+@@global.default.key_buffer_size
+16777216
+SELECT @@global.`default`.`key_buffer_size`;
+@@global.default.key_buffer_size
+16777216
+SELECT @@`default`.key_buffer_size;
+@@default.key_buffer_size
+16777216
+SELECT @@small.key_buffer_size;
+@@small.key_buffer_size
+1048576
+SELECT @@medium.key_buffer_size;
+@@medium.key_buffer_size
+4194304
+SET @@global.key_buffer_size=@save_key_buffer;
+SELECT @@default.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'default.key_buffer_size' at line 1
+SELECT @@skr.table_type="test";
+ERROR HY000: Variable 'table_type' is not a variable component (Can't be used as XXXX.variable_name)

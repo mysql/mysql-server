@@ -12,7 +12,7 @@
 "JAH",
 "Ei suuda luua faili '%-.64s' (veakood: %d)",
 "Ei suuda luua tabelit '%-.64s' (veakood: %d)",
-"Ei suuda luua andmebaasi '%-.64s'. (veakood: %d)",
+"Ei suuda luua andmebaasi '%-.64s' (veakood: %d)",
 "Ei suuda luua andmebaasi '%-.64s': andmebaas juba eksisteerib",
 "Ei suuda kustutada andmebaasi '%-.64s': andmebaasi ei eksisteeri",
 "Viga andmebaasi kustutamisel (ei suuda kustutada faili '%-.64s', veakood: %d)",
@@ -271,3 +271,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

@@ -1057,6 +1057,11 @@ bool do_command(THD *thd)
 
   net= &thd->net;
   thd->current_tablenr=0;
+  /*
+    indicator of uninitialized lex => normal flow of errors handling
+    (see my_message_sql)
+  */
+  thd->lex.current_select= 0;
 
   packet=0;
   old_timeout=net->read_timeout;
@@ -1283,6 +1288,11 @@ restore_user:
   case COM_CLOSE_STMT:
   {
     mysql_stmt_free(thd, packet);
+    break;
+  }
+  case COM_RESET_STMT:
+  {
+    mysql_stmt_reset(thd, packet);
     break;
   }
   case COM_QUERY:
@@ -3396,11 +3406,6 @@ static bool check_merge_table_access(THD *thd, char *db,
     {
       if (!tmp->db || !tmp->db[0])
 	tmp->db=db;
-      else if (strcmp(tmp->db,db))
-      {
-	send_error(thd,ER_UNION_TABLES_IN_DIFFERENT_DIR);
-	return 1;
-      }
     }
     error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
 			     table_list);
@@ -3578,15 +3583,20 @@ mysql_new_select(LEX *lex, bool move_down)
 
 void create_select_for_variable(const char *var_name)
 {
+  THD *thd;
   LEX *lex;
-  LEX_STRING tmp;
+  LEX_STRING tmp, null_lex_string;
   DBUG_ENTER("create_select_for_variable");
-  lex= current_lex;
+
+  thd= current_thd;
+  lex= &thd->lex;
   mysql_init_select(lex);
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  add_item_to_list(lex->thd, get_system_var(OPT_SESSION, tmp));
+  bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
+  add_item_to_list(thd, get_system_var(thd, OPT_SESSION, tmp,
+				       null_lex_string));
   DBUG_VOID_RETURN;
 }
 
@@ -4433,6 +4443,7 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
   strxmov(ptr,buff,table_name,NullS);
   return 0;
 }
+
 
 /*
   Check if the select is a simple select (not an union)

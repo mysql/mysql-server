@@ -714,6 +714,8 @@ void handler::update_auto_increment()
     nr=get_auto_increment();
   if (!table->next_number_field->store(nr))
     thd->insert_id((ulonglong) nr);
+  else
+    thd->insert_id(table->next_number_field->val_int());
   auto_increment_column_changed=1;
   DBUG_VOID_RETURN;
 }

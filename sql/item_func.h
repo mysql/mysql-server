@@ -135,6 +135,9 @@ public:
   Field *tmp_table_field(TABLE *t_arg);
   void set_outer_resolving();
   Item *get_tmp_table_item(THD *thd);
+  
+  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems);
+  bool agg_arg_collations_for_comparison(DTCollation &c, Item **items, uint nitems);
 };
 
 
@@ -622,37 +625,14 @@ public:
 
 class Item_func_field :public Item_int_func
 {
-  Item *item;
   String value,tmp;
+  Item_result cmp_type;
+  DTCollation cmp_collation;
 public:
-  Item_func_field(Item *a,List<Item> &list) :Item_int_func(list),item(a) {}
-  ~Item_func_field() { delete item; }
+  Item_func_field(List<Item> &list) :Item_int_func(list) {}
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
-  {
-    return (item->fix_fields(thd, tlist, &item) || item->check_cols(1) ||
-	    Item_func::fix_fields(thd, tlist, ref));
-  }
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
-  void update_used_tables()
-  {
-    item->update_used_tables() ; Item_func::update_used_tables();
-    used_tables_cache|= item->used_tables();
-    const_item_cache&=  item->const_item();
-  }
   const char *func_name() const { return "field"; }
-  void fix_length_and_dec()
-  {
-    maybe_null=0; max_length=3;
-    used_tables_cache|= item->used_tables();
-    const_item_cache&=  item->const_item();
-    with_sum_func= with_sum_func || item->with_sum_func;
-  }
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_int_func::set_outer_resolving();
-  }
+  void fix_length_and_dec();
 };
 
 
