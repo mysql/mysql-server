@@ -3151,21 +3151,25 @@ with your company information and ask us to bill you.
 @node Contact information,  , Payment information, Cost
 @subsection Contact information
 
-For commercial licensing, or if you have any questions about any of the
-information in this section, please contact the @strong{MySQL} licensing
+For commercial licensing, please contact the @strong{MySQL} licensing
 team. The much preferred method is by E-Mail to
-@email{mysql-licensing@@mysql.com}. Fax is also possible but handling of
+@email{licensing@@mysql.com}. Fax is also possible but handling of
 these may take much longer (Fax +46-8-729 69 05).
 
-@example
-David Axmark
-Detron HB
-Kungsgatan 65 B
-753 21 UPPSALA
-SWEDEN
-Voice Phone +46-18-10 22 80
-(Timezone GMT+1. Swedish and English spoken)
-@end example
+For general information inquires, please send mail to @email{info@@mysql.com}.
+
+If you represent a business that is interested in partnering with @strong{MySQL},
+please send mail to @email{partner@@mysql.com}.
+
+If you are interested in placing a banner advertisement on our website, please send
+mail to @email{advertising@@mysql.com}.
+
+If you are interested in any of the jobs listed in our
+@uref{http://www.mysql.com/development/jobs/, jobs} section, please send mail
+to @email{jobs@@mysql.com}.
+
+For questions or comments about the workings or content of this website, please
+send mail to @email{webmaster@@mysql.com}.
 
 @cindex Support, types
 @cindex Types of support
