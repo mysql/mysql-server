@@ -954,7 +954,7 @@ static int _nisam_cmp_buffer(File file, const byte *buff, ulong filepos, uint le
   {
     if (my_read(file,temp_buff,next_length,MYF(MY_NABP)))
       goto err;
-    if (memcmp((byte*) buff,temp_buff,IO_SIZE))
+    if (memcmp((byte*) buff,temp_buff,next_length))
       DBUG_RETURN(1);
     buff+=next_length;
     length-= next_length;

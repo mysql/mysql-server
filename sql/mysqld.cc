@@ -1194,8 +1194,8 @@ bad corruption, the above values may be invalid\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
-Please use the information above to create a repeatable test case for the\n\
-crash, and send it to bugs@lists.mysql.com\n");
+The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
+information that should help you find out what is causing the crash\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
 
@@ -2587,7 +2587,7 @@ static struct option long_options[] = {
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
-  {"skip-symlinks",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
+  {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
@@ -2796,7 +2796,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
-  {"innodb_unix_file_flush_method", (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
+  {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
 #endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -3073,6 +3073,7 @@ static void usage(void)
   puts("\
   --innodb_data_home_dir=dir   The common part for Innodb table spaces\n\
   --innodb_data_file_path=dir  Path to individual files and their sizes\n\
+  --innodb_flush_method=#      Which method to flush data\n\
   --innodb_flush_log_at_trx_commit[=#]\n\
 			       Set to 0 if you don't want to flush logs\n\
   --innodb_log_arch_dir=dir    Where full logs should be archived\n\

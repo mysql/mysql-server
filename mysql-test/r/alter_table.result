@@ -27,3 +27,8 @@ n
 12
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+i
+1
+2
+3
+4

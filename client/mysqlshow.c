@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "8.2"
+#define SHOW_VERSION "8.3"
 
 #include <global.h>
 #include <my_sys.h>
@@ -30,6 +30,7 @@
 
 static my_string host=0,opt_password=0,user=0;
 static my_bool opt_show_keys=0,opt_compress=0,opt_status=0;
+static uint opt_verbose=0;
 
 static void get_options(int *argc,char ***argv);
 static uint opt_mysql_port=0;
@@ -140,6 +141,7 @@ static struct option long_options[] =
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user",	required_argument, 0, 'u'},
 #endif
+  {"verbose",	no_argument,	   0, 'v'},
   {"version",	no_argument,	   0, 'V'},
   {0, 0, 0, 0}
 };
@@ -181,6 +183,8 @@ static void usage(void)
   -u, --user=#		user for login if not current user\n");
 #endif
   printf("\
+  -v, --verbose		more verbose output; You can use this multiple times\n\
+                        to get even more verbose output.\n\
   -V, --version		output version information and exit\n");
 
   puts("\n\
@@ -200,7 +204,7 @@ get_options(int *argc,char ***argv)
   int c,option_index;
   my_bool tty_password=0;
 
-  while ((c=getopt_long(*argc,*argv,"c:h:p::u:#::P:S:Ck?VWi",long_options,
+  while ((c=getopt_long(*argc,*argv,"c:h:p::u:#::P:S:Ck?vVWi",long_options,
 			&option_index)) != EOF)
   {
     switch(c) {
@@ -209,6 +213,9 @@ get_options(int *argc,char ***argv)
       break;
     case 'c':
       charsets_dir= optarg;
+      break;
+    case 'v':
+      opt_verbose++;
       break;
     case 'h':
       host = optarg;
@@ -277,10 +284,13 @@ static int
 list_dbs(MYSQL *mysql,const char *wild)
 {
   const char *header;
-  uint length;
+  uint length, counter = 0;
+  ulong rowcount = 0L;
+  char tables[NAME_LEN+1], rows[NAME_LEN+1];
+  char query[255];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
-  MYSQL_ROW row;
+  MYSQL_ROW row, trow, rrow;
 
   if (!(result=mysql_list_dbs(mysql,wild)))
   {
@@ -297,10 +307,79 @@ list_dbs(MYSQL *mysql,const char *wild)
   if (length < field->max_length)
     length=field->max_length;
 
-  print_header(header,length,NullS);
+  if (!opt_verbose)
+    print_header(header,length,NullS);
+  else if (opt_verbose == 1)
+    print_header(header,length,"Tables",6,NullS);
+  else
+    print_header(header,length,"Tables",6,"Total Rows",12,NullS);
+
   while ((row = mysql_fetch_row(result)))
-    print_row(row[0],length,0);
-  print_trailer(length,0);
+  {
+    counter++;
+
+    if (opt_verbose)
+    {
+      /*
+       *  Original code by MG16373;  Slightly modified by Monty.
+       *  Print now the count of tables and rows for each database.
+       */
+
+      if (!(mysql_select_db(mysql,row[0])))
+      {
+	MYSQL_RES *tresult = mysql_list_tables(mysql,(char*)NULL);
+	if (mysql_affected_rows(mysql) > 0)
+	{
+	  sprintf(tables,"%6lu",(ulong) mysql_affected_rows(mysql));
+	  rowcount = 0;
+	  if (opt_verbose > 1)
+	  {
+	    while ((trow = mysql_fetch_row(tresult)))
+	    {
+	      sprintf(query,"SELECT COUNT(*) FROM `%s`",trow[0]);
+	      if (!(mysql_query(mysql,query)))
+	      {
+		MYSQL_RES *rresult;
+		if ((rresult = mysql_store_result(mysql)))
+		{
+		  rrow = mysql_fetch_row(rresult);
+		  rowcount += (ulong) strtoull(rrow[0], (char**) 0, 10);
+		  mysql_free_result(rresult);
+		}
+	      }
+	    }
+	    sprintf(rows,"%12lu",rowcount);
+	  }
+	}
+	else
+	{
+	  sprintf(tables,"%6d",0);
+	  sprintf(rows,"%12d",0);
+	}
+	mysql_free_result(tresult);
+      }
+      else
+      {
+	strmov(tables,"N/A");
+	strmov(rows,"N/A");
+      }
+    }
+
+    if (!opt_verbose)
+      print_row(row[0],length,0);
+    else if (opt_verbose == 1)
+      print_row(row[0],length,tables,6,NullS);
+    else
+      print_row(row[0],length,tables,6,rows,12,NullS);
+  }
+
+  print_trailer(length,
+		(opt_verbose > 0 ? 6 : 0),
+		(opt_verbose > 1 ? 12 :0),
+		0);
+
+  if (counter && opt_verbose)
+    printf("%u row%s in set.\n",counter,(counter > 1) ? "s" : "");
   mysql_free_result(result);
   return 0;
 }
@@ -310,10 +389,11 @@ static int
 list_tables(MYSQL *mysql,const char *db,const char *table)
 {
   const char *header;
-  uint head_length;
+  uint head_length, counter = 0;
+  char query[255], rows[64], fields[16];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
-  MYSQL_ROW row;
+  MYSQL_ROW row, rrow;
 
   if (mysql_select_db(mysql,db))
   {
@@ -338,13 +418,80 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
   if (head_length < field->max_length)
     head_length=field->max_length;
 
-  print_header(header,head_length,NullS);
+  if (!opt_verbose)
+    print_header(header,head_length,NullS);
+  else if (opt_verbose == 1)
+    print_header(header,head_length,"Columns",8,NullS);
+  else
+    print_header(header,head_length,"Columns",8, "Total Rows",10,NullS);
+
   while ((row = mysql_fetch_row(result)))
-    print_row(row[0],head_length,0);
-  print_trailer(head_length,0);
+  {
+    /*
+     *   Modified by MG16373
+     *   Print now the count of rows for each table.
+     */
+    counter++;
+    if (opt_verbose > 0)
+    {
+      if (!(mysql_select_db(mysql,db)))
+      {
+	MYSQL_RES *rresult = mysql_list_fields(mysql,row[0],NULL);
+	ulong rowcount=0L;
+	if (!rresult)
+	{
+	  strmov(fields,"N/A");
+	  strmov(rows,"N/A");
+	}
+	else
+	{
+	  sprintf(fields,"%8u",(uint) mysql_num_fields(rresult));
+	  mysql_free_result(rresult);
+
+	  if (opt_verbose > 1)
+	  {
+	    sprintf(query,"SELECT COUNT(*) FROM `%s`",row[0]);
+	    if (!(mysql_query(mysql,query)))
+	    {
+	      if ((rresult = mysql_store_result(mysql)))
+	      {
+		rrow = mysql_fetch_row(rresult);
+		rowcount += (unsigned long) strtoull(rrow[0], (char**) 0, 10);
+		mysql_free_result(rresult);
+	      }
+	      sprintf(rows,"%10lu",rowcount);
+	    }
+	    else
+	      sprintf(rows,"%10d",0);
+	  }
+	}
+      }
+      else
+      {
+	strmov(fields,"N/A");
+	strmov(rows,"N/A");
+      }
+    }
+    if (!opt_verbose)
+      print_row(row[0],head_length,NullS);
+    else if (opt_verbose == 1)
+      print_row(row[0],head_length, fields,8, NullS);
+    else 
+      print_row(row[0],head_length, fields,8, rows,10, NullS);
+  }
+
+  print_trailer(head_length,
+		(opt_verbose > 0 ? 8 : 0),
+		(opt_verbose > 1 ? 10 :0),
+		0);
+
+  if (counter && opt_verbose)
+    printf("%u row%s in set.\n\n",counter,(counter > 1) ? "s" : "");
+
   mysql_free_result(result);
   return 0;
 }
+
 
 static int
 list_table_status(MYSQL *mysql,const char *db,const char *wild)

@@ -369,7 +369,7 @@ The MySQL Access Privilege System
 * Request access::              Access control, stage 2: Request verification
 * Privilege changes::           When privilege changes take effect
 * Default privileges::          Setting up the initial @strong{MySQL} privileges
-* Adding users::                Adding new user privileges to @strong{MySQL}
+* Adding users::                Adding new users to @strong{MySQL}
 * Passwords::                   How to set up passwords
 * Access denied::               Causes of @code{Access denied} errors
 
@@ -686,7 +686,7 @@ System/Compile Time and Startup Parameter Tuning
 
 * Compile and link options::    How compiling and linking affects the speed of MySQL
 * Disk issues::                 Disk issues
-* Symbolic links::              
+* Symbolic links::              Using Symbolic Links
 * Server parameters::           Tuning server parameters
 * Table cache::                 How MySQL opens and closes tables
 * Creating many tables::        Drawbacks of creating large numbers of tables in the same database
@@ -952,6 +952,12 @@ How MySQL Compares to @code{mSQL}
 * Protocol differences::        How @code{mSQL} and @strong{MySQL} client/server communications protocols differ
 * Syntax differences::          How @code{mSQL} 2.0 SQL syntax differs from @strong{MySQL}
 
+How MySQL Compares to PostgreSQL
+
+* MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
+* MySQL-PostgreSQL features::   Featurevise Comparison of MySQL and PostgreSQL
+* MySQL-PostgreSQL benchmarks::  Benchmarking MySQL and PostgreSQL
+
 MySQL Internals
 
 * MySQL threads::               MySQL threads
@@ -984,6 +990,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.39a::               
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
@@ -2135,7 +2142,7 @@ The server can provide error messages to clients in many languages.
 
 @item
 Clients may connect to the @strong{MySQL} server using TCP/IP Sockets,
-Unix Sockets (Unixes), or Named Pipes (NT).
+Unix Sockets (Unix), or Named Pipes (NT).
 
 @item
 The @strong{MySQL}-specific @code{SHOW} command can be used to retrieve
@@ -2600,6 +2607,10 @@ different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
 M2D, a @strong{MySQL} Administration client for Windows.  M2D supports 
 administration of @strong{MySQL} databases, creation of new databases and 
 tables, editing, and more.
+
+@item @uref{http://dlabs.4t2.com}
+Dexter, a small server written in Perl which can be used as a proxy server for
+@strong{MySQL} or as a database extender.
 
 @item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}
 Mascon is a powerful Win32 GUI for administering MySQL databases.
@@ -5247,7 +5258,7 @@ clients can connect to both @strong{MySQL} versions.
 
 The extended @strong{MySQL} binary distribution is marked with the
 @code{-max} suffix and is configured with the same options as
-@code{mysqld-max}. @xref{mysqld-max}.
+@code{mysqld-max}. @xref{mysqld-max, , @code{mysqld-max}}.
 
 If you want to use the @code{MySQL-Max} RPM, you must first
 install the standard @code{MySQL} RPM.
@@ -5588,8 +5599,8 @@ indicates the type of operating system for which the distribution is intended
 @item
 If you see a binary distribution marked with the @code{-max} prefix, this
 means that the binary has support for transaction-safe tables and other
-features. @xref{mysqld-max}.  Note that all binaries are built from
-the same @strong{MySQL} source distribution.
+features. @xref{mysqld-max, , @code{mysqld-max}}.  Note that all binaries
+are built from the same @strong{MySQL} source distribution.
 
 @item
 Add a user and group for @code{mysqld} to run as:
@@ -5601,8 +5612,8 @@ shell> useradd -g mysql mysql
 
 These commands add the @code{mysql} group and the @code{mysql} user.  The
 syntax for @code{useradd} and @code{groupadd} may differ slightly on different
-Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
-wish to call the user and group something else instead of @code{mysql}.
+versions of Unix.  They may also be called @code{adduser} and @code{addgroup}.
+You may wish to call the user and group something else instead of @code{mysql}.
 
 @item
 Change into the intended installation directory:
@@ -5645,7 +5656,8 @@ programs properly. @xref{Environment variables}.
 
 @item scripts
 This directory contains the @code{mysql_install_db} script used to initialize
-the server access permissions.
+the @code{mysql} database containing the grant tables that store the server
+access permissions.
 @end table
 
 @item
@@ -5711,7 +5723,7 @@ You can start the @strong{MySQL} server with the following command:
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
-@xref{safe_mysqld}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 @xref{Post-installation}.
 
@@ -5783,7 +5795,7 @@ installation, you may want to make a copy of your previously installed
 @strong{MySQL} startup file if you made any changes to it, so you don't lose
 your changes.)
 
-After installing the RPM file(s), the @file{mysqld} daemon should be running
+After installing the RPM file(s), the @code{mysqld} daemon should be running
 and you should now be able to start using @strong{MySQL}.
 @xref{Post-installation}.
 
@@ -5819,7 +5831,7 @@ files.
 
 The following sections indicate some of the issues that have been observed
 on particular systems when installing @strong{MySQL} from a binary
-distribution.
+distribution or from RPM files.
 
 @cindex binary distributions, on Linux
 @cindex Linux, binary distribution
@@ -6115,8 +6127,8 @@ shell> useradd -g mysql mysql
 
 These commands add the @code{mysql} group, and the @code{mysql} user.  The
 syntax for @code{useradd} and @code{groupadd} may differ slightly on different
-Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
-wish to call the user and group something else instead of @code{mysql}.
+versions of Unix.  They may also be called @code{adduser} and @code{addgroup}.
+You may wish to call the user and group something else instead of @code{mysql}.
 
 @item
 Unpack the distribution into the current directory:
@@ -7460,6 +7472,9 @@ Configure @strong{MySQL} with the @code{--with-named-z-libs=no} option.
 @node Solaris x86, SunOS, Solaris 2.7, Source install system issues
 @subsection Solaris x86 Notes
 
+On Solaris 2.8 on x86, @strong{mysqld} will core dump if you run
+'strip' in.
+
 If you are using @code{gcc} or @code{egcs} on Solaris x86 and you
 experience problems with core dumps under load, you should use the
 following @code{configure} command:
@@ -7517,6 +7532,11 @@ binary in most cases is the best choice.
 Linux version that doesn't have @code{glibc2}, you must install
 LinuxThreads before trying to compile @strong{MySQL}.   You can get 
 LinuxThreads at @uref{http://www.mysql.com/Downloads/Linux}.
+
+@strong{NOTE:} We have seen some strange problems with Linux 2.2.14 and
+@strong{MySQL} on SMP systems; If you have a SMP system, we recommend
+you to upgrade to Linux 2.4 ASAP!  Your system will be faster and more
+stable by doing this!
 
 Note that @code{glibc} versions before and including Version 2.1.1 have
 a fatal bug in @code{pthread_mutex_timedwait} handling, which is used
@@ -7670,13 +7690,13 @@ To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV
 signal, you can start @code{mysqld} with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
-with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
+with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal, you can 
 start @code{mysqld} with the @code{--core-file} option.  Note that you also probably
 need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
 @code{safe_mysqld} or starting @code{safe_mysqld} with 
-@code{--core-file-sizes=1000000}.  @xref{safe_mysqld}.
+@code{--core-file-sizes=1000000}.  @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 If you are linking your own @strong{MySQL} client and get the error:
 
@@ -8004,7 +8024,7 @@ shell> nohup mysqld [options] &
 @code{nohup} causes the command following it to ignore any @code{SIGHUP}
 signal sent from the terminal.  Alternatively, start the server by running
 @code{safe_mysqld}, which invokes @code{mysqld} using @code{nohup} for you.
-@xref{safe_mysqld}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 If you get a problem when compiling mysys/get_opt.c, just remove the
 line #define _NO_PROTO from the start of that file!
@@ -8261,7 +8281,8 @@ FreeBSD is also known to have a very low default file handle limit.
 safe_mysqld or raise the limits for the @code{mysqld} user in /etc/login.conf
 (and rebuild it with cap_mkdb /etc/login.conf).  Also be sure you set the
 appropriate class for this user in the password file if you are not
-using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld}.
+using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld, ,
+@code{safe_mysqld}}.
 
 If you get problems with the current date in @strong{MySQL}, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
@@ -8713,10 +8734,10 @@ the DCE libraries while you compile @code{gcc} 2.95!
 @node HP-UX 11.x, Mac OS X, HP-UX 10.20, Source install system issues
 @subsection HP-UX Version 11.x Notes
 
-For HPUX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
+For HP-UX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
 
-Because of some critical bugs in the standard HPUX libraries, one should
-install the following patches before trying to run @strong{MySQL} on HPUX 11.0:
+Because of some critical bugs in the standard HP-UX libraries, you should
+install the following patches before trying to run @strong{MySQL} on HP-UX 11.0:
 
 @example
 PHKL_22840 Streams cumulative
@@ -8726,7 +8747,7 @@ PHNE_22397 ARPA cumulative
 This will solve a problem that one gets @code{EWOULDBLOCK} from @code{recv()} 
 and @code{EBADF} from @code{accept()} in threaded applications.
 
-If you are using @code{gcc} 2.95.1 on an unpatched HPUX 11.x system,
+If you are using @code{gcc} 2.95.1 on an unpatched HP-UX 11.x system,
 you will get the error:
 
 @example
@@ -8765,8 +8786,8 @@ After this, the following configure line should work:
 CFLAGS="-fomit-frame-pointer -O3 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O3" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
-Here is some information that a HPUX Version 11.x user sent us about compiling
-@strong{MySQL} with HPUX:x compiler:
+Here is some information that a HP-UX Version 11.x user sent us about compiling
+@strong{MySQL} with HP-UX:x compiler:
 
 @example
  Environment:
@@ -8876,8 +8897,8 @@ in a while.
 @section Windows Notes
 
 This section describes installation and use of @strong{MySQL} on Windows.
-This is also described in the @file{README} file that comes with the
-@strong{MySQL} Windows distribution.
+This information is also provided in the @file{README} file that comes
+with the @strong{MySQL} Windows distribution.
 
 @menu
 * Windows installation::        Installing @strong{MySQL} on Windows
@@ -8893,6 +8914,10 @@ This is also described in the @file{README} file that comes with the
 @node Windows installation, Win95 start, Windows, Windows
 @subsection Installing MySQL on Windows
 
+The following instructions apply to precompiled binary distributions.
+If you download a source distribution, you will have to compile and install
+it yourself.
+
 If you don't have a copy of the @strong{MySQL} distribution, you should 
 first download one from @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
 
@@ -8905,23 +8930,30 @@ To install either distribution, unzip it in some empty directory and run the
 @code{Setup.exe} program.
 
 By default, @strong{MySQL}-Windows is configured to be installed in
-@file{C:\mysql}.  If you want to install @strong{MySQL} elsewhere, install it
-in @file{C:\mysql} first, then move the installation to where you want it.  If
-you do move @strong{MySQL}, you must tell @code{mysqld} where everything is by
-supplying options to @code{mysqld}. Use @code{C:\mysql\bin\mysqld --help} to
-display all options!  For example, if you have moved the @strong{MySQL}
-distribution to @file{D:\programs\mysql}, you must start @code{mysqld} with:
-@code{D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql}
+@file{C:\mysql}.  If you want to install @strong{MySQL} elsewhere,
+install it in @file{C:\mysql} first, then move the installation to
+where you want it.  If you do move @strong{MySQL}, you must indicate
+where everything is located by supplying a @code{--basedir} option when
+you start the server.  For example, if you have moved the @strong{MySQL}
+distribution to @file{D:\programs\mysql}, you must start @code{mysqld}
+like this:
+
+@example
+C:\> D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql
+@end example
+
+Use @code{mysqld --help} to display all the options that @code{mysqld}
+understands!
 
 With all newer @strong{MySQL} versions, you can also create a
 @file{C:\my.cnf} file that holds any default options for the
 @strong{MySQL} server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
 @file{C:\my.cnf} and edit it to suit your setup.  Note that you should
 specify all paths with @samp{/} instead of @samp{\}. If you use
-@samp{\}, you need to specify it twice, as @samp{\} is the escape
+@samp{\}, you need to specify it twice, because @samp{\} is the escape
 character in @strong{MySQL}.  @xref{Option files}.
 
-Starting from @strong{MySQL} 3.23.38, the Windows distribution includes
+Starting with @strong{MySQL} 3.23.38, the Windows distribution includes
 both the normal and the @strong{MySQL-Max} binaries.  The main benefit
 of using the normal @code{mysqld.exe} binary is that it's a little
 faster and uses less resources.
@@ -8978,12 +9010,16 @@ You can kill the @strong{MySQL} server by executing:
 C:\> C:\mysql\bin\mysqladmin -u root shutdown
 @end example
 
-Note that Win95 and Win98 don't support creation of named pipes.  On
-Win95 and Win98, you can only use named pipes to connect to a remote
-@strong{MySQL} running on an NT server.
+Note that Win95 and Win98 don't support creation of named pipes.
+On Win95 and Win98, you can only use named pipes to connect to a
+remote @strong{MySQL} server running on a Windows NT server host.
+(The @strong{MySQL} server must also support named pipes, of
+course. For example, using @code{mysqld-opt} under NT will not allow
+named pipe connections.  You should use either @code{mysqld-nt} or
+@code{mysqld-max-nt}.)
 
 If @code{mysqld} doesn't start, please check whether or not the
-@file{\mysql\mysql.err} file contains any reason for this.  You can also
+@file{\mysql\data\mysql.err} file contains any reason for this.  You can also
 try to start the server with @code{mysqld --standalone};  In this case, you may
 get some useful information on the screen that may help solve the problem.
 
@@ -9037,9 +9073,9 @@ with the default service options.  If you have stopped @code{mysqld-nt}, you
 have to start it with @code{NET START mysql}.
 
 The service is installed with the name @code{MySQL}. Once installed, it must
-be started using the Services Control Manager (SCM) Utility (found in Control
-Panel) or by using the @code{NET START MySQL} command.  If any options are
-desired, they must be specified as ``Startup parameters'' in the SCM utility
+be started using the Services Control Manager (SCM) Utility found in the
+Control Panel, or by using the @code{NET START MySQL} command.  If any options
+are desired, they must be specified as ``Startup parameters'' in the SCM utility
 before you start the @strong{MySQL} service.  Once running, @code{mysqld-nt}
 can be stopped using @code{mysqladmin}, or from the SCM utility or by using
 the command @code{NET STOP MySQL}. If you use SCM to stop @code{mysqld-nt},
@@ -9157,14 +9193,12 @@ server, you can do so using this command:
 C:\> mysqladmin --user=root --password=your_password shutdown
 @end example
 
-If you are using the old shareware version of @strong{MySQL} Version 3.21
-under Windows, the above command will fail with an error: @code{parse error
-near 'SET OPTION password'}.  This is because the old shareware version,
-which is based on @strong{MySQL} Version 3.21, doesn't have the
-@code{SET PASSWORD} command.  The fix is in this case to upgrade to
-the Version 3.22 shareware.
+If you are using the old shareware version of @strong{MySQL} Version
+3.21 under Windows, the above command will fail with an error:
+@code{parse error near 'SET OPTION password'}.  The fix is in to upgrade
+to the current @strong{MySQL} version, which is freely available.
 
-With the newer @strong{MySQL} versions you can easily add new users
+With the current @strong{MySQL} versions you can easily add new users
 and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @xref{GRANT}.
 
@@ -9179,7 +9213,7 @@ Here is a note about how to connect to get a secure connection to remote
 
 @itemize @bullet
 @item
-Install an SSH client on your Windows machine --- As a user, the best non-free
+Install an SSH client on your Windows machine.  As a user, the best non-free
 one I've found is from @code{SecureCRT} from @uref{http://www.vandyke.com/}.
 Another option is @code{f-secure} from @uref{http://www.f-secure.com/}. You
 can also find some free ones on @strong{Google} at
@@ -9233,8 +9267,22 @@ Note that the symbolic link will be used only if the directory
 For example, if the @strong{MySQL} data directory is @file{C:\mysql\data}
 and you want to have database @code{foo} located at @file{D:\data\foo}, you
 should create the file @file{C:\mysql\data\foo.sym} that contains the
-text @code{D:\data\foo}.  After that, all tables created in the database
+text @code{D:\data\foo\}.  After that, all tables created in the database
 @code{foo} will be created in @file{D:\data\foo}.
+
+Note that because of the speed penalty you get when opening every table,
+we have not enabled this by default even if you have compiled
+@strong{MySQL} with support for this. To enable symlinks you should put
+in your @code{my.cnf} or @code{my.ini} file the following entry:
+
+@example
+[mysqld]
+use-symbolic-links
+@end example
+
+In @strong{MySQL} 4.0 we will enable symlinks by default. Then you
+should instead use the @code{skip-symlink} option if you want to
+disable this.
 
 @cindex compiling, on Windows
 @cindex Windows, compiling on
@@ -9677,7 +9725,7 @@ mysqld: Can't find file: 'host.frm'
 
 The above may also happen with a binary @strong{MySQL} distribution if you
 don't start @strong{MySQL} by executing exactly @code{./bin/safe_mysqld}!
-@xref{safe_mysqld}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 You might need to run @code{mysql_install_db} as @code{root}.  However,
 if you prefer, you can run the @strong{MySQL} server as an unprivileged
@@ -9978,7 +10026,8 @@ system startup and shutdown, and is described more fully in
 
 @item
 By invoking @code{safe_mysqld}, which tries to determine the proper options
-for @code{mysqld} and then runs it with those options. @xref{safe_mysqld}.
+for @code{mysqld} and then runs it with those options. @xref{safe_mysqld, ,
+@code{safe_mysqld}}.
 
 @item
 On NT you should install @code{mysqld} as a service as follows:
@@ -10034,7 +10083,7 @@ correctly, check the log file to see if you can find out why.  Log files
 are located in the data directory (typically
 @file{/usr/local/mysql/data} for a binary distribution,
 @file{/usr/local/var} for a source distribution,
-@file{\mysql\mysql.err} on Windows.)  Look in the data directory for
+@file{\mysql\data\mysql.err} on Windows.)  Look in the data directory for
 files with names of the form @file{host_name.err} and
 @file{host_name.log} where @code{host_name} is the name of your server
 host.  Then check the last few lines of these files:
@@ -10125,6 +10174,10 @@ options.  @xref{InnoDB start}.
 @cindex stopping, the server
 @cindex server, starting and stopping
 
+The @code{mysql.server} and @code{safe_mysqld} scripts can be used to start
+the server automatically at system startup time. @code{mysql.server} can also
+be used to stop the server.
+
 The @code{mysql.server} script can be used to start or stop the server
 by invoking it with @code{start} or @code{stop} arguments:
 
@@ -10142,9 +10195,8 @@ the @strong{MySQL} installation directory, then invokes @code{safe_mysqld}.
 You might need to edit @code{mysql.server} if you have a binary distribution
 that you've installed in a non-standard location.  Modify it to @code{cd} 
 into the proper directory before it runs @code{safe_mysqld}. If you want the
-server to run as some specific user, you can change the 
-@code{mysql_daemon_user=root} line to use another user.  You can also modify 
-@code{mysql.server} to pass other options to @code{safe_mysqld}.
+server to run as some specific user, add an appropriate @code{user} line
+to the @file{/etc/my.cnf} file, as shown later in this section.
 
 @code{mysql.server stop} brings down the server by sending a signal to it.
 You can take down the server manually by executing @code{mysqladmin shutdown}.
@@ -10170,23 +10222,23 @@ this:
 datadir=/usr/local/mysql/var
 socket=/tmp/mysqld.sock
 port=3306
+user=mysql
 
 [mysql.server]
-user=mysql
 basedir=/usr/local/mysql
 @end example
 
-The @code{mysql.server} script uses the following variables:
-@code{user}, @code{datadir}, @code{basedir}, @code{bindir}, and
-@code{pid-file}.
+The @code{mysql.server} script understands the following options:
+@code{datadir}, @code{basedir}, and @code{pid-file}.
 
-The following table shows which option sections each of the startup script
-uses:
+The following table shows which option groups each of the startup scripts
+read from option files:
 
 @multitable @columnfractions .20 .80
+@item @strong{Script} @tab @strong{Option groups}
 @item @code{mysqld} @tab @code{mysqld} and @code{server}
-@item @code{mysql.server} @tab @code{mysql.server}, @code{mysqld} and @code{server}
-@item @code{safe_mysqld} @tab @code{mysql.server}, @code{mysqld} and @code{server}
+@item @code{mysql.server} @tab @code{mysql.server}, @code{mysqld}, and @code{server}
+@item @code{safe_mysqld} @tab @code{mysql.server}, @code{mysqld}, and @code{server}
 @end multitable
 
 @xref{Option files}.
@@ -10227,7 +10279,8 @@ though.
 
 @item --core-file
 Write a core file if @code{mysqld} dies.  For some systems you must also
-specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld}.
+specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld, ,
+@code{safe_mysqld}}.
 
 @item -h, --datadir=path
 Path to the database root.
@@ -10407,8 +10460,9 @@ recommended for systems where only local requests are allowed.  @xref{DNS}.
 Don't use new, possible wrong routines.  Implies @code{--skip-delay-key-write}.
 This will also set default table type to @code{ISAM}.  @xref{ISAM}.
 
-@item --skip-symlinks
-Don't delete or rename files that symlinks in the data directory points to.
+@item --skip-symlink
+Don't delete or rename files that a symlinked file in the data directory
+points to.
 
 @item --skip-safemalloc
 If @strong{MySQL} is configured with @code{--with-debug=full}, all programs
@@ -10566,7 +10620,7 @@ password=my_password
 no-auto-rehash
 set-variable = connect_timeout=2
 
-[mysql-hot-copy]
+[mysqlhotcopy]
 interactive-timeout
 
 @end example
@@ -10574,7 +10628,7 @@ interactive-timeout
 @tindex .my.cnf file
 If you have a source distribution, you will find sample configuration
 files named @file{my-xxxx.cnf} in the @file{support-files} directory.
-If you have a binary distribution, look in the @file{DIR/share/mysql}
+If you have a binary distribution, look in the @file{DIR/support-files}
 directory, where @code{DIR} is the pathname to the @strong{MySQL}
 installation directory (typically @file{/usr/local/mysql}).  Currently
 there are sample configuration files for small, medium, large, and very
@@ -10651,7 +10705,7 @@ The above is the quick and dirty way that one commonly uses for testing.
 The nice thing with this is that all connections you do in the above shell
 will automatically be directed to the new running server!
 
-If you need to do this more permanently, you should create an own option
+If you need to do this more permanently, you should create an option
 file for each server. @xref{Option files}.  In your startup script that
 is executed at boot time (mysql.server?) you should specify for both
 servers:
@@ -11920,7 +11974,7 @@ system.  This section describes how it works.
 * Request access::              Access control, stage 2: Request verification
 * Privilege changes::           When privilege changes take effect
 * Default privileges::          Setting up the initial @strong{MySQL} privileges
-* Adding users::                Adding new user privileges to @strong{MySQL}
+* Adding users::                Adding new users to @strong{MySQL}
 * Passwords::                   How to set up passwords
 * Access denied::               Causes of @code{Access denied} errors
 @end menu
@@ -11949,9 +12003,10 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 @itemize @bullet
 @item
 DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
-mysql.user TABLE!  The encrypted password is the real password in
-@strong{MySQL}. If you know this for one user, you can easily log in as
-him if you have access to his 'host'.
+@code{user} TABLE IN THE @code{mysql} DATABASE!  The encrypted password
+is the real password in @strong{MySQL}. If you know the password listed in
+the @code{user} table for a given user, you can easily log in as that
+user if you have access to the host listed for that account.
 
 @item
 Learn the @strong{MySQL} access privilege system. The @code{GRANT} and
@@ -11980,15 +12035,15 @@ computer becomes compromised, the intruder can take the full list of
 passwords and use them. Instead use @code{MD5()} or another one-way
 hashing function.
 @item
-Do not use passwords from dictionaries. There are special programs to
+Do not choose passwords from dictionaries. There are special programs to
 break them. Even passwords like ``xfish98'' are very bad.  Much better is
 ``duag98'' which contains the same word ``fish'' but typed one key to the
 left on a standard QWERTY keyboard. Another method is to use ``Mhall'' which
 is taken from the first characters of each word in the sentence ``Mary had
-a little lamb.'' This is easy to remember and type, but hard to guess for
-someone who does not know it.
+a little lamb.'' This is easy to remember and type, but difficult to guess
+for someone who does not know it.
 @item
-Invest in a firewall. This protects from at least 50% of all types of
+Invest in a firewall. This protects you from at least 50% of all types of
 exploits in any software. Put @strong{MySQL} behind the firewall or in
 a demilitarized zone (DMZ).
 
@@ -11997,11 +12052,16 @@ Checklist:
 @item
 Try to scan your ports from the Internet using a tool such as
 @code{nmap}. @strong{MySQL} uses port 3306 by default. This port should
-be inaccessible from untrusted hosts. Another simple way to check whether or
-not your @strong{MySQL} port is open is to type @code{telnet
-server_host 3306} from some remote machine, where
-@code{server_host} is the hostname of your @strong{MySQL}
-server. If you get a connection and some garbage characters, the port is
+be inaccessible from untrusted hosts. Another simple way to check whether
+or not your @strong{MySQL} port is open is to try the following command
+from some remote machine, where @code{server_host} is the hostname of
+your @strong{MySQL} server:
+
+@example
+shell> telnet server_host 3306
+@end example
+
+If you get a connection and some garbage characters, the port is
 open, and should be closed on your firewall or router, unless you really
 have a good reason to keep it open. If @code{telnet} just hangs or the
 connection is refused, everything is OK; the port is blocked.
@@ -12057,11 +12117,13 @@ not give your applications any more access privileges than they need.
 Users of PHP:
 @itemize @bullet
 @item Check out the @code{addslashes()} function.
+As of PHP 4.0.3, a @code{mysql_escape_string()} function is available
+that is based on the function of the same name in the @strong{MySQL} C API.
 @end itemize
 @item
 Users of @strong{MySQL} C API:
 @itemize @bullet
-@item Check out the @code{mysql_escape()} API call.
+@item Check out the @code{mysql_escape_string()} API call.
 @end itemize
 @item
 Users of @strong{MySQL}++:
@@ -12072,6 +12134,11 @@ Users of @strong{MySQL}++:
 Users of Perl DBI:
 @itemize @bullet
 @item Check out the @code{quote()} method or use placeholders.
+@end itemize
+@item
+Users of Java JDBC:
+@itemize @bullet
+@item Use a @code{PreparedStatement} object and placeholders.
 @end itemize
 @end itemize
 
@@ -12108,15 +12175,15 @@ connection, however the encryption algorithm is not very strong, and
 with some effort a clever attacker can crack the password if he is able
 to sniff the traffic between the client and the server. If the
 connection between the client and the server goes through an untrusted
-network, you should use an @strong{SSH} tunnel to encrypt the
+network, you should use an SSH tunnel to encrypt the
 communication.
 
 All other information is transferred as text that can be read by anyone
 who is able to watch the connection.  If you are concerned about this,
 you can use the compressed protocol (in @strong{MySQL} Version 3.22 and above)
 to make things much harder.  To make things even more secure you should use 
-@code{ssh}.  You can find an open source ssh client at 
-@uref{http://www.openssh.org}, and a commercial ssh client at 
+@code{ssh}.  You can find an open source @code{ssh} client at 
+@uref{http://www.openssh.org}, and a commercial @code{ssh} client at 
 @uref{http://www.ssh.com}.  With this, you can get an encrypted TCP/IP 
 connection between a @strong{MySQL} server and a @strong{MySQL} client.
 
@@ -12141,40 +12208,42 @@ mysql> FLUSH PRIVILEGES;
 @end example
 
 @item
-Don't run the @strong{MySQL} daemon as the Unix @code{root} user.
-It is very dangerous as any user with @code{FILE} privileges will be able to
-create files
-as @code{root} (for example, @code{~root/.bashrc}). To prevent this
-@code{mysqld} will refuse to run as @code{root} unless it is specified
-directly via @code{--user=root} option.
+Don't run the @strong{MySQL} daemon as the Unix @code{root} user.  This is
+very dangerous, because any user with @code{FILE} privileges will be able
+to create files as @code{root} (for example, @code{~root/.bashrc}). To
+prevent this, @code{mysqld} will refuse to run as @code{root} unless it
+is specified directly using a @code{--user=root} option.
 
-@code{mysqld} can be run as any user instead.  You can also create a new
-Unix user @code{mysql} to make everything even more secure.  If you run
-@code{mysqld} as another Unix user, you don't need to change the
-@code{root} user name in the @code{user} table, because @strong{MySQL}
-user names have nothing to do with Unix user names.  You can edit the
-@code{mysql.server} script to start @code{mysqld} as another Unix user.
-Normally this is done with the @code{su} command.  For more details, see
-@ref{Changing MySQL user, , Changing @strong{MySQL} user}.
+@code{mysqld} can be run as an ordinary unprivileged user instead.
+You can also create a new Unix user @code{mysql} to make everything
+even more secure.  If you run @code{mysqld} as another Unix user,
+you don't need to change the @code{root} user name in the @code{user}
+table, because @strong{MySQL} user names have nothing to do with Unix
+user names.  To start @code{mysqld} as another Unix user, add a @code{user}
+line that specifies the user name to the @code{[mysqld]} group of the
+@file{/etc/my.cnf} option file or the @file{my.cnf} option file in the
+server's data directory. For example:
+
+@example
+[mysqld]
+user=mysql
+@end example
+
+This will cause the server to start as the designated user whether you
+start it manually or by using @code{safe_mysqld} or @code{mysql.server}.
+For more details, see @ref{Changing MySQL user, , Changing @strong{MySQL}
+user}.
 
 @item
 Don't support symlinks to tables (This can be disabled with the
-@code{--skip-symlinks} option. This is especially important if you run
+@code{--skip-symlink} option. This is especially important if you run
 @code{mysqld} as root as anyone that has write access to the mysqld data
 directories could then delete any file in the system!
 @xref{Symbolic links to tables}.
 
 @item
-If you put a password for the Unix @code{root} user in the @code{mysql.server}
-script, make sure this script is readable only by @code{root}.
-
-@item
 Check that the Unix user that @code{mysqld} runs as is the only user with
 read/write privileges in the database directories.
-
-@item
-On Unix platforms, do not run @code{mysqld} as root unless you really
-need to. Consider creating a user named @code{mysql} for that purpose.
 
 @item
 Don't give the @strong{process} privilege to all users.  The output of
@@ -12276,7 +12345,6 @@ DATA INFILE} and administrative operations.
 @cindex user names, and passwords
 @cindex passwords, for users
 
-
 There are several distinctions between the way user names and passwords are
 used by @strong{MySQL} and the way they are used by Unix or Windows:
 
@@ -12309,6 +12377,42 @@ functions}.  Note that even if the password is stored 'scrambled', and
 knowing your 'scrambled' password is enough to be able to connect to
 the @strong{MySQL} server!
 @end itemize
+
+@strong{MySQL} users and they privileges are normally created with the
+@code{GRANT} command. @xref{GRANT}.
+
+When you login to a @strong{MySQL} server with a command line client you
+should specify the password with @code{--password=your-password}.
+@xref{Connecting}.
+
+@example
+mysql --user=monty --password=guess database_name
+@end example
+
+If you want the client to prompt for a password, you should use
+@code{--password} without any argument
+
+@example
+mysql --user=monty --password database_name
+@end example
+
+or the short form:
+
+@example
+mysql -u monty -p database_name
+@end example
+
+Note that in the last example the password is @strong{NOT} 'database_name'.
+
+If you want to use the -p option to supply a password you should do like this:
+
+@example
+mysql -u monty -pguess database_name
+@end example
+
+On some system the library call that @strong{MySQL} uses to prompt for a
+password will automaticly cut the password to 8 characters. Internally
+@strong{MySQL} doesn't have any limit for the length of the password.
 
 @node Connecting, Password security, User names, Privilege system
 @section Connecting to the MySQL Server
@@ -13369,12 +13473,15 @@ running @code{mysql_install_db}.
 @findex GRANT statement
 @findex statements, GRANT
 @node Adding users, Passwords, Default privileges, Privilege system
-@section Adding New User Privileges to MySQL
+@section Adding New Users to MySQL
 
 You can add users two different ways: by using @code{GRANT} statements
 or by manipulating the @strong{MySQL} grant tables directly.  The
 preferred method is to use @code{GRANT} statements, because they are
-more concise and less error-prone.
+more concise and less error-prone. @xref{GRANT}.
+
+There is also a lot of contributed programs like @code{phpmyadmin} that
+can be used to create and administrate users. @xref{Contrib}.
 
 The examples below show how to use the @code{mysql} client to set up new
 users.  These examples assume that privileges are set up according to the
@@ -13484,6 +13591,11 @@ mysql> GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
            TO custom@@'%'
            IDENTIFIED BY 'stupid';
 @end example
+
+The reason that we do to grant statements for the user 'custom' is that
+we want the give the user access to @strong{MySQL} both from the local
+machine with Unix sockets and from the remote machine 'whitehouse.gov'
+over TCP/IP.
 
 To set up the user's privileges by modifying the grant tables directly,
 run these commands (note the @code{FLUSH PRIVILEGES} at the end):
@@ -19157,7 +19269,7 @@ detect duplicated @code{UNIQUE} keys.
 By using @code{DATA DIRECTORY="directory"} or @code{INDEX
 DIRECTORY="directory"} you can specify where the table handler should
 put it's table and index files.  This only works for @code{MyISAM} tables
-in @code{MySQL} 4.0, when you are not using the @code{--skip-symlinks}
+in @code{MySQL} 4.0, when you are not using the @code{--skip-symlink}
 option. @xref{Symbolic links to tables}.
 
 @end itemize
@@ -19467,6 +19579,11 @@ with sequence numbers for you automatically.  You can set the first
 sequence number by executing @code{SET INSERT_ID=#} before
 @code{ALTER TABLE} or using the @code{AUTO_INCREMENT = #} table option.
 @xref{SET OPTION}.
+
+With MyISAM tables, if you don't change the @code{AUTO_INCREMENT}
+column, the sequence number will not be affected. If you drop an
+@code{AUTO_INCREMENT} column and then add another @code{AUTO_INCREMENT}
+column, the numbers will start from 1 again.
 
 @xref{ALTER TABLE problems}.
 
@@ -22984,8 +23101,9 @@ REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
 @code{GRANT} is implemented in @strong{MySQL} Version 3.22.11 or later. For
 earlier @strong{MySQL} versions, the @code{GRANT} statement does nothing.
 
-The @code{GRANT} and @code{REVOKE} commands allow system administrators to
-grant and revoke rights to @strong{MySQL} users at four privilege levels:
+The @code{GRANT} and @code{REVOKE} commands allow system administrators
+to create users and grant and revoke rights to @strong{MySQL} users at
+four privilege levels:
 
 @table @strong
 @item Global level
@@ -23005,6 +23123,7 @@ Column privileges apply to single columns in a given table. These privileges are
 stored in the @code{mysql.columns_priv} table.
 @end table
 
+If you give a grant for a users that doesn't exists, that user is created.
 For examples of how @code{GRANT} works, see @ref{Adding users}.
 
 For the @code{GRANT} and @code{REVOKE} statements, @code{priv_type} may be
@@ -24347,7 +24466,7 @@ this.  @xref{Table handler support}.
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for BerkeleyDB, simply follow the instructions for installing a 
 binary version of @strong{MySQL}.  
-@xref{Installing binary}.  @xref{mysqld-max}.
+@xref{Installing binary}.  @xref{mysqld-max, , @code{mysqld-max}}.
 
 To compile @strong{MySQL} with Berkeley DB support, download @strong{MySQL}
 Version 3.23.34 or newer and configure @code{MySQL} with the 
@@ -25459,7 +25578,7 @@ binary.
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for InnoDB (mysqld-max), simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
-@xref{mysqld-max}.
+@xref{mysqld-max, , @code{mysqld-max}}.
 
 To compile @strong{MySQL} with InnoDB support, download MySQL-3.23.37 or newer
 and configure @code{MySQL} with the @code{--with-innodb} option.
@@ -25630,7 +25749,7 @@ in its own lock table and rolls back the transaction. If you use
 than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
-@item @code{innodb_unix_file_flush_method} @tab
+@item @code{innodb_flush_method} @tab
 (Available from 3.23.39 up.)
 The default value for this is @code{fdatasync}.
 Another option is @code{O_DSYNC}.
@@ -26237,11 +26356,11 @@ time will be longer.
 Also the log buffer should be quite big, say 8 MB.
 
 @strong{6.} (Relevant from 3.23.39 up.)
-In some versions of Linux and other Unixes flushing files to disk with the Unix
+In some versions of Linux and Unix, flushing files to disk with the Unix
 @code{fdatasync} and other similar methods is surprisingly slow.
 The default method InnoDB uses is the @code{fdatasync} function.
 If you are not satisfied with the database write performance, you may
-try setting @code{innodb_unix_file_flush_method} in @file{my.cnf}
+try setting @code{innodb_flush_method} in @file{my.cnf}
 to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
 You can also try setting it to @code{littlesync}, which means that
 InnoDB does not call the file flush for every write it does to a
@@ -26518,11 +26637,11 @@ integer that can be stored in the specified integer type.
 
 In disk i/o InnoDB uses asynchronous i/o. On Windows NT
 it uses the native asynchronous i/o provided by the operating system.
-On Unixes InnoDB uses simulated asynchronous i/o built
+On Unix, InnoDB uses simulated asynchronous i/o built
 into InnoDB: InnoDB creates a number of i/o threads to take care
 of i/o operations, such as read-ahead. In a future version we will
 add support for simulated aio on Windows NT and native aio on those
-Unixes which have one.
+versions of Unix which have one.
 
 On Windows NT InnoDB uses non-buffered i/o. That means that the disk
 pages InnoDB reads or writes are not buffered in the operating system
@@ -26533,7 +26652,7 @@ just define the raw disk in place of a data file in @file{my.cnf}.
 You must give the exact size in bytes of the raw disk in @file{my.cnf},
 because at startup InnoDB checks that the size of the file
 is the same as specified in the configuration file. Using a raw disk
-you can on some Unixes perform non-buffered i/o.
+you can on some versions of Unix perform non-buffered i/o.
 
 There are two read-ahead heuristics in InnoDB: sequential read-ahead
 and random read-ahead. In sequential read-ahead InnoDB notices that
@@ -26713,7 +26832,7 @@ Contact information of Innobase Oy, producer of the InnoDB engine:
 
 @example
 Website: www.innodb.com
-Heikki.Tuuri@@innobase.inet.fi
+Heikki.Tuuri@@innodb.com
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
 InnoDB Oy Inc.
 World Trade Center Helsinki
@@ -31112,12 +31231,12 @@ If you use @code{ALTER TABLE RENAME} to move a table to another database,
 then the table will be moved to the other database directory and the old
 symlinks and the files they pointed to will be deleted.
 @item
-If you are not using symlinks you should use the @code{--skip-symlinks}
+If you are not using symlinks you should use the @code{--skip-symlink}
 option to @code{mysqld} to ensure that no one can drop or rename a file
 outside of the @code{mysqld} data directory.
 @end itemize
 
-Things that are not yet fully supported:
+Things that are not yet supported:
 
 @cindex TODO, symlinks
 @itemize @bullet
@@ -33106,7 +33225,7 @@ with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
 run @code{configure} with the options you want and then install the
 new @code{mysqld} binary as @code{mysqld-max} in the same directory
-where your old @code{mysqld} binary is. @xref{safe_mysqld}.
+where your old @code{mysqld} binary is. @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 The @code{mysqld-max} RPM uses the above mentioned @code{safe_mysqld}
 feature. It just installs the @code{mysqld-max} executable and
@@ -33119,7 +33238,7 @@ binaries includes:
 @multitable @columnfractions .4 .3 .3
 @item @strong{System} @tab @strong{BDB} @tab @strong{InnoDB}
 @item AIX 4.3 @tab N @tab Y
-@item HPUX 11.0 @tab N @tab Y
+@item HP-UX 11.0 @tab N @tab Y
 @item Linux-Alpha @tab N	@tab Y
 @item Linux-Intel @tab Y @tab Y
 @item Linux-Ia64 @tab N @tab Y
@@ -33354,7 +33473,7 @@ MY_PWD=`pwd` Check if we are starting this relative (for the binary
 release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
 -a -x ./bin/mysqld
 --------------------------------------------------------------------------
-@xref{safe_mysqld}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 @end example
 The above test should be successful, or you may encounter problems.
 @item
@@ -33882,7 +34001,7 @@ server).  The dump will contain SQL statements to create the table
 and/or populate the table.
 
 If you are doing a backup on the server, you should consider using
-the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy}.
+the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy, , @code{mysqlhotcopy}}.
 
 @example
 shell> mysqldump [OPTIONS] database [tables]
@@ -35001,7 +35120,8 @@ This can be used to get faster inserts!  Deactivated indexes can be
 reactivated by using @code{myisamchk -r}.  keys.
 @item -l or --no-symlinks
 Do not follow symbolic links. Normally @code{myisamchk} repairs the
-table a symlink points at.
+table a symlink points at.  This option doesn't exist in MySQL 4.0,
+as MySQL 4.0 will not remove symlinks during repair.
 @item -r or --recover
 Can fix almost anything except unique keys that aren't unique
 (which is an extremely unlikely error with ISAM/MyISAM tables).
@@ -38435,11 +38555,15 @@ user and use the @code{--user=user_name} option.  @code{mysqld} will switch
 to run as the Unix user @code{user_name} before accepting any connections.
 
 @item
-If you are using the @code{mysql.server} script to start @code{mysqld} when
-the system is rebooted, you should edit @code{mysql.server} to use @code{su}
-to run @code{mysqld} as user @code{user_name}, or to invoke @code{mysqld}
-with the @code{--user} option.  (No changes to @code{safe_mysqld} are
-necessary.)
+To start the server as the given user name automatically at system
+startup time, add a @code{user} line that specifies the user name to
+the @code{[mysqld]} group of the @file{/etc/my.cnf} option file or the
+@file{my.cnf} option file in the server's data directory. For example:
+
+@example
+[mysqld]
+user=user_name
+@end example
 @end enumerate
 
 At this point, your @code{mysqld} process should be running fine and dandy as
@@ -39087,7 +39211,8 @@ If you want to make a SQL level backup of a table, you can use
 TABLE}. @xref{SELECT}. @xref{BACKUP TABLE}.
 
 Another way to back up a database is to use the @code{mysqldump} program or
-the @code{mysqlhotcopy script}. @xref{mysqldump}. @xref{mysqlhotcopy}.
+the @code{mysqlhotcopy script}. @xref{mysqldump, , @code{mysqldump}}.
+@xref{mysqlhotcopy, , @code{mysqlhotcopy}}.
 
 @enumerate
 @item
@@ -39179,7 +39304,8 @@ be an Internet service provider that wants to provide independent
 
 If you want to run multiple servers, the easiest way is to compile the servers
 with different TCP/IP ports and socket files so they are not
-both listening to the same TCP/IP port or socket file. @xref{mysqld_multi}.
+both listening to the same TCP/IP port or socket file. @xref{mysqld_multi, ,
+@code{mysqld_multi}}.
 
 Assume an existing server is configured for the default port number and
 socket file.  Then configure the new server with a @code{configure} command
@@ -39326,7 +39452,7 @@ switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 @code{mysqld} writes all errors to the stderr, which the
 @code{safe_mysqld} script redirects to a file called
 @code{'hostname'.err}.  (On Windows, @code{mysqld} writes this directly
-to @file{mysql.err}).
+to @file{\mysql\data\mysql.err}).
 
 This contains information indicating when @code{mysqld} was started and
 stopped and also any critical errors found when running.  If @code{mysqld}
@@ -41549,7 +41675,7 @@ query string.)
 
 If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
-@xref{mysql_field_count, @code{mysql_field_count}}.
+@xref{mysql_field_count, , @code{mysql_field_count}}.
 
 @subsubheading Return Values
 
@@ -42415,6 +42541,9 @@ For more information on Object Oriented Programming
 @example
 @uref{http://language.perl.com/info/documentation.html}
 @end example
+
+Note that if you want to use transactions with Perl, you need to have
+@code{Msql-Mysql-modules} version 1.2216 or newer.
 
 Installation instructions for @strong{MySQL} Perl support are given in
 @ref{Perl support}.
@@ -43481,53 +43610,518 @@ users.
 @item
 @end table
 
-@cindex PostgreSQL, comparison
+@cindex PostgreSQL/MySQL, overview
 @node Compare PostgreSQL,  , Compare mSQL, Comparisons
 @section How MySQL Compares to PostgreSQL
 
+When reading the following, please note that both products are
+continually evolving.  We at @strong{MySQL AB} and the PostgreSQL
+developers are both working on making our respective database as good as
+possible, so we are both a serious choice to any commercial database.
+
+The following comparison is made by us at MySQL AB.  We have tried to be
+as accurate and fair as possible, but because we don't have a full
+knowledge of all PostgreSQL features while we know MySQL througly, we
+may have got some things wrong. We will however correct these when they
+come to our attention.
+
 We would first like to note that @code{PostgreSQL} and @strong{MySQL}
-are both widely used products, but their design goals are completely
-different.  This means that for some applications @strong{MySQL} is more
-suitable and for others @code{PostgreSQL} is more suitable.  When
-choosing which database to use, you should first check if the database's
-feature set is good enough to satisfy your application.  If you need
-speed, @strong{MySQL} is probably your best choice. If you need some
-of the extra features that @code{PostgreSQL} can offer, you should use
+are both widely used products, but with different design goals, even if
+we are both striving to be ANSI SQL compatible.  This means that for
+some applications @strong{MySQL} is more suitable and for others
+@code{PostgreSQL} is more suitable.  When choosing which database to
+use, you should first check if the database's feature set satisfies your
+application.  If you need speed, @strong{MySQL} is probably your best
+choice. If you need some of the extra features that only @code{PostgreSQL}
+can offer, you should use @code{PostgreSQL}.
+
+@cindex PostgreSQL/MySQL, strategies
+@menu
+* MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
+* MySQL-PostgreSQL features::   Featurevise Comparison of MySQL and PostgreSQL
+* MySQL-PostgreSQL benchmarks::  Benchmarking MySQL and PostgreSQL
+@end menu
+
+@node MySQL-PostgreSQL goals, MySQL-PostgreSQL features, Compare PostgreSQL, Compare PostgreSQL
+@subsection MySQL and PostgreSQL development strategies
+
+When adding things to MySQL we take pride to do an optimal, definite
+solution.  The code should be so good that we shouldn't have any need to
+change it in the foreseeable future.  We also do not like to sacrifice
+speed for features but instead will do our utmost to find a solution
+that will give maximal throughput. This means that development will take
+a little longer, but the end result will be well worth this.  This kind
+of development is only possible because all server code are checked by
+one of a few (currently two) persons before it's included in the
+@strong{MySQL} server.
+
+We at MySQL AB believe in frequent releases to be able to push out new
+features quickly to our users. Because of this we do a new small release
+about every 3 weeks, which a major branch every year.  All releases are
+throughly tested with our testing tools on a lot of different platforms.
+
+PostgreSQL is based on a kernel with lots of contributors. In this setup
+it makes sense to prioritize adding a lot of new features, instead of
+implementing them optimally, because one can always optimize things
+later if there arises a need for this.
+
+Another big difference between @strong{MySQL} and PostgreSQL is that
+nearly all of the code in the MySQL server are coded by developers that
+are employed by MySQL AB and are still working on the server code. The
+exceptions are the transaction engines and the regexp library.
+
+This is in sharp contrast to the PostgreSQL code where the majority of
+the code is coded by a big group of people with different backgrounds.
+It was only recently that the PostgreSQL developers announced that they
+current developer group had finally had time to take a look at all
+the code in the current PostgreSQL release.
+
+Both of the above development methods has it's own merits and drawbacks.
+We here at @strong{MySQL AB} think of course that our model is better
+because our model gives better code consistence, more optimal and
+reusable code and, in our opinion, fewer bugs. Because we are the
+authors of the @strong{MySQL} server code we are better able to
+coordinate new features and releases.
+
+@cindex PostgreSQL/MySQL, features
+@node MySQL-PostgreSQL features, MySQL-PostgreSQL benchmarks, MySQL-PostgreSQL goals, Compare PostgreSQL
+@subsection Featurevise Comparison of MySQL and PostgreSQL
+
+On the @uref{http://www.mysql.com/information/crash-me.php, crash-me}
+page you can find a list of those database constructs and limits that
+one can detect automatically with a program.  Note however that a lot of
+the numerical limits may be changed with startup options for respective
+database. The above web page is however extremely useful when you want to
+ensure that your applications works with many different databases or
+when you want to convert your application from one datbase to another.
+
+@strong{MySQL} offers the following advantages over PostgreSQL:
+
+@itemize @bullet
+@item
+@code{MySQL} is generally much faster than PostgreSQL.
+@xref{MySQL-PostgreSQL benchmarks}.
+@item
+Because @strong{MySQL} has a much larger user base than PostgreSQL the
+code is more tested and has historically been more stable than
+PostgreSQL. @strong{MySQL} is the much more used in production
+environments than PostgreSQL, mostly thanks to that @strong{MySQL AB},
+former TCX DataKonsult AB, has provided top quality commercial support
+for @strong{MySQL} from the day it was released, whereas until recently
+PostgreSQL was unsupported.
+@item
+@strong{MySQL} works on more platforms than PostgreSQL. @xref{Which OS}.
+@item
+@strong{MySQL} works better on Windows; @strong{MySQL} is running as a
+native windows application (a service on NT/Win2000/WinXP), while
+PostgreSQL is run under the cygwin emulation. We have heard that
+PostgreSQL is not yet that stable on windows but we haven't been able to
+verify this ourselves.
+@item
+@strong{MySQL} has more API to other languages and is supported by more
+programs than PostgreSQL. @xref{Contrib}.
+@item
+@strong{MySQL} works on 24/7 heavy duty systems. In most circumstances
+you never have to run any cleanups on @code{MySQL}.  PostgreSQL doesn't
+yet support 24/7 systems because you have have to run @code{vacuum()}
+once in a while to reclaim space from @code{UPDATE} and @code{DELETE}
+commands and to perform statistics analyzes that are critical to get
+good performance with PostgreSQL. Vacuum is also needed after adding
+a lot of new rows to a table. On a busy system with lots of changes
+vacuum must be run very frequently, in the worst cases even many times a
+day.  During the @code{vacuum()} run, which may take hours if the
+database is big, the database is from a production standpoint
+practically dead.  The PostgreSQL team has fixing this on their TODO,
+but we assume that this is not an easy thing to fix permanently.
+@item
+A working, tested replication feature used by sites like
+@uref{http://finance.yahoo.com, Yahoo finance},
+@uref{http://www.mobile.de/,mobile.de} and
+@uref{http://www.slashdot.org,Slashdot}.
+@item
+Included in the @strong{MySQL} distribution is included two different
+testing suits (@file{mysql-test-run} and
+@uref{http://www.mysql.com/information/crash-me.php,crash-me}) and a
+benchmark suite. The test system is actively updated with code to test
+each new feature and almost all repeatable bugs that comes to our
+attention. We test @strong{MySQL} with these on a lot of platforms
+before every release.  These tests are more sofisticated than anything
+have seen from PostgreSQL and ensures that the @strong{MySQL} code keeps
+at a high standard.
+@item
+There are far moore books in print on @strong{MySQL} than on PostgreSQL.
+O'Reilly, Sams, Que, and New Riders are all major publishers with books
+about MySQL. All @strong{MySQL} features is also documented in the
+@strong{MySQL} on-line manual because when a feature is implemented, the
+@strong{MySQL} developers are required to document it before it's
+included in the source.
+@item
+@strong{MySQL} has supports more of the standard ODBC functions than
 @code{PostgreSQL}.
+@item
+@strong{MySQL} has a much more sophisticated @code{ALTER TABLE}.
+@item
+@strong{MySQL} has support for tables without transactions for
+applications that need all speed they can get. The tables may be memory
+based,@code{HEAP} tables or disk based @code{MyISAM}. @xref{Table types}.
+@item
+@strong{MySQL} has support for 3 different table handles that support
+transactions (@code{BDB}, @code{InnoDB} and @code{Gemini}.  Because
+every transaction engine performs differently under different
+conditions, this gives the application writer more options to find an
+optimal solution for his/her setup. @xref{Table types}.
+@item
+@code{MERGE} tables gives you a unique way to instantly make a view over
+a set of identical tables and use these as one. This is perfectly for
+systems where you have log files that you order for example by month.
+@xref{MERGE}.
+@item
+The option to compress read-only tables, but still have direct access to
+the rows in the table, gives you better performance by minimizing disk
+reads.  This is very useful when you are archiving
+things.@xref{myisampack}.
+@item
+@strong{MySQL} has internal support for text search. @xref{Fulltext Search}.
+@item
+You can access many databases from the same connection (depending of course
+on your privileges).
+@item
+@strong{MySQL} is coded from the start with multi-threading while
+PostgreSQL uses processes. Because context switching and access to
+common storage areas is much faster between threads, than are separate
+processes, this gives @strong{MySQL} a big speed advantage in multi-user
+applications and also makes it easier for @strong{MySQL} to take full
+advantage of symmetric multiprocessor systems (SMP).
+@item
+@strong{MySQL} has a much more sophisticated privilege system than
+PostgreSQL.  While PostgreSQL only supports @code{INSERT},
+@code{SELECT}, @code{update/delete} grants per user on a database or a
+table @strong{MySQL} allows you to define a full set of different
+privileges on database, table and columns level. @strong{MySQL} also allows
+you to specify the privilege on host+user combinations. @xref{GRANT}.
+@item
+@strong{MySQL} supports a compressed server/client protocol which
+improves performance over slow links.
+@item
+@strong{MySQL} employs the table handler concept and is the only
+relational database we know of built around this concept. This allows
+different low level table types to be swapped into the SQL engine, each
+table type optimized for a different performance characteristics.
+@item
+All @code{MySQL} table types (except @strong{InnoDB}) are implemented as
+files (ie: one table per file), which makes it really easy to backup,
+move, delete and even symlink databases and tables when the server is
+down.
+@item
+Tools to repair and optimize @strong{MyISAM} tables (the most common
+@strong{MySQL} table type).  A repair tool is only needed when a
+physical corruption of a data file happens, usually from a hardware
+failure. It allows a majority of the data to be recovered.
+@item
+Upgrading @strong{MySQL} is painless. When you are upgrading @strong{MySQL},
+you don't need to dump/restore your data, as you have to do with most
+PostgreSQL upgrades.
+@end itemize
 
-@code{PostgreSQL} has some more advanced features like user-defined
-types, triggers, rules, and some transaction support (currently it
-has about the same semantics as @strong{MySQL}'s transactions in that the
-transaction is not 100% atomic).  However, PostgreSQL lacks many of the 
-standard types and functions from ANSI SQL and ODBC. See the @code{crash-me} 
-Web page (@uref{http://www.mysql.com/information/crash-me.php}) for a complete
-list of limits and which types and functions are supported or unsupported.
+Drawbacks with @strong{MySQL} compared to PostgreSQL:
 
-Normally, @code{PostgreSQL} is a magnitude slower than @strong{MySQL}. 
-@xref{Benchmarks}.  This is due largely to the fact that they have only
-transaction-safe tables and that their transactions system is not as
-sophisticated as Berkeley DB's.  In @strong{MySQL} you can decide per
-table if you want the table to be fast or take the speed penalty of
-making it transaction-safe.
+@itemize @bullet
+@item
+The transaction support in @strong{MySQL} is not yet as well tested as
+PostgreSQL's system.
+@item
+Because @strong{MySQL} uses threads, which are still a moving target on
+many OS, one must either use binaries from
+@uref{http://www.mysql.com/downloads} or carefully follow our
+instructions on
+@uref{http://www.mysql.com/doc/I/n/Installing_source.html} to get an
+optimal binary that works in all cases.
+@item
+Table locking, as used by the non-transactional @code{MyISAM} tables, is
+in many cases faster than page locks, row locks or versioning.  The
+drawback however is that if one doesn't take into account how table
+locks works, a single long-running query can block a table for updates
+for a long time. This can usable be avoided when designing the
+application.  If not, one can always switch the trouble table to use one
+of the transactional table types. @xref{Table locking}.
+@item
+With UDF (user defined functions) one can extend @strong{MySQL} with
+both normal SQL functions and aggregates, but this is not as easy or as
+flexible as in PostgreSQL. @xref{Adding functions}.
+@item
+Updates and deletes that goes over multiple tables is harder to do in
+@strong{MySQL}. (Will be fixed in @strong{MySQL} 4.0 with multi-table
+@code{DELETE} and multi-table @code{UPDATE} and in @strong{MySQL} 4.1
+with @code{SUB-SELECT})
+@end itemize
 
-The most important things that @code{PostgreSQL} supports that @strong{MySQL}
-doesn't yet support:
+PostgreSQL offers currently the following advantages over @strong{MySQL}:
 
-@table @code
-@item Sub select
-@item Foreign keys
-@item Stored procedures
-@item An extendable type system.
-@item A way to extend the SQL to handle new key types (like R-trees)
-@end table
+Note that because we know the @strong{MySQL} road map, we have included
+in the following table the version when @strong{MySQL} should support
+this feature.  Unfortunately we couldn't do this for previous comparison,
+because we don't know the PostgreSQL roadmap.
 
-@strong{MySQL}, on the other hand, supports many ANSI SQL constructs
-that @code{PostgreSQL} doesn't support. Most of these can be found at the
-@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} Web page}.
+@multitable @columnfractions .70 .30
+@item @strong{Feature} @tab @strong{MySQL version}
+@item Subselects @tab 4.1
+@item Foreign keys @tab 4.0 and 4.1
+@item Views. @tab 4.2
+@item Stored procedures in multiple languages @tab 4.1
+@item Extensible type system. @tab Not planed
+@item Unions @tab 4.0.
+@item Full join. @tab 4.0 or 4.1.
+@item Triggers. @tab 4.1
+@item Constrainst @tab 4.1
+@item Cursors @tab 4.1 or 4.2
+@item Extensible index types like R-trees @tab R-trees are planned to 4.2
+@item Inherited tables @tab Not planned
+@end multitable
 
-If you really need the rich type system @code{PostgreSQL} offers and you
-can afford the speed penalty of having to do everything transaction
-safe, you should take a look at @code{PostgreSQL}.
+Other reasons to use PostgreSQL:
+
+@itemize @bullet
+@item
+Standard usage is in PostgreSQL closer to ANSI SQL in some cases.
+@item
+One can get speed up PostgreSQL by coding things as stored procedures.
+@item
+Bigger team of developers that contributes to the server.
+@end itemize
+
+Drawbacks with PostgreSQL compared to @strong{MySQL}:
+
+@itemize @bullet
+@item
+@code{Vaccum()} makes PostgreSQL hard to use in a 24/7 environment.
+@item
+Only transactional tables.
+@item
+Much slower insert/delete/update.
+@end itemize
+
+For a complete list of drawbacks, you should also examine the first table
+in this section.
+
+@cindex PostgreSQL/MySQL, benchmarks
+@node MySQL-PostgreSQL benchmarks,  , MySQL-PostgreSQL features, Compare PostgreSQL
+@subsection Benchmarking MySQL and PostgreSQL
+
+The only open source benchmark, that we know of, that can be used to
+benchmark @strong{MySQL} and PostgreSQL (and other databases) is our
+own. It can be found at:
+@uref{http://www.mysql.com/information/benchmarks.html}.
+
+We have many times asked the PostgreSQL developers and some PostgreSQL
+users to help us extend this benchmark to make the definitive benchmark
+for databases, but unfortunately we haven't got any feedback for this.
+
+We, the @strong{MySQL} developers, have because of this spent a lot of
+hours to get maximum performance from PostgreSQL for the benchmarks, but
+because we don't know PostgreSQL intimately we are sure that there are
+things that we have missed.  We have on the benchmark page documented
+exactly how we did run the benchmark so that it should be easy for
+anyone to repeat and verify our results.
+
+The benchmarks are usually run with and without the @code{--fast}
+option.  When run with @code{--fast} we are trying to use every trick
+the server can do to get the code to execute as fast as possible.
+The idea is that the normal run should show how the server would work in
+a default setup and the @code{--fast} run shows how the server would do
+if the application developer would use extensions in the server to make
+his application run faster.
+
+When running with PostgreSQL and @code{--fast} we do a @code{vacuum()}
+between after every major table update and drop table to make the database
+in perfect shape for the following selects. The time for vacuum() is
+measured separately.
+
+When running with PostgreSQL 7.1.1 we could however not run with
+@code{--fast} because during the insert test, the postmaster (the
+PostgreSQL deamon) died and the database was so corrupted that it was
+impossible to restart postmaster. (The details about the machine we run
+the benchmark can be found on the benchmark page). After this happened
+twice, we decided to postpone the @code{--fast} test until next
+PostgreSQL release.
+
+Before going to the other benchmarks we know of, We would like to give
+some background to benchmarks:
+
+It's very easy to write a test that shows ANY database to be best
+database in the world, by just restricting the test to something the
+database is very good at and not test anything that the database is not
+good at; If one after this publish the result with a single figure
+things is even easier.
+
+This would be like we would measure the speed of @strong{MySQL} compared
+to PostgreSQL by looking at the summary time of the MySQL benchmarks on
+our web page. Based on this @strong{MySQL} would be more than 40 times
+faster than PostgreSQL, something that is of course not true. We could
+make things even worse by just taking the test where PostgreSQL performs
+worst and claim that @strong{MySQL} is more than 2000 times faster than
+PostgreSQL.
+
+The case is that @strong{MySQL} does a lot of optimizations that
+PostgreSQL doesn't do and the other way around.  An SQL optimizer is a
+very complex thing and a company could spend years on just making the
+optimizer faster and faster.
+
+When looking at the benchmark results you should look for things that
+you do in your application and just use these results to decide which
+database would be best suited for your application. The benchmark
+results also shows things a particular database is not good at and should
+give you a notion about things to avoid and what you may have to do in
+other ways.
+
+We know of two benchmark tests that claims that PostgreSQL performers
+better than @strong{MySQL}. These both where multi-user tests, a test
+that we here at @strong{MySQL AB} haven't had time to write and include in
+the benchmark suite, mainly because it's a big task to do this in a
+manner that is fair against all databases.
+
+One is the benchmark paid for by
+@uref{http://www.greatbridge.com/about/press.php?content_id=4,Great
+Bridge}.
+
+This is the worst benchmark we have ever seen anyone ever conduct.  This
+was not only tuned to only test what PostgreSQL is absolutely best at,
+it was also totally unfair against every other database involved in the
+test.
+
+@strong{NOTE}: We know that not even some of the main PostgreSQL
+developers did like the way Great Bridge conducted the benchmark, so we
+don't blame them for the way the benchmark was made.
+
+This benchmark has been condemned in a lot of postings and newsgroups so
+we will here just shortly repeat some things that where wrong with it.
+
+@itemize @bullet
+@item
+The tests where run with an expensive commercial tool, that makes it
+impossible for an open source company like us to verify the benchmarks,
+or even check how the benchmark where really done. The tool is not even
+a true benchmark tool, but a application/setup testing tool.  To refer
+this as STANDARD benchmark tool is to stretch the truth a long way.
+@item
+Great Bridge admitted that they had optimized the PostgreSQL database
+(with vacuum() before the test) and tuned the startup for the tests,
+something they hadn't done for any of the other databases involved.  To
+say "This process optimizes indexes and frees up disk space a bit.  The
+optimized indexes boost performance by some margin".  Our benchmarks
+clearly indicates that the difference in running a lot of selects on a
+database with and without vacuum() can easily differ by a factor of 10.
+@item
+The test results where also strange; The AS3AP test documentation
+mentions that the test does:
+
+"selections, simple joins, projections, aggregates, one-tuple updates,
+and bulk updates"
+
+PostgreSQL is good at doing selects and joins (especially after a
+vacuum()), but doesn't perform as well on inserts/updates; The
+benchmarks seem to indicate that only SELECTs where done (or very few
+updates) . This could easily explain they good results for PostgreSQL in
+this test.  The bad results for MySQL will be obvious a bit down in this
+document.
+@item
+They did run the so called benchmark from a Windows machine against a
+Linux machine over ODBC, a setup that no normal database user would ever
+do when running a heavy multi-user application. This tested more the
+ODBC driver and the Windows protocol used between the clients than the
+database itself.
+@item
+When running the database against Oracle and MS-SQL (Great Bridge has
+indirectly indicated that the databases they used in the test),
+they didn't use the native protocol but instead ODBC. Anyone that has
+ever used Oracle, knows that all real application uses the native
+interface instead of ODBC. Doing a test through ODBC and claiming that
+the results had anything to do with using the database for real can't
+be regarded as fair play. They should have done two tests with and
+without ODBC to provide the right facts (after having got experts to tune
+all involved databases of course).
+@item
+They refer to the TPC-C tests, but doesn't anywhere mention that the
+tests they did where not a true TPC-C test and they where not even
+allowed to call it a TPC-C test.  A TPC-C test can only be conducted by
+the rules approved by the @uref{http://www.tpc.org,TPC-council}. Great
+Bridge didn't do that. By doing this they have both violated the TPC
+trademark and miscredited their own benchmarks.  The rules set by the
+TPC-council are very strict to ensure that no one can produce false
+results or make unprovable statements. Apparently Great Bridge wasn't
+interested in doing this.
+@item
+After the first test, we contacted Great Bridge and mentioned to them
+some of the obvious mistakes they had done with @strong{MySQL}; Running
+with a debug version of our ODBC driver, running on a Linux system that
+wasn't optimized for threads, using an old MySQL version when there was
+a recommended newer one available, not starting @strong{MySQL} with the
+right options for heavy multi-user use (the default installation of
+MySQL is tuned for minimal resource use). Great Bridge did run a new
+test, with our optimized ODBC driver and with better startup options for
+MySQL, but refused to either use our updated glibc library or our
+standard binary (used by 80% of our users), which was statically linked
+with a fixed glibc library.
+
+According to what we know, Great Bridge did nothing to ensure that the
+other databases where setup correctly to run good in their test
+environment. We are sure however that they didn't contact Oracle or
+Microsoft to ask for their advice in this matter ;)
+@item
+The benchmark was paid for by Great Bridge, and they decided to publish
+only partial chosen results (instead of publishing it all).
+@end itemize
+
+Tim Perdue, a long time PostgreSQL fan and a reluctant MySQL user
+published a comparison on
+@uref{http://www.phpbuilder.com/columns/tim20001112.php3,phpbuider}.
+
+When we got aware of the comparison, we phoned Tim Perdue about this
+because there was a lot of strange things in his results. For example,
+he claimed that MySQL had a problem with five users in his tests, when we
+know that there are users with similar machines as his that are using
+MySQL with 2000 simultaneous connections doing 400 queries per second (In
+this case the limit was the web bandwidth, not the database).
+
+It sounded like he was using a Linux kernel that either had some
+problems with many threads (Linux kernels before 2.4 had a problem with
+this but we have documented how to fix this and Tim should be aware of
+this problem). The other possible problem could have been an old glibc
+library and that Tim didn't use a MySQL binary from our site, which is
+linked with a corrected glibc library, but had compiled a version of his
+own with. In any of the above cases, the symptom would have been exactly
+what Tim had measured.
+
+We asked Tim if we could get access to his data so that we could repeat
+the benchmark and if he could check the MySQL version on the machine to
+find out what was wrong and he promised to come back to us about this.
+He has not done that yet.
+
+Because of this we can't put any trust in this benchmark either :(
+
+Conclusion:
+
+The only benchmarks that exist today that anyone can download and run
+against @strong{MySQL}and PostgreSQL is the MySQL benchmarks.  We here
+at @strong{MySQL} believe that open source databases should be tested
+with open source tools!  This is the only way to ensure that no one
+does tests that nobody can reproduce and use this to claim that a
+database is better than another. Without knowing all the facts it's
+impossible to answer the claims of the tester.
+
+The thing we find strange is that every test we have seen about
+PostgreSQL, that is impossible to reproduce, claims that PostgreSQL is
+better in most cases while our tests, which anyone can reproduce,
+clearly shows otherwise. With this we don't want to say that PostgreSQL
+isn't good at many things (It is!) We would just like to see a fair test
+where they are very good so that we could get some friendly competition
+going!
+
+For more information about our benchmarks suite see @xref{MySQL
+Benchmarks}. 
+
+We are working on an even better benchmark suite, including much better
+documentation of what the individual tests really do and how to add more
+tests to the suite.
 
 @cindex internals
 @cindex threads
@@ -44593,8 +45187,8 @@ of several databases simultaneously. By Innovative-IT Development AB.
 The @strong{MySQL} GUI client homepage. By Sinisa at @strong{MySQL AB}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_navigator_0.9.0.tar.gz, MySQL navigator 0.9}
-MySQL Navigator is MySQL database server GUI client program. The purpose
-of MySQL Navigator is to provide a useful client interface to MySQL
+MySQL Navigator is a @strong{MySQL} database server GUI client program. The purpose
+of MySQL Navigator is to provide a useful client interface to @strong{MySQL}
 database servers, whilst supporting multiple operating systems and
 languages. You can currently import/export database, enter queries, get
 result sets, edit scripts, run scripts, add, alter, and delete users,
@@ -44617,7 +45211,7 @@ You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker-1.0.zip,MySQL-Maker 1.0}.
-Shareware @strong{MySQL} client for Windows. It's WYSIWYG tool which allows
+Shareware @strong{MySQL} client for Windows. It's a WYSIWYG tool which allows
 you to create, change and delete databases and tables.
 You can change field - structure and add, change and delete data in
 these tables directly without ODBC-driver.
@@ -44627,9 +45221,14 @@ these tables directly without ODBC-driver.
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
 @email{david@@zhadum.org}.
 
+@item @uref{http://home.online.no/~runeberg/myqa, MyQA}
+is a Linux-based query client for the @strong{MySQL} database server. MyQA
+lets you enter SQL queries, execute them, and view the results, all in a
+graphical user interface. The GUI is roughly similar to that of the
+'Query Analyzer' client that comes with MS SQL Server.
 
 @item @uref{http://members.xoom.com/_opex_/mysqlmanager/index.html, MySQL Manager}
-a graphical MySQL server manager for MySQL server written in Java, for Windows
+a graphical @strong{MySQL} server manager for @strong{MySQL} server written in Java, for Windows
 
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
@@ -44710,6 +45309,24 @@ data either by clicking on the table folder or by composing their own SQL
 statements with our built-in SQL editor. The tool has been tested with
 Oracle 8 and @strong{MySQL} as the back-end databases. It requires JDK 1.3 from
 JavaSoft.
+@item @uref{http://www.jetools.com/products/databrowser/, DataBrowser}
+The DataBrowser is a cross-database, cross-platform data access tool. It is more
+user friendly than tools like SQL Plus, psql (command line based tools). It is more
+flexible than TOAD, ISQL, PGAccess which are GUI's that are limitied to a single
+platform or database.
+@item @uref{http://www.intrex.net/amit/software/, SQLC}
+The SQL Console is a standalone java application that allows you to connect to a
+ SQL database system and issue SQL queries and updates. It has an easy-to use
+graphical user interface. The SQL Console uses JDBC to connect to the database
+systems and, therefore, with proper JDBC drivers, you can use this utility to
+connect to some of the most popular database systems. 
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mmc.zip, MySQL MMC}
+MySQL MMC is a GUI Management Tool developed using kdevelop
+with a very good interface completely like Microsoft
+Enterprise Tool (for SQL Server) or Sybase Central. We
+can use it to manage server, database, table, index,
+users and to edit table data in grid or execute Sql
+by Query Analysis.
 @end itemize
 
 @cindex Web clients
@@ -44759,7 +45376,7 @@ html templates. By Alex Krohn.
 This cgi scripts in Perl enables you to edit content of Mysql
 database. By Tomas Zeman.
 @item
-@uref{http://futurerealm.com/opensource/futuresql.htm, FutureSQL Web Database Administration Tool}.
+@uref{http://worldcommunity.com/opensource/futuresql, FutureSQL Web Database Administration Tool}.
 FutureSQL by Peter F. Brown, is a free, open source rapid application
 development Web database administration tool, written in Perl,
 using @strong{MySQL}. It uses @code{DBI:DBD} and @code{CGI.pm}.
@@ -44782,7 +45399,7 @@ and run update queries.  Originally written to implement a simple fast
 low-overhead banner-rotation system.  By Sasha Pachev.
 
 @item @uref{http://htcheck.sourceforge.net, htCheck} - URL checker with
-MySQL backend. Spidered URLs can later be queried using SQL to retrieve
+@strong{MySQL} backend. Spidered URLs can later be queried using SQL to retrieve
 various kinds of information, eg. broken links. Written by Gabriele Bartolini.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}
@@ -45018,6 +45635,10 @@ Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
 @appendixsec Useful Tools
 
 @itemize @bullet
+@item @uref{http://worldcommunity.com/opensource/utilities/mysql_backup.html, MySQL Backup}.
+
+A backup script for MySQL. By Peter F. Brown.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/mytop, mytop}
 @item @uref{http://public.yahoo.com/~jzawodn/mytop/, mytop home page}
 mytop is a Perl program that allows you to monitor @strong{MySQL} servers by
@@ -45626,7 +46247,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added support for symbolic links to @code{MyISAM} tables.
+Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
+now enabled by default for Windows.
 @item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
@@ -45688,6 +46310,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.39a::               
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
@@ -45731,23 +46354,41 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
+@node News-3.23.39a, News-3.23.39, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.39a
+@itemize @bullet
+@item
+Fixed a small bug in the mysql-test benchmark suite
+@end itemize
+
+@node News-3.23.39, News-3.23.38, News-3.23.39a, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
-Fixed problem that client 'hang' when @code{LOAD TABLE FROM MASTER} failed.
+If one dropped and added an @code{AUTO_INCREMENT} column, the
+@code{AUTO_INCREMENT} sequence wasn't reset.
 @item
-Running @code{myisamchk --fast --force} will not anymore repair tables
+@code{CREATE .. SELECT} now creates not unique indexes delayed.
+@item
+Fixed problem where @code{LOCK TABLES table_name READ} followed by
+@code{FLUSH TABLES} put a exclusive lock on the table.
+@item
+@code{REAL} @@variables with was represented with 2 digits when
+converted to strings.
+@item
+Fixed problem that client 'hung' when @code{LOAD TABLE FROM MASTER} failed.
+@item
+Running @code{myisamchk --fast --force} will no longer repair tables
 that only had the open count wrong.
 @item
 Added functions to handle symbolic links to make life easier in 4.0.
 @item
-We are now using the @code{-lcma} thread library on HPUX 10.20 to
-get @strong{MySQL} more stabile on HPUX.
+We are now using the @code{-lcma} thread library on HP-UX 10.20 to
+get @strong{MySQL} more stable on HP-UX.
 @item
 Fixed problem with @code{IF()} and number of decimals in the result.
 @item
-Fixed that date-part extract functions works with dates where day
+Fixed date-part extraction functions to work with dates where day
 and/or month is 0.
 @item
 Extended argument length in option files from 256 to 512 chars.
@@ -45755,7 +46396,7 @@ Extended argument length in option files from 256 to 512 chars.
 Fixed problem with shutdown when @code{INSERT DELAYED} was waiting for
 a @code{LOCK TABLE}.
 @item
-Fixed coredump bug buged in InnoDB when tablespace was full.
+Fixed coredump bug in InnoDB when tablespace was full.
 @item
 Fixed problem with @code{MERGE} tables and big tables (> 4G) when using
 @code{ORDER BY}.
@@ -46168,7 +46809,7 @@ Fixed problem when using @code{DECIMAL()} keys on negative numbers.
 always returned @code{NULL}.
 @item
 Fixed security bug in something (please upgrade if you are using a earlier
-MySQL 3.23 version).
+@strong{MySQL} 3.23 version).
 @item
 Fixed buffer overflow bug when writing a certain error message.
 @item
@@ -46337,7 +46978,7 @@ slave server restart.
 @item
 @code{SHOW KEYS} now shows whether or not key is @code{FULLTEXT}.
 @item
-New script @file{mysqld_multi}. @xref{mysqld_multi}.
+New script @file{mysqld_multi}. @xref{mysqld_multi, , @code{mysqld_multi}}.
 @item
 Added new script, @file{mysql-multi.server.sh}.  Thanks to
 Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying @file{mysql.server} to
@@ -46390,8 +47031,8 @@ read by @code{mysql_options()}.
 Added new options @code{--pager[=...]}, @code{--no-pager},
 @code{--tee=...} and @code{--no-tee} to the @code{mysql} client.  The
 new corresponding interactive commands are @code{pager}, @code{nopager},
-@code{tee} and @code{notee}. @xref{mysql}, @code{mysql --help} and the
-interactive help for more information.
+@code{tee} and @code{notee}. @xref{mysql, , @code{mysql}}, @code{mysql --help}
+and the interactive help for more information.
 @item
 Fixed crash when automatic repair of @code{MyISAM} table failed.
 @item
@@ -50990,6 +51631,10 @@ This appendix lists the features that we plan to implement in @strong{MySQL}.
 Everything in this list is approximately in the order it will be done.  If you
 want to affect the priority order, please register a license or support us and
 tell us what you want to have done more quickly. @xref{Licensing and Support}.
+
+The plan is that we in the future will support the full ANSI SQL99
+standard, but with a lot of useful extensions. The challenge is to do
+this without sacrifying the speed or compromise the code.
 
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @appendixsec Things that should be in 4.0

@@ -11,30 +11,29 @@ export machine system version
 SOURCE=`pwd` 
 CP="cp -p"
 
-# Debug option must come first
+STRIP=1
 DEBUG=0
-if test x$1 = x"--debug"
-then
-  DEBUG=1
-  shift 1
-fi  
-
-# Save temporary distribution here (must be full path) 
+SILENT=0
 TMP=/tmp
-if test $# -gt 0
-then
-  TMP=$1
-  shift 1
-fi
-
-# Get optional suffix for distribution
 SUFFIX=""
-if test $# -gt 0
-then
-  SUFFIX=$1
-  shift 1
-fi
 
+parse_arguments() {
+  for arg do
+    case "$arg" in
+      --debug)    DEBUG=1;;
+      --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
+      --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
+      --no-strip) STRIP=0 ;;
+      --silent)   SILENT=1 ;;
+      *)
+	echo "Unknown argument '$arg'"
+	exit 1
+        ;;
+    esac
+  done
+}
+
+parse_arguments "$@"
 
 #make
 
@@ -68,14 +67,18 @@ for i in extra/comp_err extra/replace extra/perror extra/resolveip \
   client/mysql sql/mysqld client/mysqlshow client/mysqlcheck \
   client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
   client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
-  client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest
+  client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest \
+  client/.libs/mysqlcheck
 do
   if [ -f $i ]
   then
     $CP $i $BASE/bin
   fi
 done
-strip $BASE/bin/*
+
+if [ x$STRIP = x1 ] ; then
+  strip $BASE/bin/*
+fi
 
 for i in sql/mysqld.sym.gz
 do
@@ -190,7 +193,13 @@ fi
 
 echo "Using $tar to create archive"
 cd $TMP
-$tar cvf $SOURCE/$NEW_NAME.tar $NEW_NAME
+
+OPT=cvf
+if [ x$SILENT = x1 ] ; then
+  OPT=cf
+fi
+
+$tar $OPT $SOURCE/$NEW_NAME.tar $NEW_NAME
 cd $SOURCE
 echo "Compressing archive"
 gzip -9 $NEW_NAME.tar

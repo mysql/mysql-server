@@ -799,18 +799,29 @@ sub reconnect_on_errors
 
 sub vacuum
 {
-  my ($self,$full_vacuum,$dbh_ref)=@_;
-  my ($loop_time,$end_time,$dbh);
+  my ($self,$full_vacuum,$dbh_ref,@tables)=@_;
+  my ($loop_time,$end_time,$dbh,$table);
   if (defined($full_vacuum))
   {
     $$dbh_ref->disconnect;  $$dbh_ref= $self->connect();
   }
   $dbh=$$dbh_ref;
   $loop_time=new Benchmark;
-  $dbh->do("vacuum") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
-  $dbh->do("vacuum pg_attributes") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
-  $dbh->do("vacuum pg_index") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
-  $dbh->do("vacuum analyze") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+  if ($#tables >= 0)
+  {
+    foreach $table (@tables)
+    {
+      $dbh->do("vacuum analyze $table") || die "Got error: $DBI::errstr when executing 'vacuum analyze $table'\n";
+      $dbh->do("vacuum $table") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+    }
+  }
+  else
+  {
+#    $dbh->do("vacuum pg_attributes") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+#    $dbh->do("vacuum pg_index") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+    $dbh->do("vacuum analyze") || die "Got error: $DBI::errstr when executing 'vacuum analyze'\n";
+    $dbh->do("vacuum") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+  }
   $end_time=new Benchmark;
   print "Time for book-keeping (1): " .
   Benchmark::timestr(Benchmark::timediff($end_time, $loop_time),"all") . "\n\n";
