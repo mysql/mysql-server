@@ -291,3 +291,5 @@ myisam/test1.MYD
 myisam/test1.MYI
 .gdbinit
 .vimrc
+bdb/include/rpc_server_ext.h
+bdb/include/rpc_client_ext.h
