@@ -477,9 +477,11 @@ bool Item_in_optimizer::fix_left(THD *thd,
 				 struct st_table_list *tables,
 				 Item **ref)
 {
-  if (args[0]->fix_fields(thd, tables, ref) ||
-      (!cache && !(cache= Item_cache::get_cache(args[0]->result_type()))))
+  if ((!args[0]->fixed && args[0]->fix_fields(thd, tables, args)))
     return 1;
+  if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
+      return 1;
+
   cache->setup(args[0]);
   cache->store(args[0]);
   if (cache->cols() == 1)
@@ -512,12 +514,12 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (!args[0]->fixed && fix_left(thd, tables, ref))
+  if (fix_left(thd, tables, ref))
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
 
-  if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args))
+  if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args+1))
     return 1;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())

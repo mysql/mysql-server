@@ -460,12 +460,23 @@ int st_select_lex_unit::cleanup()
     table= 0; // Safety
   }
   JOIN *join;
-  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+  SELECT_LEX *sl= first_select_in_union();
+  for (; sl; sl= sl->next_select())
   {
     if ((join= sl->join))
     {
       error|= sl->join->cleanup();
       delete join;
+    }
+    else
+    {
+      // it can be DO/SET with subqueries
+      for (SELECT_LEX_UNIT *lex_unit= sl->first_inner_unit();
+	   lex_unit != 0;
+	   lex_unit= lex_unit->next_unit())
+      {
+	error|= lex_unit->cleanup();
+      }
     }
   }
   if (fake_select_lex && (join= fake_select_lex->join))

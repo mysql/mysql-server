@@ -925,14 +925,6 @@ static void test_prepare_simple()
   rc = mysql_query(mysql,"CREATE TABLE test_prepare_simple(id int, name varchar(50))");
   myquery(rc);
 
-  /* alter table */
-  strmov(query,"ALTER TABLE test_prepare_simple ADD new char(20)");
-  stmt = mysql_simple_prepare(mysql, query);
-  mystmt_init(stmt);
-
-  verify_param_count(stmt,0);
-  mysql_stmt_close(stmt);
-
   /* insert */
   strmov(query,"INSERT INTO test_prepare_simple VALUES(?,?)");
   stmt = mysql_simple_prepare(mysql, query);
@@ -1541,22 +1533,25 @@ static void test_select_version()
 }
 
 /********************************************************
-* to test simple select                                 *
+* to test simple show                                   *
 *********************************************************/
-static void test_select_simple()
+static void test_select_show_table()
 {
   MYSQL_STMT *stmt;
-  int        rc;
+  int        rc, i;
 
-  myheader("test_select_simple");
+  myheader("test_select_show_table");
 
   stmt = mysql_simple_prepare(mysql, "SHOW TABLES FROM mysql");
   mystmt_init(stmt);
 
   verify_param_count(stmt,0);
 
-  rc = mysql_execute(stmt);
-  mystmt(stmt, rc);
+  for (i= 1; i < 3; i++)
+  {
+    rc = mysql_execute(stmt);
+    mystmt(stmt, rc);
+  }
 
   my_process_stmt_result(stmt);
   mysql_stmt_close(stmt);
@@ -4048,7 +4043,7 @@ static void test_stmt_close()
   rc = mysql_query(lmysql,"CREATE TABLE test_stmt_close(id int)");
   myquery(rc);
 
-  strmov(query,"ALTER TABLE test_stmt_close ADD name varchar(20)");
+  strmov(query,"DO \"nothing\"");
   stmt1= mysql_simple_prepare(lmysql, query);
   mystmt_init(stmt1);
   
@@ -6452,14 +6447,10 @@ static void test_prepare_grant()
     myquery_r(rc);
 
     stmt= mysql_simple_prepare(mysql,"DELETE FROM test_grant");
-    mystmt_init(stmt);
-
-    rc = mysql_execute(stmt);
-    myquery_r(rc);
+    mystmt_init_r(stmt);
     
     assert(4 == my_stmt_result("SELECT * FROM test_grant"));
     
-    mysql_stmt_close(stmt);
     mysql_close(lmysql);        
     mysql= org_mysql;
 
@@ -8214,6 +8205,7 @@ static void test_subqueries()
   MYSQL_STMT *stmt;
   int rc, i;
   const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s, (a-1,b-1) in (select a,b from t2) as in_row_s FROM t1, (select a x, b y from t2) tt WHERE x=a";
+  /* const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s FROM t1, (select a x, b y from t2) tt WHERE x=a"; */
 
   myheader("test_subquery");
   
@@ -8594,12 +8586,21 @@ static void test_selecttmp()
 
 static void test_create_drop()
 {
-  MYSQL_STMT *stmt_create, *stmt_drop;
+  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_select, *stmt_create_select;
   char *query;
   int rc, i;
   myheader("test_table_manipulation");
   
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t2 (a int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t1 (a int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "insert into t2 values (3), (2), (1);");
   myquery(rc);
   
   query= (char*)"create table t1 (a int)";
@@ -8610,18 +8611,51 @@ static void test_create_drop()
   stmt_drop= mysql_prepare(mysql, query, strlen(query));
   mystmt_init(stmt_drop);
 
+  query= (char*)"select a in (select a from t2) from t1";
+  stmt_select= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_select);
+  
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  query= (char*)"create table t1 select a from t2";
+  stmt_create_select= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_create_select);
+
   for (i= 0; i < 3; i++)
   {
     rc= mysql_execute(stmt_create);
     mystmt(stmt_create, rc);
     fprintf(stdout, "created %i\n", i);
+
+    rc= mysql_execute(stmt_select);
+    mystmt(stmt_select, rc);
+    assert(0 == my_process_stmt_result(stmt_select));
+
     rc= mysql_execute(stmt_drop);
     mystmt(stmt_drop, rc);
-    fprintf(stdout, "droped %i\n", i);  
+    fprintf(stdout, "droped %i\n", i);
+
+    rc= mysql_execute(stmt_create_select);
+    mystmt(stmt_create, rc);
+    fprintf(stdout, "created select %i\n", i);
+
+    rc= mysql_execute(stmt_select);
+    mystmt(stmt_select, rc);
+    assert(3 == my_process_stmt_result(stmt_select));
+
+    rc= mysql_execute(stmt_drop);
+    mystmt(stmt_drop, rc);
+    fprintf(stdout, "droped %i\n", i);
   }
   
   mysql_stmt_close(stmt_create);
   mysql_stmt_close(stmt_drop);
+  mysql_stmt_close(stmt_select);
+  mysql_stmt_close(stmt_create_select);
+
+  rc= mysql_query(mysql, "DROP TABLE t2");
+  myquery(rc);
 }
 
 
@@ -8668,6 +8702,166 @@ static void test_rename()
   rc= mysql_query(mysql, "DROP TABLE t2,t4");
   myquery(rc);
 }
+
+
+static void test_do_set()
+{
+  MYSQL_STMT *stmt_do, *stmt_set;
+  char *query;
+  int rc, i;
+  myheader("test_do_set");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t1 (a int)");
+  myquery(rc);
+  
+  query= (char*)"do @var:=(1 in (select * from t1))";
+  stmt_do= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_do);
+
+  query= (char*)"set @var=(1 in (select * from t1))";
+  stmt_set= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_set);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt_do);
+    mystmt(stmt_do, rc);
+    fprintf(stdout, "do %i\n", i);
+    rc= mysql_execute(stmt_set);
+    mystmt(stmt_set, rc);
+    fprintf(stdout, "set %i\n", i);  
+  }
+  
+  mysql_stmt_close(stmt_do);
+  mysql_stmt_close(stmt_set);
+}
+
+static void test_multi()
+{
+  MYSQL_STMT *stmt_delete, *stmt_update, *stmt_select1, *stmt_select2;
+  char *query;
+  MYSQL_BIND bind[1];
+  int rc, i;
+  long param= 1, length= 1;
+  myheader("test_multi");
+
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&param;
+  bind[0].buffer_length= 0;
+  bind[0].is_null= 0;
+  bind[0].length= &length;
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t1 (a int, b int)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t2 (a int, b int)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"insert into t1 values (3,3), (2,2), (1,1)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"insert into t2 values (3,3), (2,2), (1,1)");
+  myquery(rc);
+  
+  query= (char*)"delete t1,t2 from t1,t2 where t1.a=t2.a and t1.b=10";
+  stmt_delete= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_delete);
+
+  query= (char*)"update t1,t2 set t1.b=10,t2.b=10 where t1.a=t2.a and t1.b=?";
+  stmt_update= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_update);
+
+  query= (char*)"select * from t1";
+  stmt_select1= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_select1);
+
+  query= (char*)"select * from t2";
+  stmt_select2= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_select2);
+
+  for(i= 0; i < 3; i++)
+  {
+    rc= mysql_bind_param(stmt_update, bind);
+    mystmt(stmt_update,rc);
+
+    rc= mysql_execute(stmt_update);
+    mystmt(stmt_update, rc);
+    fprintf(stdout, "update %ld\n", param);
+  
+    rc= mysql_execute(stmt_delete);
+    mystmt(stmt_delete, rc);
+    fprintf(stdout, "delete %ld\n", param);
+
+    rc= mysql_execute(stmt_select1);
+    mystmt(stmt_select1, rc);
+    assert((uint)(3-param) == my_process_stmt_result(stmt_select1));
+
+    rc= mysql_execute(stmt_select2);
+    mystmt(stmt_select2, rc);
+    assert((uint)(3-param) == my_process_stmt_result(stmt_select2));
+
+    param++;
+  }
+
+  mysql_stmt_close(stmt_delete);
+  mysql_stmt_close(stmt_update);
+  mysql_stmt_close(stmt_select1);
+  mysql_stmt_close(stmt_select2);
+  rc= mysql_query(mysql,"drop table t1,t2");
+  myquery(rc);
+}
+
+
+static void test_insert_select()
+{
+  MYSQL_STMT *stmt_insert, *stmt_select;
+  char *query;
+  int rc, i;
+  myheader("test_insert_select");
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t1 (a int)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create table t2 (a int)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"insert into t2 values (1)");
+  myquery(rc);
+  
+  query= (char*)"insert into t1 select a from t2";
+  stmt_insert= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_insert);
+
+  query= (char*)"select * from t1";
+  stmt_select= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_select);
+
+  for(i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt_insert);
+    mystmt(stmt_insert, rc);
+    fprintf(stdout, "insert %u\n", i);
+  
+    rc= mysql_execute(stmt_select);
+    mystmt(stmt_select, rc);
+    assert((i+1) == my_process_stmt_result(stmt_select));
+  }
+
+  mysql_stmt_close(stmt_insert);
+  mysql_stmt_close(stmt_select);
+  rc= mysql_query(mysql,"drop table t1,t2");
+  myquery(rc);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -8831,7 +9025,7 @@ int main(int argc, char **argv)
     test_select_prepare();  /* prepare select - protocol_prep debug */
     test_select();          /* simple select test */
     test_select_version();  /* select with variables */
-    test_select_simple();   /* simple select prepare */
+    test_select_show_table();/* simple show prepare */
 #if NOT_USED
   /* 
      Enable this tests from 4.1.1 when mysql_param_result() is 
@@ -8932,6 +9126,9 @@ int main(int argc, char **argv)
     test_selecttmp();	    /* temporary table used in select execution */
     test_create_drop();	    /* some table manipulation BUG#2811 */
     test_rename();	    /* rename test */
+    test_do_set();	    /* DO & SET commands test BUG#3393 */
+    test_multi();	    /* test of multi delete & update */
+    test_insert_select();   /* test INSERT ... SELECT */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

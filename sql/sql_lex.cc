@@ -1635,6 +1635,66 @@ void st_select_lex::print_limit(THD *thd, String *str)
 }
 
 /*
+  unlink first table from table lists
+
+  SYNOPSIS
+    unlink_first_table()
+    tables		- global table list
+    global_first	- save first global table passed using this parameter
+    local_first		- save first local table passed using this parameter
+
+  RETURN
+    global list without first table
+*/
+TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
+				       TABLE_LIST **global_first,
+				       TABLE_LIST **local_first)
+{
+  *global_first= tables;
+  *local_first= (TABLE_LIST*)select_lex.table_list.first;
+  // exclude from global table list
+  tables= tables->next;
+  // and from local list if it is not the same
+  if (&select_lex != all_selects_list)
+    select_lex.table_list.first= (gptr)(*local_first)->next;
+  else
+    select_lex.table_list.first= (gptr)tables;
+  (*global_first)->next= 0;
+  return tables;
+}
+
+/*
+  link unlinked first table back
+
+  SYNOPSIS
+    link_first_table_back()
+    tables		- global table list
+    global_first	- save first global table
+    local_first		- save first local table
+
+  RETURN
+    global list
+*/
+TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
+					  TABLE_LIST *global_first,
+					  TABLE_LIST *local_first)
+{
+  global_first->next= tables;
+  tables= global_first;
+  if (&select_lex != all_selects_list)
+  {
+    /*
+      we do not touch local table 'next' field => we need just
+      put the table in the list
+    */
+    select_lex.table_list.first= (gptr) local_first;
+  }
+  else
+    select_lex.table_list.first= (gptr) tables;
+  return tables;
+}
+
+/*
   There are st_select_lex::add_table_to_list & 
   st_select_lex::set_lock_for_tables are in sql_parse.cc
 
