@@ -43,6 +43,8 @@
 #if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
 #define HAVE_CLOSE_SERVER_SOCK 1
 void close_server_sock();
+#else
+#define close_server_sock()
 #endif
 
 extern "C" {					// Because of SCO 3.2V4.2
@@ -465,9 +467,7 @@ static void close_connections(void)
     if (error != 0 && !count++)
       sql_print_error("Got error %d from pthread_cond_timedwait",error);
 #endif
-#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
     close_server_sock();
-#endif
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 #endif /* __WIN__ */
@@ -598,18 +598,26 @@ if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
 void close_server_sock()
 {
   DBUG_ENTER("close_server_sock");
+
   if (ip_sock != INVALID_SOCKET)
   {
-    DBUG_PRINT("info",("closing TCP/IP socket"));
+    DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
     VOID(shutdown(ip_sock,2));
+#ifdef NOT_USED
+    /*
+      The following code is disabled as it cases MySQL to hang on
+      AIX 4.3 during shutdown
+    */
+    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));    
     VOID(closesocket(ip_sock));
+#endif
     ip_sock=INVALID_SOCKET;
   }
   if (unix_sock != INVALID_SOCKET)
   {
-    DBUG_PRINT("info",("closing Unix socket"));
+    DBUG_PRINT("info",("calling shutdown on unix socket"));
     VOID(shutdown(unix_sock,2));
-    VOID(closesocket(unix_sock));
+    DBUG_PRINT("info",("calling closesocket on unix socket"));
     VOID(unlink(mysql_unix_port));
     unix_sock=INVALID_SOCKET;
   }
@@ -621,7 +629,8 @@ void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 #ifdef SIGNALS_DONT_BREAK_READ
-  close_server_sock(); /* force accept to wake up */
+  abort_loop=1;					// Break connection loops
+  close_server_sock();				// Force accept to wake up
 #endif 
 #if defined(__WIN__)
   {
@@ -647,10 +656,9 @@ void kill_mysql(void)
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;			// Safety if kill didn't work
 #ifdef SIGNALS_DONT_BREAK_READ    
-  if (!abort_loop)
+  if (!kill_in_progress)
   {
     pthread_t tmp;
-    abort_loop=1;
     if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
 			   (void*) 0))
       sql_print_error("Error: Can't create thread to kill server");
@@ -1220,7 +1228,7 @@ static void sig_reload(int signo)
 
 static void sig_kill(int signo)
 {
-  if (!abort_loop)
+  if (!kill_in_progress)
   {
     abort_loop=1;				// mark abort for threads
     kill_server((void*) signo);

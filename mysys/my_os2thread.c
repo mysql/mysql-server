@@ -31,9 +31,9 @@ static pthread_mutex_t THR_LOCK_thread;
 
 struct pthread_map
 {
-  HANDLE          pthreadself;
+  HANDLE	  pthreadself;
   pthread_handler func;
-  void *          param;
+  void *	  param;
 };
 
 void win_pthread_init(void)
@@ -57,7 +57,7 @@ static pthread_handler_decl(pthread_start,param)
   pthread_handler func=((struct pthread_map *) param)->func;
   void *func_param=((struct pthread_map *) param)->param;
   my_thread_init();			/* Will always succeed in windows */
-  pthread_mutex_lock(&THR_LOCK_thread);	  /* Wait for beginthread to return */
+  pthread_mutex_lock(&THR_LOCK_thread);   /* Wait for beginthread to return */
   win_pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
   free((char*) param);			  /* Free param from create */
