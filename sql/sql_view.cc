@@ -382,6 +382,7 @@ static LEX_STRING view_file_type[]= {{(char*)"VIEW", 4}};
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode)
 {
+  LEX *lex= thd->lex;
   char buff[4096];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
   char md5[33];
@@ -395,7 +396,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   {
     ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
-    thd->lex->unit.print(&str);
+    lex->unit.print(&str);
     thd->variables.sql_mode|= sql_mode;
   }
   str.append('\0');
@@ -474,21 +475,21 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->calc_md5(md5);
   view->md5.str= md5;
   view->md5.length= 32;
-  can_be_merged= thd->lex->can_be_merged();
-  if (thd->lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !thd->lex->can_be_merged())
+  can_be_merged= lex->can_be_merged();
+  if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
+      !lex->can_be_merged())
   {
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
-    thd->lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+    lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
-  view->algorithm= thd->lex->create_view_algorithm;
-  view->with_check= thd->lex->create_view_check;
+  view->algorithm= lex->create_view_algorithm;
+  view->with_check= lex->create_view_check;
   if ((view->updatable_view= (can_be_merged &&
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
     /* TODO: change here when we will support UNIONs */
-    for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
+    for (TABLE_LIST *tbl= (TABLE_LIST *)lex->select_lex.table_list.first;
          tbl;
          tbl= tbl->next_local)
     {
@@ -498,6 +499,26 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         break;
       }
     }
+  }
+
+  /*
+    Check that table of main select do not used in subqueries.
+
+    This test can catch only very simple cases of such non-updateable views,
+    all other will be detected before updating commands execution.
+    (it is more optimisation then real check)
+
+    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
+    UNION
+  */
+  if (view->updatable_view &&
+      !lex->select_lex.next_select() &&
+      !((TABLE_LIST*)lex->select_lex.table_list.first)->next_local &&
+      find_table_in_global_list(lex->query_tables->next_global,
+				lex->query_tables->db,
+				lex->query_tables->real_name))
+  {
+    view->updatable_view= 0;
   }
 
   if (view->with_check != VIEW_CHECK_NONE &&
@@ -698,13 +719,12 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       tables just after VIEW instead of tail of list, to be able check that
       table is unique. Also we store old next table for the same purpose.
     */
-    table->old_next= table->next_global;
     if (view_tables)
     {
       if (table->next_global)
       {
+        view_tables_tail->next_global= table->next_global;
         table->next_global->prev_global= &view_tables_tail->next_global;
-        view_tables_tail->next_global= table->old_next;
       }
       else
       {

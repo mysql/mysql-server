@@ -3886,13 +3886,19 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table)
 {
+  /* --skip-grants */
+  if (!initialized)
+  {
+    grant->privilege= ~NO_ACCESS;             // everything is allowed
+    return;
+  }
+
   /* global privileges */
   grant->privilege= thd->master_access;
 
   /* db privileges */
   grant->privilege|= acl_get(thd->host, thd->ip, thd->priv_user, db, 0);
 
-  /* if privileges ignored (--skip-grant-tables) above is enough */
   if (!grant_option)
     return;
 
