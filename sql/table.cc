@@ -1390,8 +1390,12 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
   field->val_str(&str);
   if (!(length= str.length()))
+  {
+    res->length(0);
     return 1;
-  to= strmake_root(mem, str.ptr(), length);
+  }
+  if (!(to= strmake_root(mem, str.ptr(), length)))
+    length= 0;                                  // Safety fix
   res->set(to, length, ((Field_str*)field)->charset());
   return 0;
 }
