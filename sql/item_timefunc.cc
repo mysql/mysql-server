@@ -1597,6 +1597,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals=0;
   max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
   thd->time_zone_used= 1;
 }
 
