@@ -187,6 +187,16 @@ else
   insert into test.t1 values ("h?", x);
 end case|
 
+create procedure sinisa()
+begin
+  declare x char(16);
+  declare y int;
+  set x="aaaaa";
+  set y=22;
+  select id,data into x,y from test.t1 limit 2,1;
+  insert into test.t1 values (x, y);
+end|
+
 delimiter ;|
 
 # Now, the CALL tests...
@@ -263,6 +273,8 @@ call h(0);
 call h(1);
 call h(17);
 select * from t1;
+call sinisa();
+select * from t1;
 delete from t1;
 
 drop procedure foo42;
@@ -286,5 +298,6 @@ drop procedure e;
 drop procedure f;
 drop procedure g;
 drop procedure h;
+drop procedure sinisa;
 
 drop table t1;

@@ -124,6 +124,15 @@ insert into test.t1 values ("h1", x);
 else
 insert into test.t1 values ("h?", x);
 end case;
+create procedure sinisa()
+begin
+declare x char(16);
+declare y int;
+set x="aaaaa";
+set y=22;
+select id,data into x,y from test.t1 limit 2,1;
+insert into test.t1 values (x, y);
+end;
 call foo42();
 select * from t1;
 id	data
@@ -236,6 +245,13 @@ id	data
 h0	0
 h1	1
 h?	17
+call sinisa();
+select * from t1;
+id	data
+h0	0
+h1	1
+h?	17
+h?	17
 delete from t1;
 drop procedure foo42;
 drop procedure bar;
@@ -258,4 +274,5 @@ drop procedure e;
 drop procedure f;
 drop procedure g;
 drop procedure h;
+drop procedure sinisa;
 drop table t1;

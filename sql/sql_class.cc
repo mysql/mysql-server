@@ -36,6 +36,7 @@
 #endif
 #include <mysys_err.h>
 #include <assert.h>
+#include <sp_rcontext.h>
 
 
 /*****************************************************************************
@@ -960,37 +961,71 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   List_iterator_fast<Item> li(list);
-  List_iterator_fast<LEX_STRING> gl(var_list);
+  List_iterator_fast<my_var> gl(var_list);
   Item *item;
+  my_var *mv;
   LEX_STRING *ls;
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return 1;
   }
+  unit=u;
   while ((item=li++))
   {
-    ls= gl++;
-    Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    xx->fix_fields(current_thd,(TABLE_LIST*) current_thd->lex.select_lex.table_list.first,&item);
-    xx->fix_length_and_dec();
-    vars.push_back(xx);
+    mv=gl++;
+    ls= &mv->s;
+    if (mv->local)
+    {
+      (void)local_vars.push_back(new Item_splocal(mv->offset));
+    }
+    else
+    {
+      Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
+      xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
+      xx->fix_length_and_dec();
+      vars.push_back(xx);
+    }
   }
   return 0;
 }
 bool select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<Item_func_set_user_var> li(vars);
+  List_iterator_fast<Item_splocal> var_li(local_vars);
+  List_iterator_fast<my_var> my_li(var_list);
+  List_iterator_fast<Item> it(items);
   Item_func_set_user_var *xx;
+  Item_splocal *yy;
+  Item *item;
+  my_var *zz;
   DBUG_ENTER("send_data");
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
 
   if (row_count++) 
   {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(1);
   }
-  while ((xx=li++))
-    xx->update();
+  while ((zz=my_li++) && (item=it++))
+  {
+    if (zz->local)
+    {
+      if ((yy=var_li++)) 
+      {
+	thd->spcont->set_item(yy->get_offset(), item);
+      }
+    }
+    else
+    {
+      if ((xx=li++))
+	xx->update();
+    }
+  }
   DBUG_RETURN(0);
 }
 
