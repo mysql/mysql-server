@@ -6861,8 +6861,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     DBUG_RETURN(NULL);
 
 
-  /* Check (SA3,WA1) for the where clause. */
-  if (!check_group_min_max_predicates(join->conds, min_max_arg_item,
+  /* Check (SA3) for the where clause. */
+  if (join->conds && min_max_arg_item &&
+      !check_group_min_max_predicates(join->conds, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
                                       Field::itMBR : Field::itRAW))
     DBUG_RETURN(NULL);
@@ -6920,8 +6921,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");
-  if (!cond) /* If no WHERE clause, then all is OK. */
-    DBUG_RETURN(TRUE);
+  DBUG_ASSERT(cond && min_max_arg_item);
 
   Item::Type cond_type= cond->type();
   if (cond_type == Item::COND_ITEM) /* 'AND' or 'OR' */
@@ -6938,6 +6938,19 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     DBUG_RETURN(TRUE);
   }
 
+  /*
+    TODO:
+    This is a very crude fix to handle sub-selects in the WHERE clause
+    (Item_subselect objects). With the test below we rule out from the
+    optimization all queries with subselects in the WHERE clause. What has to
+    be done, is that here we should analyze whether the subselect references
+    the MIN/MAX argument field, and disallow the optimization only if this is
+    so.
+  */
+  if (cond_type == Item::SUBSELECT_ITEM)
+    DBUG_RETURN(FALSE);
+  
+  /* We presume that at this point there are no other Items than functions. */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
 
   /* Test if cond references only group-by or non-group fields. */
@@ -6951,11 +6964,10 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)
     {
-      if (min_max_arg_item &&            /* pred references min_max_arg_item. */
-          min_max_arg_item->eq(cur_arg, 1))
+      if (min_max_arg_item->eq(cur_arg, 1)) 
       {/*
-         Check if pred is a range condition that compares the MIN/MAX argument
-         with a constant.
+         If pred references the MIN/MAX argument check whether pred is a range
+         condition that compares the MIN/MAX argument with a constant.
        */
         Item_func::Functype pred_type= pred->functype();
         if (pred_type != Item_func::EQUAL_FUNC     &&
