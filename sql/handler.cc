@@ -2366,6 +2366,7 @@ TYPELIB *ha_known_exts(void)
 
     known_extensions_id= mysys_usage_id;
     found_exts.push_back((char*) ".db");
+    found_exts.push_back((char*) triggers_file_ext);
     for (types= sys_table_types; types->type; types++)
     {      
       if (*types->value == SHOW_OPTION_YES)
