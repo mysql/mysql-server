@@ -498,11 +498,12 @@ void close_temporary(TABLE *table,bool delete_table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
-  uint init_query_buf_size = 11, query_buf_size; // "drop table "
-  char* query, *p;
+  char *query, *end;
+  const uint init_query_buf_size = 11;		// "drop table "
+  uint query_buf_size; 
   bool found_user_tables = 0;
   
-  LINT_INIT(p);
+  LINT_INIT(end);
   query_buf_size = init_query_buf_size;
 
   for (table=thd->temporary_tables ; table ; table=table->next)
@@ -510,37 +511,37 @@ void close_temporary_tables(THD *thd)
     query_buf_size += table->key_length;
   }
 
-  if(query_buf_size == init_query_buf_size)
+  if (query_buf_size == init_query_buf_size)
     return; // no tables to close
 
-  if((query = alloc_root(&thd->mem_root, query_buf_size)))
-    {
-      memcpy(query, "drop table ", init_query_buf_size);
-      p = query + init_query_buf_size;
-    }
+  if ((query = alloc_root(&thd->mem_root, query_buf_size)))
+  {
+    memcpy(query, "drop table ", init_query_buf_size);
+    end = query + init_query_buf_size;
+  }
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
-    if(query) // we might be out of memory, but this is not fatal
+    if (query) // we might be out of memory, but this is not fatal
+    {
+      // skip temporary tables not created directly by the user
+      if (table->table_name[0] != '#')
       {
-	// skip temporary tables not created directly by the user
-	if(table->table_name[0] != '#')
-	  {
-	    p = strxmov(p,table->table_cache_key,".",
-		    table->table_name,",", NullS);
-	    // here we assume table_cache_key always starts
-	    // with \0 terminated db name
-	    found_user_tables = 1;
-	  }
+	end = strxmov(end,table->table_cache_key,".",
+		      table->table_name,",", NullS);
+	// here we assume table_cache_key always starts
+	// with \0 terminated db name
+	found_user_tables = 1;
       }
+    }
     next=table->next;
     close_temporary(table);
   }
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
     uint save_query_len = thd->query_length;
-    *--p = 0;
-    thd->query_length = (uint)(p-query);
+    *--end = 0;					// Remove last ','
+    thd->query_length = (uint)(end-query);
     Query_log_event qinfo(thd, query);
     mysql_bin_log.write(&qinfo);
     thd->query_length = save_query_len;

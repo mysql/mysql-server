@@ -809,8 +809,19 @@ bool Item_sum_count_distinct::setup(THD *thd)
   List<Item> list;
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
-    if (list.push_back(args[i]))
-      return 1;
+  {
+    Item *item=args[i];
+    if (list.push_back(item))
+      return 1;					// End of memory
+    if (item->const_item())
+    {
+      (void) item->val_int();
+      if (item->null_value)
+	always_null=1;
+    }
+  }
+  if (always_null)
+    return 0;
   count_field_types(tmp_table_param,list,0);
   if (table)
   {
@@ -827,15 +838,20 @@ bool Item_sum_count_distinct::setup(THD *thd)
 
 void Item_sum_count_distinct::reset()
 {
-  table->file->extra(HA_EXTRA_NO_CACHE);
-  table->file->delete_all_rows();
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
-  (void) add();
+  if (table)
+  {
+    table->file->extra(HA_EXTRA_NO_CACHE);
+    table->file->delete_all_rows();
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+    (void) add();
+  }
 }
 
 bool Item_sum_count_distinct::add()
 {
   int error;
+  if (always_null)
+    return 0;
   copy_fields(tmp_table_param);
   copy_funcs(tmp_table_param->funcs);
 
