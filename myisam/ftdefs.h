@@ -124,7 +124,7 @@ uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 void ft_parse_init(TREE *, CHARSET_INFO *);
 int ft_parse(TREE *, byte *, int);
 FT_WORD * ft_linearize(TREE *);
-FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record);
 
 extern const struct _ft_vft _ft_vft_nlq;
