@@ -8504,9 +8504,9 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
       jam();
       
       if (buddyApiPtr.p->apiConnectstate == CS_ABORTING) {
-	// transaction has timed out
+	// transaction has been aborted
 	jam();
-	errCode = ZTIME_OUT_ERROR;
+	errCode = buddyApiPtr.p->returncode;
 	goto SCAN_TAB_error;
       }//if
       currSavePointId = buddyApiPtr.p->currSavePointId;
