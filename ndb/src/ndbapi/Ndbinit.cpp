@@ -240,10 +240,6 @@ Ndb::~Ndb()
 //    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
     freeNdbCon();
-  while ( theSignalIdleList != NULL )
-    freeSignal();
-  while (theRecAttrIdleList != NULL)
-    freeRecAttr(); 
   while (theOpIdleList != NULL)
     freeOperation();
   while (theScanOpIdleList != NULL)
@@ -262,6 +258,10 @@ Ndb::~Ndb()
     freeNdbScanRec();
   while (theNdbBlobIdleList != NULL)
     freeNdbBlob();
+  while (theRecAttrIdleList != NULL)
+    freeRecAttr(); 
+  while ( theSignalIdleList != NULL )
+    freeSignal();
   
   releaseTransactionArrays();
   startTransactionNodeSelectionData.release();

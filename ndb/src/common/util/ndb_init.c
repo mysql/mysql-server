@@ -27,3 +27,9 @@ ndb_init()
   }
   return 0;
 }
+
+void
+ndb_end(int flags)
+{
+  my_end(flags);
+}
