@@ -509,14 +509,14 @@ int init_master_info(MASTER_INFO* mi)
       return 1;
     }
       
-    if (!(length=my_b_gets(&mi->file, mi->log_file_name,
-			   sizeof(mi->log_file_name))))
+    if ((length=my_b_gets(&mi->file, mi->log_file_name,
+			   sizeof(mi->log_file_name))) < 1)
     {
       msg="Error reading log file name from master info file ";
       goto error;
     }
 
-    mi->log_file_name[length]= 0; // kill \n
+    mi->log_file_name[length-1]= 0; // kill \n
     char buf[FN_REFLEN];
     if(!my_b_gets(&mi->file, buf, sizeof(buf)))
     {
