@@ -842,7 +842,7 @@ Credits
 MySQL change history
 
 * News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
-* News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
+* News-3.23.x::                 Changes in release 3.23.x (Stable)
 * News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
@@ -852,7 +852,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 * News-4.0.0::                  Changes in release 4.0.0
 
-Changes in release 3.23.x  (Recommended; Gamma)
+Changes in release 3.23.x  (Stable)
 
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -4932,8 +4932,8 @@ release as soon as possible. We would like other companies to do this,
 too.
 @end itemize
 
-The current stable release is Version 3.22; We have already moved active
-development to Version 3.23. Bugs will still be fixed in the stable version.
+The current stable release is Version 3.23; We have already moved active
+development to Version 4.0. Bugs will still be fixed in the stable version.
 We don't believe in a complete freeze, as this also leaves out bug fixes
 and things that ``must be done.'' ``Somewhat frozen'' means that we may
 add small things that ``almost surely will not affect anything that's
@@ -22496,9 +22496,7 @@ Can be uncompressed with @code{myisamchk}.
 @section MERGE Tables
 
 @code{MERGE} tables are new in @strong{MySQL} Version 3.23.25. The code
-is still in alpha, but should stabilize soon!  The one thing that is
-currently missing is a way for the SQL prompt to say which tables are
-part of the @code{MERGE} table.
+is still in beta, but should stabilize soon!
 
 A @code{MERGE} table is a collection of identical @code{MyISAM} tables
 that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
@@ -22754,7 +22752,7 @@ Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
 transactions. In order to build MySQL Version 3.23.x (BDB support first
 appeared in Version 3.23.15) with support for @code{BDB} tables, you
-will need Berkeley DB Version 3.2.3g or newer which can be downloaded from
+will need Berkeley DB Version 3.2.3h or newer which can be downloaded from
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}.  This is a patched
 version of Berkeley DB that is only available from @strong{MySQL}; the
 standard Berkeley DB @strong{will not yet work with MySQL}.
@@ -22773,8 +22771,8 @@ source. Configure will automatically detect and use the Berkeley
 DB source you just uncompressed. @xref{Installing source}.
 
 @example
-cd /path/to/source/of/mysql-3.23.29-gamma
-gzip -cd /tmp/db-3.2.3d.tar.gz | tar xf -
+cd /path/to/source/of/mysql-3.23.31
+gzip -cd /tmp/db-3.2.3h.tar.gz | tar xf -
 ./configure             # this will use Berkeley DB automatically
 @end example
 
@@ -40319,7 +40317,7 @@ this means that the version has not yet been released!
 
 @menu
 * News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
-* News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
+* News-3.23.x::                 Changes in release 3.23.x (Stable)
 * News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
@@ -40349,20 +40347,20 @@ get more locking options.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
-@appendixsec Changes in release 3.23.x  (Recommended; Gamma)
+@appendixsec Changes in release 3.23.x  (Stable)
 
-The 3.23 release has several major new features that are not
-present in the 3.22 or 3.21 releases.  We have added two new
+The 3.23 release has several major features that are not
+present in previous versions.  We have added two new
 table types:  MyISAM, a new ISAM library which is tuned for SQL
 and supports large files; and BerkeleyDB which uses the Berkeley
 DB library from Sleepycat Software to implement transaction-safe
 tables.  The 3.23 release also includes support for database
-replication between a master and many slaves.
+replication between a master and many slaves, full-text indexing,
+and much more.
 
-We are not adding any more new features that are likely to break any
-old code in @strong{MySQL} Version 3.23, so we recommend that you use this
-version.  The replication and BerkeleyDB code is still under development,
-though, so Version 3.23 is not released as a stable version yet.
+All new features are being developed in the 4.0 version.  Only
+bug fixes and minor enhancements to existing features will be
+added to 3.23.
 
 @menu
 * News-3.23.31::                Changes in release 3.23.31
