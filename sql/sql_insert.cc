@@ -253,7 +253,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
     bulk_insert=0;
 
-  table->auto_increment_field_is_null= true;
   while ((values= its++))
   {
     if (fields.elements || !value_count)
