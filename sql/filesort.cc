@@ -349,7 +349,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   byte *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
   TABLE *sort_form;
-  volatile bool *killed= &current_thd->killed;
+  volatile my_bool *killed= &current_thd->killed;
   handler *file;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",(select?select->quick?"ranges":"where":"every row")));
@@ -800,8 +800,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
   qsort2_cmp cmp;
-  volatile bool *killed= &current_thd->killed;
-  bool not_killable;
+  volatile my_bool *killed= &current_thd->killed;
+  my_bool not_killable;
   DBUG_ENTER("merge_buffers");
 
   statistic_increment(filesort_merge_passes, &LOCK_status);
