@@ -20,10 +20,6 @@
 #include "rt_index.h"
 #include <assert.h>
 
-#ifdef	__WIN__
-#include <errno.h>
-#endif
-
 #define MAX_POINTER_LENGTH 8
 
 	/* Functions declared in this file */
@@ -378,7 +374,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         my_off_t root=info->dupp_key_pos;
         keyinfo=&info->s->ft2_keyinfo;
         key+=off;
-        keypos-=keyinfo->keylength; /* we'll modify key entry 'in vivo' */
+        keypos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
         error=_mi_ck_real_write_btree(info, keyinfo, key, 0,
                                       &root, comp_flag);
         _mi_dpointer(info, keypos+HA_FT_WLEN, root);

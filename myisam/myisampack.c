@@ -1071,7 +1071,7 @@ test_space_compress(HUFF_COUNTS *huff_counts, my_off_t records,
 {
   int min_pos;
   uint length_bits,i;
-  my_off_t space_count,min_space_count,min_pack,new_length,skipp;
+  my_off_t space_count,min_space_count,min_pack,new_length,skip;
 
   length_bits=max_bit(max_space_length);
 
@@ -1091,15 +1091,15 @@ test_space_compress(HUFF_COUNTS *huff_counts, my_off_t records,
     min_space_count=space_count;
   }
 	/* Test with length-flag */
-  for (skipp=0L, i=0 ; i < 8 ; i++)
+  for (skip=0L, i=0 ; i < 8 ; i++)
   {
     if (space_counts[i])
     {
       if (i)
 	huff_counts->counts[(uint) ' ']+=space_counts[i];
-      skipp+=huff_counts->pre_space[i];
+      skip+=huff_counts->pre_space[i];
       new_length=calc_packed_length(huff_counts,0)+
-	(records+(records-skipp)*(1+length_bits))/8;
+	(records+(records-skip)*(1+length_bits))/8;
       if (new_length < min_pack)
       {
 	min_pos=(int) i;

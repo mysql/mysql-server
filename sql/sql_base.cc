@@ -1305,9 +1305,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       goto err;					// Can't repair the table
 
     TABLE_LIST table_list;
+    bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
     table_list.real_name=(char*) name;
-    table_list.next=0;
     safe_mutex_assert_owner(&LOCK_open);
 
     if ((error=lock_table_name(thd,&table_list)))
@@ -1356,27 +1356,45 @@ err:
   DBUG_RETURN(1);
 }
 
-/*****************************************************************************
-** open all tables in list
-*****************************************************************************/
+/*
+  Open all tables in list
 
-int open_tables(THD *thd,TABLE_LIST *start)
+  SYNOPSIS
+    open_tables()
+    thd - thread handler
+    start - list of tables
+    counter - number of opened tables will be return using this parameter
+
+  RETURN
+    0  - OK
+    -1 - error
+*/
+
+int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
 {
   TABLE_LIST *tables;
   bool refresh;
   int result=0;
   DBUG_ENTER("open_tables");
+  *counter= 0;
 
   thd->current_tablenr= 0;
  restart:
   thd->proc_info="Opening tables";
   for (tables=start ; tables ; tables=tables->next)
   {
+    /*
+      Ignore placeholders for derived tables. After derived tables
+      processing, link to created temporary table will be put here.
+     */
+    if (tables->derived)
+      continue;
+    (*counter)++;
     if (!tables->table &&
-	!(tables->table=open_table(thd,
-				   tables->db,
-				   tables->real_name,
-				   tables->alias, &refresh)))
+	!(tables->table= open_table(thd,
+				    tables->db,
+				    tables->real_name,
+				    tables->alias, &refresh)))
     {
       if (refresh)				// Refresh in progress
       {
@@ -1522,15 +1540,57 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
 
 /*
-  Open all tables in list and locks them for read.
-  The lock will automaticly be freed by close_thread_tables()
+  Open all tables in list and locks them for read without derived
+  tables processing.
+
+  SYNOPSIS
+    simple_open_n_lock_tables()
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  RETURN
+    0  - ok
+    -1 - error
+
+  NOTE
+    The lock will automaticly be freed by close_thread_tables()
 */
 
-int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
+int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  if (open_tables(thd,tables) || lock_tables(thd,tables))
-    return -1;					/* purecov: inspected */
-  return 0;
+  DBUG_ENTER("simple_open_n_lock_tables");
+  uint counter;
+  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Open all tables in list, locks them and process derived tables
+  tables processing.
+
+  SYNOPSIS
+    open_and_lock_tables()
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  RETURN
+    0  - ok
+    -1 - error
+
+  NOTE
+    The lock will automaticly be freed by close_thread_tables()
+*/
+
+int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("open_and_lock_tables");
+  uint counter;
+  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  fix_tables_pointers(thd->lex->all_selects_list);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 
@@ -1541,6 +1601,7 @@ int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
     lock_tables()
     thd			Thread handler
     tables		Tables to lock
+    count		umber of opened tables
 
   NOTES
     You can't call lock_tables twice, as this would break the dead-lock-free
@@ -1552,7 +1613,7 @@ int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
    -1	Error
 */
 
-int lock_tables(THD *thd,TABLE_LIST *tables)
+int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
 {
   TABLE_LIST *table;
   if (!tables)
@@ -1561,14 +1622,14 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
   if (!thd->locked_tables)
   {
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
-    uint count=0;
-    for (table = tables ; table ; table=table->next)
-      count++;
     TABLE **start,**ptr;
     if (!(ptr=start=(TABLE**) sql_alloc(sizeof(TABLE*)*count)))
       return -1;
     for (table = tables ; table ; table=table->next)
-      *(ptr++)= table->table;
+    {
+      if (!table->derived)
+	*(ptr++)= table->table;
+    }
     if (!(thd->lock=mysql_lock_tables(thd,start,count)))
       return -1;				/* purecov: inspected */
   }
@@ -1576,7 +1637,8 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
   {
     for (table = tables ; table ; table=table->next)
     {
-      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
+      if (!table->derived && 
+	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	ha_rollback_stmt(thd);
 	return -1;
@@ -2039,15 +2101,28 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
 
 /*
-  Remap table numbers if INSERT ... SELECT
-  Check also that the 'used keys' and 'ignored keys' exists and set up the
-  table structure accordingly
+  prepare tables
 
-  This has to be called for all tables that are used by items, as otherwise
-  table->map is not set and all Item_field will be regarded as const items.
+  SYNOPSIS
+    setup_tables()
+    tables - tables list
+    reinit - true if called for table reinitialization before
+             subquery reexecuting
+
+   RETURN
+     0	ok;  In this case *map will includes the choosed index
+     1	error
+
+   NOTE
+     Remap table numbers if INSERT ... SELECT
+     Check also that the 'used keys' and 'ignored keys' exists and set up the
+     table structure accordingly
+
+     This has to be called for all tables that are used by items, as otherwise
+     table->map is not set and all Item_field will be regarded as const items.
 */
 
-bool setup_tables(TABLE_LIST *tables)
+bool setup_tables(TABLE_LIST *tables, my_bool reinit)
 {
   DBUG_ENTER("setup_tables");
   uint tablenr=0;
@@ -2074,7 +2149,7 @@ bool setup_tables(TABLE_LIST *tables)
       table->keys_in_use_for_query.subtract(map);
     }
     table->used_keys.intersect(table->keys_in_use_for_query);
-    if (table_list->shared  || table->clear_query_id)
+    if ((table_list->shared  || table->clear_query_id) && !reinit)
     {
       table->clear_query_id= 0;
       /* Clear query_id that may have been set by previous select */
@@ -2382,7 +2457,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
+				fields, keys, drop, alter, 0, (ORDER*)0,
 				DUP_ERROR));
 }
 
@@ -2399,7 +2474,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
+				fields, keys, drop, alter, 0, (ORDER*)0,
 				DUP_ERROR));
 }
 

@@ -696,17 +696,22 @@ word
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-load data infile '../../std_data/words.dat' into table t1;
+load data infile 'TEST_DIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+select count(*) from t1;
+count(*)
+70
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-select * from t1 into outfile "query_caceh.out.file";
+select * from t1 into outfile "query_cache.out.file";
+select * from t1 into outfile "query_cache.out.file";
+ERROR HY000: File 'query_cache.out.file' already exists
 select * from t1 limit 1 into dumpfile "query_cache.dump.file";
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -815,6 +820,14 @@ Qcache_hits	6
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	4
+DROP TABLE t1;
+CREATE TABLE t1 (a int(1));
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT * FROM test.t1;
+a
+USE test;
 drop table t1;
 create table t1 (a int);
 show status like "Qcache_queries_in_cache";

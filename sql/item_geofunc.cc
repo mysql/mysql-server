@@ -22,6 +22,8 @@
 #endif
 
 #include "mysql_priv.h"
+
+#ifdef HAVE_SPATIAL
 #include "sql_acl.h"
 #include <m_ctype.h>
 
@@ -651,3 +653,5 @@ longlong Item_func_srid::val_int()
   uint32 res= uint4korr(swkb->ptr());
   return (longlong) res;
 }
+
+#endif /*HAVE_SPATIAL*/

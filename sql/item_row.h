@@ -34,12 +34,6 @@ public:
     with_null(0)
   {}
 
-  ~Item_row()
-  {
-    if (array_holder && items)
-      sql_element_free(items);
-  }
-
   enum Type type() const { return ROW_ITEM; };
   void illegal_method_call(const char *);
   bool is_null() { return null_value; }

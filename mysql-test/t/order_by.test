@@ -381,3 +381,15 @@ CREATE TABLE t1 (  id smallint(6) unsigned NOT NULL default '0',  menu tinyint(4
 INSERT INTO t1 VALUES (11384, 2),(11392, 2);
 SELECT id FROM t1 WHERE id <11984 AND menu =2 ORDER BY id DESC LIMIT 1 ;
 drop table t1;
+
+#
+# REF_OR_NULL optimization + filesort (bug #2419)
+#
+
+create table t1(a int, b int, index(b));
+insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+explain select * from t1 where b=1 or b is null order by a;
+select * from t1 where b=1 or b is null order by a;
+explain select * from t1 where b=2 or b is null order by a;
+select * from t1 where b=2 or b is null order by a;
+drop table t1;

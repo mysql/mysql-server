@@ -4489,6 +4489,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_sjis,
   my_numchars_mb,
   my_charpos_mb,
+  my_wellformedlen_mb,
   my_lengthsp_8bit,
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */
@@ -4525,6 +4526,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,
     &my_charset_handler,
@@ -4547,6 +4549,7 @@ CHARSET_INFO my_charset_sjis_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,
     &my_charset_handler,

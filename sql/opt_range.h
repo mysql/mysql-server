@@ -295,12 +295,24 @@ class SQL_SELECT :public Sql_alloc {
 
   SQL_SELECT();
   ~SQL_SELECT();
+  void cleanup();
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   { return test_quick_select(thd, key_map(~0), 0, limit, force_quick_range) < 0; }
-  inline bool skipp_record() { return cond ? cond->val_int() == 0 : 0; }
+  inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
 			ha_rows limit, bool force_quick_range=0);
 };
+
+
+class FT_SELECT: public QUICK_SELECT {
+public:
+  FT_SELECT(THD *thd, TABLE *table, uint key):
+    QUICK_SELECT (thd, table, key, 1) { init(); }
+
+  int init() { return error= file->ft_init(); }
+  int get_next() { return error= file->ft_read(record); }
+};
+
 
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 				       struct st_table_ref *ref);
