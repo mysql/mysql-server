@@ -1426,20 +1426,7 @@ mysql_execute_command(THD *thd)
       {
 	if (!result)
 	{
-	  if ((result=new select_send()))
-	  {
-	    /*
-	      Normal select:
-	      Change lock if we are using SELECT HIGH PRIORITY,
-	      FOR UPDATE or IN SHARE MODE
-
-	      TODO: Delete the following loop when locks is set by sql_yacc
-	    */
-	    TABLE_LIST *table;
-	    for (table = tables ; table ; table=table->next)
-	      table->lock_type= lex->lock_option;
-	  }
-	  else
+	  if (!(result=new select_send()))
 	  {
 	    res= -1;
 #ifdef DELETE_ITEMS
@@ -1663,9 +1650,6 @@ mysql_execute_command(THD *thd)
 	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
-	/* TODO: Delete the following loop when locks is set by sql_yacc */
-	for (table = tables->next ; table ; table=table->next)
-	  table->lock_type= lex->lock_option;
       }
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
@@ -2022,12 +2006,6 @@ mysql_execute_command(THD *thd)
     {
       net_printf(thd,ER_INSERT_TABLE_USED,tables->real_name);
       DBUG_VOID_RETURN;
-    }
-    {
-      /* TODO: Delete the following loop when locks is set by sql_yacc */
-      TABLE_LIST *table;
-      for (table = tables->next ; table ; table=table->next)
-	table->lock_type= lex->lock_option;
     }
 
     /* Skip first table, which is the table we are inserting in */

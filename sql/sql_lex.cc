@@ -1282,4 +1282,7 @@ List<String>* st_select_lex::get_ignore_index()
   return ignore_index_ptr;
 }
 
-// There are st_select_lex::add_table_to_list in sql_parse.cc
+/*
+  There are st_select_lex::add_table_to_list & 
+  st_select_lex::set_lock_for_tables in sql_parse.cc
+*/
