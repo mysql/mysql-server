@@ -339,7 +339,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       /* curdoc matched ! */
       info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED); /* why is this ? */
 
-      /* info->lastpos=curdoc; */ /* do I need this ? */
+      info->lastpos=curdoc;
       if (!(*info->read_record)(info,curdoc,record))
       {
         info->update|= HA_STATE_AKTIV;          /* Record is read */
@@ -348,6 +348,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       return my_errno;
     }
   }
+  ftb->state=INDEX_DONE;
   return my_errno=HA_ERR_END_OF_FILE;
 }
 
@@ -359,17 +360,33 @@ float ft_boolean_find_relevance(FT_INFO *ftb, my_off_t docid, byte *record)
   FTB_EXPR *ftbe;
   uint      i;
 
-  if (ftb->state == READY)
+  if (ftb->state == READY || ftb->state == INDEX_DONE)
   {
+    for (i=1; i<=ftb->queue.elements; i++)
+    {
+      ftbw=(FTB_WORD *)(ftb->queue.root[i]);
+      ftbw->docid=HA_POS_ERROR;
+      for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
+      {
+        if (ftbe->docid != HA_POS_ERROR)
+        {
+          ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
+          ftbe->docid=HA_POS_ERROR;
+        }
+        else
+          break;
+      }
+    }
+
     queue_fix(& ftb->queue);
     ftb->state=SCAN;
   }
   else if (ftb->state != SCAN)
-    return -1.0;
+    return -2.0;
 
   bzero(&ptree, sizeof(ptree));
   if (_mi_ft_parse(& ptree, ftb->info, ftb->keynr, record))
-    return -1.0;
+    return -3.0;
 
   for (i=1; i<=ftb->queue.elements; i++)
   {
