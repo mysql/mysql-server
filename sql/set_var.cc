@@ -1074,7 +1074,7 @@ byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
 {
   ulong val;
   char buff[256];
-  String tmp(buff, sizeof(buff), default_charset_info);
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
   my_bool found= 0;
 
   tmp.length(0);
