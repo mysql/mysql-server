@@ -88,6 +88,7 @@ sleep_until_file_created ()
 wait_for_pid()
 {
   pid=$1
+  #$WAIT_PID pid $SLEEP_TIME_FOR_DELETE
 }
 
 # No paths below as we can't be sure where the program is!
@@ -347,9 +348,9 @@ while test $# -gt 0; do
       ;;
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-       --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/master.trace"
+       --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-       --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/slave.trace"
+       --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
       ;;
     --fast)
@@ -423,6 +424,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  fi
 
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
  MYSQL_MANAGER_PWGEN="$BASEDIR/client/mysqlmanager-pwgen"
@@ -439,6 +441,7 @@ else
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
+ WAIT_PID="$BASEDIR/bin/mysql_waitpid"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
  MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
  MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
@@ -753,9 +756,9 @@ manager_term()
 {
   pid=$1
   ident=$2
-  shift
   if [ $USE_MANAGER = 0 ] ; then
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=5 --shutdown_timeout=20 shutdown >> $MYSQL_MANAGER_LOG 2>&1
+    # Shutdown time must be high as slave may be in reconnect
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
     res=$?
     # Some systems require an extra connect
     $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
@@ -875,8 +878,8 @@ start_slave()
   [ x$SKIP_SLAVE = x1 ] && return
   eval "this_slave_running=\$SLAVE$1_RUNNING"
   [ x$this_slave_running = 1 ] && return
-  #when testing fail-safe replication, we will have more than one slave
-  #in this case, we start secondary slaves with an argument
+  # When testing fail-safe replication, we will have more than one slave
+  # in this case, we start secondary slaves with an argument
   slave_ident="slave$1"
   if [ -n "$1" ] ;
   then
@@ -984,9 +987,12 @@ EOF
 
 mysql_start ()
 {
-  $ECHO "Starting MySQL daemon"
-  start_master
-  start_slave
+# We should not start the deamon here as we don't know the argumens
+# for the test.  Better to let the test start the deamon
+
+#  $ECHO "Starting MySQL daemon"
+#  start_master
+#  start_slave
   cd $MYSQL_TEST_DIR
   return 1
 }
@@ -1087,8 +1093,6 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  echo $tname > $CURRENT_TEST
- echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
- echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
   many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
@@ -1125,13 +1129,17 @@ run_testcase ()
    then
      EXTRA_MASTER_OPT=`$CAT $master_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
      stop_master
+     echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
    else
      if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
      then
        EXTRA_MASTER_OPT=""
        stop_master
+       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
        start_master
+     else
+       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      fi
    fi
 
@@ -1161,7 +1169,10 @@ run_testcase ()
 
    if [ x$do_slave_restart = x1 ] ; then
      stop_slave
+     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
      start_slave
+   else
+     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
    fi
    if [ x$many_slaves = x1 ]; then
     start_slave 1

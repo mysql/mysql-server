@@ -135,6 +135,7 @@ $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
 $manager_port=$mysql_tcp_port+1;
+$mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 
 if ($opt_stage == 0)
 {
@@ -154,13 +155,18 @@ log_timestamp();
 
 if (-x "$host/bin/mysqladmin")
 {
-  log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P $slave_port -h $host -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P $mysql_tcp_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P $slave_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P 9306 -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P 9307 -h $host -s shutdown");
 }
 kill_all("mysqlmanager");
+#
+# Kill all old processes that are in the build directories
+# This is to find any old mysqld servers left from previous builds
+kill_all("$pwd/host/mysql");
+kill_all("$pwd/host/test");
 
 if ($opt_stage == 0)
 {
@@ -308,8 +314,9 @@ if ($opt_stage <= 4 && !$opt_no_test)
 $tar_file =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
-$ENV{"LD_LIBRARY_PATH"}= "$test_dir/lib:" . $ENV{"LD_LIBRARY_PATH"};
-
+$ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
+			  (defined($ENV{"LD_LIBRARY_PATH"}) ?
+			   ":" . $ENV{"LD_LIBRARY_PATH"} : ""));
 #
 # Run the test suite
 #
@@ -328,7 +335,7 @@ if (!$opt_no_test && !$opt_no_benchmark)
 {
   my $extra;
   safe_cd($test_dir);
-  log_system("./bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
+  log_system("./bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
   sleep(2);
   log_system("rm -f  ./data/mysql/*");
   check_system("scripts/mysql_install_db --no-defaults --skip-locking","https://order");
@@ -418,7 +425,7 @@ if ($opt_stage <= 9 && !$opt_no_test && !$opt_no_benchmark)
 rm_all($bench_tmpdir);
 rm_all("$opt_tmp") if ($new_opt_tmp);
 
-log_system("$pwd/$host/bin/mysqladmin --no-defaults -S $mysql_unix_port -u root shutdown");
+log_system("$pwd/$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -u root shutdown");
 print LOG "ok\n";
 close LOG;
 print "$host: ok\n";
@@ -429,7 +436,7 @@ exit 0;
 sub usage
 {
 print <<EOF;
-$0  version 1.4
+$0  version 1.5
 
 $0 takes the following options:
 

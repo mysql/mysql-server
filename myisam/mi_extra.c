@@ -55,12 +55,17 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     /*
       Free buffers and reset the following flags:
       EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
+
+      If the row buffer cache is large (for dynamic tables), reduce it
+      to save memory.
     */
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       error=end_io_cache(&info->rec_cache);
     }
+    if (share->base.blobs)
+      mi_alloc_rec_buff(info, -1, &info->rec_buff);
 #if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
     if (info->opt_flag & MEMMAP_USED)
       madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);

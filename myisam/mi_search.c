@@ -260,9 +260,11 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                       uchar *key, uint key_len, uint nextflag, uchar **ret_pos,
                       uchar *buff, my_bool *last_key)
 {
-  /* my_flag is raw comparison result to be changed according to
-     SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
-     flag is the value returned by ha_key_cmp and as treated as final */
+  /*
+    my_flag is raw comparison result to be changed according to
+    SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
+    flag is the value returned by ha_key_cmp and as treated as final
+  */
   int flag=0, my_flag=-1;
   uint nod_flag, length, len, matched, cmplen, kseg_len;
   uint prefix_len,suffix_len;
