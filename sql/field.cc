@@ -742,7 +742,7 @@ void Field_decimal::store(double nr)
   char buff[320];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
-#ifdef HAVE_SNPRINTF_
+#ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
 #else
