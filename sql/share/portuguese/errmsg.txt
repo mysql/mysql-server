@@ -250,7 +250,7 @@
 "Cada tabela derivada deve ter seu próprio alias",
 "Select %u foi reduzido durante otimização",
 "Tabela '%-.64s' de um dos SELECT's não pode ser usada em %-.32s",
-"Cliente não suporta o protocolo de autenticação exigido pelo servidor. Considere a atualização deo cliente MySQL",
+"Cliente não suporta o protocolo de autenticação exigido pelo servidor; considere a atualização deo cliente MySQL",
 "Todas as partes de uma SPATIAL KEY devem ser NOT NULL",
 "COLLATION '%s' não é válida para CHARACTER SET '%s'",
 "O slave já está rodando",
