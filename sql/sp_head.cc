@@ -415,6 +415,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   thd->lex.thd = thd;
 
   res= mysql_execute_command(thd);
+  if (thd->lock || thd->open_tables || thd->derived_tables)
+  {
+    thd->proc_info="closing tables";
+    close_thread_tables(thd);			/* Free tables */
+  }
 
   memcpy(&thd->lex, &olex, sizeof(LEX)); // Restore the other lex
 
