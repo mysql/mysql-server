@@ -27,18 +27,18 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-set-variable	= key_buffer=16M
-set-variable	= max_allowed_packet=1M
-set-variable	= table_cache=64
-set-variable	= sort_buffer_size=512K
-set-variable	= net_buffer_length=8K
-set-variable	= myisam_sort_buffer_size=8M
+key_buffer = 16M
+max_allowed_packet = 1M
+table_cache = 64
+sort_buffer_size = 512K
+net_buffer_length = 8K
+myisam_sort_buffer_size = 8M
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,
 # if all processes that need to connect to mysqld run on the same host.
 # All interaction with mysqld must be made via Unix sockets or named pipes.
 # Note that using this option without enabling named pipes on Windows
-# (via the "pipe" option) will render mysqld useless!
+# (via the "enable-named-pipe" option) will render mysqld useless!
 # 
 #skip-networking
 
@@ -111,8 +111,8 @@ server-id	= 1
 #log-update 	= /path-to-dedicated-directory/hostname
 
 # Uncomment the following if you are using BDB tables
-#set-variable	= bdb_cache_size=4M
-#set-variable	= bdb_max_lock=10000
+#bdb_cache_size = 4M
+#bdb_max_lock = 10000
 
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
@@ -121,17 +121,17 @@ server-id	= 1
 #innodb_log_arch_dir = @localstatedir@/
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
-#set-variable = innodb_buffer_pool_size=16M
-#set-variable = innodb_additional_mem_pool_size=2M
+#innodb_buffer_pool_size = 16M
+#innodb_additional_mem_pool_size = 2M
 # Set .._log_file_size to 25 % of buffer pool size
-#set-variable = innodb_log_file_size=5M
-#set-variable = innodb_log_buffer_size=8M
-#innodb_flush_log_at_trx_commit=1
-#set-variable = innodb_lock_wait_timeout=50
+#innodb_log_file_size = 5M
+#innodb_log_buffer_size = 8M
+#innodb_flush_log_at_trx_commit = 1
+#innodb_lock_wait_timeout = 50
 
 [mysqldump]
 quick
-set-variable	= max_allowed_packet=16M
+max_allowed_packet = 16M
 
 [mysql]
 no-auto-rehash
@@ -139,16 +139,16 @@ no-auto-rehash
 #safe-updates
 
 [isamchk]
-set-variable	= key_buffer=20M
-set-variable	= sort_buffer_size=20M
-set-variable	= read_buffer=2M
-set-variable	= write_buffer=2M
+key_buffer = 20M
+sort_buffer_size = 20M
+read_buffer = 2M
+write_buffer = 2M
 
 [myisamchk]
-set-variable	= key_buffer=20M
-set-variable	= sort_buffer_size=20M
-set-variable	= read_buffer=2M
-set-variable	= write_buffer=2M
+key_buffer = 20M
+sort_buffer_size = 20M
+read_buffer = 2M
+write_buffer = 2M
 
 [mysqlhotcopy]
 interactive-timeout
