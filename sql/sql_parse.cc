@@ -1329,7 +1329,6 @@ mysql_execute_command(THD *thd)
   */
   thd->old_total_warn_count= thd->total_warn_count;
 
-  thd->net.report_error= 0;
   if (thd->slave_thread)
   {
     /* 
@@ -2951,6 +2950,8 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
+  thd->net.report_error= 0;
+
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
@@ -2963,8 +2964,13 @@ mysql_parse(THD *thd, char *inBuf, uint length)
       }
       else
       {
-	mysql_execute_command(thd);
-	query_cache_end_of_result(&thd->net);
+	if (thd->net.report_error)
+	  send_error(thd, 0, NullS);
+	else
+	{
+	  mysql_execute_command(thd);
+	  query_cache_end_of_result(&thd->net);
+	}
       }
     }
     else

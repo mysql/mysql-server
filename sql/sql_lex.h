@@ -242,6 +242,8 @@ public:
 					List<String> *ignore_index= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
   void mark_as_dependent(st_select_lex *last);
+
+  friend class st_select_lex_unit;
 private:
   void fast_exclude();
 };
@@ -288,6 +290,7 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+  void st_select_lex_unit::exclude_level();
 
   /* UNION methods */
   int prepare(THD *thd, select_result *result);
