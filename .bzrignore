@@ -594,3 +594,5 @@ cmd-line-utils/libedit/common.h
 stamp-h2
 stamp-h3
 stamp-h4
+support-files/MacOSX/Description.plist
+support-files/MacOSX/Info.plist

@@ -77,7 +77,6 @@ NULL	NULL
 10	VMT
 select id+0 as a,max(id),concat(facility) as b from t1 group by a order by b desc,a;
 a	max(id)	b
-NULL	NULL	NULL
 10	10	VMT
 9	9	SRV
 8	8	RV
@@ -90,6 +89,7 @@ NULL	NULL	NULL
 1	1	/L
 -1	-1	
 0	0	
+NULL	NULL	NULL
 select id >= 0 and id <= 5 as grp,count(*) from t1 group by grp;
 grp	count(*)
 NULL	1

@@ -2564,8 +2564,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   for (r = it++; r; r = it++)
   {
     rev_ranges.push_front(r);
-    if (not_read_after_key && range_reads_after_key(r) ||
-	test_if_null_range(r,used_key_parts))
+    if (not_read_after_key && range_reads_after_key(r))
     {
       it.rewind();				// Reset range
       error = HA_ERR_UNSUPPORTED;
@@ -2734,6 +2733,7 @@ bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 
 /* True if we are reading over a key that may have a NULL value */
 
+#ifdef NOT_USED
 bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
 					   uint used_key_parts)
 {
@@ -2779,6 +2779,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
       return 1;					// Covers null part
   return 0;
 }
+#endif
 
 
 /*****************************************************************************

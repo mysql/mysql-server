@@ -290,7 +290,7 @@ select * from t1;
 id	val
 drop table t1;
 create table t1 (a integer) type=innodb;
-begin;
+start transaction;
 rename table t1 to t2;
 create table t1 (b integer) type=innodb;
 insert into t1 values (1);
