@@ -131,7 +131,8 @@ protected:
   int doSendScan(int ProcessorId);
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
-  int fix_receivers(Uint32 parallel, bool keyInfo);
+  int fix_receivers(Uint32 parallel);
+  Uint32* m_array; // containing all arrays below
   Uint32 m_allocated_receivers;
   NdbReceiver** m_receivers;      // All receivers
 

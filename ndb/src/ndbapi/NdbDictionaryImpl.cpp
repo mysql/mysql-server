@@ -230,10 +230,6 @@ NdbColumnImpl::assign(const NdbColumnImpl& org)
 NdbTableImpl::NdbTableImpl()
   : NdbDictionary::Table(* this), m_facade(this)
 {
-  m_noOfKeys = 0;
-  m_sizeOfKeysInWords = 0;
-  m_noOfBlobs = 0;
-  m_index = 0;
   init();
 }
 
@@ -1149,7 +1145,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   
   Uint32 keyInfoPos = 0;
   Uint32 keyCount = 0;
-  Uint32 blobCount;
+  Uint32 blobCount = 0;
   
   for(Uint32 i = 0; i < tableDesc.NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();

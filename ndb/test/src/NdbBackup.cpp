@@ -71,7 +71,7 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
    */
   ConfigRetriever cr;
 
-  ndb_mgm_configuration * p = cr.getConfig(host, port, 0);
+  ndb_mgm_configuration * p = cr.getConfig(host.c_str(), port, 0);
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)
@@ -156,7 +156,7 @@ NdbBackup::execRestore(bool _restore_data,
 
   snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
 	   ownNodeId,
-	   addr,
+	   addr.c_str(),
 	   _node_id, 
 	   _backup_id,
 	   _restore_data?"-r":"",

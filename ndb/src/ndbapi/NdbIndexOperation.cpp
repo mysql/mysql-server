@@ -37,8 +37,6 @@
 #include <signaldata/IndxKeyInfo.hpp>
 #include <signaldata/IndxAttrInfo.hpp>
 
-#define CHECK_NULL(v) assert(v == NULL); v = NULL;
-
 NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   NdbOperation(aNdb),
   m_theIndex(NULL),
@@ -52,7 +50,7 @@ NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   /**
    * Change receiver type
    */
-  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this, false);
+  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this);
 }
 
 NdbIndexOperation::~NdbIndexOperation()
