@@ -36,7 +36,6 @@ extern "C" int gethostname(char *name, int namelen);
 static int check_for_max_user_connections(const char *user, int u_length,
 					  const char *host);
 static void decrease_user_connections(const char *user, const char *host);
-static bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(THD *thd,const char *db,const char *name,
@@ -1956,7 +1955,7 @@ mysql_execute_command(void)
        else
 	 res = mysql_grant(thd, lex->db, lex->users_list, lex->grant,
 			   lex->sql_command == SQLCOM_REVOKE);
-       if(!res)
+       if (!res)
        {
 	 mysql_update_log.write(thd, thd->query,thd->query_length);
 	 if (mysql_bin_log.is_open())
@@ -2116,7 +2115,7 @@ bool check_process_priv(THD *thd)
 ** in the table list for GRANT checking
 */
 
-static bool
+bool
 check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
 {
   uint found=0,found_access=0;

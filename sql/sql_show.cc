@@ -220,7 +220,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.db= (char*) db;
       table_list.real_name=file->name;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd,TABLE_ACLS,&table_list,1))
+      if (check_grant(thd,TABLE_ACLS,&table_list,1,1))
         continue;
     }
     if (files->push_back(thd->strdup(file->name)))
