@@ -1186,10 +1186,10 @@ row_create_table_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	
-	/* We create table also if innodb_force_recovery is used. This
+	/* We allow a create table also if innodb_force_recovery is used. This
         enables the user to stop a runaway rollback or a crash caused by
 	a temporary table #sql... He can use the trick explained in the
-	manual to rename the temporary table, and the drop it. */
+	manual to rename the temporary table to rsql..., and then drop it. */
 
 	if (srv_created_new_raw) {
 		fprintf(stderr,
