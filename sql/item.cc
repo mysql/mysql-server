@@ -98,9 +98,9 @@ void Item::print_item_w_name(String *str)
   print(str);
   if (name)
   {
-    str->append(" AS `", 5);
-    str->append(name);
-    str->append('`');
+    THD *thd= current_thd;
+    str->append(" AS ", 4);
+    append_identifier(thd, str, name, strlen(name));
   }
 }
 
@@ -420,33 +420,32 @@ const char *Item_ident::full_name() const
 
 void Item_ident::print(String *str)
 {
-  str->append('`');
+  THD *thd= current_thd;
   if (!table_name || !field_name)
   {
-    str->append(field_name ? field_name : name ? name : "tmp_field");
-    str->append('`');
+    const char *nm= field_name ? field_name : name ? name : "tmp_field";
+    append_identifier(thd, str, nm, strlen(nm));
     return;
   }
   if (db_name && db_name[0])
   {
-    str->append(db_name);
-    str->append("`.`", 3);
-    str->append(table_name);
-    str->append("`.`", 3);
-    str->append(field_name);
+    append_identifier(thd, str, db_name, strlen(db_name));
+    str->append('.');
+    append_identifier(thd, str, table_name, strlen(table_name));
+    str->append('.');
+    append_identifier(thd, str, field_name, strlen(field_name));
   }
   else
   {
     if (table_name[0])
     {
-      str->append(table_name);
-      str->append("`.`", 3);
-      str->append(field_name);
+      append_identifier(thd, str, table_name, strlen(table_name));
+      str->append('.');
+      append_identifier(thd, str, field_name, strlen(field_name));
     }
     else
-      str->append(field_name);
+      append_identifier(thd, str, field_name, strlen(field_name));
   }
-  str->append('`');
 }
 
 /* ARGSUSED */

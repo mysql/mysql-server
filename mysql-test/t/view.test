@@ -1,6 +1,6 @@
 --disable_warnings
-drop table if exists t1,t2,v1,v2,v3,v4,v5,v6;
-drop view if exists t1,t2,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 --enable_warnings
 use test;
@@ -870,3 +870,13 @@ create view v1 as select 'a';
 select * from v1, t1;
 drop view v1;
 drop table t1;
+
+#
+# quote mark inside table name
+#
+create table `t1a``b` (col1 char(2));
+create view v1 as select * from `t1a``b`;
+select * from v1;
+describe v1;
+drop view v1;
+drop table `t1a``b`;
