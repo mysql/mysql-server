@@ -169,7 +169,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
   LEX_STRING ls;
   ls.str = (char *)tok; ls.length= len;
-  if (function && sp_function_exists(current_thd, &ls))	// QQ temp fix
+  if (function && sp_function_exists(lex->thd, &ls))	// QQ temp fix
   {
     lex->safe_to_cache_query= 0;
     lex->yylval->lex_str.str= lex->thd->strmake((char*)lex->tok_start, len);

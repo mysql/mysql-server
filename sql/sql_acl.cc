@@ -140,7 +140,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   MYSQL_LOCK *lock;
   my_bool return_val=1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-
   DBUG_ENTER("acl_init");
 
   if (!acl_cache)
@@ -153,6 +152,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   }
 
   priv_version++; /* Privileges updated */
+  mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   /*
     To be able to run this from boot, we allocate a temporary THD
