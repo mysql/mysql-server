@@ -149,6 +149,9 @@ int runRestartInitial(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.restartAll(true) != 0)
     return NDBT_FAILED;
 
+  if (restarter.waitClusterStarted() != 0)
+    return NDBT_FAILED;
+  
   return NDBT_OK;
 }
 
@@ -413,7 +416,6 @@ TESTCASE("BackupOne",
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
   FINALIZER(runClearTable);
-  FINALIZER(runDropTable);
 }
 TESTCASE("BackupBank", 
 	 "Test that backup and restore works during transaction load\n"
