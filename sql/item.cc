@@ -759,9 +759,13 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
     switch (entry->type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
+      item_type= Item::REAL_ITEM;
+      item_result_type= REAL_RESULT;
       break;
     case INT_RESULT:
       set_int(*(longlong*)entry->value, 21);
+      item_type= Item::INT_ITEM;
+      item_result_type= INT_RESULT;
       break;
     case STRING_RESULT:
     {

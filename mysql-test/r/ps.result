@@ -179,3 +179,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 deallocate prepare stmt1;
 drop tables t1,t2;
+set @arg00=1;
+prepare stmt1 from ' create table t1 (m int) as select 1 as m ' ;
+execute stmt1 ;
+select m from t1;
+m
+1
+drop table t1;
+prepare stmt1 from ' create table t1 (m int) as select ? as m ' ;
+execute stmt1 using @arg00;
+select m from t1;
+m
+1
+drop table t1;
