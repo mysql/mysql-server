@@ -3531,7 +3531,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     */
     tmp_buf[event_len++]=0;
     buf = (const char*)tmp_buf;
-    int4store(buf+EVENT_LEN_OFFSET, event_len);
+    int4store(tmp_buf+EVENT_LEN_OFFSET, event_len);
   }
   /*
     This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
