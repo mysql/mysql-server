@@ -2280,7 +2280,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_LOAD:
   {
     uint privilege= (lex->duplicates == DUP_REPLACE ?
-		     INSERT_ACL | UPDATE_ACL | DELETE_ACL : INSERT_ACL);
+		     INSERT_ACL | DELETE_ACL : INSERT_ACL);
 
     if (!lex->local_file)
     {
