@@ -7,13 +7,13 @@
 export MYDEV="F:/mydev"
 
 export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.1.4;$MYDEV"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.1.4;$MYDEV/mysql-4.0.21/netware/BUILD"
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.1.4;$MYDEV/mysql-VERSION/netware/BUILD"
 export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a;neb.imp;zPublics.imp;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
 
 # the default added path is "$HOME/mydev/mysql-x.x-x/netware/BUILD"
-export PATH="$PATH:/home/kp/mydev/mysql-4.0.21/netware/BUILD"
+export PATH="$PATH:BUILD_DIR/mysql-VERSION/netware/BUILD"
 
 export AR='mwldnlm'
 export AR_FLAGS='-type library -o'
