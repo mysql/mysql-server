@@ -919,7 +919,7 @@ double Item_param::val()
       This works for example when user says SELECT ?+0.0 and supplies
       time value for the placeholder.
     */
-    return (double) TIME_to_ulonglong(&value.time);
+    return ulonglong2double(TIME_to_ulonglong(&value.time));
   case NULL_VALUE:
     return 0.0;
   default:

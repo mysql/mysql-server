@@ -8014,7 +8014,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   Item *itemptr=*order->item;
   if (itemptr->type() == Item::INT_ITEM)
   {						/* Order by position */
-    uint count= itemptr->val_int();
+    uint count= (uint) itemptr->val_int();
     if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
