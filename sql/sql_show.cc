@@ -37,9 +37,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names};
 #endif
 
-static int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                            const char *path, const char *wild, bool dir);
-
 static int
 store_create_info(THD *thd, TABLE *table, String *packet);
 
@@ -361,7 +358,7 @@ int mysqld_show_column_types(THD *thd)
 }
 
 
-static int
+int
 mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
                  const char *wild, bool dir)
 {
