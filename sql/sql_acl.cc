@@ -3623,67 +3623,91 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     /* Remove db access privileges */
-    for (counter= 0 ; counter < acl_dbs.elements ; )
+    /*
+      Because acl_dbs and column_priv_hash shrink and may re-order
+      as privileges are removed, removal occurs in a repeated loop
+      until no more privileges are revoked.
+     */
+    while (1)
     {
-      const char *user,*host;
-
-      acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
-      if (!(user=acl_db->user))
-	user= "";
-      if (!(host=acl_db->host.hostname))
-	host= "";
-
-      if (!strcmp(lex_user->user.str,user) &&
-	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+      int revoke= 0;
+      for (counter= 0 ; counter < acl_dbs.elements ; )
       {
-	if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
-	  result= -1;
-	else
-	  continue;
+	const char *user,*host;
+	
+	acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
+	if (!(user=acl_db->user))
+	  user= "";
+	if (!(host=acl_db->host.hostname))
+	  host= "";
+	
+	if (!strcmp(lex_user->user.str,user) &&
+	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+	{
+	  if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	    result= -1;
+	  else
+	  {
+	    revoke= 1;
+	    continue;
+	  }
+	}
+	++counter;
       }
-      ++counter;
+      if (!revoke)
+	break;
     }
 
     /* Remove column access */
-    for (counter= 0 ; counter < column_priv_hash.records ; )
+    while (1)
     {
-      const char *user,*host;
-      GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
-							    counter);
-      if (!(user=grant_table->user))
-	user= "";
-      if (!(host=grant_table->host))
-	host= "";
-
-      if (!strcmp(lex_user->user.str,user) &&
-	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+      int revoke= 0;
+      for (counter= 0 ; counter < column_priv_hash.records ; )
       {
-	if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
-				grant_table->db,
-				grant_table->tname,
-				~0, 0, 1))
+	const char *user,*host;
+	GRANT_TABLE *grant_table= (GRANT_TABLE*)hash_element(&column_priv_hash,
+							     counter);
+	if (!(user=grant_table->user))
+	  user= "";
+	if (!(host=grant_table->host))
+	  host= "";
+	
+	if (!strcmp(lex_user->user.str,user) &&
+	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  result= -1;
-	}
-	else
-	{
-	  if (grant_table->cols)
-	  {
-	    List<LEX_COLUMN> columns;
-	    if (replace_column_table(grant_table,tables[3].table, *lex_user,
-				     columns,
-				     grant_table->db,
-				     grant_table->tname,
-				     ~0, 1))
-	      result= -1;
-	    else
-	      continue;
-	  }
+	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
+				  grant_table->db,
+				  grant_table->tname,
+				  ~0, 0, 1))
+	    result= -1;
 	  else
-	    continue;
+	  {
+	    if (grant_table->cols)
+	    {
+	      List<LEX_COLUMN> columns;
+	      if (replace_column_table(grant_table,tables[3].table, *lex_user,
+				       columns,
+				       grant_table->db,
+				       grant_table->tname,
+				       ~0, 1))
+		result= -1;
+	      else
+	      {
+		revoke= 1;
+		continue;
+	      }
+	    }
+	    else
+	    {
+	      revoke= 1;
+	      continue;
+	    }
+	  }
 	}
+	++counter;
       }
-      ++counter;
+      if (!revoke)
+	break;
     }
   }
 
