@@ -109,7 +109,7 @@ THD::THD()
   net.vio=0;
   ull=0;
   system_thread=0;
-  bzero((char*) &alloc,sizeof(alloc));
+  bzero((char*) &mem_root,sizeof(mem_root));
 #ifdef	__WIN__
   real_id = 0 ;
 #endif
@@ -154,7 +154,7 @@ THD::~THD()
   safeFree(user);
   safeFree(db);
   safeFree(ip);
-  free_root(&alloc);
+  free_root(&mem_root);
   mysys_var=0;					// Safety (shouldn't be needed)
   DBUG_VOID_RETURN;
 }
@@ -165,10 +165,9 @@ THD::~THD()
 bool THD::store_globals()
 {
   return (my_pthread_setspecific_ptr(THR_THD,  this) ||
-	  my_pthread_setspecific_ptr(THR_MALLOC, &alloc) ||
+	  my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
 	  my_pthread_setspecific_ptr(THR_NET,  &net));
 }
-
 
 /*****************************************************************************
 ** Functions to provide a interface to select results

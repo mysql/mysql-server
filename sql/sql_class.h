@@ -223,7 +223,7 @@ class THD :public ilink {
 public:
   NET	  net;
   LEX	  lex;
-  MEM_ROOT alloc;
+  MEM_ROOT mem_root;
   HASH     user_vars;
   String  packet;				/* Room for 1 row */
   struct  sockaddr_in remote;
@@ -287,6 +287,19 @@ public:
     }
     return last_insert_id;
   }
+  inline bool active_transaction() { return transaction.bdb_tid != 0; }
+  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr calloc(unsigned int size)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size)))
+      bzero((char*) ptr,size);
+    return ptr;
+  }
+  inline char *strdup(const char *str)
+  { return strdup_root(&mem_root,str); }
+  inline char *memdup(const char *str, unsigned int size)
+  { return memdup_root(&mem_root,str,size); }
 };
 
 

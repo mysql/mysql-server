@@ -25,6 +25,9 @@
                                                                    SerG
 */
 
+int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
+	     enum ha_rkey_function search_flag, bool raw_key);
+
 int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
             uint key_len, enum ha_rkey_function search_flag)
 {

@@ -190,7 +190,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.29 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.30 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -295,7 +295,7 @@ static void get_options(register int *argc,register char ***argv)
   set_all_changeable_vars(changeable_vars);
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
-  while ((c=getopt_long(*argc,*argv,"acCdeif?lqrmosSTuUvVw#:b:D:k:O:R:A::t:",
+  while ((c=getopt_long(*argc,*argv,"acCdeifF?lqrmosSTuUvVw#:b:D:k:O:R:A::t:",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -520,22 +520,42 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     We are using --fast and the table is closed properly
     We are using --check-only-changed-tables and the table hasn't changed
   */
-  if (((param->testflag & T_CHECK_ONLY_CHANGED) &&
-      (share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-			       STATE_CRASHED_ON_REPAIR))) ||
-      (param->testflag & T_FAST) && share->state.open_count == 0)
+  if (param->testflag & (T_FAST | T_CHECK_ONLY_CHANGED))
   {
-    if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
-      printf("MyISAM file: %s is already checked\n",filename);
-    if (mi_close(info))
-    {
-      mi_check_print_error(param,"%d when closing MyISAM-table '%s'",
-			   my_errno,filename);
-      DBUG_RETURN(1);
-    }
-    DBUG_RETURN(0);
-  }
+    my_bool need_to_check= mi_is_crashed(info) || share->state.open_count != 0;
 
+    if ((param->testflag & (T_REP_BY_SORT | T_REP | T_SORT_RECORDS)) &&
+	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
+				  STATE_CRASHED_ON_REPAIR) ||
+	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
+      need_to_check=1;
+
+    if ((param->testflag & T_STATISTICS) &&
+	(share->state.changed & STATE_NOT_ANALYZED))
+      need_to_check=1;
+    if ((param->testflag & T_SORT_INDEX) &&
+	(share->state.changed & STATE_NOT_SORTED_PAGES))
+      need_to_check=1;
+    if ((param->testflag & T_REP_BY_SORT) &&
+	(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
+      need_to_check=1;
+    if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
+	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
+				 STATE_CRASHED_ON_REPAIR)))
+      need_to_check=1;
+    if (!need_to_check)
+    {
+      if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
+	printf("MyISAM file: %s is already checked\n",filename);
+      if (mi_close(info))
+      {
+	mi_check_print_error(param,"%d when closing MyISAM-table '%s'",
+			     my_errno,filename);
+	DBUG_RETURN(1);
+      }
+      DBUG_RETURN(0);
+    }
+  }
   if ((param->testflag & (T_REP_BY_SORT | T_REP | T_STATISTICS |
 			  T_SORT_RECORDS | T_SORT_INDEX)) &&
       (((param->testflag & T_UNPACK) &&

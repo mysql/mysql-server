@@ -384,3 +384,87 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   }
   return sql_lock;
 }
+
+/*****************************************************************************
+**  Lock table based on the name.
+**  This is used when we need total access to a closed, not open table
+*****************************************************************************/
+
+/*
+  Put a not open table with an old refresh version in the table cache.
+  This will force any other threads that uses the table to release it
+  as soon as possible.
+  One must have a lock on LOCK_open !
+  Return values:
+   < 0 error
+   == 0 table locked
+   > 0  table locked, but someone is using it
+*/
+
+
+int lock_table_name(THD *thd, TABLE_LIST *table_list)
+{
+  TABLE *table;
+  char  key[MAX_DBKEY_LENGTH];
+  uint  key_length;
+  key_length=(uint) (strmov(strmov(key,table_list->db)+1,table_list->name)-key)+
+    1;
+
+  /* Only insert the table if we haven't insert it already */
+  for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+       table ;
+       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+    if (table->in_use == thd)
+      return 0;
+
+  /* Create a table entry with the right key and with an old refresh version */
+  if (!(table= (TABLE*) thd->calloc(sizeof(*table)+key_length)))
+    return -1;
+  memcpy((table->table_cache_key= (char*) (table+1)), key, key_length);
+  table->key_length=key_length;
+  table->in_use=thd;
+  table_list->table=table;
+
+  if (hash_insert(&open_cache, (byte*) table))
+    return -1;
+  if (remove_table_from_cache(thd, table_list->db, table_list->name))
+    return 1;					// Table is in use
+  return 0;
+}
+
+void unlock_table_name(THD *thd, TABLE_LIST *table_list)
+{
+  if (table_list->table)
+    hash_delete(&open_cache, (gptr) table_list->table);
+}
+
+static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
+{
+  for ( ; table_list ; table_list=table_list->next)
+  {
+    if (table_list->table && table_is_used(table_list->table))
+      return 1;
+  }
+  return 0;					// All tables are locked
+}
+
+
+bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
+{
+  bool result=0;
+
+  while (locked_named_table(thd,table_list))
+  {
+    if (thd->killed)
+    {
+      result=1;
+      break;
+    }
+    wait_for_refresh(thd);
+  }
+  pthread_mutex_lock(&thd->mysys_var->mutex);
+  thd->mysys_var->current_mutex=0;
+  thd->mysys_var->current_cond=0;
+  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  return result;
+}
