@@ -74,7 +74,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_tx_isolation tx_isolation;
-  enum Item_cast cast_type;
+  enum Cast_target cast_type;
   enum Item_udftype udf_type;
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
