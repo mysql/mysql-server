@@ -1451,36 +1451,22 @@ int ha_ndbcluster::write_row(byte *record)
 			(int)rows_inserted, (int)bulk_insert_rows));
 
     bulk_insert_not_flushed= false;
-    if (thd->transaction.on) {
-	if (trans->execute(NoCommit) != 0)
-	  {
-	    skip_auto_increment= true;
-	    DBUG_RETURN(ndb_err(trans));
-	  }
+    if (thd->transaction.on)
+    {
+      if (trans->execute(NoCommit) != 0)
+      {
+	skip_auto_increment= true;
+	DBUG_RETURN(ndb_err(trans));
+      }
     }
     else
     {
       if (trans->execute(Commit) != 0)
-	{
-	  skip_auto_increment= true;
-	  DBUG_RETURN(ndb_err(trans));
-	}
-#if 0 // this is what we want to use but it is not functional
-      trans->restart();
-#else
-      m_ndb->closeTransaction(m_active_trans);
-      m_active_trans= m_ndb->startTransaction();
-      if (thd->transaction.all.ndb_tid)
-	thd->transaction.all.ndb_tid= m_active_trans;
-      else
-	thd->transaction.stmt.ndb_tid= m_active_trans;
-      if (m_active_trans == NULL)
       {
 	skip_auto_increment= true;
-	ERR_RETURN(m_ndb->getNdbError());
+	DBUG_RETURN(ndb_err(trans));
       }
-      trans= m_active_trans;
-#endif
+      trans->restart();
     }
   }
   if ((has_auto_increment) && (skip_auto_increment))
