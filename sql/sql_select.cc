@@ -2190,6 +2190,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     add_key_field()
     key_fields			Pointer to add key, if usable
     and_level			And level, to be stored in KEY_FIELD
+    cond                        Condition predicate
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
@@ -2205,8 +2206,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
-	      Field *field,bool eq_func,Item **value, uint num_values,
+add_key_field(KEY_FIELD **key_fields, uint and_level, COND *cond,
+	      Field *field, bool eq_func, Item **value, uint num_values,
 	      table_map usable_tables)
 {
   uint exists_optimize= 0;
@@ -2305,9 +2306,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
   Add possible keys to array of possible keys originated from a simple predicate
 
   SYNPOSIS
-    add_key_equal_field()
+    add_key_equal_fields()
     key_fields			Pointer to add key, if usable
     and_level			And level, to be stored in KEY_FIELD
+    cond                        Condition predicate
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
@@ -2324,12 +2326,12 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 
 static void
 add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
-                     Item_field *field_item,
+                     COND *cond, Item_field *field_item,
                      bool eq_func, Item **val,
                      uint num_values, table_map usable_tables)
 {
   Field *field= field_item->field;
-  add_key_field(key_fields, and_level, field,
+  add_key_field(key_fields, and_level, cond, field,
                 eq_func, val, num_values, usable_tables);
   Item_equal *item_equal= field_item->item_equal;
   if (item_equal)
@@ -2344,7 +2346,7 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
     {
       if (!field->eq(item->field))
       {
-        add_key_field(key_fields, and_level, item->field,
+        add_key_field(key_fields, and_level, cond, item->field,
                       eq_func, val, num_values, usable_tables);
       }
     }
@@ -2396,7 +2398,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     // BETWEEN or IN
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
-      add_key_equal_fields(key_fields,*and_level,
+      add_key_equal_fields(key_fields, *and_level, cond_func,
                            (Item_field*) (cond_func->key_item()->real_item()),
                            0, cond_func->arguments()+1,
                            cond_func->argument_count()-1,
@@ -2410,7 +2412,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_equal_fields(key_fields, *and_level,
+      add_key_equal_fields(key_fields, *and_level, cond_func,
 	                (Item_field*) (cond_func->arguments()[0])->real_item(),
 		           equal_func,
 		           cond_func->arguments()+1, 1, usable_tables);
@@ -2419,7 +2421,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	cond_func->functype() != Item_func::LIKE_FUNC &&
 	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_key_equal_fields(key_fields,*and_level,
+      add_key_equal_fields(key_fields, *and_level, cond_func, 
                        (Item_field*) (cond_func->arguments()[1])->real_item(),
 		           equal_func,
 		           cond_func->arguments(),1,usable_tables);
@@ -2434,7 +2436,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       Item *tmp=new Item_null;
       if (!tmp)					// Should never be true
 	return;
-      add_key_equal_fields(key_fields,*and_level,
+      add_key_equal_fields(key_fields, *and_level, cond_func,
 		    (Item_field*) (cond_func->arguments()[0])->real_item(),
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
 		    &tmp, 1, usable_tables);
@@ -2454,7 +2456,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
       */   
       while ((item= it++))
       {
-        add_key_field(key_fields, *and_level, item->field,
+        add_key_field(key_fields, *and_level, cond, item->field,
                       TRUE, &const_item, 1, usable_tables);
       }
     }
@@ -2474,7 +2476,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
         {
           if (!field->eq(item->field))
           {
-            add_key_field(key_fields, *and_level, field,
+            add_key_field(key_fields, *and_level, cond, field,
                           TRUE, (Item **) &item, 1, usable_tables);
           }
         }
