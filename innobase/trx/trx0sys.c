@@ -600,7 +600,7 @@ trx_sys_update_mysql_binlog_offset(
 }
 
 /*********************************************************************
-Prints to stdout the MySQL binlog info in the system header if the
+Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
 
 void
@@ -617,7 +617,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	   == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		printf(
+		fprintf(stderr,
 	"ibbackup: Last MySQL binlog file position %lu %lu, file name %s\n",
 		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),

@@ -169,8 +169,8 @@ row_undo_search_clust_to_pcur(
 		is to make sure that some thread will eventually undo the
 		modification corresponding to node->roll_ptr. */
 		
-		/* printf("--------------------undoing a previous version\n");
-		*/
+		/* fputs("--------------------undoing a previous version\n",
+			stderr); */
 		   
 		ret = FALSE;
 	} else {

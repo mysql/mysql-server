@@ -823,17 +823,18 @@ trx_undo_update_rec_get_update(
 
 		if (field_no >= dict_index_get_n_fields(index)) {
 			fprintf(stderr,
-   "InnoDB: Error: trying to access update undo rec field %lu in table %s\n"
-   "InnoDB: index %s, but index has only %lu fields\n",
-			field_no, index->table_name, index->name,
-			dict_index_get_n_fields(index));
-  			fprintf(stderr,
-   "InnoDB: Send a detailed bug report to mysql@lists.mysql.com");
-   
-  			fprintf(stderr,
-   "InnoDB: Run also CHECK TABLE on table %s\n", index->table_name);
-  			fprintf(stderr,
-   "InnoDB: n_fields = %lu, i = %lu, ptr %lx\n", n_fields, i, (ulint)ptr);
+		"InnoDB: Error: trying to access"
+		" update undo rec field %lu in ", field_no);
+			dict_index_name_print(stderr, index);
+			fprintf(stderr, "\n"
+		"InnoDB: but index has only %lu fields\n"
+		"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"
+		"InnoDB: Run also CHECK TABLE ",
+				dict_index_get_n_fields(index));
+			ut_print_name(stderr, index->table_name);
+			fprintf(stderr, "\n"
+				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
+				n_fields, i, ptr);
 			return(NULL);
 		}
 
@@ -1258,8 +1259,6 @@ trx_undo_prev_version_build(
 	byte*		buf;
 	ulint		err;
 	ulint		i;
-	char		err_buf[1000];
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1268,19 +1267,18 @@ trx_undo_prev_version_build(
 	      mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
 						MTR_MEMO_PAGE_X_FIX));
 	if (!(index->type & DICT_CLUSTERED)) {
-		fprintf(stderr,
-   	"InnoDB: Error: trying to access update undo rec for table %s\n"
-   	"InnoDB: index %s which is not a clustered index\n",
-			index->table_name, index->name);
-  		fprintf(stderr,
-   	"InnoDB: Send a detailed bug report to mysql@lists.mysql.com");
-
-		rec_sprintf(err_buf, 900, index_rec);
-		fprintf(stderr, "InnoDB: index record %s\n", err_buf);
-
-		rec_sprintf(err_buf, 900, rec);
-		fprintf(stderr, "InnoDB: record version %s\n", err_buf);
-
+		fputs("InnoDB: Error: trying to access"
+			" update undo rec for non-clustered ", stderr);
+		dict_index_name_print(stderr, index);
+		fputs("\n"
+			"InnoDB: Send a detailed bug report to"
+			" mysql@lists.mysql.com\n"
+			"InnoDB: index record ", stderr);
+		rec_print(stderr, index_rec);
+		fputs("\n"
+			"InnoDB: record version ", stderr);
+		rec_print(stderr, rec);
+		putc('\n', stderr);
    		return(DB_ERROR);
    	}	
 
@@ -1318,55 +1316,50 @@ trx_undo_prev_version_build(
 	if (ut_dulint_cmp(table_id, index->table->id) != 0) {
 		ptr = NULL;
 
-		fprintf(stderr,
-   	"InnoDB: Error: trying to access update undo rec for table %s\n"
-   	"InnoDB: but the table id in the undo record is wrong\n",
-			index->table_name);
-  		fprintf(stderr,
-   	"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");
-   
-  		fprintf(stderr,
-   	"InnoDB: Run also CHECK TABLE on table %s\n", index->table_name);
+		fputs("InnoDB: Error: trying to access"
+			" update undo rec for table ", stderr);
+		ut_print_name(stderr, index->table_name);
+		fputs("\n"
+			"InnoDB: but the table id in the"
+			" undo record is wrong\n"
+			"InnoDB: Send a detailed bug report to "
+			"mysql@lists.mysql.com\n"
+			"InnoDB: Run also CHECK TABLE ", stderr);
+		ut_print_name(stderr, index->table_name);
+		putc('\n', stderr);
 	}
 
 	if (ptr == NULL) {
 		/* The record was corrupted, return an error; these printfs
 		should catch an elusive bug in row_vers_old_has_index_entry */
 
-		fprintf(stderr,
-			"InnoDB: Table name %s, index name %s, n_uniq %lu\n",
-			index->table_name, index->name,
-			dict_index_get_n_unique(index));
-		
-		fprintf(stderr,
-		"InnoDB: undo rec address %lx, type %lu cmpl_info %lu\n",
-					(ulint)undo_rec, type, cmpl_info);
-		fprintf(stderr,
-		"InnoDB: undo rec table id %lu %lu, index table id %lu %lu\n",
+		fputs("InnoDB: ", stderr);
+		dict_index_name_print(stderr, index);
+		fprintf(stderr, ", n_uniq %lu\n"
+		"InnoDB: undo rec address %p, type %lu cmpl_info %lu\n"
+		"InnoDB: undo rec table id %lu %lu, index table id %lu %lu\n"
+		"InnoDB: dump of 150 bytes in undo rec: ",
+			dict_index_get_n_unique(index),
+			undo_rec, type, cmpl_info,
 			ut_dulint_get_high(table_id),
 			ut_dulint_get_low(table_id),
 			ut_dulint_get_high(index->table->id),
 			ut_dulint_get_low(index->table->id));
 		
-		ut_sprintf_buf(err_buf, undo_rec, 150);
-
-		fprintf(stderr, "InnoDB: dump of 150 bytes in undo rec: %s\n",
-								err_buf);
-		rec_sprintf(err_buf, 900, index_rec);
-		fprintf(stderr, "InnoDB: index record %s\n", err_buf);
-
-		rec_sprintf(err_buf, 900, rec);
-		fprintf(stderr, "InnoDB: record version %s\n", err_buf);
-
-		fprintf(stderr,
-	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n",
+		ut_print_buf(stderr, undo_rec, 150);
+		fputs("\n"
+			"InnoDB: index record ", stderr);
+		rec_print(stderr, index_rec);
+		fputs("\n"
+			"InnoDB: record version ", stderr);
+		rec_print(stderr, rec);
+		fprintf(stderr, "\n"
+	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n"
+	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
 		 	ut_dulint_get_high(rec_trx_id),
 		 	ut_dulint_get_low(rec_trx_id),
 		 	ut_dulint_get_high(trx_id),
-		 	ut_dulint_get_low(trx_id));
-
-		fprintf(stderr,
-	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
+			ut_dulint_get_low(trx_id),
 		 	ut_dulint_get_high(old_roll_ptr),
 		 	ut_dulint_get_low(old_roll_ptr),
 		 	ut_dulint_get_high(roll_ptr),

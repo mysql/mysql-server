@@ -409,7 +409,7 @@ ibuf_data_sizes_update(
 
 	ibuf->size = ibuf->size + data->size - old_size;
 
-/*	printf("ibuf size %lu, space ibuf size %lu\n", ibuf->size,
+/*	fprintf(stderr, "ibuf size %lu, space ibuf size %lu\n", ibuf->size,
 							data->size); */
 }	
 
@@ -438,7 +438,7 @@ ibuf_data_init_for_space(
 #ifdef UNIV_LOG_DEBUG
 	if (space % 2 == 1) {
 
-		printf("No ibuf op in replicate space\n");
+		fputs("No ibuf op in replicate space\n", stderr);
 
 		return(NULL);
 	}
@@ -728,7 +728,8 @@ ibuf_set_free_bits_low(
 	bitmap_page = ibuf_bitmap_get_map_page(buf_frame_get_space_id(page),
 					buf_frame_get_page_no(page), mtr);
 #ifdef UNIV_IBUF_DEBUG
-	/* printf("Setting page no %lu free bits to %lu should be %lu\n",
+	/* fprintf(stderr,
+		"Setting page no %lu free bits to %lu should be %lu\n",
 					buf_frame_get_page_no(page), val,
 				ibuf_index_page_calc_free(page)); */
 	
@@ -782,7 +783,7 @@ ibuf_set_free_bits(
 					buf_frame_get_page_no(page),
 						IBUF_BITMAP_FREE, &mtr);
 		if (old_val != max_val) {
-			/* printf(
+			/* fprintf(stderr,
 			"Ibuf: page %lu old val %lu max val %lu\n",
 			buf_frame_get_page_no(page), old_val, max_val); */
 		}
@@ -791,7 +792,7 @@ ibuf_set_free_bits(
 #endif
 	}
 #ifdef UNIV_IBUF_DEBUG
-/*	printf("Setting page no %lu free bits to %lu should be %lu\n",
+/*	fprintf(stderr, "Setting page no %lu free bits to %lu should be %lu\n",
 					buf_frame_get_page_no(page), val,
 				ibuf_index_page_calc_free(page)); */
 
@@ -970,7 +971,7 @@ ibuf_page_low(
 #ifdef UNIV_LOG_DEBUG
 	if (space % 2 != 0) {
 
-		printf("No ibuf in a replicate space\n");
+		fputs("No ibuf in a replicate space\n", stderr);
 
 		return(FALSE);
 	}
@@ -1481,7 +1482,8 @@ ibuf_free_excess_pages(
 		/* Not yet initialized */
 
 #ifdef UNIV_DEBUG
-		/*printf("Ibuf for space %lu not yet initialized\n", space); */
+		/*fprintf(stderr,
+			"Ibuf for space %lu not yet initialized\n", space); */
 #endif
 
 		return;
@@ -1645,7 +1647,7 @@ ibuf_get_merge_page_nos(
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(*n_stored <= IBUF_MAX_N_PAGES_MERGED);
 #endif
-/*	printf("Ibuf merge batch %lu pages %lu volume\n", *n_stored,
+/*	fprintf(stderr, "Ibuf merge batch %lu pages %lu volume\n", *n_stored,
 							sum_volumes); */
 	return(sum_volumes);
 }
@@ -1751,8 +1753,8 @@ loop:
 							page_nos, &n_stored);
 
 #ifdef UNIV_IBUF_DEBUG
-	/* printf("Ibuf contract sync %lu pages %lu volume %lu\n", sync,
-						n_stored, sum_sizes); */
+	/* fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
+		sync, n_stored, sum_sizes); */
 #endif
 	ibuf_exit();
 
@@ -2074,7 +2076,7 @@ ibuf_insert_low(
 		mutex_exit(&ibuf_mutex);
 
 #ifdef UNIV_IBUF_DEBUG
-		printf("Ibuf too big\n");
+		fputs("Ibuf too big\n", stderr);
 #endif		
 		/* Use synchronous contract (== TRUE) */
 		ibuf_contract(TRUE);
@@ -2302,8 +2304,8 @@ ibuf_insert(
 	
 	if (err == DB_SUCCESS) {
 #ifdef UNIV_IBUF_DEBUG
-		/* printf("Ibuf insert for page no %lu of index %s\n", page_no,
-							index->name); */
+		/* fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
+			page_no, index->name); */
 #endif
 		return(TRUE);
 
@@ -2331,7 +2333,6 @@ ibuf_insert_to_index_page(
 	rec_t*		rec;
 	page_t*		bitmap_page;
 	ulint		old_bits;
-	char		errbuf[1000];
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
@@ -2361,16 +2362,13 @@ ibuf_insert_to_index_page(
 "InnoDB: Error: Insert buffer insert fails; page free %lu, dtuple size %lu\n",
 				page_get_max_insert_size(page, 1),
 				rec_get_converted_size(entry));
-
-				dtuple_sprintf(errbuf, 900, entry);
-				
-				fprintf(stderr,
-"InnoDB: Cannot insert index record %s\n", errbuf);
-
-				fprintf(stderr,
-"InnoDB: The table where where this index record belongs\n"
+				fputs("InnoDB: Cannot insert index record ",
+					stderr);
+				dtuple_print(stderr, entry);
+				fputs(
+"\nInnoDB: The table where where this index record belongs\n"
 "InnoDB: is now probably corrupt. Please run CHECK TABLE on\n"
-"InnoDB: that table.\n");
+"InnoDB: that table.\n", stderr);
 				
 				bitmap_page = ibuf_bitmap_get_map_page(
 						buf_frame_get_space_id(page),
@@ -2384,8 +2382,8 @@ ibuf_insert_to_index_page(
 
 				fprintf(stderr, "Bitmap bits %lu\n", old_bits);
 
-				fprintf(stderr,
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n");
+				fputs(
+"InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n", stderr);
 				
 			}	
 		}
@@ -2443,22 +2441,21 @@ ibuf_delete_rec(
 
 	if (!success) {
 		fprintf(stderr,
-		"InnoDB: ERROR: Send the output to heikki.tuuri@innodb.com\n");
-		fprintf(stderr, "InnoDB: ibuf cursor restoration fails!\n");
-		fprintf(stderr, "InnoDB: ibuf record inserted to page %lu\n",
-								page_no);
+		"InnoDB: ERROR: Send the output to mysql@lists.mysql.com\n"
+		"InnoDB: ibuf cursor restoration fails!\n"
+		"InnoDB: ibuf record inserted to page %lu\n", page_no);
 		fflush(stderr);
 
-		rec_print(btr_pcur_get_rec(pcur));
-		rec_print(pcur->old_rec);
-		dtuple_print(search_tuple);
+		rec_print(stderr, btr_pcur_get_rec(pcur));
+		rec_print(stderr, pcur->old_rec);
+		dtuple_print(stderr, search_tuple);
 
-		rec_print(page_rec_get_next(btr_pcur_get_rec(pcur)));
-		fflush(stdout);
+		rec_print(stderr, page_rec_get_next(btr_pcur_get_rec(pcur)));
+		fflush(stderr);
 
 		mtr_commit(mtr);
 
-		fprintf(stderr, "InnoDB: Validating insert buffer tree:\n");
+		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
 		ut_a(btr_validate_tree(ibuf_data->index->tree));
 
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
@@ -2519,7 +2516,6 @@ ibuf_merge_or_delete_for_page(
 #endif
 	ibool		corruption_noticed	= FALSE;
 	mtr_t		mtr;
-	char		err_buf[500];
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
@@ -2529,7 +2525,7 @@ ibuf_merge_or_delete_for_page(
 #ifdef UNIV_LOG_DEBUG
 	if (space % 2 != 0) {
 
-		printf("No ibuf operation in a replicate space\n");
+		fputs("No ibuf operation in a replicate space\n", stderr);
 
 		return;
 	}
@@ -2579,8 +2575,8 @@ ibuf_merge_or_delete_for_page(
 
 			mtr_start(&mtr);
 
-			fprintf(stderr,
-"  InnoDB: Dump of the ibuf bitmap page:\n");
+			fputs("  InnoDB: Dump of the ibuf bitmap page:\n",
+				stderr);
 			
 			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 									&mtr);
@@ -2588,7 +2584,7 @@ ibuf_merge_or_delete_for_page(
 		
 			mtr_commit(&mtr);
 
-			fprintf(stderr, "\nInnoDB: Dump of the page:\n");
+			fputs("\nInnoDB: Dump of the page:\n", stderr);
 
 			buf_page_print(page);
 
@@ -2651,18 +2647,16 @@ loop:
 
 		/* Do NOT merge to the 4.1 code base! */
 		if (trx_sys_downgrading_from_4_1_1) {
-			fprintf(stderr,
+			fputs(
 "InnoDB: Fatal error: you are downgrading from >= 4.1.1 to 4.0, but\n"
-"InnoDB: the insert buffer was not empty.\n");
+"InnoDB: the insert buffer was not empty.\n", stderr);
 			ut_error;
 		}
 
 		if (corruption_noticed) {
-			rec_sprintf(err_buf, 450, ibuf_rec);
-
-			fprintf(stderr,
-"InnoDB: Discarding record\n %s\n from the insert buffer!\n\n", err_buf);
-	
+			fputs("InnoDB: Discarding record\n ", stderr);
+			rec_print(stderr, ibuf_rec);
+			fputs("\n from the insert buffer!\n\n", stderr);
 	   	} else if (page) {
 			/* Now we have at pcur a record which should be
 			inserted to the index page; NOTE that the call below
@@ -2723,8 +2717,8 @@ reset_bit:
 				page_no, IBUF_BITMAP_FREE, &mtr);
 		ulint new_bits = ibuf_index_page_calc_free(page);
 #ifdef UNIV_IBUF_DEBUG
-		/* printf("Old bits %lu new bits %lu max size %lu\n", old_bits,
-			new_bits,
+		/* fprintf(stderr, "Old bits %lu new bits %lu max size %lu\n",
+			old_bits, new_bits,
 			page_get_max_insert_size_after_reorganize(page, 1)); */
 #endif
 		if (old_bits != new_bits) {
@@ -2736,7 +2730,8 @@ reset_bit:
 	}
 	
 #ifdef UNIV_IBUF_DEBUG
-	/* printf("Ibuf merge %lu records volume %lu to page no %lu\n",
+	/* fprintf(stderr,
+		"Ibuf merge %lu records volume %lu to page no %lu\n",
 					n_inserts, volume, page_no); */
 #endif
 	mtr_commit(&mtr);
@@ -2794,34 +2789,29 @@ Prints info of ibuf. */
 void
 ibuf_print(
 /*=======*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end)/* in: buffer end */
+	FILE*	file)	/* in: file where to print */
 {
 	ibuf_data_t*	data;
 #ifdef UNIV_IBUF_DEBUG
 	ulint		i;
 #endif
-	if (buf_end - buf < 500) {
-		return;
-	}
 
 	mutex_enter(&ibuf_mutex);
 
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 
 	while (data) {
-		buf += sprintf(buf,
-  	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n",
-		data->space, data->size, data->free_list_len, data->seg_size);
-
-		buf += sprintf(buf,
+		fprintf(file,
+	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n"
 			"%lu inserts, %lu merged recs, %lu merges\n",
+		data->space, data->size, data->free_list_len, data->seg_size,
 			data->n_inserts, data->n_merged_recs, data->n_merges);
 #ifdef UNIV_IBUF_DEBUG
 		for (i = 0; i < IBUF_COUNT_N_PAGES; i++) {
 			if (ibuf_count_get(data->space, i) > 0) {
 
-				printf("Ibuf count for page %lu is %lu\n",
+				fprintf(stderr,
+					"Ibuf count for page %lu is %lu\n",
 					i, ibuf_count_get(data->space, i));
 			}
 		}

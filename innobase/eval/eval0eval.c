@@ -311,12 +311,13 @@ eval_predefined_2(
 			arg = que_node_get_next(arg);
 		}
 
-		printf("\n");	
+		putc('\n', stderr);
 		
 	} else if (func == PARS_ASSERT_TOKEN) {
 
 		if (!eval_node_get_ibool_val(arg1)) {
-			printf("SQL assertion fails in a stored procedure!\n");
+			fputs("SQL assertion fails in a stored procedure!\n",
+				stderr);
 		}
  
 		ut_a(eval_node_get_ibool_val(arg1));

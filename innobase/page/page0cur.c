@@ -704,14 +704,16 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 	
         if (mismatch_index >= UNIV_PAGE_SIZE) {
-               printf("Is short %lu, info_bits %lu, offset %lu, o_offset %lu\n"
+		fprintf(stderr,
+			"Is short %lu, info_bits %lu, offset %lu, "
+			"o_offset %lu\n"
                     "mismatch index %lu, end_seg_len %lu\n"
                     "parsed len %lu\n",
                     is_short, info_bits, offset, origin_offset,
                     mismatch_index, end_seg_len, (ulint)(ptr - ptr2));
 
-	       printf("Dump of 300 bytes of log:\n");
-	       ut_print_buf(ptr2, 300);
+		fputs("Dump of 300 bytes of log:\n", stderr);
+		ut_print_buf(stderr, ptr2, 300);
 
 	       buf_page_print(page);
 

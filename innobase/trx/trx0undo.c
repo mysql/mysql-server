@@ -393,13 +393,10 @@ trx_undo_seg_create(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-/*	
-	if (type == TRX_UNDO_INSERT) {
-		printf("Creating insert undo log segment\n");
-	} else {
-		printf("Creating update undo log segment\n");
-	}
-*/
+
+/*	fputs(type == TRX_UNDO_INSERT
+		? "Creating insert undo log segment\n"
+		: "Creating update undo log segment\n", stderr); */
 	slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
 	if (slot_no == ULINT_UNDEFINED) {

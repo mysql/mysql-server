@@ -262,7 +262,8 @@ mtr_first_to_modify_page_after_backup(
 								block->frame),
 							backup_lsn) <= 0) {
 
-				printf("Page %lu newest %lu backup %lu\n",
+				fprintf(stderr,
+					"Page %lu newest %lu backup %lu\n",
 					block->offset,
 					ut_dulint_get_low(
 					buf_frame_get_newest_modification(
@@ -515,7 +516,7 @@ mtr_print(
 /*======*/
 	mtr_t*	mtr)	/* in: mtr */
 {
-	printf(
+	fprintf(stderr,
 	"Mini-transaction handle: memo size %lu bytes log size %lu bytes\n",
 		dyn_array_get_data_size(&(mtr->memo)),
 		dyn_array_get_data_size(&(mtr->log)));

@@ -114,8 +114,7 @@ Prints info of the wait array. */
 void
 sync_array_print_info(
 /*==================*/
-	char*		buf,	/* in/out: buffer where to print */
-	char*		buf_end,/* in: buffer end */
+	FILE*		file,	/* in: file where to print */
 	sync_array_t*	arr);	/* in: wait array */
 
 

@@ -228,9 +228,9 @@ trx_rollback_to_savepoint_for_mysql(
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: transaction has a savepoint %s though it is not started\n",
-							      savep->name);
+		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
+		ut_print_name(stderr, savep->name);
+		fputs(" though it is not started\n", stderr);
 	        return(DB_ERROR);
 	}
 
@@ -466,8 +466,9 @@ loop:
 		table = dict_table_get_on_id_low(trx->table_id, trx);
 
 		if (table) {		
-			fprintf(stderr,
-"InnoDB: Table found: dropping table %s in recovery\n", table->name);
+			fputs("InnoDB: Table found: dropping table ", stderr);
+			ut_print_name(stderr, table->name);
+			fputs(" in recovery\n", stderr);
 
 			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 
@@ -729,7 +730,7 @@ trx_roll_pop_top_rec(
 						undo->top_page_no, mtr);
 	offset = undo->top_offset;
 
-/*	printf("Thread %lu undoing trx %lu undo record %lu\n",
+/*	fprintf(stderr, "Thread %lu undoing trx %lu undo record %lu\n",
 		os_thread_get_curr_id(), ut_dulint_get_low(trx->id),
 		ut_dulint_get_low(undo->top_undo_no)); */
 
@@ -1140,7 +1141,7 @@ trx_finish_rollback_off_kernel(
 	}
 
 	if (lock_print_waits) {			
-		printf("Trx %lu rollback finished\n",
+		fprintf(stderr, "Trx %lu rollback finished\n",
 						ut_dulint_get_low(trx->id));
 	}
 

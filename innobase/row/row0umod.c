@@ -417,13 +417,11 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 {
 	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
 	upd_t*		update;
 	ulint		err		= DB_SUCCESS;
 	ibool		found;
 	big_rec_t*	dummy_big_rec;
 	mtr_t		mtr;
-	char           	err_buf[1000];
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -431,23 +429,22 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
 
 	if (!found) {
-	  	fprintf(stderr,
-			"InnoDB: error in sec index entry del undo in\n"
-		  	"InnoDB: index %s table %s\n", index->name,
-		  	index->table->name);
-	  	dtuple_sprintf(err_buf, 900, entry);
-	  	fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
-
-	  	rec_sprintf(err_buf, 900, btr_pcur_get_rec(&pcur));
-	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
-
-		trx_print(err_buf, thr_get_trx(thr));
-	  	fprintf(stderr,
-			"%s\nInnoDB: Make a detailed bug report and send it\n",
-			err_buf);
-	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+		fputs("InnoDB: error in sec index entry del undo in\n"
+			"InnoDB: ", stderr);
+		dict_index_name_print(stderr, index);
+		fputs("\n"
+			"InnoDB: tuple ", stderr);
+		dtuple_print(stderr, entry);
+		fputs("\n"
+			"InnoDB: record ", stderr);
+		rec_print(stderr, btr_pcur_get_rec(&pcur));
+		putc('\n', stderr);
+		trx_print(stderr, thr_get_trx(thr));
+		fputs("\n"
+			"InnoDB: Make a detailed bug report and send it\n"
+			"InnoDB: to mysql@lists.mysql.com\n", stderr);
 	} else {
-         	btr_cur = btr_pcur_get_btr_cur(&pcur);
+		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	        err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						btr_cur, FALSE, thr, &mtr);

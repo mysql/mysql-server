@@ -512,8 +512,7 @@ Prints info of the log. */
 void
 log_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /**********************************************************
 Peeks the current lsn. */
 

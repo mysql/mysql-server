@@ -81,9 +81,8 @@ os_process_set_priority_boost(
 /* Does not do anything currently!
 	SetProcessPriorityBoost(GetCurrentProcess(), no_boost);
 */
-	printf(
-        "Warning: process priority boost setting currently not functional!\n"
-	);
+	fputs("Warning: process priority boost setting currently not functional!\n",
+		stderr);
 #else
 	UT_NOT_USED(do_boost);
 #endif

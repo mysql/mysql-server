@@ -483,8 +483,7 @@ Prints info of the buffer i/o. */
 void
 buf_print_io(
 /*=========*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /*************************************************************************
 Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool. */

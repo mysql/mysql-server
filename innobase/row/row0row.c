@@ -390,7 +390,6 @@ row_build_row_ref_in_tuple(
 				at least s-latched and the latch held
 				as long as the row reference is used! */
 {
-	dict_table_t*	table;
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
 	byte*		field;
@@ -401,21 +400,21 @@ row_build_row_ref_in_tuple(
 	
 	ut_a(ref && index && rec);
 	
-	table = index->table;
-
-	if (!table) {
-		fprintf(stderr, "InnoDB: table %s for index %s not found\n",
-				index->table_name, index->name);
+	if (!index->table) {
+		fputs("InnoDB: table ", stderr);
+	notfound:
+		ut_print_name(stderr, index->table_name);
+		fputs(" for index ", stderr);
+		ut_print_name(stderr, index->name);
+		fputs(" not found\n", stderr);
 		ut_error;
 	}
 	
-	clust_index = dict_table_get_first_index(table);
+	clust_index = dict_table_get_first_index(index->table);
 	
 	if (!clust_index) {
-		fprintf(stderr,
-                "InnoDB: clust index for table %s for index %s not found\n",
-				index->table_name, index->name);
-		ut_error;
+		fputs("InnoDB: clust index for table ", stderr);
+		goto notfound;
 	}
 	
 	ref_len = dict_index_get_n_unique(clust_index);

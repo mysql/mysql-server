@@ -71,7 +71,8 @@ dict_hdr_get_new_id(
 	compile wrong */
 
 	if (0 == ut_dulint_cmp(id, ut_dulint_max)) {
-		printf("Max id\n");
+		/* TO DO: remove this code, or make it conditional */
+		ut_dbg_null_ptr = 0;
 	}
 
 	id = ut_dulint_add(id, 1);

@@ -20,6 +20,8 @@ Created 5/7/1996 Heikki Tuuri
 #include "hash0hash.h"
 
 extern ibool	lock_print_waits;
+/* Buffer for storing information about the most recent deadlock error */
+extern FILE*	lock_latest_err_file;
 
 /*************************************************************************
 Gets the size of a lock struct. */
@@ -468,8 +470,7 @@ Prints info of a table lock. */
 void
 lock_table_print(
 /*=============*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+	FILE*	file,	/* in: file where to print */
 	lock_t*	lock);	/* in: table type lock */
 /*************************************************************************
 Prints info of a record lock. */
@@ -477,8 +478,7 @@ Prints info of a record lock. */
 void
 lock_rec_print(
 /*===========*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+	FILE*	file,	/* in: file where to print */
 	lock_t*	lock);	/* in: record type lock */
 /*************************************************************************
 Prints info of locks for all transactions. */
@@ -486,8 +486,7 @@ Prints info of locks for all transactions. */
 void
 lock_print_info(
 /*============*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /*************************************************************************
 Validates the lock queue on a table. */
 

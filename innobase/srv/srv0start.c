@@ -55,13 +55,13 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
-ibool           srv_start_has_been_called  = FALSE;
+static ibool	srv_start_has_been_called  = FALSE;
 
 ulint           srv_sizeof_trx_t_in_ha_innodb_cc;
 
 ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool           srv_is_being_started = FALSE;
-ibool           srv_was_started      = FALSE;
+static ibool	srv_was_started      = FALSE;
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE */
@@ -69,19 +69,20 @@ ulint		srv_shutdown_state = 0;
 
 ibool		measure_cont	= FALSE;
 
-os_file_t	files[1000];
+static os_file_t	files[1000];
 
-mutex_t		ios_mutex;
-ulint		ios;
+static mutex_t		ios_mutex;
+static ulint		ios;
 
-ulint		n[SRV_MAX_N_IO_THREADS + 5];
-os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
+static ulint		n[SRV_MAX_N_IO_THREADS + 5];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 
 /* We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-os_fast_mutex_t srv_os_test_mutex;
+static os_fast_mutex_t	srv_os_test_mutex;
 
-ibool srv_os_test_mutex_is_locked = FALSE;
+/* Name of srv_monitor_file */
+static char*	srv_monitor_file_name;
 
 #define SRV_N_PENDING_IOS_PER_THREAD 	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
@@ -400,8 +401,8 @@ io_handler_thread(
 	segment = *((ulint*)arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Io handler thread %lu starts, id %lu\n", segment,
-			  os_thread_pf(os_thread_get_curr_id()));
+	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,
+			os_thread_pf(os_thread_get_curr_id()));
 #endif
 	for (i = 0;; i++) {
 		fil_aio_wait(segment);
@@ -532,6 +533,8 @@ open_or_create_log_file(
 	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed(
 						srv_log_group_home_dirs[k]);
 
+	ut_a(strlen(srv_log_group_home_dirs[k]) <
+		(sizeof name) - 10 - sizeof "ib_logfile");
 	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k], "ib_logfile", i);
 
 	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
@@ -680,6 +683,8 @@ open_or_create_data_files(
 	for (i = 0; i < srv_n_data_files; i++) {
 		srv_normalize_path_for_win(srv_data_file_names[i]);
 
+		ut_a(strlen(srv_data_home) + strlen(srv_data_file_names[i])
+			< (sizeof name) - 1);
 		sprintf(name, "%s%s", srv_data_home, srv_data_file_names[i]);
 	
 		files[i] = os_file_create(name, OS_FILE_CREATE,
@@ -1014,6 +1019,19 @@ NetWare. */
 	if (err != DB_SUCCESS) {
 
 		return((int) err);
+	}
+
+	mutex_create(&srv_monitor_file_mutex);
+	srv_monitor_file_name = mem_alloc(
+			strlen(fil_path_to_mysql_datadir) +
+			20 + sizeof "/innodb_status.");
+	sprintf(srv_monitor_file_name, "%s/innodb.status.%lu",
+		fil_path_to_mysql_datadir, os_proc_get_number());
+	srv_monitor_file = fopen(srv_monitor_file_name, "w+");
+	if (!srv_monitor_file) {
+		fprintf(stderr, "InnoDB: unable to create %s: %s\n",
+			srv_monitor_file_name, strerror(errno));
+		return(DB_ERROR);
 	}
 
 	/* Restrict the maximum number of file i/o threads */
@@ -1505,6 +1523,15 @@ innobase_shutdown_for_mysql(void)
 		      os_thread_count);
 	}
 
+	if (srv_monitor_file) {
+		fclose(srv_monitor_file);
+		srv_monitor_file = 0;
+		unlink(srv_monitor_file_name);
+		mem_free(srv_monitor_file_name);
+	}
+
+	mutex_free(&srv_monitor_file_mutex);
+
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
 
@@ -1529,6 +1556,13 @@ innobase_shutdown_for_mysql(void)
 "InnoDB: threads %lu, events %lu, os_mutexes %lu, os_fast_mutexes %lu\n",
 		      os_thread_count, os_event_count, os_mutex_count,
 		      os_fast_mutex_count);
+	}
+
+	if (dict_foreign_err_file) {
+		fclose(dict_foreign_err_file);
+	}
+	if (lock_latest_err_file) {
+		fclose(lock_latest_err_file);
 	}
 
 	if (srv_print_verbose_log) {

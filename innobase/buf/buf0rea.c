@@ -81,7 +81,8 @@ buf_read_page_low(
 		log mutex: the read must be handled before other reads
 		which might incur ibuf operations and thus write to the log */
 
-		printf("Log debug: reading replicate page in sync mode\n");
+		fputs("Log debug: reading replicate page in sync mode\n",
+			stderr);
 
 		sync = TRUE;
 	}
@@ -101,7 +102,8 @@ buf_read_page_low(
 
 	if (block != NULL) {
 		if (buf_debug_prints) {
-			printf("Posting read request for page %lu, sync %lu\n",
+			fprintf(stderr,
+			"Posting read request for page %lu, sync %lu\n",
 				offset, sync);
 		}
 
@@ -241,8 +243,8 @@ buf_read_ahead_random(
 	os_aio_simulated_wake_handler_threads();
 
 	if (buf_debug_prints && (count > 0)) {
-	
-		printf("Random read-ahead space %lu offset %lu pages %lu\n",
+		fprintf(stderr,
+			"Random read-ahead space %lu offset %lu pages %lu\n",
 						space, offset, count);
 	}
 
@@ -499,7 +501,7 @@ buf_read_ahead_linear(
 	buf_flush_free_margin();
 
 	if (buf_debug_prints && (count > 0)) {
-		printf(
+		fprintf(stderr,
 		"LINEAR read-ahead space %lu offset %lu pages %lu\n",
 		space, offset, count);
 	}
@@ -548,7 +550,8 @@ buf_read_ibuf_merge_pages(
 	buf_flush_free_margin();
 
 	if (buf_debug_prints) {
-		printf("Ibuf merge read-ahead space %lu pages %lu\n",
+		fprintf(stderr,
+			"Ibuf merge read-ahead space %lu pages %lu\n",
 							space, n_stored);
 	}
 }
@@ -611,6 +614,7 @@ buf_read_recv_pages(
 	buf_flush_free_margin();
 
 	if (buf_debug_prints) {
-		printf("Recovery applies read-ahead pages %lu\n", n_stored);
+		fprintf(stderr,
+			"Recovery applies read-ahead pages %lu\n", n_stored);
 	}
 }

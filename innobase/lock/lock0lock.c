@@ -310,7 +310,7 @@ struct lock_struct{
 /* We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
 ibool	lock_deadlock_found = FALSE;
-char*	lock_latest_err_buf;		/* We allocate 5000 bytes for this */
+FILE*	lock_latest_err_file;
 
 /* Flags for recursive deadlock search */
 #define LOCK_VICTIM_IS_START	1
@@ -356,7 +356,6 @@ lock_check_trx_id_sanity(
 	ibool		has_kernel_mutex)/* in: TRUE if the caller owns the
 					kernel mutex */
 {
-	char	err_buf[500];
 	ibool	is_ok		= TRUE;
 	
 	if (!has_kernel_mutex) {
@@ -367,14 +366,16 @@ lock_check_trx_id_sanity(
 	trx id counter */
 
 	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
-		rec_sprintf(err_buf, 400, rec);
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"InnoDB: Error: transaction id associated with record\n%s\n"
-"InnoDB: in table %s index %s\n"
+		fputs("  InnoDB: Error: transaction id associated"
+			" with record\n",
+			stderr);
+		rec_print(stderr, rec);
+		fputs("InnoDB: in ", stderr);
+		dict_index_name_print(stderr, index);
+		fprintf(stderr, "\n"
 "InnoDB: is %lu %lu which is higher than the global trx id counter %lu %lu!\n"
 "InnoDB: The table is corrupt. You have to do dump + drop + reimport.\n",
-			       err_buf, index->table_name, index->name,
 			       ut_dulint_get_high(trx_id),
 			       ut_dulint_get_low(trx_id),
 			       ut_dulint_get_high(trx_sys->max_trx_id),
@@ -481,7 +482,7 @@ lock_sys_create(
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 
-	lock_latest_err_buf = mem_alloc(5000);
+	lock_latest_err_file = tmpfile();
 }
 
 /*************************************************************************
@@ -1620,11 +1621,12 @@ lock_rec_enqueue_waiting(
 
 	if (trx->dict_operation) {
 		ut_print_timestamp(stderr);
-	
-		fprintf(stderr,
+		fputs(
 "  InnoDB: Error: a record lock wait happens in a dictionary operation!\n"
-"InnoDB: Table name %s. Send a bug report to mysql@lists.mysql.com\n",
-index->table_name);
+"InnoDB: Table name ", stderr);
+		ut_print_name(stderr, index->table_name);
+		fputs(". Send a bug report to mysql@lists.mysql.com\n",
+			stderr);
 	}
 	
 	/* Enqueue the lock request that will wait to be granted */
@@ -1656,8 +1658,9 @@ index->table_name);
 	ut_a(que_thr_stop(thr));
 
 	if (lock_print_waits) {
-		printf("Lock wait for trx %lu in index %s\n",
-				ut_dulint_get_low(trx->id), index->name);
+		fprintf(stderr, "Lock wait for trx %lu in index ",
+			ut_dulint_get_low(trx->id));
+		ut_print_name(stderr, index->name);
 	}
 	
 	return(DB_LOCK_WAIT);	
@@ -1995,7 +1998,7 @@ lock_grant(
         }
 
 	if (lock_print_waits) {
-		printf("Lock wait for trx %lu ends\n",
+		fprintf(stderr, "Lock wait for trx %lu ends\n",
 					ut_dulint_get_low(lock->trx->id));
 	}
 
@@ -2385,7 +2388,7 @@ lock_move_reorganize_page(
 
 				/* if ((page_cur_get_rec(&cur1) == sup)
 						&& lock_get_wait(lock)) {
-					printf(
+					fprintf(stderr,
 				"---\n--\n!!!Lock reorg: supr type %lu\n",
 					lock->type_mode);
 				} */
@@ -2901,7 +2904,6 @@ lock_deadlock_occurs(
 	trx_t*		mark_trx;
 	ulint		ret;
 	ulint		cost	= 0;
-	char*		err_buf;
 
 	ut_ad(trx && lock);
 #ifdef UNIV_SYNC_DEBUG
@@ -2939,14 +2941,8 @@ retry:
 
 		lock_deadlock_found = TRUE;
 
-		err_buf = lock_latest_err_buf + strlen(lock_latest_err_buf);
-			
-		ut_a(err_buf <= lock_latest_err_buf + 4000);
-
-		err_buf += sprintf(err_buf,
-		"*** WE ROLL BACK TRANSACTION (2)\n");
-
-		ut_a(strlen(lock_latest_err_buf) < 4100);
+		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
+			lock_latest_err_file);
 
 		return(TRUE);
 	}
@@ -2978,7 +2974,6 @@ lock_deadlock_recursive(
 	lock_t*	lock;
 	ulint	bit_no		= ULINT_UNDEFINED;
 	trx_t*	lock_trx;
-	char*	err_buf;
 	ulint	ret;
 	
 	ut_a(trx && start && wait_lock);
@@ -3036,71 +3031,48 @@ lock_deadlock_recursive(
 			if (lock_trx == start) {
 				/* We came back to the recursion starting
 				point: a deadlock detected */
+				FILE*	ef = lock_latest_err_file;
 				
-				err_buf = lock_latest_err_buf;
+				rewind(ef);
+				ut_print_timestamp(ef);
 
-				ut_sprintf_timestamp(err_buf);
-				err_buf += strlen(err_buf);
+				fputs("\n*** (1) TRANSACTION:\n", ef);
 
-				err_buf += sprintf(err_buf,
-				"\n*** (1) TRANSACTION:\n");
+				trx_print(ef, wait_lock->trx);
 
-				trx_print(err_buf, wait_lock->trx);
-				err_buf += strlen(err_buf);
-
-				err_buf += sprintf(err_buf,
-		      "*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n");
-
-				ut_a(err_buf <= lock_latest_err_buf + 4000);
+				fputs(
+			"*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
 			
 				if (lock_get_type(wait_lock) == LOCK_REC) {
-					lock_rec_print(err_buf, wait_lock);
-					err_buf += strlen(err_buf);
+					lock_rec_print(ef, wait_lock);
 				} else {
-					lock_table_print(err_buf, wait_lock);
-					err_buf += strlen(err_buf);
+					lock_table_print(ef, wait_lock);
 				}
 			
-				ut_a(err_buf <= lock_latest_err_buf + 4000);
-				err_buf += sprintf(err_buf,
-				"*** (2) TRANSACTION:\n");
+				fputs("*** (2) TRANSACTION:\n", ef);
 
-				trx_print(err_buf, lock->trx);
-				err_buf += strlen(err_buf);
+				trx_print(ef, lock->trx);
 
-				err_buf += sprintf(err_buf,
-				"*** (2) HOLDS THE LOCK(S):\n");
-
-				ut_a(err_buf <= lock_latest_err_buf + 4000);
+				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
 			
 				if (lock_get_type(lock) == LOCK_REC) {
-					lock_rec_print(err_buf, lock);
-					err_buf += strlen(err_buf);
+					lock_rec_print(ef, lock);
 				} else {
-					lock_table_print(err_buf, lock);
-					err_buf += strlen(err_buf);
+					lock_table_print(ef, lock);
 				}
 			
-				ut_a(err_buf <= lock_latest_err_buf + 4000);
-
-				err_buf += sprintf(err_buf,
-			"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
-
-				ut_a(err_buf <= lock_latest_err_buf + 4000);
+				fputs(
+			"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
 			
 				if (lock_get_type(start->wait_lock)
 								== LOCK_REC) {
-					lock_rec_print(err_buf,
-							start->wait_lock);
-					err_buf += strlen(err_buf);
+					lock_rec_print(ef, start->wait_lock);
 				} else {
-					lock_table_print(err_buf,
-							start->wait_lock);
-					err_buf += strlen(err_buf);
+					lock_table_print(ef, start->wait_lock);
 				}
 
 				if (lock_print_waits) {
-					printf("Deadlock detected\n");
+					fputs("Deadlock detected\n", stderr);
 				}
 
 				if (ut_dulint_cmp(wait_lock->trx->undo_no,
@@ -3115,14 +3087,12 @@ lock_deadlock_recursive(
 
 				lock_deadlock_found = TRUE;
 
-				ut_a(err_buf <= lock_latest_err_buf + 4000);
-
 				/* Let us choose the transaction of wait_lock
 				as a victim to try to avoid deadlocking our
 				recursion starting point transaction */
 				
-				err_buf += sprintf(err_buf,
-				"*** WE ROLL BACK TRANSACTION (1)\n");
+				fputs("*** WE ROLL BACK TRANSACTION (1)\n",
+					ef);
 				
 				wait_lock->trx->was_chosen_as_deadlock_victim
 								= TRUE;
@@ -3281,11 +3251,12 @@ lock_table_enqueue_waiting(
 
 	if (trx->dict_operation) {
 		ut_print_timestamp(stderr);
-	
-		fprintf(stderr,
+		fputs(
 "  InnoDB: Error: a table lock wait happens in a dictionary operation!\n"
-"InnoDB: Table name %s. Send a bug report to mysql@lists.mysql.com\n",
-table->name);
+"InnoDB: Table name ", stderr);
+		ut_print_name(stderr, table->name);
+		fputs(". Send a bug report to mysql@lists.mysql.com\n",
+			stderr);
 	}
 	
 	/* Enqueue the lock request that will wait to be granted */
@@ -3702,8 +3673,7 @@ Prints info of a table lock. */
 void
 lock_table_print(
 /*=============*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+	FILE*	file,	/* in: file where to print */
 	lock_t*	lock)	/* in: table type lock */
 {
 #ifdef UNIV_SYNC_DEBUG
@@ -3711,30 +3681,30 @@ lock_table_print(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(lock_get_type(lock) == LOCK_TABLE);
 
-	buf += sprintf(buf, "TABLE LOCK table %s trx id %lu %lu",
-		lock->un_member.tab_lock.table->name,
+	fputs("TABLE LOCK table ", file);
+	ut_print_name(file, lock->un_member.tab_lock.table->name);
+	fprintf(file, " trx id %lu %lu",
 		(lock->trx)->id.high, (lock->trx)->id.low);
 
 	if (lock_get_mode(lock) == LOCK_S) {
-		buf += sprintf(buf, " lock mode S");
+		fputs(" lock mode S", file);
 	} else if (lock_get_mode(lock) == LOCK_X) {
-		buf += sprintf(buf, " lock_mode X");
+		fputs(" lock mode X", file);
 	} else if (lock_get_mode(lock) == LOCK_IS) {
-		buf += sprintf(buf, " lock_mode IS");
+		fputs(" lock mode IS", file);
 	} else if (lock_get_mode(lock) == LOCK_IX) {
-		buf += sprintf(buf, " lock_mode IX");
+		fputs(" lock mode IX", file);
 	} else if (lock_get_mode(lock) == LOCK_AUTO_INC) {
-		buf += sprintf(buf, " lock_mode AUTO-INC");
+		fputs(" lock mode AUTO-INC", file);
 	} else {
-		buf += sprintf(buf,
-			" unknown lock_mode %lu", lock_get_mode(lock));
+		fprintf(file, " unknown lock mode %lu", lock_get_mode(lock));
 	}
 
 	if (lock_get_wait(lock)) {
-		buf += sprintf(buf, " waiting");
+		fputs(" waiting", file);
 	}
 
-	buf += sprintf(buf, "\n");
+	putc('\n', file);
 }						
 				
 /*************************************************************************
@@ -3743,16 +3713,13 @@ Prints info of a record lock. */
 void
 lock_rec_print(
 /*===========*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			500 bytes */
+	FILE*	file,	/* in: file where to print */
 	lock_t*	lock)	/* in: record type lock */
 {
 	page_t*	page;
 	ulint	space;
 	ulint	page_no;
 	ulint	i;
-	ulint	count	= 0;
-	char*	buf_start	= buf;
 	mtr_t	mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -3763,40 +3730,39 @@ lock_rec_print(
 	space = lock->un_member.rec_lock.space;
  	page_no = lock->un_member.rec_lock.page_no;
 
-	buf += sprintf(buf, "RECORD LOCKS space id %lu page no %lu n bits %lu",
+	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu ",
 		    space, page_no, lock_rec_get_n_bits(lock));
-
-	buf += sprintf(buf, " table %s index %s trx id %lu %lu",
-		lock->index->table->name, lock->index->name,
+	dict_index_name_print(file, lock->index);
+	fprintf(file, " trx id %lu %lu",
 		(lock->trx)->id.high, (lock->trx)->id.low);
 
 	if (lock_get_mode(lock) == LOCK_S) {
-		buf += sprintf(buf, " lock mode S");
+		fputs(" lock mode S", file);
 	} else if (lock_get_mode(lock) == LOCK_X) {
-		buf += sprintf(buf, " lock_mode X");
+		fputs(" lock_mode X", file);
 	} else {
 		ut_error;
 	}
 
 	if (lock_rec_get_gap(lock)) {
-		buf += sprintf(buf, " locks gap before rec");
+		fputs(" locks gap before rec", file);
 	}
 
 	if (lock_rec_get_rec_not_gap(lock)) {
-		buf += sprintf(buf, " locks rec but not gap");
+		fputs(" locks rec but not gap", file);
 	}
 
 	if (lock_rec_get_insert_intention(lock)) {
-		buf += sprintf(buf, " insert intention");
+		fputs(" insert intention", file);
 	}
 
 	if (lock_get_wait(lock)) {
-		buf += sprintf(buf, " waiting");
+		fputs(" waiting", file);
 	}
 
 	mtr_start(&mtr);
 
-	buf += sprintf(buf, "\n");
+	putc('\n', file);
 
 	/* If the page is not in the buffer pool, we cannot load it
 	because we have the kernel mutex and ibuf operations would
@@ -3826,28 +3792,16 @@ lock_rec_print(
 
 	for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
 
-		if (buf - buf_start > 300) {
-
-			buf += sprintf(buf,
-		"Suppressing further record lock prints for this page\n");
-
-			mtr_commit(&mtr);
-
-			return;
-		}
-	
 		if (lock_rec_get_nth_bit(lock, i)) {
 
-			buf += sprintf(buf, "Record lock, heap no %lu ", i);
+			fprintf(file, "Record lock, heap no %lu ", i);
 
 			if (page) {
-				buf += rec_sprintf(buf, 120,
+				rec_print(file,
 				      page_find_rec_with_heap_no(page, i));
-				*buf = '\0';
 			}
 
-			buf += sprintf(buf, "\n");
-			count++;
+			putc('\n', file);
 		}
 	}
 
@@ -3889,8 +3843,7 @@ Prints info of locks for all transactions. */
 void
 lock_print_info(
 /*============*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end)/* in: buffer end */
+	FILE*	file)	/* in: file where to print */
 {
 	lock_t*	lock;
 	trx_t*	trx;
@@ -3903,79 +3856,47 @@ lock_print_info(
 	ulint	i;
 	mtr_t	mtr;
 
-	if (buf_end - buf < 600) {
-                sprintf(buf, "... output truncated!\n");
-
-		return;
-	}
-	
 	lock_mutex_enter_kernel();
 
 	if (lock_deadlock_found) {
-		
-		buf += sprintf(buf,
+		fputs(
 "------------------------\n" 
 "LATEST DETECTED DEADLOCK\n"
-"------------------------\n");
+"------------------------\n", file);
 
-		if ((ulint)(buf_end - buf)
-			< 100 + strlen(lock_latest_err_buf)) {
-
-		        lock_mutex_exit_kernel();
-		        sprintf(buf, "... output truncated!\n");
-
-			return;
-		}
-
-		buf += sprintf(buf, "%s", lock_latest_err_buf);
+		ut_copy_file(file, lock_latest_err_file);
 	}
 
-	if (buf_end - buf < 600) {
-		lock_mutex_exit_kernel();
-		sprintf(buf, "... output truncated!\n");
-
-		return;
-	}
-
-	buf += sprintf(buf,
+	fputs(
 "------------\n" 
 "TRANSACTIONS\n"
-"------------\n");
+"------------\n", file);
 
-	buf += sprintf(buf, "Trx id counter %lu %lu\n", 
+	fprintf(file, "Trx id counter %lu %lu\n",
 		ut_dulint_get_high(trx_sys->max_trx_id),
 		ut_dulint_get_low(trx_sys->max_trx_id));
 
-	buf += sprintf(buf,
+	fprintf(file,
 	"Purge done for trx's n:o < %lu %lu undo n:o < %lu %lu\n",
 		ut_dulint_get_high(purge_sys->purge_trx_no),
 		ut_dulint_get_low(purge_sys->purge_trx_no),
 		ut_dulint_get_high(purge_sys->purge_undo_no),
 		ut_dulint_get_low(purge_sys->purge_undo_no));
 
-	buf += sprintf(buf,
+	fprintf(file,
 		"Total number of lock structs in row lock hash table %lu\n",
 						lock_get_n_rec_locks());
 
-	buf += sprintf(buf, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
+	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
 	/* First print info on non-active transactions */
 
 	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 
 	while (trx) {
-		if (buf_end - buf < 900) {
-		        lock_mutex_exit_kernel();
-		        sprintf(buf, "... output truncated!\n");
-
-			return;
-		}
-
 		if (trx->conc_state == TRX_NOT_STARTED) {
-		        buf += sprintf(buf, "---");
-			trx_print(buf, trx);
-
-			buf += strlen(buf);
+			fputs("---", file);
+			trx_print(file, trx);
 		}
 			
 		trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
@@ -4004,28 +3925,12 @@ loop:
 		return;
 	}
 
-	if (buf_end - buf < 900) {
-		lock_mutex_exit_kernel();
-		sprintf(buf, "... output truncated!\n");
-
-		return;
-	}
-
 	if (nth_lock == 0) {
-	        buf += sprintf(buf, "---");
-		trx_print(buf, trx);
-
-		buf += strlen(buf);
-		
-		if (buf_end - buf < 500) {
-		        lock_mutex_exit_kernel();
-		        sprintf(buf, "... output truncated!\n");
-
-			return;
-		}
+		fputs("---", file);
+		trx_print(file, trx);
 		
 	        if (trx->read_view) {
-	  	        buf += sprintf(buf,
+			fprintf(file,
        "Trx read view will not see trx with id >= %lu %lu, sees < %lu %lu\n",
 		       	ut_dulint_get_high(trx->read_view->low_limit_id),
        			ut_dulint_get_low(trx->read_view->low_limit_id),
@@ -4034,19 +3939,17 @@ loop:
 	        }
 
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
-			buf += sprintf(buf,
+			fprintf(file,
  "------- TRX HAS BEEN WAITING %lu SEC FOR THIS LOCK TO BE GRANTED:\n",
 		   (ulint)difftime(time(NULL), trx->wait_started));
 
 			if (lock_get_type(trx->wait_lock) == LOCK_REC) {
-				lock_rec_print(buf, trx->wait_lock);
+				lock_rec_print(file, trx->wait_lock);
 			} else {
-				lock_table_print(buf, trx->wait_lock);
+				lock_table_print(file, trx->wait_lock);
 			}
 
-			buf += strlen(buf);
-			buf += sprintf(buf,
-			"------------------\n");
+			fputs("------------------\n", file);
 		}
 	}
 
@@ -4074,13 +3977,6 @@ loop:
 		goto loop;
 	}
 
-	if (buf_end - buf < 500) {
-	        lock_mutex_exit_kernel();
-		sprintf(buf, "... output truncated!\n");
-
-		return;
-	}
-
 	if (lock_get_type(lock) == LOCK_REC) {
 		space = lock->un_member.rec_lock.space;
  		page_no = lock->un_member.rec_lock.page_no;
@@ -4101,22 +3997,21 @@ loop:
 			goto loop;
 		}
 		
-		lock_rec_print(buf, lock);
+		lock_rec_print(file, lock);
 	} else {
 		ut_ad(lock_get_type(lock) == LOCK_TABLE);
 	
-		lock_table_print(buf, lock);
+		lock_table_print(file, lock);
 	}
 
-	buf += strlen(buf);
-	
 	load_page_first = TRUE;
 
 	nth_lock++;
 
 	if (nth_lock >= 10) {
-		buf += sprintf(buf,
-		"10 LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS\n");
+		fputs(
+		"10 LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS\n",
+			file);
 	
 		nth_trx++;
 		nth_lock = 0;
@@ -4333,7 +4228,8 @@ loop:
 			index = lock->index;
 			rec = page_find_rec_with_heap_no(page, i);
 
-			printf("Validating %lu %lu\n", space, page_no);
+			fprintf(stderr,
+				"Validating %lu %lu\n", space, page_no);
 
 			lock_mutex_exit_kernel();
 
