@@ -321,6 +321,7 @@ public:
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
+  void exclude_tree();
 
   /* UNION methods */
   int prepare(THD *thd, select_result *result, bool tables_and_fields_initied);
