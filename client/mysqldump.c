@@ -2328,14 +2328,13 @@ static const char *check_if_ignore_table(const char *table_name)
     fprintf(stderr,
 	    "Error: Couldn't read status information for table %s (%s)\n",
 	    table_name, mysql_error(sock));
-    if (res)
-      mysql_free_result(res);
+    mysql_free_result(res);
     return 0;					/* assume table is ok */
   }
   if (strcmp(row[1], (result= "MRG_MyISAM")) &&
       strcmp(row[1], (result= "MRG_ISAM")))
     result= 0;
-  mysql_free_result(res);  
+  mysql_free_result(res);
   return result;
 }
 
