@@ -110,7 +110,6 @@ public:
   void executeRestart(int processId, const char* parameters, bool all);
   void executeLogLevel(int processId, const char* parameters, bool all);
   void executeError(int processId, const char* parameters, bool all);
-  void executeTrace(int processId, const char* parameters, bool all);
   void executeLog(int processId, const char* parameters, bool all);
   void executeLogIn(int processId, const char* parameters, bool all);
   void executeLogOut(int processId, const char* parameters, bool all);
@@ -341,7 +340,6 @@ static const char* helpTextDebug =
 #ifdef ERROR_INSERT
 "<id> ERROR <errorNo>                  Inject error into NDB node\n"
 #endif
-"<id> TRACE <traceNo>                  Set trace number\n"
 "<id> LOG [BLOCK = {ALL|<block>+}]     Set logging on in & out signals\n"
 "<id> LOGIN [BLOCK = {ALL|<block>+}]   Set logging on in signals\n"
 "<id> LOGOUT [BLOCK = {ALL|<block>+}]  Set logging on out signals\n"
@@ -729,7 +727,6 @@ static const CommandInterpreter::CommandFunctionPair commands[] = {
 #ifdef ERROR_INSERT
   ,{ "ERROR", &CommandInterpreter::executeError }
 #endif
-  ,{ "TRACE", &CommandInterpreter::executeTrace }
   ,{ "LOG", &CommandInterpreter::executeLog }
   ,{ "LOGIN", &CommandInterpreter::executeLogIn }
   ,{ "LOGOUT", &CommandInterpreter::executeLogOut }
@@ -1674,42 +1671,6 @@ void CommandInterpreter::executeError(int processId,
   }
 
   ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, NULL);
-}
-
-//*****************************************************************************
-//*****************************************************************************
-void 
-CommandInterpreter::executeTrace(int /*processId*/,
-				 const char* /*parameters*/, bool /*all*/) 
-{
-#if 0
-  if (emptyString(parameters)) {
-    ndbout << "Missing trace number." << endl;
-    return;
-  }
-
-  char* newpar = my_strdup(parameters,MYF(MY_WME));
-  My_auto_ptr<char> ap1(newpar);
-  char* firstParameter = strtok(newpar, " ");
-
-
-  int traceNo;
-  if (! convert(firstParameter, traceNo)) {
-    ndbout << "Expected an integer." << endl;
-    return;
-  }
-  char* allAfterFirstParameter = strtok(NULL, "\0");  
-
-  if (! emptyString(allAfterFirstParameter)) {
-    ndbout << "Nothing expected after trace number." << endl;
-    return;
-  }
-
-  int result = _mgmtSrvr.setTraceNo(processId, traceNo);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-#endif
 }
 
 //*****************************************************************************

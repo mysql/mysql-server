@@ -18,13 +18,7 @@
 #ifndef CLUSTER_CONNECTION_HPP
 #define CLUSTER_CONNECTION_HPP
 
-class TransporterFacade;
-class ConfigRetriever;
-struct NdbThread;
-
-extern "C" {
-  void* run_ndb_cluster_connection_connect_thread(void*);
-}
+struct Ndb_cluster_connection_node_iter;
 
 class Ndb_cluster_connection {
 public:
@@ -32,16 +26,27 @@ public:
   ~Ndb_cluster_connection();
   int connect(int no_retries, int retry_delay_in_seconds, int verbose);
   int start_connect_thread(int (*connect_callback)(void)= 0);
+
+  // add check coupled to init state of cluster connection
+  // timeout_after_first_alive negative - ok only if all alive
+  // timeout_after_first_alive positive - ok if some alive
+  int wait_until_ready(int timeout_for_first_alive,
+		       int timeout_after_first_alive);
+
   const char *get_connectstring(char *buf, int buf_sz) const;
   int get_connected_port() const;
   const char *get_connected_host() const;
+
+  void set_optimized_node_selection(int val);
+
+  Uint32 no_db_nodes();
+
 private:
-  friend void* run_ndb_cluster_connection_connect_thread(void*);
-  void connect_thread();
-  TransporterFacade *m_facade;
-  ConfigRetriever *m_config_retriever;
-  NdbThread *m_connect_thread;
-  int (*m_connect_callback)(void);
+  friend class Ndb;
+  friend class NdbImpl;
+  friend class Ndb_cluster_connection_impl;
+  class Ndb_cluster_connection_impl & m_impl;
+  Ndb_cluster_connection(Ndb_cluster_connection_impl&);
 };
 
 #endif

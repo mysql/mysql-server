@@ -25,6 +25,7 @@
 #include <UtilBuffer.hpp>
 #include <NdbDictionary.hpp>
 #include <Ndb.hpp>
+#include <NdbCondition.h>
 #include "NdbLinHash.hpp"
 
 class Ndb_local_table_info {
