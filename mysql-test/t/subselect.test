@@ -522,7 +522,7 @@ set @a:=(SELECT a from t1);
 
 CREATE TABLE t1 (a int, KEY(a)); 
 HANDLER t1 OPEN;
--- error 1149
+-- error 1064
 HANDLER t1 READ a=((SELECT 1));
 HANDLER t1 CLOSE;
 drop table t1;
