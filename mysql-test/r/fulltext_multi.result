@@ -14,17 +14,17 @@ INSERT INTO t1 VALUES (2,'asdf fdsa','lkjh fghj');
 INSERT INTO t1 VALUES (3,'qpwoei','zmxnvb');
 SELECT a, MATCH  b  AGAINST ('lala lkjh') FROM t1;
 a	MATCH  b  AGAINST ('lala lkjh')
-1	0.67003110026735
+1	0.67003107070923
 2	0
 3	0
 SELECT a, MATCH  c  AGAINST ('lala lkjh') FROM t1;
 a	MATCH  c  AGAINST ('lala lkjh')
 1	0
-2	0.67756324121582
+2	0.67756325006485
 3	0
 SELECT a, MATCH b,c AGAINST ('lala lkjh') FROM t1;
 a	MATCH b,c AGAINST ('lala lkjh')
-1	0.64840710366884
-2	0.66266459031789
+1	0.64840710163116
+2	0.66266459226608
 3	0
 drop table t1;
