@@ -32,10 +32,10 @@ c
 11
 show create table v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -226,7 +226,11 @@ create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 grant create view,select on test.* to mysqltest_1@localhost;
-create view v1  as select * from mysqltest.t1;
+create view v1 as select * from mysqltest.t1;
+alter view v1 as select * from mysqltest.t1;
+ERROR 42000: delete command denied to user 'mysqltest_1'@'localhost' for table 'v1'
+create or replace view v1 as select * from mysqltest.t1;
+ERROR 42000: delete command denied to user 'mysqltest_1'@'localhost' for table 'v1'
 create view mysqltest.v2  as select * from mysqltest.t1;
 ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for table 'v2'
 create view v2 as select * from mysqltest.t2;
@@ -326,7 +330,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 show create view mysqltest.v1;
 View	Create View
-v1	CREATE VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
@@ -339,7 +343,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 show create view mysqltest.v3;
 View	Create View
-v3	CREATE VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+v3	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 explain select c from mysqltest.v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
@@ -1054,7 +1058,7 @@ drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -1088,13 +1092,13 @@ create view v1 as select a from t1;
 create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
 View	Create View
-v2	CREATE VIEW `test`.`v2` AS select `test`.`t2`.`a` AS `a` from `test`.`t2` where `a` in (select `v1`.`a` AS `a` from `test`.`v1`)
+v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select `test`.`t2`.`a` AS `a` from `test`.`t2` where `a` in (select `v1`.`a` AS `a` from `test`.`v1`)
 drop view v2, v1;
 drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
 show create view `v 1`;
 View	Create View
-v 1	CREATE VIEW `test`.`v 1` AS select 5 AS `5`
+v 1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v 1` AS select 5 AS `5`
 drop view `v 1`;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
@@ -1162,14 +1166,14 @@ a	b
 1	1
 show create view v3;
 View	Create View
-v3	CREATE VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
+v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
 create view v1 as select test.`f``1` ();
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
 select * from v1;
 test.`f``1` ()
 5
@@ -1186,10 +1190,10 @@ create table t2 (col1 char collate latin1_german2_ci);
 create view v2 as select col1 collate latin1_german1_ci from t2;
 show create view v2;
 View	Create View
-v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
 show create view v2;
 View	Create View
-v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
 drop view v2;
 drop table t2;
 create table t1 (a int);
@@ -1220,7 +1224,7 @@ drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
 create table tü (cü char);
 create view vü as select cü from tü;
@@ -1241,7 +1245,7 @@ drop table t1;
 create view v1 as select cast(1 as char(3));
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
 select * from v1;
 cast(1 as char(3))
 1
@@ -1419,5 +1423,37 @@ Error	1369	CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1
+drop view v1;
+drop table t1;
+create table t1 (s1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+alter view v1 as select * from v2;
+ERROR 42S02: Table 'test.v1' doesn't exist
+alter view v1 as select * from v1;
+ERROR 42000: Not unique table/alias: 'v1'
+create or replace view v1 as select * from v2;
+ERROR 42S02: Table 'test.v1' doesn't exist
+create or replace view v1 as select * from v1;
+ERROR 42000: Not unique table/alias: 'v1'
+drop view v2,v1;
+drop table t1;
+create table t1 (a int);
+create view v1 as select * from t1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
+alter algorithm=undefined view v1 as select * from t1 with check option;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH LOCAL CHECK OPTION
+alter algorithm=merge view v1 as select * from t1 with cascaded check option;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=MERGE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH CASCADED CHECK OPTION
+alter algorithm=temptable view v1 as select * from t1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=TEMPTABLE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
 drop view v1;
 drop table t1;

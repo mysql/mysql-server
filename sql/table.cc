@@ -1599,10 +1599,10 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
     if (arena)
       thd->set_n_backup_item_arena(arena, &backup);
 
-    if (with_check)
+    if (effective_with_check)
     {
       check_option= where->copy_andor_structure(thd);
-      if (with_check == VIEW_CHECK_CASCADED)
+      if (effective_with_check == VIEW_CHECK_CASCADED)
       {
         check_option= and_conds(check_option, ancestor->check_option);
       }
