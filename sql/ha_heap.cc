@@ -363,28 +363,20 @@ int ha_heap::rename_table(const char * from, const char * to)
   return heap_rename(from,to);
 }
 
-ha_rows ha_heap::records_in_range(int inx,
-				  const byte *start_key,uint start_key_len,
-				  enum ha_rkey_function start_search_flag,
-				  const byte *end_key,uint end_key_len,
-				  enum ha_rkey_function end_search_flag)
+
+ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
+                                  key_range *max_key)
 {
-  KEY *pos=table->key_info+inx;
-  if (pos->algorithm == HA_KEY_ALG_BTREE)
-  {
-    return hp_rb_records_in_range(file, inx, start_key, start_key_len,
-				  start_search_flag, end_key, end_key_len,
-				  end_search_flag);
-  }
-  else
-  {
-    if (start_key_len != end_key_len ||
-        start_key_len != pos->key_length ||
-        start_search_flag != HA_READ_KEY_EXACT ||
-        end_search_flag != HA_READ_AFTER_KEY)
-      return HA_POS_ERROR;			// Can't only use exact keys
-    return 10;					// Good guess
-  }
+  KEY *key=table->key_info+inx;
+  if (key->algorithm == HA_KEY_ALG_BTREE)
+    return hp_rb_records_in_range(file, inx, min_key, max_key);
+
+  if (min_key->length != max_key->length ||
+      min_key->length != key->key_length ||
+      min_key->flag != HA_READ_KEY_EXACT ||
+      max_key->flag != HA_READ_AFTER_KEY)
+    return HA_POS_ERROR;			// Can't only use exact keys
+  return 10;					// Good guess
 }
 
 

@@ -1820,7 +1820,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
       }
       my_hash_insert(&hash_columns, (byte *) mem_check);
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
-             !key_cmp(col_privs,key,0,key_len));
+             !key_cmp_if_same(col_privs,key,0,key_len));
   }
 }
 
@@ -2043,7 +2043,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	}
       }
     } while (!table->file->index_next(table->record[0]) &&
-	     !key_cmp(table,key,0,key_length));
+	     !key_cmp_if_same(table,key,0,key_length));
   }
 
 end:
