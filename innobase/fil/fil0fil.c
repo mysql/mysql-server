@@ -1321,7 +1321,7 @@ fil_aio_wait(
 	ut_ad(fil_validate());
 
 	if (os_aio_use_native_aio) {
-		srv_io_thread_op_info[segment] = (char *) "native aio handle";
+		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node, &message,
 								&type);
@@ -1332,7 +1332,7 @@ fil_aio_wait(
 		ut_error;
 #endif
 	} else {
-		srv_io_thread_op_info[segment] =(char *)"simulated aio handle";
+		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
 	                                               &message, &type);
@@ -1340,7 +1340,7 @@ fil_aio_wait(
 	
 	ut_a(ret);
 
-	srv_io_thread_op_info[segment] = (char *) "complete io for fil node";
+	srv_set_io_thread_op_info(segment, "complete io for fil node");
 
 	mutex_enter(&(system->mutex));
 
@@ -1353,11 +1353,10 @@ fil_aio_wait(
 	/* Do the i/o handling */
 
 	if (buf_pool_is_block(message)) {
-		srv_io_thread_op_info[segment] =
-		  (char *) "complete io for buf page";
+		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(message);
 	} else {
-		srv_io_thread_op_info[segment] =(char *) "complete io for log";
+		srv_set_io_thread_op_info(segment, "complete io for log");
 		log_io_complete(message);
 	}
 }
