@@ -175,6 +175,7 @@ int mysql_update(THD *thd,
       TABLE_LIST   tables;
       List<Item>   fields;
       List<Item>   all_fields;
+      ha_rows examined_rows;
 
       bzero((char*) &tables,sizeof(tables));
       tables.table = table;
@@ -184,7 +185,8 @@ int mysql_update(THD *thd,
       if (setup_order(thd, &tables, fields, all_fields, order) ||
           !(sortorder=make_unireg_sortorder(order, &length)) ||
           (table->found_records = filesort(&table, sortorder, length,
-                                           (SQL_SELECT *) 0, 0L, HA_POS_ERROR))
+                                           (SQL_SELECT *) 0, 0L,
+					   HA_POS_ERROR, &examined_rows))
           == HA_POS_ERROR)
       {
 	delete select;

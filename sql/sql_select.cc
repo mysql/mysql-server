@@ -800,6 +800,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
 err:
   thd->limit_found_rows = join.send_records;
+  thd->examined_row_count = join.examined_rows;
   thd->proc_info="end";
   join.lock=0;					// It's faster to unlock later
   join_free(&join);
@@ -2546,7 +2547,6 @@ join_free(JOIN *join)
       delete tab->select;
       delete tab->quick;
       x_free(tab->cache.buff);
-      end_read_record(&tab->read_record);
       if (tab->table)
       {
 	if (tab->table->key_read)

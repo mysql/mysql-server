@@ -72,6 +72,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token	END_OF_INPUT
 
+%token CLOSE_SYM
+%token HANDLER_SYM
+%token LAST_SYM
+%token NEXT_SYM
+%token PREV_SYM
+%token SQL_CALC_FOUND_ROWS
+
 %token	EQ
 %token	EQUAL_SYM
 %token	GE
