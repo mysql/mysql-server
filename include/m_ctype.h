@@ -26,6 +26,88 @@
 extern "C" {
 #endif
 
+/* declarations for the big5 character set */
+extern uchar ctype_big5[], to_lower_big5[], to_upper_big5[], sort_order_big5[];
+extern int     my_strcoll_big5(const uchar *, const uchar *);
+extern int     my_strxfrm_big5(uchar *, const uchar *, int);
+extern int     my_strnncoll_big5(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_big5(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_big5(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+extern int     ismbchar_big5(const char *, const char *);
+extern my_bool ismbhead_big5(uint);
+extern int     mbcharlen_big5(uint);
+
+/* declarations for the czech character set */
+extern uchar ctype_czech[], to_lower_czech[], to_upper_czech[], sort_order_czech[];
+extern int     my_strcoll_czech(const uchar *, const uchar *);
+extern int     my_strxfrm_czech(uchar *, const uchar *, int);
+extern int     my_strnncoll_czech(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_czech(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_czech(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+
+/* declarations for the euc_kr character set */
+extern uchar ctype_euc_kr[], to_lower_euc_kr[], to_upper_euc_kr[], sort_order_euc_kr[];
+extern int     ismbchar_euc_kr(const char *, const char *);
+extern my_bool ismbhead_euc_kr(uint);
+extern int     mbcharlen_euc_kr(uint);
+
+/* declarations for the gb2312 character set */
+extern uchar ctype_gb2312[], to_lower_gb2312[], to_upper_gb2312[], sort_order_gb2312[];
+extern int     ismbchar_gb2312(const char *, const char *);
+extern my_bool ismbhead_gb2312(uint);
+extern int     mbcharlen_gb2312(uint);
+
+/* declarations for the gbk character set */
+extern uchar ctype_gbk[], to_lower_gbk[], to_upper_gbk[], sort_order_gbk[];
+extern int     my_strcoll_gbk(const uchar *, const uchar *);
+extern int     my_strxfrm_gbk(uchar *, const uchar *, int);
+extern int     my_strnncoll_gbk(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_gbk(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_gbk(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+extern int     ismbchar_gbk(const char *, const char *);
+extern my_bool ismbhead_gbk(uint);
+extern int     mbcharlen_gbk(uint);
+
+/* declarations for the latin1_de character set */
+extern uchar ctype_latin1_de[], to_lower_latin1_de[], to_upper_latin1_de[], sort_order_latin1_de[];
+extern int     my_strcoll_latin1_de(const uchar *, const uchar *);
+extern int     my_strxfrm_latin1_de(uchar *, const uchar *, int);
+extern int     my_strnncoll_latin1_de(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_latin1_de(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_latin1_de(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+
+/* declarations for the sjis character set */
+extern uchar ctype_sjis[], to_lower_sjis[], to_upper_sjis[], sort_order_sjis[];
+extern int     my_strcoll_sjis(const uchar *, const uchar *);
+extern int     my_strxfrm_sjis(uchar *, const uchar *, int);
+extern int     my_strnncoll_sjis(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_sjis(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_sjis(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+extern int     ismbchar_sjis(const char *, const char *);
+extern my_bool ismbhead_sjis(uint);
+extern int     mbcharlen_sjis(uint);
+
+/* declarations for the tis620 character set */
+extern uchar ctype_tis620[], to_lower_tis620[], to_upper_tis620[], sort_order_tis620[];
+extern int     my_strcoll_tis620(const uchar *, const uchar *);
+extern int     my_strxfrm_tis620(uchar *, const uchar *, int);
+extern int     my_strnncoll_tis620(const uchar *, int, const uchar *, int);
+extern int     my_strnxfrm_tis620(uchar *, const uchar *, int, int);
+extern my_bool my_like_range_tis620(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+
+/* declarations for the ujis character set */
+extern uchar ctype_ujis[], to_lower_ujis[], to_upper_ujis[], sort_order_ujis[];
+extern int     ismbchar_ujis(const char *, const char *);
+extern my_bool ismbhead_ujis(uint);
+extern int     mbcharlen_ujis(uint);
+
+
 #define CHARSET_DIR	"charsets/"
 
 typedef struct charset_info_st

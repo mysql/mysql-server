@@ -26,6 +26,7 @@
 
 #include <my_global.h>
 #include "m_string.h"
+#include "m_ctype.h"
 
 uchar NEAR ctype_gb2312[257] =
 {
