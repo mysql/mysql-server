@@ -31,7 +31,7 @@ static void end_delayed_insert(THD *thd);
 extern "C" pthread_handler_decl(handle_delayed_insert,arg);
 static void unlink_blobs(register TABLE *table);
 #endif
-static bool check_view_insertability(TABLE_LIST *view, ulong query_id);
+static bool check_view_insertability(TABLE_LIST *view, query_id_t query_id);
 
 /* Define to force use of my_malloc() if the allocated memory block is big */
 
@@ -538,7 +538,7 @@ abort:
     TRUE  - can't be used for insert
 */
 
-static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
+static bool check_view_insertability(TABLE_LIST *view, query_id_t query_id)
 {
   uint num= view->view->select_lex.item_list.elements;
   TABLE *table= view->table;
@@ -546,7 +546,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
 		   *trans_end= trans_start + num;
   Field_translator *trans;
   Field **field_ptr= table->field;
-  ulong other_query_id= query_id - 1;
+  query_id_t other_query_id= query_id - 1;
   DBUG_ENTER("check_key_in_view");
 
   DBUG_ASSERT(view->table != 0 && view->field_translation != 0);

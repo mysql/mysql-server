@@ -84,6 +84,7 @@ public:
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
   inline bool is_empty() { return (str_length == 0); }
+  inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {
@@ -204,10 +205,6 @@ public:
 	Alloced_length=arg_length;
       }
     }
-  }
-  inline void shrink_to_length()
-  {
-    Alloced_length= str_length;
   }
   bool is_alloced() { return alloced; }
   inline String& operator = (const String &s)

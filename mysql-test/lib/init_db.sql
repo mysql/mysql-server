@@ -16,6 +16,11 @@ CREATE TABLE db (
   Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY Host (Host,Db,User),
   KEY User (User)
 ) engine=MyISAM
@@ -23,8 +28,8 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='Database privileges';
 
   
-INSERT INTO db VALUES ('%','test'   ,'','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');
-INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y');
+INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N');
+INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N');
 
 
 CREATE TABLE host (
@@ -42,6 +47,8 @@ CREATE TABLE host (
   Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY Host (Host,Db)
 ) engine=MyISAM
 CHARACTER SET utf8 COLLATE utf8_bin
@@ -73,6 +80,10 @@ CREATE TABLE user (
   Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   ssl_cipher BLOB NOT NULL,
   x509_issuer BLOB NOT NULL,
@@ -80,15 +91,16 @@ CREATE TABLE user (
   max_questions int(11) unsigned DEFAULT 0  NOT NULL,
   max_updates int(11) unsigned DEFAULT 0  NOT NULL,
   max_connections int(11) unsigned DEFAULT 0  NOT NULL,
+  max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
   PRIMARY KEY Host (Host,User)
 ) engine=MyISAM
 CHARACTER SET utf8 COLLATE utf8_bin
 comment='Users and global privileges';
 
 
-INSERT  INTO user VALUES ('localhost'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-INSERT  INTO user VALUES ('@HOSTNAME@%','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 INSERT  INTO user (host,user) VALUES ('localhost','');
 INSERT  INTO user (host,user) VALUES ('@HOSTNAME@%','');
 
@@ -468,3 +480,74 @@ INSERT INTO time_zone_leap_second (
  ,(662688015, 16) ,(709948816, 17) ,(741484817, 18)
  ,(773020818, 19) ,(820454419, 20) ,(867715220, 21)
  ,(915148821, 22);
+
+
+CREATE TABLE procs_priv (
+  Host char(60) binary DEFAULT '' NOT NULL,
+  Db char(64) binary DEFAULT '' NOT NULL,
+  User char(16) binary DEFAULT '' NOT NULL,
+  Routine_name char(64) binary DEFAULT '' NOT NULL,
+  Grantor char(77) DEFAULT '' NOT NULL,
+  Timestamp timestamp(14),
+  Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+  PRIMARY KEY (Host,Db,User,Routine_name),
+  KEY Grantor (Grantor)
+) engine=MyISAM
+CHARACTER SET utf8 COLLATE utf8_bin
+comment='Procedure privileges';
+
+
+CREATE TABLE proc (
+  db                char(64) binary DEFAULT '' NOT NULL,
+  name              char(64) DEFAULT '' NOT NULL,
+  type              enum('FUNCTION','PROCEDURE') NOT NULL,
+  specific_name     char(64) DEFAULT '' NOT NULL,
+  language          enum('SQL') DEFAULT 'SQL' NOT NULL,
+  sql_data_access   enum('CONTAINS_SQL',
+		     'NO_SQL',
+		     'READS_SQL_DATA',
+		     'MODIFIES_SQL_DATA'
+                    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
+  is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
+  security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
+  param_list        blob DEFAULT '' NOT NULL,
+  returns           char(64) DEFAULT '' NOT NULL,
+  body              blob DEFAULT '' NOT NULL,
+  definer           char(77) binary DEFAULT '' NOT NULL,
+  created           timestamp,
+  modified          timestamp,
+  sql_mode          set(
+                        'REAL_AS_FLOAT',
+                        'PIPES_AS_CONCAT',
+                        'ANSI_QUOTES',
+                        'IGNORE_SPACE',
+                        'NOT_USED',
+                        'ONLY_FULL_GROUP_BY',
+                        'NO_UNSIGNED_SUBTRACTION',
+                        'NO_DIR_IN_CREATE',
+                        'POSTGRESQL',
+                        'ORACLE',
+                        'MSSQL',
+                        'DB2',
+                        'MAXDB',
+                        'NO_KEY_OPTIONS',
+                        'NO_TABLE_OPTIONS',
+                        'NO_FIELD_OPTIONS',
+                        'MYSQL323',
+                        'MYSQL40',
+                        'ANSI',
+                        'NO_AUTO_VALUE_ON_ZERO',
+                        'NO_BACKSLASH_ESCAPES',
+                        'STRICT_TRANS_TABLES',
+                        'STRICT_ALL_TABLES',
+                        'NO_ZERO_IN_DATE',
+                        'NO_ZERO_DATE',
+                        'INVALID_DATES',
+                        'ERROR_FOR_DIVISION_BY_ZERO',
+                        'TRADITIONAL',
+                        'NO_AUTO_CREATE_USER',
+                        'HIGH_NOT_PRECEDENCE'
+                    ) DEFAULT 0 NOT NULL,
+  comment           char(64) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (db,name,type)
+) comment='Stored Procedures';

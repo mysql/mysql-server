@@ -19,16 +19,17 @@
 #endif
 
 #include "instance.h"
+
 #include "mysql_manager_error.h"
 #include "log.h"
 #include "instance_map.h"
 #include "priv.h"
 
+#include <sys/wait.h>
 #include <my_sys.h>
 #include <signal.h>
 #include <m_string.h>
-#include <sys/wait.h>
-
+#include <mysql.h>
 
 C_MODE_START
 

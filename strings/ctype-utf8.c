@@ -2264,8 +2264,8 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
     plane=(wc>>8) & 0xFF;
     wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].sort : wc;
 
-    *dst++= wc >> 8;
-    *dst++= wc & 0xFF;
+    *dst++= (uchar)(wc >> 8);
+    *dst++= (uchar)(wc & 0xFF);
     
   }
   
