@@ -491,6 +491,7 @@ struct show_var_st init_vars[]= {
   {sys_net_write_timeout.name,(char*) &sys_net_write_timeout,       SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
+  {"log_error",               (char*) log_error_file,               SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},

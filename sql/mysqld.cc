@@ -262,6 +262,7 @@ my_bool opt_reckless_slave = 0;
 
 ulong back_log, connect_timeout, concurrency;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
+char log_error_file[FN_REFLEN];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_enable_named_pipe= 0;
@@ -278,6 +279,7 @@ static my_string opt_logname=0,opt_update_logname=0,
 
 static char* mysql_home_ptr= mysql_home;
 static char* pidfile_name_ptr= pidfile_name;
+char* log_error_file_ptr= log_error_file;
 static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
@@ -2042,13 +2044,28 @@ int main(int argc, char **argv)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     NullS, LOG_NORMAL);
 #ifdef __WIN__
-#define MYSQL_ERR_FILE "mysql.err"
   if (!opt_console)
   {
-    freopen(MYSQL_ERR_FILE,"a+",stdout);
-    freopen(MYSQL_ERR_FILE,"a+",stderr);
+#endif
+    if (log_error_file_ptr != log_error_file)
+      strmake(log_error_file, log_error_file_ptr, sizeof(log_error_file));
+    else
+    {
+      char *end;
+      uint length= ((end=strmake(log_error_file,
+                                 mysql_real_data_home,
+                                 FN_REFLEN-5)) -
+                      log_error_file);
+      *strxnmov(end, sizeof(log_error_file)-length-1,
+                glob_hostname, ".err", NullS)= '\0';
+    }
+    if (log_error_file[0] != '\0')
+      if (freopen(log_error_file, "a+", stdout))
+        freopen(log_error_file, "a+", stderr);
+#ifdef __WIN__
   }
 #endif
+
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -2964,7 +2981,8 @@ enum options {
   OPT_INNODB_FORCE_RECOVERY,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
-  OPT_BDB_MAX_LOCK
+  OPT_BDB_MAX_LOCK,
+  OPT_ERROR_LOG_FILE
 };
 
 
@@ -3252,6 +3270,9 @@ struct my_option my_long_options[] =
 #endif
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld",
    (gptr*) &pidfile_name_ptr, (gptr*) &pidfile_name_ptr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-error", OPT_ERROR_LOG_FILE, "Log error file",
+   (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &mysql_port,
    (gptr*) &mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

@@ -3407,6 +3407,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     mysql_slow_log.new_file(1);
     if (ha_flush_logs())
       result=1;
+    if (flush_error_log())
+      result=1;
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
