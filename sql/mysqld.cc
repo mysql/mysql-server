@@ -1362,7 +1362,8 @@ thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n",
 	      thread_count);
     }
 #ifdef LINUX_STACK_TRACE
-  trace_stack();
+  if(!(test_flags & TEST_NO_STACKTRACE))
+    trace_stack();
   fflush(stderr);
 #endif /* LINUX_STACK_TRACE */
  if (test_flags & TEST_CORE_ON_SIGNAL)
@@ -1398,7 +1399,7 @@ static void init_signals(void)
   heap_start = (char*)&__bss_start;
 #endif
   
-  if (!(test_flags & TEST_NO_STACKTRACE))
+  if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
     sa.sa_handler=handle_segfault;
     sigaction(SIGSEGV, &sa, NULL);
