@@ -117,8 +117,8 @@ InitConfigFileParser::parseConfig(FILE * file) {
       ctx.m_sectionLineno  = ctx.m_lineno;
       ctx.m_currentSection = new Properties(true);
       ctx.m_userDefaults   = NULL;
-      ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
-      ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
+      require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
+      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
       continue;
     }
     
@@ -139,8 +139,8 @@ InitConfigFileParser::parseConfig(FILE * file) {
       ctx.m_sectionLineno  = ctx.m_lineno;      
       ctx.m_currentSection = new Properties(true);
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
-      ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
-      ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
+      require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != 0);
+      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
       continue;
     }
     
@@ -180,8 +180,8 @@ InitConfigFileParser::parseConfig(FILE * file) {
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_currentSection = tmp[j].m_sectionData;
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
-      ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
-      ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
+      require((ctx.m_currentInfo    = m_info->getInfo(ctx.fname)) != 0);
+      require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
       if(!storeSection(ctx))
 	return 0;
     }
@@ -516,7 +516,7 @@ char*
 InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   static char token1[MAX_LINE_LENGTH], token2[MAX_LINE_LENGTH];
 
-  int no = sscanf(line, "[%120[A-Za-z] %120[A-Za-z]]", token1, token2);
+  int no = sscanf(line, "[%120[A-Z_a-z] %120[A-Z_a-z]]", token1, token2);
 
   // Not correct no of tokens 
   if (no != 2) return NULL;
@@ -524,8 +524,12 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   // Not correct keyword at end
   if (!strcasecmp(token2, "DEFAULT") == 0) return NULL;
 
-  if(m_info->getInfo(token1)){
-    return strdup(token1);
+  const char *token1_alias= m_info->getAlias(token1);
+  if (token1_alias == 0)
+    token1_alias= token1;
+
+  if(m_info->getInfo(token1_alias)){
+    return strdup(token1_alias);
   }
   
   // Did not find section
