@@ -891,7 +891,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   option|= MY_REPLACE_DIR;			// Force use of db directory
 #endif
 
-  strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "");
+  strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "",
+           NullS);
   (void) fn_format(path, exchange->file_name, path, "", option);
   if (!access(path, F_OK))
   {

@@ -1,5 +1,5 @@
 drop table if exists t1;
-drop database if exists test2;
+drop database if exists mysqltest;
 set autocommit=0;
 create table t1 (
 a int not null primary key,
@@ -256,8 +256,8 @@ a	b	c	d
 7	7xb7	777	7xdd7
 8	8xb8	888	8xdd8
 9	9xb9	999	9xdd9
-create database test2;
-use test2;
+create database mysqltest;
+use mysqltest;
 CREATE TABLE t2 (
 a bigint unsigned NOT NULL PRIMARY KEY,
 b int unsigned not null,
@@ -320,3 +320,5 @@ rollback;
 select count(*) from t1;
 count(*)
 0
+drop table t1;
+drop database mysqltest;

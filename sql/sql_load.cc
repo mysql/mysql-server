@@ -183,7 +183,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	strlen(ex->file_name)+strlen(mysql_real_data_home)+strlen(tdb)+3 <
 	FN_REFLEN)
     {
-      (void) sprintf(name,"%s/%s/%s",mysql_data_home,tdb,ex->file_name);
+      (void) sprintf(name,"%s%s/%s",mysql_real_data_home,tdb,ex->file_name);
       unpack_filename(name,name);		/* Convert to system format */
     }
     else

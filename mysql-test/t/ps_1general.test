@@ -350,11 +350,11 @@ prepare stmt4 from ' use test ' ;
 
 ## create/drop database
 --error 1295
-prepare stmt3 from ' create database drop_me ';
-create database drop_me ;
+prepare stmt3 from ' create database mysqltest ';
+create database mysqltest ;
 --error 1295
-prepare stmt3 from ' drop database drop_me ';
-drop database drop_me ;
+prepare stmt3 from ' drop database mysqltest ';
+drop database mysqltest ;
 
 ## grant/revoke + drop user
 --error 1295
