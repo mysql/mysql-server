@@ -2552,6 +2552,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
+	ulint		add_on;
 	mtr_t		mtr;
 
 	n_cols = dict_index_get_n_unique(index);
@@ -2624,8 +2625,25 @@ btr_estimate_number_of_different_key_vals(
 				 + not_empty_flag)
 		                	/ (BTR_KEY_VAL_ESTIMATE_N_PAGES
 		                	   + total_external_size);
-	}
 	
+		/* If the tree is small, smaller than <
+		10 * BTR_KEY_VAL_ESTIMATE_N_PAGES + total_external_size, then
+		the above estimate is ok. For bigger trees it is common that we
+		do not see any borders between key values in the few pages
+		we pick. But still there may be BTR_KEY_VAL_ESTIMATE_N_PAGES
+		different key values, or even more. Let us try to approximate
+		that: */
+
+		add_on = index->stat_n_leaf_pages /
+		   (10 * (BTR_KEY_VAL_ESTIMATE_N_PAGES + total_external_size));
+
+		if (add_on > BTR_KEY_VAL_ESTIMATE_N_PAGES) {
+			add_on = BTR_KEY_VAL_ESTIMATE_N_PAGES;
+		}
+		
+		index->stat_n_diff_key_vals[j] += add_on;
+	}
+		
 	mem_free(n_diff);
 }
 

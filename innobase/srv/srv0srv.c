@@ -20,7 +20,7 @@ Windows 2000 will have something called thread pooling
 Another possibility could be to use some very fast user space
 thread library. This might confuse NT though.
 
-(c) 1995 InnoDB Oy
+(c) 1995 Innobase Oy
 
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
@@ -49,6 +49,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "srv0start.h"
+#include "row0mysql.h"
 
 /* Buffer which can be used in printing fatal error messages */
 char	srv_fatal_errbuf[5000];
@@ -91,8 +92,43 @@ ibool	srv_log_archive_on	= TRUE;
 ulint	srv_log_buffer_size	= ULINT_MAX;	/* size in database pages */ 
 ibool	srv_flush_log_at_trx_commit = TRUE;
 
-byte	srv_latin1_ordering[256];	/* The sort order table of the latin1
-					character set */
+byte	srv_latin1_ordering[256]	/* The sort order table of the latin1
+					character set. The following table is
+					the MySQL order as of Feb 10th, 2002 */
+= {
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
+, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
+, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F
+, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F
+, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47
+, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F
+, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57
+, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F
+, 0x60, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47
+, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F
+, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57
+, 0x58, 0x59, 0x5A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F
+, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87
+, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F
+, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97
+, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F
+, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7
+, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF
+, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7
+, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF
+, 0x41, 0x41, 0x41, 0x41, 0x5C, 0x5B, 0x5C, 0x43
+, 0x45, 0x45, 0x45, 0x45, 0x49, 0x49, 0x49, 0x49
+, 0x44, 0x4E, 0x4F, 0x4F, 0x4F, 0x4F, 0x5D, 0xD7
+, 0xD8, 0x55, 0x55, 0x55, 0x59, 0x59, 0xDE, 0xDF
+, 0x41, 0x41, 0x41, 0x41, 0x5C, 0x5B, 0x5C, 0x43
+, 0x45, 0x45, 0x45, 0x45, 0x49, 0x49, 0x49, 0x49
+, 0x44, 0x4E, 0x4F, 0x4F, 0x4F, 0x4F, 0x5D, 0xF7
+, 0xD8, 0x55, 0x55, 0x55, 0x59, 0x59, 0xDE, 0xFF
+};
 
 ibool	srv_use_native_aio	= FALSE;
 		
@@ -1911,17 +1947,12 @@ srv_boot(void)
 
 	srv_init();
 
-	/* Reserve the first slot for the current thread, i.e., the master
-	thread */
-
-	srv_table_reserve_slot(SRV_MASTER);
-
 	return(DB_SUCCESS);
 }
 
 /*************************************************************************
 Reserves a slot in the thread table for the current MySQL OS thread.
-NOTE! The server mutex has to be reserved by the caller! */
+NOTE! The kernel mutex has to be reserved by the caller! */
 static
 srv_slot_t*
 srv_table_reserve_slot_for_mysql(void)
@@ -1930,6 +1961,8 @@ srv_table_reserve_slot_for_mysql(void)
 {
 	srv_slot_t*	slot;
 	ulint		i;
+
+	ut_ad(mutex_own(&kernel_mutex));
 
 	i = 0;
 	slot = srv_mysql_table + i;
@@ -2352,6 +2385,22 @@ srv_active_wake_master_thread(void)
 	}
 }
 
+/***********************************************************************
+Wakes up the master thread if it is suspended or being suspended. */
+
+void
+srv_wake_master_thread(void)
+/*========================*/
+{
+	srv_activity_count++;
+			
+	mutex_enter(&kernel_mutex);
+
+	srv_release_threads(SRV_MASTER, 1);
+
+	mutex_exit(&kernel_mutex);
+}
+
 /*************************************************************************
 The master thread controlling the server. */
 
@@ -2374,6 +2423,7 @@ srv_master_thread(
 	ulint		n_bytes_merged;
 	ulint		n_pages_flushed;
 	ulint		n_bytes_archived;
+	ulint		n_tables_to_drop;
 	ulint		n_ios;
 	ulint		n_ios_old;
 	ulint		n_ios_very_old;
@@ -2415,7 +2465,11 @@ loop:
 		can drop tables lazily after there no longer are SELECT
 		queries to them. */
 
-/*		row_drop_tables_for_mysql_in_background(); */
+		srv_main_thread_op_info = "doing background drop tables";
+
+		row_drop_tables_for_mysql_in_background();
+
+		srv_main_thread_op_info = "";
 
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 
@@ -2465,6 +2519,11 @@ loop:
 		printf("Master thread wakes up!\n");
 	}
 
+#ifdef MEM_PERIODIC_CHECK
+	/* Check magic numbers of every allocated mem block once in 10
+	seconds */
+	mem_validate_all_blocks();
+#endif	
 	/* If there were less than 200 i/os during the 10 second period,
 	we assume that there is free disk i/o capacity available, and it
 	makes sense to do a buffer pool flush. */
@@ -2521,6 +2580,12 @@ background_loop:
 	/* In this loop we run background operations when the server
 	is quiet and we also come here about once in 10 seconds */
 
+	srv_main_thread_op_info = "doing background drop tables";
+
+	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
+
+	srv_main_thread_op_info = "";
+	
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	/* Flush a few oldest pages to make the checkpoint younger */
@@ -2604,11 +2669,13 @@ background_loop:
 	log_archive_do(FALSE, &n_bytes_archived);
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
-		if (n_pages_flushed + n_bytes_archived != 0) {
+		if (n_tables_to_drop + n_pages_flushed
+				+ n_bytes_archived != 0) {
 
 			goto background_loop;
 		}
-	} else if (n_pages_purged + n_bytes_merged + n_pages_flushed
+	} else if (n_tables_to_drop +
+		n_pages_purged + n_bytes_merged + n_pages_flushed
 						+ n_bytes_archived != 0) {
 		goto background_loop;
 	}
@@ -2626,6 +2693,12 @@ suspend_thread:
 	srv_main_thread_op_info = "suspending";
 
 	mutex_enter(&kernel_mutex);
+
+	if (row_get_background_drop_list_len_low() > 0) {
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+	}
 
 	event = srv_suspend_thread();
 

@@ -196,21 +196,6 @@ dict_mutex_exit_for_mysql(void)
 }
 	
 /************************************************************************
-Increments the count of open MySQL handles to a table. */
-
-void
-dict_table_increment_handle_count(
-/*==============================*/
-	dict_table_t*	table)	/* in: table */
-{
-	mutex_enter(&(dict_sys->mutex));
-
-	table->n_mysql_handles_opened++;
-	
-	mutex_exit(&(dict_sys->mutex));
-}
-
-/************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
 void
@@ -483,6 +468,41 @@ dict_table_get(
 	mutex_enter(&(dict_sys->mutex));
 	
 	table = dict_table_get_low(table_name);
+
+	mutex_exit(&(dict_sys->mutex));
+
+	if (table != NULL) {
+	        if (!table->stat_initialized) {
+			dict_update_statistics(table);
+		}
+	}
+	
+	return(table);
+}
+
+/**************************************************************************
+Returns a table object and increments MySQL open handle count on the table.
+*/
+
+dict_table_t*
+dict_table_get_and_increment_handle_count(
+/*======================================*/
+				/* out: table, NULL if does not exist */
+	char*	table_name,	/* in: table name */
+	trx_t*	trx)		/* in: transaction handle or NULL */
+{
+	dict_table_t*	table;
+
+	UT_NOT_USED(trx);
+
+	mutex_enter(&(dict_sys->mutex));
+	
+	table = dict_table_get_low(table_name);
+
+	if (table != NULL) {
+
+	        table->n_mysql_handles_opened++;
+	}
 
 	mutex_exit(&(dict_sys->mutex));
 
@@ -1963,7 +1983,7 @@ loop:
 	ptr = dict_accept(ptr, "FOREIGN", &success);		
 	
 	if (!isspace(*ptr)) {
-		return(DB_CANNOT_ADD_CONSTRAINT);
+	        goto loop;
 	}
 
 	ptr = dict_accept(ptr, "KEY", &success);

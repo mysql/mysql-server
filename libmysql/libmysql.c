@@ -61,7 +61,7 @@ static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
 
-#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES | CLIENT_TRANSACTIONS)
+#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS)
 
 #ifdef __WIN__
 #define CONNECT_TIMEOUT 20
@@ -671,11 +671,12 @@ mysql_free_result(MYSQL_RES *result)
 ****************************************************************************/
 
 static const char *default_options[]=
-{"port","socket","compress","password","pipe", "timeout", "user",
- "init-command", "host", "database", "debug", "return-found-rows",
- "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
- "character-set-dir", "default-character-set", "interactive-timeout",
- "connect_timeout",
+{
+  "port","socket","compress","password","pipe", "timeout", "user",
+  "init-command", "host", "database", "debug", "return-found-rows",
+  "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
+  "character-set-dir", "default-character-set", "interactive-timeout",
+  "connect-timeout", "local-infile", "disable-local-infile",
  NullS
 };
 
@@ -710,6 +711,9 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  opt_arg=end+1;
 	  *end=0;				/* Remove '=' */
 	}
+	/* Change all '_' in variable name to '-' */
+	for (end= *option ; (end= strcend(end,'_')) ; )
+	  *end= '-';
 	switch (find_type(*option+2,&option_types,2)) {
 	case 1:				/* port */
 	  if (opt_arg)
@@ -807,7 +811,16 @@ static void mysql_read_default_options(struct st_mysql_options *options,
           options->charset_name = my_strdup(opt_arg, MYF(MY_WME));
 	  break;
 	case 19:				/* Interactive-timeout */
-	  options->client_flag|=CLIENT_INTERACTIVE;
+	  options->client_flag|= CLIENT_INTERACTIVE;
+	  break;
+	case 21:
+	  if (!opt_arg || atoi(opt_arg) != 0)
+	    options->client_flag|= CLIENT_LOCAL_FILES;
+	  else
+	    options->client_flag&= ~CLIENT_LOCAL_FILES;
+	  break;
+	case 22:
+	  options->client_flag&= CLIENT_LOCAL_FILES;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -1005,6 +1018,14 @@ mysql_init(MYSQL *mysql)
 #if defined(SIGPIPE) && defined(THREAD) && !defined(__WIN__)
   if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
     (void) signal(SIGPIPE,pipe_sig_handler);
+#endif
+
+/*
+  Only enable LOAD DATA INFILE by default if configured with
+  --with-enabled-local-inflile
+*/
+#ifdef ENABLED_LOCAL_INFILE
+  mysql->options.client_flag|= CLIENT_LOCAL_FILES;
 #endif
   return mysql;
 }
@@ -1453,7 +1474,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (mysql->options.use_ssl)
     client_flag|=CLIENT_SSL;
 #endif /* HAVE_OPENSSL */
-
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 #ifdef HAVE_COMPRESS
@@ -2267,10 +2287,16 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->options.connect_timeout= *(uint*) arg;
     break;
   case MYSQL_OPT_COMPRESS:
-    mysql->options.compress=1;			/* Remember for connect */
+    mysql->options.compress= 1;			/* Remember for connect */
     break;
   case MYSQL_OPT_NAMED_PIPE:
     mysql->options.named_pipe=1;		/* Force named pipe */
+    break;
+  case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
+    if (!arg || test(*(uint*) arg))
+      mysql->options.client_flag|= CLIENT_LOCAL_FILES;
+    else
+      mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
     break;
   case MYSQL_INIT_COMMAND:
     my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));

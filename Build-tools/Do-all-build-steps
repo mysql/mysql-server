@@ -64,6 +64,7 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
  --with-berkeley-db \
+ --enable-local-infile \
  --with-innodb
 
 gmake -j 2 
@@ -71,7 +72,7 @@ gmake -j 2
 time gmake -j 2 distcheck \
  EXTRA_CONF_ARGS="--with-unix-socket-path=/var/tmp/mysql.sock --with-low-memory $EXTRA_CONFIG"
 
-sh $BD/Build-tools/Do-rpm
+sh $BD/Build-tools/Do-rpm $*
 
 rm -f $TMP_SCRIPT
 END

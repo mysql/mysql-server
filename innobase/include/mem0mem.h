@@ -269,13 +269,24 @@ mem_realloc(
 	ulint   n,	/* in: desired number of bytes */
 	char*  	file_name,/* in: file name where called */
 	ulint 	line);  /* in: line where called */
+#ifdef MEM_PERIODIC_CHECK
+/**********************************************************************
+Goes through the list of all allocated mem blocks, checks their magic
+numbers, and reports possible corruption. */
 
+void
+mem_validate_all_blocks(void);
+/*=========================*/
+#endif
 
 /*#######################################################################*/
 	
 /* The info header of a block in a memory heap */
 
 struct mem_block_info_struct {
+	ulint   magic_n;/* magic number for debugging */
+	char	file_name[8];/* file name where the mem heap was created */
+	ulint	line;	/* line number where the mem heap was created */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
 			the list this is the base node of the list of blocks;
 			in subsequent blocks this is undefined */
@@ -299,9 +310,11 @@ struct mem_block_info_struct {
 			allocated buffer frame, which can be appended as a
 			free block to the heap, if we need more space;
 			otherwise, this is NULL */
-	ulint   magic_n;/* magic number for debugging */
-	char	file_name[8];/* file name where the mem heap was created */
-	ulint	line;	/* line number where the mem heap was created */
+#ifdef MEM_PERIODIC_CHECK	
+	UT_LIST_NODE_T(mem_block_t) mem_block_list;
+			/* List of all mem blocks allocated; protected
+			by the mem_comm_pool mutex */
+#endif
 };
 
 #define MEM_BLOCK_MAGIC_N	764741555

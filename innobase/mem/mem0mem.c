@@ -50,7 +50,7 @@ of the blocks stay the same. An exception is, of course, the case
 where the caller requests a memory buffer whose size is
 bigger than the threshold. In that case a block big enough must
 be allocated.
-
+ 
 The heap is physically arranged so that if the current block
 becomes full, a new block is allocated and always inserted in the
 chain of blocks as the last block.
@@ -75,6 +75,14 @@ After freeing, all the blocks in the heap are set to random bytes
 to help us discover errors which result from the use of
 buffers in an already freed heap. */
 
+#ifdef MEM_PERIODIC_CHECK	
+
+ibool					mem_block_list_inited;
+/* List of all mem blocks allocated; protected by the mem_comm_pool mutex */
+UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
+
+#endif
+			
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -118,6 +126,10 @@ mem_heap_create_block(
 	
 	ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER)
 		|| (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
+
+	if (heap && heap->magic_n != MEM_BLOCK_MAGIC_N) {
+		mem_analyze_corruption((byte*)heap);
+	}
 
 	/* In dynamic allocation, calculate the size: block header + data. */
 
@@ -165,7 +177,19 @@ mem_heap_create_block(
 									7);
 	block->file_name[7]='\0';
 	block->line = line;
+
+#ifdef MEM_PERIODIC_CHECK	
+	mem_pool_mutex_enter();
+
+	if (!mem_block_list_inited) {
+		mem_block_list_inited = TRUE;
+		UT_LIST_INIT(mem_block_list);
+	}
 	
+	UT_LIST_ADD_LAST(mem_block_list, mem_block_list, block);
+
+	mem_pool_mutex_exit();
+#endif
 	mem_block_set_len(block, len);
 	mem_block_set_type(block, type);
 	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
@@ -251,8 +275,19 @@ mem_heap_block_free(
 	ulint	len;
 	ibool	init_block;	
 
+	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
+		mem_analyze_corruption((byte*)block);
+	}
+
 	UT_LIST_REMOVE(list, heap->base, block);
 		
+#ifdef MEM_PERIODIC_CHECK	
+	mem_pool_mutex_enter();
+
+	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
+
+	mem_pool_mutex_exit();
+#endif
 	type = heap->type;
 	len = block->len;
 	init_block = block->init_block;
@@ -298,3 +333,30 @@ mem_heap_free_block_free(
 		heap->free_block = NULL;
 	}
 }
+
+#ifdef MEM_PERIODIC_CHECK
+/**********************************************************************
+Goes through the list of all allocated mem blocks, checks their magic
+numbers, and reports possible corruption. */
+
+void
+mem_validate_all_blocks(void)
+/*=========================*/
+{
+	mem_block_t*	block;
+
+	mem_pool_mutex_enter();
+
+	block = UT_LIST_GET_FIRST(mem_block_list);
+
+	while (block) {
+		if (block->magic_n != MEM_BLOCK_MAGIC_N) {
+			mem_analyze_corruption((byte*)block);
+		}
+
+		block = UT_LIST_GET_NEXT(mem_block_list, block);
+	}
+
+	mem_pool_mutex_exit();
+}
+#endif

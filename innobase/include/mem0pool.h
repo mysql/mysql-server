@@ -72,6 +72,18 @@ mem_pool_get_reserved(
 				/* out: reserved mmeory in bytes */
 	mem_pool_t*	pool);	/* in: memory pool */
 /************************************************************************
+Reserves the mem pool mutex. */
+
+void
+mem_pool_mutex_enter(void);
+/*======================*/
+/************************************************************************
+Releases the mem pool mutex. */
+
+void
+mem_pool_mutex_exit(void);
+/*=====================*/
+/************************************************************************
 Validates a memory pool. */
 
 ibool

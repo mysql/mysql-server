@@ -1235,16 +1235,23 @@ loop:
 
 	if (error != DB_SUCCESS) {
 	        fprintf(stderr,
-			"InnoDB: foreign constraint creation failed;\n"
+			"InnoDB: Foreign key constraint creation failed:\n"
 			"InnoDB: internal error number %lu\n", error);
 
-		ut_a(error == DB_OUT_OF_FILE_SPACE);
+		if (error == DB_DUPLICATE_KEY) {
+			fprintf(stderr,
+	"InnoDB: Duplicate key error in system table %s index %s\n",
+			((dict_index_t*)trx->error_info)->table_name,
+			((dict_index_t*)trx->error_info)->name);
 
-		fprintf(stderr, "InnoDB: tablespace is full\n");
-
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
-
-		error = DB_MUST_GET_MORE_FILE_SPACE;
+			fprintf(stderr, "%s\n", buf);
+			
+			fprintf(stderr,
+	"InnoDB: Maybe the internal data dictionary of InnoDB is\n"
+	"InnoDB: out-of-sync from the .frm files of your tables.\n"
+	"InnoDB: See section 15.1 Troubleshooting data dictionary operations\n"
+	"InnoDB: at http://www.innodb.com/ibman.html\n");
+		}
 
 		return(error);
 	}

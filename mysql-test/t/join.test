@@ -194,3 +194,27 @@ t3.Contractor_ID = '999999'  OR
 t3.Contractor_ID = '1') AND 
 t3.CanRead='1' AND t3.Active='1';
 drop table t1,t2,t3;
+
+#
+# Bug when doing full join and NULL fields.
+#
+
+CREATE TABLE t1 (
+  t1_id int(11) default NULL,
+  t2_id int(11) default NULL,
+  type enum('Cost','Percent') default NULL,
+  cost_unit enum('Cost','Unit') default NULL,
+  min_value double default NULL,
+  max_value double default NULL,
+  t3_id int(11) default NULL,
+  item_id int(11) default NULL
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (12,5,'Percent','Cost',-1,0,-1,-1),(14,4,'Percent','Cost',-1,0,-1,-1),(18,5,'Percent','Cost',-1,0,-1,-1),(19,4,'Percent','Cost',-1,0,-1,-1),(20,5,'Percent','Cost',100,-1,22,291),(21,5,'Percent','Cost',100,-1,18,291),(22,1,'Percent','Cost',100,-1,6,291),(23,1,'Percent','Cost',100,-1,21,291),(24,1,'Percent','Cost',100,-1,9,291),(25,1,'Percent','Cost',100,-1,4,291),(26,1,'Percent','Cost',100,-1,20,291),(27,4,'Percent','Cost',100,-1,7,202),(28,1,'Percent','Cost',50,-1,-1,137),(29,2,'Percent','Cost',100,-1,4,354),(30,2,'Percent','Cost',100,-1,9,137),(93,2,'Cost','Cost',-1,10000000,-1,-1);
+CREATE TABLE t2 (
+  id int(10) unsigned NOT NULL auto_increment,
+  name varchar(255) default NULL,
+  PRIMARY KEY  (id)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
+select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
+drop table t1,t2;

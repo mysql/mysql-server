@@ -257,28 +257,31 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
-/* This function is called when MySQL writes the log segment of a transaction
-to the binlog. It is called when the LOCK_log mutex is reserved. Here we
-communicate to transactional table handlers whta binlog position corresponds
-to the current transaction. The handler can store it and in recovery print
-to the user, so that the user knows from what position in the binlog to
-start possible roll-forward, for example, if the crashed server was a slave
-in replication. This function also calls the commit of the table handler,
-because the order of trasnactions in the log of the table handler must be
-the same as in the binlog. */
+/*
+  This function is called when MySQL writes the log segment of a
+  transaction to the binlog. It is called when the LOCK_log mutex is
+  reserved. Here we communicate to transactional table handlers whta
+  binlog position corresponds to the current transaction. The handler
+  can store it and in recovery print to the user, so that the user
+  knows from what position in the binlog to start possible
+  roll-forward, for example, if the crashed server was a slave in
+  replication. This function also calls the commit of the table
+  handler, because the order of trasnactions in the log of the table
+  handler must be the same as in the binlog.
 
-int ha_report_binlog_offset_and_commit(
-       THD      *thd,           /* in: user thread */
-       char     *log_file_name, /* in: latest binlog file name */
-       my_off_t  end_offset)    /* in: the offset in the binlog file
-				   up to which we wrote */
+  arguments:
+  log_file_name: latest binlog file name
+  end_offset:	 the offset in the binlog file up to which we wrote
+*/
+
+int ha_report_binlog_offset_and_commit(THD *thd,
+				       char *log_file_name,
+				       my_off_t end_offset)
 {
-  THD_TRANS *trans;
-  int        error  = 0;
-
-  trans = &thd->transaction.all;
-
+  int  error= 0;
 #ifdef HAVE_INNOBASE_DB
+  THD_TRANS *trans;
+  trans = &thd->transaction.all;
   if (trans->innobase_tid)
   {
     if ((error=innobase_report_binlog_offset_and_commit(thd,
@@ -292,9 +295,9 @@ int ha_report_binlog_offset_and_commit(
     trans->innodb_active_trans=0;
   }
 #endif
-
   return error;
 }
+
 
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {

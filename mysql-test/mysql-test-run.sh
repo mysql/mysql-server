@@ -124,6 +124,7 @@ MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
 NO_SLAVE=0
+USER_TEST=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
@@ -173,6 +174,9 @@ while test $# -gt 0; do
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
+      ;;
+    --user-test=*)
+      USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -266,7 +270,6 @@ fi
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`$EXPR substr '------------------------------------------------------------------------' 1 $E`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
@@ -906,11 +909,16 @@ then
  if [ x$RECORD = x1 ]; then
   $ECHO "Will not run in record mode without a specific test case."
  else
-  for tf in $TESTDIR/*.$TESTSUFFIX
-  do
-    run_testcase $tf
-  done
-  $RM -f $TIMEFILE	# Remove for full test
+  if [ -z "$USER_TEST" ]
+  then
+    for tf in $TESTDIR/*.$TESTSUFFIX
+    do
+     run_testcase $tf
+    done
+    $RM -f $TIMEFILE	# Remove for full test
+  else
+   $USER_TEST  
+  fi  
  fi
 else 
 tname=`$BASENAME $1 .test`

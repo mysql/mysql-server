@@ -51,7 +51,8 @@ EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
 			strmake.c strnmov.c strmov.c strnlen.c \
 			bmove_upp-sparc.s strappend-sparc.s strend-sparc.s \
 			strinstr-sparc.s strmake-sparc.s strmov-sparc.s \
-			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s
+			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s \
+                        t_ctype.h
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \

@@ -10,7 +10,7 @@ done
 
 commands="\
 $make -k clean || true 
-/bin/rm -f */.deps/*.P config.cache
+/bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache
 
 aclocal && autoheader && aclocal && automake && autoconf
 (cd bdb/dist && sh s_all)
@@ -20,7 +20,8 @@ then
    (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
 fi
 
-CFLAGS=\"$cflags\" CXX=$CXX CXXFLAGS=\"$cxxflags\" $configure"
+CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
+$configure"
 
 if [ -z "$just_configure" ]
 then
