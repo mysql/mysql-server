@@ -106,7 +106,7 @@ dict_table_get_n_sys_cols(
 /*======================*/
 				/* out: number of system (e.g.,
 				ROW_ID) columns of a table */
-	dict_table_t*	table)	/* in: table */
+	dict_table_t*	table __attribute__((unused)))	/* in: table */
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);

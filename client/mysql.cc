@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.16";
+const char *VER="11.17";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -129,6 +129,7 @@ static String glob_buffer,old_buffer;
 static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
+char mysql_charsets_dir[FN_REFLEN+1];
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -609,7 +610,8 @@ static int get_options(int argc, char **argv)
       default_charset= optarg;
       break;
     case OPT_CHARSETS_DIR:
-      charsets_dir= optarg;
+      strmov(mysql_charsets_dir, optarg);
+      charsets_dir = mysql_charsets_dir;
       break;
     case OPT_TEE:
       if (!opt_outfile && strlen(optarg))

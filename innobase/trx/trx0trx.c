@@ -64,7 +64,7 @@ trx_create(
 
 	trx = mem_alloc(sizeof(trx_t));
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 	
 	trx->type = TRX_USER;
 	trx->conc_state = TRX_NOT_STARTED;
@@ -135,7 +135,7 @@ trx_allocate_for_mysql(void)
 
 	if (!trx_dummy_sess) {
 		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-						ut_strlen("Dummy sess"));
+					   ut_strlen((char *) "Dummy sess"));
 	}
 	
 	trx = trx_create(trx_dummy_sess);
@@ -991,7 +991,7 @@ trx_sig_send(
 		ut_a(0);
 
 		sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-		  "Signal from another session, or a break execution signal");
+				     (char *) "Signal from another session, or a break execution signal");
 	}
 
 	/* If there were no other signals ahead in the queue, try to start
@@ -1292,7 +1292,7 @@ trx_commit_for_mysql(
 
 	ut_a(trx);
 
-	trx->op_info = "committing";
+	trx->op_info = (char *) "committing";
 	
 	trx_start_if_not_started(trx);
 
@@ -1302,7 +1302,7 @@ trx_commit_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 	
 	return(0);
 }

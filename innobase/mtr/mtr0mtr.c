@@ -469,7 +469,8 @@ mtr_read_ulint(
 				/* out: value read */
 	byte*		ptr,	/* in: pointer from where to read */
 	ulint		type,	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	mtr_t*		mtr __attribute__((unused)))
+                                /* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
@@ -494,8 +495,9 @@ mtr_read_dulint(
 /*===========*/
 				/* out: value read */
 	byte*		ptr,	/* in: pointer from where to read */
-	ulint		type,	/* in: MLOG_8BYTES */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	ulint		type __attribute__((unused)), /* in: MLOG_8BYTES */
+	mtr_t*		mtr __attribute__((unused)))
+                                /* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(ptr && mtr);

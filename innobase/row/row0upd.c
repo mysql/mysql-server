@@ -388,7 +388,7 @@ row_upd_write_sys_vals_to_log(
 	dulint		roll_ptr,/* in: roll ptr of the undo log record */
 	byte*		log_ptr,/* pointer to a buffer of size > 20 opened
 				in mlog */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr __attribute__((unused))) /* in: mtr */
 {
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr);

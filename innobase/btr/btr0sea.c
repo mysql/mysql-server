@@ -1245,7 +1245,7 @@ btr_search_update_hash_on_insert(
 	dulint		tree_id;
 	ulint		fold;
 	ulint		ins_fold;
-	ulint		next_fold;
+	ulint		next_fold = 0; /* remove warning (??? bug ???) */
 	ulint		n_fields;
 	ulint		n_bytes;
 	ulint		side;

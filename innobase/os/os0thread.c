@@ -58,7 +58,8 @@ os_thread_create(
 #endif
 	void*			arg,		/* in: argument to start
 						function */
-	os_thread_id_t*		thread_id)	/* out: id of created
+	os_thread_id_t*		thread_id __attribute__((unused)))	
+                                                /* out: id of created
 						thread */	
 {
 #ifdef __WIN__
@@ -204,7 +205,8 @@ ulint
 os_thread_get_priority(
 /*===================*/
 				/* out: priority */
-	os_thread_t	handle)	/* in: OS handle to the thread */
+	os_thread_t	handle __attribute__((unused)))	
+                                /* in: OS handle to the thread */
 {
 #ifdef __WIN__
 	int	os_pri;

@@ -625,9 +625,10 @@ UNIV_INLINE
 void
 buf_page_dbg_add_level(
 /*===================*/
-	buf_frame_t*	frame,	/* in: buffer page where we have acquired
-				a latch */
-	ulint		level)	/* in: latching order level */
+	buf_frame_t*	frame __attribute__((unused)), /* in: buffer page
+                                where we have acquired latch */
+	ulint		level __attribute__((unused))) /* in: latching order
+                                level */
 {
 #ifdef UNIV_SYNC_DEBUG
 	sync_thread_add_level(&(buf_block_align(frame)->lock), level);

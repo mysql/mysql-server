@@ -131,7 +131,8 @@ static
 void
 srv_normalize_path_for_win(
 /*=======================*/
-	char*	str)	/* in/out: null-terminated character string */
+	char*	str __attribute__((unused)))
+                 /* in/out: null-terminated character string */
 {
 #ifdef __WIN__
 	ulint	i;
@@ -311,7 +312,8 @@ open_or_create_log_file(
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
 
-	    	fil_space_create("arch_log_space", arch_space_id, FIL_LOG);
+	    	fil_space_create((char *) "arch_log_space", arch_space_id, 
+				 FIL_LOG);
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}
@@ -509,6 +511,7 @@ open_or_create_data_files(
 
 /*********************************************************************
 This thread is used to measure contention of latches. */
+#ifdef NOT_USED
 static
 ulint
 test_measure_cont(
@@ -578,7 +581,7 @@ test_measure_cont(
 
 	return(0);
 }
-
+#endif
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants. Server parameters are
@@ -610,18 +613,21 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = TRUE;
         srv_startup_is_before_trx_rollback_phase = TRUE;
 
-	if (0 == ut_strcmp(srv_unix_file_flush_method_str, "fdatasync")) {
-	  	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
-
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "O_DSYNC")) {
-	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
+	if (0 == ut_strcmp(srv_unix_file_flush_method_str,
+			   (char *) "fdatasync")) {
+	  srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 
 	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
-				  "littlesync")) {
-	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
+				  (char *)  "O_DSYNC")) {
+	  srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "nosync")) {
-	  	srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
+				  (char *) "littlesync")) {
+	  srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
+
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
+				  (char *) "nosync")) {
+	  srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 	} else {
 	  	fprintf(stderr, 
           	"InnoDB: Unrecognized value %s for innodb_flush_method\n",

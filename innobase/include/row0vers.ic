@@ -60,7 +60,7 @@ row_vers_sec_rec_may_see_older(
 /*===========================*/
 				/* out: FALSE if can be read immediately */
 	rec_t*		rec,	/* in: record which should be read or passed */
-	dict_index_t*	index,	/* in: secondary index */
+	dict_index_t*	index __attribute__((unused)),/* in: secondary index */
 	read_view_t*	view)	/* in: read view */
 {
 	page_t*	page;

@@ -572,7 +572,7 @@ from entry with dtuple_convert_big_rec. */
 void
 dtuple_convert_back_big_rec(
 /*========================*/
-	dict_index_t*	index,	/* in: index */
+	dict_index_t*	index __attribute__((unused)),	/* in: index */
 	dtuple_t*	entry,	/* in: entry whose data was put to vector */
 	big_rec_t*	vector)	/* in, own: big rec vector; it is
 				freed in this function */

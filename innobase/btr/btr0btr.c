@@ -837,7 +837,7 @@ btr_parse_page_reorganize(
 /*======================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
+	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
@@ -1438,7 +1438,7 @@ btr_page_split_and_insert(
 	page_t*		insert_page;
 	page_cur_t*	page_cursor;
 	rec_t*		first_rec;
-	byte*		buf;
+	byte*		buf = 0; /* remove warning */
 	rec_t*		move_limit;
 	ibool		insert_will_fit;
 	ulint		n_iterations = 0;
@@ -1616,7 +1616,7 @@ static
 void
 btr_level_list_remove(
 /*==================*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_tree_t*	tree __attribute__((unused)), /* in: index tree */
 	page_t*		page,	/* in: page to remove */
 	mtr_t*		mtr)	/* in: mtr */
 {	
@@ -2338,7 +2338,7 @@ btr_validate_level(
 {
 	ulint		space;
 	page_t*		page;
-	page_t*		right_page;
+	page_t*		right_page = 0; /* remove warning */
 	page_t*		father_page;
 	page_t*		right_father_page;
 	rec_t*		node_ptr;

@@ -204,7 +204,7 @@ row_purge_remove_sec_if_poss_low(
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	ibool		success;
-	ibool		old_has;
+	ibool		old_has = 0; /* remove warning */
 	ibool		found;
 	ulint		err;
 	mtr_t		mtr;
