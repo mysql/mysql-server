@@ -1393,7 +1393,8 @@ mysql_execute_command(void)
 			       tables, lex->create_list,
 			       lex->key_list, lex->drop_list, lex->alter_list,
                                (ORDER *) lex->order_list.first,
-			       lex->drop_primary, lex->duplicates);
+			       lex->drop_primary, lex->duplicates,
+			       lex->alter_keys_onoff, lex->simple_alter);
       break;
     }
 #endif
