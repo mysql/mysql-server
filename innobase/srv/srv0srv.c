@@ -24,7 +24,7 @@ thread library. This might confuse NT though.
 
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
-
+/* Dummy comment */
 #include "srv0srv.h"
 
 #include "ut0mem.h"
