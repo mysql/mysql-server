@@ -1030,14 +1030,18 @@ alter:
 	  lex->col_list.empty();
 	  lex->drop_list.empty();
 	  lex->alter_list.empty();
+          lex->order_list.elements=0;
+          lex->order_list.first=0;
+          lex->order_list.next= (byte**) &lex->order_list.first;
 	  lex->db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	}
-	alter_list opt_create_table_options
-
+	alter_list order_clause opt_create_table_options
+ 
 alter_list:
-	  alter_list_item
+        /* empty */
+        | alter_list_item
 	| alter_list ',' alter_list_item
 
 add_column:
@@ -1075,7 +1079,7 @@ alter_list_item:
 	  { Lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0)); }
 	| RENAME opt_to table_alias table_ident
 	  { Lex->db=$4->db.str ; Lex->name= $4->table.str; }
-	| create_table_option
+        | opt_create_table_options
 
 opt_column:
 	/* empty */	{}
