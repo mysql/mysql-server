@@ -179,6 +179,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
   DBUG_RETURN(open_list);
 }
 
+#ifndef EMBEDDED_LIBRARY
 /*
   Send name and type of result to client. 
   Sum fields has table name empty and field_name.
@@ -383,6 +384,7 @@ err:
   return 1;					/* purecov: inspected */
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
  *	 Functions to free open table cache

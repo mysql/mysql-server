@@ -52,8 +52,6 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 ** Send list of databases
 ** A database is a directory in the mysql_data_home directory
 ****************************************************************************/
-
-
 int
 mysqld_show_dbs(THD *thd,const char *wild)
 {
@@ -85,8 +83,8 @@ mysqld_show_dbs(THD *thd,const char *wild)
       {
       thd->packet.length(0);
       net_store_data(&thd->packet, thd->convert_set, file_name);
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		       thd->packet.length()))
+      if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			    (char *)thd->packet.ptr(), thd->packet.length()))
 	DBUG_RETURN(-1);
     }
   }
@@ -123,8 +121,9 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
     net_store_data(&thd->packet,convert, open_list->table);
     net_store_data(&thd->packet,open_list->in_use);
     net_store_data(&thd->packet,open_list->locked);
-    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
-      DBUG_RETURN(-1);
+    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			  (char *)thd->packet.ptr(), thd->packet.length()))
+	DBUG_RETURN(-1);
   }
 
   send_eof(&thd->net);
@@ -162,8 +161,9 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   {
     thd->packet.length(0);
     net_store_data(&thd->packet, thd->convert_set, file_name);
-    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
-      DBUG_RETURN(-1);
+    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			  (char *)thd->packet.ptr(), thd->packet.length()))
+	DBUG_RETURN(-1);
   }
   send_eof(&thd->net);
   DBUG_RETURN(0);
@@ -606,9 +606,9 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       }
       close_thread_tables(thd,0);
     }
-    if (my_net_write(&thd->net,(char*) packet->ptr(),
-                     packet->length()))
-      DBUG_RETURN(-1);
+    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+		 (char *)thd->packet.ptr(), thd->packet.length()))
+	DBUG_RETURN(-1);
   }
   send_eof(&thd->net);
   DBUG_RETURN(0);
@@ -619,7 +619,6 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 /***************************************************************************
 ** List all columns in a table
 ***************************************************************************/
-
 int
 mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 		   bool verbose)
@@ -722,8 +721,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	{
 	  /* Add grant options & comments */
-	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  end=tmp;
+	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
 	  {
 	    if (col_access & 1)
@@ -735,8 +734,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  net_store_data(packet,convert, tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
 	  net_store_data(packet, field->comment.str,field->comment.length);
 	}
-        if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-          DBUG_RETURN(1);
+	if (SEND_ROW(thd, &thd->net, field_list.elements, 
+		     (char *)thd->packet.ptr(), thd->packet.length()))
+	  DBUG_RETURN(-1);
       }
     }
   }
@@ -804,8 +804,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     int3store(p, create_len);
 
     // now we are in business :-)
-    if (my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
-      DBUG_RETURN(1);
+    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			  (char *)thd->packet.ptr(), thd->packet.length()))
+      DBUG_RETURN(-1);
   }
   send_eof(&thd->net);
   DBUG_RETURN(0);
@@ -927,8 +928,9 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       net_store_data(packet,convert,table->file->index_type(i));
       /* Comment */
       net_store_data(packet,convert,"");
-      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-        DBUG_RETURN(1); /* purecov: inspected */
+      if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			    (char *)thd->packet.ptr(), thd->packet.length()))
+	DBUG_RETURN(-1);
     }
   }
   send_eof(&thd->net);
@@ -1345,8 +1347,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       net_store_data(packet,convert,thd_info->query);
     else
       net_store_null(packet);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-      break; /* purecov: inspected */
+    if (SEND_ROW(thd, &thd->net, field_list.elements, 
+			  (char *)thd->packet.ptr(), thd->packet.length()))
+      break;
   }
   send_eof(&thd->net);
   DBUG_VOID_RETURN;
@@ -1630,8 +1633,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 
 #endif /* HAVE_OPENSSL */
       }
-      if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
-        goto err;                               /* purecov: inspected */
+      if (SEND_ROW(thd, &thd->net, field_list.elements, 
+		   (char *)packet2.ptr(), packet2.length()))
+	goto err;
     }
   }
   pthread_mutex_unlock(&LOCK_status);

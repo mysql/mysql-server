@@ -319,6 +319,10 @@ class delayed_insert;
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
+#ifdef EMBEDDED_LIBRARY
+typedef struct st_mysql;
+#endif
+
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 /*
@@ -328,14 +332,17 @@ class delayed_insert;
 
 class THD :public ilink {
 public:
-  NET	  net;				// client connection descriptor
-  LEX	  lex;				// parse tree descriptor
-  MEM_ROOT mem_root;			// 1 command-life memory
+  NET	  net; // client connection descriptor
+  LEX	  lex; // parse tree descriptor
+  MEM_ROOT mem_root; // 1 command-life memory allocation pool
+  HASH     user_vars; // hash for user variables
+  String  packet; // dynamic string buffer used for network I/O		
+  struct  sockaddr_in remote; // client socket address
+  struct  rand_struct rand; // used for authentication
+#ifdef EMBEDDED_LIBRARY
+  struct st_mysql  *mysql;
+#endif
   MEM_ROOT con_root;                    // connection-life memory
-  HASH     user_vars;			// hash for user variables
-  String  packet;			// buffer used for network I/O		
-  struct  sockaddr_in remote;		// client socket address
-  struct  rand_struct rand;		// used for authentication
   
   /*
     Query points to the current query,
