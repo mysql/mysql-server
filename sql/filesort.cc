@@ -230,7 +230,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   if (error)
     my_error(ER_FILSORT_ABORT,MYF(ME_ERROR+ME_WAITTANG));
   else
-    statistic_add(filesort_rows, records, &LOCK_status);
+    statistic_add(filesort_rows, (ulong) records, &LOCK_status);
   *examined_rows= param.examined_rows;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */

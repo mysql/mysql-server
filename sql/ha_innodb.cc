@@ -3421,7 +3421,7 @@ ha_innobase::info(
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
-	ulong		rec_per_key;
+	ha_rows		rec_per_key;
 	ulong		j;
 	ulong		i;
 
@@ -3482,7 +3482,7 @@ ha_innobase::info(
 
 					rec_per_key = records;
 				} else {
-					rec_per_key = (ulong)(records /
+					rec_per_key = (ha_rows)(records /
    				         index->stat_n_diff_key_vals[j + 1]);
 				}
 
@@ -3497,8 +3497,9 @@ ha_innobase::info(
 					rec_per_key = 1;
 				}
 
- 				table->key_info[i].rec_per_key[j]
-								= rec_per_key;
+ 				table->key_info[i].rec_per_key[j]=
+				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
+				  rec_per_key;
 			}
 
 			index = dict_table_get_next_index_noninline(index);

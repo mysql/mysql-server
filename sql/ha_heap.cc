@@ -88,9 +88,9 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   file=heap_open(name,mode,
 		 table->keys,keydef,
 		 table->reclength,
-		 ((table->max_rows < max_rows && table->max_rows) ? 
-		  table->max_rows : max_rows),
-		 table->min_rows);
+		 (ulong) ((table->max_rows < max_rows && table->max_rows) ? 
+			  table->max_rows : max_rows),
+		 (ulong) table->min_rows);
   my_free((gptr) keydef,MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
