@@ -3911,7 +3911,7 @@ Poland [Sunsite] @
 @item
 @c Added 20001031
 @c bofh@netc.pt (Bruno Rodrigues)
-@image{Flags/portugal}
+@c @image{Flags/portugal}
 Portugal [Netc] @
 @uref{http://ftp.netc.pt/pub/mysql/, WWW}
 @uref{ftp://ftp.netc.pt/pub/mysql/, FTP}
@@ -4293,7 +4293,7 @@ Taiwan [TTN] @
 @item
 @c Added 20001031
 @c EMAIL: ijliao@php.nctu.edu.tw (Ying-Chieh Liao)
-@image{Flags/taiwan}
+@c @image{Flags/taiwan}
 Taiwan [nctu.edu/HsinChu] @
 @uref{http://mysql.nctu.edu.tw/, WWW}
 
