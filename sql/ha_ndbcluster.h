@@ -37,8 +37,10 @@ class NdbResultSet;    // Forward declaration
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
-  UNIQUE_INDEX = 2,
-  ORDERED_INDEX = 3
+  PRIMARY_KEY_ORDERED_INDEX = 2,
+  UNIQUE_INDEX = 3,
+  UNIQUE_ORDERED_INDEX = 4,
+  ORDERED_INDEX = 5
 } NDB_INDEX_TYPE;
 
 
@@ -78,10 +80,10 @@ class ha_ndbcluster: public handler
   void position(const byte *record);
   int read_range_first(const key_range *start_key,
 		       const key_range *end_key,
-		       bool sorted);
-  int read_range_next(bool eq_range);
+		       bool eq_range, bool sorted);
+  int read_range_next();
 
-  const char* get_error_message(int *error, bool *temporary);
+  bool get_error_message(int error, String *buf);
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
@@ -117,6 +119,8 @@ class ha_ndbcluster: public handler
   const char* index_type(uint key_number) {
     switch (get_index_type(key_number)) {
     case ORDERED_INDEX:
+    case UNIQUE_ORDERED_INDEX:
+    case PRIMARY_KEY_ORDERED_INDEX:
       return "BTREE";
     case UNIQUE_INDEX:
     case PRIMARY_KEY_INDEX:
@@ -141,6 +145,7 @@ class ha_ndbcluster: public handler
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);
   int initialize_autoincrement(const void* table);
+  int build_index_list();
   int get_metadata(const char* path);
   void release_metadata();
   const char* get_index_name(uint idx_no) const;
