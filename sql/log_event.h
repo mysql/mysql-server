@@ -105,6 +105,7 @@ struct sql_ex_info
 
 /* event-specific post-header sizes */
 #define LOG_EVENT_HEADER_LEN 19
+#define OLD_HEADER_LEN       13
 #define QUERY_HEADER_LEN     (4 + 4 + 1 + 2)
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
 #define START_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
@@ -378,7 +379,7 @@ public:
 class Load_log_event: public Log_event
 {
 protected:
-  int copy_log_event(const char *buf, ulong event_len);
+  int copy_log_event(const char *buf, ulong event_len, bool old_format);
 
 public:
   ulong thread_id;

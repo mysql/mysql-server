@@ -1280,6 +1280,7 @@ int do_connect(struct st_query* q)
   char buff[FN_REFLEN];
   int con_port;
   int con_error;
+  int free_con_sock = 0;
   
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
@@ -1299,10 +1300,29 @@ int do_connect(struct st_query* q)
   }
   else
   {
+    VAR* var_port, *var_sock;
     p = safe_get_param(p, &con_port_str, "missing connection port");
-    con_port=atoi(con_port_str);
+    if (*con_port_str == '$')
+    {
+      if (!(var_port = var_get(con_port_str, 0, 0)))
+	die("Unknown variable '%s'", con_port_str+1);
+      con_port = var_port->int_val;
+    }
+    else
+     con_port=atoi(con_port_str);
     p = safe_get_param(p, &con_sock, "missing connection socket");
+    if (*con_sock == '$')
+    {
+      if (!(var_sock = var_get(con_sock, 0, 0)))
+	die("Unknown variable '%s'", con_sock+1);
+      if (!(con_sock = (char*)my_malloc(var_sock->str_val_len+1, MYF(0))))
+	die("Out of memory");
+      free_con_sock = 1;
+      memcpy(con_sock, var_sock->str_val, var_sock->str_val_len);
+      con_sock[var_sock->str_val_len] = 0;
+    }
   }
+  
   if (next_con == cons_end)
     die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
 
@@ -1310,20 +1330,21 @@ int do_connect(struct st_query* q)
     die("Failed on mysql_init()");
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
-  if (con_sock)
+  if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
   if((con_error = safe_connect(&next_con->mysql, con_host,
 			    con_user, con_pass,
-			    con_db, con_port, con_sock)))
+			    con_db, con_port, *con_sock ? con_sock: 0)))
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
   if (!(next_con->name = my_strdup(con_name, MYF(MY_WME))))
     die(NullS);
   cur_con = next_con++;
-
+  if (free_con_sock)
+    my_free(con_sock, MYF(MY_WME));
   DBUG_RETURN(0);
 }
 
