@@ -16,7 +16,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "que0types.h"
 #include "mem0mem.h"
 #include "read0types.h"
-#include "xa.h"
+#include "trx0xa.h"
 
 extern ulint	trx_n_mysql_transactions;
 
