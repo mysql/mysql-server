@@ -1620,8 +1620,8 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
-  `data` int(11) NOT NULL default '0'
+  `id` char(16) NOT NULL,
+  `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
 test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
@@ -1629,7 +1629,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)				
-data	int(11)			0	
+data	int(11)				
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -1670,8 +1670,8 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
-  `data` int(11) NOT NULL default '0'
+  `id` char(16) NOT NULL,
+  `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
 test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
@@ -1679,7 +1679,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)				
-data	int(11)			0	
+data	int(11)				
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment

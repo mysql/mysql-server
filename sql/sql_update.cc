@@ -351,9 +351,10 @@ int mysql_update(THD *thd,
 
   transactional_table= table->file->has_transactions();
   thd->no_trans_update= 0;
-  thd->abort_on_warning= test(thd->variables.sql_mode &
-                              (MODE_STRICT_TRANS_TABLES |
-                               MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= test(handle_duplicates != DUP_IGNORE &&
+                              (thd->variables.sql_mode &
+                               (MODE_STRICT_TRANS_TABLES |
+                                MODE_STRICT_ALL_TABLES)));
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {

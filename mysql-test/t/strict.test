@@ -58,7 +58,7 @@ drop table t1;
 
 # Test difference in behaviour with InnoDB and MyISAM tables
 
-set @@sql_mode="strict_trans_tables";
+set @@sql_mode='strict_trans_tables';
 CREATE TABLE t1 (col1 date) engine=myisam;
 --error 1292
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
@@ -72,7 +72,7 @@ INSERT ignore INTO t1 VALUES('2003-02-31');
 select * from t1;
 drop table t1;
 
-set @@sql_mode="strict_trans_tables";
+set @@sql_mode='strict_trans_tables';
 CREATE TABLE t1 (col1 date) engine=innodb;
 --error 1292
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
@@ -161,7 +161,7 @@ set @@sql_mode='ansi,traditional';
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# Test TINYINT
+# Test INSERT with TINYINT
 
 CREATE TABLE t1(col1 TINYINT, col2 TINYINT UNSIGNED);
 INSERT INTO t1 VALUES(-128,0),(0,0),(127,255),('-128','0'),('0','0'),('127','255'),(-128.0,0.0),(0.0,0.0),(127.0,255.0);
@@ -211,7 +211,7 @@ UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# Test SMALLINT
+# Test INSERT with SMALLINT
 
 CREATE TABLE t1(col1 SMALLINT, col2 SMALLINT UNSIGNED);
 INSERT INTO t1 VALUES(-32768,0),(0,0),(32767,65535),('-32768','0'),('32767','65535'),(-32768.0,0.0),(32767.0,65535.0);
@@ -264,7 +264,7 @@ UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# Test MEDIUMINT
+# Test INSERT with MEDIUMINT
 
 CREATE TABLE t1 (col1 MEDIUMINT, col2 MEDIUMINT UNSIGNED);
 INSERT INTO t1 VALUES(-8388608,0),(0,0),(8388607,16777215),('-8388608','0'),('8388607','16777215'),(-8388608.0,0.0),(8388607.0,16777215.0);
@@ -317,7 +317,7 @@ UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# Test INT
+# Test INSERT with INT
 
 CREATE TABLE t1 (col1 INT, col2 INT UNSIGNED);
 INSERT INTO t1 VALUES(-2147483648,0),(0,0),(2147483647,4294967295),('-2147483648','0'),('2147483647','4294967295'),(-2147483648.0,0.0),(2147483647.0,4294967295.0);
@@ -369,7 +369,7 @@ UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# Test BIGINT
+# Test INSERT with BIGINT
 # Note that this doesn't behave 100 % to standard as we rotate
 # integers when it's too big/small (just like C)
 
@@ -427,6 +427,8 @@ UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+# Test INSERT with NUMERIC
+
 CREATE TABLE t1 (col1 NUMERIC(4,2));
 INSERT INTO t1 VALUES (10.55),(10.5555),(0),(-10.55),(-10.5555),(11),(1e+01);
 -- Note that the +/-10.5555 is inserted as +/-10.55, not +/-10.56 !
@@ -472,5 +474,151 @@ INSERT IGNORE INTO t1 VALUES(1000),(-1000);
 INSERT IGNORE INTO t1 VALUES('1000'),('-1000');
 INSERT IGNORE INTO t1 VALUES(1000.0),(-1000.0);
 UPDATE IGNORE t1 SET col1=1/NULL where col1=0;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Test INSERT with FLOAT
+
+CREATE TABLE t1 (col1 FLOAT, col2 FLOAT UNSIGNED);
+INSERT INTO t1 VALUES (-1.1E-38,0),(+3.4E+38,+3.4E+38);
+INSERT INTO t1 VALUES ('-1.1E-38',0),('+3.4E+38','+3.4E+38');
+# We don't give warnings for underflow
+INSERT INTO t1 (col1) VALUES (3E-46);
+--error 1264
+INSERT INTO t1 (col1) VALUES (+3.4E+39);
+--error 1264
+INSERT INTO t1 (col2) VALUES (-1.1E-3);
+--error 1264
+INSERT INTO t1 (col1) VALUES ('+3.4E+39');
+--error 1264
+INSERT INTO t1 (col2) VALUES ('-1.1E-3');
+--error 1264
+UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
+--error 1365
+UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
+--error 1365
+SELECT MOD(col1,0) FROM t1;
+--error 1265
+INSERT INTO t1 (col1) VALUES ('');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('a59b');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('1a');
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+INSERT IGNORE INTO t1 (col1) VALUES (1/0);
+INSERT IGNORE INTO t1 VALUES (+3.4E+39,-3.4E+39);
+INSERT IGNORE INTO t1 VALUES ('+3.4E+39','-3.4E+39');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Test INSERT with DOUBLE
+
+CREATE TABLE t1 (col1 DOUBLE PRECISION, col2 DOUBLE PRECISION UNSIGNED);
+INSERT INTO t1 VALUES (-2.2E-308,0),(+1.7E+308,+1.7E+308);
+INSERT INTO t1 VALUES ('-2.2E-308',0),('+1.7E+308','+1.7E+308');
+# We don't give warnings for underflow
+INSERT INTO t1 (col1) VALUES (-2.2E-330);
+--error 1367
+INSERT INTO t1 (col1) VALUES (+1.7E+309);
+--error 1264
+INSERT INTO t1 (col2) VALUES (-1.1E-3);
+--error 1264
+INSERT INTO t1 (col1) VALUES ('+1.8E+309');
+--error 1264
+INSERT INTO t1 (col2) VALUES ('-1.2E-3');
+--error 1264
+UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
+--error 1365
+UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
+--error 1365
+SELECT MOD(col1,0) FROM t1;
+--error 1265
+INSERT INTO t1 (col1) VALUES ('');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('a59b');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('1a');
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+INSERT IGNORE INTO t1 (col1) values (1/0);
+--error 1367
+INSERT IGNORE INTO t1 VALUES (+1.9E+309,-1.9E+309);
+INSERT IGNORE INTO t1 VALUES ('+2.0E+309','-2.0E+309');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Testing INSERT with CHAR/VARCHAR
+
+CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(5));
+INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello   ');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('hellobob');
+--error 1265
+INSERT INTO t1 (col2) VALUES ('hellobob');
+--error 1265
+UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
+--error 1265
+UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';
+INSERT IGNORE INTO t1 VALUES ('hellobob', 'hellobob');
+UPDATE IGNORE t1 SET col2 ='hellotrudy' WHERE col2 ='he';
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Testing INSERT with ENUM
+
+CREATE TABLE t1 (col1 enum('red','blue','green'));
+INSERT INTO t1 VALUES ('red'),('blue'),('green');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('yellow');
+--error 1265
+INSERT INTO t1 (col1) VALUES ('redd');
+--error 1265
+INSERT INTO t1 VALUES ('');
+--error 1265
+UPDATE t1 SET col1 ='yellow' WHERE col1 ='green';
+INSERT IGNORE INTO t1 VALUES ('yellow');
+UPDATE IGNORE t1 SET col1 ='yellow' WHERE col1 ='blue';
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Testing of insert of NULL in not NULL column
+
+CREATE TABLE t1 (col1 INT NOT NULL, col2 CHAR(5) NOT NULL, col3 DATE NOT NULL);
+INSERT INTO t1 VALUES (100, 'hello', '2004-08-20');
+INSERT INTO t1 (col1,col2,col3) VALUES (101, 'hell2', '2004-08-21');
+--error 1048
+INSERT INTO t1 (col1,col2,col3) VALUES (NULL, '', '2004-01-01');
+--error 1048
+INSERT INTO t1 (col1,col2,col3) VALUES (102, NULL, '2004-01-01');
+--error 1048
+INSERT INTO t1 VALUES (103,'',NULL);
+--error 1263
+UPDATE t1 SET col1=NULL WHERE col1 =100;
+--error 1263
+UPDATE t1 SET col2 =NULL WHERE col2 ='hello';
+--error 1263
+UPDATE t1 SET col2 =NULL where col3 IS NOT NULL;
+INSERT IGNORE INTO t1 values (NULL,NULL,NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Testing of default values
+
+CREATE TABLE t1 (col1 INT NOT NULL default 99, col2 CHAR(6) NOT NULL);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1, 'hello');
+INSERT INTO t1 (col2) VALUES ('hello2');
+--error 1048
+INSERT INTO t1 (col2) VALUES (NULL);
+--error 1364
+INSERT INTO t1 (col1) VALUES (2);
+--error 1364
+INSERT INTO t1 VALUES(default(col1),default(col2));
+--error 1364
+INSERT INTO t1 (col1) SELECT 1;
+--error 1263
+INSERT INTO t1 SELECT 1,NULL;
+INSERT IGNORE INTO t1 values (NULL,NULL);
+INSERT IGNORE INTO t1 (col1) values (3);
+INSERT IGNORE INTO t1 () values ();
 SELECT * FROM t1;
 DROP TABLE t1;
