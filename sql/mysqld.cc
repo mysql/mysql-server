@@ -36,6 +36,28 @@
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
 #endif
+
+#ifdef HAVE_INNOBASE_DB
+#define OPT_INNODB_DEFAULT 1
+#else
+#define OPT_INNODB_DEFAULT 0
+#endif
+#ifdef HAVE_BERKLEY_DB
+#define OPT_BDB_DEFAULT 1
+#else
+#define OPT_BDB_DEFAULT 0
+#endif
+#ifdef HAVE_ISAM_DB
+#define OPT_ISAM_DEFAULT 1
+#else
+#define OPT_ISAM_DEFAULT 0
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+#define OPT_NDBCLUSTER_DEFAULT 0
+#else
+#define OPT_NDBCLUSTER_DEFAULT 0
+#endif
+
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
@@ -4089,7 +4111,7 @@ struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"bdb", OPT_BDB, "Enable Berkeley DB (if this version of MySQL supports it). \
 Disable with --skip-bdb (will save memory).",
-   (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, OPT_BDB_DEFAULT, 0, 0,
    0, 0, 0},
 #ifdef HAVE_BERKELEY_DB
   {"bdb-home", OPT_BDB_HOME, "Berkeley home directory.", (gptr*) &berkeley_home,
@@ -4226,7 +4248,7 @@ Disable with --skip-bdb (will save memory).",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
 Disable with --skip-innodb (will save memory).",
-   (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, OPT_INNODB_DEFAULT, 0, 0,
    0, 0, 0},
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
    "Path to individual files and their sizes.",
@@ -4286,7 +4308,7 @@ Disable with --skip-innodb (will save memory).",
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
 Disable with --skip-isam.",
-   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, OPT_ISAM_DEFAULT, 0, 0,
    0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
@@ -4413,8 +4435,8 @@ master-ssl",
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
 Disable with --skip-ndbcluster (will save memory).",
-   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
-   0, 0, 0},
+   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG,
+   OPT_NDBCLUSTER_DEFAULT, 0, 0, 0, 0, 0},
 #ifdef HAVE_NDBCLUSTER_DB
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
@@ -6105,9 +6127,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_berkeley_db= SHOW_OPTION_YES;
     else
       have_berkeley_db= SHOW_OPTION_DISABLED;
-#else
-    if (opt_bdb)
-      sql_print_warning("this binary does not contain BDB storage engine");
 #endif
     break;
   case OPT_ISAM:
@@ -6116,9 +6135,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_isam= SHOW_OPTION_YES;
     else
       have_isam= SHOW_OPTION_DISABLED;
-#else
-    if (opt_isam)
-      sql_print_warning("this binary does not contain ISAM storage engine");
 #endif
     break;
   case OPT_NDBCLUSTER:
@@ -6127,9 +6143,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster= SHOW_OPTION_YES;
     else
       have_ndbcluster= SHOW_OPTION_DISABLED;
-#else
-    if (opt_ndbcluster)
-      sql_print_warning("this binary does not contain NDBCLUSTER storage engine");
 #endif
     break;
   case OPT_INNODB:
@@ -6138,9 +6151,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_innodb= SHOW_OPTION_YES;
     else
       have_innodb= SHOW_OPTION_DISABLED;
-#else
-    if (opt_innodb)
-      sql_print_warning("this binary does not contain INNODB storage engine");
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
@@ -6260,6 +6270,24 @@ static void get_options(int argc,char **argv)
   if ((ho_error= handle_options(&argc, &argv, my_long_options,
                                 get_one_option)))
     exit(ho_error);
+
+#ifndef HAVE_NDBCLUSTER_DB
+  if (opt_ndbcluster)
+    sql_print_warning("this binary does not contain NDBCLUSTER storage engine");
+#endif
+#ifndef HAVE_INNOBASE_DB
+  if (opt_innodb)
+    sql_print_warning("this binary does not contain INNODB storage engine");
+#endif
+#ifndef HAVE_ISAM
+  if (opt_isam)
+    sql_print_warning("this binary does not contain ISAM storage engine");
+#endif
+#ifndef HAVE_BERKELEY_DB
+  if (opt_bdb)
+    sql_print_warning("this binary does not contain BDB storage engine");
+#endif
+
   if (argc > 0)
   {
     fprintf(stderr, "%s: Too many arguments (first extra is '%s').\nUse --help to get a list of available options\n", my_progname, *argv);
