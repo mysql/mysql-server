@@ -120,7 +120,7 @@ sub main
       open(CONFIGURE,">configure.in") or die "$! Unable to open configure.in to write to!\n";
       print CONFIGURE $configure;
       close(CONFIGURE);
-      `autoconf`;
+      `aclocal && autoheader && aclocal && automake && autoconf`;
       if (! -f "configure") {
         print "\"./configure\" was not produced, exiting!\n";
         exit(0);
