@@ -1534,25 +1534,6 @@ static bool show_status_array(THD *thd, const char *wild,
 }
 
 
-bool mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-                 enum enum_var_type value_type,
-                 pthread_mutex_t *mutex,
-                 struct system_status_var *status_var, TABLE *table)
-{
-  DBUG_ENTER("mysqld_show");
-  ha_update_statistics();                    /* Export engines statistics */
-  pthread_mutex_lock(mutex);
-  if (show_status_array(thd, wild, variables, value_type, status_var, "", table))
-    goto err;
-  pthread_mutex_unlock(mutex);
-  DBUG_RETURN(FALSE);
-
- err:
-  pthread_mutex_unlock(mutex);
-  DBUG_RETURN(TRUE);
-}
-
-
 /* collect status for all running threads */
 
 void calc_sum_of_all_status(STATUS_VAR *to)
@@ -2874,10 +2855,14 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_variables");
+  int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  int res= mysqld_show(thd, wild, init_vars, lex->option_type,
-                       &LOCK_global_system_variables, 0, tables->table);
+  ha_update_statistics();                    /* Export engines statistics */
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  res= show_status_array(thd, wild, init_vars, 
+                         lex->option_type, 0, "", tables->table);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   DBUG_RETURN(res);
 }
 
@@ -2889,17 +2874,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
   STATUS_VAR tmp;
-
+  ha_update_statistics();                    /* Export engines statistics */
+  pthread_mutex_lock(&LOCK_status);
   if (lex->option_type == OPT_GLOBAL)
-  {
-    pthread_mutex_lock(&LOCK_status);
     calc_sum_of_all_status(&tmp);
-  }
-  res= mysqld_show(thd, wild, status_vars, OPT_GLOBAL, &LOCK_status,
-                   (lex->option_type == OPT_GLOBAL ?
-                    &tmp: &thd->status_var), tables->table);
-  if (lex->option_type == OPT_GLOBAL)
-    pthread_mutex_unlock(&LOCK_status);
+  res= show_status_array(thd, wild, status_vars, OPT_GLOBAL,
+                         (lex->option_type == OPT_GLOBAL ? 
+                          &tmp: &thd->status_var), "",tables->table);
+  pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 
