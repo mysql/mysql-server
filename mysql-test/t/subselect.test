@@ -1449,3 +1449,19 @@ select row(1,(2,2)) = (select * from t1 );
 -- error 1241
 select (select * from t1) = row(1,(2,2));
 drop table t1;
+
+#
+# Forward reference detection
+#
+create  table t1 (a integer);
+insert into t1 values (1);
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+-- error 1247
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
+drop table t1;
