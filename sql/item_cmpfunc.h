@@ -869,7 +869,7 @@ class Item_func_regex :public Item_bool_func
 public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
     regex_compiled(0),regex_is_const(0) {}
-  ~Item_func_regex();
+  void cleanup();
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   const char *func_name() const { return "regexp"; }
