@@ -2069,6 +2069,8 @@ const Field *view_ref_found= (Field*) 0x2;
     allow_rowid			do allow finding of "_rowid" field?
     cached_field_index_ptr	cached position in field list (used to
 				  speedup prepared tables field finding)
+    register_tree_change        TRUE if ref is not stack variable and we
+                                  need register changes in item tree
 
   RETURN
     0			field is not found
@@ -2082,7 +2084,8 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     uint length, Item **ref,
                     bool check_grants_table, bool check_grants_view,
                     bool allow_rowid,
-                    uint *cached_field_index_ptr)
+                    uint *cached_field_index_ptr,
+                    bool register_tree_change)
 {
   DBUG_ENTER("find_field_in_table");
   DBUG_PRINT("enter", ("table:%s name: %s item name %s, ref 0x%lx",
@@ -2109,10 +2112,11 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
           *ref= trans[i].item;
         else
         {
-          Item_ref *item_ref= new Item_ref(trans[i].item, table_list->view_name.str,
+          Item_ref *item_ref= new Item_ref(&trans[i].item,
+                                           table_list->view_name.str,
                                            item_name);
           /* as far as Item_ref have defined reference it do not need tables */
-          if (item_ref)
+          if (register_tree_change && item_ref)
           {
             thd->change_item_tree(ref, item_ref);
             (*ref)->fix_fields(thd, 0, ref);
@@ -2288,7 +2292,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 					check_privileges),
 				       (test(table->grant.want_privilege) &&
 					check_privileges),
-				       1, &(item->cached_field_index));
+				       1, &(item->cached_field_index),
+                                       TRUE);
     }
     if (found)
     {
@@ -2327,7 +2332,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
                                           check_privileges),
 					 (test(tables->grant.want_privilege) &&
                                           check_privileges),
-					 1, &(item->cached_field_index));
+					 1, &(item->cached_field_index),
+                                         TRUE);
 	if (find)
 	{
 	  item->cached_table= tables;
@@ -2392,7 +2398,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
                                        check_privileges),
 				      (test(tables->grant.want_privilege) &&
                                        check_privileges),
-				      allow_rowid, &(item->cached_field_index));
+				      allow_rowid,
+                                      &(item->cached_field_index),
+                                      TRUE);
     if (field)
     {
       if (field == WRONG_GRANT)
@@ -3028,7 +3036,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             !find_field_in_table(thd, natural_join_table, field_name,
                                  field_name,
                                  strlen(field_name), &not_used_item, 0, 0, 0,
-                                 &not_used_field_index))
+                                 &not_used_field_index, TRUE))
         {
           Item *item= iterator->item(thd);
           if (!found++)
@@ -3037,7 +3045,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             it->after(item);
 	  if (view && !thd->lex->current_select->no_wrap_view_item)
 	  {
-	    item= new Item_ref(it->ref(), NULL, tables->view_name.str,
+	    item= new Item_ref(it->ref(), tables->view_name.str,
 			       field_name);
 	  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3252,7 +3260,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
                                              t1_field_name,
                                              strlen(t1_field_name), &item_t2,
                                              0, 0, 0,
-                                             &not_used_field_index)))
+                                             &not_used_field_index,
+                                             FALSE)))
           {
             if (t2_field != view_ref_found)
             {
@@ -3262,13 +3271,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               t2_field->query_id= thd->query_id;
               t2->used_keys.intersect(t2_field->part_of_key);
             }
-	    else
-	    {
-	      DBUG_ASSERT(t2_field == view_ref_found &&
-			  item_t2->type() == Item::REF_ITEM);
-	      /* remove hooking to stack variable */
-	      ((Item_ref*) item_t2)->hook_ptr= 0;
-	    }
             if ((t1_field= iterator->field()))
             {
               /* Mark field used for table cache */

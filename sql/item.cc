@@ -2670,11 +2670,6 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
-  DBUG_PRINT("info", ("hook: 0x%lx(0x%lx) original item: 0x%lx",
-		      (ulong)hook_ptr, (ulong)(hook_ptr?*hook_ptr:0),
-		      (ulong)orig_item));
-  if (hook_ptr)
-    *hook_ptr= orig_item;
   DBUG_VOID_RETURN;
 }
 
