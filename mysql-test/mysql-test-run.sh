@@ -1467,10 +1467,13 @@ then
     fi
     ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
+     NDB_CONNECTSTRING="localhost:$NDBCLUSTER_PORT"
   else
     USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
+    NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
     echo "Using ndbcluster at $USE_NDBCLUSTER"
   fi
+  export NDB_CONNECTSTRING
   fi
 
   start_manager
