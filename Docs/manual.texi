@@ -36296,9 +36296,7 @@ Still, this variable is read-only, its value is set in
 
 @itemize @bullet
 @item Make all operations with @code{FULLTEXT} index @strong{faster}.
-@item Phrase search, proximity operators
-@item Boolean search can work without @code{FULLTEXT} index
-(yes, @strong{very} slow).
+@item Proximity operators
 @item Support for "always-index words". They could be any strings
 the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Support for full-text search in @code{MERGE} tables.
