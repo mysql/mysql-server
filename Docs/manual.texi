@@ -10414,8 +10414,9 @@ recommended for systems where only local requests are allowed.  @xref{DNS}.
 Don't use new, possible wrong routines.  Implies @code{--skip-delay-key-write}.
 This will also set default table type to @code{ISAM}.  @xref{ISAM}.
 
-@item --skip-symlinks
-Don't delete or rename files that symlinks in the data directory points to.
+@item --skip-symlink
+Don't delete or rename files that a symlinked file in the data directory
+points to.
 
 @item --skip-safemalloc
 If @strong{MySQL} is configured with @code{--with-debug=full}, all programs
@@ -12182,7 +12183,7 @@ user}.
 
 @item
 Don't support symlinks to tables (This can be disabled with the
-@code{--skip-symlinks} option. This is especially important if you run
+@code{--skip-symlink} option. This is especially important if you run
 @code{mysqld} as root as anyone that has write access to the mysqld data
 directories could then delete any file in the system!
 @xref{Symbolic links to tables}.
@@ -19172,7 +19173,7 @@ detect duplicated @code{UNIQUE} keys.
 By using @code{DATA DIRECTORY="directory"} or @code{INDEX
 DIRECTORY="directory"} you can specify where the table handler should
 put it's table and index files.  This only works for @code{MyISAM} tables
-in @code{MySQL} 4.0, when you are not using the @code{--skip-symlinks}
+in @code{MySQL} 4.0, when you are not using the @code{--skip-symlink}
 option. @xref{Symbolic links to tables}.
 
 @end itemize
@@ -31127,12 +31128,12 @@ If you use @code{ALTER TABLE RENAME} to move a table to another database,
 then the table will be moved to the other database directory and the old
 symlinks and the files they pointed to will be deleted.
 @item
-If you are not using symlinks you should use the @code{--skip-symlinks}
+If you are not using symlinks you should use the @code{--skip-symlink}
 option to @code{mysqld} to ensure that no one can drop or rename a file
 outside of the @code{mysqld} data directory.
 @end itemize
 
-Things that are not yet fully supported:
+Things that are not yet supported:
 
 @cindex TODO, symlinks
 @itemize @bullet
@@ -35016,7 +35017,8 @@ This can be used to get faster inserts!  Deactivated indexes can be
 reactivated by using @code{myisamchk -r}.  keys.
 @item -l or --no-symlinks
 Do not follow symbolic links. Normally @code{myisamchk} repairs the
-table a symlink points at.
+table a symlink points at.  This option doesn't exist in MySQL 4.0,
+as MySQL 4.0 will not remove symlinks during repair.
 @item -r or --recover
 Can fix almost anything except unique keys that aren't unique
 (which is an extremely unlikely error with ISAM/MyISAM tables).
