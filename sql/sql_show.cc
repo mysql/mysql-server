@@ -2135,6 +2135,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           }
         }
       }
+      /*
+        If we have information schema its always the first table and only
+        the first table. Reset for other tables.
+      */
       with_i_schema= 0;
     }
   }
@@ -2838,7 +2842,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 }
 
 
-void store_constarints(TABLE *table, const char*db, const char *tname,
+void store_constraints(TABLE *table, const char*db, const char *tname,
                        const char *key_name, uint key_len,
                        const char *con_type, uint con_len)
 {
@@ -2874,10 +2878,10 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
         continue;
 
       if (i == primary_key && !strcmp(key_info->name, primary_key_name))
-        store_constarints(table, base_name, file_name, key_info->name,
+        store_constraints(table, base_name, file_name, key_info->name,
                           strlen(key_info->name), "PRIMARY KEY", 11);
       else if (key_info->flags & HA_NOSAME)
-        store_constarints(table, base_name, file_name, key_info->name,
+        store_constraints(table, base_name, file_name, key_info->name,
                           strlen(key_info->name), "UNIQUE", 6);        
     }
 
@@ -2886,7 +2890,7 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
     List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
     while ((f_key_info=it++))
     {
-      store_constarints(table, base_name, file_name, f_key_info->forein_id->str,
+      store_constraints(table, base_name, file_name, f_key_info->forein_id->str,
                         strlen(f_key_info->forein_id->str), "FOREIGN KEY", 11);
     }
   }
