@@ -1,6 +1,6 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
    
-   This library is free software; you can redistribute it and/or
+   This program file is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
    version 2 of the License, or (at your option) any later version.
@@ -127,7 +127,7 @@ bool String::set(double num,uint decimals)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff,strlen(buff));
+    return copy(buff, (uint32) strlen(buff));
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -142,7 +142,7 @@ bool String::set(double num,uint decimals)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,strlen(pos));
+    return copy(pos,(uint32) strlen(pos));
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -186,12 +186,13 @@ end:
   str_length=(uint32) (to-Ptr);
   return FALSE;
 #else
-#ifdef HAVE_SNPRINTF_
-  snprintf(buff,sizeof(buff), "%.*f",(int) decimals,num);
+#ifdef HAVE_SNPRINTF
+  buff[sizeof(buff)-1]=0;			// Safety
+  snprintf(buff,sizeof(buff)-1, "%.*f",(int) decimals,num);
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,strlen(buff));
+  return copy(buff,(uint32) strlen(buff));
 #endif
 }
 
@@ -260,10 +261,23 @@ bool String::append(const String &s)
 bool String::append(const char *s,uint32 arg_length)
 {
   if (!arg_length)				// Default argument
-    arg_length=strlen(s);
+    arg_length= (uint32) strlen(s);
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
+  str_length+=arg_length;
+  return FALSE;
+}
+
+bool String::append(FILE* file, uint32 arg_length, myf my_flags)
+{
+  if (realloc(str_length+arg_length))
+    return TRUE;
+  if (my_fread(file, (byte*) Ptr + str_length, arg_length, my_flags))
+  {
+    shrink(str_length);
+    return TRUE;
+  }
   str_length+=arg_length;
   return FALSE;
 }
@@ -305,7 +319,7 @@ int String::charpos(int i,uint32 offset)
     if ( INT_MAX32-i <= (int) (mbstr-Ptr-offset)) 
       return INT_MAX32;
     else 
-      return (mbstr-Ptr-offset)+i;
+      return (int) ((mbstr-Ptr-offset)+i);
   }
   else
 #endif
@@ -317,7 +331,7 @@ int String::strstr(const String &s,uint32 offset)
   if (s.length()+offset <= str_length)
   {
     if (!s.length())
-      return offset;				// Empty string is always found
+      return ((int) offset);	// Empty string is always found
 
     register const char *str = Ptr+offset;
     register const char *search=s.ptr();
@@ -587,6 +601,7 @@ static int wild_case_compare(const char *str,const char *str_end,
 #ifdef USE_MB
       const char* mb = wildstr;
       int mblen;
+      LINT_INIT(mblen);
       if (use_mb_flag)
         mblen = my_ismbchar(default_charset_info, wildstr, wildend);
 #endif

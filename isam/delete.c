@@ -439,7 +439,7 @@ static int underflow(register N_INFO *info, register N_KEYDEF *keyinfo,
       t_length=(int) _nisam_get_pack_key_length(keyinfo,nod_flag,(uchar*) 0,
 					     (uchar*) 0, leaf_key,&s_temp);
       s_temp.n_length= *half_pos;	/* For _nisam_store_key */
-      length=(buff+getint(buff))-half_pos;
+      length=(uint) ((buff+getint(buff))-half_pos);
       bmove((byte*) buff+p_length+t_length,(byte*) half_pos,(size_t) length);
       _nisam_store_key(keyinfo,buff+p_length,&s_temp);
       putint(buff,length+t_length+p_length,nod_flag);
@@ -566,7 +566,7 @@ static uint remove_key(N_KEYDEF *keyinfo, uint nod_flag,
   else
   {					 /* Let keypos point at next key */
     VOID((*keyinfo->get_key)(keyinfo,nod_flag,&keypos,lastkey));
-    s_length=(keypos-start);
+    s_length=(uint) (keypos-start);
     if (keyinfo->base.flag & HA_PACK_KEY)
     {
       diff_flag= (keyinfo->seg[0].base.flag & HA_SPACE_PACK);
@@ -576,12 +576,12 @@ static uint remove_key(N_KEYDEF *keyinfo, uint nod_flag,
 	if ((r_length= *keypos++ & 127) == 0)
 	{				/* Same key after */
 	  if (first & 128)
-	    start++;			/* Skipp ref length */
+	    start++;			/* Skip ref length */
 	  if (diff_flag)
-	    start+= *start+1;		/* Skipp key length */
+	    start+= *start+1;		/* Skip key length */
 	  else
 	    start+=keyinfo->seg[0].base.length- (first & 127);
-	  s_length=(keypos-start);	/* Remove pointers and next-key-flag */
+	  s_length=(uint)(keypos-start); /* Remove pntrs and next-key-flag */
 	}
 	else if (! (first & 128))
 	{				/* Deleted key was not compressed */
@@ -589,12 +589,12 @@ static uint remove_key(N_KEYDEF *keyinfo, uint nod_flag,
 	  {
 	    *start= (uchar) (r_length+ *keypos);
 	    start+=r_length+1;		/* Let ref-part remain */
-	    s_length=(keypos-start)+1;	/* Skipp everything between */
+	    s_length=(uint) (keypos-start)+1;	/* Skip everything between */
 	  }
 	  else
 	  {
 	    start+=r_length+1;		/* Let ref-part remain */
-	    s_length=(keypos-start);	/* Skipp everything between */
+	    s_length=(uint) (keypos-start);	/* Skip everything between */
 	  }
 	}
 	else if ((first & 127) < r_length)
@@ -604,7 +604,7 @@ static uint remove_key(N_KEYDEF *keyinfo, uint nod_flag,
 	  if (diff_flag)
 	    *start++= (uchar) (*keypos++ + r_length);
 	  start+= r_length;
-	  s_length=(keypos-start);	/* Skipp everything between */
+	  s_length=(uint) (keypos-start);	/* Skip everything between */
 	}
       }
     }
@@ -613,3 +613,5 @@ static uint remove_key(N_KEYDEF *keyinfo, uint nod_flag,
 	(uint) (page_end-start-s_length));
   DBUG_RETURN((uint) s_length);
 } /* remove_key */
+
+

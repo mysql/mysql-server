@@ -1588,7 +1588,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
 	      key++; org_key++;
 	    }
 	  }
-	  if ((new_ref_length= (key - start)))
+	  if ((new_ref_length= (uint) (key - start)))
 	    new_ref_length+=pack_marker;
 	}
 

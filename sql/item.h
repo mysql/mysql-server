@@ -26,7 +26,7 @@ class Item {
   Item(const Item &);				/* Prevent use of theese */
   void operator=(Item &);
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc(size); }
+  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr,size_t size) {} /*lint -e715 */
 
   enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
@@ -167,7 +167,7 @@ public:
   Item_int(const char *str_arg) :
     value(str_arg[0] == '-' ? strtoll(str_arg,(char**) 0,10) :
 	  (longlong) strtoull(str_arg,(char**) 0,10))
-    { max_length=strlen(str_arg); name=(char*) str_arg;}
+    { max_length= (uint) strlen(str_arg); name=(char*) str_arg;}
   enum Type type() const { return INT_ITEM; }
   virtual enum Item_result result_type () const { return INT_RESULT; }
   longlong val_int() { return value; }

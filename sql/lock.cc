@@ -262,7 +262,7 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
       if (locked->locks[i]->type != TL_UNLOCK)
 	*prev++ = locked->locks[i];
     }
-    locked->lock_count=(prev - locked->locks);
+    locked->lock_count=(uint) (prev - locked->locks);
   }
 }
 

@@ -36,7 +36,7 @@ public:
   String(uint32 length_arg)
   { alloced=0; Alloced_length=0; (void) real_alloc(length_arg); }
   String(const char *str)
-  { Ptr=(char*) str; str_length=strlen(str); Alloced_length=0; alloced=0;}
+  { Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;}
   String(const char *str,uint32 len)
   { Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;}
   String(char *str,uint32 len)
@@ -45,7 +45,7 @@ public:
   { Ptr=str.Ptr ; str_length=str.str_length ;
     Alloced_length=str.Alloced_length; alloced=0; }
 
-  static void *operator new(size_t size) { return (void*) sql_alloc(size); }
+  static void *operator new(size_t size) { return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg,size_t size) /*lint -e715 */
     { sql_element_free(ptr_arg); }
   ~String() { free(); }
@@ -123,7 +123,7 @@ public:
     if (arg_length < Alloced_length)
     {
       char *new_ptr;
-      if (!(new_ptr=my_realloc(Ptr,arg_length,MYF(0))))
+      if (!(new_ptr=(char*) my_realloc(Ptr,arg_length,MYF(0))))
       {
 	(void) my_free(Ptr,MYF(0));
 	real_alloc(arg_length);
@@ -152,6 +152,7 @@ public:
   bool copy(const char *s,uint32 arg_length);	// Allocate new string
   bool append(const String &s);
   bool append(const char *s,uint32 arg_length=0);
+  bool append(FILE* file, uint32 arg_length, myf my_flags);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   bool replace(uint32 offset,uint32 arg_length,const String &to);

@@ -818,11 +818,12 @@ store_create_info(THD *thd, TABLE *table, String* packet)
 
 class thread_info :public ilink {
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc(size); }
+  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr __attribute__((unused)),
 			      size_t size __attribute__((unused))) {} /*lint -e715 */
 
-  ulong thread_id,start_time;
+  ulong thread_id;
+  time_t start_time;
   uint	 command;
   const char *user,*host,*db,*proc_info,*state_info;
   char *query;
