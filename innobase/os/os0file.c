@@ -301,13 +301,10 @@ os_file_handle_error(
 /*=================*/
 				/* out: TRUE if we should retry the
 				operation */
-	os_file_t	file,	/* in: file pointer */
 	const char*	name,	/* in: name of a file or NULL */
 	const char*	operation)/* in: operation */
 {
 	ulint	err;
-
-	UT_NOT_USED(file);
 
 	err = os_file_get_last_error();
 	
@@ -374,6 +371,25 @@ os_io_init_simple(void)
 	}
 }
 
+/***************************************************************************
+Creates a temporary file. In case of error, causes abnormal termination. */
+
+FILE*
+os_file_create_tmpfile(void)
+/*========================*/
+				/* out: temporary file handle (never NULL) */
+{
+	FILE*	file	= tmpfile();
+	if (file == NULL) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: unable to create temporary file\n",
+			stderr);
+		os_file_handle_error(NULL, "tmpfile");
+		ut_error;
+	}
+	return(file);
+}
+
 /********************************************************************
 A simple function to open or create a file. */
 
@@ -430,7 +446,7 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -472,7 +488,7 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -678,7 +694,7 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -766,7 +782,7 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -801,7 +817,7 @@ os_file_close(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL, "close");
+	os_file_handle_error(NULL, "close");
 	return(FALSE);
 #else
 	int	ret;
@@ -809,7 +825,7 @@ os_file_close(
 	ret = close(file);
 
 	if (ret == -1) {
-		os_file_handle_error(file, NULL, "close");
+		os_file_handle_error(NULL, "close");
 		return(FALSE);
 	}
 
@@ -1029,7 +1045,7 @@ os_file_flush(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL, "flush");
+	os_file_handle_error(NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1063,7 +1079,7 @@ os_file_flush(
 	fprintf(stderr,
 		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
-	os_file_handle_error(file, NULL, "flush");
+	os_file_handle_error(NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1111,7 +1127,7 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-#ifdef HAVE_PREAD
+#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
         os_mutex_exit(os_file_count_mutex);
@@ -1186,7 +1202,7 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#ifdef HAVE_PWRITE
+#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
         os_mutex_exit(os_file_count_mutex);
@@ -1323,7 +1339,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error(file, NULL, "read"); 
+	retry = os_file_handle_error(NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -2278,7 +2294,7 @@ try_again:
 
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(file, name,
+	retry = os_file_handle_error(name,
 			type == OS_FILE_READ ? "aio read" : "aio write");
 	if (retry) {
 
@@ -2378,7 +2394,7 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_handle_error(slot->file, slot->name, "Windows aio");
+		os_file_handle_error(slot->name, "Windows aio");
 		
 		ret_val = FALSE;
 	}		  

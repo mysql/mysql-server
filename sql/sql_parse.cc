@@ -742,7 +742,7 @@ pthread_handler_decl(handle_one_connection,arg)
     free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0)
     {
-      if (!thd->killed && thd->variables.log_warnings)
+      if (!thd->killed && thd->variables.log_warnings > 1)
 	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
 			thd->thread_id,(thd->db ? thd->db : "unconnected"),
 			thd->user ? thd->user : "unauthenticated",
@@ -2672,7 +2672,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!(thd->master_access & SELECT_ACL) &&
 	(db && (!thd->db || strcmp(db,thd->db))))
       db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-			thd->priv_user, db); /* purecov: inspected */
+			thd->priv_user, db, 0); /* purecov: inspected */
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -2692,7 +2692,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		      thd->priv_user, db); /* purecov: inspected */
+		      thd->priv_user, db, 0); /* purecov: inspected */
   else
     db_access=thd->db_access;
   // Remove SHOW attribute and access rights we already have

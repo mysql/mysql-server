@@ -133,6 +133,13 @@ Creates the seek mutexes used in positioned reads and writes. */
 void
 os_io_init_simple(void);
 /*===================*/
+/***************************************************************************
+Creates a temporary file. In case of error, causes abnormal termination. */
+
+FILE*
+os_file_create_tmpfile(void);
+/*========================*/
+				/* out: temporary file handle (never NULL) */
 /********************************************************************
 A simple function to open or create a file. */
 

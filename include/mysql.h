@@ -244,6 +244,17 @@ typedef struct st_mysql_manager
   char last_error[MAX_MYSQL_MANAGER_ERR];
 } MYSQL_MANAGER;
 
+typedef struct st_mysql_parameters
+{
+  unsigned long *p_max_allowed_packet;
+  unsigned long *p_net_buffer_length;
+} MYSQL_PARAMETERS;
+
+#if !defined(MYSQL_CLIENT) && !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
+#define net_buffer_length (*mysql_get_parameters()->p_net_buffer_length)
+#endif
+
 /*
   Set up and bring down the server; to ensure that applications will
   work when linked against either the standard client library or the
@@ -251,6 +262,8 @@ typedef struct st_mysql_manager
 */
 int STDCALL mysql_server_init(int argc, char **argv, char **groups);
 void STDCALL mysql_server_end(void);
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void);
 
 /*
   Set up and bring down a thread; these function should be called

@@ -13,8 +13,8 @@
 # (@localstatedir@ for this installation) or to
 # ~/.my.cnf to set user-specific options.
 #
-# In this file, you can use all long options that the program supports.
-# If you want to know the options a program supports, run the program
+# In this file, you can use all long options that a program supports.
+# If you want to know which options a program supports, run the program
 # with the "--help" option.
 #
 # More detailed information about the individual options can also be

@@ -223,9 +223,6 @@ typedef struct st_udf_init
 extern "C" {
 #endif
 
-extern unsigned long max_allowed_packet;
-extern unsigned long net_buffer_length;
-
 void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);
 double my_rnd(struct rand_struct *);

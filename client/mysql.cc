@@ -129,6 +129,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
                tty_password= 0, opt_nobeep=0;
+static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -330,7 +331,7 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (status.batch && !status.line_buff &&
-      !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
+      !(status.line_buff=batch_readline_init(opt_max_allowed_packet+512,stdin)))
   {
     free_defaults(defaults_argv);
     exit(1);
@@ -573,11 +574,11 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
    0, 1},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
+   (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
    MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-   (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
+   (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"select_limit", OPT_SELECT_LIMIT, "", (gptr*) &select_limit,
    (gptr*) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
@@ -590,6 +591,10 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
+  /* Divert all help information on NetWare to logger screen. */
+#ifdef __NETWARE__
+#define printf	consoleprintf
+#endif
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
@@ -602,7 +607,12 @@ and you are welcome to modify and redistribute it under the GPL license\n");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
+  NETWARE_SET_SCREEN_MODE(1);
+#ifdef __NETWARE__
+#undef printf
+#endif
 }
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -729,6 +739,7 @@ static int get_options(int argc, char **argv)
 {
   char *tmp, *pagpoint;
   int ho_error;
+  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
 
   tmp= (char *) getenv("MYSQL_HOST");
   if (tmp)
@@ -744,8 +755,14 @@ static int get_options(int argc, char **argv)
     strmov(pager, pagpoint);
   strmov(default_pager, pager);
 
+  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
+  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
+
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
+  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
 
   if (status.batch) /* disable pager and outfile in this case */
   {
@@ -812,6 +829,7 @@ static int read_lines(bool execute_commands)
 #ifdef __NETWARE__
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
       /* Remove the '\n' */
+      if (line)
       {
         char *p = strrchr(line, '\n');
         if (p != NULL)
@@ -827,7 +845,11 @@ static int read_lines(bool execute_commands)
       line= readline(prompt);
 #endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
 
-      if (opt_outfile)
+      /*
+        When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
+        which may cause coredump.
+      */
+      if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
     if (!line)					// End of file
@@ -2018,10 +2040,8 @@ static int
 com_quit(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-#ifdef __NETWARE__
-  // let the screen auto close on a normal shutdown
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-#endif
+  /* let the screen auto close on a normal shutdown */
+  NETWARE_SET_SCREEN_MODE(SCR_AUTOCLOSE_ON_EXIT);
   status.exit_status=0;
   return 1;
 }
@@ -2152,7 +2172,7 @@ static int com_source(String *buffer, char *line)
     return put_info(buff, INFO_ERROR, 0);
   }
 
-  if (!(line_buff=batch_readline_init(max_allowed_packet+512,sql_file)))
+  if (!(line_buff=batch_readline_init(opt_max_allowed_packet+512,sql_file)))
   {
     my_fclose(sql_file,MYF(0));
     return put_info("Can't initialize batch_readline", INFO_ERROR, 0);
@@ -2489,6 +2509,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
+  NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
 #ifdef OS2
@@ -2502,6 +2523,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
 void tee_fputs(const char *s, FILE *file)
 {
+  NETWARE_YIELD;
   fputs(s, file);
 #ifdef OS2
   fflush( file);
@@ -2513,6 +2535,7 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
+  NETWARE_YIELD;
   fputs(s, file);
   fputs("\n", file);
 #ifdef OS2
