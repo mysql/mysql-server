@@ -3266,6 +3266,16 @@ select wss_type from t1 where wss_type =102935229216544093;
 wss_type
 102935229216544093
 drop table t1;
+select 1+2,"aaaa",3.13*2.0 into @a,@b,@c;
+select @a;
+@a
+3
+select @b;
+@b
+aaaa
+select @c;
+@c
+6.26
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values ();
 insert into t1 values ();

@@ -912,3 +912,57 @@ bool select_exists_subselect::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
+
+/***************************************************************************
+** Dump  of select to variables
+***************************************************************************/
+int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+{
+  List_iterator_fast<Item> li(list);
+  List_iterator_fast<LEX_STRING> gl(var_list);
+  Item *item;
+  LEX_STRING *ls;
+  if (var_list.elements != list.elements)
+  {
+    my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
+    return 1;
+  }
+  while ((item=li++))
+  {
+    ls= gl++;
+    Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
+    xx->fix_fields(current_thd,(TABLE_LIST*) current_thd->lex.select_lex.table_list.first,&item);
+    xx->fix_length_and_dec();
+    vars.push_back(xx);
+  }
+  return 0;
+}
+bool select_dumpvar::send_data(List<Item> &items)
+{
+  List_iterator_fast<Item_func_set_user_var> li(vars);
+  Item_func_set_user_var *xx;
+  DBUG_ENTER("send_data");
+
+  if (row_count++) 
+  {
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    DBUG_RETURN(1);
+  }
+  while ((xx=li++))
+    xx->update();
+  DBUG_RETURN(0);
+}
+
+bool select_dumpvar::send_eof()
+{
+  if (row_count)
+  {
+    ::send_ok(thd,row_count);
+    return 0;
+  }
+  else
+  {
+    my_error(ER_EMPTY_QUERY,MYF(0));
+    return 1;
+  }
+}

@@ -392,6 +392,8 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
 		 bool fake_select_lex);
 void fix_tables_pointers(SELECT_LEX *select_lex);
+int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
+			select_result *result);
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 int mysql_union(THD *thd, LEX *lex,select_result *result);
