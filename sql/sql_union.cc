@@ -110,7 +110,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     while ((item= it++))
       if (item_list.push_back(item))
 	DBUG_RETURN(-1);
-    if (setup_fields(thd,first_table,item_list,0,0,1))
+    if (setup_tables(first_table) ||
+	setup_fields(thd,first_table,item_list,0,0,1))
       DBUG_RETURN(-1);
   }
 
@@ -259,7 +260,7 @@ bool select_union::send_data(List<Item> &values)
     return 0;
   }
 
-  fill_record(table->field,values);
+  fill_record(table->field, values, 1);
   if ((write_record(table,&info)))
   {
     if (create_myisam_from_heap(thd, table, tmp_table_param, info.last_errno,

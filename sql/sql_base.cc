@@ -2112,7 +2112,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 ******************************************************************************/
 
 int
-fill_record(List<Item> &fields,List<Item> &values)
+fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value;
@@ -2122,7 +2122,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field, 0))
+    if (value->save_in_field(field->field, 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2130,7 +2130,7 @@ fill_record(List<Item> &fields,List<Item> &values)
 
 
 int
-fill_record(Field **ptr,List<Item> &values)
+fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -2140,7 +2140,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field, 0))
+    if (value->save_in_field(field, 0) && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

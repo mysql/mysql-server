@@ -196,9 +196,17 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
+  char tmp_passwd[SCRAMBLE_LENGTH];
 
   if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
     return 1;
+  /*
+    Move password to temporary buffer as it may be stored in communication
+    buffer
+  */
+  strmov(tmp_passwd, passwd);
+  passwd= tmp_passwd;				// Use local copy
+
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
     send_error(net,ER_OUT_OF_RESOURCES);
@@ -264,6 +272,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   }
   else
     send_ok(net);				// Ready to handle questions
+  thd->password= test(passwd[0]);		// Remember for error messages
   return 0;					// ok
 }
 
@@ -617,7 +626,6 @@ check_connections(THD *thd)
   net->read_timeout=(uint) thd->variables.net_read_timeout;
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1))
     return (-1);
-  thd->password=test(passwd[0]);
   return 0;
 }
 
@@ -1007,7 +1015,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       decrease_user_connections(save_uc);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
-    thd->password=test(passwd[0]);
     break;
   }
 
