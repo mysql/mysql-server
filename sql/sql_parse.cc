@@ -839,8 +839,9 @@ err:
 }
 
 
-	/* Execute one command from socket (query or simple command) */
+#ifndef EMBEDDED_LIBRARY
 
+	/* Execute one command from socket (query or simple command) */
 bool do_command(THD *thd)
 {
   char *packet;
@@ -878,6 +879,7 @@ bool do_command(THD *thd)
   DBUG_RETURN(dispatch_command(command,thd, packet+1, (uint) packet_length));
 }
 
+#endif  /* EMBEDDED_LIBRARY */
 
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
@@ -3166,7 +3168,6 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
   case FIELD_TYPE_NULL:
-  case FIELD_TYPE_GEOMETRY:
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
@@ -3179,6 +3180,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   case FIELD_TYPE_TINY_BLOB:
   case FIELD_TYPE_LONG_BLOB:
   case FIELD_TYPE_MEDIUM_BLOB:
+  case FIELD_TYPE_GEOMETRY:
     if (default_value)				// Allow empty as default value
     {
       String str,*res;
@@ -3314,7 +3316,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
 
   if (new_field->length >= MAX_FIELD_WIDTH ||
       (!new_field->length && !(new_field->flags & BLOB_FLAG) &&
-       type != FIELD_TYPE_STRING && type != FIELD_TYPE_VAR_STRING))
+       type != FIELD_TYPE_STRING && type != FIELD_TYPE_VAR_STRING && type != FIELD_TYPE_GEOMETRY))
   {
     net_printf(thd,ER_TOO_BIG_FIELDLENGTH,field_name,
 	       MAX_FIELD_WIDTH-1);		/* purecov: inspected */

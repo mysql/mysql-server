@@ -403,6 +403,16 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
       break;
+    case FIELD_TYPE_GEOMETRY:
+      sql_field->pack_flag=FIELDFLAG_GEOM |
+	pack_length_to_packflag(sql_field->pack_length -
+				portable_sizeof_char_ptr);
+      if (sql_field->flags & BINARY_FLAG)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
+      sql_field->length=8;			// Unireg field length
+      sql_field->unireg_check=Field::BLOB_FIELD;
+      blob_columns++;
+      break;
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;
@@ -1012,8 +1022,7 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
   net_store_data(packet, "error");
   net_store_data(packet, errmsg);
   thd->net.last_error[0]=0;
-  if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		   packet->length()))
+  if (SEND_ROW(thd, 4, (char*) thd->packet.ptr(), packet->length()))
     return -1;
   return 1;
 }
@@ -1183,6 +1192,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
     thd->open_options&= ~extra_open_options;
     packet->length(0);
     if (prepare_func)
@@ -1204,7 +1216,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
       net_store_data(packet, err_msg);
       thd->net.last_error[0]=0;
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
+      if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
@@ -1219,7 +1231,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       net_store_data(packet, buff);
       close_thread_tables(thd);
       table->table=0;				// For query cache
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
+      if (SEND_ROW(thd, field_list.elements, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
@@ -1248,6 +1260,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
     packet->length(0);
     net_store_data(packet, table_name);
     net_store_data(packet, operator_name);
@@ -1303,8 +1318,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
-    if (my_net_write(&thd->net, (char*) packet->ptr(),
-		     packet->length()))
+    if (SEND_ROW(thd, field_list.elements, 
+			  (char *)thd->packet.ptr(), thd->packet.length()))
       goto err;
   }
 
