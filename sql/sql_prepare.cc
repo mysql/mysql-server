@@ -908,7 +908,11 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     Item *unused_conds= 0;
 
     if (table_list->table)
-      table_list->table->insert_values=(byte *)1; // don't allocate insert_values
+    {
+      // don't allocate insert_values
+      table_list->table->insert_values=(byte *)1;
+    }
+
     if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
 				   fields, values, update_fields,
 				   update_values, duplic,
@@ -934,8 +938,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   res= 0;
 error:
   lex->unit.cleanup();
-  if (table_list->table)
-    table_list->table->insert_values=0;
+  /* insert_values is cleared in open_table */
   DBUG_RETURN(res);
 }
 
@@ -1401,6 +1404,11 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
   DBUG_ASSERT(first_local_table != 0);
   /* Skip first table, which is the table we are inserting in */
   lex->select_lex.table_list.first= (byte*) first_local_table->next_local;
+  if (tables->table)
+  {
+    // don't allocate insert_values
+    tables->table->insert_values=(byte *)1;
+  }
 
   /*
     insert/replace from SELECT give its SELECT_LEX for SELECT,
