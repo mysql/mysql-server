@@ -139,7 +139,7 @@
 #endif
 
 /* In Linux-ia64 including atomic.h will give us an error */
-#if (defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && defined(__ia64__)) || !defined(THREAD)
+#if (defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && (defined(__ia64__) || defined(__powerpc64__))) || !defined(THREAD)
 #undef HAVE_ATOMIC_ADD
 #undef HAVE_ATOMIC_SUB
 #endif
@@ -200,6 +200,7 @@
 #endif
 #ifdef HAVE_ATOMIC_ADD
 #define __SMP__
+#define CONFIG_SMP
 #include <asm/atomic.h>
 #endif
 

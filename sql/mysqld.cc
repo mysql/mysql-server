@@ -90,14 +90,14 @@ extern "C" {					// Because of SCO 3.2V4.2
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 
-#ifdef __linux__
-#define my_fromhost(A)	   fromhost()
-#define my_hosts_access(A) hosts_access()
-#define my_eval_client(A)  eval_client()
-#else
+#ifdef __STDC__
 #define my_fromhost(A)	   fromhost(A)
 #define my_hosts_access(A) hosts_access(A)
 #define my_eval_client(A)  eval_client(A)
+#else
+#define my_fromhost(A)	   fromhost()
+#define my_hosts_access(A) hosts_access()
+#define my_eval_client(A)  eval_client()
 #endif
 #endif /* HAVE_LIBWRAP */
 
