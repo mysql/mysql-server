@@ -107,11 +107,11 @@ static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
 /*
-  Constant for detection default value of default_charset (if
-  default_charset equal to mysql_universal_client_charset, then it is
-  default value which assigned in very beginning on main())
+  Constant for detection of default value of default_charset.
+  If default_charset is equal to mysql_universal_client_charset, then
+  it is the default value which assigned at the very beginning of main().
 */
-const static char *mysql_universal_client_charset=
+static const char *mysql_universal_client_charset=
   MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static char *default_charset;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
