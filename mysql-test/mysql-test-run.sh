@@ -942,13 +942,14 @@ start_ndbcluster()
       NDBCLUSTER_OPTS="--small"
     fi
     ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
-    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
+    NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
-    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
-    echo "Using ndbcluster at $USE_NDBCLUSTER"
+    NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
+    echo "Using ndbcluster at $NDB_CONNECTSTRING"
   fi
+  USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$NDB_CONNECTSTRING\""
+  export NDB_CONNECTSTRING
   fi
-
 }
 
 stop_ndbcluster()
