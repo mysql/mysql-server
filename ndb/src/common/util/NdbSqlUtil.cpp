@@ -529,6 +529,83 @@ NdbSqlUtil::cmpText(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size
   return CmpUnknown;
 }
 
+// check charset
+
+bool
+NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
+{
+  const Type& type = getType(typeId);
+  switch (type.m_typeId) {
+  case Type::Undefined:
+    break;
+  case Type::Char:
+    {
+      const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
+      return
+        cs != 0 &&
+        cs->cset != 0 &&
+        cs->coll != 0 &&
+        cs->coll->strnxfrm != 0 &&
+        cs->strxfrm_multiply == 1; // current limitation
+    }
+    break;
+  case Type::Varchar:
+    return true; // Varchar not used via MySQL
+  case Type::Blob:
+  case Type::Text:
+    break;
+  default:
+    return true;
+  }
+  return false;
+}
+
+bool
+NdbSqlUtil::usable_in_hash_index(Uint32 typeId, const void* info)
+{
+  return usable_in_pk(typeId, info);
+}
+
+bool
+NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
+{
+  const Type& type = getType(typeId);
+  switch (type.m_typeId) {
+  case Type::Undefined:
+    break;
+  case Type::Char:
+    {
+      const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
+      return
+        cs != 0 &&
+        cs->cset != 0 &&
+        cs->coll != 0 &&
+        cs->coll->strnxfrm != 0 &&
+        cs->coll->strnncollsp != 0 &&
+        cs->strxfrm_multiply == 1; // current limitation
+    }
+    break;
+  case Type::Varchar:
+    return true; // Varchar not used via MySQL
+  case Type::Text:
+    {
+      const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
+      return
+        cs != 0 &&
+        cs->mbmaxlen == 1 && // extra limitation
+        cs->cset != 0 &&
+        cs->coll != 0 &&
+        cs->coll->strnxfrm != 0 &&
+        cs->coll->strnncollsp != 0 &&
+        cs->strxfrm_multiply == 1; // current limitation
+    }
+    break;
+  default:
+    return true;
+  }
+  return false;
+}
+
 #ifdef NDB_SQL_UTIL_TEST
 
 #include <NdbTick.h>
