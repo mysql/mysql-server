@@ -968,6 +968,15 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
   DBUG_PRINT("qcache", ("Query have result 0x%lx", (ulong) query));
 
+  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+      (query->tables_type() & HA_CACHE_TBL_TRANSACT))
+  {
+    DBUG_PRINT("qcache",
+	       ("we are in transaction and have transaction tables in query"));
+    BLOCK_UNLOCK_RD(query_block);
+    goto err_unlock;
+  }
+      
   check_tables= query->tables_type() & HA_CACHE_TBL_ASKTRANSACT;
   // Check access;
   block_table= query_block->table(0);
