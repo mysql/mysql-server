@@ -35,6 +35,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
+			make_win_src_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
