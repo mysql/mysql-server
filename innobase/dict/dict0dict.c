@@ -323,6 +323,32 @@ dict_table_autoinc_decrement(
 }
 
 /************************************************************************
+Reads the next autoinc value (== autoinc counter value), 0 if not yet
+initialized. */
+
+ib_longlong
+dict_table_autoinc_read(
+/*====================*/
+				/* out: value for a new row, or 0 */
+	dict_table_t*	table)	/* in: table */
+{
+	ib_longlong	value;
+
+	mutex_enter(&(table->autoinc_mutex));
+
+	if (!table->autoinc_inited) {
+
+		value = 0;
+	} else {
+		value = table->autoinc;
+	}
+	
+	mutex_exit(&(table->autoinc_mutex));
+
+	return(value);
+}
+
+/************************************************************************
 Peeks the autoinc counter value, 0 if not yet initialized. Does not
 increment the counter. The read not protected by any mutex! */
 
