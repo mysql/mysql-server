@@ -458,6 +458,14 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t2.b=t4.b
     WHERE t1.a <= 2;
 
+EXPLAIN EXTENDED
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t1, t3, t4
+       RIGHT JOIN
+       t2
+       ON t3.a=1 AND t2.b=t4.b
+    WHERE t1.a <= 2;
+
 CREATE INDEX idx_b ON t2(b);
 
 EXPLAIN EXTENDED
