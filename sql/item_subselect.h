@@ -48,7 +48,12 @@ protected:
   bool have_to_be_excluded;
 
 public:
+  /* changed engine indicator */
+  bool engine_changed;
+
   enum trans_res {OK, REDUCE, ERROR};
+  enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
+		  EXISTS_SUBS, IN_SUBS, ALLANY_SUBS};
 
   Item_subselect();
   Item_subselect(Item_subselect *item)
@@ -59,8 +64,11 @@ public:
     max_columns= item->max_columns;
     engine= item->engine;
     engine_owner= 0;
+    engine_changed= item->engine_changed;
     name= item->name;
   }
+
+  virtual subs_type substype() { return UNKNOWN_SUBS; }
 
   /* 
      We need this method, because some compilers do not allow 'this'
@@ -95,6 +103,12 @@ public:
     else
       str->append("-subselect-");
   }
+  bool change_engine(subselect_engine *eng)
+  {
+    engine= eng;
+    engine_changed= 1;
+    return eng == 0;
+  }
 
   friend class select_subselect;
   friend class Item_in_optimizer;
@@ -116,6 +130,9 @@ public:
     max_length= item->max_length;
     decimals= item->decimals;
   }
+
+  subs_type substype() { return SINGLEROW_SUBS; }
+
   void reset();
   trans_res select_transformer(JOIN *join);
   void store(uint i, Item* item);
@@ -152,6 +169,7 @@ public:
   }
   Item_exists_subselect(): Item_subselect() {}
 
+  subs_type substype() { return EXISTS_SUBS; }
   void reset() 
   {
     value= 0;
@@ -165,6 +183,7 @@ public:
   void fix_length_and_dec();
 
   friend class select_exists_subselect;
+  friend class subselect_simplein_engine;
 };
 
 /* IN subselect */
@@ -185,6 +204,8 @@ public:
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
   Item_in_subselect(): Item_exists_subselect(),  abort_on_null(0)  {}
+
+  subs_type substype() { return IN_SUBS; }
   void reset() 
   {
     value= 0;
@@ -218,6 +239,7 @@ public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
+  subs_type substype() { return ALLANY_SUBS; }
   trans_res select_transformer(JOIN *join);
 };
 
@@ -287,4 +309,25 @@ public:
   bool dependent();
   bool uncacheable();
   void exclude();
+};
+
+struct st_join_table;
+class subselect_simplein_engine: public subselect_engine
+{
+  st_join_table *tab;
+  Item *cond;
+public:
+
+  subselect_simplein_engine(THD *thd, st_join_table *tab_arg,
+			    Item_subselect *subs, Item *where)
+    :subselect_engine(thd, subs, 0), tab(tab_arg), cond(where)
+  {}
+    
+  int prepare();
+  void fix_length_and_dec(Item_cache** row);
+  int exec();
+  uint cols() { return 1; }
+  bool dependent() { return 1; }
+  bool uncacheable() { return 1; }
+  void  exclude();
 };

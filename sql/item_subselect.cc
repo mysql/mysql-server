@@ -36,7 +36,7 @@ inline Item * and_items(Item* cond, Item *item)
 
 Item_subselect::Item_subselect():
   Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
-  have_to_be_excluded(0)
+  have_to_be_excluded(0), engine_changed(0)
 {
   reset();
   /*
@@ -117,16 +117,22 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 
 bool Item_subselect::exec()
 {
+  int res;
   MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
   if (&thd->mem_root != old_root)
   {
     my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
-    int res= engine->exec();
+    res= engine->exec();
     my_pthread_setspecific_ptr(THR_MALLOC, old_root);
-    return (res);
   }
   else
-    return engine->exec();
+    res= engine->exec();
+  if (engine_changed)
+  {
+    engine_changed= 0;
+    return exec();
+  }
+  return (res);
 }
 
 Item::Type Item_subselect::type() const 
@@ -795,6 +801,13 @@ int subselect_union_engine::prepare()
   return unit->prepare(thd, result, 0);
 }
 
+int subselect_simplein_engine::prepare()
+{
+  //this never should be called
+  DBUG_ASSERT(0);
+  return 1;
+}
+
 static Item_result set_row(SELECT_LEX *select_lex, Item * item,
 			   Item_cache **row, bool *maybe_null)
 {
@@ -873,6 +886,12 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   }
 }
 
+void subselect_simplein_engine::fix_length_and_dec(Item_cache **row)
+{
+  //this never should be called
+  DBUG_ASSERT(0);
+}
+
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
@@ -888,6 +907,10 @@ int subselect_single_select_engine::exec()
       executed= 1;
       join->thd->lex.current_select= save_select;
       DBUG_RETURN(join->error?join->error:1);
+    }
+    if (item->engine_changed)
+    {
+      DBUG_RETURN(1);
     }
   }
   if ((select_lex->dependent || select_lex->uncacheable) && executed)
@@ -920,6 +943,51 @@ int subselect_union_engine::exec()
   int res= unit->exec();
   unit->thd->where= save_where;
   return res;
+}
+
+int subselect_simplein_engine::exec()
+{
+  DBUG_ENTER("subselect_simplein_engine::exec");
+  int error;
+  TABLE *table= tab->table;
+  if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  {
+    table->status= STATUS_NOT_FOUND;
+    error= -1;
+  }
+  else
+  {
+    error= table->file->index_read(table->record[0],
+				   tab->ref.key_buff,
+				   tab->ref.key_length,HA_READ_KEY_EXACT);
+    if (error && error != HA_ERR_KEY_NOT_FOUND)
+      error= report_error(table, error);
+    else
+    {
+      error= 0;
+      table->null_row= 0;
+      if (table->status)
+	((Item_in_subselect *) item)->value= 0;
+      else
+	((Item_in_subselect *) item)->value= (!cond || cond->val_int()?1:0);
+    }
+  }
+  {
+    int tmp= 0;
+    if ((tmp= table->file->extra(HA_EXTRA_NO_CACHE)))
+    {
+      DBUG_PRINT("error", ("extra(HA_EXTRA_NO_CACHE) failed"));
+      error= 1;
+    }
+    if ((tmp= table->file->index_end()))
+    {
+      DBUG_PRINT("error", ("index_end() failed"));
+      error= 1;
+    }
+    if (error == 1)
+      table->file->print_error(tmp, MYF(0));
+  }
+  DBUG_RETURN(error != 0)
 }
 
 uint subselect_single_select_engine::cols()
@@ -960,4 +1028,10 @@ void subselect_single_select_engine::exclude()
 void subselect_union_engine::exclude()
 {
   unit->exclude_level();
+}
+
+void subselect_simplein_engine::exclude()
+{
+  //this never should be called
+  DBUG_ASSERT(0);
 }

@@ -75,7 +75,8 @@ typedef struct st_join_cache {
 */
 
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
-		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL};
+		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
+		 JT_SIMPLE_IN};
 
 class JOIN;
 
@@ -305,7 +306,6 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 /* functions from opt_sum.cc */
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
 
-
 /* class to copying an field/item to a key struct */
 
 class store_key :public Sql_alloc
@@ -407,3 +407,4 @@ public:
 bool cp_buffer_from_ref(TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
 void relink_tables(SELECT_LEX *select_lex);
+int report_error(TABLE *table, int error);

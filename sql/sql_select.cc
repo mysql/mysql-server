@@ -32,7 +32,7 @@
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
-			      "ref_or_null"
+			      "ref_or_null","simple_in"
 };
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
@@ -722,6 +722,45 @@ JOIN::optimize()
 					SELECT_NO_JOIN_CACHE)) |
 		     (select_lex->ftfunc_list->elements ? 
 		      SELECT_NO_JOIN_CACHE : 0));
+
+  /*
+    is this simple IN subquery?
+  */
+  if (!group_list && !order && !having &&
+      unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
+      tables == 1 && join_tab[0].type == JT_EQ_REF &&
+      conds &&
+      !unit->first_select()->next_select())
+  {
+    Item *where= 0;
+    bool ok= 0;
+    if (conds->type() == Item::FUNC_ITEM &&
+	((class Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
+	((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
+	((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM)
+    {
+      ok= 1;
+      join_tab->info= "Using index";
+    }
+    else if (conds->type() == Item::COND_ITEM &&
+	     ((class Item_func *)this->conds)->functype() ==
+	     Item_func::COND_AND_FUNC)
+    {
+      ok= 1;
+      where= conds;
+      join_tab->info= "Using index; Using where";
+    }
+
+    if (ok)
+    {
+      join_tab[0].type= JT_SIMPLE_IN;
+      error= 0;
+      DBUG_RETURN(unit->item->
+		  change_engine(new subselect_simplein_engine(thd, join_tab,
+							      unit->item,
+							      where)));
+    }
+  }
 
   /*
     Need to tell Innobase that to play it safe, it should fetch all
@@ -5337,7 +5376,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
 
 /* Help function when we get some an error from the table handler */
 
-static int report_error(TABLE *table, int error)
+int report_error(TABLE *table, int error)
 {
   if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
   {
