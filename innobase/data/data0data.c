@@ -546,9 +546,7 @@ dtuple_convert_big_rec(
 				}
 			}
 				
-			if (!is_externally_stored
-			    && dict_index_get_nth_type(index, i)->mtype
-			       == DATA_BLOB) {
+			if (!is_externally_stored) {
 
 				dfield = dtuple_get_nth_field(entry, i);
 

@@ -404,12 +404,13 @@ NdbEventOperationImpl::next(int *pOverrun)
     Uint32 *aDataPtr = ptr[1].p;
 
 #ifdef EVENT_DEBUG
+    int i;
     printf("after values sz=%u\n", ptr[1].sz);
-    for(int i=0; i < (int)ptr[1].sz; i++)
+    for(i=0; i < (int)ptr[1].sz; i++)
       printf ("H'%.8X ",ptr[1].p[i]);
     printf("\n");
     printf("before values sz=%u\n", ptr[2].sz);
-    for(int i=0; i < (int)ptr[2].sz; i++)
+    for(i=0; i < (int)ptr[2].sz; i++)
       printf ("H'%.8X ",ptr[2].p[i]);
     printf("\n");
 #endif
