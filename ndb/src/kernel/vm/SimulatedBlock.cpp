@@ -636,7 +636,7 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
 }
 
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) 
+SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear) 
 {
 
   void* p = NULL;
@@ -656,17 +656,21 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n)
       char buf1[255];
       char buf2[255];
       snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
-	      getBlockName(number()), type);
-      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", (Uint32)s, (Uint32)n, (Uint32)size);
+	       getBlockName(number()), type);
+      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
+	       (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
+
+    if(clear)
+      memset(p, 0, size);
   }
   return p;
 }
 
 void 
 SimulatedBlock::deallocRecord(void ** ptr, 
-			      const char * type, size_t s, size_t n) const {
+			      const char * type, size_t s, size_t n){
   (void)type;
   (void)s;
   (void)n;
