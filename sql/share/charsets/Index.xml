@@ -284,7 +284,7 @@ To make maintaining easier please:
   <alias>BalticRim</alias>
   <alias>iso-8859-13</alias>
   <alias>l7</alias>
-  <collation name="latin7_estonian_ci"	id="20">
+  <collation name="latin7_estonian_cs"	id="20">
     <order>Estonian</order>
   </collation>
   <collation name="latin7_general_ci"	id="41">
