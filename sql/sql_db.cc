@@ -668,7 +668,9 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       thd->clear_error();
       mysql_bin_log.write(&qinfo);
     }
+    thd->server_status|= SERVER_STATUS_DB_DROPPED;
     send_ok(thd, (ulong) deleted);
+    thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
 
 exit:
