@@ -1,7 +1,4 @@
-## find * -name '*.hpp' -print | grep -v SCCS | grep -v odbc | sed 's/\.hpp/\.hpp \\/' > tmp.out
-## find * -name '*.h' -print | grep -v SCCS | grep -v odbc | sed 's/\.h/\.h \\/' >> tmp.out
-
-SUBDIRS = . include src test tools
+SUBDIRS = src test tools .
 
 ndbinclude_HEADERS = \
 include/ndb_types.h \
@@ -31,4 +28,17 @@ mgmapiinclude_HEADERS = \
 include/mgmapi/mgmapi.h \
 include/mgmapi/mgmapi_debug.h
 
-noinst_HEADERS =
+EXTRA_DIST = include
+
+dist-hook:
+	-rm -rf `find $(distdir) -type d -name SCCS`
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  if test "$$subdir" != "."; then \
+	    files="`find $$subdir -name '*\.h'` `find $$subdir -name '*\.hpp'`"; \
+	    for f in $$files; do \
+	      if test -d "$(distdir)/`dirname $$f`" -a ! -e "$(distdir)/$$f"; then \
+	        cp $$f $(distdir)/$$f; \
+	      fi; \
+	    done; \
+	  fi; \
+	done
