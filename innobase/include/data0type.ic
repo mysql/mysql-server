@@ -9,15 +9,46 @@ Created 1/16/1996 Heikki Tuuri
 #include "mach0data.h"
 
 /**********************************************************************
-Determines whether the given character set is of variable length.
+Get the variable length bounds of the given character set.
 
 NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
 this function, you MUST change also the prototype here! */
 extern
-ibool
-innobase_is_mb_cset(
-/*================*/
-	ulint	cset);	/* in: MySQL charset-collation code */
+void
+innobase_get_cset_width(
+/*====================*/
+	ulint	cset,		/* in: MySQL charset-collation code */
+	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
+	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
+
+/*************************************************************************
+Gets the MySQL charset-collation code for MySQL string types. */
+UNIV_INLINE
+ulint
+dtype_get_charset_coll(
+/*===================*/
+	ulint	prtype)	/* in: precise data type */
+{
+	return((prtype >> 16) & 0xFFUL);
+}
+
+/*************************************************************************
+Sets the mbminlen and mbmaxlen members of a data type structure. */
+UNIV_INLINE
+void
+dtype_set_mblen(
+/*============*/
+	dtype_t*	type)	/* in/out: type struct */
+{
+	ut_ad(type);
+	if (dtype_is_string_type(type->mtype)) {
+		innobase_get_cset_width(dtype_get_charset_coll(type->prtype),
+				&type->mbminlen, &type->mbmaxlen);
+		ut_ad(type->mbminlen <= type->mbmaxlen);
+	} else {
+		type->mbminlen = type->mbmaxlen = 0;
+	}
+}
 
 /*************************************************************************
 Sets a data type structure. */
@@ -39,6 +70,7 @@ dtype_set(
 	type->len = len;
 	type->prec = prec;
 
+	dtype_set_mblen(type);
 	ut_ad(dtype_validate(type));
 }
 
@@ -83,17 +115,6 @@ dtype_get_prtype(
 }
 
 /*************************************************************************
-Gets the MySQL charset-collation code for MySQL string types. */
-UNIV_INLINE
-ulint
-dtype_get_charset_coll(
-/*===================*/
-	ulint	prtype)	/* in: precise data type */
-{
-	return((prtype >> 16) & 0xFFUL);
-}
-
-/*************************************************************************
 Gets the type length. */
 UNIV_INLINE
 ulint
@@ -117,6 +138,33 @@ dtype_get_prec(
 	ut_ad(type);
 
 	return(type->prec);
+}
+
+/*************************************************************************
+Gets the minimum length of a character, in bytes. */
+UNIV_INLINE
+ulint
+dtype_get_mbminlen(
+/*===============*/
+				/* out: minimum length of a char, in bytes,
+				or 0 if this is not a character type */
+	const dtype_t*	type)	/* in: type */
+{
+	ut_ad(type);
+	return(type->mbminlen);
+}
+/*************************************************************************
+Gets the maximum length of a character, in bytes. */
+UNIV_INLINE
+ulint
+dtype_get_mbmaxlen(
+/*===============*/
+				/* out: maximum length of a char, in bytes,
+				or 0 if this is not a character type */
+	const dtype_t*	type)	/* in: type */
+{
+	ut_ad(type);
+	return(type->mbmaxlen);
 }
 
 /*************************************************************************
@@ -211,6 +259,7 @@ dtype_read_for_order_and_null_size(
 		
 	type->prtype = dtype_form_prtype(type->prtype,
 					data_mysql_default_charset_coll);
+	dtype_set_mblen(type);
 }	
 
 /**************************************************************************
@@ -262,6 +311,7 @@ dtype_new_read_for_order_and_null_size(
 		
 		type->prtype = dtype_form_prtype(type->prtype, charset_coll);
 	}						
+	dtype_set_mblen(type);
 }
 
 /***************************************************************************
@@ -305,11 +355,40 @@ dtype_get_fixed_size(
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_MYSQL:
-			if ((type->prtype & DATA_BINARY_TYPE)
-					|| !innobase_is_mb_cset(
-					dtype_get_charset_coll(
-						type->prtype))) {
+			if (type->prtype & DATA_BINARY_TYPE) {
 				return(dtype_get_len(type));
+			} else {
+				/* We play it safe here and ask MySQL for
+				mbminlen and mbmaxlen.  Although
+				type->mbminlen and type->mbmaxlen are
+				initialized if and only if type->prtype
+				is (in one of the 3 functions in this file),
+				it could be that none of these functions
+				has been called. */
+
+				ulint	mbminlen, mbmaxlen;
+
+				innobase_get_cset_width(
+					dtype_get_charset_coll(type->prtype),
+					&mbminlen, &mbmaxlen);
+
+				if (type->mbminlen != mbminlen
+					|| type->mbmaxlen != mbmaxlen) {
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr, "  InnoDB: "
+						"mbminlen=%lu, "
+						"mbmaxlen=%lu, "
+						"type->mbminlen=%lu, "
+						"type->mbmaxlen=%lu\n",
+						(ulong) mbminlen,
+						(ulong) mbmaxlen,
+						(ulong) type->mbminlen,
+						(ulong) type->mbmaxlen);
+				}
+				if (mbminlen == mbmaxlen) {
+					return(dtype_get_len(type));
+				}
 			}
 			/* fall through for variable-length charsets */
 	case DATA_VARCHAR:

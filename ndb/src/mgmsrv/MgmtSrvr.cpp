@@ -189,16 +189,16 @@ MgmtSrvr::logLevelThreadRun()
 void
 MgmtSrvr::startEventLog() 
 {
+  NdbMutex_Lock(m_configMutex);
+
   g_eventLogger.setCategory("MgmSrvr");
 
-  ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
-    ((ndb_mgm_configuration*)_config->m_configValues, CFG_SECTION_NODE);
-  if(iter == 0)
-    return ;
-  
-  if(ndb_mgm_find(iter, CFG_NODE_ID, _ownNodeId) != 0){
-    ndb_mgm_destroy_iterator(iter);
-    return ;
+  ndb_mgm_configuration_iterator 
+    iter(* _config->m_configValues, CFG_SECTION_NODE);
+
+  if(iter.find(CFG_NODE_ID, _ownNodeId) != 0){
+    NdbMutex_Unlock(m_configMutex);
+    return;
   }
   
   const char * tmp;
@@ -206,10 +206,10 @@ MgmtSrvr::startEventLog()
   char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
   NdbAutoPtr<char> tmp_aptr(clusterLog);
 
-  if(ndb_mgm_get_string_parameter(iter, CFG_LOG_DESTINATION, &tmp) == 0){
+  if(iter.get(CFG_LOG_DESTINATION, &tmp) == 0){
     logdest.assign(tmp);
   }
-  ndb_mgm_destroy_iterator(iter);
+  NdbMutex_Unlock(m_configMutex);
   
   if(logdest.length() == 0 || logdest == "") {
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
@@ -343,42 +343,41 @@ MgmtSrvr::getNodeCount(enum ndb_mgm_node_type type) const
 }
 
 int 
-MgmtSrvr::getPort() const {
-  const Properties *mgmProps;
-  
-  ndb_mgm_configuration_iterator * iter = 
-    ndb_mgm_create_configuration_iterator(_config->m_configValues, 
-					  CFG_SECTION_NODE);
-  if(iter == 0)
+MgmtSrvr::getPort() const
+{
+  if(NdbMutex_Lock(m_configMutex))
     return 0;
 
-  if(ndb_mgm_find(iter, CFG_NODE_ID, getOwnNodeId()) != 0){
+  ndb_mgm_configuration_iterator 
+    iter(* _config->m_configValues, CFG_SECTION_NODE);
+
+  if(iter.find(CFG_NODE_ID, getOwnNodeId()) != 0){
     ndbout << "Could not retrieve configuration for Node " 
 	   << getOwnNodeId() << " in config file." << endl 
 	   << "Have you set correct NodeId for this node?" << endl;
-    ndb_mgm_destroy_iterator(iter);
+    NdbMutex_Unlock(m_configMutex);
     return 0;
   }
 
   unsigned type;
-  if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0 ||
+  if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0 ||
      type != NODE_TYPE_MGM){
     ndbout << "Local node id " << getOwnNodeId()
 	   << " is not defined as management server" << endl
 	   << "Have you set correct NodeId for this node?" << endl;
-    ndb_mgm_destroy_iterator(iter);
+    NdbMutex_Unlock(m_configMutex);
     return 0;
   }
   
   Uint32 port = 0;
-  if(ndb_mgm_get_int_parameter(iter, CFG_MGM_PORT, &port) != 0){
+  if(iter.get(CFG_MGM_PORT, &port) != 0){
     ndbout << "Could not find PortNumber in the configuration file." << endl;
-    ndb_mgm_destroy_iterator(iter);
+    NdbMutex_Unlock(m_configMutex);
     return 0;
   }
 
-  ndb_mgm_destroy_iterator(iter);
-  
+  NdbMutex_Unlock(m_configMutex);
+
   return port;
 }
 
@@ -472,14 +471,14 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 
   {
     ndb_mgm_configuration_iterator
-      *iter = ndb_mgm_create_configuration_iterator(_config->m_configValues,
-						    CFG_SECTION_NODE);
-    for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
+      iter(* _config->m_configValues, CFG_SECTION_NODE);
+
+    for(iter.first(); iter.valid(); iter.next()){
       unsigned type, id;
-      if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0)
+      if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0)
 	continue;
       
-      if(ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &id) != 0)
+      if(iter.get(CFG_NODE_ID, &id) != 0)
 	continue;
       
       MGM_REQUIRE(id < MAX_NODES);
@@ -502,7 +501,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 	break;
       }
     }
-    ndb_mgm_destroy_iterator(iter);
   }
 
   _props = NULL;
@@ -1884,8 +1882,6 @@ void
 MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
 {
   // The way of handling a received signal is taken from the Ndb class.
-  int returnCode;
-
   int gsn = signal->readSignalNumber();
 
   switch (gsn) {
@@ -2187,8 +2183,13 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   int r_config_addr= -1;
   unsigned type_c= 0;
 
+  if(NdbMutex_Lock(m_configMutex))
+  {
+    error_string.appfmt("unable to lock configuration mutex");
+    return false;
+  }
   ndb_mgm_configuration_iterator
-    iter(*(ndb_mgm_configuration *)_config->m_configValues, CFG_SECTION_NODE);
+    iter(* _config->m_configValues, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()) {
     unsigned tmp= 0;
     if(iter.get(CFG_NODE_ID, &tmp)) abort();
@@ -2258,6 +2259,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			  "Suggest specifying node id in connectstring,\n"
 			  "or specifying unique host names in config file.",
 			  id_found, tmp);
+      NdbMutex_Unlock(m_configMutex);
       DBUG_RETURN(false);
     }
     if (config_hostname == 0) {
@@ -2270,6 +2272,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     }
     id_found= tmp; // mgmt server matched, check for more matches
   }
+  NdbMutex_Unlock(m_configMutex);
 
   if (id_found)
   {
@@ -2682,13 +2685,18 @@ MgmtSrvr::Allocated_resources::get_nodeid() const
 int
 MgmtSrvr::setDbParameter(int node, int param, const char * value,
 			 BaseString& msg){
+
+  if(NdbMutex_Lock(m_configMutex))
+    return -1;
+
   /**
    * Check parameter
    */
-  ndb_mgm_configuration_iterator iter(* _config->m_configValues, 
-				      CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator
+    iter(* _config->m_configValues, CFG_SECTION_NODE);
   if(iter.first() != 0){
     msg.assign("Unable to find node section (iter.first())");
+    NdbMutex_Unlock(m_configMutex);
     return -1;
   }
   
@@ -2696,16 +2704,19 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   if(node != 0){
     if(iter.find(CFG_NODE_ID, node) != 0){
       msg.assign("Unable to find node (iter.find())");
+      NdbMutex_Unlock(m_configMutex);
       return -1;
     }
     if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
       msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
+      NdbMutex_Unlock(m_configMutex);
       return -1;
     }
   } else {
     do {
       if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0){
 	msg.assign("Unable to get node type(iter.get(CFG_TYPE_OF_SECTION))");
+	NdbMutex_Unlock(m_configMutex);
 	return -1;
       }
       if(type == NODE_TYPE_DB)
@@ -2716,6 +2727,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   if(type != NODE_TYPE_DB){
     msg.assfmt("Invalid node type or no such node (%d %d)", 
 	       type, NODE_TYPE_DB);
+    NdbMutex_Unlock(m_configMutex);
     return -1;
   }
 
@@ -2741,6 +2753,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
       break;
     }
     msg.assign("Could not get parameter");
+    NdbMutex_Unlock(m_configMutex);
     return -1;
   } while(0);
   
@@ -2778,6 +2791,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   } while(node == 0 && iter.next() == 0);
 
   msg.assign("Success");
+  NdbMutex_Unlock(m_configMutex);
   return 0;
 }
 
@@ -2791,12 +2805,18 @@ MgmtSrvr::setConnectionDbParameter(int node1,
 
   DBUG_ENTER("MgmtSrvr::setConnectionDbParameter");
 
-  ndb_mgm_configuration_iterator iter(* _config->m_configValues,
-				      CFG_SECTION_CONNECTION);
+  if(NdbMutex_Lock(m_configMutex))
+  {
+    DBUG_RETURN(-1);
+  }
+
+  ndb_mgm_configuration_iterator 
+    iter(* _config->m_configValues, CFG_SECTION_CONNECTION);
 
   if(iter.first() != 0){
     msg.assign("Unable to find connection section (iter.first())");
-    return -1;
+    NdbMutex_Unlock(m_configMutex);
+    DBUG_RETURN(-1);
   }
 
   for(;iter.valid();iter.next()) {
@@ -2809,11 +2829,13 @@ MgmtSrvr::setConnectionDbParameter(int node1,
   }
   if(!iter.valid()) {
     msg.assign("Unable to find connection between nodes");
+    NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-2);
   }
   
-  if(iter.get(param, &current_value) < 0) {
+  if(iter.get(param, &current_value) != 0) {
     msg.assign("Unable to get current value of parameter");
+    NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-3);
   }
 
@@ -2822,15 +2844,18 @@ MgmtSrvr::setConnectionDbParameter(int node1,
 
   if(i2.set(param, (unsigned)value) == false) {
     msg.assign("Unable to set new value of parameter");
+    NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-4);
   }
   
-  if(iter.get(param, &new_value) < 0) {
+  if(iter.get(param, &new_value) != 0) {
     msg.assign("Unable to get parameter after setting it.");
+    NdbMutex_Unlock(m_configMutex);
     DBUG_RETURN(-5);
   }
 
   msg.assfmt("%u -> %u",current_value,new_value);
+  NdbMutex_Unlock(m_configMutex);
   DBUG_RETURN(1);
 }
 
@@ -2843,16 +2868,22 @@ MgmtSrvr::getConnectionDbParameter(int node1,
 				   BaseString& msg){
   DBUG_ENTER("MgmtSrvr::getConnectionDbParameter");
 
-  ndb_mgm_configuration_iterator iter(* _config->m_configValues,
-				      CFG_SECTION_CONNECTION);
+  if(NdbMutex_Lock(m_configMutex))
+  {
+    DBUG_RETURN(-1);
+  }
+
+  ndb_mgm_configuration_iterator
+    iter(* _config->m_configValues, CFG_SECTION_CONNECTION);
 
   if(iter.first() != 0){
     msg.assign("Unable to find connection section (iter.first())");
-    return -1;
+    NdbMutex_Unlock(m_configMutex);
+    DBUG_RETURN(-1);
   }
 
   for(;iter.valid();iter.next()) {
-    Uint32 n1,n2;
+    Uint32 n1=0,n2=0;
     iter.get(CFG_CONNECTION_NODE_1, &n1);
     iter.get(CFG_CONNECTION_NODE_2, &n2);
     if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
@@ -2861,21 +2892,35 @@ MgmtSrvr::getConnectionDbParameter(int node1,
   }
   if(!iter.valid()) {
     msg.assign("Unable to find connection between nodes");
-    return -1;
+    NdbMutex_Unlock(m_configMutex);
+    DBUG_RETURN(-1);
   }
   
-  if(iter.get(param, (Uint32*)value) < 0) {
+  if(iter.get(param, (Uint32*)value) != 0) {
     msg.assign("Unable to get current value of parameter");
-    return -1;
+    NdbMutex_Unlock(m_configMutex);
+    DBUG_RETURN(-1);
   }
 
   msg.assfmt("%d",*value);
+  NdbMutex_Unlock(m_configMutex);
   DBUG_RETURN(1);
 }
 
 void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
 {
-  theFacade->get_registry()->connect_server(sockfd);
+  if (theFacade->get_registry()->connect_server(sockfd))
+  {
+    /**
+     * Force an update_connections() so that the
+     * ClusterMgr and TransporterFacade is up to date
+     * with the new connection.
+     * Important for correct node id reservation handling
+     */
+    NdbMutex_Lock(theFacade->theMutexPtr);
+    theFacade->get_registry()->update_connections();
+    NdbMutex_Unlock(theFacade->theMutexPtr);
+  }
 }
 
 int MgmtSrvr::set_connect_string(const char *str)

@@ -271,6 +271,24 @@ dtype_get_prec(
 /*===========*/
 	dtype_t*	type);
 /*************************************************************************
+Gets the minimum length of a character, in bytes. */
+UNIV_INLINE
+ulint
+dtype_get_mbminlen(
+/*===============*/
+				/* out: minimum length of a char, in bytes,
+				or 0 if this is not a character type */
+	const dtype_t*	type);	/* in: type */
+/*************************************************************************
+Gets the maximum length of a character, in bytes. */
+UNIV_INLINE
+ulint
+dtype_get_mbmaxlen(
+/*===============*/
+				/* out: maximum length of a char, in bytes,
+				or 0 if this is not a character type */
+	const dtype_t*	type);	/* in: type */
+/*************************************************************************
 Gets the padding character code for the type. */
 UNIV_INLINE
 ulint
@@ -352,16 +370,25 @@ dtype_print(
 /*========*/
 	dtype_t*	type);	/* in: type */
 
-/* Structure for an SQL data type */
+/* Structure for an SQL data type.
+If you add fields to this structure, be sure to initialize them everywhere.
+This structure is initialized in the following functions:
+dtype_set()
+dtype_read_for_order_and_null_size()
+dtype_new_read_for_order_and_null_size()
+sym_tab_add_null_lit() */
 
 struct dtype_struct{
 	ulint	mtype;		/* main data type */
 	ulint	prtype;		/* precise type; MySQL data type */
 
-	/* the remaining two fields do not affect alphabetical ordering: */
+	/* the remaining fields do not affect alphabetical ordering: */
 
 	ulint	len;		/* length */
 	ulint	prec;		/* precision */
+
+	ulint	mbminlen;	/* minimum length of a character, in bytes */
+	ulint	mbmaxlen;	/* maximum length of a character, in bytes */
 };
 
 #ifndef UNIV_NONINL
