@@ -125,7 +125,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define QUERY_PRIOR	6
 #endif /* __WIN92__ */
 
-	/* Bits fro testflag */
+	/* Bits from testflag */
 #define TEST_PRINT_CACHED_TABLES 1
 #define TEST_NO_KEY_GROUP	 2
 #define TEST_MIT_THREAD		4
@@ -161,6 +161,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define OPTION_BEGIN		OPTION_NOT_AUTO_COMMIT*2
 #define OPTION_QUICK		OPTION_BEGIN*2
 #define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
+#define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
 
 /* Set if we are updating a non-transaction safe table */
 #define OPTION_STATUS_NO_TRANS_UPDATE OPTION_QUOTE_SHOW_CREATE*2

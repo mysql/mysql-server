@@ -47,7 +47,8 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
     if (my_thread_var->abort)
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 #endif
-    if (my_errno == ENOSPC && (MyFlags & MY_WAIT_IF_FULL))
+    if (my_errno == ENOSPC && (MyFlags & MY_WAIT_IF_FULL) &&
+	(uint) writenbytes != (uint) -1)
     {
       if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
 	my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),

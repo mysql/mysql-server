@@ -1,0 +1,34 @@
+.TH ZAP 1 "20 December 2000" 
+.SH NAME 
+zap - a perl script used to kill processes 
+.SH USAGE 
+/usr/bin/mysql_zap [-signal] [-?Ift] pattern
+.SH SYNOPSIS 
+.B zap 
+.RB [ \-I | \-? ] 
+.RB [ \-f ] 
+.RB [ \-t ] 
+.SH DESCRIPTION 
+.TP
+.BR zap
+supports by executing
+.TP
+.BR \-I | \-?
+info
+.TP
+.BR \-f
+force
+.TP
+.BR \-t
+test
+.SH NOTE 
+If 
+.BR -f 
+isn't given, ask user for confirmation for each process to kill. If signal isn't given, try first with signal 15 and after that with signal 9. If 
+.BR -t 
+is given the processes is only shown on stdout.
+.SH "SEE ALSO" 
+isamchk (1), isamlog (1), mysqlaccess (1), mysqladmin (1), mysqlbug (1), mysqld (1), mysqldump (1), mysqlshow (1), msql2mysql (1), perror (1), replace (1), safe_mysqld (1), which1 (1), zap (1),
+.SH AUTHOR 
+Ver 1.0, distribution 3.23.29a Michael (Monty) Widenius (monty@tcx.se), TCX Datakonsult AB (http://www.tcx.se). This software comes with no warranty. Manual page by L. (Kill-9) Pedersen (kill-9@kill-9.dk), Mercurmedia Data Model Architect / system developer (http://www.mercurmedia.com) 
+.\" end of man page 

@@ -848,13 +848,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" DELAY_KEY_WRITE=1",18);
-  if(table->comment)
-    {
-      packet->append(" COMMENT='", 10);
-      append_unescaped(packet, table->comment);
-      packet->append('\'');
-    }
-
+  if(table->comment && table->comment[0])
+  {
+    packet->append(" COMMENT='", 10);
+    append_unescaped(packet, table->comment);
+    packet->append('\'');
+  }
 
   DBUG_RETURN(0);
 }

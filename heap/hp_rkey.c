@@ -37,7 +37,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key)
   }
   memcpy(record,pos,(size_t) share->reclength);
   info->update=HA_STATE_AKTIV;
-  if (!(share->keydef->flag & HA_NOSAME))
+  if (!(share->keydef[inx].flag & HA_NOSAME))
     memcpy(info->lastkey,key,(size_t) share->keydef[inx].length);
   DBUG_RETURN(0);
 }

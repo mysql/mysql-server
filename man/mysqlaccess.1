@@ -1,0 +1,121 @@
+.TH MYSQLACCESS 1 "19 December 2000"
+.SH NAME
+.BR mysqlaccess
+ \- Create new users to mysql.
+.SH USAGE
+mysqlaccess [host [user [db]]] OPTIONS
+.SH SYNOPSIS
+.B mysqlaccess
+.RB [  \-? | \-\-help ]
+.RB [  \-v | \-\-version ]
+.RB [  \-p | \-\-password=#  ]
+.RB [  \-h | \-\-host=# ]
+.RB [  \-d | \-\-db=# ]
+.RB [  \-U | \-\-superuser=# ]
+.RB [  \-P | \-\-spassword=# ]
+.RB [  \-H | \-\-rhost=#  ]
+.RB [  \-\-old_server ]
+.RB [ \-b | \-\-brief  ]
+.RB [  \-t | \-\-table  ]
+.RB [  \-\-relnotes]
+.RB [  \-\-plan ]
+.RB [  \-\-howto   ]
+.RB [  \-\-debug=N ]
+.RB [  \-\-copy  ]
+.RB [  \-\-preview   ]
+.RB [  \-\-commit  ]
+.RB [  \-\-rollback  ]
+.SH DESCRIPTION
+.TP 
+.BR  \-? | \-\-help
+display this helpscreen and exit
+.TP 
+.BR   \-v | \-\-version 
+print information on the program `mysqlaccess'
+.TP 
+.BR  \-u | \-\-user=# 
+username for logging in to the db
+.TP 
+.BR \-p | \-\-password=#
+validate password for user
+.TP 
+.BR   \-h | \-\-host=# 
+name or IP\-number of the host
+.TP 
+.BR   \-d | \-\-db=#
+name of the database
+.TP 
+.BR \-U | \-\-superuser=#
+connect as superuser
+.TP 
+.BR   \-P | \-\-spassword=# 
+password for superuser
+.TP 
+.BR   \-H | \-\-rhost=# 
+remote MySQL\-server to connect to
+.TP 
+.BR \-\-old_server
+connect to old MySQL\-server (before v3.21) which 
+does not yet know how to handle full where clauses.
+.TP 
+.BR  \-b | \-\-brief
+single\-line tabular report
+.TP 
+.BR   \-t | \-\-table
+report in table\-format
+.TP 
+.BR   \-\-relnotes
+print release\-notes
+.TP 
+.BR   \-\-plan
+print suggestions/ideas for future releases
+.TP 
+.BR   \-\-howto
+some examples of how to run `mysqlaccess'
+.TP 
+.BR   \-\-debug=N
+enter debuglevel N (0..3)
+.TP 
+.BR   \-\-copy 
+reload temporary grant\-tables from original ones
+.TP 
+.BR   \-\-preview 
+show differences in privileges after making
+changes in (temporary) grant\-tables
+.TP 
+.BR   \-\-commit
+copy grant\-rules from temporary tables to grant\-tables
+(!don't forget to do an mysqladmin reload)
+.TP 
+.BR   \-\-rollback
+undo the last changes to the grant\-tables.
+.SH NOTE
+    + At least the user and the db must be given (even with wildcards)
+    + If no host is given, `localhost' is assumed
+    + Wilcards (*,?,%,_) are allowed for host, user and db, but be sure 
+      to escape them from your shell!! (ie type \* or '*')
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill\-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page
