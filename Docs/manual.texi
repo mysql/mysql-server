@@ -25283,7 +25283,7 @@ of the index records.
 If index records are inserted in a sequential (ascending or descending)
 order, the resulting index pages will be about 15/16 full.
 If records are inserted in a random order, then the pages will be
-1/2 - 15/16 full. If the fillfactor of an index page drops below 1/4,
+1/2 - 15/16 full. If the fillfactor of an index page drops below 1/2,
 InnoDB will try to contract the index tree to free the page.
 
 @subsubsection Insert buffering
@@ -25440,13 +25440,20 @@ consistent read.
 
 If there are random insertions or deletions
 in the indexes of a table, the indexes
-may become fragmented. By this we mean that the physical ordering
+may become fragmented. By fragmentation we mean that the physical ordering
 of the index pages on the disk is not close to the alphabetical ordering
-of the records on the pages. It can speed up index scans if you
+of the records on the pages, or that there are many unused pages in the
+64-page blocks which were allocated to the index.
+
+It can speed up index scans if you
 periodically use @code{mysqldump} to dump the table to
 a text file, drop the table, and reload it from the dump.
+Another way to do the defragmenting is to @code{ALTER} the table type to
+@code{MyISAM} and back to @code{InnoDB} again.
+Note that a @code{MyISAM} table must fit in a single file
+on your operating system.
 
-Note that if the insertions to and index are always ascending and
+If the insertions to and index are always ascending and
 records are deleted only from the end, then the the file space management
 algorithm of InnoDB guarantees that fragmentation in the index will
 not occur.

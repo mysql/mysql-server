@@ -299,6 +299,13 @@ try_again:
 
 	UT_NOT_USED(purpose);
 
+	/* On Linux opening a file in the O_SYNC mode seems to be much
+        more efficient than calling an explicit fsync or fdatasync after
+        each write */
+
+#ifdef O_SYNC
+	create_flag = create_flag | O_SYNC;
+#endif
 	if (create_mode == OS_FILE_CREATE) {
 	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
 			                     | S_IWGRP | S_IROTH | S_IWOTH);
@@ -492,8 +499,18 @@ os_file_flush(
 #else
 	int	ret;
 	
-	ret = fsync(file);
+#ifdef O_SYNC
+	/* We open all files with the O_SYNC option, which means there
+        should be no need for fsync or fdatasync. In practice such a need
+	may be because on a Linux Xeon computer "donna" the OS seemed to be
+	fooled to believe that 500 disk writes/second are possible. */
 
+	ret = 0;
+#elif defined(HAVE_FDATASYNC)
+	ret = fdatasync(file);
+#else
+	ret = fsync(file);
+#endif
 	if (ret == 0) {
 		return(TRUE);
 	}
