@@ -372,9 +372,11 @@ int show_master_info(THD* thd)
 int flush_master_info(MASTER_INFO* mi)
 {
   FILE* file = mi->file;
+  char lbuf[22];
+  
   if(my_fseek(file, 0L, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR ||
-     fprintf(file, "%s\n%ld\n%s\n%s\n%s\n%d\n%d\n",
-        mi->log_file_name, mi->pos, mi->host, mi->user, mi->password,
+     fprintf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
+        mi->log_file_name, llstr(mi->pos, lbuf), mi->host, mi->user, mi->password,
 	     mi->port, mi->connect_retry) < 0 ||
      fflush(file))
     {
