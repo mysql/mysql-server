@@ -2001,7 +2001,31 @@ srv_table_reserve_slot_for_mysql(void)
 
 	while (slot->in_use) {
 		i++;
-		ut_a(i < OS_THREAD_MAX_N);
+
+		if (i >= OS_THREAD_MAX_N) {
+
+		        ut_print_timestamp(stderr);
+
+		        fprintf(stderr,
+"  InnoDB: There appear to be %lu MySQL threads currently waiting\n"
+"InnoDB: inside InnoDB, which is the upper limit. Cannot continue operation.\n"
+"InnoDB: We intentionally generate a seg fault to print a stack trace\n"
+"InnoDB: on Linux. But first we print a list of waiting threads.\n", i);
+
+			for (i = 0; i < OS_THREAD_MAX_N; i++) {
+
+			        slot = srv_mysql_table + i;
+
+			        fprintf(stderr,
+"Slot %lu: thread id %lu, type %lu, in use %lu, susp %lu, time %lu\n",
+				  i, (ulint)(slot->id),
+				  slot->type, slot->in_use,
+				  slot->suspended,
+			  (ulint)difftime(ut_time(), slot->suspend_time));
+			}
+
+		        ut_a(0);
+		}
 		
 		slot = srv_mysql_table + i;
 	}
