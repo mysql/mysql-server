@@ -991,8 +991,16 @@ int ha_ndbcluster::write_row(byte *record)
     to NoCommit the transaction between each row.
     Find out how this is detected!
   */
-  if (trans->execute(NoCommit) != 0)
-    DBUG_RETURN(ndb_err(trans));
+  rows_inserted++;
+  if ((rows_inserted % bulk_insert_rows) == 0)
+  {
+    // Send rows to NDB
+    DBUG_PRINT("info", ("Sending inserts to NDB, "\
+			"rows_inserted:%d, bulk_insert_rows: %d", 
+			rows_inserted, bulk_insert_rows)); 
+    if (trans->execute(NoCommit) != 0)
+      DBUG_RETURN(ndb_err(trans));
+  }
   DBUG_RETURN(0);
 }
 
@@ -1679,6 +1687,53 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   DBUG_RETURN(0);
 }
 
+/* 
+   Start of an insert, remember number of rows to be inserted, it will
+   be used in write_row and get_autoincrement to send an optimal number
+   of rows in each roundtrip to the server
+
+   SYNOPSIS
+   rows     number of rows to insert, 0 if unknown
+
+*/
+
+void ha_ndbcluster::start_bulk_insert(ha_rows rows)
+{
+  int bytes, batch;
+  const NDBTAB *tab= (NDBTAB *) m_table;    
+
+  DBUG_ENTER("start_bulk_insert");
+  DBUG_PRINT("enter", ("rows: %d", rows));
+  
+  rows_inserted= 0;
+  rows_to_insert= rows; 
+
+  /* 
+    Calculate how many rows that should be inserted
+    per roundtrip to NDB. This is done in order to minimize the 
+    number of roundtrips as much as possible. However performance will 
+    degrade if too many bytes are inserted, thus it's limited by this 
+    calculation.   
+  */
+  bytes= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
+  batch= (1024*256); // 1024 rows, with size 256
+  batch= batch/bytes;   // 
+  batch= batch == 0 ? 1 : batch;
+  DBUG_PRINT("info", ("batch: %d, bytes: %d", batch, bytes));
+  bulk_insert_rows= batch;
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  End of an insert
+ */
+int ha_ndbcluster::end_bulk_insert()
+{
+  DBUG_ENTER("end_bulk_insert");
+  DBUG_RETURN(0);
+}
+
 
 int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
@@ -2321,10 +2376,10 @@ int ndbcluster_drop_database(const char *path)
 
 
 longlong ha_ndbcluster::get_auto_increment()
-{
-  // NOTE If number of values to be inserted is known 
-  // the autoincrement cache could be used here
-  Uint64 auto_value= m_ndb->getAutoIncrementValue(m_tabname);
+{  
+  int cache_size = rows_to_insert ? rows_to_insert : 32;
+  Uint64 auto_value= 
+    m_ndb->getAutoIncrementValue(m_tabname, cache_size);
   return (longlong)auto_value;
 }
 
@@ -2347,7 +2402,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_NO_BLOBS |
                 HA_DROP_BEFORE_CREATE | 
                 HA_NOT_READ_AFTER_KEY),
-  m_use_write(false)
+  m_use_write(false),
+  rows_to_insert(0),
+  rows_inserted(0),
+  bulk_insert_rows(1024)
 { 
 
   DBUG_ENTER("ha_ndbcluster");

@@ -127,6 +127,8 @@ class ha_ndbcluster: public handler
 			   const byte *end_key,uint end_key_len,
 			   enum ha_rkey_function end_search_flag);
 
+  void start_bulk_insert(ha_rows rows);
+  int end_bulk_insert();
 
   static Ndb* seize_ndb();
   static void release_ndb(Ndb* ndb);
@@ -195,6 +197,9 @@ class ha_ndbcluster: public handler
   NDB_INDEX_TYPE  m_indextype[MAX_KEY];
   NdbRecAttr *m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
+  ha_rows rows_to_insert;
+  ha_rows rows_inserted;
+  ha_rows bulk_insert_rows;
 };
 
 bool ndbcluster_init(void);
