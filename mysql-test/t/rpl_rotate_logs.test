@@ -101,7 +101,8 @@ show master logs;
 # we just tests if synonyms are accepted
 purge binary logs to 'master-bin.000002';
 show binary logs;
---sleep 1;
+# sleeping 10 seconds or more would make the slave believe connection is down
+--real_sleep 1;
 purge master logs before now();
 show binary logs;
 insert into t2 values (65);
