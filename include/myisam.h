@@ -308,22 +308,23 @@ typedef struct st_sort_info {
 
 typedef struct st_mi_check_param
 {
+  ulonglong auto_increment_value;
+  ulonglong max_data_file_length;
+  ulonglong keys_in_use;
+  my_off_t search_after_block;
+  my_off_t new_file_pos,key_file_blocks;
+  my_off_t keydata,totaldata,key_blocks,start_check_pos;
+  ha_rows total_records,total_deleted;
+  ha_checksum record_checksum,glob_crc;
   ulong	use_buffers,read_buffer_length,write_buffer_length,
 	sort_buffer_length,sort_key_blocks;
   uint out_flag,warning_printed,error_printed,
        opt_rep_quick,verbose;
   uint opt_sort_key,total_files,max_level;
+  uint testflag;
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
-  uint testflag;
-  ha_rows total_records,total_deleted;
-  ulonglong auto_increment_value;
-  my_off_t search_after_block;
-  ulonglong max_data_file_length;
-  ulonglong keys_in_use;
-  my_off_t new_file_pos,key_file_blocks;
-  my_off_t keydata,totaldata,key_blocks,start_check_pos;
-  ha_checksum record_checksum,glob_crc;
+  my_bool retry_repair,retry_without_quick;
   char temp_filename[FN_REFLEN],*isam_file_name,*tmpdir;
   int tmpfile_createflag;
   myf myf_rw;

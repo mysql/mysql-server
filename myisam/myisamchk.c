@@ -92,7 +92,7 @@ int main(int argc, char **argv)
   error=0;
   while (--argc >= 0)
   {
-    error|= myisamchk(&check_param, *(argv++));
+    int new_error=myisamchk(&check_param, *(argv++));
     VOID(fflush(stdout));
     VOID(fflush(stderr));
     if ((check_param.error_printed | check_param.warning_printed) &&
@@ -101,13 +101,16 @@ int main(int argc, char **argv)
 				   T_SORT_INDEX))))
     {
       uint old_testflag=check_param.testflag;
-      check_param.testflag|=T_REP;
+      if (!(check_param.testflag & T_REP))
+	check_param.testflag|= T_REP_BY_SORT;
       check_param.testflag&= ~T_EXTEND;			/* Don't needed  */
       error|=myisamchk(&check_param, argv[-1]);
       check_param.testflag= old_testflag;
       VOID(fflush(stdout));
       VOID(fflush(stderr));
     }
+    else
+      error|=new_error;
     if (argc && (!(check_param.testflag & T_SILENT) || check_param.testflag & T_INFO))
     {
       puts("\n---------\n");
@@ -193,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.32 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.34 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -229,7 +232,7 @@ static void usage(void)
   -f, --force         Restart with -r if there are any errors in the table\n\
   -i, --information   Print statistics information about table that is checked\n\
   -m, --medium-check  Faster than extended-check, but only finds 99.99% of\n\
-		      all errors.  Should however be good enough for most cases\n\
+		      all errors.  Should be good enough for most cases\n\
   -U  --update-state  Mark tables as crashed if you find any errors\n\
   -T, --read-only     Don't mark table as checked\n");
 
@@ -488,10 +491,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   if (!(info=mi_open(filename,
 		     (param->testflag & (T_DESCRIPT | T_READONLY)) ?
 		     O_RDONLY : O_RDWR,
-		     (param->testflag & T_WAIT_FOREVER) ?
-		     HA_OPEN_WAIT_IF_LOCKED :
-		     (param->testflag & T_DESCRIPT) ?
-		     HA_OPEN_IGNORE_IF_LOCKED : HA_OPEN_ABORT_IF_LOCKED)))
+		     HA_OPEN_FOR_REPAIR |
+		     ((param->testflag & T_WAIT_FOREVER) ?
+		      HA_OPEN_WAIT_IF_LOCKED :
+		      (param->testflag & T_DESCRIPT) ?
+		      HA_OPEN_IGNORE_IF_LOCKED : HA_OPEN_ABORT_IF_LOCKED))))
   {
     /* Avoid twice printing of isam file name */
     param->error_printed=1;
@@ -748,8 +752,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       error =chk_size(param,info);
       if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
 	error|=chk_del(param, info,param->testflag);
-      if ((!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)) &&
-	   !param->start_check_pos))
+      if ((!error || (!(param->testflag & (T_FAST | T_FORCE_CREATE)) &&
+		      !param->start_check_pos)))
       {
 	error|=chk_key(param, info);
 	if (!error && (param->testflag & (T_STATISTICS | T_AUTO_INC)))

@@ -36,7 +36,8 @@ extern char **environ;
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
-		      int mode, myf MyFlags)
+		      int mode __attribute__((unused)),
+		      myf MyFlags __attribute__((unused)))
 {
   File file= -1;
   DBUG_ENTER("open_temp_file");
@@ -85,12 +86,12 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   }
 #elif defined(HAVE_MKSTEMP)
   {
-    char prefix[30];
+    char prefix_buff[30];
     uint pfx_len;
 
-    pfx_len=(strmov(strnmov(prefix,
+    pfx_len=(strmov(strnmov(prefix_buff,
 			    prefix ? prefix : "tmp.",
-			    sizeof(prefix)-7),"XXXXXX") - prefix);
+			    sizeof(prefix_buff)-7),"XXXXXX") - prefix_buff);
     if (!dir && ! (dir =getenv("TMPDIR")))
       dir=P_tmpdir;
     if (strlen(dir)+ pfx_len > FN_REFLEN-2)

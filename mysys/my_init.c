@@ -48,7 +48,7 @@ static my_bool win32_init_tcp_ip();
 static my_bool my_init_done=0;
 
 
-ulong atoi_octal(const char *str)
+static ulong atoi_octal(const char *str)
 {
   long int tmp;
   while (*str && isspace(*str))
@@ -167,6 +167,7 @@ void my_end(int infoflag)
   if (have_tcpip);
     WSACleanup( );
 #endif /* __WIN__ */
+    my_init_done=0;
 } /* my_end */
 
 #ifdef __WIN__

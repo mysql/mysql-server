@@ -80,7 +80,6 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
 	       myf MyFlags)
 {
-  int error;
   uint writenbytes,errors;
   ulong written;
   DBUG_ENTER("my_pwrite");
@@ -91,6 +90,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
   for (;;)
   {
 #ifndef HAVE_PREAD
+    int error;
     writenbytes= (uint) -1;
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     error=(lseek(Filedes, offset, MY_SEEK_SET) != -1L &&

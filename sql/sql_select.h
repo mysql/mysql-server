@@ -127,7 +127,7 @@ class TMP_TABLE_PARAM {
   uint	group_parts,group_length;
   uint	quick_group;
 
-  TMP_TABLE_PARAM() :group_parts(0),group_length(0),copy_field(0) {}
+  TMP_TABLE_PARAM() :copy_field(0), group_parts(0), group_length(0) {}
   ~TMP_TABLE_PARAM()
   {
     cleanup();
