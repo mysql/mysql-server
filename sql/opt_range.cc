@@ -5947,7 +5947,7 @@ int QUICK_RANGE_SELECT::get_next_init(void)
   if (file->table_flags() & HA_NEED_READ_RANGE_BUFFER)
   {
     mrange_bufsiz= min(multi_range_bufsiz,
-                       QUICK_SELECT_I::records * head->reclength);
+                       (QUICK_SELECT_I::records + 1)* head->reclength);
 
     while (mrange_bufsiz &&
            ! my_multi_malloc(MYF(MY_WME),

@@ -1110,8 +1110,6 @@ objectTypeMapping[] = {
   { DictTabInfo::SystemTable,        NdbDictionary::Object::SystemTable },
   { DictTabInfo::UserTable,          NdbDictionary::Object::UserTable },
   { DictTabInfo::UniqueHashIndex,    NdbDictionary::Object::UniqueHashIndex },
-  { DictTabInfo::HashIndex,          NdbDictionary::Object::HashIndex }, 
-  { DictTabInfo::UniqueOrderedIndex, NdbDictionary::Object::UniqueOrderedIndex },
   { DictTabInfo::OrderedIndex,       NdbDictionary::Object::OrderedIndex },
   { DictTabInfo::HashIndexTrigger,   NdbDictionary::Object::HashIndexTrigger },
   { DictTabInfo::IndexTrigger,       NdbDictionary::Object::IndexTrigger },
@@ -1143,8 +1141,6 @@ static const
 ApiKernelMapping
 indexTypeMapping[] = {
   { DictTabInfo::UniqueHashIndex,    NdbDictionary::Index::UniqueHashIndex },  
-  { DictTabInfo::HashIndex,          NdbDictionary::Index::HashIndex },  
-  { DictTabInfo::UniqueOrderedIndex, NdbDictionary::Index::UniqueOrderedIndex},
   { DictTabInfo::OrderedIndex,       NdbDictionary::Index::OrderedIndex },
   { -1, -1 }
 };
@@ -2953,8 +2949,6 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
     BaseString schemaName;
     BaseString objectName;
     if ((element.type == NdbDictionary::Object::UniqueHashIndex) ||
-	(element.type == NdbDictionary::Object::HashIndex) ||
-	(element.type == NdbDictionary::Object::UniqueOrderedIndex) ||
 	(element.type == NdbDictionary::Object::OrderedIndex)) {
       char * indexName = new char[n << 2];
       memcpy(indexName, &data[pos], n << 2);

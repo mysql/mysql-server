@@ -95,8 +95,6 @@ public:
       SystemTable = 1,        ///< System table
       UserTable = 2,          ///< User table (may be temporary)
       UniqueHashIndex = 3,    ///< Unique un-ordered hash index
-      HashIndex = 4,          ///< Non-unique un-ordered hash index
-      UniqueOrderedIndex = 5, ///< Unique ordered index
       OrderedIndex = 6,       ///< Non-unique ordered index
       HashIndexTrigger = 7,   ///< Index maintenance, internal
       IndexTrigger = 8,       ///< Index maintenance, internal
