@@ -1626,3 +1626,10 @@ Field 3,'Field 4|
 |Field 6|	| 'Field 7'|
 drop view v1;
 drop table t1;
+create database mysqltest;
+create table mysqltest.t1 (a int);
+grant all privileges on mysqltest.* to mysqltest_1@localhost;
+use mysqltest;
+create view v1 as select * from t1;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+drop database mysqltest;

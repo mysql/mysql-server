@@ -1554,3 +1554,21 @@ select concat('|',a,'|'), concat('|',b,'|') from v1;
 drop view v1;
 drop table t1;
 
+#
+# user with global DB privileges
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+create table mysqltest.t1 (a int);
+grant all privileges on mysqltest.* to mysqltest_1@localhost;
+
+connection user1;
+use mysqltest;
+create view v1 as select * from t1;
+
+
+connection root;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+drop database mysqltest;
