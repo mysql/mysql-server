@@ -8,10 +8,12 @@ use Getopt::Long;
 $opt_help=$opt_version=$opt_verbose=$opt_force=0;
 $opt_user=$opt_database=$opt_password=undef;
 $opt_host="localhost";
+$opt_socket="";
 $opt_type="MYISAM";
+$opt_port=0;
 $exit_status=0;
 
-GetOptions("force","help","host=s","password=s","user=s","type=s","verbose","version") || 
+GetOptions("force","help","host=s","password=s","user=s","type=s","verbose","version","socket=s", "port=i") || 
   usage(0);
 usage($opt_version) if ($#ARGV < 0 || $opt_help || $opt_version);
 $opt_database=shift(@ARGV);
@@ -22,7 +24,17 @@ if (uc($opt_type) eq "HEAP")
   exit(1);
 }
 
-$dbh = DBI->connect("DBI:mysql:$opt_database:$opt_host",
+$connect_opt="";
+if ($opt_port)
+{
+  $connect_opt.= ";port=$opt_port";
+}
+if (length($opt_socket))
+{
+  $connect_opt.=";mysql_socket=$opt_socket";
+}
+
+$dbh = DBI->connect("DBI:mysql:$opt_database:${opt_host}$connect_opt",
 		    $opt_user,
 		    $opt_password,
 		    { PrintError => 0})
@@ -95,6 +107,12 @@ Conversion of a MySQL tables to other table types.
 
 --password='password'
   Password for the current user.
+
+--port=port
+  TCP/IP port to connect to if host is not "localhost".
+
+--socket='/path/to/socket'
+  Socket to connect with.
 
 --type='table-type'
   Converts tables to the given table type (Default: $opt_type)

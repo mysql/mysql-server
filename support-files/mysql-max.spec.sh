@@ -257,31 +257,6 @@ fi
 
 %attr(755, root, root) /usr/share/mysql/
 
-%files client
-%attr(755, root, root) /usr/bin/msql2mysql
-%attr(755, root, root) /usr/bin/mysql
-%attr(755, root, root) /usr/bin/mysqlaccess
-%attr(755, root, root) /usr/bin/mysqladmin
-%attr(755, root, root) /usr/bin/mysql_find_rows
-%attr(755, root, root) /usr/bin/mysqldump
-%attr(755, root, root) /usr/bin/mysqlimport
-%attr(755, root, root) /usr/bin/mysqlshow
-%attr(755, root, root) /usr/bin/mysqlbinlog
-
-%attr(644, root, man) %doc /usr/man/man1/mysql.1*
-%attr(644, root, man) %doc /usr/man/man1/isamchk.1*
-%attr(644, root, man) %doc /usr/man/man1/isamlog.1*
-%attr(644, root, man) %doc /usr/man/man1/mysql_zap.1*
-%attr(644, root, man) %doc /usr/man/man1/mysqlaccess.1*
-%attr(644, root, man) %doc /usr/man/man1/mysqladmin.1*
-%attr(644, root, man) %doc /usr/man/man1/mysqld.1*
-%attr(644, root, man) %doc /usr/man/man1/mysqld_multi.1*
-%attr(644, root, man) %doc /usr/man/man1/mysqldump.1*
-%attr(644, root, man) %doc /usr/man/man1/mysqlshow.1*
-%attr(644, root, man) %doc /usr/man/man1/perror.1*
-%attr(644, root, man) %doc /usr/man/man1/replace.1*
-%attr(644, root, man) %doc /usr/man/man1/safe_mysqld.1*
-
 %changelog 
 
 * 2000-04-01 Monty

@@ -598,7 +598,6 @@ my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
-  char *tmp;
 
   for (; ptr != end && min_str != min_end ; ptr++)
   {
@@ -627,10 +626,6 @@ my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
     *min_str++= *max_str++ = *ptr;
   }
   *min_length= *max_length = (uint) (min_str - min_org);
-
-  /* Temporary fix for handling wild_one at end of string (key compression) */
-//  for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
-//    *--tmp=' ';
 
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' ';		// Because if key compression

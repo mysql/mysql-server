@@ -437,7 +437,7 @@ static void close_connections(void)
 #ifdef __NT__
   if ( hPipe != INVALID_HANDLE_VALUE )
   {
-    HANDLE hTempPipe = hPipe;
+    HANDLE hTempPipe = &hPipe;
     DBUG_PRINT( "quit", ("Closing named pipes") );
     hPipe = INVALID_HANDLE_VALUE;
     CancelIo( hTempPipe );

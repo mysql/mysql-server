@@ -225,7 +225,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	break;
       }
     }
-    if (lock_type == TL_WRITE_DELAYED && ! table->file->has_transactions())
+    if (lock_type == TL_WRITE_DELAYED)
     {
       error=write_delayed(thd,table,duplic,query, thd->query_length, log_on);
       query=0;
@@ -888,6 +888,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
       my_pthread_setspecific_ptr(THR_THD,  thd) ||
       my_pthread_setspecific_ptr(THR_NET,  &thd->net))
   {
+    thd->fatal_error=1;
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto end;
   }
@@ -904,6 +905,12 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   if (!(di->table=open_ltable(thd,di->table_list,TL_WRITE_DELAYED)))
   {
     thd->fatal_error=1;				// Abort waiting inserts
+    goto end;
+  }
+  if (di->table->file->has_transactions())
+  {
+    thd->fatal_error=1;
+    my_error(ER_ILLEGAL_HA, MYF(0), di->table_list->real_name);
     goto end;
   }
   di->table->copy_blobs=1;
