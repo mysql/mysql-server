@@ -858,6 +858,8 @@ void Dbtup::sendTUPKEYCONF(Signal* signal,
   return;
 }//Dbtup::sendTUPKEYCONF()
 
+#define MAX_READ (sizeof(signal->theData) > MAX_MESSAGE_SIZE ? MAX_MESSAGE_SIZE : sizeof(signal->theData))
+
 /* ---------------------------------------------------------------- */
 /* ----------------------------- READ  ---------------------------- */
 /* ---------------------------------------------------------------- */
@@ -878,7 +880,7 @@ int Dbtup::handleReadReq(Signal* signal,
   }//if
 
   Uint32 * dst = &signal->theData[25];
-  Uint32 dstLen = (sizeof(signal->theData) / 4) - 25;
+  Uint32 dstLen = (MAX_READ / 4) - 25;
   const Uint32 node = refToNode(sendBref);
   if(node != 0 && node != getOwnNodeId()) {
     ;
@@ -888,7 +890,7 @@ int Dbtup::handleReadReq(Signal* signal,
      * execute direct
      */
     dst = &signal->theData[3];
-    dstLen = (sizeof(signal->theData) / 4) - 3;
+    dstLen = (MAX_READ / 4) - 3;
   }
   
   if (regOperPtr->interpretedExec != 1) {
@@ -1228,7 +1230,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
   const BlockReference sendBref = regOperPtr->recBlockref;
 
   Uint32 * dst = &signal->theData[25];
-  Uint32 dstLen = (sizeof(signal->theData) / 4) - 25;
+  Uint32 dstLen = (MAX_READ / 4) - 25;
   const Uint32 node = refToNode(sendBref);
   if(node != 0 && node != getOwnNodeId()) {
     ;
@@ -1238,7 +1240,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
      * execute direct
      */
     dst = &signal->theData[3];
-    dstLen = (sizeof(signal->theData) / 4) - 3;
+    dstLen = (MAX_READ / 4) - 3;
   }
   
   RtotalLen = RinitReadLen;
