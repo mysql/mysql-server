@@ -1001,6 +1001,24 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   return pos*2;
 }
 
+static
+void my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		   char *s, uint l, int fill)
+{
+  for ( ; l >= 2; s[0]= 0, s[1]= fill, s+=2, l-=2);
+}
+
+static
+uint my_lengthsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		      const char *ptr, uint length)
+{
+  const char *end= ptr+length;
+  while (end > ptr+1 && end[-1] == ' ' && end[-2] == '\0')
+    end-=2;
+  return (uint) (end-ptr);
+}
+
+
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
@@ -1019,6 +1037,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
     my_charpos_ucs2,
+    my_lengthsp_ucs2,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */
     my_caseup_str_ucs2,
@@ -1028,7 +1047,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_snprintf_ucs2,
     my_l10tostr_ucs2,
     my_ll10tostr_ucs2,
-    my_fill_8bit,
+    my_fill_ucs2,
     my_strntol_ucs2,
     my_strntoul_ucs2,
     my_strntoll_ucs2,

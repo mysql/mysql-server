@@ -4486,6 +4486,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_sjis,
   my_numchars_mb,
   my_charpos_mb,
+  my_lengthsp_8bit,
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */
   my_caseup_str_8bit,

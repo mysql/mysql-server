@@ -1020,12 +1020,23 @@ uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
   return pos;
 }
 
+uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		      const char *ptr, uint length)
+{
+  const char *end= ptr+length;
+  while (end > ptr && end[-1] == ' ')
+    end--;
+  return (uint) (end-ptr);
+}
+
+
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
     NULL,			/* ismbchar      */
     NULL,			/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_lengthsp_8bit,
     my_mb_wc_8bit,
     my_wc_mb_8bit,
     my_caseup_str_8bit,

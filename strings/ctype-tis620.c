@@ -719,6 +719,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     NULL,		/* mbcharlen */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_lengthsp_8bit,
     my_mb_wc_8bit,	/* mb_wc     */
     my_wc_mb_8bit,	/* wc_mb     */
     my_caseup_str_8bit,
