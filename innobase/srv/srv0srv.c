@@ -2417,7 +2417,19 @@ loop:
 
 background_loop:
 	/* In this loop we run background operations when the server
-	is quiet */
+	is quiet and we also come here about once in 10 seconds */
+
+	srv_main_thread_op_info = "flushing buffer pool pages";
+
+	/* Flush a few oldest pages to make the checkpoint younger */
+
+	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10, ut_dulint_max);
+
+	srv_main_thread_op_info = "making checkpoint";
+
+	/* Make a new checkpoint about once in 10 seconds */
+
+	log_checkpoint(TRUE, FALSE);
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
