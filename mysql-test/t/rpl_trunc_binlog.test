@@ -1,21 +1,28 @@
 # We are testing if a binlog which contains BEGIN but not COMMIT (the
-# master did while writing the transaction to the binlog) triggers an
-# error on slave.  So we use such a truncated binlog and simulate that
+# master died while writing the transaction to the binlog) triggers a
+# rollback on slave.  So we use such a truncated binlog and simulate that
 # the master restarted after this.
 
 source include/master-slave.inc;
 
 connection slave;
-# If we are not supporting transactions in the slave, the unfinished transaction
-# won't cause any error, so we need to skip the test. In the 4.0 testsuite, the
-# slave always runs without InnoDB, so we check for BDB.
+# If we are not supporting transactions in the slave, the unfinished
+# transaction won't cause any error, so we need to skip the test. In the 4.0
+# testsuite, the slave always runs without InnoDB, so we check for BDB.
 source include/have_bdb.inc;
 stop slave;
+
 connection master;
 flush logs;
 system mv -f var/log/master-bin.000001 var/log/master-bin.000002;
 system cp std_data/trunc_binlog.000001 var/log/master-bin.000001;
+
 connection slave;
+
+# truncated binlog contains: BEGIN; INSERT t1 VALUES (1);
+# so let's create the table t1 on slave
+
+create table t1 (a int) engine=bdb;
 reset slave;
 start slave;
 # can't sync_with_master so we must sleep
@@ -23,3 +30,6 @@ sleep 3;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
+select * from t1;
+drop table t1;
+
