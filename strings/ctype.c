@@ -3676,6 +3676,8 @@ my_bool init_compiled_charsets(myf flags  __attribute__((unused)))
 {
   CHARSET_INFO *cs;
 
+  MY_ADD_CHARSET(my_charset_bin);
+
 #ifdef HAVE_CHARSET_big5
   MY_ADD_CHARSET(&my_charset_big5);
 #endif

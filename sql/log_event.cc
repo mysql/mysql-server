@@ -348,6 +348,18 @@ void Intvar_log_event::pack_info(String* packet)
   net_store_data(packet, tmp.ptr(), tmp.length());
 }
 
+void Rand_log_event::pack_info(String* packet)
+{
+  char buf1[256], buf[22];
+  String tmp(buf1, sizeof(buf1), system_charset_info);
+  tmp.length(0);
+  tmp.append("randseed1=");
+  tmp.append(llstr(seed1, buf));
+  tmp.append(",randseed2=");
+  tmp.append(llstr(seed2, buf));
+  net_store_data(packet, tmp.ptr(), tmp.length());
+}
+
 void Slave_log_event::pack_info(String* packet)
 {
   char buf1[256], buf[22], *end;
@@ -376,6 +388,9 @@ void Log_event::init_show_field_list(List<Item>* field_list)
   field_list->push_back(new Item_empty_string("Info", 20));
 }
 
+/*
+ * only called by SHOW BINLOG EVENTS
+ */
 int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
 {
   String* packet = &thd->packet;
@@ -609,6 +624,9 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     break;
   case INTVAR_EVENT:
     ev = new Intvar_log_event(buf, old_format);
+    break;
+  case RAND_EVENT:
+    ev = new Rand_log_event(buf, old_format);
     break;
   default:
     break;
@@ -915,6 +933,41 @@ void Intvar_log_event::print(FILE* file, bool short_form, char* last_db)
 }
 #endif
 
+/*****************************************************************************
+ *
+ *  Rand log event
+ *
+ ****************************************************************************/
+Rand_log_event::Rand_log_event(const char* buf, bool old_format)
+  :Log_event(buf, old_format)
+{
+  buf += (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
+  seed1 = uint8korr(buf+RAND_SEED1_OFFSET);
+  seed2 = uint8korr(buf+RAND_SEED2_OFFSET);
+}
+
+int Rand_log_event::write_data(IO_CACHE* file)
+{
+  char buf[16];
+  int8store(buf + RAND_SEED1_OFFSET, seed1);
+  int8store(buf + RAND_SEED2_OFFSET, seed2);
+  return my_b_safe_write(file, (byte*) buf, sizeof(buf));
+}
+
+#ifdef MYSQL_CLIENT
+void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
+{
+  char llbuff[22];
+  if (!short_form)
+  {
+    print_header(file);
+    fprintf(file, "\tRand\n");
+  }
+  fprintf(file, "SET RAND SEED1=%s;\n", llstr(seed1, llbuff));
+  fprintf(file, "SET RAND SEED2=%s;\n", llstr(seed2, llbuff));
+  fflush(file);
+}
+#endif
 
 int Load_log_event::write_data_header(IO_CACHE* file)
 {
@@ -1922,6 +1975,14 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
     thd->next_insert_id = val;
     break;
   }
+  rli->inc_pending(get_event_len());
+  return 0;
+}
+
+int Rand_log_event::exec_event(struct st_relay_log_info* rli)
+{
+  thd->rand.seed1 = seed1;
+  thd->rand.seed2 = seed2;
   rli->inc_pending(get_event_len());
   return 0;
 }

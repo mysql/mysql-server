@@ -482,8 +482,7 @@ multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       if (counter)
       {
 	Field_string offset(table_ref->table->file->ref_length, false,
-                            "offset", table_ref->table, true,
-                            default_charset_info);
+                            "offset", table_ref->table, my_charset_bin);
 	temp_fields->push_front(new Item_field(((Field *)&offset)));
 
 	// Make a temporary table

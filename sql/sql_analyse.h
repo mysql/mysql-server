@@ -115,7 +115,7 @@ public:
     max_arg("",default_charset_info), sum(0),
     must_be_blob(0), was_zero_fill(0),
     was_maybe_zerofill(0), can_be_still_num(1)
-    { init_tree(&tree, 0, 0, sizeof(String), a->binary ?
+    { init_tree(&tree, 0, 0, sizeof(String), a->binary() ?
 		(qsort_cmp2) stringcmp2 : (qsort_cmp2) sortcmp2,
 		0, (tree_element_free) free_string, NULL); };
 
