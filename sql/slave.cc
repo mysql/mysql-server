@@ -599,36 +599,23 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	thd->query_id = query_id++;
 	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 	thd->last_nx_table = thd->last_nx_db = 0;
-	for(;;)
-	{
-	  thd->query_error = 0; // clear error
-	  thd->last_nx_table = thd->last_nx_db  = 0;
-	  thd->net.last_errno = 0;
-	  thd->net.last_error[0] = 0;
-	  mysql_parse(thd, thd->query, q_len); // try query
-	  if(!thd->query_error || slave_killed(thd)) // break if ok
-	    break;
-	  // if not ok
-	  if(thd->last_nx_table && thd->last_nx_db)
+	thd->query_error = 0; // clear error
+	thd->net.last_errno = 0;
+	thd->net.last_error[0] = 0;
+	mysql_parse(thd, thd->query, q_len);
+	int expected_error,actual_error;
+	if((expected_error = qev->error_code) !=
+	   (actual_error = thd->net.last_errno) && expected_error)
 	  {
-	    // for now, let's just fail if the table is not
-	    // there, and not try to be a smart alec...
-			
-	    // if table was not there
-	    //if(fetch_nx_table(thd,&glob_mi))
-	    // try to to fetch from master
-	    break;  // if we can't, just break
+	    sql_print_error("Slave: did not get the expected error\
+ running query from master - expected: '%s', got '%s'",
+			    ER(expected_error),
+			    actual_error ? ER(actual_error):"no error"
+			    );
+	    thd->query_error = 1;
 	  }
-	  else
-	    break; // if failed for some other reason, bail out
-
-	  // if fetched the table from master successfully
-	  // we need to restore query info in thd because
-	  // fetch_nx_table executes create table
-	  thd->query = (char*)qev->query;
-	  thd->set_time((time_t)qev->when);
-	  thd->current_tablenr = 0;
-	}
+	else if(expected_error == actual_error)
+	  thd->query_error = 0;
       }
       thd->db = 0;// prevent db from being freed
       thd->query = 0; // just to be sure

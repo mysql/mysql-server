@@ -284,7 +284,9 @@ static void dump_remote_log_entries(const char* logname)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
-    Log_event * ev = Log_event::read_log_event((const char*) net->read_pos + 1 , len);
+    Log_event * ev = Log_event::read_log_event(
+					  (const char*) net->read_pos + 1 ,
+					  len);
     if(ev)
     {
       ev->print(stdout, short_form);
@@ -315,7 +317,7 @@ static void dump_local_log_entries(const char* logname)
  
  while(1)
    {
-     Log_event* ev = Log_event::read_log_event(file);
+     Log_event* ev = Log_event::read_log_event(file, 0);
      if(!ev)
        if(!feof(file))
 	die("Could not read entry at offset %ld : Error in log format or \
