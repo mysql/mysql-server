@@ -34,9 +34,6 @@ LTCHARSET_OBJS= ${CHARSET_OBJS:.o=.lo}
 target_sources = libmysql.c net.c  password.c \
 			    get_password.c errmsg.c
 
-#quick easy dirty hack to make it work after Tonu's changes
-#In my opinion, violite.c really belongs into mysys - Sasha
-sqlobjects = violite.lo
 mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \

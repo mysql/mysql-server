@@ -1070,13 +1070,15 @@ mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
   mysql->options.ssl_cert = cert==0 ? 0 : my_strdup(cert,MYF(0));
   mysql->options.ssl_ca = ca==0 ? 0 : my_strdup(ca,MYF(0));
   mysql->options.ssl_capath = capath==0 ? 0 : my_strdup(capath,MYF(0));
-  mysql->options.use_ssl = true;
-  mysql->connector_fd = new_VioSSLConnectorFd(key, cert, ca, capath);
+  mysql->options.use_ssl = TRUE;
+  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath);
+  DBUG_PRINT("info",("mysql_ssl_set, context: %p",((struct st_VioSSLConnectorFd *)(mysql->connector_fd))->ssl_context_));
+
   return 0;
 }
 
 /**************************************************************************
-**************************************************************************/
+**************************************************************************
 
 char * STDCALL
 mysql_ssl_cipher(MYSQL *mysql)
@@ -1085,10 +1087,10 @@ mysql_ssl_cipher(MYSQL *mysql)
 }
 
 
-/**************************************************************************
+**************************************************************************
 ** Free strings in the SSL structure and clear 'use_ssl' flag.
 ** NB! Errors are not reported until you do mysql_real_connect.
-**************************************************************************/
+**************************************************************************
 
 int STDCALL
 mysql_ssl_clear(MYSQL *mysql)
@@ -1105,7 +1107,7 @@ mysql_ssl_clear(MYSQL *mysql)
   mysql->connector_fd->delete();
   mysql->connector_fd = 0;
   return 0;
-}
+}*/
 #endif /* HAVE_OPENSSL */
 
 /**************************************************************************
@@ -1496,11 +1498,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       goto error;
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    VioSSLConnectorFd* connector_fd = (VioSSLConnectorFd*)
-      (mysql->connector_fd);
-    VioSocket*	vio_socket = (VioSocket*)(mysql->net.vio);
-    VioSSL*	vio_ssl =    connector_fd->connect(vio_socket);
-    mysql->net.vio =         (NetVio*)(vio_ssl);
+    DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
+    mysql->net.vio = sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio);
+    DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
 
@@ -1680,8 +1680,8 @@ mysql_close(MYSQL *mysql)
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
 #ifdef HAVE_OPENSSL
-    ((VioConnectorFd*)(mysql->connector_fd))->delete();
-    mysql->connector_fd = 0;
+/*    ((VioConnectorFd*)(mysql->connector_fd))->delete();
+    mysql->connector_fd = 0;*/
 #endif /* HAVE_OPENSSL */
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
