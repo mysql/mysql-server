@@ -58,6 +58,10 @@ WWW (@uref{http://mysql-mirror.free.fr/})
 FTP (@uref{ftp://ftp.free.fr/pub/MySQL/})
 
 @item
+@image{Flags/france} France [Netsample] @@
+WWW (@uref{http://www.mysql.netsample.com/})
+
+@item
 @image{Flags/france} France [Omegatomic] @@
 WWW (@uref{http://mysql.omegatomic.com/})
 
@@ -70,6 +74,10 @@ FTP (@uref{ftp://ftp.gwdg.de/pub/misc/mysql/})
 @image{Flags/germany} Germany [SunSITE Central Europe] @@
 WWW (@uref{http://sunsite.informatik.rwth-aachen.de/mysql/})
 FTP (@uref{ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/})
+
+@item
+@image{Flags/germany} Germany [Tiscali] @@
+FTP (@uref{ftp://filepile.tiscali.de/mirror/mysql/})
 
 @item
 @image{Flags/germany} Germany [Wolfenbuettel] @@
@@ -106,6 +114,10 @@ WWW (@uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysq
 FTP (@uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/})
 
 @item
+@image{Flags/ireland} Ireland [MD NMTB Media] @@
+WWW (@uref{http://mirrors.nmtbmedia.com/mysql/})
+
+@item
 @image{Flags/italy} Italy [feelinglinux.com] @@
 WWW (@uref{http://mysql.feelinglinux.com/})
 
@@ -120,10 +132,6 @@ WWW (@uref{http://mysql.tzone.it/})
 @item
 @image{Flags/latvia} Latvia [linux.lv] @@
 FTP (@uref{ftp://ftp.linux.lv/pub/software/mysql/})
-
-@item
-@image{Flags/netherlands} Netherlands [Compukos] @@
-WWW (@uref{http://mysql.compukos.nl/})
 
 @item
 @image{Flags/netherlands} Netherlands [OMS-Net] @@
@@ -243,9 +251,8 @@ FTP (@uref{ftp://mysql.unam.mx/pub/mysql/})
 WWW (@uref{http://mysql.adgrafix.com/})
 
 @item
-@image{Flags/usa} USA [Ahaza Systems / Seattle, WA] @@
-WWW (@uref{http://mysql.mirrortree.com/})
-FTP (@uref{ftp://mysql.mirrortree.com/pub/mysql/})
+@image{Flags/usa} USA [Fast Mirror / Englewood, CO] @@
+WWW (@uref{http://mysql.fastmirror.com/})
 
 @item
 @image{Flags/usa} USA [Hurricane Electric / San Jose, CA] @@
@@ -314,6 +321,11 @@ FTP (@uref{ftp://mysql.ogmios.co.cr/pub/mysql/})
 @strong{Asia:}
 
 @itemize @bullet
+
+@item
+@image{Flags/armenia} Armenia [AbideWeb Technologies] @@
+WWW (@uref{http://mysql.abideweb.com/})
+FTP (@uref{ftp://mysql.abideweb.com/mirrors/MySQL/})
 
 @item
 @image{Flags/china} China [Gremlins/Hong Kong] @@
