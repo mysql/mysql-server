@@ -35,6 +35,17 @@
 #define DBG(x)
 #endif
 
+static char*
+ndb_blob_debug(const Uint32* data, unsigned size)
+{
+  static char buf[128 + 1];     // MT irrelevant
+  buf[0] = 0;
+  for (unsigned i = 0; i < size && i < 128 / 4; i++) {
+    sprintf(buf + strlen(buf), "%*s%08x", i != 0, "", data[i]);
+  }
+  return buf;
+}
+
 /*
  * Reading index table directly (as a table) is faster but there are
  * bugs or limitations.  Keep the code but make possible to choose.
@@ -296,7 +307,7 @@ NdbBlob::getTableKeyValue(NdbOperation* anOp)
       }
       // odd bytes receive no data and must be zeroed
       while (len % 4 != 0) {
-        char* p = (char*)data + len++;
+        char* p = (char*)&data[pos] + len++;
         *p = 0;
       }
       pos += len / 4;
@@ -311,8 +322,9 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
 {
   const Uint32* data = (const Uint32*)theKeyBuf.data;
   unsigned pos = 0;
-  DBG("setTableKeyValue key0=" << data[0]);
-  for (unsigned i = 0; i < theTable->m_columns.size(); i++) {
+  const unsigned size = theTable->m_columns.size();
+  DBG("setTableKeyValue key=" << ndb_blob_debug(data, size));
+  for (unsigned i = 0; i < size; i++) {
     NdbColumnImpl* c = theTable->m_columns[i];
     assert(c != NULL);
     if (c->m_pk) {
@@ -333,8 +345,9 @@ NdbBlob::setAccessKeyValue(NdbOperation* anOp)
 {
   const Uint32* data = (const Uint32*)theAccessKeyBuf.data;
   unsigned pos = 0;
-  DBG("setAccessKeyValue key0=" << data[0]);
-  for (unsigned i = 0; i < theAccessTable->m_columns.size(); i++) {
+  const unsigned size = theAccessTable->m_columns.size();
+  DBG("setAccessKeyValue key=" << ndb_blob_debug(data, size));
+  for (unsigned i = 0; i < size; i++) {
     NdbColumnImpl* c = theAccessTable->m_columns[i];
     assert(c != NULL);
     if (c->m_pk) {
@@ -353,7 +366,9 @@ NdbBlob::setAccessKeyValue(NdbOperation* anOp)
 int
 NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
-  DBG("setPartKeyValue dist=" << getDistKey(part) << " part=" << part << " key0=" << *(Uint32*)theKeyBuf.data);
+  Uint32* data = (Uint32*)theKeyBuf.data;
+  unsigned size = theTable->m_sizeOfKeysInWords;
+  DBG("setPartKeyValue dist=" << getDistKey(part) << " part=" << part << " key=" << ndb_blob_debug(data, size));
   if (anOp->equal((Uint32)0, getDistKey(part)) == -1 ||
       anOp->equal((Uint32)1, part) == -1 ||
       anOp->equal((Uint32)2, theKeyBuf.data) == -1) {
