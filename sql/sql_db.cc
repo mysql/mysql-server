@@ -381,13 +381,13 @@ bool mysql_change_db(THD *thd,const char *name)
   ulong db_access;
   DBUG_ENTER("mysql_change_db");
 
-  if (!dbname || !(db_length= strlength(dbname)))
+  if (!dbname || !(db_length= strlen(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if ((db_length > NAME_LEN) || check_db_name(dbname))
+  if (check_db_name(dbname))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, dbname);
     x_free(dbname);

@@ -1216,10 +1216,11 @@ bool check_table_name(const char *name, uint length)
 #endif
 }
 
+
 bool check_column_name(const char *name)
 {
   const char *start= name;
-  bool last_char_is_space= false;
+  bool last_char_is_space= FALSE;
   
   while (*name)
   {
