@@ -252,7 +252,7 @@ public:
    * Length of signal
    */
   STATIC_CONST( SignalLength = 4 );
-  static const Uint32 EndOfData = (1 << 31);
+  STATIC_CONST( EndOfData = (1 << 31) );
   
 private:
 

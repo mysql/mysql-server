@@ -107,16 +107,16 @@ public:
 
 private:
   // sizes are in words (Uint32)
-  static const unsigned MaxIndexFragments = 2 * MAX_FRAG_PER_NODE;
-  static const unsigned MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX;
-  static const unsigned MaxAttrDataSize = 2048;
+  STATIC_CONST( MaxIndexFragments = 2 * MAX_FRAG_PER_NODE );
+  STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
+  STATIC_CONST( MaxAttrDataSize = 2048 );
 public:
-  static const unsigned DescPageSize = 256;
+  STATIC_CONST( DescPageSize = 256 );
 private:
-  static const unsigned MaxTreeNodeSize = MAX_TTREE_NODE_SIZE;
-  static const unsigned MaxPrefSize = MAX_TTREE_PREF_SIZE;
-  static const unsigned ScanBoundSegmentSize = 7;
-  static const unsigned MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN;
+  STATIC_CONST( MaxTreeNodeSize = MAX_TTREE_NODE_SIZE );
+  STATIC_CONST( MaxPrefSize = MAX_TTREE_PREF_SIZE );
+  STATIC_CONST( ScanBoundSegmentSize = 7 );
+  STATIC_CONST( MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN );
   BLOCK_DEFINES(Dbtux);
 
   // forward declarations
@@ -159,13 +159,13 @@ private:
   };
 
   // AttributeHeader size is assumed to be 1 word
-  static const unsigned AttributeHeaderSize = 1;
+  STATIC_CONST( AttributeHeaderSize = 1 );
 
   /*
    * Logical tuple address, "local key".  Identifies table tuples.
    */
   typedef Uint32 TupAddr;
-  static const unsigned NullTupAddr = (Uint32)-1;
+  STATIC_CONST( NullTupAddr = (Uint32)-1 );
 
   /*
    * Physical tuple address in TUP.  Provides fast access to table tuple
@@ -216,7 +216,7 @@ private:
     bool eq(const TreeEnt ent) const;
     int cmp(const TreeEnt ent) const;
   };
-  static const unsigned TreeEntSize = sizeof(TreeEnt) >> 2;
+  STATIC_CONST( TreeEntSize = sizeof(TreeEnt) >> 2 );
   static const TreeEnt NullTreeEnt;
 
   /*
@@ -246,7 +246,7 @@ private:
     Uint32 m_nodeScan;          // list of scans at this node
     TreeNode();
   };
-  static const unsigned NodeHeadSize = sizeof(TreeNode) >> 2;
+  STATIC_CONST( NodeHeadSize = sizeof(TreeNode) >> 2 );
 
   /*
    * Tree node "access size" was for an early version with signal
@@ -323,7 +323,7 @@ private:
     unsigned m_indexId : 24;
     unsigned pad1 : 8;
   };
-  static const unsigned DescHeadSize = sizeof(DescHead) >> 2;
+  STATIC_CONST( DescHeadSize = sizeof(DescHead) >> 2 );
 
   /*
    * Attribute metadata.  Size must be multiple of word size.
@@ -337,7 +337,7 @@ private:
     unsigned m_typeId : 6;
     unsigned m_charset : 10;
   };
-  static const unsigned DescAttrSize = sizeof(DescAttr) >> 2;
+  STATIC_CONST( DescAttrSize = sizeof(DescAttr) >> 2 );
 
   /*
    * Complete metadata for one index. The array of attributes has
@@ -694,8 +694,8 @@ private:
     DebugTree = 4,              // log and check tree after each op
     DebugScan = 8               // log scans
   };
-  static const int DataFillByte = 0xa2;
-  static const int NodeFillByte = 0xa4;
+  STATIC_CONST( DataFillByte = 0xa2 );
+  STATIC_CONST( NodeFillByte = 0xa4 );
 #endif
 
   // start up info
