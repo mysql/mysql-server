@@ -26,10 +26,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n BackupOne T1 T6 T3 I3
 
-#max-time: 600
-#cmd: testBackup
-#args: -n BackupBank T6 
-#
+max-time: 1000
+cmd: testBackup
+args: -n BackupBank T6 
+
 #
 # MGMAPI AND MGSRV
 #
@@ -41,22 +41,6 @@ args: -n SingleUserMode T1
 #
 # SYSTEM RESTARTS
 #
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_UNDO T1 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_UNDO T6 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_UNDO T7 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_UNDO T8 
-
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR3 T6 

@@ -218,15 +218,18 @@ public:
   void printState();
 #endif
   
-  unsigned short      m_service_port;
-
+  class Transporter_interface {
+  public:
+    unsigned short m_service_port;
+    const char *m_interface;
+  };
+  Vector<Transporter_interface> m_transporter_interface;
+  void add_transporter_interface(const char *interface, unsigned short port);
 protected:
   
 private:
   void * callbackObj;
 
-  TransporterService *m_transporter_service;
-  char               *m_interface_name;
   struct NdbThread   *m_start_clients_thread;
   bool                m_run_start_clients_thread;
 

@@ -16,6 +16,7 @@
 
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 
 #include <SocketServer.hpp>
 
@@ -83,7 +84,8 @@ bool
 SocketServer::setup(SocketServer::Service * service, 
 		    unsigned short port, 
 		    const char * intface){
-  
+  DBUG_ENTER("SocketServer::setup");
+  DBUG_PRINT("enter",("interface=%s, port=%d", intface, port));
   struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
@@ -92,36 +94,44 @@ SocketServer::setup(SocketServer::Service * service,
   
   if(intface != 0){
     if(Ndb_getInAddr(&servaddr.sin_addr, intface))
-      return false;
+      DBUG_RETURN(false);
   }
   
   const NDB_SOCKET_TYPE sock  = socket(AF_INET, SOCK_STREAM, 0);
   if (sock == NDB_INVALID_SOCKET) {
-    return false;
+    DBUG_PRINT("error",("socket() - %d - %s",
+			errno, strerror(errno)));
+    DBUG_RETURN(false);
   }
   
   const int on = 1;
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
 		 (const char*)&on, sizeof(on)) == -1) {
+    DBUG_PRINT("error",("getsockopt() - %d - %s",
+			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);
-    return false;
+    DBUG_RETURN(false);
   }
   
   if (bind(sock, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
+    DBUG_PRINT("error",("bind() - %d - %s",
+			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);
-    return false;
+    DBUG_RETURN(false);
   }
   
   if (listen(sock, m_maxSessions) == -1){
+    DBUG_PRINT("error",("listen() - %d - %s",
+			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);
-    return false;
+    DBUG_RETURN(false);
   }
   
   ServiceInstance i;
   i.m_socket = sock;
   i.m_service = service;
   m_services.push_back(i);
-  return true;
+  DBUG_RETURN(true);
 }
 
 void
@@ -177,8 +187,9 @@ void*
 socketServerThread_C(void* _ss){
   SocketServer * ss = (SocketServer *)_ss;
   
+  my_thread_init();
   ss->doRun();
-  
+  my_thread_end();  
   NdbThread_Exit(0);
   return 0;
 }
@@ -287,8 +298,10 @@ void*
 sessionThread_C(void* _sc){
   SocketServer::Session * si = (SocketServer::Session *)_sc;
 
+  my_thread_init();
   if(!transfer(si->m_socket)){
     si->m_stopped = true;
+    my_thread_end();
     NdbThread_Exit(0);
     return 0;
   }
@@ -301,6 +314,7 @@ sessionThread_C(void* _sc){
   }
   
   si->m_stopped = true;
+  my_thread_end();
   NdbThread_Exit(0);
   return 0;
 }
