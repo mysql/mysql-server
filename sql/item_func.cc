@@ -627,7 +627,12 @@ double Item_func_round::val()
 	      log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
   if (truncate)
-    return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+  {
+    if (value >= 0)
+      return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+    else
+      return dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+  }
   return dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
 }
 

@@ -31379,6 +31379,17 @@ mysql> SELECT 'David!' LIKE 'David_';
         -> 1
 mysql> SELECT 'David!' LIKE '%D%v%';
         -> 1
+mysql> select TRUNCATE(-1,999,1);
+        -> -1.9
+@end example
+
+Starting from MySQL 3.23.51 all numbers are rounded towards zero.
+
+If @code{D} is negative, then the whole part of the number is zeroed out:
+
+@example
+mysql> select truncate(122,-2);
+       -> 100
 @end example
 
 To test for literal instances of a wildcard character, precede the character
@@ -47074,6 +47085,11 @@ check whether things that work for others crash for you.  Please try
 the following things:
 
 @itemize @bullet
+@item
+Cleaned up @code{NULL} handling for default values in @code{DESCRIBE
+table_name}.
+@item
+Fixed @code{truncate()} to round up negative values to the nearest integer.
 @item
 Take down the @code{mysqld} daemon with @code{mysqladmin shutdown}, run
 @code{myisamchk --silent --force */*.MYI} on all tables, and restart the
