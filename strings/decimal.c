@@ -503,7 +503,7 @@ int decimal2ulonglong(decimal *from, ulonglong *to)
 {
   dec1 *buf=from->buf;
   ulonglong x=0;
-  int intg;
+  int intg, frac;
 
   if (from->sign)
   {
@@ -515,14 +515,17 @@ int decimal2ulonglong(decimal *from, ulonglong *to)
   {
     ulonglong y=x;
     x=x*DIG_BASE + *buf++;
-    if (unlikely(x < y))
+    if (unlikely(y > (ULONGLONG_MAX/DIG_BASE) || x < y))
     {
       *to=y;
       return E_DEC_OVERFLOW;
     }
   }
   *to=x;
-  return from->frac ? E_DEC_TRUNCATED : E_DEC_OK;
+  for (frac=from->frac; unlikely(frac > 0); frac-=DIG_PER_DEC1)
+    if (*buf++)
+      return E_DEC_TRUNCATED;
+  return E_DEC_OK;
 }
 
 int decimal2longlong(decimal *from, longlong *to)
@@ -1928,6 +1931,7 @@ main()
   test_d2ull("18446744073709551616");
   test_d2ull("-1");
   test_d2ull("1.23");
+  test_d2ull("9999999999999999999999999.000");
 
   printf("==== longlong2decimal ====\n");
   test_ll2d(LL(-12345));
