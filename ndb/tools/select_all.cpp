@@ -16,7 +16,6 @@
 
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include <NdbOut.hpp>
 

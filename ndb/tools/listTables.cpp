@@ -22,7 +22,6 @@
  */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 #include <getarg.h>
 
 #include <NdbApi.hpp>
