@@ -3399,7 +3399,8 @@ table_wild_one:
         }
 	| ident '.' ident opt_wild opt_table_alias
 	  {
-	    if (!Select->add_table_to_list(YYTHD, new Table_ident($1, $3, 0),
+	    if (!Select->add_table_to_list(YYTHD,
+					   new Table_ident(YYTHD, $1, $3, 0),
 					   $5, TL_OPTION_UPDATING,
 					   Lex->lock_option))
 	      YYABORT;
@@ -3953,7 +3954,7 @@ field_ident:
 
 table_ident:
 	ident			{ $$=new Table_ident($1); }
-	| ident '.' ident	{ $$=new Table_ident($1,$3,0);}
+	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
 	| '.' ident		{ $$=new Table_ident($2);}
    /* For Delphi */;
 

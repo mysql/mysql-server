@@ -297,7 +297,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       for (i=0 ; i < keys ; i++)
       {
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
-        disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * MI_KEYSEG_SIZE,
+        disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
  			end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
           have_rtree=1;
@@ -373,7 +373,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       {
 	disk_pos=mi_uniquedef_read(disk_pos, &share->uniqueinfo[i]);
         disk_pos_assert(disk_pos + share->uniqueinfo[i].keysegs *
-			MI_KEYSEG_SIZE, end_pos);
+			HA_KEYSEG_SIZE, end_pos);
 	share->uniqueinfo[i].seg=pos;
 	for (j=0 ; j < share->uniqueinfo[i].keysegs; j++,pos++)
 	{

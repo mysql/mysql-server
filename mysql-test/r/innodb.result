@@ -1074,6 +1074,9 @@ select * from t2;
 id	t1_id
 drop table t1,t2;
 DROP TABLE IF EXISTS t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
 CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) TYPE=INNODB;
 CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) TYPE=INNODB;
 INSERT INTO t1 VALUES(1);
