@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# This script's purpose is to update the automake/autoconf helper scripts and
+# to run a plain "configure" without any special compile flags. Only features
+# that affect the content of the source distribution are enabled. The resulting
+# tree can then be picked up by "make dist" to create the "pristine source
+# package" that is used as the basis for all other binary builds.
+#
+make distclean
+aclocal
+autoheader
+libtoolize --automake --force --copy
+automake --force --add-missing --copy
+autoconf
+(cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+
+# Default to gcc for CC and CXX
+if test -z "$CXX" ; then
+  export CXX=gcc
+fi
+
+if test -z "$CC" ; then
+  export CC=gcc
+fi
+
+# Use ccache, if available
+if ccache -V > /dev/null 2>&1
+then
+  if ! (echo "$CC" | grep "ccache" > /dev/null)
+  then
+    export CC="ccache $CC"
+  fi
+  if ! (echo "$CXX" | grep "ccache" > /dev/null)
+  then
+    export CXX="ccache $CXX"
+  fi
+fi
+
+# Make sure to enable all features that affect "make dist"
+./configure \
+  --with-embedded-server \
+  --with-berkeley-db \
+  --with-innodb \
+  --enable-thread-safe-client \
+  --with-extra-charsets=complex \
+  --with-ndbcluster
+make

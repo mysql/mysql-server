@@ -370,18 +370,18 @@ static byte* federated_get_key(FEDERATED_SHARE *share,uint *length,
 }
 
 /*
-  Parse connection info from table->comment
+  Parse connection info from table->s->comment
 
   SYNOPSIS
     parse_url()
       share     pointer to FEDERATED share
       table     pointer to current TABLE class
-      
+
   DESCRIPTION
     populates the share with information about the connection
     to the remote database that will serve as the data source.
     This string must be specified (currently) in the "comment" field,
-    listed in the CREATE TABLE statement. 
+    listed in the CREATE TABLE statement.
 
     This string MUST be in the format of any of these:
 
@@ -401,10 +401,10 @@ scheme://username:password@hostname/database/table
 
   RETURN VALUE
     0   success
-    -1  failure, wrong string format    
+    -1  failure, wrong string format
 
 */
-int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
+static int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
 {
   DBUG_ENTER("ha_federated::parse_url");
 
@@ -412,7 +412,7 @@ int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
   share->port= 0;
   uint error_num= table_create_flag ? ER_CANT_CREATE_TABLE : ER_CONNECT_TO_MASTER ;
 
-  share->scheme= my_strdup(table->comment, MYF(0));
+  share->scheme= my_strdup(table->s->comment, MYF(0));
 
 
   if (share->username= strstr(share->scheme, "://"))
@@ -429,7 +429,7 @@ int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
     }
     share->username+= 3;
 
-    if (share->hostname= strchr(share->username, '@')) 
+    if (share->hostname= strchr(share->username, '@'))
     {
       share->username[share->hostname - share->username]= '\0';
       share->hostname++;
@@ -569,7 +569,7 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
   // Question this
-  memset(record, 0, table->null_bytes); 
+  memset(record, 0, table->s->null_bytes); 
 
   for (Field **field=table->field; *field ; field++, x++)
   {
@@ -742,8 +742,6 @@ int load_conn_info(FEDERATED_SHARE *share, TABLE *table)
 static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 {
   FEDERATED_SHARE *share;
-  // FIX : need to redo 
-  //String query;
   char query_buffer[IO_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
   query.length(0);
@@ -753,7 +751,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
   // share->table_name has the file location - we want the actual table's
   // name!
-  table_base_name= table->table_name;
+  table_base_name= (char *)table->s->table_name;
   DBUG_PRINT("ha_federated::get_share",("table_name %s", table_base_name));
   /*
     So why does this exist? There is no way currently to init a storage engine.
@@ -1160,9 +1158,9 @@ int ha_federated::update_row(
   DBUG_ENTER("ha_federated::update_row");
 
 
-  has_a_primary_key= table->primary_key == 0 ? 1 : 0;
+  has_a_primary_key= table->s->primary_key == 0 ? 1 : 0;
   primary_key_field_num= has_a_primary_key ? 
-    table->key_info[table->primary_key].key_part->fieldnr -1 : -1;
+    table->key_info[table->s->primary_key].key_part->fieldnr -1 : -1;
   if (has_a_primary_key)
       DBUG_PRINT("ha_federated::update_row", ("has a primary key"));
 
@@ -1243,7 +1241,7 @@ int ha_federated::update_row(
     update_string.append(new_field_value);
     new_field_value.length(0);
 
-    if (x+1 < table->fields)
+    if (x+1 < table->s->fields)
     {
       update_string.append(", ");
       if (! has_a_primary_key)
@@ -1319,7 +1317,7 @@ int ha_federated::delete_row(const byte * buf)
     delete_string.append(data_string);
     data_string.length(0);
 
-    if (x+1 < table->fields)
+    if (x+1 < table->s->fields)
       delete_string.append(" AND ");
   }
 
@@ -1422,7 +1420,7 @@ int ha_federated::index_init(uint keynr)
   int error;
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("ha_federated::index_init",
-             ("table: '%s'  key: %d", table->real_name, keynr));
+             ("table: '%s'  key: %d", table->s->table_name, keynr));
   active_index= keynr;
   DBUG_RETURN(0);
 }
@@ -1522,7 +1520,7 @@ void ha_federated::position(const byte *record)
 {
   DBUG_ENTER("ha_federated::position");
   //ha_store_ptr Add seek storage
-  ha_store_ptr(ref, ref_length, current_position);
+  *(MYSQL_ROW_OFFSET *)ref=current_position; // ref is always aligned
   DBUG_VOID_RETURN;
 }
 
@@ -1541,7 +1539,7 @@ int ha_federated::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_count,&LOCK_status);
-  current_position= ha_get_ptr(pos,ref_length);
+  memcpy(current_position, pos, sizeof(MYSQL_ROW_OFFSET)); // pos is not aligned
   result->current_row= 0;
   result->data_cursor= current_position;
   DBUG_RETURN(rnd_next(buf));
@@ -1706,10 +1704,10 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
 int ha_federated::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
-  DBUG_ENTER("ha_federated::create");
   int retcode;
-  FEDERATED_SHARE *tmp;
-  retcode= parse_url(tmp, table_arg, 1);
+  FEDERATED_SHARE tmp;
+  DBUG_ENTER("ha_federated::create");
+  retcode= parse_url(&tmp, table_arg, 1);
   if (retcode < 0)
   {
     DBUG_PRINT("ha_federated::create",

@@ -52,6 +52,7 @@
 #define SP_COM_STRING(LP) \
   ((LP)->sql_command == SQLCOM_CREATE_SPFUNCTION || \
    (LP)->sql_command == SQLCOM_ALTER_FUNCTION || \
+   (LP)->sql_command == SQLCOM_SHOW_CREATE_FUNC || \
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
@@ -1228,7 +1229,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if (!(table_list = (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(1); // out of memory
   table_list->db= db;
-  table_list->real_name= table_list->alias= tbl_name;
+  table_list->table_name= table_list->alias= tbl_name;
   table_list->lock_type= TL_READ_NO_INSERT;
   table_list->prev_global= &table_list;	// can be removed after merge with 4.1
 
@@ -1239,7 +1240,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   }
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tbl_name);
-  remove_escape(table_list->real_name);
+  remove_escape(table_list->table_name);
 
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
@@ -1601,7 +1602,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     pend= strend(packet);
     thd->convert_string(&conv_name, system_charset_info,
 			packet, (uint) (pend-packet), thd->charset());
-    table_list.alias= table_list.real_name= conv_name.str;
+    table_list.alias= table_list.table_name= conv_name.str;
     packet= pend+1;
 
     if (!my_strcasecmp(system_charset_info, table_list.db,
@@ -1615,10 +1616,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /*  command not cachable => no gap for data base name */
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
-    mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
+    mysql_log.write(thd,command,"%s %s",table_list.table_name, fields);
     if (lower_case_table_names)
-      my_casedn_str(files_charset_info, table_list.real_name);
-    remove_escape(table_list.real_name);	// This can't have wildcards
+      my_casedn_str(files_charset_info, table_list.table_name);
+    remove_escape(table_list.table_name);	// This can't have wildcards
 
     if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
 		     0, 0))
@@ -1975,7 +1976,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
       char *db= table_list->db;
       remove_escape(db);			// Fix escaped '_'
-      remove_escape(table_list->real_name);
+      remove_escape(table_list->table_name);
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
                        &table_list->grant.privilege, 0, 0))
         DBUG_RETURN(1);				/* purecov: inspected */
@@ -2534,9 +2535,9 @@ mysql_execute_command(THD *thd)
       if (check_grant(thd, CREATE_ACL, all_tables, 0, 1, 0))
 	goto error;
     }
-    if (strlen(first_table->real_name) > NAME_LEN)
+    if (strlen(first_table->table_name) > NAME_LEN)
     {
-      my_error(ER_WRONG_TABLE_NAME, MYF(0), first_table->real_name);
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), first_table->table_name);
       break;
     }
     pthread_mutex_lock(&LOCK_active_mi);
@@ -2544,7 +2545,7 @@ mysql_execute_command(THD *thd)
       fetch_master_table will send the error to the client on failure.
       Give error if the table already exists.
     */
-    if (!fetch_master_table(thd, first_table->db, first_table->real_name,
+    if (!fetch_master_table(thd, first_table->db, first_table->table_name,
 			    active_mi, 0, 0))
     {
       send_ok(thd);
@@ -2563,17 +2564,17 @@ mysql_execute_command(THD *thd)
     TABLE_LIST *select_tables= lex->query_tables;
 
     if ((res= create_table_precheck(thd, select_tables, create_table)))
-      goto create_error;
+      goto unsent_create_error;
 
 #ifndef HAVE_READLINK
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
 #else
     /* Fix names if symlinked tables */
     if (append_file_to_dir(thd, &lex->create_info.data_file_name,
-			   create_table->real_name) ||
+			   create_table->table_name) ||
 	append_file_to_dir(thd, &lex->create_info.index_file_name,
-			   create_table->real_name))
-      goto create_error;
+			   create_table->table_name))
+      goto unsent_create_error;
 #endif
     /*
       If we are using SET CHARSET without DEFAULT, add an implicit
@@ -2604,8 +2605,8 @@ mysql_execute_command(THD *thd)
         if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
             unique_table(create_table, select_tables))
         {
-          my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->real_name);
-          goto create_error;
+          my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
+          goto unsent_create_error;
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2617,8 +2618,8 @@ mysql_execute_command(THD *thd)
           {
             if (unique_table(tab, select_tables))
             {
-              my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->real_name);
-              goto create_error;
+              my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
+              goto unsent_create_error;
             }
           }
         }
@@ -2628,7 +2629,8 @@ mysql_execute_command(THD *thd)
 				       lex->create_list,
 				       lex->key_list,
 				       select_lex->item_list,
-				       lex->duplicates)))
+				       lex->duplicates,
+				       lex->ignore)))
         {
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
@@ -2653,7 +2655,7 @@ mysql_execute_command(THD *thd)
       else
       {
         res= mysql_create_table(thd, create_table->db,
-				create_table->real_name, &lex->create_info,
+				create_table->table_name, &lex->create_info,
 				lex->create_list,
 				lex->key_list, 0, 0);
       }
@@ -2663,8 +2665,8 @@ mysql_execute_command(THD *thd)
     lex->link_first_table_back(create_table, link_to_local);
     break;
 
-create_error:
     /* put tables back for PS rexecuting */
+unsent_create_error:
     lex->link_first_table_back(create_table, link_to_local);
     goto error;
   }
@@ -2746,7 +2748,7 @@ create_error:
 	{					// Rename of table
 	  TABLE_LIST tmp_table;
 	  bzero((char*) &tmp_table,sizeof(tmp_table));
-	  tmp_table.real_name=lex->name;
+	  tmp_table.table_name=lex->name;
 	  tmp_table.db=select_lex->db;
 	  tmp_table.grant.privilege=priv;
 	  if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0,
@@ -2768,7 +2770,7 @@ create_error:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, &lex->alter_info);
+			       lex->duplicates, lex->ignore, &lex->alter_info);
       }
       break;
     }
@@ -2933,7 +2935,7 @@ create_error:
                                select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
                                select_lex->select_limit,
-                               lex->duplicates));
+                               lex->duplicates, lex->ignore));
     /* mysql_update return 2 if we need to switch to multi-update */
     if (result != 2)
       break;
@@ -2954,7 +2956,7 @@ create_error:
                               &lex->value_list,
                               select_lex->where,
                               select_lex->options,
-                              lex->duplicates, unit, select_lex);
+                              lex->duplicates, lex->ignore, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
@@ -2965,8 +2967,7 @@ create_error:
       break;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
-                      (lex->value_list.elements ?
-                       DUP_UPDATE : lex->duplicates));
+                      lex->duplicates, lex->ignore);
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
     break;
@@ -2997,8 +2998,7 @@ create_error:
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
                                              &lex->update_list, &lex->value_list,
-                                             lex->duplicates,
-                                             lex->duplicates == DUP_IGNORE)))
+                                             lex->duplicates, lex->ignore)))
       {
         /*
           insert/replace from SELECT give its SELECT_LEX for SELECT,
@@ -3194,8 +3194,8 @@ create_error:
 	goto error;
     }
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, (bool) lex->local_file,
-		    lex->lock_option, lex->duplicates == DUP_IGNORE);
+                    lex->duplicates, lex->ignore, (bool) lex->local_file,
+		    lex->lock_option);
     break;
   }
 
@@ -4331,8 +4331,8 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables; tables= tables->next_global)
   {
-    if (tables->derived || tables->schema_table ||
-        (tables->table && (int)tables->table->tmp_table) ||
+    if (tables->derived || tables->schema_table || tables->belong_to_view ||
+        (tables->table && (int)tables->table->s->tmp_table) ||
         my_tz_check_n_skip_implicit_tables(&tables,
                                            thd->lex->time_zone_tables_used))
       continue;
@@ -4371,7 +4371,7 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
   
   bzero((char *)tables, sizeof(TABLE_LIST));
   tables->db= db;
-  tables->real_name= tables->alias= name;
+  tables->table_name= tables->alias= name;
   
   if ((thd->master_access & want_access) == want_access && !thd->db)
     tables->grant.privilege= want_access;
@@ -5320,8 +5320,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
     my_casedn_str(files_charset_info, table->table.str);
-  ptr->real_name=table->table.str;
-  ptr->real_name_length=table->table.length;
+  ptr->table_name=table->table.str;
+  ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
@@ -5330,13 +5330,13 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!my_strcasecmp(system_charset_info, ptr->db,
                      information_schema_name.str))
   {
-    ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->real_name);
+    ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
         (schema_table->hidden && 
          lex->orig_sql_command == SQLCOM_END))  // not a 'show' command
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
-               ptr->real_name, information_schema_name.str);
+               ptr->table_name, information_schema_name.str);
       DBUG_RETURN(0);
     }
     ptr->schema_table= schema_table;
@@ -6040,10 +6040,10 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.default_table_charset= thd->variables.collation_database;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
+  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, &alter_info));
+				DUP_ERROR, 0, &alter_info));
 }
 
 
@@ -6058,10 +6058,10 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   create_info.default_table_charset= thd->variables.collation_database;
   alter_info->clear();
   alter_info->flags= ALTER_DROP_INDEX;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
+  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, alter_info));
+				DUP_ERROR, 0, alter_info));
 }
 
 
@@ -6194,7 +6194,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     if (!walk)
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
-               target_tbl->real_name, "MULTI DELETE");
+               target_tbl->table_name, "MULTI DELETE");
       DBUG_RETURN(TRUE);
     }
     walk->lock_type= target_tbl->lock_type;
@@ -6344,7 +6344,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       */
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
           find_table_in_global_list(tables, create_table->db,
-                                    create_table->real_name))
+                                    create_table->table_name))
       {
 	error= FALSE;
         goto err;

@@ -177,18 +177,29 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
         dstWords = srcWords;
       } else {
         jam();
+        Uint32 typeId = descAttr.m_typeId;
+        Uint32 lb, len;
+        bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+        if (! ok) {
+          jam();
+          scan.m_state = ScanOp::Invalid;
+          sig->errorCode = TuxBoundInfo::InvalidCharFormat;
+          return;
+        }
         CHARSET_INFO* cs = all_charsets[descAttr.m_charset];
         Uint32 xmul = cs->strxfrm_multiply;
         if (xmul == 0)
           xmul = 1;
-        Uint32 dstLen = xmul * srcBytes;
+        // see comment in DbtcMain.cpp
+        Uint32 dstLen = xmul * (srcBytes - lb);
         if (dstLen > ((dstSize - dstPos) << 2)) {
           jam();
           scan.m_state = ScanOp::Invalid;
           sig->errorCode = TuxBoundInfo::TooMuchAttrInfo;
           return;
         }
-        Uint32 n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+        int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+        ndbrequire(n != -1);
         while ((n & 3) != 0) {
           dstPtr[n++] = 0;
         }

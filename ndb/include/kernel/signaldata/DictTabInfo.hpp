@@ -269,7 +269,9 @@ public:
     ExtTimespec = NdbSqlUtil::Type::Timespec,
     ExtBlob = NdbSqlUtil::Type::Blob,
     ExtText = NdbSqlUtil::Type::Text,
-    ExtBit = NdbSqlUtil::Type::Bit
+    ExtBit = NdbSqlUtil::Type::Bit,
+    ExtLongvarchar = NdbSqlUtil::Type::Longvarchar,
+    ExtLongvarbinary = NdbSqlUtil::Type::Longvarbinary
   };
 
   // Attribute data interpretation
@@ -297,98 +299,91 @@ public:
       return ((1 << AttributeSize) * AttributeArraySize + 31) >> 5;
     }
 
-    // translate to old kernel types and sizes
+    // compute old-sty|e attribute size and array size
     inline bool
     translateExtType() {
-      AttributeType = ~0; // deprecated
       switch (AttributeExtType) {
       case DictTabInfo::ExtUndefined:
-        break;
+        return false;
       case DictTabInfo::ExtTinyint:
-        AttributeSize = DictTabInfo::an8Bit;
-        AttributeArraySize = AttributeExtLength;
-	return true;
       case DictTabInfo::ExtTinyunsigned:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = AttributeExtLength;
-	return true;
+	break;
       case DictTabInfo::ExtSmallint:
-        AttributeSize = DictTabInfo::a16Bit;
-        AttributeArraySize = AttributeExtLength;
-	return true;
       case DictTabInfo::ExtSmallunsigned:
         AttributeSize = DictTabInfo::a16Bit;
         AttributeArraySize = AttributeExtLength;
-	return true;
+	break;
       case DictTabInfo::ExtMediumint:
-        AttributeSize = DictTabInfo::an8Bit;
-        AttributeArraySize = 3 * AttributeExtLength;
-	return true;
       case DictTabInfo::ExtMediumunsigned:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 3 * AttributeExtLength;
-	return true;
+	break;
       case DictTabInfo::ExtInt:	
-        AttributeSize = DictTabInfo::a32Bit;
-        AttributeArraySize = AttributeExtLength;
-        return true;
       case DictTabInfo::ExtUnsigned:
         AttributeSize = DictTabInfo::a32Bit;
         AttributeArraySize = AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtBigint:
-        AttributeSize = DictTabInfo::a64Bit;
-        AttributeArraySize = AttributeExtLength;
-        return true;
       case DictTabInfo::ExtBigunsigned:
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtFloat:
         AttributeSize = DictTabInfo::a32Bit;
         AttributeArraySize = AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtDouble:
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtDecimal:
         // not yet implemented anywhere
-        break;
+        return false;
       case DictTabInfo::ExtChar:
       case DictTabInfo::ExtBinary:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtVarchar:
       case DictTabInfo::ExtVarbinary:
-        // to fix
+        if (AttributeExtLength > 0xff)
+          return false;
         AttributeSize = DictTabInfo::an8Bit;
-        AttributeArraySize = AttributeExtLength + 2;
-        return true;
+        AttributeArraySize = AttributeExtLength + 1;
+        break;
       case DictTabInfo::ExtDatetime:
         // to fix
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 8 * AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtTimespec:
         // to fix
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 12 * AttributeExtLength;
-        return true;
+        break;
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:
         AttributeSize = DictTabInfo::an8Bit;
-        // head + inline part [ attr precision lower half ]
+        // head + inline part (length in precision lower half)
         AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
-        return true;
+        break;
       case DictTabInfo::ExtBit:
 	AttributeSize = DictTabInfo::aBit;
 	AttributeArraySize = AttributeExtLength;
-	return true;
+	break;
+      case DictTabInfo::ExtLongvarchar:
+      case DictTabInfo::ExtLongvarbinary:
+        if (AttributeExtLength > 0xffff)
+          return false;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = AttributeExtLength + 2;
+        break;
+      default:
+        return false;
       };
-      
-      return false;
+      return true;
     }
     
     inline void print(FILE *out) {

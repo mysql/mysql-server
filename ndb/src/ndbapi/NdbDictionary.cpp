@@ -585,6 +585,13 @@ NdbDictionary::Event::Event(const char * name)
   setName(name);
 }
 
+NdbDictionary::Event::Event(const char * name, const Table& table)
+  : m_impl(* new NdbEventImpl(* this))
+{
+  setName(name);
+  setTable(table);
+}
+
 NdbDictionary::Event::Event(NdbEventImpl & impl)
   : m_impl(impl) 
 {
@@ -604,10 +611,28 @@ NdbDictionary::Event::setName(const char * name)
   m_impl.setName(name);
 }
 
+const char *
+NdbDictionary::Event::getName() const
+{
+  return m_impl.getName();
+}
+
+void 
+NdbDictionary::Event::setTable(const Table& table)
+{
+  m_impl.setTable(table);
+}
+
 void 
 NdbDictionary::Event::setTable(const char * table)
 {
   m_impl.setTable(table);
+}
+
+const char*
+NdbDictionary::Event::getTableName() const
+{
+  return m_impl.getTableName();
 }
 
 void
@@ -617,9 +642,15 @@ NdbDictionary::Event::addTableEvent(const TableEvent t)
 }
 
 void
-NdbDictionary::Event::setDurability(const EventDurability d)
+NdbDictionary::Event::setDurability(EventDurability d)
 {
   m_impl.setDurability(d);
+}
+
+NdbDictionary::Event::EventDurability
+NdbDictionary::Event::getDurability() const
+{
+  return m_impl.getDurability();
 }
 
 void
@@ -647,6 +678,11 @@ NdbDictionary::Event::addEventColumns(int n, const char ** names)
 {
   for (int i = 0; i < n; i++)
     addEventColumn(names[i]);
+}
+
+int NdbDictionary::Event::getNoOfEventColumns() const
+{
+  return m_impl.getNoOfEventColumns();
 }
 
 NdbDictionary::Object::Status
@@ -824,7 +860,25 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 }
 
 int
+NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
+{
+  return m_impl.listObjects(list, type);
+}
+
+int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
+{
+  const NdbDictionary::Table* tab= getTable(tableName);
+  if(tab == 0)
+  {
+    return -1;
+  }
+  return m_impl.listIndexes(list, tab->getTableId());
+}
+
+int
+NdbDictionary::Dictionary::listIndexes(List& list,
+				       const char * tableName) const
 {
   const NdbDictionary::Table* tab= getTable(tableName);
   if(tab == 0)
@@ -918,6 +972,12 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Bit:
     out << "Bit(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Longvarchar:
+    out << "Longvarchar(" << col.getLength() << ";" << csname << ")";
+    break;
+  case NdbDictionary::Column::Longvarbinary:
+    out << "Longvarbinary(" << col.getLength() << ")";
     break;
   default:
     out << "Type" << (Uint32)col.getType();

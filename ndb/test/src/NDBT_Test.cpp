@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
@@ -476,7 +477,9 @@ extern "C"
 void *
 runStep_C(void * s)
 {
+  my_thread_init();
   runStep(s);
+  my_thread_end();
   NdbThread_Exit(0);
   return NULL;
 }

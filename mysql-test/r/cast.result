@@ -178,3 +178,12 @@ aaa	aa
 aab	aa
 aac	aa
 DROP TABLE t1;
+select date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour);
+date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour)
+2004-12-30 00:00:00
+select timediff(cast('2004-12-30 12:00:00' as time), '12:00:00');
+timediff(cast('2004-12-30 12:00:00' as time), '12:00:00')
+00:00:00
+select timediff(cast('1 12:00:00' as time), '12:00:00');
+timediff(cast('1 12:00:00' as time), '12:00:00')
+24:00:00

@@ -55,6 +55,8 @@ typedef struct ErrorBundle {
 #define NI ndberror_cl_function_not_implemented
 #define UE ndberror_cl_unknown_error_code
 
+#define OE ndberror_cl_schema_object_already_exists
+
 static const char REDO_BUFFER_MSG[]=
 "REDO log buffers overloaded, consult online manual (increase RedoBuffer, and|or decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)";
 
@@ -79,6 +81,7 @@ static const char* empty_string = "";
  * 4400 - ""
  * 4500 - ""
  * 4600 - ""
+ * 4700 - "" Event
  * 5000 - Management server
  */
 
@@ -296,6 +299,30 @@ ErrorBundle ErrorCodes[] = {
   { 4232, AE, "Parallelism can only be between 1 and 240" },
   { 290,  AE, "Scan not started or has been closed by kernel due to timeout" },
 
+  /** 
+   * Event schema errors
+   */
+
+  { 4713,  SE, "Column defined in event does not exist in table"},
+  
+  /** 
+   * Event application errors
+   */
+
+  { 4707,  AE, "Too many event have been defined"},
+  { 4708,  AE, "Event name is too long"},
+  { 4709,  AE, "Can't accept more subscribers"},
+  {  746,  OE, "Event name already exists"},
+  { 4710,  AE, "Event not found"},
+  { 4711,  AE, "Creation of event failed"},
+  { 4712,  AE, "Stopped event operation does not exist. Already stopped?"},
+
+  /** 
+   * Event internal errors
+   */
+
+  { 4731,  IE, "Event not found"},
+
   /**
    * SchemaError
    */
@@ -306,7 +333,7 @@ ErrorBundle ErrorCodes[] = {
   { 707,  SE, "No more table metadata records" },  
   { 708,  SE, "No more attribute metadata records" },
   { 709,  SE, "No such table existed" },
-  { 721,  SE, "Table or index with given name already exists" },
+  { 721,  OE, "Table or index with given name already exists" },
   { 723,  SE, "No such table existed" },
   { 736,  SE, "Unsupported array size" },
   { 737,  SE, "Attribute array size too big" },
@@ -466,7 +493,7 @@ ErrorBundle ErrorCodes[] = {
   { 4241, AE, "Index name too long" },
   { 4242, AE, "Too many indexes" },
   { 4243, AE, "Index not found" },
-  { 4244, AE, "Index or table with given name already exists" },
+  { 4244, OE, "Index or table with given name already exists" },
   { 4245, AE, "Index attribute must be defined as stored, i.e. the StorageAttributeType must be defined as NormalStorageAttribute"},
   { 4247, AE, "Illegal index/trigger create/drop/alter request" },
   { 4248, AE, "Trigger/index name invalid" },

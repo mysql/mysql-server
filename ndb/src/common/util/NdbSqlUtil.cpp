@@ -71,7 +71,7 @@ NdbSqlUtil::char_like(const char* s1, unsigned n1,
 }
 
 /*
- * Data types.
+ * Data types.  The entries must be in the numerical order.
  */
 
 const NdbSqlUtil::Type
@@ -138,7 +138,7 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Varchar,
-    NULL  // cmpVarchar
+    cmpVarchar
   },
   {
     Type::Binary,
@@ -146,7 +146,7 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Varbinary,
-    NULL  // cmpVarbinary
+    cmpVarbinary
   },
   {
     Type::Datetime,
@@ -163,6 +163,18 @@ NdbSqlUtil::m_typeList[] = {
   {
     Type::Text,
     NULL  // cmpText
+  },
+  {
+    Type::Bit,
+    NULL  // cmpBit
+  },
+  {
+    Type::Longvarchar,
+    cmpLongvarchar
+  },
+  {
+    Type::Longvarbinary,
+    cmpLongvarbinary
   }
 };
 
@@ -181,10 +193,12 @@ NdbSqlUtil::getTypeBinary(Uint32 typeId)
 {
   switch (typeId) {
   case Type::Char:
-    typeId = Type::Binary;
-    break;
   case Type::Varchar:
-    typeId = Type::Varbinary; 
+  case Type::Binary:
+  case Type::Varbinary:
+  case Type::Longvarchar:
+  case Type::Longvarbinary:
+    typeId = Type::Binary;
     break;
   case Type::Text:
     typeId = Type::Blob;
@@ -425,11 +439,27 @@ NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p
   return k < 0 ? -1 : k > 0 ? +1 : 0;
 }
 
-// waiting for MySQL and new NDB implementation
 int
 NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  assert(false);
+  const unsigned lb = 1;
+  // collation does not work on prefix for some charsets
+  assert(full && n1 >= lb && n2 >= lb);
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  unsigned m1 = *v1;
+  unsigned m2 = *v2;
+  if (m1 <= n1 - lb && m2 <= n2 - lb) {
+    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+    // compare with space padding
+    int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+    return k < 0 ? -1 : k > 0 ? +1 : 0;
+  }
+  // treat bad data as NULL
+  if (m1 > n1 - lb && m2 <= n2 - lb)
+    return -1;
+  if (m1 <= n1 - lb && m2 > n2 - lb)
+    return +1;
   return 0;
 }
 
@@ -442,20 +472,39 @@ NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void*
   unsigned n = (n1 <= n2 ? n1 : n2);
   int k = memcmp(v1, v2, n);
   if (k == 0) {
-    if (full)
-      k = (int)n1 - (int)n2;
-    else
-      k = (int)n - (int)n2;
+    k = (full ? n1 : n) - n2;
   }
   return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
 }
 
-// waiting for MySQL and new NDB implementation
 int
 NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  assert(false);
-  return 0;
+  const unsigned lb = 1;
+  if (n2 >= lb) {
+    assert(n1 >= lb);
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    unsigned m1 = *v1;
+    unsigned m2 = *v2;
+    if (m1 <= n1 - lb && m2 <= n2 - lb) {
+      // compare as binary strings
+      unsigned m = (m1 <= m2 ? m1 : m2);
+      int k = memcmp(v1 + lb, v2 + lb, m);
+      if (k == 0) {
+        k = (full ? m1 : m) - m2;
+      }
+      return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+    }
+    // treat bad data as NULL
+    if (m1 > n1 - lb && m2 <= n2 - lb)
+      return -1;
+    if (m1 <= n1 - lb && m2 > n2 - lb)
+      return +1;
+    return 0;
+  }
+  assert(! full);
+  return CmpUnknown;
 }
 
 // allowed but ordering is wrong before wl-1442 done
@@ -489,6 +538,68 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
   return 0;
 }
 
+// not yet
+int
+NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  assert(false);
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  const unsigned lb = 2;
+  // collation does not work on prefix for some charsets
+  assert(full && n1 >= lb && n2 >= lb);
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  unsigned m1 = uint2korr(v1);
+  unsigned m2 = uint2korr(v2);
+  if (m1 <= n1 - lb && m2 <= n2 - lb) {
+    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+    // compare with space padding
+    int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+    return k < 0 ? -1 : k > 0 ? +1 : 0;
+  }
+  // treat bad data as NULL
+  if (m1 > n1 - lb && m2 <= n2 - lb)
+    return -1;
+  if (m1 <= n1 - lb && m2 > n2 - lb)
+    return +1;
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+{
+  const unsigned lb = 2;
+  if (n2 >= lb) {
+    assert(n1 >= lb);
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    unsigned m1 = uint2korr(v1);
+    unsigned m2 = uint2korr(v2);
+    if (m1 <= n1 - lb && m2 <= n2 - lb) {
+      // compare as binary strings
+      unsigned m = (m1 <= m2 ? m1 : m2);
+      int k = memcmp(v1 + lb, v2 + lb, m);
+      if (k == 0) {
+        k = (full ? m1 : m) - m2;
+      }
+      return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+    }
+    // treat bad data as NULL
+    if (m1 > n1 - lb && m2 <= n2 - lb)
+      return -1;
+    if (m1 <= n1 - lb && m2 > n2 - lb)
+      return +1;
+    return 0;
+  }
+  assert(! full);
+  return CmpUnknown;
+}
+
 // check charset
 
 bool
@@ -508,8 +619,6 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
     }
     break;
   case Type::Undefined:
-  case Type::Varchar:
-  case Type::Varbinary:
   case Type::Blob:
   case Type::Text:
     break;
@@ -545,8 +654,6 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
     }
     break;
   case Type::Undefined:
-  case Type::Varchar:
-  case Type::Varbinary:
   case Type::Blob:
   case Type::Text:
     break;
@@ -554,4 +661,69 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
     return true;
   }
   return false;
+}
+
+// utilities
+
+bool
+NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len)
+{
+  const unsigned char* const src = (const unsigned char*)p;
+  switch (typeId) {
+  case NdbSqlUtil::Type::Varchar:
+  case NdbSqlUtil::Type::Varbinary:
+    lb = 1;
+    if (attrlen >= lb) {
+      len = src[0];
+      if (attrlen >= lb + len)
+        return true;
+    }
+    break;
+  case NdbSqlUtil::Type::Longvarchar:
+  case NdbSqlUtil::Type::Longvarbinary:
+    lb = 2;
+    if (attrlen >= lb) {
+      len = src[0] + (src[1] << 8);
+      if (attrlen >= lb + len)
+        return true;
+    }
+    break;
+  default:
+    lb = 0;
+    len = attrlen;
+    return true;
+    break;
+  }
+  return false;
+}
+
+// workaround
+
+int
+NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen)
+{
+  unsigned char nsp[20]; // native space char
+  unsigned char xsp[20]; // strxfrm-ed space char
+#ifdef VM_TRACE
+  memset(nsp, 0x1f, sizeof(nsp));
+  memset(xsp, 0x1f, sizeof(xsp));
+#endif
+  // convert from unicode codepoint for space
+  int n1 = (*cs->cset->wc_mb)(cs, (my_wc_t)0x20, nsp, nsp + sizeof(nsp));
+  if (n1 <= 0)
+    return -1;
+  // strxfrm to binary
+  int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), nsp, n1);
+  if (n2 <= 0)
+    return -1;
+  // strxfrm argument string - returns no error indication
+  int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, src, srcLen);
+  // pad with strxfrm-ed space chars
+  int n4 = n3;
+  while (n4 < (int)dstLen) {
+    dst[n4] = xsp[(n4 - n3) % n2];
+    n4++;
+  }
+  // no check for partial last
+  return dstLen;
 }

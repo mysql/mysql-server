@@ -375,7 +375,8 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     }
 
     // Prepare transaction (the transaction is NOT yet sent to NDB)
-    cb->connection->executeAsynchPrepare(Commit, &callback, cb);
+    cb->connection->executeAsynchPrepare(NdbTransaction::Commit,
+					 &callback, cb);
     m_transactions++;
     return;
   }
@@ -543,7 +544,7 @@ BackupRestore::logEntry(const LogEntry & tup)
       op->setValue(attr->Desc->attrId, dataPtr, length);
   }
   
-  const int ret = trans->execute(Commit);
+  const int ret = trans->execute(NdbTransaction::Commit);
   if (ret != 0)
   {
     // Both insert update and delete can fail during log running
@@ -654,7 +655,7 @@ BackupRestore::tuple(const TupleS & tup)
 	else
 	  op->setValue(i, dataPtr, length);
     }
-    int ret = trans->execute(Commit);
+    int ret = trans->execute(NdbTransaction::Commit);
     if (ret != 0)
     {
       ndbout << "execute failed: ";

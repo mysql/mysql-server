@@ -17,6 +17,7 @@
 #ifndef CREATE_EVNT_HPP
 #define CREATE_EVNT_HPP
 
+#include <ndberror.h>
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
 #include <signaldata/DictTabInfo.hpp>
@@ -101,7 +102,7 @@ public:
     Busy = 701,
     NotMaster = 702,
     SeizeError = 703,
-    EventNotFound = 4238,
+    EventNotFound = 4710,
     EventNameTooLong = 4241,
     TooManyEvents = 4242,
     BadRequestType = 4247,
@@ -363,11 +364,10 @@ struct CreateEvntRef {
     Busy = 701,
     NotMaster = 702,
     SeizeError = 703,
-    EventNotFound = 4238,
-    EventExists = 4239,
-    EventNameTooLong = 4241,
-    TooManyEvents = 4242,
-    //    EventExists = 4244,
+    TooManyEvents = 4707,
+    EventNameTooLong = 4708,
+    EventNameExists = 746,
+    EventNotFound = 4731,
     AttributeNotStored = 4245,
     AttributeNullable = 4246,
     BadRequestType = 4247,
@@ -376,7 +376,7 @@ struct CreateEvntRef {
     InvalidEventType = 4250,
     NotUnique = 4251,
     AllocationError = 4252,
-    CreateEventTableFailed = 4253,
+    CreateEventTableFailed = 4711,
     InvalidAttributeOrder = 4255,
     Temporary = 0x1 << 16
   };

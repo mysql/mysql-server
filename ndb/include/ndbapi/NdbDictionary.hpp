@@ -149,14 +149,20 @@ public:
   
   /**
    * @class Column
-   * @brief Represents an column in an NDB Cluster table
+   * @brief Represents a column in an NDB Cluster table
    *
-   * Each column has a type. The type of a column is determind by a number 
+   * Each column has a type. The type of a column is determined by a number 
    * of type specifiers.
    * The type specifiers are:
    * - Builtin type
    * - Array length or max length
-   * - Precision and scale
+   * - Precision and scale (not used yet)
+   * - Character set for string types
+   * - Inline and part sizes for blobs
+   *
+   * Types in general correspond to MySQL types and their variants.
+   * Data formats are same as in MySQL.  NDB API provides no support for
+   * constructing such formats.  NDB kernel checks them however.
    */
   class Column {
   public:
@@ -179,14 +185,16 @@ public:
       Double = NDB_TYPE_DOUBLE,        ///< 64-bit float. 8 byte float, can be used in array
       Decimal = NDB_TYPE_DECIMAL,       ///< Precision, Scale are applicable
       Char = NDB_TYPE_CHAR,          ///< Len. A fixed array of 1-byte chars
-      Varchar = NDB_TYPE_VARCHAR,       ///< Max len
+      Varchar = NDB_TYPE_VARCHAR,       ///< Length bytes: 1, Max: 255
       Binary = NDB_TYPE_BINARY,        ///< Len
-      Varbinary = NDB_TYPE_VARBINARY,     ///< Max len
+      Varbinary = NDB_TYPE_VARBINARY,     ///< Length bytes: 1, Max: 255
       Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
       Timespec = NDB_TYPE_TIMESPEC,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
       Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
-      Text = NDB_TYPE_TEXT,         ///< Text blob,
-      Bit = NDB_TYPE_BIT           ///< Bit, length specifies no of bits
+      Text = NDB_TYPE_TEXT,         ///< Text blob
+      Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
+      Longvarchar = NDB_TYPE_LONG_VARCHAR,  ///< Length bytes: 2, little-endian
+      Longvarbinary = NDB_TYPE_LONG_VARBINARY  ///< Length bytes: 2, little-endian
     };
 
     /** 
@@ -698,7 +706,7 @@ public:
 
     /** @} *******************************************************************/
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void setStoredTable(bool x) { setLogging(x); }
     bool getStoredTable() const { return getLogging(); }
 
@@ -901,33 +909,119 @@ public:
    */
   class Event : public Object  {
   public:
-    enum TableEvent { TE_INSERT=1, TE_DELETE=2, TE_UPDATE=4, TE_ALL=7 };
+    enum TableEvent { 
+      TE_INSERT=1, ///< Insert event on table
+      TE_DELETE=2, ///< Delete event on table
+      TE_UPDATE=4, ///< Update event on table
+      TE_ALL=7     ///< Any/all event on table (not relevant when 
+                   ///< events are received)
+    };
     enum EventDurability { 
-      ED_UNDEFINED = 0,
+      ED_UNDEFINED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      = 0
+#endif
 #if 0 // not supported
-      ED_SESSION = 1, 
+      ,ED_SESSION = 1, 
       // Only this API can use it
       // and it's deleted after api has disconnected or ndb has restarted
       
-      ED_TEMPORARY = 2,
+      ED_TEMPORARY = 2
       // All API's can use it,
       // But's its removed when ndb is restarted
-#endif      
-      ED_PERMANENT = 3
-      // All API's can use it,
-      // It's still defined after a restart
+#endif
+      ,ED_PERMANENT    ///< All API's can use it,
+                       ///< It's still defined after a restart
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      = 3
+#endif
     };
-    
+
+    /*
+     *  Constructor
+     *  @param  name  Name of event
+     */
     Event(const char *name);
+    /*
+     *  Constructor
+     *  @param  name  Name of event
+     *  @param  table Reference retrieved from NdbDictionary
+     */
+    Event(const char *name, const NdbDictionary::Table& table);
     virtual ~Event();
-    void setName(const char *);
-    void setTable(const char *);
-    void addTableEvent(const TableEvent);
-    void setDurability(const EventDurability);
+    /**
+     * Set/get unique identifier for the event
+     */
+    void setName(const char *name);
+    const char *getName() const;
+    /**
+     * Define table on which events should be detected
+     *
+     * @note calling this method will default to detection
+     *       of events on all columns. Calling subsequent
+     *       addEventColumn calls will override this.
+     *
+     * @param table reference retrieved from NdbDictionary
+     */
+    void setTable(const NdbDictionary::Table& table);
+    /**
+     * Set table for which events should be detected
+     *
+     * @note preferred way is using setTable(const NdbDictionary::Table)
+     *       or constructor with table object parameter
+     */
+    void setTable(const char *tableName);
+    /**
+     * Get table name for events
+     *
+     * @return table name
+     */
+    const char* getTableName() const;
+    /**
+     * Add type of event that should be detected
+     */
+    void addTableEvent(const TableEvent te);
+    /**
+     * Get/set durability of the event
+     */
+    void setDurability(EventDurability ed);
+    EventDurability getDurability() const;
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
+#endif
+    /**
+     * Add a column on which events should be detected
+     *
+     * @param attrId Column id
+     *
+     * @note errors will mot be detected until createEvent() is called
+     */
     void addEventColumn(unsigned attrId);
+    /**
+     * Add a column on which events should be detected
+     *
+     * @param columnName Column name
+     *
+     * @note errors will not be detected until createEvent() is called
+     */
     void addEventColumn(const char * columnName);
+    /**
+     * Add several columns on which events should be detected
+     *
+     * @param n Number of columns
+     * @param columnNames Column names
+     *
+     * @note errors will mot be detected until 
+     *       NdbDictionary::Dictionary::createEvent() is called
+     */
     void addEventColumns(int n, const char ** columnNames);
+
+    /**
+     * Get no of columns defined in an Event
+     *
+     * @return Number of columns, -1 on error
+     */
+    int getNoOfEventColumns() const;
 
     /**
      * Get object status
@@ -939,7 +1033,9 @@ public:
      */
     virtual int getObjectVersion() const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void print();
+#endif
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1010,6 +1106,8 @@ public:
      * Fetch list of all objects, optionally restricted to given type.
      */
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
+    int listObjects(List & list,
+		    Object::Type type = Object::TypeUndefined) const;
 
     /**
      * Get the latest error
@@ -1048,6 +1146,7 @@ public:
      * @return  0 if successful, otherwise -1
      */
     int listIndexes(List & list, const char * tableName);
+    int listIndexes(List & list, const char * tableName) const;
 
     /** @} *******************************************************************/
     /** 

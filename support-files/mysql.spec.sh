@@ -152,15 +152,22 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley DB, RAID and UDF support
+Summary: MySQL - server with extended functionality
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
 Requires: MySQL-server >= 4.0
 
 %description Max 
-Optional MySQL server binary that supports additional features like
-Berkeley DB, RAID and User Defined Functions (UDFs).
+Optional MySQL server binary that supports additional features like:
+
+ - Berkeley DB Storage Engine
+ - Archive Storage Engine
+ - CSV Storage Engine
+ - Example Storage Engine
+ - MyISAM RAID
+ - User Defined Functions (UDFs).
+
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -273,6 +280,9 @@ BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-raid \
+		--with-archive \
+		--with-csv-storage-engine \
+		--with-example-storage-engine \
 		--with-embedded-server \
 		--with-server-suffix='-Max'"
 
@@ -468,8 +478,6 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
-%doc %attr(644, root, man) %{_mandir}/man1/isamchk.1*
-%doc %attr(644, root, man) %{_mandir}/man1/isamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
@@ -480,8 +488,6 @@ fi
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%attr(755, root, root) %{_bindir}/isamchk
-%attr(755, root, root) %{_bindir}/isamlog
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisam_ftdump
@@ -502,7 +508,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
-%attr(755, root, root) %{_bindir}/pack_isam
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
@@ -556,7 +561,6 @@ fi
 %{_includedir}/mysql/*
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
-%{_libdir}/mysql/libmerge.a
 %if %{have_libgcc}
 %{_libdir}/mysql/libmygcc.a
 %endif
@@ -568,7 +572,6 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.la
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
-%{_libdir}/mysql/libnisam.a
 %{_libdir}/mysql/libvio.a
 
 %files shared
@@ -597,6 +600,17 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Jan 04 2005 Petr Chardin <petr@mysql.com>
+
+- ISAM and merge storage engines were purged. As well as appropriate
+  tools and manpages (isamchk and isamlog)
+
+* Thu Dec 31 2004 Lenz Grimmer <lenz@mysql.com>
+
+- enabled the "Archive" storage engine for the max binary
+- enabled the "CSV" storage engine for the max binary
+- enabled the "Example" storage engine for the max binary
+
 * Thu Aug 26 2004 Lenz Grimmer <lenz@mysql.com>
 
 - MySQL-Max now requires MySQL-server instead of MySQL (BUG 3860)
