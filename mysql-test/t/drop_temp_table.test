@@ -4,7 +4,9 @@ connection con1;
 reset master;
 create database `drop-temp+table-test`;
 use `drop-temp+table-test`;
+create temporary table shortn1 (a int);
 create temporary table `table:name` (a int);
+create temporary table shortn2 (a int);
 select get_lock("a",10);
 disconnect con1;
 
@@ -15,5 +17,6 @@ connection con2;
 select get_lock("a",10);
 let $VERSION=`select version()`;
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 show binlog events;
 drop database `drop-temp+table-test`;
