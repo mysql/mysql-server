@@ -1267,7 +1267,7 @@ static sig_handler handle_segfault(int sig)
   fprintf(stderr,"\
 mysqld got signal %d;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
-or one of the libraries it was linked agaist is corrupt, improperly built,\n\
+or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 	  sig);
   fprintf(stderr, "\
