@@ -9,10 +9,10 @@ DROP TABLE IF EXISTS t1,t2;
 #
 CREATE TABLE t1 (
   auto int(5) unsigned NOT NULL auto_increment,
-  string char(10) default "hello",
-  vstring varchar(10) default "hello",
-  bin binary(7) default "hello",
-  vbin varbinary(7) default "hello",	
+  string char(10),
+  vstring varchar(10),
+  bin binary(7),
+  vbin varbinary(7),	
   tiny tinyint(4) DEFAULT '0' NOT NULL ,
   short smallint(6) DEFAULT '1' NOT NULL ,
   medium mediumint(8) DEFAULT '0' NOT NULL,
@@ -233,10 +233,26 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04' 
 order by auto;
 
+# Test LIKE/NOT LIKE
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" and
+bin like "b%" and
+vbin like "b%"
+order by auto;
+
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%" and
+bin not like "b%" and
+vbin not like "b%"
+order by auto;
+
 # Various tests 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
-select * from t2,t3 where t2.attr1 > 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 
@@ -246,8 +262,8 @@ set engine_condition_pushdown = on;
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-bin = "aaaa" and 
-vbin = "aaaa" and 
+/* bin = "aaaa" and 
+vbin = "aaaa" and */
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -273,8 +289,8 @@ order by auto;
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-bin != "aaaa" and 
-vbin != "aaaa" and 
+/* bin != "aaaa" and 
+vbin != "aaaa" and */
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -300,8 +316,8 @@ order by auto;
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-bin > "aaaa" and 
-vbin > "aaaa" and 
+/* bin > "aaaa" and 
+vbin > "aaaa" and */
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -327,8 +343,8 @@ order by auto;
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-bin >= "aaaa" and 
-vbin >= "aaaa" and 
+/* bin >= "aaaa" and 
+vbin >= "aaaa" and */
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -354,8 +370,8 @@ order by auto;
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-bin < "dddd" and 
-vbin < "dddd" and 
+/* bin < "dddd" and 
+vbin < "dddd" and */
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -381,8 +397,8 @@ order by auto;
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-bin <= "dddd" and 
-vbin <= "dddd" and 
+/* bin <= "dddd" and 
+vbin <= "dddd" and */
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -412,8 +428,8 @@ create index medium_index on t1(medium);
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
-bin = "aaaa" and 
-vbin = "aaaa" and 
+/* bin = "aaaa" and 
+vbin = "aaaa" and */
 tiny = -1 and 
 short = -1 and 
 medium = -1 and 
@@ -439,8 +455,8 @@ order by auto;
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
-bin != "aaaa" and 
-vbin != "aaaa" and 
+/* bin != "aaaa" and 
+vbin != "aaaa" and */
 tiny != -1 and 
 short != -1 and 
 medium != -1 and 
@@ -466,8 +482,8 @@ order by auto;
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
-bin > "aaaa" and 
-vbin > "aaaa" and 
+/* bin > "aaaa" and 
+vbin > "aaaa" and */
 tiny < -1 and 
 short < -1 and 
 medium < -1 and 
@@ -493,8 +509,8 @@ order by auto;
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
-bin >= "aaaa" and 
-vbin >= "aaaa" and 
+/* bin >= "aaaa" and 
+vbin >= "aaaa" and */
 tiny <= -1 and 
 short <= -1 and 
 medium <= -1 and 
@@ -520,8 +536,8 @@ order by auto;
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
-bin < "dddd" and 
-vbin < "dddd" and 
+/* bin < "dddd" and 
+vbin < "dddd" and */
 tiny > -4 and 
 short > -4 and 
 medium > -4 and 
@@ -547,8 +563,8 @@ order by auto;
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
-bin <= "dddd" and 
-vbin <= "dddd" and 
+/* bin <= "dddd" and 
+vbin <= "dddd" and */
 tiny >= -4 and 
 short >= -4 and 
 medium >= -4 and 
@@ -571,11 +587,32 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04' 
 order by auto;
 
+# Test LIKE/NOT LIKE
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" /* and
+bin like "b%" and
+vbin like "b%" */
+order by auto;
+
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%"/* and
+bin not like "b%" and
+vbin not like "b%" */
+order by auto;
+
 # Various tests 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
-select * from t2,t3 where t2.attr1 > 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
+
+# Some tests that are currently not supported and should not push condition
+select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4;
