@@ -5865,11 +5865,12 @@ static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 bool check_simple_select()
 {
   THD *thd= current_thd;
-  if (thd->lex->current_select != &thd->lex->select_lex)
+  LEX *lex= thd->lex;
+  if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    strmake(command, thd->lex->yylval->symbol.str,
-	    min(thd->lex->yylval->symbol.length, sizeof(command)-1));
+    strmake(command, lex->yylval->symbol.str,
+	    min(lex->yylval->symbol.length, sizeof(command)-1));
     net_printf(thd, ER_CANT_USE_OPTION_HERE, command);
     return 1;
   }
