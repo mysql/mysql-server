@@ -59,6 +59,8 @@ show_usage()
   echo ""
   echo "  --debug   Debug, without creating the package"
   echo "  --tmp     Specify the temporary location"
+  echo "  --suffix  Suffix name for the package"
+  echo "  --dirname Directory name to copy files (intermediate)"
   echo "  --silent  Do not list verbosely files processed"
   echo "  --tar     Create tar.gz package instead of .zip"
   echo "  --help    Show this help message"
