@@ -46420,6 +46420,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+Fixed that @code{GROUP BY expr DESC} works.
+@item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @item
 @code{mysqlconfig} now also work with binary (relocated) distributions.
