@@ -1592,7 +1592,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(1);
   }
 
-  mysql_log.write(thd, COM_PREPARE, "%s", packet);
+  mysql_log.write(thd, COM_PREPARE, "[%lu] %s", stmt->id, packet);
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
@@ -1792,6 +1792,9 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
+  mysql_log.write(thd, COM_EXECUTE, "[%lu] %s", stmt->id,
+                  expanded_query.length() ? expanded_query.c_ptr() :
+                                            stmt->query);
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   execute_stmt(thd, stmt, &expanded_query, TRUE);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
