@@ -26,5 +26,5 @@ int myrg_write(register MYRG_INFO *info, byte *rec)
   else if (info->merge_insert_method == MERGE_INSERT_TO_LAST)
     return mi_write(info->end_table[-1].table,rec);
   else /* unsupported insertion method */
-    return (my_errno=HA_ERR_WRONG_COMMAND); 
+    return my_errno=HA_ERR_WRONG_COMMAND;
 }
