@@ -22839,7 +22839,7 @@ state.
 
 The @code{--single-transaction} option was added in version 4.0.2.
 This option is mutually exclusive with the @code{--lock-tables} option
-as @code{LOCK TABLES} cancels a previous transaction.
+as @code{LOCK TABLES} already commits a previous transaction internally.
 @item -S /path/to/socket, --socket=/path/to/socket
 The socket file to use when connecting to @code{localhost} (which is the
 default host).
