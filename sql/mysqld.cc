@@ -4228,7 +4228,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       struct hostent *ent;
-      if (!argument || !argument[0])
+      if (argument || argument[0])
 	ent=gethostbyname(argument);
       else
       {
@@ -4417,7 +4417,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-
 	/* Initiates DEBUG - but no debugging here ! */
 
 static void get_options(int argc,char **argv)
