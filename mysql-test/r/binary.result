@@ -116,3 +116,21 @@ select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
 collation(a)	collation(b)	collation(binary 'ccc')
 latin1_bin	binary	latin1_bin
 drop table t1;
+create table t1( firstname char(20), lastname char(20));
+insert into t1 values ("john","doe"),("John","Doe");
+select * from t1 where firstname='john' and firstname like binary 'john';
+firstname	lastname
+john	doe
+select * from t1 where firstname='john' and binary 'john' = firstname;
+firstname	lastname
+john	doe
+select * from t1 where firstname='john' and firstname = binary 'john';
+firstname	lastname
+john	doe
+select * from t1 where firstname='John' and firstname like binary 'john';
+firstname	lastname
+john	doe
+select * from t1 where firstname='john' and firstname like binary 'John';
+firstname	lastname
+John	Doe
+drop table t1;
