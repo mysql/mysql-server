@@ -547,6 +547,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
   if (newTab.createTableInDb(pNdb) != 0){
     ndbout << newTab.getName() << " could not be created"
 	   << ", fragmentType = "<<fragTtype <<endl;
+    ndbout << pNdb->getDictionary()->getNdbError() << endl;
     return NDBT_FAILED;
   }
   
