@@ -1,5 +1,5 @@
 reset slave;
-slave start;
+start slave;
 show master logs;
 Log_name
 master-bin.001

@@ -15,10 +15,10 @@ system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
 --error 1201
-slave start;
+start slave;
 system chmod 600 var/slave-data/master.info;
 --error 1201
-slave start;
+start slave;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 # Will get error 13 on Unix systems becasue file is not readable
 !eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
@@ -28,7 +28,7 @@ eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master
 connection master;
 reset master;
 connection slave;
-slave start;
+start slave;
 connection master;
 
 drop table if exists t1, t2, t3, t4;
@@ -40,9 +40,7 @@ create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
 select * from t1;
@@ -55,9 +53,7 @@ flush logs;
 show master logs;
 create table t3 select * from temp_table;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 select * from t3;
 connection master;
@@ -83,21 +79,17 @@ wait_for_slave_to_stop;
 
 #restart slave skipping one event
 set global sql_slave_skip_counter=1;
-slave start;
+start slave;
 
 connection master;
-save_master_pos;
 
 #let slave catch up
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 connection master;
 purge master logs to 'master-bin.003';
 show master logs;
 insert into t2 values (65);
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
 select * from t2;
@@ -125,8 +117,8 @@ show master logs;
 show master status;
 save_master_pos;
 connection slave;
-#slave stop;
-#slave start;
+#stop slave;
+#start slave;
 sync_with_master;
 select * from t4;
 
@@ -140,6 +132,4 @@ unlock tables;
 #clean up
 connection master;
 drop table if exists t1,t2,t3,t4;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;

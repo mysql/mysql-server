@@ -3,25 +3,23 @@
 #
 source include/master-slave.inc;
 show master status;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
 change master to master_log_pos=73;
 sleep 5;
-slave stop;
+stop slave;
 
 change master to master_log_pos=73;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
-slave start;
+start slave;
 sleep 5;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
 change master to master_log_pos=173;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
-slave start;
+start slave;
 sleep 2;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 show slave status;
@@ -34,11 +32,9 @@ insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
 change master to master_log_pos=79;
-slave start;
+start slave;
 sync_with_master;
 select * from t1;
 connection master;
 drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;

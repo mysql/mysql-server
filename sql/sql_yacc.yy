@@ -1413,14 +1413,14 @@ opt_to:
 	| AS		{};
 
 slave:
-	SLAVE START_SYM slave_thread_opts
+	START_SYM SLAVE slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_START;
 	   lex->type = 0;
          }
          |
-	SLAVE STOP_SYM slave_thread_opts
+	STOP_SYM SLAVE slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_STOP;
