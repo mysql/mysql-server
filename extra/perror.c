@@ -17,7 +17,7 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.4"
+#define PERROR_VERSION "2.5"
 
 #include <global.h>
 #include <my_sys.h>
@@ -31,6 +31,7 @@ static struct option long_options[] =
   {"help",       no_argument,        0, '?'},
   {"info",       no_argument,        0, 'I'},
   {"all",        no_argument,        0, 'a'},
+  {"silent",	 no_argument,	     0, 's'},
   {"verbose",    no_argument,        0, 'v'},
   {"version",    no_argument,        0, 'V'},
   {0, 0, 0, 0}
@@ -41,7 +42,7 @@ typedef struct ha_errors {
   const char *msg;
 } HA_ERRORS;
 
-static int verbose=0,print_all_codes=0;
+static int verbose=1,print_all_codes=0;
 
 static HA_ERRORS ha_errlist[]=
 {
@@ -79,7 +80,8 @@ static void usage(void)
 {
   print_version();
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  printf("Usage: %s [OPTIONS] [ERRORCODES]\n",my_progname);
+  printf("Print a description for a system error code or a error code from\na MyISAM/ISAM table handler\n");
+  printf("Usage: %s [OPTIONS] [ERRORCODE [ERRORCODE...]]\n",my_progname);
   printf("\n\
    -?, --help     Displays this help and exits.\n\
    -I, --info     Synonym for the above.");
@@ -88,7 +90,8 @@ static void usage(void)
    -a, --all      Print all the error messages and the number.");
 #endif
   printf("\n\
-   -v, --verbose  Print info about various stages.\n\
+   -s, --silent	  Only print the error message\n\
+   -v, --verbose  Print error code and message (default).\n\
    -V, --version  Displays version information and exits.\n");
 } 
 
@@ -97,7 +100,7 @@ static int get_options(int *argc,char ***argv)
 {
   int c,option_index;
 
-  while ((c=getopt_long(*argc,*argv,"avVI?",long_options,
+  while ((c=getopt_long(*argc,*argv,"asvVI?",long_options,
 			&option_index)) != EOF)
   {
       switch (c) {
@@ -109,6 +112,9 @@ static int get_options(int *argc,char ***argv)
       case 'v':
       	verbose=1;
       	break;
+      case 's':
+	verbose=0;
+	break;
       case 'V':
 	print_version();
 	exit(0);
@@ -183,7 +189,7 @@ int main(int argc,char *argv[])
       {
 	found=1;
 	if (verbose)
-	  printf("%3d = %s\n",code,msg);
+	  printf("Error code %3d:  %s\n",code,msg);
 	else
 	  puts(msg);
       }
