@@ -643,6 +643,9 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   /* no match; create a new thread to handle the table */
   if (!(tmp=find_handler(thd,table_list)))
   {
+    /* Don't create more than max_insert_delayed_threads */
+    if (delayed_insert_threads >= max_insert_delayed_threads)
+      DBUG_RETURN(0);
     thd->proc_info="Creating delayed handler";
     pthread_mutex_lock(&LOCK_delayed_create);
     if (!(tmp=find_handler(thd,table_list)))	// Was just created
@@ -1021,12 +1024,12 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
       while (!thd->killed)
       {
 	int error;
-#if (defined(HAVE_BROKEN_COND_TIMEDWAIT) || defined(HAVE_LINUXTHREADS))
+#if defined(HAVE_BROKEN_COND_TIMEDWAIT)
 	error=pthread_cond_wait(&di->cond,&di->mutex);
 #else
 	error=pthread_cond_timedwait(&di->cond,&di->mutex,&abstime);
 #ifdef EXTRA_DEBUG
-	if (error && error != EINTR)
+	if (error && error != EINTR && error != ETIMEDOUT)
 	{
 	  fprintf(stderr, "Got error %d from pthread_cond_timedwait\n",error);
 	  DBUG_PRINT("error",("Got error %d from pthread_cond_timedwait",

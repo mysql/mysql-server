@@ -639,14 +639,14 @@ int main(int argc, char *argv[])
       if ((long) range_records < (long) records*7/10-2 ||
 	  (long) range_records > (long) records*14/10+2)
       {
-	printf("mi_records_range for key: %d returned %ld; Should be about %ld\n",
-	       i, range_records, records);
+	printf("mi_records_range for key: %d returned %lu; Should be about %lu\n",
+	       i, (ulong) range_records, (ulong) records);
 	goto end;
       }
       if (verbose && records)
       {
-	printf("mi_records_range returned %ld;  Exact is %ld  (diff: %4.2g %%)\n",
-	       range_records,records,
+	printf("mi_records_range returned %lu;  Exact is %lu  (diff: %4.2g %%)\n",
+	       (ulong) range_records, (ulong) records,
 	       labs((long) range_records-(long) records)*100.0/records);
 
       }
@@ -660,8 +660,8 @@ int main(int argc, char *argv[])
       || info.keys != keys)
   {
     puts("Wrong info from mi_info");
-    printf("Got: records: %ld  delete: %ld  i_keys: %d\n",
-	   info.records,info.deleted,info.keys);
+    printf("Got: records: %lu  delete: %lu  i_keys: %d\n",
+	   (ulong) info.records, (ulong) info.deleted, info.keys);
   }
   if (verbose)
   {

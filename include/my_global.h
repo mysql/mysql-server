@@ -267,6 +267,10 @@ C_MODE_END
 #include <asm/atomic.h>
 #endif
 #include <errno.h>				/* Recommended by debian */
+/* We need the following to go around a problem with openssl on solaris */
+#if defined(HAVE_CRYPT_H)
+#include <crypt.h>
+#endif
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)

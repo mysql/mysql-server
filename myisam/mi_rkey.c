@@ -23,10 +23,12 @@
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
 int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
-	     enum ha_rkey_function search_flag)
+	    enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;
+  MI_KEYDEF *keyinfo;
+  MI_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
   DBUG_ENTER("mi_rkey");
   DBUG_PRINT("enter",("base: %lx  inx: %d  search_flag: %d",
@@ -36,23 +38,27 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     DBUG_RETURN(my_errno);
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+  keyinfo= share->keyinfo + inx;
 
   if (!info->use_packed_key)
   {
     if (key_len == 0)
       key_len=USE_WHOLE_KEY;
     key_buff=info->lastkey+info->s->base.max_key_length;
-    pack_key_length=_mi_pack_key(info,(uint) inx,key_buff,(uchar*) key,key_len);
-    info->last_rkey_length=pack_key_length;
-    DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,share->keyinfo[inx].seg,
-				     key_buff,pack_key_length););
+    pack_key_length=_mi_pack_key(info, (uint) inx, key_buff, (uchar*) key,
+				 key_len, &last_used_keyseg);
+    DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE, keyinfo->seg,
+				     key_buff, pack_key_length););
   }
   else
   {
-    /* key is already packed! */
+    /*
+      key is already packed!;  This happens when we are using a MERGE TABLE
+    */
     key_buff=info->lastkey+info->s->base.max_key_length;
-    info->last_rkey_length=pack_key_length=key_len;
+    pack_key_length= key_len;
     bmove(key_buff,key,key_len);
+    last_used_keyseg= 0;
   }
 
   if (fast_mi_readinfo(info))
@@ -65,8 +71,8 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
     use_key_length=USE_WHOLE_KEY;
 
-  if (!_mi_search(info,info->s->keyinfo+inx,key_buff,use_key_length,
-		  myisam_read_vec[search_flag],info->s->state.key_root[inx]))
+  if (!_mi_search(info,keyinfo, key_buff, use_key_length,
+		  myisam_read_vec[search_flag], info->s->state.key_root[inx]))
   {
     while (info->lastpos >= info->state->data_file_length)
     {
@@ -76,7 +82,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 	exact key, because the keys are sorted according to position
       */
 
-      if  (_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
+      if  (_mi_search_next(info, keyinfo, info->lastkey,
 			   info->lastkey_length,
 			   myisam_readnext_vec[search_flag],
 			   info->s->state.key_root[inx]))
@@ -86,6 +92,12 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   if (share->concurrent_insert)
     rw_unlock(&share->key_root_lock[inx]);
 
+  /* Calculate length of the found key;  Used by mi_rnext_same */
+  if ((keyinfo->flag & HA_VAR_LENGTH_KEY) && last_used_keyseg)
+    info->last_rkey_length= _mi_keylength_part(keyinfo, info->lastkey,
+					       last_used_keyseg);
+  else
+    info->last_rkey_length= pack_key_length;
   if (!buf)
     DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
 
@@ -99,6 +111,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 
   /* Store key for read next */
   memcpy(info->lastkey,key_buff,pack_key_length);
+  info->last_rkey_length= pack_key_length;
   bzero((char*) info->lastkey+pack_key_length,info->s->base.rec_reflength);
   info->lastkey_length=pack_key_length+info->s->base.rec_reflength;
 

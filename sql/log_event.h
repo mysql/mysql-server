@@ -452,14 +452,14 @@ extern char server_version[SERVER_VERSION_LENGTH];
 class Start_log_event: public Log_event
 {
 public:
-  uint32 created;
+  time_t created;
   uint16 binlog_version;
   char server_version[ST_SERVER_VER_LEN];
 
 #ifndef MYSQL_CLIENT
   Start_log_event() :Log_event(), binlog_version(BINLOG_VERSION)
   {
-    created = (uint32) when;
+    created = (time_t) when;
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
   }
   void pack_info(String* packet);

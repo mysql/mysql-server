@@ -271,3 +271,49 @@ INSERT INTO t2 VALUES ('rivercats','cust',20);
 SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE emp.emp_id = 'psmith' AND lr.siteid = 'rivercats';
 SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE lr.siteid = 'rivercats' AND emp.emp_id = 'psmith';
 drop table t1,t2;
+
+#
+# Problem with internal list handling when reducing WHERE
+#
+
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, Value1 VARCHAR(255));
+CREATE TABLE t2 (ID INTEGER NOT NULL PRIMARY KEY, Value2 VARCHAR(255));
+INSERT INTO t1 VALUES (1, 'A');
+INSERT INTO t2 VALUES (1, 'B');
+
+SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND (Value1 = 'A' AND Value2 <> 'B');
+SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND Value1 = 'A' AND Value2 <> 'B';
+SELECT * FROM t1 NATURAL JOIN t2 WHERE (Value1 = 'A' AND Value2 <> 'B') AND 1;
+drop table t1,t2;
+
+#
+# Test combination of join methods
+#
+
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values (2),(4);
+
+select * from t1 natural left join t2;
+select * from t1 left join t2 on (t1.i=t2.i);
+select * from t1 natural left join t2 natural left join t3;
+select * from t1 left join t2 on (t1.i=t2.i) left join t3 on (t2.i=t3.i);
+
+select * from t3 natural right join t2;
+select * from t3 right join t2 on (t3.i=t2.i);
+select * from t3 natural right join t2 natural right join t1;
+select * from t3 right join t2 on (t3.i=t2.i) right join t1 on (t2.i=t1.i);
+
+select * from t1,t2 natural left join t3 order by t1.i,t2.i,t3.i;
+select * from t1,t2 left join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 natural left join t3,t1 order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 left join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+
+select * from t1,t2 natural right join t3 order by t1.i,t2.i,t3.i;
+select * from t1,t2 right join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+drop table t1,t2,t3;

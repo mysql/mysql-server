@@ -163,8 +163,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   if (maxbuffer == 0)
   {
     if (!no_messages)
-      printf("  - Dumping %lu keys\n",records);
-    if (write_index(info,sort_keys,(uint) records))
+      printf("  - Dumping %lu keys\n", (ulong) records);
+    if (write_index(info,sort_keys, (uint) records))
       goto err; /* purecov: inspected */
   }
   else
@@ -173,7 +173,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     if (maxbuffer >= MERGEBUFF2)
     {
       if (!no_messages)
-	printf("  - Merging %lu keys\n",records); /* purecov: tested */
+	printf("  - Merging %lu keys\n", (ulong) records); /* purecov: tested */
       if (merge_many_buff(info,keys,sort_keys,
                   dynamic_element(&buffpek,0,BUFFPEK *),&maxbuffer,&tempfile))
 	goto err;				/* purecov: inspected */
@@ -285,6 +285,8 @@ pthread_handler_decl(thr_find_all_keys,arg)
   uint memavl,old_memavl,keys,sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
+
+  LINT_INIT(keys);
 
   error=1;
 

@@ -136,11 +136,26 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 } /* _mi_make_key */
 
 
-	/* Pack a key to intern format from given format (c_rkey) */
-	/* returns length of packed key */
+/*
+  Pack a key to intern format from given format (c_rkey)
+
+  SYNOPSIS
+    _mi_pack_key()
+    info		MyISAM handler
+    uint keynr		key number
+    key			Store packed key here
+    old			Not packed key
+    k_length		Length of 'old' to use
+    last_used_keyseg	out parameter.  May be NULL
+
+   RETURN
+     length of packed key
+
+     last_use_keyseg 	Store pointer to the keyseg after the last used one
+*/
 
 uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
-		  uint k_length)
+		  uint k_length, MI_KEYSEG **last_used_keyseg)
 {
   uint length;
   uchar *pos,*end,*start_key=key;
@@ -211,6 +226,8 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     key+= length;
     k_length-=length;
   }
+  if (last_used_keyseg)
+    *last_used_keyseg= keyseg;
 
 #ifdef NOT_USED
   if (keyseg->type)

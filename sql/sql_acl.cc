@@ -114,7 +114,7 @@ static ACL_USER *find_acl_user(const char *host, const char *user);
 static bool update_user_table(THD *thd, const char *host, const char *user,
 			      const char *new_password);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
-static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
+static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 
 /*
@@ -492,7 +492,8 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 */
 
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
-		  const char *password,const char *message,char **priv_user,
+		  const char *password,const char *message,
+                  char **priv_user, char **priv_host,
 		  bool old_ver, USER_RESOURCES  *mqh)
 {
   ulong user_access=NO_ACCESS;
@@ -526,10 +527,10 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 #ifdef HAVE_OPENSSL
 	  Vio *vio=thd->net.vio;
           /*
-	    In this point we know that user is allowed to connect 
-	    from given host by given username/password pair. Now 
-	    we check if SSL is required, if user is using SSL and 
-	    if X509 certificate attributes are OK 
+	    In this point we know that user is allowed to connect
+	    from given host by given username/password pair. Now
+	    we check if SSL is required, if user is using SSL and
+	    if X509 certificate attributes are OK
 	  */
           switch (acl_user->ssl_type) {
 	  case SSL_TYPE_NOT_SPECIFIED:		// Impossible
@@ -577,7 +578,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      X509* cert=SSL_get_peer_certificate(vio->ssl_);
 	      DBUG_PRINT("info",("checkpoint 2"));
 	      /* If X509 issuer is speified, we check it... */
-	      if (acl_user->x509_issuer) 
+	      if (acl_user->x509_issuer)
 	      {
 		DBUG_PRINT("info",("checkpoint 3"));
 		char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
@@ -605,7 +606,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		if (strcmp(acl_user->x509_subject,ptr))
 		{
 		  if (global_system_variables.log_warnings)
-		    sql_print_error("X509 subject mismatch: '%s' vs '%s'", 
+		    sql_print_error("X509 subject mismatch: '%s' vs '%s'",
 				    acl_user->x509_subject, ptr);
 		  user_access=NO_ACCESS;
 		}
@@ -622,6 +623,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	  *mqh=acl_user->user_resource;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
+          *priv_host=acl_user->host.hostname;
 	  break;
 	}
 #ifndef ALLOW_DOWNGRADE_OF_USERS
@@ -1993,10 +1995,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 }
 
 
-int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
-		       List <LEX_USER> &user_list,
-		       List <LEX_COLUMN> &columns, ulong rights,
-		       bool revoke_grant)
+int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
+		      List <LEX_USER> &user_list,
+		      List <LEX_COLUMN> &columns, ulong rights,
+		      bool revoke_grant)
 {
   ulong column_priv = 0;
   List_iterator <LEX_USER> str_list (user_list);
@@ -2370,7 +2372,7 @@ my_bool grant_init(THD *org_thd)
 	mem_check->ok() && hash_insert(&hash_tables,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
-      grant_option = FALSE;			/* purecov: deadcode */
+      grant_option= FALSE;			/* purecov: deadcode */
       goto end_unlock;
     }
   }
@@ -2400,7 +2402,8 @@ end:
 
 void grant_reload(THD *thd)
 {
-  HASH old_hash_tables;bool old_grant_option;
+  HASH old_hash_tables;
+  bool old_grant_option;
   MEM_ROOT old_mem;
   DBUG_ENTER("grant_reload");
 
@@ -2409,14 +2412,14 @@ void grant_reload(THD *thd)
   pthread_mutex_lock(&LOCK_grant);
   grant_version++;
   old_hash_tables=hash_tables;
-  old_grant_option = grant_option;
+  old_grant_option= grant_option;
   old_mem = memex;
 
   if (grant_init(thd))
   {						// Error. Revert to old hash
     grant_free();				/* purecov: deadcode */
     hash_tables=old_hash_tables;		/* purecov: deadcode */
-    grant_option = old_grant_option;		/* purecov: deadcode */
+    grant_option= old_grant_option;		/* purecov: deadcode */
     memex = old_mem;				/* purecov: deadcode */
   }
   else
