@@ -1730,39 +1730,6 @@ static void store_param_type(NET *net, uint type)
   net->write_pos+=2;
 }
 
-/*
-  Store the length of parameter data
-  (Same function as in sql/net_pkg.cc)
-*/
-
-char *
-net_store_length(char *pkg, ulong length)
-{
-  uchar *packet=(uchar*) pkg;
-  if (length < 251)
-  {
-    *packet=(uchar) length;
-    return (char*) packet+1;
-  }
-  /* 251 is reserved for NULL */
-  if (length < 65536L)
-  {
-    *packet++=252;
-    int2store(packet,(uint) length);
-    return (char*) packet+2;
-  }
-  if (length < 16777216L)
-  {
-    *packet++=253;
-    int3store(packet,(ulong) length);
-    return (char*) packet+3;
-  }
-  *packet++=254;
-  int8store(packet, (ulonglong) length);
-  return (char*) packet+9;
-}
-
-
 /****************************************************************************
   Functions to store parameter data from a prepared statement.
 

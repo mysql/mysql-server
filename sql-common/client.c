@@ -1303,6 +1303,7 @@ mysql_init(MYSQL *mysql)
 #ifdef HAVE_SMEM
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
+  mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
   return mysql;
 }
 
@@ -2512,6 +2513,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
       my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
 #endif
+  case MYSQL_OPT_USE_REMOTE_CONNECTION:
+  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
+  case MYSQL_OPT_GUESS_CONNECTION:
+    mysql->options.methods_to_use= option;
     break;
   default:
     DBUG_RETURN(1);
