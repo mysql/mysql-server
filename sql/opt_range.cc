@@ -1401,12 +1401,6 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     return key2;
   if (!key2)
     return key1;
-  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
-  {
-    key1->free_tree();
-    key2->free_tree();
-    return 0;					// Can't optimize this
-  }
   if (key1->part != key2->part)
   {
     if (key1->part > key2->part)
@@ -1460,6 +1454,13 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
       key2->use_count--;			// Key2 doesn't have a tree
     }
     return key1;
+  }
+
+  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
+  {
+    key1->free_tree();
+    key2->free_tree();
+    return 0;					// Can't optimize this
   }
 
   key1->use_count--;
