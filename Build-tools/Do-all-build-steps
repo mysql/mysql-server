@@ -24,9 +24,9 @@ set -x
 # Move to the right place
 cd "$WD"
 # Create a build directory tree
-bk export -w $BD
-chmod a+x $BD/mit-pthreads/config/configure $BD/Build-tools/* $BD/tests/*.pl
+bk export $BD
 cd "$BD"
+chmod -R a+rw,g+rw .
 
 #Make it easy to remove an old build
 umask 002
