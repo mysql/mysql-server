@@ -135,8 +135,6 @@ byte	srv_latin1_ordering[256]	/* The sort order table of the latin1
 , 0x44, 0x4E, 0x4F, 0x4F, 0x4F, 0x4F, 0x5D, 0xF7
 , 0xD8, 0x55, 0x55, 0x55, 0x59, 0x59, 0xDE, 0xFF
 };
-
-ibool	srv_use_native_aio	= FALSE;
 		
 ulint	srv_pool_size		= ULINT_MAX;	/* size in database pages;
 						MySQL originally sets this
@@ -151,8 +149,9 @@ dulint	srv_archive_recovery_limit_lsn;
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
 
-char*   srv_unix_file_flush_method_str = NULL;
-ulint   srv_unix_file_flush_method = 0;
+char*   srv_file_flush_method_str = NULL;
+ulint   srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+ulint   srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
@@ -280,6 +279,9 @@ char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 time_t	srv_last_monitor_time;
 
 mutex_t srv_innodb_monitor_mutex;
+
+ulint	srv_main_thread_process_no	= 0;
+ulint	srv_main_thread_id		= 0;
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
@@ -2046,13 +2048,15 @@ srv_table_reserve_slot_for_mysql(void)
 }
 
 /*******************************************************************
-Puts a MySQL OS thread to wait for a lock to be released. */
+Puts a MySQL OS thread to wait for a lock to be released. If an error
+occurs during the wait trx->error_state associated with thr is
+!= DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
+are possible errors. DB_DEADLOCK is returned if selective deadlock
+resolution chose this transaction as a victim. */
 
-ibool
+void
 srv_suspend_mysql_thread(
 /*=====================*/
-				/* out: TRUE if the lock wait timeout was
-				exceeded */
 	que_thr_t*	thr)	/* in: query thread associated with the MySQL
 				OS thread */
 {
@@ -2069,13 +2073,15 @@ srv_suspend_mysql_thread(
 
 	mutex_enter(&kernel_mutex);
 
+	trx->error_state = DB_SUCCESS;
+
 	if (thr->state == QUE_THR_RUNNING) {
 
 		/* The lock has already been released: no need to suspend */
 
 		mutex_exit(&kernel_mutex);
 
-		return(FALSE);
+		return;
 	}
 	
 	slot = srv_table_reserve_slot_for_mysql();
@@ -2101,18 +2107,18 @@ srv_suspend_mysql_thread(
 	srv_conc_force_exit_innodb(thr_get_trx(thr));
 
 	/* Release possible foreign key check latch */
-	if (trx->has_dict_foreign_key_check_lock) {
+	if (trx->has_dict_operation_lock) {
 
-		rw_lock_s_unlock(&dict_foreign_key_check_lock);
+		rw_lock_s_unlock(&dict_operation_lock);
 	}
 
 	/* Wait for the release */
 	
 	os_event_wait(event);
 
-	if (trx->has_dict_foreign_key_check_lock) {
+	if (trx->has_dict_operation_lock) {
 
-		rw_lock_s_lock(&dict_foreign_key_check_lock);
+		rw_lock_s_lock(&dict_operation_lock);
 	}
 
 	/* Return back inside InnoDB */
@@ -2131,10 +2137,9 @@ srv_suspend_mysql_thread(
 
 	if (srv_lock_wait_timeout < 100000000 && 
 	    			wait_time > (double)srv_lock_wait_timeout) {
-	   	return(TRUE);
-	}
 
-	return(FALSE);
+	    	trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+	}
 }
 
 /************************************************************************
@@ -2300,9 +2305,19 @@ srv_sprintf_innodb_monitor(
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
 	buf += sprintf(buf,
-	"%ld queries inside InnoDB, %ld queries in queue; main thread: %s\n",
-			srv_conc_n_threads, srv_conc_n_waiting_threads,
+	"%ld queries inside InnoDB, %ld queries in queue\n",
+			srv_conc_n_threads, srv_conc_n_waiting_threads);
+#ifdef UNIV_LINUX
+	buf += sprintf(buf,
+	"Main thread process no %lu, state: %s\n",
+			srv_main_thread_process_no,
 			srv_main_thread_op_info);
+#else
+	buf += sprintf(buf,
+	"Main thread id %lu, state: %s\n",
+			srv_main_thread_id,
+			srv_main_thread_op_info);
+#endif
 	buf += sprintf(buf,
 	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
 			srv_n_rows_inserted, 
@@ -2636,6 +2651,9 @@ srv_master_thread(
 	
 	UT_NOT_USED(arg);
 
+	srv_main_thread_process_no = os_proc_get_number();
+	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
+	
 	srv_table_reserve_slot(SRV_MASTER);	
 
 	mutex_enter(&kernel_mutex);

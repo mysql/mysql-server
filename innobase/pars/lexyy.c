@@ -4,8 +4,6 @@
  * $Header: /home/daffy/u0/vern/flex/RCS/flex.skl,v 2.91 96/09/10 16:58:48 vern Exp $
  */
 
-#include "univ.i"
-
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
@@ -609,18 +607,13 @@ How to make the InnoDB parser and lexer C files:
 
 6. Remove the #include of unistd.h from about line 2500 of lexyy.c
 
-7. Move #include <math.h> in pars0grm.c after #include "univ.i" to remove
-   a large file compilation error on AIX.
-
-8. Move #include "univ.i" in lexyy.c to the file start to remove a large
-   file compilation error on AIX.
-
 These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
 Linux.
 *******************************************************/
 #line 36 "pars0lex.l"
 #define YYSTYPE que_node_t*
 
+#include "univ.i"
 #include "pars0pars.h"
 #include "pars0grm.h"
 #include "pars0sym.h"

@@ -73,6 +73,8 @@ extern fil_addr_t	fil_addr_null;
 /* File page types */
 #define FIL_PAGE_INDEX		17855
 #define FIL_PAGE_UNDO_LOG	2
+#define FIL_PAGE_INODE		3
+#define FIL_PAGE_IBUF_FREE_LIST	4
 
 /* Space types */
 #define FIL_TABLESPACE 		501

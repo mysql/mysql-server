@@ -148,11 +148,21 @@ data field in the record. */
 byte*
 rec_get_nth_field(
 /*==============*/
- 			/* out: pointer to the field, NULL if SQL null */
+ 			/* out: pointer to the field */
  	rec_t*	rec, 	/* in: record */
  	ulint	n,	/* in: index of the field */
 	ulint*	len);	/* out: length of the field; UNIV_SQL_NULL 
 			if SQL null */
+/****************************************************************
+Return field length or UNIV_SQL_NULL. */
+UNIV_INLINE
+ulint
+rec_get_nth_field_len(
+/*==================*/
+ 			/* out: length of the field; UNIV_SQL_NULL if SQL
+			null */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n);	/* in: index of the field */
 /****************************************************************
 Gets the physical size of a field. Also an SQL null may have a field of
 size > 0, if the data type is of a fixed size. */

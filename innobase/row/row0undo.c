@@ -211,7 +211,6 @@ row_undo(
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
-		/* The call below also starts &mtr */
 		node->undo_rec = trx_roll_pop_top_rec_of_trx(trx,
 							trx->roll_limit,
 							&roll_ptr,
@@ -254,6 +253,10 @@ row_undo(
 		}
 	}
 
+	/* Prevent DROP TABLE etc. while we are rolling back this row */
+	
+	rw_lock_s_lock(&dict_operation_lock);		
+
 	if (node->state == UNDO_NODE_INSERT) {
 
 		err = row_undo_ins(node, thr);
@@ -263,6 +266,8 @@ row_undo(
 		ut_ad(node->state == UNDO_NODE_MODIFY);
 		err = row_undo_mod(node, thr);
 	}
+
+	rw_lock_s_unlock(&dict_operation_lock);		
 
 	/* Do some cleanup */
 	btr_pcur_close(&(node->pcur));
