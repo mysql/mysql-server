@@ -17,4 +17,4 @@ save_master_pos;
 connection slave;
 sync_with_master;
 select count(*) from t1; # check that LOAD was replicated
-show binlog events from 95; # should be nothing
+show binlog events from 96; # should be nothing

@@ -315,7 +315,7 @@ trx_is_active(
 	}
 
 	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
-		
+
 		/* There must be corruption: we return TRUE because this
 		function is only called by lock_clust_rec_some_has_impl()
 		and row_vers_impl_x_locked_off_kernel() and they have
@@ -325,8 +325,9 @@ trx_is_active(
 	}
 
 	trx = trx_get_on_id(trx_id);
-	if (trx && (trx->conc_state == TRX_ACTIVE)) {
-		
+        if (trx && (trx->conc_state == TRX_ACTIVE ||
+                        trx->conc_state == TRX_PREPARED)) {
+
 		return(TRUE);
 	}
 

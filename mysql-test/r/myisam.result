@@ -716,7 +716,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	v_2	13	const	7	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1

@@ -38,9 +38,9 @@ select count(*) from t1;
 drop table t1;
 --replace_result $VERSION VERSION
 show binlog events;
-show binlog events from 95 limit 1;
-show binlog events from 95 limit 2;
-show binlog events from 95 limit 2,1;
+show binlog events from 96 limit 1;
+show binlog events from 96 limit 2;
+show binlog events from 96 limit 2,1;
 flush logs;
 
 # We need an extra update before doing save_master_pos.

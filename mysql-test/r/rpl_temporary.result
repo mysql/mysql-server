@@ -38,19 +38,19 @@ f
 7
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	95	Query	1	178	use `test`; drop table if exists t1,t2
-master-bin.000001	178	Query	1	257	use `test`; create table t1(f int)
-master-bin.000001	257	Query	1	336	use `test`; create table t2(f int)
-master-bin.000001	336	Query	1	455	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
-master-bin.000001	455	Query	1	544	use `test`; create temporary table t3(f int)
-master-bin.000001	544	Query	1	642	use `test`; insert into t3 select * from t1 where f<6
-master-bin.000001	642	Query	1	731	use `test`; create temporary table t3(f int)
-master-bin.000001	731	Query	1	826	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	826	Query	1	925	use `test`; insert into t3 select * from t1 where f>=4
-master-bin.000001	925	Query	1	1005	use `test`; drop temporary table t3
-master-bin.000001	1005	Query	1	1100	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	1100	Query	1	1180	use `test`; drop temporary table t3
+master-bin.000001	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	96	Query	1	179	use `test`; drop table if exists t1,t2
+master-bin.000001	179	Query	1	258	use `test`; create table t1(f int)
+master-bin.000001	258	Query	1	337	use `test`; create table t2(f int)
+master-bin.000001	337	Query	1	456	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
+master-bin.000001	456	Query	1	545	use `test`; create temporary table t3(f int)
+master-bin.000001	545	Query	1	643	use `test`; insert into t3 select * from t1 where f<6
+master-bin.000001	643	Query	1	732	use `test`; create temporary table t3(f int)
+master-bin.000001	732	Query	1	827	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	827	Query	1	926	use `test`; insert into t3 select * from t1 where f>=4
+master-bin.000001	926	Query	1	1006	use `test`; drop temporary table t3
+master-bin.000001	1006	Query	1	1101	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	1101	Query	1	1181	use `test`; drop temporary table t3
 drop table t1, t2;
 use test;
 SET TIMESTAMP=1040323920;

@@ -269,9 +269,10 @@ const char* Log_event::get_type_str()
   case DELETE_FILE_EVENT: return "Delete_file";
   case EXEC_LOAD_EVENT: return "Exec_load";
   case RAND_EVENT: return "RAND";
+  case XID_EVENT: return "Xid";
   case USER_VAR_EVENT: return "User var";
   case FORMAT_DESCRIPTION_EVENT: return "Format_desc";
-  default: return "Unknown";				/* impossible */ 
+  default: return "Unknown";				/* impossible */
   }
 }
 
@@ -286,6 +287,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
+  cache_stmt=	using_trans;
   cache_stmt=	(using_trans &&
 		 (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 }
@@ -646,11 +648,9 @@ end:
 #ifndef MYSQL_CLIENT
 #define UNLOCK_MUTEX if (log_lock) pthread_mutex_unlock(log_lock);
 #define LOCK_MUTEX if (log_lock) pthread_mutex_lock(log_lock);
-#define max_allowed_packet current_thd->variables.max_allowed_packet
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
-#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
 #endif
 
 /*
@@ -667,7 +667,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
 #else
 Log_event* Log_event::read_log_event(IO_CACHE* file,
                                      const Format_description_log_event *description_event)
-#endif  
+#endif
 {
   DBUG_ASSERT(description_event);
   char head[LOG_EVENT_MINIMAL_HEADER_LEN];
@@ -675,8 +675,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
     First we only want to read at most LOG_EVENT_MINIMAL_HEADER_LEN, just to
     check the event for sanity and to know its length; no need to really parse
     it. We say "at most" because this could be a 3.23 master, which has header
-    of 13 bytes, whereas LOG_EVENT_MINIMAL_HEADER_LEN is 19 bytes (it's "minimal"
-    over the set {MySQL >=4.0}).
+    of 13 bytes, whereas LOG_EVENT_MINIMAL_HEADER_LEN is 19 bytes (it's
+    "minimal" over the set {MySQL >=4.0}).
   */
   uint header_size= min(description_event->common_header_len,
                         LOG_EVENT_MINIMAL_HEADER_LEN);
@@ -700,6 +700,10 @@ failed my_b_read"));
   char *buf= 0;
   const char *error= 0;
   Log_event *res=  0;
+#ifndef max_allowed_packet
+  THD *thd=current_thd;
+  uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~0;
+#endif
 
   if (data_len > max_allowed_packet)
   {
@@ -726,8 +730,7 @@ failed my_b_read"));
     error = "read error";
     goto err;
   }
-  if ((res= read_log_event(buf, data_len, &error,
-                           description_event))) 
+  if ((res= read_log_event(buf, data_len, &error, description_event)))
     res->register_temp_buf(buf);
 
 err:
@@ -772,7 +775,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     *error="Sanity check failed";		// Needed to free buffer
     DBUG_RETURN(NULL); // general sanity check - will fail on a partial read
   }
-  
+
   switch(buf[EVENT_TYPE_OFFSET]) {
   case QUERY_EVENT:
     ev  = new Query_log_event(buf, event_len, description_event);
@@ -806,13 +809,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
     ev = new Start_log_event_v3(buf, description_event);
     break;
-#ifdef HAVE_REPLICATION
   case STOP_EVENT:
     ev = new Stop_log_event(buf, description_event);
     break;
-#endif /* HAVE_REPLICATION */
   case INTVAR_EVENT:
     ev = new Intvar_log_event(buf, description_event);
+    break;
+  case XID_EVENT:
+    ev = new Xid_log_event(buf, description_event);
     break;
   case RAND_EVENT:
     ev = new Rand_log_event(buf, description_event);
@@ -1067,8 +1071,8 @@ bool Query_log_event::write(IO_CACHE* file)
 
   return (write_header(file, event_length) ||
           my_b_safe_write(file, (byte*) buf, (uint) (start-buf)) ||
-  	  my_b_safe_write(file, (db) ? (byte*) db : (byte*)"", db_len + 1) ||
-  	  my_b_safe_write(file, (byte*) query, q_len)) ? 1 : 0;
+          my_b_safe_write(file, (db) ? (byte*) db : (byte*)"", db_len + 1) ||
+          my_b_safe_write(file, (byte*) query, q_len)) ? 1 : 0;
 }
 
 
@@ -1080,7 +1084,7 @@ bool Query_log_event::write(IO_CACHE* file)
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
 				 bool suppress_use)
-  :Log_event(thd_arg, 
+  :Log_event(thd_arg,
 	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
 	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
 	     using_trans),
@@ -1392,7 +1396,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->query_length= q_len;
     thd->query = (char*)query;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
-    thd->query_id = query_id++;
+    thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     mysql_log.write(thd,COM_QUERY,"%s",thd->query);
@@ -1762,8 +1766,7 @@ binary log.");
 */
 
 Format_description_log_event::
-Format_description_log_event(uint8 binlog_ver,
-                             const char* server_ver) 
+Format_description_log_event(uint8 binlog_ver, const char* server_ver)
   :Start_log_event_v3()
 {
   created= when;
@@ -1775,7 +1778,7 @@ Format_description_log_event(uint8 binlog_ver,
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
     post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8),
-                                       MYF(0)); 
+                                       MYF(MY_ZEROFILL));
     /*
       This long list of assignments is not beautiful, but I see no way to
       make it nicer, as the right members are #defines, not array members, so
@@ -1785,18 +1788,13 @@ Format_description_log_event(uint8 binlog_ver,
     {
       post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
       post_header_len[QUERY_EVENT-1]= QUERY_HEADER_LEN;
-      post_header_len[STOP_EVENT-1]= 0;
       post_header_len[ROTATE_EVENT-1]= ROTATE_HEADER_LEN;
-      post_header_len[INTVAR_EVENT-1]= 0;
       post_header_len[LOAD_EVENT-1]= LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= 0;
       post_header_len[CREATE_FILE_EVENT-1]= CREATE_FILE_HEADER_LEN;
       post_header_len[APPEND_BLOCK_EVENT-1]= APPEND_BLOCK_HEADER_LEN;
       post_header_len[EXEC_LOAD_EVENT-1]= EXEC_LOAD_HEADER_LEN;
       post_header_len[DELETE_FILE_EVENT-1]= DELETE_FILE_HEADER_LEN;
       post_header_len[NEW_LOAD_EVENT-1]= post_header_len[LOAD_EVENT-1];
-      post_header_len[RAND_EVENT-1]= 0;
-      post_header_len[USER_VAR_EVENT-1]= 0;
       post_header_len[FORMAT_DESCRIPTION_EVENT-1]= FORMAT_DESCRIPTION_HEADER_LEN;
     }
     break;
@@ -1883,8 +1881,7 @@ Format_description_log_event(const char* buf,
   /* If alloc fails, we'll detect it in is_valid() */
   post_header_len= (uint8*) my_memdup((byte*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
-                                      sizeof(*post_header_len),
-                                      MYF(0));  
+                                      sizeof(*post_header_len), MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -2475,7 +2472,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   {
     thd->set_time((time_t)when);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
-    thd->query_id = query_id++;
+    thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     /*
       Initing thd->row_count is not necessary in theory as this variable has no
@@ -2970,6 +2967,60 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 {
   thd->rand.seed1= (ulong) seed1;
   thd->rand.seed2= (ulong) seed2;
+  rli->inc_event_relay_log_pos();
+  return 0;
+}
+#endif /* !MYSQL_CLIENT */
+
+
+/**************************************************************************
+  Xid_log_event methods
+**************************************************************************/
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+void Xid_log_event::pack_info(Protocol *protocol)
+{
+  char buf[64], *pos;
+  pos= strmov(buf, "xid=");
+  pos= int10_to_str(xid, pos, 10);
+  protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
+}
+#endif
+
+Xid_log_event::Xid_log_event(const char* buf,
+                             const Format_description_log_event* description_event)
+  :Log_event(buf, description_event)
+{
+  buf+= description_event->common_header_len;
+  xid=*((my_xid *)buf);
+}
+
+
+bool Xid_log_event::write(IO_CACHE* file)
+{
+  return write_header(file, sizeof(xid)) ||
+         my_b_safe_write(file, (byte*) &xid, sizeof(xid));
+}
+
+
+#ifdef MYSQL_CLIENT
+void Xid_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info)
+{
+  char buf[512];
+  if (!short_form)
+  {
+    print_header(file);
+    fprintf(file, "\tXid\n");
+  }
+  fprintf(file, "/* == %lu == */\n", xid);
+  fflush(file);
+}
+#endif /* MYSQL_CLIENT */
+
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+int Xid_log_event::exec_event(struct st_relay_log_info* rli)
+{
   rli->inc_event_relay_log_pos();
   return 0;
 }

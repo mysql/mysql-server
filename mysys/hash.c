@@ -103,7 +103,7 @@ static inline void hash_free_elements(HASH *hash)
     hash_free()
     hash   the hash to delete elements of
 
-  NOTES: Hash can't be reused wuthing calling hash_init again.
+  NOTES: Hash can't be reused without calling hash_init again.
 */
 
 void hash_free(HASH *hash)
