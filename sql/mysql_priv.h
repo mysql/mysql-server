@@ -592,7 +592,8 @@ extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     what_to_log,flush_time,opt_sql_mode,
 	     max_tmp_tables,max_heap_table_size,query_buff_size,
 	     lower_case_table_names,thread_stack,thread_stack_min,
-	     binlog_cache_size, max_binlog_cache_size,record_rnd_cache_size;
+	     binlog_cache_size, max_binlog_cache_size, record_rnd_cache_size;
+extern ulong com_stat[(uint) SQLCOM_END], com_other;
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates, using_update_log;
 extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings,
