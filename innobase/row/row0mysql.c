@@ -2455,12 +2455,20 @@ queries on the table.
 2) Purge and rollback: we assign a new table id for the table. Since purge and
 rollback look for the table based on the table id, they see the table as
 'dropped' and discard their operations.
-3) Insert buffer: we remove all entries for the table in the insert
-buffer tree; ... TODO
+3) Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE, so we do not
+have to remove insert buffer records, as the insert buffer works at a low
+level.  If a freed page is later reallocated, the allocator will remove
+the ibuf entries for it.
+
+TODO: when we truncate *.ibd files (analogous to DISCARD TABLESPACE), we
+will have to remove we remove all entries for the table in the insert
+buffer tree!
+
 4) Linear readahead and random readahead: we use the same method as in 3) to
-discard ongoing operations.
+discard ongoing operations.  (This will only be relevant for TRUNCATE TABLE
+by DISCARD TABLESPACE.)
 5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
-do not allow the discard. We also reserve the data dictionary latch. */
+do not allow the TRUNCATE.  We also reserve the data dictionary latch. */
 
 	static const char renumber_tablespace_proc[] =
 	"PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
