@@ -3749,6 +3749,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_RETURN(table);
 
  err:
+  /*
+    Hack to ensure that free_blobs() doesn't fail if blob_field is not yet
+    complete
+  */
+  *table->blob_field= 0;
   free_tmp_table(thd,table);                    /* purecov: inspected */
   bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
