@@ -821,10 +821,6 @@ ha_innobase::open(
 	  	DBUG_RETURN(1);
   	}
 
-  	/* MySQL allocates the buffer for ref */
-
-  	ref_length = buff_len;
-
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
@@ -861,10 +857,20 @@ ha_innobase::open(
 
 		primary_key = 0;
 		key_used_on_scan = 0;
+
+ 		/* MySQL allocates the buffer for ref */
+
+  		ref_length = table->key_info->key_length
+  				+ table->key_info->key_parts + 10;
+
+  		/* One byte per key field is consumed to the SQL NULL
+		info of the field; we add also 10 bytes of safety margin */
 	} else {
 		((row_prebuilt_t*)innobase_prebuilt)
 				->clust_index_was_generated = TRUE;
 
+  		ref_length = DATA_ROW_ID_LEN + 10;
+				
 		dbug_assert(key_used_on_scan == MAX_KEY);
 	}
 
