@@ -141,6 +141,34 @@ public:
   bool set(longlong num, CHARSET_INFO *cs);
   bool set(ulonglong num, CHARSET_INFO *cs);
   bool set(double num,uint decimals, CHARSET_INFO *cs);
+
+  /*
+    PMG 2004.11.12
+    This is a method that works the same as perl's "chop". It simply
+    drops the last character of a string. This is useful in the case
+    of the federated storage handler where I'm building a unknown
+    number, list of values and fields to be used in a sql insert
+    statement to be run on the remote server, and have a comma after each.
+    When the list is complete, I "chop" off the trailing comma
+
+    ex. 
+      String stringobj; 
+      stringobj.append("VALUES ('foo', 'fi', 'fo',");
+      stringobj.chop();
+      stringobj.append(")");
+
+    In this case, the value of string was:
+
+    VALUES ('foo', 'fi', 'fo',
+    VALUES ('foo', 'fi', 'fo'
+    VALUES ('foo', 'fi', 'fo')
+      
+  */
+  inline void chop()
+  {
+    Ptr[str_length--]= '\0'; 
+  }
+
   inline void free()
   {
     if (alloced)

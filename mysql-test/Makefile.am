@@ -37,7 +37,7 @@ test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
 CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
 INCLUDES =			-I$(srcdir)/../include -I../include -I..
-bin_PROGRAMS =		mysql_test_run_new
+EXTRA_PROGRAMS =		mysql_test_run_new
 noinst_HEADERS =	my_manage.h
 mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c
 
@@ -48,6 +48,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
+	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
@@ -70,6 +71,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.*001 $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
 
 std_data/%.pem:

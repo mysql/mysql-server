@@ -1057,6 +1057,7 @@ void st_select_lex::init_query()
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
   no_wrap_view_item= 0;
+  link_next= 0;
 }
 
 void st_select_lex::init_select()
@@ -1308,7 +1309,7 @@ bool st_select_lex::test_limit()
   if (select_limit != HA_POS_ERROR)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-         "LIMIT & IN/ALL/ANY/SOME subquery");
+             "LIMIT & IN/ALL/ANY/SOME subquery");
     return(1);
   }
   // We need only 1 row to determinate existence

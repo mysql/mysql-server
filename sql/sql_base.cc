@@ -370,7 +370,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     Put all normal tables used by thread in free list.
 */
 
-void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
+void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived, 
+                         TABLE *stopper)
 {
   bool found_old_table;
   DBUG_ENTER("close_thread_tables");
@@ -408,7 +409,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
  found_old_table= 0;
-  while (thd->open_tables)
+  while (thd->open_tables != stopper)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
   thd->some_tables_deleted=0;
 
@@ -891,8 +892,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       {
 	if (table->query_id == thd->query_id)
 	{
-	  my_printf_error(ER_CANT_REOPEN_TABLE,
-			  ER(ER_CANT_REOPEN_TABLE), MYF(0), table->table_name);
+	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table_name);
 	  DBUG_RETURN(0);
 	}
 	table->query_id= thd->query_id;
@@ -949,7 +949,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         VOID(pthread_mutex_unlock(&LOCK_open));
       }
     }
-    my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
+    my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
     DBUG_RETURN(0);
   }
 
@@ -1262,7 +1262,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     next=table->next;
     if (!tables || (!db_stat && reopen_table(table,1)))
     {
-      my_error(ER_CANT_REOPEN_TABLE,MYF(0),table->table_name);
+      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table_name);
       VOID(hash_delete(&open_cache,(byte*) table));
       error=1;
     }
@@ -1656,6 +1656,12 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
      */
     if (tables->derived)
       continue;
+    if (tables->schema_table)
+    {
+      if (!mysql_schema_table(thd, thd->lex, tables))
+        continue;
+      DBUG_RETURN(-1);
+    }
     (*counter)++;
     if (!tables->table &&
 	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh)))
@@ -1740,9 +1746,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
   if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
       (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
   {
-    my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
-		    ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
-		    MYF(0),table->table_name);
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->table_name);
     DBUG_RETURN(1);
   }
   if ((error=table->file->start_stmt(thd)))
@@ -1853,15 +1857,14 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
     tables	- list of tables for open&locking
 
   RETURN
-    0  - ok
-    -1 - error
-    1  - error reported to user
+    FALSE - ok
+    TRUE  - error
 
   NOTE
     The lock will automaticly be freed by close_thread_tables()
 */
 
-int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
@@ -1870,7 +1873,7 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   relink_tables_for_multidelete(thd);
   DBUG_RETURN(0);
 }
@@ -2045,8 +2048,8 @@ bool rm_temporary_table(enum db_type base, char *path)
 ******************************************************************************/
 
 /* Special Field pointers for find_field_in_tables returning */
-const Field *not_found_field= (Field*) 0x1;
-const Field *view_ref_found= (Field*) 0x2; 
+Field *not_found_field= (Field*) 0x1;
+Field *view_ref_found= (Field*) 0x2; 
 
 #define WRONG_GRANT (Field*) -1
 
@@ -2328,8 +2331,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  {
             if (report_error == REPORT_ALL_ERRORS ||
                 report_error == IGNORE_EXCEPT_NON_UNIQUE)
-              my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-                              item->full_name(),thd->where);
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       item->full_name(),thd->where);
 	    return (Field*) 0;
 	  }
 	  found=find;
@@ -2349,16 +2352,14 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       }
       if (report_error == REPORT_ALL_ERRORS ||
           report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			table_name, thd->where);
+	my_error(ER_UNKNOWN_TABLE, MYF(0), table_name, thd->where);
       else
 	return (Field*) not_found_field;
     }
     else
       if (report_error == REPORT_ALL_ERRORS ||
           report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			item->full_name(),thd->where);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(),thd->where);
       else
 	return (Field*) not_found_field;
     return (Field*) 0;
@@ -2371,8 +2372,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (report_error == REPORT_ALL_ERRORS ||
           report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			item->full_name(),thd->where);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(),thd->where);
       return (Field*) not_found_field;
     }
 
@@ -2397,8 +2397,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  break;
         if (report_error == REPORT_ALL_ERRORS ||
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
-          my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-                          name,thd->where);
+          my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
 	return (Field*) 0;
       }
       found=field;
@@ -2408,8 +2407,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     return found;
   if (report_error == REPORT_ALL_ERRORS ||
       report_error == REPORT_EXCEPT_NON_UNIQUE)
-    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
-		    MYF(0), item->full_name(), thd->where);
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
   else
     return (Field*) not_found_field;
   return (Field*) 0;
@@ -2447,7 +2445,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 */
 
 /* Special Item pointer to serve as a return value from find_item_in_list(). */
-const Item **not_found_item= (const Item**) 0x1;
+Item **not_found_item= (Item**) 0x1;
 
 
 Item **
@@ -2521,8 +2519,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
               unaliased names only and will have duplicate error anyway.
             */
             if (report_error != IGNORE_ERRORS)
-              my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
-                              MYF(0), find->full_name(), current_thd->where);
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       find->full_name(), current_thd->where);
             return (Item**) 0;
           }
           found_unaliased= li.ref();
@@ -2546,8 +2544,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           if ((*found)->eq(item, 0))
             continue;                           // Same field twice
           if (report_error != IGNORE_ERRORS)
-            my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
-                            MYF(0), find->full_name(), current_thd->where);
+            my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                     find->full_name(), current_thd->where);
           return (Item**) 0;
         }
         found= li.ref();
@@ -2590,8 +2588,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (found_unaliased_non_uniq)
     {
       if (report_error != IGNORE_ERRORS)
-        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR), MYF(0),
-                        find->full_name(), current_thd->where);
+        my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                 find->full_name(), current_thd->where);
       return (Item **) 0;
     }
     if (found_unaliased)
@@ -2606,8 +2604,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   if (report_error != REPORT_EXCEPT_NOT_FOUND)
   {
     if (report_error == REPORT_ALL_ERRORS)
-      my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-		      find->full_name(), current_thd->where);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0),
+               find->full_name(), current_thd->where);
     return (Item **) 0;
   }
   else
@@ -2692,9 +2690,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
-		 List<Item> &fields, bool set_query_id,
-		 List<Item> *sum_func_list, bool allow_sum_func)
+bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
+                  List<Item> &fields, bool set_query_id,
+                  List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
@@ -2712,7 +2710,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 	(item= *(it.ref()))->check_cols(1))
     {
       select_lex->no_wrap_view_item= 0;
-      DBUG_RETURN(-1); /* purecov: inspected */
+      DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (ref)
       *(ref++)= item;
@@ -2820,8 +2818,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
         (pos= find_type(&table->keynames, name->ptr(), name->length(), 1)) <=
         0)
     {
-      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
-	       table->real_name);
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
+               name->c_ptr(), table->real_name);
       map->set_all();
       return 1;
     }
@@ -2904,7 +2902,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                       &view_iter))
             goto err;
         }
-        else
+        else if (!tables->schema_table)
         {
           table_iter.set(tables);
           if (check_grant_all_columns(thd, SELECT_ACL, &table->grant,
@@ -2984,21 +2982,20 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
               db= tables->db;
               tab= tables->real_name;
             }
-            if (!(fld->have_privileges= (get_column_grant(thd,
+            if (!tables->schema_table && 
+                !(fld->have_privileges= (get_column_grant(thd,
                                                           &table->grant,
                                                           db,
                                                           tab,
                                                           fld->field_name) &
                                          VIEW_ANY_ACL)))
             {
-              my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                              ER(ER_COLUMNACCESS_DENIED_ERROR),
-                              MYF(0),
-                              "ANY",
-                              thd->priv_user,
-                              thd->host_or_ip,
-                              fld->field_name,
-                              tab);
+              my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+                       "ANY",
+                       thd->priv_user,
+                       thd->host_or_ip,
+                       fld->field_name,
+                       tab);
               goto err;
             }
           }
@@ -3037,7 +3034,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     DBUG_RETURN(0);
 
   if (!table_name)
-    my_error(ER_NO_TABLES_USED, MYF(0));
+    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
     my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 
@@ -3056,6 +3053,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   SELECT_LEX *select_lex= thd->lex->current_select;
   Item_arena *arena= thd->current_arena, backup;
   bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
+  TABLE_LIST *table= NULL;	// For HP compilers
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -3075,7 +3073,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   }
 
   /* Check if we are using outer joins */
-  for (TABLE_LIST *table= tables; table; table= table->next_local)
+  for (table= tables; table; table= table->next_local)
   {
     TABLE_LIST *embedded;
     TABLE_LIST *embedding= table;
@@ -3260,8 +3258,25 @@ err_no_arena:
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
 
-int
-fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
+
+/*
+  Fill fields with given items.
+
+  SYNOPSIS
+    fill_record()
+    thd           thread handler
+    fields        Item_fields list to be filled
+    values        values to fill with
+    ignore_errors TRUE if we should ignore errors
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record(THD * thd, List<Item> &fields, List<Item> &values,
+            bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value;
@@ -3276,14 +3291,32 @@ fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
-      DBUG_RETURN(1);
+    {
+      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      DBUG_RETURN(TRUE);
+    }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(thd->net.report_error);
 }
 
 
-int
-fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
+/*
+  Fill field buffer with values from Field list
+
+  SYNOPSIS
+    fill_record()
+    thd           thread handler
+    ptr           pointer on pointer to record
+    values        list of fields
+    ignore_errors TRUE if we should ignore errors
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -3297,9 +3330,12 @@ fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(field, 0) < 0) && !ignore_errors)
-      DBUG_RETURN(1);
+    {
+      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      DBUG_RETURN(TRUE);
+    }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(thd->net.report_error);
 }
 
 

@@ -204,6 +204,58 @@ struct st_table {
 };
 
 
+typedef struct st_foreign_key_info
+{
+  LEX_STRING *forein_id;
+  LEX_STRING *referenced_db;
+  LEX_STRING *referenced_table;
+  LEX_STRING *constraint_method;
+  List<LEX_STRING> foreign_fields;
+  List<LEX_STRING> referenced_fields;
+} FOREIGN_KEY_INFO;
+
+
+enum enum_schema_tables
+{
+  SCH_SCHEMATA= 0, SCH_TABLES, SCH_COLUMNS, SCH_CHARSETS, SCH_COLLATIONS,
+  SCH_COLLATION_CHARACTER_SET_APPLICABILITY, SCH_PROCEDURES, SCH_STATISTICS,
+  SCH_VIEWS, SCH_USER_PRIVILEGES, SCH_SCHEMA_PRIVILEGES, SCH_TABLE_PRIVILEGES,
+  SCH_COLUMN_PRIVILEGES, SCH_TABLE_CONSTRAINTS, SCH_KEY_COLUMN_USAGE,
+  SCH_TABLE_NAMES
+};
+
+
+typedef struct st_field_info
+{
+  const char* field_name;
+  uint field_length;
+  enum enum_field_types field_type;
+  int value;
+  bool maybe_null;
+  bool utf8;
+  const char* old_name;
+} ST_FIELD_INFO;
+
+struct st_table_list;
+typedef class Item COND;
+
+typedef struct st_schema_table
+{
+  const char* table_name;
+  ST_FIELD_INFO *fields_info;
+  /* Create information_schema table */
+  TABLE *(*create_table)  (THD *thd, struct st_schema_table *schema_table);
+  /* Fill table with data */
+  int (*fill_table) (THD *thd, struct st_table_list *tables, COND *cond);
+  /* Handle fileds for old SHOW */
+  int (*old_format) (THD *thd, struct st_schema_table *schema_table);
+  int (*process_table) (THD *thd, struct st_table_list *tables,
+                        TABLE *table, bool res, const char *base_name,
+                        const char *file_name);
+  int idx_field1, idx_field2; 
+} ST_SCHEMA_TABLE;
+
+
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
 
@@ -252,6 +304,8 @@ typedef struct st_table_list
   */
   st_table_list	*correspondent_table;
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
+  st_select_lex	*schema_select_lex;
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */

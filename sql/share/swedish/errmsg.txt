@@ -101,7 +101,7 @@ character-set=latin1
 "Tabellen '%-.64s' har inget index som motsvarar det angivna i CREATE INDEX. Skapa om tabellen",
 "Fältseparatorerna är vad som förväntades. Kontrollera mot manualen",
 "Man kan inte använda fast radlängd med blobs. Använd 'fields terminated by'",
-"Textfilen '%' måste finnas i databasbiblioteket eller vara läsbar för alla",
+"Textfilen '%.64s' måste finnas i databasbiblioteket eller vara läsbar för alla",
 "Filen '%-.64s' existerar redan",
 "Rader: %ld  Bortagna: %ld  Dubletter: %ld  Varningar: %ld",
 "Rader: %ld  Dubletter: %ld",
@@ -200,7 +200,7 @@ character-set=latin1
 "Fick fel %d vid ROLLBACK",
 "Fick fel %d vid FLUSH_LOGS",
 "Fick fel %d vid CHECKPOINT",
-"Avbröt länken för tråd %ld till db '%-.64s', användare '%-.32s', host '%-.64s' (%.-64s)",
+"Avbröt länken för tråd %ld till db '%-.64s', användare '%-.32s', host '%-.64s' (%-.64s)",
 "Tabellhanteraren klarar inte en binär kopiering av tabellen",
 "Binärloggen stängdes medan FLUSH MASTER utfördes",
 "Failed rebuilding the index of dumped table '%-.64s'",
@@ -387,3 +387,24 @@ character-set=latin1
 "CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
 "CHECK OPTION failed '%-.64s.%-.64s'"
 "Access denied; you are not the procedure/function definer of '%s'"
+"Failed purging old relay logs: %s"
+"Password hash should be a %d-digit hexadecimal number"
+"Target log not found in binlog index"
+"I/O error reading log index file"
+"Server configuration does not permit binlog purge"
+"Failed on fseek()"
+"Fatal error during log purge"
+"A purgeable log is in use, will not purge"
+"Unknown error during log purge"
+"Failed initializing relay log position: %s"
+"You are not using binary logging"
+"The '%-.64s' syntax is reserved for purposes internal to the MySQL server"
+"WSAStartup Failed"
+"Can't handle procedures with differents groups yet"
+"Select must have a group with this procedure"
+"Can't use ORDER clause with this procedure"
+"Binary logging and replication forbid changing the global server %s"
+"Can't map file: %-.64s, errno: %d"
+"Wrong magic in %-.64s"
+"Prepared statement contains too many placeholders"
+"Key part '%-.64s' length cannot be 0"

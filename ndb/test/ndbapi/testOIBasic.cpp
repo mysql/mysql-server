@@ -407,10 +407,11 @@ Col::verify(const void* addr) const
       const unsigned char* p = (const unsigned char*)addr;
       unsigned n = (p[0] << 8) | p[1];
       assert(n <= m_length);
-      for (unsigned i = 0; i < n; i++) {
+      unsigned i;
+      for (i = 0; i < n; i++) {
         assert(p[2 + i] != 0);
       }
-      for (unsigned i = n; i < m_length; i++) {
+      for (i = n; i < m_length; i++) {
         assert(p[2 + i] == 0);
       }
     }
@@ -3021,7 +3022,8 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
 {
   LL2(fname);
   const int threads = (mode & ST ? 1 : par.m_threads);
-  for (int n = 0; n < threads; n++) {
+  int n; 
+  for (n = 0; n < threads; n++) {
     LL4("start " << n);
     Thr& thr = *g_thrlist[n];
     thr.m_par.m_tab = par.m_tab;
@@ -3033,7 +3035,7 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
     thr.start();
   }
   unsigned errs = 0;
-  for (int n = threads - 1; n >= 0; n--) {
+  for (n = threads - 1; n >= 0; n--) {
     LL4("stop " << n);
     Thr& thr = *g_thrlist[n];
     thr.stopped();
@@ -3301,10 +3303,11 @@ runtest(Par par)
   CHK(con.connect() == 0);
   par.m_con = &con;
   g_thrlist = new Thr* [par.m_threads];
-  for (unsigned n = 0; n < par.m_threads; n++) {
+  unsigned n;
+  for (n = 0; n < par.m_threads; n++) {
     g_thrlist[n] = 0;
   }
-  for (unsigned n = 0; n < par.m_threads; n++) {
+  for (n = 0; n < par.m_threads; n++) {
     g_thrlist[n] = new Thr(par, n);
     Thr& thr = *g_thrlist[n];
     assert(thr.m_thread != 0);
@@ -3330,11 +3333,11 @@ runtest(Par par)
       }
     }
   }
-  for (unsigned n = 0; n < par.m_threads; n++) {
+  for (n = 0; n < par.m_threads; n++) {
     Thr& thr = *g_thrlist[n];
     thr.exit();
   }
-  for (unsigned n = 0; n < par.m_threads; n++) {
+  for (n = 0; n < par.m_threads; n++) {
     Thr& thr = *g_thrlist[n];
     thr.join();
     delete &thr;

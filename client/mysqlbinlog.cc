@@ -229,7 +229,7 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
   
   for (;;)
   {
-    uint packet_len = my_net_read(net);
+    ulong packet_len = my_net_read(net);
     if (packet_len == 0)
     {
       if (my_net_write(net, "", 0) || net_flush(net))
@@ -251,7 +251,13 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
       return -1;
     }
     
-    if (my_write(file, (byte*) net->read_pos, packet_len,MYF(MY_WME|MY_NABP)))
+    if (packet_len > UINT_MAX)
+    {
+      sql_print_error("Illegal length of packet read from net");
+      return -1;
+    }
+    if (my_write(file, (byte*) net->read_pos, 
+		 (uint) packet_len, MYF(MY_WME|MY_NABP)))
       return -1;
   }
   
@@ -850,7 +856,15 @@ could be out of memory");
   */
   int4store(buf, (uint32)start_position);
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
-  logname_len = (uint) strlen(logname);
+
+  size_s tlen = strlen(logname);
+  if (tlen > UINT_MAX) 
+  {
+    fprintf(stderr,"Log name too long\n");
+    error= 1;
+    goto err;
+  }
+  logname_len = (uint) tlen;
   int4store(buf + 6, 0);
   memcpy(buf + 10, logname, logname_len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))

@@ -138,6 +138,8 @@
 #define HA_CACHE_TBL_ASKTRANSACT 2
 #define HA_CACHE_TBL_TRANSACT    4
 
+/* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
+#define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
 
 enum db_type
 {
@@ -221,6 +223,8 @@ typedef struct st_ha_create_information
 
 struct st_table;
 typedef struct st_table TABLE;
+struct st_foreign_key_info;
+typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 
 typedef struct st_ha_check_opt
 {
@@ -463,6 +467,8 @@ public:
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
   /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
+  virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
   { return; }       /* prepare InnoDB for HANDLER */
@@ -590,5 +596,5 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
 		  const char *wild, bool dir,List<char>* files);
 int ha_table_exists(THD* thd, const char* db, const char* name);
-
-
+TYPELIB *ha_known_exts(void);
+int ha_start_consistent_snapshot(THD *thd);

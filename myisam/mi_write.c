@@ -372,6 +372,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         /* popular word. two-level tree. going down */
         my_off_t root=info->dupp_key_pos;
         keyinfo=&info->s->ft2_keyinfo;
+        get_key_full_length_rdonly(off, key);
         key+=off;
         keypos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
         error=_mi_ck_real_write_btree(info, keyinfo, key, 0,
