@@ -33,8 +33,9 @@ pkgdata_DATA =		my-small.cnf \
 			my-huge.cnf \
 			mysql-log-rotate \
 			mysql-@VERSION@.spec \
-			mysql.server \
 			binary-configure
+
+pkgdata_SCRIPTS =	mysql.server
 
 CLEANFILES =		my-small.cnf \
 			my-medium.cnf \
