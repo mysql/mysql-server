@@ -772,7 +772,8 @@ JOIN::optimize()
     if (!having)
     {
       Item *where= 0;
-      if (join_tab[0].type == JT_EQ_REF)
+      if (join_tab[0].type == JT_EQ_REF &&
+	  join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
 	if (test_in_subselect(&where))
 	{
@@ -785,7 +786,8 @@ JOIN::optimize()
 								  where)));
 	}
       }
-      else if (join_tab[0].type == JT_REF)
+      else if (join_tab[0].type == JT_REF &&
+	       join_tab[0].ref.items[0]->name == in_left_expr_name)
       {
 	if (test_in_subselect(&where))
 	{
@@ -800,6 +802,7 @@ JOIN::optimize()
 	}
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
+	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
 	       having->type() == Item::FUNC_ITEM &&
 	       ((Item_func *) having)->functype() ==
 	       Item_func::ISNOTNULLTEST_FUNC)
@@ -2347,7 +2350,8 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
   // Place const values before other ones
-  if ((res= test(a->used_tables) - test(b->used_tables)))
+  if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
+       test((b->used_tables & ~OUTER_REF_TABLE_BIT))))
     return res;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
@@ -2478,6 +2482,12 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 	keyuse->ref_table_rows= max(tmp_table->file->records, 100);
       }
     }
+    /*
+      Outer reference (external field) is constant for single executing
+      of subquery
+    */
+    if (keyuse->used_tables == OUTER_REF_TABLE_BIT)
+      keyuse->ref_table_rows= 1;
   }
 }
 

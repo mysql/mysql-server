@@ -518,7 +518,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     */
     expr= new Item_ref((Item**)optimizer->get_cache(), 
 		       (char *)"<no matter>",
-		       (char *)"<left expr>");
+		       (char *)in_left_expr_name);
 
     unit->dependent= 1;
   }
@@ -694,7 +694,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
       Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
 					       addr(i), 
 					       (char *)"<no matter>",
-					       (char *)"<left expr>"),
+					       (char *)in_left_expr_name),
 				  func);
     item= and_items(item, func);
   }
