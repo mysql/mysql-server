@@ -63,6 +63,7 @@ log. */
 
 #define OS_FILE_READ_ONLY 		333
 #define	OS_FILE_READ_WRITE		444
+#define	OS_FILE_READ_ALLOW_DELETE	555	/* for ibbackup */
 
 /* Options for file_create */
 #define	OS_FILE_AIO			61
@@ -199,6 +200,21 @@ os_file_readdir_next_file(
 	char*		dirname,/* in: directory name or path */
 	os_file_dir_t	dir,	/* in: directory stream */
 	os_file_stat_t*	info);	/* in/out: buffer where the info is returned */
+/*********************************************************************
+This function attempts to create a directory named pathname. The new directory
+gets default permissions. On Unix, the permissions are (0770 & ~umask). If the
+directory exists already, nothing is done and the call succeeds, unless the
+fail_if_exists arguments is true. */
+
+ibool
+os_file_create_directory(
+/*=====================*/
+				/* out: TRUE if call succeeds, FALSE on
+				error */
+	char*	pathname,	/* in: directory name as null-terminated
+				string */
+	ibool	fail_if_exists);/* in: if TRUE, pre-existing directory is
+				treated as an error. */
 /********************************************************************
 A simple function to open or create a file. */
 
@@ -206,7 +222,8 @@ os_file_t
 os_file_create_simple(
 /*==================*/
 			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with os_get_last_error */
+			error number can be retrieved with
+			os_file_get_last_error */
 	char*	name,	/* in: name of the file or path as a null-terminated
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
@@ -221,13 +238,16 @@ os_file_t
 os_file_create_simple_no_error_handling(
 /*====================================*/
 			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with os_get_last_error */
+			error number can be retrieved with
+			os_file_get_last_error */
 	char*	name,	/* in: name of the file or path as a null-terminated
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
 			(if does not exist, error), or OS_FILE_CREATE if a new
 			file is created (if exists, error) */
-	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
+	ulint	access_type,/* in: OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
+			OS_FILE_READ_ALLOW_DELETE; the last option is used by
+			a backup program reading the file */
 	ibool*	success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
 Opens an existing file or creates a new. */
@@ -236,7 +256,8 @@ os_file_t
 os_file_create(
 /*===========*/
 			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with os_get_last_error */
+			error number can be retrieved with
+			os_file_get_last_error */
 	char*	name,	/* in: name of the file or path as a null-terminated
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened

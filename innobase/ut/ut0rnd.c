@@ -71,9 +71,8 @@ ut_find_prime(
 		
 		/* Found a prime */
 		break;
-	next_n: ;
+next_n: 	;
 	}
 	
 	return(n);
 }
-

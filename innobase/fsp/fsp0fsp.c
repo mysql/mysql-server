@@ -27,6 +27,10 @@ Created 11/29/1995 Heikki Tuuri
 #include "dict0mem.h"
 #include "log0log.h"
 
+
+#define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
+						within a file page */
+
 /* The data structures in files are defined just as byte strings in C */
 typedef	byte	fsp_header_t;
 typedef	byte	xdes_t;		
@@ -38,8 +42,6 @@ File space header data structure: this data structure is contained in the
 first page of a space. The space for this header is reserved in every extent
 descriptor page, but used only in the first. */
 
-#define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
-						within a file page */
 /*-------------------------------------*/
 #define FSP_SPACE_ID		0	/* space id */
 #define FSP_NOT_USED		4	/* this field contained a value up to
@@ -90,7 +92,6 @@ descriptor page, but used only in the first. */
 #define	FSP_FREE_ADD		4	/* this many free extents are added
 					to the free list from above
 					FSP_FREE_LIMIT at a time */
-
 					
 /*			FILE SEGMENT INODE
 			==================
@@ -297,6 +298,19 @@ fseg_alloc_free_page_low(
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
 	mtr_t*		mtr);	/* in: mtr handle */
+
+
+/**************************************************************************
+Reads the file space size stored in the header page. */
+
+ulint
+fsp_get_size_low(
+/*=============*/
+			/* out: tablespace size stored in the space header */
+	page_t*	page)	/* in: header page (page 0 in the tablespace) */
+{
+	return(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SIZE));
+}
 
 /**************************************************************************
 Gets a pointer to the space header and x-locks its page. */
@@ -1034,8 +1048,9 @@ fsp_try_extend_data_file_with_pages(
 	fsp_header_t*	header,		/* in: space header */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	size;
 	ibool	success;
+	ulint	actual_size;
+	ulint	size;
 
 	ut_a(space != 0);
 
@@ -1043,12 +1058,12 @@ fsp_try_extend_data_file_with_pages(
 	
 	ut_a(page_no >= size);
 
-	success = fil_extend_data_file_with_pages(space, size, page_no + 1);
-
-	if (success) {
-		mlog_write_ulint(header + FSP_SIZE, page_no + 1, MLOG_4BYTES,
-									mtr);
-	}
+	success = fil_extend_space_to_desired_size(&actual_size, space,
+								page_no + 1);
+	/* actual_size now has the space size in pages; it may be less than
+	we wanted if we ran out of disk space */
+	
+	mlog_write_ulint(header + FSP_SIZE, actual_size, MLOG_4BYTES, mtr);
 
 	return(success);
 }
@@ -1060,13 +1075,20 @@ ibool
 fsp_try_extend_data_file(
 /*=====================*/
 					/* out: FALSE if not auto-extending */
-	ulint*		actual_increase,/* out: actual increase in pages */
+	ulint*		actual_increase,/* out: actual increase in pages, where
+					we measure the tablespace size from
+					what the header field says; it may be
+					the actual file size rounded down to
+					megabyte */
 	ulint		space,		/* in: space */
 	fsp_header_t*	header,		/* in: space header */
 	mtr_t*		mtr)		/* in: mtr */
 {
 	ulint	size;
+	ulint	new_size;
+	ulint	old_size;
 	ulint	size_increase;
+	ulint	actual_size;
 	ibool	success;
 
 	*actual_increase = 0;
@@ -1077,6 +1099,8 @@ fsp_try_extend_data_file(
 	}
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
+
+	old_size = size;
 
 	if (space == 0 && srv_last_file_size_max != 0) {
 		if (srv_last_file_size_max
@@ -1107,8 +1131,12 @@ fsp_try_extend_data_file(
 				success = fsp_try_extend_data_file_with_pages(
 					  space, FSP_EXTENT_SIZE - 1,
 					  header, mtr);
-
 				if (!success) {
+					new_size = mtr_read_ulint(
+					 header + FSP_SIZE, MLOG_4BYTES, mtr);
+
+					*actual_increase = new_size - old_size;
+
 				        return(FALSE);
 				}
 
@@ -1118,7 +1146,10 @@ fsp_try_extend_data_file(
 			if (size < 32 * FSP_EXTENT_SIZE) {
 			        size_increase = FSP_EXTENT_SIZE;
 			} else {
-				size_increase = 8 * FSP_EXTENT_SIZE;
+				/* Below in fsp_fill_free_list() we assume
+				that we add at most FSP_FREE_ADD extents at
+				a time */
+				size_increase = FSP_FREE_ADD * FSP_EXTENT_SIZE;
 			}
 		}
 	}
@@ -1128,18 +1159,17 @@ fsp_try_extend_data_file(
 		return(TRUE);
 	}
 	
-	/* Extend the data file. If we are not able to extend the full
-	requested length, the function tells how many pages we were able to
-	extend so that the size of the tablespace would be divisible by 1 MB
-	(we possibly managed to extend more, but we only take into account
-	full megabytes). */
-					
-	success = fil_extend_last_data_file(actual_increase, space, size,
-							     size_increase);
-	if (success) {
-		mlog_write_ulint(header + FSP_SIZE, size + *actual_increase,
+	success = fil_extend_space_to_desired_size(&actual_size, space,
+							size + size_increase);
+	/* We ignore any fragments of a full megabyte when storing the size
+	to the space header */
+
+	mlog_write_ulint(header + FSP_SIZE, 
+	   ut_calc_align_down(actual_size, (1024 * 1024) / UNIV_PAGE_SIZE),
 							MLOG_4BYTES, mtr);
-	}
+	new_size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
+
+	*actual_increase = new_size - old_size;
 
 	return(TRUE);
 }
@@ -1186,8 +1216,10 @@ fsp_fill_free_list(
 		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	}
 
-	if (space != 0 && !init_space) {
-		/* Try to increase the data file size */
+	if (space != 0 && !init_space
+			&& size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
+
+		/* Try to increase the .ibd file size */
 		fsp_try_extend_data_file(&actual_increase, space, header, mtr);
 		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	}
@@ -1222,7 +1254,7 @@ fsp_fill_free_list(
 				fsp_init_file_page(descr_page, mtr);
 			}
 
-			/* Initialize the ibuf page in a separate
+			/* Initialize the ibuf bitmap page in a separate
 			mini-transaction because it is low in the latching
 			order, and we must be able to release its latch
 			before returning from the fsp routine */
@@ -1797,7 +1829,7 @@ fsp_free_seg_inode(
 		flst_remove(space_header + FSP_SEG_INODES_FREE,
 				page + FSEG_INODE_PAGE_NODE, mtr);
 
-		fsp_free_page(space, buf_frame_get_page_no(page), mtr);		
+		fsp_free_page(space, buf_frame_get_page_no(page), mtr);
 	}
 }
 
@@ -3157,7 +3189,7 @@ fseg_free_step(
 	freed yet */
 
 	ut_a(descr);
-	ut_anp(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
+	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
 					% FSP_EXTENT_SIZE, mtr) == FALSE);
 	inode = fseg_inode_get(header, mtr);
 

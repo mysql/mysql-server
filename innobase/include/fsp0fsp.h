@@ -67,6 +67,14 @@ fsp_header_get_tablespace_size(
 			/* out: size in pages */
 	ulint	space);	/* in: space id, must be 0 */
 /**************************************************************************
+Reads the file space size stored in the header page. */
+
+ulint
+fsp_get_size_low(
+/*=============*/
+			/* out: tablespace size stored in the space header */
+	page_t*	page);	/* in: header page (page 0 in the tablespace) */
+/**************************************************************************
 Reads the space id from the first page of a tablespace. */
 
 ulint

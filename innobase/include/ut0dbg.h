@@ -30,39 +30,8 @@ extern ulint*	ut_dbg_null_ptr;
        "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
 		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
                 (ulint)__LINE__);\
-		fprintf(stderr,\
-       "InnoDB: Failing assertion: " #EXPR);\
-	   	fprintf(stderr,\
-       "\nInnoDB: We intentionally generate a memory trap.\n");\
-                fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n");\
-		ut_dbg_stop_threads = TRUE;\
-		dbg_i = *(ut_dbg_null_ptr);\
-	   	if (dbg_i) {\
-			ut_dbg_null_ptr = NULL;\
-		}\
-	}\
-	if (ut_dbg_stop_threads) {\
-	        fprintf(stderr,\
-                     "InnoDB: Thread %lu stopped in file %s line %lu\n",\
-     os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
-		os_thread_sleep(1000000000);\
-	}\
-}
-
-/* This can be used if there are % characters in the assertion formula:
-if we try to printf the formula gcc would complain of illegal print
-format characters */
-#define ut_anp(EXPR)\
-{\
-	ulint	dbg_i;\
-\
-	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
-                ut_print_timestamp(stderr);\
-	   	fprintf(stderr,\
-       "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
-		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
-                (ulint)__LINE__);\
+		fputs(\
+       "InnoDB: Failing assertion: " #EXPR, stderr);\
 	   	fprintf(stderr,\
        "\nInnoDB: We intentionally generate a memory trap.\n");\
                 fprintf(stderr,\

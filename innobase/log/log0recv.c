@@ -721,7 +721,7 @@ recv_scan_log_seg_for_backup(
 
 /***********************************************************************
 Tries to parse a single log record body and also applies it to a page if
-specified. */
+specified. File ops are parsed, but not applied in this function. */
 static
 byte*
 recv_parse_or_apply_log_rec_body(
@@ -798,8 +798,14 @@ recv_parse_or_apply_log_rec_body(
 	} else if (type == MLOG_INIT_FILE_PAGE) {
 		new_ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
 
-	} else if (type <= MLOG_WRITE_STRING) {
+	} else if (type == MLOG_WRITE_STRING) {
 		new_ptr = mlog_parse_string(ptr, end_ptr, page);
+
+	} else if (type == MLOG_FILE_CREATE
+		   || type == MLOG_FILE_RENAME
+		   || type == MLOG_FILE_DELETE) {
+		new_ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
+							ULINT_UNDEFINED);
 	} else {
 		new_ptr = NULL;
 		 
@@ -1322,7 +1328,6 @@ loop:
 
 		        fprintf(stderr, "%lu ",
 			  (i * 100) / hash_get_n_cells(recv_sys->addr_hash));
-
 		}
 	}
 
@@ -1376,130 +1381,132 @@ loop:
 }
 
 #ifdef UNIV_HOTBACKUP
+/* This page is allocated from the buffer pool and used in the function
+below */
+page_t* recv_backup_application_page	= NULL;
+
 /***********************************************************************
 Applies log records in the hash table to a backup. */
 
 void
-recv_apply_log_recs_for_backup(
-/*===========================*/
-	ulint	n_data_files,	/* in: number of data files */
-	char**	data_files,	/* in: array containing the paths to the
-				data files */
-	ulint*	file_sizes)	/* in: sizes of the data files in database
-				pages */
+recv_apply_log_recs_for_backup(void)
+/*================================*/
 {
 	recv_addr_t*	recv_addr;
-	os_file_t	data_file;
-	ulint		n_pages_total	= 0;
-	ulint		nth_file	= 0;
-	ulint		nth_page_in_file= 0;
+	ulint		n_hash_cells;
 	byte*		page;
+	ulint		actual_size;
 	ibool		success;
+	ulint		error;
 	ulint		i;
 
 	recv_sys->apply_log_recs = TRUE;
 	recv_sys->apply_batch_on = TRUE;
 
-	page = buf_pool->frame_zero;
-	
-	for (i = 0; i < n_data_files; i++) {
-		n_pages_total += file_sizes[i];
+	if (recv_backup_application_page == NULL) {
+		recv_backup_application_page = buf_frame_alloc();
 	}
 
-	if (recv_max_parsed_page_no >= n_pages_total) {
-		printf(
-"InnoDB: Error: tablespace size %lu pages, but a log record on page %lu!\n"
-"InnoDB: Are you sure you have specified all the ibdata files right in\n"
-"InnoDB: the my.cnf file you gave as the argument to ibbackup --restore?\n",
-			n_pages_total, recv_max_parsed_page_no);
-	}
+	page = recv_backup_application_page;
 
 	printf( 
 "InnoDB: Starting an apply batch of log records to the database...\n"
 "InnoDB: Progress in percents: ");
 	
-	for (i = 0; i < n_pages_total; i++) {
+	n_hash_cells = hash_get_n_cells(recv_sys->addr_hash);
 
-		if (i == 0 || nth_page_in_file == file_sizes[nth_file]) {
-			if (i != 0) {
-				nth_file++;
-				nth_page_in_file = 0;
-				os_file_flush(data_file);
-				os_file_close(data_file);
-			}
+	for (i = 0; i < n_hash_cells; i++) {
+	        /* The address hash table is externally chained */
+		recv_addr = hash_get_nth_cell(recv_sys->addr_hash, i)->node;
 
-			data_file = os_file_create_simple(data_files[nth_file],
-							OS_FILE_OPEN,
-							OS_FILE_READ_WRITE,
-							&success);
-			if (!success) {
+		while (recv_addr != NULL) {
+
+			if (!fil_tablespace_exists_in_mem(recv_addr->space)) {
+/*
 				printf(
-"InnoDB: Error: cannot open %lu'th data file\n", nth_file);
+"InnoDB: Warning: cannot apply log record to tablespace %lu page %lu,\n"
+"InnoDB: because tablespace with that id does not exist.\n",
+				      recv_addr->space, recv_addr->page_no);
+*/
+				recv_addr->state = RECV_PROCESSED;
 
-				exit(1);
+				ut_a(recv_sys->n_addrs);
+				recv_sys->n_addrs--;
+
+				goto skip_this_recv_addr;
 			}
-		}
-		
-		recv_addr = recv_get_fil_addr_struct(0, i);
 
-		if (recv_addr != NULL) {
-			success = os_file_read(data_file, page,
-			  (nth_page_in_file << UNIV_PAGE_SIZE_SHIFT)
-				& 0xFFFFFFFFUL,
-			  nth_page_in_file >> (32 - UNIV_PAGE_SIZE_SHIFT), 
-				UNIV_PAGE_SIZE);
-			if (!success) {
-				printf(
-"InnoDB: Error: cannot read page no %lu from %lu'th data file\n",
-				nth_page_in_file, nth_file);
+			/* We simulate a page read made by the buffer pool, to
+			make sure the recovery apparatus works ok, for
+			example, the buf_frame_align() function. We must init
+			the block corresponding to buf_pool->frame_zero
+			(== page). */
 
-				exit(1);
-			}
-				
-			/* We simulate a page read made by the buffer pool,
-			to make sure recovery works ok. We must init the
-			block corresponding to buf_pool->frame_zero
-			(== page) */
-
-			buf_page_init_for_backup_restore(0, i,
+			buf_page_init_for_backup_restore(recv_addr->space,
+						recv_addr->page_no,
 						buf_block_align(page));
 
-			recv_recover_page(TRUE, FALSE, page, 0, i);
+			/* Extend the tablespace's last file if the page_no
+			does not fall inside its bounds; we assume the last
+			file is auto-extending, and ibbackup copied the file
+			when it still was smaller */
+
+			success = fil_extend_space_to_desired_size(
+						&actual_size,
+						recv_addr->space,
+						recv_addr->page_no + 1);
+			if (!success) {
+				printf(
+"InnoDB: Fatal error: cannot extend tablespace %lu to hold %lu pages\n",
+				     recv_addr->space, recv_addr->page_no);
+				     
+				exit(1);
+			}
+
+			/* Read the page from the tablespace file using the
+			fil0fil.c routines */
+
+			error = fil_io(OS_FILE_READ, TRUE, recv_addr->space,
+					recv_addr->page_no, 0, UNIV_PAGE_SIZE,
+					page, NULL);
+			if (error != DB_SUCCESS) {
+				printf(
+"InnoDB: Fatal error: cannot read from tablespace %lu page number %lu\n",
+				     recv_addr->space, recv_addr->page_no);
+				     
+				exit(1);
+			}
+
+			/* Apply the log records to this page */
+			recv_recover_page(TRUE, FALSE, page, recv_addr->space,
+						       recv_addr->page_no);
+
+			/* Write the page back to the tablespace file using the
+			fil0fil.c routines */
 
 			buf_flush_init_for_writing(page,
 				mach_read_from_8(page + FIL_PAGE_LSN),
-				0, i);
+				recv_addr->space, recv_addr->page_no);
 
-			success = os_file_write(data_files[nth_file],
-			  data_file, page,
-			  (nth_page_in_file << UNIV_PAGE_SIZE_SHIFT)
-				& 0xFFFFFFFF,
-			  nth_page_in_file >> (32 - UNIV_PAGE_SIZE_SHIFT), 
-				UNIV_PAGE_SIZE);
-			if (!success) {
-				printf(
-"InnoDB: Error: cannot write page no %lu to %lu'th data file\n",
-				nth_page_in_file, nth_file);
-
-				exit(1);
-			}
+			error = fil_io(OS_FILE_WRITE, TRUE, recv_addr->space,
+					recv_addr->page_no, 0, UNIV_PAGE_SIZE,
+					page, NULL);
+skip_this_recv_addr:
+			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
 		}
 
-		if ((100 * i) / n_pages_total
-				!= (100 * (i + 1)) / n_pages_total) {
-			printf("%lu ", (100 * i) / n_pages_total);
+		if ((100 * i) / n_hash_cells
+				!= (100 * (i + 1)) / n_hash_cells) {
+			printf("%lu ", (100 * i) / n_hash_cells);
 			fflush(stdout);
 		}
-
-		nth_page_in_file++;
 	}
-	
-	os_file_flush(data_file);
-	os_file_close(data_file);
 
 	recv_sys_empty_hash();
 }
+#endif
 
+#ifdef notdefined
 /***********************************************************************
 In the debug version, updates the replica of a file page, based on a log
 record. */
@@ -1737,7 +1744,7 @@ recv_parse_log_rec(
 	        return(0);
 	}
 
-	/* Check that space id and page_no are sensible */
+	/* Check that page_no is sensible */
 
 	if (*page_no > 0x8FFFFFFFUL) {
 
@@ -1911,12 +1918,16 @@ loop:
 	single_rec = (ulint)*ptr & MLOG_SINGLE_REC_FLAG;
 
 	if (single_rec || *ptr == MLOG_DUMMY_RECORD) {
-		/* The mtr only modified a single page */
+		/* The mtr only modified a single page, or this is a file op */
 
 		old_lsn = recv_sys->recovered_lsn;
 
+		/* Try to parse a log record, fetching its type, space id,
+		page no, and a pointer to the body of the log record */
+
 		len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
 							&page_no, &body);
+
 		if (len == 0 || recv_sys->found_corrupt_log) {
 			if (recv_sys->found_corrupt_log) {
 
@@ -1954,6 +1965,26 @@ loop:
 		if (type == MLOG_DUMMY_RECORD) {
 			/* Do nothing */
 		
+		} else if (store_to_hash && (type == MLOG_FILE_CREATE
+					     || type == MLOG_FILE_RENAME
+					     || type == MLOG_FILE_DELETE)) {
+#ifdef UNIV_HOTBACKUP
+			/* In ibbackup --apply-log, replay an .ibd file
+			operation, if possible; note that
+			fil_path_to_mysql_datadir is set in ibbackup to
+			point to the datadir we should use there */
+			
+			if (NULL == fil_op_log_parse_or_replay(body, end_ptr,
+							type, TRUE, space)) {
+				fprintf(stderr,
+"InnoDB: Error: file op log record of type %lu space %lu not complete in\n"
+"InnoDB: the replay phase. Path %s\n", (ulint)type, space, (char*)(body + 2));
+
+				ut_a(0);
+			}
+#endif
+			/* In normal mysqld crash recovery we do not try to
+			replay file operations */
 		} else if (store_to_hash) {
 			recv_add_to_hash_table(type, space, page_no, body,
 						ptr + len, old_lsn,
@@ -2915,6 +2946,8 @@ recv_reset_log_files_for_backup(
 	
 	buf = ut_malloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	
+	memset(buf, LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE, '\0');
+
 	for (i = 0; i < n_log_files; i++) {
 
 		sprintf(name, "%sib_logfile%lu", log_dir, i);
@@ -2954,7 +2987,7 @@ recv_reset_log_files_for_backup(
 	log_block_init_in_old_format(buf + LOG_FILE_HDR_SIZE, lsn);
 	log_block_set_first_rec_group(buf + LOG_FILE_HDR_SIZE,
 							LOG_BLOCK_HDR_SIZE);
-	sprintf(name, "%sib_logfile%lu", log_dir, 0);
+	sprintf(name, "%sib_logfile%lu", log_dir, 0UL);
 
 	log_file = os_file_create_simple(name, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
@@ -2995,6 +3028,8 @@ log_group_recover_from_archive_file(
 	ulint	file_size_high;
 	int	input_char;
 	char	name[10000];
+
+	ut_a(0);
 
 try_open_again:	
 	buf = log_sys->buf;
@@ -3173,6 +3208,8 @@ recv_recovery_from_archive_start(
 	ibool		ret;
 	ulint		err;
 	
+	ut_a(0);
+
 	recv_sys_create();
 	recv_sys_init(FALSE, buf_pool_get_curr_size());
 	
@@ -3271,6 +3308,8 @@ void
 recv_recovery_from_archive_finish(void)
 /*===================================*/
 {
+	ut_a(0);
+
 	recv_recovery_from_checkpoint_finish();
 
 	recv_recovery_from_backup_on = FALSE;
