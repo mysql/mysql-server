@@ -369,25 +369,13 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     }
     substitution= select_lex->item_list.head();
     /*
-      as far as we moved content to upper leven, field which depend of
+      as far as we moved content to upper level, field which depend of
       'upper' select is not really dependent => we remove this dependence
     */
     substitution->walk(&Item::remove_dependence_processor,
 		       (byte *) select_lex->outer_select());
-    if (join->conds || join->having)
-    {
-      Item *cond;
-      if (!join->having)
-	cond= join->conds;
-      else if (!join->conds)
-	cond= join->having;
-      else
-	if (!(cond= new Item_cond_and(join->conds, join->having)))
-	  goto err;
-      if (!(substitution= new Item_func_if(cond, substitution,
-					   new Item_null())))
-	goto err;
-   }
+    /* SELECT without FROM clause can't have WHERE or HAVING clause */
+    DBUG_ASSERT(join->conds == 0 && join->having == 0);
     return RES_REDUCE;
   }
   return RES_OK;
@@ -616,8 +604,14 @@ String *Item_exists_subselect::val_str(String *str)
   return str;
 }
 
+
 double Item_in_subselect::val()
 {
+  /*
+    As far as Item_in_subselect called only from Item_in_optimizer this
+    method should not be used
+  */
+  DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
   if (exec())
   {
@@ -629,6 +623,7 @@ double Item_in_subselect::val()
     null_value= 1;
   return (double) value;
 }
+
 
 longlong Item_in_subselect::val_int()
 {
@@ -644,8 +639,14 @@ longlong Item_in_subselect::val_int()
   return value;
 }
 
+
 String *Item_in_subselect::val_str(String *str)
 {
+  /*
+    As far as Item_in_subselect called only from Item_in_optimizer this
+    method should not be used
+  */
+  DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
   if (exec())
   {
@@ -705,6 +706,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
     Item *subs;
     if (!select_lex->group_list.elements &&
+        !select_lex->having &&
 	!select_lex->with_sum_func &&
 	!(select_lex->next_select()))
     {
@@ -1040,6 +1042,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   bool result;
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
+
   if (changed)
   {
     DBUG_RETURN(RES_OK);
@@ -1089,6 +1092,8 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     /* we do not support row operation for ALL/ANY/SOME */
     if (func != &eq_creator)
     {
+      if (arena)
+        thd->restore_backup_item_arena(arena, &backup);
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
       DBUG_RETURN(RES_ERROR);
     }
