@@ -862,7 +862,7 @@ public:
 };
 
 /*
-  The following class is used to optimize comparing of date columns
+  The following class is used to optimize comparing of date and bigint columns
   We need to save the original item, to be able to set the field to the
   original value in 'opt_range'.
 */
@@ -872,7 +872,9 @@ class Item_int_with_ref :public Item_int
   Item *ref;
 public:
   Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
-  {}
+  {
+    unsigned_flag= ref_arg->unsigned_flag;
+  }
   int save_in_field(Field *field, bool no_conversions)
   {
     return ref->save_in_field(field, no_conversions);
