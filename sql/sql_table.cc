@@ -650,8 +650,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 				  (Item_result_field***) 0, &tmp_field,0,0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
-					   ((Item_field *)item)->field : NULL)
-				    )))
+					   ((Item_field *)item)->field :
+					   (Field*) 0))))
       DBUG_RETURN(0);
     extra_fields->push_back(cr_field);
   }

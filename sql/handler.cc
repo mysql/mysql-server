@@ -543,8 +543,13 @@ void handler::print_error(int error, myf errflag)
     textno=ER_CHECKREAD;
     break;
   case HA_ERR_CRASHED:
-  case HA_ERR_CRASHED_ON_REPAIR:
     textno=ER_NOT_KEYFILE;
+    break;
+  case HA_ERR_CRASHED_ON_USAGE:
+    textno=ER_CRASHED_ON_USAGE;
+    break;
+  case HA_ERR_CRASHED_ON_REPAIR:
+    textno=ER_CRASHED_ON_REPAIR;
     break;
   case HA_ERR_OUT_OF_MEM:
     my_error(ER_OUT_OF_RESOURCES,errflag);

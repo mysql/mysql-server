@@ -203,3 +203,5 @@
 "Can't find FULLTEXT index matching the column list",
 "Can't execute the given command because you have active locked tables or an active transaction",
 "Unknown system variable '%-.64'",
+"Table '%-.64s' is marked as crashed and should be repaired",
+"Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
