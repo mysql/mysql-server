@@ -37419,7 +37419,7 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
 @item
-Fixed bug in @code{FULLTEXT} index when inserting a NULL column.
+Fixed bug in @code{FULLTEXT} index when inserting a @code{NULL} column.
 @item
 Changed to use @code{mkstemp()} instead of @code{tempnam()}.
 @end itemize
@@ -37435,17 +37435,18 @@ Fixed that databasename works as second argument to @code{mysqlhotcopy}.
 Added @code{RIGHT JOIN}. This makes @code{RIGHT} a reserved word.
 @item
 Added @code{@@@@IDENTITY} as a synonym for @code{LAST_INSERT_ID()}.
-(for Visual Basic)
+(This is for Visual Basic compatibility.)
 @item
-Fixed bug in myisamchk and @code{REPAIR} when using @code{FULLTEXT} index.
+Fixed bug in @code{myisamchk} and @code{REPAIR} when using @code{FULLTEXT}
+index.
 @item
-@code{LOAD DATA INFILE} now works for FIFO's.
-(Patch by Toni L. Harbaugh-Blackford).
+@code{LOAD DATA INFILE} now works for FIFOs.
+(Patch by Toni L. Harbaugh-Blackford.)
 @item
-@code{FLUSH LOGS} broke replication if one had @code{log-bin} with 
-a log with explicit extension 
+@code{FLUSH LOGS} broke replication if you specified a log name with an
+explicit extension as the value of the @code{log-bin} option.
 @item
-Fixed a bug in MyISAM with packed multi-part keys.
+Fixed a bug in @code{MyISAM} with packed multi-part keys.
 @item
 Fixed crash when using @code{CHECK TABLE} on Windows.
 @item
@@ -37455,7 +37456,7 @@ character set.
 Fixed privilege checking for @code{CHECK TABLE}.
 @item
 The @code{MyISAM} repair/reindex code didn't use the @code{--tempdir}
-option for it's temporary files.
+option for its temporary files.
 @item
 Added @code{BACKUP TABLE/RESTORE TABLE}.
 @item
@@ -37467,7 +37468,7 @@ the slave thread.
 @item
 The slave now logs when it connects to the master.
 @item
-Fixed a core dump bug when doing @code{FLUSH MASTER} when one didn't give
+Fixed a core dump bug when doing @code{FLUSH MASTER} if you didn't specify
 a filename argument to @code{--log-bin}.
 @item
 Added missing @file{ha_berkeley.x} files to the @strong{MySQL} windows
@@ -37480,7 +37481,7 @@ Added lock time and number of selected processed rows to slow query log.
 Added @code{--memlock} option to @code{mysqld} to lock @code{mysqld}
 in memory on systems with the @code{mlockall()} call (like in Solaris).
 @item
-@code{HEAP} tables didn't use keys properly. (Bug from 3.23.23)
+@code{HEAP} tables didn't use keys properly. (Bug from 3.23.23.)
 @item
 Added better support for @code{MERGE} tables (keys, mapping, creation,
 documentation...). @xref{MERGE}.
@@ -37506,7 +37507,7 @@ under Windows.
 Changed @code{--log-isam} to log @strong{MyISAM} tables instead of isam
 tables.
 @item
-Fixed that @code{CHECK TABLE} works on Windows.
+Fixed @code{CHECK TABLE} to work on Windows.
 @item
 Added file mutexes to make @code{pwrite()} safe on Windows.
 @end itemize
