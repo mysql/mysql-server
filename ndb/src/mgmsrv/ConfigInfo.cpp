@@ -82,7 +82,7 @@ static bool transformConnection(InitConfigFileParser::Context & ctx, const char 
 static bool applyDefaultValues(InitConfigFileParser::Context & ctx, const char *);
 static bool checkMandatory(InitConfigFileParser::Context & ctx, const char *);
 static bool fixPortNumber(InitConfigFileParser::Context & ctx, const char *);
-static bool fixShmkey(InitConfigFileParser::Context & ctx, const char *);
+static bool fixShmKey(InitConfigFileParser::Context & ctx, const char *);
 static bool checkDbConstraints(InitConfigFileParser::Context & ctx, const char *);
 static bool checkConnectionConstraints(InitConfigFileParser::Context &, const char *);
 static bool checkTCPConstraints(InitConfigFileParser::Context &, const char *);
@@ -131,13 +131,15 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  fixHostname, "HostName2" },
   { "SCI",  fixHostname, "HostName1" },
   { "SCI",  fixHostname, "HostName2" },
+  { "SHM",  fixHostname, "HostName1" },
+  { "SHM",  fixHostname, "HostName2" },
   { "OSE",  fixHostname, "HostName1" },
   { "OSE",  fixHostname, "HostName2" },
 
   { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SCI",  fixPortNumber, 0 }, // has to come after fixHostName
-  //{ "SHM",  fixShmKey, 0 },
+  { "SHM",  fixShmKey, 0 },
 
   /**
    * fixExtConnection must be after fixNodeId
@@ -168,6 +170,8 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  checkTCPConstraints, "HostName2" },
   { "SCI",  checkTCPConstraints, "HostName1" },
   { "SCI",  checkTCPConstraints, "HostName2" },
+  { "SHM",  checkTCPConstraints, "HostName1" },
+  { "SHM",  checkTCPConstraints, "HostName2" },
   
   { "*",    checkMandatory, 0 },
   
@@ -1687,16 +1691,27 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_CONNECTION_NODE_1,
-    "NodeId1",
+    CFG_CONNECTION_HOSTNAME_1,
+    "HostName1",
     "SHM",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::USED,
+    "Name/IP of computer on one side of the connection",
+    ConfigInfo::INTERNAL,
     false,
     ConfigInfo::STRING,
-    MANDATORY,
+    UNDEFINED,
     0, 0 },
-  
+
+  {
+    CFG_CONNECTION_HOSTNAME_2,
+    "HostName2",
+    "SHM",
+    "Name/IP of computer on one side of the connection",
+    ConfigInfo::INTERNAL,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0, 0 },
+
   {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
@@ -1709,6 +1724,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0", 
     STR_VALUE(MAX_INT_RNIL) },
 
+  {
+    CFG_CONNECTION_NODE_1,
+    "NodeId1",
+    "SHM",
+    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::STRING,
+    MANDATORY,
+    0, 0 },
+  
   {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
@@ -2947,7 +2973,13 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
     require(ctx.m_currentSection->get(buf, &id));
     
     const Properties * node;
-    require(ctx.m_config->get("Node", id, &node));
+    if(!ctx.m_config->get("Node", id, &node))
+    {
+      ctx.reportError("Unknown node: \"%d\" specified in connection "
+		      "[%s] starting at line: %d",
+		      id, ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
     
     const char * hostname;
     require(node->get("HostName", &hostname));
@@ -3025,13 +3057,30 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 	   << "per connection, please remove from config. "
 	   << "Will be changed to " << port << endl;
     ctx.m_currentSection->put("PortNumber", port, true);
-  } else
+  } 
+  else
+  {
     ctx.m_currentSection->put("PortNumber", port);
-
+  }
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
 		      id1, id2, port, hostname.c_str()));
 
   DBUG_RETURN(true);
+}
+
+static 
+bool 
+fixShmKey(InitConfigFileParser::Context & ctx, const char *)
+{
+  Uint32 id1= 0, id2= 0, key= 0;
+  require(ctx.m_currentSection->get("NodeId1", &id1));
+  require(ctx.m_currentSection->get("NodeId2", &id2));
+  if(ctx.m_currentSection->get("ShmKey", &key))
+    return true;
+
+  key= (id1 > id2 ? id1 << 16 | id2 : id2 << 16 | id1);
+  ctx.m_currentSection->put("ShmKey", key);
+  return true;
 }
 
 /**

@@ -217,6 +217,7 @@ Dbtux::setKeyAttrs(const Frag& frag)
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   for (unsigned i = 0; i < numAttrs; i++) {
+    jam();
     const DescAttr& descAttr = descEnt.m_descAttr[i];
     Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
     // set attr id and fixed size
@@ -244,6 +245,26 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
   jamEntry();
   // TODO handle error
   ndbrequire(ret > 0);
+#ifdef VM_TRACE
+  if (debugFlags & (DebugMaint | DebugScan)) {
+    debugOut << "readKeyAttrs:" << endl;
+    ConstData data = keyData;
+    Uint32 totalSize = 0;
+    for (Uint32 i = start; i < numAttrs; i++) {
+      Uint32 attrId = data.ah().getAttributeId();
+      Uint32 dataSize = data.ah().getDataSize();
+      debugOut << i << " attrId=" << attrId << " size=" << dataSize;
+      data += 1;
+      for (Uint32 j = 0; j < dataSize; j++) {
+        debugOut << " " << hex << data[0];
+        data += 1;
+      }
+      debugOut << endl;
+      totalSize += 1 + dataSize;
+    }
+    ndbassert(totalSize == ret);
+  }
+#endif
 }
 
 void
@@ -251,7 +272,7 @@ Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   const TupLoc tupLoc = ent.m_tupLoc;
-  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData);
+  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData, true);
   jamEntry();
   // TODO handle error
   ndbrequire(ret > 0);

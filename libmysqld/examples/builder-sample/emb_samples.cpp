@@ -109,6 +109,7 @@ bool __fastcall TForm1::connect_server()
    ret_value = true;
    is_server_started = true;
   }
+  MySQL->reconnect= 1;
   return ret_value;
 }
 //---------------------------------------------------------------------------

@@ -23,15 +23,11 @@ typedef int (ReadCallBackFn)(NDBT_ResultRow*);
 
 class UtilTransactions {
 public:
-  enum ScanLock {
-    SL_Read = 0,
-    SL_ReadHold = 1,
-    SL_Exclusive = 2
-  };
-
-  UtilTransactions(const NdbDictionary::Table&);
-  UtilTransactions(Ndb* ndb, const char * tableName);
-
+  UtilTransactions(const NdbDictionary::Table&,
+		   const NdbDictionary::Index* idx = 0);
+  UtilTransactions(Ndb* ndb, 
+		   const char * tableName, const char * indexName = 0);
+  
   int clearTable(Ndb*, 
 		 int records = 0,
 		 int parallelism = 0);
@@ -114,6 +110,12 @@ private:
 protected:
   int m_defaultClearMethod;
   const NdbDictionary::Table& tab;
+  const NdbDictionary::Index* idx;
+  NdbConnection* pTrans;
+  
+  NdbOperation* getOperation(NdbConnection*, 
+			     NdbOperation::OperationType);
+  NdbScanOperation* getScanOperation(NdbConnection*);
 };
 
 #endif

@@ -61,6 +61,7 @@
 #define MAX_FIXED_KEY_LENGTH_IN_WORDS 8
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_FRM_DATA_SIZE 6000
+#define MAX_NULL_BITS 4096
 
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
@@ -116,6 +117,11 @@
  * Blobs.
  */
 #define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
+
+/*
+ * Character sets.
+ */
+#define MAX_XFRM_MULTIPLY 8         /* max expansion when normalizing */
 
 /*
  * Long signals

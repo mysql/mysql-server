@@ -100,32 +100,25 @@ row_vers_impl_x_locked_off_kernel(
 	}
 
 	heap = mem_heap_create(1024);
-	clust_offsets = rec_get_offsets(clust_rec, clust_index,
-					ULINT_UNDEFINED, heap);
+	clust_offsets = rec_get_offsets(clust_rec, clust_index, NULL,
+					ULINT_UNDEFINED, &heap);
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 
 	mtr_s_lock(&(purge_sys->latch), &mtr);
 
 	mutex_enter(&kernel_mutex);
 	
+	trx = NULL;
 	if (!trx_is_active(trx_id)) {
 		/* The transaction that modified or inserted clust_rec is no
 		longer active: no implicit lock on rec */
-		
-		mem_heap_free(heap);
-		mtr_commit(&mtr);
-
-		return(NULL);
+		goto exit_func;
 	}
 
 	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index,
 					clust_offsets, TRUE)) {
 		/* Corruption noticed: try to avoid a crash by returning */
-		
-		mem_heap_free(heap);
-		mtr_commit(&mtr);
-
-		return(NULL);
+		goto exit_func;
 	}
 
 	comp = index->table->comp;
@@ -166,7 +159,8 @@ row_vers_impl_x_locked_off_kernel(
 
 		if (prev_version) {
 			clust_offsets = rec_get_offsets(prev_version,
-					clust_index, ULINT_UNDEFINED, heap);
+					clust_index, NULL,
+					ULINT_UNDEFINED, &heap);
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets, heap);
 			entry = row_build_index_entry(row, index, heap);
@@ -250,6 +244,7 @@ row_vers_impl_x_locked_off_kernel(
 		version = prev_version;
 	}/* for (;;) */
 
+exit_func:
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
@@ -330,8 +325,8 @@ row_vers_old_has_index_entry(
 	comp = index->table->comp;
 	ut_ad(comp == page_is_comp(buf_frame_align(rec)));
 	heap = mem_heap_create(1024);
-	clust_offsets = rec_get_offsets(rec, clust_index,
-					ULINT_UNDEFINED, heap);
+	clust_offsets = rec_get_offsets(rec, clust_index, NULL,
+					ULINT_UNDEFINED, &heap);
 
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row = row_build(ROW_COPY_POINTERS, clust_index,
@@ -371,7 +366,7 @@ row_vers_old_has_index_entry(
 		}
 
 		clust_offsets = rec_get_offsets(prev_version, clust_index,
-						ULINT_UNDEFINED, heap);
+						NULL, ULINT_UNDEFINED, &heap);
 
 		if (!rec_get_deleted_flag(prev_version, comp)) {
 			row = row_build(ROW_COPY_POINTERS, clust_index,
@@ -438,7 +433,7 @@ row_vers_build_for_consistent_read(
 #endif /* UNIV_SYNC_DEBUG */
 
 	heap = mem_heap_create(1024);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	ut_ad(!read_view_sees_trx_id(view,
 				row_get_rec_trx_id(rec, index, offsets)));
@@ -466,8 +461,8 @@ row_vers_build_for_consistent_read(
 			break;
 		}
 
-		offsets = rec_get_offsets(prev_version, index,
-					ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(prev_version, index, NULL,
+					ULINT_UNDEFINED, &heap);
 		prev_trx_id = row_get_rec_trx_id(prev_version, index, offsets);
 
 		if (read_view_sees_trx_id(view, prev_trx_id)) {

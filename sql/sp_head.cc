@@ -681,6 +681,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
       }
     }
+    // Clean up the joins before closing the tables.
+    thd->lex->unit.cleanup();
     // Close tables opened for subselect in argument list
     close_thread_tables(thd);
 

@@ -551,6 +551,7 @@ void CMySqlManagerView::OnDblclk(NMHDR* pNMHDR, LRESULT* pResult)
 					PostMessage(WM_COMMAND,IDM_TOOLS_SERVER_PROPERTIES);
                return;
             }
+            mysql.reconnect= 1;
             if (!(result=mysql_list_processes(&mysql)))
             {
                return;
@@ -576,6 +577,7 @@ void CMySqlManagerView::OnDblclk(NMHDR* pNMHDR, LRESULT* pResult)
                                     );
                return;
             }
+            mysql.reconnect= 1;
             if (!(result=mysql_list_dbs(&mysql,0)))
             {
             }
@@ -603,6 +605,7 @@ void CMySqlManagerView::OnDblclk(NMHDR* pNMHDR, LRESULT* pResult)
                                     );
                return;
             }
+            mysql.reconnect= 1;
             CResourceDatabase* pRes = (CResourceDatabase*) pResource;
             CString strDB = pResource->GetDisplayName();
             strDB.TrimRight();
@@ -641,6 +644,7 @@ void CMySqlManagerView::OnDblclk(NMHDR* pNMHDR, LRESULT* pResult)
                                     );
                return;
             }
+            mysql.reconnect= 1;
             HTREEITEM hParent = m_pTree->GetParentItem(hItem);
             memset( &item, 0, sizeof(TV_ITEM) );
             item.hItem = hParent;
@@ -714,6 +718,7 @@ void CMySqlManagerView::OnRefresh()
                {
                   return;
                }
+               mysql.reconnect= 1;
                memset( &item, 0, sizeof(TV_ITEM) );
                item.hItem = hParent;
                item.mask = TVIF_TEXT | TVIF_HANDLE | TVIF_CHILDREN | TVIF_PARAM ;

@@ -205,6 +205,7 @@ ErrorBundle ErrorCodes[] = {
    */
   { 892,  IE, "Inconsistent hash index. The index needs to be dropped and recreated" },
   { 895,  IE, "Inconsistent ordered index. The index needs to be dropped and recreated" },
+  { 896,  IE, "Tuple corrupted - wrong checksum or column data in invalid format" },
   { 202,  IE, "202" },
   { 203,  IE, "203" },
   { 207,  IE, "207" },
@@ -259,6 +260,7 @@ ErrorBundle ErrorCodes[] = {
    * Application error
    */
   { 823,  AE, "Too much attrinfo from application in tuple manager" },
+  { 831,  AE, "Too many nullable/bitfields in table definition" },
   { 876,  AE, "876" },
   { 877,  AE, "877" },
   { 878,  AE, "878" },
@@ -270,7 +272,7 @@ ErrorBundle ErrorCodes[] = {
   { 897,  AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
   { 4256, AE, "Must call Ndb::init() before this function" },
   { 4257, AE, "Tried to read too much - too many getValue calls" },
-
+  
   /** 
    * Scan application errors
    */
@@ -310,6 +312,7 @@ ErrorBundle ErrorCodes[] = {
   { 742,  SE, "Unsupported attribute type in index" },
   { 743,  SE, "Unsupported character set in table or index" },
   { 744,  SE, "Character string is invalid for given character set" },
+  { 745,  SE, "Distribution key not supported for char attribute (use binary attribute)" },
   { 241,  SE, "Invalid schema object version" },
   { 283,  SE, "Table is being dropped" },
   { 284,  SE, "Table not defined in transaction coordinator" },

@@ -85,17 +85,16 @@ const char*
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
 			  int updates, 
-			  char* buf) const {
+			  char* buf,
+			  int len) const {
   const char a[26] = {"UAWBORCTDPEFQGNYHISJMKXLZ"};
   const NdbDictionary::Column* attr = m_tab.getColumn(attrib);
   int val = calcValue(record, attrib, updates);
 
-  int len;
   if (attr->getPrimaryKey()){
     // Create a string where val is printed as chars in the beginning
     // of the string, then fill with other chars
     // The string length is set to the same size as the attribute
-    len = attr->getLength();
     BaseString::snprintf(buf, len, "%d", val);
     for(int i=strlen(buf); i < len; i++)
       buf[i] = a[((val^i)%25)]; 
@@ -104,13 +103,19 @@ HugoCalculator::calcValue(int record,
     // Fill buf with some pattern so that we can detect
     // anomalies in the area that we don't fill with chars
     int i;
-    for (i = 0; i<attr->getLength(); i++)
+    for (i = 0; i<len; i++)
       buf[i] = ((i+2) % 255);
     
     // Calculate length of the string to create. We want the string 
     // length to be varied between max and min of this attribute.
+    Uint32 org = len;
 
-    len = val % (attr->getLength() + 1);
+    if(attr->getType() == NdbDictionary::Column::Varchar)
+      len = val % (len + 1);
+    else
+      if((val % (len + 1)) == 0)
+	len = 0;
+    
     // If len == 0 return NULL if this is a nullable attribute
     if (len == 0){
       if(attr->getNullable() == true)
@@ -121,6 +126,14 @@ HugoCalculator::calcValue(int record,
     for(i=0; i < len; i++)
       buf[i] = a[((val^i)%25)];
     buf[len] = 0;
+
+    if(attr->getType() == NdbDictionary::Column::Bit)
+    {
+      Uint32 bits= attr->getLength();
+      Uint32 pos = bits >> 5;
+      Uint32 size = bits & 31;
+      ((Uint32*)buf)[pos] &= ((1 << size) - 1);
+    }
   }
   return buf;
 }; 
@@ -131,20 +144,23 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 
   id = pRow->attributeStore(m_idCol)->u_32_value();
   updates = pRow->attributeStore(m_updatesCol)->u_32_value();
-
+  int result = 0;	  
+  
   // Check the values of each column
   for (int i = 0; i<m_tab.getNoOfColumns(); i++){
     if (i != m_updatesCol && id != m_idCol) {
       
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
+      Uint32 len = attr->getLength();
       switch (attr->getType()){
+      case NdbDictionary::Column::Bit:
+	len = 4 * ((len + 31) >> 5);
       case NdbDictionary::Column::Char:
       case NdbDictionary::Column::Varchar:
       case NdbDictionary::Column::Binary:
       case NdbDictionary::Column::Varbinary:{
-	int result = 0;	  
-	char* buf = new char[attr->getLength()+1];
-	const char* res = calcValue(id, i, updates, buf);
+	char* buf = new char[len+1];
+	const char* res = calcValue(id, i, updates, buf, len);
 	if (res == NULL){
 	  if (!pRow->attributeStore(i)->isNULL()){
 	    g_err << "|- NULL ERROR: expected a NULL but the column was not null" << endl;
@@ -152,16 +168,13 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	    result = -1;
 	  }
 	} else{
-	  if (memcmp(res, pRow->attributeStore(i)->aRef(), pRow->attributeStore(i)->arraySize()) != 0){
+	  if (memcmp(res, pRow->attributeStore(i)->aRef(), len) != 0){
 	    //	  if (memcmp(res, pRow->attributeStore(i)->aRef(), pRow->attributeStore(i)->getLength()) != 0){
-	    g_err << "arraySize(): " 
-		   << pRow->attributeStore(i)->arraySize()
-		   << ", NdbDict::Column::getLength(): " << attr->getLength()
-		   << endl;
+	    g_err << "Column: " << attr->getName() << endl;
 	    const char* buf2 = pRow->attributeStore(i)->aRef();
-	    for (Uint32 j = 0; j < pRow->attributeStore(i)->arraySize(); j++)
+	    for (Uint32 j = 0; j < len; j++)
 	    {
-	      g_err << j << ":" << buf[j] << "[" << buf2[j] << "]";
+	      g_err << j << ":" << hex << (int)buf[j] << "[" << hex << (int)buf2[j] << "]";
 	      if (buf[j] != buf2[j])
 	      {
 		g_err << "==>Match failed!";
@@ -170,18 +183,16 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	    }
 	    g_err << endl;
 	    g_err << "|- Invalid data found in attribute " << i << ": \""
-		   << pRow->attributeStore(i)->aRef()
-		   << "\" != \"" << res << "\"" << endl
-		   << "Length of expected=" << (unsigned)strlen(res) << endl
-		   << "Lenght of read="
-		   << (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
+		  << pRow->attributeStore(i)->aRef()
+		  << "\" != \"" << res << "\"" << endl
+		  << "Length of expected=" << (unsigned)strlen(res) << endl
+		  << "Lenght of read="
+		  << (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
 	    g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	    result = -1;
 	  }
 	}
 	delete []buf;
-	if (result != 0)
-	  return result;
       }
 	break;
       case NdbDictionary::Column::Int:
@@ -190,9 +201,9 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	Int32 val = pRow->attributeStore(i)->int32_value();
 	if (val != cval){
 	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		 << cval << "\"" << endl;
+		<< cval << "\"" << endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
-	  return -1;
+	  result = -1;
 	}
 	break;
       }
@@ -202,10 +213,10 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	Uint64 val = pRow->attributeStore(i)->u_64_value();
 	if (val != cval){
 	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		 << cval << "\"" 
-		 << endl;
+		<< cval << "\"" 
+		<< endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
-	  return -1;
+	  result = -1;
 	}
       }
 	break;
@@ -214,21 +225,21 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	float val = pRow->attributeStore(i)->float_value();
 	if (val != cval){
 	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		 << cval << "\"" << endl;
+		<< cval << "\"" << endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
-	  return -1;
+	  result = -1;
 	}
       }
 	break;
       case NdbDictionary::Column::Undefined:
       default:
-	assert(false);
+	assert(0);
+	result = -1;
 	break;
       }
-      
     }
   }
-  return 0;
+  return result;
 }
 
 int

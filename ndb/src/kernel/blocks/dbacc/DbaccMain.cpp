@@ -16,6 +16,7 @@
 
 #define DBACC_C
 #include "Dbacc.hpp"
+#include <my_sys.h>
 
 #include <AttributeHeader.hpp>
 #include <signaldata/AccFrag.hpp>
@@ -27,6 +28,7 @@
 #include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <SectionReader.hpp>
 
 // TO_DO_RONM is a label for comments on what needs to be improved in future versions
 // when more time is given.
@@ -1033,6 +1035,12 @@ void Dbacc::initialiseTableRec(Signal* signal)
       tabptr.p->fragholder[i] = RNIL;
       tabptr.p->fragptrholder[i] = RNIL;
     }//for
+    tabptr.p->noOfKeyAttr = 0;
+    tabptr.p->hasCharAttr = 0;
+    for (Uint32 k = 0; k < MAX_ATTRIBUTES_IN_INDEX; k++) {
+      tabptr.p->keyAttr[k].attributeDescriptor = 0;
+      tabptr.p->keyAttr[k].charsetInfo = 0;
+    }
   }//for
 }//Dbacc::initialiseTableRec()
 
@@ -1186,6 +1194,66 @@ void Dbacc::addFragRefuse(Signal* signal, Uint32 errorCode)
   sendSignal(retRef, GSN_ACCFRAGREF, signal, AccFragRef::SignalLength, JBB);
   return;
 }//Dbacc::addFragRefuseEarly()
+
+void
+Dbacc::execTC_SCHVERREQ(Signal* signal)
+{
+  jamEntry();
+  if (! assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  tabptr.i = signal->theData[0];
+  ptrCheckGuard(tabptr, ctablesize, tabrec);
+  Uint32 noOfKeyAttr = signal->theData[6];
+  ndbrequire(noOfKeyAttr <= MAX_ATTRIBUTES_IN_INDEX);
+  Uint32 hasCharAttr = 0;
+
+  SegmentedSectionPtr s0Ptr;
+  signal->getSection(s0Ptr, 0);
+  SectionReader r0(s0Ptr, getSectionSegmentPool());
+  Uint32 i = 0;
+  while (i < noOfKeyAttr) {
+    jam();
+    Uint32 attributeDescriptor = ~0;
+    Uint32 csNumber = ~0;
+    if (! r0.getWord(&attributeDescriptor) ||
+        ! r0.getWord(&csNumber)) {
+      jam();
+      break;
+    }
+    CHARSET_INFO* cs = 0;
+    if (csNumber != 0) {
+      cs = all_charsets[csNumber];
+      ndbrequire(cs != 0);
+      hasCharAttr = 1;
+    }
+    tabptr.p->keyAttr[i].attributeDescriptor = attributeDescriptor;
+    tabptr.p->keyAttr[i].charsetInfo = cs;
+    i++;
+  }
+  ndbrequire(i == noOfKeyAttr);
+  releaseSections(signal);
+
+  tabptr.p->noOfKeyAttr = noOfKeyAttr;
+  tabptr.p->hasCharAttr = hasCharAttr;
+
+  // copy char attr flag to each fragment
+  for (Uint32 i1 = 0; i1 < MAX_FRAG_PER_NODE; i1++) {
+    jam();
+    if (tabptr.p->fragptrholder[i1] != RNIL) {
+      rootfragrecptr.i = tabptr.p->fragptrholder[i1];
+      ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+      for (Uint32 i2 = 0; i2 < 2; i2++) {
+        fragrecptr.i = rootfragrecptr.p->fragmentptr[i2];
+        ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+        fragrecptr.p->hasCharAttr = hasCharAttr;
+      }
+    }
+  }
+
+  // no reply to DICT
+}
 
 void
 Dbacc::execDROP_TAB_REQ(Signal* signal){
@@ -1550,6 +1618,7 @@ void Dbacc::initOpRec(Signal* signal)
 
   operationRecPtr.p->hashValue = signal->theData[3];
   operationRecPtr.p->tupkeylen = signal->theData[4];
+  operationRecPtr.p->xfrmtupkeylen = signal->theData[4];
   operationRecPtr.p->transId1 = signal->theData[5];
   operationRecPtr.p->transId2 = signal->theData[6];
   operationRecPtr.p->transactionstate = ACTIVE;
@@ -1664,6 +1733,10 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   ndbrequire(operationRecPtr.p->transactionstate == IDLE);
 
   initOpRec(signal);
+  // normalize key if any char attr
+  if (! operationRecPtr.p->isAccLockReq && fragrecptr.p->hasCharAttr)
+    xfrmKeyData(signal);
+
   /*---------------------------------------------------------------*/
   /*                                                               */
   /*       WE WILL USE THE HASH VALUE TO LOOK UP THE PROPER MEMORY */
@@ -1758,6 +1831,54 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   return;
 }//Dbacc::execACCKEYREQ()
 
+void
+Dbacc::xfrmKeyData(Signal* signal)
+{
+  tabptr.i = fragrecptr.p->myTableId;
+  ptrCheckGuard(tabptr, ctablesize, tabrec);
+
+  Uint32 dst[1024];
+  Uint32 dstSize = (sizeof(dst) >> 2);
+  Uint32* src = &signal->theData[7];
+  const Uint32 noOfKeyAttr = tabptr.p->noOfKeyAttr;
+  Uint32 dstPos = 0;
+  Uint32 srcPos = 0;
+  Uint32 i = 0;
+
+  while (i < noOfKeyAttr) {
+    const Tabrec::KeyAttr& keyAttr = tabptr.p->keyAttr[i];
+
+    Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
+    Uint32 srcWords = (srcBytes + 3) / 4;
+    Uint32 dstWords = ~0;
+    uchar* dstPtr = (uchar*)&dst[dstPos];
+    const uchar* srcPtr = (const uchar*)&src[srcPos];
+    CHARSET_INFO* cs = keyAttr.charsetInfo;
+
+    if (cs == 0) {
+      jam();
+      memcpy(dstPtr, srcPtr, srcWords << 2);
+      dstWords = srcWords;
+    } else {
+      jam();
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+        xmul = 1;
+      Uint32 dstLen = xmul * srcBytes;
+      ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
+      uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+      while ((n & 3) != 0)
+        dstPtr[n++] = 0;
+      dstWords = (n >> 2);
+    }
+    dstPos += dstWords;
+    srcPos += srcWords;
+    i++;
+  }
+  memcpy(src, dst, dstPos << 2);
+  operationRecPtr.p->xfrmtupkeylen = dstPos;
+}
+
 void Dbacc::accIsLockedLab(Signal* signal) 
 {
   ndbrequire(csystemRestart == ZFALSE);
@@ -1848,6 +1969,7 @@ void Dbacc::insertelementLab(Signal* signal)
     }//if
   }//if
   if (fragrecptr.p->keyLength != operationRecPtr.p->tupkeylen) {
+    // historical
     ndbrequire(fragrecptr.p->keyLength == 0);
   }//if
 
@@ -3251,7 +3373,7 @@ void Dbacc::getdirindex(Signal* signal)
   ptrCheckGuard(gdiPageptr, cpagesize, page8);
 }//Dbacc::getdirindex()
 
-void
+Uint32
 Dbacc::readTablePk(Uint32 localkey1)
 {
   Uint32 tableId = fragrecptr.p->myTableId;
@@ -3259,10 +3381,11 @@ Dbacc::readTablePk(Uint32 localkey1)
   Uint32 fragPageId = localkey1 >> MAX_TUPLES_BITS;
   Uint32 pageIndex = localkey1 & ((1 << MAX_TUPLES_BITS ) - 1);
 #ifdef VM_TRACE
-  memset(ckeys, 0x1f, fragrecptr.p->keyLength << 2);
+  memset(ckeys, 0x1f, (fragrecptr.p->keyLength * MAX_XFRM_MULTIPLY) << 2);
 #endif
-  int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, ckeys);
-  ndbrequire(ret == fragrecptr.p->keyLength);
+  int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, ckeys, true);
+  ndbrequire(ret > 0);
+  return ret;
 }
 
 /* --------------------------------------------------------------------------------- */
@@ -3306,7 +3429,6 @@ void Dbacc::getElement(Signal* signal)
   Uint32 tgeNextptrtype;
   register Uint32 tgeKeyptr;
   register Uint32 tgeRemLen;
-  register Uint32 tgeCompareLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
   register Uint32* Tkeydata = (Uint32*)&signal->theData[7];
 
@@ -3314,7 +3436,6 @@ void Dbacc::getElement(Signal* signal)
   tgePageindex = tgdiPageindex;
   gePageptr = gdiPageptr;
   tgeResult = ZFALSE;
-  tgeCompareLen = fragrecptr.p->keyLength;
   /*
    * The value seached is
    * - table key for ACCKEYREQ, stored in TUP
@@ -3381,12 +3502,15 @@ void Dbacc::getElement(Signal* signal)
           Uint32 localkey2 = 0;
           bool found;
           if (! searchLocalKey) {
-            readTablePk(localkey1);
-            found = (memcmp(Tkeydata, ckeys, fragrecptr.p->keyLength << 2) == 0);
+            Uint32 len = readTablePk(localkey1);
+            found = (len == operationRecPtr.p->xfrmtupkeylen) &&
+                    (memcmp(Tkeydata, ckeys, len << 2) == 0);
           } else {
+            jam();
             found = (localkey1 == Tkeydata[0]);
           }
           if (found) {
+            jam();
             tgeLocked = ElementHeader::getLocked(tgeElementHeader);
             tgeResult = ZTRUE;
             operationRecPtr.p->localdata[0] = localkey1;
@@ -7731,6 +7855,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
   regFragPtr.p->activeDataPage = 0;
   regFragPtr.p->createLcp = ZFALSE;
   regFragPtr.p->stopQueOp = ZFALSE;
+  regFragPtr.p->hasCharAttr = ZFALSE;
   regFragPtr.p->nextAllocPage = 0;
   regFragPtr.p->nrWaitWriteUndoExit = 0;
   regFragPtr.p->lastUndoIsStored = ZFALSE;
@@ -8680,6 +8805,7 @@ void Dbacc::srDoUndoLab(Signal* signal)
     const Uint32 tkeylen = undopageptr.p->undoword[tmpindex];
     tmpindex++;
     operationRecPtr.p->tupkeylen = tkeylen;
+    operationRecPtr.p->xfrmtupkeylen = 0; // not used
     operationRecPtr.p->fragptr = fragrecptr.i;
 
     ndbrequire(fragrecptr.p->keyLength != 0 &&
@@ -9750,6 +9876,7 @@ void Dbacc::initScanOpRec(Signal* signal)
   arrGuard(tisoLocalPtr, 2048);
   operationRecPtr.p->keydata[0] = isoPageptr.p->word32[tisoLocalPtr];
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
+  operationRecPtr.p->xfrmtupkeylen = 0; // not used
 }//Dbacc::initScanOpRec()
 
 /* --------------------------------------------------------------------------------- */

@@ -460,12 +460,12 @@ buf_block_init(
 	block->file_page_was_freed = FALSE;
 
 	block->check_index_page_at_flush = FALSE;
+	block->index = NULL;
 
 	block->in_free_list = FALSE;
 	block->in_LRU_list = FALSE;
 
 	block->n_pointers = 0;
-	block->hash_nodes = NULL;
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
@@ -1536,6 +1536,7 @@ buf_page_init(
 	block->offset 		= offset;
 
 	block->check_index_page_at_flush = FALSE;
+	block->index		= NULL;
 	
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 	block->lock_mutex	= NULL;

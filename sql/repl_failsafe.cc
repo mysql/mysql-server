@@ -709,6 +709,7 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
   if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
 			mi->port, 0, 0))
     DBUG_RETURN(1);
+  mysql->reconnect= 1;
   DBUG_RETURN(0);
 }
 

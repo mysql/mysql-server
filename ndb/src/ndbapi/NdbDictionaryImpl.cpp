@@ -218,6 +218,11 @@ NdbColumnImpl::create_psuedo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
     col->m_impl.m_attrSize = 8;
     col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$ROW_SIZE")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROW_SIZE;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 1;
   } else if(!strcmp(name, "NDB$RANGE_NO")){
     col->setType(NdbDictionary::Column::Unsigned);
     col->m_impl.m_attrId = AttributeHeader::RANGE_NO;
@@ -622,9 +627,11 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       delete NdbDictionary::Column::FRAGMENT; 
       delete NdbDictionary::Column::ROW_COUNT;
       delete NdbDictionary::Column::COMMIT_COUNT;
+      delete NdbDictionary::Column::ROW_SIZE;
       NdbDictionary::Column::FRAGMENT= 0;
       NdbDictionary::Column::ROW_COUNT= 0;
       NdbDictionary::Column::COMMIT_COUNT= 0;
+      NdbDictionary::Column::ROW_SIZE= 0;
     }
     m_globalHash->unlock();
   } else {
@@ -691,6 +698,8 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 	NdbColumnImpl::create_psuedo("NDB$ROW_COUNT");
       NdbDictionary::Column::COMMIT_COUNT= 
 	NdbColumnImpl::create_psuedo("NDB$COMMIT_COUNT");
+      NdbDictionary::Column::ROW_SIZE=
+	NdbColumnImpl::create_psuedo("NDB$ROW_SIZE");
       NdbDictionary::Column::RANGE_NO= 
 	NdbColumnImpl::create_psuedo("NDB$RANGE_NO");
     }
@@ -1165,6 +1174,7 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
   { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
   { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
+  { DictTabInfo::ExtBit,             NdbDictionary::Column::Bit },
   { -1, -1 }
 };
 
@@ -1274,6 +1284,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_attrType =attrDesc.AttributeType;
     col->m_attrSize = (1 << attrDesc.AttributeSize) / 8;
     col->m_arraySize = attrDesc.AttributeArraySize;
+    if(attrDesc.AttributeSize == 0)
+    {
+      col->m_attrSize = 4;
+      col->m_arraySize = (attrDesc.AttributeArraySize + 31) >> 5;
+    }
     
     col->m_pk = attrDesc.AttributeKeyFlag;
     col->m_distributionKey = attrDesc.AttributeDKey;
@@ -1518,9 +1533,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeId = i;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeStoredInd = 1;
     tmpAttr.AttributeDKey = col->m_distributionKey;
-    tmpAttr.AttributeDGroup = 0;
 
     tmpAttr.AttributeExtType =
       getKernelConstant(col->m_type,
@@ -1537,6 +1550,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     // primary key type check
     if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
       m_error.code = 743;
+      return -1;
+    }
+    // distribution key not supported for Char attribute
+    if (col->m_distributionKey && col->m_cs != NULL) {
+      m_error.code = 745;
       return -1;
     }
     // charset in upper half of precision
@@ -1920,7 +1938,7 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
 
 int
 NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
-					      const NdbTableImpl* tab,
+					      NdbTableImpl* tab,
 					      const NdbTableImpl* prim){
   NdbIndexImpl *idx = new NdbIndexImpl();
   idx->m_version = tab->m_version;
@@ -1928,23 +1946,43 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   idx->m_indexId = tab->m_tableId;
   idx->m_externalName.assign(tab->getName());
   idx->m_tableName.assign(prim->m_externalName);
-  idx->m_type = tab->m_indexType;
+  NdbDictionary::Index::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
   // skip last attribute (NDB$PK or NDB$TNODE)
+  
+  Uint32 distKeys = 0;
   for(unsigned i = 0; i+1<tab->m_columns.size(); i++){
+    NdbColumnImpl* org = tab->m_columns[i];
+
     NdbColumnImpl* col = new NdbColumnImpl;
     // Copy column definition
-    *col = *tab->m_columns[i];
+    *col = * org;
     idx->m_columns.push_back(col);
+
     /**
      * reverse map
      */
-    int key_id = prim->getColumn(col->getName())->getColumnNo();
+    const NdbColumnImpl* primCol = prim->getColumn(col->getName());
+    int key_id = primCol->getColumnNo();
     int fill = -1;
     idx->m_key_ids.fill(key_id, fill);
     idx->m_key_ids[key_id] = i;
     col->m_keyInfoPos = key_id;
+
+    /**
+     * Fix distribution key stuff for ordered indexes
+     */
+    if(type == NdbDictionary::Index::OrderedIndex)
+    {
+      if(primCol->m_distributionKey ||
+	 (prim->m_noOfDistributionKeys == 0 && primCol->getPrimaryKey()))
+      {
+	distKeys++;
+	org->m_distributionKey = 1;
+      }
+    }
   }
+  tab->m_noOfDistributionKeys = distKeys;
 
   * dst = idx;
   return 0;

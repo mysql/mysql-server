@@ -753,6 +753,7 @@ static MYSQL* safe_connect()
     mysql_options(local_mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
+  local_mysql->reconnect= 1;
 
   return local_mysql;
 }

@@ -790,8 +790,9 @@ NdbScanOperation::doSendScan(int aProcessorId)
   Uint32 tmp = req->requestInfo;
   ScanTabReq::setDistributionKeyFlag(tmp, theDistrKeyIndicator_);
   req->distributionKey = theDistributionKey;
+  req->requestInfo = tmp;
   tSignal->setLength(ScanTabReq::StaticLength + theDistrKeyIndicator_);
-  
+
   TransporterFacade *tp = TransporterFacade::instance();
   LinearSectionPtr ptr[3];
   ptr[0].p = m_prepared_receivers;
@@ -932,6 +933,8 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
       TcKeyReq::setTakeOverScanFragment(scanInfo, tTakeOverFragment);
       TcKeyReq::setTakeOverScanInfo(scanInfo, tScanInfo);
       newOp->theScanInfo = scanInfo;
+      newOp->theDistrKeyIndicator_ = 1;
+      newOp->theDistributionKey = tTakeOverFragment;
     }
 
     // Copy the first 8 words of key info from KEYINF20 into TCKEYREQ
@@ -1085,29 +1088,6 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
       setErrorCodeAbort(4209);
       return -1;
     }
-    
-    // normalize char bound
-    CHARSET_INFO* cs = tAttrInfo->m_cs;
-    Uint64 xfrmData[1001];
-    if (cs != NULL && aValue != NULL) {
-      // current limitation: strxfrm does not increase length
-      assert(cs->strxfrm_multiply <= 1);
-      ((Uint32*)xfrmData)[len >> 2] = 0;
-      unsigned n =
-	(*cs->coll->strnxfrm)(cs,
-                            (uchar*)xfrmData, sizeof(xfrmData),
-                            (const uchar*)aValue, len);
-      
-      while (n < len)
-        ((uchar*)xfrmData)[n++] = 0x20;
-
-      if(len & 3)
-      {
-	len += (4 - (len & 3));
-      }
-
-      aValue = (char*)xfrmData;
-    }
 
     // insert attribute header
     Uint32 tIndexAttrId = tAttrInfo->m_attrId;
@@ -1130,7 +1110,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
       theTotalNrOfKeyWordInSignal = currLen + totalLen;
     } else {
       if(!aligned || !nobytes){
-	Uint32 *tempData = (Uint32*)xfrmData;
+        Uint32 tempData[2000];
 	tempData[0] = type;
 	tempData[1] = ahValue;
 	tempData[2 + (len >> 2)] = 0;
@@ -1294,10 +1274,10 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
       return (r1_null ? -1 : 1);
     }
     const NdbColumnImpl & col = NdbColumnImpl::getImpl(* r1->m_column);
-    Uint32 size = (r1->theAttrSize * r1->theArraySize + 3) / 4;
+    Uint32 len = r1->theAttrSize * r1->theArraySize;
     if(!r1_null){
       const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(col.m_extType);
-      int r = (*sqlType.m_cmp)(col.m_cs, d1, d2, size, size);
+      int r = (*sqlType.m_cmp)(col.m_cs, d1, len, d2, len, true);
       if(r){
 	assert(r != NdbSqlUtil::CmpUnknown);
 	return r;

@@ -1646,8 +1646,8 @@ test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
 Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
-id	char(16)				
-data	int(11)				
+id	char(16)	NO			
+data	int(11)	NO			
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -1696,8 +1696,8 @@ test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
 Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
-id	char(16)				
-data	int(11)				
+id	char(16)	NO			
+data	int(11)	NO			
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment

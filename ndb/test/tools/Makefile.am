@@ -1,5 +1,5 @@
 
-ndbtest_PROGRAMS = hugoCalculator hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc
 
 # transproxy 
 

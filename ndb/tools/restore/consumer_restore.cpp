@@ -209,7 +209,7 @@ BackupRestore::endOfTables(){
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
   for(size_t i = 0; i<m_indexes.size(); i++){
-    const NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
+    NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
 
     BaseString tmp(indtab.m_primaryTable.c_str());
     Vector<BaseString> split;

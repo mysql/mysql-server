@@ -151,8 +151,9 @@ row_undo_search_clust_to_pcur(
 	mtr_t		mtr;
 	ibool		ret;
 	rec_t*		rec;
-	mem_heap_t*	heap;
-	const ulint*	offsets;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	mtr_start(&mtr);
 
@@ -163,8 +164,8 @@ row_undo_search_clust_to_pcur(
 
 	rec = btr_pcur_get_rec(&(node->pcur));
 
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, clust_index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, clust_index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 	if (!found || 0 != ut_dulint_cmp(node->roll_ptr,
 			row_get_rec_roll_ptr(rec, clust_index, offsets))) {
@@ -188,6 +189,9 @@ row_undo_search_clust_to_pcur(
 
 	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
 
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(ret);
 }
 	

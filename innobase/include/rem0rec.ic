@@ -681,9 +681,11 @@ rec_2_get_field_end_info(
 }
 
 #ifdef UNIV_DEBUG
-# define REC_OFFS_HEADER_SIZE	3
+/* Length of the rec_get_offsets() header */
+# define REC_OFFS_HEADER_SIZE	4
 #else /* UNIV_DEBUG */
-# define REC_OFFS_HEADER_SIZE	1
+/* Length of the rec_get_offsets() header */
+# define REC_OFFS_HEADER_SIZE	2
 #endif /* UNIV_DEBUG */
 
 /* Get the base address of offsets.  The extra_size is stored at
@@ -691,8 +693,40 @@ this position, and following positions hold the end offsets of
 the fields. */
 #define rec_offs_base(offsets) (offsets + REC_OFFS_HEADER_SIZE)
 
+/************************************************************** 
+The following function returns the number of allocated elements
+for an array of offsets. */
+UNIV_INLINE
+ulint
+rec_offs_get_n_alloc(
+/*=================*/
+				/* out: number of elements */
+	const ulint*	offsets)/* in: array for rec_get_offsets() */
+{
+	ulint	n_alloc;
+	ut_ad(offsets);
+	n_alloc = offsets[0];
+	ut_ad(n_alloc > 0);
+	return(n_alloc);
+}
+
+/************************************************************** 
+The following function sets the number of allocated elements
+for an array of offsets. */
+UNIV_INLINE
+void
+rec_offs_set_n_alloc(
+/*=================*/
+	ulint*	offsets,	/* in: array for rec_get_offsets() */
+	ulint	n_alloc)	/* in: number of elements */
+{
+	ut_ad(offsets);
+	ut_ad(n_alloc > 0);
+	offsets[0] = n_alloc;
+}
+
 /****************************************************************
-Validates offsets returned by rec_get_offsets() or rec_reget_offsets(). */
+Validates offsets returned by rec_get_offsets(). */
 UNIV_INLINE
 ibool
 rec_offs_validate(
@@ -705,16 +739,16 @@ rec_offs_validate(
 	ulint	i	= rec_offs_n_fields(offsets);
 	ulint	last	= ULINT_MAX;
 	ibool	comp	= (*rec_offs_base(offsets) & REC_OFFS_COMPACT) != 0;
-	ut_a(offsets);
+
 	if (rec) {
-		ut_ad((ulint) rec == offsets[1]);
+		ut_ad((ulint) rec == offsets[2]);
 		if (!comp) {
 			ut_a(rec_get_n_fields_old(rec) >= i);
 		}
 	}
 	if (index) {
 		ulint max_n_fields;
-		ut_ad((ulint) index == offsets[2]);
+		ut_ad((ulint) index == offsets[3]);
 		max_n_fields = ut_max(
 				dict_index_get_n_fields(index),
 				dict_index_get_n_unique_in_tree(index) + 1);
@@ -734,7 +768,9 @@ rec_offs_validate(
 				ut_error;
 			}
 		}
-		ut_a(i <= max_n_fields);
+		/* index->n_def == 0 for dummy indexes if !comp */
+		ut_a(!comp || index->n_def);
+		ut_a(!index->n_def || i <= max_n_fields);
 	}
 	while (i--) {
 		ulint	curr = rec_offs_base(offsets)[1 + i] & REC_OFFS_MASK;
@@ -750,17 +786,17 @@ UNIV_INLINE
 void
 rec_offs_make_valid(
 /*================*/
-	const rec_t*	rec __attribute__((unused)),
+	rec_t*		rec __attribute__((unused)),
 				/* in: record */
-	const dict_index_t* index __attribute__((unused)),
+	dict_index_t*	index __attribute__((unused)),
 				/* in: record descriptor */
 	ulint*		offsets __attribute__((unused)))
-				/* in: array returned by rec_get_offsets()
-				or rec_reget_offsets() */
+				/* in: array returned by rec_get_offsets() */
 {
 #ifdef UNIV_DEBUG
-	offsets[1] = (ulint) rec;
-	offsets[2] = (ulint) index;
+	ut_ad(rec_get_n_fields(rec, index) >= rec_offs_n_fields(offsets));
+	offsets[2] = (ulint) rec;
+	offsets[3] = (ulint) index;
 #endif /* UNIV_DEBUG */
 }
 
@@ -1146,10 +1182,29 @@ rec_offs_n_fields(
 {
 	ulint	n_fields;
 	ut_ad(offsets);
-	n_fields = offsets[0];
+	n_fields = offsets[1];
 	ut_ad(n_fields > 0);
 	ut_ad(n_fields <= REC_MAX_N_FIELDS);
+	ut_ad(n_fields + REC_OFFS_HEADER_SIZE
+		<= rec_offs_get_n_alloc(offsets));
 	return(n_fields);
+}
+
+/************************************************************** 
+The following function sets the number of fields in offsets. */
+UNIV_INLINE
+void
+rec_offs_set_n_fields(
+/*==================*/
+	ulint*	offsets,	/* in: array returned by rec_get_offsets() */
+	ulint	n_fields)	/* in: number of fields */
+{
+	ut_ad(offsets);
+	ut_ad(n_fields > 0);
+	ut_ad(n_fields <= REC_MAX_N_FIELDS);
+	ut_ad(n_fields + REC_OFFS_HEADER_SIZE
+		<= rec_offs_get_n_alloc(offsets));
+	offsets[1] = n_fields;
 }
 
 /**************************************************************
