@@ -1113,11 +1113,11 @@ create_select:
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
 	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
-	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
+	    lex->current_select->parsing_place= SELECT_LIST;
           }
           select_options select_item_list
 	  {
-	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	    Select->parsing_place= NO_MATTER;
 	  }
 	  opt_select_from
 	  { Lex->current_select->table_list.push_front(&Lex->save_list); }
@@ -2376,11 +2376,11 @@ select_part2:
 	  lex->lock_option= TL_READ;
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
-	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
+	  lex->current_select->parsing_place= SELECT_LIST;
 	}
 	select_options select_item_list
 	{
-	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	  Select->parsing_place= NO_MATTER;
 	}
 	select_into select_lock_type;
 
@@ -3444,11 +3444,11 @@ select_derived:
 	    YYABORT;
 	  mysql_init_select(lex);
 	  lex->current_select->linkage= DERIVED_TABLE_TYPE;
-	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
+	  lex->current_select->parsing_place= SELECT_LIST;
 	}
         select_options select_item_list
 	{
-	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	  Select->parsing_place= NO_MATTER;
 	}
 	opt_select_from union_opt
         ;
@@ -3578,13 +3578,13 @@ having_clause:
 	/* empty */
 	| HAVING
 	  {
-	    Select->parsing_place= SELECT_LEX_NODE::IN_HAVING;
+	    Select->parsing_place= IN_HAVING;
           }
 	  expr
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->having= $3;
-	    sel->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	    sel->parsing_place= NO_MATTER;
 	    if ($3)
 	      $3->top_level_item();
 	  }
@@ -4819,7 +4819,7 @@ simple_ident:
 	ident
 	{
 	  SELECT_LEX *sel=Select;
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
 	      (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
@@ -4835,7 +4835,7 @@ simple_ident:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $1.str, thd->where);
 	  }
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$1.str,$3.str) :
 	      (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
@@ -4851,7 +4851,7 @@ simple_ident:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $2.str, thd->where);
 	  }
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$2.str,$4.str) :
               (Item*) new Item_ref(0,0,NullS,$2.str,$4.str);
@@ -4867,7 +4867,7 @@ simple_ident:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $3.str, thd->where);
 	  }
-	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field((YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
