@@ -224,7 +224,8 @@ private:
   } m_threads;
   
   Uint32 m_max_trans_id;
-  
+  Uint32 m_fragmented_signal_id;
+
   /**
    * execute function
    */
