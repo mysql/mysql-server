@@ -35217,6 +35217,9 @@ In other words, you can't access the values of the old row from a
 @code{REPLACE} statement.  In some old MySQL versions it appeared that
 you could do this, but that was a bug that has been corrected.
 
+To be able to use @code{REPLACE} you must have @code{INSERT} and
+@code{DELETE} privileges for the table.
+
 When you use a @code{REPLACE} command, @code{mysql_affected_rows()}
 will return 2 if the new row replaced an old row.  This is because
 one row was inserted and then the duplicate was deleted.
@@ -50237,6 +50240,8 @@ each individual 4.0.x release.
 @item
 Give error if one has more than 2 ^ 32 rows in a MyISAM MERGE file and one
 has not compiled MySQL with @code{-DBIG_TABLES}.
+@item
+Don't require @code{UPDATE} privilege when using @code{REPLACE}.
 @end itemize
 
 @node News-4.0.4, News-4.0.3, News-4.0.5, News-4.0.x
