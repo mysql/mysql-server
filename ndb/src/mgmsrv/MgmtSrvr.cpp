@@ -179,7 +179,6 @@ MgmtSrvr::logLevelThreadRun()
       
       LogLevel tmp;
       tmp = req;
-      ndbout << "req3: " << tmp << endl;
       
       if(req.blockRef == 0){
 	req.blockRef = _ownReference;
