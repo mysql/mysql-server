@@ -208,7 +208,7 @@ public:
   {
     return field->result_type();
   }
-  enum_field_types field_type()
+  enum_field_types field_type() const
   {
     return field->type();
   }

@@ -47,6 +47,11 @@ select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 Wrong usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 Incorrect parameters to procedure 'ANALYSE'
+SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
+a
+SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
+a
+1
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
