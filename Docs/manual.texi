@@ -36592,36 +36592,37 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
-Added @code{BACKUP TABLE/RESTORE TABLE}
+Added @code{BACKUP TABLE/RESTORE TABLE}.
 @item
 Fixed coredump on @code{CHANGE MASTER TO} when the slave did not have
-the master to start with
+the master to start with.
 @item
 Fixed incorrect @code{Time} in the processlist for @code{Connect} of
-the slave thread
+the slave thread.
 @item
-The slave now logs when it connects to the master
+The slave now logs when it connects to the master.
 @item
 Fixed a core dump bug when doing @code{FLUSH MASTER} when one didn't give
-a filename argument to @code{--log-bin}
+a filename argument to @code{--log-bin}.
 @item
-Added missing ha_berkeley.x files to the MySQL windows source distribution.
+Added missing @file{ha_berkeley.x} files to the @strong{MySQL} windows
+source distribution.
 @item
 Fixed some mutex bugs in the log code that could cause thread blocks if new
 log files couldn't be created.
 @item
 Added lock time and number of selected processed rows to slow query log.
 @item
-Added @code{--memlock} option to mysqld to lock mysqld in memory on
-systems with the @code{mlockall()} call (like in Solaris).
+Added @code{--memlock} option to @code{mysqld} to lock @code{mysqld}
+in memory on systems with the @code{mlockall()} call (like in Solaris).
 @item
 @code{HEAP} tables didn't use keys properly. (Bug from 3.23.23)
 @item
 Added better support for @code{MERGE} tables (keys, mapping, creation,
 documentation...). @xref{MERGE}.
 @item
-Fixed bug in mysqldump from 3.23 which caused that some @code{CHAR} columns
-wheren't quoted.
+Fixed bug in @code{mysqldump} from 3.23 which caused some @code{CHAR} columns
+not to be quoted.
 @item
 Merged @code{analyze}, @code{check}, @code{optimize} and repair code.
 @item
@@ -36635,12 +36636,13 @@ Added a lot of new statistics variables.
 @item
 Fixed @code{ORDER BY} bug with BDB tables.
 @item
-Removed warning that mysqld couldn't remove the .pid file under Windows.
+Removed warning that @code{mysqld} couldn't remove the @file{.pid} file
+under Windows.
 @item
 Changed @code{--log-isam} to log @strong{MyISAM} tables instead of isam
 tables.
 @item
-Fixed that @code{CHECK TABLE} works on windows.
+Fixed that @code{CHECK TABLE} works on Windows.
 @item
 Added file mutexes to make @code{pwrite()} safe on Windows.
 @end itemize
