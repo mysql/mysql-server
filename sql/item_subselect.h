@@ -47,7 +47,7 @@ protected:
   /* old engine if engine was changed */
   subselect_engine *old_engine;
   /* cache of used external tables */
-  table_map used_tables_cache; 
+  table_map used_tables_cache;
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* work with 'substitution' */
@@ -69,17 +69,17 @@ public:
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
-  /* 
+  /*
      We need this method, because some compilers do not allow 'this'
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  virtual void init (st_select_lex *select_lex, 
+  virtual void init (st_select_lex *select_lex,
 		     select_subselect *result);
 
   ~Item_subselect();
   void cleanup();
-  virtual void reset() 
+  virtual void reset()
   {
     null_value= 1;
   }
@@ -275,7 +275,7 @@ public:
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
   virtual void cleanup()= 0;
-  
+
   // set_thd should be called before prepare()
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   THD * get_thd() { return thd; }
