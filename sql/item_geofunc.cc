@@ -24,7 +24,6 @@
 #include "mysql_priv.h"
 
 #ifdef HAVE_SPATIAL
-#include "sql_acl.h"
 #include <m_ctype.h>
 
 void Item_geometry_func::fix_length_and_dec()

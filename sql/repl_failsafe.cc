@@ -20,7 +20,6 @@
 #include "repl_failsafe.h"
 #include "sql_repl.h"
 #include "slave.h"
-#include "sql_acl.h"
 #include "log_event.h"
 #include <mysql.h>
 
