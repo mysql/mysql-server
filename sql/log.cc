@@ -1116,50 +1116,38 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	  goto err;
       }
 
-      /* If the user has set FOREIGN_KEY_CHECKS=0 we wrap every SQL
-      command in the binlog inside:
-      SET FOREIGN_KEY_CHECKS=0;
-      <command>;
-      SET FOREIGN_KEY_CHECKS=1; */
+      /*
+	If the user has set FOREIGN_KEY_CHECKS=0 we wrap every SQL
+	command in the binlog inside:
+	SET FOREIGN_KEY_CHECKS=0;
+	<command>;
+	SET FOREIGN_KEY_CHECKS=1;
+      */
 
       if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       {
-	char buf[256], *p;
-	p= strmov(buf, "SET FOREIGN_KEY_CHECKS=0");
-	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+	Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=0", 24, 0);
 	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
       }
     }
 
-    /*
-    2. Write the SQL command
-    */
+    /* Write the SQL command */
 
     event_info->set_log_pos(this);
-    if (event_info->write(file) ||
-	  file == &log_file && flush_io_cache(file))
+    if (event_info->write(file))
       goto err;
 
-    /*
-    3. Write log events to reset the 'run environment' of the SQL command 
-    */
+    /* Write log events to reset the 'run environment' of the SQL command */
 
     if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
     {
-      char buf[256], *p;
-
-      p= strmov(buf, "SET FOREIGN_KEY_CHECKS=1");
-      Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+      Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
       e.set_log_pos(this);
-
-      if (e.write(file) ||
-	  file == &log_file && flush_io_cache(file))
+      if (e.write(file))
 	goto err;
     }
- 
-    error=0;
 
     /*
       Tell for transactional table handlers up to which position in the
@@ -1180,6 +1168,9 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
+      if (flush_io_cache(file))
+	goto err;
+ 
       if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
       {
         /*
@@ -1189,8 +1180,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
           handler if the log event type is appropriate.
         */
         
-        if (event_info->get_type_code() == QUERY_EVENT
-            || event_info->get_type_code() == EXEC_LOAD_EVENT)
+        if (event_info->get_type_code() == QUERY_EVENT ||
+            event_info->get_type_code() == EXEC_LOAD_EVENT)
         {
           error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                      file->pos_in_file);
@@ -1200,6 +1191,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       /* we wrote to the real log, check automatic rotation */
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
+    error=0;
 
 err:
     if (error)
@@ -1222,13 +1214,14 @@ err:
 
   pthread_mutex_unlock(&LOCK_log);
 
-  /* Flush the transactional handler log file now that we have released
-  LOCK_log; the flush is placed here to eliminate the bottleneck on the
-  group commit */  
+  /*
+    Flush the transactional handler log file now that we have released
+    LOCK_log; the flush is placed here to eliminate the bottleneck on the
+    group commit
+  */
 
-  if (called_handler_commit) {
+  if (called_handler_commit)
     ha_commit_complete(thd);
-  }
 
   DBUG_RETURN(error);
 }

@@ -1,6 +1,8 @@
-#see if queries that use both
-#auto_increment and LAST_INSERT_ID()
-#are replicated well
+# See if queries that use both auto_increment and LAST_INSERT_ID()
+# are replicated well
+
+# We also check how the foreign_key_check variable is replicated
+
 source include/master-slave.inc;
 connection master;
 drop table if exists t1;
@@ -22,10 +24,12 @@ drop table t1;
 drop table t2;
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
+SET FOREIGN_KEY_CHECKS=0;
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
+SET FOREIGN_KEY_CHECKS=1;
 save_master_pos;
 connection slave;
 sync_with_master;
