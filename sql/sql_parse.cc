@@ -2697,6 +2697,7 @@ static bool check_merge_table_access(THD *thd, char *db,
 #define used_stack(A,B) (long) (B - A)
 #endif
 
+#ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
 {
   long stack_used;
@@ -2710,6 +2711,7 @@ bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
   }
   return 0;
 }
+#endif /* EMBEDDED_LIBRARY */
 
 #define MY_YACC_INIT 1000			// Start with big alloc
 #define MY_YACC_MAX  32000			// Because of 'short'

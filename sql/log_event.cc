@@ -1949,6 +1949,10 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   IMPLEMENTATION
     - To handle the case where the master died without a stop event,
       we clean up all temporary tables + locks that we got.
+      However, we don't clean temporary tables if the master was 3.23
+      (this is because a 3.23 master writes a Start_log_event at every
+      binlog rotation; if we were not careful we would remove temp tables
+      on the slave when FLUSH LOGS is issued on the master). 
 
   TODO
     - Remove all active user locks
@@ -1959,13 +1963,18 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  /* All temporary tables was deleted on the master */
-  close_temporary_tables(thd);
-  /*
-    If we have old format, load_tmpdir is cleaned up by the I/O thread
-  */
   if (!rli->mi->old_format)
+  {
+    /* 
+       If 4.0 master, all temporary tables have been deleted on the master; 
+       if 3.23 master, this is far from sure.
+    */
+    close_temporary_tables(thd);
+    /*
+      If we have old format, load_tmpdir is cleaned up by the I/O thread
+    */
     cleanup_load_tmpdir();
+  }
   return Log_event::exec_event(rli);
 }
 
@@ -1980,7 +1989,14 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
 
 int Stop_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  // do not clean up immediately after rotate event
+  /*
+    do not clean up immediately after rotate event;
+    QQ: this should be a useless test: the only case when it is false is when
+    shutdown occured just after FLUSH LOGS. It has nothing to do with Rotate?
+    By the way, immediately after a Rotate
+    the I/O thread does not write the Stop to the relay log,
+    so we won't come here in that case.
+  */
   if (rli->master_log_pos > BIN_LOG_HEADER_SIZE) 
   {
     close_temporary_tables(thd);
