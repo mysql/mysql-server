@@ -294,3 +294,14 @@ select
 ;
 show create table t1;
 drop table t1;
+
+#
+# test for SUBSTR
+#
+select SUBSTR('abcdefg',3,2);
+select SUBSTRING('abcdefg',3,2);
+select SUBSTR('abcdefg',-3,2) FROM DUAL;
+select SUBSTR('abcdefg',-1,5) FROM DUAL;
+select SUBSTR('abcdefg',0,0) FROM DUAL;
+select SUBSTR('abcdefg',-1,-1) FROM DUAL;
+select SUBSTR('abcdefg',1,-1) FROM DUAL;
