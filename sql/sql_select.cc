@@ -1881,52 +1881,55 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 ** Find how much space the prevous read not const tables takes in cache
 */
 
+static void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
+{
+  uint null_fields,blobs,fields,rec_length;
+  null_fields=blobs=fields=rec_length=0;
+
+  Field **f_ptr,*field;
+  for (f_ptr=join_tab->table->field ; (field= *f_ptr) ; f_ptr++)
+  {
+    if (field->query_id == thd->query_id)
+    {
+      uint flags=field->flags;
+      fields++;
+      rec_length+=field->pack_length();
+      if (flags & BLOB_FLAG)
+	blobs++;
+      if (!(flags & NOT_NULL_FLAG))
+	null_fields++;
+    }
+  }
+  if (null_fields)
+    rec_length+=(join_tab->table->null_fields+7)/8;
+  if (join_tab->table->maybe_null)
+    rec_length+=sizeof(my_bool);
+  if (blobs)
+  {
+    uint blob_length=(uint) (join_tab->table->file->mean_rec_length-
+			     (join_tab->table->reclength- rec_length));
+    rec_length+=(uint) max(4,blob_length);
+  }
+  join_tab->used_fields=fields;
+  join_tab->used_fieldlength=rec_length;
+  join_tab->used_blobs=blobs;
+}
+
+
 static uint
 cache_record_length(JOIN *join,uint idx)
 {
-  uint length;
+  uint length=0;
   JOIN_TAB **pos,**end;
   THD *thd=join->thd;
 
-  length=0;
   for (pos=join->best_ref+join->const_tables,end=join->best_ref+idx ;
        pos != end ;
        pos++)
   {
     JOIN_TAB *join_tab= *pos;
-    if (!join_tab->used_fieldlength)
-    {					/* Not calced yet */
-      uint null_fields,blobs,fields,rec_length;
-      null_fields=blobs=fields=rec_length=0;
-
-      Field **f_ptr,*field;
-      for (f_ptr=join_tab->table->field ; (field= *f_ptr) ; f_ptr++)
-      {
-	if (field->query_id == thd->query_id)
-	{
-	  uint flags=field->flags;
-	  fields++;
-	  rec_length+=field->pack_length();
-	  if (flags & BLOB_FLAG)
-	    blobs++;
-	  if (!(flags & NOT_NULL_FLAG))
-	    null_fields++;
-	}
-      }
-      if (null_fields)
-	rec_length+=(join_tab->table->null_fields+7)/8;
-      if (join_tab->table->maybe_null)
-	rec_length+=sizeof(my_bool);
-      if (blobs)
-      {
-	uint blob_length=(uint) (join_tab->table->file->mean_rec_length-
-				 (join_tab->table->reclength- rec_length));
-	rec_length+=(uint) max(4,blob_length);
-      }
-      join_tab->used_fields=fields;
-      join_tab->used_fieldlength=rec_length;
-      join_tab->used_blobs=blobs;
-    }
+    if (!join_tab->used_fieldlength)		/* Not calced yet */
+      calc_used_field_length(thd, join_tab);
     length+=join_tab->used_fieldlength;
   }
   return length;
@@ -2248,6 +2251,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
+	  tab->ref.key == tab->quick->index &&
 	  tab->ref.key_length < tab->quick->max_used_key_length)
       {
 	/* Range uses longer key;  Use this instead of ref on key */
@@ -5631,15 +5635,19 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
   uint length,blobs,size;
   CACHE_FIELD *copy,**blob_ptr;
   JOIN_CACHE  *cache;
+  JOIN_TAB *join_tab;
   DBUG_ENTER("join_init_cache");
 
   cache= &tables[table_count].cache;
   cache->fields=blobs=0;
 
-  for (i=0 ; i < table_count ; i++)
+  join_tab=tables;
+  for (i=0 ; i < table_count ; i++,join_tab++)
   {
-    cache->fields+=tables[i].used_fields;
-    blobs+=tables[i].used_blobs;
+    if (!join_tab->used_fieldlength)		/* Not calced yet */
+      calc_used_field_length(thd, join_tab);
+    cache->fields+=join_tab->used_fields;
+    blobs+=join_tab->used_blobs;
   }
   if (!(cache->field=(CACHE_FIELD*)
 	sql_alloc(sizeof(CACHE_FIELD)*(cache->fields+table_count*2)+(blobs+1)*
