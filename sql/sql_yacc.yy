@@ -178,6 +178,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	INDEX
 %token	INFILE
 %token	INNER_SYM
+%token	INNOBASE_SYM
 %token	INTO
 %token	IN_SYM
 %token	ISAM_SYM
@@ -744,6 +745,7 @@ table_types:
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
+	| INNOBASE_SYM   { $$= DB_TYPE_INNOBASE; }
 
 row_types:
 	DEFAULT		{ $$= ROW_TYPE_DEFAULT; }
@@ -2432,6 +2434,7 @@ keyword:
 	| AVG_SYM		{}
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
+	| BERKELEY_DB_SYM	{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| CHANGED		{}
@@ -2463,6 +2466,7 @@ keyword:
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
 	| ISAM_SYM		{}
+	| INNOBASE_SYM		{}
 	| LOCAL_SYM		{}
 	| LOGS_SYM		{}
 	| MAX_ROWS		{}
