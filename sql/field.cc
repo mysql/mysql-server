@@ -479,21 +479,16 @@ void Field_decimal::store(const char *from,uint len)
     else
       expo_sign_char= '+';
     /*
-     Read digits of the exponent and compute its value.
-     We must care about 'exponent' overflow, because as
-     unsigned arithmetic is "modulo", big exponents
-     will become small (e.g.
-     1e4294967296 will become 1e0, and the field
-     will finally contain 1 instead of its max possible value).
+      Read digits of the exponent and compute its value.  We must care about
+      'exponent' overflow, because as unsigned arithmetic is "modulo", big 
+      exponents will become small (e.g. 1e4294967296 will become 1e0, and the 
+      field will finally contain 1 instead of its max possible value).
     */
     for (;from!=end && isdigit(*from); from++)
     {
       exponent=10*exponent+(*from-'0');
       if (exponent>MAX_EXPONENT)
-      {
-        exponent=MAX_EXPONENT;
         break;
-      }
     }
   }
   
@@ -538,8 +533,8 @@ void Field_decimal::store(const char *from,uint len)
   /* 
      Below tmp_uint cannot overflow with small enough MAX_EXPONENT setting,
      as int_digits_added_zeros<=exponent<4G and 
-     (ulonglong)(int_digits_end-int_digits_from)<=max_allowed_packet<=2G and
-     (ulonglong)(frac_digits_from-int_digits_tail_from)<=max_allowed_packet<=2G
+     (int_digits_end-int_digits_from)<=max_allowed_packet<=2G and
+     (frac_digits_from-int_digits_tail_from)<=max_allowed_packet<=2G
   */
 
   if (!expo_sign_char)
@@ -577,9 +572,9 @@ void Field_decimal::store(const char *from,uint len)
 	int_digits_added_zeros=0;
       }
     }
-    tmp_uint=tmp_dec+(int_digits_end-int_digits_from)
-                 +(uint)(frac_digits_from-int_digits_tail_from)+
-                 int_digits_added_zeros;
+    tmp_uint= (tmp_dec+(int_digits_end-int_digits_from)+
+               (uint)(frac_digits_from-int_digits_tail_from)+
+               int_digits_added_zeros);
   }
   
   /*
@@ -590,8 +585,7 @@ void Field_decimal::store(const char *from,uint len)
     If the sign is defined and '-', we need one position for it
   */
 
-  if (field_length < tmp_uint + (sign_char == '-')) 
-  //the rightmost sum above cannot overflow
+  if (field_length < tmp_uint + (int) (sign_char == '-')) 
   {
     // too big number, change to max or min number
     Field_decimal::overflow(sign_char == '-');
@@ -654,69 +648,68 @@ void Field_decimal::store(const char *from,uint len)
       *pos--=' ';  //fill with blanks
   }
   
-  //  if (tmp_dec)
-  { 
-    /*
-      Write digits of the frac_% parts ;
-      Depending on current_thd->count_cutted_fields, we may also want
-      to know if some non-zero tail of these parts will
-      be truncated (for example, 0.002->0.00 will generate a warning,
-      while 0.000->0.00 will not)
-      (and 0E1000000000 will not, while 1E-1000000000 will)
-    */
+  /*
+    Write digits of the frac_% parts ;
+    Depending on current_thd->count_cutted_fields, we may also want
+    to know if some non-zero tail of these parts will
+    be truncated (for example, 0.002->0.00 will generate a warning,
+    while 0.000->0.00 will not)
+    (and 0E1000000000 will not, while 1E-1000000000 will)
+  */
       
-    pos=to+(uint)(field_length-tmp_dec);	// Calculate post to '.'
-    right_wall=to+field_length;
-    if (pos != right_wall) *pos++='.';
+  pos=to+(uint)(field_length-tmp_dec);	// Calculate post to '.'
+  right_wall=to+field_length;
+  if (pos != right_wall) 
+    *pos++='.';
 
-    if (expo_sign_char == '-')
+  if (expo_sign_char == '-')
+  {
+    while (frac_digits_added_zeros-- > 0)
     {
-      while (frac_digits_added_zeros-- > 0)
+      if (pos == right_wall) 
       {
-	if (pos == right_wall) 
-	{
-	  if (current_thd->count_cuted_fields && !is_cuted_fields_incr) 
-	    break; // Go on below to see if we lose non zero digits
-	  return;
-	}
-	*pos++='0';
+        if (current_thd->count_cuted_fields && !is_cuted_fields_incr) 
+          break; // Go on below to see if we lose non zero digits
+        return;
       }
-      while (int_digits_end != frac_digits_head_end)
-      {
-	tmp_char= *int_digits_end++;
-	if (pos == right_wall)
-	{
-	  if (tmp_char != '0')			// Losing a non zero digit ?
-	  {
-	    if (!is_cuted_fields_incr)
-	      current_thd->cuted_fields++;
-	    return;
-	  }
-	  continue;
-	}
-	*pos++= tmp_char;
-      }
+      *pos++='0';
     }
-
-    for (;frac_digits_from!=frac_digits_end;) 
+    while (int_digits_end != frac_digits_head_end)
     {
-      tmp_char= *frac_digits_from++;
+      tmp_char= *int_digits_end++;
       if (pos == right_wall)
       {
-	if (tmp_char != '0')			// Losing a non zero digit ?
-	{
-	  if (!is_cuted_fields_incr)
-	    current_thd->cuted_fields++;
-	  return;
-	}
-	continue;
+        if (tmp_char != '0')			// Losing a non zero digit ?
+        {
+          if (!is_cuted_fields_incr)
+            current_thd->cuted_fields++;
+          return;
+        }
+        continue;
       }
       *pos++= tmp_char;
     }
-      
-    while (pos != right_wall)
-      *pos++='0';			// Fill with zeros at right of '.'
   }
+
+  for (;frac_digits_from!=frac_digits_end;) 
+  {
+    tmp_char= *frac_digits_from++;
+    if (pos == right_wall)
+    {
+      if (tmp_char != '0')			// Losing a non zero digit ?
+      {
+        if (!is_cuted_fields_incr)
+	  current_thd->cuted_fields++;
+        return;
+      }
+      continue;
+    }
+    *pos++= tmp_char;
+  }
+      
+  while (pos != right_wall)
+   *pos++='0';			// Fill with zeros at right of '.'
+  
 }
 
 
