@@ -142,7 +142,7 @@ $test_dir=<$pwd/$host/test/$ver-*>;
 
 if ($opt_stage <= 5 && !$opt_no_test)
 {
-  safe_cd($test_dir/mysql-test);
+  safe_cd("$test_dir/mysql-test");
   check_system("./mysql-test-run", "tests were successful");
 }
 
