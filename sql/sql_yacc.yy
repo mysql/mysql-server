@@ -1459,7 +1459,7 @@ alter_list_item:
 	    lex->simple_alter=0;
 	  }
 	| RENAME opt_to table_ident
-	  { 
+	  {
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
@@ -3045,7 +3045,7 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE KEY_SYM UPDATE_SYM SET update_list
+        | ON DUPLICATE
           { /* for simplisity, let's forget about
                INSERT ... SELECT ... UPDATE
                for a moment */
@@ -3055,6 +3055,7 @@ opt_insert_update:
               YYABORT;
             }
           }
+          KEY_SYM UPDATE_SYM SET update_list
         ;
 
 /* Update rows in a table */
