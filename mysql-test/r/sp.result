@@ -75,6 +75,20 @@ id	data
 locset	21
 delete from t1|
 drop procedure locset|
+create procedure setcontext()
+begin
+declare data int default 2;
+insert into t1 (id, data) values ("foo", 1);
+replace t1 set data = data, id = "bar";
+update t1 set id = "kaka", data = 3 where t1.data = data;
+end|
+call setcontext()|
+select * from t1|
+id	data
+foo	1
+kaka	3
+delete from t1|
+drop procedure setcontext|
 drop table if exists t3|
 create table t3 ( d date, i int, f double, s varchar(32) )|
 create procedure nullset()
