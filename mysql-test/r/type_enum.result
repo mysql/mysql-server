@@ -1725,3 +1725,15 @@ a
 ö
 ü
 drop table t1;
+create table t1 (a enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin);
+insert into t1 values ('Y');
+alter table t1 add b set ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+alter table t1 add c enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+select * from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	a	a	254	3	1	Y	384	0	8
+def	test	t1	t1	b	b	254	9	0	Y	2176	0	8
+def	test	t1	t1	c	c	254	3	0	Y	384	0	8
+a	b	c
+Y	NULL	NULL
+drop table t1;

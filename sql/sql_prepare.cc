@@ -427,8 +427,17 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
 #else/*!EMBEDDED_LIBRARY*/
 void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
-  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
-  param->set_time(to, MYSQL_TIMESTAMP_TIME,
+  MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
+  tm.hour+= tm.day * 24;
+  tm.day= tm.year= tm.month= 0;
+  if (tm.hour > 838)
+  {
+    /* TODO: add warning 'Data truncated' here */
+    tm.hour= 838;
+    tm.minute= 59;
+    tm.second= 59;
+  }
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 
 }
