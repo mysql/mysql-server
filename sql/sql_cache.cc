@@ -2395,7 +2395,6 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
   DBUG_ENTER("Query_cache::is_cacheable");
 
   if (lex->sql_command == SQLCOM_SELECT &&
-      thd->temporary_tables == 0 &&
       (thd->variables.query_cache_type == 1 ||
        (thd->variables.query_cache_type == 2 && (lex->select->options &
 						 OPTION_TO_QUERY_CACHE))) &&
@@ -2416,9 +2415,11 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
       has_transactions = (has_transactions ||
 			  tables_used->table->file->has_transactions());
 
-      if (tables_used->table->db_type == DB_TYPE_MRG_ISAM)
+      if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
+	  tables_used->table->tmp_table != NO_TMP_TABLE)
       {
-	DBUG_PRINT("qcache", ("select not cacheable: used MRG_ISAM table(s)"));
+	DBUG_PRINT("qcache", 
+		   ("select not cacheable: used MRG_ISAM or temporary table(s)"));
 	DBUG_RETURN(0);
       }
       if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
