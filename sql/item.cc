@@ -1296,6 +1296,14 @@ bool Item::send(Protocol *protocol, String *buffer)
       result= protocol->store_longlong(nr, unsigned_flag);
     break;
   }
+  case MYSQL_TYPE_FLOAT:
+  {
+    float nr;
+    nr= val();
+    if (!null_value)
+      result= protocol->store(nr, decimals, buffer);
+    break;
+  }
   case MYSQL_TYPE_DOUBLE:
   {
     double nr;
