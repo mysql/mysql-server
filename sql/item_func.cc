@@ -2164,10 +2164,7 @@ bool Item_func_match::eq(const Item *item) const
 double Item_func_match::val()
 {
   if (ft_handler==NULL)
-    init_search(1);
-
-  if ((null_value= (ft_handler==NULL)))
-    return 0.0;
+    return -1.0;
 
   if (join_key)
   {

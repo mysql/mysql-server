@@ -121,7 +121,7 @@ sub new
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'vacuum'}		= 1; # When using with --fast
   $self->{'drop_attr'}		= "";
-  $self->{'transactions'}	= 1; # Transactions enabled
+  $self->{'transactions'}	= 0; # Transactions disabled by default
 
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'alter_add_multi_col'}= 1; #Have ALTER TABLE t add a int,add b int;
@@ -197,12 +197,14 @@ sub new
       $main::opt_create_options =~ /type=innodb/i)
   {
     $limits{'max_text_size'}	= 8000; # Limit in Innobase
+    $self->{'transactions'}	= 1;	# Transactions enabled
   }
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /type=gemini/i)
   {
     $limits{'working_blobs'}	= 0; # Blobs not implemented yet
     $limits{'max_tables'}	= 500;
+    $self->{'transactions'}	= 1;	# Transactions enabled
   }
 
   return $self;
@@ -1333,6 +1335,14 @@ sub query {
   return $sql;
 }
 
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  $cmd =~ s/\'\'/\' \'/g;
+  return $cmd;
+}
+
+
 sub drop_index
 {
   my ($self,$table,$index) = @_;
@@ -1555,6 +1565,14 @@ sub query {
   my($self,$sql) = @_;
   return $sql;
 }
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  $cmd =~ s/\'\'/\' \'/g;
+  return $cmd;
+}
+
 
 sub drop_index
 {
@@ -1788,6 +1806,16 @@ sub query {
   my($self,$sql) = @_;
   return $sql;
 }
+
+
+sub fix_for_insert
+{
+  my ($self,$cmd) = @_;
+  $cmd =~ s/\\'//g;
+  return $cmd;
+}
+
+
 
 sub drop_index
 {

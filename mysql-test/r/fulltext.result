@@ -56,6 +56,13 @@ Only MyISAM tables	support collections	2
 Function MATCH ... AGAINST()	is used to do a search	0
 Full-text search in MySQL	implements vector space model	0
 delete from t1 where a like "MySQL%";
+update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
+delete from t1 where MATCH(a,b) AGAINST ("indexes");
+select * from t1;
+a	b
+Only MyISAM tables	support collections
+Function MATCH ... AGAINST()	is used to do a search
+some test foobar	implements vector space model
 drop table t1;
 CREATE TABLE t1 (
 id int(11),

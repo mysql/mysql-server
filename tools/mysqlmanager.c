@@ -330,7 +330,7 @@ LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 void log_debug(const char* __attribute__((unused)) fmt,...) {}
 #endif
 
-static void handle_sigterm(int sig)
+static void handle_sigterm(int sig __attribute__((unused)))
 {
   log_info("Got SIGTERM"); 
   if (!one_thread)

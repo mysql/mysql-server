@@ -125,8 +125,7 @@ if (!$opt_skip_create)
 	chomp;
 	next unless ( $_ =~ /\w/ );	# skip blank lines
 	my $command = $insert_start . $_ . ")";
-        $command =~ s/\'\'/\' \'/g if ($opt_server =~ /empress/i || $opt_server =~ /oracle/i);
-        $command =~ s/\\'//g if ($opt_server =~ /informix/i);
+        $command = $server->fix_for_insert($command);
 	print "$command\n" if ($opt_debug);
         $command =~ s/\\'/\'\'/g if ($double_quotes);
 
