@@ -24,7 +24,8 @@ EXTRA_DIST =		mysql.spec.sh \
 			my-huge.cnf.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
-			binary-configure.sh
+			binary-configure.sh \
+			magic
 
 pkgdata_DATA =		my-small.cnf \
 			my-medium.cnf \

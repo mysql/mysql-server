@@ -1872,9 +1872,6 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
   struct sockaddr_in cAddr;
   int ip_flags=0,socket_flags=0,flags;
   Vio *vio_tmp;
-#ifdef __WIN__
-  my_thread_init();
-#endif
   DBUG_ENTER("handle_connections_sockets");
 
   LINT_INIT(new_sock);
