@@ -173,11 +173,7 @@ static void get_options(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   free_defaults(argv);
   if (tty_password)

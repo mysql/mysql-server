@@ -48,12 +48,10 @@ ulong relay_log_space_limit = 0; /* TODO: fix variables to access ulonglong
 // can re-use them on slave start
 
 // TODO: move the vars below under MASTER_INFO
-#ifndef DBUG_OFF
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 static int events_till_disconnect = -1;
 int events_till_abort = -1;
 static int stuck_count = 0;
-#endif
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 

@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.22"
+#define MTEST_VERSION "1.23"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -1957,11 +1957,7 @@ int parse_args(int argc, char **argv)
   default_argv= argv;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (argc > 1)
   {

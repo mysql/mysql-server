@@ -184,14 +184,14 @@ WWW (@uref{http://darkstar.ist.utl.pt/mysql/})
 FTP (@uref{ftp://darkstar.ist.utl.pt/pub/mysql/})
 
 @item
-@image{Flags/portugal} Portugal [Netc] @@
-WWW (@uref{http://ftp.netc.pt/pub/mysql/})
-FTP (@uref{ftp://ftp.netc.pt/pub/mysql/})
-
-@item
 @image{Flags/portugal} Portugal [Netvisão] @@
 WWW (@uref{http://mysql.netvisao.pt/})
 FTP (@uref{ftp://mirrors2.netvisao.pt/pub/mysql/})
+
+@item
+@image{Flags/portugal} Portugal [VIZZAVI] @@
+WWW (@uref{http://ftp.vizzavi.pt/pub/mysql/})
+FTP (@uref{ftp://ftp.vizzavi.pt/pub/mysql/})
 
 @item
 @image{Flags/romania} Romania [roedu.net/Bucharest] @@
@@ -431,4 +431,5 @@ WWW (@uref{http://www.mysql.mweb.co.za/})
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
+
 
