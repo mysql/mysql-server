@@ -448,7 +448,6 @@ typedef struct st_lex
   TYPELIB	      *interval;
   create_field	      *last_field;
   Item *default_value, *comment;
-  CONVERT *convert_set;
   CHARSET_INFO *thd_charset;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;

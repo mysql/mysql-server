@@ -156,17 +156,17 @@ show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
 set GLOBAL character set cp1251_koi8;
-show global variables like "convert_character_set";
+show global variables like "client_collation";
 Variable_name	Value
-convert_character_set	cp1251_koi8
+client_collation	cp1251
 set character set cp1251_koi8;
-show variables like "convert_character_set";
+show variables like "client_collation";
 Variable_name	Value
-convert_character_set	cp1251_koi8
+client_collation	cp1251
 set global character set default, session character set default;
-show variables like "convert_character_set";
+show variables like "client_collation";
 Variable_name	Value
-convert_character_set	cp1251_koi8
+client_collation	latin1
 select @@timestamp>0;
 @@timestamp>0
 1
@@ -193,12 +193,12 @@ set SESSION query_cache_size=10000;
 Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set GLOBAL table_type=DEFAULT;
 Variable 'table_type' doesn't have a default value
-set convert_character_set=UNKNOWN_CHARACTER_SET;
+set client_collation=UNKNOWN_CHARACTER_SET;
 Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set character set unknown;
 Unknown character set: 'unknown'
 set character set 0;
-Wrong argument type to variable 'convert_character_set'
+Wrong argument type to variable 'client_collation'
 set global autocommit=1;
 Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.timestamp;
@@ -218,8 +218,8 @@ select @@autocommit, @@big_tables;
 1	1
 set global binlog_cache_size=100;
 set bulk_insert_buffer_size=100;
-set convert_character_set=cp1251_koi8;
-set convert_character_set=default;
+set character set cp1251_koi8;
+set character set default;
 set @@global.concurrent_insert=1;
 set global connect_timeout=100;
 select @@delay_key_write;
