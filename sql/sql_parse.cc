@@ -47,6 +47,7 @@
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+static void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 #endif
@@ -442,6 +443,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     error=1;
     goto end;
   }
+  time_out_user_resource_limits(thd, uc);
   if (uc->user_resources.connections &&
       uc->user_resources.connections <= uc->conn_per_hour)
   {
@@ -543,36 +545,56 @@ bool is_update_query(enum enum_sql_command command)
 }
 
 /*
-  Check if maximum queries per hour limit has been reached
-  returns 0 if OK.
+  Reset per-hour user resource limits when it has been more than
+  an hour since they were last checked
 
-  In theory we would need a mutex in the USER_CONN structure for this to
-  be 100 % safe, but as the worst scenario is that we would miss counting
-  a couple of queries, this isn't critical.
+  SYNOPSIS:
+    time_out_user_resource_limits()
+    thd			Thread handler
+    uc			User connection details
+
+  NOTE:
+    This assumes that the LOCK_user_conn mutex has been acquired, so it is
+    safe to test and modify members of the USER_CONN structure.
 */
 
+static void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
+{
+  bool error= 0;
+  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
+  DBUG_ENTER("time_out_user_resource_limits");
+
+  /* If more than a hour since last check, reset resource checking */
+  if (check_time  - uc->intime >= 3600)
+  {
+    uc->questions=1;
+    uc->updates=0;
+    uc->conn_per_hour=0;
+    uc->intime=check_time;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check if maximum queries per hour limit has been reached
+  returns 0 if OK.
+*/
 
 static bool check_mqh(THD *thd, uint check_command)
 {
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return(0);
-#else
-  bool error=0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  bool error= 0;
   time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
-  /* If more than a hour since last check, reset resource checking */
-  if (check_time  - uc->intime >= 3600)
-  {
-    (void) pthread_mutex_lock(&LOCK_user_conn);
-    uc->questions=1;
-    uc->updates=0;
-    uc->conn_per_hour=0;
-    uc->intime=check_time;
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
-  }
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
+  time_out_user_resource_limits(thd, uc);
+
   /* Check that we have not done too many questions / hour */
   if (uc->user_resources.questions &&
       uc->questions++ >= uc->user_resources.questions)
@@ -595,7 +617,10 @@ static bool check_mqh(THD *thd, uint check_command)
     }
   }
 end:
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
+#else
+  return (0);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
