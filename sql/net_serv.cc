@@ -330,7 +330,8 @@ net_real_write(NET *net,const char *packet,ulong len)
   DBUG_ENTER("net_real_write");
 
 #ifdef MYSQL_SERVER
-  query_cache_insert(net, packet, len);
+  if (net->query_cache_query != 0)
+    query_cache_insert(net, packet, len);
 #endif
 
   if (net->error == 2)
