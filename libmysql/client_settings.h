@@ -25,7 +25,6 @@ sig_handler pipe_sig_handler(int sig __attribute__((unused)));
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_free);
 void read_user_name(char *name);
 my_bool send_file_to_server(MYSQL *mysql, const char *filename);
-void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 
 /*
   Let the user specify that we don't want SIGPIPE;  This doesn't however work

@@ -38,6 +38,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
 void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 		     const char *sqlstate);
+void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 #ifdef	__cplusplus
 }
 #endif
