@@ -1,0 +1,37 @@
+#
+# GRANT tests that require several connections
+# (usually it's GRANT, reconnect as another user, try something)
+#
+
+
+#
+# wild_compare fun
+#
+
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+flush privileges;
+grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
+connect (user1,localhost,mysqltest_1,,);
+connection user1;
+select current_user();
+--error 1044
+grant all privileges on `my\_1`.* to mysqltest_9@localhost with grant option;
+grant all privileges on `my_%`.* to mysqltest_2@localhost with grant option;
+disconnect user1;
+connect (user2,localhost,mysqltest_2,,);
+connection user2;
+select current_user();
+grant all privileges on `mysql`.* to mysqltest_3@localhost with grant option;
+disconnect user2;
+connect (user3,localhost,mysqltest_3,,);
+connection user3;
+select current_user();
+show grants for mysqltest_3@localhost;
+disconnect user3;
+connect (root,localhost,root,,);
+connection root;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+flush privileges;
+
