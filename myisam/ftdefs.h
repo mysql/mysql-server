@@ -86,14 +86,15 @@ extern ulong collstat;
 /*=================================================================*/
 
 /* Boolean search operators */
-#define FTB_YES   '+'
-#define FTB_NO    '-'
-#define FTB_INC   '>'
-#define FTB_DEC   '<'
-#define FTB_LBR   '('
-#define FTB_RBR   ')'
-#define FTB_NEG   '~'
-#define FTB_TRUNC '*'
+#define FTB_YES   (ft_boolean_syntax[0])
+#define FTB_EGAL  (ft_boolean_syntax[1])
+#define FTB_NO    (ft_boolean_syntax[2])
+#define FTB_INC   (ft_boolean_syntax[3])
+#define FTB_DEC   (ft_boolean_syntax[4])
+#define FTB_LBR   (ft_boolean_syntax[5])
+#define FTB_RBR   (ft_boolean_syntax[6])
+#define FTB_NEG   (ft_boolean_syntax[7])
+#define FTB_TRUNC (ft_boolean_syntax[8])
 
 typedef struct st_ft_word {
   byte * pos;
