@@ -266,7 +266,13 @@ String *Item_func_concat::val_str(String *str)
 	continue;
       if (res->length()+res2->length() >
 	  current_thd->variables.max_allowed_packet)
-	goto null;				// Error check
+      {
+	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			    current_thd->variables.max_allowed_packet);
+	goto null;
+      }
       if (res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
@@ -544,7 +550,13 @@ String *Item_func_concat_ws::val_str(String *str)
 
     if (res->length() + sep_str->length() + res2->length() >
 	current_thd->variables.max_allowed_packet)
-      goto null;				// Error check
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			  ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			  ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			  current_thd->variables.max_allowed_packet);
+      goto null;
+    }
     if (res->alloced_length() >=
 	res->length() + sep_str->length() + res2->length())
     {						// Use old buffer
@@ -801,7 +813,15 @@ redo:
           offset= (int) (ptr-res->ptr());
           if (res->length()-from_length + to_length >
 	      current_thd->variables.max_allowed_packet)
+	  {
+	    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+				ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+				func_name(),
+				current_thd->variables.max_allowed_packet);
+
             goto null;
+	  }
           if (!alloced)
           {
             alloced=1;
@@ -822,7 +842,13 @@ skip:
     {
       if (res->length()-from_length + to_length >
 	  current_thd->variables.max_allowed_packet)
+      {
+	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			    current_thd->variables.max_allowed_packet);
         goto null;
+      }
       if (!alloced)
       {
         alloced=1;
@@ -882,7 +908,13 @@ String *Item_func_insert::val_str(String *str)
     length=res->length()-start;
   if (res->length() - length + res2->length() >
       current_thd->variables.max_allowed_packet)
-    goto null;					// OOM check
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
+    goto null;
+  }
   res=copy_if_not_alloced(str,res,res->length());
   res->replace(start,length,*res2);
   return res;
@@ -1934,7 +1966,13 @@ String *Item_func_repeat::val_str(String *str)
   length=res->length();
   // Safe length check
   if (length > current_thd->variables.max_allowed_packet/count)
-    goto err;				// Probably an error
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
+    goto err;
+  }
   tot_length= length*(uint) count;
   if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
     goto err;
@@ -1999,8 +2037,15 @@ String *Item_func_rpad::val_str(String *str)
     return (res);
   }
   pad_char_length= rpad->numchars();
-  if ((ulong) byte_count > current_thd->variables.max_allowed_packet ||
-      args[2]->null_value || !pad_char_length)
+  if ((ulong) byte_count > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
+    goto err;
+  }
+  if(args[2]->null_value || !pad_char_length)
     goto err;
   res_byte_length= res->length();	/* Must be done before alloc_buffer */
   if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))
@@ -2079,8 +2124,16 @@ String *Item_func_lpad::val_str(String *str)
   pad_char_length= pad->numchars();
   byte_count= count * collation.collation->mbmaxlen;
   
-  if (byte_count > current_thd->variables.max_allowed_packet ||
-      args[2]->null_value || !pad_char_length || str->alloc(byte_count))
+  if (byte_count > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
+    goto err;
+  }
+
+  if (args[2]->null_value || !pad_char_length || str->alloc(byte_count))
     goto err;
   
   str->length(0);
@@ -2368,7 +2421,10 @@ String *Item_load_file::val_str(String *str)
   }
   if (stat_info.st_size > (long) current_thd->variables.max_allowed_packet)
   {
-    /* my_error(ER_TOO_LONG_STRING, MYF(0), file_name->c_ptr()); */
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
   if (tmp_value.alloc(stat_info.st_size))
