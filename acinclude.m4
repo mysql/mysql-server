@@ -745,7 +745,7 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
   for d in /usr/kerberos/include
   do
    if test -f $d/krb5.h  ; then
-     OPENSSL_INCLUDE="$OPENSSL_INCLUDE -I$d"
+     OPENSSL_KERBEROS_INCLUDE="$d"
    fi
   done
 
@@ -794,9 +794,14 @@ AC_MSG_CHECKING(for OpenSSL)
     openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
     # Don't set openssl_includes to /usr/include as this gives us a lot of
     # compiler warnings when using gcc 3.x
+    openssl_includes=""
     if test "$OPENSSL_INCLUDE" != "-I/usr/include"
     then
 	openssl_includes="$OPENSSL_INCLUDE"
+    fi
+    if test "$OPENSSL_KERBEROS_INCLUDE"
+    then
+    	openssl_includes="$openssl_includes -I$OPENSSL_KERBEROS_INCLUDE"
     fi
     AC_DEFINE(HAVE_OPENSSL)
 
