@@ -137,10 +137,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->raid_type=   head[41];
     outparam->raid_chunks= head[42];
     outparam->raid_chunksize= uint4korr(head+43);
-    if (!(outparam->table_charset=get_charset((uint) head[38],MYF(0))))
-      outparam->table_charset=default_charset_info; // QQ display error message?
+    outparam->table_charset=get_charset((uint) head[38],MYF(0));
     null_field_first=1;
   }
+  if (!outparam->table_charset) /* unknown charset in head[38] or pre-3.23 frm */
+    outparam->table_charset=default_charset_info;
   outparam->db_record_offset=1;
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     outparam->blob_ptr_size=portable_sizeof_char_ptr;

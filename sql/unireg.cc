@@ -33,7 +33,7 @@
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
 static uint pack_keys(uchar *keybuff,uint key_count, KEY *key_info);
-static bool pack_header(uchar *forminfo, enum db_type table_type,
+static bool pack_header(uchar *forminfo,enum db_type table_type,
 			List<create_field> &create_fields,
 			uint info_length, uint screens, uint table_options,
 			handler *file);
