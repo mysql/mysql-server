@@ -75,12 +75,12 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #define TEST_BLOCKING		8
 #define MAX_THREE_BYTES 255L*255L*255L
 
-static int net_write_buff(NET *net,const char *packet,ulong len);
+static my_bool net_write_buff(NET *net,const char *packet,ulong len);
 
 
 	/* Init with packet info */
 
-int my_net_init(NET *net, Vio* vio)
+my_bool my_net_init(NET *net, Vio* vio)
 {
   DBUG_ENTER("my_net_init");
   my_net_local_init(net);			/* Set some limits */
@@ -127,7 +127,7 @@ void net_end(NET *net)
 
 /* Realloc the packet buffer */
 
-static my_bool net_realloc(NET *net, ulong length)
+my_bool net_realloc(NET *net, ulong length)
 {
   uchar *buff;
   ulong pkt_length;
@@ -184,14 +184,14 @@ void net_clear(NET *net)
 
 	/* Flush write_buffer if not empty. */
 
-int net_flush(NET *net)
+my_bool net_flush(NET *net)
 {
-  int error=0;
+  my_bool error= 0;
   DBUG_ENTER("net_flush");
   if (net->buff != net->write_pos)
   {
-    error=net_real_write(net,(char*) net->buff,
-			 (ulong) (net->write_pos - net->buff));
+    error=test(net_real_write(net,(char*) net->buff,
+			      (ulong) (net->write_pos - net->buff)));
     net->write_pos=net->buff;
   }
   /* Sync packet number if using compression */
@@ -212,7 +212,7 @@ int net_flush(NET *net)
 ** NOTE: If compression is used the original package is modified!
 */
 
-int
+my_bool
 my_net_write(NET *net,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE];
@@ -243,17 +243,38 @@ my_net_write(NET *net,const char *packet,ulong len)
 
 /*
   Send a command to the server.
-  As the command is part of the first data packet, we have to do some data
-  juggling to put the command in there, without having to create a new
-  packet.
-  This function will split big packets into sub-packets if needed.
-  (Each sub packet can only be 2^24 bytes)
+
+  SYNOPSIS
+    net_write_command()
+    net			NET handler
+    command		Command in MySQL server (enum enum_server_command)
+    header		Header to write after command
+    head_len		Length of header
+    packet		Query or parameter to query
+    len			Length of packet
+
+  DESCRIPTION
+    The reason for having both header and packet is so that libmysql
+    can easy add a header to a special command (like prepared statements)
+    without having to re-alloc the string.
+
+    As the command is part of the first data packet, we have to do some data
+    juggling to put the command in there, without having to create a new
+    packet.
+    This function will split big packets into sub-packets if needed.
+    (Each sub packet can only be 2^24 bytes)
+
+  RETURN VALUES
+    0	ok
+    1	error
 */
 
-int
-net_write_command(NET *net,uchar command,const char *packet,ulong len)
+my_bool
+net_write_command(NET *net,uchar command,
+		  const char *header, ulong head_len,
+		  const char *packet, ulong len)
 {
-  ulong length=len+1;				/* 1 extra byte for command */
+  ulong length=len+1+head_len;			/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
   buff[4]=command;				/* For first packet */
@@ -261,25 +282,28 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
   if (length >= MAX_THREE_BYTES)
   {
     /* Take into account that we have the command in the first header */
-    len= MAX_THREE_BYTES -1;
+    len= MAX_THREE_BYTES - 1 - head_len;
     do
     {
       int3store(buff, MAX_THREE_BYTES);
       buff[3]= (uchar) net->pkt_nr++;
       if (net_write_buff(net,(char*) buff, header_size) ||
-	  net_write_buff(net,packet,len))
+	  net_write_buff(net, header, head_len) ||
+	  net_write_buff(net, packet, len))
 	return 1;
       packet+= len;
       length-= MAX_THREE_BYTES;
       len=MAX_THREE_BYTES;
+      head_len=0;
       header_size=NET_HEADER_SIZE;
     } while (length >= MAX_THREE_BYTES);
     len=length;					/* Data left to be written */
   }
   int3store(buff,length);
   buff[3]= (uchar) net->pkt_nr++;
-  return test(net_write_buff(net,(char*) buff,header_size) ||
-	      net_write_buff(net,packet,len) || net_flush(net));
+  return test(net_write_buff(net, (char*) buff, header_size) ||
+	      (head_len && net_write_buff(net, (char*) header, head_len)) ||
+	      net_write_buff(net, packet, len) || net_flush(net));
 }
 
 /*
@@ -287,7 +311,7 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
   One can force the buffer to be flushed with 'net_flush'.
 */
 
-static int
+static my_bool
 net_write_buff(NET *net,const char *packet,ulong len)
 {
   ulong left_length=(ulong) (net->buff_end - net->write_pos);
@@ -816,14 +840,4 @@ my_net_read(NET *net)
   }
 #endif /* HAVE_COMPRESS */
   return len;
-}
-
-bool net_request_file(NET* net, const char* fname)
-{
-  char tmp [FN_REFLEN+1],*end;
-  DBUG_ENTER("net_request_file");
-  tmp[0] = (char) 251;				/* NULL_LENGTH */
-  end=strnmov(tmp+1,fname,sizeof(tmp)-2);
-  DBUG_RETURN(my_net_write(net,tmp,(uint) (end-tmp)) ||
-	      net_flush(net));
 }

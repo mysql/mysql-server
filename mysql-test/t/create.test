@@ -83,6 +83,22 @@ describe t2;
 drop table t1,t2;
 
 #
+# Test of CREATE ... SELECT with duplicate fields
+#
+
+create table t1 (a tinyint);
+create table t2 (a int) select * from t1;                        
+describe t1;
+describe t2;
+drop table if exists t2;
+!$1060 create table t2 (a int, a float) select * from t1;               
+drop table if exists t2;
+!$1060 create table t2 (a int) select a as b, a+1 as b from t1;         
+drop table if exists t2;
+!$1060 create table t2 (b int) select a as b, a+1 as b from t1;         
+drop table if exists t1,t2;
+
+#
 # Test of primary key with 32 index
 #
 

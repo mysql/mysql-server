@@ -45,7 +45,7 @@ FILE *d;
 	if (g->nplus > 0)
 		fprintf(d, ", nplus %ld", (long)g->nplus);
 	fprintf(d, "\n");
-	s_print(g, d);
+	s_print(r->charset, g, d);
 	for (i = 0; i < g->ncategories; i++) {
 		nincat[i] = 0;
 		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
@@ -58,7 +58,7 @@ FILE *d;
 			for (c = CHAR_MIN; c <= CHAR_MAX; c++)
 				if (g->categories[c] == i)
 					break;
-			fprintf(d, ", %d=%s", i, regchar(c,buf));
+			fprintf(d, ", %d=%s", i, regchar(r->charset,c,buf));
 		}
 	fprintf(d, "\n");
 	for (i = 1; i < g->ncategories; i++)
@@ -68,14 +68,14 @@ FILE *d;
 			for (c = CHAR_MIN; c <= CHAR_MAX+1; c++)	/* +1 does flush */
 				if (c <= CHAR_MAX && g->categories[c] == i) {
 					if (last < 0) {
-						fprintf(d, "%s", regchar(c,buf));
+						fprintf(d, "%s", regchar(r->charset,c,buf));
 						last = c;
 					}
 				} else {
 					if (last >= 0) {
 						if (last != c-1)
 							fprintf(d, "-%s",
-								regchar(c-1,buf));
+								regchar(r->charset,c-1,buf));
 						last = -1;
 					}
 				}
@@ -88,7 +88,8 @@ FILE *d;
  == static void s_print(register struct re_guts *g, FILE *d);
  */
 static void
-s_print(g, d)
+s_print(charset, g, d)
+CHARSET_INFO *charset;
 register struct re_guts *g;
 FILE *d;
 {
@@ -127,7 +128,7 @@ FILE *d;
 			if (strchr("\\|()^$.[+*?{}!<> ", (char)opnd) != NULL)
 				fprintf(d, "\\%c", (char)opnd);
 			else
-				fprintf(d, "%s", regchar((char)opnd,buf));
+				fprintf(d, "%s", regchar(charset,(char)opnd,buf));
 			break;
 		case OBOL:
 			fprintf(d, "^");
@@ -151,14 +152,14 @@ FILE *d;
 			for (i = 0; i < g->csetsize+1; i++)	/* +1 flushes */
 				if (CHIN(cs, i) && i < g->csetsize) {
 					if (last < 0) {
-						fprintf(d, "%s", regchar(i,buf));
+						fprintf(d, "%s", regchar(charset,i,buf));
 						last = i;
 					}
 				} else {
 					if (last >= 0) {
 						if (last != i-1)
 							fprintf(d, "-%s",
-								regchar(i-1,buf));
+								regchar(charset,i-1,buf));
 						last = -1;
 					}
 				}
@@ -230,12 +231,13 @@ FILE *d;
  == static char *regchar(int ch);
  */
 static char *			/* -> representation */
-regchar(ch,buf)
+regchar(charset,ch,buf)
+CHARSET_INFO *charset;
 int ch;
 char *buf;
 {
 
-	if (isprint(ch) || ch == ' ')
+	if (my_isprint(charset,ch) || ch == ' ')
 		sprintf(buf, "%c", ch);
 	else
 		sprintf(buf, "\\%o", ch);

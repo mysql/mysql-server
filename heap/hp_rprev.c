@@ -23,22 +23,53 @@ int heap_rprev(HP_INFO *info, byte *record)
 {
   byte *pos;
   HP_SHARE *share=info->s;
+  HP_KEYDEF *keyinfo;
   DBUG_ENTER("heap_rprev");
 
   if (info->lastinx < 0)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
-
-  if (info->current_ptr || (info->update & HA_STATE_NEXT_FOUND))
+  keyinfo = share->keydef + info->lastinx;
+  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
-    if ((info->update & HA_STATE_DELETED))
-      pos= _hp_search(info,share->keydef+info->lastinx, info->lastkey, 3);
+    heap_rb_param custom_arg;
+
+    if (info->last_pos)
+      pos = tree_search_next(&keyinfo->rb_tree, &info->last_pos,
+                             offsetof(TREE_ELEMENT, right),
+                             offsetof(TREE_ELEMENT, left));
     else
-      pos= _hp_search(info,share->keydef+info->lastinx, info->lastkey, 2);
+    {
+      custom_arg.keyseg = keyinfo->seg;
+      custom_arg.key_length = keyinfo->length;
+      custom_arg.search_flag = SEARCH_SAME;
+      pos = tree_search_key(&keyinfo->rb_tree, info->lastkey, info->parents, 
+                           &info->last_pos, info->last_find_flag, &custom_arg);
+    }
+    if (pos)
+    {
+      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
+	     sizeof(byte*));
+      info->current_ptr = pos;
+    }
+    else
+    {
+      my_errno = HA_ERR_KEY_NOT_FOUND;
+    }
   }
   else
   {
-    pos=0;					/* Read next after last */
-    my_errno=HA_ERR_KEY_NOT_FOUND;
+    if (info->current_ptr || (info->update & HA_STATE_NEXT_FOUND))
+    {
+      if ((info->update & HA_STATE_DELETED))
+        pos= hp_search(info, share->keydef + info->lastinx, info->lastkey, 3);
+      else
+        pos= hp_search(info, share->keydef + info->lastinx, info->lastkey, 2);
+    }
+    else
+    {
+      pos=0;					/* Read next after last */
+      my_errno=HA_ERR_KEY_NOT_FOUND;
+    }
   }
   if (!pos)
   {

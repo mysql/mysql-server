@@ -105,6 +105,7 @@ struct st_table {
         *rowid_field;
   Field_timestamp *timestamp_field;
   my_string comment;			/* Comment about table */
+  CHARSET_INFO *table_charset;		/* Default charset of string fields */
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
@@ -142,9 +143,18 @@ typedef struct st_table_list
   Item		*on_expr;		/* Used with outer join */
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
-  List<String>	*use_index,*ignore_index; 
-  TABLE		*table;
-  GRANT_INFO	grant;
+  List<String>	*use_index, *ignore_index; 
+  /*
+    Usually hold reference on opened table, but may hold reference
+    to node of complete list of tables used in UNION & subselect.
+  */
+  union
+  {
+    TABLE          *table;      /* opened table */
+    st_table_list  *table_list; /* pointer to node of list of all tables */
+  };
+  void		*derived;		/* SELECT_LEX_UNIT of derived table */
+ GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint32        db_length, real_name_length;
@@ -154,14 +164,12 @@ typedef struct st_table_list
   bool		do_redirect;		/* To get the struct in UNION's */
 } TABLE_LIST;
 
-
 typedef struct st_changed_table_list
 {
   struct	st_changed_table_list *next;
   char		*key;
   uint32        key_length;
 } CHANGED_TABLE_LIST;
-
 
 typedef struct st_open_table_list
 {

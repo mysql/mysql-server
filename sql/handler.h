@@ -137,6 +137,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_MAX_ROWS		32
 #define HA_CREATE_USED_AVG_ROW_LENGTH	64
 #define HA_CREATE_USED_PACK_KEYS	128
+#define HA_CREATE_USED_CHARSET		256
 
 typedef struct st_thd_trans {
   void *bdb_tid;
@@ -149,22 +150,23 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 
 typedef struct st_ha_create_information
 {
-  ulong table_options;
-  enum db_type db_type;
-  enum row_type row_type;
-  ulong avg_row_length;
-  ulonglong max_rows,min_rows;
-  ulonglong auto_increment_value;
+  CHARSET_INFO *table_charset;
   char *comment,*password;
   char *data_file_name, *index_file_name;
   char *create_statement;
-  uint options;					/* OR of HA_CREATE_ options */
-  uint raid_type,raid_chunks;
+  ulonglong max_rows,min_rows;
+  ulonglong auto_increment_value;
+  ulong table_options;
+  ulong avg_row_length;
   ulong raid_chunksize;
-  bool if_not_exists;
   ulong used_fields;
   SQL_LIST merge_list;
+  enum db_type db_type;
+  enum row_type row_type;
+  uint options;					/* OR of HA_CREATE_ options */
+  uint raid_type,raid_chunks;
   uint merge_insert_method;
+  bool if_not_exists;
 } HA_CREATE_INFO;
 
 

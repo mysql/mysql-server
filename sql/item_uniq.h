@@ -29,8 +29,8 @@ public:
     :Item_real_func(list) {}
   double val() { return 0.0; }
   void fix_length_and_dec() { decimals=0; max_length=6; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
+
 
 class Item_sum_unique_users :public Item_sum_num
 {
@@ -43,6 +43,5 @@ public:
   bool add() { return 0; }
   void reset_field() {}
   void update_field(int offset) {}
-  bool fix_fields(THD *thd,struct st_table_list *tlist) { return 0;}
-  unsigned int size_of() { return sizeof(*this);}  
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref) { return 0;}
 };
