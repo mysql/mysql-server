@@ -1175,7 +1175,8 @@ btr_cur_upd_lock_and_undo(
 	if (!(index->type & DICT_CLUSTERED)) {
 		/* We do undo logging only when we update a clustered index
 		record */
-		return(lock_sec_rec_modify_check_and_lock(0, rec, index, thr));
+		return(lock_sec_rec_modify_check_and_lock(flags, rec, index,
+									thr));
 	}
 
 	/* Check if we have to wait for a lock: enqueue an explicit lock

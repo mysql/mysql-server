@@ -257,8 +257,6 @@ mutex_enter_func(
 		mutex->file_name = file_name;
 		mutex->line = line;
 
-		mutex->thread_id = os_thread_get_curr_id();
-
 		return;	/* Succeeded! */
 	}
 
