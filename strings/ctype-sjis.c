@@ -183,17 +183,18 @@ uchar NEAR sort_order_sjis[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-int ismbchar_sjis(CHARSET_INFO *cs,const char* p, const char *e)
+int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
+		  const char* p, const char *e)
 {
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
 
-my_bool ismbhead_sjis(CHARSET_INFO *cs,uint c)
+my_bool ismbhead_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return issjishead((uchar) c);
 }
 
-int mbcharlen_sjis(CHARSET_INFO *cs,uint c)
+int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (issjishead((uchar) c) ? 2: 0);
 }
@@ -201,7 +202,7 @@ int mbcharlen_sjis(CHARSET_INFO *cs,uint c)
 
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
-int my_strnncoll_sjis(CHARSET_INFO *cs,
+int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
                       const uchar *s1, uint len1,
                       const uchar *s2, uint len2)
 {
@@ -226,7 +227,7 @@ int my_strnncoll_sjis(CHARSET_INFO *cs,
   return len1 - len2;
 }
 
-int my_strnxfrm_sjis(CHARSET_INFO *cs,
+int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
                      uchar *dest, uint len,
                      const uchar *src, uint srclen)
 {
@@ -265,7 +266,7 @@ int my_strnxfrm_sjis(CHARSET_INFO *cs,
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_sjis(CHARSET_INFO *cs,
+my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
                            const char *ptr,uint ptr_length,pchar escape,
                            uint res_length, char *min_str,char *max_str,
                            uint *min_length,uint *max_length)

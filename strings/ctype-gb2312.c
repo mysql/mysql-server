@@ -166,17 +166,18 @@ uchar NEAR sort_order_gb2312[]=
 #define isgb2312tail(c) (0xa1<=(uchar)(c) && (uchar)(c)<=0xfe)
 
 
-int ismbchar_gb2312(CHARSET_INFO *cs,const char* p, const char *e)
+int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
+		    const char* p, const char *e)
 {
   return (isgb2312head(*(p)) && (e)-(p)>1 && isgb2312tail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_gb2312(CHARSET_INFO *cs,uint c)
+my_bool ismbhead_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return isgb2312head(c);
 }
 
-int mbcharlen_gb2312(CHARSET_INFO *cs,uint c)
+int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgb2312head(c)? 2:0);
 }

@@ -1571,7 +1571,7 @@ uchar to_upper_utf8[] = {
 };
 
 
-int my_utf8_uni (__attribute__((unused)) CHARSET_INFO *cs, 
+int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) , 
                  my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   unsigned char c = s[0];
@@ -1673,7 +1673,7 @@ int my_utf8_uni (__attribute__((unused)) CHARSET_INFO *cs,
     return MY_CS_ILSEQ;
 }
 
-int my_uni_utf8 (__attribute__((unused)) CHARSET_INFO *cs, 
+int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
                  my_wc_t wc, uchar *r, uchar *e)
 {
   int count;
@@ -1879,12 +1879,12 @@ int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)
   return (res>1) ? res : 0;
 }
 
-my_bool my_ismbhead_utf8(__attribute__((unused)) CHARSET_INFO *cs, uint ch)
+my_bool my_ismbhead_utf8(CHARSET_INFO *cs __attribute__((unused)) , uint ch)
 {
   return ( ch >= 0xc2 );
 }
 
-int my_mbcharlen_utf8(__attribute__((unused)) CHARSET_INFO *cs, uint c)
+int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 {
   if (c < 0x80)
     return 1;
