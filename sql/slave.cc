@@ -857,7 +857,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
-    ev->when = time(NULL);
+    if(!ev->when)
+      ev->when = time(NULL);
     
     switch(type_code) {
     case QUERY_EVENT:
