@@ -554,3 +554,20 @@ explain select id,t from t1 force index (primary) order by id;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	NULL	PRIMARY	4	NULL	1000	
 drop table t1;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (1), (1), (2), (1);
+SELECT a FROM t1 ORDER BY a;
+a
+1
+1
+1
+2
+2
+(SELECT a FROM t1) ORDER BY a;
+a
+1
+1
+1
+2
+2
+DROP TABLE t1;
