@@ -936,6 +936,18 @@ esac
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
 
+fix_for_forte_x86 ()
+{
+  case $MACHINE_TYPE-$ac_cv_prog_gcc in
+    i?86-no)
+      # workaround for Sun Forte/x86 see BUG#4681
+      CFLAGS="$CFLAGS -DBIG_FILES"
+      CXXFLAGS="$CXXFLAGS -DBIG_FILES"
+      ;;
+    *) ;;
+  esac
+}
+
 case $SYSTEM_TYPE in
   *solaris2.7*)
     # Solaris 2.7 has a broken /usr/include/widec.h
@@ -950,6 +962,7 @@ case $SYSTEM_TYPE in
     sed -e "s|^#if[ 	]*!defined(lint) && !defined(__lint)|#if !defined\(lint\) \&\& !defined\(__lint\) \&\& !defined\(getwc\)|" < /usr/include/widec.h > include/widec.h
     CFLAGS="$CFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
     CXXFLAGS="$CXXFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
+    fix_for_forte_x86
     ;;
   *solaris2.8*)
     # Solaris 2.8 has a broken /usr/include/widec.h
@@ -964,19 +977,23 @@ case $SYSTEM_TYPE in
     sed -e "s|^#if[ 	]*!defined(__lint)|#if !defined\(__lint\) \&\& !defined\(getwc\)|" < /usr/include/widec.h > include/widec.h
     CFLAGS="$CFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
     CXXFLAGS="$CXXFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
+    fix_for_forte_x86
     ;;
   *solaris2.5.1*)
     echo "Enabling getpass() workaround for Solaris 2.5.1"
     CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS -DHAVE_RWLOCK_T";
     CXXFLAGS="$CXXFLAGS -DHAVE_RWLOCK_T -DSOLARIS"
+    fix_for_forte_x86
     ;;
   *solaris*)
     CFLAGS="$CFLAGS -DHAVE_RWLOCK_T"
     CXXFLAGS="$CXXFLAGS -DHAVE_RWLOCK_T"
+    fix_for_forte_x86
     ;;
   *SunOS*)
     echo "Enabling getpass() workaround for SunOS"
     CFLAGS="$CFLAGS -DHAVE_BROKEN_GETPASS -DSOLARIS";
+    fix_for_forte_x86
     ;;
   *hpux10.20*)
     echo "Enabling workarounds for hpux 10.20"
