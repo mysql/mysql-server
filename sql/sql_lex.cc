@@ -882,10 +882,12 @@ int yylex(void *arg, void *yythd)
     case MY_LEX_COLON:			// optional line terminator
       if (yyPeek())
       {
-        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_STATEMENTS)
+        THD* thd= (THD*)yythd;
+        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
+            (thd->command != COM_PREPARE))
         {
           lex->found_colon=(char*)lex->ptr;
-          ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
           return(END_OF_INPUT);
         }

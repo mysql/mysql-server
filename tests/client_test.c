@@ -4940,6 +4940,34 @@ DROP TABLE IF EXISTS test_multi_tab";
   mysql_close(mysql_local);
 }
 
+/********************************************************
+* Check that Prepared statement cannot contain several  *
+*  SQL statements                                       *
+*********************************************************/
+static void test_prepare_multi_statements()
+{
+  MYSQL *mysql_local;
+  MYSQL_STMT *stmt;
+  myheader("test_prepare_multi_statements");
+
+  if (!(mysql_local = mysql_init(NULL)))
+  { 
+    fprintf(stdout,"\n mysql_init() failed");
+    exit(1);
+  }
+
+  if (!(mysql_real_connect(mysql_local,opt_host,opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, CLIENT_MULTI_STATEMENTS)))
+  {
+    fprintf(stdout,"\n connection failed(%s)", mysql_error(mysql_local));
+    exit(1);
+  }
+  strmov(query, "select 1; select 'another value'");
+  stmt = mysql_simple_prepare(mysql_local,query);
+  mystmt_init_r(stmt);
+  mysql_close(mysql_local);
+}
 
 /********************************************************
 * to test simple bind store result                      *
@@ -9210,6 +9238,8 @@ int main(int argc, char **argv)
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test */
     test_multi_statements();/* test multi statement execution */
+    test_prepare_multi_statements(); /* check that multi statements are 
+                                       disabled in PS */
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */
