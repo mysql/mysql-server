@@ -429,7 +429,10 @@ struct trx_struct{
 					MySQL */
 	/*------------------------------*/
 	ulint		error_state;	/* 0 if no error, otherwise error
-					number */
+					number; NOTE That ONLY the thread
+					doing the transaction is allowed to
+					set this field: this is NOT protected
+					by the kernel mutex */
 	void*		error_info;	/* if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
@@ -466,6 +469,12 @@ struct trx_struct{
 					TRX_QUE_LOCK_WAIT, this points to
 					the lock request, otherwise this is
 					NULL */
+	ibool		was_chosen_as_deadlock_victim;
+					/* when the transaction decides to wait
+					for a lock, this it sets this to FALSE;
+					if another transaction chooses this
+					transaction as a victim in deadlock
+					resolution, it sets this to TRUE */
 	time_t          wait_started;   /* lock wait started at this time */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			wait_thrs;	/* query threads belonging to this
