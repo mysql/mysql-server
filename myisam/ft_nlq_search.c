@@ -67,12 +67,9 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
   uint	       keylen, r, doc_cnt;
-#ifdef EVAL_RUN
-  uint	       cnt;
-  double       sum, sum2, suml;
-#endif /* EVAL_RUN */
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
+  double        gweight=1;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else
@@ -84,41 +81,26 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   word->weight=LWS_FOR_QUERY;
 
   keylen=_ft_make_key(aio->info,aio->keynr,(char*) aio->keybuff,word,0);
-#ifdef EVAL_RUN
-  keylen-=1+HA_FT_WLEN;
-#else /* EVAL_RUN */
   keylen-=HA_FT_WLEN;
-#endif /* EVAL_RUN */
 
-#ifdef EVAL_RUN
-  sum=sum2=suml=
-#endif /* EVAL_RUN */
   doc_cnt=0;
 
   r=_mi_search(aio->info, aio->keyinfo, aio->keybuff, keylen,
 	       SEARCH_FIND | SEARCH_PREFIX, aio->key_root);
   aio->info->update|= HA_STATE_AKTIV;  /* for _mi_test_if_changed() */
 
-  while (!r)
+  while (!r && gweight)
   {
     if (_mi_compare_text(aio->charset,
 			 aio->info->lastkey,keylen,
 			 aio->keybuff,keylen,0)) break;
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-#ifdef EVAL_RUN
-    mi_float4get(tmp_weight,aio->info->lastkey+keylen+1);
-#else /* EVAL_RUN */
     mi_float4get(tmp_weight,aio->info->lastkey+keylen);
-#endif /* EVAL_RUN */
 #else
 #error
 #endif
     if(tmp_weight==0) DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
-
-#ifdef EVAL_RUN
-    cnt=*(byte *)(aio->info->lastkey+keylen);
-#endif /* EVAL_RUN */
 
     sdoc.doc.dpos=aio->info->lastpos;
 
@@ -137,11 +119,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     sptr->tmp_weight=tmp_weight;
 
     doc_cnt++;
-#ifdef EVAL_RUN
-    sum +=cnt;
-    sum2+=cnt*cnt;
-    suml+=cnt*log(cnt);
-#endif /* EVAL_RUN */
+
+    gweight=word->weight*GWS_IN_USE;
+    if (gweight < 0 || doc_cnt > 2000000)
+      gweight=0;
 
     if (_mi_test_if_changed(aio->info) == 0)
 	r=_mi_search_next(aio->info, aio->keyinfo, aio->info->lastkey,
@@ -152,13 +133,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 		     aio->info->lastkey_length, SEARCH_BIGGER,
 		     aio->key_root);
   }
-  if (doc_cnt)
-  {
-    word->weight*=GWS_IN_USE;
-    if (word->weight < 0)
-      word->weight=0;
 
-  }
+  word->weight=gweight;
+
   DBUG_RETURN(0);
 }
 
