@@ -256,6 +256,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	KEY_SYM
 %token	LEADING
 %token	LEAST_SYM
+%token	LEAVES
 %token	LEVEL_SYM
 %token	LEX_HOSTNAME
 %token	LIKE
@@ -579,7 +580,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type opt_var_ident_type
-	delete_option opt_temporary all_or_any opt_distinct
+	delete_option opt_temporary all_or_any opt_distinct opt_ignore_leaves
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -593,7 +594,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <item>
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
+	table_wild no_in_expr expr_expr simple_expr no_and_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
@@ -608,7 +609,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	key_alg opt_btree_or_rtree
 
 %type <string_list>
-	key_usage_list
+	key_usage_list 
 
 %type <key_part>
 	key_part
@@ -656,10 +657,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
-	show describe load alter optimize flush
+	show describe load alter optimize preload flush
 	reset purge begin commit rollback slave master_def master_defs
 	repair restore backup analyze check start
 	field_list field_list_item field_spec kill column_def key_def
+	preload_list preload_keys
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
@@ -728,6 +730,7 @@ verb_clause:
 	| lock
 	| kill
 	| optimize
+	| preload
 	| purge
 	| rename
         | repair
@@ -804,6 +807,18 @@ master_def:
        MASTER_LOG_POS_SYM EQ ulonglong_num
        {
 	 Lex->mi.pos = $3;
+         /* 
+            If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
+            instead of causing subsequent errors. 
+            We need to do it in this file, because only there we know that 
+            MASTER_LOG_POS has been explicitely specified. On the contrary
+            in change_master() (sql_repl.cc) we cannot distinguish between 0
+            (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
+            whereas we want to distinguish (specified 0 means "read the binlog
+            from 0" (4 in fact), unspecified means "don't change the position
+            (keep the preceding value)").
+         */
+         Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
        }
        |
        MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
@@ -819,6 +834,8 @@ master_def:
        RELAY_LOG_POS_SYM EQ ULONG_NUM
        {
 	 Lex->mi.relay_log_pos = $3;
+         /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
+         Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
        }
        ;
 
@@ -848,7 +865,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.table_charset= thd->db_charset;
+	  lex->create_info.table_charset= thd->variables.character_set_database;
 	  lex->name=0;
 	}
 	create2
@@ -1489,7 +1506,9 @@ keys_or_index:
 opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
 	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
-	| SPATIAL_SYM	{ $$= Key::SPATIAL; };
+	| FULLTEXT_SYM	{ $$= Key::FULLTEXT;}
+	| SPATIAL_SYM	{ $$= Key::SPATIAL; }
+        ;
 
 key_alg:
 	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
@@ -1541,7 +1560,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.table_charset= thd->db_charset;
+	  lex->create_info.table_charset= thd->variables.character_set_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
@@ -1823,6 +1842,55 @@ table_to_table:
 				     TL_IGNORE))
 	    YYABORT;
 	};
+
+preload:
+	LOAD INDEX INTO CACHE_SYM
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command=SQLCOM_PRELOAD_KEYS;
+	}
+	preload_list
+	{}
+	;
+
+preload_list:
+	preload_keys
+	| preload_list ',' preload_keys;
+
+preload_keys:
+	table_ident preload_keys_spec opt_ignore_leaves
+	{
+	  LEX *lex=Lex;
+	  SELECT_LEX *sel= &lex->select_lex;
+	  if (!sel->add_table_to_list(lex->thd, $1, NULL, $3, 
+                                      TL_READ, 
+                                      sel->get_use_index(),
+                                      (List<String> *)0))
+            YYABORT;
+	}
+	;
+
+preload_keys_spec:
+	keys_or_index { Select->select_lex()->interval_list.empty(); }
+	preload_key_list_or_empty 
+	{
+	  LEX *lex=Lex;
+	  SELECT_LEX *sel= &lex->select_lex;
+	  sel->use_index= sel->interval_list;
+	  sel->use_index_ptr= &sel->use_index;
+	}          
+	;
+
+preload_key_list_or_empty:
+	/* empty */
+	| '(' key_usage_list2 ')' {}
+	;
+
+opt_ignore_leaves:
+	/* empty */
+	{ $$= 0; }
+	| IGNORE_SYM LEAVES { $$= TL_OPTION_IGNORE_LEAVES; }
+	;
 
 /*
   Select : retrieve data from table
@@ -2243,10 +2311,12 @@ simple_expr:
 	    $$= new Item_func_set_collation($2,new Item_string(binary_keyword,
 					    6, &my_charset_latin1));
 	  }
-	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
+	| CAST_SYM '(' expr AS cast_type ')'
+	  { $$= create_func_cast($3, $5, Lex->charset); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
-	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
+	| CONVERT_SYM '(' expr ',' cast_type ')'
+	  { $$= create_func_cast($3, $5, Lex->charset); }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
@@ -2487,13 +2557,19 @@ simple_expr:
 	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_substr_index($3,$5,$7); }
 	| TRIM '(' expr ')'
-	  { $$= new Item_func_trim($3,new Item_string(" ",1,default_charset_info)); }
-	| TRIM '(' LEADING opt_pad FROM expr ')'
+	  { $$= new Item_func_trim($3); }
+	| TRIM '(' LEADING expr FROM expr ')'
 	  { $$= new Item_func_ltrim($6,$4); }
-	| TRIM '(' TRAILING opt_pad FROM expr ')'
+	| TRIM '(' TRAILING expr FROM expr ')'
 	  { $$= new Item_func_rtrim($6,$4); }
-	| TRIM '(' BOTH opt_pad FROM expr ')'
+	| TRIM '(' BOTH expr FROM expr ')'
 	  { $$= new Item_func_trim($6,$4); }
+	| TRIM '(' LEADING FROM expr ')'
+	 { $$= new Item_func_ltrim($5); }
+	| TRIM '(' TRAILING FROM expr ')'
+	  { $$= new Item_func_rtrim($5); }
+	| TRIM '(' BOTH FROM expr ')'
+	  { $$= new Item_func_trim($5); }
 	| TRIM '(' expr FROM expr ')'
 	  { $$= new Item_func_trim($5,$3); }
 	| TRUNCATE_SYM '(' expr ',' expr ')'
@@ -2655,15 +2731,15 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY			{ $$=ITEM_CAST_BINARY; }
-	| CHAR_SYM		{ $$=ITEM_CAST_CHAR; }
-	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
-	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
-	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
-	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; }
+	| CHAR_SYM opt_binary	{ $$=ITEM_CAST_CHAR; }
+	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; }
+	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; }
+	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; }
+	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; }
+	| DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; }
+	| TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; }
 	;
 
 expr_list:
@@ -2714,10 +2790,6 @@ when_list2:
 	    sel->when_list.head()->push_back($3);
 	    sel->when_list.head()->push_back($5);
 	  };
-
-opt_pad:
-	/* empty */ { $$=new Item_string(" ",1,default_charset_info); }
-	| expr	    { $$=$1; };
 
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
@@ -2871,15 +2943,15 @@ key_usage_list2:
 	key_usage_list2 ',' ident
         { Select->select_lex()->
 	    interval_list.push_back(new String((const char*) $3.str, $3.length,
-				    default_charset_info)); }
+				    system_charset_info)); }
 	| ident
         { Select->select_lex()->
 	    interval_list.push_back(new String((const char*) $1.str, $1.length,
-				    default_charset_info)); }
+				    system_charset_info)); }
 	| PRIMARY_SYM
         { Select->select_lex()->
 	    interval_list.push_back(new String("PRIMARY", 7,
-				    default_charset_info)); };
+				    system_charset_info)); };
 
 using_list:
 	ident
@@ -2986,7 +3058,7 @@ olap_opt:
 	    }
 	    lex->current_select->select_lex()->olap= CUBE_TYPE;
 	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
-	    YYABORT;	/* To be deleted in 4.1 */
+	    YYABORT;	/* To be deleted in 5.1 */
 	  }
 	| WITH ROLLUP_SYM
           {
@@ -2998,8 +3070,6 @@ olap_opt:
 	      YYABORT;
 	    }
 	    lex->current_select->select_lex()->olap= ROLLUP_TYPE;
-	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "ROLLUP");
-	    YYABORT;	/* To be deleted in 4.1 */
 	  }
 	;
 
@@ -3054,20 +3124,7 @@ opt_limit_clause:
 	;
 
 limit_clause:
-	LIMIT
-	  {
-	    LEX *lex= Lex;
-	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	        lex->current_select->select_lex()->olap !=
-		UNSPECIFIED_OLAP_TYPE)
-	    {
-	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
-		        "LIMIT");
-	      YYABORT;
-	    }
-	  }
-	  limit_options
-	  {}
+	LIMIT limit_options {}
 	;
 
 limit_options:
@@ -3228,7 +3285,7 @@ do:	DO_SYM
 	;
 
 /*
-  Drop : delete tables or index
+  Drop : delete tables or index or user
 */
 
 drop:
@@ -3262,7 +3319,16 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->udf.name = $3;
-	  };
+	  }
+	| DROP USER
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_DROP_USER;
+	    lex->users_list.empty();
+	  } 
+	  user_list
+	  {}
+	  ;
 
 
 table_list:
@@ -3774,7 +3840,7 @@ opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
 	| ident
-	  { Lex->wild= new String((const char*) $1.str,$1.length,default_charset_info); };
+	  { Lex->wild= new String((const char*) $1.str,$1.length,system_charset_info); };
 
 
 /* flush things */
@@ -3858,7 +3924,7 @@ purge_option:
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
-	  Lex->purge_time= tmp->val_int();
+	  Lex->purge_time= (ulong) tmp->val_int();
 	}
 	;
 
@@ -4211,8 +4277,10 @@ user:
 	  THD *thd= YYTHD;
 	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	    YYABORT;
-	  $$->user = $1; $$->host.str=NullS;
-	  }
+	  $$->user = $1;
+	  $$->host.str= (char *) "%";
+	  $$->host.length= 1;
+	}
 	| ident_or_text '@' ident_or_text
 	  {
 	    THD *thd= YYTHD;
@@ -4299,6 +4367,7 @@ keyword:
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
 	| LAST_SYM		{}
+	| LEAVES                {}
 	| LEVEL_SYM		{}
 	| LINESTRING		{}
 	| LOCAL_SYM		{}
@@ -4375,6 +4444,7 @@ keyword:
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
 	| SLAVE			{}
+	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
@@ -4395,12 +4465,13 @@ keyword:
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
+	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
 	| WORK_SYM		{}
+	| X509_SYM		{}
 	| YEAR_SYM		{}
-	| SOUNDS_SYM            {}
 	;
 
 /* Option functions */
@@ -4473,7 +4544,7 @@ option_value:
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
 	  $2= $2 ? $2: global_system_variables.character_set_client;
-	  lex->var_list.push_back(new set_var_collation_client($2,thd->db_charset,$2));
+	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.character_set_database,$2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
@@ -4486,7 +4557,7 @@ option_value:
 	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
 	    YYABORT;
 	  }
-	  lex->var_list.push_back(new set_var_collation_client($3,$3,NULL));
+	  lex->var_list.push_back(new set_var_collation_client($3,$3,$3));
 	}
 	| PASSWORD equal text_or_password
 	  {
@@ -4666,8 +4737,18 @@ revoke:
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
+	revoke_command
+	{}
+        ;
+
+revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
+	|
+	ALL PRIVILEGES ',' GRANT FROM user_list
+	{
+	  Lex->sql_command = SQLCOM_REVOKE_ALL;
+	}
 	;
 
 grant:
@@ -4863,7 +4944,7 @@ column_list:
 column_list_id:
 	ident
 	{
-	  String *new_str = new String((const char*) $1.str,$1.length,default_charset_info);
+	  String *new_str = new String((const char*) $1.str,$1.length,system_charset_info);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
 	  LEX *lex=Lex;

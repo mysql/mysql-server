@@ -115,6 +115,7 @@ EXPORTS
 	mysql_param_result
         mysql_prepare_result
         mysql_stmt_close
+        mysql_stmt_free_result
         mysql_stmt_error
         mysql_stmt_errno
         mysql_fetch

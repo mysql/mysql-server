@@ -18,7 +18,7 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target =	libmysqlclient.la
-target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@ -DMYSQL_CLIENT
+target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
 LIBS =		@CLIENT_LIBS@
 INCLUDES =	-I$(top_srcdir)/include $(openssl_includes)
 
@@ -28,6 +28,7 @@ libmysqlclient_la_SOURCES = $(target_sources)
 libmysqlclient_la_LIBADD = $(target_libadd)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
 EXTRA_DIST = Makefile.shared
+noinst_HEADERS = client_settings.h
 
 # This is called from the toplevel makefile
 link_sources:
@@ -79,7 +80,8 @@ nh =		my_global.h config-win32.h dbug.h errmsg.h \
 		m_ctype.h m_string.h \
 		my_alarm.h my_config.h my_dir.h my_list.h my_net.h my_sys.h \
 		mysql.h mysql_com.h mysql_version.h mysqld_error.h \
-		mysys_err.h my_pthread.h thr_alarm.h violite.h hash.h
+		mysys_err.h my_pthread.h thr_alarm.h violite.h hash.h \
+                sql_common.h ../libmysql/client_settings.h 
 # Get a list of the needed objects  
 lobjs = $(mysysobjects1) $(dbugobjects) $(mystringsobjects) $(sqlobjects)
 

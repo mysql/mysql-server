@@ -263,13 +263,6 @@ class Item_func_strcmp :public Item_bool_func2
 public:
   Item_func_strcmp(Item *a,Item *b) :Item_bool_func2(a,b) {}
   longlong val_int();
-  void fix_length_and_dec()
-  {
-    max_length=2;
-    /* QQ: COERCIBILITY */
-    cmp_charset= args[0]->binary() || args[1]->binary() ? 
-    		 &my_charset_bin : args[0]->charset();
-  }
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
 };
@@ -850,79 +843,3 @@ inline Item *and_conds(Item *a,Item *b)
 }
 
 Item *and_expressions(Item *a, Item *b, Item **org_item);
-
-/**************************************************************
-  Spatial relations
-***************************************************************/
-
-class Item_func_spatial_rel :public Item_bool_func2
-{
-  enum Functype spatial_rel;
-public:
-  Item_func_spatial_rel(Item *a,Item *b, enum Functype sp_rel) :
-    Item_bool_func2(a,b) { spatial_rel = sp_rel; }
-  longlong val_int();
-  enum Functype functype() const 
-  { 
-    switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      return SP_WITHIN_FUNC;
-    case SP_WITHIN_FUNC:
-      return SP_CONTAINS_FUNC;
-    default:
-      return spatial_rel;
-    }
-  }
-  enum Functype rev_functype() const { return spatial_rel; }
-  const char *func_name() const 
-  { 
-    switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      return "contains";
-    case SP_WITHIN_FUNC:
-      return "within";
-    case SP_EQUALS_FUNC:
-      return "equals";
-    case SP_DISJOINT_FUNC:
-      return "disjoint";
-    case SP_INTERSECTS_FUNC:
-      return "intersects";
-    case SP_TOUCHES_FUNC:
-      return "touches";
-    case SP_CROSSES_FUNC:
-      return "crosses";
-    case SP_OVERLAPS_FUNC:
-      return "overlaps";
-    default:
-      return "sp_unknown"; 
-    }
-    }
-};
-
-
-class Item_func_isempty :public Item_bool_func
-{
-public:
-  Item_func_isempty(Item *a) :Item_bool_func(a) {}
-  longlong val_int();
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "isempty"; }
-};
-
-class Item_func_issimple :public Item_bool_func
-{
-public:
-  Item_func_issimple(Item *a) :Item_bool_func(a) {}
-  longlong val_int();
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "issimple"; }
-};
-
-class Item_func_isclosed :public Item_bool_func
-{
-public:
-  Item_func_isclosed(Item *a) :Item_bool_func(a) {}
-  longlong val_int();
-  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
-  const char *func_name() const { return "isclosed"; }
-};

@@ -112,7 +112,7 @@ select last_insert_id();
 last_insert_id()
 255
 insert into t1 set i = null;
-Duplicate entry '255' for key 1
+ERROR 23000: Duplicate entry '255' for key 1
 select last_insert_id();
 last_insert_id()
 255
@@ -140,8 +140,8 @@ select last_insert_id();
 last_insert_id()
 2
 insert into t1 values (NULL, 10);
-Duplicate entry '10' for key 2
+ERROR 23000: Duplicate entry '10' for key 2
 select last_insert_id();
 last_insert_id()
-3
+0
 drop table t1;

@@ -1,2 +1,2 @@
-Collation	Charset	Id	D	C	Sortlen
-ujis_japanese_ci	ujis	12	Y		0
+Collation	Charset	Id	Default	Compiled	Sortlen
+ujis_japanese_ci	ujis	12	Yes	Yes	0

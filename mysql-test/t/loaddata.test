@@ -10,4 +10,12 @@ create table t1 (a date, b date, c date not null, d date);
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 SELECT * from t1;
+truncate table t1;
+
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+SELECT * from t1;
 drop table t1;
+
+
+
+

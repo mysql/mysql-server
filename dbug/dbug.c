@@ -280,7 +280,7 @@ static BOOLEAN Writable(char *pathname);
 static void ChangeOwner(char *pathname);
 	/* Allocate memory for runtime support */
 #endif
-static char *DbugMalloc(int size);
+static char *DbugMalloc(size_t size);
 	/* Remove leading pathname components */
 static char *BaseName(const char *pathname);
 static void DoPrefix(uint line);
@@ -1120,7 +1120,7 @@ static void PushState ()
     init_done=TRUE;
   }
   (void) code_state();				/* Alloc memory */
-  new_malloc = (struct state *) DbugMalloc (sizeof (struct state));
+  new_malloc = (struct state *) DbugMalloc(sizeof (struct state));
   new_malloc -> flags = 0;
   new_malloc -> delay = 0;
   new_malloc -> maxdepth = MAXDEPTH;
@@ -1341,11 +1341,10 @@ struct link *linkp)
  */
 
 
-static char *StrDup (
-const char *str)
+static char *StrDup (const char *str)
 {
     reg1 char *new_malloc;
-    new_malloc = DbugMalloc ((int) strlen (str) + 1);
+    new_malloc = DbugMalloc((size_t) strlen (str) + 1);
     (void) strcpy (new_malloc, str);
     return (new_malloc);
 }
@@ -1606,14 +1605,13 @@ static void DbugExit (const char *why)
  *
  */
 
-static char *DbugMalloc (
-int size)
+static char *DbugMalloc (size_t size)
 {
-    register char *new_malloc;
+  register char *new_malloc;
 
-    if (!(new_malloc = (char*) malloc ((unsigned int) size)))
-      DbugExit ("out of memory");
-    return (new_malloc);
+  if (!(new_malloc = (char*) malloc((size_t) size)))
+    DbugExit ("out of memory");
+  return (new_malloc);
 }
 
 
@@ -1622,9 +1620,7 @@ int size)
  *		separator (to allow directory-paths in dos).
  */
 
-static char *static_strtok (
-char *s1,
-pchar separator)
+static char *static_strtok (char *s1, pchar separator)
 {
   static char *end = NULL;
   reg1 char *rtnval,*cpy;

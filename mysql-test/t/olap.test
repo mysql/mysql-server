@@ -1,31 +1,79 @@
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
-create table t1 ( product varchar(32), country varchar(32), year int, profit int);
-insert into t1  values ( 'Computer', 'India',2000, 1200),
-( 'TV', 'United States', 1999, 150),
-( 'Calculator', 'United States', 1999,50),
-( 'Computer', 'United States', 1999,1500),
-( 'Computer', 'United States', 2000,1500),
-( 'TV', 'United States', 2000, 150),
-( 'TV', 'India', 2000, 100),
-( 'TV', 'India', 2000, 100),
-( 'Calculator', 'United States', 2000,75),
-( 'Calculator', 'India', 2000,75),
-( 'TV', 'India', 1999, 100),
-( 'Computer', 'India', 1999,1200),
-( 'Computer', 'United States', 2000,1500),
-( 'Calculator', 'United States', 2000,75);
+create table t1 (product varchar(32), country_id int not null, year int, profit int);
+insert into t1  values ( 'Computer', 2,2000, 1200),
+( 'TV', 1, 1999, 150),
+( 'Calculator', 1, 1999,50),
+( 'Computer', 1, 1999,1500),
+( 'Computer', 1, 2000,1500),
+( 'TV', 1, 2000, 150),
+( 'TV', 2, 2000, 100),
+( 'TV', 2, 2000, 100),
+( 'Calculator', 1, 2000,75),
+( 'Calculator', 2, 2000,75),
+( 'TV', 1, 1999, 100),
+( 'Computer', 1, 1999,1200),
+( 'Computer', 2, 2000,1500),
+( 'Calculator', 2, 2000,75),
+( 'Phone', 3, 2003,10)
+;
+
+create table t2 (country_id int primary key, country char(20) not null);
+insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
+
+# First simple rollups, with just grand total
+select product, sum(profit) from t1 group by product;
+select product, sum(profit) from t1 group by product with rollup;
+select product, sum(profit) from t1 group by 1 with rollup;
+select product, sum(profit),avg(profit) from t1 group by product with rollup;
+
+# Sub totals
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year;
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+select product, country_id , sum(profit) from t1 group by product desc, country_id with rollup;
+
+# limit
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup limit 5;
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup limit 3,3;
+
+select product, country_id, count(*), count(distinct year) from t1 group by product, country_id;
+select product, country_id, count(*), count(distinct year) from t1 group by product, country_id with rollup;
+
+# Test of having
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup having country_id = 1;
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup having sum(profit) > 200;
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup having sum(profit) > 7000;
+
+# Functions
+select concat(product,':',country_id) as 'prod', concat(":",year,":") as 'year',1+1, sum(profit)/count(*) from t1 group by 1,2 with rollup;
+select product, sum(profit)/count(*) from t1 group by product with rollup;
+select left(product,4) as prod, sum(profit)/count(*) from t1 group by prod with rollup;
+select concat(product,':',country_id), 1+1, sum(profit)/count(*) from t1 group by concat(product,':',country_id) with rollup;
+
+# Joins
+select product, country , year, sum(profit) from t1,t2 where t1.country_id=t2.country_id group by product, country, year with rollup;
+
+# Derived tables and sub selects
+select product, `sum` from (select product, sum(profit) as 'sum' from t1 group by product with rollup) as tmp where product is null;
+select product from t1 where exists (select product, country_id , sum(profit) from t1 as t2 where t1.product=t2.product group by product, country_id with rollup having sum(profit) > 6000);
+
+# The following doesn't return the expected answer, but this is a limitation
+# in the implementation so we should just document it
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year having country_id is NULL;
+select concat(':',product,':'), sum(profit),avg(profit) from t1 group by product with rollup;
+
+# Error handling
+
+# Cube is not yet implemented
 --error 1235
-select product, country , year, sum(profit) from t1 group by product, country, year with cube;
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
 --error 1235
-explain select product, country , year, sum(profit) from t1 group by product, country, year with cube;
+explain select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube;
 --error 1235
-select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
---error 1235
-explain select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
---error 1235
-select product, country , year, sum(profit) from t1 group by product, country, year with cube union all select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
-drop table t1;
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with cube union all select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+
+drop table t1,t2;
 

@@ -1,5 +1,7 @@
 -- require r/have_raid.require
+disable_query_log;
 show variables like "have_raid";
+enable_query_log;
 
 #
 # Test of raided tables

@@ -359,7 +359,7 @@ then
   # we will gets some problems when linking static programs.
   # The following code is used to fix this problem.
 
-  if test "$CXX" = "gcc"
+  if test "$CXX" = "gcc" -o "$CXX" = "ccache gcc"
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
@@ -1023,8 +1023,16 @@ case $SYSTEM_TYPE in
     ;;
   *freebsd*)
     echo "Adding fix for interrupted reads"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
-    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
+    OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
+    if test "$OSVERSION" -gt "480100" && \
+       test "$OSVERSION" -lt "500000" || \
+       test "$OSVERSION" -gt "500109"
+    then
+       CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
+    else
+       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
+       CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
+    fi
     ;;
   *netbsd*)
     echo "Adding flag -Dunix"
@@ -2168,8 +2176,8 @@ AC_ARG_WITH(libedit,
     [ with_libedit=undefined ]
     )
 
-compile_readline= no
-compile_libedit= no
+compile_readline="no"
+compile_libedit="no"
 
 if [test "$with_libedit" = "yes"] && [test "$with_readline" = "yes"]
 then
@@ -2226,28 +2234,41 @@ AC_SUBST(readline_h_ln_cmd)
 
 
 dnl In order to add new charset, you must add charset name to
-dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.
+dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.xml.
 dnl If the character set uses strcoll or other special handling,
 dnl you must also create strings/ctype-$charset_name.c
 
 AC_DIVERT_PUSH(0)
-CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
-                    croat czech danish dec8 dos estonia euc_kr gb2312 gbk
-                    german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                    latin1 latin1_de latin2 latin5 sjis swe7 tis620 ucs2 ujis
-                    usa7 utf8 win1250 win1250ch win1251ukr"
-CHARSETS_DEPRECATED="win1251"
-CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ucs2 ujis utf8 win1250ch"
+
+define(CHARSETS_AVAILABLE1,ascii armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
+define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk)
+define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
+define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)
+define(CHARSETS_AVAILABLE5,sjis swe7 tis620 ucs2 ujis utf8)
+
 DEFAULT_CHARSET=latin1
+CHARSETS_AVAILABLE="CHARSETS_AVAILABLE1 CHARSETS_AVAILABLE2 CHARSETS_AVAILABLE3 CHARSETS_AVAILABLE4 CHARSETS_AVAILABLE5"
+CHARSETS_COMPLEX="big5 cp1250 euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8"
+
 AC_DIVERT_POP
 
-dnl fix this later..
-dnl  [  --with-charset=CHARSET  Use CHARSET by default (one of: $CHARSETS_AVAILABLE; Default is $DEFAULT_CHARSET)],
-
 AC_ARG_WITH(charset,
-  [  --with-charset=CHARSET  Use CHARSET by default (Default is latin1)],
-  [default_charset="$withval"],
-  [default_charset="$DEFAULT_CHARSET"])
+   [  --with-charset=CHARSET
+                          Default character set, use one of:
+                          CHARSETS_AVAILABLE1
+                          CHARSETS_AVAILABLE2
+                          CHARSETS_AVAILABLE3
+                          CHARSETS_AVAILABLE4
+                          CHARSETS_AVAILABLE5],
+   [default_charset="$withval"],
+   [default_charset="$DEFAULT_CHARSET"])
+
+AC_ARG_WITH(collation,
+   [  --with-collation=COLLATION
+                          Default collation],
+   [default_collation="$withval"],
+   [default_collation="default"])
+
 
 AC_ARG_WITH(extra-charsets,
   [  --with-extra-charsets=CHARSET[,CHARSET,...]
@@ -2256,73 +2277,76 @@ AC_ARG_WITH(extra-charsets,
   [extra_charsets="$withval"],
   [extra_charsets="none"])
 
+
 AC_MSG_CHECKING("character sets")
 
+CHARSETS="$default_charset latin1 utf8"
+
 if test "$extra_charsets" = no; then
-  CHARSETS=""
+  CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = none; then
-  CHARSETS=""
+  CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = complex; then
-  CHARSETS="$CHARSETS_COMPLEX"
+  CHARSETS="$CHARSETS $CHARSETS_COMPLEX"
 elif test "$extra_charsets" = all; then
-  CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
+  CHARSETS="$CHARSETS $CHARSETS_AVAILABLE"
 else
-  CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
+  EXTRA_CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
+  CHARSETS="$CHARSETS $EXTRA_CHARSETS"
 fi
-
-CHARSETS="$default_charset $CHARSETS"
-
-use_mb="no"
 
 for cs in $CHARSETS
 do
   case $cs in 
     armscii8)
       AC_DEFINE(HAVE_CHARSET_armscii8)
-      use_mb="yes"
+      ;;
+    ascii)
+      AC_DEFINE(HAVE_CHARSET_ascii)
       ;;
     big5)
       AC_DEFINE(HAVE_CHARSET_big5)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
+      ;;
+    cp1250)
+      AC_DEFINE(HAVE_CHARSET_cp1250)
       ;;
     cp1251)
       AC_DEFINE(HAVE_CHARSET_cp1251)
       ;;
+    cp1256)
+      AC_DEFINE(HAVE_CHARSET_cp1256)
+      ;;
     cp1257)
       AC_DEFINE(HAVE_CHARSET_cp1257)
       ;;
-    croat)
-      AC_DEFINE(HAVE_CHARSET_croat)
+    cp850)
+      AC_DEFINE(HAVE_CHARSET_cp850)
       ;;
-    czech)
-      AC_DEFINE(HAVE_CHARSET_czech)
+    cp852)
+      AC_DEFINE(HAVE_CHARSET_cp852)
       ;;
-    danish)
-      AC_DEFINE(HAVE_CHARSET_danish)
+    cp866)
+      AC_DEFINE(HAVE_CHARSET_cp866)
       ;;
     dec8)
       AC_DEFINE(HAVE_CHARSET_dec8)
       ;;
-    dos)
-      AC_DEFINE(HAVE_CHARSET_dos)
-      ;;
-    estonia)
-      AC_DEFINE(HAVE_CHARSET_estonia)
-      ;;
-    euc_kr)
-      AC_DEFINE(HAVE_CHARSET_euc_kr)
-      use_mb="yes"
+    euckr)
+      AC_DEFINE(HAVE_CHARSET_euckr)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     gb2312)
       AC_DEFINE(HAVE_CHARSET_gb2312)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     gbk)
       AC_DEFINE(HAVE_CHARSET_gbk)
-      use_mb="yes"
-      ;;
-    german1)
-      AC_DEFINE(HAVE_CHARSET_german1)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     greek)
       AC_DEFINE(HAVE_CHARSET_greek)
@@ -2333,20 +2357,17 @@ do
     hp8)
       AC_DEFINE(HAVE_CHARSET_hp8)
       ;;
-    hungarian)
-      AC_DEFINE(HAVE_CHARSET_hungarian)
+    keybcs2)
+      AC_DEFINE(HAVE_CHARSET_keybcs2)
       ;;
-    koi8_ru)
-      AC_DEFINE(HAVE_CHARSET_koi8_ru)
+    koi8r)
+      AC_DEFINE(HAVE_CHARSET_koi8r)
       ;;
-    koi8_ukr)
-      AC_DEFINE(HAVE_CHARSET_koi8_ukr)
+    koi8u)
+      AC_DEFINE(HAVE_CHARSET_koi8u)
       ;;
     latin1)
       AC_DEFINE(HAVE_CHARSET_latin1)
-      ;;
-    latin1_de)
-      AC_DEFINE(HAVE_CHARSET_latin1_de)
       ;;
     latin2)
       AC_DEFINE(HAVE_CHARSET_latin2)
@@ -2354,9 +2375,19 @@ do
     latin5)
       AC_DEFINE(HAVE_CHARSET_latin5)
       ;;
+    latin7)
+      AC_DEFINE(HAVE_CHARSET_latin7)
+      ;;
+    macce)
+      AC_DEFINE(HAVE_CHARSET_macce)
+      ;;
+    macroman)
+      AC_DEFINE(HAVE_CHARSET_macroman)
+      ;;
     sjis)
       AC_DEFINE(HAVE_CHARSET_sjis)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     swe7)
       AC_DEFINE(HAVE_CHARSET_swe7)
@@ -2366,55 +2397,189 @@ do
       ;;
     ucs2)
       AC_DEFINE(HAVE_CHARSET_ucs2)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     ujis)
       AC_DEFINE(HAVE_CHARSET_ujis)
-      use_mb="yes"
-      ;;
-    usa7)
-      AC_DEFINE(HAVE_CHARSET_usa7)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     utf8)
       AC_DEFINE(HAVE_CHARSET_utf8)
-      use_mb="yes"
-      ;;
-    win1250)
-      AC_DEFINE(HAVE_CHARSET_win1250)
-      ;;
-    win1250ch)
-      AC_DEFINE(HAVE_CHARSET_win1250ch)
-      ;;
-    win1251)
-      AC_DEFINE(HAVE_CHARSET_win1251)
-      ;;
-    win1251ukr)
-      AC_DEFINE(HAVE_CHARSET_win1251ukr)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     *)
-      AC_MSG_ERROR([Charset $cs not available. (Available $CHARSETS_AVAILABLE).
+      AC_MSG_ERROR([Charset $cs not available. (Available are: $CHARSETS_AVAILABLE).
       See the Installation chapter in the Reference Manual.]);
   esac
 done
 
-dnl Always compile latin1
-AC_DEFINE(HAVE_CHARSET_latin1)
 
-dnl Always compile utf8
-AC_DEFINE(HAVE_CHARSET_utf8)
-use_mb=yes
+      default_charset_collations=""
 
-if test "$use_mb" = "yes"
-then
-  AC_DEFINE(USE_MB)
-  AC_DEFINE(USE_MB_IDENT)
+case $default_charset in 
+    armscii8)
+      default_charset_default_collation="armscii8_general_ci"
+      default_charset_collations="armscii8_general_ci armscii_bin"
+      ;;
+    ascii)
+      default_charset_default_collation="ascii_general_ci"
+      default_charset_collations="ascii_general_ci ascii_bin"
+      ;;
+    big5)
+      default_charset_default_collation="big5_chinese_ci"
+      default_charset_collations="big5_chinese_ci big5_bin"
+      ;;
+    cp1250)
+      default_charset_default_collation="cp1250_general_ci"
+      default_charset_collations="cp1250_general_ci cp1250_czech_ci cp1250_bin"
+      ;;
+    cp1251)
+      default_charset_default_collation="cp1251_general_ci"
+      default_charset_collations="cp1251_general_ci cp1251_general_cs cp1251_bin cp1251_bulgarian_ci cp1251_ukrainian_ci"
+      ;;
+    cp1256)
+      default_charset_default_collation="cp1256_general_ci"
+      default_charset_collations="cp1256_general_ci cp1256_bin"
+      ;;
+    cp1257)
+      default_charset_default_collation="cp1257_general_ci"
+      default_charset_collations="cp1257_general_ci cp1257_lithuanian_ci cp1257_bin"
+      ;;
+    cp850)
+      default_charset_default_collation="cp850_general_ci"
+      default_charset_collations="cp850_general_ci cp850_bin"
+      ;;
+    cp852)
+      default_charset_default_collation="cp852_general_ci"
+      default_charset_collations="cp852_general_ci cp852_bin"
+      ;;
+    cp866)
+      default_charset_default_collation="cp866_general_ci"
+      default_charset_collations="cp866_general_ci cp866_bin"
+      ;;
+    dec8)
+      default_charset_default_collation="dec8_swedish_ci"
+      default_charset_collations="dec8_swedish_ci dec8_bin"
+      ;;
+    euckr)
+      default_charset_default_collation="euckr_korean_ci"
+      default_charset_collations="euckr_korean_ci euckr_bin"
+      ;;
+    gb2312)
+      default_charset_default_collation="gb2312_chinese_ci"
+      default_charset_collations="gb2312_chinese_ci gb2312_bin"
+      ;;
+    gbk)
+      default_charset_default_collation="gbk_chinese_ci"
+      default_charset_collations="gbk_chinese_ci gbk_bin"
+      ;;
+    greek)
+      default_charset_default_collation="greek_general_ci"
+      default_charset_collations="greek_general_ci greek_bin"
+      ;;
+    hebrew)
+      default_charset_default_collation="hebrew_general_ci"
+      default_charset_collations="hebrew_general_ci hebrew_bin"
+      ;;
+    hp8)
+      default_charset_default_collation="hp8_english_ci"
+      default_charset_collations="hp8_english_ci hp8_bin"
+      ;;
+    keybcs2)
+      default_charset_default_collation="keybcs2_general_ci"
+      default_charset_collations="keybcs2_general_ci keybcs2_bin"
+      ;;
+    koi8r)
+      default_charset_default_collation="koi8r_general_ci"
+      default_charset_collations="koi8r_general_ci koi8r_bin"
+      ;;
+    koi8u)
+      default_charset_default_collation="koi8u_general_ci"
+      default_charset_collations="koi8u_general_ci koi8u_bin"
+      ;;
+    latin1)
+      default_charset_default_collation="latin1_swedish_ci"
+      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_swedish_ci"
+      ;;
+    latin2)
+      default_charset_default_collation="latin2_general_ci"
+      default_charset_collations="latin2_general_ci latin2_bin latin2_czech_ci latin2_hungarian_ci latin2_croatian_ci"
+      ;;
+    latin5)
+      default_charset_default_collation="latin5_turkish_ci"
+      default_charset_collations="latin5_turkish_ci latin5_bin"
+      ;;
+    latin7)
+      default_charset_default_collation="latin7_general_ci"
+      default_charset_collations="latin7_general_ci latin7_general_cs latin7_bin latin7_estonian_cs"
+      ;;
+    macce)
+      default_charset_default_collation="macce_general_ci"
+      default_charset_collations="macce_general_ci macce_bin"
+      ;;
+    macroman)
+      default_charset_default_collation="macroman_general_ci"
+      default_charset_collations="macroman_general_ci macroman_bin"
+      ;;
+    sjis)
+      default_charset_default_collation="sjis_japanese_ci"
+      default_charset_collations="sjis_japanese_ci sjis_bin"
+      ;;
+    swe7)
+      default_charset_default_collation="swe7_swedish_ci"
+      default_charset_collations="swe7_swedish_ci swe7_bin"
+      ;;
+    tis620)
+      default_charset_default_collation="tis620_thai_ci"
+      default_charset_collations="tis620_thai_ci tis620_bin"
+      ;;
+    ucs2)
+      default_charset_default_collation="ucs2_general_ci"
+      default_charset_collations="ucs2_general_ci ucs2_bin"
+      ;;
+    ujis)
+      default_charset_default_collation="ujis_japanese_ci"
+      default_charset_collations="ujis_japanese_ci ujis_bin"
+      ;;
+    utf8)
+      default_charset_default_collation="utf8_general_ci"
+      default_charset_collations="utf8_general_ci utf8_bin"
+      ;;
+    *)
+      AC_MSG_ERROR([Charset $cs not available. (Available are: $CHARSETS_AVAILABLE).
+      See the Installation chapter in the Reference Manual.]);
+esac
+
+if test "$default_collation" = default; then
+  default_collation=$default_charset_default_collation
 fi
 
-AC_SUBST(default_charset)
-AC_DEFINE_UNQUOTED(DEFAULT_CHARSET_NAME,"$default_charset")
+valid_default_collation=no
+for cl in $default_charset_collations
+do
+  if test x"$cl" = x"$default_collation"
+  then
+    valid_default_collation=yes
+    break
+  fi
+done
 
-AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
+if test x$valid_default_collation = xyes
+then
+  AC_MSG_RESULT([default: $default_charset, collation: $default_collation; compiled in: $CHARSETS])
+else
+  AC_MSG_ERROR([
+      Collation $default_collation is not valid for character set $default_charset.
+      Valid collations are: $default_charset_collations.
+      See the Installation chapter in the Reference Manual.
+  ]);
+fi
 
+AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_CHARSET_NAME,"$default_charset")
+AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_COLLATION_NAME,"$default_collation")
 
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
@@ -2655,6 +2820,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
+ sql-common/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
@@ -2675,6 +2841,7 @@ echo "Remember to check the platform specific part of the reference manual for"
 echo "hints about installing MySQL on your platform. Also have a look at the"
 echo "files in the Docs directory."
 echo
-# The following text is checked in ./Do-compile to se that the configure ends.
+# The following text is checked in ./Do-compile to verify that configure
+# ended sucessfully - don't remove it.
 echo "Thank you for choosing MySQL!"
 echo

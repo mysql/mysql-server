@@ -10,6 +10,7 @@
 #else
 #define PROTOCOL_VERSION		@PROTOCOL_VERSION@
 #define MYSQL_SERVER_VERSION		"@VERSION@"
+#define MYSQL_BASE_VERSION		"mysqld-@MYSQL_BASE_VERSION@"
 #ifndef MYSQL_SERVER_SUFFIX
 #define MYSQL_SERVER_SUFFIX		"@MYSQL_SERVER_SUFFIX@"
 #endif
@@ -20,8 +21,5 @@
 #define MYSQL_CONFIG_NAME		"my"
 
 /* mysqld compile time options */
-#ifndef MYSQL_CHARSET
-#define MYSQL_CHARSET			"@default_charset@"
-#endif /* MYSQL_CHARSET */
 #endif /* _CUSTOMCONFIG_ */
 #endif /* _mysql_version_h */

@@ -38,7 +38,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
-	    *default_charset = (char *)MYSQL_CHARSET, *current_host = 0;
+	    *default_charset = (char *)MYSQL_DEFAULT_CHARSET_NAME,
+	    *current_host = 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair;
 #ifdef HAVE_SMEM
@@ -66,9 +67,9 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_auto_repair, (gptr*) &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are", (gptr*) &charsets_dir,
+   "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"check", 'c', "Check table for errors", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+  {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"check-only-changed", 'C',
    "Check only tables that have changed since last check or haven't been closed properly.",
@@ -80,12 +81,12 @@ static struct my_option my_long_options[] =
    "To check several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames.",
    (gptr*) &opt_databases, (gptr*) &opt_databases, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set", (gptr*) &default_charset,
+   "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"fast",'F', "Check only tables that haven't been closed properly",
+  {"fast",'F', "Check only tables that haven't been closed properly.",
    (gptr*) &opt_fast, (gptr*) &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"force", 'f', "Continue even if we get an sql-error.",
@@ -114,7 +115,7 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "If you are using this option with CHECK TABLE, it prevents the check from scanning the rows to check for wrong links. This is the fastest check. If you are using this option with REPAIR TABLE, it will try to repair only the index tree. This is the fastest repair method for a table.",
@@ -125,7 +126,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
+   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"silent", 's', "Print only error messages.", (gptr*) &opt_silent,

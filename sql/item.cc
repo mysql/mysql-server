@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_IMPLICIT;
+  coercibility=COER_COERCIBLE;
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -119,7 +119,9 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
 
 
 /*
-  This function is only called when comparing items in the WHERE clause
+  This function is called when:
+  - Comparing items in the WHERE clause (when doing where optimization)
+  - When trying to find an ORDER BY/GROUP BY item in the SELECT part
 */
 
 bool Item::eq(const Item *item, bool binary_cmp) const
@@ -245,6 +247,7 @@ void Item_field::set_field(Field *field_par)
   decimals= field->decimals();
   table_name=field_par->table_name;
   field_name=field_par->field_name;
+  db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   set_charset(field_par->charset(), COER_IMPLICIT);
 }
@@ -346,9 +349,34 @@ longlong Item_field::val_int_result()
   return result_field->val_int();
 }
 
+
 bool Item_field::eq(const Item *item, bool binary_cmp) const
 {
-  return item->type() == FIELD_ITEM && ((Item_field*) item)->field == field;
+  if (item->type() != FIELD_ITEM)
+    return 0;
+  
+  Item_field *item_field= (Item_field*) item;
+  if (item_field->field)
+    return item_field->field == field;
+  /*
+    We may come here when we are trying to find a function in a GROUP BY
+    clause from the select list.
+    In this case the '100 % correct' way to do this would be to first
+    run fix_fields() on the GROUP BY item and then retry this function, but
+    I think it's better to relax the checking a bit as we will in
+    most cases do the correct thing by just checking the field name.
+    (In cases where we would choose wrong we would have to generate a
+    ER_NON_UNIQ_ERROR).
+  */
+  return (!my_strcasecmp(system_charset_info, item_field->name,
+			 field_name) &&
+	  (!item_field->table_name ||
+	   (!my_strcasecmp(table_alias_charset, item_field->table_name,
+			   table_name) &&
+	    (!item_field->db_name ||
+	     (item_field->db_name && !my_strcasecmp(table_alias_charset,
+						    item_field->db_name,
+						    db_name))))));
 }
 
 table_map Item_field::used_tables() const
@@ -839,7 +867,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
 	}
       }
-    } 
+    }
     else if (!tmp)
       return -1;
 
@@ -1454,7 +1482,7 @@ bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, I
     Field *field=field_arg->field;
     /* charset doesn't matter here, it's to avoid sigsegv only */
     set_field(new Field_null(0,0,Field::NONE,field->field_name,field->table,
-          default_charset_info));
+          &my_charset_bin));
   }
   return 0;
 }

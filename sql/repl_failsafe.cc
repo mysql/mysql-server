@@ -23,7 +23,6 @@
 #include "sql_repl.h"
 #include "slave.h"
 #include "sql_acl.h"
-#include "mini_client.h"
 #include "log_event.h"
 #include <mysql.h>
 
@@ -72,7 +71,7 @@ static int init_failsafe_rpl_thread(THD* thd)
 
   if (init_thr_lock() || thd->store_globals())
   {
-    close_connection(&thd->net,ER_OUT_OF_RESOURCES); // is this needed?
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1); // is this needed?
     end_thread(thd,0);
     DBUG_RETURN(-1);
   }
@@ -451,11 +450,11 @@ int show_new_master(THD* thd)
 
 /*
   Asks the master for the list of its other connected slaves.
-  This is for failsafe replication : 
-  in order for failsafe replication to work, the servers involved in replication
-  must know of each other. We accomplish this by having each slave report to the
-  master how to reach it, and on connection, each slave receives information
-  about where the other slaves are.
+  This is for failsafe replication: 
+  in order for failsafe replication to work, the servers involved in
+  replication must know of each other. We accomplish this by having each
+  slave report to the master how to reach it, and on connection, each
+  slave receives information about where the other slaves are.
 
   SYNOPSIS
     update_slave_list()
@@ -467,8 +466,8 @@ int show_new_master(THD* thd)
     hostname/port of the master, the username used by the slave to connect to
     the master.
     If the user used by the slave to connect to the master does not have the
-    REPLICATION SLAVE privilege, it will pop in this function because SHOW SLAVE
-    HOSTS will fail on the master.
+    REPLICATION SLAVE privilege, it will pop in this function because
+    SHOW SLAVE HOSTS will fail on the master.
 
   RETURN VALUES
     1           error
@@ -484,14 +483,14 @@ int update_slave_list(MYSQL* mysql, MASTER_INFO* mi)
   int port_ind;
   DBUG_ENTER("update_slave_list");
 
-  if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",16) ||
-      !(res = mc_mysql_store_result(mysql)))
+  if (mysql_real_query(mysql,"SHOW SLAVE HOSTS",16) ||
+      !(res = mysql_store_result(mysql)))
   {
-    error= mc_mysql_error(mysql);
+    error= mysql_error(mysql);
     goto err;
   }
 
-  switch (mc_mysql_num_fields(res)) {
+  switch (mysql_num_fields(res)) {
   case 5:
     have_auth_info = 0;
     port_ind=2;
@@ -508,7 +507,7 @@ HOSTS";
 
   pthread_mutex_lock(&LOCK_slave_list);
 
-  while ((row= mc_mysql_fetch_row(res)))
+  while ((row= mysql_fetch_row(res)))
   {
     uint32 server_id;
     SLAVE_INFO* si, *old_si;
@@ -541,7 +540,7 @@ HOSTS";
 
 err:
   if (res)
-    mc_mysql_free_result(res);
+    mysql_free_result(res);
   if (error)
   {
     sql_print_error("While trying to obtain the list of slaves from the master \
@@ -566,7 +565,7 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
   thd->thread_stack = (char*)&thd;
   MYSQL* recovery_captain = 0;
   pthread_detach_this_thread();
-  if (init_failsafe_rpl_thread(thd) || !(recovery_captain=mc_mysql_init(0)))
+  if (init_failsafe_rpl_thread(thd) || !(recovery_captain=mysql_init(0)))
   {
     sql_print_error("Could not initialize failsafe replication thread");
     goto err;
@@ -599,7 +598,7 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
   pthread_mutex_unlock(&LOCK_rpl_status);
 err:
   if (recovery_captain)
-    mc_mysql_close(recovery_captain);
+    mysql_close(recovery_captain);
   delete thd;
   my_thread_end();
   pthread_exit(0);
@@ -668,9 +667,12 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
     strmov(mysql->net.last_error, "Master is not configured");
     DBUG_RETURN(1);
   }
-  if (!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
-			mi->port, 0, 0,
-			slave_net_timeout))
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
+  mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
+  if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
+			mi->port, 0, 0))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -682,9 +684,9 @@ static inline void cleanup_mysql_results(MYSQL_RES* db_res,
   for (; cur >= start; --cur)
   {
     if (*cur)
-      mc_mysql_free_result(*cur);
+      mysql_free_result(*cur);
   }
-  mc_mysql_free_result(db_res);
+  mysql_free_result(db_res);
 }
 
 
@@ -692,8 +694,8 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
 			   MYSQL_RES *table_res, MASTER_INFO *mi)
 {
   MYSQL_ROW row;
-  for (row = mc_mysql_fetch_row(table_res); row;
-       row = mc_mysql_fetch_row(table_res))
+  for (row = mysql_fetch_row(table_res); row;
+       row = mysql_fetch_row(table_res))
   {
     TABLE_LIST table;
     const char* table_name= row[0];
@@ -727,7 +729,7 @@ int load_master_data(THD* thd)
   int error = 0;
   const char* errmsg=0;
   int restart_thread_mask;
-  mc_mysql_init(&mysql);
+  mysql_init(&mysql);
 
   /*
     We do not want anyone messing with the slave at all for the entire
@@ -749,7 +751,7 @@ int load_master_data(THD* thd)
   if (connect_to_master(thd, &mysql, active_mi))
   {
     net_printf(thd, error= ER_CONNECT_TO_MASTER,
-	       mc_mysql_error(&mysql));
+	       mysql_error(&mysql));
     goto err;
   }
 
@@ -758,15 +760,15 @@ int load_master_data(THD* thd)
     MYSQL_RES *db_res, **table_res, **table_res_end, **cur_table_res;
     uint num_dbs;
 
-    if (mc_mysql_query(&mysql, "SHOW DATABASES", 14) ||
-	!(db_res = mc_mysql_store_result(&mysql)))
+    if (mysql_real_query(&mysql, "SHOW DATABASES", 14) ||
+	!(db_res = mysql_store_result(&mysql)))
     {
       net_printf(thd, error = ER_QUERY_ON_MASTER,
-		 mc_mysql_error(&mysql));
+		 mysql_error(&mysql));
       goto err;
     }
 
-    if (!(num_dbs = (uint) mc_mysql_num_rows(db_res)))
+    if (!(num_dbs = (uint) mysql_num_rows(db_res)))
       goto err;
     /*
       In theory, the master could have no databases at all
@@ -785,12 +787,12 @@ int load_master_data(THD* thd)
       we wait to issue FLUSH TABLES WITH READ LOCK for as long as we
       can to minimize the lock time.
     */
-    if (mc_mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK", 27) ||
-	mc_mysql_query(&mysql, "SHOW MASTER STATUS",18) ||
-	!(master_status_res = mc_mysql_store_result(&mysql)))
+    if (mysql_real_query(&mysql, "FLUSH TABLES WITH READ LOCK", 27) ||
+	mysql_real_query(&mysql, "SHOW MASTER STATUS",18) ||
+	!(master_status_res = mysql_store_result(&mysql)))
     {
       net_printf(thd, error = ER_QUERY_ON_MASTER,
-		 mc_mysql_error(&mysql));
+		 mysql_error(&mysql));
       goto err;
     }
 
@@ -805,7 +807,7 @@ int load_master_data(THD* thd)
 	 cur_table_res++)
     {
       // since we know how many rows we have, this can never be NULL
-      MYSQL_ROW row = mc_mysql_fetch_row(db_res);
+      MYSQL_ROW row = mysql_fetch_row(db_res);
       char* db = row[0];
 
       /*
@@ -834,12 +836,12 @@ int load_master_data(THD* thd)
 	goto err;
       }
 
-      if (mc_mysql_select_db(&mysql, db) ||
-	  mc_mysql_query(&mysql, "SHOW TABLES", 11) ||
-	  !(*cur_table_res = mc_mysql_store_result(&mysql)))
+      if (mysql_select_db(&mysql, db) ||
+	  mysql_real_query(&mysql, "SHOW TABLES", 11) ||
+	  !(*cur_table_res = mysql_store_result(&mysql)))
       {
 	net_printf(thd, error = ER_QUERY_ON_MASTER,
-		   mc_mysql_error(&mysql));
+		   mysql_error(&mysql));
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 	goto err;
       }
@@ -857,7 +859,7 @@ int load_master_data(THD* thd)
     // adjust position in the master
     if (master_status_res)
     {
-      MYSQL_ROW row = mc_mysql_fetch_row(master_status_res);
+      MYSQL_ROW row = mysql_fetch_row(master_status_res);
 
       /*
 	We need this check because the master may not be running with
@@ -875,13 +877,13 @@ int load_master_data(THD* thd)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
 	flush_master_info(active_mi);
       }
-      mc_mysql_free_result(master_status_res);
+      mysql_free_result(master_status_res);
     }
 
-    if (mc_mysql_query(&mysql, "UNLOCK TABLES", 13))
+    if (mysql_real_query(&mysql, "UNLOCK TABLES", 13))
     {
       net_printf(thd, error = ER_QUERY_ON_MASTER,
-		 mc_mysql_error(&mysql));
+		 mysql_error(&mysql));
       goto err;
     }
   }
@@ -920,7 +922,7 @@ err:
   UNLOCK_ACTIVE_MI;
   thd->proc_info = 0;
 
-  mc_mysql_close(&mysql); // safe to call since we always do mc_mysql_init()
+  mysql_close(&mysql); // safe to call since we always do mysql_init()
   if (!error)
     send_ok(thd);
 

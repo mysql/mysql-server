@@ -1,50 +1,115 @@
 -- source include/have_innodb.inc
 
-truncate mysql.help_topic;
-truncate mysql.help_category;
-truncate mysql.help_relation;
+#      category:                     topic:               keyword:
+#
+# impossible_category_1
+#                            impossible_function_1
+#                                                   impossible_function_5 
+#                            impossible_function_2
+#                                                   impossible_function_1
+# impossible_category_2
+#                            impossible_function_3
+#                                                   impossible_function_6                                            
+#                            impossible_function_4
+#                                                   impossible_function_6
+#      impossible_category_3
+#                            impossible_function_7 
 
-insert into mysql.help_topic(name,description,example)values('impossible_function_1','description of \n impossible_function1','example of \n impossible_function1');
-SELECT @topic1_id:=LAST_INSERT_ID();
-insert into mysql.help_topic(name,description,example)values('impossible_function_2','description of \n impossible_function2','example of \n impossible_function2');
-SELECT @topic2_id:=LAST_INSERT_ID();
-insert into mysql.help_topic(name,description,example)values('impossible_function_3','description of \n impossible_function3','example of \n impossible_function3');
-SELECT @topic3_id:=LAST_INSERT_ID();
+insert into mysql.help_category(help_category_id,name)values(1,'impossible_category_1');
+select @category1_id:= 1;
+insert into mysql.help_category(help_category_id,name)values(2,'impossible_category_2');
+select @category2_id:= 2;
+insert into mysql.help_category(help_category_id,name,parent_category_id)values(3,'impossible_category_3',@category2_id);
+select @category3_id:= 3;
 
-insert into mysql.help_category(name)values('impossible_category_1');
-SELECT @category1_id:=LAST_INSERT_ID();
-insert into mysql.help_category(name)values('impossible_category_2');
-SELECT @category2_id:=LAST_INSERT_ID();
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(1,'impossible_function_1',@category1_id,'description of \n impossible_function1\n','example of \n impossible_function1');
+select @topic1_id:= 1;
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(2,'impossible_function_2',@category1_id,'description of \n impossible_function2\n','example of \n impossible_function2');
+select @topic2_id:= 2;
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(3,'impossible_function_3',@category2_id,'description of \n impossible_function3\n','example of \n impossible_function3');
+select @topic3_id:= 3;
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(4,'impossible_function_4',@category2_id,'description of \n impossible_function4\n','example of \n impossible_function4');
+select @topic4_id:= 4;
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(5,'impossible_function_7',@category3_id,'description of \n impossible_function5\n','example of \n impossible_function7');
+select @topic5_id:= 5;
 
-insert into mysql.help_relation(help_category_id,help_topic_id)values(@category1_id,@topic1_id);
-insert into mysql.help_relation(help_category_id,help_topic_id)values(@category1_id,@topic2_id);
-insert into mysql.help_relation(help_category_id,help_topic_id)values(@category2_id,@topic2_id);
-insert into mysql.help_relation(help_category_id,help_topic_id)values(@category2_id,@topic3_id);
+insert into mysql.help_keyword(help_keyword_id,name)values(1,'impossible_function_1');
+select @keyword1_id:= 1;
+insert into mysql.help_keyword(help_keyword_id,name)values(2,'impossible_function_5');
+select @keyword2_id:= 2;
+insert into mysql.help_keyword(help_keyword_id,name)values(3,'impossible_function_6');
+select @keyword3_id:= 3;
 
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword1_id,@topic2_id);
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword2_id,@topic1_id);
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword3_id,@topic3_id);
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword3_id,@topic4_id);
+
+##############
 help 'function_of_my_dream';
 help '%possible_f%';
 help 'impossible_func%';
 help 'impossible_category%';
 help 'impossible_%';
+
+help '%function_1';
 help '%function_2';
+help '%function_3';
+help '%function_4';
+help '%function_5';
+help '%function_6';
+help '%function_7';
+
 help '%category_2';
 help 'impossible_function_1';
 help 'impossible_category_1';
+##############
 
+alter table mysql.help_relation type=innodb;
+alter table mysql.help_keyword type=innodb;
 alter table mysql.help_topic type=innodb;
 alter table mysql.help_category type=innodb;
-alter table mysql.help_relation type=innodb;
 
+##############
 help 'function_of_my_dream';
-help '%ble_f%';
+help '%possible_f%';
 help 'impossible_func%';
 help 'impossible_category%';
 help 'impossible_%';
+
+help '%function_1';
 help '%function_2';
+help '%function_3';
+help '%function_4';
+help '%function_5';
+help '%function_6';
+help '%function_7';
+
 help '%category_2';
 help 'impossible_function_1';
 help 'impossible_category_1';
+##############
 
+alter table mysql.help_relation type=myisam;
+alter table mysql.help_keyword type=myisam;
 alter table mysql.help_topic type=myisam;
 alter table mysql.help_category type=myisam;
-alter table mysql.help_relation type=myisam;
+
+delete from mysql.help_topic where help_topic_id=@topic1_id;
+delete from mysql.help_topic where help_topic_id=@topic2_id;
+delete from mysql.help_topic where help_topic_id=@topic3_id;
+delete from mysql.help_topic where help_topic_id=@topic4_id;
+delete from mysql.help_topic where help_topic_id=@topic5_id;
+
+delete from mysql.help_category where help_category_id=@category3_id;
+delete from mysql.help_category where help_category_id=@category2_id;
+delete from mysql.help_category where help_category_id=@category1_id;
+
+delete from mysql.help_keyword where help_keyword_id=@keyword1_id;
+delete from mysql.help_keyword where help_keyword_id=@keyword2_id;
+delete from mysql.help_keyword where help_keyword_id=@keyword3_id;
+
+delete from mysql.help_relation where help_keyword_id=@keyword1_id and help_topic_id=@topic2_id;
+delete from mysql.help_relation where help_keyword_id=@keyword2_id and help_topic_id=@topic1_id;
+delete from mysql.help_relation where help_keyword_id=@keyword3_id and help_topic_id=@topic3_id;
+delete from mysql.help_relation where help_keyword_id=@keyword3_id and help_topic_id=@topic4_id;

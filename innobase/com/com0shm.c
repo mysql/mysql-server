@@ -103,7 +103,8 @@ struct com_shm_endpoint_struct{
 				the area currently may contain a datagram;
 				NOTE: automatic event */
 	os_event_t	empty; 	/* this is in the signaled state if the area
-				currently may be empty; NOTE: automatic event */
+				currently may be empty; NOTE: automatic
+				event */
 	ip_mutex_hdl_t*	ip_mutex; /* handle to the interprocess mutex
 				protecting the shared memory */
 	UT_LIST_NODE_T(com_shm_endpoint_t) list; /* If the endpoint struct
@@ -793,15 +794,17 @@ com_shm_create_or_open(
 
 	ut_strcpy(buf + len, (char*)"_IBSHM_EV_NE"),
 
-	event_ne = os_event_create_auto(buf);
+	event_ne = os_event_create(buf);
 
 	ut_ad(event_ne);
 
 	ut_strcpy(buf + len, (char*)"_IBSHM_EV_EM"),
 
-	event_em = os_event_create_auto(buf);
+	event_em = os_event_create(buf);
 
 	ut_ad(event_em);
+
+	ut_a(0); /* event_ne and event_em should be auto events! */
 
 	com_shm_endpoint_set_shm(ep, shm);
 	com_shm_endpoint_set_map(ep, map);

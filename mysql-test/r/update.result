@@ -5,11 +5,11 @@ update t1 set a=a+10 where a > 34;
 update t1 set a=a+100 where a > 0;
 update t1 set a=a+100 where a=1 and a=2;
 update t1 set a=b+100 where a=1 and a=2;
-Unknown column 'b' in 'field list'
+ERROR 42S22: Unknown column 'b' in 'field list'
 update t1 set a=b+100 where c=1 and a=2;
-Unknown column 'c' in 'where clause'
+ERROR 42S22: Unknown column 'c' in 'where clause'
 update t1 set d=a+100 where a=1;
-Unknown column 'd' in 'field list'
+ERROR 42S22: Unknown column 'd' in 'field list'
 select * from t1;
 a
 101

@@ -294,6 +294,13 @@ drop table t1;
 
 create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
 insert into t1 (id) values (1);
+select 
+  charset(load_file('../../std_data/words.dat')),
+  collation(load_file('../../std_data/words.dat')),
+  coercibility(load_file('../../std_data/words.dat'));
 update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
+drop table t1;
+create table t1 select load_file('../../std_data/words.dat');
+show full fields from t1;
 drop table t1;

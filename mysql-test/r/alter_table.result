@@ -156,9 +156,9 @@ create table t1 (i int unsigned not null auto_increment primary key);
 alter table t1 rename t2;
 alter table t2 rename t1, add c char(10) comment "no comment";
 show columns from t1;
-Field	Type	Collation	Null	Key	Default	Extra
-i	int(10) unsigned	NULL		PRI	NULL	auto_increment
-c	char(10)	latin1_swedish_ci	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+i	int(10) unsigned		PRI	NULL	auto_increment
+c	char(10)	YES		NULL	
 drop table t1;
 create table t1 (a int, b int);
 insert into t1 values(1,100), (2,100), (3, 100);
@@ -275,4 +275,9 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE	
 t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE	
 t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE	
+drop table t1;
+CREATE TABLE t1 (i int(10), index(i) );
+ALTER TABLE t1 DISABLE KEYS;
+INSERT DELAYED INTO t1 VALUES(1),(2),(3);
+ALTER TABLE t1 ENABLE KEYS;
 drop table t1;

@@ -106,11 +106,21 @@ typedef struct st_join_table {
 } JOIN_TAB;
 
 
-typedef struct st_position {			/* Used in find_best */
+typedef struct st_position			/* Used in find_best */
+{
   double records_read;
   JOIN_TAB *table;
   KEYUSE *key;
 } POSITION;
+
+typedef struct st_rollup
+{
+  enum State { STATE_NONE, STATE_INITED, STATE_READY };
+  State state;
+  Item *item_null;
+  Item ***ref_pointer_arrays;
+  List<Item> *fields;
+} ROLLUP;
 
 
 class JOIN :public Sql_alloc
@@ -132,7 +142,7 @@ class JOIN :public Sql_alloc
   // used to store 2 possible tmp table of SELECT
   TABLE    *exec_tmp_table1, *exec_tmp_table2;
   THD	   *thd;
-  Item_sum  **sum_funcs;
+  Item_sum  **sum_funcs, ***sum_funcs_end;
   Procedure *procedure;
   Item	    *having;
   Item      *tmp_having; // To store Having when processed temporary table
@@ -146,6 +156,7 @@ class JOIN :public Sql_alloc
   SELECT_LEX *select_lex;
   
   JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
+  ROLLUP rollup;				// Used with rollup
 
   bool select_distinct, //Is select distinct?
     no_order, simple_order, simple_group,
@@ -159,7 +170,7 @@ class JOIN :public Sql_alloc
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
   //Part, shared with list above, emulate following list
   List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
-  List<Item> & fields_list; // hold field list passed to mysql_select
+  List<Item> &fields_list; // hold field list passed to mysql_select
   int error;
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
@@ -168,15 +179,15 @@ class JOIN :public Sql_alloc
   SQL_SELECT *select;                //created in optimisation phase
   Item **ref_pointer_array; //used pointer reference for this select
   // Copy of above to be used with different lists
-  Item **items0, **items1, **items2, **items3;
+  Item **items0, **items1, **items2, **items3, **current_ref_pointer_array;
   uint ref_pointer_array_size; // size of above in bytes
   const char *zero_result_cause; // not 0 if exec must return zero result
   
   bool union_part; // this subselect is part of union 
   bool optimized; // flag to avoid double optimization in EXPLAIN
 
-  JOIN(THD *thd, List<Item> &fields,
-       ulong select_options, select_result *result):
+  JOIN(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
+       select_result *result_arg):
     join_tab(0),
     table(0),
     tables(0), const_tables(0),
@@ -184,13 +195,13 @@ class JOIN :public Sql_alloc
     do_send_rows(1),
     send_records(0), found_records(0), examined_rows(0),
     exec_tmp_table1(0), exec_tmp_table2(0),
-    thd(thd),
+    thd(thd_arg),
     sum_funcs(0),
     procedure(0),
     having(0), tmp_having(0),
-    select_options(select_options),
-    result(result),
-    lock(thd->lock),
+    select_options(select_options_arg),
+    result(result_arg),
+    lock(thd_arg->lock),
     select_lex(0), //for safety
     tmp_join(0),
     select_distinct(test(select_options & SELECT_DISTINCT)),
@@ -212,6 +223,7 @@ class JOIN :public Sql_alloc
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.copy_field=0;
     tmp_table_param.end_write_records= HA_POS_ERROR;
+    rollup.state= ROLLUP::STATE_NONE;
   }
   
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
@@ -221,15 +233,28 @@ class JOIN :public Sql_alloc
   int optimize();
   int reinit();
   void exec();
-  int cleanup(THD *thd);
+  int cleanup();
   void restore_tmp();
+  bool alloc_func_list();
+  bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
+			  bool before_group_by);
 
+  inline void set_items_ref_array(Item **ptr)
+  {
+    memcpy((char*) ref_pointer_array, (char*) ptr, ref_pointer_array_size);
+    current_ref_pointer_array= ptr;
+  }
   inline void init_items_ref_array()
   {
     items0= ref_pointer_array + all_fields.elements;
-    ref_pointer_array_size= all_fields.elements*sizeof(Item*);
     memcpy(items0, ref_pointer_array, ref_pointer_array_size);
+    current_ref_pointer_array= items0;
   }
+
+  bool rollup_init();
+  bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
+			  Item_sum ***func);
+  int JOIN::rollup_send_data(uint idx);
 };
 
 

@@ -208,7 +208,7 @@ To make maintaining easier please:
   <alias>windows-1251</alias>
   <alias>ms-cyr</alias>
   <alias>ms-cyrillic</alias>
-  <collation name="cp1251_bulgarian_ci"	id="14"	flag="primary">
+  <collation name="cp1251_bulgarian_ci"	id="14">
     <order>Belarusian</order>
     <order>Bulgarian</order>
     <order>Macedonian</order>
@@ -219,7 +219,7 @@ To make maintaining easier please:
   </collation>
   <collation name="cp1251_ukrainian_ci"	id="23"	order="Ukrainian"/>
   <collation name="cp1251_bin"		id="50"	order="Binary"	flag="binary"/>
-  <collation name="cp1251_general_ci"	id="51">
+  <collation name="cp1251_general_ci"	id="51" flag="primary">
     <order>Belarusian</order>
     <order>Bulgarian</order>
     <order>Macedonian</order>
@@ -348,7 +348,9 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="cp1250_czech_ci"	id="34"	order="Czech"/>
+  <collation name="cp1250_czech_ci"	id="34"	order="Czech">
+    <flag>compiled</flag>
+  </collation>
   <collation name="cp1250_bin"		id="66"	order="Binary"	flag="binary"/>
 </charset>
 
@@ -406,8 +408,14 @@ To make maintaining easier please:
   <family>Unicode</family>
   <description>UTF-8 Unicode</description>
   <alias>utf-8</alias>
-  <collation name="utf8_general_ci"	id="33"	flag="primary"/>
-  <collation name="utf8_bin"		id="83"	flag="binary"/>
+  <collation name="utf8_general_ci"	id="33">
+   <flag>primary</flag>
+   <flag>compiled</flag>
+  </collation>
+  <collation name="utf8_bin"		id="83">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="ucs2">
