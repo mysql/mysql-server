@@ -728,7 +728,7 @@ CHARSET_INFO my_charset_latin1_bin=
   ctype_latin1,
   to_lower_latin1,
   to_upper_latin1,
-  sort_order_latin1_de,
+  NULL,					/* sort_order   */
   NULL,					/* contractions */
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */

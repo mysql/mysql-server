@@ -79,7 +79,7 @@ character-set=latin1
 "Champ BLOB '%-.64s' ne peut être utilisé dans une clé",
 "Champ '%-.64s' trop long (max = %d). Utilisez un BLOB",
 "Un seul champ automatique est permis et il doit être indexé",
-"%s: Prêt pour des connections\n",
+"%s: Prêt pour des connections",
 "%s: Arrêt normal du serveur\n",
 "%s: Reçu le signal %d. Abandonne!\n",
 "%s: Arrêt du serveur terminé\n",

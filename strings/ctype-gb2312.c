@@ -5765,7 +5765,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
-    sort_order_gb2312,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

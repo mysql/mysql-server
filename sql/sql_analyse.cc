@@ -34,9 +34,6 @@
 
 #define MAX_TREEMEM	  8192
 #define MAX_TREE_ELEMENTS 256
-#define UINT_MAX16	  0xffff
-#define UINT_MAX24	  0xffffff
-#define UINT_MAX32	  0xffffffff
 
 int sortcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b)

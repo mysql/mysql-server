@@ -2023,3 +2023,5 @@ CmdBackupCallback(const MgmtSrvr::BackupEvent & event){
   ndbout << str << endl;
 }
 #endif
+
+template class Vector<char const*>;
