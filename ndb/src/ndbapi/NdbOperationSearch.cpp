@@ -543,6 +543,7 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
     {
       tSignal = tSignal->next();
       src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
+      chunk = KeyInfo::DataLength;
     }
 
     for(unsigned i = m_accessTable->m_columns.size(); i>0; cols++, i--)
