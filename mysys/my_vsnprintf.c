@@ -19,6 +19,7 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+#include <assert.h>
 
 int my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
@@ -53,7 +54,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       plen = (uint) strlen(par);
       if (left_len <= plen)
 	plen = left_len - 1;
-      to=strmov(to,par);
+      to=strnmov(to,par,plen);
       continue;
     }
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
@@ -73,6 +74,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       break;
     *to++='%';				/* % used as % or unknown code */
   }
+  DBUG_ASSERT(to <= end);
   *to='\0';				/* End of errmessage */
   return (uint) (to - start);
 }
