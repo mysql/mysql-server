@@ -63,7 +63,7 @@ void setup_windows_event_source()
   /* Name of the PE module that contains the message resource */
   GetModuleFileName(NULL, szPath, MAX_PATH);
 
-  / Register EventMessageFile */
+  /* Register EventMessageFile */
   dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ, 
                           (PBYTE) szPath, strlen(szPath)+1);
     
