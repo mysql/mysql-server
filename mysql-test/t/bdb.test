@@ -748,3 +748,22 @@ SELECT t1.* FROM t1 WHERE id IN (1);
 SELECT t1.* FROM t2 left outer join t1 on (t1.id=t2.id);
 delete from t1 where id3 >= 0 and id3 <= 0;
 drop table t1,t2;
+
+#
+# Test problems with NULL
+#
+
+CREATE TABLE t1 (i varchar(48) NOT NULL default '', p varchar(255) default NULL,s varchar(48) NOT NULL default '', PRIMARY KEY  (i), UNIQUE(p,s)) TYPE=BDB;
+INSERT INTO t1 VALUES ('00000000-e6c4ddeaa6-003b8-83458387','programs/xxxxxxxx.wmv','00000000-e6c4ddeb32-003bc-83458387');
+SELECT * FROM t1 WHERE p='programs/xxxxxxxx.wmv';
+drop table t1;
+
+#
+# Test problem which gave error 'Can't find record in 't1''
+#
+
+CREATE TABLE t1 ( STR_DATE varchar(8) NOT NULL default '',INFO_NOTE varchar(200) default NULL,PRIMARY KEY  (STR_DATE) ) TYPE=BerkeleyDB;
+select INFO_NOTE from t1 where STR_DATE = '20010610';
+select INFO_NOTE from t1 where STR_DATE < '20010610';
+select INFO_NOTE from t1 where STR_DATE > '20010610';
+drop table t1;
