@@ -41,8 +41,20 @@ my_off_t my_b_append_tell(IO_CACHE* info)
   /* save the value of my_tell in res so we can see it when studying
      coredump
   */
-  DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
+#ifndef DBUG_OFF
+  /* make sure EOF is where we think it is. Note that we cannot just use
+     my_tell() because we have a reader thread that could have left the
+     file offset in a non-EOF location
+     */
+  {
+   volatile my_off_t save_pos;
+   save_pos = my_tell(info->file,MYF(0));
+   my_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
+   DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
 	      == (res=my_tell(info->file,MYF(0))));
+   my_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
+  }
+#endif  
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
 #ifdef THREAD
   pthread_mutex_unlock(&info->append_buffer_lock);
