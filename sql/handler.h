@@ -192,8 +192,8 @@ public:
   byte *dupp_ref;			/* Pointer to dupp row */
   uint ref_length;			/* Length of ref (1-8) */
   uint block_size;			/* index block size */
-  ha_rows records;			/* Records i datafilen */
-  ha_rows deleted;			/* Deleted records */
+  ulonglong records;			/* Records i datafilen */
+  ulonglong deleted;			/* Deleted records */
   ulonglong data_file_length;		/* Length off data file */
   ulonglong max_data_file_length;	/* Length off data file */
   ulonglong index_file_length;

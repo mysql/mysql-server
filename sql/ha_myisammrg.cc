@@ -184,8 +184,8 @@ void ha_myisammrg::info(uint flag)
 {
   MYMERGE_INFO info;
   (void) myrg_status(file,&info,flag);
-  records = (ha_rows) info.records;
-  deleted = (ha_rows) info.deleted;
+  records = info.records;
+  deleted = info.deleted;
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
   table->keys_in_use= set_bits(key_map, table->keys);
