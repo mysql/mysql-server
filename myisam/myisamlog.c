@@ -247,6 +247,7 @@ static void get_options(register int *argc, register char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
+#include <help_start.h>
 	printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	puts("By Monty, for your professional use\n");
@@ -268,6 +269,7 @@ static void get_options(register int *argc, register char ***argv)
 	puts("If a recover is done all writes and all possibly updates and deletes is done\nand errors are only counted.");
 	puts("If one gives table names as arguments only these tables will be updated\n");
 	help=1;
+#include <help_end.h>
 	break;
       default:
 	printf("illegal option: \"-%c\"\n",*pos);
