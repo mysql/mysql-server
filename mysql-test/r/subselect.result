@@ -1151,7 +1151,7 @@ CREATE TABLE `t1` (
 `id` mediumint(8) unsigned NOT NULL auto_increment,
 `pseudo` varchar(35) character set latin1 NOT NULL default '',
 PRIMARY KEY  (`id`),
-UNIQUE KEY `pseudo` (`pseudo`),
+UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (pseudo) VALUES ('test');
 SELECT 0 IN (SELECT 1 FROM t1 a);
@@ -1256,7 +1256,7 @@ CREATE TABLE `t1` (
 `email` varchar(60) NOT NULL default '',
 PRIMARY KEY  (`id`),
 UNIQUE KEY `email` (`email`),
-UNIQUE KEY `pseudo` (`pseudo`),
+UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
 SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
