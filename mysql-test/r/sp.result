@@ -922,6 +922,52 @@ select @x2|
 @x2
 2
 drop procedure bug2260|
+create procedure bug2267_1()
+begin
+show procedure status;
+end|
+create procedure bug2267_2()
+begin
+show function status;
+end|
+create procedure bug2267_3()
+begin
+show create procedure bug2267_1;
+end|
+create procedure bug2267_4()
+begin
+show create function fac;
+end|
+call bug2267_1()|
+Name	Type	Definer	Modified	Created	Security_type	Comment
+bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_2()|
+Name	Type	Definer	Modified	Created	Security_type	Comment
+fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_3()|
+Procedure	Create Procedure
+bug2267_1	CREATE PROCEDURE `bug2267_1`()
+begin
+show procedure status;
+end
+call bug2267_4()|
+Function	Create Function
+fac	CREATE FUNCTION `fac`(n int unsigned) RETURNS bigint unsigned
+begin
+declare f bigint unsigned default 1;
+while n > 1 do
+set f = f * n;
+set n = n - 1;
+end while;
+return f;
+end
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

@@ -570,20 +570,25 @@ sp_find_procedure(THD *thd, LEX_STRING *name)
 int
 sp_create_procedure(THD *thd, sp_head *sp)
 {
+  int ret;
   DBUG_ENTER("sp_create_procedure");
   DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
-  DBUG_RETURN(db_create_routine(thd, TYPE_ENUM_PROCEDURE, sp));
+
+  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, sp);
+  DBUG_RETURN(ret);
 }
 
 
 int
 sp_drop_procedure(THD *thd, char *name, uint namelen)
 {
+  int ret;
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
 
   sp_cache_remove(&thd->sp_proc_cache, name, namelen);
-  DBUG_RETURN(db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen));
+  ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
+  DBUG_RETURN(ret);
 }
 
 
@@ -592,12 +597,14 @@ sp_update_procedure(THD *thd, char *name, uint namelen,
 		    char *newname, uint newnamelen,
 		    st_sp_chistics *chistics)
 {
+  int ret;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
 
   sp_cache_remove(&thd->sp_proc_cache, name, namelen);
-  DBUG_RETURN(db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen,
-				newname, newnamelen, chistics));
+  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen,
+			 newname, newnamelen, chistics);
+  DBUG_RETURN(ret);
 }
 
 
@@ -609,7 +616,11 @@ sp_show_create_procedure(THD *thd, LEX_STRING *name)
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
   if ((sp= sp_find_procedure(thd, name)))
-    DBUG_RETURN(sp->show_create_procedure(thd));
+  {
+    int ret= sp->show_create_procedure(thd);
+
+    DBUG_RETURN(ret);
+  }
 
   DBUG_RETURN(SP_KEY_NOT_FOUND);
 }
@@ -618,8 +629,11 @@ sp_show_create_procedure(THD *thd, LEX_STRING *name)
 int
 sp_show_status_procedure(THD *thd, const char *wild)
 {
+  int ret;
   DBUG_ENTER("sp_show_status_procedure");
-  DBUG_RETURN(db_show_routine_status(thd, TYPE_ENUM_PROCEDURE, wild));
+
+  ret= db_show_routine_status(thd, TYPE_ENUM_PROCEDURE, wild);
+  DBUG_RETURN(ret);
 }
 
 
@@ -649,21 +663,25 @@ sp_find_function(THD *thd, LEX_STRING *name)
 int
 sp_create_function(THD *thd, sp_head *sp)
 {
+  int ret;
   DBUG_ENTER("sp_create_function");
   DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
 
-  DBUG_RETURN(db_create_routine(thd, TYPE_ENUM_FUNCTION, sp));
+  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, sp);
+  DBUG_RETURN(ret);
 }
 
 
 int
 sp_drop_function(THD *thd, char *name, uint namelen)
 {
+  int ret;
   DBUG_ENTER("sp_drop_function");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
 
   sp_cache_remove(&thd->sp_func_cache, name, namelen);
-  DBUG_RETURN(db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen));
+  ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
+  DBUG_RETURN(ret);
 }
 
 
@@ -672,12 +690,14 @@ sp_update_function(THD *thd, char *name, uint namelen,
 		    char *newname, uint newnamelen,
 		    st_sp_chistics *chistics)
 {
+  int ret;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
 
   sp_cache_remove(&thd->sp_func_cache, name, namelen);
-  DBUG_RETURN(db_update_routine(thd, TYPE_ENUM_FUNCTION, name, namelen,
-				newname, newnamelen, chistics));
+  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, namelen,
+			 newname, newnamelen, chistics);
+  DBUG_RETURN(ret);
 }
 
 
@@ -689,7 +709,11 @@ sp_show_create_function(THD *thd, LEX_STRING *name)
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
   if ((sp= sp_find_function(thd, name)))
-    DBUG_RETURN(sp->show_create_function(thd));
+  {
+    int ret= sp->show_create_function(thd);
+
+    DBUG_RETURN(ret);
+  }
   DBUG_RETURN(SP_KEY_NOT_FOUND);
 }
 
@@ -697,8 +721,10 @@ sp_show_create_function(THD *thd, LEX_STRING *name)
 int
 sp_show_status_function(THD *thd, const char *wild)
 {
+  int ret;
   DBUG_ENTER("sp_show_status_function");
-  DBUG_RETURN(db_show_routine_status(thd, TYPE_ENUM_FUNCTION, wild));
+  ret= db_show_routine_status(thd, TYPE_ENUM_FUNCTION, wild);
+  DBUG_RETURN(ret);
 }
 
 
