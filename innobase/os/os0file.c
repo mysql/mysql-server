@@ -120,9 +120,11 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
-	fprintf(stderr,
+	if (err != ERROR_FILE_EXISTS) {
+	         fprintf(stderr,
 	 "InnoDB: operating system error number %li in a file operation.\n",
 		(long) err);
+	}
 
 	if (err == ERROR_FILE_NOT_FOUND) {
 		return(OS_FILE_NOT_FOUND);
@@ -134,11 +136,13 @@ os_file_get_last_error(void)
 		return(100 + err);
 	}
 #else
-	fprintf(stderr,
+	err = (ulint) errno;
+
+	if (err != EEXIST) {
+	        fprintf(stderr,
 	 "InnoDB: operating system error number %i in a file operation.\n",
 		errno);
-
-	err = (ulint) errno;
+	}
 
 	if (err == ENOSPC ) {
 		return(OS_FILE_DISK_FULL);
@@ -310,12 +314,11 @@ try_again:
 	UT_NOT_USED(purpose);
 
 	/* On Linux opening a file in the O_SYNC mode seems to be much
-        more efficient than calling an explicit fsync or fdatasync after
-        each write */
+        more efficient for small writes than calling an explicit fsync or
+	fdatasync after each write, but on Solaris O_SYNC and O_DSYNC is
+	extremely slow in large block writes to a big file. Therefore we
+	do not use these options, but use explicit fdatasync. */
 
-#ifdef O_SYNC
-	create_flag = create_flag | O_SYNC;
-#endif
 	if (create_mode == OS_FILE_CREATE) {
 	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
 			                     | S_IWGRP | S_IROTH | S_IWOTH);
@@ -435,10 +438,13 @@ os_file_set_size(
 	byte*   buf;
 
 try_again:
-	buf = ut_malloc(UNIV_PAGE_SIZE * 64);
+	/* We use a very big 16 MB buffer in writing because Linux is
+	extremely slow in fdatasync on 1 MB writes */
+
+	buf = ut_malloc(UNIV_PAGE_SIZE * 1024);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 64; i++) {
+	for (i = 0; i < UNIV_PAGE_SIZE * 1024; i++) {
 	        buf[i] = '\0';
 	}
 
@@ -450,10 +456,10 @@ try_again:
 	UT_NOT_USED(size_high);
 #endif
 	while (offset < low) {
-	        if (low - offset < UNIV_PAGE_SIZE * 64) {
+	        if (low - offset < UNIV_PAGE_SIZE * 1024) {
 	                 n_bytes = low - offset;
 	        } else {
-	                 n_bytes = UNIV_PAGE_SIZE * 64;
+	                 n_bytes = UNIV_PAGE_SIZE * 1024;
 	        }
 	  
 	        ret = os_file_write(name, file, buf, offset, 0, n_bytes);
@@ -468,6 +474,8 @@ try_again:
 	ut_free(buf);
 
 	ret = os_file_flush(file);
+
+	fsync(file);
 
 	if (ret) {
 	        return(TRUE);
@@ -509,14 +517,7 @@ os_file_flush(
 #else
 	int	ret;
 	
-#ifdef O_SYNC
-	/* We open all files with the O_SYNC option, which means there
-        should be no need for fsync or fdatasync. In practice such a need
-	may be because on a Linux Xeon computer "donna" the OS seemed to be
-	fooled to believe that 500 disk writes/second are possible. */
-
-	ret = 0;
-#elif defined(HAVE_FDATASYNC)
+#ifdef HAVE_FDATASYNC
 	ret = fdatasync(file);
 #else
 	ret = fsync(file);
