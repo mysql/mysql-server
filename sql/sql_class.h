@@ -218,6 +218,17 @@ public:
   i_string(char* s) : ptr(s) {}
 };
 
+//needed for linked list of two strings for replicate-rewrite-db
+class i_string_pair: public ilink
+{
+public:
+  char* key;
+  char* val;
+  i_string_pair():key(0),val(0) { }
+  i_string_pair(char* key, char* val) : key(key),val(val) {}
+};
+
+
 /****************************************************************************
 ** every connection is handle by a thread with a THD
 ****************************************************************************/

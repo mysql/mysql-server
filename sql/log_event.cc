@@ -100,7 +100,7 @@ int Log_event::read_log_event(FILE* file, String* packet,
     {
       if(log_lock)
 	pthread_mutex_unlock(log_lock);
-      return feof(file) ? LOG_READ_BOGUS: LOG_READ_IO;
+      return feof(file) ? LOG_READ_TRUNC: LOG_READ_IO;
     }
 
   if(log_lock) pthread_mutex_unlock(log_lock);

@@ -98,6 +98,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
   char search_file_name[FN_REFLEN];
+  char magic[4];
   FILE* log = NULL;
   String* packet = &thd->packet;
   int error;
@@ -129,7 +130,25 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
       errmsg = "Could not open log file";
       goto err;
     }
+  
+  if(my_fread(log, magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
+    {
+      errmsg = "I/O error reading binlog magic number";
+      goto err;
+    }
+  if(memcmp(magic, BINLOG_MAGIC, 4))
+    {
+      errmsg = "Binlog has bad magic number, fire your magician";
+      goto err;
+    }
 
+  if(pos < 4)
+    {
+      errmsg = "Contratulations! You have hit the magic number and can win \
+sweepstakes if you report the bug";
+      goto err;
+    }
+  
   if(my_fseek(log, pos, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR )
     {
       errmsg = "Error on fseek()";
@@ -168,7 +187,21 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	}
       if(error != LOG_READ_EOF)
 	{
-	  errmsg = "error reading log event";
+	  switch(error)
+	    {
+	    case LOG_READ_BOGUS: 
+	      errmsg = "bogus data in log event";
+	      break;
+	    case LOG_READ_IO:
+	      errmsg = "I/O error reading log event";
+	      break;
+	    case LOG_READ_MEM:
+	      errmsg = "memory allocation failed reading log event";
+	      break;
+	    case LOG_READ_TRUNC:
+	      errmsg = "binlog truncated in the middle of event";
+	      break;
+	    }
 	  goto err;
 	}
 
@@ -261,7 +294,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	}
       else
 	{
-	  bool loop_breaker = 0; // need this to break out of the for loop from switch
+	  bool loop_breaker = 0;
+	  // need this to break out of the for loop from switch
           thd->proc_info = "switching to next log";
 	  switch(mysql_bin_log.find_next_log(&linfo))
 	    {
@@ -281,14 +315,31 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	  (void) my_fclose(log, MYF(MY_WME));
 	  log = my_fopen(log_file_name, O_RDONLY|O_BINARY, MYF(MY_WME));
 	  if(!log)
-	    goto err;
+	    {
+	      errmsg = "Could not open next log";
+	      goto err;
+	    }
+
+	  //check the magic
+	  if(my_fread(log, magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
+	    {
+	      errmsg = "I/O error reading binlog magic number";
+	      goto err;
+	    }
+	  if(memcmp(magic, BINLOG_MAGIC, 4))
+	    {
+	      errmsg = "Binlog has bad magic number, fire your magician";
+	      goto err;
+	    }
+	  
 	  // fake Rotate_log event just in case it did not make it to the log
 	  // otherwise the slave make get confused about the offset
 	  {
 	    char header[LOG_EVENT_HEADER_LEN];
 	    memset(header, 0, 4); // when does not matter
 	    header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
-            char* p = strrchr(log_file_name, FN_LIBCHAR); // find the last slash
+            char* p = strrchr(log_file_name, FN_LIBCHAR);
+	    // find the last slash
             if(p)
               p++;
             else

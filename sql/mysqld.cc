@@ -177,6 +177,7 @@ static VioSSLAcceptorFd* ssl_acceptor_fd = 0;
 
 extern bool slave_running;
 
+I_List <i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
 // allow the user to tell us which db to replicate and which to ignore
 I_List<i_string> binlog_do_db, binlog_ignore_db;
@@ -2853,6 +2854,38 @@ static void get_options(int argc,char **argv)
 	i_string *db = new i_string(optarg);
 	replicate_do_db.push_back(db);
         break;
+      }
+    case (int)OPT_REPLICATE_REWRITE_DB:
+      {
+	char* key = optarg,*p, *val;
+	p = strstr(optarg, "->");
+	if(!p)
+	  {
+	    fprintf(stderr,
+		    "bad syntax in replicate-rewrite-db - missing ->\n");
+	    exit(1);
+	  }
+	val = p--;
+	while(isspace(*p) && p > optarg) *p-- = 0;
+	if(p == optarg)
+	  {
+	    fprintf(stderr,
+		    "bad syntax in replicate-rewrite-db - empty FROM db\n");
+	    exit(1);
+	  }
+	*val = 0;
+	val += 2;
+	while(*val && isspace(*val)) *val++;
+	if(!*val)
+	  {
+	    fprintf(stderr,
+		    "bad syntax in replicate-rewrite-db - empty TO db\n");
+	    exit(1);
+	  }
+
+	i_string_pair* db_pair = new i_string_pair(key, val);
+	replicate_rewrite_db.push_back(db_pair);
+	break;
       }
 
     case (int)OPT_BINLOG_IGNORE_DB:

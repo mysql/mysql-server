@@ -26,6 +26,7 @@
 #define LOG_READ_BOGUS  -2
 #define LOG_READ_IO     -3
 #define LOG_READ_MEM    -5
+#define LOG_READ_TRUNC  -6
 
 #define LOG_EVENT_OFFSET 4
 #define BINLOG_VERSION    1
@@ -42,6 +43,7 @@
 #define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
 #define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
 
+#define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
 
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
