@@ -667,7 +667,7 @@ longlong str_to_datetime(const char *str,uint length, uint fuzzy_date)
 {
   TIME l_time;
   if (str_to_TIME(str,length,&l_time,fuzzy_date) <= TIMESTAMP_DATETIME_ERROR)
-    return(0);
+    return -1;
   return (longlong) (l_time.year*LL(10000000000) +
 		     l_time.month*LL(100000000)+
 		     l_time.day*LL(1000000)+
