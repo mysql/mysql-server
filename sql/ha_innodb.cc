@@ -1800,8 +1800,6 @@ ha_innobase::write_row(
 				goto func_exit;
 			}	
 
-		        printf("Updated value to %lu + 1\n", (ulint)auto_inc);
-
 			dict_table_autoinc_update(prebuilt->table, auto_inc);
 		} else {
 			srv_conc_enter_innodb(prebuilt->trx);
