@@ -148,7 +148,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   else
   {
     table[0]->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);/* Get record-count */
-    records=table[0]->file->records+EXTRA_RECORDS;
+    records=table[0]->file->estimate_number_of_rows();
     selected_records_file= 0;
   }
   if (param.sort_length == param.ref_length && records > param.max_rows)
@@ -168,8 +168,8 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   memavl=sortbuff_size;
   while (memavl >= MIN_SORT_MEMORY)
   {
-    if ((records+1)*(param.sort_length+sizeof(char*))+sizeof(BUFFPEK)*10 <
-	(ulong) memavl)
+    if ((ulonglong) (records+1)*(param.sort_length+sizeof(char*))+sizeof(BUFFPEK)*10 <
+	(ulonglong) memavl)
       param.keys=(uint) records+1;
     else
     {
@@ -382,6 +382,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     if (*killed)
     {
+      DBUG_PRINT("info",("Sort killed by user"));
       (void) file->extra(HA_EXTRA_NO_CACHE);
       file->rnd_end();
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */

@@ -25,8 +25,9 @@
     We will need an updated Berkeley DB version for this.
   - Killing threads that has got a 'deadlock'
   - SHOW TABLE STATUS should give more information about the table.
-  - Get a more accurate count of the number of rows.
-    We could store the found number of rows when the table is scanned.
+  - Get a more accurate count of the number of rows (estimate_number_of_rows()).
+    We could store the found number of rows when the table is scanned and
+    then increment the counter for each attempted write.
   - We will need a manager thread that calls flush_logs, removes old
     logs and makes checkpoints at given intervals.
   - When not using UPDATE IGNORE, don't make a sub transaction but abort
@@ -42,7 +43,6 @@
   - LOCK TABLES
   - CHAR keys
   - BLOBS
-  - delete from t1;
 */
 
 
@@ -1297,7 +1297,7 @@ void ha_berkeley::info(uint flag)
   DBUG_ENTER("info");
   if (flag & HA_STATUS_VARIABLE)
   {
-    records = HA_BERKELEY_ROWS_IN_TABLE; // Just to get optimisations right
+    records = estimate_number_of_rows(); 		// Just to get optimisations right
     deleted = 0;
   }
   else if (flag & HA_STATUS_ERRKEY)
@@ -1605,6 +1605,22 @@ void ha_berkeley::update_auto_primary_key()
     (void) extra(HA_EXTRA_NO_KEYREAD);
   }
   pthread_mutex_unlock(&share->mutex);
+}
+
+/*
+  Return an estimated of the number of rows in the table.
+  Used when sorting to allocate buffers and by the optimizer.
+*/
+
+ha_rows ha_berkeley::estimate_number_of_rows()
+{
+  ulonglong max_ident;
+  if (!hidden_primary_key)
+    return INT_MAX32;
+  pthread_mutex_lock(&share->mutex);
+  max_ident=share->auto_ident+EXTRA_RECORDS;
+  pthread_mutex_unlock(&share->mutex);
+  return (ha_rows) min(max_ident,(ulonglong) INT_MAX32);
 }
 
 #endif /* HAVE_BERKELEY_DB */
