@@ -310,3 +310,113 @@ SubscrID	SbclID
 3	NULL
 drop table test1;
 drop table test2;
+create table t1 (
+pk int primary key,
+dt datetime not null,
+da date not null,
+ye year not null,
+ti time not null,
+ts timestamp not null,
+index(dt),
+index(da),
+index(ye),
+index(ti),
+index(ts)
+) engine=ndb;
+insert into t1 (pk,dt,da,ye,ti) values
+(1, '1901-05-05 23:00:59', '1901-05-05', '1901', '23:00:59'),
+(2, '1912-09-05 13:00:59', '1912-09-05', '1912', '13:00:59'),
+(3, '1945-12-31 00:00:00', '1945-12-31', '1945', '00:00:00'),
+(4, '1955-12-31 00:00:00', '1955-12-31', '1955', '00:00:00'),
+(5, '1963-06-06 06:06:06', '1963-06-06', '1963', '06:06:06'),
+(6, '1993-06-06 06:06:06', '1993-06-06', '1993', '06:06:06'),
+(7, '2001-01-01 10:11:10', '2001-01-01', '2001', '10:11:10'),
+(8, '2001-01-01 10:11:11', '2001-01-01', '2001', '10:11:11'),
+(9, '2005-01-31 23:59:59', '2005-01-31', '2005', '23:59:59');
+select count(*)-9 from t1 use index (dt) where dt >  '1900-01-01 00:00:00';
+count(*)-9
+0
+select count(*)-6 from t1 use index (dt) where dt >= '1955-12-31 00:00:00';
+count(*)-6
+0
+select count(*)-5 from t1 use index (dt) where dt >  '1955-12-31 00:00:00';
+count(*)-5
+0
+select count(*)-5 from t1 use index (dt) where dt <  '1970-03-03 22:22:22';
+count(*)-5
+0
+select count(*)-7 from t1 use index (dt) where dt <  '2001-01-01 10:11:11';
+count(*)-7
+0
+select count(*)-8 from t1 use index (dt) where dt <= '2001-01-01 10:11:11';
+count(*)-8
+0
+select count(*)-9 from t1 use index (dt) where dt <= '2055-01-01 00:00:00';
+count(*)-9
+0
+select count(*)-9 from t1 use index (da) where da >  '1900-01-01';
+count(*)-9
+0
+select count(*)-6 from t1 use index (da) where da >= '1955-12-31';
+count(*)-6
+0
+select count(*)-5 from t1 use index (da) where da >  '1955-12-31';
+count(*)-5
+0
+select count(*)-5 from t1 use index (da) where da <  '1970-03-03';
+count(*)-5
+0
+select count(*)-6 from t1 use index (da) where da <  '2001-01-01';
+count(*)-6
+0
+select count(*)-8 from t1 use index (da) where da <= '2001-01-02';
+count(*)-8
+0
+select count(*)-9 from t1 use index (da) where da <= '2055-01-01';
+count(*)-9
+0
+select count(*)-9 from t1 use index (ye) where ye >  '1900';
+count(*)-9
+0
+select count(*)-6 from t1 use index (ye) where ye >= '1955';
+count(*)-6
+0
+select count(*)-5 from t1 use index (ye) where ye >  '1955';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ye) where ye <  '1970';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ye) where ye <  '2001';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ye) where ye <= '2001';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ye) where ye <= '2055';
+count(*)-9
+0
+select count(*)-9 from t1 use index (ti) where ti >= '00:00:00';
+count(*)-9
+0
+select count(*)-7 from t1 use index (ti) where ti >  '00:00:00';
+count(*)-7
+0
+select count(*)-7 from t1 use index (ti) where ti >  '05:05:05';
+count(*)-7
+0
+select count(*)-5 from t1 use index (ti) where ti >  '06:06:06';
+count(*)-5
+0
+select count(*)-5 from t1 use index (ti) where ti <  '10:11:11';
+count(*)-5
+0
+select count(*)-6 from t1 use index (ti) where ti <= '10:11:11';
+count(*)-6
+0
+select count(*)-8 from t1 use index (ti) where ti <  '23:59:59';
+count(*)-8
+0
+select count(*)-9 from t1 use index (ti) where ti <= '23:59:59';
+count(*)-9
+0
