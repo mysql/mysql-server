@@ -147,8 +147,8 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   
   error = 0;
  err:  
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
   pthread_mutex_unlock(&LOCK_open);
+  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -160,7 +160,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
     error=1;
   }
-  if(error)
+  if (error)
     DBUG_RETURN(-1);
   send_ok(&thd->net);
   DBUG_RETURN(0);
@@ -711,7 +711,9 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   table->reginfo.lock_type=TL_WRITE;
   if (!((*lock)=mysql_lock_tables(thd,&table,1)))
   {
+    VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
+    VOID(pthread_mutex_unlock(&LOCK_open));
     quick_rm_table(create_info->db_type,db,name);
     DBUG_RETURN(0);
   }
@@ -859,7 +861,9 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 			 reg_ext, 4),
 	       MYF(MY_WME)))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed copying .frm file"));
     }
@@ -870,7 +874,9 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 
     if (generate_table(thd, table, 0))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       thd->net.no_send_ok = save_no_send_ok;
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file"));
@@ -930,9 +936,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       // now we should be able to open the partially restored table
       // to finish the restore in the handler later on
       if (!(table->table = reopen_name_locked_table(thd, table)))
+      {
+	pthread_mutex_lock(&LOCK_open);
         unlock_table_name(thd, table);
+	pthread_mutex_unlock(&LOCK_open);
+      }
     }
-
     if (!table->table)
     {
       const char *err_msg;
@@ -1031,8 +1040,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (fatal_error)
       table->table->version=0;			// Force close of table
     else if (open_for_modify)
+    {
+      pthread_mutex_lock(&LOCK_open);
       remove_table_from_cache(thd, table->table->table_cache_key,
 			      table->table->real_name);
+      pthread_mutex_unlock(&LOCK_open);
+    }
     close_thread_tables(thd);
     if (my_net_write(&thd->net, (char*) packet->ptr(),
 		     packet->length()))
@@ -1648,8 +1661,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     error=1;
   if (error)
   {
-    VOID(pthread_cond_broadcast(&COND_refresh));
     VOID(pthread_mutex_unlock(&LOCK_open));
+    VOID(pthread_cond_broadcast(&COND_refresh));
     goto err;
   }
 #ifdef HAVE_BERKELEY_DB

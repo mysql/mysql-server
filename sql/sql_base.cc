@@ -279,6 +279,16 @@ void intern_close_table(TABLE *table)
     VOID(closefrm(table));			// close file
 }
 
+/*
+  Remove table from the open table cache
+
+  SYNOPSIS
+    free_cache_entry()
+    table		Table to remove
+
+  NOTE
+    We need to have a lock on LOCK_open when calling this
+*/
 
 static void free_cache_entry(TABLE *table)
 {
@@ -833,7 +843,10 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
+    }
     if (open_unireg_entry(thd, table,db,table_name,alias,1) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
@@ -1181,7 +1194,6 @@ bool wait_for_tables(THD *thd)
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
     result=reopen_tables(thd,0,0);
-     
   }
   pthread_mutex_unlock(&LOCK_open);
   thd->proc_info=0;
@@ -1372,9 +1384,9 @@ int open_tables(THD *thd,TABLE_LIST *start)
 	  }
 	}
 	*prev_table=0;
+	pthread_mutex_unlock(&LOCK_open);
 	if (found)
 	  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
-	pthread_mutex_unlock(&LOCK_open);
 	goto restart;
       }
       result= -1;				// Fatal error
