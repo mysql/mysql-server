@@ -171,6 +171,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   int error = 0;
   MY_STAT stat_info;
   uint create_options = create_info ? create_info->options : 0;
+  uint path_len;
   DBUG_ENTER("mysql_create_db");
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -184,7 +185,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
   /* Check directory */
   strxmov(path, mysql_data_home, "/", db, NullS);
-  unpack_dirname(path,path);			// Convert if not unix
+  path_len= unpack_dirname(path,path);    // Convert if not unix
+  path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
   {
@@ -203,7 +205,6 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       my_error(EE_STAT, MYF(0),path,my_errno);
       goto exit;
     }
-    strend(path)[-1]=0;				// Remove last '/' from path
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
       my_error(ER_CANT_CREATE_DB,MYF(0),db,my_errno);
