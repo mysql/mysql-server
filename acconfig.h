@@ -197,6 +197,15 @@
 /* If we want to have query cache */
 #undef HAVE_QUERY_CACHE
 
+/* Spatial extentions */
+#undef HAVE_SPATIAL
+
+/* RTree keys */
+#undef HAVE_RTREE_KEYS
+
+/* Access checks in embedded library */
+#undef HAVE_EMBEDDED_PRIVILEGE_CONTROL
+
 /* Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines
    this with 8 arguments */
 #undef HAVE_SOLARIS_STYLE_GETHOST
