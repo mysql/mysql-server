@@ -1141,7 +1141,7 @@ String *Item_func_ltrim::val_str(String *str)
   }
   if (ptr == res->ptr())
     return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
+  tmp_value.copy(res->ptr() + (ptr - res->ptr()), (uint32) (end - ptr));
   return &tmp_value;
 }
 
@@ -1266,7 +1266,7 @@ String *Item_func_trim::val_str(String *str)
   }
   if (ptr == res->ptr() && end == ptr+res->length())
     return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
+  tmp_value.copy(res->ptr() + (ptr - res->ptr()), (uint32) (end - ptr));
   return &tmp_value;
 }
 
