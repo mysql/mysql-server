@@ -570,40 +570,6 @@ skip:
 }
 
 /*
-  Search after a string without regarding to case
-  This needs to be replaced when we have character sets per string
-*/
-
-int String::strstr_case(const String &s,uint32 offset)
-{
-  if (s.length()+offset <= str_length)
-  {
-    if (!s.length())
-      return ((int) offset);	// Empty string is always found
-
-    register const char *str = Ptr+offset;
-    register const char *search=s.ptr();
-    const char *end=Ptr+str_length-s.length()+1;
-    const char *search_end=s.ptr()+s.length();
-skip:
-    while (str != end)
-    {
-      if (str_charset->sort_order[*str++] == str_charset->sort_order[*search])
-      {
-	register char *i,*j;
-	i=(char*) str; j=(char*) search+1;
-	while (j != search_end)
-	  if (str_charset->sort_order[*i++] != 
-              str_charset->sort_order[*j++]) 
-            goto skip;
-	return (int) (str-Ptr) -1;
-      }
-    }
-  }
-  return -1;
-}
-
-/*
 ** Search string from end. Offset is offset to the end of string
 */
 
