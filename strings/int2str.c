@@ -34,7 +34,7 @@ char NEAR _dig_vec_lower[] =
       val     - value to convert
       dst     - points to buffer where string representation should be stored
       radix   - radix of scale of notation
-      upcase  - flag indicating that whenever we should use upper-case digits
+      upcase  - set to 1 if we should use upper-case digits
 
   DESCRIPTION
     Converts the (long) integer value to its character form and moves it to 
@@ -52,34 +52,39 @@ char NEAR _dig_vec_lower[] =
   
 char *
 int2str(register long int val, register char *dst, register int radix, 
-        char upcase)
+        int upcase)
 {
   char buffer[65];
   register char *p;
   long int new_val;
   char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
 
-  if (radix < 0) {
-    if (radix < -36 || radix > -2) return NullS;
-    if (val < 0) {
+  if (radix < 0)
+  {
+    if (radix < -36 || radix > -2)
+      return NullS;
+    if (val < 0)
+    {
       *dst++ = '-';
       val = -val;
     }
     radix = -radix;
-  } else {
-    if (radix > 36 || radix < 2) return NullS;
   }
-  /*  The slightly contorted code which follows is due to the
-      fact that few machines directly support unsigned long / and %.
-      Certainly the VAX C compiler generates a subroutine call.  In
-      the interests of efficiency (hollow laugh) I let this happen
-      for the first digit only; after that "val" will be in range so
-      that signed integer division will do.  Sorry 'bout that.
-      CHECK THE CODE PRODUCED BY YOUR C COMPILER.  The first % and /
-      should be unsigned, the second % and / signed, but C compilers
-      tend to be extraordinarily sensitive to minor details of style.
-      This works on a VAX, that's all I claim for it.
-      */
+  else if (radix > 36 || radix < 2)
+    return NullS;
+
+  /*
+    The slightly contorted code which follows is due to the fact that
+    few machines directly support unsigned long / and %.  Certainly
+    the VAX C compiler generates a subroutine call.  In the interests
+    of efficiency (hollow laugh) I let this happen for the first digit
+    only; after that "val" will be in range so that signed integer
+    division will do.  Sorry 'bout that.  CHECK THE CODE PRODUCED BY
+    YOUR C COMPILER.  The first % and / should be unsigned, the second
+    % and / signed, but C compilers tend to be extraordinarily
+    sensitive to minor details of style.  This works on a VAX, that's
+    all I claim for it.
+  */
   p = &buffer[sizeof(buffer)-1];
   *p = '\0';
   new_val=(ulong) val / (ulong) radix;
