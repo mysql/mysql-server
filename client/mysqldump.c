@@ -1480,7 +1480,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
   uint find;
   char buff[255];
 
-  *err_pos= 0;                  // No error yet
+  *err_pos= 0;                  /* No error yet */
   while (end > x && my_isspace(system_charset_info, end[-1]))
     end--;
 
