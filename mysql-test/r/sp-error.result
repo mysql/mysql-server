@@ -259,4 +259,15 @@ declare c cursor for select * from t1;
 declare c cursor for select field from t1;
 end;
 ERROR 42000: Duplicate cursor: c
+create procedure bug1965()
+begin
+declare c cursor for select val from t1 order by valname;
+open c;
+close c;
+end;
+call bug1965();
+ERROR 42S22: Unknown column 'valname' in 'order clause'
+drop procedure bug1965;
+select 1 into a;
+ERROR 42000: Undeclared variable: a
 drop table t1;

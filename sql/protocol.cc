@@ -347,7 +347,7 @@ send_eof(THD *thd, bool no_flush)
   static char eof_buff[1]= { (char) 254 };	/* Marker for end of fields */
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
-  if (net->vio != 0)
+  if (net->vio != 0 && !net->no_send_eof)
   {
     if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
     {
