@@ -713,8 +713,8 @@ NULL
 -99.99
 DROP TABLE t1;
 CREATE TABLE t1 (col1 FLOAT, col2 FLOAT UNSIGNED);
-INSERT INTO t1 VALUES (-1.1E-38,0),(+3.4E+38,+3.4E+38);
-INSERT INTO t1 VALUES ('-1.1E-38',0),('+3.4E+38','+3.4E+38');
+INSERT INTO t1 VALUES (-1.1E-37,0),(+3.4E+38,+3.4E+38);
+INSERT INTO t1 VALUES ('-1.1E-37',0),('+3.4E+38','+3.4E+38');
 INSERT INTO t1 (col1) VALUES (3E-46);
 INSERT INTO t1 (col1) VALUES (+3.4E+39);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
@@ -752,9 +752,9 @@ Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 SELECT * FROM t1;
 col1	col2
--1.1e-38	0
+-1.1e-37	0
 3.4e+38	3.4e+38
--1.1e-38	0
+-1.1e-37	0
 3.4e+38	3.4e+38
 0	NULL
 2	NULL
@@ -763,8 +763,8 @@ NULL	NULL
 3.40282e+38	0
 DROP TABLE t1;
 CREATE TABLE t1 (col1 DOUBLE PRECISION, col2 DOUBLE PRECISION UNSIGNED);
-INSERT INTO t1 VALUES (-2.2E-308,0),(+1.7E+308,+1.7E+308);
-INSERT INTO t1 VALUES ('-2.2E-308',0),('+1.7E+308','+1.7E+308');
+INSERT INTO t1 VALUES (-2.2E-307,0),(+1.7E+308,+1.7E+308);
+INSERT INTO t1 VALUES ('-2.2E-307',0),('+1.7E+308','+1.7E+308');
 INSERT INTO t1 (col1) VALUES (-2.2E-330);
 INSERT INTO t1 (col1) VALUES (+1.7E+309);
 ERROR 22007: Illegal double '1.7E+309' value found during parsing
@@ -801,9 +801,9 @@ Warning	1264	Out of range value adjusted for column 'col2' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 SELECT * FROM t1;
 col1	col2
--2.2e-308	0
+-2.2e-307	0
 1.7e+308	1.7e+308
--2.2e-308	0
+-2.2e-307	0
 1.7e+308	1.7e+308
 0	NULL
 2	NULL
