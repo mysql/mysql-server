@@ -63,7 +63,7 @@ public:
   */
   Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
-  void set_name(const char *str,uint length=0);
+  void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
@@ -359,7 +359,7 @@ public:
     str_value.set(str,length,cs);
     coercibility= coer;
     max_length=length;
-    name=(char*) str_value.ptr();
+    set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
   }
   Item_string(const char *name_par, const char *str, uint length,
@@ -368,7 +368,7 @@ public:
     str_value.set(str,length,cs);
     coercibility= coer;
     max_length=length;
-    name=(char*) name_par;
+    set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
   }
   ~Item_string() {}

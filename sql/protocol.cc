@@ -714,7 +714,6 @@ bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
 #endif
   if (convert)
     return convert_str(from, length);
-#if 0
   if (cs != this->thd->charset())
   {
     String tmp;
@@ -722,7 +721,6 @@ bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
     return net_store_data(tmp.ptr(), tmp.length());
   }
   else
-#endif
     return net_store_data(from, length);
 }
 
@@ -813,11 +811,18 @@ bool Protocol_simple::store(Field *field)
   field_pos++;
 #endif
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff), &my_charset_bin);
-  field->val_str(&tmp,&tmp);
+  String tmp1(buff,sizeof(buff), &my_charset_bin);
+  field->val_str(&tmp1,&tmp1);
   if (convert)
-    return convert_str(tmp.ptr(), tmp.length());
-  return net_store_data(tmp.ptr(), tmp.length());
+    return convert_str(tmp1.ptr(), tmp1.length());
+  if (field->charset() != this->thd->charset())
+  {
+    String tmp;
+    tmp.copy(tmp1.ptr(), tmp1.length(), tmp1.charset(), this->thd->charset());
+    return net_store_data(tmp.ptr(), tmp.length());
+  }
+  else
+    return net_store_data(tmp1.ptr(), tmp1.length());
 }
 
 
