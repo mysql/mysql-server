@@ -402,4 +402,4 @@ next_str:
 	movl	%edx,%ebx
 	ret
 .strxmov_end:
-	.size	 strxmov,strxmov_end-strxmov
+	.size	 strxmov,.strxmov_end-strxmov
