@@ -2030,6 +2030,7 @@ User_var_log_event::User_var_log_event(const char* buf, bool old_format)
   if (is_null)
   {
     type= STRING_RESULT;
+    charset_number= my_charset_bin.number;
     val_len= 0;
     val= 0;  
   }
@@ -2050,15 +2051,22 @@ int User_var_log_event::write_data(IO_CACHE* file)
   char buf[UV_NAME_LEN_SIZE];
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
-  char buf2[8];
-  char *pos= buf2;
+  char buf2[8], *pos= buf2;
+  uint buf1_length;
+
   int4store(buf, name_len);
-  buf1[0]= is_null;
-  if (!is_null)
+  
+  if ((buf1[0]= is_null))
+  {
+    buf1_length= 1;
+    val_len= 0;
+  }    
+  else
   {
     buf1[1]= type;
     int4store(buf1 + 2, charset_number);
     int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
+    buf1_length= 10;
 
     switch (type) {
     case REAL_RESULT:
@@ -2075,16 +2083,13 @@ int User_var_log_event::write_data(IO_CACHE* file)
       DBUG_ASSERT(1);
       return 0;
     }
-    return (my_b_safe_write(file, (byte*) buf, sizeof(buf))   ||
-	    my_b_safe_write(file, (byte*) name, name_len)     ||
-	    my_b_safe_write(file, (byte*) buf1, sizeof(buf1)) ||
-	    my_b_safe_write(file, (byte*) pos, val_len));
   }
-
   return (my_b_safe_write(file, (byte*) buf, sizeof(buf))   ||
-          my_b_safe_write(file, (byte*) name, name_len)     ||
-	  my_b_safe_write(file, (byte*) buf1, 1));
+	  my_b_safe_write(file, (byte*) name, name_len)     ||
+	  my_b_safe_write(file, (byte*) buf1, buf1_length) ||
+	  my_b_safe_write(file, (byte*) pos, val_len));
 }
+
 
 /*****************************************************************************
 
@@ -2142,7 +2147,7 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
 int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 {
   Item *it= 0;
-  CHARSET_INFO *charset= 0;
+  CHARSET_INFO *charset= get_charset(charset_number, MYF(0));
   LEX_STRING user_var_name;
   user_var_name.str= name;
   user_var_name.length= name_len;
@@ -2179,7 +2184,6 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
       DBUG_ASSERT(1);
       return 0;
     }
-    charset= get_charset(charset_number, MYF(0));
   }
   Item_func_set_user_var e(user_var_name, it);
   e.fix_fields(thd, 0, 0);
