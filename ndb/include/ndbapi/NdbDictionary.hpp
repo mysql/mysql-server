@@ -901,21 +901,32 @@ public:
    */
   class Event : public Object  {
   public:
-    enum TableEvent { TE_INSERT=1, TE_DELETE=2, TE_UPDATE=4, TE_ALL=7 };
+    enum TableEvent { 
+      TE_INSERT=1, ///< Insert event on table
+      TE_DELETE=2, ///< Delete event on table
+      TE_UPDATE=4, ///< Update event on table
+      TE_ALL=7     ///< Any/all event on table (not relevant when 
+                   ///< events are received)
+    };
     enum EventDurability { 
-      ED_UNDEFINED = 0,
+      ED_UNDEFINED
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      = 0
+#endif
 #if 0 // not supported
-      ED_SESSION = 1, 
+      ,ED_SESSION = 1, 
       // Only this API can use it
       // and it's deleted after api has disconnected or ndb has restarted
       
-      ED_TEMPORARY = 2,
+      ED_TEMPORARY = 2
       // All API's can use it,
       // But's its removed when ndb is restarted
-#endif      
-      ED_PERMANENT = 3
-      // All API's can use it,
-      // It's still defined after a restart
+#endif
+      ,ED_PERMANENT    ///< All API's can use it,
+                       ///< It's still defined after a restart
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      = 3
+#endif
     };
     
     Event(const char *name);
@@ -1010,7 +1021,7 @@ public:
      * Fetch list of all objects, optionally restricted to given type.
      */
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
-    int listObjects(const List & list,
+    int listObjects(List & list,
 		    Object::Type type = Object::TypeUndefined) const;
 
     /**
@@ -1050,7 +1061,7 @@ public:
      * @return  0 if successful, otherwise -1
      */
     int listIndexes(List & list, const char * tableName);
-    int listIndexes(const List & list, const char * tableName) const;
+    int listIndexes(List & list, const char * tableName) const;
 
     /** @} *******************************************************************/
     /** 

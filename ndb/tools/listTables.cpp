@@ -29,7 +29,7 @@
 
 static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
-static NdbDictionary::Dictionary * dic = 0;
+static const NdbDictionary::Dictionary * dic = 0;
 static int _unqualified = 0;
 
 static void
