@@ -1,3 +1,6 @@
+# PS doesn't support multi-statements
+--disable_ps_protocol
+
 select 1;
 delimiter ||||;
 select 2;

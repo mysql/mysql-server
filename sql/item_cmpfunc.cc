@@ -1760,6 +1760,7 @@ void Item_func_in::fix_length_and_dec()
 {
   Item **arg, **arg_end;
   uint const_itm= 1;
+  THD *thd= current_thd;
   
   agg_cmp_type(&cmp_type, args, arg_count);
 
@@ -1797,6 +1798,9 @@ void Item_func_in::fix_length_and_dec()
          Conversion is possible:
          All IN arguments are constants.
       */
+      Item_arena *arena= thd->current_arena, backup;
+      if (arena->is_stmt_prepare())
+        thd->set_n_backup_item_arena(arena, &backup);
       for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
       {
         if (!my_charset_same(cmp_collation.collation,
@@ -1812,6 +1816,8 @@ void Item_func_in::fix_length_and_dec()
           arg[0]= conv;
         }
       }
+      if (arena->is_stmt_prepare())
+        thd->restore_backup_item_arena(arena, &backup);
     }
   }
   
@@ -1839,7 +1845,7 @@ void Item_func_in::fix_length_and_dec()
       DBUG_ASSERT(0);
       return;
     }
-    if (array && !(current_thd->is_fatal_error))	// If not EOM
+    if (array && !(thd->is_fatal_error))		// If not EOM
     {
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)

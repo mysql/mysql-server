@@ -229,8 +229,12 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                        (ORDER*) 0 : (ORDER *)sl->order_list.first,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
-		       (ORDER*) NULL,
+		       (is_union ? (ORDER*) 0 :
+                        (ORDER*) thd_arg->lex->proc_list.first),
 		       sl, this);
+    /* There are no * in the statement anymore (for PS) */
+    sl->with_wild= 0;
+    last_procedure= join->procedure;
     if (res || thd_arg->is_fatal_error)
       goto err;
     if (sl == first_select)
@@ -344,7 +348,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 		  0, 0,
 		  fake_select_lex->order_list.elements,
 		  (ORDER*) fake_select_lex->order_list.first,
-		  (ORDER*) NULL, NULL, (ORDER*) NULL,
+		  (ORDER*) NULL, NULL,
+                  (ORDER*) NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
       }

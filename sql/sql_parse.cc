@@ -3607,8 +3607,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors)
 {
   DBUG_ENTER("check_access");
-  DBUG_PRINT("enter",("want_access: %lu  master_access: %lu", want_access,
-		      thd->master_access));
+  DBUG_PRINT("enter",("db: '%s'  want_access: %lu  master_access: %lu",
+                      db ? db : "", want_access, thd->master_access));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
 #endif
@@ -3662,7 +3662,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 		      thd->priv_user, db, test(want_access & GRANT_ACL));
   else
     db_access=thd->db_access;
-  // Remove SHOW attribute and access rights we already have
+  DBUG_PRINT("info",("db_access: %lu", db_access));
+  /* Remove SHOW attribute and access rights we already have */
   want_access &= ~(thd->master_access | EXTRA_ACL);
   db_access= ((*save_priv=(db_access | thd->master_access)) & want_access);
 
@@ -4652,6 +4653,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= empty_c_string;
     ptr->db_length= 0;
   }
+  if (thd->current_arena->is_stmt_prepare())
+    ptr->db= thd->strdup(ptr->db);
 
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
@@ -5177,9 +5180,12 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   */
   for (table= update_list; table; table= table->next)
   {
-    if ((check_access(thd, UPDATE_ACL, table->db,
-		      &table->grant.privilege, 0, 1) ||
-	 grant_option && check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
+    if (table->derived)
+      table->grant.privilege= SELECT_ACL;
+    else if ((check_access(thd, UPDATE_ACL, table->db,
+                           &table->grant.privilege, 0, 1) ||
+              grant_option &&
+              check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
 	(check_access(thd, SELECT_ACL, table->db,
 		      &table->grant.privilege, 0, 0) ||
 	 grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
@@ -5197,6 +5203,7 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   */
   if (&lex->select_lex != lex->all_selects_list)
   {
+    DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next)
     {
       if (table->table_in_update_from_clause)
@@ -5209,7 +5216,7 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
 	if (table->table_list)
 	  table->grant= table->table_list->grant;
       }
-      else
+      else if (!table->derived)
       {
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0) ||
