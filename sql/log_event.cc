@@ -891,15 +891,15 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
 
   if (db && last_db)
   {
-    if (!(same_db = !memcmp(last_db, db, db_len + 1)))
+    if (different_db= memcmp(last_db, db, db_len + 1))
       memcpy(last_db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "use %s;\n", db);
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
@@ -1324,14 +1324,21 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
 	    thread_id, exec_time);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
   if (db && last_db)
   {
-    if (!(same_db = !memcmp(last_db, db, db_len + 1)))
+    /*
+      If the database is different from the one of the previous statement, we
+      need to print the "use" command, and we update the last_db.
+      But if commented, the "use" is going to be commented so we should not
+      update the last_db.
+    */
+    if ((different_db= memcmp(last_db, db, db_len + 1)) &&
+        !commented)
       memcpy(last_db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "%suse %s;\n", 
             commented ? "# " : "",
             db);
