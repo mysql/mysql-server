@@ -45,5 +45,19 @@ reap;
 connection con3;
 reap;
 unlock tables;
+
+# BUG#6732 FLUSH TABLES WITH READ LOCK + COMMIT hangs later FLUSH TABLES
+# WITH READ LOCK
+
+connection con2;
+commit; # unlock InnoDB row locks to allow insertions
 connection con1;
+begin;
+insert into t1 values(10);
+flush tables with read lock;
+commit;
+unlock tables;
+connection con2;
+flush tables with read lock; # bug caused hang here
+unlock tables;
 drop table t1;
