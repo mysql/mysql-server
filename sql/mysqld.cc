@@ -1042,7 +1042,7 @@ static void init_signals(void)
 static sig_handler write_core(int sig);
 #ifdef __i386__
 #define SIGRETURN_FRAME_COUNT  1
-inline static void  trace_stack()
+inline static __volatile__ void  trace_stack()
 {
   uchar **stack_bottom;
   uchar** ebp;
@@ -1057,8 +1057,8 @@ inline static void  trace_stack()
 		      :"r"(ebp));
   if(!ebp)
     {
-      fprintf(stderr, "Stack is a mess, frame pointer (ebp) is NULL,\
- aborting backtrace\n");
+      fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with \
+ -fomit-frame-pointer? Aborting backtrace\n");
       return;
     }
   if(!thd)
