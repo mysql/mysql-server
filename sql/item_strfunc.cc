@@ -928,7 +928,7 @@ void Item_str_func::left_right_max_length()
   max_length=args[0]->max_length;
   if (args[1]->const_item())
   {
-    int length=(int) args[1]->val_int()*default_charset_info->mbmaxlen;
+    int length=(int) args[1]->val_int()*charset()->mbmaxlen;
     if (length <= 0)
       max_length=0;
     else
@@ -939,6 +939,7 @@ void Item_str_func::left_right_max_length()
 
 void Item_func_left::fix_length_and_dec()
 {
+  set_charset(args[0]->charset(), args[0]->coercibility);
   left_right_max_length();
 }
 
@@ -965,6 +966,7 @@ String *Item_func_right::val_str(String *str)
 
 void Item_func_right::fix_length_and_dec()
 {
+  set_charset(args[0]->charset(), args[0]->coercibility);
   left_right_max_length();
 }
 
