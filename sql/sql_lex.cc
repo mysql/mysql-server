@@ -855,9 +855,8 @@ int yylex(void *arg)
     case STATE_END:
       lex->next_state=STATE_END;
       return(0);			// We found end of input last time
-
-      // Actually real shouldn't start
-      // with . but allow them anyhow
+      
+      /* Actually real shouldn't start with . but allow them anyhow */
     case STATE_REAL_OR_POINT:
       if (my_isdigit(system_charset_info,yyPeek()))
 	state = STATE_REAL;		// Real

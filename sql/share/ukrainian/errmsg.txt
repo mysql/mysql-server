@@ -250,3 +250,4 @@
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
 "Циклiчне посилання на пiдзапит",
+"Converting column '%s' from %s to %s"

@@ -107,6 +107,7 @@ THD::THD():user_time(0), fatal_error(0),
   slave_proxy_id = 0;
   file_id = 0;
   cond_count=0;
+  warn_id= 0;
   db_charset=default_charset_info;
   thd_charset=default_charset_info;
   mysys_var=0;

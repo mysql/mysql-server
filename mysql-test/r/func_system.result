@@ -4,3 +4,6 @@ test	1
 select version()>="3.23.29";
 version()>="3.23.29"
 1
+select TRUE,FALSE,NULL;
+TRUE	FALSE	NULL
+1	0	NULL

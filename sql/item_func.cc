@@ -455,6 +455,25 @@ void Item_func_div::fix_length_and_dec()
   maybe_null=1;
 }
 
+
+/* Integer division */
+longlong Item_func_int_div::val_int()
+{
+  longlong value=args[0]->val_int();
+  longlong val2=args[1]->val_int();
+  if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+    return 0;
+  return value/val2;
+}
+
+
+void Item_func_int_div::fix_length_and_dec()
+{
+  max_length=args[0]->max_length - args[0]->decimals;
+  maybe_null=1;
+}
+
+
 double Item_func_mod::val()
 {
   double value= floor(args[0]->val()+0.5);
