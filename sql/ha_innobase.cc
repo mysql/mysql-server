@@ -542,7 +542,15 @@ innobase_init(void)
 	if (!innobase_data_file_path)
 	{
 	  fprintf(stderr,
-       "Can't initialize InnoDB as 'innodb_data_file_path' is not set\n");
+       "Cannot initialize InnoDB as 'innodb_data_file_path' is not set.\n"
+       "If you do not want to use transactional InnoDB tables, add a line\n"
+       "skip-innodb\n"
+       "to the [mysqld] section of init parameters in your my.cnf\n"
+       "or my.ini. If you want to use InnoDB tables, add for example,\n"
+       "innodb_data_file_path = /mysql/data/ibdata1:20M\n"
+       "More information on setting the parameters you find in the\n"
+       "manual.\n");
+
 	  innodb_skip=1;
 	  DBUG_RETURN(FALSE);			// Continue without innobase
 	}
