@@ -904,7 +904,7 @@ static uint getTableStructure(char *table, char* db)
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
 	  (opt_quoted || opt_keywords));
   if (!create_options)
-    strmov(strend(insert_pat), "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 'NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
+    strmov(strend(insert_pat), "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);

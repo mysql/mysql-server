@@ -367,8 +367,6 @@ int st_select_lex_unit::exec()
   optimized= 1;
 
   /* Send result to 'result' */
-
-
   res= -1;
   {
     List<Item_func_match> empty_list;
@@ -405,7 +403,7 @@ int st_select_lex_unit::exec()
       if (!join)
       {
 	/*
-	  allocate JOIN for fake select only once (privent
+	  allocate JOIN for fake select only once (prevent
 	  mysql_select automatic allocation)
 	*/
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,

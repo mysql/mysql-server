@@ -256,15 +256,19 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       ORDER *order,
 			       ORDER *group, bool *hidden_group_fields)
 {
-  bool save_allow_sum_func= thd->allow_sum_func;
+  bool save_allow_sum_func;
+  int res;
+  DBUG_ENTER("setup_without_group");
+
+  save_allow_sum_func= thd->allow_sum_func;
   thd->allow_sum_func= 0;
-  int res= (setup_conds(thd, tables, conds) ||
-	    setup_order(thd, ref_pointer_array, tables, fields, all_fields,
-			order) ||
-	    setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-			group, hidden_group_fields));
+  res= (setup_conds(thd, tables, conds) ||
+        setup_order(thd, ref_pointer_array, tables, fields, all_fields,
+                    order) ||
+        setup_group(thd, ref_pointer_array, tables, fields, all_fields,
+                    group, hidden_group_fields));
   thd->allow_sum_func= save_allow_sum_func;
-  return res;
+  DBUG_RETURN(res);
 }
 
 /*****************************************************************************
@@ -273,7 +277,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 *****************************************************************************/
 
 /*
-  Prepare of whole select (including subselect in future).
+  Prepare of whole select (including sub queries in future).
   return -1 on error
           0 on success
 */

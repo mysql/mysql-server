@@ -635,7 +635,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 */
 
 static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
-                              uint count, long *values, bool transform_msec)
+                              uint count, ulonglong *values,
+                              bool transform_msec)
 {
   const char *end=str+length;
   uint i;
@@ -1651,7 +1652,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
 	 ltime->second +
 	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*3600+interval.minute*60+
+                           interval.hour*LL(3600)+interval.minute*LL(60)+
                            interval.second))+ extra_sec;
     if (microseconds < 0)
     {
