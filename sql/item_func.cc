@@ -3270,7 +3270,7 @@ Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
 const char *
 Item_func_sp::func_name() const
 {
-  THD * thd= current_thd;
+  THD *thd= current_thd;
   /* Calculate length to avoud reallocation of string for sure */
   uint len= ((m_name->m_db.length +
               m_name->m_name.length)*2 + //characters*quoting
@@ -3280,6 +3280,7 @@ Item_func_sp::func_name() const
              ALIGN_SIZE(1));             // to avoid String reallocation
   String qname((char *)alloc_root(&thd->mem_root, len), len,
                system_charset_info);
+
   qname.length(0);
   append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
   qname.append('.');

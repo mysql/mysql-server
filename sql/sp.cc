@@ -93,10 +93,15 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   key[128]= type;
   keylen= sizeof(key);
 
-  for (table= thd->open_tables ; table ; table= table->next)
-    if (strcmp(table->table_cache_key, "mysql") == 0 &&
-	strcmp(table->real_name, "proc") == 0)
-      break;
+  if (thd->lex->proc_table)
+    table= thd->lex->proc_table->table;
+  else
+  {
+    for (table= thd->open_tables ; table ; table= table->next)
+      if (strcmp(table->table_cache_key, "mysql") == 0 &&
+          strcmp(table->real_name, "proc") == 0)
+        break;
+  }
   if (table)
     *opened= FALSE;
   else
@@ -954,6 +959,7 @@ sp_cache_functions(THD *thd, LEX *lex)
       LEX *newlex= new st_lex;
 
       thd->lex= newlex;
+      newlex->proc_table= oldlex->proc_table; // hint if mysql.oper is opened
       name.m_name.str= strchr(name.m_qname.str, '.');
       name.m_db.length= name.m_name.str - name.m_qname.str;
       name.m_db.str= strmake_root(&thd->mem_root,
