@@ -19267,7 +19267,7 @@ key that can have @code{NULL} values (In this case the packed key length will
 be stored in the same byte that is used to mark if a key is @code{NULL}.)
 
 @item
-If you specify a @code{SELECT} after the @code{CREATE STATEMENT},
+If you specify a @code{SELECT} after the @code{CREATE} statement,
 @strong{MySQL} will create new fields for all elements in the
 @code{SELECT}.  For example:
 
@@ -19277,9 +19277,37 @@ mysql> CREATE TABLE test (a int not null auto_increment,
            TYPE=MyISAM SELECT b,c from test2;
 @end example
 
-This will create a @code{MyISAM} table with 3 columns.  Note that the
-table will automatically be deleted if any errors occur while copying
-data into the table.
+This will create a @code{MyISAM} table with three columns, a, b, and c.
+Notice that the columns from the @code{SELECT} statement are appended to
+the right side of the table, not overlapped onto it.  Take the following
+example:
+
+@example
+mysql> select * from foo;
++---+
+| n |
++---+
+| 1 |
++---+           
+
+mysql> create table bar (m int) select n from foo;
+Query OK, 1 row affected (0.02 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+ 
+mysql> select * from bar;
++------+---+
+| m    | n |
++------+---+
+| NULL | 1 |
++------+---+
+1 row in set (0.00 sec)                           
+@end example
+
+For each row in table @code{foo}, a row is inserted in @code{bar} with
+the values from @code{foo} and default values for the new columns.
+
+If any errors occur while copying the data to the table, it will 
+automatically be deleted. 
 
 To ensure that the update log/binary log can be used to re-create the
 original tables, @strong{MySQL} will not allow concurrent inserts during
@@ -23119,7 +23147,8 @@ for replication of tables with fancy column names to work.
 
 @item TIMESTAMP = timestamp_value | DEFAULT
 Set the time for this client.  This is used to get the original timestamp if
-you use the update log to restore rows.
+you use the update log to restore rows.  @code{timestamp_value} should be a
+UNIX Epoch timestamp, not a @strong{MySQL} timestamp.
 
 @item LAST_INSERT_ID = #
 Set the value to be returned from @code{LAST_INSERT_ID()}. This is stored in
