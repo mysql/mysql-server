@@ -746,7 +746,7 @@ int QUICK_RANGE_SELECT::init()
 void QUICK_RANGE_SELECT::range_end()
 {
   if (file->inited != handler::NONE)
-    file->ha_index_end();
+    file->ha_index_or_rnd_end();
 }
 
 
@@ -3687,7 +3687,8 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   }
   /* Get local copy of key */
   copies= 1;
-  if (field->key_type() == HA_KEYTYPE_VARTEXT)
+  if (field->key_type() == HA_KEYTYPE_VARTEXT1 ||
+      field->key_type() == HA_KEYTYPE_VARTEXT2)
     copies= 2;
   str= str2= (char*) alloc_root(param->mem_root,
 				(key_part->store_length)*copies+1);
@@ -5888,7 +5889,7 @@ int QUICK_RANGE_SELECT::get_next()
   SYNOPSIS
     QUICK_RANGE_SELECT::get_next_prefix()
     prefix_length  length of cur_prefix
-    cur_prefix     prefix of a key to be searached for
+    cur_prefix     prefix of a key to be searched for
 
   DESCRIPTION
     Each subsequent call to the method retrieves the first record that has a
@@ -7402,7 +7403,8 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
       quick->quick_prefix_select= NULL; /* Can't construct a quick select. */
     else
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
-      quick->quick_prefix_select= get_quick_select(param, param_idx, index_tree,
+      quick->quick_prefix_select= get_quick_select(param, param_idx,
+                                                   index_tree,
                                                    &quick->alloc);
 
     /*
