@@ -9871,7 +9871,10 @@ int main(int argc, char **argv)
     test_stiny_bug();       /* test a simple conv bug from php */
     test_field_misc();      /* check the field info for misc case, bug: #74 */   
     test_set_option();      /* test the SET OPTION feature, bug #85 */
+    /*TODO HF: here should be NO_EMBEDDED_ACCESS_CHECKS*/
+#ifndef EMBEDDED_LIBRARY
     test_prepare_grant();   /* to test the GRANT command, bug #89 */
+#endif
     test_frm_bug();         /* test the crash when .frm is invalid, bug #93 */
     test_explain_bug();     /* test for the EXPLAIN, bug #115 */
     test_decimal_bug();     /* test for the decimal bug */

@@ -1493,7 +1493,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	thd->query_rest.length(length);
       }
       else
-	thd->query_rest.copy(length);
+	thd->query_rest.copy(packet, length, thd->query_rest.charset());
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
