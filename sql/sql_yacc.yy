@@ -918,7 +918,7 @@ create:
 						  &tmp_table_alias :
 						  (LEX_STRING*) 0),
 						 TL_OPTION_UPDATING,
-						 ((using_update_log)?
+						 (using_update_log ?
 						  TL_READ_NO_INSERT:
 						  TL_READ)))
 	    YYABORT;
@@ -2189,10 +2189,9 @@ select_init2:
 
 select_part2:
 	{
-	  LEX *lex=Lex;
-	  SELECT_LEX * sel= lex->current_select;
-	  if (lex->current_select == &lex->select_lex)
-	    lex->lock_option= TL_READ; /* Only for global SELECT */
+	  LEX *lex= Lex;
+	  SELECT_LEX *sel= lex->current_select;
+	  lex->lock_option= TL_READ;
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
 	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
@@ -2575,8 +2574,6 @@ simple_expr:
 	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
-	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| DEFAULT '(' simple_ident ')'
 	  { $$= new Item_default_value($3); }
 	| VALUES '(' simple_ident ')'
@@ -3060,7 +3057,7 @@ opt_gorder_clause:
 	| order_clause
           {
             LEX *lex=Lex;
-            lex->gorder_list= 
+            lex->gorder_list=
 	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
 				     sizeof(st_sql_list));
 	    lex->current_select->order_list.empty();
@@ -3084,16 +3081,16 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY			{ $$=ITEM_CAST_BINARY; }
+	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; Lex->length= (char*)0; }
 	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
 	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
-	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
-	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
-	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
-	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
+	| DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; Lex->length= (char*)0; }
+	| TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; Lex->length= (char*)0; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->length= (char*)0; }
 	;
 
 expr_list:
@@ -3898,6 +3895,7 @@ update:
 	  LEX *lex= Lex;
 	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
+	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list where_clause opt_order_clause delete_limit_clause

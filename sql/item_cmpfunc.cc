@@ -1657,25 +1657,18 @@ Item_cond::Item_cond(THD *thd, Item_cond *item)
    and_tables_cache(item->and_tables_cache)
 {
   /*
-    here should be following text:
-
-  List_iterator_fast<Item*> li(item.list);
-  while(Item *it= li++)
-    list.push_back(it);
-
-    but it do not need,
-    because this constructor used only for AND/OR and
-    argument list will be copied by copy_andor_arguments call
+    item->list will be copied by copy_andor_arguments() call
   */
-
 }
+
 
 void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 {
   List_iterator_fast<Item> li(item->list);
-  while(Item *it= li++)
+  while (Item *it= li++)
     list.push_back(it->copy_andor_structure(thd));
 }
+
 
 bool
 Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)

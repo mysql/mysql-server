@@ -274,6 +274,25 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
   return pos ? e+2-b0 : b-b0;
 }
 
+uint my_wellformedlen_mb(CHARSET_INFO *cs,
+			 const char *b, const char *e, uint pos)
+{
+  my_wc_t wc;
+  int mblen;
+  const char *b0= b;
+  
+  while (pos)
+  {
+    if ((mblen= cs->cset->mb_wc(cs, &wc, b, e)) <0)
+      break;
+    b+= mblen;
+    pos--;
+  }
+  return b - b0;
+}
+
+
+
 uint my_instr_mb(CHARSET_INFO *cs,
                  const char *b, uint b_length, 
                  const char *s, uint s_length,

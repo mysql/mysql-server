@@ -1002,6 +1002,17 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 static
+uint my_wellformedlen_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		     const char *b,
+		     const char *e,
+		     uint nchars)
+{
+  uint nbytes= (e-b) & ~ (uint)1;
+  nchars*= 2;
+  return nbytes < nchars ? nbytes : nchars;
+}
+
+static
 void my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 		   char *s, uint l, int fill)
 {
@@ -1287,6 +1298,7 @@ static MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
     my_charpos_ucs2,
+    my_wellformedlen_ucs2,
     my_lengthsp_ucs2,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */

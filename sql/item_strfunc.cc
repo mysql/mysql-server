@@ -2124,78 +2124,6 @@ void Item_func_conv_charset::print(String *str)
   str->append(')');
 }
 
-String *Item_func_conv_charset3::val_str(String *str)
-{
-  my_wc_t wc;
-  int cnvres;
-  const uchar *s, *se;
-  uchar *d, *d0, *de;
-  uint32 dmaxlen;
-  String *arg= args[0]->val_str(str);
-  String *to_cs= args[1]->val_str(str);
-  String *from_cs= args[2]->val_str(str);
-  CHARSET_INFO *from_charset;
-  CHARSET_INFO *to_charset;
-
-  if (!arg     || args[0]->null_value ||
-      !to_cs   || args[1]->null_value ||
-      !from_cs || args[2]->null_value ||
-      !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
-      !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
-  {
-    null_value=1;
-    return 0;
-  }
-
-  s=(const uchar*)arg->ptr();
-  se=s+arg->length();
-
-  dmaxlen=arg->length()*to_charset->mbmaxlen+1;
-  str->alloc(dmaxlen);
-  d0=d=(unsigned char*)str->ptr();
-  de=d+dmaxlen;
-
-  while (1)
-  {
-    cnvres=from_charset->cset->mb_wc(from_charset,&wc,s,se);
-    if (cnvres>0)
-    {
-      s+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILSEQ)
-    {
-      s++;
-      wc='?';
-    }
-    else
-      break;
-
-outp:
-    cnvres=to_charset->cset->wc_mb(to_charset,wc,d,de);
-    if (cnvres>0)
-    {
-      d+=cnvres;
-    }
-    else if (cnvres==MY_CS_ILUNI && wc!='?')
-    {
-        wc='?';
-        goto outp;
-    }
-    else
-      break;
-  };
-
-  str->length((uint32) (d-d0));
-  str->set_charset(to_charset);
-  return str;
-}
-
-
-void Item_func_conv_charset3::fix_length_and_dec()
-{
-  max_length = args[0]->max_length;
-}
-
 String *Item_func_set_collation::val_str(String *str)
 {
   str=args[0]->val_str(str);
@@ -2262,7 +2190,7 @@ String *Item_func_charset::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, default_charset());
+	    &my_charset_latin1, collation.collation);
   return str;
 }
 
@@ -2273,7 +2201,7 @@ String *Item_func_collation::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, default_charset());
+	    &my_charset_latin1, collation.collation);
   return str;
 }
 

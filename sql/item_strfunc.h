@@ -518,7 +518,8 @@ public:
   void fix_length_and_dec() 
   { 
     collation.set(default_charset());
-    decimals=0; max_length=args[0]->max_length*2;
+    decimals=0;
+    max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
   }
 };
 
@@ -618,16 +619,6 @@ public:
   void print(String *str) { print_op(str); }
 };
 
-class Item_func_conv_charset3 :public Item_str_func
-{
-public:
-  Item_func_conv_charset3(Item *arg1,Item *arg2,Item *arg3)
-    :Item_str_func(arg1,arg2,arg3) {}
-  String *val_str(String *);
-  void fix_length_and_dec();
-  const char *func_name() const { return "convert"; }
-};
-
 class Item_func_charset :public Item_str_func
 {
 public:
@@ -636,8 +627,8 @@ public:
   const char *func_name() const { return "charset"; }
   void fix_length_and_dec() 
   {
-     max_length=40; // should be enough
      collation.set(system_charset_info);
+     max_length= 64 * collation.collation->mbmaxlen; // should be enough
   };
 };
 
@@ -649,8 +640,8 @@ public:
   const char *func_name() const { return "collation"; }
   void fix_length_and_dec()
   {
-     max_length=40; // should be enough
      collation.set(system_charset_info);
+     max_length= 64 * collation.collation->mbmaxlen; // should be enough
   };
 };
 

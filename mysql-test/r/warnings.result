@@ -1,7 +1,4 @@
 drop table if exists t1, t2;
-Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
 SET SQL_WARNINGS=1;
 create table t1 (a int);
 insert into t1 values (1);

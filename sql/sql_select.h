@@ -108,6 +108,8 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
+
+  void cleanup();
 } JOIN_TAB;
 
 
@@ -428,7 +430,6 @@ public:
 
 bool cp_buffer_from_ref(TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
-void relink_tables(SELECT_LEX *select_lex);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *eliminate_not_funcs(COND *cond);

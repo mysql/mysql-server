@@ -874,7 +874,8 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,plFF
 
 
 static
-int my_mb_wc_tis620(CHARSET_INFO *cs,my_wc_t *wc,
+int my_mb_wc_tis620(CHARSET_INFO *cs  __attribute__((unused)),
+		  my_wc_t *wc,
 		  const unsigned char *str,
 		  const unsigned char *end __attribute__((unused)))
 {
@@ -886,7 +887,8 @@ int my_mb_wc_tis620(CHARSET_INFO *cs,my_wc_t *wc,
 }
 
 static
-int my_wc_mb_tis620(CHARSET_INFO *cs,my_wc_t wc,
+int my_wc_mb_tis620(CHARSET_INFO *cs  __attribute__((unused)),
+		  my_wc_t wc,
 		  unsigned char *str,
 		  unsigned char *end __attribute__((unused)))
 {
@@ -919,6 +921,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_8bit,	/* mbcharlen */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_wellformedlen_8bit,
     my_lengthsp_8bit,
     my_mb_wc_tis620,	/* mb_wc     */
     my_wc_mb_tis620,	/* wc_mb     */

@@ -1068,9 +1068,8 @@ String *Item_func_min_max::val_str(String *str)
 	}
       }
     }
-    if (!res)  // If NULL
-      return 0;
-    res->set_charset(collation.collation);
+    if (res)					// If !NULL
+      res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -1553,7 +1552,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
       my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		      u_d->name,thd->net.last_error);
+		      u_d->name.str, thd->net.last_error);
       free_udf(u_d);
       DBUG_RETURN(1);
     }
@@ -1566,7 +1565,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   if (error)
   {
     my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		    u_d->name, ER(ER_UNKNOWN_ERROR));
+		    u_d->name.str, ER(ER_UNKNOWN_ERROR));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2648,10 +2647,15 @@ longlong Item_func_inet_aton::val_int()
   }
   if (c != '.')					// IP number can't end on '.'
   {
-    switch (dot_count)
-    {
-    case 1: result<<= 8;
-    case 2: result<<= 8;
+    /*
+      Handle short-forms addresses according to standard. Examples:
+      127		-> 0.0.0.127
+      127.1		-> 127.0.0.1
+      127.2.1		-> 127.2.0.1
+    */
+    switch (dot_count) {
+    case 1: result<<= 8; /* Fall through */
+    case 2: result<<= 8; /* Fall through */
     }
     return (result << 8) + (ulonglong) byte_result;
   }

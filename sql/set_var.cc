@@ -695,7 +695,6 @@ struct show_var_st init_vars[]= {
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
-  {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
@@ -2629,17 +2628,7 @@ ulong fix_sql_mode(ulong sql_mode)
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
 		MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_MSSQL)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-		MODE_IGNORE_SPACE |
-		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-		MODE_NO_FIELD_OPTIONS);
   if (sql_mode & MODE_POSTGRESQL)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-		MODE_IGNORE_SPACE |
-		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-		MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_DB2)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |

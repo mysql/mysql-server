@@ -733,7 +733,7 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
   if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables, 0)))
+       lex->unit.create_total_list(thd, lex, &tables)))
    DBUG_RETURN(1);
     
   if (open_and_lock_tables(thd, tables))
@@ -746,7 +746,6 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
   }
   else 
   {
-    fix_tables_pointers(lex->all_selects_list);
     if (!result && !(result= new select_send()))
     {
       send_error(thd, ER_OUT_OF_RESOURCES);
@@ -1005,8 +1004,10 @@ void mysql_stmt_execute(THD *thd, char *packet)
       sl->where= sl->prep_where->copy_andor_structure(thd);
     DBUG_ASSERT(sl->join == 0);
     ORDER *order;
+    /* Fix GROUP list */
     for (order=(ORDER *)sl->group_list.first ; order ; order=order->next)
       order->item= (Item **)(order+1);
+    /* Fix ORDER list */
     for (order=(ORDER *)sl->order_list.first ; order ; order=order->next)
       order->item= (Item **)(order+1);
   }

@@ -519,8 +519,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store_null();
       // Send error to Comment field
       protocol->store(thd->net.last_error, system_charset_info);
-      thd->net.last_error[0]=0;
-      thd->net.last_errno= 0;
+      thd->clear_error();
     }
     else
     {
@@ -1086,8 +1085,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
-/* possible TODO: call find_keyword() from sql_lex.cc here */
-static bool require_quotes(const char *name, uint length)
+static inline const char *require_quotes(const char *name, uint length)
 {
   uint i, d, c;
   for (i=0; i<length; i+=d)
@@ -1095,7 +1093,37 @@ static bool require_quotes(const char *name, uint length)
     c=((uchar *)name)[i];
     d=my_mbcharlen(system_charset_info, c);
     if (d==1 && !system_charset_info->ident_map[c])
-      return 1;
+      return name+i;
+  }
+  return 0;
+}
+
+/*
+  Looking for char in multibyte string
+
+  SYNOPSIS
+    look_for_char()
+    name      string for looking at
+    length    length of name
+    q         '\'' or '\"' for looking for
+
+  RETURN VALUES
+    # pointer to found char in string
+    0 string doesn't contain required char
+*/
+
+static inline const char *look_for_char(const char *name, 
+					uint length, char q)
+{
+  const char *cur= name;
+  const char *end= cur+length;
+  uint symbol_length;
+  for (; cur<end; cur+= symbol_length)
+  {
+    char c= *cur;
+    symbol_length= my_mbcharlen(system_charset_info, c);
+    if (symbol_length==1 && c==q)
+      return cur;
   }
   return 0;
 }
@@ -1104,21 +1132,52 @@ void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   char qtype;
+  uint part_len;
+  const char *qplace;
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     qtype= '\"';
   else
     qtype= '`';
 
-  if ((thd->options & OPTION_QUOTE_SHOW_CREATE) ||
-      require_quotes(name, length))
+  if (is_keyword(name,length))
   {
-    packet->append(&qtype, 1);
+    packet->append(&qtype, 1, system_charset_info);
     packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1);
+    packet->append(&qtype, 1, system_charset_info);
   }
   else
   {
-    packet->append(name, length, system_charset_info);
+    if (!(qplace= require_quotes(name, length)))
+    {
+      if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
+	packet->append(name, length, system_charset_info);
+      else
+      {
+	packet->append(&qtype, 1, system_charset_info);
+	packet->append(name, length, system_charset_info);
+	packet->append(&qtype, 1, system_charset_info);
+      }
+    }
+    else
+    {
+      packet->shrink(packet->length()+length+2);
+      packet->append(&qtype, 1, system_charset_info);
+      if (*qplace != qtype)
+	qplace= look_for_char(qplace+1,length-(qplace-name)-1,qtype);
+      while (qplace)
+      {
+	if ((part_len= qplace-name))
+	{
+	  packet->append(name, part_len, system_charset_info);
+	  length-= part_len;
+	}
+	packet->append(qplace, 1, system_charset_info);
+	name= qplace;
+	qplace= look_for_char(name+1,length-1,qtype);
+      }
+      packet->append(name, length, system_charset_info);
+      packet->append(&qtype, 1, system_charset_info);
+    }
   }
 }
 
@@ -1338,7 +1397,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" ENGINE=", 8);
+    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+      packet->append(" TYPE=", 6);
+    else
+      packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&

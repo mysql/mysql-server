@@ -53,3 +53,21 @@ CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
 --exec $MYSQL_DUMP  --skip-comments test t1
 DROP TABLE t1;
+
+#
+# Bug #2634
+#
+
+CREATE TABLE t1 (a int) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql40 test t1
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
+DROP TABLE t1;
+
+#
+# Bug #2592 'mysqldum doesn't quote "tricky" names correctly'
+#
+
+create table ```a` (i int);
+--exec $MYSQL_DUMP  --skip-comments test
+drop table ```a`;

@@ -173,7 +173,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd, lex, result, &lex->unit);
   else
@@ -1511,12 +1510,7 @@ JOIN::cleanup()
       JOIN_TAB *tab, *end;
       for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
       {
-	delete tab->select;
-	delete tab->quick;
-	tab->select=0;
-	tab->quick=0;
-	x_free(tab->cache.buff);
-	tab->cache.buff= 0;
+	tab->cleanup();
       }
     }
     tmp_join->tmp_join= 0;
@@ -1580,8 +1574,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	  goto err;
 	}
       }
-      free_join= 0;
     }
+    free_join= 0;
     join->select_options= select_options;
   }
   else
@@ -1648,8 +1642,8 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,limit))
-	== 1)
+    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
+					 limit)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -2700,22 +2694,35 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  do
 	  {
             uint keypart=keyuse->keypart;
-	    uint found_part_ref_or_null= KEY_OPTIMIZE_REF_OR_NULL;
+            table_map best_part_found_ref= 0;
+            double best_prev_record_reads= DBL_MAX;
 	    do
 	    {
 	      if (!(rest_tables & keyuse->used_tables) &&
 		  !(found_ref_or_null & keyuse->optimize))
 	      {
 		found_part|=keyuse->keypart_map;
-		found_ref|= keyuse->used_tables;
+                double tmp= prev_record_reads(join,
+					      (found_ref |
+					       keyuse->used_tables));
+                if (tmp < best_prev_record_reads)
+                {
+                  best_part_found_ref= keyuse->used_tables;
+                  best_prev_record_reads= tmp;
+                }
 		if (rec > keyuse->ref_table_rows)
 		  rec= keyuse->ref_table_rows;
-		found_part_ref_or_null&= keyuse->optimize;
+		/*
+		  If there is one 'key_column IS NULL' expression, we can
+		  use this ref_or_null optimsation of this field
+		*/
+		found_ref_or_null|= (keyuse->optimize &
+				     KEY_OPTIMIZE_REF_OR_NULL);
               }
 	      keyuse++;
-	      found_ref_or_null|= found_part_ref_or_null;
 	    } while (keyuse->table == table && keyuse->key == key &&
 		     keyuse->keypart == keypart);
+	    found_ref|= best_part_found_ref;
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  /*
@@ -3748,6 +3755,41 @@ bool error_if_full_join(JOIN *join)
 
 
 /*
+  cleanup JOIN_TAB
+
+  SYNOPSIS
+    JOIN_TAB::cleanup()
+*/
+
+void JOIN_TAB::cleanup()
+{
+  delete select;
+  select= 0;
+  delete quick;
+  quick= 0;
+  x_free(cache.buff);
+  cache.buff= 0;
+  if (table)
+  {
+    if (table->key_read)
+    {
+      table->key_read= 0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    /* Don't free index if we are using read_record */
+    if (!read_record.table)
+      table->file->index_end();
+    /*
+      We need to reset this for next select
+      (Tested in part_of_refkey)
+    */
+    table->reginfo.join_tab= 0;
+  }
+  end_read_record(&read_record);
+}
+
+
+/*
   Free resources of given join
 
   SYNOPSIS
@@ -3781,11 +3823,6 @@ JOIN::join_free(bool full)
       {
 	if (tab->table)
 	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
 	  /* Don't free index if we are using read_record */
 	  if (!tab->read_record.table)
 	    tab->table->file->index_end();
@@ -3796,29 +3833,7 @@ JOIN::join_free(bool full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
-	delete tab->select;
-	delete tab->quick;
-	tab->select=0;
-	tab->quick=0;
-	x_free(tab->cache.buff);
-	tab->cache.buff= 0;
-	if (tab->table)
-	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
-	  /* Don't free index if we are using read_record */
-	  if (!tab->read_record.table)
-	    tab->table->file->index_end();
-	  /*
-	    We need to reset this for next select
-	    (Tested in part_of_refkey)
-	  */
-	  tab->table->reginfo.join_tab= 0;
-	}
-	end_read_record(&tab->read_record);
+	tab->cleanup();
       }
       table= 0;
     }
@@ -7203,9 +7218,12 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->sort.found_records=filesort(thd, table,sortorder, length,
                                      select, filesort_limit, &examined_rows);
-  tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
-  delete select;
-  tab->select=0;
+  tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
+  if (select)
+  {
+    select->cleanup();				// filesort did select
+    tab->select= 0;
+  }
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
@@ -9133,6 +9151,9 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
        sl;
        sl= sl->next_select())
   {
+    // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
+    uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
+
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex->select_lex)==sl)?
 			       ((thd->lex->all_selects_list != sl) ? 
@@ -9140,13 +9161,13 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT SUBQUERY":
-				 (sl->uncacheable?"UNCACHEABLE SUBQUERY":
+				 (uncacheable?"UNCACHEABLE SUBQUERY":
 				   "SUBQUERY"))):
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT UNION":
-				 sl->uncacheable?"UNCACHEABLE UNION":
+				 uncacheable?"UNCACHEABLE UNION":
 				  "UNION"))),
 			      result);
     if (res)
