@@ -2947,6 +2947,7 @@ fseg_print_low(
 	ulint	reserved;
 	ulint	used;
 	ulint	page_no;
+	dulint   d_var;
 	
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(inode),
 							MTR_MEMO_PAGE_X_FIX));
@@ -2954,11 +2955,11 @@ fseg_print_low(
 	page_no = buf_frame_get_page_no(inode);
 
 	reserved = fseg_n_reserved_pages_low(inode, &used, mtr);
-	
-	seg_id_low = ut_dulint_get_low(mtr_read_dulint(inode + FSEG_ID,
-							MLOG_8BYTES, mtr));
-	seg_id_high = ut_dulint_get_high(mtr_read_dulint(inode + FSEG_ID,
-							MLOG_8BYTES, mtr));
+
+	d_var = mtr_read_dulint(inode + FSEG_ID, MLOG_8BYTES, mtr);	
+
+	seg_id_low = ut_dulint_get_low(d_var);
+	seg_id_high = ut_dulint_get_high(d_var);
 	
 	n_used = mtr_read_ulint(inode + FSEG_NOT_FULL_N_USED,
 							MLOG_4BYTES, mtr); 
@@ -3244,6 +3245,7 @@ fsp_print(
 	ulint		seg_id_high;
 	ulint		n;
 	ulint		n_segs		= 0;
+	dulint          d_var;
 	mtr_t		mtr;
 	mtr_t		mtr2;
 	
@@ -3270,10 +3272,11 @@ fsp_print(
 	n_free_frag = flst_get_len(header + FSP_FREE_FRAG, &mtr);
 	n_full_frag = flst_get_len(header + FSP_FULL_FRAG, &mtr);
 
-	seg_id_low = ut_dulint_get_low(mtr_read_dulint(header + FSP_SEG_ID,
-							MLOG_8BYTES, &mtr));
-	seg_id_high = ut_dulint_get_high(mtr_read_dulint(header + FSP_SEG_ID,
-							MLOG_8BYTES, &mtr));
+	d_var = mtr_read_dulint(header + FSP_SEG_ID, MLOG_8BYTES, &mtr);
+
+	seg_id_low = ut_dulint_get_low(d_var);
+	seg_id_high = ut_dulint_get_high(d_var);
+
 	printf("FILE SPACE INFO: id %lu\n", space);
 
 	printf("size %lu, free limit %lu, free extents %lu\n",
