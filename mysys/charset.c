@@ -271,6 +271,9 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
   if (from->name)
     to->name= my_once_strdup(from->name,MYF(MY_WME));
   
+  if (from->comment)
+    to->comment= my_once_strdup(from->comment,MYF(MY_WME));
+  
   if (from->ctype)
   {
     to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
@@ -339,7 +342,10 @@ static int add_collation(CHARSET_INFO *cs)
     }
     else
     {
-      all_charsets[cs->number]->state |= cs->state;
+      CHARSET_INFO *dst= all_charsets[cs->number];
+      dst->state |= cs->state;
+      if (cs->comment)
+	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
     }
     cs->number= 0;
     cs->primary_number= 0;

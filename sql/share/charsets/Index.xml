@@ -11,6 +11,7 @@ To make maintaining easier please:
 
 <charset name="big5">
   <family>Traditional Chinese</family>
+  <description>Big5 Traditional Chinese</description>
   <alias>big-5</alias>
   <alias>bigfive</alias>
   <alias>big-five</alias>
@@ -24,6 +25,7 @@ To make maintaining easier please:
 
 <charset name="latin2">
   <family>Central European</family>
+  <description>ISO 8859-2 Central European</description>
   <alias>csisolatin2</alias>
   <alias>iso-8859-2</alias>
   <alias>iso-ir-101</alias>
@@ -47,6 +49,7 @@ To make maintaining easier please:
 
 <charset name="dec8">
   <family>Western</family>
+  <description>DEC West European</description>
   <collation name="dec_bin"	id="69"	order="Binary"	flag="binary"/>
   <collation name="dec8"	id="3"	flag="primary">
     <order>Dutch</order>
@@ -62,6 +65,7 @@ To make maintaining easier please:
 
 <charset name="pclatin1">
   <family>Western</family>
+  <description>DOS West European</description>
   <alias>850</alias>
   <alias>cp850</alias>
   <alias>cspc850multilingual</alias>
@@ -81,6 +85,7 @@ To make maintaining easier please:
 
 <charset name="latin1">
   <family>Western</family>
+  <description>ISO 8859-1 West European</description>
   <alias>csisolatin1</alias>
   <alias>iso-8859-1</alias>
   <alias>iso-ir-100</alias>
@@ -117,6 +122,7 @@ To make maintaining easier please:
 
 <charset name="hp8">
   <family>Western</family>
+  <description>HP West European</description>
   <alias>hproman8</alias>
   <collation name="hp8_bin"	id="72"	order="Binary"		flag="binary"/>
   <collation name="hp8"		id="6"	flag="primary">
@@ -133,6 +139,7 @@ To make maintaining easier please:
 
 <charset name="koi8r">
   <family>Cyrillic</family>
+  <description>KOI8-R Relcom Russian</description>
   <alias>koi8-r</alias>
   <alias>cskoi8r</alias>
   <collation name="koi8r"	id="7"	order="Russian"	flag="primary"/>
@@ -141,6 +148,7 @@ To make maintaining easier please:
 
 <charset name="swe7">
   <family>Western</family>
+  <description>7bit Swedish</description>
   <alias>iso-646-se</alias>
   <collation name="swe7"	id="10"	order="Swedish"	flag="primary"/>
   <collation name="swe7_bin"	id="82"	order="Binary"	flag="binary"/>
@@ -148,6 +156,7 @@ To make maintaining easier please:
 
 <charset name="ascii">
   <family>Western</family>
+  <description>US ASCII</description>
   <alias>us</alias>
   <alias>us-ascii</alias>
   <alias>csascii</alias>
@@ -159,12 +168,14 @@ To make maintaining easier please:
 
 <charset name="ujis">
   <family>Japanese</family>
+  <description>EUC-JP Japanese</description>
   <alias>euc-jp</alias>
   <collation name="ujis"	id="12"	order="Japanese"	flag="primary"/>
 </charset>
 
 <charset name="sjis">
   <family>Japanese</family>
+  <description>Shift-JIS Japanese</description>
   <alias>s-jis</alias>
   <alias>shift-jis</alias>
   <alias>x-sjis</alias>
@@ -173,6 +184,7 @@ To make maintaining easier please:
 
 <charset name="cp1251">
   <family>Cyrillic</family>
+  <description>Windows Cyrillic</description>
   <alias>windows-1251</alias>
   <alias>ms-cyr</alias>
   <alias>ms-cyrillic</alias>
@@ -209,6 +221,7 @@ To make maintaining easier please:
 
 <charset name="hebrew">
   <family>Hebrew</family>
+  <description>ISO 8859-8 Hebrew</description>
   <alias>csisolatinhebrew</alias>
   <alias>iso-8859-8</alias>
   <alias>iso-ir-138</alias>
@@ -218,6 +231,7 @@ To make maintaining easier please:
 
 <charset name="tis620">
   <family>Thai</family>
+  <description>TIS620 Thai</description>
   <alias>tis-620</alias>
   <collation name="tis620"	id="18"	order="Thai">
     <flag>primary</flag>
@@ -227,6 +241,7 @@ To make maintaining easier please:
 
 <charset name="euckr">
   <family>Korean</family>
+  <description>EUC-KR Korean</description>
   <alias>euc_kr</alias>
   <alias>euc-kr</alias>
   <collation name="euckr"	id="19"	order="Korean">
@@ -237,6 +252,7 @@ To make maintaining easier please:
 
 <charset name="latin7">
   <family>Baltic</family>
+  <description>ISO 8859-13 Baltic</description>
   <alias>BalticRim</alias>
   <alias>iso-8859-13</alias>
   <alias>l7</alias>
@@ -257,6 +273,7 @@ To make maintaining easier please:
 
 <charset name="koi8u">
   <family>Cyrillic</family>
+  <description>KOI8-U Ukrainian</description>
   <alias>koi8-u</alias>
   <collation name="koi8u"	id="22"	order="Ukranian"	flag="primary"/>
   <collation name="koi8u_bin"	id="75"	order="Binary"	flag="binary"/>
@@ -264,6 +281,7 @@ To make maintaining easier please:
 
 <charset name="gb2312">
   <family>Simplified Chinese</family>
+  <description>GB2312 Simplified Chinese</description>
   <alias>chinese</alias>
   <alias>iso-ir-58</alias>
   <collation name="gb2312"	id="24"	order="Chinese">
@@ -274,6 +292,7 @@ To make maintaining easier please:
 
 <charset name="greek">
   <family>Greek</family>
+  <description>ISO 8859-7 Greek</description>
   <alias>csisolatingreek</alias>
   <alias>ecma-118</alias>
   <alias>greek8</alias>
@@ -285,6 +304,7 @@ To make maintaining easier please:
 
 <charset name="cp1250">
   <family>Central European</family>
+  <description>Windows Central European</description>
   <alias>ms-ce</alias>
   <alias>windows-1250</alias>
   <collation name="cp1250"	id="26"	flag="primary">
@@ -302,6 +322,7 @@ To make maintaining easier please:
 
 <charset name="gbk">
   <family>East Asian</family>
+  <description>GBK Simplified Chinese</description>
   <alias>cp936</alias>
   <collation name="gbk"		id="28"	order="Chinese">
     <flag>primary</flag>	
@@ -311,6 +332,7 @@ To make maintaining easier please:
 
 <charset name="cp1257">
   <family>Baltic</family>
+  <description>Windows Baltic</description>
   <alias>WinBaltRim</alias>
   <alias>windows-1257</alias>
   <collation name="cp1257"		id="29"	order="Depreciated"/>
@@ -331,6 +353,7 @@ To make maintaining easier please:
 
 <charset name="latin5">
   <family>South Asian</family>
+  <description>ISO 8859-9 Turkish</description>
   <alias>csisolatin5</alias>
   <alias>iso-8859-9</alias>
   <alias>iso-ir-148</alias>
@@ -343,6 +366,7 @@ To make maintaining easier please:
 
 <charset name="armscii8">
   <family>South Asian</family>
+  <description>ARMSCII-8 Armenian</description>
   <alias>armscii-8</alias>
   <collation name="armscii8"	id="32"	order="Armenian"	flag="primary"/>
   <collation name="armscii_bin"	id="64"	order="Binary"		flag="binary"/>
@@ -350,17 +374,20 @@ To make maintaining easier please:
 
 <charset name="utf8">
   <family>Unicode</family>
+  <description>UTF-8 Unicode</description>
   <alias>utf-8</alias>
   <collation name="utf8"	id="33"	flag="primary"/>
 </charset>
 
 <charset name="ucs2">
   <family>Unicode</family>
+  <description>UCS-2 Unicode</description>
   <collation name="ucs2"	id="35"	flag="primary"/>
 </charset>
 
 <charset name="cp866">
   <family>Cyrillic</family>
+  <description>DOS Russian</description>
   <alias>866</alias>
   <alias>csibm866</alias>
   <alias>ibm866</alias>
@@ -371,12 +398,14 @@ To make maintaining easier please:
 
 <charset name="keybcs2">
   <family>Central European</family>
+  <description>DOS Kamenicky Czech-Slovak</description>
   <collation name="keybcs2"	id="37"	order="Czech"	flag="primary"/>
   <collation name="keybcs2_bin"	id="73"	order="Binary"	flag="binary"/>
 </charset>
 
-<charset name="MacCE">
+<charset name="macce">
   <family>Central European</family>
+  <description>Mac Central European</description>
   <alias>MacCentralEurope</alias>
   <collation name="macce"	id="38"	flag="primary">
     <order>Hungarian</order>
@@ -417,8 +446,9 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="MacRoman">
+<charset name="macroman">
   <family>Western</family>
+  <description>Mac West European</description>
   <alias>Mac</alias>
   <alias>Macintosh</alias>
   <alias>csmacintosh</alias>
@@ -467,6 +497,7 @@ To make maintaining easier please:
 
 <charset name="pclatin2">
   <family>Central European</family>
+  <description>DOS Central European</description>
   <alias>852</alias>
   <alias>cp852</alias>
   <alias>ibm852</alias>
@@ -484,6 +515,7 @@ To make maintaining easier please:
 
 <charset name="cp1256">
   <family>Arabic</family>
+  <description>Windows Arabic</description>
   <alias>ms-arab</alias>
   <alias>windows-1256</alias>
   <collation name="cp1256_bin"	id="67"	order="Binary"	flag="binary"/>
@@ -496,6 +528,7 @@ To make maintaining easier please:
 </charset>
 
 <charset name="binary">
+  <description>Binary pseudo charset</description>
   <collation name="binary"	id="63"	order="Binary">
     <flag>primary</flag>
     <flag>compiled</flag>

@@ -1474,6 +1474,7 @@ static bool write_charset(Protocol *protocol, CHARSET_INFO *cs)
 {
   protocol->prepare_for_resend();
   protocol->store(cs->csname, system_charset_info);
+  protocol->store(cs->comment ? cs->comment : "", system_charset_info);
   protocol->store(cs->name, system_charset_info);
   protocol->store_short((longlong) cs->mbmaxlen);
   return protocol->write();
@@ -1491,6 +1492,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   DBUG_ENTER("mysqld_show_charsets");
 
   field_list.push_back(new Item_empty_string("Charset",30));
+  field_list.push_back(new Item_empty_string("Description",60));
   field_list.push_back(new Item_empty_string("Default collation",60));
   field_list.push_back(new Item_return_int("Maxlen",3, FIELD_TYPE_SHORT));
 
