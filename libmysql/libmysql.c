@@ -163,6 +163,11 @@ void STDCALL mysql_thread_end()
 #define reset_sigpipe(mysql)
 #endif
 
+#define map_to_size(A,L) {\
+  char *tmp= (char *)&A;\
+  memset(tmp+L,0,8-L);\
+}
+
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port,
 			 const char* user,
@@ -4686,13 +4691,13 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     *param->buffer= (uchar) value;
     break;
   case MYSQL_TYPE_SHORT:
-    int2store(buffer, (short)value);
+    int2store(buffer, value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, (int32)value);
+    int4store(buffer, value);
     break;
   case MYSQL_TYPE_LONGLONG:
-    int8store(buffer, (longlong)value);
+    int8store(buffer, value);
     break;
   case MYSQL_TYPE_FLOAT:
     {
@@ -4726,13 +4731,13 @@ static void send_data_double(MYSQL_BIND *param, double value)
     *buffer= (uchar)value;
     break;
   case MYSQL_TYPE_SHORT:
-    int2store(buffer, (short)value);
+    int2store(buffer, value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, (int32)value);
+    int4store(buffer, value);
     break;
   case MYSQL_TYPE_LONGLONG:
-    int8store(buffer, (longlong)value);
+    int8store(buffer, value);
     break;
   case MYSQL_TYPE_FLOAT:
     {
@@ -4873,24 +4878,24 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
-    uchar value= (uchar) **row;
-    send_data_long(param,(longlong)value);
-    length= 1;
+    longlong value= (longlong) **row;
+    map_to_size(value,(length= 1));
+    send_data_long(param,value);
     break;
   }
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_YEAR:
   {
-    short value= (short)sint2korr(*row);
-    send_data_long(param,(longlong)value);
-    length= 2;
+    longlong value= (longlong)sint2korr(*row);
+    map_to_size(value,(length= 2));
+    send_data_long(param, value);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 value= (int32)sint4korr(*row);
-    send_data_long(param,(int32)value);
-    length= 4;
+    longlong value= (longlong)sint4korr(*row);
+    map_to_size(value,(length= 4));
+    send_data_long(param,value);
     break;
   }
   case MYSQL_TYPE_LONGLONG:
@@ -4904,7 +4909,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
   {
     float value;
     float4get(value,*row);
-    send_data_double(param,(double)value);
+    send_data_double(param,value);
     length= 4;
     break;
   }
@@ -4912,7 +4917,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row)
   {
     double value;
     float8get(value,*row);
-    send_data_double(param,(double)value);
+    send_data_double(param,value);
     length= 8;
     break;
   }
