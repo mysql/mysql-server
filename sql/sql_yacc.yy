@@ -3063,7 +3063,7 @@ opt_insert_update:
               YYABORT;
             }
           }
-          KEY_SYM UPDATE_SYM SET update_list
+          KEY_SYM UPDATE_SYM update_list
         ;
 
 /* Update rows in a table */
