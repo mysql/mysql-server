@@ -491,6 +491,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     else
       outparam->primary_key = MAX_KEY; // we do not have a primary key
   }
+  else
+    outparam->primary_key= MAX_KEY;
   x_free((gptr) disk_buff);
   disk_buff=0;
   if (new_field_pack_flag <= 1)

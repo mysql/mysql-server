@@ -62,7 +62,7 @@
 #if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
 # define memcpy(d, s, n)	bcopy ((s), (d), (n))
 # define memset(A,C,B)		bfill((A),(B),(C))
-# define memmove(d, s, n)	bmove ((s), (d), (n))
+# define memmove(d, s, n)	bmove ((d), (s), (n))
 #elif defined(HAVE_MEMMOVE)
 # define bmove(d, s, n)		memmove((d), (s), (n))
 #else
@@ -140,7 +140,7 @@ extern	void bmove512(gptr dst,const gptr src,uint len);
 #endif
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
-extern	void bmove(gptr dst,const char *src,uint len);
+extern	void bmove(char *dst, const char *src,uint len);
 #endif
 
 extern	void bmove_upp(char *dst,const char *src,uint len);

@@ -3,16 +3,17 @@
 # Untar a MySQL distribution, change the copyright texts,
 # pack it up again to a given directory
 
-$VER="1.1";
+$VER="1.2";
 
 use Getopt::Long;
 
-$opt_help= 0;
-$opt_target=  "mysql-copyright-target-";
-$opt_target.= `date +%d%m%y-%H%M%S`;
+$opt_help    = 0;
+$opt_version = 0;
+$opt_target  = "mysql-copyright-target-";
+$opt_target .= `date +%d%m%y-%H%M%S`;
 chop $opt_target;
 
-GetOptions("help","target=s") || usage();
+GetOptions("help","version","target=s") || error();
 
 # fix the directory prefix for target dir
 
@@ -32,7 +33,13 @@ sub main
   my $REG_VERSION = '[0-9\.\-]+[a-z]?[0-9\.\-]+?(.alpha|.beta|.gamma|pre\d|[0-9\.\-a-z])?';
   my $target;
 
-  usage() if (!$ARGV[0] || $opt_help);
+  if ($opt_version)
+  {
+    print "$0 version $VER by Jani Tolonen\n";
+    exit(0);
+  }
+  usage() if ($opt_help);
+  print error() if ($#ARGV == -1);
 
   `mkdir -p $opt_target`;
   $pec= $? >> 8;
@@ -209,4 +216,17 @@ Options:
                   (Default: $opt_target)
 EOF
   exit(0);
+}
+
+####
+#### error
+####
+
+sub error
+{
+  if ($#ARGV == -1)
+  {
+    print "Too few arguments to $0!\n";
+  }
+  exit(1);
 }

@@ -424,7 +424,7 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   int buflen, int *h_errnop)
 {
   struct hostent *hp;
-  assert((size_t) buflen >= sizeof(*result));
+  dbug_assert((size_t) buflen >= sizeof(*result));
   if (gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop))
     return 0;
   return hp;
@@ -436,7 +436,7 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   struct hostent *result, char *buffer,
 				   int buflen, int *h_errnop)
 {
-  assert(buflen >= sizeof(struct hostent_data));
+  dbug_assert(buflen >= sizeof(struct hostent_data));
   if (gethostbyname_r(name,result,(struct hostent_data *) buffer) == -1)
   {
     *h_errnop= errno;
@@ -452,7 +452,7 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   int buflen, int *h_errnop)
 {
   struct hostent *hp;
-  assert(buflen >= sizeof(struct hostent_data));
+  dbug_assert(buflen >= sizeof(struct hostent_data));
   hp= gethostbyname_r(name,result,(struct hostent_data *) buffer);
   *h_errnop= errno;
   return hp;

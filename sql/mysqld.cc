@@ -809,7 +809,7 @@ static void server_init(void)
   }
 #endif
 
-#if defined(HAVE_SYS_UN_H) && !defined(HAVE_mit_thread)
+#if defined(HAVE_SYS_UN_H)
   /*
   ** Create the UNIX socket
   */
@@ -2169,7 +2169,7 @@ pthread_handler_decl(handle_flush,arg __attribute__((unused)))
   flush_thread_in_use=1;
 
   pthread_mutex_lock(&LOCK_flush);
-  for (;;)
+  while (flush_time)
   {
     struct timespec abstime;
 #ifdef HAVE_TIMESPEC_TS_SEC
@@ -2333,6 +2333,8 @@ CHANGEABLE_VAR changeable_vars[] = {
 #ifdef HAVE_BERKELEY_DB
   { "bdb_cache_size",          (long*) &berkeley_cache_size, 
       KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE },
+  { "bdb_lock_max",            (long*) &berkeley_lock_max, 
+      1000, 0, (long) ~0, 0, 1 },
 #endif
   { "connect_timeout",         (long*) &connect_timeout,
       CONNECT_TIMEOUT, 2, 65535, 0, 1 },
@@ -2413,6 +2415,7 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_BERKELEY_DB
   {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
+  {"bdb_lock_max",            (char*) &berkeley_lock_max,	    SHOW_LONG},
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
 #endif
@@ -2694,7 +2697,7 @@ The default values (after parsing the command line arguments) are:\n\n");
   if (opt_slow_logname)
     printf("update log:  %s\n",opt_slow_logname);
   printf("TCP port:    %d\n",mysql_port);
-#if defined(HAVE_SYS_UN_H) && !defined(HAVE_mit_thread)
+#if defined(HAVE_SYS_UN_H)
   printf("Unix socket: %s\n",mysql_unix_port);
 #endif
   if (my_disable_locking)

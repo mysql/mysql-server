@@ -129,7 +129,7 @@ struct rule {
 ** Prototypes for static functions.
 */
 
-static long			detzcode __P_((const char *));
+static int			detzcode __P_((const char *));
 static const char *	getnum __P_((const char *, int *, int, int));
 static const char *	getsecs __P_((const char *, long *));
 static const char *	getoffset __P_((const char *, long *));
@@ -175,7 +175,7 @@ int			daylight = 0;
 time_t			altzone = 0;
 #endif /* defined ALTZONE */
 
-static long detzcode(const char * codep)
+static int detzcode(const char * codep)
 {
 	long result;
 	int	i;

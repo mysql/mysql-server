@@ -567,6 +567,9 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_mutex_unlock(&LOCK_delayed_create);
 	DBUG_RETURN(0);
       }
+      pthread_mutex_lock(&LOCK_thread_count);
+      thread_count++;
+      pthread_mutex_unlock(&LOCK_thread_count);
       if (!(tmp->thd.db=my_strdup(table_list->db,MYF(MY_WME))) ||
 	  !(tmp->thd.query=my_strdup(table_list->real_name,MYF(MY_FAE))))
       {
@@ -578,9 +581,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       }
       tmp->table_list=table_list;			// Needed to open table
       tmp->lock();
-      pthread_mutex_lock(&LOCK_thread_count);
-      thread_count++;
-      pthread_mutex_unlock(&LOCK_thread_count);
       pthread_mutex_lock(&tmp->mutex);
       if ((error=pthread_create(&tmp->thd.real_id,&connection_attrib,
 				handle_delayed_insert,(void*) tmp)))

@@ -14,7 +14,7 @@ trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
 defaults=
 case "$1" in
-    --no-defaults|--defaults-file=*)
+    --no-defaults|--defaults-file=*|--defaults-extra-file=*)
       defaults="$1"; shift
       ;;
 esac
@@ -138,8 +138,8 @@ fi
 # checked and repaired at start
 #
 # echo "Checking tables in $DATADIR"
-# $MY_BASEDIR_VERSION/bin/myisamchk --silent --force --fast --medium-check $DATADIR/*/*.MYI
-# $MY_BASEDIR_VERSION/bin/isamchk --silent --force $DATADIR/*/*.ISM
+# $MY_BASEDIR_VERSION/bin/myisamchk --silent --force --fast --medium-check -O key_buffer=64M -O sort_buffer=64M $DATADIR/*/*.MYI
+# $MY_BASEDIR_VERSION/bin/isamchk --silent --force -O sort_buffer=64M $DATADIR/*/*.ISM
 
 echo "Starting mysqld daemon with databases from $DATADIR"
 
@@ -155,9 +155,9 @@ do
   rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
   if test "$#" -eq 0
   then
-    (trap "" 1 ; exec $NOHUP_NICENESS $ledir/mysqld --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1 )
+    (trap "" 1 ; exec $NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1 )
   else
-    (trap "" ; exec $NOHUP_NICENESS $ledir/mysqld --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ "$@" >> $err_log 2>&1 )
+    (trap "" ; exec $NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ "$@" >> $err_log 2>&1 )
   fi
   if test ! -f $pid_file		# This is removed if normal shutdown
   then

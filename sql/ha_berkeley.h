@@ -147,7 +147,7 @@ class ha_berkeley: public handler
 
 extern bool berkeley_skip;
 extern u_int32_t berkeley_init_flags,berkeley_lock_type,berkeley_lock_types[];
-extern ulong berkeley_cache_size;
+extern ulong berkeley_cache_size, berkeley_lock_max;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;

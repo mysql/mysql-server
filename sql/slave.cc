@@ -284,7 +284,7 @@ int init_master_info(MASTER_INFO* mi)
 {
   FILE* file;
   MY_STAT stat_area;
-  char fname[FN_REFLEN];
+  char fname[FN_REFLEN+128];
   fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
   
   if(!mi->inited)
@@ -683,7 +683,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	enum enum_duplicates handle_dup = DUP_IGNORE;
 	if(lev->sql_ex.opt_flags && REPLACE_FLAG)
 	  handle_dup = DUP_REPLACE;
-	sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags && DUMPFILE_FLAG );
+	sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
+			DUMPFILE_FLAG );
 	String field_term(&lev->sql_ex.field_term, 1),
 	  enclosed(&lev->sql_ex.enclosed, 1), line_term(&lev->sql_ex.line_term,1),
 	  escaped(&lev->sql_ex.escaped, 1), line_start(&lev->sql_ex.line_start, 1);
@@ -927,7 +928,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	    {
 	      sql_print_error("Error running query, slave aborted. Fix the problem, and re-start\
  the slave thread with mysqladmin start-slave");
-	      goto err; // there was an error running the query
+	      goto err;
+	      // there was an error running the query
 	      // abort the slave thread, when the problem is fixed, the user
 	      // should restart the slave with mysqladmin start-slave
 	    }
@@ -986,5 +988,6 @@ static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
 #ifdef __GNUC__
 template class I_List_iterator<i_string>;
+template class I_List_iterator<i_string_pair>;
 #endif
 
