@@ -293,13 +293,13 @@ public:
   {
     char buf[FN_REFLEN];
     return open(generate_name(log_name, ".log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+                LOG_NORMAL, 0, APPEND_CACHE, 0, 0, 0);
   }
   bool open_slow_log(const char *log_name)
   {
     char buf[FN_REFLEN];
     return open(generate_name(log_name, "-slow.log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+                LOG_NORMAL, 0, APPEND_CACHE, 0, 0, 0);
   }
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name);
