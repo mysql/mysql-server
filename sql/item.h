@@ -39,6 +39,8 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
+  enum coercion    { COER_NOCOLL=0,   COER_COERCIBLE=1, 
+  		     COER_IMPLICIT=2, COER_EXPLICIT=3  };
 
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
@@ -50,6 +52,7 @@ public:
   my_bool unsigned_flag;
   my_bool with_sum_func;
   my_bool fixed;                        /* If item fixed with fix_fields */
+  enum coercion coercibility;		/* Precedence order of collation */
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -155,7 +158,7 @@ public:
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
-  {}
+  { coercibility= COER_IMPLICIT; }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field &item);
   Item_field(Field *field);
@@ -350,17 +353,20 @@ public:
 class Item_string :public Item
 {
 public:
-  Item_string(const char *str,uint length,CHARSET_INFO *cs)
+  Item_string(const char *str,uint length,
+  	      CHARSET_INFO *cs, enum coercion coer= COER_COERCIBLE)
   {
     str_value.set(str,length,cs);
+    coercibility= coer;
     max_length=length;
     name=(char*) str_value.ptr();
     decimals=NOT_FIXED_DEC;
   }
   Item_string(const char *name_par, const char *str, uint length,
-	      CHARSET_INFO *cs)
+	      CHARSET_INFO *cs, enum coercion coer= COER_COERCIBLE)
   {
     str_value.set(str,length,cs);
+    coercibility= coer;
     max_length=length;
     name=(char*) name_par;
     decimals=NOT_FIXED_DEC;

@@ -230,6 +230,11 @@ Item *create_func_bit_length(Item* a)
   return new Item_func_bit_length(a);
 }
 
+Item *create_func_coercibility(Item* a)
+{
+  return new Item_func_coercibility(a);
+}
+
 Item *create_func_char_length(Item* a)
 {
   return new Item_func_char_length(a);
