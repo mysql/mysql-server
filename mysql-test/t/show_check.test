@@ -329,3 +329,35 @@ flush privileges;
 #--replace_column 7 # 8 # 9 #
 #show table status from `ä` LIKE 'ä';
 #drop database `ä`;
+
+# Test that USING <keytype> is always shown in SHOW CREATE TABLE when it was
+# specified during table creation, but not otherwise. (Bug #7235)
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING HASH (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+# Test that when an index is created with the default key algorithm and
+# altered to another storage engine, it gets the default key algorithm
+# for that storage engine, but when it is specified, the specified type is
+# preserved.
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

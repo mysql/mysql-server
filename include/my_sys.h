@@ -688,6 +688,7 @@ extern int init_io_cache(IO_CACHE *info,File file,uint cachesize,
 extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
 			       my_off_t seek_offset,pbool use_async_io,
 			       pbool clear_cache);
+extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,byte *Buffer,uint Count);
 #ifdef THREAD
 extern int _my_b_read_r(IO_CACHE *info,byte *Buffer,uint Count);

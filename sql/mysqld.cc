@@ -54,11 +54,11 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
-#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
-#define OPT_NDB_SHM_DEFAULT 1
-#else
+//#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
+//#define OPT_NDB_SHM_DEFAULT 1
+//#else
 #define OPT_NDB_SHM_DEFAULT 0
-#endif
+//#endif
 #else
 #define OPT_NDBCLUSTER_DEFAULT 0
 #endif
@@ -146,6 +146,10 @@ int deny_severity = LOG_WARNING;
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+
+#define zVOLSTATE_ACTIVE 6
+#define zVOLSTATE_DEACTIVE 2
+#define zVOLSTATE_MAINTENANCE 3
 
 #ifdef __NETWARE__
 #include <nks/vm.h>
@@ -1683,7 +1687,9 @@ ulong neb_event_callback(struct EventBlock *eblock)
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
-  if ((voldata->oldState == 6 && voldata->newState == 2))
+  if ((voldata->oldState == zVOLSTATE_ACTIVE &&
+       voldata->newState == zVOLSTATE_DEACTIVE ||
+       voldata->newState == zVOLSTATE_MAINTENANCE))
   {
     /*
       Ensure that we bring down MySQL server only for MySQL data
@@ -2694,12 +2700,37 @@ with --log-bin instead.");
 	mysql_bin_log.purge_logs_before_date(purge_time);
     }
 #endif
-  }
-  else if (opt_log_slave_updates)
-  {
+    if (!opt_bin_logname && !opt_binlog_index_name)
+    {
+      /*
+        User didn't give us info to name the binlog index file.
+        Picking `hostname`-bin.index like did in 4.x, causes replication to
+        fail if the hostname is changed later. So, we would like to instead
+        require a name. But as we don't want to break many existing setups, we
+        only give warning, not error.
+      */
       sql_print_warning("\
-you need to use --log-bin to make --log-slave-updates work. \
-Now disabling --log-slave-updates.");
+No argument was provided to --log-bin, and --log-bin-index was not used; \
+so replication may break when this MySQL server acts as a master and \
+has his hostname changed!! Please use '--log-bin=%s' to avoid \
+this problem.",
+                        mysql_bin_log.get_name());
+    }
+  }
+  else
+  {
+    if (opt_log_slave_updates)
+    {
+      sql_print_error("\
+You need to use --log-bin=# to make --log-slave-updates work.");
+      unireg_abort(1);
+    }
+    if (opt_binlog_index_name)
+    {
+      sql_print_error("\
+You need to use --log-bin=# to make --log-bin-index work.");
+      unireg_abort(1);
+    }
   }
 
 #ifdef HAVE_REPLICATION
@@ -4422,6 +4453,7 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
 Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
    (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
    "Path to individual files and their sizes.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4496,14 +4528,16 @@ Disable with --skip-isam.",
   {"log", 'l', "Log connections and queries to file.", (gptr*) &opt_logname,
    (gptr*) &opt_logname, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
-   "Log update queries in binary format.",
+   "Log update queries in binary format. Optional (but strongly recommended "
+   "to avoid replication problems if server's hostname changes) argument "
+   "should be the chosen location for the binary log files.",
    (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-error", OPT_ERROR_LOG_FILE, "Log error file.",
+  {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",

@@ -56,3 +56,24 @@ DROP DATABASE d1;
 USE test;
 SET character_set_server= @safe_character_set_server;
 SET collation_server= @safe_collation_server;
+SET NAMES big5;
+SET collation_connection='big5_chinese_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+big5_chinese_ci	6109
+big5_chinese_ci	61
+big5_chinese_ci	6120
+drop table t1;
+SET collation_connection='big5_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+big5_bin	6109
+big5_bin	61
+big5_bin	6120
+drop table t1;

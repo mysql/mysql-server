@@ -490,7 +490,7 @@ os_io_init_simple(void)
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
+#if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
 /*************************************************************************
 Creates a temporary file. This function is defined in ha_innodb.cc. */
 
@@ -498,7 +498,7 @@ int
 innobase_mysql_tmpfile(void);
 /*========================*/
 			/* out: temporary file descriptor, or < 0 on error */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
 
 /***************************************************************************
 Creates a temporary file. */
@@ -508,9 +508,12 @@ os_file_create_tmpfile(void)
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
 {
+#ifdef __NETWARE__
+	FILE*	file	= tmpfile();
+#else /* __NETWARE__ */
 	FILE*	file	= NULL;
 	int	fd	= -1;
-#ifdef UNIV_HOTBACKUP
+# ifdef UNIV_HOTBACKUP
 	int	tries;
 	for (tries = 10; tries--; ) {
 		char*	name = tempnam(fil_path_to_mysql_datadir, "ib");
@@ -519,15 +522,15 @@ os_file_create_tmpfile(void)
 		}
 
 		fd = open(name,
-# ifdef __WIN__
+#  ifdef __WIN__
 			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
-# endif /* __WIN__ */
+#  endif /* __WIN__ */
 			O_CREAT | O_EXCL | O_RDWR,
 			S_IREAD | S_IWRITE);
 		if (fd >= 0) {
-# ifndef __WIN__
+#  ifndef __WIN__
 			unlink(name);
-# endif /* !__WIN__ */
+#  endif /* !__WIN__ */
 			free(name);
 			break;
 		}
@@ -538,22 +541,25 @@ os_file_create_tmpfile(void)
 			name);
 		free(name);
 	}
-#else /* UNIV_HOTBACKUP */
+# else /* UNIV_HOTBACKUP */
 	fd = innobase_mysql_tmpfile();
-#endif /* UNIV_HOTBACKUP */
+# endif /* UNIV_HOTBACKUP */
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
+#endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
+#ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
+#endif /* !__NETWARE__ */
 	}
 
 	return(file);
@@ -1767,19 +1773,31 @@ os_file_flush(
 #else
 	int	ret;
 
-#if defined(HAVE_DARWIN_THREADS) && defined(F_FULLFSYNC) 
+#if defined(HAVE_DARWIN_THREADS)
+# ifndef F_FULLFSYNC
+	/* The following definition is from the Mac OS X 10.3 <sys/fcntl.h> */
+#  define F_FULLFSYNC 51 /* fsync + ask the drive to flush to the media */
+# elif F_FULLFSYNC != 51
+#  error "F_FULLFSYNC != 51: ABI incompatibility with Mac OS X 10.3"
+# endif
 	/* Apple has disabled fsync() for internal disk drives in OS X. That
 	caused corruption for a user when he tested a power outage. Let us in
 	OS X use a nonstandard flush method recommended by an Apple
 	engineer. */
 
-	ret = fcntl(file, F_FULLFSYNC, NULL);
-
-	if (ret) {
-		/* If we are not on a file system that supports this, then
-		fall back to a plain fsync. */ 
+	if (!srv_have_fullfsync) {
+		/* If we are not on an operating system that supports this,
+		then fall back to a plain fsync. */ 
 
 		ret = fsync(file);
+	} else {
+		ret = fcntl(file, F_FULLFSYNC, NULL);
+
+		if (ret) {
+			/* If we are not on a file system that supports this,
+			then fall back to a plain fsync. */ 
+			ret = fsync(file);
+		}
 	}
 #elif HAVE_FDATASYNC
 	ret = fdatasync(file);

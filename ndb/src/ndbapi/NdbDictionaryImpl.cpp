@@ -626,7 +626,7 @@ NdbEventImpl::addTableEvent(const NdbDictionary::Event::TableEvent t =  NdbDicti
 }
 
 void
-NdbEventImpl::setDurability(const NdbDictionary::Event::EventDurability d)
+NdbEventImpl::setDurability(NdbDictionary::Event::EventDurability d)
 {
   m_dur = d;
 }
@@ -1361,7 +1361,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     }
 
     Uint32 topBit = (1 << 31);
-    for(int i = 31; i>=0; i--){
+    for(i = 31; i>=0; i--){
       if((fragCount & topBit) != 0)
 	  break;
       topBit >>= 1;
