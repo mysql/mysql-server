@@ -784,9 +784,15 @@ select_subselect::select_subselect(Item_subselect *item)
 
 bool select_subselect::send_data(List<Item> &items)
 {
+  DBUG_ENTER("select_subselect::send_data");
   if (item->executed){
     my_printf_error(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
-    return 1;
+    DBUG_RETURN(1);
+  }
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
   }
   Item *val_item= (Item *)item->select_lex->item_list.head();
   if ((item->null_value= val_item->is_null()))
@@ -801,5 +807,6 @@ bool select_subselect::send_data(List<Item> &items)
     item->real_value= val_item->val();
     item->res_type= val_item->result_type();
   }
-  return 0;
+  item->executed= 1;
+  DBUG_RETURN(0);
 }

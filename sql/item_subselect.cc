@@ -24,7 +24,6 @@ SUBSELECT TODO:
      (sql_select.h/sql_select.cc)
 
    - add subselect union select (sql_union.cc)
-   - depended from outer select subselects
    
 */
 
@@ -41,6 +40,14 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
   result= new select_subselect(this);
+  SELECT_LEX_UNIT *unit= select_lex->master_unit();
+  unit->offset_limit_cnt= unit->global_parameters->offset_limit;
+  unit->select_limit_cnt= unit->global_parameters->select_limit+
+    select_lex->offset_limit;
+  if (unit->select_limit_cnt < unit->global_parameters->select_limit)
+    unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (unit->select_limit_cnt == HA_POS_ERROR)
+    select_lex->options&= ~OPTION_FOUND_ROWS;
   join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
   this->select_lex= select_lex;
   maybe_null= 1;
@@ -141,9 +148,9 @@ int Item_subselect::exec()
     join->thd->lex.select= select_lex;
     join->exec();
     join->thd->lex.select= save_select;
-    if (!executed)
+    //if (!executed)
       //No rows returned => value is null (returned as inited)
-      executed= 1;
+    //  executed= 1;
     return join->error;
   }
   return 0;
