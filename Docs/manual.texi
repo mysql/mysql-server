@@ -46988,10 +46988,6 @@ Apache authentication module for MySQL. By Zeev Suraski,
 @c registering information is only used for statistical purposes and will
 @c encourage further development of this module!
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mod_log_mysql-1.05.tar.gz}
-MySQL logging module for Apache. By Zeev Suraski,
-@email{bourbon@@netvision.net.il}.
-
 @item @uref{http://www.mysql.com/Downloads/Contrib/mypasswd-2.0.tar.gz}
 Extra for @code{mod_auth_mysql}. This is a little tool that allows you
 to add/change user records storing group and/or password entries in
