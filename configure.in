@@ -1825,6 +1825,7 @@ AC_CHECK_FUNCS(alarm bmove \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
+ pthread_attr_getstacksize \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
  fchmod getpass getpassphrase initgroups mlockall)
 

@@ -2352,6 +2352,7 @@ int main(int argc, char **argv)
   if (init_thread_environment())
     unireg_abort(1);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
+#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size;
@@ -2363,6 +2364,7 @@ int main(int argc, char **argv)
       thread_stack= stack_size;
     }
   }
+#endif
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   select_thread=pthread_self();
