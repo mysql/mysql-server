@@ -1994,7 +1994,7 @@ When you say:
 @*
 
 MySQL creates files named Table1.MYD ("MySQL Data"), Table1.MYI
-("MySQL Index"), and Table1.FRM ("Format"). These files will be in the
+("MySQL Index"), and Table1.frm ("Format"). These files will be in the
 directory: @*
 /<datadir>/<database>/
 @*
@@ -2029,6 +2029,12 @@ The minimal record header is a set of flags:
 @end itemize
 @end table
 @*
+
+The length of the record header is thus:@*
+(1 + number of NULL columns + 7) / 8 bytes@*
+After the header, all columns are stored in 
+the order that they were created, which is the 
+same order that you would get from SHOW COLUMNS.
 
 Here's an example. Suppose you say:
 @*
