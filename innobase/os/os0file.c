@@ -120,6 +120,10 @@ os_file_get_last_error(void)
 
 	err = (ulint) GetLastError();
 
+	fprintf(stderr,
+	 "InnoDB: operating system error number %li in a file operation.\n",
+		(long) err);
+
 	if (err == ERROR_FILE_NOT_FOUND) {
 		return(OS_FILE_NOT_FOUND);
 	} else if (err == ERROR_DISK_FULL) {
@@ -130,6 +134,10 @@ os_file_get_last_error(void)
 		return(100 + err);
 	}
 #else
+	fprintf(stderr,
+	 "InnoDB: operating system error number %i in a file operation.\n",
+		errno);
+
 	err = (ulint) errno;
 
 	if (err == ENOSPC ) {
@@ -173,7 +181,7 @@ os_file_handle_error(
 			"InnoDB: Encountered a problem with file %s.\n",
 									name);
 		}
-		fprintf(stderr,
+	   fprintf(stderr,
 	   "InnoDB: Cannot continue operation.\n"
 	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
 	   "InnoDB: Delete possible created file and restart.\n");
@@ -184,7 +192,9 @@ os_file_handle_error(
 
 		return(TRUE);
 	} else {
-		ut_error;
+		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
+
+		exit(1);
 	}
 
 	return(FALSE);	
