@@ -3809,8 +3809,8 @@ innobase_map_isolation_level(
 	enum_tx_isolation	iso)	/* in: MySQL isolation level code */
 {
 	switch(iso) {
-		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
 		case ISO_REPEATABLE_READ: return(TRX_ISO_REPEATABLE_READ);
+		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
 		case ISO_SERIALIZABLE: return(TRX_ISO_SERIALIZABLE);
 		case ISO_READ_UNCOMMITTED: return(TRX_ISO_READ_UNCOMMITTED);
 		default: ut_a(0); return(0);
@@ -3865,11 +3865,9 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
-		if (thd->variables.tx_isolation != ISO_REPEATABLE_READ) {
-			trx->isolation_level = innobase_map_isolation_level(
+		trx->isolation_level = innobase_map_isolation_level(
 						(enum_tx_isolation)
 						thd->variables.tx_isolation);
-		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE) {
