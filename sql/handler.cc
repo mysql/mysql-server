@@ -553,6 +553,7 @@ int ha_commit_trans(THD *thd, bool all)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
+    DBUG_EXECUTE_IF("crash_commit_before", abort(););
     if (!trans->no_2pc && trans->nht > 1)
     {
       for (; *ht && !error; ht++)
@@ -565,16 +566,20 @@ int ha_commit_trans(THD *thd, bool all)
         }
         statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
       }
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log(thd, xid)))))
       {
         ha_rollback_trans(thd, all);
         return 1;
       }
+    DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
     error=ha_commit_one_phase(thd, all) ? cookie ? 2 : 1 : 0;
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
     if (cookie)
       tc_log->unlog(cookie, xid);
+    DBUG_EXECUTE_IF("crash_commit_after", abort(););
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -738,8 +743,7 @@ int ha_recover(HASH *commit_list)
   DBUG_ASSERT(total_ha_2pc);
   DBUG_ASSERT(commit_list || tc_heuristic_recover);
 
-  for (len=commit_list ? commit_list->records : MAX_XID_LIST_SIZE ;
-       list==0 && len > MIN_XID_LIST_SIZE; len/=2)
+  for (len= MAX_XID_LIST_SIZE ; list==0 && len > MIN_XID_LIST_SIZE; len/=2)
   {
     list=(XID *)my_malloc(len*sizeof(XID), MYF(0));
   }
