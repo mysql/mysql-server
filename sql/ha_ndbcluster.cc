@@ -416,9 +416,9 @@ void ha_ndbcluster::invalidateDictionaryCache()
   NDBDICT *dict= get_ndb()->getDictionary();
   DBUG_PRINT("info", ("invalidating %s", m_tabname));
   dict->invalidateTable(m_tabname);
-  table->version=0L;			/* Free when thread is ready */
+  table->s->version=0L;			/* Free when thread is ready */
   /* Invalidate indexes */
-  for (uint i= 0; i < table->keys; i++)
+  for (uint i= 0; i < table->s->keys; i++)
   {
     NDBINDEX *index = (NDBINDEX *) m_index[i].index;
     NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
@@ -428,7 +428,7 @@ void ha_ndbcluster::invalidateDictionaryCache()
     case(PRIMARY_KEY_ORDERED_INDEX):
     case(ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
-      break;      
+      break;
     case(UNIQUE_ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
     case(UNIQUE_INDEX):
