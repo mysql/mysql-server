@@ -1175,9 +1175,13 @@ end:
 
 void free_items(Item *item)
 {
+  Item *next;
   DBUG_ENTER("free_items");
-  for (; item ; item=item->next)
+  for (; item ; item=next)
+  {
+    next=item->next;
     item->delete_self();
+  }
   DBUG_VOID_RETURN;
 }
 
