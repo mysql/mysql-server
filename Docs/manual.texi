@@ -49909,7 +49909,7 @@ not yet 100% confident in this code.
 
 @menu
 * News-3.23.52::                Changes in release 3.23.52
-* News-3.23.51::                Changes in release 3.23.51
+* News-3.23.51::                Changes in release 3.23.51 (31 May 2002)
 * News-3.23.50::                Changes in release 3.23.50 (21 Apr 2002)
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48 (07 Feb 2002)
@@ -49976,7 +49976,7 @@ Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
 @end itemize
 
 @node News-3.23.51, News-3.23.50, News-3.23.52, News-3.23.x
-@appendixsubsec Changes in release 3.23.51
+@appendixsubsec Changes in release 3.23.51 (31 May 2002)
 
 @itemize @bullet
 @item
