@@ -1884,7 +1884,16 @@ loop:
 							OS_FILE_AIO, &ret);
 		}
 
-		ut_a(ret);
+		if (!ret) {
+		  fprintf(stderr,
+		   "Innobase: Cannot create or open archive log file %s.\n",
+			  name);
+		  fprintf(stderr, "Innobase: Cannot continue operation.\n"
+       		  "Innobase: Check that the log archive directory exists,\n"
+			  "Innobase: you have access rights to it, and\n"
+			  "Innobase: there is space available.\n");
+		  exit(1);
+		}
 
 		if (log_debug_writes) {
 			printf("Created archive file %s\n", name);
