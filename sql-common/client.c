@@ -53,7 +53,7 @@
 my_bool	net_flush(NET *net);
 
 #else  /*EMBEDDED_LIBRARY*/
-#define CLI_MYSQL_REAL_CONNECT mysql_real_connect
+#define CLI_MYSQL_REAL_CONNECT STDCALL mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
 #include <my_sys.h>
 #include <mysys_err.h>
@@ -1424,7 +1424,7 @@ static MYSQL_METHODS client_methods=
 #endif
 };
 
-MYSQL * STDCALL 
+MYSQL *
 CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag)

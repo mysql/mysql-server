@@ -2226,7 +2226,6 @@ String *Item_func_timediff::val_str(String *str)
 {
   longlong seconds;
   long microseconds;
-  long days;
   int l_sign= 1;
   TIME l_time1 ,l_time2, l_time3;
 
@@ -2336,9 +2335,9 @@ longlong Item_func_timestamp_diff::val_int()
       int_type == INTERVAL_QUARTER ||
       int_type == INTERVAL_MONTH)
   {
-    uint year, year_tmp;
+    uint year;
     uint year_beg, year_end, month_beg, month_end;
-    uint diff_days= seconds/86400L;
+    uint diff_days= (uint) (seconds/86400L);
     uint diff_months= 0;
     uint diff_years= 0;
     if (neg == -1)

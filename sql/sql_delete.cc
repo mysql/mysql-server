@@ -507,7 +507,9 @@ bool multi_delete::send_eof()
     ha_autocommit_...
   */
   if (deleted)
+  {
     query_cache_invalidate3(thd, delete_tables, 1);
+  }
 
   /*
     Write the SQL statement to the binlog if we deleted

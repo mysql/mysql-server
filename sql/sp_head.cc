@@ -410,7 +410,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret;
-  sp_instr *p;
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   uint hmax = m_pcont->handlers();

@@ -932,7 +932,7 @@ int Query_log_event::write(IO_CACHE* file)
 
 int Query_log_event::write_data(IO_CACHE* file)
 {
-  char buf[QUERY_HEADER_LEN+1+4+1+8+1+1+catalog_len]; 
+  uchar buf[QUERY_HEADER_LEN+1+4+1+8+1+1+FN_REFLEN], *start;
 
   if (!query)
     return -1;
@@ -985,7 +985,7 @@ int Query_log_event::write_data(IO_CACHE* file)
     guarantees that a slightly older slave will be able to parse those he
     knows.
   */
-  char* start= buf+QUERY_HEADER_LEN;
+  start= buf+QUERY_HEADER_LEN;
   if (flags2_inited)
   {
     *(start++)= Q_FLAGS2_CODE;
@@ -1001,7 +1001,7 @@ int Query_log_event::write_data(IO_CACHE* file)
   if (catalog)
   {
     *(start++)= Q_CATALOG_CODE;
-    *(start++)= catalog_len;
+    *(start++)= (uchar) catalog_len;
     bmove(start, catalog, catalog_len);
     start+= catalog_len;
     /*
@@ -1152,15 +1152,21 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     case Q_FLAGS2_CODE:
       flags2_inited= 1;
       flags2= uint4korr(++pos);
-      DBUG_PRINT("info",("In Query_log_event, read flags2=%lu", flags2));
+      DBUG_PRINT("info",("In Query_log_event, read flags2: %lu", flags2));
       pos+= 4;
       break;
     case Q_SQL_MODE_CODE:
+    {
+#ifndef DBUG_OFF
+      char buff[22];
+#endif
       sql_mode_inited= 1;
-      sql_mode= uint8korr(++pos);
-      DBUG_PRINT("info",("In Query_log_event, read sql_mode=%lu", sql_mode));
+      sql_mode= (ulong) uint8korr(++pos); // QQ: Fix when sql_mode is ulonglong
+      DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
+			 llstr(sql_mode, buff)));
       pos+= 8;
       break;
+    }
     case Q_CATALOG_CODE:
       catalog_len= *(++pos);
       /*
@@ -1186,7 +1192,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   /* A 2nd variable part; this is common to all versions */ 
   
   data_len-= start_dup-start; /* cut not-to-be-duplicated head */
-  if (!(data_buf = (char*) my_strdup_with_length(start_dup,
+  if (!(data_buf = (char*) my_strdup_with_length((byte*) start_dup,
                                                  data_len,
                                                  MYF(MY_WME))))
     return;
@@ -1368,8 +1374,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       all slaves to start ignoring the dirs).
     */
     if (sql_mode_inited)
-      thd->variables.sql_mode= (thd->variables.sql_mode&MODE_NO_DIR_IN_CREATE)|
-        (sql_mode & ~(uint32)MODE_NO_DIR_IN_CREATE);
+      thd->variables.sql_mode=
+	(ulong) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
+		 (sql_mode & ~(ulong) MODE_NO_DIR_IN_CREATE));
     
     /*
       Sanity check to make sure the master did not get a really bad
@@ -1807,7 +1814,7 @@ Format_description_log_event::Format_description_log_event(const char* buf,
   DBUG_PRINT("info", ("common_header_len=%d number_of_event_types=%d",
                       common_header_len, number_of_event_types)); 
   /* If alloc fails, we'll detect it in is_valid() */
-  post_header_len= (uint8*) my_memdup(buf+ST_COMMON_HEADER_LEN_OFFSET+1,
+  post_header_len= (uint8*) my_memdup((byte*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
                                       sizeof(*post_header_len),
                                       MYF(0));  

@@ -840,7 +840,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   ha_rows max_rows,org_max_rows;
   my_off_t to_start_filepos;
   uchar *strpos;
-  BUFFPEK *buffpek,**refpek;
+  BUFFPEK *buffpek;
   QUEUE queue;
   qsort2_cmp cmp;
   volatile THD::killed_state *killed= &current_thd->killed;

@@ -521,7 +521,6 @@ static void dump_remote_log_entries(const char* logname)
   LAST_EVENT_INFO last_event_info;
   uint len;
   NET* net = &mysql->net;
-  int old_format;
   Format_description_log_event* description_event; 
 
   if (check_master_version(mysql, &description_event))
