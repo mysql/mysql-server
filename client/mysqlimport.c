@@ -25,11 +25,10 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.0"
+#define IMPORT_VERSION "3.4"
 
 #include "client_priv.h"
 #include "mysql_version.h"
-#include <my_getopt.h>
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -90,8 +89,9 @@ static struct my_option my_long_options[] =
    (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore", 'i', "If duplicate unique key was found, keep old row.",
    (gptr*) &ignore, (gptr*) &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.", 0, 0,
-   0, GET_LL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
+   (gptr*) &opt_ignore_lines, (gptr*) &opt_ignore_lines, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -110,7 +110,8 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
   {"replace", 'r', "If duplicate unique key was found, replace old row.",
    (gptr*) &replace, (gptr*) &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent.", (gptr*) &silent, (gptr*) &silent, 0,
@@ -165,23 +166,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-  case 'c':
-    opt_columns= argument;
-    break;
-  case OPT_DEFAULT_CHARSET:
-    default_charset= argument;
-    break;
-  case OPT_CHARSETS_DIR:
-    charsets_dir= argument;
-    break;
-  case 'h':
-    current_host= argument;
-    break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    current_user= argument;
-    break;
-#endif
   case 'p':
     if (argument)
     {
@@ -194,12 +178,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     else
       tty_password= 1;
-    break;
-  case 'P':
-    opt_mysql_port= (unsigned int) atoi(argument);
-    break;
-  case 'S':
-    opt_mysql_unix_port= argument;
     break;
 #ifdef __WIN__
   case 'W':
@@ -215,24 +193,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-  case (int) OPT_FTB:
-    fields_terminated= argument;
-    break;
-  case (int) OPT_LTB:
-    lines_terminated= argument;
-    break;
-  case (int) OPT_ENC:
-    enclosed= argument;
-    break;
-  case (int) OPT_O_ENC:
-    opt_enclosed= argument;
-    break;
-  case (int) OPT_ESC:
-    escaped= argument;
-    break;
-  case (int) OPT_IGN_LINES:
-    opt_ignore_lines= argument;
-    break;
 #include "sslopt-case.h"
   }
   return 0;
@@ -244,11 +204,8 @@ static int get_options(int *argc, char ***argv)
   int ho_error;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (enclosed && opt_enclosed)
   {
     fprintf(stderr, "You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n");

@@ -16,7 +16,8 @@
 
 C_MODE_START
 
-enum get_opt_var_type { GET_NO_ARG, GET_BOOL, GET_LONG, GET_LL, GET_STR };
+enum get_opt_var_type { GET_NO_ARG, GET_BOOL, GET_INT, GET_UINT, GET_LONG,
+			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC };
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
 struct my_option
@@ -38,6 +39,7 @@ struct my_option
 };
 
 extern char *disabled_my_option;
+extern my_bool my_getopt_print_errors;
 
 extern int handle_options (int *argc, char ***argv, 
 			   const struct my_option *longopts, 

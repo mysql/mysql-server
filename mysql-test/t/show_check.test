@@ -20,6 +20,7 @@ drop table t1;
 
 #show variables;
 show variables like "wait_timeout%";
+show variables like "WAIT_timeout%";
 show variables like "this_doesn't_exists%";
 show table status from test like "this_doesn't_exists%";
 show databases;
@@ -73,4 +74,18 @@ alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
 show create table t1;
 ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK_KEYS=DEFAULT DELAY_KEY_WRITE=0 ROW_FORMAT=default;
 show create table t1;
+drop table t1;
+
+create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
+show columns from t1;
+drop table t1;
+
+# Check auto conversions of types
+
+create table t1 (c decimal, d double, f float, r real);
+show columns from t1;
+drop table t1;
+
+create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
+show columns from t1;
 drop table t1;

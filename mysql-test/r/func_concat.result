@@ -1,0 +1,28 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
+INSERT INTO t1 VALUES (1413006,'idlfmv'),
+(1413065,'smpsfz'),(1413127,'sljrhx'),(1413304,'qerfnd');
+SELECT number, alpha, CONCAT_WS('<---->',number,alpha) AS new
+FROM t1 GROUP BY number;
+number	alpha	new
+1413006	idlfmv	1413006<---->idlfmv
+1413065	smpsfz	1413065<---->smpsfz
+1413127	sljrhx	1413127<---->sljrhx
+1413304	qerfnd	1413304<---->qerfnd
+SELECT CONCAT_WS('<---->',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+new
+1413006<---->idlfmv
+SELECT number, alpha, CONCAT_WS('<->',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+number	alpha	new
+1413006	idlfmv	1413006<->idlfmv
+SELECT number, alpha, CONCAT_WS('-',number,alpha,alpha,alpha,alpha,alpha,alpha,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+number	alpha	new
+1413006	idlfmv	1413006-idlfmv-idlfmv-idlfmv-idlfmv-idlfmv-idlfmv-idlfmv
+SELECT number, alpha, CONCAT_WS('<------------------>',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+number	alpha	new
+1413006	idlfmv	1413006<------------------>idlfmv
+drop table t1;

@@ -1,0 +1,30 @@
+#
+# Init section
+#
+drop table if exists t1;
+
+#
+# Simple IF tests
+#
+
+select IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0 ;
+
+#
+# Test of IF and case-sensitiveness
+#
+CREATE TABLE t1 (st varchar(255) NOT NULL, u int(11) NOT NULL) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('a',1),('A',1),('aa',1),('AA',1),('a',1),('aaa',0),('BBB',0);
+select if(1,st,st) s from t1 order by s;
+select if(u=1,st,st) s from t1 order by s;
+select if(u=1,binary st,st) s from t1 order by s;
+select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
+drop table t1;
+
+#
+# Problem with IF()
+#
+
+create table t1 (num  double(12,2));
+insert into t1 values (144.54);
+select sum(if(num is null,0.00,num)) from t1;
+drop table t1;

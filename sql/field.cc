@@ -63,8 +63,8 @@ const char field_separator=',';
 *****************************************************************************/
 
 	/*
-	** Calculate length of number and its parts
-	** Increment cuted_fields if wrong number
+	  Calculate length of number and its parts
+	  Increment cuted_fields if wrong number
 	*/
 
 static bool
@@ -384,13 +384,34 @@ Field_decimal::reset(void)
 void Field_decimal::overflow(bool negative)
 {
   uint len=field_length;
-  char *to=ptr;
-  if (negative && !unsigned_flag)
+  char *to=ptr, filler= '9';
+  if (negative)
   {
-    *to++ = '-';
-    len--;
+    if (!unsigned_flag)
+    {
+      /* Put - sign as a first digit so we'll have -999..999 or 999..999 */
+      *to++ = '-';
+      len--;
+    }
+    else
+    {
+      filler= '0';				// Fill up with 0
+      if (!zerofill)
+      {
+	/*
+	  Handle unsigned integer without zerofill, in which case
+	  the number should be of format '   0' or '   0.000'
+	*/
+	uint whole_part=field_length- (dec ? dec+2 : 1);
+	// Fill with spaces up to the first digit
+	bfill(to, whole_part, ' ');
+	to+=  whole_part;
+	len-= whole_part;
+	// The main code will also handle the 0 before the decimal point
+      }
+    }
   }
-  bfill(to,len,negative && unsigned_flag ? '0' : '9');
+  bfill(to, len, filler);
   if (dec)
     ptr[field_length-dec-1]='.';
   return;
@@ -425,10 +446,15 @@ void Field_decimal::store(const char *from,uint len,CHARSET_INFO *cs)
     from++;
     if (unsigned_flag)				// No sign with zerofill
     {
-      if (!error)
-	current_thd->cuted_fields++;
-      Field_decimal::overflow(1);
-      return;
+      if (decstr.sign_char == '+')		// just remove "+"
+        decstr.sign= 0;
+      else
+      {
+	if (!error)
+	  current_thd->cuted_fields++;
+	Field_decimal::overflow(1);
+	return;
+      }
     }
   }
   /*

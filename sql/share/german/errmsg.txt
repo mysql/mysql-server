@@ -197,7 +197,7 @@
 "Netzfehler beim Schreiben zum Master",
 "Kann keinen FULLTEXT-Index finden der der Spaltenliste entspricht",
 "Kann das aktuelle Kommando wegen aktiver Tabellensperre oder aktiver Transaktion nicht ausführen",
-"Unbekannte System-Variabel '%-.64'",
+"Unbekannte System-Variabel '%-.64s'",
 "Tabelle '%-.64s' ist als defekt makiert und sollte repariert werden",
 "Tabelle '%-.64s' ist als defekt makiert und der letzte (automatische) Reparaturversuch schlug fehl.",
 "Warnung:  Das Rollback konnte bei einigen Tabellen, die nicht mittels Transaktionen geändert wurden, nicht ausgeführt werden.",

@@ -177,6 +177,7 @@ typedef struct st_lex {
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
+  USER_RESOURCES mqh;
   ulong thread_id,type;
   enum_sql_command sql_command;
   thr_lock_type lock_option;
@@ -186,7 +187,7 @@ typedef struct st_lex {
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
-  uint grant, grant_tot_col, which_columns, union_option, mqh;
+  uint grant, grant_tot_col, which_columns, union_option;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type, derived_tables;

@@ -23,9 +23,6 @@
 #include <m_string.h>
 #include <thr_alarm.h>
 #include <assert.h>
-#if !defined(MSDOS) && !defined(__WIN__)
-#include <netdb.h>
-#endif
 
 #if (defined(__BSD__) || defined(_BSDI_VERSION)) && !defined(HAVE_mit_thread)
 #define SCHED_POLICY SCHED_RR
@@ -410,56 +407,6 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 #endif
 
-/*
-** Emulate SOLARIS style calls, not because it's better, but just to make the
-** usage of getbostbyname_r simpler.
-*/
-
-#if !defined(my_gethostbyname_r) && defined(HAVE_GETHOSTBYNAME_R)
-
-#if defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop)
-{
-  struct hostent *hp;
-  DBUG_ASSERT((size_t) buflen >= sizeof(*result));
-  if (gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop))
-    return 0;
-  return hp;
-}
-
-#elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
-
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop)
-{
-  DBUG_ASSERT(buflen >= sizeof(struct hostent_data));
-  if (gethostbyname_r(name,result,(struct hostent_data *) buffer) == -1)
-  {
-    *h_errnop= errno;
-    return 0;
-  }
-  return result;
-}
-
-#else
-
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop)
-{
-  struct hostent *hp;
-  DBUG_ASSERT(buflen >= sizeof(struct hostent_data));
-  hp= gethostbyname_r(name,result,(struct hostent_data *) buffer);
-  *h_errnop= errno;
-  return hp;
-}
-
-#endif /* GLIBC2_STYLE_GETHOSTBYNAME_R */
-#endif
 
 /*****************************************************************************
   Patches for HPUX
@@ -469,9 +416,10 @@ struct hostent *my_gethostbyname_r(const char *name,
   Note that currently we only remap pthread_ functions used by MySQL.
   If we are depending on the value for some other pthread_xxx functions,
   this has to be added here.
-*****************************************************************************/
+****************************************************************************/
 
-#ifdef HPUX
+#if defined(HPUX) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
+#undef pthread_cond_timedwait
 
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime)
@@ -483,8 +431,10 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
     error=ETIMEDOUT;
   return error;
 }
+#endif
 
 
+#ifdef HPUX
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
   int error=pthread_mutex_trylock(mutex);

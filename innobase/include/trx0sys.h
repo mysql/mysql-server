@@ -259,7 +259,7 @@ therefore 256 */
 /* The offset of the transaction system header on the page */
 #define	TRX_SYS		FSEG_PAGE_DATA
 
-/* Transaction system header; protected by trx_sys->mutex */
+/* Transaction system header */
 /*-------------------------------------------------------------*/
 #define	TRX_SYS_TRX_ID_STORE	0	/* the maximum trx id or trx number
 					modulo TRX_SYS_TRX_ID_UPDATE_MARGIN

@@ -195,7 +195,7 @@
 "Error de red escribiendo para el master",
 "No puedo encontrar índice FULLTEXT correspondiendo a la lista de columnas",
 "No puedo ejecutar el comando dado porque tienes tablas bloqueadas o una transición activa",
-"Desconocida variable de sistema '%-.64'",
+"Desconocida variable de sistema '%-.64s'",
 "Tabla '%-.64s' está marcada como crashed y debe ser reparada",
 "Tabla '%-.64s' está marcada como crashed y la última reparación (automactica?) falló",
 "Aviso:  Algunas tablas no transancionales no pueden tener rolled back",

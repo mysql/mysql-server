@@ -30,7 +30,7 @@
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif
-#include <getopt.h>
+#include <my_getopt.h>
 
 #if INT_MAX > 32767
 #define BITS_SAVED 32
@@ -169,9 +169,10 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
 
 
-static int backup=0,error_on_write=0,test_only=0,verbose=0,silent=0,
-	   write_loop=0,force_pack=0,opt_wait=0,isamchk_neaded=0;
+static int error_on_write=0,test_only=0,verbose=0,silent=0,
+	   write_loop=0,force_pack=0, isamchk_neaded=0;
 static int tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
+static my_bool backup, opt_wait;
 static uint tree_buff_length=8196-MALLOC_OVERHEAD;
 static char tmp_dir[FN_REFLEN]={0},*join_table;
 static my_off_t intervall_length;
@@ -232,27 +233,43 @@ int main(int argc, char **argv)
 
 enum options_mp {OPT_CHARSETS_DIR_MP=256};
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"backup",	no_argument,	   0, 'b'},
-  {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR_MP},
-  {"debug",	optional_argument, 0, '#'},
-  {"force",	no_argument,	   0, 'f'},
-  {"join",	required_argument, 0, 'j'},
-  {"help",	no_argument,	   0, '?'},
-  {"packlength",required_argument, 0, 'p'},
-  {"silent",	no_argument,	   0, 's'},
-  {"tmpdir",	required_argument, 0, 'T'},
-  {"test",	no_argument,	   0, 't'},
-  {"verbose",	no_argument,	   0, 'v'},
-  {"version",	no_argument,	   0, 'V'},
-  {"wait",	no_argument,	   0, 'w'},
-  {0, 0, 0, 0}
+  {"backup", 'b', "Make a backup of the table as table_name.OLD",
+   (gptr*) &backup, (gptr*) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR_MP,
+   "Directory where character sets are.", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f',
+   "Force packing of table even if it gets bigger or if	tempfile exists.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"join", 'j',
+   "Join all given tables into 'new_table_name'. All tables MUST have identical layouts.",
+   (gptr*) &join_table, (gptr*) &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Be more silent.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tmpdir", 'T', "Use temporary directory to store temporary table.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"test", 't', "Don't pack table, only test packing it.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Write info about progress and packing result.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait and retry if table is in use.", (gptr*) &opt_wait,
+   (gptr*) &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.12 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s Ver 1.21 for %s on %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -268,22 +285,54 @@ static void usage(void)
   puts("You should give the .MSI file as the filename argument.");
 
   printf("\nUsage: %s [OPTIONS] filename...\n", my_progname);
-  puts("\n\
-  -b, --backup		Make a backup of the table as table_name.OLD\n\
-  -f, --force		Force packing of table even if it gets bigger or if\n\
-			tempfile exists.\n\
-  -j, --join='new_table_name'\n\
-			Join all given tables into 'new_table_name'.\n\
-			All tables MUST have identical layouts.\n\
-  -s, --silent		Be more silent.\n\
-  -t, --test		Don't pack table, only test packing it.\n\
-  -v, --verbose		Write info about progress and packing result.\n\
-  -w, --wait		Wait and retry if table is in use.\n\
-  -T, --tmpdir=...	Use temporary directory to store temporary table.\n\
-  -#, --debug=...       Output debug log. Often this is 'd:t:o,filename`\n\
-  -?, --help		Display this help and exit.\n\
-  -V, --version		Output version information and exit.");
-  print_defaults("my",load_default_groups);
+  my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
+  my_print_variables(my_long_options);
+}
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  uint length;
+
+  switch(optid) {
+  case 'f':
+    force_pack= 1;
+    tmpfile_createflag= O_RDWR | O_TRUNC;
+    break;
+  case 's':
+    write_loop= verbose= 0;
+    silent= 1;
+    break;
+  case 't':
+    test_only= verbose= 1;
+    break;
+  case 'T':
+    length= (uint) (strmov(tmp_dir, argument) - tmp_dir);
+    if (length != dirname_length(tmp_dir))
+    {
+      tmp_dir[length]=FN_LIBCHAR;
+      tmp_dir[length+1]=0;
+    }
+    break;
+  case 'v':
+    verbose= 1;
+    silent= 0;
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case 'I':
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
 }
 
 	/* reads options */
@@ -291,66 +340,15 @@ static void usage(void)
 
 static void get_options(int *argc,char ***argv)
 {
-  int c,option_index=0;
-  uint length;
+  int ho_error;
 
   my_progname= argv[0][0];
   if (isatty(fileno(stdout)))
     write_loop=1;
 
-  while ((c=getopt_long(*argc,*argv,"bfj:stvwT:#::?V",long_options,
-			&option_index)) != EOF)
-  {
-    switch(c) {
-    case 'b':
-      backup=1;
-      break;
-    case 'f':
-      force_pack=1;
-      tmpfile_createflag=O_RDWR | O_TRUNC;
-      break;
-    case 'j':
-      join_table=optarg;
-      break;
-    case 's':
-      write_loop=verbose=0; silent=1;
-      break;
-    case 't':
-      test_only=verbose=1;
-      break;
-    case 'T':
-      length=(uint) (strmov(tmp_dir,optarg)-tmp_dir);
-      if (length != dirname_length(tmp_dir))
-      {
-	tmp_dir[length]=FN_LIBCHAR;
-	tmp_dir[length+1]=0;
-      }
-      break;
-    case 'v':
-      verbose=1; silent=0;
-      break;
-    case 'w':
-      opt_wait=1;
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o");
-      break;
-    case OPT_CHARSETS_DIR_MP:
-      charsets_dir = optarg;
-      break;
-    case 'V': print_version(); exit(0);
-    case 'I':
-    case '?':
-      usage();
-      exit(0);
-    default:
-      fprintf(stderr,"%s: Illegal option: -%c\n",my_progname,opterr);
-      usage();
-      exit(1);
-    }
-  }
-  (*argc)-=optind;
-  (*argv)+=optind;
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   if (!*argc)
   {
     usage();
