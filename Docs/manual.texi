@@ -28394,7 +28394,7 @@ Note that if you specify @code{ZEROFILL} for a column, MySQL will
 automatically add the @code{UNSIGNED} attribute to the column.
 
 @strong{Warning:} You should be aware that when you use subtraction
-between integers values where one is of type @code{UNSIGNED}, the result
+between integer values where one is of type @code{UNSIGNED}, the result
 will be unsigned! @xref{Cast Functions}.
 
 @table @code
@@ -33939,8 +33939,9 @@ given by @code{where_definition}, and returns the number of records deleted.
 
 If you issue a @code{DELETE} with no @code{WHERE} clause, all rows are
 deleted.  If you do this in @code{AUTOCOMMIT} mode, this works as
-@code{TRUNCATE}. @xref{TRUNCATE}.  In MySQL 3.23 @code{DELETE} without a
-@code{WHERE} clause will return zero as the number of affected records.
+@code{TRUNCATE}. @xref{TRUNCATE, , @code{TRUNCATE}}.  In MySQL 3.23,
+@code{DELETE} without a @code{WHERE} clause will return zero as the number
+of affected records.
 
 If you really want to know how many records are deleted when you are deleting
 all rows, and are willing to suffer a speed penalty, you can use a
@@ -33957,18 +33958,18 @@ If you specify the keyword @code{LOW_PRIORITY}, execution of the
 @code{DELETE} is delayed until no other clients are reading from the table.
 
 If you specify the word @code{QUICK} then the table handler will not
-merge index leafs during delete, which may speed up certain kind of
+merge index leaves during delete, which may speed up certain kind of
 deletes.
 
-In MyISAM tables deleted records are maintained in a linked list and
+In @code{MyISAM} tables, deleted records are maintained in a linked list and
 subsequent @code{INSERT} operations reuse old record positions. To
 reclaim unused space and reduce file sizes, use the @code{OPTIMIZE
 TABLE} statement or the @code{myisamchk} utility to reorganise tables.
 @code{OPTIMIZE TABLE} is easier, but @code{myisamchk} is faster.  See
 @ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimisation}.
 
-The first multi table delete format is supported starting from MySQL 4.0.0.
-The second multi table delete format is supported starting from MySQL 4.0.2.
+The first multi-table delete format is supported starting from MySQL 4.0.0.
+The second multi-table delete format is supported starting from MySQL 4.0.2.
 
 The idea is that only matching rows from the tables listed
 @strong{before} the @code{FROM} or before the @code{USING} clause are
@@ -33989,8 +33990,8 @@ DELETE FROM t1,t2 USING t1,t2,t3 WHERE t1.id=t2.id AND t2.id=t3.id
 In the above case we delete matching rows just from tables @code{t1} and
 @code{t2}.
 
-@code{ORDER BY} and using multiple tables in the DELETE is supported in
-MySQL 4.0.
+@code{ORDER BY} and using multiple tables in the @code{DELETE} is supported
+in MySQL 4.0.
 
 If an @code{ORDER BY} clause is used, the rows will be deleted in that order.
 This is really only useful in conjunction with @code{LIMIT}.  For example:
@@ -48750,13 +48751,13 @@ Fixed bug with indexless boolean fulltext search.
 Fixed bug that sometimes appeared when fulltext search was used
 with ``const'' tables.
 @item
-Fixed wrong error value when doing a @code{SELECT} with an empty HEAP table.
+Fixed incorrect error value when doing a @code{SELECT} with an empty HEAP table.
 @item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
 @item
 Fixed bug in @code{WHERE key_name='constant' ORDER BY key_name DESC}.
 @item
-Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimization.
+Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimisation.
 @item
 Fixed bug in @code{... HAVING 'GROUP_FUNCTION'(xxx) IS [NOT] NULL}.
 @item
@@ -48764,7 +48765,7 @@ Fixed bug in truncation operator for boolean fulltext search.
 @item
 Allow numeric user id to @code{mysqld --user=#}.
 @item
-Fixed a bug where @code{SQL_CALC_ROWS} returned a wrong value when used
+Fixed a bug where @code{SQL_CALC_ROWS} returned an incorrect value when used
 with one table and @code{ORDER BY} and with InnoDB tables.
 @item
 Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
@@ -48775,11 +48776,11 @@ many keys with the same start column.
 Don't use table scan with BerkeleyDB and InnoDB tables when we can use
 an index that covers the whole row.
 @item
-Optimized InnoDB sort-buffer handling to take less memory.
+Optimised InnoDB sort-buffer handling to take less memory.
 @item
-Fixed bug in multi table @code{DELETE} and InnoDB tables.
+Fixed bug in multi-table @code{DELETE} and InnoDB tables.
 @item
-Fixed problem with @code{TRUNCATE} and InnoDB that gave the error
+Fixed problem with @code{TRUNCATE} and InnoDB that produced the error
 @code{Can't execute the given command because you have active locked
 tables or an active transaction}.
 @item
@@ -48800,7 +48801,7 @@ Fixed new bug in @code{myisamchk} where it didn't correctly update number of
 @item
 Changed to use @code{autoconf} 2.52 (from @code{autoconf} 2.13).
 @item
-Fixed optimization problem where the MySQL Server was in ``preparing'' state
+Fixed optimisation problem where the MySQL Server was in ``preparing'' state
 for a long time when selecting from an empty table which had contained
 a lot of rows.
 @item
@@ -48808,9 +48809,9 @@ Fixed bug in complicated join with @code{const} tables. This fix also
 improves performance a bit when referring to another table from a
 @code{const} table.
 @item
-First pre-version of multi table @code{UPDATE}s.
+First pre-version of multi-table @code{UPDATE} statement.
 @item
-Fixed bug in multi table @code{DELETE}.
+Fixed bug in multi-table @code{DELETE}.
 @item
 Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
 @item
@@ -48861,7 +48862,7 @@ Fixed stack overrun problem @code{LOAD DATA FROM MASTER} on OSF1.
 @item
 Fixed shutdown problem on HP-UX.
 @item
-Added functions @code{des_encrypt()} and @code{des_decrypt()}.
+Added functions @code{DES_ENCRYPT()} and @code{DES_DECRYPT()}.
 @item
 Added statement @code{FLUSH DES_KEY_FILE}.
 @item
@@ -48902,7 +48903,7 @@ able to use boolean fulltext search}.
 @code{LOCATE()} and @code{INSTR()} are now case sensitive if either
 argument is a binary string.
 @item
-Changed @code{RAND()} initialization so that @code{RAND(N)} and
+Changed @code{RAND()} initialisation so that @code{RAND(N)} and
 @code{RAND(N+1)} are more distinct.
 @item
 Fixed core dump bug in @code{UPDATE ... ORDER BY}.
@@ -49191,7 +49192,7 @@ Fixed problem with one thread using an InnoDB table and another
 thread doing an @code{ALTER TABLE} on the same table. Before that,
 mysqld could crash with an assertion failure in row0row.c, line 474.
 @item
-Tuned the InnoDB SQL optimizer to favor more often index searches
+Tuned the InnoDB SQL optimiser to favor more often index searches
 over table scans.
 @item
 Fixed a performance problem with InnoDB tables when several large SELECT
@@ -49201,7 +49202,7 @@ platforms.
 @item
 If MySQL binlogging is used, InnoDB now prints after crash recovery the
 latest MySQL binlog name and the offset InnoDB was able to recover
-to. This is useful, for example, when resynchronizing a master and a
+to. This is useful, for example, when resynchronising a master and a
 slave database in replication.
 @item
 Added better error messages to help in installation problems of InnoDB tables.
@@ -49372,7 +49373,7 @@ Foreign keys checking is now done for @code{InnoDB} tables.
 than 4 GB on those operating systems which have big files.
 @item
 @code{InnoDB} calculates better table cardinality estimates for the
-MySQL optimizer.
+MySQL optimiser.
 @item
 Accent characters in the default character set latin1 are ordered
 according to the MySQL ordering.
