@@ -464,6 +464,7 @@ void close_thread_tables(THD *thd, bool locked)
 	unused_tables=table->next=table->prev=table;
     }
   }
+  thd->some_tables_deleted=0;
   thd->open_tables=0;
   /* Free tables to hold down open files */
   while (open_cache.records > table_cache_size && unused_tables)

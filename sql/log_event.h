@@ -229,12 +229,13 @@ public:
   THD* thd;
   String field_lens_buf;
   String fields_buf;
-  Load_log_event(THD* thd, sql_exchange* ex, const char* table_name_arg,
+  Load_log_event(THD* thd, sql_exchange* ex, 
+		 const char *db_arg, const char* table_name_arg,
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup ):
     Log_event(thd->start_time),data_buf(0),thread_id(thd->thread_id),
     num_fields(0),fields(0),field_lens(0),field_block_len(0),
     table_name(table_name_arg),
-    db(thd->db),
+    db(db_arg),
     fname(ex->file_name),
     thd(thd)
   {
