@@ -32,6 +32,8 @@
 #include <assert.h>
 #include <stdarg.h>
 
+extern uint connection_auth_flag;
+
 struct acl_host_and_ip
 {
   char *hostname;
@@ -63,7 +65,8 @@ public:
   uint hostname_length;
   USER_RESOURCES user_resource;
   char *user,*password;
-  ulong salt[2];
+  ulong salt[6]; // New password has longer length
+  uint8 pversion; // password version 
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
 };
@@ -142,7 +145,11 @@ my_bool acl_init(bool dont_read_acl_tables)
 			    (hash_get_key) acl_entry_get_key,
 			    (void (*)(void*)) free);
   if (dont_read_acl_tables)
+  {
+    /* If we do not read tables use old handshake to make it quick for all clients */ 
+    connection_auth_flag=CLIENT_LONG_PASSWORD; 
     DBUG_RETURN(0); /* purecov: tested */
+  }    
 
   /*
     To be able to run this from boot, we allocate a temporary THD
@@ -217,6 +224,7 @@ my_bool acl_init(bool dont_read_acl_tables)
 
   DBUG_PRINT("info",("user table fields: %d",table->fields));
   allow_all_hosts=0;
+  connection_auth_flag=0; /* Reset flag as we're rereading the table */
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
@@ -231,7 +239,7 @@ my_bool acl_init(bool dont_read_acl_tables)
 		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
-    else if (length % 8)		// This holds true for passwords
+    else if (length % 8 && length!=45)		// This holds true for passwords
     {
       sql_print_error(
 		      "Found invalid password for user: '%s@%s'; Ignoring user",
@@ -240,6 +248,19 @@ my_bool acl_init(bool dont_read_acl_tables)
       continue;					/* purecov: tested */
     }
     get_salt_from_password(user.salt,user.password);
+    user.pversion=get_password_version(user.password);
+    /*
+      We check the version of passwords in database. If no old passwords found we can force new handshake
+      if there are only old password we will force new handshake. In case of both types of passwords
+      found we will perform 2 stage authentication.
+    */
+    if (user.password && user.password[0]!=0) /* empty passwords are not counted */ 
+    {
+      if (user.pversion) 
+        connection_auth_flag|=CLIENT_SECURE_CONNECTION;
+      else
+        connection_auth_flag|=CLIENT_LONG_PASSWORD;   
+    }  
     user.access=get_access(table,3) & GLOBAL_ACLS;
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length= (user.host.hostname ?
@@ -297,7 +318,18 @@ my_bool acl_init(bool dont_read_acl_tables)
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
-
+  
+  /* 
+   If database is empty or has no passwords use new connection protocol 
+   unless we're running with --old-passwords option
+  */ 
+  if (!connection_auth_flag)
+  {
+    if(!opt_old_passwords)     
+     connection_auth_flag=CLIENT_SECURE_CONNECTION;
+    else connection_auth_flag=CLIENT_LONG_PASSWORD; 
+  }
+  printf("Set flag after read: %d\n",connection_auth_flag);
   init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -671,6 +703,13 @@ static void acl_update_user(const char *user, const char *host,
 	  {
 	    acl_user->password=(char*) "";	// Just point at something
 	    get_salt_from_password(acl_user->salt,password);
+	    acl_user->pversion=get_password_version(acl_user->password);
+	    // We should allow connection with authentication method matching password
+	    if (acl_user->pversion)
+	      connection_auth_flag|=CLIENT_SECURE_CONNECTION;
+	    else
+	      connection_auth_flag|=CLIENT_LONG_PASSWORD;  
+	    printf("Debug: flag set to %d\n",connection_auth_flag);      
 	  }
 	}
 	break;
@@ -706,6 +745,7 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.password=(char*) "";		// Just point at something
     get_salt_from_password(acl_user.salt,password);
+    acl_user.pversion=get_password_version(acl_user.password);
   }
 
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
@@ -1052,9 +1092,11 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user))
     DBUG_RETURN(1);
 
-  /* password should always be 0 or 16 chars; simple hack to avoid cracking */
+  /* password should always be 0,16 or 45 chars; simple hack to avoid cracking */
   length=(uint) strlen(new_password);
-  new_password[length & 16]=0;
+  
+  if (length!=45)
+    new_password[length & 16]=0;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
@@ -1074,14 +1116,23 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1); /* purecov: deadcode */
   }
   get_salt_from_password(acl_user->salt,new_password);
+  acl_user->pversion=get_password_version(new_password);
   if (!new_password[0])
     acl_user->password=0;
   else
-    acl_user->password=(char*) "";		// Point at something
+  {
+    acl_user->password=(char*) "";		// Point at something        
+    /* Adjust global connection options depending of client password*/
+    if (acl_user->pversion)
+      connection_auth_flag|=CLIENT_SECURE_CONNECTION;
+    else
+      connection_auth_flag|=CLIENT_LONG_PASSWORD;    
+  }
+    
   acl_cache->clear(1);				// Clear locked hostname cache
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  char buff[460];
+  char buff[512]; /* Extend with extended password length*/
   ulong query_length=
     my_sprintf(buff,
 	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",

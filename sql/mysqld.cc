@@ -278,7 +278,7 @@ static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_safe_show_db=0, lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0;
+my_bool opt_log_slave_updates= 0, opt_old_passwords=0;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
@@ -317,6 +317,7 @@ uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
 ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
 uint protocol_version=PROTOCOL_VERSION;
+uint connection_auth_flag=0; /* Supported authentication mode */ 
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
 ulong keybuff_size,table_cache_size,
@@ -2894,7 +2895,8 @@ enum options {
   OPT_INNODB_FORCE_RECOVERY,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
-  OPT_BDB_MAX_LOCK
+  OPT_BDB_MAX_LOCK,
+  OPT_OLD_PASSWORDS
 };
 
 
@@ -3225,6 +3227,8 @@ struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for old clients)",
+   (gptr*) &opt_old_passwords, (gptr*) &opt_old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},   
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
