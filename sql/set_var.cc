@@ -592,7 +592,7 @@ static void
 fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type)
 {
   myisam_max_extra_temp_length=
-    (my_off_t) global_system_variables.myisam_max_sort_file_size;
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 }
 
 
