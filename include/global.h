@@ -682,10 +682,14 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 			  *((T)+4)=(uchar) (((A) >> 32)); }
 #define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
 
-#define doubleget(V,M)	{ *((long *) &V) = *((long*) M); \
-			  *(((long *) &V)+1) = *(((long*) M)+1); }
-#define doublestore(T,V) { *((long *) T) = *((long*) &V); \
-			   *(((long *) T)+1) = *(((long*) &V)+1); }
+typedef union {
+  double v;
+  long m[2];
+} doubleget_union;
+#define doubleget(V,M)	{ ((doubleget_union *)&V)->m[0] = *((long*) M); \
+			  ((doubleget_union *)&V)->m[1] = *(((long*) M)+1); }
+#define doublestore(T,V) { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
+			   *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; }
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
