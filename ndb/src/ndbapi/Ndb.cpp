@@ -49,13 +49,15 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
   Uint32        tAnyAlive = 0;
   int TretCode= 0;
 
+  DBUG_ENTER("Ndb::doConnect");
+
   if (tConNode != 0) {
     TretCode = NDB_connect(tConNode);
     if ((TretCode == 1) || (TretCode == 2)) {
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-      return getConnectedNdbTransaction(tConNode);
+      DBUG_RETURN(getConnectedNdbTransaction(tConNode));
     } else if (TretCode != 0) {
       tAnyAlive = 1;
     }//if
@@ -78,10 +80,11 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-	return getConnectedNdbTransaction(tNode);
+	DBUG_RETURN(getConnectedNdbTransaction(tNode));
       } else if (TretCode != 0) {
 	tAnyAlive= 1;
       }//if
+      DBUG_PRINT("info",("tried node %d TretCode %d", tNode, TretCode));
     }
   }
   else // just do a regular round robin
@@ -103,10 +106,11 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-	return getConnectedNdbTransaction(tNode);
+	DBUG_RETURN(getConnectedNdbTransaction(tNode));
       } else if (TretCode != 0) {
 	tAnyAlive= 1;
       }//if
+      DBUG_PRINT("info",("tried node %d TretCode %d", tNode, TretCode));
     } while (Tcount < tNoOfDbNodes);
   }
 //****************************************************************************
@@ -121,7 +125,7 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
   } else {
     theError.code = 4009;
   }//if
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 int 
@@ -134,29 +138,31 @@ Ndb::NDB_connect(Uint32 tNode)
   int	         tReturnCode;
   TransporterFacade *tp = TransporterFacade::instance();
 
+  DBUG_ENTER("Ndb::NDB_connect");
+
   bool nodeAvail = tp->get_node_alive(tNode);
   if(nodeAvail == false){
-    return 0;
+    DBUG_RETURN(0);
   }
   
   NdbTransaction * tConArray = theConnectionArray[tNode];
   if (tConArray != NULL) {
-    return 2;
+    DBUG_RETURN(2);
   }
   
   NdbTransaction * tNdbCon = getNdbCon();	// Get free connection object.
   if (tNdbCon == NULL) {
-    return 4;
+    DBUG_RETURN(4);
   }//if
   NdbApiSignal*	tSignal = getSignal();		// Get signal object
   if (tSignal == NULL) {
     releaseNdbCon(tNdbCon);
-    return 4;
+    DBUG_RETURN(4);
   }//if
   if (tSignal->setSignal(GSN_TCSEIZEREQ) == -1) {
     releaseNdbCon(tNdbCon);
     releaseSignal(tSignal);
-    return 4;
+    DBUG_RETURN(4);
   }//if
   tSignal->setData(tNdbCon->ptr2int(), 1);
 //************************************************
@@ -192,13 +198,16 @@ Ndb::NDB_connect(Uint32 tNode)
     tNdbCon->setMyBlockReference(theMyRef);
     theConnectionArray[tNode] = tNdbCon;
     tNdbCon->theNext = tPrevFirst;
-    return 1;
+    DBUG_RETURN(1);
   } else {
     releaseNdbCon(tNdbCon);
 //****************************************************************************
 // Unsuccessful connect is indicated by 3.
 //****************************************************************************
-    return 3;
+    DBUG_PRINT("info",
+	       ("unsuccessful connect tReturnCode %d, tNdbCon->Status() %d",
+		tReturnCode, tNdbCon->Status()));
+    DBUG_RETURN(3);
   }//if
 }//Ndb::NDB_connect()
 
