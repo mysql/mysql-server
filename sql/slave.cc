@@ -1202,7 +1202,7 @@ slaves can't replicate a 5.0 or newer master.";
   else
   {
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
-    sql_print_error("Warning: \"SELECT UNIX_TIMESTAMP()\" failed on master, \
+    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, \
 do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
   }
   if (master_res)
