@@ -441,7 +441,7 @@ inline
 bool 
 NdbColumnImpl::getBlobType() const {
   return (m_type == NdbDictionary::Column::Blob ||
-	  m_type == NdbDictionary::Column::Clob);
+	  m_type == NdbDictionary::Column::Text);
 }
 
 inline
