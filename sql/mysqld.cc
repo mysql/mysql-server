@@ -248,6 +248,10 @@ double log_10[32];			/* 10 potences */
 I_List<THD> threads,thread_cache;
 time_t start_time;
 
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
+extern ulonglong safemalloc_mem_limit;
+#endif
+
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_key(NET*, THR_NET);
@@ -2228,7 +2232,7 @@ enum options {
                OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
 	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
 	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START,
-	       OPT_SKIP_INNOBASE
+	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT
 };
 
 static struct option long_options[] = {
@@ -2284,6 +2288,10 @@ static struct option long_options[] = {
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
+  {"safemalloc-mem-limit",  required_argument, 0, (int)
+     OPT_SAFEMALLOC_MEM_LIMIT},
+#endif    
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
 #ifdef ONE_THREAD
@@ -2797,6 +2805,11 @@ static void get_options(int argc,char **argv)
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
       break;
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
+    case OPT_SAFEMALLOC_MEM_LIMIT:
+      safemalloc_mem_limit = atoi(optarg);
+      break;
+#endif      
     case OPT_SOCKET:
       mysql_unix_port= optarg;
       break;
