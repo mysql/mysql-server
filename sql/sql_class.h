@@ -1427,7 +1427,11 @@ public:
 
 #include <myisam.h>
 
-/* Param to create temporary tables when doing SELECT:s */
+/* 
+  Param to create temporary tables when doing SELECT:s 
+  NOTE
+    This structure is copied using memcpy as a part of JOIN.
+*/
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
@@ -1439,7 +1443,6 @@ private:
 public:
   List<Item> copy_funcs;
   List<Item> save_copy_funcs;
-  List_iterator_fast<Item> copy_funcs_it;
   Copy_field *copy_field, *copy_field_end;
   Copy_field *save_copy_field, *save_copy_field_end;
   byte	    *group_buff;
@@ -1457,7 +1460,7 @@ public:
   CHARSET_INFO *table_charset; 
 
   TMP_TABLE_PARAM()
-    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
+    :copy_field(0), group_parts(0),
     group_length(0), group_null_parts(0), convert_blob_length(0)
   {}
   ~TMP_TABLE_PARAM()
