@@ -41,6 +41,7 @@ static int
 store_create_info(THD *thd, TABLE_LIST *table_list, String *packet);
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *packet);
+static bool schema_table_store_record(THD *thd, TABLE *table);
 
 
 /***************************************************************************
@@ -1536,7 +1537,8 @@ static bool show_status_array(THD *thd, const char *wild,
         table->field[0]->store(name_buffer, strlen(name_buffer),
                                system_charset_info);
         table->field[1]->store(pos, (uint32) (end - pos), system_charset_info);
-        table->file->write_row(table->record[0]);        
+        if (schema_table_store_record(thd, table))
+          DBUG_RETURN(TRUE);
       }
     }
   }
@@ -1590,6 +1592,33 @@ typedef struct st_index_field_values
 {
   const char *db_value, *table_value;
 } INDEX_FIELD_VALUES;
+
+
+/*
+  Store record to I_S table, convert HEAP table
+  to MyISAM if necessary
+
+  SYNOPSIS
+    schema_table_store_record()
+    thd                   thread handler
+    table                 I_S table
+  RETURN
+    1	                  error
+    0	                  success
+*/
+
+static bool schema_table_store_record(THD *thd, TABLE *table)
+{
+  int error;
+  if ((error= table->file->write_row(table->record[0])))
+  {
+    if (create_myisam_from_heap(thd, table, 
+                                table->pos_in_table_list->schema_table_param,
+                                error, 0))
+      return 1;
+  }
+  return 0;
+}
 
 
 void get_index_field_values(LEX *lex, INDEX_FIELD_VALUES *index_field_values)
@@ -1915,7 +1944,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                 }
               }
             }
-            table->file->write_row(table->record[0]);
+            if (schema_table_store_record(thd, table))
+              DBUG_RETURN(error);
           }
           else
           {
@@ -1952,13 +1982,15 @@ err:
 }
 
 
-void store_schema_shemata(TABLE *table, const char *db_name,
+bool store_schema_shemata(THD* thd, TABLE *table, const char *db_name,
                           const char* cs_name)
 {
   restore_record(table, s->default_values);
   table->field[1]->store(db_name, strlen(db_name), system_charset_info);
   table->field[2]->store(cs_name, strlen(cs_name), system_charset_info);
-  table->file->write_row(table->record[0]);
+  if (schema_table_store_record(thd, table))
+    return 1;
+  return 0;
 }
 
 
@@ -1987,7 +2019,9 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   {
     if (with_i_schema)       // information schema name is always first in list
     {
-      store_schema_shemata(table, file_name, system_charset_info->csname);
+      if (store_schema_shemata(thd, table, file_name,
+                               system_charset_info->csname))
+        DBUG_RETURN(1);
       with_i_schema= 0;
       continue;
     }
@@ -2010,8 +2044,9 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 	path[length-1]= FN_LIBCHAR;
       strmov(path+length, MY_DB_OPT_FILE);
       load_db_opt(thd, path, &create);
-      store_schema_shemata(table, file_name,
-                           create.default_table_charset->csname);
+      if (store_schema_shemata(thd, table, file_name, 
+                               create.default_table_charset->csname))
+        DBUG_RETURN(1);
     }
   }
   DBUG_RETURN(0);
@@ -2196,7 +2231,8 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       }
     }
   }
-  table->file->write_row(table->record[0]);
+  if (schema_table_store_record(thd, table))
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
@@ -2375,7 +2411,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 #endif
       table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
       table->field[18]->store(field->comment.str, field->comment.length, cs);
-      table->file->write_row(table->record[0]);
+      if (schema_table_store_record(thd, table))
+        DBUG_RETURN(1);
     }
   }
   DBUG_RETURN(0);
@@ -2404,7 +2441,8 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
 			     strlen(tmp_cs->comment ? tmp_cs->comment : ""),
                              scs);
       table->field[3]->store((longlong) tmp_cs->mbmaxlen);
-      table->file->write_row(table->record[0]);
+      if (schema_table_store_record(thd, table))
+        return 1;
     }
   }
   return 0;
@@ -2443,7 +2481,8 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
         tmp_buff= (tmp_cl->state & MY_CS_COMPILED)? "Yes" : "";
 	table->field[4]->store(tmp_buff, strlen(tmp_buff), scs);
         table->field[5]->store((longlong) tmp_cl->strxfrm_multiply);
-	table->file->write_row(table->record[0]);
+        if (schema_table_store_record(thd, table))
+          return 1;
       }
     }
   }
@@ -2472,14 +2511,15 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
       restore_record(table, s->default_values);
       table->field[0]->store(tmp_cl->name, strlen(tmp_cl->name), scs);
       table->field[1]->store(tmp_cl->csname , strlen(tmp_cl->csname), scs);
-      table->file->write_row(table->record[0]);
+      if (schema_table_store_record(thd, table))
+        return 1;
     }
   }
   return 0;
 }
 
 
-void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
+bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
   String tmp_string;
@@ -2493,7 +2533,7 @@ void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   if (!full_access)
     full_access= !strcmp(sp_user, definer);
   if (!full_access && check_some_routine_access(thd, sp_db, sp_name))
-    return;
+    return 0;
 
   if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
       proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
@@ -2542,9 +2582,11 @@ void store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       get_field(thd->mem_root, proc_table->field[15], &tmp_string);
       table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[19]->store(definer, strlen(definer), cs);
-      table->file->write_row(table->record[0]);
+      if (schema_table_store_record(thd, table))
+        return 1;
     }
   }
+  return 0;
 }
 
 
@@ -2577,9 +2619,19 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
     res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
     goto err;
   }
-  store_schema_proc(thd, table, proc_table, wild, full_access, definer);
+  if (store_schema_proc(thd, table, proc_table, wild, full_access, definer))
+  {
+    res= 1;
+    goto err;
+  }
   while (!proc_table->file->index_next(proc_table->record[0]))
-    store_schema_proc(thd, table, proc_table, wild, full_access, definer);
+  {
+    if (store_schema_proc(thd, table, proc_table, wild, full_access, definer))
+    {
+      res= 1;
+      goto err;
+    }
+  }
 
 err:
   proc_table->file->ha_index_end();
@@ -2669,7 +2721,8 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
         else
           table->field[14]->store("", 0, cs);
         table->field[14]->set_notnull();
-        table->file->write_row(table->record[0]);
+        if (schema_table_store_record(thd, table))
+          DBUG_RETURN(1);
       }
     }
   }
@@ -2708,7 +2761,8 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
         table->field[5]->store("YES", 3, cs);
       else
         table->field[5]->store("NO", 2, cs);
-      table->file->write_row(table->record[0]);
+      if (schema_table_store_record(thd, table))
+        DBUG_RETURN(1);
     }
   }
   else
@@ -2722,9 +2776,9 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 }
 
 
-void store_constraints(TABLE *table, const char*db, const char *tname,
-                       const char *key_name, uint key_len,
-                       const char *con_type, uint con_len)
+bool store_constraints(THD *thd, TABLE *table, const char *db,
+                       const char *tname, const char *key_name,
+                       uint key_len, const char *con_type, uint con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -2733,7 +2787,9 @@ void store_constraints(TABLE *table, const char*db, const char *tname,
   table->field[3]->store(db, strlen(db), cs);
   table->field[4]->store(tname, strlen(tname), cs);
   table->field[5]->store(con_type, con_len, cs);
-  table->file->write_row(table->record[0]);
+  if (schema_table_store_record(thd, table))
+    return 1;
+  return 0;
 }
 
 
@@ -2766,11 +2822,17 @@ static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
         continue;
 
       if (i == primary_key && !strcmp(key_info->name, primary_key_name))
-        store_constraints(table, base_name, file_name, key_info->name,
-                          strlen(key_info->name), "PRIMARY KEY", 11);
+      {
+        if (store_constraints(thd, table, base_name, file_name, key_info->name,
+                              strlen(key_info->name), "PRIMARY KEY", 11))
+          DBUG_RETURN(1);
+      }
       else if (key_info->flags & HA_NOSAME)
-        store_constraints(table, base_name, file_name, key_info->name,
-                          strlen(key_info->name), "UNIQUE", 6);        
+      {
+        if (store_constraints(thd, table, base_name, file_name, key_info->name,
+                              strlen(key_info->name), "UNIQUE", 6))
+          DBUG_RETURN(1);
+      }
     }
 
     show_table->file->get_foreign_key_list(thd, &f_key_list);
@@ -2778,8 +2840,11 @@ static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
     List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
     while ((f_key_info=it++))
     {
-      store_constraints(table, base_name, file_name, f_key_info->forein_id->str,
-                        strlen(f_key_info->forein_id->str), "FOREIGN KEY", 11);
+      if (store_constraints(thd, table, base_name, file_name, 
+                            f_key_info->forein_id->str,
+                            strlen(f_key_info->forein_id->str),
+                            "FOREIGN KEY", 11))
+        DBUG_RETURN(1);
     }
   }
   DBUG_RETURN(res);
@@ -2842,7 +2907,8 @@ static int get_schema_key_column_usage_record(THD *thd,
                                  key_part->field->field_name, 
                                  strlen(key_part->field->field_name),
                                  (longlong) f_idx);
-          table->file->write_row(table->record[0]);
+          if (schema_table_store_record(thd, table))
+            DBUG_RETURN(1);
         }
       }
     }
@@ -2868,7 +2934,8 @@ static int get_schema_key_column_usage_record(THD *thd,
                                (longlong) f_idx);
         table->field[8]->store((longlong) f_idx);
         table->field[8]->set_notnull();
-        table->file->write_row(table->record[0]);
+        if (schema_table_store_record(thd, table))
+          DBUG_RETURN(1);
       }
     }
   }
@@ -2893,7 +2960,8 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[1]->store(open_list->table, strlen(open_list->table), cs);
     table->field[2]->store((longlong) open_list->in_use);
     table->field[3]->store((longlong)  open_list->locked);
-    table->file->write_row(table->record[0]);
+    if (schema_table_store_record(thd, table))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
@@ -3034,6 +3102,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                                  TMP_TABLE_ALL_COLUMNS),
                                 HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
+  table_list->schema_table_param= tmp_table_param;
   DBUG_RETURN(table);
 }
 
