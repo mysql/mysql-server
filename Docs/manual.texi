@@ -45502,9 +45502,10 @@ lets you enter SQL queries, execute them, and view the results, all in a
 graphical user interface. The GUI is roughly similar to that of the
 'Query Analyzer' client that comes with MS SQL Server.
 
-@item @uref{http://members.xoom.com/_opex_/mysqlmanager/}
+@item @uref{http://www.opex.atnet.ru/mysqlmanager/}
 MySQL Manager is a graphical MySQL server manager for MySQL server
-written in Java, for Windows.
+written in Java.
+
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip}
 An administrator tool for MySQL on Windows 95/98 and Windows NT
 4.0. Only tested with MySQL Versions 3.23.5 - 3.23.7. Written
