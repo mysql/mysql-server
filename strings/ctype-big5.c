@@ -6329,7 +6329,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_big5_handler,
     &my_collation_big5_chinese_ci_handler
 };
@@ -6356,7 +6356,7 @@ CHARSET_INFO my_charset_big5_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_big5_handler,
     &my_collation_mb_bin_handler
 };

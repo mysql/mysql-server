@@ -38,26 +38,6 @@ my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
 }
 
 
-static void set_max_sort_char(CHARSET_INFO *cs)
-{
-  uchar max_char;
-  uint  i;
-  
-  if (!cs->sort_order)
-    return;
-  
-  max_char=cs->sort_order[(uchar) cs->max_sort_char];
-  for (i= 0; i < 256; i++)
-  {
-    if ((uchar) cs->sort_order[i] > max_char)
-    {
-      max_char=(uchar) cs->sort_order[i];
-      cs->max_sort_char= i;
-    }
-  }
-}
-
-
 static my_bool init_state_maps(CHARSET_INFO *cs)
 {
   uint i;
@@ -180,8 +160,6 @@ static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 						  MYF(MY_WME))))
       goto err;
 
-    
-    set_max_sort_char(to);
   }
   if (from->tab_to_uni)
   {
@@ -577,7 +555,6 @@ static my_bool init_available_charsets(myf myflags)
     {
       if (*cs)
       {
-        set_max_sort_char(*cs);
         if (cs[0]->ctype)
           if (init_state_maps(*cs))
             *cs= NULL;
