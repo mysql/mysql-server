@@ -261,9 +261,9 @@ directory(Uint32 sz){
 ConfigValuesFactory::ConfigValuesFactory(Uint32 keys, Uint32 data){
   m_sectionCounter = (1 << KP_SECTION_SHIFT);
   m_freeKeys = directory(keys);
-  m_freeData = data;
+  m_freeData = (data + 7) & ~7;
   m_currentSection = 0;
-  m_cfg = create(m_freeKeys, data);
+  m_cfg = create(m_freeKeys, m_freeData);
 }
 
 ConfigValuesFactory::ConfigValuesFactory(ConfigValues * cfg){
@@ -316,7 +316,8 @@ ConfigValuesFactory::expand(Uint32 fk, Uint32 fs){
   m_freeKeys = (m_freeKeys >= fk ? m_cfg->m_size : fk + m_cfg->m_size);
   m_freeData = (m_freeData >= fs ? m_cfg->m_dataSize : fs + m_cfg->m_dataSize);
   m_freeKeys = directory(m_freeKeys);
-  
+  m_freeData = (m_freeData + 7) & ~7;
+ 
   ConfigValues * m_tmp = m_cfg;
   m_cfg = create(m_freeKeys, m_freeData);
   put(* m_tmp);
@@ -333,6 +334,7 @@ ConfigValuesFactory::shrink(){
   m_freeKeys = m_cfg->m_size - m_freeKeys;
   m_freeData = m_cfg->m_dataSize - m_freeData;
   m_freeKeys = directory(m_freeKeys);
+  m_freeData = (m_freeData + 7) & ~7;
 
   ConfigValues * m_tmp = m_cfg;
   m_cfg = create(m_freeKeys, m_freeData);
