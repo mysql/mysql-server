@@ -2101,10 +2101,12 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 		  find_item_error_report_type report_error)
 {
   List_iterator<Item> li(items);
-  Item **found=0,*item;
+  Item **found=0, **found_unaliased= 0, *item;
   const char *db_name=0;
   const char *field_name=0;
   const char *table_name=0;
+  bool found_unaliased_non_uniq= 0;
+  uint unaliased_counter;
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
@@ -2117,42 +2119,88 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       Item_field *item_field= (Item_field*) item;
+
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
 	item_field can be field of temporary table without item name 
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
       */ 
-      if (item_field->name &&
-	  (!my_strcasecmp(system_charset_info, item_field->name, field_name) ||
-           !my_strcasecmp(system_charset_info,
-                          item_field->field_name, field_name)))
+      if (!item_field->name)
+        continue;
+
+      if (table_name)
       {
-	if (!table_name)
-	{
-	  if (found)
-	  {
-	    if ((*found)->eq(item,0))
-	      continue;				// Same field twice (Access?)
-	    if (report_error != IGNORE_ERRORS)
-	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			      find->full_name(), current_thd->where);
-	    return (Item**) 0;
-	  }
-	  found= li.ref();
-	  *counter= i;
-	}
-	else
-	{
-	  if (!strcmp(item_field->table_name,table_name) &&
-	      (!db_name || (db_name && item_field->db_name &&
-			    !strcmp(item_field->db_name, db_name))))
-	  {
-	    found= li.ref();
-	    *counter= i;
-	    break;
-	  }
-	}
+        /*
+          If table name is specified we should find field 'field_name' in
+          table 'table_name'. According to SQL-standard we should ignore
+          aliases in this case. Note that we should prefer fields from the
+          select list over other fields from the tables participating in
+          this select in case of ambiguity.
+
+          QQ: Why do we use simple strcmp for table name comparison here ?
+        */
+        if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                           field_name) &&
+            !strcmp(item_field->table_name, table_name) &&
+            (!db_name || (item_field->db_name &&
+                          !strcmp(item_field->db_name, db_name))))
+        {
+          if (found)
+          {
+            if ((*found)->eq(item, 0))
+              continue;                         // Same field twice
+            if (report_error != IGNORE_ERRORS)
+              my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                              MYF(0), find->full_name(), current_thd->where);
+            return (Item**) 0;
+          }
+          found= li.ref();
+          *counter= i;
+        }
+      }
+      else if (!my_strcasecmp(system_charset_info, item_field->name,
+                             field_name))
+      {
+        /*
+          If table name was not given we should scan through aliases
+          (or non-aliased fields) first. We are also checking unaliased
+          name of the field in then next else-if, to be able to find
+          instantly field (hidden by alias) if no suitable alias (or
+          non-aliased field) was found.
+        */
+        if (found)
+        {
+          if ((*found)->eq(item, 0))
+            continue;                           // Same field twice
+          if (report_error != IGNORE_ERRORS)
+            my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                            MYF(0), find->full_name(), current_thd->where);
+          return (Item**) 0;
+        }
+        found= li.ref();
+        *counter= i;
+      }
+      else if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                              field_name))
+      {
+        /*
+          We will use un-aliased field or react on such ambiguities only if
+          we won't be able to find aliased field.
+          Again if we have ambiguity with field outside of select list
+          we should prefer fields from select list.
+        */
+        if (found_unaliased)
+        {
+          if ((*found_unaliased)->eq(item, 0))
+            continue;                           // Same field twice
+          found_unaliased_non_uniq= 1;
+        }
+        else
+        {
+          found_unaliased= li.ref();
+          unaliased_counter= i;
+        }
       }
     }
     else if (!table_name && (item->eq(find,0) ||
@@ -2163,6 +2211,21 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       found= li.ref();
       *counter= i;
       break;
+    }
+  }
+  if (!found)
+  {
+    if (found_unaliased_non_uniq)
+    {
+      if (report_error != IGNORE_ERRORS)
+        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR), MYF(0),
+                        find->full_name(), current_thd->where);
+      return (Item **) 0;
+    }
+    if (found_unaliased)
+    {
+      found= found_unaliased;
+      *counter= unaliased_counter;
     }
   }
   if (found)
