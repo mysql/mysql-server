@@ -36,7 +36,7 @@ int heap_write(HP_INFO *info, const byte *record)
   byte *pos;
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_write");
-
+  printf("heap_write\n");
 #ifndef DBUG_OFF
   if (info->mode & O_RDONLY)
   {
@@ -180,15 +180,31 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     DBUG_RETURN(-1);				/* No more memory */
   halfbuff= (long) share->blength >> 1;
   pos= hp_find_hash(&keyinfo->block,(first_index=share->records-halfbuff));
-
+  
+  /*
+    We're about to add one more hash position, with hash_mask=#records. 
+    Entries that should be relocated to that position are currently members 
+    of the list that starts at #first_index position.
+    At #first_index position there may be either:
+    a) A list of items with hash_mask=first_index. The list contains 
+       1) entries that should be relocated to the list that starts at new 
+          position we're adding
+       2) entries that should be left in the list starting at #first_index 
+          position 
+    or
+    b) An entry with hashnr != first_index. We don't need to move it.
+  */
   if (pos != empty)				/* If some records */
   {
     do
     {
       hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
       if (flag == 0)				/* First loop; Check if ok */
+      {
+        /* Bail out if we're dealing with case b) from above comment */
 	if (hp_mask(hashnr, share->blength, share->records) != first_index)
 	  break;
+      }
       if (!(hashnr & halfbuff))
       {						/* Key will not move */
 	if (!(flag & LOWFIND))
@@ -245,6 +261,9 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       }
     }
     while ((pos=pos->next_key));
+    
+    if ((flag & (LOWFIND | HIGHFIND)) == (LOWFIND | HIGHFIND)) 
+      keyinfo->hash_buckets++;
 
     if ((flag & (LOWFIND | LOWUSED)) == LOWFIND)
     {
@@ -265,6 +284,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   {
     pos->ptr_to_rec=recpos;
     pos->next_key=0;
+    keyinfo->hash_buckets++;
   }
   else
   {
@@ -280,6 +300,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     }
     else
     {
+      keyinfo->hash_buckets++;
       pos->ptr_to_rec=recpos;
       pos->next_key=0;
       hp_movelink(pos, gpos, empty);

@@ -89,7 +89,12 @@ typedef struct st_key {
   enum  ha_key_alg algorithm;
   KEY_PART_INFO *key_part;
   char	*name;				/* Name of key */
-  ulong *rec_per_key;			/* Key part distribution */
+  /*
+    Array of AVG(#records with the same field value) for 1st ... Nth key part.
+    0 means 'not known'.
+    For temporary heap tables this member is NULL.
+  */
+  ulong *rec_per_key;
   union {
     int  bdb_return_if_eq;
   } handler;
