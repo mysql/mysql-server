@@ -29841,7 +29841,7 @@ For values specified as strings that include date part delimiters, it is not
 necessary to specify two digits for month or day values that are less than
 @code{10}.  @code{'1979-6-9'} is the same as @code{'1979-06-09'}.  Similarly,
 for values specified as strings that include time part delimiters, it is not
-necessary to specify two digits for hour, month, or second values that are
+necessary to specify two digits for hour, minute, or second values that are
 less than @code{10}.  @code{'1979-10-30 1:2:3'} is the same as
 @code{'1979-10-30 01:02:03'}.
 
