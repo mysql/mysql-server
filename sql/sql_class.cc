@@ -144,9 +144,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   *scramble= '\0';
 
   init();
-  init_sql_alloc(&mem_root,                    // must be after init()
-                 variables.query_alloc_block_size,
-                 variables.query_prealloc_size);
   /* Initialize sub structures */
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
   bzero((char*) &warn_root,sizeof(warn_root));
@@ -182,9 +179,6 @@ THD::THD():user_time(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-  init_sql_alloc(&transaction.mem_root,         
-		 variables.trans_alloc_block_size, 
-		 variables.trans_prealloc_size);
   /*
     We need good random number initialization for new thread
     Just coping global one will not work
@@ -224,6 +218,23 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+}
+
+
+/*
+  Init THD for query processing.
+  This has to be called once before we call mysql_parse.
+  See also comments in sql_class.h.
+*/
+
+void THD::init_for_queries()
+{
+  init_sql_alloc(&mem_root,
+                 variables.query_alloc_block_size,
+                 variables.query_prealloc_size);
+  init_sql_alloc(&transaction.mem_root,         
+		 variables.trans_alloc_block_size, 
+		 variables.trans_prealloc_size);
 }
 
 
