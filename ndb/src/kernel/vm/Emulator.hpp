@@ -55,7 +55,8 @@ struct EmulatorData {
   class WatchDog      * theWatchDog;
   class ThreadConfig  * theThreadConfig;
   class SimBlockList  * theSimBlockList;
-  
+  class SocketServer  * m_socket_server;
+
   /**
    * Constructor
    *

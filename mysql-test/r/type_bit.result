@@ -44,8 +44,6 @@ t1	CREATE TABLE `t1` (
   `a` bit(1) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a bit, key(a)) engine=innodb;
-ERROR 42000: The storage engine for the table doesn't support BIT FIELD
 create table t1 (a bit(64));
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),

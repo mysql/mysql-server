@@ -4528,7 +4528,11 @@ ndbcluster_init()
     (opt_ndb_optimized_node_selection);
 
   // Create a Ndb object to open the connection  to NDB
-  g_ndb= new Ndb(g_ndb_cluster_connection, "sys");
+  if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
+  {
+    DBUG_PRINT("error", ("failed to create global ndb object"));
+    goto ndbcluster_init_error;
+  }
   g_ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
   if (g_ndb->init() != 0)
   {
@@ -4581,6 +4585,10 @@ ndbcluster_init()
   if (pthread_create(&tmp, &connection_attrib, ndb_util_thread_func, 0))
   {
     DBUG_PRINT("error", ("Could not create ndb utility thread"));
+    hash_free(&ndbcluster_open_tables);
+    pthread_mutex_destroy(&ndbcluster_mutex);
+    pthread_mutex_destroy(&LOCK_ndb_util_thread);
+    pthread_cond_destroy(&COND_ndb_util_thread);
     goto ndbcluster_init_error;
   }
   
@@ -4588,7 +4596,12 @@ ndbcluster_init()
   DBUG_RETURN(&ndbcluster_hton);
 
  ndbcluster_init_error:
-  ndbcluster_end();
+  if(g_ndb)
+    delete g_ndb;
+  g_ndb= NULL;
+  if (g_ndb_cluster_connection)
+    delete g_ndb_cluster_connection;
+  g_ndb_cluster_connection= NULL;
   DBUG_RETURN(NULL);
 }
 
@@ -4603,6 +4616,9 @@ bool ndbcluster_end()
 {
   DBUG_ENTER("ndbcluster_end");
 
+  if (!ndbcluster_inited)
+    DBUG_RETURN(0);
+
   // Kill ndb utility thread
   (void) pthread_mutex_lock(&LOCK_ndb_util_thread);  
   DBUG_PRINT("exit",("killing ndb util thread: %lx", ndb_util_thread));
@@ -4615,8 +4631,7 @@ bool ndbcluster_end()
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  if (!ndbcluster_inited)
-    DBUG_RETURN(0);
+
   hash_free(&ndbcluster_open_tables);
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
