@@ -318,7 +318,7 @@ character-set=cp1250
 "Cursor is already open"
 "Cursor is not open"
 "Undeclared variable: %s"
-"Wrong number of FETCH variables"
+"Incorrect number of FETCH variables"
 "No data to FETCH"
 "Duplicate parameter: %s"
 "Duplicate variable: %s"
