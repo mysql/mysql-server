@@ -490,7 +490,7 @@ start_slave()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english \
-	    --skip-innodb \
+	    --skip-innodb --skip-slave-start \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
