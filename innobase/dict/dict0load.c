@@ -779,7 +779,7 @@ dict_load_table(
 	/* Track a corruption bug reported on the MySQL mailing list Jan 14,
 	2005: mix_len had a value different from 0 */
 
-	field = rec_get_nth_field(rec, 7, &len);
+	field = rec_get_nth_field_old(rec, 7, &len);
 	ut_a(len == 4);
 
 	mix_len = mach_read_from_4(field);
