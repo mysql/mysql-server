@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.13";
+const char *VER="11.14";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -592,7 +592,16 @@ static int get_options(int argc, char **argv)
       if (optarg)
 	strmov(pager, optarg);
       else
-	strmov(pager, (char*) getenv("PAGER"));
+      {
+	char *pagpoint = getenv("PAGER");
+	if (!((char*) (pagpoint)))
+	{
+	  strmov(pager, "stdout");
+	  opt_nopager=1;
+	}
+	else
+	  strmov(pager, pagpoint);
+      }
       strmov(default_pager, pager);
       break;
     case OPT_NOPAGER:
@@ -1823,6 +1832,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
       end--;
     end[0]=0;
     strmov(pager, pager_name);
+    strmov(default_pager, pager_name);
   }
   opt_nopager=0;
   tee_fprintf(stdout, "PAGER set to %s\n", pager);
