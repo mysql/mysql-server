@@ -1788,7 +1788,8 @@ static byte* get_key_column(GRANT_COLUMN *buff,uint *length,
 class GRANT_TABLE :public Sql_alloc
 {
 public:
-  char *host,*db, *user, *tname, *hash_key, *orig_host;
+  acl_host_and_ip host;
+  char *db, *user, *tname, *hash_key;
   ulong privs, cols;
   ulong sort;
   uint key_length;
@@ -1807,12 +1808,10 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   :privs(p), cols(c)
 {
   /* Host given by user */
-  orig_host=  strdup_root(&memex,h);
-  /* Convert empty hostname to '%' for easy comparision */
-  host=  orig_host[0] ? orig_host : (char*) "%";
+  update_hostname(&host, strdup_root(&memex, h));
   db =   strdup_root(&memex,d);
   user = strdup_root(&memex,u);
-  sort=  get_sort(3,host,db,user);
+  sort=  get_sort(3,host.hostname,db,user);
   tname= strdup_root(&memex,t);
   if (lower_case_table_names)
   {
@@ -1831,17 +1830,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
 {
   byte key[MAX_KEY_LENGTH];
 
-  orig_host= host= get_field(&memex, form->field[0]);
+  update_hostname(&host, get_field(&memex, form->field[0]));
   db=    get_field(&memex,form->field[1]);
   user=  get_field(&memex,form->field[2]);
   if (!user)
     user= (char*) "";
-  if (!orig_host)
-  {
-    orig_host= (char*) "";
-    host= (char*) "%";
-  }
-  sort=  get_sort(3, orig_host, db, user);
+  sort=  get_sort(3, host.hostname, db, user);
   tname= get_field(&memex,form->field[3]);
   if (!db || !tname)
   {
@@ -1868,7 +1862,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   if (cols)
   {
     int key_len;
-    col_privs->field[0]->store(orig_host,(uint) strlen(orig_host),
+    col_privs->field[0]->store(host.hostname,(uint) strlen(host.hostname),
                                &my_charset_latin1);
     col_privs->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
     col_privs->field[2]->store(user,(uint) strlen(user), &my_charset_latin1);
@@ -1945,17 +1939,12 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   {
     if (exact)
     {
-      if ((host &&
-	   !my_strcasecmp(&my_charset_latin1, host, grant_table->host)) ||
-	  (ip && !strcmp(ip,grant_table->host)))
+      if (compare_hostname(&grant_table->host, host, ip))
 	return grant_table;
     }
     else
     {
-      if (((host && !wild_case_compare(&my_charset_latin1,
-				       host,grant_table->host)) ||
-	   (ip && !wild_case_compare(&my_charset_latin1,
-				     ip,grant_table->host))) &&
+      if (compare_hostname(&grant_table->host, host, ip) &&
           (!found || found->sort < grant_table->sort))
 	found=grant_table;					// Host ok
     }
@@ -2692,7 +2681,7 @@ my_bool grant_init(THD *org_thd)
 
     if (check_no_resolve)
     {
-      if (hostname_requires_resolving(mem_check->host))
+      if (hostname_requires_resolving(mem_check->host.hostname))
       {
         sql_print_warning("'tables_priv' entry '%s %s@%s' "
                           "ignored in --skip-name-resolve mode.",
@@ -2981,10 +2970,7 @@ bool check_grant_db(THD *thd,const char *db)
 							  idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-	(thd->host && !wild_case_compare(&my_charset_latin1,
-                                         thd->host,grant_table->host) ||
-	 (thd->ip && !wild_case_compare(&my_charset_latin1,
-                                        thd->ip,grant_table->host))))
+        compare_hostname(&grant_table->host, thd->host, thd->ip))
     {
       error=0;					// Found match
       break;
@@ -3324,7 +3310,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(&my_charset_latin1, lex_user->host.str,
-                       grant_table->orig_host))
+                       grant_table->host.hostname))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
@@ -3606,7 +3592,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 							    counter);
       if (!(user=grant_table->user))
 	user= "";
-      if (!(host=grant_table->host))
+      if (!(host=grant_table->host.hostname))
 	host= "";
 
       if (!strcmp(user_name->user.str,user) &&
@@ -3735,7 +3721,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 							     counter);
 	if (!(user=grant_table->user))
 	  user= "";
-	if (!(host=grant_table->host))
+	if (!(host=grant_table->host.hostname))
 	  host= "";
 	
 	if (!strcmp(lex_user->user.str,user) &&
