@@ -23,6 +23,7 @@ SUBSELECT TODO:
    - remove double 'having' & 'having_list' from JOIN
      (sql_select.h/sql_select.cc)
 
+   - subselect in HAVING clause
    - add subselect union select (sql_union.cc)
    
 */
@@ -43,7 +44,7 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
   unit->offset_limit_cnt= unit->global_parameters->offset_limit;
   unit->select_limit_cnt= unit->global_parameters->select_limit+
-    select_lex->offset_limit;
+    unit->global_parameters ->offset_limit;
   if (unit->select_limit_cnt < unit->global_parameters->select_limit)
     unit->select_limit_cnt= HA_POS_ERROR;		// no limit
   if (unit->select_limit_cnt == HA_POS_ERROR)
@@ -148,9 +149,6 @@ int Item_subselect::exec()
     join->thd->lex.select= select_lex;
     join->exec();
     join->thd->lex.select= save_select;
-    //if (!executed)
-      //No rows returned => value is null (returned as inited)
-    //  executed= 1;
     return join->error;
   }
   return 0;

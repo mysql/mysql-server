@@ -194,7 +194,6 @@ protected:
 public:
   ulong options;
   enum sub_select_type linkage;
-  //uint sort_default;
   SQL_LIST order_list;                /* ORDER clause */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
   void init_query();

@@ -2690,12 +2690,12 @@ mysql_init_query(THD *thd)
 void
 mysql_init_select(LEX *lex)
 {
-  SELECT_LEX *select_lex = lex->select;
+  SELECT_LEX *select_lex= lex->select;
   select_lex->init_select();
-  select_lex->select_limit=lex->thd->default_select_limit;
-  select_lex->offset_limit=0;
-  lex->exchange = 0;
-  lex->proc_list.first=0;
+  select_lex->master_unit()->select_limit= select_lex->select_limit= 
+    lex->thd->default_select_limit;
+  lex->exchange= 0;
+  lex->proc_list.first= 0;
 }
 
 bool

@@ -607,9 +607,10 @@ JOIN::reinit()
     unit->select_limit_cnt= HA_POS_ERROR;		// no limit
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
-
+  
   if (setup_tables(tables_list))
     DBUG_RETURN(1);
+
   DBUG_RETURN(0);
 }
 
@@ -2830,7 +2831,9 @@ join_free(JOIN *join)
       }
       end_read_record(&tab->read_record);
     }
-    join->table=0;
+    //TODO: is enough join_free at the end of mysql_select?
+    if (!join->select_lex->depended)
+      join->table=0;
   }
   // We are not using tables anymore
   // Unlock all tables. We may be in an INSERT .... SELECT statement.
