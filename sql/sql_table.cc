@@ -80,7 +80,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
 	       tables->real_name);
-      error = 1;
+      error= 1;
       goto err;
     }
     while (global_read_lock && ! thd->killed)
@@ -93,7 +93,6 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
  err:
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -138,7 +137,6 @@ int mysql_rm_table_part2_with_lock(THD *thd,
   error=mysql_rm_table_part2(thd,tables, if_exists, dont_log_query);
 
   pthread_mutex_unlock(&LOCK_open);
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -171,9 +169,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool some_tables_deleted=0, tmp_table_deleted=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
+  if (lock_table_names(thd, tables))
+    DBUG_RETURN(1);
+
   for (table=tables ; table ; table=table->next)
   {
-    char *db=table->db ? table->db : thd->db;
+    char *db=table->db;
     mysql_ha_closeall(thd, table);
     if (!close_temporary_table(thd, db, table->real_name))
     {
@@ -248,6 +249,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
     error=1;
   }
+  unlock_table_names(thd, tables);
+
   DBUG_RETURN(error);
 }
 
