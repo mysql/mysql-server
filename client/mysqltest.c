@@ -1458,7 +1458,7 @@ int main(int argc, char** argv)
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND|QUERY_REAP);
+	error |= run_query(&cur_con->mysql, q, flags);
 	break;
       }
       case Q_SEND:

@@ -30,6 +30,11 @@ create table t2(m int);
 insert into t2 values (34),(67),(123);
 flush logs;
 show master logs;
+save_master_pos;
+#let slave catch up
+connection slave;
+sync_with_master;
+connection master;
 purge master logs to 'master-bin.003';
 show master logs;
 insert into t2 values (65);
