@@ -213,7 +213,7 @@
 "Deze operatie kan niet worden uitgevoerd met een actieve slave, doe eerst SLAVE STOP",
 "Deze operatie vereist een actieve slave, configureer slave en doe dan SLAVE START",
 "De server is niet geconfigureerd als slave, fix in configuratie bestand of met CHANGE MASTER TO",
-"Kon master info structuur niet initialiseren, controleer permissies in master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Kon slave thread niet aanmaken, controleer systeem resources",
 "Gebruiker %-.64s heeft reeds meer dan 'max_user_connections' actieve verbindingen",
 "U mag alleen constante expressies gebruiken bij SET",
