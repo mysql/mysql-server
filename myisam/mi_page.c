@@ -28,6 +28,9 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
 {
   uchar *tmp;
   uint page_size;
+  DBUG_ENTER("_mi_fetch_keypage");
+  DBUG_PRINT("enter",("page: %ld",page));
+
   tmp=(uchar*) key_cache_read(info->s->kfile,page,(byte*) buff,
 			     (uint) keyinfo->block_length,
 			     (uint) keyinfo->block_length,
@@ -39,7 +42,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
     DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno));
     info->last_keypage=HA_OFFSET_ERROR;
     my_errno=HA_ERR_CRASHED;
-    return 0;
+    DBUG_RETURN(0);
   }
   info->last_keypage=page;
   page_size=mi_getint(tmp);
@@ -51,7 +54,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
     my_errno = HA_ERR_CRASHED;
     tmp = 0;
   }
-  return tmp;
+  DBUG_RETURN(tmp);
 } /* _mi_fetch_keypage */
 
 
@@ -61,6 +64,8 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 		      my_off_t page, uchar *buff)
 {
   reg3 uint length;
+  DBUG_ENTER("_mi_write_keypage");
+
 #ifndef FAST					/* Safety check */
   if (page < info->s->base.keystart ||
       page+keyinfo->block_length > info->state->key_file_length ||
@@ -71,7 +76,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 			(long) info->state->key_file_length,
 			(long) page));
     my_errno=EINVAL;
-    return(-1);
+    DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page,buff));
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
@@ -87,10 +92,10 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     length=keyinfo->block_length;
   }
 #endif
-  return (key_cache_write(info->s->kfile,page,(byte*) buff,length,
+  DBUG_RETURN((key_cache_write(info->s->kfile,page,(byte*) buff,length,
 			 (uint) keyinfo->block_length,
 			 (int) ((info->lock_type != F_UNLCK) ||
-				info->s->delay_key_write)));
+				info->s->delay_key_write))));
 } /* mi_write_keypage */
 
 
