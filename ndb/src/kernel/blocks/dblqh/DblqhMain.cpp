@@ -1099,7 +1099,6 @@ void Dblqh::execACCFRAGCONF(Signal* signal)
   Uint32 fragId2 = signal->theData[3];
   Uint32 accFragPtr1 = signal->theData[4];
   Uint32 accFragPtr2 = signal->theData[5];
-  Uint32 hashCheckBit = signal->theData[6];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
   ndbrequire(addfragptr.p->addfragStatus == AddFragRecord::ACC_ADDFRAG);
 
@@ -1110,7 +1109,6 @@ void Dblqh::execACCFRAGCONF(Signal* signal)
   ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
   fragptr.p->accFragptr[0] = accFragPtr1;
   fragptr.p->accFragptr[1] = accFragPtr2;
-  fragptr.p->hashCheckBit = hashCheckBit;
 
   addfragptr.p->addfragStatus = AddFragRecord::WAIT_TWO_TUP;
   sendAddFragReq(signal);
@@ -13372,7 +13370,6 @@ void Dblqh::execSR_FRAGIDCONF(Signal* signal)
   ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
   fragptr.p->accFragptr[0] = srFragidConf->fragPtr[0];
   fragptr.p->accFragptr[1] = srFragidConf->fragPtr[1];
-  fragptr.p->hashCheckBit = srFragidConf->hashCheckBit;
   Uint32 noLocFrag = srFragidConf->noLocFrag;
   ndbrequire(noLocFrag == 2);
   Uint32 fragid[2];

@@ -449,7 +449,7 @@ private:
     State m_state;
     DictTabInfo::TableType m_tableType;
     Uint32 m_tableId;
-    Uint16 m_fragOff;           // offset for duplicate fragId bits
+    Uint16 unused;
     Uint16 m_numFrags;
     Uint32 m_fragId[MaxIndexFragments];
     Uint32 m_fragPtrI[MaxIndexFragments];
@@ -475,7 +475,7 @@ private:
   struct Frag {
     Uint32 m_tableId;           // copy from index level
     Uint32 m_indexId;
-    Uint16 m_fragOff;
+    Uint16 unused;
     Uint16 m_fragId;
     Uint32 m_descPage;          // copy from index level
     Uint16 m_descOff;
@@ -1072,7 +1072,6 @@ inline
 Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_tableId(RNIL),
   m_indexId(RNIL),
-  m_fragOff(ZNIL),
   m_fragId(ZNIL),
   m_descPage(RNIL),
   m_descOff(0),
