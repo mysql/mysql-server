@@ -231,8 +231,8 @@ security bug in @code{MySQL Server}, you should send an e-mail to
 
 @menu
 * Manual-info::                 About This Manual
-* What-is::                     What Is MySQL
-* What is MySQL AB::            What Is MySQL AB
+* What-is::                     What Is MySQL?
+* What is MySQL AB::            What Is MySQL AB?
 * Licensing and Support::       MySQL Support and Licensing
 * MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
@@ -413,7 +413,7 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 
 
 @node What-is, What is MySQL AB, Manual-info, Introduction
-@section What Is MySQL
+@section What Is MySQL?
 
 @cindex MySQL, defined
 @cindex MySQL, introduction
@@ -964,7 +964,7 @@ year values).
 
 
 @node What is MySQL AB, Licensing and Support, What-is, Introduction
-@section What Is MySQL AB
+@section What Is MySQL AB?
 
 @cindex MySQL AB, defined
 
@@ -3686,7 +3686,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 * TODO MySQL 4.1::              Things That Should be in 4.1
 * TODO future::                 Things That Must be Done in the Near Future
 * TODO sometime::               Things That Have to be Done Sometime
-* TODO unplanned::              Things we don't Have any Plans to do
+* TODO unplanned::              Things We Have No Plans to do
 @end menu
 
 This appendix lists the features that we plan to implement in MySQL Server.
@@ -4150,7 +4150,7 @@ Time is given according to amount of work, not real time.
 
 
 @node TODO unplanned,  , TODO sometime, TODO
-@subsection Things we don't Have any Plans to do
+@subsection Things We Have No Plans to do
 
 @itemize @bullet
 @item
@@ -13290,7 +13290,7 @@ mysql> SELECT * FROM shop;
 * example-user-variables::      Using user variables
 * example-Foreign keys::        Using foreign keys
 * Searching on two keys::       Searching on Two Keys
-* Calculating days::            Calculating visits per day
+* Calculating days::            Calculating Visits Per Day
 * example-AUTO_INCREMENT::      Using AUTO_INCREMENT
 @end menu
 
@@ -13595,7 +13595,7 @@ The above way to solve this query is in effect a @code{UNION} of two queries.
 @xref{UNION}.
 
 @node Calculating days, example-AUTO_INCREMENT, Searching on two keys, Examples
-@subsection Calculating visits per day
+@subsection Calculating Visits Per Day
 
 @findex BIT_OR
 @findex BIT_COUNT
@@ -13628,7 +13628,7 @@ year/month combination, with automatic removal of duplicate entries.
 
 
 @node example-AUTO_INCREMENT,  , Calculating days, Examples
-@subsection Using AUTO_INCREMENT
+@subsection Using @code{AUTO_INCREMENT}
 
 @cindex AUTO_INCREMENT
 The @code{AUTO_INCREMENT} attribute can be used to generate an unique
@@ -14062,15 +14062,15 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 
 
 @menu
-* Command-line options::        mysqld Command-line Options
-* Option files::                my.cnf Option Files
+* Command-line options::        @code{mysqld} Command-line Options
+* Option files::                @file{my.cnf} Option Files
 * Installing many servers::     Installing Many Servers on the Same Machine
 * Multiple servers::            Running Multiple MySQL Servers on the Same Machine
 @end menu
 
 
 @node Command-line options, Option files, Configuring MySQL, Configuring MySQL
-@subsection mysqld Command-line Options
+@subsection @code{mysqld} Command-line Options
 
 @findex command-line options
 @cindex options, command-line
@@ -14361,7 +14361,7 @@ Print out warnings like @code{Aborted connection...} to the @file{.err} file.
 
 
 @node Option files, Installing many servers, Command-line options, Configuring MySQL
-@subsection my.cnf Option Files
+@subsection @file{my.cnf} Option Files
 
 @cindex default options
 @cindex option files
@@ -17213,7 +17213,7 @@ file.
 @menu
 * Secure basics::               Basics
 * Secure requirements::         Requirements
-* Secure GRANT::                GRANT OPTIONS
+* Secure GRANT::                @code{GRANT} Options
 @end menu
 
 @node Secure basics, Secure requirements, Secure connections, Secure connections
@@ -17287,7 +17287,7 @@ examining if @code{SHOW VARIABLES LIKE 'have_openssl'} returns @code{YES}.
 
 
 @node Secure GRANT,  , Secure requirements, Secure connections
-@subsubsection GRANT options
+@subsubsection @code{GRANT} Options
 
 @cindex SSL related options
 @findex REQUIRE GRANT option
@@ -20219,7 +20219,7 @@ Create Table: CREATE TABLE t (
 * Character sets::              The Character Set Used for Data and Sorting
 * Languages::                   Non-English Error Messages
 * Adding character set::        Adding a New Character Set
-* Character arrays::            The character definition arrays
+* Character arrays::            The Character Definition Arrays
 * String collating::            String Collating Support
 * Multi-byte characters::       Multi-byte Character Support
 * Problems with character sets::  Problems With Character Sets
@@ -20489,7 +20489,7 @@ distribution, mail a patch to @email{internals@@lists.mysql.com}.
 
 
 @node Character arrays, String collating, Adding character set, Localisation
-@subsection The character definition arrays
+@subsection The Character Definition Arrays
 
 @code{to_lower[]} and @code{to_upper[]} are simple arrays that hold the
 lowercase and uppercase characters corresponding to each member of the
@@ -20616,10 +20616,10 @@ table with @code{myisamchk -dvv table_name}.
 
 @menu
 * Server-Side Overview::        Overview of the Server-Side Scripts and Utilities
-* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
-* mysqld_multi::                mysqld_multi, program for managing multiple MySQL servers
-* myisampack::                  myisampack, The MySQL Compressed Read-only Table Generator
-* mysqld-max::                  mysqld-max, An extended mysqld server
+* safe_mysqld::                 @code{safe_mysqld}, the Wrapper Around @code{mysqld}
+* mysqld_multi::                @code{mysqld_multi}, Program for Managing Multiple MySQL Servers
+* myisampack::                  @code{myisampack}, The MySQL Compressed Read-only Table Generator
+* mysqld-max::                  @code{mysqld-max}, An Extended @code{mysqld} Server
 @end menu
 
 
@@ -20751,7 +20751,7 @@ shell> replace a b b a -- file1 file2 ...
 
 
 @node safe_mysqld, mysqld_multi, Server-Side Overview, Server-Side Scripts
-@subsection safe_mysqld, the wrapper around mysqld
+@subsection @code{safe_mysqld}, the Wrapper Around @code{mysqld}
 
 @cindex tools, safe_mysqld
 @cindex scripts
@@ -20857,7 +20857,7 @@ edited version that you can reinstall.
 
 
 @node mysqld_multi, myisampack, safe_mysqld, Server-Side Scripts
-@subsection mysqld_multi, program for managing multiple MySQL servers
+@subsection @code{mysqld_multi}, Program for Managing Multiple MySQL Servers
 
 @cindex tools, mysqld_multi
 @cindex scripts
@@ -21064,7 +21064,7 @@ user       = jani
 
 
 @node myisampack, mysqld-max, mysqld_multi, Server-Side Scripts
-@subsection myisampack, The MySQL Compressed Read-only Table Generator
+@subsection @code{myisampack}, The MySQL Compressed Read-only Table Generator
 
 @cindex compressed tables
 @cindex tables, compressed
@@ -21448,7 +21448,7 @@ If you want to unpack a packed table, you can do this with the
 
 
 @node mysqld-max,  , myisampack, Server-Side Scripts
-@subsection mysqld-max, An extended mysqld server
+@subsection @code{mysqld-max}, An Extended @code{mysqld} Server
 
 @cindex @code{mysqld-max}
 
@@ -21541,13 +21541,13 @@ binaries includes:
 @menu
 * Client-Side Overview::        Overview of the Client-Side Scripts and Utilities
 * mysql::                       The Command-line Tool
-* mysqladmin::                  mysqladmin, Administrating a MySQL Server
+* mysqladmin::                  @code{mysqladmin}, Administrating a MySQL Server
 * Using mysqlcheck::            Using @code{mysqlcheck} for Table Maintenance and Crash Recovery
-* mysqldump::                   mysqldump, Dumping Table Structure and Data
-* mysqlhotcopy::                mysqlhotcopy, Copying MySQL Databases and Tables
-* mysqlimport::                 mysqlimport, Importing Data from Text Files
+* mysqldump::                   @code{mysqldump}, Dumping Table Structure and Data
+* mysqlhotcopy::                @code{mysqlhotcopy}, Copying MySQL Databases and Tables
+* mysqlimport::                 @code{mysqlimport}, Importing Data from Text Files
 * mysqlshow::                   Showing Databases, Tables, and Columns
-* perror::                      perror, Explaining Error Codes
+* perror::                      @code{perror}, Explaining Error Codes
 * Batch Commands::              How to Run SQL Commands from a Text File
 @end menu
 
@@ -22086,7 +22086,7 @@ file, but want to be able to turn the feature off sometimes.
 
 
 @node mysqladmin, Using mysqlcheck, mysql, Client-Side Scripts
-@subsection mysqladmin, Administrating a MySQL Server
+@subsection @code{mysqladmin}, Administrating a MySQL Server
 
 @cindex administration, server
 @cindex server administration
@@ -22333,7 +22333,7 @@ Output version information and exit.
 
 
 @node mysqldump, mysqlhotcopy, Using mysqlcheck, Client-Side Scripts
-@subsection mysqldump, Dumping Table Structure and Data
+@subsection @code{mysqldump}, Dumping Table Structure and Data
 
 @cindex dumping, databases
 @cindex databases, dumping
@@ -22534,7 +22534,7 @@ mysqldump --all-databases > all_databases.sql
 
 
 @node mysqlhotcopy, mysqlimport, mysqldump, Client-Side Scripts
-@subsection mysqlhotcopy, Copying MySQL Databases and Tables
+@subsection @code{mysqlhotcopy}, Copying MySQL Databases and Tables
 
 @cindex dumping, databases
 @cindex databases, dumping
@@ -22608,7 +22608,7 @@ execute @code{FLUSH TABLES}).
 
 
 @node mysqlimport, mysqlshow, mysqlhotcopy, Client-Side Scripts
-@subsection mysqlimport, Importing Data from Text Files
+@subsection @code{mysqlimport}, Importing Data from Text Files
 
 @cindex importing, data
 @cindex data, importing
@@ -23190,7 +23190,7 @@ and then take a backup and remove @file{mysql.old}.
 * Replication Implementation::  Replication Implementation Overview
 * Replication HOWTO::           How To Set Up Replication
 * Replication Features::        Replication Features and Known Problems
-* Replication Options::         Replication Options in my.cnf
+* Replication Options::         Replication Options in @file{my.cnf}
 * Replication SQL::             SQL Commands Related to Replication
 * Replication FAQ::             Replication FAQ
 * Replication Problems::        Troubleshooting Replication
@@ -23602,7 +23602,7 @@ it happens to affect your application -  use @code{slave-skip-errors}.
 
 
 @node Replication Options, Replication SQL, Replication Features, Replication
-@subsection Replication Options in my.cnf
+@subsection Replication Options in @file{my.cnf}
 
 If you are using replication, we recommend you to use MySQL Version
 3.23.30 or later. Older versions work, but they do have some bugs and are
@@ -37464,7 +37464,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 * InnoDB transaction model::    InnoDB Transaction Model.
 * Implementation::              Implementation of Multi-versioning
 * Table and index::             Table and Index Structures
-* File space management::       File Space Management and Disk i/o
+* File space management::       File Space Management and Disk I/O
 * Error handling::              Error Handling
 * InnoDB restrictions::         Restrictions on InnoDB Tables
 * InnoDB contact information::  InnoDB Contact Information.
@@ -37765,7 +37765,7 @@ on the same physical disk. Putting log files on a different disk from
 data is very often beneficial for performance.
 You can also use @strong{raw disk partitions} (raw devices)
 as data files. In some Unixes
-they speed up i/o. See the manual section on InnoDB file space management 
+they speed up I/O. See the manual section on InnoDB file space management 
 about how to specify them in @file{my.cnf}.
 
 @strong{Warning:} on Linux x86 you must be careful you @strong{do not set memory usage
@@ -37833,7 +37833,7 @@ from 1M to 1/nth of the size of the buffer pool specified below,
 where n is the number of log files in the group. The
 bigger the value,
 the less checkpoint flush activity is needed in the buffer pool,
-saving disk i/o. But bigger log files also mean that recovery will be
+saving disk I/O. But bigger log files also mean that recovery will be
 slower in case of a crash. The combined size of log files must
 be < 4 GB on 32-bit computers.
 @item @code{innodb_log_buffer_size} @tab
@@ -37841,13 +37841,13 @@ The size of the buffer which InnoDB uses to write log to the log files
 on disk.  Sensible values range from 1M to half the combined size of log
 files. A big log buffer allows large transactions to run without a need
 to write the log to disk until the transaction commit. Thus, if you have
-big transactions, making the log buffer big will save disk i/o.
+big transactions, making the log buffer big will save disk I/O.
 @item @code{innodb_flush_log_at_trx_commit} @tab
 Normally this is set to 1, meaning that at a transaction commit the log
 is flushed to disk, and the modifications made by the transaction become
 permanent, and survive a database crash. If you are willing to
 compromise this safety, and you are running small transactions, you may
-set this to 0 to reduce disk i/o to the logs.
+set this to 0 to reduce disk I/O to the logs.
 @item @code{innodb_log_arch_dir} @tab
 The directory where fully written log files would be archived if we used
 log archiving.  The value of this parameter should currently be set the
@@ -37858,7 +37858,7 @@ done by MySQL using its own log files, there is currently no need to
 archive InnoDB log files.
 @item @code{innodb_buffer_pool_size} @tab
 The size of the memory buffer InnoDB uses to cache data and indexes of
-its tables.  The bigger you set this the less disk i/o is needed to
+its tables.  The bigger you set this the less disk I/O is needed to
 access data in tables. On a dedicated database server you may set this
 parameter up to 80 % of the machine physical memory size. Do not set it
 too large, though, because competition of the physical memory may cause
@@ -37871,8 +37871,8 @@ need to allocate here. If InnoDB runs out of memory in this pool, it
 will start to allocate memory from the operating system, and write
 warning messages to the MySQL error log.
 @item @code{innodb_file_io_threads} @tab
-Number of file i/o threads in InnoDB. Normally, this should be 4, but
-on Windows disk i/o may benefit from a larger number.
+Number of file I/O threads in InnoDB. Normally, this should be 4, but
+on Windows disk I/O may benefit from a larger number.
 @item @code{innodb_lock_wait_timeout} @tab
 Timeout in seconds an InnoDB transaction may wait for a lock before
 being rolled back.  InnoDB automatically detects transaction deadlocks
@@ -38040,7 +38040,7 @@ After all data has been inserted you can rename the tables.
 
 During the conversion of big tables you should set the InnoDB
 buffer pool size big
-to reduce disk i/o. Not bigger than 80 % of the physical memory, though.
+to reduce disk I/O. Not bigger than 80 % of the physical memory, though.
 You should set InnoDB log files big, and also the log buffer large.
 
 Make sure you do not run out of tablespace: InnoDB tables take a lot
@@ -38048,7 +38048,7 @@ more space than MyISAM tables. If an @code{ALTER TABLE} runs out
 of space, it will start a rollback, and that can take hours if it is
 disk-bound.
 In inserts InnoDB uses the insert buffer to merge secondary index records
-to indexes in batches. That saves a lot of disk i/o. In rollback no such
+to indexes in batches. That saves a lot of disk I/O. In rollback no such
 mechanism is used, and the rollback can take 30 times longer than the
 insertion.
 
@@ -38056,7 +38056,7 @@ In the case of a runaway rollback, if you do not have valuable data in your
 database,
 it is better that you kill the database process and delete all InnoDB data
 and log files and all InnoDB table @file{.frm} files, and start
-your job again, rather than wait for millions of disk i/os to complete.
+your job again, rather than wait for millions of disk I/Os to complete.
 
 @subsubsection  Foreign Key Constraints
 
@@ -38310,7 +38310,7 @@ has to make a checkpoint and often this involves flushing of
 modified database pages to disk.
 
 The above explains why making your log files very big may save
-disk i/o in checkpointing. It can make sense to set
+disk I/O in checkpointing. It can make sense to set
 the total size of the log files as big as the buffer pool or even bigger.
 The drawback in big log files is that crash recovery can last longer
 because there will be more log to apply to the database.
@@ -38702,7 +38702,7 @@ them to the above @code{set autocommit=0; ... commit;} wrappers.
 
 @strong{8.}
 Beware of big rollbacks of mass inserts: InnoDB uses the insert buffer
-to save disk i/o in inserts, but in a corresponding rollback no such
+to save disk I/O in inserts, but in a corresponding rollback no such
 mechanism is used. A disk-bound rollback can take 30 times the time
 of the corresponding insert. Killing the database process will not
 help because the rollback will start again at the database startup. The
@@ -38753,7 +38753,7 @@ lock waits of a transactions,
 @item
 semaphore waits of threads,
 @item
-pending file i/o requests,
+pending file I/O requests,
 @item
 buffer pool statistics, and
 @item
@@ -38869,18 +38869,18 @@ Section SYNC ARRAY INFO reports threads waiting
 for a semaphore and statistics on how many times
 threads have needed a spin or a wait on a mutex or
 a rw-lock semaphore. A big number of threads waiting
-for semaphores may be a result of disk i/o, or
+for semaphores may be a result of disk I/O, or
 contention problems inside InnoDB. Contention can be
 due to heavy parallelism of queries, or problems in
 operating system thread scheduling.
 @item
 Section CURRENT PENDING FILE I/O'S lists pending
-file i/o requests. A large number of these indicates
-that the workload is disk i/o -bound.
+file I/O requests. A large number of these indicates
+that the workload is disk I/O-bound.
 @item
 Section BUFFER POOL gives you statistics
 on pages read and written. You can calculate from these
-numbers how many data file i/o's your queries are
+numbers how many data file I/Os your queries are
 currently doing.
 @end itemize
 
@@ -38967,7 +38967,7 @@ Accessing a row through the clustered index is fast, because
 the row data will be on the same page where the index search
 leads us. In many databases the data is traditionally stored on a different
 page from the index record. If a table is large, the clustered
-index architecture often saves a disk i/o when compared to the
+index architecture often saves a disk I/O when compared to the
 traditional solution.
 
 The records in non-clustered indexes (we also call them secondary indexes),
@@ -39010,7 +39010,7 @@ clustered index do not require random reads from a disk.
 
 On the other hand, secondary indexes are usually non-unique and
 insertions happen in a relatively random order into secondary indexes.
-This would cause a lot of random disk i/o's without a special mechanism
+This would cause a lot of random disk I/Os without a special mechanism
 used in InnoDB.
 
 If an index record should be inserted to a non-unique secondary index,
@@ -39023,7 +39023,7 @@ pool, and insertions can be made to it very fast.
 
 The insert buffer is periodically merged to the secondary index
 trees in the database. Often we can merge several insertions on the
-same page in of the index tree, and hence save disk i/o's.
+same page in of the index tree, and hence save disk I/Os.
 It has been measured that the insert buffer can speed up insertions
 to a table up to 15 times.
 
@@ -39111,27 +39111,27 @@ integer that can be stored in the specified integer type.
 
 
 @node File space management, Error handling, Table and index, InnoDB
-@subsection File Space Management and Disk i/o
+@subsection File Space Management and Disk I/O
 
 @menu
-* InnoDB Disk i/o::             Disk i/o
+* InnoDB Disk i/o::             Disk I/O
 * InnoDB File space::           File Space Management
 * InnoDB File Defragmenting::   Defragmenting a Table
 @end menu
 
 
 @node InnoDB Disk i/o, InnoDB File space, File space management, File space management
-@subsubsection Disk i/o
+@subsubsection Disk I/O
 
-In disk i/o InnoDB uses asynchronous i/o. On Windows NT
-it uses the native asynchronous i/o provided by the operating system.
-On Unix, InnoDB uses simulated asynchronous i/o built
-into InnoDB: InnoDB creates a number of i/o threads to take care
-of i/o operations, such as read-ahead. In a future version we will
+In disk I/O InnoDB uses asynchronous I/O. On Windows NT
+it uses the native asynchronous I/O provided by the operating system.
+On Unix, InnoDB uses simulated asynchronous I/O built
+into InnoDB: InnoDB creates a number of I/O threads to take care
+of I/O operations, such as read-ahead. In a future version we will
 add support for simulated aio on Windows NT and native aio on those
 versions of Unix which have one.
 
-On Windows NT InnoDB uses non-buffered i/o. That means that the disk
+On Windows NT InnoDB uses non-buffered I/O. That means that the disk
 pages InnoDB reads or writes are not buffered in the operating system
 file cache. This saves some memory bandwidth.
 
@@ -39170,16 +39170,16 @@ partition!
 innodb_data_file_path=hdd1:5Graw;hdd2:2Graw
 @end example
 
-By using a raw disk you can on some Unixes perform unbuffered i/o.
+By using a raw disk you can on some Unixes perform unbuffered I/O.
 
 There are two read-ahead heuristics in InnoDB: sequential read-ahead
 and random read-ahead. In sequential read-ahead InnoDB notices that
 the access pattern to a segment in the tablespace is sequential.
 Then InnoDB will post in advance a batch of reads of database pages to the
-i/o system. In random read-ahead InnoDB notices that some area
+I/O system. In random read-ahead InnoDB notices that some area
 in a tablespace seems to be in the process of being
 fully read into the buffer pool. Then InnoDB posts the remaining
-reads to the i/o system.
+reads to the I/O system.
 
 
 @node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
@@ -51251,6 +51251,8 @@ Added deadlock detection sanity checks to @code{INSERT DELAYED}.
 @appendixsubsec Changes in release 3.23.16
 
 @itemize @bullet
+@item
+Added @code{SLAVE START} and @code{SLAVE STOP} statements.
 @item
 Added @code{TYPE=QUICK} option to @code{CHECK} and to @code{REPAIR}.
 @item
