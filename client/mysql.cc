@@ -437,7 +437,7 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 static void usage(int version)
 {
-  printf("%s  Ver 11.2 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 11.3 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
@@ -764,21 +764,23 @@ static int read_lines(bool execute_commands)
       line=_cgets(linebuffer);
     }
 #else
-    if (opt_outfile)
     {
-      if (glob_buffer.is_empty())
-	fflush(OUTFILE);
-      fputs(glob_buffer.is_empty() ? "mysql> " :
-	    !in_string ? "    -> " :
-	    in_string == '\'' ?
-	    "    '> " : "    \"> ", OUTFILE);
+      if (opt_outfile)
+      {
+	if (glob_buffer.is_empty())
+	  fflush(OUTFILE);
+	fputs(glob_buffer.is_empty() ? "mysql> " :
+	      !in_string ? "    -> " :
+	      in_string == '\'' ?
+	      "    '> " : "    \"> ", OUTFILE);
+      }
+      line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
+			     !in_string ? "    -> " :
+			     in_string == '\'' ?
+			     "    '> " : "    \"> "));
+      if (opt_outfile)
+	fprintf(OUTFILE, "%s\n", line);
     }
-    line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
-			   !in_string ? "    -> " :
-			   in_string == '\'' ?
-			   "    '> " : "    \"> "));
-    if (opt_outfile)
-      fprintf(OUTFILE, "%s\n", line);
 #endif
     if (!line)					// End of file
     {
