@@ -265,7 +265,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   TABLE_LIST tables;
-  char creator[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -276,7 +275,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, default_values); // Get default values for fields
-    strxmov(creator, thd->user, "@", thd->host_or_ip, NullS);
 
     if (table->fields != MYSQL_PROC_FIELD_COUNT)
     {
@@ -302,7 +300,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     table->field[MYSQL_PROC_FIELD_BODY]->
       store(sp->m_body.str, sp->m_body.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_DEFINER]->
-      store(creator, (uint)strlen(creator), system_charset_info);
+      store(thd->user, (uint)strlen(thd->user), system_charset_info);
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
     table->field[MYSQL_PROC_FIELD_SQL_MODE]->
       store((longlong)thd->variables.sql_mode);
