@@ -1167,6 +1167,11 @@ void Query_cache::pack(ulong join_limit, uint iteration_limit)
 
 void Query_cache::destroy()
 {
+  if ( !initialized )
+  {
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return;
+  }
   DBUG_ENTER("Query_cache::destroy");
   free_cache(1);
   pthread_mutex_destroy(&structure_guard_mutex);
