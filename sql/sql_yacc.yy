@@ -551,7 +551,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_rkey_mode handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
-	precision
+	precision union_option
 END_OF_INPUT
 
 %type <NONE>
@@ -3404,11 +3404,15 @@ union:
   | union_list
 
 union_list:
-  UNION_SYM  
+  UNION_SYM    union_option
   {
     LEX *lex=Lex;
     if (lex->exchange) YYABORT; /* Only the last SELECT can have  INTO...... */
     lex->sql_command=SQLCOM_UNION_SELECT;
     mysql_new_select(lex); lex->select->linkage=UNION_TYPE;
   } 
-  select
+	select
+
+union_option:
+  /* empty */ {}
+  | ALL {Lex->union_option=1;}

@@ -180,7 +180,7 @@ typedef struct st_lex {
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
-  uint grant,grant_tot_col,which_columns;
+  uint grant,grant_tot_col,which_columns, union_option;
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type;

@@ -72,10 +72,10 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
 					return res;
 				}
 				table=create_result->table;
-				List_iterator<Item> it(*(create_result->fields));
+/*				List_iterator<Item> it(*(create_result->fields));
 				Item *item;
 				while ((item= it++))
-					fields.push_back(item);
+				fields.push_back(item);*/
 				if (!(resulting = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
 					return 1;
 				resulting->db=tables->db ? tables->db : thd->db;
@@ -88,8 +88,8 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
     }
     else // Then we do INSERT from SELECT
     {
-      select_result *result;
-      if ((result=new select_insert(table, &fields, DUP_IGNORE, true)))
+			select_insert *result;
+      if ((result=new select_insert(table, create_result->fields, DUP_IGNORE, true)))
       {
 				res=mysql_select(thd,tables,sl->item_list,
 												 sl->where,
@@ -104,7 +104,7 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
 				if (res) 
 				{
 					delete create_result;
-					return 1;
+					return res;
 				}
       }
       else
@@ -142,6 +142,8 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
       result->abort();
 		delete result;
   }
+	else
+		res=-1;
   delete create_result;
   return res;
 }
