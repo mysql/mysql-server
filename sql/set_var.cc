@@ -1280,9 +1280,15 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
-
-  if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
+  { 
+    if (!nullable)
+    {
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "NULL");
+      return 1;
+    }
+    tmp= NULL;
+  }
+  else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
       !(tmp=get_old_charset_by_name(res->c_ptr())))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());

@@ -433,7 +433,9 @@ SHOW_TYPE type() { return SHOW_CHAR; }
 class sys_var_character_set :public sys_var_thd
 {
 public:
-  sys_var_character_set(const char *name_arg) :sys_var_thd(name_arg) {}
+  bool nullable;
+  sys_var_character_set(const char *name_arg) :sys_var_thd(name_arg) 
+  { nullable= 0; }
   bool check(THD *thd, set_var *var);
 SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
@@ -460,7 +462,8 @@ class sys_var_character_set_results :public sys_var_character_set
 {
 public:
   sys_var_character_set_results(const char *name_arg) :
-    sys_var_character_set(name_arg) {}
+    sys_var_character_set(name_arg) 
+    { nullable= 1; }
   void set_default(THD *thd, enum_var_type type);
   CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
 };
