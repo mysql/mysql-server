@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.9"
+#define MTEST_VERSION "1.10"
 
 #include <global.h>
 #include <my_sys.h>
@@ -84,7 +84,7 @@
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
-static int port = 0;
+static int port = 0, opt_big_test=0;
 static uint start_lineno, *lineno;
 
 static char **default_argv;
@@ -1410,6 +1410,7 @@ struct option long_options[] =
 {
   {"debug",       optional_argument, 0, '#'},
   {"database",    required_argument, 0, 'D'},
+  {"big-test",	  no_argument,	     0, 'B'},
   {"help",        no_argument,       0, '?'},
   {"host",        required_argument, 0, 'h'},
   {"password",    optional_argument, 0, 'p'},
@@ -1453,6 +1454,7 @@ void usage()
   -u, --user=...           User for login.\n\
   -p[password], --password[=...]\n\
                            Password to use when connecting to server.\n\
+  -B, --big-test	   Define BIG_TEST to 1\n\
   -D, --database=...       Database to use.\n\
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
@@ -1475,7 +1477,7 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  while((c = getopt_long(argc, argv, "h:p::u:P:D:S:R:x:t:T:#:?rvVq",
+  while((c = getopt_long(argc, argv, "h:p::u:BP:D:S:R:x:t:T:#:?rvVq",
 			 long_options, &option_index)) != EOF)
     {
       switch(c)	{
@@ -1508,6 +1510,9 @@ int parse_args(int argc, char **argv)
 	else
 	  tty_password=1;
 	break;
+      case 'B':
+        opt_big_test=1;
+        break;
       case 'P':
 	port = atoi(optarg);
 	break;
@@ -1814,6 +1819,7 @@ static void var_from_env(const char* name, const char* def_val)
   hash_insert(&var_hash, (byte*)v);
 }
 
+
 static void init_var_hash()
 {
   if (hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
@@ -1821,6 +1827,7 @@ static void init_var_hash()
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");
   var_from_env("MYSQL_TEST_DIR", "/tmp");
+  var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
 }
 
 int main(int argc, char** argv)
