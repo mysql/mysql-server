@@ -168,6 +168,21 @@ SELECT FOUND_ROWS();
 DROP TABLE t1;
 
 #
+# Bug #6089: queries which don't use any tables
+#
+
+SELECT 'foo';
+SELECT FOUND_ROWS();
+SELECT SQL_CALC_FOUND_ROWS 'foo';
+SELECT FOUND_ROWS();
+SELECT SQL_CALC_FOUND_ROWS 'foo' limit 0;
+SELECT FOUND_ROWS();
+SELECT FOUND_ROWS();
+
+SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0;
+SELECT FOUND_ROWS();
+
+#
 # Bug #7945: group by + distinct with constant expression + limit 
 #
 
@@ -175,3 +190,4 @@ CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (1,2), (1,3), (1,4), (1,5);
 SELECT SQL_CALC_FOUND_ROWS DISTINCT 'a' FROM t1 GROUP BY b LIMIT 2;
 SELECT FOUND_ROWS();
+DROP TABLE t1;

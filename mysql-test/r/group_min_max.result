@@ -1657,6 +1657,44 @@ a
 b
 c
 d
+select distinct a1,a1 from t1;
+a1	a1
+a	a
+b	b
+c	c
+d	d
+select distinct a2,a1,a2,a1 from t1;
+a2	a1	a2	a1
+a	a	a	a
+b	a	b	a
+a	b	a	b
+b	b	b	b
+a	c	a	c
+b	c	b	c
+a	d	a	d
+b	d	b	d
+select distinct t1.a1,t2.a1 from t1,t2;
+a1	a1
+a	a
+b	a
+c	a
+d	a
+a	b
+b	b
+c	b
+d	b
+a	c
+b	c
+c	c
+d	c
+a	d
+b	d
+c	d
+d	d
+a	e
+b	e
+c	e
+d	e
 explain select distinct a1,a2,b from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
