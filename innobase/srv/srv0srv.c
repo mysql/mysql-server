@@ -2802,6 +2802,11 @@ loop:
 			goto suspend_thread;
 		}
 
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+			goto background_loop;
+		}
+
 		/* We flush the log once in a second even if no commit
 		is issued or the we have specified in my.cnf no flush
 		at transaction commit */
@@ -2828,11 +2833,6 @@ loop:
 						(char*)"flushing log";
 			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 			log_flush_to_disk();
-		}
-		
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
-
-			goto background_loop;
 		}
 
 		if (srv_activity_count == old_activity_count) {
