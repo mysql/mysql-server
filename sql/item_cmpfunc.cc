@@ -1415,9 +1415,12 @@ cmp_item_row::~cmp_item_row()
 
 void cmp_item_row::store_value(Item *item)
 {
+  DBUG_ENTER("cmp_item_row::store_value");
   THD *thd= current_thd;
   n= item->cols();
-  if ((comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n)))
+  if (!comparators)
+    comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n);
+  if (comparators)
   {
     item->bring_value();
     item->null_value= 0;
@@ -1429,6 +1432,7 @@ void cmp_item_row::store_value(Item *item)
       item->null_value|= item->el(i)->null_value;
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
