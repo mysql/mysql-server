@@ -3110,7 +3110,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
-  {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
+  {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG_AS_LONGLONG},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
 #ifdef HAVE_MLOCKALL

@@ -1528,8 +1528,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* We changed a temporary table */
     if (error)
     {
+      /* 
+       * The following function call will also free a 
+       * new_table pointer.
+       * Therefore, here new_table pointer is not free'd as it is 
+       * free'd in close_temporary() which is called by by the 
+       * close_temporary_table() function.
+      */
       close_temporary_table(thd,new_db,tmp_name);
-      my_free((gptr) new_table,MYF(0));
       goto err;
     }
     /* Close lock if this is a transactional table */
