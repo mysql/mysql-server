@@ -21,6 +21,7 @@
 #endif
 #include  "mysql_priv.h"
 #include "slave.h"
+#include <my_dir.h>
 #endif /* MYSQL_CLIENT */
 
 #ifdef MYSQL_CLIENT
@@ -127,6 +128,25 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg):
     when = time(NULL);
   }
 }
+
+static void cleanup_load_tmpdir()
+{
+  MY_DIR *dirp;
+  FILEINFO *file;
+  uint i;
+  if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
+    return;
+
+  for (i=0;i<(uint)dirp->number_off_files;i++)
+  {
+    file=dirp->dir_entry+i;
+    if (!memcmp(file->name,"SQL_LOAD-",9))
+      my_delete(file->name,MYF(MY_WME));
+  }
+
+  my_dirend(dirp);
+}
+
 #endif
 
 Log_event::Log_event(const char* buf):cached_event_len(0),temp_buf(0)
@@ -1638,6 +1658,7 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
 int Start_log_event::exec_event(struct st_master_info* mi)
 {
   close_temporary_tables(thd);
+  cleanup_load_tmpdir();
   return Log_event::exec_event(mi);
 }
 
@@ -1646,7 +1667,7 @@ int Stop_log_event::exec_event(struct st_master_info* mi)
   if(mi->pos > 4) // stop event should be ignored after rotate event
   {
     close_temporary_tables(thd);
-    //clean_up_load_tmp_dir();
+    cleanup_load_tmpdir();
     mi->inc_pos(get_event_len(), log_seq);
     flush_master_info(mi);
   }

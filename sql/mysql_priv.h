@@ -190,6 +190,19 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define RAID_BLOCK_SIZE 1024
 
+// Sync points allow us to force the server to reach a certain line of code
+// and block there until the client tells the server it is ok to go on.
+// The client tells the server to block with SELECT GET_LOCK()
+// and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
+// concurrency problems
+#ifdef EXTRA_DEBUG
+#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
+ debug_sync_point(lock_name,lock_timeout)
+void debug_sync_point(const char* lock_name, uint lock_timeout);
+#else
+#define DBUG_SYNC_POINT(lock_name,lock_timeout)
+#endif
+
 /* BINLOG_DUMP options */
 
 #define BINLOG_DUMP_NON_BLOCK   1
