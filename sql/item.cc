@@ -685,11 +685,13 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
 {  
-  tmp_field->db_name=(char*) "";
-  tmp_field->org_table_name=(char*) "";
-  tmp_field->org_col_name=(char*) "";
-  tmp_field->table_name=(char*) "";
-  tmp_field->col_name=name;
+  char *empty_name= (char*) "";
+  tmp_field->db_name=	 	empty_name;
+  tmp_field->org_table_name=	empty_name;
+  tmp_field->org_col_name=	empty_name;
+  tmp_field->table_name=	empty_name;
+  tmp_field->col_name=		name;
+  tmp_field->charsetnr= 	charset()->number;
   tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
   tmp_field->type=field_type;
   tmp_field->length=max_length;

@@ -1150,25 +1150,29 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     free_rows(data);				/* Free old data */
     DBUG_RETURN(0);
   }
+  bzero((char*) field, (uint) sizeof(MYSQL_FIELD)*fields);
   if (server_capabilities & CLIENT_PROTOCOL_41)
   {
     /* server is 4.1, and returns the new field result format */
     for (row=data->data; row ; row = row->next,field++)
     {
+      uchar *pos;
       field->db       = strdup_root(alloc,(char*) row->data[0]);
       field->table    = strdup_root(alloc,(char*) row->data[1]);
       field->org_table= strdup_root(alloc,(char*) row->data[2]);
       field->name     = strdup_root(alloc,(char*) row->data[3]);
       field->org_name = strdup_root(alloc,(char*) row->data[4]);
-      field->length   = (uint) uint3korr(row->data[5]);
-      field->type     = (enum enum_field_types) (uchar) row->data[6][0];
-
-      field->flags=   uint2korr(row->data[7]);
-      field->decimals=(uint) (uchar) row->data[7][2];
+      /* Unpack fixed length parts */
+      pos= (uchar*) row->data[5];
+      field->charsetnr= uint2korr(pos);
+      field->length=	(uint) uint3korr(pos+2);
+      field->type=	(enum enum_field_types) pos[5];
+      field->flags=	uint2korr(pos+6);
+      field->decimals=  (uint) pos[8];
 
       if (INTERNAL_NUM_FIELD(field))
         field->flags|= NUM_FLAG;
-      if (default_value && row->data[8])
+      if (default_value && row->data[6])
         field->def=strdup_root(alloc,(char*) row->data[8]);
       else
         field->def=0;
@@ -2841,7 +2845,7 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
 
-  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0, (protocol_41(mysql) ? 8 : 5))))
+  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0, 5)))
     DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,
@@ -3212,8 +3216,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 
   end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
   if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1) ||
-      !(query = read_rows(mysql,(MYSQL_FIELD*) 0,
-			  (protocol_41(mysql) ? 9 : 6))))
+      !(query = read_rows(mysql,(MYSQL_FIELD*) 0, 6)))
     DBUG_RETURN(NULL);
 
   free_old_query(mysql);
@@ -3250,7 +3253,7 @@ mysql_list_processes(MYSQL *mysql)
   free_old_query(mysql);
   pos=(uchar*) mysql->net.read_pos;
   field_count=(uint) net_field_length(&pos);
-  if (!(fields = read_rows(mysql,(MYSQL_FIELD*)0,protocol_41(mysql) ? 8: 5)))
+  if (!(fields = read_rows(mysql,(MYSQL_FIELD*) 0, 5)))
     DBUG_RETURN(NULL);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
