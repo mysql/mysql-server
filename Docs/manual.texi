@@ -3880,6 +3880,14 @@ Italy [tzone.it] @
 @c @uref{ftp://ftp.iol.ie/pub/mysql, FTP}
 
 @item
+@c Added 20001031
+@c EMAIL: dave@esat.net (Dave Rynne)
+@c @image{Flags/ireland}
+Ireland [Esat Net] @
+@uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, WWW}
+@uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, FTP}
+
+@item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
 @c @image{Flags/poland}
@@ -3899,6 +3907,14 @@ Poland [Sunsite] @
 @c @image{Flags/portugal} Portugal [lerianet] @
 @c @uref{http://mysql.leirianet.pt, WWW}
 @c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
+
+@item
+@c Added 20001031
+@c bofh@netc.pt (Bruno Rodrigues)
+@c @image{Flags/portugal}
+Portugal [Netc] @
+@uref{http://ftp.netc.pt/pub/mysql/, WWW}
+@uref{ftp://ftp.netc.pt/pub/mysql/, FTP}
 
 @item
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
@@ -4273,6 +4289,14 @@ Taiwan [TTN] @
 @c EX: serge@oneway.net
 @c @image{Flags/taiwan} Taiwan [Oneway] @
 @c @uref{ftp://ftp.oneway.com.tw/pub/mysql/, FTP}
+
+@item
+@c Added 20001031
+@c EMAIL: ijliao@php.nctu.edu.tw (Ying-Chieh Liao)
+@c @image{Flags/taiwan}
+Taiwan [nctu.edu/HsinChu] @
+@uref{http://mysql.nctu.edu.tw/, WWW}
+
 @end itemize
 
 @strong{Australia:}
