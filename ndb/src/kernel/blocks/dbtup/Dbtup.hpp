@@ -1004,17 +1004,20 @@ public:
   void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
 
   /*
-   * TUX reads primary table attributes for index keys.  Input is
-   * attribute ids in AttributeHeader format.  Output is pointers to
-   * attribute data within tuple or 0 for NULL value.
+   * TUX reads primary table attributes for index keys.  Tuple is
+   * specified by location of original tuple and version number.  Input
+   * is attribute ids in AttributeHeader format.  Output is attribute
+   * data with headers.  Uses readAttributes with xfrm option set.
+   * Returns number of words or negative (-terrorCode) on error.
    */
-  void tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData);
+  int tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut);
 
   /*
    * TUX reads primary key without headers into an array of words.  Used
-   * for md5 summing and when returning keyinfo.
+   * for md5 summing and when returning keyinfo.  Returns number of
+   * words or negative (-terrorCode) on error.
    */
-  void tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pkSize, Uint32* pkData);
+  int tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut);
 
   /*
    * TUX checks if tuple is visible to scan.
@@ -1368,7 +1371,7 @@ private:
 //------------------------------------------------------------------
   int readAttributes(Page* const pagePtr,
                      Uint32   TupHeadOffset,
-                     Uint32*  inBuffer,
+                     const Uint32*  inBuffer,
                      Uint32   inBufLen,
                      Uint32*  outBuffer,
                      Uint32   TmaxRead);

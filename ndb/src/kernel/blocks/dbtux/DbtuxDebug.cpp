@@ -207,14 +207,10 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
   }
   // check ordering within node
   for (unsigned j = 1; j < node.getOccup(); j++) {
-    unsigned start = 0;
     const TreeEnt ent1 = node.getEnt(j - 1);
     const TreeEnt ent2 = node.getEnt(j);
-    if (j == 1) {
-      readKeyAttrs(frag, ent1, start, c_searchKey);
-    } else {
-      memcpy(c_searchKey, c_entryKey, frag.m_numAttrs << 2);
-    }
+    unsigned start = 0;
+    readKeyAttrs(frag, ent1, start, c_searchKey);
     readKeyAttrs(frag, ent2, start, c_entryKey);
     int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
     if (ret == 0)
