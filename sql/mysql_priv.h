@@ -362,7 +362,6 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 int multi_update_precheck(THD *thd, TABLE_LIST *tables);
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
-int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
 int insert_precheck(THD *thd, TABLE_LIST *tables);
