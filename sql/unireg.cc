@@ -75,7 +75,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  DBUG_ENTER("rea_create_table");
+  DBUG_ENTER("mysql_create_frm");
 
   formnames.type_names=0;
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
