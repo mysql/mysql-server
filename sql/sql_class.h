@@ -341,13 +341,14 @@ struct system_variables
 {
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
+  ulonglong select_limit;
+  ulonglong max_join_size;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_heap_table_size;
-  ulong max_join_size;
   ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
@@ -361,7 +362,6 @@ struct system_variables
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
-  ulong select_limit;
   ulong sortbuff_size;
   ulong table_type;
   ulong tmp_table_size;
