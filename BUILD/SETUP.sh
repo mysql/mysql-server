@@ -25,7 +25,10 @@ Any other options will be passed directly to configure.
 Note:  this script is intended for internal use by MySQL developers.
 EOF
   --with-debug=full ) full_debug="=full"; shift ;;
-  * ) break ;;
+  * )
+    echo "Unknown option '$1'"
+    exit 1
+    break ;;
   esac
 done
 
@@ -62,6 +65,7 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 reckless_cflags="-O3 -fomit-frame-pointer "
 
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
+debug_extra_cflags="-O1 -Wuninitialized"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 amd64_cxxflags="-DBIG_TABLES"
@@ -80,7 +84,7 @@ local_infile_configs="--enable-local-infile"
 debug_configs="--with-debug$full_debug"
 if [ -z "$full_debug" ]
 then
-	debug_cflags="$debug_cflags -O1 -Wuninitialized"
+  debug_cflags="$debug_cflags $debug_extra_cflags"
 fi
 
 if gmake --version > /dev/null 2>&1
