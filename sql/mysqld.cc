@@ -1014,8 +1014,6 @@ static void server_init(void)
       unireg_abort(1);
     }
   }
-  if (mysqld_chroot)
-    set_root(mysqld_chroot);
   set_user(mysqld_user);		// Works also with mysqld_user==NULL
 
 #ifdef __NT__
@@ -1838,7 +1836,7 @@ int main(int argc, char **argv)
   init_signals();
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
-    exit( 1 );
+    exit(1);
   charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
 
 #ifdef HAVE_OPENSSL
@@ -1906,7 +1904,7 @@ int main(int argc, char **argv)
     unireg_abort(1);
 
   /*
-  ** We have enough space for fiddling with the argv, continue
+    We have enough space for fiddling with the argv, continue
   */
   umask(((~my_umask) & 0666));
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)))
@@ -4430,6 +4428,8 @@ static void get_options(int argc,char **argv)
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
+  if (mysqld_chroot)
+    set_root(mysqld_chroot);
   fix_paths();
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
   default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];

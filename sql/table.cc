@@ -1078,7 +1078,8 @@ bool check_db_name(const char *name)
       }
     }
 #endif
-    if (*name == '/' || *name == FN_LIBCHAR || *name == FN_EXTCHAR)
+    if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
+	*name == FN_EXTCHAR)
       return 1;
     name++;
   }
