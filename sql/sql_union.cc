@@ -150,6 +150,9 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
+    if (!join)
+      goto err;
+
     thd_arg->lex->current_select= sl;
     offset_limit_cnt= sl->offset_limit;
     select_limit_cnt= sl->select_limit+sl->offset_limit;
@@ -178,6 +181,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Item *item_tmp;
       while ((item_tmp= it++))
       {
+	/* Error's in 'new' will be detected after loop */
 	types.push_back(new Item_type_holder(thd_arg, item_tmp));
       }
 
@@ -384,7 +388,10 @@ int st_select_lex_unit::exec()
 	  allocate JOIN for fake select only once (privent
 	  mysql_select automatic allocation)
 	*/
-	fake_select_lex->join= new JOIN(thd, item_list, thd->options, result);
+	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
+					      result)))
+	  DBUG_RETURN(-1);
+
 	/*
 	  Fake st_select_lex should have item list for correctref_array
 	  allocation.

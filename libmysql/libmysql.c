@@ -799,54 +799,51 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   my_bool result= 1;
   uint packet_length=MY_ALIGN(mysql->net.max_packet-16,IO_SIZE);
   NET *net= &mysql->net;
-  int error;
   int readcount;
   void *li_ptr;          /* pass state to local_infile functions */
-  char *buf = NULL;      /* buffer to be filled by local_infile_read */
-  char *filename = NULL; /* local copy of filename arg */
-
+  char *buf;;		/* buffer to be filled by local_infile_read */
+  struct st_mysql_options *options= &mysql->options;
   DBUG_ENTER("handle_local_infile");
 
   /* check that we've got valid callback functions */
-  if (!((mysql->options.local_infile_init) &&
-	(mysql->options.local_infile_read) &&
-	(mysql->options.local_infile_end) &&
-	(mysql->options.local_infile_error)))
+  if (!(options->local_infile_init &&
+	options->local_infile_read &&
+	options->local_infile_end &&
+	options->local_infile_error))
   {
     /* if any of the functions is invalid, set the default */
-    mysql_set_local_infile_default(mysql); 
+    mysql_set_local_infile_default(mysql);
   }
 
   /* copy filename into local memory and allocate read buffer */
-  if ((!(filename = my_strdup(net_filename, MYF(0)))) ||
-      (!(buf=my_malloc(packet_length, MYF(0)))))
-    goto oom;
-
+  if (!(buf=my_malloc(packet_length, MYF(0))))
+  {
+    strmov(net->sqlstate, unknown_sqlstate);
+    strmov(net->last_error, ER(net->last_errno=CR_OUT_OF_MEMORY));
+    DBUG_RETURN(1);
+  }
 
   /* initialize local infile (open file, usually) */
-  if ( (error = (*mysql->options.local_infile_init)(&li_ptr, filename)) )
+  if ((*options->local_infile_init)(&li_ptr, net_filename))
   {
     my_net_write(net,"",0);		/* Server needs one packet */
     net_flush(net);
-    if(error < 0)
-      goto oom;
     strmov(net->sqlstate, unknown_sqlstate);
-    net->last_errno=error;
-    (*mysql->options.local_infile_error)(li_ptr,
-					 net->last_error,
-					 sizeof(net->last_error)-1);
+    net->last_errno= (*options->local_infile_error)(li_ptr,
+						    net->last_error,
+						    sizeof(net->last_error)-1);
     goto err;
   }
 
   /* read blocks of data from local infile callback */
-  while ( (readcount =
-	   (*mysql->options.local_infile_read)(li_ptr,
-					       buf,
-					       packet_length) ) > 0)
+  while ((readcount =
+	  (*options->local_infile_read)(li_ptr, buf,
+					packet_length)) > 0)
   {
     if (my_net_write(net,buf,readcount))
     {
-      DBUG_PRINT("error",("Lost connection to MySQL server during LOAD DATA of local file"));
+      DBUG_PRINT("error",
+		 ("Lost connection to MySQL server during LOAD DATA of local file"));
       strmov(net->sqlstate, unknown_sqlstate);
       net->last_errno=CR_SERVER_LOST;
       strmov(net->last_error,ER(net->last_errno));
@@ -865,10 +862,9 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 
   if (readcount < 0)
   {
-    strmov(net->sqlstate, unknown_sqlstate);
-    net->last_errno=EE_READ; /* the errmsg for not entire file read */
-    my_snprintf(net->last_error,sizeof(net->last_error)-1,
-		filename, errno);
+    net->last_errno= (*options->local_infile_error)(li_ptr,
+						    net->last_error,
+						    sizeof(net->last_error)-1);
     goto err;
   }
 
@@ -876,117 +872,165 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 
 err:
   /* free up memory allocated with _init, usually */
-  (*mysql->options.local_infile_end)(li_ptr);
-
-  my_free(filename, MYF(0));
-  my_free(buf, MYF(0));
+  (*options->local_infile_end)(li_ptr);
   DBUG_RETURN(result);
-
-oom:
-  /* out of memory */
-  my_free(filename, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
-  strmov(net->sqlstate, unknown_sqlstate);
-  strmov(net->last_error, ER(net->last_errno=CR_OUT_OF_MEMORY));
-  DBUG_RETURN(1);
 }
 
 
-typedef struct default_local_infile_st {
+/****************************************************************************
+  Default handlers for LOAD LOCAL INFILE
+****************************************************************************/
+
+typedef struct st_default_local_infile
+{
   int fd;
   int error_num;
+  const char *filename;
   char error_msg[LOCAL_INFILE_ERROR_LEN];
 } default_local_infile_data;
 
 
-int
-default_local_infile_init(void **ptr, char *filename)
+/*
+  Open file for LOAD LOCAL INFILE
+
+  SYNOPSIS
+    default_local_infile_init()
+    ptr			Store pointer to internal data here
+    filename		File name to open. This may be in unix format !
+
+
+  NOTES
+    Even if this function returns an error, the load data interface
+    guarantees that default_local_infile_end() is called.
+
+  RETURN
+    0	ok
+    1	error
+*/
+
+static int default_local_infile_init(void **ptr, const char *filename)
 {
   default_local_infile_data *data;
+  char tmp_name[FN_REFLEN];
 
   if (!(*ptr= data= ((default_local_infile_data *)
-		     my_malloc(sizeof(default_local_infile_data), MYF(0)))))
-    return -1; /* out of memory */
-
-  *ptr = data; /* save the struct, we need it to return an error */
+		     my_malloc(sizeof(default_local_infile_data),  MYF(0)))))
+    return 1; /* out of memory */
 
   data->error_msg[0]= 0;
   data->error_num=    0;
+  data->filename= filename;
 
-  if ((data->fd = my_open(filename, O_RDONLY, MYF(0))) < 0)
+  fn_format(tmp_name, filename, "", "", MY_UNPACK_FILENAME);
+  if ((data->fd = my_open(tmp_name, O_RDONLY, MYF(0))) < 0)
   {
+    data->error_num= my_errno;
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-                EE(EE_FILENOTFOUND), filename, errno);
-    return data->error_num=errno; /* error */
+                EE(EE_FILENOTFOUND), tmp_name, data->error_num);
+    return 1;
   }
-
   return 0; /* ok */
 }
 
 
-int
-default_local_infile_read(void *ptr, char *buf, uint buf_len)
+/*
+  Read data for LOAD LOCAL INFILE
+
+  SYNOPSIS
+    default_local_infile_read()
+    ptr			Points to handle allocated by _init
+    buf			Read data here
+    buf_len		Ammount of data to read
+
+  RETURN
+    > 0		number of bytes read
+    == 0	End of data
+    < 0		Error
+*/
+
+static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
 {
-  default_local_infile_data *data = (default_local_infile_data *) ptr;
+  int count;
+  default_local_infile_data*data = (default_local_infile_data *) ptr;
 
-  return ((int) my_read(data->fd, (byte *)buf, buf_len, MYF(0)));
-}
-
-
-int
-default_local_infile_end(void *ptr)
-{
-  default_local_infile_data *data = (default_local_infile_data *) ptr;          
-  if(data)
+  if ((count= (int) my_read(data->fd, (byte *) buf, buf_len, MYF(0))) < 0)
   {
-    my_close(data->fd, MYF(0));
-    my_free(ptr, MYF(0));
+    data->error_num= EE_READ; /* the errmsg for not entire file read */
+    my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
+		EE(EE_READ),
+		data->filename, my_errno);
   }
-  return 0;
+  return count;
 }
 
 
-int
+/*
+  Read data for LOAD LOCAL INFILE
+
+  SYNOPSIS
+    default_local_infile_end()
+    ptr			Points to handle allocated by _init
+			May be NULL if _init failed!
+
+  RETURN
+*/
+
+static void default_local_infile_end(void *ptr)
+{
+  default_local_infile_data *data= (default_local_infile_data *) ptr;
+  if (data)					/* If not error on open */
+  {
+    if (data->fd >= 0)
+      my_close(data->fd, MYF(MY_WME));
+    my_free(ptr, MYF(MY_WME));
+  }
+}
+
+
+/*
+  Return error from LOAD LOCAL INFILE
+
+  SYNOPSIS
+    default_local_infile_end()
+    ptr			Points to handle allocated by _init
+			May be NULL if _init failed!
+    error_msg		Store error text here
+    error_msg_len	Max lenght of error_msg
+
+  RETURN
+    error message number
+*/
+
+static int
 default_local_infile_error(void *ptr, char *error_msg, uint error_msg_len)
 {
-  default_local_infile_data *data = (default_local_infile_data *) ptr;          
-
-  if(data) {
+  default_local_infile_data *data = (default_local_infile_data *) ptr;
+  if (data)					/* If not error on open */
+  {
     strmake(error_msg, data->error_msg, error_msg_len);
     return data->error_num;
   }
-  else
-  {
-    strmake(error_msg, "Internal error", error_msg_len);
-    return 0;
-  }
-}
-
-
-int
-mysql_set_local_infile_handler(MYSQL *mysql,
-                               int (*local_infile_init)(void **, char *),
-                               int (*local_infile_read)(void *, char *, uint),
-                               int (*local_infile_end)(void *),
-                               int (*local_infile_error)(void *, char *, uint))
-{
-  if(mysql &&
-     local_infile_init &&
-     local_infile_read &&
-     local_infile_end &&
-     local_infile_error) {
-    mysql->options.local_infile_init=  local_infile_init;
-    mysql->options.local_infile_read=  local_infile_read;
-    mysql->options.local_infile_end=   local_infile_end;
-    mysql->options.local_infile_error= local_infile_error;
-    return 0;
-  }
-  return 1;
+  /* This can only happen if we got error on malloc of handle */
+  strmov(error_msg, ER(CR_OUT_OF_MEMORY));
+  return CR_OUT_OF_MEMORY;
 }
 
 
 void
-mysql_set_local_infile_default(MYSQL *mysql)
+mysql_set_local_infile_handler(MYSQL *mysql,
+                               int (*local_infile_init)(void **, const char *),
+                               int (*local_infile_read)(void *, char *, uint),
+                               void (*local_infile_end)(void *),
+                               int (*local_infile_error)(void *, char *, uint))
+{
+  mysql->options.local_infile_init=  local_infile_init;
+  mysql->options.local_infile_read=  local_infile_read;
+  mysql->options.local_infile_end=   local_infile_end;
+  mysql->options.local_infile_error= local_infile_error;
+}
+
+
+void mysql_set_local_infile_default(MYSQL *mysql)
 {
   mysql->options.local_infile_init=  default_local_infile_init;
   mysql->options.local_infile_read=  default_local_infile_read;

@@ -2783,8 +2783,8 @@ void Item_func_match::init_search(bool no_order)
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
-      fields - fix_fieds already was called for this arguments
-      Item_func_concat_ws - do not need fix_fields to produce value
+      fields - fix_fields() was already called for this arguments
+      Item_func_concat_ws - do not need fix_fields() to produce value
     */
     concat->quick_fix_field();
   }
