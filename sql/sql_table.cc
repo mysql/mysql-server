@@ -1835,10 +1835,19 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
-	VOID(pthread_mutex_lock(&LOCK_open));
-	wait_while_table_is_used(thd, table);
-	VOID(pthread_mutex_unlock(&LOCK_open));
-	table->file->deactivate_non_unique_index(HA_POS_ERROR);
+ 	if (table->db_type == DB_TYPE_MYISAM)
+ 	{
+	  VOID(pthread_mutex_lock(&LOCK_open));
+	  wait_while_table_is_used(thd, table);
+	  VOID(pthread_mutex_unlock(&LOCK_open));
+ 	  table->file->deactivate_non_unique_index(HA_POS_ERROR);
+ 	}
+ 	else
+ 	  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+ 			      ER_ILLEGAL_HA,
+ 			      ER(ER_ILLEGAL_HA), table->table_name);
+  	break;
+
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       }
