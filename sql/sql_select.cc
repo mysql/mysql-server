@@ -3451,6 +3451,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	tab->type=JT_ALL;
 	use_quick_range=1;
 	tab->use_quick=1;
+        tab->ref.key= -1;
 	tab->ref.key_parts=0;		// Don't use ref key.
 	join->best_positions[i].records_read= rows2double(tab->quick->records);
       }
@@ -7023,7 +7024,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   ref_key= -1;
   /* Test if constant range in WHERE */
-  if (tab->ref.key >= 0)
+  if (tab->ref.key >= 0 && tab->ref.key_parts)
   {
     ref_key=	   tab->ref.key;
     ref_key_parts= tab->ref.key_parts;
