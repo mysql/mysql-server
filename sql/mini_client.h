@@ -39,7 +39,9 @@ uint STDCALL
 mc_net_safe_read(MYSQL *mysql);
 
 char * STDCALL mc_mysql_error(MYSQL *mysql);
+int STDCALL mc_mysql_errno(MYSQL *mysql);
 my_bool STDCALL mc_mysql_reconnect(MYSQL* mysql);
 
 
 #endif
+
