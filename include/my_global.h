@@ -313,6 +313,13 @@ C_MODE_END
 #include <crypt.h>
 #endif
 
+/*
+  A lot of our programs uses asserts, so better to always include it
+  This also fixes a problem when people uses DBUG_ASSERT without including
+  assert.h
+*/
+#include <assert.h>
+
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */

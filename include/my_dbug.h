@@ -16,10 +16,7 @@
 
 #ifndef _dbug_h
 #define _dbug_h
-#ifdef DBUG_OFF
-#define NDEBUG /* for assert.h */
-#endif
-#include <assert.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
