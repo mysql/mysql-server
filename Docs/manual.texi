@@ -18023,7 +18023,7 @@ temporary files should be very big.
 Directory where character sets are stored.
 @item --set-character-set=name
 Change the character set used by the index
-@item .t or --tmpdir=path
+@item -t or --tmpdir=path
 Path for storing temporary files. If this is not set, @code{myisamchk} will
 use the environment variable @code{TMPDIR} for this.
 @item -q or --quick
@@ -18435,9 +18435,9 @@ and the server, because the server does all the work when you use
 the performance of a table:
 
 @itemize
-@item -S, --sort-index
-@item -R index_num, --sort-records=index_num
-@item -a, --analyze
+@item @code{-S}, @code{--sort-index}
+@item @code{-R index_num}, @code{--sort-records=index_num}
+@item @code{-a}, @code{--analyze}
 @end itemize
 
 For a full description of the option. @xref{myisamchk syntax}.
@@ -20785,7 +20785,7 @@ Most of the options to @code{safe_mysqld} are the same as the options to
 
 @code{safe_mysqld} supports the following options:
 
-@itemize
+@table @code
 @item --basedir=path
 @item --core-file-size=#
 Size of the core file @code{mysqld} should be able to create. Passed to @code{ulimit -c}.
@@ -20812,7 +20812,7 @@ Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}
 @item --timezone=#
 Set the timezone (the @code{TZ}) variable to the value of this parameter.
 @item --user=#
-@end itemize
+@end table
 
 The @code{safe_mysqld} script is written so that it normally is able to start
 a server that was installed from either a source or a binary version of
@@ -20892,7 +20892,7 @@ list. Anything after a white space is ignored.
 
 @code{mysqld_multi} supports the following options:
 
-@itemize
+@table @code
 @cindex config-file option
 @item --config-file=...
 Alternative config file. Note: This will not affect this program's own
@@ -20937,7 +20937,7 @@ MySQL user for @code{mysqladmin}.
 @cindex version option
 @item --version
 Print the version number and exit.
-@end itemize
+@end table
 
 Some notes about @code{mysqld_multi}:
 
@@ -21110,7 +21110,7 @@ file.  It is permissible to omit the @file{.MYI} extension.
 
 @code{myisampack} supports the following options:
 
-@itemize @bullet
+@table @code
 @item -b, --backup
 Make a backup of the table as @code{tbl_name.OLD}.
 
@@ -21164,7 +21164,7 @@ Wait and retry if table is in use.  If the @code{mysqld} server was
 invoked with the @code{--skip-locking} option, it is not a good idea to
 invoke @code{myisampack} if the table might be updated during the
 packing process.
-@end itemize
+@end table
 
 @cindex examples, compressed tables
 The sequence of commands shown below illustrates a typical table compression
