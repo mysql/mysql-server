@@ -567,7 +567,11 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
       view->contain_auto_increment= 1;
     /* prepare unique test */
     field->field->query_id= other_query_id;
-    *trans= field; // remove collation if we have it
+    /*
+      remove collation (or other transparent for update function) if we have
+      it
+    */
+    trans->item= field;
   }
   /* unique test */
   for (trans= trans_start; trans != trans_end; trans++)
