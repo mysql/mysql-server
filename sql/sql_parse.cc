@@ -2335,6 +2335,21 @@ mysql_execute_command(THD *thd)
 	net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
 	goto create_error;
       }
+      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        TABLE_LIST *tab;
+        for (tab= tables; tab; tab= tab->next)
+        {
+          if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
+                                      merge_list.first,
+                                      tables->db, tab->real_name))
+          {
+            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
+            goto create_error;
+          }
+        }  
+      }    
+
       if (tables && check_table_access(thd, SELECT_ACL, tables,0))
 	goto create_error;			// Error message is given
       select_lex->options|= SELECT_NO_UNLOCK;
@@ -5400,4 +5415,40 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
 	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
 	      1 : 0);
+}
+
+
+/*
+  negate given expression
+
+  SYNOPSIS
+    negate_expression()
+    thd  therad handler
+    expr expression for negation
+
+  RETURN
+    negated expression
+*/
+
+Item *negate_expression(THD *thd, Item *expr)
+{
+  Item *negated;
+  if (expr->type() == Item::FUNC_ITEM &&
+      ((Item_func *) expr)->functype() == Item_func::NOT_FUNC)
+  {
+    /* it is NOT(NOT( ... )) */
+    Item *arg= ((Item_func *) expr)->arguments()[0];
+    enum_parsing_place place= thd->lex->current_select->parsing_place;
+    if (arg->is_bool_func() || place == IN_WHERE || place == IN_HAVING)
+      return arg;
+    /*
+      if it is not boolean function then we have to emulate value of
+      not(not(a)), it will be a != 0
+    */
+    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+  }
+
+  if ((negated= expr->neg_transformer(thd)) != 0)
+    return negated;
+  return new Item_func_not(expr);
 }

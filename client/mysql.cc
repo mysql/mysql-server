@@ -859,7 +859,7 @@ static int get_options(int argc, char **argv)
   opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
@@ -2693,8 +2693,9 @@ char *get_arg(char *line, my_bool get_next_arg)
       ptr++;
     if (*ptr == '\\') // short command was used
       ptr+= 2;
-    while (*ptr &&!my_isspace(charset_info, *ptr)) // skip command
-      ptr++;
+    else
+      while (*ptr &&!my_isspace(charset_info, *ptr)) // skip command
+        ptr++;
   }
   if (!*ptr)
     return NullS;
