@@ -486,8 +486,7 @@ sp_head::execute(THD *thd)
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed && !thd->query_error &&
-	   !thd->net.report_error);
+  } while (ret == 0 && !thd->killed && !thd->query_error);
 
   if (thd->current_arena)
     cleanup_items(thd->current_arena->free_list);
@@ -497,7 +496,7 @@ sp_head::execute(THD *thd)
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
 
-  if (thd->killed || thd->query_error || thd->net.report_error)
+  if (thd->killed || thd->query_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */

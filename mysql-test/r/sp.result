@@ -2237,6 +2237,14 @@ Tables_in_test (foo)	table_type
 Variable_name	Value
 Level	Code	Message
 drop procedure bug4902|
+drop table if exists t3|
+create procedure bug4904()
+begin
+declare continue handler for sqlstate 'HY000' begin end;
+create table t2 as select * from t;
+end|
+call bug4904()|
+drop procedure bug4904|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
