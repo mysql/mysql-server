@@ -367,7 +367,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 server_port= 0;
     if(iter.get(CFG_CONNECTION_SERVER_PORT, &server_port)) break;
     if (nodeId <= nodeId1 && nodeId <= nodeId2) {
-      tr.add_transporter_interface(nodeId2, localHostName, server_port);
+      tr.add_transporter_interface(remoteNodeId, localHostName, server_port);
     }
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
                nodeId, remoteNodeId, server_port, sendSignalId, checksum));
