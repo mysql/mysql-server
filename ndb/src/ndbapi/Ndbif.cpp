@@ -19,6 +19,7 @@
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
+#include <NdbTransaction.hpp>
 #include <NdbOperation.hpp>
 #include <NdbIndexOperation.hpp>
 #include <NdbScanOperation.hpp>

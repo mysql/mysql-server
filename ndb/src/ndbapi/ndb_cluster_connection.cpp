@@ -29,6 +29,7 @@
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
 #include <mgmapi_debug.h>
+#include <md5_hash.hpp>
 
 static int g_run_connect_thread= 0;
 
@@ -255,8 +256,6 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
-  m_transporter_facade=
-    TransporterFacade::theFacadeInstance= new TransporterFacade();
 
   m_connect_thread= 0;
   m_connect_callback= 0;
@@ -281,6 +280,10 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     m_config_retriever= 0;
   }
 
+  m_transporter_facade=
+    TransporterFacade::theFacadeInstance= 
+    new TransporterFacade(m_config_retriever->get_mgmHandle());
+  
   DBUG_VOID_RETURN;
 }
 
@@ -490,7 +493,7 @@ int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,
     m_impl.init_nodes_vector(nodeId, *props);
 
     for(int i=0;i<m_impl.m_transporter_facade->get_registry()->m_transporter_interface.size();i++)
-      ndb_mgm_set_connection_int_parameter(m_config_retriever->get_mgmHandle(),
+      ndb_mgm_set_connection_int_parameter(m_impl.m_config_retriever->get_mgmHandle(),
 					   nodeId,
 					   m_impl.m_transporter_facade->get_registry()
 					     ->m_transporter_interface[i]
