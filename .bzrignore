@@ -545,3 +545,4 @@ vio/test-sslserver
 vio/viotest-ssl
 scripts/make_win_binary_distribution
 EXCEPTIONS-CLIENT
+support-files/my-innodb-heavy-4G.cnf
