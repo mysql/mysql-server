@@ -41762,7 +41762,7 @@ if(mysql_create_db(&mysql, "my_database"))
 
 @findex @code{mysql_data_seek()}
 
-@code{void mysql_data_seek(MYSQL_RES *result, my_ulonglong long offset)}
+@code{void mysql_data_seek(MYSQL_RES *result, my_ulonglong offset)}
 
 @subsubheading Description
 Seeks to an arbitrary row in a query result set.  This requires that the
