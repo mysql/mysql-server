@@ -16449,6 +16449,13 @@ mysql> select ROUND(1.58);
         -> 2
 @end example
 
+Note that the behavior of @code{ROUND()} when the argument
+is half way between two integers depends on the C library
+implementation.  Some round to the nearest even number,
+always up, always down, or always towards zero.  If you need
+one kind of rounding, you should use a well-defined function
+like @code{TRUNCATE()} or @code{FLOOR()} instead.
+
 @findex ROUND()
 @item ROUND(X,D)
 Returns the argument @code{X}, rounded to a number with @code{D} decimals.
