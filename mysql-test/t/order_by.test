@@ -23,7 +23,7 @@ INSERT INTO t1 VALUES (2,7,'60671569','Y');
 INSERT INTO t1 VALUES (2,3,'dd','Y');
 
 CREATE TABLE t2 (
-  id int(6) DEFAULT '0' NOT NULL auto_increment,
+  id int(6) NOT NULL auto_increment,
   description varchar(40) NOT NULL,
   idform varchar(40),
   ordre int(6) unsigned DEFAULT '0' NOT NULL,
