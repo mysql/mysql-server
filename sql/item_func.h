@@ -729,13 +729,14 @@ public:
 };
 
 
-class Item_func_set_last_insert_id :public Item_int_func
+class Item_func_last_insert_id :public Item_int_func
 {
 public:
-  Item_func_set_last_insert_id(Item *a) :Item_int_func(a) {}
+  Item_func_last_insert_id() :Item_int_func() {}
+  Item_func_last_insert_id(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "last_insert_id"; }
-  void fix_length_and_dec() { max_length=args[0]->max_length; }
+  void fix_length_and_dec() { if (arg_count) max_length= args[0]->max_length; }
 };
 
 class Item_func_benchmark :public Item_int_func
