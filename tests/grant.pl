@@ -11,10 +11,10 @@ use strict;
 use vars qw($dbh $user_dbh $opt_help $opt_Information $opt_force $opt_debug
 	    $opt_verbose $opt_server $opt_root_user $opt_password $opt_user
 	    $opt_database $opt_host $version $user $tables_cols $columns_cols
-	    $tmp_table);
+	    $tmp_table $opt_silent);
 
-$version="1.0";
-$opt_help=$opt_Information=$opt_force=$opt_debug=$opt_verbose=0;
+$version="1.1";
+$opt_help=$opt_Information=$opt_force=$opt_debug=$opt_verbose=$opt_silent=0;
 $opt_host="localhost",
 $opt_server="mysql";
 $opt_root_user="root";
@@ -22,7 +22,7 @@ $opt_password="";
 $opt_user="grant_user";
 $opt_database="grant_test";
 
-GetOptions("Information","help","server=s","root-user=s","password=s","user","database=s","force","host=s","debug","verbose") || usage();
+GetOptions("Information","help","server=s","root-user=s","password=s","user","database=s","force","host=s","debug","verbose","silent") || usage();
 usage() if ($opt_help || $opt_Information);
 
 $user="$opt_user\@$opt_host";
@@ -543,7 +543,10 @@ sub user_connect
 			 $password, { PrintError => 0});
   if (!$user_dbh)
   {
-    print "$DBI::errstr\n";
+    if ($opt_verbose || !$ignore_error)
+    {
+      print "Error on connect: $DBI::errstr\n";
+    }
     if (!$ignore_error)
     {
       die "The above should not have failed!";
@@ -558,7 +561,7 @@ sub user_connect
 sub safe_query
 {
   my ($query,$ignore_error)=@_;
-  if (do_query($dbh,$query))
+  if (do_query($dbh,$query, $ignore_error))
   {
     if (!defined($ignore_error))
     {
@@ -575,7 +578,7 @@ sub safe_query
 sub user_query
 {
   my ($query,$ignore_error)=@_;
-  if (do_query($user_dbh,$query))
+  if (do_query($user_dbh,$query, $ignore_error))
   {
     if (!defined($ignore_error))
     {
@@ -591,8 +594,8 @@ sub user_query
 
 sub do_query
 {
-  my ($my_dbh, $query)=@_;
-  my ($sth,$row,$tab,$col,$found);
+  my ($my_dbh, $query, $ignore_error)=@_;
+  my ($sth, $row, $tab, $col, $found, $fatal_error);
 
   print "$query\n" if ($opt_debug || $opt_verbose);
   if (!($sth= $my_dbh->prepare($query)))
@@ -602,25 +605,32 @@ sub do_query
   }
   if (!$sth->execute)
   {
-    print "Error in execute: $DBI::errstr\n";
-    die if ($DBI::errstr =~ /parse error/);
+    $fatal_error= ($DBI::errstr =~ /parse error/);
+    if (!$ignore_error || $opt_verbose || $fatal_error)
+    {
+      print "Error in execute: $DBI::errstr\n";
+    }
+    die if ($fatal_error);
     $sth->finish;
     return 1;
   }
   $found=0;
-  while (($row=$sth->fetchrow_arrayref))
+  if (!$opt_silent)
   {
-    $found=1;
-    $tab="";
-    foreach $col (@$row)
+    while (($row=$sth->fetchrow_arrayref))
     {
-      print $tab;
-      print defined($col) ? $col : "NULL";
-      $tab="\t";
+      $found=1;
+      $tab="";
+      foreach $col (@$row)
+      {
+	print $tab;
+	print defined($col) ? $col : "NULL";
+	$tab="\t";
+      }
+      print "\n";
     }
-    print "\n";
+    print "\n" if ($found);
   }
-  print "\n" if ($found);
   $sth->finish;
   return 0;
 }
