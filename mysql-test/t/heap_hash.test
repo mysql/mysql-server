@@ -251,3 +251,9 @@ explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a
 
 drop table t1, t2, t3;
 
+# Fix for BUG#8371: wrong rec_per_key value for hash index on temporary table
+create temporary table t1 ( a int, index (a) ) engine=memory;
+insert into t1 values (1),(2),(3),(4),(5);
+select a from t1 where a in (1,3);
+explain select a from t1 where a in (1,3);
+drop table t1;
