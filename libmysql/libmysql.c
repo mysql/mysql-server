@@ -2225,8 +2225,8 @@ send_file_to_server(MYSQL *mysql, const char *filename)
     my_net_write(&mysql->net,"",0);		/* Server needs one packet */
     net_flush(&mysql->net);
     mysql->net.last_errno=EE_FILENOTFOUND;
-    snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
-	     EE(mysql->net.last_errno),tmp_name, errno);
+    my_snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
+		EE(mysql->net.last_errno),tmp_name, errno);
     goto err;
   }
 
@@ -2250,8 +2250,8 @@ send_file_to_server(MYSQL *mysql, const char *filename)
   if (readcount < 0)
   {
     mysql->net.last_errno=EE_READ; /* the errmsg for not entire file read */
-    snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
-	     tmp_name,errno);
+    my_snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
+		tmp_name,errno);
     goto err;
   }
   result=0;					/* Ok */

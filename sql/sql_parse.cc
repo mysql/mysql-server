@@ -127,6 +127,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 {
   NET *net= &thd->net;
   thd->db=0;
+  thd->db_length=0;
 
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
@@ -632,7 +633,8 @@ pthread_handler_decl(handle_bootstrap,arg)
     buff[length]=0;
     thd->current_tablenr=0;
     thd->query_length=length;
-    thd->query= thd->memdup(buff,length+1);
+    thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
+    thd->query[length] = '\0';
     thd->query_id=query_id++;
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
@@ -807,6 +809,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Save user and privileges */
     uint save_master_access=thd->master_access;
     uint save_db_access=    thd->db_access;
+    uint save_db_length=    thd->db_length;
     char *save_user=	    thd->user;
     char *save_priv_user=   thd->priv_user;
     char *save_db=	    thd->db;
@@ -823,6 +826,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->master_access=save_master_access;
       thd->db_access=save_db_access;
       thd->db=save_db;
+      thd->db_length=save_db_length;
       thd->user=save_user;
       thd->priv_user=save_priv_user;
       break;
@@ -844,7 +848,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       packet_length--;
     }
     thd->query_length= packet_length;
-    if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length+1)))
+    if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
+						packet_length+1,
+						thd->db_length+1)))
       break;
     thd->query[packet_length]=0;
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
@@ -876,6 +882,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->free_list=0;
     table_list.name=table_list.real_name=thd->strdup(packet);
     packet=strend(packet)+1;
+    // command not cachable => no gap for data base name
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
@@ -1117,7 +1124,7 @@ mysql_execute_command(void)
     if (lex->sql_command == SQLCOM_SELECT)
     {
       lex->sql_command = SQLCOM_DO;
-      lex->insert_list = &lex->item_list;
+      lex->insert_list = &select_lex->item_list;
     }
 #endif
   }
