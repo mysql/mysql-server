@@ -80,6 +80,9 @@ insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
 --error 1062
+insert into t1 set i = 254;
+select last_insert_id();
+--error 1062
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -100,5 +103,6 @@ select last_insert_id();
 --error 1062
 insert into t1 values (NULL, 10);
 select last_insert_id();
+
 drop table t1;
 
