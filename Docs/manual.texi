@@ -4397,6 +4397,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{ftp://mysql.widexs.nl/pub/mysql/, FTP}
 
 @item
+@c EMAIL: peter@proserve.nl (ProServe - Peter Batenburg)
+@image{Flags/netherlands} Netherlands [ProServe/AMS-IX] @
+@uref{http://mysql.proserve.nl/, WWW}
+
+@item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
 @image{Flags/poland} Poland [Sunsite] @
@@ -4622,10 +4627,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/usa} USA [Savages/Oregon] @
 @c @uref{http://mysql.savages.com, WWW}
 
-@item
+@c @item
+@c No mirror! 010323 Matt
 @c EMAIL: tcobb@staff.circle.net (Troy Cobb)
-@image{Flags/usa} USA [Circle Net/North Carolina] @
-@uref{http://www.mysql.net, WWW}
+@c @image{Flags/usa} USA [Circle Net/North Carolina] @
+@c @uref{http://www.mysql.net, WWW}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
