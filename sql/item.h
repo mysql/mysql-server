@@ -188,8 +188,6 @@ public:
   bool binary() const
   { return charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   
-  virtual void set_outer_resolving() {}
-
   // Row emulation
   virtual uint cols() { return 1; }
   virtual Item* el(uint i) { return this; }
@@ -210,16 +208,14 @@ public:
   const char *table_name;
   const char *field_name;
   st_select_lex *depended_from;
-  bool outer_resolving; /* used for items from reduced subselect */
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par)
     :db_name(db_name_par), table_name(table_name_par),
-     field_name(field_name_par), depended_from(0), outer_resolving(0)
+     field_name(field_name_par), depended_from(0)
     { name = (char*) field_name_par; }
   // Constructor used by Item_field & Item_ref (see Item comment)
   Item_ident(THD *thd, Item_ident &item);
   const char *full_name() const;
-  void set_outer_resolving() { outer_resolving= 1; }
 };
 
 
@@ -825,7 +821,6 @@ public:
   enum Type type() const { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
-  void set_outer_resolving() { arg->set_outer_resolving(); }
   void print(String *str);
   virtual bool basic_const_item() const { return true; }
   int save_in_field(Field *field, bool no_conversions)
@@ -848,7 +843,6 @@ public:
     Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(a) {}
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
-  void set_outer_resolving() { arg->set_outer_resolving(); }
   void print(String *str);
   virtual bool basic_const_item() const { return true; }
   int save_in_field(Field *field, bool no_conversions)

@@ -370,7 +370,6 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   Item *find_item(String *str);
-  void set_outer_resolving();
 };
 
 
@@ -633,11 +632,6 @@ class Item_func_in :public Item_int_func
   void update_used_tables();
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   bool nulls_in_row();
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_int_func::set_outer_resolving();
-  }
 };
 
 /* Functions used by where clause */
@@ -796,7 +790,6 @@ public:
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   void top_level_item() { abort_on_null=1; }
-  void set_outer_resolving();
 };
 
 

@@ -291,16 +291,7 @@ int st_select_lex_unit::exec()
 	      setup_table
 	    */
 	    DBUG_PRINT("SUBS", ("shared %s", table_list->real_name));
-	    TABLE *table= table_list->table;
-	    table->used_fields=0;
-	    table->const_table=0;
-	    table->outer_join=table->null_row=0;
-	    table->status=STATUS_NO_RECORD;
-	    table->keys_in_use_for_query= table->keys_in_use;
-	    table->maybe_null=test(table->outer_join=table_list->outer_join);
-	    table->tablenr=tablenr;
-	    table->map= (table_map) 1 << tablenr;
-	    table->force_index= table_list->force_index;
+	    setup_table_map(table_list->table, table_list, tablenr);
 	  }
 	}
 	res= sl->join->optimize();

@@ -107,11 +107,6 @@ public:
   }
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   const char *func_name() const { return "concat_ws"; }
-  void set_outer_resolving()
-  {
-    separator->set_outer_resolving();
-    Item_func::set_outer_resolving();
-  }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -390,11 +385,6 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_str_func::set_outer_resolving();
-  }
 };
 
 
@@ -417,11 +407,6 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_str_func::set_outer_resolving();
-  }
 };
 
 

@@ -68,7 +68,6 @@ public:
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
   void update_used_tables();
-  void set_outer_resolving();
 
   uint cols() { return arg_count; }
   Item* el(uint i) { return items[i]; }

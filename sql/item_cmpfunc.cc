@@ -1094,13 +1094,6 @@ void Item_func_case::split_sum_func(Item **ref_pointer_array,
 }
 
 
-void Item_func_case::set_outer_resolving()
-{
-  first_expr->set_outer_resolving();
-  else_expr->set_outer_resolving();
-  Item_func::set_outer_resolving();
-}
-
 void Item_func_case::update_used_tables()
 {
   Item_func::update_used_tables();
@@ -1667,15 +1660,6 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   fix_length_and_dec();
   fixed= 1;
   return 0;
-}
-
-void Item_cond::set_outer_resolving()
-{
-  Item_func::set_outer_resolving();
-  List_iterator<Item> li(list);
-  Item *item;
-  while ((item= li++))
-    item->set_outer_resolving();
 }
 
 void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)

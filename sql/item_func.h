@@ -133,7 +133,6 @@ public:
   friend class udf_handler;
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
-  void set_outer_resolving();
   Item *get_tmp_table_item(THD *thd);
 };
 
@@ -648,11 +647,6 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
-  void set_outer_resolving()
-  {
-    item->set_outer_resolving();
-    Item_int_func::set_outer_resolving();
-  }
 };
 
 
@@ -1030,7 +1024,6 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
-  void set_outer_resolving();
 };
 
 

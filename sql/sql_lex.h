@@ -256,6 +256,8 @@ public:
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
   void mark_as_dependent(st_select_lex *last);
 
+  bool test_limit();
+
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
 private:

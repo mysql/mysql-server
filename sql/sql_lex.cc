@@ -1209,8 +1209,29 @@ TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 {
   return 0;
 }
-ulong st_select_lex_node::get_table_join_options() { return 0; }
 
+ulong st_select_lex_node::get_table_join_options()
+{
+  return 0;
+}
+
+/*
+  prohibit using LIMIT clause
+*/
+bool st_select_lex_node::test_limit()
+{
+  if (select_limit != HA_POS_ERROR)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+         "LIMIT & IN/ALL/ANY/SOME subquery");
+    return(1);
+  }
+  // We need only 1 row to determinate existence
+  select_limit= 1;
+  // no sense in ORDER BY without LIMIT
+  order_list.empty();
+  return(0);
+}
 
 /*  
   Interface method of table list creation for query

@@ -321,7 +321,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 	!select_lex->fake_select)
     {
       Item_subselect::trans_res res;
-      if ((res= subselect->select_transformer(thd, this)) !=
+      if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::OK)
 	DBUG_RETURN((res == Item_subselect::ERROR));
     }

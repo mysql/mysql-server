@@ -75,7 +75,7 @@ public:
   {
     null_value= 1;
   }
-  virtual trans_res select_transformer(THD *thd, JOIN *join);
+  virtual trans_res select_transformer(JOIN *join);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -117,7 +117,7 @@ public:
     decimals= item->decimals;
   }
   void reset();
-  trans_res select_transformer(THD *thd, JOIN *join);
+  trans_res select_transformer(JOIN *join);
   void store(uint i, Item* item);
   double val();
   longlong val_int ();
@@ -174,7 +174,7 @@ class Item_in_subselect :public Item_exists_subselect
 protected:
   Item * left_expr;
   /*
-    expr & optinizer used in subselect rewriting to store Item for
+    expr & optimizer used in subselect rewriting to store Item for
     all JOIN in UNION
   */
   Item *expr;
@@ -191,11 +191,11 @@ public:
     null_value= 0;
     was_null= 0;
   }
-  trans_res select_transformer(THD *thd, JOIN *join);
-  trans_res single_value_transformer(THD *thd, JOIN *join,
+  trans_res select_transformer(JOIN *join);
+  trans_res single_value_transformer(JOIN *join,
 				     Item *left_expr,
 				     compare_func_creator func);
-  trans_res row_value_transformer(THD *thd, JOIN * join,
+  trans_res row_value_transformer(JOIN * join,
 				  Item *left_expr);
   longlong val_int();
   double val();
@@ -218,7 +218,7 @@ public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
-  trans_res select_transformer(THD *thd, JOIN *join);
+  trans_res select_transformer(JOIN *join);
 };
 
 class subselect_engine: public Sql_alloc

@@ -123,9 +123,3 @@ void Item_row::bring_value()
   for (uint i= 0; i < arg_count; i++)
     items[i]->bring_value();
 }
-
-void Item_row::set_outer_resolving()
-{
-  for (uint i= 0; i < arg_count; i++)
-    items[i]->set_outer_resolving();
-}

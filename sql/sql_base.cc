@@ -2019,18 +2019,9 @@ bool setup_tables(TABLE_LIST *tables)
   for (TABLE_LIST *table_list=tables ; table_list ;
        table_list=table_list->next,tablenr++)
   {
-    TABLE *table=table_list->table;
-
-    table->used_fields=0;
-    table->const_table=0;
-    table->outer_join=table->null_row=0;
-    table->status=STATUS_NO_RECORD;
-    table->keys_in_use_for_query= table->keys_in_use;
+    TABLE *table= table_list->table;
+    setup_table_map(table, table_list, tablenr);
     table->used_keys= table->keys_for_keyread;
-    table->maybe_null=test(table->outer_join=table_list->outer_join);
-    table->tablenr=tablenr;
-    table->map= (table_map) 1 << tablenr;
-    table->force_index= table_list->force_index;
     if (table_list->use_index)
     {
       key_map map= get_key_map_from_key_list(table,
