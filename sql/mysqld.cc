@@ -3650,7 +3650,7 @@ enum options_mysqld
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
-  OPT_MAX_ERROR_COUNT, OPT_MAX_PREP_STMT,
+  OPT_MAX_ERROR_COUNT,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
@@ -4277,11 +4277,11 @@ log and this option does nothing anymore.",
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN,
     "The minimum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, 4, 1, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN,
     "The maximum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,
-    REQUIRED_ARG, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0},
+    REQUIRED_ARG, HA_FT_MAXCHARLEN, 10, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_query_expansion_limit", OPT_FT_QUERY_EXPANSION_LIMIT,
     "Number of best matches to use for query expansion",
     (gptr*) &ft_query_expansion_limit, (gptr*) &ft_query_expansion_limit, 0, GET_ULONG,
@@ -4440,11 +4440,6 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
-  {"max_prepared_statements", OPT_MAX_PREP_STMT,
-   "Max number of prepared_statements for a thread.",
-   (gptr*) &global_system_variables.max_prep_stmt_count,
-   (gptr*) &max_system_variables.max_prep_stmt_count, 0, GET_ULONG,
-   REQUIRED_ARG, DEFAULT_PREP_STMT_COUNT, 0, ~0L, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
    "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 expected, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
@@ -5457,13 +5452,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_TABLE_TYPE:
   {
-    int type;
-    if ((type=find_type(argument, &ha_table_typelib, 2)) <= 0)
+    if ((enum db_type)((global_system_variables.table_type= 
+    	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
     {
       fprintf(stderr,"Unknown table type: %s\n",argument);
       exit(1);
     }
-    global_system_variables.table_type= type-1;
     break;
   }
   case OPT_SERVER_ID:

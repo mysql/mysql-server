@@ -279,7 +279,7 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 uint _ft_make_key(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wptr,
 		  my_off_t filepos)
 {
-  byte buf[HA_FT_MAXLEN+16];
+  byte buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ft_make_key");
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT

@@ -19,7 +19,7 @@
 #include "ftdefs.h"
 
 ulong ft_min_word_len=4;
-ulong ft_max_word_len=HA_FT_MAXLEN;
+ulong ft_max_word_len=HA_FT_MAXCHARLEN;
 ulong ft_query_expansion_limit=5;
 const char *ft_boolean_syntax="+ -><()~*:\"\"&|";
 
@@ -29,7 +29,7 @@ const HA_KEYSEG ft_keysegs[FT_SEGS]={
     63,                               /* language (will be overwritten) */
     0, 0, 0,                          /* null_bit, bit_start, bit_end */
     HA_VAR_LENGTH | HA_PACK_KEY,      /* flag */
-    HA_FT_MAXLEN,                     /* length */
+    HA_FT_MAXBYTELEN,                 /* length */
     HA_FT_WLEN,                       /* start */
     0,                                /* null_pos */
     NULL                              /* charset  */

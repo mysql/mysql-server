@@ -29,7 +29,7 @@ static my_bool verbose;
 static char *query=NULL;
 static uint lengths[256];
 
-#define MAX_LEN (HA_FT_MAXLEN+10)
+#define MAX_LEN (HA_FT_MAXBYTELEN+10)
 #define HOW_OFTEN_TO_WRITE 10000
 
 static struct my_option my_long_options[] =

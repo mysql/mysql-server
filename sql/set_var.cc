@@ -203,8 +203,6 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
-sys_var_thd_ulong	sys_max_prep_stmt_count("max_prepared_statements",
-						&SV::max_prep_stmt_count);
 sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);
@@ -285,8 +283,8 @@ sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
 					&SV::sortbuff_size);
 sys_var_thd_sql_mode    sys_sql_mode("sql_mode",
                                      &SV::sql_mode);
-sys_var_thd_enum        sys_table_type("table_type", &SV::table_type,
-                                       &ha_table_typelib);
+sys_var_thd_table_type  sys_table_type("table_type",
+				       &SV::table_type);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
@@ -463,7 +461,6 @@ sys_var *sys_variables[]=
   &sys_max_heap_table_size,
   &sys_max_join_size,
   &sys_max_length_for_sort_data,
-  &sys_max_prep_stmt_count,
   &sys_max_relay_log_size,
   &sys_max_seeks_for_key,
   &sys_max_sort_length,
@@ -654,7 +651,6 @@ struct show_var_st init_vars[]= {
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
-  {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
@@ -2432,6 +2428,61 @@ int set_var_password::update(THD *thd)
 #else
   return 0;
 #endif
+}
+
+/****************************************************************************
+ Functions to handle table_type
+****************************************************************************/
+
+bool sys_var_thd_table_type::check(THD *thd, set_var *var)
+  /* Based upon sys_var::check_enum() */
+{
+  char buff[80];
+  const char *value;
+  String str(buff, sizeof(buff), &my_charset_latin1), *res;
+
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    if (!(res=var->value->val_str(&str)) ||
+	!(var->save_result.ulong_value=
+	 (ulong) ha_resolve_by_name(res->ptr(), res->length())))
+    {
+      value= res ? res->c_ptr() : "NULL";
+      goto err;
+    }
+    return 0;
+  }
+
+err:
+  my_error(ER_UNKNOWN_TABLE_ENGINE, MYF(0), value);
+  return 1;    
+}
+
+byte *sys_var_thd_table_type::value_ptr(THD *thd, enum_var_type type,
+					LEX_STRING *base)
+{
+  ulong val;
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  const char *table_type= ha_get_table_type((enum db_type)val);
+  return (byte *)table_type;
+}
+
+void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= (ulong) DB_TYPE_MYISAM;
+  else
+    thd->variables.*offset= (ulong) (global_system_variables.*offset);
+}
+
+bool sys_var_thd_table_type::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.*offset= var->save_result.ulong_value;
+  else
+    thd->variables.*offset= var->save_result.ulong_value;
+  return 0;
 }
 
 /****************************************************************************
