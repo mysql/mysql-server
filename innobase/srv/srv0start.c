@@ -742,7 +742,7 @@ innobase_start_or_create_for_mysql(void)
 		mutex_exit(&(log_sys->mutex));
 	}
 
-	mutex_create(&row_mysql_thread_mutex);
+	/* 	mutex_create(&row_mysql_thread_mutex); */
 	sess_sys_init_at_db_start();
 
 	if (create_new_db) {
