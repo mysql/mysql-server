@@ -50,7 +50,7 @@ ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
 #if !defined(__WIN__) && !defined(MSDOS)
 #include <sys/socket.h>
 #else
-#undef MYSQL_SERVER			// Win32 can't handle interrupts
+#undef MYSQL_SERVER			/* Win32 can't handle interrupts */
 #endif
 #if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
 #include <netinet/in_systm.h>
@@ -418,7 +418,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
   {
     if (!thr_alarm(alarmed,net->timeout,&alarm_buff) ||
 	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
-      return;					// Can't setup, abort
+      return;					/* Can't setup, abort */
   }
   while (remain > 0)
   {

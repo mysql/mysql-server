@@ -22,7 +22,7 @@
 
 #include <errno.h>
 #ifndef ETIME
-#define ETIME ETIMEDOUT				// For FreeBSD
+#define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
 
 #if defined(__WIN__)
@@ -119,8 +119,8 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 
-//Irena: compiler does not like this:
-//#define my_pthread_getprio(pthread_t thread_id) pthread_dummy(0)
+/*Irena: compiler does not like this: */
+/*#define my_pthread_getprio(pthread_t thread_id) pthread_dummy(0) */
 #define my_pthread_getprio(thread_id) pthread_dummy(0)
 
 #elif defined(HAVE_UNIXWARE7_THREADS)
