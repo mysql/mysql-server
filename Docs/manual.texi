@@ -310,7 +310,7 @@ pathnames.  Example: ``The distribution is installed under the
 
 @item @samp{c}
 Constant-width font with surrounding quotes is also used to indicate
-character sequences.  Example: ``To specify a wild card, use the @samp{%}
+character sequences.  Example: ``To specify a wildcard, use the @samp{%}
 character.''
 
 @item @emph{italic}
@@ -4609,7 +4609,7 @@ sorting in ASCII order.
 @item MySQL Server
 @code{LIKE} is a case-insensitive or case-sensitive operator, depending on
 the columns involved. If possible, MySQL uses indexes if the
-@code{LIKE} argument doesn't start with a wild-card character.
+@code{LIKE} argument doesn't start with a wildcard character.
 @item mSQL
 Use @code{CLIKE}.
 @end table
@@ -12834,7 +12834,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "w";
 @end example
 
 Because a regular expression pattern matches if it occurs anywhere in the
-value, it is not necessary in the previous query to put a wild card on either
+value, it is not necessary in the previous query to put a wildcard on either
 side of the pattern to get it to match the entire value like it would be if
 you used a SQL pattern.
 
@@ -15033,7 +15033,7 @@ can then be read with @code{SELECT}.
 If you don't trust your DNS, you should use IP numbers instead of
 hostnames in the grant tables. In any case, you should be very careful
 about creating grant table entries using hostname values that contain
-wild cards!
+wildcards!
 
 @item
 If you want to restrict the number of connections for a single user, you
@@ -15637,7 +15637,7 @@ to indicate the local host.
 
 @item
 @cindex wildcards, in @code{mysql.user} table
-You can use the wild-card characters @samp{%} and @samp{_} in the @code{Host}
+You can use the wildcard characters @samp{%} and @samp{_} in the @code{Host}
 field.
 
 @item
@@ -15669,7 +15669,7 @@ In the above example all IP:s in the interval 192.58.197.0 -
 
 @item
 @cindex anonymous user
-Wild-card characters are not allowed in the @code{User} field, but you can
+Wildcard characters are not allowed in the @code{User} field, but you can
 specify a blank value, which matches any name.  If the @code{user} table
 entry that matches an incoming connection has a blank user name, the user is
 considered to be the anonymous user (the user with no name), rather than the
@@ -15711,14 +15711,14 @@ connections:
 @item @code{'144.155.166.0/255.255.255.0'} @tab @code{'fred'} @tab Same as previous example
 @end multitable
 
-Because you can use IP wild-card values in the @code{Host} field (for example,
+Because you can use IP wildcard values in the @code{Host} field (for example,
 @code{'144.155.166.%'} to match every host on a subnet), there is the
 possibility that someone might try to exploit this capability by naming a
 host @code{144.155.166.somewhere.com}.  To foil such attempts, MySQL
 disallows matching on hostnames that start with digits and a dot. Thus, if
 you have a host named something like @code{1.2.foo.com}, its name will never
 match the @code{Host} column of the grant tables.  Only an IP number can
-match an IP wild-card value.
+match an IP wildcard value.
 
 An incoming connection may be matched by more than one entry in the
 @code{user} table.  For example, a connection from @code{thomas.loc.gov} by
@@ -15832,14 +15832,14 @@ in the @code{user} table set to @code{'N'} and grant privileges on a
 database-specific basis only, using the @code{db} and @code{host} tables.
 
 @cindex anonymous user
-@cindex wild cards, in @code{mysql.db} table
-@cindex wild cards, in @code{mysql.host} table
+@cindex wildcards, in @code{mysql.db} table
+@cindex wildcards, in @code{mysql.host} table
 The @code{db} and @code{host} tables grant database-specific privileges.
 Values in the scope fields may be specified as follows:
 
 @itemize @bullet
 @item
-The wild-card characters @samp{%} and @samp{_} can be used in the @code{Host}
+The wildcard characters @samp{%} and @samp{_} can be used in the @code{Host}
 and @code{Db} fields of either table.
 
 @item
@@ -15871,15 +15871,15 @@ values first and least-specific values last, and when the server looks for
 matching entries, it uses the first match that it finds.
 
 
-@cindex wild cards, in @code{mysql.tables_priv} table
-@cindex wild cards, in @code{mysql.columns_priv} table
+@cindex wildcards, in @code{mysql.tables_priv} table
+@cindex wildcards, in @code{mysql.columns_priv} table
 The @code{tables_priv} and @code{columns_priv} tables grant table- and
 column-specific privileges.  Values in the scope fields may be specified as
 follows:
 
 @itemize @bullet
 @item
-The wild-card characters @samp{%} and @samp{_}
+The wildcard characters @samp{%} and @samp{_}
 can be used in the @code{Host} field of either table.
 
 @item
@@ -15887,13 +15887,13 @@ A @code{'%'} or blank @code{Host} value in either table means ``any host.''
 
 @item
 The @code{Db}, @code{Table_name} and @code{Column_name} fields cannot contain
-wild cards or be blank in either table.
+wildcards or be blank in either table.
 @end itemize
 
 The @code{tables_priv} and @code{columns_priv} tables are sorted on
 the @code{Host}, @code{Db}, and @code{User} fields.  This is similar to
 @code{db} table sorting, although the sorting is simpler because
-only the @code{Host} field may contain wild cards.
+only the @code{Host} field may contain wildcards.
 
 The request verification process is described below.  (If you are familiar
 with the access-checking source code, you will notice that the description
@@ -16212,7 +16212,7 @@ name (or vice-versa).  For example, if you have an entry with host
 your hostname is @code{'tcx.subnet.se'}, the entry will not work. Try adding
 an entry to the @code{user} table that contains the IP number of your host as
 the @code{Host} column value.  (Alternatively, you could add an entry to the
-@code{user} table with a @code{Host} value that contains a wild card---for
+@code{user} table with a @code{Host} value that contains a wildcard---for
 example, @code{'tcx.%'}.  However, use of hostnames ending with @samp{%} is
 @emph{insecure} and is @emph{not} recommended!)
 
@@ -16230,7 +16230,7 @@ in the @code{user} table or the @code{db} table.
 @item
 If you can't figure out why you get @code{Access denied}, remove from the
 @code{user} table all entries that have @code{Host} values containing
-wild cards (entries that contain @samp{%} or @samp{_}).  A very common error
+wildcards (entries that contain @samp{%} or @samp{_}).  A very common error
 is to insert a new entry with @code{Host}=@code{'%'} and
 @code{User}=@code{'some user'}, thinking that this will allow you to specify
 @code{localhost} to connect from the same machine.  The reason that this
@@ -16439,10 +16439,10 @@ In order to accommodate granting rights to users from arbitrary hosts,
 MySQL supports specifying the @code{user_name} value in the form
 @code{user@@host}.  If you want to specify a @code{user} string
 containing special characters (such as @samp{-}), or a @code{host} string
-containing special characters or wild-card characters (such as @samp{%}), you
+containing special characters or wildcard characters (such as @samp{%}), you
 can quote the user or host name (for example, @code{'test-user'@@'test-hostname'}).
 
-You can specify wild cards in the hostname.  For example,
+You can specify wildcards in the hostname.  For example,
 @code{user@@"%.loc.gov"} applies to @code{user} for any host in the
 @code{loc.gov} domain, and @code{user@@"144.155.166.%"} applies to @code{user}
 for any host in the @code{144.155.166} class C subnet.
@@ -17778,7 +17778,7 @@ by specifying the path to the directory:
 shell> myisamchk /path/to/database_dir/*.MYI
 @end example
 
-You can even check all tables in all databases by specifying a wild card
+You can even check all tables in all databases by specifying a wildcard
 with the path to the MySQL data directory:
 
 @example
@@ -19106,7 +19106,7 @@ or SHOW SLAVE STATUS
 @code{SHOW} provides information about databases, tables, columns, or
 status information about the server. If the @code{LIKE wild} part is
 used, the @code{wild} string can be a string that uses the SQL @samp{%}
-and @samp{_} wild-card characters.
+and @samp{_} wildcard characters.
 
 @menu
 * SHOW DATABASE INFO::          Retrieving information about Database, Tables, Columns, and Indexes
@@ -22756,8 +22756,8 @@ are shown.
 Note that in newer MySQL versions, you only see those
 database/tables/columns for which you have some privileges.
 
-If the last argument contains a shell or SQL wild-card (@code{*}, @code{?},
-@code{%} or @code{_}) then only what's matched by the wild card is shown.
+If the last argument contains a shell or SQL wildcard (@code{*}, @code{?},
+@code{%} or @code{_}) then only what's matched by the wildcard is shown.
 This may cause some confusion when you try to display the columns for a
 table with a @code{_} as in this case @code{mysqlshow} only shows you
 the table names that match the pattern.  This is easily fixed by
@@ -23761,7 +23761,7 @@ start with @code{bar}.
 
 @item @code{replicate-wild-ignore-table=db_name.table_name} @tab
 Tells the slave thread to not replicate to the tables that match the
-given wild card pattern. To specify more than one table to ignore, use
+given wildcard pattern. To specify more than one table to ignore, use
 the directive multiple times, once for each table. This will work for
 cross-database updates.
 
@@ -26476,7 +26476,7 @@ leftmost prefixes of @code{(col1,col2,col3)}.
 @cindex indexes, and @code{LIKE}
 @cindex wildcards, and @code{LIKE}
 MySQL also uses indexes for @code{LIKE} comparisons if the argument
-to @code{LIKE} is a constant string that doesn't start with a wild-card
+to @code{LIKE} is a constant string that doesn't start with a wildcard
 character.  For example, the following @code{SELECT} statements use indexes:
 
 @example
@@ -26494,7 +26494,7 @@ mysql> SELECT * FROM tbl_name WHERE key_col LIKE "%Patrick%";
 mysql> SELECT * FROM tbl_name WHERE key_col LIKE other_col;
 @end example
 
-In the first statement, the @code{LIKE} value begins with a wild-card
+In the first statement, the @code{LIKE} value begins with a wildcard
 character.  In the second statement, the @code{LIKE} value is not a
 constant.
 
@@ -26506,7 +26506,7 @@ is an index.
 MySQL normally uses the index that finds the least number of rows. An
 index is used for columns that you compare with the following operators:
 @code{=}, @code{>}, @code{>=}, @code{<}, @code{<=}, @code{BETWEEN}, and a
-@code{LIKE} with a non-wild-card prefix like @code{'something%'}.
+@code{LIKE} with a non-wildcard prefix like @code{'something%'}.
 
 Any index that doesn't span all @code{AND} levels in the @code{WHERE} clause
 is not used to optimise the query. In other words:  To be able to use an
@@ -27762,19 +27762,19 @@ work around the problem that ASCII(26) stands for END-OF-FILE on Windows.
 @item \\
 A backslash (@samp{\}) character.
 
-@findex % (wild card character)
-@findex Wild card character (%)
+@findex % (wildcard character)
+@findex Wildcard character (%)
 @item \%
 A @samp{%} character. This is used to search for literal instances of
 @samp{%} in contexts where @samp{%} would otherwise be interpreted
-as a wild-card character. @xref{String comparison functions}.
+as a wildcard character. @xref{String comparison functions}.
 
-@findex _ (wild card character)
-@findex Wild card character (_)
+@findex _ (wildcard character)
+@findex Wildcard character (_)
 @item \_
 A @samp{_} character. This is used to search for literal instances of
 @samp{_} in contexts where @samp{_} would otherwise be interpreted
-as a wild-card character. @xref{String comparison functions}.
+as a wildcard character. @xref{String comparison functions}.
 @end table
 
 Note that if you use @samp{\%} or @samp{\_} in some string contexts, these
@@ -31011,7 +31011,7 @@ comparison is performed in case-sensitive fashion.
 @item expr LIKE pat [ESCAPE 'escape-char']
 Pattern matching using
 SQL simple regular expression comparison. Returns @code{1} (TRUE) or @code{0}
-(FALSE).  With @code{LIKE} you can use the following two wild-card characters
+(FALSE).  With @code{LIKE} you can use the following two wildcard characters
 in the pattern:
 
 @multitable @columnfractions .10 .60
@@ -31027,7 +31027,7 @@ mysql> SELECT 'David!' LIKE '%D%v%';
         -> 1
 @end example
 
-To test for literal instances of a wild-card character, precede the character
+To test for literal instances of a wildcard character, precede the character
 with the escape character.  If you don't specify the @code{ESCAPE} character,
 @samp{\} is assumed:
 
@@ -35703,7 +35703,7 @@ The @code{USE} statement is provided for Sybase compatibility.
 
 @code{DESCRIBE} provides information about a table's columns.  @code{col_name}
 may be a column name or a string containing the SQL @samp{%} and @samp{_}
-wild-card characters.
+wildcard characters.
 
 If the column types are different than you expect them to be based on a
 @code{CREATE TABLE} statement, note that MySQL sometimes
@@ -42662,7 +42662,7 @@ An unknown error occurred.
 
 Returns a result set consisting of database names on the server that match
 the simple regular expression specified by the @code{wild} parameter.
-@code{wild} may contain the wild-card characters @samp{%} or @samp{_}, or may
+@code{wild} may contain the wildcard characters @samp{%} or @samp{_}, or may
 be a @code{NULL} pointer to match all databases.  Calling
 @code{mysql_list_dbs()} is similar to executing the query @code{SHOW
 databases [LIKE wild]}.
@@ -42700,7 +42700,7 @@ An unknown error occurred.
 
 Returns a result set consisting of field names in the given table that match
 the simple regular expression specified by the @code{wild} parameter.
-@code{wild} may contain the wild-card characters @samp{%} or @samp{_}, or may
+@code{wild} may contain the wildcard characters @samp{%} or @samp{_}, or may
 be a @code{NULL} pointer to match all fields.  Calling
 @code{mysql_list_fields()} is similar to executing the query @code{SHOW
 COLUMNS FROM tbl_name [LIKE wild]}.
@@ -42772,7 +42772,7 @@ An unknown error occurred.
 
 Returns a result set consisting of table names in the current database that
 match the simple regular expression specified by the @code{wild} parameter.
-@code{wild} may contain the wild-card characters @samp{%} or @samp{_}, or may
+@code{wild} may contain the wildcard characters @samp{%} or @samp{_}, or may
 be a @code{NULL} pointer to match all tables.  Calling
 @code{mysql_list_tables()} is similar to executing the query @code{SHOW
 tables [LIKE wild]}.
