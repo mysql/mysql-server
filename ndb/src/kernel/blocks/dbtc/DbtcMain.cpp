@@ -2671,11 +2671,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     Uint32  TDistrGHIndex    = tcKeyReq->getScanIndFlag(Treqinfo);
     Uint32  TDistrKeyIndex   = TDistrGHIndex;
 
-    Uint32 TscanNode = tcKeyReq->getTakeOverScanNode(TOptionalDataPtr[0]);
     Uint32 TscanInfo = tcKeyReq->getTakeOverScanInfo(TOptionalDataPtr[0]);
 
     regCachePtr->scanTakeOverInd = TDistrGHIndex;
-    regCachePtr->scanNode = TscanNode;
     regCachePtr->scanInfo = TscanInfo;
 
     regCachePtr->distributionKey = TOptionalDataPtr[TDistrKeyIndex];
@@ -3030,7 +3028,6 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   Uint16 Tnode = regTcPtr->tcNodedata[0];
   Uint16 TscanTakeOverInd = regCachePtr->scanTakeOverInd;
-  Uint16 TscanNode = regCachePtr->scanNode;
 
   TableRecordPtr localTabptr;
   localTabptr.i = regCachePtr->tableref;
@@ -3043,11 +3040,6 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     TCKEY_abort(signal, 58);
     return;
   }
-  if ((TscanTakeOverInd == 1) &&
-      (Tnode != TscanNode)) {
-    TCKEY_abort(signal, 15);
-    return;
-  }//if
   arrGuard(Tnode, MAX_NDB_NODES);
   packLqhkeyreq(signal, calcLqhBlockRef(Tnode));
 }//Dbtc::attrinfoDihReceivedLab()

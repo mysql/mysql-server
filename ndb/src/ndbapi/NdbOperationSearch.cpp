@@ -585,7 +585,7 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
 	chunk -= currLen;
       }
     }
-    setPartitionHash(tmp, (Uint32*)tmp - dst);
+    setPartitionHash(tmp, dst - (Uint32*)tmp);
   }
   return 0;
 }
