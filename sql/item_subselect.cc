@@ -301,8 +301,6 @@ void Item_singlerow_subselect::fix_length_and_dec()
   if ((max_columns= engine->cols()) == 1)
   {
     engine->fix_length_and_dec(row= &value);
-    if (!(value= Item_cache::get_cache(engine->type())))
-      return;
   }
   else
   {
@@ -956,13 +954,9 @@ static Item_result set_row(List<Item> &item_list, Item *item,
     res_type= sel_item->result_type();
     item->decimals= sel_item->decimals;
     *maybe_null= sel_item->maybe_null;
-    if (row)
-    {
-      if (!(row[i]= Item_cache::get_cache(res_type)))
-	return STRING_RESULT; // we should return something
-      row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
-      row[i]->collation.set(sel_item->collation);
-    }
+    if (!(row[i]= Item_cache::get_cache(res_type)))
+      return STRING_RESULT; // we should return something
+    row[i]->setup(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
@@ -983,7 +977,10 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(row || unit->first_select()->item_list.elements==1);
 
   if (unit->first_select()->item_list.elements == 1)
+  {
     res_type= set_row(unit->types, item, row, &maybe_null);
+    item->collation.set(row[0]->collation);
+  }
   else
   {
     bool fake= 0;
