@@ -2,7 +2,7 @@
                            client_test.c  -  description
                              -------------------------
     begin                : Sun Feb 3 2002
-    copyright            : (C) MySQL AB 1995-2002, www.mysql.com
+    copyright            : (C) MySQL AB 1995-2003, www.mysql.com
     author               : venu ( venu@mysql.com )
  ***************************************************************************/
 
@@ -364,7 +364,7 @@ uint my_process_stmt_result(MYSQL_STMT *stmt)
     return 0;
   }
   
-  field_count= stmt->field_count;
+  field_count= mysql_num_fields(result);
   for(i=0; i < field_count; i++)
   {
     buffer[i].buffer_type= MYSQL_TYPE_STRING;
@@ -390,6 +390,8 @@ uint my_process_stmt_result(MYSQL_STMT *stmt)
       field = mysql_fetch_field(result);
       if(length[i] == MYSQL_NULL_DATA)
         fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
+      else if (length[i] == 0)
+        data[i][0]='\0';  /* unmodified buffer */
       else if (IS_NUM(field->type))
         fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
       else
@@ -1591,6 +1593,7 @@ static void test_long_data()
   MYSQL_STMT *stmt;
   int        rc, int_data;
   char       *data=NullS;
+  long       length;
   MYSQL_RES  *result;
   MYSQL_BIND bind[3];
 
@@ -1626,10 +1629,11 @@ static void test_long_data()
 
   bind[0].buffer=(char *)&int_data;
   bind[0].buffer_type=FIELD_TYPE_LONG;
-  bind[1].is_long_data=1;   /* specify long data suppy during run-time */
 
   /* Non string or binary type, error */
   bind[1].buffer_type=FIELD_TYPE_LONG;
+  bind[1].length=&length;
+  length= MYSQL_LONG_DATA;   /* specify long data suppy during run-time */
   rc = mysql_bind_param(stmt,bind);
   fprintf(stdout," mysql_bind_param() returned: %d\n",rc);
   mystmt_r(stmt, rc);
@@ -1699,7 +1703,7 @@ static void test_long_data_str()
   MYSQL_STMT *stmt;
   int        rc, i;
   char       data[255];
-  long       length;
+  long       length, length1;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
 
@@ -1732,8 +1736,9 @@ static void test_long_data_str()
   bind[0].buffer_type = FIELD_TYPE_LONG;
 
   bind[1].buffer=data;		  /* string data */
-  bind[1].is_long_data=1;   /* specify long data suppy during run-time */
   bind[1].buffer_type=FIELD_TYPE_STRING;
+  bind[1].length= &length1;
+  length1= MYSQL_LONG_DATA;
   rc = mysql_bind_param(stmt,bind);
   mystmt(stmt, rc);
 
@@ -1798,9 +1803,9 @@ static void test_long_data_str()
 static void test_long_data_str1()
 {
   MYSQL_STMT *stmt;
-  int        rc;
+  int        rc, i;
   char       data[255];
-  int        length, i;
+  long       length, length1;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
 
@@ -1830,8 +1835,9 @@ static void test_long_data_str1()
   verify_param_count(stmt,2);
 
   bind[0].buffer=data;		  /* string data */
-  bind[0].is_long_data=1;   /* specify long data suppy during run-time */
+  bind[0].length= &length1;
   bind[0].buffer_type=FIELD_TYPE_STRING;
+  length1= MYSQL_LONG_DATA;
 
   bind[1] = bind[0];
   bind[1].buffer_type=FIELD_TYPE_BLOB;
@@ -1894,7 +1900,7 @@ static void test_long_data_str1()
   myassert(1 == my_process_result_set(result));
   mysql_free_result(result);
 
-  sprintf(data,"%d",i*length);
+  sprintf(data,"%ld",(long)i*length);
   verify_col_data("test_long_data_str","length(longstr)",data);
 
   sprintf(data,"%d",i*2);
@@ -1910,7 +1916,7 @@ static void test_long_data_bin()
   MYSQL_STMT *stmt;
   int        rc;
   char       data[255];
-  int        length;
+  long       length, length1;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
 
@@ -1943,8 +1949,9 @@ static void test_long_data_bin()
   bind[0].buffer_type = FIELD_TYPE_LONG;
 
   bind[1].buffer=data;		  /* string data */
-  bind[1].is_long_data=1;   /* specify long data suppy during run-time */
   bind[1].buffer_type=FIELD_TYPE_LONG_BLOB;
+  bind[1].length= &length1;
+  length1= MYSQL_LONG_DATA;
   rc = mysql_bind_param(stmt,bind);
   mystmt(stmt, rc);
 
@@ -4442,6 +4449,155 @@ static void test_multi_stmt()
 {
 }
 
+/********************************************************
+* to test simple sample - manual                        *
+*********************************************************/
+static void test_manual_sample()
+{
+  unsigned int param_count;
+  MYSQL_BIND   bind[3];
+  MYSQL_STMT   *stmt;
+  short        small_data;
+  int          int_data;
+  char         str_data[50], query[255];
+  long         length;
+  ulonglong    affected_rows;
+
+  myheader("test_manual_sample");
+
+  /*
+    Sample which is incorporated directly in the manual under Prepared 
+    statements section (Example from mysql_execute()
+  */
+
+  mysql_autocommit(mysql, 1);
+  if (mysql_query(mysql,"DROP TABLE IF EXISTS test_table"))
+  {
+    fprintf(stderr, "\n drop table failed");
+    fprintf(stderr, "\n %s", mysql_error(mysql));
+    exit(0);
+  }
+  if (mysql_query(mysql,"CREATE TABLE test_table(col1 int, col2 varchar(50), \
+                                                 col3 smallint,\
+                                                 col4 timestamp(14))"))
+  {
+    fprintf(stderr, "\n create table failed");
+    fprintf(stderr, "\n %s", mysql_error(mysql));
+    exit(0);
+  }
+  
+  /* Prepare a insert query with 3 parameters */
+  strcpy(query, "INSERT INTO test_table(col1,col2,col3) values(?,?,?)");
+  if(!(stmt = mysql_prepare(mysql,query,strlen(query))))
+  {
+    fprintf(stderr, "\n prepare, insert failed");
+    fprintf(stderr, "\n %s", mysql_error(mysql));
+    exit(0);
+  }
+  fprintf(stdout, "\n prepare, insert successful");
+
+  /* Get the parameter count from the statement */
+  param_count= mysql_param_count(stmt);
+
+  fprintf(stdout, "\n total parameters in insert: %d", param_count);
+  if (param_count != 3) /* validate parameter count */
+  {
+    fprintf(stderr, "\n invalid parameter count returned by MySQL");
+    exit(0);
+  }
+
+  /* Bind the data for the parameters */
+
+  /* INTEGER PART */
+  memset(bind,0,sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (void *)&int_data;
+ 
+  /* STRING PART */
+  bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[1].buffer= (void *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+ 
+  /* SMALLINT PART */
+  bind[2].buffer_type= MYSQL_TYPE_SHORT;
+  bind[2].buffer= (void *)&small_data;       
+  bind[2].length= (long *)&length;
+
+  /* Bind the buffers */
+  if (mysql_bind_param(stmt, bind))
+  {
+    fprintf(stderr, "\n param bind failed");
+    fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
+    exit(0);
+  }
+
+  /* Specify the data */
+  int_data= 10;             /* integer */
+  strcpy(str_data,"MySQL"); /* string  */
+  /* INSERT SMALLINT data as NULL */
+  length= MYSQL_NULL_DATA;
+
+  /* Execute the insert statement - 1*/
+  if (mysql_execute(stmt))
+  {
+    fprintf(stderr, "\n execute 1 failed");
+    fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
+    exit(0);
+  }
+    
+  /* Get the total rows affected */   
+  affected_rows= mysql_stmt_affected_rows(stmt);
+
+  fprintf(stdout, "\n total affected rows: %lld", affected_rows);
+  if (affected_rows != 1) /* validate affected rows */
+  {
+    fprintf(stderr, "\n invalid affected rows by MySQL");
+    exit(0);
+  }
+
+  /* Re-execute the insert, by changing the values */
+  int_data= 1000;             
+  strcpy(str_data,"The most popular open source database"); 
+  small_data= 1000;         /* smallint */
+  length= 0;
+
+  /* Execute the insert statement - 2*/
+  if (mysql_execute(stmt))
+  {
+    fprintf(stderr, "\n execute 2 failed");
+    fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
+    exit(0);
+  }
+    
+  /* Get the total rows affected */   
+  affected_rows= mysql_stmt_affected_rows(stmt);
+
+  fprintf(stdout, "\n total affected rows: %lld", affected_rows);
+  if (affected_rows != 1) /* validate affected rows */
+  {
+    fprintf(stderr, "\n invalid affected rows by MySQL");
+    exit(0);
+  }
+
+  /* Close the statement */
+  if (mysql_stmt_close(stmt))
+  {
+    fprintf(stderr, "\n failed while closing the statement");
+    fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
+    exit(0);
+  }
+  myassert(2 == my_stmt_result("SELECT * FROM test_table",50));
+
+  /* DROP THE TABLE */
+  if (mysql_query(mysql,"DROP TABLE test_table"))
+  {
+    fprintf(stderr, "\n drop table failed");
+    fprintf(stderr, "\n %s", mysql_error(mysql));
+    exit(0);
+  }
+  fprintf(stdout, "Success !!!");
+}
+
 
 static struct my_option myctest_long_options[] =
 {
@@ -4552,6 +4708,7 @@ int main(int argc, char **argv)
     
   client_connect();       /* connect to server */
   client_query();         /* simple client query test */
+  test_manual_sample();   /* sample in the manual */
   test_bind_result();     /* result bind test */  
   test_fetch_null();      /* to fetch null data */
   test_fetch_date();      /* to fetch date,time and timestamp */
@@ -4566,9 +4723,9 @@ int main(int argc, char **argv)
   test_bind_result_ext1(); /* result bind test - extension */
   test_select_direct();  /* direct select - protocol_simple debug */
   test_select_prepare();  /* prepare select - protocol_prep debug */
-  test_select_direct();  /* direct select - protocol_simple debug */
-  test_select();
-  test_select_version();
+  test_select_direct();   /* direct select - protocol_simple debug */
+  test_select();          /* simple select test */
+  test_select_version();  /* select with variables */
   test_set_variable();  /* set variable prepare */
 #if NOT_USED
   test_select_meta();   /* select param meta information */
@@ -4576,19 +4733,14 @@ int main(int argc, char **argv)
   test_insert_meta();   /* insert param meta information */
 #endif
   test_simple_update(); /* simple update test */
-  test_func_fields();
-  test_long_data();
-  test_insert();
-  test_set_variable();
-  test_tran_innodb();
-  test_select_version();
-  test_select_simple();
-  test_debug_example();
-  test_select();
-  test_select_show();
+  test_func_fields();   /* test for new 4.1 MYSQL_FIELD members */
+  test_long_data();     /* test for sending text data in chunks */
+  test_insert();        /* simple insert test - prepare */
+  test_set_variable();  /* prepare with set variables */
+  test_tran_innodb();   /* test for mysql_commit(), rollback() and autocommit() */
+  test_select_show();   /* prepare - show test */
   test_null();          /* test null data handling */
   test_simple_update(); /* simple prepare - update */
-  test_prepare_resultset();
   test_prepare_noparam();/* prepare without parameters */
   test_select();        /* simple prepare-select */
   test_insert();        /* prepare with insert */
