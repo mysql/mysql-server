@@ -302,4 +302,20 @@ call bug2272()|
 ERROR 42S22: Unknown column 'v' in 'field list'
 delete from t1|
 drop procedure bug2272|
+create procedure bug2329_1()
+begin
+declare v int;
+insert into t1 (v) values (5);
+end|
+create procedure bug2329_2()
+begin
+declare v int;
+replace t1 set v = 5;
+end|
+call bug2329_1()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+call bug2329_2()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+drop procedure bug2329_1|
+drop procedure bug2329_2|
 drop table t1|

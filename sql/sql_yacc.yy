@@ -4903,7 +4903,7 @@ ident_eq_list:
 	ident_eq_value;
 
 ident_eq_value:
-	simple_ident equal expr_or_default
+	simple_ident_nospvar equal expr_or_default
 	 {
 	  LEX *lex=Lex;
 	  if (lex->field_list.push_back($1) ||
@@ -4990,7 +4990,7 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr_or_default
+	update_list ',' simple_ident_nospvar equal expr_or_default
 	{
 	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
 	    YYABORT;
@@ -5629,7 +5629,7 @@ NUM_literal:
 **********************************************************************/
 
 insert_ident:
-	simple_ident	 { $$=$1; }
+	simple_ident_nospvar { $$=$1; }
 	| table_wild	 { $$=$1; };
 
 table_wild:
