@@ -22,7 +22,9 @@
 extern "C" {
   void sql_alloc_error_handler(void)
   {
-    current_thd->fatal_error=1; /* purecov: inspected */
+    THD *thd=current_thd;
+    if (thd)					// QQ;  To be removed
+      thd->fatal_error=1;			/* purecov: inspected */
     sql_print_error(ER(ER_OUT_OF_RESOURCES));
   }
 }

@@ -371,6 +371,36 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 *****************************************************************************/
 
 /*
+  Lock and wait for the named lock.
+  Returns 0 on ok
+*/
+
+int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
+{
+  int lock_retcode;
+  int error= -1;
+  DBUG_ENTER("lock_and_wait_for_table_name");
+
+  if (wait_if_global_read_lock(thd,0))
+    DBUG_RETURN(1);
+  VOID(pthread_mutex_lock(&LOCK_open));
+  if ((lock_retcode = lock_table_name(thd, table_list)) < 0)
+    goto end;
+  if (lock_retcode && wait_for_locked_table_names(thd, table_list))
+  {
+    unlock_table_name(thd, table_list);
+    goto end;
+  }
+  error=0;
+
+end:
+  start_waiting_global_read_lock(thd);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(error);
+}
+
+
+/*
   Put a not open table with an old refresh version in the table cache.
   This will force any other threads that uses the table to release it
   as soon as possible.
@@ -380,7 +410,6 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
    == 0 table locked
    > 0  table locked, but someone is using it
 */
-
 
 int lock_table_name(THD *thd, TABLE_LIST *table_list)
 {

@@ -796,7 +796,7 @@ table_types:
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
-	| INNOBASE_SYM  { $$= DB_TYPE_INNOBASE; }
+	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; }
 	| GEMINI_SYM    { $$= DB_TYPE_GEMINI; }
 
 row_types:

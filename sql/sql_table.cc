@@ -43,12 +43,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 {
-  char	path[FN_REFLEN];
-  String wrong_tables;
-  bool some_tables_deleted=0;
-  uint error;
-  db_type table_type;
-  TABLE_LIST *table;
+  int error;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -74,7 +69,35 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     }
 
   }
-  
+  error=mysql_rm_table_part2(thd,tables,if_exists,0);
+
+ err:  
+  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+  pthread_mutex_unlock(&LOCK_open);
+
+  pthread_mutex_lock(&thd->mysys_var->mutex);
+  thd->mysys_var->current_mutex= 0;
+  thd->mysys_var->current_cond= 0;
+  pthread_mutex_unlock(&thd->mysys_var->mutex);
+
+  if (error)
+    DBUG_RETURN(-1);
+  send_ok(&thd->net);
+  DBUG_RETURN(0);
+}
+
+
+int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
+			 bool dont_log_query)
+{
+  TABLE_LIST *table;
+  char	path[FN_REFLEN];
+  String wrong_tables;
+  db_type table_type;
+  int error;
+  bool some_tables_deleted=0;
+  DBUG_ENTER("mysql_rm_table_part2");
+
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
@@ -137,7 +160,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
       wrong_tables.append(String(table->real_name));
     }
   }
-  if (some_tables_deleted)
+  if (some_tables_deleted && !dont_log_query)
   {
     mysql_update_log.write(thd, thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
@@ -148,24 +171,12 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   }
   
   error = 0;
- err:  
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
-  pthread_mutex_unlock(&LOCK_open);
-
-  pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond= 0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
-
   if (wrong_tables.length())
   {
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
     error=1;
   }
-  if(error)
-    DBUG_RETURN(-1);
-  send_ok(&thd->net);
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -837,21 +848,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 
     sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
 
-    int lock_retcode;
-    pthread_mutex_lock(&LOCK_open);
-    if ((lock_retcode = lock_table_name(thd, table)) < 0)
-    {
-      pthread_mutex_unlock(&LOCK_open);
+    if (lock_and_wait_for_table_name(thd,table))
       DBUG_RETURN(-1);
-    }
-
-    if (lock_retcode && wait_for_locked_table_names(thd, table))
-    {
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(-1);
-    }
-    pthread_mutex_unlock(&LOCK_open);
 
     if (my_copy(src_path,
 	       fn_format(dst_path, dst_path,"",
@@ -862,24 +860,17 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed copying .frm file"));
     }
-    bool save_no_send_ok = thd->net.no_send_ok;
-    thd->net.no_send_ok = 1;
-    // generate table will try to send OK which messes up the output
-    // for the client
-
-    if (generate_table(thd, table, 0))
+    if (mysql_truncate(thd, table, 1))
     {
       unlock_table_name(thd, table);
-      thd->net.no_send_ok = save_no_send_ok;
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file"));
     }
-
-    thd->net.no_send_ok = save_no_send_ok;
+    /* truncate has released name lock */
   }
-
   DBUG_RETURN(0);
 }
+
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
