@@ -102,6 +102,7 @@ typedef struct st_join_table {
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   TABLE_REF	ref;
   JOIN_CACHE	cache;
+  JOIN		*join;
 } JOIN_TAB;
 
 
@@ -151,7 +152,7 @@ class JOIN {
   uint	   send_group_parts;
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
   table_map const_table_map,outer_join;
-  ha_rows  send_records,found_records;
+  ha_rows  send_records,found_records,examined_rows,row_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;

@@ -369,6 +369,8 @@ mysql_install_db () {
 	error "Could not install slave test DBs"
 	exit 1
     fi
+    # Give mysqld some time to die.
+    sleep $SLEEP_TIME
     return 0
 }
 

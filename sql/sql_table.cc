@@ -1633,6 +1633,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
+  ha_rows examined_rows;
   DBUG_ENTER("copy_data_between_tables");
 
   if (!(copy= new Copy_field[to->fields]))
@@ -1668,7 +1669,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     if (setup_order(thd, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
         (from->found_records = filesort(&from, sortorder, length, 
-                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR))
+                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR,
+					&examined_rows))
         == HA_POS_ERROR)
       goto err;
   };

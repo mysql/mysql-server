@@ -1508,8 +1508,9 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   tmp_table->reginfo.lock_type=TL_WRITE;	// Simulate locked
   tmp_table->tmp_table = 1;
   tmp_table->table_cache_key=(char*) (tmp_table+1);
-  tmp_table->key_length= (uint) (strmov(strmov(tmp_table->table_cache_key,db)
-					+1, table_name)
+  tmp_table->key_length= (uint) (strmov((tmp_table->real_name=
+					 strmov(tmp_table->table_cache_key,db)
+					 +1), table_name)
 				 - tmp_table->table_cache_key)+1;
   int4store(tmp_table->table_cache_key + tmp_table->key_length,
 	    thd->slave_proxy_id);
