@@ -28,6 +28,11 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <errno.h>
+
+#ifndef EOVERFLOW
+#define EOVERFLOW 84
+#endif
+
 #ifdef MSDOS
 #include <share.h>			/* Neaded for sopen() */
 #endif

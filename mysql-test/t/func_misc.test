@@ -12,6 +12,8 @@ select hex(inet_aton('127'));
 select hex(inet_aton('127.1'));
 select hex(inet_aton('127.1.1'));
 
+select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
+
 #
 # Test for core dump with nan
 #
