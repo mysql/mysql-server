@@ -4224,11 +4224,39 @@ option_value:
 	{
 	  THD* thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  system_variables vars= thd->variables;
 	  CHARSET_INFO *cs= $2 ? $2 : thd->db_charset;
 	  CHARSET_INFO *cl= $3 ? $3 : cs;
 
 	  if ((cl != cs) && strcmp(cs->csname,cl->csname))
+	  {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
+		         cl->name,cs->csname);
+	      YYABORT;
+	  }
+	  Item_string *csname= new Item_string(cl->name, 
+					       strlen(cl->name), 
+					       &my_charset_latin1);
+	  lex->var_list.push_back(new set_var(lex->option_type,
+					      find_sys_var("client_collation"),
+					      csname));
+	}
+	| COLLATION_SYM collation_name_or_default
+	{
+	  THD* thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  system_variables *vars= &thd->variables;
+	  CHARSET_INFO *cs= vars->thd_charset;
+	  CHARSET_INFO *cl= $2;
+
+	  if (!cl)
+	  {
+	    if (!(cl=get_charset_by_csname(cs->csname,MY_CS_PRIMARY,MYF(0))))
+	    {
+	      net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"DEFAULT");
+	      YYABORT;
+	    }
+	  }
+	  else if ((cl != cs) && strcmp(cs->csname,cl->csname))
 	  {
 	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
 		         cl->name,cs->csname);
