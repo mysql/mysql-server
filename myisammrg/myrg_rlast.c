@@ -24,22 +24,22 @@ int myrg_rlast(MYRG_INFO *info, byte *buf, int inx)
   MI_INFO *mi;
   int err;
 
-  if (_myrg_init_queue(info,inx,HA_READ_KEY_OR_PREV))
+  if (_myrg_init_queue(info,inx, HA_READ_KEY_OR_PREV))
     return my_errno;
 
   for (table=info->open_tables ; table < info->end_table ; table++)
   {
-    err=mi_rlast(table->table,NULL,inx);
-    info->last_used_table=table;
-
-    if (err == HA_ERR_END_OF_FILE)
-      continue;
-    if (err)
+    if ((err=mi_rlast(table->table,NULL,inx)))
+    {
+      if (err == HA_ERR_END_OF_FILE)
+	continue;
       return err;
-
+    }
     /* adding to queue */
     queue_insert(&(info->by_key),(byte *)table);
   }
+  /* We have done a read in all tables */
+  info->last_used_table=table;
 
   if (!info->by_key.elements)
     return HA_ERR_END_OF_FILE;

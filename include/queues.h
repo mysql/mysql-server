@@ -53,6 +53,7 @@ void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,byte *element);
 byte *queue_remove(QUEUE *queue,uint idx);
 void _downheap(QUEUE *queue,uint idx);
+#define is_queue_inited(queue) ((queue)->root != 0)
 
 #ifdef	__cplusplus
 }

@@ -94,16 +94,9 @@ typedef struct st_lex {
   LEX_YYSTYPE yylval;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   ha_rows select_limit,offset_limit;
-  bool	 create_refs,drop_primary,drop_if_exists,local_file,
-	 in_comment,ignore_space,verbose;
-  enum_sql_command sql_command;
-  enum lex_states next_state;
-  ulong options;
-  uint in_sum_expr,grant,grant_tot_col,which_columns, sort_default;
   char *length,*dec,*change,*name;
   String *wild;
   sql_exchange *exchange;
-  thr_lock_type lock_option;
 
   List<List_item>     expr_list;
   List<List_item>     when_list;
@@ -124,17 +117,25 @@ typedef struct st_lex {
   create_field	      *last_field;
 
   Item *where,*having,*default_value;
-  enum enum_duplicates duplicates;
-  ulong thread_id,type;
-  HA_CREATE_INFO create_info;
   CONVERT *convert_set;
-	LEX_USER *grant_user;
+  LEX_USER *grant_user;
   char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   udf_func udf;
-  HA_CHECK_OPT check_opt; // check/repair options
-  LEX_MASTER_INFO mi; // used by CHANGE MASTER 
+  HA_CHECK_OPT   check_opt;			// check/repair options
+  HA_CREATE_INFO create_info;
+  LEX_MASTER_INFO mi;				// used by CHANGE MASTER 
+  ulong thread_id,type;
+  ulong options;
+  enum_sql_command sql_command;
+  enum lex_states next_state;
+  enum enum_duplicates duplicates;
+  uint in_sum_expr,grant,grant_tot_col,which_columns, sort_default;
+  thr_lock_type lock_option;
+  bool	create_refs,drop_primary,drop_if_exists,local_file;
+  bool  in_comment,ignore_space,verbose;
+
 } LEX;
 
 

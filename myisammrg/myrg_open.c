@@ -58,7 +58,7 @@ int handle_locking;
   {
     if ((end=strend(buff))[-1] == '\n')
       end[-1]='\0';
-    if (buff[0])		/* Skipp empty lines */
+    if (buff[0] && buff[0] != '#')	/* Skipp empty lines and comments */
     {
       last_isam=isam;
       if (!test_if_hard_path(buff))
@@ -93,7 +93,7 @@ int handle_locking;
     m_info->options|=isam->s->options;
     m_info->records+=isam->state->records;
     m_info->del+=isam->state->del;
-    m_info->data_file_length=isam->state->data_file_length;
+    m_info->data_file_length+=isam->state->data_file_length;
     if (i)
       isam=(MI_INFO*) (isam->open_list.next->data);
   }

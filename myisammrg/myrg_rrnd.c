@@ -84,10 +84,10 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
 				 info->end_table-1,filepos);
   isam_info=info->current_table->table;
   isam_info->update&= HA_STATE_CHANGED;
-  return ((*isam_info->s->read_rnd)(isam_info,(byte*) buf,
-				    (ha_rows) (filepos -
-					       info->current_table->file_offset),
-				    0));
+  return ((*isam_info->s->read_rnd)
+	  (isam_info, (byte*) buf,
+	   (ha_rows) (filepos - info->current_table->file_offset),
+	   0));
 }
 
 

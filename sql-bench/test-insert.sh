@@ -348,12 +348,12 @@ print " for select_diff_key ($count:$rows): " .
 # Test select that is very popular when using ODBC
 
 check_or_range("id","select_range_prefix");
-check_or_range("id3","select_range");
+check_or_range("id3","select_range_key2");
 
 # Check reading on direct key on id and id3
 
 check_select_key("id","select_key_prefix");
-check_select_key("id3","select_key");
+check_select_key("id3","select_key_key2");
 
 ####
 #### A lot of simple selects on ranges
@@ -403,7 +403,7 @@ check_select_key("id3","select_key");
 
 print "\nTest of compares with simple ranges\n";
 check_select_range("id","select_range_prefix");
-check_select_range("id3","select_range");
+check_select_range("id3","select_range_key2");
 
 ####
 #### Some group queries
@@ -1107,20 +1107,28 @@ if ($server->small_rollback_segment())
 # Delete everything from table
 #
 
-print "Deleting everything from table\n";
+print "Deleting rows from the table\n";
 $loop_time=new Benchmark;
 $count=0;
+
+for ($i=0 ; $i < 128 ; $i++)
+{
+  $dbh->do("delete from bench1 where field1 = $i") or die $DBI::errstr;
+}
+
+$end_time=new Benchmark;
+print "Time for delete_big_many_keys ($count): " .
+timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+
+print "Deleting everything from table\n";
+$count=1;
 if ($opt_fast)
 {
-  $dbh->do("delete from bench1 where field1 = 0") or die $DBI::errstr;
   $dbh->do("delete from bench1") or die $DBI::errstr;
-  $count+=2;
 }
 else
 {
-  $dbh->do("delete from bench1 where field1 = 0") or die $DBI::errstr;
   $dbh->do("delete from bench1 where field1 > 0") or die $DBI::errstr;
-  $count+=2;
 }
 
 if ($opt_lock_tables)
@@ -1129,7 +1137,7 @@ if ($opt_lock_tables)
 }
 
 $end_time=new Benchmark;
-print "Time for delete_big_many_keys ($count): " .
+print "Time for delete_all_many_keys ($count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 $sth = $dbh->do("drop table bench1") or die $DBI::errstr;

@@ -1905,6 +1905,7 @@ int  grant_init (void)
   {
     t_table->file->index_end();
     mysql_unlock_tables(thd, lock);
+    thd->version--;				// Force close to free memory
     close_thread_tables(thd);
     delete thd;
     DBUG_RETURN(0);				// Empty table is ok!

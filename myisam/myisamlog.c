@@ -70,7 +70,7 @@ static void printf_log(const char *str,...);
 static bool cmp_filename(struct file_info *file_info,my_string name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
-  recover=0,prefix_remove=0;
+  recover=0,prefix_remove=0,opt_processes=0;
 static my_string log_filename=0,filepath=0,write_filename=0,record_pos_file=0;
 static ulong com_count[10][3],number_of_commands=(ulong) ~0L,
 	     isamlog_process;
@@ -199,6 +199,9 @@ static void get_options(register int *argc, register char ***argv)
 	update=1;
 	recover++;
 	break;
+      case 'P':
+	opt_processes=1;
+	break;
       case 'R':
 	if (! *++pos)
 	{
@@ -243,7 +246,7 @@ static void get_options(register int *argc, register char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 1.1 for %s at %s\n",my_progname,SYSTEM_TYPE,
+	printf("%s  Ver 1.2 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	puts("By Monty, for your professional use\n");
 	if (version)
@@ -258,6 +261,7 @@ static void get_options(register int *argc, register char ***argv)
 	puts("         -o \"offset\"         -p # \"remove # components from path\"");
 	puts("         -r \"recover\"        -R \"file recordposition\"");
 	puts("         -u \"update\"         -v \"verbose\"   -w \"write file\"");
+	puts("         -P \"processes\"");
 	puts("\nOne can give a second and a third '-v' for more verbose.");
 	puts("Normaly one does a update (-u).");
 	puts("If a recover is done all writes and all possibly updates and deletes is done\nand errors are only counted.");
@@ -322,7 +326,7 @@ static int examine_log(my_string file_name, char **table_names)
 
   init_io_cache(&cache,file,0,READ_CACHE,start_offset,0,MYF(0));
   bzero((gptr) com_count,sizeof(com_count));
-  init_tree(&tree,0,sizeof(file_info),(qsort_cmp) file_info_compare,0,
+  init_tree(&tree,0,sizeof(file_info),(qsort_cmp) file_info_compare,1,
 	    (void(*)(void*)) file_info_free);
   VOID(init_key_cache(KEY_CACHE_SIZE,(uint) (10*4*(IO_SIZE+MALLOC_OVERHEAD))));
 
@@ -333,6 +337,8 @@ static int examine_log(my_string file_name, char **table_names)
     isamlog_filepos=my_b_tell(&cache)-9L;
     file_info.filenr= mi_uint2korr(head+1);
     isamlog_process=file_info.process=(long) mi_uint4korr(head+3);
+    if (!opt_processes)
+      file_info.process=0;
     result= mi_uint2korr(head+7);
     if ((curr_file_info=(struct file_info*) tree_search(&tree,&file_info)))
     {
@@ -374,11 +380,17 @@ static int examine_log(my_string file_name, char **table_names)
 	goto err;
       {
 	uint i;
-	char *pos=file_info.name,*to;
+	char *pos,*to;
+
+	/* Fix if old DOS files to new format */
+	for (pos=file_info.name; pos=strchr(pos,'\\') ; pos++)
+	  *pos= '/';
+
+ 	pos=file_info.name;
 	for (i=0 ; i < prefix_remove ; i++)
 	{
 	  char *next;
-	  if (!(next=strchr(pos,FN_LIBCHAR)))
+	  if (!(next=strchr(pos,'/')))
 	    break;
 	  pos=next+1;
 	}
@@ -436,7 +448,7 @@ static int examine_log(my_string file_name, char **table_names)
       if (file_info.used)
       {
 	if (verbose && !record_pos_file)
-	  printf_log("%s: open",file_info.show_name);
+	  printf_log("%s: open -> %d",file_info.show_name, file_info.filenr);
 	com_count[command][0]++;
 	if (result)
 	  com_count[command][1]++;

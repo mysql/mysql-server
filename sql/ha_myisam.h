@@ -45,7 +45,7 @@ class ha_myisam: public handler
   const char **bas_ext() const;
   ulong option_flag() const { return int_option_flag; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 1; }
+  uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
 

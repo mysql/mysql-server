@@ -23,31 +23,32 @@ static int queue_key_cmp(void *keyseg, byte *a, byte *b)
   MI_INFO *aa=((MYRG_TABLE *)a)->table;
   MI_INFO *bb=((MYRG_TABLE *)b)->table;
   uint not_used;
-
-  return (_mi_key_cmp((MI_KEYSEG *)keyseg, aa->lastkey, bb->lastkey,
-                      USE_WHOLE_KEY, SEARCH_FIND, &not_used));
+  int ret= _mi_key_cmp((MI_KEYSEG *)keyseg, aa->lastkey, bb->lastkey,
+		       USE_WHOLE_KEY, SEARCH_FIND, &not_used);
+  return ret < 0 ? -1 : ret > 0 ? 1 : 0;
 } /* queue_key_cmp */
+
 
 int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
 {
-  QUEUE *q=&(info->by_key);
+  int error=0;
+  QUEUE *q= &(info->by_key);
 
-  if (!q->root)
+  if (!is_queue_inited(q))
   {
     if (init_queue(q,info->tables, 0,
-                   (myisam_read_vec[search_flag]==SEARCH_SMALLER),
+                   (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
                    queue_key_cmp,
                    info->open_tables->table->s->keyinfo[inx].seg))
-      return my_errno;
+      error=my_errno;
   }
   else
   {
     if (reinit_queue(q,info->tables, 0,
-                     (myisam_read_vec[search_flag]==SEARCH_SMALLER),
+                     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
                      queue_key_cmp,
                      info->open_tables->table->s->keyinfo[inx].seg))
-      return my_errno;
+      error=my_errno;
   }
-  return 0;
+  return error;
 }
-

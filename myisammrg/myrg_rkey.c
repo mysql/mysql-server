@@ -16,6 +16,17 @@
 
 /* Read record based on a key */
 
+/*
+ *    HA_READ_KEY_EXACT   => SEARCH_BIGGER
+ *    HA_READ_KEY_OR_NEXT => SEARCH_BIGGER
+ *    HA_READ_AFTER_KEY   => SEARCH_BIGGER
+ *    HA_READ_PREFIX      => SEARCH_BIGGER
+ *    HA_READ_KEY_OR_PREV => SEARCH_SMALLER
+ *    HA_READ_BEFORE_KEY  => SEARCH_SMALLER
+ *    HA_READ_PREFIX_LAST => SEARCH_SMALLER
+ */
+
+
 #include "mymrgdef.h"
 
 /* todo: we could store some additional info to speedup lookups:
@@ -33,7 +44,7 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;
-  byte *buf=((search_flag == HA_READ_KEY_EXACT)?record:0);
+  byte *buf=((search_flag == HA_READ_KEY_EXACT) ? record: 0);
 
   if (_myrg_init_queue(info,inx,search_flag))
     return my_errno;
@@ -52,13 +63,14 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
     {
       err=_mi_rkey(mi,buf,inx,key_buff,pack_key_length,search_flag,FALSE);
     }
-    info->last_used_table=table;
+    info->last_used_table=table+1;
 
-    if (err == HA_ERR_KEY_NOT_FOUND)
-      continue;
     if (err)
+    {
+      if (err == HA_ERR_KEY_NOT_FOUND)
+	continue;
       return err;
-
+    }
     /* adding to queue */
     queue_insert(&(info->by_key),(byte *)table);
 
@@ -76,14 +88,3 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
   return mi_rrnd(mi,record,mi->lastpos);
 }
-
-/*
- *    HA_READ_KEY_EXACT   => SEARCH_BIGGER
- *    HA_READ_KEY_OR_NEXT => SEARCH_BIGGER
- *    HA_READ_AFTER_KEY   => SEARCH_BIGGER
- *    HA_READ_PREFIX      => SEARCH_BIGGER
- *    HA_READ_KEY_OR_PREV => SEARCH_SMALLER
- *    HA_READ_BEFORE_KEY  => SEARCH_SMALLER
- *    HA_READ_PREFIX_LAST => SEARCH_SMALLER
- */
-
