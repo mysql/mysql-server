@@ -351,6 +351,16 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
       break;
+    case FIELD_TYPE_GEOMETRY:
+      sql_field->pack_flag=FIELDFLAG_GEOM |
+	pack_length_to_packflag(sql_field->pack_length -
+				portable_sizeof_char_ptr);
+      if (sql_field->flags & BINARY_FLAG)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
+      sql_field->length=8;			// Unireg field length
+      sql_field->unireg_check=Field::BLOB_FIELD;
+      blob_columns++;
+      break;
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;

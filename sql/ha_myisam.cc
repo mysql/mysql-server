@@ -1066,7 +1066,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
 	keydef[i].flag|=HA_AUTO_KEY;
 	found_auto_increment=1;
       }
-      if (field->type() == FIELD_TYPE_BLOB)
+      if ((field->type() == FIELD_TYPE_BLOB) || (field->type() == FIELD_TYPE_GEOMETRY))
       {
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
 	/* save number of bytes used to pack length */
