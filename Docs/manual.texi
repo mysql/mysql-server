@@ -20510,7 +20510,8 @@ like you could do this, but that was a bug that has been corrected.
 @section @code{LOAD DATA INFILE} Syntax
 
 @example
-LOAD DATA [LOW_PRIORITY] [LOCAL] INFILE 'file_name.txt' [REPLACE | IGNORE]
+LOAD DATA [LOW_PRIORITY | CONCURRENT] [LOCAL] INFILE 'file_name.txt'
+    [REPLACE | IGNORE]
     INTO TABLE tbl_name
     [FIELDS
         [TERMINATED BY '\t']
@@ -20537,6 +20538,12 @@ Also, to use @code{LOAD DATA INFILE} on server files, you must have the
 If you specify the keyword @code{LOW_PRIORITY}, execution of the
 @code{LOAD DATA} statement is delayed until no other clients are reading
 from the table.
+
+If you specify the keyword @code{CONCURRENT} with a @code{MyISAM} table,
+then other threads can retrieve data from the table while @code{LOAD
+DATA} is executing. Using this option will of course affect the
+performance of @code{LOAD DATA} a bit even if no other thread is using
+the table at the same time.
 
 Using @code{LOCAL} will be a bit slower than letting the server access the
 files directly, because the contents of the file must travel from the client
@@ -36784,6 +36791,17 @@ thread that is waiting on the disk-full condition will allow the other
 threads to continue.
 @end itemize
 
+Exceptions to the above behaveour is when you use @code{REPAIR} or
+@code{OPTIMIZE} or when the indexes are created in a batch after an
+@code{LOAD DATA INFILE} or after an @code{ALTER TABLE} statement.
+
+All of the above commands may use big temporary files that left to
+themself would cause big problems for the rest of the system.  If
+@strong{MySQL} gets disk full while doing any of the above operations,
+it will remove the big temporary files and mark the table as crashed
+(except for @code{ALTER TABLE}, in which the old table will be left
+unchanged).
+
 @node Multiple sql commands, Temporary files, Full disk, Problems
 @section How to Run SQL Commands from a Text File
 
@@ -44095,6 +44113,8 @@ not yet 100% confident in this code.
 @node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
+@item
+Added option @code{CONCURRENT} to @code{LOAD DATA}.
 @item
 Fixed bug when too many rows where removed when using
 @code{SELECT DISTINCT ... HAVING}.
