@@ -38,7 +38,7 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-update mysql.user set password=old_password("gambling2") where user="test";
+update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 set password=old_password('gambling3');
 show tables;
@@ -60,5 +60,5 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-delete from mysql.user where user="test";
+delete from mysql.user where user=_binary"test";
 flush privileges;
