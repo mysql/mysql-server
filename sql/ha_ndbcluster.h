@@ -113,10 +113,10 @@ class ha_ndbcluster: public handler
   /**
    * Multi range stuff
    */
-  int read_multi_range_first(key_multi_range **found_range_p,
-			     key_multi_range *ranges, uint range_count,
-			     bool sorted, handler_buffer *buffer);
-  int read_multi_range_next(key_multi_range **found_range_p);
+  int read_multi_range_first(struct key_multi_range **found_range_p,
+			     struct key_multi_range *ranges, uint range_count,
+			     bool sorted, struct handler_buffer *buffer);
+  int read_multi_range_next(struct key_multi_range **found_range_p);
 
   bool get_error_message(int error, String *buf);
   void info(uint);
