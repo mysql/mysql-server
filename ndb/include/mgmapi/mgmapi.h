@@ -22,27 +22,26 @@
  *
  * The NDB Cluster Management API (MGM API) is a C API 
  * that is used to:
- * - Start/stop database nodes (DB nodes)
- * - Start/stop NDB Cluster backups
+ * - Start and stop database nodes (DB nodes)
+ * - Start and stop NDB Cluster backups
  * - Control the NDB Cluster log
- * - Other administrative tasks
+ * - Perform other administrative tasks
  *
  * @section  General Concepts
  *
  * Each MGM API function needs a management server handle 
- * (of type Mgm_C_Api::NdbMgmHandle).  
- * This handle is initally is created by calling the 
- * function ndb_mgm_create_handle().
+ * of type <code>Mgm_C_Api::NdbMgmHandle</code>.  
+ * This handle is initally created by calling the 
+ * function <code>ndb_mgm_create_handle()</code>.
  *
  * A function can return:
  *  -# An integer value.  
- *     If it returns -1 then this indicates an error, and then
- *  -# A pointer value.  If it returns NULL then check the latest error.
- *     If it didn't return NULL, then a "something" is returned.
- *     This "something" has to be free:ed by the user of the MGM API.
+ *     A value of <b>-1</b> indicates an error.
+ *  -# A pointer value.  A <var>NULL</var> value indicates an error;
+ *     Otherwise, the return value must be <code>free()</code>ed by the user of the MGM API.
  *
- * If there are an error, then the get latest error functions
- * can be used to check what the error was.
+ * Error conditions can be identified by using the appropriate 
+ * error-reporting functions.
  */
 
 /** @addtogroup MGM_C_API
@@ -194,7 +193,7 @@ extern "C" {
     int node_group;                         /*< Node group of node
 					     *< (only valid for DB nodes)*/
     int version;                            /*< Internal version number*/
-    int connect_count;                      /*< No of times node has connected
+    int connect_count;                      /*< Number of times node has connected
 					     *< or disconnected to the mgm srv
 					     */
     char connect_address[sizeof("000.000.000.000")+1];
