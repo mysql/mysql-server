@@ -2979,12 +2979,10 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
         /* calculating table's checksum */
         ha_checksum crc= 0;
 
-	if (t->db_type == DB_TYPE_INNODB) {
-	  /* InnoDB must be told explicitly to retrieve all columns, because
-	  this function does not set field->query_id in the columns to the
-	  current query id */
-	  t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-	}
+        /* InnoDB must be told explicitly to retrieve all columns, because
+        this function does not set field->query_id in the columns to the
+        current query id */
+        t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
 
         if (t->file->rnd_init(1))
           protocol->store_null();
