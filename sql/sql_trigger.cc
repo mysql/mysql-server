@@ -88,7 +88,7 @@ int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     again until we are done. (Acquiring LOCK_open is not enough because
     global read lock is held without helding LOCK_open).
   */
-  if (wait_if_global_read_lock(thd, 0))
+  if (wait_if_global_read_lock(thd, 0, 0))
     DBUG_RETURN(-1);
 
   VOID(pthread_mutex_lock(&LOCK_open));
